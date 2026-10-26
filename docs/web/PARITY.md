@@ -1,11 +1,11 @@
 # Web parity with the TUI
 
-Every user action the TUI offers (203 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
+Every user action the TUI offers (204 numbered rows, plus five extra rows marked `—`: three web-only, two for the unmerged long-run controls stack), and whether `packages/rove-web` does it yet.
 Legend: ✅ same as TUI · 🟡 partial or different · ❌ missing (unbuilt) · 🚫 cannot exist in a browser. `Bridge` names the op that would carry the action: `missing` = no op exists, `local` = pure UI.
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 191 / 208 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 192 / 209 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -77,6 +77,8 @@ Score: 191 / 208 rows at ✅ (1 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 56 | Open Inbox from brand attention chip | click chip | ✅ | `tasks.subscribe` | r2: clicking `INBOX n` in the rail head opens the Inbox dialog. |
 | 57 | Go to recent task in narrow layout | Enter/click ↩ Recent row | ✅ | `task.get` | workspace: Narrow: after leaving a task, the list gets `↩ Recent: Alpha task` (TUI `tasks.recentJump`); click and Enter on it re-enter the task; cold reload lands on the list with the row (shot 22/23). |
 | 58 | Land managed task into base | row menu + confirm | ✅ | `task.land` | taskops: a: Land opens a confirm naming the destination and the commit count from `task.landPreflight` (new op); Cancel changed nothing (list unchanged). Shot taskops-a-06. TUI land-task-action. |
+| 204 | Archive / unarchive task (busy confirm) | row menu; TASK_BUSY confirm | ✅ | `task.archive` | archive: isolated harness fixture, `rove --web` on a sandbox port. Right-click a live task → Archive: row left the project, fold `Archived · 2`→`3`, `list --archived` gained it. Right-click the archived row → Unarchive: it returned, fold back to 2. Task with a `running` engine → Archive opened "Archive while it's working?"; nothing archived until "Archive anyway", then archived. No entry on a project's main (unit test). TUI `archive-task-action.ts`; web test/rail-archived.test.ts. Shots docs/assets/reviews/archive-task/after-web-menu, after-web-busy. |
+| 205 | Expand/collapse the Archived fold | Enter/click fold row | ✅ | local | archive: archived tasks (and their children, nested) sit only in one `Archived · N` row after every project; click toggles ▸/▾; no menu on the fold row; search leaves it out (as the TUI). Archived rows keep their colour mark (titles at x=25 like live rows, measured). Bridge: `TasksPayload.archived` (additive). TUI tree-core `archived` row. Shot after-web-archived. |
 | 59 | Sync base branch into task | prefix u, row menu | ✅ | `task.syncBase` | taskops: g: real merge: commit on base after branching, menu Sync base -> toast "Merged main into this worktree", base commit and file present in the worktree (git log, ls). Conflict: toast "Merge conflict — resolve then commit: README.md"; as in the TUI the conflict is left in the worktree (`UU README.md`, HEAD unchanged). Dirty worktree: "Commit the worktree's changes first…" and HEAD unchanged. Shot taskops-g-02. |
 | 60 | Ask agent to fix failing checks | prefix k, row menu on failing PR | ✅ | `task.fixChecks` | taskops: a: `ctrl+a k` and the menu entry (only while the PR checks are red) send the CI fix prompt; with no red PR they toast the TUI's copy. Shot taskops-a-10. The failing-PR send path was not run against a real PR. |
 

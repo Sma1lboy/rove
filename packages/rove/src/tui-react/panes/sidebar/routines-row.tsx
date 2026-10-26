@@ -66,3 +66,34 @@ export function RoutinesTreeRow(props: {
 function isSettlingActivity(state: TaskEngineState["state"] | undefined): boolean {
   return state === "error" || state === "dead"
 }
+
+/**
+ * The Archived fold at the end of the tree: archived tasks stay one press
+ * away (their menu offers Unarchive) without crowding the projects above.
+ * Flush with the project headers: it is a section of its own, not a project's row.
+ */
+export function ArchivedTreeRow(props: {
+  readonly rowId: string
+  readonly flatIndex: number
+  readonly count: number
+  readonly expanded: boolean
+  readonly shared: TreeRowShared
+}) {
+  const { theme } = useTheme()
+  const t = useT()
+  const label = truncateEndCells(
+    t("tasks.archivedRow", { count: String(props.count) }),
+    treeLabelBudget(props.shared, 2),
+    charWidth,
+  )
+  return (
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={0} shared={props.shared}>
+      <text fg={theme.textMuted} wrapMode="none" width={2} flexShrink={0}>
+        {props.expanded ? "▾ " : "▸ "}
+      </text>
+      <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+        {label}
+      </text>
+    </RowShell>
+  )
+}

@@ -2,8 +2,8 @@
 /**
  * The sidebar tree's body: ONE scrollbox of one-line rows (the cursor indexes
  * one flat id list). A project's routine count row folds the sessions a
- * SCHEDULE created, and a task folds its child tasks; everything a human
- * opened shows.
+ * SCHEDULE created, a task folds its child tasks, and the Archived row at the
+ * end folds what the user archived; everything else a human opened shows.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -12,7 +12,7 @@ import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { SectionHeader } from "./chrome"
-import { RoutinesTreeRow } from "./routines-row"
+import { ArchivedTreeRow, RoutinesTreeRow } from "./routines-row"
 import type { TreeRowShared } from "./tree-row-shell"
 import { RecentJumpRow, WorktreeTreeRow } from "./tree-rows"
 
@@ -78,6 +78,18 @@ export function SidebarTreeBody(props: {
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 count={row.count}
                 tasks={row.tasks}
+                expanded={row.expanded}
+                shared={props.shared}
+              />
+            )
+          }
+          if (row.kind === "archived") {
+            return (
+              <ArchivedTreeRow
+                key={row.id}
+                rowId={row.id}
+                flatIndex={props.flatIndexOf.get(row.id) ?? -1}
+                count={row.count}
                 expanded={row.expanded}
                 shared={props.shared}
               />

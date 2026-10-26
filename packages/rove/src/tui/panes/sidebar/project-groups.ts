@@ -103,6 +103,20 @@ function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInp
   return tabsByTask.get(only.id)?.length === 0
 }
 
+/** Not on its way out: a queued or running delete leaves every list at once. */
+function isListed(task: Task): boolean {
+  const phase = task.deletion?.phase
+  return phase !== "queued" && phase !== "running"
+}
+
+/**
+ * The tasks the sidebar hides as archived, in input order, for the Archived
+ * fold. Same deletion rule as the sections.
+ */
+export function archivedTasks(tasks: readonly Task[]): Task[] {
+  return tasks.filter((task) => task.archived === true && isListed(task))
+}
+
 /**
  * Build the sidebar's sections.
  *
@@ -128,10 +142,9 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // before that write — so nothing hides for a delete that didn't happen.
   // `error` stays visible: the failed task returning (with its `delete failed`
   // caption) is the only thing that corrects the vanished row.
-  const tasks = input.tasks.filter((task) => {
-    const phase = task.deletion?.phase
-    return phase !== "queued" && phase !== "running"
-  })
+  // Archived tasks leave too (they live in the Archived fold, `archivedTasks`),
+  // so a project left with only its main folds like any idle project.
+  const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true)
   const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
   // `default` keeps orchestrator order and sorts nothing.

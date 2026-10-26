@@ -55,6 +55,9 @@ export function useRailFilters() {
   // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
   const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
   const toggleRoutines = (repo: string) => setRoutines((now) => toggled(now, repo))
+  // The Archived fold at the end; session-scoped like the routine rows.
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const toggleArchived = () => setArchivedOpen((open) => !open)
   // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => loadSet(COLLAPSED_KEY))
   const toggleProject = (id: string) =>
@@ -90,6 +93,8 @@ export function useRailFilters() {
     setSearch,
     routines,
     toggleRoutines,
+    archivedOpen,
+    toggleArchived,
     collapsed,
     toggleProject,
     hand,
@@ -155,7 +160,7 @@ export function useRailKeys(
       setCursor(opts.selectedId && rows.some((r) => r.id === opts.selectedId) ? opts.selectedId : (rows[0]?.id ?? null))
   }, [at, rows, opts.selectedId])
   const cursorRow = rows[at]
-  const cursorTaskId = cursorRow && cursorRow.kind !== "routines" ? cursorRow.task.id : null
+  const cursorTaskId = cursorRow?.kind === "task" ? cursorRow.task.id : null
   useEffect(() => railCursorTask.set(cursorTaskId), [cursorTaskId])
   // Top match on every search keystroke, as the TUI.
   const firstId = rows[0]?.id ?? null
@@ -170,16 +175,17 @@ export function useRailKeys(
   }
   const open = (row: Stop | undefined) => {
     if (row?.kind === "routines") filters.toggleRoutines(row.key)
+    if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
-    if (row) enterWorkspace()
+    if (row && row.kind !== "archived") enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {
-    if (!row || row.kind === "routines") return
+    if (row?.kind !== "task") return
     // A remote task's menu holds only what runs on its machine, so a key with no entry there does nothing.
     findBinding(taskMenu(model, row.task, null), id)?.run?.()
   }
   const cycleEngine = async (row: Stop | undefined) => {
-    if (!row || row.kind === "routines" || row.machine !== undefined) return
+    if (row?.kind !== "task" || row.machine !== undefined) return
     try {
       const { engines } = await model.client.request<{ engines: Array<{ id: string; name: string; ready?: boolean }> }>(
         "engines.list",
@@ -214,7 +220,7 @@ export function useRailKeys(
     const hit = railAction(chordCandidates(e))
     if (moveMode.get()) {
       // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
-      const movable = row && row.kind !== "routines" && row.machine === undefined
+      const movable = row?.kind === "task" && row.machine === undefined
       if (hit?.id === "sidebar.nav") {
         if (movable) void moveRow(model, row, hit.slot % 2 === 0 ? 1 : -1)
       } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") moveMode.set(false)
@@ -261,7 +267,10 @@ export function useRailKeys(
         break
       case "task.new":
         // On another machine's row the dialog opens on that machine, with that row's repo.
-        opts.onNewTask(row?.kind === "routines" ? row.repo : row?.task.repo, row?.machine)
+        opts.onNewTask(
+          row?.kind === "routines" ? row.repo : row?.kind === "task" ? row.task.repo : undefined,
+          row?.machine,
+        )
         break
       case "settings.open.sidebar":
         opts.onSettings()

@@ -21,6 +21,9 @@ export const RECENT_ROW_ID = "~recent"
  */
 export const SCRATCH_SECTION_ID = "~scratch"
 
+/** The Archived fold row at the end of the tree. */
+export const ARCHIVED_ROW_ID = "~archived"
+
 /** A project's routine count row id; carries the project key so rows stay distinct. */
 export function routinesRowId(projectKey: string): string {
   return `~routines:${projectKey}`
