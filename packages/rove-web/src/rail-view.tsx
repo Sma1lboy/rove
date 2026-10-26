@@ -99,7 +99,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     label: repoLabel(repo),
     first: repo === firstMovable,
   })
-  const drag = useRowDrag(model, tasks, filters.sort === "default" && !filters.search.active, projectInfo)
+  const drag = useRowDrag(model, tasks, !filters.search.active, filters.sort === "default", projectInfo)
   const place = drag.places(rows)
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
