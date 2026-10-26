@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
+import { treeGuides } from "../src/rail-blocks.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -15,6 +16,15 @@ describe("routine sessions in the rail", () => {
 
   test("an open fold lists the sessions under the count row", () => {
     expect(ids(["/r/app"])).toEqual(["project:/r/app", "own", "~routines:/r/app", "sched-a", "sched-b"])
+  })
+
+  test("the sessions hang under the count row as its children, drawn with the tree guides", () => {
+    const rows = navRows(groups, "", new Set(["/r/app"]))
+    expect(rows.map((row) => (row.kind === "task" ? row.depth : null))).toEqual([null, 1, null, 2, 2])
+    expect(rows.flatMap((row, i) => (row.kind === "task" && row.depth > 1 ? [treeGuides(rows, i)] : []))).toEqual([
+      ["tee"],
+      ["elbow"],
+    ])
   })
 
   test("a search opens every fold so a folded session stays findable", () => {

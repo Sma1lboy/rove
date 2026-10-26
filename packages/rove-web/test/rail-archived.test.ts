@@ -41,10 +41,10 @@ describe("the rail's Archived fold", () => {
     ])
   })
 
-  test("open, its tasks follow it, children under their archived parent, no extra header", () => {
+  test("open, its tasks hang under it as children, nested under their archived parent, no extra header", () => {
     const open = withArchived(rows, archived, true)
     expect(open.map((row) => row.id)).toEqual(["project:/r/app", "m", "live", ARCHIVED_ROW_ID, "p", "c"])
-    expect(open.slice(4).map((row) => (row.kind === "task" ? row.depth : null))).toEqual([1, 2])
+    expect(open.slice(4).map((row) => (row.kind === "task" ? row.depth : null))).toEqual([2, 3])
   })
 
   test("nothing archived adds nothing", () => {

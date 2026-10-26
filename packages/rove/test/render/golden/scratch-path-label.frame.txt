@@ -9,7 +9,7 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| No project ───────────────── |
+| Ungrouped ────────────────── |
 | ▎○ …deep/nested/project-dir  |
 |                              |
 | rove ─────────────────────── |

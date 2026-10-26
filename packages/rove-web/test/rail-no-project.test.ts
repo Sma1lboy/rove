@@ -5,7 +5,7 @@ import { groupByProject, navRows, railRows } from "../src/rail.ts"
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 
-describe("the No project group", () => {
+describe("the Ungrouped group", () => {
   const rows = [
     task("app-main", { kind: "main" }),
     task("shell", { kind: "dir", repo: "/Users/me", scratch: true }),

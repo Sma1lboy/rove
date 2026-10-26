@@ -28,23 +28,35 @@ export interface RowGlyph {
   readonly spinning: boolean
 }
 
-export function rowStatusGlyph(status: RowStatus | undefined, glyphs: RowGlyphSet, frame = 0): RowGlyph {
-  const spin = () => glyphs.spinner[frame % Math.max(1, glyphs.spinner.length)] ?? glyphs.idle
+/** A status's tone alone, for a surface that draws its own mark (the web rail's dots). */
+export function rowStatusTone(status: RowStatus | undefined): RowTone {
   switch (status?.kind) {
     case "busy":
     case "running":
-      return { glyph: spin(), tone: "accent", spinning: true }
-    case "needs-input":
-      return { glyph: glyphs.needsInput, tone: "warning", spinning: false }
-    case "attention":
-      return {
-        glyph: glyphs.attention,
-        tone: status.reason === "rate_limited" ? "warning" : "error",
-        spinning: false,
-      }
     case "unseen":
-      return { glyph: glyphs.unseen, tone: "accent", spinning: false }
+      return "accent"
+    case "needs-input":
+      return "warning"
+    case "attention":
+      return status.reason === "rate_limited" ? "warning" : "error"
     default:
-      return { glyph: glyphs.idle, tone: "muted", spinning: false }
+      return "muted"
+  }
+}
+
+export function rowStatusGlyph(status: RowStatus | undefined, glyphs: RowGlyphSet, frame = 0): RowGlyph {
+  const tone = rowStatusTone(status)
+  switch (status?.kind) {
+    case "busy":
+    case "running":
+      return { glyph: glyphs.spinner[frame % Math.max(1, glyphs.spinner.length)] ?? glyphs.idle, tone, spinning: true }
+    case "needs-input":
+      return { glyph: glyphs.needsInput, tone, spinning: false }
+    case "attention":
+      return { glyph: glyphs.attention, tone, spinning: false }
+    case "unseen":
+      return { glyph: glyphs.unseen, tone, spinning: false }
+    default:
+      return { glyph: glyphs.idle, tone, spinning: false }
   }
 }

@@ -24,7 +24,7 @@ export interface ProjectGroup {
   readonly key?: string
   /** The machine `repo` lives on; absent = this one. */
   readonly machine?: string
-  /** The "No project" group: Scratch shells and projectless routine runs, never a repo. */
+  /** The "Ungrouped" group: Scratch shells and projectless routine runs, never a repo. */
   readonly noProject?: true
 }
 
@@ -148,7 +148,7 @@ export function projectLabel(repo: string, repos: readonly LabelledRepo[], host 
   return host ? `${host}:${base}` : base
 }
 
-/** The one "No project" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
+/** The one "Ungrouped" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
 export const NO_PROJECT_KEY = "~scratch"
 
 /** A directory task with no project of its own: a Scratch shell or a projectless routine's run. */
@@ -180,7 +180,7 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
       ...(repoId ? { repoId } : {}),
     }
   })
-  // No project sits above every project.
+  // Ungrouped sits above every project.
   return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
@@ -254,12 +254,14 @@ function isFolded(id: string, childCount: number, descendants: readonly string[]
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
  * matched on its own; a project hit keeps its whole subtree, a task hit its
  * children, a child hit its parents and project. A folded task (`fold`) hides its children.
+ * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
  */
 export function navRows(
   groups: readonly ProjectGroup[],
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
   fold: FoldState = NO_FOLDS,
+  base = 0,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
@@ -298,11 +300,11 @@ export function navRows(
     const routineRows: NavRow[] = []
     for (const task of group.tasks) {
       if (nested.has(task.id) || !hasHit(task)) continue
-      // Routine sessions are the tail of the group: a count row folds them.
+      // Routine sessions are the tail of the group: a count row folds them, and they hang under it as its children.
       if (task.routine) {
         routines.push(task)
-        push(routineRows, task, 0)
-      } else push(under, task, 0)
+        push(routineRows, task, base + 1)
+      } else push(under, task, base)
     }
     if (routines.length > 0) {
       // Search builds fully open, so a folded routine stays findable.
@@ -443,7 +445,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  // No project stays above every project, whatever the sort.
+  // Ungrouped stays above every project, whatever the sort.
   labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
   const rows = navRows(labelled, input.query, input.routines, input.fold)
   const groups = parts

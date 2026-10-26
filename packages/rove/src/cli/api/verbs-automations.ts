@@ -190,7 +190,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         name: "no-repo",
         type: "bool",
         description:
-          "A routine with no project: each run works in its own directory (<home>/.rove/routines/<id>) and its session sits in the sidebar's No project group. Takes no --base-branch.",
+          "A routine with no project: each run works in its own directory (<home>/.rove/routines/<id>) and its session sits in the sidebar's Ungrouped group. Takes no --base-branch.",
       },
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
       F.prompt(false, "Text delivered to the selected conversation or a new session. Required unless --script."),
