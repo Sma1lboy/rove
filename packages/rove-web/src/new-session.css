@@ -165,6 +165,13 @@
   background: var(--hover);
 }
 
+/* A fingertip needs ~40px (the rest of the touch sizing is in workspace.css). */
+@media (hover: none) and (pointer: coarse) {
+  .composer-row {
+    padding-block: 10px;
+  }
+}
+
 .composer-check {
   flex: 0 0 1.5ch;
   color: var(--accent);
