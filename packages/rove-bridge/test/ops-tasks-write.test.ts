@@ -3,7 +3,9 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, realpathSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { getRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
+import { createBridgeApi } from "../src/ops/api.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { TASK_OPS } from "../src/ops/tasks.ts"
 import { type Call, REPO, T, fakeApi, isolateTaskOpDeps, refused, run } from "./task-ops-harness.ts"
@@ -228,6 +230,41 @@ describe("task edits", () => {
       ["task.move", { taskId: T, direction: "sideways" }],
     ]
     for (const [op, args] of bad) await refused(op, args)
+  })
+})
+
+describe("task.archive", () => {
+  test("archive and unarchive run their verbs and report the ids moved", async () => {
+    const archived = await run("task.archive", { taskId: T, archived: true }, { archive: { ids: ["c", T] } })
+    expect(archived.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`] })
+    expect(archived.result).toEqual({ ids: ["c", T] })
+    const forced = await run("task.archive", { taskId: T, archived: true, force: true }, { archive: { ids: [T] } })
+    expect(forced.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`, "--force=true"] })
+    // Restoring never needs force, so it never sends it.
+    const restored = await run("task.archive", { taskId: T, archived: false, force: true }, { unarchive: { ids: [T] } })
+    expect(restored.calls.at(-1)).toEqual({ verb: "unarchive", argv: [`--task-id=${T}`] })
+  })
+
+  test("the daemon's busy and main refusals reach the page as stable codes, prefix stripped", async () => {
+    for (const [message, code] of [
+      ["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"],
+      ["MAIN_TASK: a project's main checkout cannot be archived", "MAIN_TASK"],
+    ] as const) {
+      const client = {
+        request: async () => {
+          throw new Error(message)
+        },
+      } as unknown as RoveDaemonClient
+      await expect(
+        TASK_OPS["task.archive"]?.run({ taskId: T, archived: true }, { api: createBridgeApi(client) }),
+      ).rejects.toMatchObject({ name: "BridgeError", code, message: message.slice(code.length + 2) })
+    }
+  })
+
+  test("bad args are refused", async () => {
+    await refused("task.archive", { taskId: T })
+    await refused("task.archive", { taskId: T, archived: "true" })
+    await refused("task.archive", { taskId: "--x", archived: true })
   })
 })
 

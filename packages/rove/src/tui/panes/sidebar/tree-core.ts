@@ -14,11 +14,12 @@ import type { Task } from "@/types/task"
 import type { VendorId } from "../../../types/vendor"
 import { sidebarProjectKeyOfTask } from "./groups"
 import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups, ownTasks } from "./project-groups"
-import { RECENT_ROW_ID, routinesRowId } from "./tree-ids"
+import { ARCHIVED_ROW_ID, RECENT_ROW_ID, routinesRowId } from "./tree-ids"
 
 // Re-exported so callers name the whole tree vocabulary from one module.
 export { filterTreeRows } from "./tree-search"
 export {
+  ARCHIVED_ROW_ID,
   RECENT_ROW_ID,
   SCRATCH_SECTION_ID,
   parseRowId,
@@ -101,6 +102,18 @@ export type TreeRow =
       readonly expanded: boolean
       readonly depth: number
     }
+  /**
+   * The one fold at the end of the tree holding every archived task
+   * (`rove api archive`). Opening it lists them as ordinary rows, where the
+   * menu offers Unarchive.
+   */
+  | {
+      readonly kind: "archived"
+      readonly id: typeof ARCHIVED_ROW_ID
+      readonly count: number
+      readonly expanded: boolean
+      readonly depth: number
+    }
 
 /** `mismatch` = remote protocol range this build can't speak; affects only that row. */
 export type MachineRowState = "connecting" | "online" | "offline" | "unsupported" | "mismatch"
@@ -151,6 +164,10 @@ export interface TreeInput extends SidebarGroupInput {
 export interface TreeRowsInput {
   /** The sections to render, already selected, grouped and ordered. */
   readonly groups: readonly SidebarGroup[]
+  /** Archived tasks (`archivedTasks`) for the closing fold; absent or empty = no fold row. */
+  readonly archived?: readonly Task[]
+  /** The Archived fold is open. */
+  readonly archivedExpanded?: boolean
   readonly expandedRoutines?: ReadonlySet<string>
   readonly collapsedTasks?: ReadonlySet<string>
   /** Task ids the user opened: they stay open past {@link AUTO_FOLD_CHILDREN}. */
@@ -287,7 +304,37 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
       if (expanded) for (const task of routines) pushTask(rows, task, 0, ctx)
     }
   }
+  pushArchived(rows, input)
   return rows
+}
+
+/**
+ * The Archived fold, after every project. Open, its tasks nest under their
+ * archived parents (archive moves a subtree together) one level in; a task
+ * whose parent is not archived sits at the top of the fold.
+ */
+function pushArchived(rows: TreeRow[], input: TreeRowsInput): void {
+  const archived = input.archived ?? []
+  if (archived.length === 0) return
+  const expanded = input.archivedExpanded === true
+  rows.push({ kind: "archived", id: ARCHIVED_ROW_ID, count: archived.length, expanded, depth: 0 })
+  if (!expanded) return
+  const group: SidebarGroup = {
+    key: ARCHIVED_ROW_ID,
+    repo: "",
+    label: "",
+    machineId: "local",
+    tasks: archived,
+    routineCount: 0,
+  }
+  const ctx: PushContext = {
+    ...indexChildren([group]),
+    collapsed: input.collapsedTasks,
+    opened: input.openedTasks,
+    selectedId: input.selectedTaskId,
+    titles: input.conversationTitles,
+  }
+  for (const task of archived) if (!ctx.nested.has(task.id)) pushTask(rows, task, 0, ctx)
 }
 
 /** Grouping pass + row pass. The React sidebar calls them separately because the rail needs groups alone. */

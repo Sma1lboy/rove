@@ -28,6 +28,7 @@ interface GetTaskResult {
     readonly kind?: string
     readonly status: string
     readonly pinned?: boolean
+    readonly archived?: boolean
     readonly vendor?: string
     readonly command?: string
     readonly model?: string
@@ -57,6 +58,7 @@ async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
       kind: t.kind ?? "task",
       status: t.status,
       pinned: t.pinned === true,
+      ...(t.archived ? { archived: true } : {}),
       ...(t.vendor ? { engine: t.vendor } : {}),
       ...(t.command ? { command: t.command } : {}),
       ...(t.model ? { model: t.model } : {}),

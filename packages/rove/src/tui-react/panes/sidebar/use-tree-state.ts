@@ -1,7 +1,8 @@
 /**
  * Sidebar tree state: the flat row list and the row id (a task id).
  *
- * Two folds: a project's routine count row (session-scoped on purpose;
+ * Three folds: the Archived row at the end (session-scoped, left out of a
+ * search), a project's routine count row (session-scoped on purpose;
  * schedule-created sessions only, and a folded routine stays findable by search
  * and openable from the Inbox and Routines page), and a task's children, open
  * unless the parent is crowded (`AUTO_FOLD_CHILDREN`); folds and opens the
@@ -17,7 +18,9 @@ import { useCallback, useMemo, useRef, useState } from "react"
 import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import { type TaskSortMode, sidebarProjectKeyResolver } from "../../../tui/panes/sidebar/groups"
 import { type MachineLayerEntry, applyMachineLayer } from "../../../tui/panes/sidebar/machine-layer"
+import { archivedTasks } from "../../../tui/panes/sidebar/project-groups"
 import {
+  ARCHIVED_ROW_ID,
   type TreeRow,
   buildRowsFromGroups,
   conversationTitleOf,
@@ -82,7 +85,7 @@ export interface TreeState {
   readonly projectIdOfTask: (taskId: string) => string | null
   /** The task whose move reorders this project (its `main` checkout). */
   readonly mainTaskIdOfProject: (projectId: string) => string | null
-  /** Toggle a routine count row; true (press consumed) when `rowId` was one. */
+  /** Toggle a routine count row or the Archived row; true (press consumed) when `rowId` was one. */
   readonly toggleRoutinesRow: (rowId: string) => boolean
   /** Fold or unfold a task's children. */
   readonly toggleTaskFold: (taskId: string) => void
@@ -95,6 +98,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
   // Open routine count rows, and the folds the user set by hand over the automatic rule.
   const [expandedRoutines, setExpandedRoutines] = useState<ReadonlySet<string>>(() => new Set())
+  const [archivedOpen, setArchivedOpen] = useState(false)
   const [folds, setFolds] = useState<Folds>(() => ({
     collapsed: readTaskIds(kv, COLLAPSED_TASKS_KEY),
     opened: readTaskIds(kv, OPENED_TASKS_KEY),
@@ -138,6 +142,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     engineState: opts.engineState,
   })
 
+  const archived = useMemo(() => archivedTasks(tasks), [tasks])
   const recentTask = opts.recentTask ?? null
   const machines = opts.machines ?? EMPTY_MACHINES
   const { rows, totalCount } = useMemo(() => {
@@ -155,6 +160,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
       collapsedTasks: searching ? undefined : folds.collapsed,
       openedTasks: folds.opened,
       selectedTaskId: selectedTaskId ?? undefined,
+      // A search walks the projects only: archived rows are found by opening the fold.
+      ...(searching ? {} : { archived, archivedExpanded: archivedOpen }),
     })
     const total = treeFlatIds(all).length
     // Re-run when a poll lands: the HEAD read below is a cache lookup that never re-triggers.
@@ -181,6 +188,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     query,
     recentTask,
     expandedRoutines,
+    archived,
+    archivedOpen,
     folds,
     selectedTaskId,
     machines,
@@ -219,6 +228,10 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     /** True when `rowId` WAS a routine row: the press is consumed. */
     toggleRoutinesRow: useCallback(
       (rowId: string): boolean => {
+        if (rowId === ARCHIVED_ROW_ID) {
+          setArchivedOpen((open) => !open)
+          return true
+        }
         const projectKey = projectKeyOfRoutinesRow(rowId)
         if (projectKey === null) return false
         toggleRoutines(projectKey)

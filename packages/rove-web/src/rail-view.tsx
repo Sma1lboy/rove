@@ -16,6 +16,7 @@ import { startNewTask } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { type GlyphSet, usePrefs } from "./prefs.ts"
+import { withArchived } from "./rail-archived.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
@@ -92,9 +93,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
   // A collapsed project keeps its header and hides what is under it; search shows everything.
+  // Archived tasks are only in the closing fold, which a search leaves out (as the TUI).
   const rows = filters.search.active
     ? built.rows
-    : foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed)
+    : withArchived(
+        foldProjects(dropIdleProjects(built.rows, tabs, selection.taskId), filters.collapsed),
+        payload?.archived ?? [],
+        filters.archivedOpen,
+        { ...filters.hand, selectedId: selectedId ?? undefined },
+      )
   const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
@@ -219,9 +226,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
+              if (row.kind === "archived") filters.toggleArchived()
               if (row.kind === "project") filters.toggleProject(row.id)
               if (row.kind === "task") model.select(row.task.id)
-              if (row.kind !== "project") enterWorkspace()
+              if (row.kind === "routines" || row.kind === "task") enterWorkspace()
             }}
             onMenu={(e) => {
               // Another machine's project has no checkout here, so its header has no menu; its
@@ -234,8 +242,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 openMenu(e, projectMenu(model, row.repo, info))
                 return
               }
-              // The routines row names no task, so it has no menu (TUI `use-tree-menu`).
-              if (row.kind === "routines") return
+              // The routines and Archived rows name no task, so they have no menu (TUI `use-tree-menu`).
+              if (row.kind !== "task") return
               keys.setCursor(row.id)
               openMenu(
                 e,
@@ -292,7 +300,7 @@ function RailRow(props: {
   const { row } = props
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
-  const mark = useTaskColor(row.kind === "project" || row.kind === "routines" ? null : row.task.id)
+  const mark = useTaskColor(row.kind === "task" ? row.task.id : null)
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -352,6 +360,21 @@ function RailRow(props: {
             {tc("tasks", "group.waitingOnYou")}: {waiting}
           </span>
         )}
+      </button>
+    )
+  }
+
+  if (row.kind === "archived") {
+    return (
+      <button
+        type="button"
+        className={`row routines-row archived-row ${cursor}`}
+        aria-expanded={row.expanded}
+        onClick={props.onClick}
+        {...props.place}
+      >
+        <span className="glyph tone-muted">{row.expanded ? "▾" : "▸"}</span>
+        <span className="row-title muted">{tc("tasks", "archivedRow", { count: row.count })}</span>
       </button>
     )
   }

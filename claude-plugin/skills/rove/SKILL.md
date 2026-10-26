@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 80 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 81 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -461,6 +461,7 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |
 | `sync --task-id ID [--repo NAME]` | Merge the base branch INTO the task's Worktree (a multi-repo task: each repo against its own base, `.repos[]`) |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
+| `archive --task-id ID [--force]` / `unarchive --task-id ID` | Hide / restore a task and its children in the sidebar and default `list`; nothing is stopped or removed |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
 
@@ -473,7 +474,11 @@ canceled` is a label — the row, Worktree, branch and engine all stay, so a
 whether or not the work merged; an unmerged branch is still on disk
 afterwards, which is what makes this recoverable.
 
-There is no "hide the row without deleting" verb (`archive` was removed).
+To hide a finished row WITHOUT deleting anything, use `archive --task-id ID`: the row and its
+children leave the sidebar and the default `list`, while the Worktree, branch and sessions
+stay. It is refused with `TASK_BUSY` while an engine in the subtree is running or waiting on
+you (`--force` hides it anyway and stops nothing). `unarchive` brings it back; `list
+--archived` finds archived tasks.
 
 **Deleting still needs the user to ask for it in that turn** — say what you
 would remove and wait. `--delete-branch` (or `--force` on a dirty Worktree)

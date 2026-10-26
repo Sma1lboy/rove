@@ -108,6 +108,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onAddTask={() => void actions.createTask()}
       onDeleteRequest={(id) => void actions.deleteTask(id)}
       onLandRequest={(id) => void actions.landTask(id)}
+      onArchiveRequest={(id) => void actions.archiveTask(id)}
       onSyncBaseRequest={(id) => void actions.syncBase(id)}
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}

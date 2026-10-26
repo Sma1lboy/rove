@@ -196,6 +196,7 @@ export interface DaemonTask {
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   readonly pinned?: boolean
+  readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
   readonly command?: string
@@ -406,6 +407,8 @@ export interface DaemonOrchestrator {
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
+  /** Archive or restore ONE task row; the cascade over its descendants is the caller's. */
+  setArchived(id: string, archived: boolean): Promise<void>
   setRequireReport(id: string, required: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>

@@ -22,7 +22,7 @@ export function setMoveMode(on: boolean): void {
   moveMode.set(on)
 }
 
-type Movable = Exclude<NavRow, { kind: "project" | "routines" }>
+type Movable = Extract<NavRow, { kind: "task" }>
 
 /** Move `row` one step; `delta` -1 is up. A refusal is a toast and the row keeps its place. */
 export async function moveRow(model: AppModel, row: Movable, delta: -1 | 1): Promise<void> {

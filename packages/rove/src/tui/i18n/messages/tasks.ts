@@ -79,6 +79,9 @@ export const en = {
     /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
     resolveConflicts: "Resolve conflicts",
     land: "Land into base branch",
+    /** Hide the task and its children from the sidebar; nothing is stopped or removed. Menu-only. */
+    archive: "Archive",
+    unarchive: "Unarchive",
     delete: "Delete task",
     deleteConversation: "Delete conversation",
   },
@@ -108,6 +111,16 @@ export const en = {
     conflict: "Merge conflict — resolve then commit: {files}",
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
+  },
+  /** Row menu "Archive" / "Unarchive". Archive only hides: the copy must not read like teardown. */
+  archive: {
+    done: "Archived {title}. Its worktree, branch and sessions are untouched",
+    restored: "Restored {title}",
+    busyTitle: "Archive while it's working?",
+    busyBody: "An engine in {title} is still working or waiting on you. Archiving hides the row without stopping it.",
+    busyConfirm: "Archive anyway",
+    failed: "Couldn't archive: {error}",
+    restoreFailed: "Couldn't restore: {error}",
   },
   /** Row menu "Re-run failed checks" outcomes. */
   rerun: {
@@ -219,6 +232,8 @@ export const en = {
   recentJump: "Recent: {title}",
   /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
+  /** The fold row at the end of the sidebar holding archived tasks */
+  archivedRow: "Archived · {count}",
   /** Machine section headers — another computer running its own Rove daemon */
   machine: {
     connecting: "connecting…",
@@ -342,6 +357,8 @@ export const zh: typeof en = {
     syncBase: "同步基础分支",
     resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
+    archive: "归档",
+    unarchive: "取消归档",
     delete: "删除任务",
     deleteConversation: "删除对话",
   },
@@ -364,6 +381,15 @@ export const zh: typeof en = {
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  archive: {
+    done: "已归档 {title}。工作树、分支和会话都保持原样",
+    restored: "已恢复 {title}",
+    busyTitle: "它还在工作，仍要归档？",
+    busyBody: "{title} 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。",
+    busyConfirm: "仍要归档",
+    failed: "归档失败：{error}",
+    restoreFailed: "恢复失败：{error}",
   },
   rerun: {
     started: "正在重新运行失败的检查",
@@ -445,6 +471,7 @@ export const zh: typeof en = {
   moveChip: " 移动",
   recentJump: "最近:{title}",
   routinesRow: "{count} 个 routine 会话",
+  archivedRow: "已归档 · {count}",
   machine: {
     connecting: "连接中…",
     offline: "离线",

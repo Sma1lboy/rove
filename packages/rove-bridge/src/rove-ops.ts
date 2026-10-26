@@ -29,7 +29,7 @@ import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
 import type { BridgeApi } from "./ops/types.ts"
-import { BridgeError, type DiffFileRow, type TabRow, type TasksPayload } from "./protocol.ts"
+import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
 import type { RowStatuses } from "./row-status.ts"
 import { attentionRows, remoteRowStatus, taskRows } from "./task-rows.ts"
 
@@ -232,30 +232,30 @@ export function createRoveOps(
       ])
       const now = Date.now()
       const statuses = signals?.rowStatus?.() ?? null
-      const local = taskRows(
-        tasks,
-        statuses ? { tasks: statuses, liveness: true } : null,
-        engineRows ?? [],
-        now,
-        signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined,
-      )
+      const localStatus = statuses ? { tasks: statuses, liveness: true } : null
+      const localExtras = signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined
       // Other machines' rows: engine state, changes and tokens as their daemons push them through the hub.
       // Liveness (which tabs run) lives in their pty hosts, so that stays unknown here.
       const pushed = signals?.remoteLive?.()
-      const remote = taskRows(
-        signals?.remote?.() ?? [],
-        pushed ? remoteRowStatus(pushed.activity) : null,
-        engineRows ?? [],
-        now,
-        pushed ? { changes: pushed.changes, tokens: pushed.tokens } : undefined,
-      ).map((row) => ({
-        ...row,
-        order: (row.order ?? 0) + tasks.length,
-      }))
+      const remoteStatus = pushed ? remoteRowStatus(pushed.activity) : null
+      const remoteExtras = pushed ? { changes: pushed.changes, tokens: pushed.tokens } : undefined
+      const remoteTasks = signals?.remote?.() ?? []
+      // Archived rows are grouped on their own, so a hidden task never ranks or folds the visible ones.
+      const rowsOf = (archived: boolean): TaskRow[] => {
+        const pick = (list: readonly SerializedTask[]) => list.filter((t) => (t.archived === true) === archived)
+        const local = taskRows(pick(tasks), localStatus, engineRows ?? [], now, localExtras)
+        const remote = taskRows(pick(remoteTasks), remoteStatus, engineRows ?? [], now, remoteExtras).map((row) => ({
+          ...row,
+          order: (row.order ?? 0) + tasks.length,
+        }))
+        return [...local, ...remote]
+      }
+      const archived = rowsOf(true)
       return {
-        tasks: [...local, ...remote],
+        tasks: rowsOf(false),
         attention: attentionRows(inbox?.items ?? [], tasks),
         gates: gateRows(signals?.gates() ?? [], tasks),
+        ...(archived.length > 0 ? { archived } : {}),
       }
     },
 

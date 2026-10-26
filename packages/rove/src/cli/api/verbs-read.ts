@@ -27,7 +27,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
     name: "list",
     group: "read",
     summary:
-      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery. Filters AND together: --repo, --status, --activity (comma lists match any value). With --activity each task carries the `.activity` it matched; a task whose state Rove cannot read never matches. `unresolvableRepos` beside `tasks` names task repos --repo could not compare.",
+      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery. Archived tasks are left out unless --archived. Filters AND together: --repo, --status, --activity (comma lists match any value). With --activity each task carries the `.activity` it matched; a task whose state Rove cannot read never matches. `unresolvableRepos` beside `tasks` names task repos --repo could not compare.",
     flags: [
       F.repo(false),
       {
@@ -41,6 +41,12 @@ export const READ_VERBS: readonly VerbSpec[] = [
         type: "csv",
         placeholder: "A1,A2",
         description: `Only tasks whose engine is in these states (${TASK_ACTIVITY_STATES.join(", ")}). \`permission_needed,error\` = tasks waiting on you.`,
+      },
+      {
+        name: "archived",
+        type: "bool",
+        description:
+          "List ONLY archived tasks (`archive` hides a task from the default list; `unarchive` brings it back).",
       },
     ],
     handler: list,

@@ -6,6 +6,7 @@
 
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -64,6 +65,14 @@ export type NavRow =
       readonly tasks: readonly TaskRow[]
       readonly expanded: boolean
     })
+  /** The fold at the end of the rail holding every archived task (`rail-archived.ts`). */
+  | {
+      readonly id: typeof ARCHIVED_ROW_ID
+      readonly kind: "archived"
+      readonly machine?: undefined
+      readonly count: number
+      readonly expanded: boolean
+    }
 
 /** A parent with more children than this starts folded (the TUI's `AUTO_FOLD_CHILDREN`). */
 export const AUTO_FOLD_CHILDREN = 5

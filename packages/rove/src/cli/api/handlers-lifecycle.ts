@@ -174,6 +174,20 @@ async function awaitDeletion(
   }
 }
 
+/** `archive` / `unarchive`: hide or restore a task and its descendants; no session, worktree or branch is touched. */
+async function setArchived(ctx: VerbContext, archived: boolean): Promise<unknown> {
+  const taskId = ctx.args.require("task-id")
+  const res = await daemonOf(ctx).request<{ archived: string[] }>("task.archive", {
+    taskId,
+    archived,
+    force: archived && (ctx.args.bool("force") ?? false),
+  })
+  return { taskId, archived, ids: res.archived }
+}
+
+export const archiveTask = (ctx: VerbContext): Promise<unknown> => setArchived(ctx, true)
+export const unarchiveTask = (ctx: VerbContext): Promise<unknown> => setArchived(ctx, false)
+
 export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")

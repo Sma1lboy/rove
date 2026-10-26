@@ -42,6 +42,7 @@ import { PR_HANDLERS } from "./handlers-pr.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
+import { ARCHIVE_HANDLERS } from "./handlers-task-archive.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -305,6 +306,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     // Entry ORDER is not wire-load-bearing (only key order within a payload is).
     ...API_HANDLERS,
     ...TASK_HANDLERS,
+    ...ARCHIVE_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...GATE_HANDLERS,

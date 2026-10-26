@@ -46,7 +46,10 @@ export function useTaskColorFeed(model: AppModel): void {
     }
     const fetchMissing = () => {
       const have = colors.get()
-      const ids = (model.tasks.get()?.tasks ?? []).map((task) => task.id).filter((id) => !(id in have))
+      const payload = model.tasks.get()
+      // Archived rows keep their mark in the Archived fold, as in the TUI.
+      const rows = [...(payload?.tasks ?? []), ...(payload?.archived ?? [])]
+      const ids = rows.map((task) => task.id).filter((id) => !(id in have))
       if (ids.length === 0) return
       void model.client
         .request<{ colors: Record<string, string> }>("theme.taskColors", {
