@@ -100,15 +100,16 @@ function Shell({ model }: { model: AppModel }) {
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
   const pageOn = useStore(page)
+  const composing = useStore(newSession) !== null
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
   const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
-  const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
-  // A phone on its list, or on a page, shows no task: its waiting engine stays in the Inbox.
+  const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null || composing) : null
+  // A phone on its list, a page or the composer shows no task: its waiting engine stays in the Inbox.
   useEffect(
-    () => model.setTaskShown(surface === null || (surface === "content" && pageOn === null)),
-    [model, surface, pageOn],
+    () => model.setTaskShown(surface === null || (surface === "content" && pageOn === null && !composing)),
+    [model, surface, pageOn, composing],
   )
   const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
   // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
@@ -252,7 +253,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
         className={`pane ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
-        {!task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && <WelcomePane model={model} />}
+        {!narrow && !task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && (
+          <WelcomePane model={model} />
+        )}
         {!task && !remoteTask && payload && payload.tasks.length + remote.length > 0 && (
           <p className="placeholder">{t("workspace.pickTask")}</p>
         )}

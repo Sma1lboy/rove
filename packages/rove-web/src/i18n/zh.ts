@@ -4,7 +4,7 @@ export const zh: typeof en = {
   rail: {
     inbox: "收件箱 {count}",
     empty: "还没有任务",
-    emptyHint: "用项目旁的 +、在 TUI 里或用 `rove api add` 新建一个",
+    emptyHint: "用上面的「新建任务」、在 TUI 里或用 `rove api add` 新建一个",
     newTask: "新建任务",
     noProject: "未分组",
     extraRepos: "这个任务还含 {count} 个仓库",
@@ -275,6 +275,7 @@ export const zh: typeof en = {
     storySaveStart: "保存并启动",
     storyStart: "启动",
     attachHintTouch: "粘贴路径 / 截图 → 插入图片占位行",
+    quickIntentTouch: "创建独立 worktree 和分支。",
   },
   taskops: {
     publishTitle: "推送到远端",
