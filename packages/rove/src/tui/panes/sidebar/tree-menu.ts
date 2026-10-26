@@ -130,7 +130,13 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   if (task.kind === "task" && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
-  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true, bindingId: "sidebar.delete" })
+  // Say what goes: a `dir` task is a conversation in a folder the user owns.
+  verbs.push({
+    action: "delete",
+    labelKey: task.kind === "dir" ? "tasks.menu.deleteConversation" : "tasks.menu.delete",
+    danger: true,
+    bindingId: "sidebar.delete",
+  })
   return verbs
 }
 

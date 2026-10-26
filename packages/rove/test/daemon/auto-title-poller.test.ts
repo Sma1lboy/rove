@@ -8,7 +8,10 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { runAutoTitlePass as runPassWithVendor } from "@sma1lboy/rove-daemon/daemon/auto-title-poller"
+import {
+  pinnedConversation,
+  runAutoTitlePass as runPassWithVendor,
+} from "@sma1lboy/rove-daemon/daemon/auto-title-poller"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { Orchestrator, PLACEHOLDER_TASK_TITLE } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -102,5 +105,67 @@ describe("runAutoTitlePass", () => {
     expect(orch.getTask(a)?.title).toBe("same prompt title #1/2")
     expect(orch.getTask(b)?.title).toBe("same prompt title #2/2")
     expect(orch.getTask(solo)?.title).toBe("same prompt title")
+  })
+})
+
+describe("runAutoTitlePass on a shared directory", () => {
+  const byId = async (_vendor: string, sessionId: string) => `own-${sessionId}`
+
+  test("a second conversation in a shared directory never takes its sibling's title from the directory scan", async () => {
+    const first = await makeTask({ title: "first conversation", worktree: "/repo" })
+    const second = await makeTask({ worktree: "/repo" })
+
+    const renamed = await runPassWithVendor(orch, async () => "first conversation", "(new task)", "claude", {
+      conversationOf: () => undefined,
+      deriveById: byId,
+    })
+
+    expect(renamed).toEqual([])
+    expect(orch.getTask(second)?.title).toBe(PLACEHOLDER_TASK_TITLE)
+    expect(orch.getTask(first)?.title).toBe("first conversation")
+  })
+
+  test("it is named from its own pinned session instead", async () => {
+    await makeTask({ title: "first conversation", worktree: "/repo" })
+    const second = await makeTask({ worktree: "/repo" })
+    const scans: string[] = []
+
+    await runPassWithVendor(
+      orch,
+      async (worktree) => {
+        scans.push(worktree)
+        return "first conversation"
+      },
+      "(new task)",
+      "claude",
+      { conversationOf: (id) => (id === second ? { sessionId: "s-2", vendor: "omp" } : undefined), deriveById: byId },
+    )
+
+    expect(orch.getTask(second)?.title).toBe("own-s-2")
+    expect(scans).toEqual([])
+  })
+
+  test("a task alone in its directory still uses the directory scan", async () => {
+    const solo = await makeTask({ worktree: "/wt/solo" })
+    await runPassWithVendor(orch, async () => "scanned", "(new task)", "claude", {
+      conversationOf: () => ({ sessionId: "unused" }),
+      deriveById: byId,
+    })
+    expect(orch.getTask(solo)?.title).toBe("scanned")
+  })
+})
+
+describe("pinnedConversation", () => {
+  test("reads the first engine tab's pinned session and vendor; anything else is none", () => {
+    expect(
+      pinnedConversation({
+        tabs: [
+          { kind: "command", id: "tab-1", sessionId: "not-an-engine" },
+          { kind: "engine", id: "tab-2", sessionId: "abc", vendor: "omp" },
+        ],
+      }),
+    ).toEqual({ sessionId: "abc", vendor: "omp" })
+    expect(pinnedConversation({ tabs: [{ kind: "engine", id: "tab-1", sessionId: null }] })).toBeUndefined()
+    expect(pinnedConversation(null)).toBeUndefined()
   })
 })

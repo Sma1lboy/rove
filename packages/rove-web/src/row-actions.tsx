@@ -274,7 +274,10 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({ label: t("menu.copy"), section: "copy", children: copies })
 
   items.push({
-    label: t("menu.delete"),
+    // Say what goes: a conversation in a folder, a task with its worktree, or the project's list entry.
+    label: t(
+      task.kind === "main" ? "menu.removeProject" : task.kind === "dir" ? "menu.deleteConversation" : "menu.deleteTask",
+    ),
     section: "danger",
     ...bound("sidebar.delete"),
     danger: true,

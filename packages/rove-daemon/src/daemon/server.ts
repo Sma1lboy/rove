@@ -11,6 +11,7 @@ import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-proc
 import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
+import { pinnedConversation } from "./auto-title-poller.ts"
 import type { CellPixelSize } from "./channels-events.ts"
 import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
@@ -271,7 +272,7 @@ async function startOwnedServer(
     runtime,
     bus,
     (channel) => lifetime.hasSubscribersFor(channel),
-    { ...options, ownerOf },
+    { ...options, ownerOf, conversationOf: (taskId) => pinnedConversation(stores.tabs.get(taskId).state) },
     quotaUsage,
     {
       store: automations,

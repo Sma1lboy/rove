@@ -32,7 +32,7 @@ export function DialogShell(props: { title: string; children: ReactNode; wide?: 
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
       <dialog ref={ref} tabIndex={-1} open className={`dialog ${props.wide ? "is-wide" : ""}`} aria-label={props.title}>
         <div className="dialog-head">
-          <h1 className="kicker">{props.title}</h1>
+          <h1 className="dialog-title">{props.title}</h1>
           <button
             type="button"
             className="dialog-close"

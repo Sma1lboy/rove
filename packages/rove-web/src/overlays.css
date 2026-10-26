@@ -38,6 +38,16 @@
   gap: 12px;
 }
 
+/* A dialog's title is a sentence that often quotes the user's own words (a title, a branch,
+   a path): ink and sentence case, never an uppercased kicker that rewrites "ui" as "UI". */
+.dialog-title {
+  margin: 0;
+  min-width: 0;
+  font: 600 13px / 1.4 var(--sans);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 .dialog-close {
   display: grid;
   place-items: center;

@@ -205,7 +205,9 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     cascade = choice === "cascade"
   } else {
     const ok = await ctx.confirm({
-      title: t("tasks.confirm.deleteTitle", { title: task.title }),
+      title: t(task.kind === "dir" ? "tasks.confirm.deleteTitleDir" : "tasks.confirm.deleteTitle", {
+        title: task.title,
+      }),
       // A `dir` task pins the user's own directory; only the entry is dropped.
       body: t(
         task.kind === "dir"
