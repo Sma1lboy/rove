@@ -22,6 +22,7 @@ import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { longPressOpensMenus } from "./long-press.ts"
 import { AppModel } from "./model.ts"
+import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
@@ -44,6 +45,8 @@ if (!token) {
   client.on("prompt", (data) => {
     if (isPromptPush(data)) openPrompt(client, data)
   })
+  // The side panel's layout goes to the daemon, and `rove api panel-show` reaches the panel.
+  watchPanel(model, client)
   // An upgrade restarts the bridge under the open page: reload once into the new client.
   watchBridgeVersion(client)
   client.start()

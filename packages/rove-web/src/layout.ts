@@ -28,6 +28,11 @@ export function openPage(id: PageId): void {
 
 const narrowQuery = window.matchMedia(NARROW_QUERY)
 export const isNarrow = (): boolean => narrowQuery.matches
+/** Runs when the viewport crosses the narrow breakpoint. */
+export const onNarrowChange = (listener: () => void): (() => void) => {
+  narrowQuery.addEventListener("change", listener)
+  return () => narrowQuery.removeEventListener("change", listener)
+}
 
 export function useNarrow(): boolean {
   return useSyncExternalStore(

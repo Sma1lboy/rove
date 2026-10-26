@@ -4,9 +4,10 @@
  */
 
 import { isNarrow } from "./layout.ts"
+import { type PanelPush, planPanelPush } from "./panel-contract.ts"
 import { PANEL_TABS, type PanelTab, narrowView, panelOpen } from "./panel-layout.ts"
 import { createStore, useStore } from "./store.ts"
-import { type Preview, preview } from "./ui.ts"
+import { type Preview, preview, zen } from "./ui.ts"
 
 const REMEMBERED_TASKS = 50
 
@@ -63,4 +64,21 @@ export function openDiff(view: Preview): void {
 export function closeDiff(taskId: string): void {
   preview.set(null)
   showPanel(taskId, "files")
+}
+
+/**
+ * A `rove api panel-show` request: remember the view (and the Browser's address, a file's diff) for
+ * the task whatever page is open; open the panel only here if this page is on that task. A diff for
+ * a task this page is not on waits for the user's own pick there: the diff slot is one for all tasks.
+ */
+export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
+  const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow() })
+  tabs.remember(push.taskId, plan.tab)
+  if (plan.url) urls.remember(push.taskId, plan.url)
+  if (plan.diff && hereTaskId === push.taskId) preview.set({ taskId: push.taskId, path: plan.diff, scope: "working" })
+  if (plan.show) {
+    panelOpen.set(true)
+    // Zen hides the panel, and showing it is what was asked for: leave zen, as the panel's own button does.
+    if (zen.get()) zen.set(false)
+  }
 }
