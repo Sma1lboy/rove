@@ -77,6 +77,24 @@
   overflow-y: auto;
 }
 
+/* A long form scrolls under its buttons instead of carrying them out of view. */
+.dialog-body > .actions {
+  position: sticky;
+  bottom: -2px;
+  background: var(--surface);
+}
+
+/* A short screen (a phone on its side) lends a dialog nearly all of its height. */
+@media (max-height: 500px) {
+  .overlay {
+    padding-top: 12px;
+  }
+  .dialog {
+    max-height: calc(100dvh - 24px);
+    padding: 12px 16px;
+  }
+}
+
 .dialog-body p {
   margin: 0;
 }
