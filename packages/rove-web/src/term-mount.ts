@@ -128,7 +128,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.loadAddon(new WebLinksAddon())
   term.open(el)
   let webgl: WebglAddon | null = null
+  let glCanvas: HTMLCanvasElement | null = null
   try {
+    const before = new Set(term.element?.querySelectorAll("canvas"))
     const addon = new WebglAddon()
     addon.onContextLoss(() => {
       addon.dispose()
@@ -136,6 +138,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
     })
     term.loadAddon(addon)
     webgl = addon
+    glCanvas =
+      [...(term.element?.querySelectorAll("canvas") ?? [])].find(
+        (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
+      ) ?? null
   } catch {
     // The DOM renderer is slower but complete.
   }
@@ -479,6 +485,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
         if (ownership.attached) detach()
       }
       term.dispose()
+      // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
+      glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
     },
   }
 }
