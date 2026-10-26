@@ -118,19 +118,16 @@ describe("runPrStatusPass", () => {
     expect(orch.getTask(id)?.prStatus?.lifecycle).toBe("open")
   })
 
-  test("a found PR's number is handed back on later polls, so it is followed after the branch or HEAD moves", async () => {
-    await makeTask()
-    const pinned: Array<number | undefined> = []
-    const found = prRunner("OPEN", "SUCCESS")
-    const run: PrViewRunner = async (wt, branch, pin) => {
-      pinned.push(pin)
-      return found(wt, branch)
-    }
+  test("a found PR keeps updating after the branch stops matching it", async () => {
+    const id = await makeTask()
     const schedule: PrPollSchedule = new Map()
-    await runPrStatusPass(orch, { run, now: 0, at: "T0", schedule, rand: noJitter })
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "IN_PROGRESS"), now: 0, at: "T0", schedule, rand: noJitter })
     schedule.clear()
+    // The branch now lists nothing; only the PR the task already holds answers.
+    const passing = prRunner("OPEN", "SUCCESS")
+    const run: PrViewRunner = async (wt, branch, pin) => (pin === 7 ? passing(wt, branch) : { kind: "empty" })
     await runPrStatusPass(orch, { run, now: 1, at: "T1", schedule, rand: noJitter })
-    expect(pinned).toEqual([undefined, 7])
+    expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
   })
 
   test("backoff: a task is not re-polled until its scheduled time", async () => {

@@ -194,20 +194,25 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
     if (!("json" in byBranch)) return byBranch
     const listed = pick(byBranch.json)
     if (listed.kind === "pr") return listed
+    // The PR this repo already held: still open, it is the answer. Settled, new work may have a new PR.
+    const held: GhPrView[] = []
     if (pinned !== undefined) {
       const byNumber = await gh(["pr", "view", String(pinned), "--json", viewFields], worktreePath)
       if (!("json" in byNumber)) return byNumber
-      return pick([byNumber.json])
+      const view = byNumber.json as GhPrView
+      if ((view.state ?? "").toUpperCase() === "OPEN") return pick([view])
+      held.push(view)
     }
     const head = await gitHead(worktreePath)
-    if (!head) return listed
+    if (!head) return pick(held)
     // A search hit only means the PR contains the commit; it must be the PR's head.
     const bySha = await gh(
       ["pr", "list", "--search", head, "--state", "all", "--json", `${viewFields},headRefOid`],
       worktreePath,
     )
-    if (!("json" in bySha)) return bySha
-    return pick(Array.isArray(bySha.json) ? bySha.json.filter((v: GhPrView) => v.headRefOid === head) : [])
+    if (!("json" in bySha)) return held.length > 0 ? pick(held) : bySha
+    const hits = Array.isArray(bySha.json) ? bySha.json.filter((v: GhPrView) => v.headRefOid === head) : []
+    return pick([...hits, ...held])
   }
 }
 

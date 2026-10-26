@@ -15,20 +15,18 @@ import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 let tmp: string
 let repo: string
 let head: string
-let calls: string
 const savedPath = process.env.PATH
 
-/** `gh` answering by argv: no PR on any branch, a PR view by number, and a sha search hit. */
-function fakeGh(search: string): void {
+/** `gh` answering by argv: no PR on any branch, PR 42 in `pinnedState`, and a sha search hit. */
+function fakeGh(search: string, pinnedState = "OPEN"): void {
   const bin = path.join(tmp, "bin")
   fs.mkdirSync(bin)
   fs.writeFileSync(
     path.join(bin, "gh"),
     `#!/bin/sh
-echo "$*" >> "${calls}"
 case "$*" in
   "pr list --head"*) echo '[]' ;;
-  "pr view 42"*) echo '{"number":42,"state":"OPEN"}' ;;
+  "pr view 42"*) echo '{"number":42,"state":"${pinnedState}"}' ;;
   "pr list --search"*) echo '${search}' ;;
   *) exit 1 ;;
 esac
@@ -43,7 +41,6 @@ const run = () => makeGhPrViewRunner(daemonRuntime.prStatus.classify, daemonRunt
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rove-prrunner-"))
   repo = path.join(tmp, "repo")
-  calls = path.join(tmp, "calls")
   fs.mkdirSync(repo)
   const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim()
   git("init", "-q")
@@ -63,11 +60,20 @@ describe("makeGhPrViewRunner", () => {
     expect(result).toMatchObject({ kind: "pr", view: { number: 1452 } })
   })
 
-  test("a pinned PR number is followed without searching, so a moved HEAD keeps the chip", async () => {
+  test("an open pinned PR keeps the chip after the worktree's HEAD moves past it", async () => {
     fakeGh("[]")
     const result = await run()(repo, "hermes/pr-1452-fix", 42)
     expect(result).toMatchObject({ kind: "pr", view: { number: 42 } })
-    expect(fs.readFileSync(calls, "utf8")).not.toContain("--search")
+  })
+
+  test("a merged pinned PR yields to a new open PR headed at the worktree's HEAD", async () => {
+    fakeGh(`[{"number":77,"state":"OPEN","headRefOid":"${head}"}]`, "MERGED")
+    expect(await run()(repo, "hermes/pr-1452-fix", 42)).toMatchObject({ kind: "pr", view: { number: 77 } })
+  })
+
+  test("a merged pinned PR with no newer PR stays the chip", async () => {
+    fakeGh("[]", "MERGED")
+    expect(await run()(repo, "hermes/pr-1452-fix", 42)).toMatchObject({ kind: "pr", view: { number: 42 } })
   })
 
   test("only PRs containing HEAD as a non-head commit → no PR", async () => {
