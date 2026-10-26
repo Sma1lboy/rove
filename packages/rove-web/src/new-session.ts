@@ -88,6 +88,7 @@ export interface StartInput {
 export function spawnArgs(input: StartInput): Record<string, unknown> {
   const [primary, ...extras] = input.repos
   if (!primary) throw new Error("no repo")
+  const title = input.begin ? "" : deriveTitleFromPrompt(input.prompt)
   return {
     repo: primary.repo,
     ...(primary.baseRef ? { baseBranch: primary.baseRef } : {}),
@@ -97,7 +98,7 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
     // The shared name is set in the Branches menu, which a lone repo does not have, so a stale one never rides along.
     ...(extras.length > 0 && input.branch ? { branch: input.branch } : {}),
     ...(input.begin && input.prompt ? { prompt: input.prompt } : {}),
-    ...(!input.begin && deriveTitleFromPrompt(input.prompt) ? { title: deriveTitleFromPrompt(input.prompt) } : {}),
+    ...(title ? { title } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
