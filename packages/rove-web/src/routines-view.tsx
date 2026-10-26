@@ -364,10 +364,15 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 <button type="button" className="link" disabled={busy === selected.id} onClick={() => void runNow()}>
                   {auto.runNow}
                 </button>
-                <button type="button" className="link" onClick={() => void toggleEnabled()}>
+                <button
+                  type="button"
+                  className="link"
+                  disabled={busy === selected.id}
+                  onClick={() => void toggleEnabled()}
+                >
                   {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
                 </button>
-                <button type="button" className="link" onClick={requestDelete}>
+                <button type="button" className="link" disabled={busy === selected.id} onClick={requestDelete}>
                   {t("pages.routineDelete")}
                 </button>
               </div>

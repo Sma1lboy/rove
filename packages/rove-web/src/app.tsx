@@ -82,18 +82,14 @@ function Shell({ model }: { model: AppModel }) {
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
-  // Narrow mode shows one panel: whatever opens a page or the composer (rail, ⌃A, inbox, history) brings it up.
-  useEffect(() => {
-    const show = () => {
-      if (page.get() !== null || newSession.get() !== null) enterWorkspace()
-    }
-    const offPage = page.subscribe(show)
-    const offCompose = newSession.subscribe(show)
-    return () => {
-      offPage()
-      offCompose()
-    }
-  }, [])
+  // Narrow mode shows one panel: opening the composer brings it up (a page does so through `openPage`).
+  useEffect(
+    () =>
+      newSession.subscribe(() => {
+        if (newSession.get() !== null) enterWorkspace()
+      }),
+    [],
+  )
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
