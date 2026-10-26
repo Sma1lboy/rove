@@ -89,11 +89,6 @@
   color: var(--ink);
 }
 
-.composer-caret {
-  color: var(--subtle);
-  font-size: 10px;
-}
-
 .composer-pop {
   position: absolute;
   bottom: calc(100% + 6px);
