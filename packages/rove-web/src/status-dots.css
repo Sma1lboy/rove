@@ -1,11 +1,12 @@
 /* A row's 3×3 status dots (`status-dots.tsx`). Colour comes from the tone class; opacity from the shared clock. */
 
+/* 11px square, the ink of the row's 11px Nerd Font PR mark beside it. */
 .dots {
   flex: none;
   display: inline-grid;
-  grid-template-columns: repeat(3, 4px);
-  grid-auto-rows: 4px;
-  gap: 2px;
+  grid-template-columns: repeat(3, 3px);
+  grid-auto-rows: 3px;
+  gap: 1px;
   align-self: center;
 }
 
