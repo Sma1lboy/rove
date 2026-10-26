@@ -384,6 +384,29 @@ div.placeholder p {
   overflow-y: auto;
 }
 
+/* Narrow mode (`NARROW_QUERY`, 70 cells × 8px − 1): a phone has no room for the list beside the section; the list becomes a row above it. */
+@media (max-width: 559px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 8px;
+  }
+
+  .settings-tab {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
 .settings-group {
   display: flex;
   flex-direction: column;

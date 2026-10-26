@@ -61,6 +61,11 @@
   clear: both;
 }
 
+/* Paths and binding ids have no spaces: break them anywhere rather than widen the section. */
+.pref-field p {
+  overflow-wrap: anywhere;
+}
+
 .pref-number {
   width: 9ch;
   padding: 3px 6px;
