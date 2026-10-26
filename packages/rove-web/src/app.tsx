@@ -82,14 +82,14 @@ function Shell({ model }: { model: AppModel }) {
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
-  // Narrow mode shows one panel: opening the composer brings it up (a page does so through `openPage`).
-  useEffect(
-    () =>
-      newSession.subscribe(() => {
-        if (newSession.get() !== null) enterWorkspace()
-      }),
-    [],
-  )
+  // Narrow mode shows one panel: opening the composer or picking a task (rail, Inbox, a page, a menu)
+  // brings it up; a page does so through `openPage`.
+  useEffect(() => {
+    model.onSelect = enterWorkspace
+    return newSession.subscribe(() => {
+      if (newSession.get() !== null) enterWorkspace()
+    })
+  }, [model])
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
@@ -105,6 +105,11 @@ function Shell({ model }: { model: AppModel }) {
   const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
+  // A phone on its list, or on a page, shows no task: its waiting engine stays in the Inbox.
+  useEffect(
+    () => model.setTaskShown(surface === null || (surface === "content" && pageOn === null)),
+    [model, surface, pageOn],
+  )
   const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
   // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
   const railVars = { "--rail-w": `${folded ? 0 : openPx}px`, "--rail-open-w": `${openPx}px` } as CSSProperties
