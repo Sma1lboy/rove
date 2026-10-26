@@ -35,6 +35,7 @@ Install: `npm i -g @sma1lboy/rove`, `bun add -g @sma1lboy/rove`, `npx @sma1lboy/
 
 ## Optional
 
+- [Roadmap](https://docs.rove.run/rove/roadmap): Milestones with status: web side panel, distributed machines, agent API, cloud.
 - [Troubleshooting](https://docs.rove.run/rove/troubleshooting): Daemon logs, orphaned PTYs, engine CLI issues.
 - [Changelog](https://rove.run/changelog): Shipped behavior, version by version.
 - [Source](https://github.com/Sma1lboy/rove): GitHub repository.
