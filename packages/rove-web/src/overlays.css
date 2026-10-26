@@ -71,6 +71,9 @@
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  /* Room for a focus ring: the scroll box clips anything drawn outside its children. */
+  margin: -2px;
+  padding: 2px;
   overflow-y: auto;
 }
 
@@ -500,7 +503,6 @@ div.placeholder p {
 
 .wt-row.is-cursor {
   background: var(--inset);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .wt-line {
@@ -558,7 +560,6 @@ div.placeholder p {
 
 .update-action.is-cursor {
   background: var(--inset);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .update-label {
