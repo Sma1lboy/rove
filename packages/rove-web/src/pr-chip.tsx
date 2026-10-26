@@ -23,6 +23,18 @@ function stateText(mark: PrMark): string {
   return [t(`rail.pr.state.${mark.state}`), ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : [])].join(" · ")
 }
 
+/** One entry per PR: a child sharing its parent's directory sits on the same branch, so the same PR. */
+export function prEntries(tasks: readonly TaskRow[]): Entry[] {
+  const seen = new Set<string>()
+  return tasks.flatMap((task) => {
+    const mark = prMark(task)
+    const key = task.pr?.url ?? (task.pr ? `${task.repo}#${task.pr.number}` : task.id)
+    if (!mark || seen.has(key)) return []
+    seen.add(key)
+    return [{ task, mark }]
+  })
+}
+
 /** `tasks`: the row's task, then its descendants; those without a PR draw nothing. */
 export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
   const [at, setAt] = useState<DOMRect | null>(null)
@@ -37,10 +49,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
     const overflow = el.getBoundingClientRect().bottom - (window.innerHeight - 8)
     if (overflow > 0) el.style.top = `${Math.max(8, at.top - 6 - overflow)}px`
   }, [at])
-  const entries: Entry[] = tasks.flatMap((task) => {
-    const mark = prMark(task)
-    return mark ? [{ task, mark }] : []
-  })
+  const entries = prEntries(tasks)
   const lead = leadPrMark(entries.map((entry) => entry.mark))
   if (!lead) return null
   const show = () => {
