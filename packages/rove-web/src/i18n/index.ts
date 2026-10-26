@@ -30,6 +30,14 @@ function lastKnownLocale(): Locale {
 
 export const locale = createStore<Locale>(lastKnownLocale())
 
+/** `<html lang>` follows the UI language: screen readers pick their voice and the browser its Han glyph shapes from it. */
+function syncDocumentLang(): void {
+  const root = typeof document === "undefined" ? undefined : document.documentElement
+  if (root) root.lang = locale.get() === "zh" ? "zh-CN" : "en"
+}
+syncDocumentLang()
+locale.subscribe(syncDocumentLang)
+
 function lookup(tree: unknown, key: string): string | undefined {
   let node = tree
   for (const part of key.split(".")) {
