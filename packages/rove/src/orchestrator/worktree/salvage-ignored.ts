@@ -51,6 +51,7 @@ export async function duKb(
   exec: ExecHost,
   worktreePath: string,
   paths: readonly string[],
+  options: { requireSuccess?: boolean } = {},
 ): Promise<Map<string, number>> {
   const sizes = new Map<string, number>()
   const batch: string[] = []
@@ -58,6 +59,7 @@ export async function duKb(
   const flush = async () => {
     if (batch.length === 0) return
     const du = await exec.run(["du", "-sk", "--", ...batch], { cwd: worktreePath })
+    if (options.requireSuccess && du.exitCode !== 0) throw new Error("Ignored-path measurement failed")
     for (const [p, kb] of parseDuKb(du.stdout)) sizes.set(p, kb)
     batch.length = 0
     bytes = 0
@@ -65,6 +67,7 @@ export async function duKb(
   for (const p of paths) {
     if (p.includes("\n")) {
       const one = await exec.run(["du", "-sk", "--", p], { cwd: worktreePath })
+      if (options.requireSuccess && one.exitCode !== 0) throw new Error("Ignored-path measurement failed")
       const kb = /^\s*(\d+)/.exec(one.stdout)?.[1]
       if (one.exitCode === 0 && kb) sizes.set(p, Number.parseInt(kb, 10))
       continue

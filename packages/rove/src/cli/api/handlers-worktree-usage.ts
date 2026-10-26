@@ -65,7 +65,7 @@ async function usageRow(ctx: VerbContext, task: SerializedTask): Promise<Worktre
   const checkouts: ({ path: string } & CheckoutUsage)[] = []
   for (const path of paths) checkouts.push({ path, ...(await ctx.runtime.measureCheckout(path)) })
   // A checkout that isn't on disk takes no space; it counts as zero, not unknown.
-  const present = checkouts.filter((c) => c.exists)
+  const present = checkouts.filter((c) => c.exists !== false)
   return {
     taskId: task.id,
     title: task.title,
@@ -100,7 +100,7 @@ async function handleWorktreeUsage(ctx: VerbContext): Promise<unknown> {
   const tasks = (await daemon.request<{ tasks?: SerializedTask[] }>("task.list")).tasks ?? []
   const owners = tasks.filter((t) => ownedCheckouts(t).length > 0 && !t.deletion)
   const rows = (await mapLimited(owners, CONCURRENCY, (t) => usageRow(ctx, t))).filter((r) =>
-    r.checkouts.some((c) => c.exists),
+    r.checkouts.some((c) => c.exists !== false),
   )
   rows.sort(bySize)
   return {

@@ -5,13 +5,14 @@
  */
 
 import { execFileSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { LocalExecHost } from "../../src/exec/exec-host.ts"
+import { LocalExecHost, RemoteExecHost } from "../../src/exec/exec-host.ts"
 import { type CheckoutUsage, measureCheckout } from "../../src/orchestrator/worktree/disk-usage.ts"
+import { duKb } from "../../src/orchestrator/worktree/salvage-ignored.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const MB = 1024 * 1024
@@ -102,8 +103,88 @@ describe("measureCheckout", () => {
     expect(usage.bytes).toBeGreaterThanOrEqual(usage.ignoredBytes ?? Number.POSITIVE_INFINITY)
   })
 
+  it.skipIf(process.getuid?.() === 0)("keeps unreadable content and inaccessible checkouts unknown", async () => {
+    dir = mkdtempSync(join(tmpdir(), "rove-usage-permission-"))
+    execFileSync("git", ["init", "-q"], { cwd: dir })
+    writeFileSync(join(dir, ".gitignore"), "ignored/\n")
+    const ignored = join(dir, "ignored")
+    mkdirSync(ignored)
+    writeFileSync(join(ignored, "blob"), Buffer.alloc(MB, 1))
+    chmodSync(ignored, 0)
+    try {
+      expect(await measureCheckout(new LocalExecHost(), dir)).toEqual({
+        exists: true,
+        bytes: null,
+        ignoredBytes: null,
+      })
+      expect(await measureCheckout(new LocalExecHost(), join(ignored, "checkout"))).toEqual({
+        exists: null,
+        bytes: null,
+        ignoredBytes: null,
+      })
+    } finally {
+      chmodSync(ignored, 0o755)
+    }
+  })
+
   it("a missing directory is absent, not zero", async () => {
     const usage = await measureCheckout(new LocalExecHost(), join(tmpdir(), "rove-usage-does-not-exist"))
     expect(usage).toEqual({ exists: false, bytes: null, ignoredBytes: null })
+  })
+})
+
+describe("measurement failures", () => {
+  function failedRemote() {
+    return new RemoteExecHost({ host: "offline", user: "test", auth: { kind: "key" }, controlPath: "/unused" }, () => ({
+      exitCode: 255,
+      stdout: "",
+      stderr: "connection failed",
+    }))
+  }
+
+  it("keeps a failed SSH existence probe unknown", async () => {
+    expect(await measureCheckout(failedRemote(), "/wt/small")).toEqual({
+      exists: null,
+      bytes: null,
+      ignoredBytes: null,
+    })
+  })
+
+  it.each([{ args: [] }, { args: ["--task-id", "small"] }])(
+    "keeps unreachable checkouts in API totals: %j",
+    async ({ args }) => {
+      const out = await invokeVerb("worktree-usage", args, {
+        client: client([SMALL]),
+        runtime: stubRuntime({ measureCheckout: (path) => measureCheckout(failedRemote(), path) }),
+      })
+      expect(out).toMatchObject({ bytes: null, ignoredBytes: null })
+      if (args.length === 0) expect(out).toMatchObject({ tasks: [{ taskId: "small", bytes: null }] })
+    },
+  )
+
+  it("preserves salvage's partial results while strict measurement rejects a failed batch", async () => {
+    const host = new LocalExecHost()
+    vi.spyOn(host, "run").mockResolvedValue({ exitCode: 1, stdout: "2\ta/\n", stderr: "unreadable b/" })
+    expect(await duKb(host, "/wt", ["a/", "b/"])).toEqual(new Map([["a/", 2]]))
+    await expect(duKb(host, "/wt", ["a/", "b/"], { requireSuccess: true })).rejects.toThrow()
+    await expect(duKb(host, "/wt", ["a\nb/"], { requireSuccess: true })).rejects.toThrow()
+  })
+
+  it.each([
+    { totalExit: 1, ignoredExit: 0, output: "2\ta/\n3\tb/\n", bytes: null, ignoredBytes: 5120 },
+    { totalExit: 0, ignoredExit: 1, output: "", bytes: 102400, ignoredBytes: null },
+    { totalExit: 0, ignoredExit: 1, output: "2\ta/\n", bytes: 102400, ignoredBytes: null },
+    { totalExit: 0, ignoredExit: 1, output: "2\ta/\n3\tb/\n", bytes: 102400, ignoredBytes: null },
+    { totalExit: 0, ignoredExit: 0, output: "2\ta/\n", bytes: 102400, ignoredBytes: null },
+  ])("rejects incomplete du results: %j", async ({ totalExit, ignoredExit, output, bytes, ignoredBytes }) => {
+    const host = new LocalExecHost()
+    vi.spyOn(host, "run").mockImplementation(async (argv) => {
+      if (argv[0] === "git") return { exitCode: 0, stdout: "!! a/\0!! b/\0", stderr: "" }
+      if (argv[0] === "sh") return { exitCode: 0, stdout: "", stderr: "" }
+      return argv.includes("/wt/small")
+        ? { exitCode: totalExit, stdout: "100\t/wt/small\n", stderr: "" }
+        : { exitCode: ignoredExit, stdout: output, stderr: "" }
+    })
+    expect(await measureCheckout(host, "/wt/small")).toEqual({ exists: true, bytes, ignoredBytes })
   })
 })

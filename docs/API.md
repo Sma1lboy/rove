@@ -1758,8 +1758,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   archived, status, updatedAt, bytes, ignoredBytes, checkouts: [{ path,
   exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row, or
   `NO_WORKTREE` for a task that owns none. `ignoredBytes` is the gitignored
-  part (dependencies, build output) — what a fresh checkout rebuilds rather
-  than work. A `null` size means it could not be measured, never zero; such a
+  part, including dependencies, build output, user notes and local configuration.
+  It is not a measure of disposable content. `exists: null` means the checkout
+  could not be reached or its presence could not be confirmed; it stays in totals
+  as unknown. A `null` size means it could not be measured, never zero; such a
   row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
   cloned into the worktree counts in full even while it still shares blocks
   with the main checkout's copy.
