@@ -1,5 +1,7 @@
 # PureTUI Prefix Key Implementation Plan
 
+> **Historical: frozen plan** (July 2026), kept as written. File paths and steps are not current; see [README](./README.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Move PureTUI control-chord actions into a configurable prefix sequence while retaining Binding Stack scope and modal rules.

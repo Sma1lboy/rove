@@ -1,5 +1,7 @@
 # PureTUI Replay ClaudeX Color Fidelity Design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Problem
 
 The native PureTUI replay capture launches the real Claude binary, but the

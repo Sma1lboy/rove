@@ -34,6 +34,8 @@ Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a sup
 | `--host <addr>` | Without a preset: an explicit listen address. Repeatable. |
 | `--port <n>` | TCP port, default `7878`. |
 | `--rotate-token` | Mint a new token. Every paired phone must pair again. |
+| `--device <name>` | Print a link carrying that device's own token (minted on first use) instead of the shared one. |
+| `--list-devices`, `--revoke-device <name>` | List the per-device tokens, or revoke one without touching the others. See [WEB.md](WEB.md#security). |
 | `--no-qr` | Print the URL without the QR code. |
 
 ## Pair the phone
@@ -308,5 +310,5 @@ Running on a physical iPhone needs your own signing team in Xcode; the repo ship
 - TestFlight / App Store distribution.
 - A chat view of the conversation; the app shows the raw terminal.
 - End-to-end encryption between the phone and the bridge (Orca pins a desktop key); today the tunnel or tailnet is trusted.
-- Per-device tokens with a device list and per-device revoke; today one token is shared and rotation revokes all.
+- A device list and per-device revoke inside the app; the bridge CLI has them (`--list-devices`, `--revoke-device`), the app does not show them.
 - Restoring the TUI's terminal size when a phone leaves Fit mode.

@@ -1,5 +1,7 @@
 # PureTUI Replay ClaudeX Colors Implementation Plan
 
+> **Historical: frozen plan** (July 2026), kept as written. File paths and steps are not current; see [README](./README.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Prevent monochrome Brand Studio captures by excluding `NO_COLOR`, launch the reviewed Claude task through the user's real `claudex` path, and prove the rendered Claude frame contains its expected colors.

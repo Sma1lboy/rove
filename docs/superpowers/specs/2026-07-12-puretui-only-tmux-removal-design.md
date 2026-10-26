@@ -1,5 +1,7 @@
 # PureTUI-only tmux removal design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Goal
 
 Remove tmux as a rove runtime, UI surface, session backend, configuration
