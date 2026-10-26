@@ -40,11 +40,40 @@ export const OPS = [
   "diff.files",
   "diff.file",
   "attention.dismiss",
-  // What this connection's screen shows ({taskId|null, tabId?}), for the daemon's row status.
+  // What this connection's screen shows ({taskId|null, tabId?, ...ViewingFields}), for the daemon's
+  // row status and `rove api viewers`.
   "ui.viewing",
 ] as const
 
 export type Op = (typeof OPS)[number]
+
+/**
+ * The optional fields of `ui.viewing` that say what kind of screen this is. The page sends only
+ * `panel`, `panelOpen` and `narrow`; the bridge adds `surface` and `local` from the upgrade request
+ * (never from the page). Omitting all of them is valid: an older client still registers.
+ */
+export interface ViewingFields {
+  /** web = a browser page, phone = the app. Set by the bridge. */
+  readonly surface?: "web" | "phone"
+  /** Same machine as the daemon; false behind a tunnel. Set by the bridge. */
+  readonly local?: boolean
+  /** This page has a side panel (Files / Diff / Browser): web desktop only. */
+  readonly panel?: boolean
+  /** The side panel is open right now. */
+  readonly panelOpen?: boolean
+  /** The page is laid out narrow (phone-width). */
+  readonly narrow?: boolean
+}
+
+/**
+ * The `panel` push: `rove api panel-show` asked the web side panel to show something. Remember
+ * `view`/`url`/`path` for `taskId`; if this page is on that task with a panel, bring it up (no
+ * focus steal, no task switch). `at` (ms epoch) dedupes a replay. Absent `url`/`path` = just the view.
+ */
+export type { PanelShowPayload as PanelPush } from "./panels.ts"
+
+/** The `browser.probe` op's answer (`args: { url, origin? }`): can this page sit in an iframe? */
+export type { FrameProbe as BrowserProbeResult } from "@sma1lboy/rove-daemon/daemon/frame-check"
 
 export type TaskGroup = "waiting-on-you" | "landing" | "ready-for-review" | "working" | "idle" | "unknown"
 

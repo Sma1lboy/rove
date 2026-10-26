@@ -4,9 +4,10 @@
  * answered a question. Everything else the daemon sees itself.
  */
 
-import { optionalString, requireString } from "./handler-validators.ts"
+import { objectPayload, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import type { RowStatusStore } from "./row-status-store.ts"
+import { parseViewerInfo } from "./viewers.ts"
 
 function storeOf(ctx: DaemonHandlerContext): RowStatusStore {
   if (!ctx.rowStatus) throw new Error("row status unavailable")
@@ -27,8 +28,16 @@ export const ROW_STATUS_HANDLERS: readonly DaemonRequestHandler[] = [
     handle(payload, ctx) {
       const taskId = payload.taskId === null ? null : requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
-      storeOf(ctx).setViewing(ctx.clientId, optionalString(payload, "viewer") ?? "", taskId, tabId)
+      const viewer = optionalString(payload, "viewer") ?? ""
+      storeOf(ctx).setViewing(ctx.clientId, viewer, taskId, tabId, parseViewerInfo(payload, viewer))
       return { ok: true }
+    },
+  },
+  {
+    // Every screen showing a task, optionally one task's: `rove api viewers`.
+    name: "ui.viewers",
+    handle(payload, ctx) {
+      return { viewers: storeOf(ctx).viewers(optionalString(objectPayload(payload), "taskId")) }
     },
   },
   {

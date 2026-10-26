@@ -155,7 +155,7 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
         )}
         {seen.current.has("browser") && (
           <div className="side-view" hidden={tab !== "browser"}>
-            <BrowserView taskId={task.id} />
+            <BrowserView model={model} taskId={task.id} />
           </div>
         )}
       </div>

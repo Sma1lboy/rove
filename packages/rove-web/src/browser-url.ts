@@ -9,8 +9,10 @@ export type Frameable =
   | "yes"
   /** This page itself: it holds the bridge token, so it is never framed (the server forbids it too). */
   | "self"
-  /** `http:` on another machine, or a loopback address while this page is not on that machine. */
+  /** `http:` on another machine. */
   | "unreachable"
+  /** A loopback address while this page is not on the machine Rove runs on: that server is out of reach. */
+  | "remote"
 
 /** `localhost`, `127.0.0.0/8` and `[::1]`: the machine the browser runs on. */
 export function isLoopbackHost(hostname: string): boolean {
@@ -45,11 +47,42 @@ export function normalizeUrl(input: string): string | null {
   }
 }
 
-/** Whether a page at `page` (its `location`) may put `url` (from `normalizeUrl`) in an iframe. */
-export function canFrame(url: string, page: Pick<Location, "origin" | "hostname">): Frameable {
+/**
+ * Whether a page at `page` (its `location`) may put `url` (from `normalizeUrl`) in an iframe. `local`:
+ * this page is on the machine Rove runs on (the bridge says so in `hello`; a loopback page address
+ * says so too), which is where a loopback address means the dev server.
+ */
+export function canFrame(
+  url: string,
+  page: Pick<Location, "origin" | "hostname">,
+  local: boolean = isLoopbackHost(page.hostname),
+): Frameable {
   const target = new URL(url)
   if (target.origin === page.origin) return "self"
-  if (target.protocol === "https:") return "yes"
-  // Plain http only reaches a dev server on this machine, and only while this page is on this machine too.
-  return isLoopbackHost(target.hostname) && isLoopbackHost(page.hostname) ? "yes" : "unreachable"
+  // A loopback address is the Rove machine's own server, whatever the scheme.
+  if (isLoopbackHost(target.hostname)) return local ? "yes" : "remote"
+  // Plain http elsewhere is mixed content on an https page and a dead end on the rest.
+  return target.protocol === "https:" ? "yes" : "unreachable"
+}
+
+/** What the bridge's `browser.probe` says about an https page: one `HEAD` for `X-Frame-Options` and `frame-ancestors`. */
+export interface FrameProbe {
+  readonly reachable: boolean
+  readonly frameable: boolean
+  readonly reason?: string
+}
+
+/** The quiet one-liner for an address that will not be framed, or null when it will be (`browser.*` keys). */
+export function frameNote(
+  url: string,
+  verdict: Frameable,
+  probe: FrameProbe | null,
+): { key: "noFrame" | "self" | "remote" | "refuses" | "unreachable"; host: string } | null {
+  const host = new URL(url).host
+  if (verdict === "self") return { key: "self", host }
+  if (verdict === "remote") return { key: "remote", host }
+  if (verdict === "unreachable") return { key: "noFrame", host }
+  if (probe && !probe.reachable) return { key: "unreachable", host }
+  if (probe && !probe.frameable) return { key: "refuses", host }
+  return null
 }

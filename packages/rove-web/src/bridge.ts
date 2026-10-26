@@ -14,6 +14,8 @@ export interface Hello {
   readonly protocol: number
   readonly roveVersion: string
   readonly host: string
+  /** Where this page is, as the bridge saw the upgrade; absent from a bridge that predates it. */
+  readonly peer?: { readonly surface: "web" | "phone"; readonly local: boolean }
 }
 
 export interface ConnView {

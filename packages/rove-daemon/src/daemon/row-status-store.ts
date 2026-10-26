@@ -22,6 +22,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import type { SerializedTask } from "./protocol.ts"
 import { aliasKey } from "./pty-alias.ts"
 import { type RowStatus, type TabStatus, type TaskStatus, sameTaskStatus, tabStatus, taskStatus } from "./row-status.ts"
+import { type Viewer, type ViewerInfo, parseViewerInfo } from "./viewers.ts"
 
 export interface RowStatusPayload {
   readonly tasks: Readonly<Record<string, TaskStatus>>
@@ -63,8 +64,11 @@ export class RowStatusStore {
   private tasks: readonly SerializedTask[] = []
   private readonly jobs = new Map<string, number>()
   private sessions = new Map<string, { alive: boolean; restored: boolean }>()
-  /** `${clientId}:${viewer}` → the tab that viewer has open. */
-  private readonly viewing = new Map<string, { taskId: string; tabId: string | null }>()
+  /** `${clientId}:${viewer}` → the tab that viewer has open, and what kind of screen it is. */
+  private readonly viewing = new Map<
+    string,
+    { viewer: string; taskId: string; tabId: string | null; info: ViewerInfo }
+  >()
   private readonly answered = new Map<string, number>()
   private status: Record<string, TaskStatus> = {}
   private rev = 0
@@ -88,13 +92,29 @@ export class RowStatusStore {
     return { tasks: this.status, rev: this.rev }
   }
 
-  /** A client (or one viewer behind it, e.g. a browser behind the bridge) now shows this tab; null = none. */
-  setViewing(clientId: number, viewer: string, taskId: string | null, tabId: string | null): void {
+  /**
+   * A client (or one viewer behind it, e.g. a browser behind the bridge) now shows this tab; null =
+   * none. `info` says what kind of screen it is (`viewers`); a change of it alone is not a status.
+   */
+  setViewing(
+    clientId: number,
+    viewer: string,
+    taskId: string | null,
+    tabId: string | null,
+    info: ViewerInfo = parseViewerInfo({}, viewer),
+  ): void {
     const key = `${clientId}:${viewer}`
     if (taskId === null) this.viewing.delete(key)
-    else this.viewing.set(key, { taskId, tabId })
+    else this.viewing.set(key, { viewer: viewer || `tui-${clientId}`, taskId, tabId, info })
     this.readViewedEpisodes()
     this.schedule()
+  }
+
+  /** Every screen showing a task (optionally just `taskId`'s), oldest report first. */
+  viewers(taskId?: string): Viewer[] {
+    return [...this.viewing.values()]
+      .filter((v) => taskId === undefined || v.taskId === taskId)
+      .map((v) => ({ viewer: v.viewer, taskId: v.taskId, ...(v.tabId ? { tabId: v.tabId } : {}), ...v.info }))
   }
 
   /** A connection left: whatever it was looking at is no longer looked at. */
