@@ -339,5 +339,9 @@ export const zh: typeof en = {
     modelDefault: "默认",
     effortDefault: "默认",
     moreWays: "克隆、接管 worktree，或使用其他机器…",
+    worktree: "Worktree",
+    worktreeOn: "在独立的 worktree 和分支里运行。点击改为直接在项目目录里运行",
+    worktreeOff: "直接在项目目录里运行，用它当前的分支。点击改为独立 worktree",
+    worktreeMulti: "跨多个仓库的任务每个仓库都会有 worktree",
   },
 }
