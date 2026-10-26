@@ -6,7 +6,7 @@ import { forgetToken, saveToken } from "./auth.ts"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
+import { RAIL_DEFAULT_PX, clampRailWidth, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { RemoteNotice } from "./machines-view.tsx"
@@ -22,7 +22,7 @@ import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
 import { usePrefs } from "./prefs.ts"
 import { PreviewView } from "./preview-view.tsx"
-import { NarrowBackBar, StatusHints } from "./rail-chrome.tsx"
+import { NarrowBackBar, RailBar, StatusHints } from "./rail-chrome.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { taskMenu } from "./row-actions.tsx"
 import { SplitPane } from "./split-view.tsx"
@@ -79,20 +79,22 @@ function Shell({ model }: { model: AppModel }) {
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
   const pageOn = useStore(page)
-  const { prefs } = usePrefs()
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
   const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
-  const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
+  const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
+  // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
+  const railVars = { "--rail-w": `${folded ? 0 : openPx}px`, "--rail-open-w": `${openPx}px` } as CSSProperties
   return (
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""}`}
-        style={railPx !== null && !narrow ? ({ "--rail-w": `${railPx}px` } as CSSProperties) : undefined}
+        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""}`}
+        style={narrow ? undefined : railVars}
       >
+        {!narrow && <RailBar model={model} />}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
