@@ -18,7 +18,7 @@ import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
-import { activeStream } from "./ui.ts"
+import { activeStream, railMoving } from "./ui.ts"
 
 /** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
 const XTERM_THEME = {
@@ -310,11 +310,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
-  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY.
-  const observer = new ResizeObserver(() => {
-    if (el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
-  })
+  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While the rail
+  // slides, a refit per frame blanks the canvas and SIGWINCHes the engine a dozen times: fit once at the end.
+  const refit = () => {
+    if (!railMoving.get() && el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
+  }
+  const observer = new ResizeObserver(refit)
   observer.observe(el)
+  const offMoving = railMoving.subscribe(refit)
   // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
   const offScroll = prefsStore.subscribe(() => {
     term.options.scrollback = prefsStore.get().prefs.scrollbackRows
@@ -456,6 +459,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       typed.dispose()
       offTheme()
       offScroll()
+      offMoving()
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)
       el.removeEventListener("mousedown", onDown)
       document.removeEventListener("mouseup", onUp)

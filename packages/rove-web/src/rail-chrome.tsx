@@ -1,8 +1,7 @@
 /**
- * What frames the Tasks rail and the workspace: the rail's drag edge and fold control, the
- * folded strip, the narrow layout's `‹ Tasks` bar and `↩ Recent` row, and the footer's
- * clickable key hints (TUI `sidebar-resize-grip`, `collapse-button`, `collapsed-rail`,
- * `narrow-back-bar`, `StatusKeyHintBar`).
+ * What frames the Tasks rail and the workspace: the rail's drag edge, the top-left fold / back /
+ * forward bar, the narrow layout's `‹ Tasks` bar and `↩ Recent` row, and the footer's clickable key
+ * hints (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `StatusKeyHintBar`).
  */
 
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
@@ -13,15 +12,14 @@ import { openHelp } from "./help-view.tsx"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
-import { backToTasks, clampRailWidth, enterWorkspace, railFolded, railWidth } from "./layout.ts"
+import { backToTasks, clampRailWidth, enterWorkspace, peekRail, railFolded, railPeek, railWidth } from "./layout.ts"
 import type { AppModel } from "./model.ts"
+import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
-import { statusMark } from "./rail-glyphs.ts"
-import { type NavRow, childMarkerOf, groupByProject, navRows } from "./rail.ts"
+import { needsPerson } from "./rail-glyphs.ts"
 import { SettingsDialog } from "./settings-view.tsx"
-import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { dialog } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
@@ -70,92 +68,63 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
   )
 }
 
-/** The sidebar icon folds and unfolds the rail, as Claude's: mouse only, as the TUI's (a chord is the owner's call). */
-export function FoldButton({ folded }: { folded: boolean }) {
+/**
+ * Top left of the page, folded or not, as Claude Desktop's title bar: fold the rail, then back and
+ * forward. It never moves, so the rail slides away from under it; folded, a dot on the fold says a
+ * hidden task needs you. Mouse only, as the TUI's (a chord is the owner's call).
+ */
+export function RailBar({ model }: { model: AppModel }) {
   useLocale()
-  return (
-    <button
-      type="button"
-      className="rail-fold-btn"
-      title={folded ? t("layout.railUnfold") : t("layout.railFold")}
-      aria-label={folded ? t("layout.railUnfold") : t("layout.railFold")}
-      onClick={() => railFolded.set(!folded)}
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
-        <path d="M6 2.5v11" />
-      </svg>
-    </button>
-  )
-}
-
-/** The fold: each task's status glyph in its state colour under its project's divider; a click opens the task. */
-/** Two cells for a title: initials across words, else its first two characters (TUI `railInitials`). */
-function railInitials(title: string): string {
-  const words = title
-    .trim()
-    .split(/[\s_\-/.]+/)
-    .filter(Boolean)
-  if (words.length === 0) return "··"
-  if (words.length === 1) return (words[0] ?? "").slice(0, 2)
-  return `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}`
-}
-
-type TaskNavRow = Extract<NavRow, { kind: "task" }>
-
-export function FoldedRail({ model, selectedTaskId }: { model: AppModel; selectedTaskId: string | null }) {
+  const nav = useStore(navState)
+  const folded = useStore(railFolded)
   const payload = useStore(model.tasks)
-  const allTabs = useStore(model.tabs)
-  const { prefs } = usePrefs()
-  const style = prefs.railFold
-  const open = (taskId: string) => {
-    model.select(taskId)
-    enterWorkspace()
-  }
-  // The tree's own rows, so a child nests under its parent here too. Only a task with a tab open (or the
-  // one on screen) takes a cell, and a project with none takes no divider; routine sessions take no cell.
-  const sections: { id: string; label: string; tasks: TaskNavRow[] }[] = []
-  for (const row of navRows(groupByProject(payload?.tasks ?? [], "default"))) {
-    if (row.kind === "project") sections.push({ id: row.id, label: row.label, tasks: [] })
-    else if (row.kind !== "task" || row.task.routine) continue
-    else if ((allTabs[row.task.id]?.length ?? 0) > 0 || row.task.id === selectedTaskId) sections.at(-1)?.tasks.push(row)
-  }
+  const live = (place: NavPlace) => isLive(model, place)
+  const fold = folded ? t("layout.railUnfold") : t("layout.railFold")
+  const waiting = folded && (payload?.tasks ?? []).some(needsPerson)
   return (
-    <div className={`rail-folded-list is-${style}`}>
-      {sections
-        .filter((section) => section.tasks.length > 0)
-        .map((section) => (
-          <div key={section.id} className="rail-folded-group">
-            <div className="rail-folded-rule" title={section.label} />
-            {section.tasks.map((row) => {
-              // Folded, a task's one cell is its rollup; a child steps in per generation and wears its marker.
-              const { task } = row
-              const { tone } = statusMark(task.rowStatus)
-              const marker = childMarkerOf(task)
-              return (
-                <button
-                  type="button"
-                  key={task.id}
-                  title={task.title}
-                  className={`rail-folded-cell tone-${tone} ${task.id === selectedTaskId ? "is-selected" : ""}`}
-                  style={row.depth > 1 && style !== "hairline" ? { paddingLeft: (row.depth - 1) * 6 } : undefined}
-                  onClick={() => open(task.id)}
-                >
-                  {style === "hairline" ? "▌" : <StatusDots status={task.rowStatus} />}
-                  {marker && style !== "hairline" && (
-                    <span
-                      title={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
-                      aria-label={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
-                    >
-                      {marker === "shared" ? "⑂" : "⎇"}
-                    </span>
-                  )}
-                  {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
-                </button>
-              )
-            })}
-          </div>
-        ))}
+    // The bar sits over a peeking rail's top: crossing it keeps the peek open rather than opening one.
+    <div
+      className="rail-bar"
+      onMouseEnter={() => folded && railPeek.get() && peekRail(true)}
+      onMouseLeave={() => folded && railPeek.get() && peekRail(false)}
+    >
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={fold}
+        aria-label={fold}
+        onClick={() => railFolded.set(!folded)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
+          <path d="M6 2.5v11" />
+        </svg>
+        {waiting && <span className="rail-bar-dot" />}
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={t("layout.navBack")}
+        aria-label={t("layout.navBack")}
+        disabled={step(nav, -1, live) < 0}
+        onClick={() => go(model, -1)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M10 3.5 5.5 8l4.5 4.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={t("layout.navForward")}
+        aria-label={t("layout.navForward")}
+        disabled={step(nav, 1, live) < 0}
+        onClick={() => go(model, 1)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 3.5 10.5 8 6 12.5" />
+        </svg>
+      </button>
     </div>
   )
 }

@@ -37,7 +37,7 @@
 .rail-grip {
   position: absolute;
   top: 0;
-  right: -3px;
+  right: 0;
   bottom: 0;
   width: 6px;
   cursor: col-resize;
@@ -69,92 +69,128 @@
   transition-delay: 0ms;
 }
 
-.rail-fold-btn {
+/* Top left of the page, folded or not (Claude Desktop's title bar): fold, back, forward. Out of the grid's
+   flow, so it stays put while the rail column under it opens and shuts. */
+.app {
+  position: relative;
+  transition: grid-template-columns 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.rail-bar {
   position: absolute;
-  right: 8px;
-  bottom: 4px;
+  top: 8px;
+  left: 8px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* Room under the bar in the rail, and beside it in the workspace's tab strip once the rail is gone. */
+.app:not(.is-narrow) .rail {
+  padding-top: 34px;
+  overflow-x: clip;
+}
+/* The rail's contents keep the open width, so folding slides them out instead of squeezing them. */
+.app:not(.is-narrow) .rail > :not(.rail-grip) {
+  min-width: var(--rail-open-w);
+}
+.tab-strip {
+  transition: padding-left 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.app.is-rail-folded .tab-strip {
+  padding-left: 92px;
+  /* With the tabs hidden the strip is empty; keep the bar's row so it never sits on the pane's border. */
+  min-height: 26px;
+}
+/* Folded, the rail leaves the grid's flow and waits off the left edge as a floating card; a hover at the
+   edge (or on the card) slides it in over the workspace, as Claude Desktop's folded sidebar. */
+.app.is-rail-folded .rail {
+  position: absolute;
+  grid-row: 1;
+  grid-column: 1;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  z-index: 6;
+  box-sizing: border-box;
+  width: var(--rail-open-w);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+  transform: translateX(calc(-100% - 12px));
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), box-shadow 200ms ease;
+}
+.app.is-rail-folded .rail > :not(.rail-grip) {
+  min-width: 0;
+}
+/* Out of flow, the rail no longer claims column 1; without these the workspace would auto-place into its 0px. */
+.app.is-rail-folded .workspace {
+  grid-column: 2;
+}
+.app.is-rail-folded .files {
+  grid-column: 3;
+}
+.app.is-rail-peek .rail {
+  transform: none;
+  box-shadow: var(--shadow-dialog);
+}
+.rail-peek-edge {
+  position: absolute;
+  grid-row: 1;
+  grid-column: 1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  z-index: 5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .tab-strip,
+  .app.is-rail-folded .rail {
+    transition: none;
+  }
+}
+
+.rail-bar-btn {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--subtle);
   cursor: pointer;
-  z-index: 6;
 }
-
-.rail-fold-btn svg {
+.rail-bar-btn svg {
   width: 16px;
   height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-
-.rail-fold-btn:hover {
+.rail-bar-btn:hover:not(:disabled) {
   color: var(--ink);
   background: var(--hover);
 }
-
-.rail.is-folded {
-  align-items: center;
-  overflow: hidden;
+.rail-bar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
-
-.rail-fold-btn:only-child,
-.rail.is-folded .rail-fold-btn {
-  right: 50%;
-  transform: translateX(50%);
-}
-
-.rail-folded-list {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  overflow-y: auto;
-  padding: 10px 0 24px;
-}
-
-.rail-folded-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.rail-folded-rule {
-  width: 60%;
-  margin: 6px 0;
-  border-top: 1px solid var(--line);
-}
-
-.rail-folded-cell {
-  width: 100%;
-  padding: 3px 0;
-  font: 13px var(--mono);
-  text-align: center;
-}
-
-.rail-folded-list.is-initials .rail-folded-cell {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.rail-folded-initials {
-  color: var(--muted);
-}
-
-.rail-folded-list.is-hairline .rail-folded-cell {
-  padding: 3px 0;
-  line-height: 1;
-}
-
-.rail-folded-cell.is-selected {
-  background: var(--inset);
-  box-shadow: inset 2px 0 0 var(--accent);
+/* Folded: a hidden task needs you. */
+.rail-bar-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 /* Footer hints, keycap badges */

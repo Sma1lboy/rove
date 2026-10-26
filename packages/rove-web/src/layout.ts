@@ -10,14 +10,14 @@ const SIDEBAR_WIDTH = 24
 const MIN_WORKSPACE_WIDTH = 40
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
+import { railMoving } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
-/** The Tasks rail's own minimum (`SIDEBAR_WIDTH` cells), and the fold's width. */
+/** The Tasks rail's own minimum (`SIDEBAR_WIDTH` cells). */
 export const RAIL_MIN_PX = SIDEBAR_WIDTH * CELL_PX
-/** The fold's width per style: the TUI's 2 / 4 / 7 cells (`COLLAPSED_RAIL_WIDTH`) plus the page's padding. */
-const FOLDED_PX = { hairline: 20, glyphs: 48, initials: 76 } as const
-export const foldedPx = (style: keyof typeof FOLDED_PX): number => FOLDED_PX[style]
+/** The rail's width until one is dragged: a length, not a `minmax`, so folding can animate it to 0. */
+export const RAIL_DEFAULT_PX = 280
 const NARROW_QUERY = `(max-width: ${NARROW_BREAKPOINT * CELL_PX - 1}px)`
 const WIDTH_KEY = "rove.web.railWidth"
 const FOLD_KEY = "rove.web.railFolded"
@@ -37,6 +37,25 @@ railWidth.subscribe(() => {
 
 export const railFolded = createStore<boolean>(localStorage.getItem(FOLD_KEY) === "1")
 railFolded.subscribe(() => localStorage.setItem(FOLD_KEY, railFolded.get() ? "1" : "0"))
+
+/** A folded rail floating over the workspace while the pointer is at the left edge (Claude Desktop's peek). */
+export const railPeek = createStore<boolean>(false)
+let peekTimer: number | null = null
+/** Open at once; close after a grace, so the pointer can cross the edge or the top-left bar without it flickering shut. */
+export function peekRail(open: boolean): void {
+  if (peekTimer !== null) window.clearTimeout(peekTimer)
+  peekTimer = null
+  if (open) railPeek.set(true)
+  else peekTimer = window.setTimeout(() => railPeek.set(false), 250)
+}
+railFolded.subscribe(() => railPeek.set(false))
+
+let movingTimer: number | null = null
+railFolded.subscribe(() => {
+  if (movingTimer !== null) window.clearTimeout(movingTimer)
+  railMoving.set(true)
+  movingTimer = window.setTimeout(() => railMoving.set(false), 240)
+})
 
 /** The pin, clamped on every read like `resolveSidebarWidth`: a pin survives a narrow window and returns when it widens. */
 export function clampRailWidth(px: number, viewport = window.innerWidth): number {

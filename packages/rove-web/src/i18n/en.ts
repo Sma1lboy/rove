@@ -7,8 +7,6 @@ export const en = {
     newTask: "New task",
     noProject: "Ungrouped",
     extraRepos: "{count} more repos in this task",
-    childShared: "Shares the parent task's folder: no worktree of its own, edits land in the parent's checkout",
-    childWorktree: "Own worktree and branch, cut from the parent's branch",
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
       many: "{count} PRs in this task and its children",
@@ -292,6 +290,8 @@ export const en = {
   layout: {
     splitTooSmall: "Not enough room to split here",
     railFold: "Fold the task list",
+    navBack: "Back",
+    navForward: "Forward",
     railUnfold: "Unfold the task list",
     dropUnsupported: "Only images and PDFs can be dropped into a terminal",
     pasteNoImage: "No image on this browser's clipboard",

@@ -119,3 +119,6 @@ export function dismissToast(id: number): void {
 export function closeDialog(): void {
   dialog.set(null)
 }
+
+/** True while the rail slides open or shut (workspace.css's 220ms; `layout.ts` sets it); terminals refit once it settles. */
+export const railMoving = createStore<boolean>(false)

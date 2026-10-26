@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { treeGuides } from "../src/rail-blocks.ts"
 import { mostUrgentStatus } from "../src/rail-glyphs.ts"
-import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
+import { AUTO_FOLD_CHILDREN, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
@@ -78,12 +78,6 @@ describe("child tasks in the rail", () => {
     ]).map((row) => row.id)
     // The child's own project has nothing else to draw but the routine fold; the child sits under its parent.
     expect(ids).toEqual(["project:/r/app", "~routines:/r/app", "project:/r/other", "parent", "kid"])
-  })
-
-  test("the marker says where a child runs: shared directory or its own worktree", () => {
-    expect(childMarkerOf(task("p"))).toBeNull()
-    expect(childMarkerOf(task("s", { parentTaskId: "p", sharesWorkspaceOf: "p" }))).toBe("shared")
-    expect(childMarkerOf(task("w", { parentTaskId: "p" }))).toBe("worktree")
   })
 
   test("a folded parent hides its whole subtree and counts every descendant, not just direct children", () => {
