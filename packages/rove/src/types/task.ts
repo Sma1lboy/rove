@@ -105,11 +105,12 @@ export interface Task {
   /** A `dir` task the daemon made for a projectless routine; sorts into the Ungrouped group. */
   readonly noProject?: boolean
   /**
-   * The routine (`Automation`, `persistentSession`) this task is the standing
-   * session for; every firing re-delivers here. The sidebar folds these behind
-   * a per-project count row (7 daily routines would add 49 rows a week);
-   * otherwise ordinary (selectable, Inbox, `rove api`). Absent on routine
-   * tasks created before the field, which keep rendering as loose rows.
+   * The routine (`Automation`) whose firing made this task: its standing
+   * session, or one fresh run's task. The sidebar folds these behind a
+   * per-project count row (7 daily routines would add 49 rows a week) and the
+   * web leaves them to its Routines page; otherwise ordinary (selectable,
+   * Inbox, `rove api`). Absent on routine tasks created before the field
+   * (fresh runs before it was set on them too), which keep rendering as loose rows.
    */
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus

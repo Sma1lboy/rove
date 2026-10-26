@@ -69,22 +69,18 @@ describe("child tasks in the rail", () => {
     ])
   })
 
-  test("a child nests under a parent in another project; a routine session never nests", () => {
-    const elsewhere = task("parent", { repo: "/r/other" })
-    const ids = rows([
-      task("kid", { parentTaskId: "parent" }),
-      elsewhere,
-      task("sched", { routine: true, parentTaskId: "parent" }),
-    ]).map((row) => row.id)
-    // The child's own project has nothing else to draw but the routine fold; the child sits under its parent.
-    expect(ids).toEqual(["project:/r/app", "~routines:/r/app", "project:/r/other", "parent", "kid"])
+  test("a child nests under a parent in another project", () => {
+    const ids = rows([task("kid", { parentTaskId: "parent" }), task("parent", { repo: "/r/other" })]).map(
+      (row) => row.id,
+    )
+    expect(ids).toEqual(["project:/r/app", "project:/r/other", "parent", "kid"])
   })
 
   test("a folded parent hides its whole subtree and counts every descendant, not just direct children", () => {
     const family = [task("p"), task("c", { parentTaskId: "p" }), task("g", { parentTaskId: "c" }), task("other")]
     const view = (folded: string[], query = "") =>
-      navRows(groupByProject(family), query, new Set(), { folded: new Set(folded), opened: new Set() }).flatMap(
-        (row) => (row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : []),
+      navRows(groupByProject(family), query, { folded: new Set(folded), opened: new Set() }).flatMap((row) =>
+        row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : [],
       )
     expect(view([])).toEqual([
       ["p", false, 2],
@@ -120,7 +116,7 @@ describe("child tasks in the rail", () => {
       task("other"),
     ]
     const view = (tasks: TaskRow[], fold: { folded?: string[]; opened?: string[]; selectedId?: string } = {}) =>
-      navRows(groupByProject(tasks), "", new Set(), {
+      navRows(groupByProject(tasks), "", {
         folded: new Set(fold.folded),
         opened: new Set(fold.opened),
         selectedId: fold.selectedId,
@@ -129,7 +125,7 @@ describe("child tasks in the rail", () => {
     test("more than the threshold folds, at the threshold stays open, and the badge counts the children", () => {
       expect(view(family(AUTO_FOLD_CHILDREN))).toHaveLength(AUTO_FOLD_CHILDREN + 2)
       expect(view(family(AUTO_FOLD_CHILDREN + 1))).toEqual(["p", "other"])
-      const fold = navRows(groupByProject(family(8)), "", new Set()).find((row) => row.id === "p")
+      const fold = navRows(groupByProject(family(8))).find((row) => row.id === "p")
       expect(fold?.kind === "task" && fold.fold).toMatchObject({ collapsed: true, count: 8 })
     })
 

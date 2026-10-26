@@ -54,10 +54,7 @@ const toggled = (now: ReadonlySet<string>, id: string): ReadonlySet<string> => {
 export function useRailFilters() {
   const sort = useStore(railSort)
   const [search, setSearch] = useState({ active: false, query: "" })
-  // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
-  const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
-  const toggleRoutines = (repo: string) => setRoutines((now) => toggled(now, repo))
-  // The Archived fold at the end; session-scoped like the routine rows.
+  // The Archived fold at the end; session-scoped.
   const [archivedOpen, setArchivedOpen] = useState(false)
   const toggleArchived = () => setArchivedOpen((open) => !open)
   // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
@@ -93,8 +90,6 @@ export function useRailFilters() {
     cycleSort: cycleRailSort,
     search,
     setSearch,
-    routines,
-    toggleRoutines,
     archivedOpen,
     toggleArchived,
     collapsed,
@@ -177,7 +172,6 @@ export function useRailKeys(
     if (row) setCursor(row.id)
   }
   const open = (row: Stop | undefined) => {
-    if (row?.kind === "routines") filters.toggleRoutines(row.key)
     if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
     if (row?.kind === "pane") openPane(model, row)
@@ -273,14 +267,7 @@ export function useRailKeys(
         break
       case "task.new":
         // On another machine's row the dialog opens on that machine, with that row's repo.
-        opts.onNewTask(
-          row?.kind === "routines"
-            ? row.repo
-            : row?.kind === "task" || row?.kind === "pane"
-              ? row.task.repo
-              : undefined,
-          row?.machine,
-        )
+        opts.onNewTask(row?.kind === "task" || row?.kind === "pane" ? row.task.repo : undefined, row?.machine)
         break
       case "settings.open.sidebar":
         opts.onSettings()

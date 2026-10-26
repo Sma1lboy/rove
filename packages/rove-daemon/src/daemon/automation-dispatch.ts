@@ -109,14 +109,14 @@ function blockedOutcome(
 }
 
 /**
- * Create the task a firing runs in, marked as the routine's when standing. A
- * projectless routine runs in a `noProject` directory task at its routine dir;
- * a repo routine gets a (lazy) worktree task.
+ * Create the task a firing runs in, marked as the routine's. A projectless
+ * routine runs in a `noProject` directory task at its routine dir; a repo
+ * routine gets a (lazy) worktree task.
  */
 async function createRunTask(deps: DispatchDeps, automation: Automation): Promise<DaemonTask> {
-  // Folds the task behind the sidebar's routine row. Standing only: fresh
-  // runs are work the user must land.
-  const routine = automation.persistentSession ? { routine: { automationId: automation.id } } : {}
+  // Folds the task behind the sidebar's routine row; fresh runs too, which the Routines page opens.
+  // The standing session is found through `sessionTaskId`, never through this mark.
+  const routine = { routine: { automationId: automation.id } }
   if (!automation.repo) {
     return await deps.orch.openDirectoryTask({
       dir: routineDir(automation.id),

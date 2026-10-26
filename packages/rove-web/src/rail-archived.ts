@@ -12,14 +12,16 @@ export const ARCHIVED_ROW_ID = "~archived"
  */
 export function withArchived(
   rows: readonly NavRow[],
-  archived: readonly TaskRow[],
+  all: readonly TaskRow[],
   expanded: boolean,
   fold?: FoldState,
 ): readonly NavRow[] {
+  // Routine runs live on the Routines page, archived or not.
+  const archived = all.filter((task) => !task.routine)
   if (archived.length === 0) return rows
   const head: NavRow = { id: ARCHIVED_ROW_ID, kind: "archived", count: archived.length, expanded }
   if (!expanded) return [...rows, head]
   // One header-less group one generation down: `navRows` nests and folds it like any project, then its header is dropped.
-  const under = navRows([{ repo: "", label: "", key: ARCHIVED_ROW_ID, tasks: archived }], "", new Set(), fold, 1)
+  const under = navRows([{ repo: "", label: "", key: ARCHIVED_ROW_ID, tasks: archived }], "", fold, 1)
   return [...rows, head, ...under.filter((row) => row.kind !== "project")]
 }

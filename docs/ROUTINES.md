@@ -101,8 +101,8 @@ an error, not a quiet repo-less routine. Every run works in the routine's own
 directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
 before a run if it went missing), and its session is a directory task: no
 worktree, no branch, nothing to land. Those sessions sit in the sidebar's
-**Ungrouped** group, next to your Scratch shells; a standing session folds
-behind that group's routines row like a project's. The precheck and `--script`
+**Ungrouped** group, next to your Scratch shells, and fold behind that group's
+routines row like a project's. The precheck and `--script`
 run in the same directory. There is no `--base-branch`, there is no
 switching a routine between a repo and no project after it is saved (create
 a replacement), and `--target-task` still works: it only needs the task to
@@ -434,11 +434,13 @@ one branch is a branch nobody can merge.
 
 ### Where its output goes
 
-The standing task does not sit in your sidebar as another row. It rests behind a
+A routine's tasks do not sit in your sidebar as more rows: the standing task, and
+every fresh run's task. They rest behind a
 **`N routine sessions`** count row under its project — press `enter` on that row
 to open it and see them, `enter` again to close. Seven daily routines would
 otherwise be forty-nine rows a week competing with the handful of tasks you
-opened yourself.
+opened yourself. The web rail leaves them out entirely; open a run from its
+Routines page, where a click on a recent run opens its session.
 
 Hidden at rest is not hidden: the task is still found by `/` search, still opens
 from the Routines page (`enter` on the routine), and still raises an **Inbox**

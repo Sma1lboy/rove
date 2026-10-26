@@ -121,14 +121,14 @@ describe("standing session — first firing", () => {
     expect(outcome).toMatchObject({ status: "dispatched", taskId: "task-1", sessionTaskIdToSet: "task-1" })
   })
 
-  it("does NOT mark a task when the routine is not persistent", async () => {
+  it("marks a fresh-per-run routine's task as the routine's too, without making it the standing session", async () => {
     const { created, deps } = harness()
 
-    await dispatchAutomation(deps, automation({ persistentSession: false }))
+    const outcome = await dispatchAutomation(deps, automation({ persistentSession: false }))
 
-    // A fresh-per-run routine makes ordinary tasks: its output is a branch the
-    // user has to review and land, so hiding it would hide real work.
-    expect(created[0]).not.toHaveProperty("routine")
+    // Every run folds out of the task list; the Routines page is where runs open.
+    expect(created[0]).toMatchObject({ routine: { automationId: "auto-1" } })
+    expect(outcome).not.toHaveProperty("sessionTaskIdToSet")
   })
 
   it("remembers the task even when its engine failed to start", async () => {
@@ -242,7 +242,7 @@ describe("projectless routine firing", () => {
   beforeEach(() => vi.stubEnv("ROVE_HOME_DIR", home))
   afterEach(() => vi.unstubAllEnvs())
 
-  it("opens a noProject directory task in the routine's own dir, and only a standing one is linked", async () => {
+  it("opens a noProject directory task in the routine's own dir, linked to the routine either way", async () => {
     const standing = harness()
     await dispatchAutomation(standing.deps, automation({ repo: undefined, model: "m1", vendor: "codex" }))
     expect(standing.created[0]).toMatchObject({
@@ -257,8 +257,11 @@ describe("projectless routine firing", () => {
 
     const fresh = harness()
     await dispatchAutomation(fresh.deps, automation({ repo: undefined, persistentSession: false }))
-    expect(fresh.created[0]).toMatchObject({ dir: routineDir("auto-1"), noProject: true })
-    expect(fresh.created[0]).not.toHaveProperty("routine")
+    expect(fresh.created[0]).toMatchObject({
+      dir: routineDir("auto-1"),
+      noProject: true,
+      routine: { automationId: "auto-1" },
+    })
   })
 
   it("revives a dead standing session in the same directory", async () => {

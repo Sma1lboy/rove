@@ -148,6 +148,10 @@ export function RoutinesView({ model }: { model: AppModel }) {
   }
   const statusText = (status: string) => (auto.runStatus as Record<string, string>)[status] ?? status
   const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
+  const openRun = (taskId: string) => {
+    page.set(null)
+    model.select(taskId)
+  }
 
   const fail = (template: string, name: string, err: unknown) =>
     toast(fill(template, { name, error: errorMessage(err) }), "error")
@@ -281,10 +285,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
         // Newest first. Never fall through to an older run's task when the latest made none:
         // that would open a different run than the one shown first.
         const taskId = runs[0]?.taskId
-        if (taskId) {
-          page.set(null)
-          model.select(taskId)
-        } else if (runs.length > 0) setNotice(auto.latestRunNoTask)
+        if (taskId) openRun(taskId)
+        else if (runs.length > 0) setNotice(auto.latestRunNoTask)
         return true
       }
       default:
@@ -399,12 +401,22 @@ export function RoutinesView({ model }: { model: AppModel }) {
                       : state === "missing"
                         ? ` · ${auto.responseMissing}`
                         : ""
-                  return (
-                    <p
+                  const tone = state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]
+                  const text = `${run.trigger === "manual" ? "▸" : "·"} #${run.runNumber} ${statusText(run.status)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` — ${run.error}` : ""}${note}  ${when(run.at)}`
+                  // The rail lists no routine runs: a run that made a session opens it from here.
+                  const taskId = run.taskId
+                  return taskId ? (
+                    <button
                       key={run.id}
-                      className={`pg-run mono ${state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]}`}
+                      type="button"
+                      className={`pg-run pg-run-open mono ${tone}`}
+                      onClick={() => openRun(taskId)}
                     >
-                      {`${run.trigger === "manual" ? "▸" : "·"} #${run.runNumber} ${statusText(run.status)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` — ${run.error}` : ""}${note}  ${when(run.at)}`}
+                      {text}
+                    </button>
+                  ) : (
+                    <p key={run.id} className={`pg-run mono ${tone}`}>
+                      {text}
                     </p>
                   )
                 })
