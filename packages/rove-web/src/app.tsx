@@ -21,7 +21,7 @@ import { RailView } from "./rail-view.tsx"
 import { SidePanel } from "./side-panel.tsx"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
-import { newSession, page, zen } from "./ui.ts"
+import { layoutMoving, newSession, page, zen } from "./ui.ts"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
@@ -80,6 +80,7 @@ function Shell({ model }: { model: AppModel }) {
   const panelShown = useStore(panelOpen)
   const panelWide = useStore(panelExpanded)
   const pageOn = useStore(page)
+  const dragging = useStore(layoutMoving) === "drag"
   const composing = useStore(newSession) !== null
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
@@ -102,7 +103,7 @@ function Shell({ model }: { model: AppModel }) {
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${panelWide && !zenOn && !narrow ? "is-panel-expanded" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
+        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${panelWide && !zenOn && !narrow ? "is-panel-expanded" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""} ${dragging ? "is-dragging" : ""}`}
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}

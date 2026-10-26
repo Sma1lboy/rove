@@ -135,5 +135,25 @@ export function closeDialog(): void {
   dialog.set(null)
 }
 
-/** True while the rail slides open or shut (workspace.css's 220ms; `rail-layout.ts` sets it); terminals refit once it settles. */
-export const railMoving = createStore<boolean>(false)
+/**
+ * A column is moving: `slide` for workspace.css's 220ms grid transition (a fold, a width reset), `drag` while a
+ * grip is held (the transition off, so the column stays on the pointer). Terminals refit once it settles: a refit
+ * per frame blanks the canvas, reflows the scrollback and SIGWINCHes the engine each time.
+ */
+export const layoutMoving = createStore<"slide" | "drag" | null>(null)
+let slideTimer: number | null = null
+
+/** A column starts its transition; a drag in progress has none. */
+export function slideLayout(): void {
+  if (layoutMoving.get() === "drag") return
+  if (slideTimer !== null) window.clearTimeout(slideTimer)
+  layoutMoving.set("slide")
+  slideTimer = window.setTimeout(() => layoutMoving.set(null), 240)
+}
+
+/** A grip is pressed or let go. */
+export function dragLayout(on: boolean): void {
+  if (slideTimer !== null) window.clearTimeout(slideTimer)
+  slideTimer = null
+  layoutMoving.set(on ? "drag" : null)
+}
