@@ -84,6 +84,12 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
     document.addEventListener("pointerdown", away, true)
     return () => document.removeEventListener("pointerdown", away, true)
   }, [coarse, at])
+  useEffect(
+    () => () => {
+      if (leave.current !== null) window.clearTimeout(leave.current)
+    },
+    [],
+  )
   const entries = prEntries(tasks)
   const lead = leadPrMark(entries.map((entry) => entry.mark))
   if (!lead) return null

@@ -9,6 +9,8 @@ const HOLD_MS = 500
 const SLOP_PX = 10
 /** Text fields keep the system's own long-press (select, paste); the terminal keeps xterm's. */
 const NATIVE = "input, textarea, select, [contenteditable], .xterm"
+/** What the browser sends when the finger lifts: the menu would read the mousedown as a click away. */
+const RELEASE = ["mousedown", "mouseup", "click", "contextmenu"] as const
 
 export function longPressOpensMenus(): void {
   let press: { timer: number; x: number; y: number; native: boolean } | null = null
@@ -16,18 +18,17 @@ export function longPressOpensMenus(): void {
     if (press) window.clearTimeout(press.timer)
     press = null
   }
-  // The tap that ends a long-press must not also open the row; the next press forgets it.
-  const swallowClick = () => {
+  // Until the next press, the release's mouse events (and Android's late native menu) are dropped.
+  const swallowRelease = () => {
     const swallow = (e: Event) => {
       e.preventDefault()
       e.stopPropagation()
-      forget()
     }
     const forget = () => {
-      document.removeEventListener("click", swallow, true)
+      for (const type of RELEASE) document.removeEventListener(type, swallow, true)
       document.removeEventListener("pointerdown", forget, true)
     }
-    document.addEventListener("click", swallow, true)
+    for (const type of RELEASE) document.addEventListener(type, swallow, true)
     document.addEventListener("pointerdown", forget, true)
   }
   document.addEventListener(
@@ -42,8 +43,9 @@ export function longPressOpensMenus(): void {
         native: false,
         timer: window.setTimeout(() => {
           press = null
-          // Android fires its own contextmenu on a long-press; one menu is enough.
-          if (state.native) return
+          // Android fires its own contextmenu on a long-press; one menu is enough. A row re-rendered
+          // away during the hold has no menu to open.
+          if (state.native || !target.isConnected) return
           target.dispatchEvent(
             new MouseEvent("contextmenu", {
               bubbles: true,
@@ -53,7 +55,7 @@ export function longPressOpensMenus(): void {
               button: 2,
             }),
           )
-          swallowClick()
+          swallowRelease()
         }, HOLD_MS),
       }
       press = state
