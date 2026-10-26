@@ -18,11 +18,44 @@
   display: none;
 }
 
+.narrow-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .narrow-back {
-  align-self: flex-start;
   padding: 2px 6px;
   font-size: 12px;
   font-weight: 700;
+}
+
+.narrow-switch {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.narrow-switch button {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font: 600 12px var(--mono);
+  color: var(--muted);
+}
+
+.narrow-switch button[aria-selected="true"] {
+  color: var(--ink);
+  background: var(--inset);
+}
+
+/* The phone's file list fills the panel; rows sized for a finger. */
+.files.is-narrow {
+  flex: 1;
+  padding: 10px 6px 8px;
+}
+
+.files.is-narrow .file-row {
+  min-height: 36px;
 }
 
 .recent-row .glyph {

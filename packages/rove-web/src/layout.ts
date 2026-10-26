@@ -68,6 +68,8 @@ export const narrowPane = createStore<"sidebar" | "workspace">("sidebar")
 
 export const enterWorkspace = (): void => narrowPane.set("workspace")
 export const backToTasks = (): void => narrowPane.set("sidebar")
+/** Narrow mode, a task's content panel: its file list instead of the terminal (the desktop's Files column). */
+export const narrowFiles = createStore(false)
 
 const narrowQuery = window.matchMedia(NARROW_QUERY)
 

@@ -37,7 +37,8 @@ interface Listing {
   readonly base: string | null
 }
 
-export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
+/** `narrow`: the phone's full-panel list; a tap previews the file here, as the Mac's editor is out of reach. */
+export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
   useLocale()
   const [tab, setTab] = useState<Tab>("changes")
   const [scope, setScope] = useState<"working" | "branch">("working")
@@ -164,7 +165,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
 
   return (
     <aside
-      className="files"
+      className={`files ${narrow ? "is-narrow" : ""}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}
@@ -174,9 +175,11 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
       }}
     >
       <div className="files-actions">
-        <button type="button" className="link" onClick={() => zen.set(true)}>
-          {t("files.zen")}
-        </button>
+        {!narrow && (
+          <button type="button" className="link" onClick={() => zen.set(true)}>
+            {t("files.zen")}
+          </button>
+        )}
         <button type="button" className="link" onClick={requestPR}>
           {t("files.createPR")}
         </button>
@@ -230,6 +233,7 @@ export function FilesView({ model, task }: { model: AppModel; task: TaskRow }) {
               setCursor(i)
               pane.current?.focus()
               if (r.dir) toggle(r.path)
+              else if (narrow) open(r.path)
               else edit(r)
             }}
           >
