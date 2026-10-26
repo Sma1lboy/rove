@@ -629,6 +629,10 @@
   .kb-top .pg-actions .link::after {
     inset: -6px -3px -4px;
   }
+  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
+  .pg-top > .pg-actions .link::after {
+    inset: -10px -3px -5px;
+  }
   .kb-project-name {
     position: relative;
   }
