@@ -93,6 +93,7 @@ export class AppModel {
   private readonly provisioning = new Map<string, { intent: number; tabId: string | null }>()
   /** What this socket last reported as shown (`ui.viewing`); a fresh socket has reported nothing. */
   private viewingSent = NOTHING_SHOWN
+  private taskShown = true
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -135,7 +136,18 @@ export class AppModel {
     }
   }
 
+  /** Called on every explicit pick (not a closed tab's fallback): a phone turns from its list to the task. */
+  onSelect: () => void = () => {}
+
+  /** False while the task panel is out of sight (a phone on its list): nothing counts as looked at. */
+  setTaskShown(shown: boolean): void {
+    if (this.taskShown === shown) return
+    this.taskShown = shown
+    this.reportViewing()
+  }
+
   select(taskId: string, tabId: string | null = null): void {
+    this.onSelect()
     const intent = ++this.selectIntent
     // As the TUI's `activateWorkspaceTask`: a task with no worktree yet is materialized first,
     // and selected only once that worked.
@@ -170,7 +182,7 @@ export class AppModel {
   private reportViewing(leaving = false): void {
     const { taskId, tabId } = this.selection.get()
     const hidden = leaving || (typeof document !== "undefined" && document.visibilityState === "hidden")
-    const shown = hidden || !taskId ? null : { taskId, ...(tabId ? { tabId } : {}) }
+    const shown = hidden || !taskId || !this.taskShown ? null : { taskId, ...(tabId ? { tabId } : {}) }
     const key = JSON.stringify(shown)
     if (key === this.viewingSent) return
     this.viewingSent = key
