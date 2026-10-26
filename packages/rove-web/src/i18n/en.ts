@@ -345,5 +345,9 @@ export const en = {
     modelDefault: "Default",
     effortDefault: "Default",
     moreWays: "Clone, adopt a worktree, or use another machine…",
+    worktree: "Worktree",
+    worktreeOn: "Runs in its own worktree and branch. Click to run in the project's checkout instead",
+    worktreeOff: "Runs in the project's checkout as it is, on its current branch. Click for a worktree",
+    worktreeMulti: "A task across several repos always gets a worktree in each",
   },
 }
