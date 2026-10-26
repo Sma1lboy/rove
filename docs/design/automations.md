@@ -38,7 +38,7 @@ lifecycle (delete on last-tab exit, adopt, rename) does not apply, and
 startup promotion and `MainTaskCoordinator` skip `noProject` rows even when
 the directory is a git root. A standing session carries the `routine` link,
 so it reuses and revives in the same directory; a fresh run is an ordinary
-row. Both sort into the sidebar's **No project** group with Scratch
+row. Both sort into the sidebar's **Ungrouped** group with Scratch
 (`kind === "dir" && (scratch || noProject)`).
 
 No `baseRef` (refused at save), and `update` cannot add or drop `repo`; the

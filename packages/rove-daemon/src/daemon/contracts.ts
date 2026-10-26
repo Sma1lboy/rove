@@ -202,7 +202,7 @@ export interface DaemonTask {
   readonly kind?: "main" | "task" | "dir"
   /** Dir task with no settled cwd (sidebar Scratch section); cleared when named or adopted. */
   readonly scratch?: boolean
-  /** Dir task a projectless routine made; sorts into the No project group with Scratch. */
+  /** Dir task a projectless routine made; sorts into the Ungrouped group with Scratch. */
   readonly noProject?: boolean
   /** The one task a `persistentSession` automation re-delivers into; folded
    *  behind a count row in the sidebar. */
@@ -299,7 +299,7 @@ export interface DaemonOrchestrator {
     dir: string
     vendor?: VendorId
     scratch?: boolean
-    /** Projectless routine session: sorts into the No project group, never promoted to a project. */
+    /** Projectless routine session: sorts into the Ungrouped group, never promoted to a project. */
     noProject?: boolean
     /** Explicit title; absent mints `<dir>-<suffix>` (scratch: empty). */
     title?: string

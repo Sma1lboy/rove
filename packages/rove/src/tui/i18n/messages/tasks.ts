@@ -15,7 +15,7 @@ export const en = {
   },
   /** Section headers */
   header: {
-    scratch: "No project",
+    scratch: "Ungrouped",
   },
   /** Search bar */
   search: {
@@ -314,7 +314,7 @@ export const zh: typeof en = {
     mods: "Mods",
   },
   header: {
-    scratch: "无项目",
+    scratch: "未分组",
   },
   search: {
     placeholder: "模糊搜索",

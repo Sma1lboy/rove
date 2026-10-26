@@ -361,7 +361,7 @@ most recent missed occurrence ever runs.
 an error, so a forgotten `--repo` never silently becomes a repo-less routine).
 `--no-repo` is for a prompt that belongs to no project: each run works in its
 own directory, `<home>/.rove/routines/<id>/`, as a plain directory session (no
-worktree, no branch) that shows in the sidebar's "No project" group. It takes
+worktree, no branch) that shows in the sidebar's "Ungrouped" group. It takes
 no `--base-branch`, and a routine can't switch between a repo and no project
 after it is saved.
 

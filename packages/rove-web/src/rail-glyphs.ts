@@ -1,22 +1,12 @@
-/** Status marks a rail row draws: the glyph set, the tone palette, and the rollups over a folded group. */
+/** Status marks a rail row draws: the dot look, the tone palette, and the rollups over a folded group. */
 
-import { type RowTone, rowStatusGlyph } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
+import { type RowTone, rowStatusTone } from "@sma1lboy/rove/src/lib/row-status-glyph.ts"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
-import type { GlyphSet } from "./prefs.ts"
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "ink"
 
-/** The state marks a row draws, from the chosen glyph set (`tui/lib/glyphs.ts`); braille until the bridge answers. */
-export type RowGlyphs = Pick<GlyphSet, "spinner" | "idle" | "unseen" | "needsInput" | "attention">
-
-/** `engine/spinner-frames.ts` DEFAULT_SPINNER_FRAMES with the braille preset's marks. */
-export const BRAILLE: RowGlyphs = {
-  spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-  idle: "○",
-  unseen: "●",
-  needsInput: "?",
-  attention: "!",
-}
+/** What a row's 3×3 dot mark draws (`status-dots.tsx`, after ELYTerminal's orb). */
+export type DotLook = "working" | "waiting" | "error" | "done" | "idle"
 
 /** The web palette for a status tone: a wait you can clear is amber, what stays broken is red. */
 const TONE: Readonly<Record<RowTone, Tone>> = {
@@ -38,25 +28,26 @@ export const NERD = {
 } as const
 
 export interface StatusMark {
-  readonly glyph: string
+  readonly look: DotLook
   readonly tone: Tone
-  readonly spinning: boolean
 }
 
-/** A daemon status as a rail draws it; no status (no reading yet) is a quiet row. */
-export function statusGlyph(status: RowStatus | undefined, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
-  const mark = rowStatusGlyph(status, glyphs, frame)
-  return { glyph: mark.glyph, tone: TONE[mark.tone], spinning: mark.spinning }
-}
-
-/** A task row's mark: the daemon's rollup of its one conversation. */
-export function taskRowGlyph(task: TaskRow, frame: number, glyphs: RowGlyphs = BRAILLE): StatusMark {
-  return statusGlyph(task.rowStatus, frame, glyphs)
-}
-
-/** Some row on screen spins: the shared spinner clock must tick. */
-export function anySpinning(tasks: readonly TaskRow[]): boolean {
-  return tasks.some((task) => task.rowStatus?.kind === "running" || task.rowStatus?.kind === "busy")
+/** A daemon status as a rail draws it; no status (no reading yet) is a quiet row. A rate limit clears itself, so it waits rather than fails. */
+export function statusMark(status: RowStatus | undefined): StatusMark {
+  const tone = TONE[rowStatusTone(status)]
+  switch (status?.kind) {
+    case "busy":
+    case "running":
+      return { look: "working", tone }
+    case "needs-input":
+      return { look: "waiting", tone }
+    case "attention":
+      return { look: status.reason === "rate_limited" ? "waiting" : "error", tone }
+    case "unseen":
+      return { look: "done", tone }
+    default:
+      return { look: "idle", tone }
+  }
 }
 
 /** A folded group's rows that need a person: something to answer or something broken. */

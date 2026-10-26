@@ -25,8 +25,8 @@ import {
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 
-/** The label the No project section carries; the renderer translates it. */
-const NO_PROJECT_SECTION_LABEL = "No project"
+/** The label the Ungrouped section carries; the renderer translates it. */
+const UNGROUPED_SECTION_LABEL = "Ungrouped"
 
 /**
  * One sidebar section: a project, or the single scratch bench. `tasks` is the
@@ -236,7 +236,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     groups.push({
       key: SCRATCH_SECTION_ID,
       repo: "",
-      label: NO_PROJECT_SECTION_LABEL,
+      label: UNGROUPED_SECTION_LABEL,
       machineId: "local",
       tasks: [...own, ...routines],
       routineCount: routines.length,

@@ -306,7 +306,7 @@ export const SCENES: readonly Scene[] = [
   },
   {
     name: "scratch-flat",
-    about: "a scratch task is one row under No project, whatever tabs it has (issue #41)",
+    about: "a scratch task is one row under Ungrouped, whatever tabs it has (issue #41)",
     setup: resetScene,
     element: tree({
       tasks: [task("scratchy", { kind: "dir", scratch: true, repo: "/Users/me", branch: "" } as Partial<Task>), ALPHA],

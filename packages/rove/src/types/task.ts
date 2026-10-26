@@ -102,7 +102,7 @@ export interface Task {
    * a project (`adoptScratchRepo`).
    */
   readonly scratch?: boolean
-  /** A `dir` task the daemon made for a projectless routine; sorts into the No project group. */
+  /** A `dir` task the daemon made for a projectless routine; sorts into the Ungrouped group. */
   readonly noProject?: boolean
   /**
    * The routine (`Automation`, `persistentSession`) this task is the standing
