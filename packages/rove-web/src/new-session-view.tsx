@@ -272,14 +272,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </button>
         </div>
         {error && <p className="error">※ {error}</p>}
-        <button
-          type="button"
-          className="composer-more muted"
-          onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
-        >
-          {t("newSession.moreWays")}
-        </button>
       </form>
+      {/* The rarer ways in sit under the card, out of the composer's own controls. */}
+      <button
+        type="button"
+        className="composer-more"
+        onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
+      >
+        {t("newSession.moreWays")}
+      </button>
     </div>
   )
 }

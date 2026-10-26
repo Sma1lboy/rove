@@ -44,7 +44,7 @@
 .composer-input {
   width: 100%;
   min-height: 4.5em;
-  resize: vertical;
+  max-height: 40vh;
   border: 0;
   outline: 0;
   background: transparent;
@@ -87,11 +87,6 @@
 .composer-chip[aria-expanded="true"] {
   background: var(--hover);
   color: var(--ink);
-}
-
-.composer-caret {
-  color: var(--subtle);
-  font-size: 10px;
 }
 
 .composer-pop {
@@ -185,10 +180,19 @@
 }
 
 .composer-more {
-  align-self: flex-start;
-  padding: 0;
+  align-self: center;
+  margin-top: 8px;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--subtle);
   font: inherit;
-  text-decoration: underline;
+  cursor: pointer;
+}
+
+.composer-more:hover,
+.composer-more:focus-visible {
+  color: var(--ink);
 }
 
 .composer-field {

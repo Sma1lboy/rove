@@ -51,9 +51,6 @@ export function ChipPopover(props: {
         onClick={() => setOpen((now) => !now)}
       >
         {props.label}
-        <span className="composer-caret" aria-hidden="true">
-          ▾
-        </span>
       </button>
       {open && <div className="composer-pop">{props.children(close)}</div>}
     </span>

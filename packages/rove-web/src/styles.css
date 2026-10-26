@@ -26,7 +26,13 @@
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   /* Pointer hover and a menu's highlight are a neutral ink wash, as claude.ai's; the accent stays for selection and focus. */
   --hover: color-mix(in srgb, var(--ink) 7%, transparent);
-  --shadow-popover: 0 8px 24px rgb(0 0 0 / 32%), 0 2px 6px rgb(0 0 0 / 20%);
+  /* Elevation, one scale for every floating surface: the surface's own border plus ONE soft shadow.
+     A ring or a second offset shadow on top of the border reads as stacked edges. */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-dialog: 0 16px 48px rgb(0 0 0 / 50%);
+  --scrim: rgb(10 10 9 / 62%);
+  /* A merged PR, as GitHub and Claude draw it. */
+  --merged: #9b87f5;
   --focus: var(--accent);
   --info: #61aaf2;
   --diff-added: var(--success);
@@ -68,6 +74,24 @@ button {
   background: none;
   border: 0;
   padding: 0;
+  cursor: pointer;
+}
+
+/* Form controls draw no browser chrome anywhere: no drag corner, no native arrow, the page's type. */
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+textarea {
+  resize: none;
+  field-sizing: content;
+}
+
+select {
+  appearance: none;
   cursor: pointer;
 }
 
@@ -487,6 +511,9 @@ button:focus-visible,
 }
 .tone-success {
   color: var(--success);
+}
+.tone-merged {
+  color: var(--merged);
 }
 .tone-ink {
   color: var(--ink);
