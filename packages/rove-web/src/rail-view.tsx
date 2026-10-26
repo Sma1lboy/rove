@@ -29,7 +29,7 @@ import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle 
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
-import { paneEdits } from "./split-actions.tsx"
+import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -248,8 +248,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 openMenu(
                   e,
-                  withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
-                    filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                  withSplitEntries(
+                    withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                      filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                    ),
+                    taskSplitItems(model, row.task.id),
                   ),
                 )
               }}
@@ -443,4 +446,10 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
   }
   const at = items.map((item) => item.section).lastIndexOf("open")
   return [...items.slice(0, at + 1), entry, ...items.slice(at + 1)]
+}
+
+/** Split right / down on the task's tab sit right after what opens the task: the tab strip is hidden by default, so this is the mouse route. */
+function withSplitEntries(items: MenuItem[], entries: readonly MenuItem[]): MenuItem[] {
+  const at = items.map((item) => item.section).lastIndexOf("open")
+  return [...items.slice(0, at + 1), ...entries, ...items.slice(at + 1)]
 }
