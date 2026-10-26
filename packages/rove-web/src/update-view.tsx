@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
@@ -108,7 +109,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       <div className="page-head">
         <h1 className="page-title mono">{u.pageTitle}</h1>
         <button type="button" className="link muted mono" onClick={() => activate("close")}>
-          {u.closeHint}
+          {isTouch() ? t("dialog.close") : u.closeHint}
         </button>
       </div>
       <p className="mono update-versions">

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import { type PrMark, leadPrMark, prMark } from "./rail-glyphs.ts"
 
 interface Entry {
@@ -48,7 +49,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
   const leave = useRef<number | null>(null)
   const list = useRef<HTMLDivElement>(null)
   // A touch screen has no hover: a tap toggles the list and a tap anywhere else closes it.
-  const coarse = window.matchMedia("(hover: none) and (pointer: coarse)").matches
+  const coarse = isTouch()
   // A row low in the rail opens its list upward far enough to stay on screen; one at the right
   // edge (a phone's full-width rail) drops below the chip, inside the screen.
   useLayoutEffect(() => {

@@ -25,6 +25,7 @@ import {
 import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
+import { deviceHint } from "./key-hints.ts"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
@@ -177,7 +178,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className="page dp-page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint">{t("dispatch.hint")}</span>
+        <span className="muted mono pg-hint">{deviceHint(t("dispatch.hint"))}</span>
       </div>
       <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (

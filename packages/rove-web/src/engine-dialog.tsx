@@ -179,7 +179,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
             </div>
           </div>
         )}
-        <p className="muted taskops-hint">
+        <p className="muted taskops-hint keys-only">
           {[
             tc("tasks", "changeEngine.footer.engine"),
             ...(engine?.acceptsModel ? [tc("tasks", "changeEngine.footer.model")] : []),

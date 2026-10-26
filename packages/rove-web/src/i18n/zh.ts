@@ -272,6 +272,7 @@ export const zh: typeof en = {
     storySave: "保存",
     storySaveStart: "保存并启动",
     storyStart: "启动",
+    attachHintTouch: "粘贴路径 / 截图 → 插入图片占位行",
   },
   taskops: {
     publishTitle: "推送到远端",

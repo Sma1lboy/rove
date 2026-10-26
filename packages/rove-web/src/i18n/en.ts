@@ -278,6 +278,7 @@ export const en = {
     storySave: "save",
     storySaveStart: "save & start",
     storyStart: "start",
+    attachHintTouch: "paste a path / a screenshot → inserts an image placeholder",
   },
   taskops: {
     publishTitle: "publish to the remote",

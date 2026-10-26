@@ -174,8 +174,17 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
         )}
         {!confirming && (
           <>
-            <p className="muted taskops-hint">{tc("tasks", "fieldNotes.footerDeletable")}</p>
+            <p className="muted taskops-hint keys-only">{tc("tasks", "fieldNotes.footerDeletable")}</p>
             <div className="actions">
+              {/* `d`'s tap target, for the note under the cursor (a phone has no `d`). */}
+              <button
+                type="button"
+                className="link"
+                disabled={notes[cursor]?.id === undefined}
+                onClick={() => setConfirming(notes[cursor] ?? null)}
+              >
+                {t("taskops.retire")}
+              </button>
               <button type="button" className="link" onClick={closeDialog}>
                 {t("taskops.close")}
               </button>

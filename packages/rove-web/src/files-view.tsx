@@ -12,6 +12,7 @@ import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
 import { visibleTree } from "./file-tree.ts"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { PaneKeyHint } from "./rail-chrome.tsx"
 import { useStore } from "./store.ts"
@@ -42,7 +43,7 @@ interface Listing {
  * here: a terminal editor needs keys a soft keyboard doesn't have.
  */
 export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
-  const touch = window.matchMedia("(hover: none) and (pointer: coarse)").matches
+  const touch = isTouch()
   useLocale()
   const [tab, setTab] = useState<Tab>("changes")
   const [scope, setScope] = useState<"working" | "branch">("working")
