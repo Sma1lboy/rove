@@ -306,4 +306,11 @@ describe("a task's PR mark", () => {
     const own = { id: "c", repo: "/r", pr: pr(1436) } as unknown as TaskRow
     expect(prEntries([parent, shared, own]).map((entry) => entry.task.id)).toEqual(["p", "c"])
   })
+
+  test("a duplicated PR keeps the copy whose checks need you", () => {
+    const pr = { number: 9, lifecycle: "open", checkState: "none", url: "https://github.com/o/r/pull/9" }
+    const parent = { id: "p", repo: "/r", pr, prChip: "passing" } as unknown as TaskRow
+    const child = { id: "c", repo: "/r", pr, prChip: "failing" } as unknown as TaskRow
+    expect(prEntries([parent, child]).map((entry) => [entry.task.id, entry.mark.checks])).toEqual([["c", "failing"]])
+  })
 })

@@ -811,12 +811,11 @@ button:focus-visible {
   min-width: 0;
 }
 
-.status .spacer {
-  flex: 1;
-}
-
-/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. */
+/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. It takes the
+   footer's spare width, which usage-view.tsx measures to pick the full or compact form. */
 .usage {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   gap: 16px;
   white-space: nowrap;

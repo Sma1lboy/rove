@@ -296,7 +296,6 @@ function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
   return (
     <footer className="status">
       <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />
-      <span className="spacer" />
       <span className={`dot state-${conn.state}`} />
       <span>
         {conn.state === "open"
