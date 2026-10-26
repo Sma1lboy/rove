@@ -163,6 +163,24 @@ async function adopt(args: Args, ctx: OpContext): Promise<unknown> {
   return { taskId: res.task.id }
 }
 
+/** The daemon's archive refusals, lifted to stable codes so the page can offer "archive anyway". */
+const ARCHIVE_REFUSAL = /\b(TASK_BUSY|MAIN_TASK): ([\s\S]*)$/
+
+async function archive(args: Args, ctx: OpContext): Promise<unknown> {
+  const id = taskId(args)
+  const archived = bool(args, "archived")
+  const argv = [flag("task-id", id)]
+  if (archived && optBool(args, "force")) argv.push(flag("force", "true"))
+  try {
+    const res = await ctx.api.verb<{ ids?: string[] }>(archived ? "archive" : "unarchive", argv)
+    return { ids: res.ids ?? [] }
+  } catch (err) {
+    const refusal = err instanceof Error ? ARCHIVE_REFUSAL.exec(err.message) : null
+    if (refusal?.[1] && refusal[2] !== undefined) throw new BridgeError(refusal[1], refusal[2])
+    throw err
+  }
+}
+
 export const TASK_WRITE_OPS: OpTable = {
   "task.spawn": write("verb add", spawn),
   "task.rename": write("verb update --task-id --title", (a, c) =>
@@ -189,6 +207,7 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.pin": write("verb update --task-id --pinned", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("pinned", String(bool(a, "pinned")))])),
   ),
+  "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),
   ),

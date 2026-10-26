@@ -87,7 +87,7 @@ export function applyMachineLayer(
       kept.push(row)
       continue
     }
-    if (row.kind === "routines" || row.kind === "recent") {
+    if (row.kind === "routines" || row.kind === "recent" || row.kind === "archived") {
       kept.push(row)
       continue
     }

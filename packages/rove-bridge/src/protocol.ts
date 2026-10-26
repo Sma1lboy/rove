@@ -100,6 +100,8 @@ export interface TaskRow {
   readonly deleting: boolean
   /** Additive row fields (all optional: absent = not collected / not known). */
   readonly pinned?: boolean
+  /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */
+  readonly archived?: boolean
   /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
   readonly routine?: boolean
   /** Index in the daemon's own task list: the manual ("default") order. */
@@ -180,6 +182,8 @@ export interface TasksPayload {
   readonly attention: readonly AttentionRow[]
   /** Pushed on change like `attention`. Absent from an older bridge: treat as none. */
   readonly gates: readonly GateRow[]
+  /** Archived rows (`rove api archive`), kept out of `tasks` so every client hides them; shown only by an Archived view. Absent from an older bridge: treat as none. */
+  readonly archived?: readonly TaskRow[]
 }
 
 export interface TabRow {

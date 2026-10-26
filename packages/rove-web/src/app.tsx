@@ -8,7 +8,7 @@ import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { clampRailWidth, foldedPx, narrowPane, railFolded, railWidth, surfaceFor, useNarrow } from "./layout.ts"
 import { RemoteNotice } from "./machines-view.tsx"
-import type { AppModel } from "./model.ts"
+import { type AppModel, selectedRow } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewSessionView } from "./new-session-view.tsx"
 import { Overlays } from "./overlays.tsx"
@@ -69,7 +69,7 @@ function Shell({ model }: { model: AppModel }) {
   const { prefs } = usePrefs()
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
-  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? reachable ?? null
+  const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const surface = narrow ? surfaceFor(pane, !!task || !!remoteTask, pageOn !== null) : null
   const railPx = folded ? foldedPx(prefs.railFold) : pinned === null ? null : clampRailWidth(pinned)
@@ -102,7 +102,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const payload = useStore(model.tasks)
   const remote = useStore(model.remote)
   const reachable = remote.find((row) => row.id === selection.taskId && !row.machine?.stale)
-  const task = payload?.tasks.find((row) => row.id === selection.taskId) ?? reachable ?? null
+  const task = selectedRow(payload, selection.taskId) ?? reachable ?? null
   const remoteTask = reachable ? undefined : remote.find((row) => row.id === selection.taskId)
   const tabs = task ? (allTabs[task.id] ?? []) : []
   // Before the first `task.tabs` reply the task's tabs are unknown, not empty: no "no sessions" flash.

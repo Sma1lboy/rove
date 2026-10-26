@@ -1,7 +1,7 @@
 /**
  * Row-menu task verbs that are more than one request: land (preflight, then a confirm that
- * names the destination and the commit count), sync with base, fix failing checks, forget a
- * project. Outcomes and copy are the TUI's (`land-task-action.ts`, `sync-base-action.ts`,
+ * names the destination and the commit count), sync with base, fix failing checks, archive,
+ * forget a project. Outcomes and copy are the TUI's (`land-task-action.ts`, `sync-base-action.ts`,
  * `use-fix-ci.ts`), read from its own catalogs.
  */
 
@@ -197,6 +197,36 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
       }}
     />
   )
+}
+
+/**
+ * Row menu Archive / Unarchive (`archive-task-action.ts`): hide or restore the task and its children.
+ * No confirm, since nothing stops; only the daemon's TASK_BUSY refusal (an engine still working or
+ * waiting on you) asks once, and "Archive anyway" retries with force.
+ */
+export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "title" | "archived">): Promise<void> {
+  const archived = task.archived !== true
+  const title = task.title
+  const run = async (force: boolean) => {
+    await model.client.request("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
+    toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))
+  }
+  try {
+    await run(false)
+  } catch (err) {
+    if (archived && err instanceof BridgeRequestError && err.code === "TASK_BUSY") {
+      dialog.set(
+        <ConfirmDialog
+          title={tc("tasks", "archive.busyTitle")}
+          body={tc("tasks", "archive.busyBody", { title })}
+          confirmLabel={tc("tasks", "archive.busyConfirm")}
+          onConfirm={() => run(true)}
+        />,
+      )
+      return
+    }
+    toast(tc("tasks", archived ? "archive.failed" : "archive.restoreFailed", { error: errorText(err) }), "error")
+  }
 }
 
 /** The project row's Delete: the repo and its tasks stay on disk, only the list entry goes. */

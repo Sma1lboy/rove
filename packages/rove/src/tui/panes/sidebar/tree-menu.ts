@@ -5,7 +5,7 @@
  * entry routes to an existing callback.
  *
  * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
@@ -44,6 +44,7 @@ export type TreeMenuAction =
   | "syncBase"
   | "resolveConflicts"
   | "land"
+  | "archive"
   | "delete"
 
 export interface TreeMenuItem {
@@ -129,6 +130,10 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   // for `main`/`dir`; an unmaterialised task has no branch.
   if (task.kind === "task" && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
+  }
+  // Menu-only. Hides the row and its children; a project's main is the project itself.
+  if (task.kind !== "main") {
+    verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
   }
   verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true, bindingId: "sidebar.delete" })
   return verbs

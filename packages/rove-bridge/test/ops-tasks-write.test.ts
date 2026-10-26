@@ -231,6 +231,41 @@ describe("task edits", () => {
   })
 })
 
+describe("task.archive", () => {
+  test("archive and unarchive run their verbs and report the ids moved", async () => {
+    const archived = await run("task.archive", { taskId: T, archived: true }, { archive: { ids: ["c", T] } })
+    expect(archived.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`] })
+    expect(archived.result).toEqual({ ids: ["c", T] })
+    const forced = await run("task.archive", { taskId: T, archived: true, force: true }, { archive: { ids: [T] } })
+    expect(forced.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`, "--force=true"] })
+    // Restoring never needs force, so it never sends it.
+    const restored = await run("task.archive", { taskId: T, archived: false, force: true }, { unarchive: { ids: [T] } })
+    expect(restored.calls.at(-1)).toEqual({ verb: "unarchive", argv: [`--task-id=${T}`] })
+  })
+
+  test("the daemon's busy and main refusals arrive as stable codes", async () => {
+    for (const [message, code] of [
+      ["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"],
+      ["daemon: MAIN_TASK: a project's main checkout cannot be archived", "MAIN_TASK"],
+    ] as const) {
+      const fail = () => {
+        throw new Error(message)
+      }
+      await expect(run("task.archive", { taskId: T, archived: true }, { archive: fail })).rejects.toMatchObject({
+        name: "BridgeError",
+        code,
+        message: message.slice(message.indexOf(`${code}: `) + code.length + 2),
+      })
+    }
+  })
+
+  test("bad args are refused", async () => {
+    await refused("task.archive", { taskId: T })
+    await refused("task.archive", { taskId: T, archived: "true" })
+    await refused("task.archive", { taskId: "--x", archived: true })
+  })
+})
+
 describe("project and notes", () => {
   test("project.forget calls the RPC for a known repo", async () => {
     const { result, calls } = await run("project.forget", { repo: REPO })

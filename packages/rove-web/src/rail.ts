@@ -64,6 +64,14 @@ export type NavRow =
       readonly tasks: readonly TaskRow[]
       readonly expanded: boolean
     })
+  /** The fold at the end of the rail holding every archived task (`tree-core.ts` `archived`). */
+  | {
+      readonly id: typeof ARCHIVED_ROW_ID
+      readonly kind: "archived"
+      readonly machine?: undefined
+      readonly count: number
+      readonly expanded: boolean
+    }
 
 /** A parent with more children than this starts folded (the TUI's `AUTO_FOLD_CHILDREN`). */
 export const AUTO_FOLD_CHILDREN = 5
@@ -107,6 +115,28 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
 }
 
 export const routinesRowId = (key: string): string => `~routines:${key}`
+
+/** The Archived fold row's id, as the TUI's `ARCHIVED_ROW_ID`. */
+export const ARCHIVED_ROW_ID = "~archived"
+
+/**
+ * Close the rail with the Archived fold (the TUI's `pushArchived`): one row counting the archived
+ * tasks (`TasksPayload.archived`), and when open those tasks, nested under their archived parents.
+ * None archived adds nothing.
+ */
+export function withArchived(
+  rows: readonly NavRow[],
+  archived: readonly TaskRow[],
+  expanded: boolean,
+  fold: FoldState = NO_FOLDS,
+): readonly NavRow[] {
+  if (archived.length === 0) return rows
+  const head: NavRow = { id: ARCHIVED_ROW_ID, kind: "archived", count: archived.length, expanded }
+  if (!expanded) return [...rows, head]
+  // One header-less group: `navRows` nests and folds it like any project, then its header is dropped.
+  const under = navRows([{ repo: "", label: "", key: ARCHIVED_ROW_ID, tasks: archived }], "", new Set(), fold)
+  return [...rows, head, ...under.filter((row) => row.kind !== "project")]
+}
 
 export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
 

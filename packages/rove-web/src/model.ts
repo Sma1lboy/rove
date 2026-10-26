@@ -58,6 +58,12 @@ function loadVisits(): readonly Visit[] {
   }
 }
 
+/** The selected task's row: a listed one, else an archived one opened from the rail's Archived fold. */
+export function selectedRow(payload: TasksPayload | null, taskId: string | null): TaskRow | undefined {
+  if (!taskId) return undefined
+  return payload?.tasks.find((row) => row.id === taskId) ?? payload?.archived?.find((row) => row.id === taskId)
+}
+
 export class AppModel {
   /** This Mac's rows only: every action and page reads these, so nothing aims a verb at another machine's task. */
   readonly tasks: Store<TasksPayload | null> = createStore<TasksPayload | null>(null)
@@ -151,6 +157,8 @@ export class AppModel {
     this.visits.set(visits)
     localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
     this.reportViewing()
+    // An archived task's tabs are read only once it is open (`tabbedTasks`).
+    if (!(taskId in this.tabs.get())) this.scheduleTabRefresh()
   }
 
   /**
@@ -214,7 +222,14 @@ export class AppModel {
 
   /** Every task whose tabs can be read: this machine's, and those of the other machines that answer. */
   private tabbedTasks(): readonly TaskRow[] {
-    return [...(this.tasks.get()?.tasks ?? []), ...this.remote.get().filter((task) => !task.machine?.stale)]
+    const payload = this.tasks.get()
+    // Of the archived tasks only the open one: the fold lists them without reading every tab list.
+    const open = payload?.archived?.find((task) => task.id === this.selection.get().taskId)
+    return [
+      ...(payload?.tasks ?? []),
+      ...(open ? [open] : []),
+      ...this.remote.get().filter((task) => !task.machine?.stale),
+    ]
   }
 
   private acceptTasks(payload: TasksPayload): void {

@@ -29,6 +29,7 @@ import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
+import { archiveTaskAction } from "./archive-task-action"
 import { landTaskAction } from "./land-task-action"
 import { rerunChecksAction } from "./rerun-checks-action"
 import { syncBaseAction } from "./sync-base-action"
@@ -78,6 +79,8 @@ export type WorkspaceTaskActions = {
   confirmRunAgain: (id: string) => Promise<Task | undefined>
   /** Row menu "Land": the Worktrees page's `l`. No busy state: the row goes with its worktree. */
   landTask: (id: string) => Promise<void>
+  /** Row menu "Archive" / "Unarchive": hide or restore the task and its children. */
+  archiveTask: (id: string) => Promise<void>
   /** Row menu "Sync with base": merge the base branch into the worktree. */
   syncBase: (id: string) => Promise<boolean>
   /** Row menu "Re-run failed checks": restart the PR's failed CI jobs. */
@@ -187,6 +190,29 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     )
   }
 
+  // Archive only hides, so it asks only when an engine is still busy (TASK_BUSY).
+  async function archiveTask(id: string): Promise<void> {
+    const task = tasks().find((candidate) => String(candidate.id) === id)
+    if (!task) return
+    await archiveTaskAction(
+      {
+        orchestrator,
+        confirmBusy: (title) =>
+          DialogConfirm.show(
+            dialog,
+            t("tasks.archive.busyTitle"),
+            t("tasks.archive.busyBody", { title }),
+            t("common.cancel"),
+            t("tasks.archive.busyConfirm"),
+          ).then((ok: unknown) => ok === true),
+        notifyInfo: deps.notifyInfo,
+        notifyError,
+        t,
+      },
+      task,
+    )
+  }
+
   // No dialog: a merge from base is additive and `git merge --abort` undoes it.
   const syncBase = (id: string): Promise<boolean> =>
     syncBaseAction(
@@ -223,5 +249,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, orchestrator }),
     confirmRunAgain,
     landTask,
+    archiveTask,
   }
 }

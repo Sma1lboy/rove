@@ -13,6 +13,8 @@ export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
   /** Row menu only: the Worktrees page's `l` land flow. */
   onLandRequest?: (taskId: string) => void
+  /** Archive or restore the task and its children (`task.archived` picks which). Menu-only. */
+  onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
   /** Reorder mode: j/k move the cursor row at its LEVEL (tab, task, or a main row's project). */
