@@ -42,6 +42,10 @@
 .prefix-hud-head {
   animation: rise-in 140ms ease-out, sink-out 140ms ease-in var(--hud-out, 3860ms) forwards;
 }
+/* Back after the guide hid it: already seen, so no rise; it still fades on time. */
+.prefix-hud-head.is-back {
+  animation: sink-out 140ms ease-in var(--hud-out, 3860ms) forwards;
+}
 .is-leaving {
   pointer-events: none;
 }
@@ -81,7 +85,8 @@
   .dialog,
   .toast,
   .prefix-guide,
-  .prefix-hud-head {
+  .prefix-hud-head,
+  .prefix-hud-head.is-back {
     animation: none;
   }
 }
