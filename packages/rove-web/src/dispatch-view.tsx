@@ -43,9 +43,13 @@ const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
 /** Settled rows that still draw their wire, so the map keeps who talks to whom. */
 const MAP_SETTLED = 16
 const ROW_H = COLUMN.row
-const PAD = 18
-const HUB_W = 212
-const HUB_H = 60
+const PAD = 24
+const HUB_W = 232
+const HUB_H = 72
+/** Matches `.dp-node`'s height in dispatch.css. */
+const NODE_H = 42
+/** Widest the sender-hub-target band gets; past it the page's sides are margin. */
+const BAND_MAX = 1080
 /** The courier sprite box (3 cols × 3 rows of 12px mono) and how far it stands off a node. */
 const SPRITE_W = 24
 const SPRITE_H = 42
@@ -76,17 +80,19 @@ function useClock(rows: readonly DispatchRow[]): number {
   return now
 }
 
-function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
+function useSize(): [React.RefObject<HTMLDivElement | null>, number, number] {
   const ref = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(0)
+  const [size, setSize] = useState({ width: 0, height: 0 })
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0))
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({ width: entry?.contentRect.width ?? 0, height: entry?.contentRect.height ?? 0 }),
+    )
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
-  return [ref, width]
+  return [ref, size.width, size.height]
 }
 
 export function DispatchView({ model }: { model: AppModel }) {
@@ -99,7 +105,7 @@ export function DispatchView({ model }: { model: AppModel }) {
   const conn = useStore(model.client.conn)
   const rows = snapshot?.rows ?? []
   const now = useClock(rows)
-  const [stageRef, width] = useWidth()
+  const [stageRef, width, stageH] = useSize()
   const tasks = new Map([...(payload?.tasks ?? []), ...remote].map((task) => [task.id, task]))
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
 
@@ -116,13 +122,17 @@ export function DispatchView({ model }: { model: AppModel }) {
   const graph = graphOf(mapRows)
   const inFlight = rows.filter((row) => !settled(row)).length
 
-  const nodeW = Math.round(Math.min(220, Math.max(112, width * 0.26)))
+  // The graph keeps to a centred band, so a wide window doesn't strand the columns at its edges.
+  const band = Math.min(width, BAND_MAX)
+  const edge = (width - band) / 2
+  const nodeW = Math.round(Math.min(260, Math.max(128, band * 0.26)))
   const column = targetColumn(
     graph.targets,
     (node) => (node.taskId ? tasks.get(node.taskId)?.machine?.id : undefined),
     machines.map((m) => m.alias),
   )
-  const height = Math.max(3 * ROW_H, graph.senders.length * ROW_H, column.height, HUB_H) + PAD * 2
+  const needed = Math.max(3 * ROW_H, graph.senders.length * ROW_H, column.height, HUB_H) + PAD * 2
+  const height = Math.max(needed, stageH)
   const centerY = (count: number, i: number) => (height - count * ROW_H) / 2 + i * ROW_H + ROW_H / 2
   const senderY = new Map(graph.senders.map((n, i) => [n.key, centerY(graph.senders.length, i)]))
   const columnTop = (height - column.height) / 2
@@ -131,10 +141,10 @@ export function DispatchView({ model }: { model: AppModel }) {
   const hubX = width / 2
   const hubY = height / 2
   const wireOf = (row: DispatchRow): Wire => ({
-    from: { x: nodeW, y: senderY.get(senderOf(row).key) ?? hubY },
+    from: { x: edge + nodeW, y: senderY.get(senderOf(row).key) ?? hubY },
     hubIn: { x: hubX - HUB_W / 2, y: hubY },
     hubOut: { x: hubX + HUB_W / 2, y: hubY },
-    to: { x: width - nodeW + targetInset(targetOf(row).key), y: targetY(targetOf(row).key) },
+    to: { x: width - edge - nodeW + targetInset(targetOf(row).key), y: targetY(targetOf(row).key) },
   })
 
   // One wire per sender→target pair; its tone is its liveliest prompt.
@@ -161,7 +171,7 @@ export function DispatchView({ model }: { model: AppModel }) {
         <h1 className="page-title">{t("dispatch.title")}</h1>
         <span className="muted mono pg-hint">{t("dispatch.hint")}</span>
       </div>
-      <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ height }}>
+      <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (
           <>
             <svg className="dp-wires" width={width} height={height} aria-hidden="true">
@@ -174,7 +184,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 key={node.key}
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
-                style={{ left: 0, top: (senderY.get(node.key) ?? 0) - 18, width: nodeW }}
+                style={{ left: edge, top: (senderY.get(node.key) ?? 0) - NODE_H / 2, width: nodeW }}
                 onOpen={open}
               />
             ))}
@@ -198,7 +208,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 <div
                   key={frame.machine}
                   className={`dp-machine ${row?.state === "online" ? "" : "is-stale"}`}
-                  style={{ right: 0, top: columnTop + frame.top, width: nodeW, height: frame.height }}
+                  style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
                   <span className="dp-machine-head mono" title={remoteLabel(frame.machine, row, words)}>
                     <span className="dp-machine-dot" aria-hidden="true" />
@@ -214,8 +224,8 @@ export function DispatchView({ model }: { model: AppModel }) {
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
                 status={lastTo.get(node.key)?.status}
                 style={{
-                  right: targetInset(node.key),
-                  top: targetY(node.key) - 18,
+                  right: edge + targetInset(node.key),
+                  top: targetY(node.key) - NODE_H / 2,
                   width: nodeW - targetInset(node.key) * 2,
                 }}
                 onOpen={open}
