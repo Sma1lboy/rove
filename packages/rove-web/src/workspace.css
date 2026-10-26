@@ -574,6 +574,13 @@
   .term-pane > .term-search {
     bottom: 48px;
   }
+  /* A long-press opens the row's menu (long-press.ts), not iOS's text selection and callout. */
+  .rail,
+  .tab {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
