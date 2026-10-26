@@ -276,19 +276,6 @@ button:focus-visible,
   font-size: 12px;
 }
 
-.rail-sort {
-  align-self: flex-start;
-  padding: 0 14px 6px;
-  background: none;
-  border: 0;
-  font-size: 11px;
-  color: var(--subtle);
-  cursor: pointer;
-}
-.rail-sort:hover {
-  color: var(--accent);
-}
-
 .rail-search .caret {
   color: var(--accent);
   animation: blink 1s steps(1) infinite;

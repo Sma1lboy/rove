@@ -167,7 +167,6 @@ export const zh: typeof en = {
   },
   files: {
     zen: "Zen",
-    show: "文件",
     createPR: "让代理创建 PR",
     prRequested: "已让代理去创建 PR",
     remoteNoExternal: "这个文件在 {host} 上，请到那台机器上打开",

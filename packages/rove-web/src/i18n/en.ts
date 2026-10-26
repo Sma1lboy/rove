@@ -166,7 +166,6 @@ export const en = {
   },
   files: {
     zen: "Zen",
-    show: "Files",
     createPR: "Ask agent to create PR",
     prRequested: "asked the agent to create the PR",
     remoteNoExternal: "this file is on {host}; open it there",

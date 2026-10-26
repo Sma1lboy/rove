@@ -333,12 +333,6 @@ select.input {
   color: var(--accent);
 }
 
-.new-task {
-  margin: 4px 6px 10px;
-  width: auto;
-  color: var(--muted);
-}
-
 .tab-new {
   color: var(--subtle);
 }

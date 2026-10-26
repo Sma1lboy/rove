@@ -121,7 +121,6 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const tabsKnown = task ? task.id in allTabs : false
   const view = useStore(preview)
   const shown = view && task && view.taskId === task.id ? view : null
-  const zenOn = useStore(zen)
   const pageOn = useStore(page)
   const { prefs } = usePrefs()
   const taskInk = useTaskColor(task?.id)
@@ -214,11 +213,6 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
           >
             +
           </button>
-          {zenOn && (
-            <button type="button" className="tab tab-new" onClick={() => zen.set(false)}>
-              {t("files.show")}
-            </button>
-          )}
           <span className="tab-strip-title" title={task.branch}>
             {task.title}
           </span>

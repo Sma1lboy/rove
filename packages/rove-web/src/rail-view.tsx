@@ -192,9 +192,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       <PageNav model={model} />
-      <button type="button" className="rail-sort mono" title={tc("tasks", "sort.hint")} onClick={filters.cycleSort}>
-        {tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${filters.sort}`) })}
-      </button>
       <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && (
           <div className="empty">
@@ -265,13 +262,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         ))}
       </div>
       <PaneKeyHint pane="sidebar" />
-      <div className="badge-host">
-        <button type="button" className="row new-task" onClick={() => startNewTask(model)}>
-          <span className="glyph tone-accent">+</span>
-          <span className="row-title">{t("rail.newTask")}</span>
-        </button>
-        <ShortcutBadge model={model} bindingId="task.new.global" />
-      </div>
       {!narrow && <FoldButton folded={false} />}
       {!narrow && <RailGrip rail={rail} />}
     </nav>
