@@ -2,7 +2,8 @@
  * Drag to reorder: a project header among projects, a task among its project's tasks (same pin),
  * as the TUI's move mode does with keys. While dragging, the rows slide to where the drop would leave
  * them; there is no insertion line. They slide by transform, not by reordering the DOM: Chrome
- * cancels a drag whose source node moves. Only in the default sort, which shows that order.
+ * cancels a drag whose source node moves. Any sort drags; a drop outside manual order lands in
+ * manual order and the rail switches to it, the only sort that shows where the row went.
  */
 
 import type { CSSProperties, DragEvent, HTMLAttributes } from "react"
@@ -11,7 +12,10 @@ import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
 import { moveTaskBy } from "./move-mode.ts"
 import { type DropSide, blockEnd, dragSteps, dropSteps, previewDrop } from "./rail-blocks.ts"
+import { setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
+import { tc } from "./tui-copy.ts"
+import { toast } from "./ui.ts"
 
 export type DragProps = Pick<HTMLAttributes<HTMLElement>, "draggable" | "onDragStart" | "onDragEnd">
 
@@ -32,6 +36,8 @@ export function useRowDrag(
   model: AppModel,
   tasks: readonly TaskRow[],
   enabled: boolean,
+  /** The rail shows manual order (the `default` sort). */
+  manual: boolean,
   mainTaskOf: (repo: string) => { mainTaskId: string | null },
 ) {
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -132,6 +138,14 @@ export function useRowDrag(
       e.preventDefault()
       const steps = dropSteps(tasks, now.from, now.to, now.side)
       live.current = null
+      if (!manual) {
+        // The rows reorder under the new sort, so the preview has nothing to hold.
+        setDrag(null)
+        setRailSort("default")
+        toast(tc("tasks", "sort.label", { mode: tc("tasks", "sort.modes.default") }))
+        if (steps) void moveTaskBy(model, now.from.id, steps)
+        return
+      }
       // The preview stays until the daemon's new order has arrived, so the row doesn't jump back first.
       if (steps) void moveTaskBy(model, now.from.id, steps).finally(() => setLanding(latest.current))
       else setDrag(null)
