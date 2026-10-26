@@ -208,6 +208,9 @@ export const en = {
     /** A `dir` task pins the user's own directory; deletion never touches it. */
     deleteBodyDir:
       "Ends this conversation and closes all its tabs. Nothing on disk changes: the folder and its files stay.",
+    /** A project's main checkout has a conversation but is not itself deletable: the project stays listed. */
+    deleteBodyMain:
+      "Ends this conversation and closes all its tabs. The project stays in your list and nothing on disk changes: the repo, its branches and worktrees stay.",
     deleteBodyTask: "Ends this task, closes all its tabs and removes its worktree folder. The git branch stays.",
     deleteBodyTaskBranch:
       "Ends this task, closes all its tabs and removes its worktree folder, and its git branch if it is merged. An unmerged branch stays.",
@@ -218,6 +221,10 @@ export const en = {
       "Promote moves them up one level and keeps their worktrees and sessions. Delete with children removes them too.",
     childrenPromote: "promote children",
     childrenCascade: "delete with children",
+    childrenBodyMain:
+      "Ends this conversation and closes its tabs; nothing on disk changes. Its child tasks keep running unless you delete them too.",
+    childrenKeepMain: "end conversation",
+    childrenCascadeMain: "end and delete children",
     forceDeleteTitle: '"{title}" has uncommitted changes',
     forceDeleteConfirm: "force delete",
   },
@@ -443,6 +450,8 @@ export const zh: typeof en = {
     deleteTitle: "删除任务「{title}」？",
     deleteTitleDir: "删除对话「{title}」？",
     deleteBodyDir: "结束这个对话，关闭它的所有标签页。磁盘上什么都不动：文件夹和里面的文件都会保留。",
+    deleteBodyMain:
+      "结束这个对话，关闭它的所有标签页。项目仍留在列表里，磁盘上什么都不动：仓库、分支和 worktree 都会保留。",
     deleteBodyTask: "结束这个任务，关闭它的所有标签页，并删除它的 worktree 文件夹。git 分支会保留。",
     deleteBodyTaskBranch:
       "结束这个任务，关闭它的所有标签页，删除它的 worktree 文件夹，以及已合并的 git 分支。未合并的分支会保留。",
@@ -451,6 +460,10 @@ export const zh: typeof en = {
     childrenBody: "提升会把它们上移一级，并保留它们的 worktree 和会话。连同子任务删除会把它们一并删除。",
     childrenPromote: "提升子任务",
     childrenCascade: "连同子任务删除",
+    childrenBodyMain:
+      "结束这个对话并关闭它的标签页，磁盘上什么都不动。它的子任务会继续运行，除非你也选择把它们一并删除。",
+    childrenKeepMain: "结束对话",
+    childrenCascadeMain: "结束并删除子任务",
     forceDeleteTitle: "「{title}」有未提交的改动",
     forceDeleteConfirm: "强制删除",
   },

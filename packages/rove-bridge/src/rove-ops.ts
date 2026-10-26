@@ -55,7 +55,8 @@ export interface RoveOps {
   engines(): Promise<readonly EngineRow[]>
   repos(): Promise<readonly string[]>
   createTask(input: { repo: string; engine?: string; prompt?: string; title?: string }): Promise<{ taskId: string }>
-  deleteTask(taskId: string, force: boolean): Promise<{ status: string }>
+  /** `cascade` also removes every descendant; absent, the task's children are promoted. */
+  deleteTask(taskId: string, force: boolean, cascade?: boolean): Promise<{ status: string }>
   landTask(
     taskId: string,
     strategy: "merge" | "squash",
@@ -275,9 +276,10 @@ export function createRoveOps(
       return { taskId: res.taskId }
     },
 
-    async deleteTask(taskId, force) {
+    async deleteTask(taskId, force, cascade) {
       const argv = [flag("task-id", taskId), "--wait"]
       if (force) argv.push("--force")
+      if (cascade) argv.push("--cascade")
       const res = await api.verb<{ status?: string; queued?: boolean }>("delete", argv)
       return { status: res.status ?? (res.queued ? "queued" : "removed") }
     },

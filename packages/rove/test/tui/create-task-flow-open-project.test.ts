@@ -1,12 +1,9 @@
 /**
- * The way BACK to a project the sidebar hid.
+ * Opening a project's own checkout from the new-task picker.
  *
- * `isClosedDownProject` drops a project whose only row is its main checkout
- * once that checkout's last tab closes. Nothing is deleted, and the repo is
- * meant to be "still there in the new-task picker to open again" — but a
- * submit path through `createTask` mints a `kind: "task"`, so picking the
- * hidden repo would add a worktree beside the project and still produce no
- * project row.
+ * A submit path through `createTask` mints a `kind: "task"`, so picking a
+ * repo that already has a project row would add a worktree beside the
+ * project and still produce no project row.
  *
  * `mode: "open"` is the way back. These pin it: the
  * flow calls `ensureMainTask` (idempotent — it RESOLVES the existing main row

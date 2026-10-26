@@ -27,9 +27,8 @@ import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
  *   - create (default) — fresh task on `repo` at `baseRef`.
  *   - adopt — import existing worktrees; the caller loops
  *     `orchestrator.adoptWorktree` over `adopt`.
- *   - open — open `repo`'s own checkout (its `main` row). The only way back to
- *     a hidden project (`isClosedDownProject`): every other path mints a
- *     `kind: "task"`, leaving an extra worktree and still no project row.
+ *   - open — open `repo`'s own checkout (its `main` row). Every other path
+ *     mints a `kind: "task"`, leaving an extra worktree and still no project row.
  */
 export type NewTaskInput =
   | {
@@ -362,9 +361,8 @@ export function resolveBaseRef(typed: string, filteredBranches: readonly string[
 
 /**
  * What submitting the Existing tab does: "task" (default) branches a fresh
- * worktree; "project" opens the repo's own checkout (`main` row). "project" is
- * how a project hidden by closing its last tab (`isClosedDownProject`) comes
- * back — `createTask` always mints a `kind: "task"`.
+ * worktree; "project" opens the repo's own checkout (`main` row), which
+ * `createTask` can't: it always mints a `kind: "task"`.
  */
 export type ExistingIntent = "task" | "project"
 

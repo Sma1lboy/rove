@@ -88,11 +88,17 @@ describe("worktreeRowLabel", () => {
     expect(worktreeRowLabel(main, { liveBranch: "main", liveTitle: "Plan the release" })).toBe("Plan the release")
   })
 
+  test("a renamed main row is named by its title over the live HEAD; the repo-name default is not", () => {
+    const renamed = task("m", { kind: "main", branch: "", title: "Plan the release" })
+    expect(worktreeRowLabel(renamed, { liveBranch: "main" })).toBe("Plan the release")
+    expect(worktreeRowLabel(renamed, { liveBranch: "main", liveTitle: "Engine's name" })).toBe("Engine's name")
+  })
+
   test("a main row's live HEAD outranks its (empty) stored branch", () => {
-    const main = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
+    const main = task("m", { kind: "main", branch: "", title: "rove", worktreePath: "/repos/rove" })
     expect(worktreeRowLabel(main, { liveBranch: "main" })).toBe("main")
     // HEAD not resolved yet (poller cold) → title fallback, same as before.
-    expect(worktreeRowLabel(main, { home: "/Users/me" })).toBe("m")
+    expect(worktreeRowLabel(main, { home: "/Users/me" })).toBe("rove")
   })
 
   test("a branchless dir task is named by its tail-truncated path — its stored title is ignored", () => {

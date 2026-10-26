@@ -5,11 +5,12 @@
  * `use-fix-ci.ts`), read from its own catalogs.
  */
 
-import type { TaskRow } from "rove-bridge/protocol"
+import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { rowTitle } from "./rail.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
 
@@ -173,19 +174,42 @@ export async function openEditorFlow(model: AppModel, taskId: string): Promise<v
   }
 }
 
+/** Direct children of a task, archived ones included: a cascade deletes those too. */
+function childrenOf(model: AppModel, id: string): readonly TaskRow[] {
+  const payload = model.tasks.get()
+  return [...(payload?.tasks ?? []), ...(payload?.archived ?? [])].filter((task) => task.parentTaskId === id)
+}
+
 /**
  * Delete a task entry (and its worktree). The first attempt is not forced: a worktree with
  * uncommitted work is refused with DIRTY_WORKTREE and only then does the dialog ask for an
  * explicit force, naming the refusal, as the TUI's `deleteTaskFlow`. A `dir` task pins the
- * user's own directory, so only the entry goes.
+ * user's own directory, so only the entry goes. A task with child tasks offers both ends of the
+ * daemon's choice: promote them (its default) or delete the whole subtree (`cascade`); a force
+ * retry keeps whichever was picked.
  */
 export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "branch" | "kind">) {
+  const children = childrenOf(model, task.id)
+  const hasChildren = children.length > 0
+  const remove = (opts: { readonly force?: true; readonly cascade?: true }) =>
+    model.client.request("task.delete", { taskId: task.id, ...opts }).then(() => {})
   return (
     <ConfirmDialog
-      title={tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.title })}
-      body={tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")}
-      confirmLabel={tc("tasks", "confirm.deleteConfirm")}
-      onConfirm={() => model.client.request("task.delete", { taskId: task.id }).then(() => {})}
+      title={
+        hasChildren
+          ? tc("tasks", "confirm.childrenTitle", { title: task.title, count: String(children.length) })
+          : tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.title })
+      }
+      body={
+        hasChildren
+          ? tc("tasks", "confirm.childrenBody")
+          : tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")
+      }
+      confirmLabel={tc("tasks", hasChildren ? "confirm.childrenPromote" : "confirm.deleteConfirm")}
+      onConfirm={() => remove({})}
+      {...(hasChildren
+        ? { secondary: { label: tc("tasks", "confirm.childrenCascade"), onConfirm: () => remove({ cascade: true }) } }
+        : {})}
       escalate={{
         when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
         label: tc("tasks", "confirm.forceDeleteConfirm"),
@@ -193,7 +217,62 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
         // The title already names the task; its raw id is noise in the refusal.
         body: (err) =>
           `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`,
-        run: () => model.client.request("task.delete", { taskId: task.id, force: true }).then(() => {}),
+        run: (cascade) => remove({ force: true, ...(cascade ? { cascade: true } : {}) }),
+      }}
+    />
+  )
+}
+
+/**
+ * A project's main checkout is never deleted (`task.delete` refuses it): its Delete ends the conversation —
+ * every tab closes, so the sessions die — and the project stays listed, nothing on disk touched. With
+ * children the dialog also offers to delete them first, each subtree as a normal delete (force retry included).
+ */
+export function endMainConversationDialog(model: AppModel, task: TaskRow) {
+  const children = childrenOf(model, task.id)
+  const hasChildren = children.length > 0
+  const title = rowTitle(task, model.tabs.get()[task.id])
+  const endConversation = async () => {
+    const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
+    for (const tab of tabs) await model.client.request("tab.close", { taskId: task.id, tabId: tab.id })
+    await model.refreshTabsNow()
+  }
+  // The child whose delete was refused, so the force confirm names it rather than the project.
+  let blocked: string | undefined
+  const endWithChildren = async (force: boolean) => {
+    for (const child of children) {
+      try {
+        await model.client.request("task.delete", {
+          taskId: child.id,
+          cascade: true,
+          ...(force ? { force: true } : {}),
+        })
+      } catch (err) {
+        blocked = child.title
+        throw err
+      }
+    }
+    await endConversation()
+  }
+  return (
+    <ConfirmDialog
+      title={
+        hasChildren
+          ? tc("tasks", "confirm.childrenTitle", { title, count: String(children.length) })
+          : tc("tasks", "confirm.deleteTitleDir", { title })
+      }
+      body={tc("tasks", hasChildren ? "confirm.childrenBodyMain" : "confirm.deleteBodyMain")}
+      confirmLabel={tc("tasks", hasChildren ? "confirm.childrenKeepMain" : "confirm.deleteConfirm")}
+      onConfirm={endConversation}
+      {...(hasChildren
+        ? { secondary: { label: tc("tasks", "confirm.childrenCascadeMain"), onConfirm: () => endWithChildren(false) } }
+        : {})}
+      escalate={{
+        when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
+        label: tc("tasks", "confirm.forceDeleteConfirm"),
+        title: tc("tasks", "confirm.forceDeleteTitle", { title }),
+        body: (err) => `${tc("worktrees", "delete.forceBody", { branch: blocked ?? title })}\n\n${errorText(err)}`,
+        run: () => endWithChildren(true),
       }}
     />
   )

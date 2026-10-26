@@ -3,7 +3,7 @@
  * The fold and the full rail must show the SAME projects, in the same order.
  *
  * This is the invariant the two surfaces used to break. The expanded tree
- * derived its sections from `buildTreeRows`, which drops a project you have
+ * derived its sections from `buildTreeRows`, which drops a directory you have
  * closed down to nothing and files interleaved tasks under one header; the
  * folded rail walked the raw task list and started a new section whenever the
  * key changed. So a repo the tree had hidden was still a divider in the fold,
@@ -102,10 +102,12 @@ const FIXTURES: ReadonlyArray<{
   tabs: Record<string, readonly string[]>
 }> = [
   {
-    // The bug this file exists for: a repo closed down to its main checkout
-    // with the last tab shut.
-    name: "a project closed down to nothing",
-    tasks: [main("dead", "/work/dead"), task("live", { repo: "/work/api" })],
+    // A directory opened with `rove .`, its last tab shut. A project's main stays instead.
+    name: "a directory closed down to nothing",
+    tasks: [
+      task("dead", { kind: "dir", repo: "/work/dead", worktreePath: "/work/dead", branch: "" }),
+      task("live", { repo: "/work/api" }),
+    ],
     tabs: { dead: [], live: ["tab-1"] },
   },
   {
@@ -145,15 +147,16 @@ for (const fixture of FIXTURES) {
   })
 }
 
-test("the closed-down project is in neither surface, not merely ordered the same", async () => {
+test("a closed-down directory is in neither surface; a main with no tabs is in both", async () => {
   // The parity property above would also be satisfied by both surfaces showing
-  // the dead project. This pins the direction.
-  const tasks = [main("dead", "/work/dead"), task("live", { repo: "/work/api" })]
-  const tabs = seed({ dead: [], live: ["tab-1"] })
+  // the dead directory. This pins the direction.
+  const dead = task("dead", { kind: "dir", repo: "/work/dead", worktreePath: "/work/dead", branch: "" })
+  const tasks = [dead, main("quiet", "/work/quiet"), task("live", { repo: "/work/api" })]
+  const tabs = seed({ dead: [], quiet: [], live: ["tab-1"] })
 
-  expect(treeHeads(tasks, tabs)).toEqual(["a"])
+  expect(treeHeads(tasks, tabs)).toEqual(["q", "a"])
   const dividers = await railDividers(tasks)
-  expect(dividers).toEqual(["a"])
+  expect(dividers).toEqual(["q", "a"])
   expect(dividers).not.toContain("d")
 })
 

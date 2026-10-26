@@ -108,11 +108,14 @@ export function ConfirmDialog(props: {
   body: string
   confirmLabel: string
   onConfirm: () => Promise<void>
+  /** A second way to confirm, shown beside the first (delete with its children); a refusal escalates with `run(true)`. */
+  secondary?: { readonly label: string; readonly onConfirm: () => Promise<void> }
   /** A refusal that can be retried harder (dirty worktree → force). `title`/`body` replace the dialog's own once it fires. */
   escalate?: {
     readonly when: (err: unknown) => boolean
     readonly label: string
-    readonly run: () => Promise<void>
+    /** `secondary`: the refused attempt was the secondary action's, so the harder retry keeps it. */
+    readonly run: (secondary: boolean) => Promise<void>
     readonly title?: string
     readonly body?: (err: unknown) => string
   }
@@ -120,8 +123,24 @@ export function ConfirmDialog(props: {
   const { busy, error, setError, submit } = useSubmit()
   const [escalated, setEscalated] = useState(false)
   const [refusal, setRefusal] = useState<unknown>(null)
+  const [viaSecondary, setViaSecondary] = useState(false)
   const confirm = useRef<HTMLButtonElement>(null)
   useEffect(() => confirm.current?.focus(), [])
+  const go = (secondary: boolean) =>
+    void submit(async () => {
+      try {
+        if (escalated && props.escalate) await props.escalate.run(viaSecondary)
+        else await (secondary && props.secondary ? props.secondary.onConfirm() : props.onConfirm())
+      } catch (err) {
+        if (!escalated && props.escalate?.when(err)) {
+          setEscalated(true)
+          setRefusal(err)
+          setViaSecondary(secondary)
+          setError(errorText(err))
+        }
+        throw err
+      }
+    })
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
       <div className="dialog-body">
@@ -133,26 +152,12 @@ export function ConfirmDialog(props: {
           <button type="button" className="link" onClick={closeDialog}>
             {t("dialog.cancel")}
           </button>
-          <button
-            ref={confirm}
-            type="button"
-            className="button is-danger"
-            disabled={busy}
-            onClick={() =>
-              void submit(async () => {
-                try {
-                  await (escalated && props.escalate ? props.escalate.run() : props.onConfirm())
-                } catch (err) {
-                  if (!escalated && props.escalate?.when(err)) {
-                    setEscalated(true)
-                    setRefusal(err)
-                    setError(errorText(err))
-                  }
-                  throw err
-                }
-              })
-            }
-          >
+          {props.secondary && !escalated && (
+            <button type="button" className="button is-danger" disabled={busy} onClick={() => go(true)}>
+              {props.secondary.label}
+            </button>
+          )}
+          <button ref={confirm} type="button" className="button is-danger" disabled={busy} onClick={() => go(false)}>
             {escalated && props.escalate ? props.escalate.label : props.confirmLabel}
           </button>
         </div>

@@ -244,7 +244,7 @@ add        --repo(REQ) --clone --allow-fork --title --branch --base-branch --bas
            --require-report --expect-report --activate(false) --prompt|--prompt-file
 spawn      --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
            --command --prompt|--prompt-file
-update     --task-id(REQ) --title --tab --branch --command --model --effort --pinned
+update     --task-id --title --tab --branch --command --model --effort --pinned
            --require-report{on|off}
            --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
            --report-pr --report-summary
