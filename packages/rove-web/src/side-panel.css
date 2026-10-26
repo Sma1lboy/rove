@@ -1,0 +1,158 @@
+/* The side panel beside the terminal: quiet buttons along its top, then Files, Diff or Browser. Tokens from styles.css. */
+
+.side-panel {
+  grid-row: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px 8px 0;
+}
+
+/* Narrow: the panel fills the pane, which already has the border. */
+.side-panel.is-narrow {
+  flex: 1;
+  padding: 0;
+}
+
+/* The rail's grip, on the panel's left edge. */
+.panel-grip {
+  right: auto;
+  left: -3px;
+}
+
+/* Muted words; the one in view is ink. No pill, no box. */
+.side-head {
+  display: flex;
+  gap: 2px;
+  min-height: 26px;
+  font: 12px var(--mono);
+  min-width: 0;
+}
+
+.side-head .tab,
+.side-head .tab:hover,
+.side-head .tab.is-active {
+  background: none;
+  cursor: pointer;
+}
+
+.side-head .tab:hover,
+.side-head .tab.is-active {
+  color: var(--ink);
+}
+
+.panel-icon,
+.browser-bar svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.panel-toggle {
+  margin-left: auto;
+}
+
+.side-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* A view stays mounted while another is up; `hidden` must beat the flex display. */
+.side-view {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-view[hidden] {
+  display: none;
+}
+
+.side-empty {
+  margin: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 44ch;
+  font: 12px / 1.5 var(--mono);
+  color: var(--subtle);
+  text-align: center;
+}
+
+.side-empty p {
+  margin: 0;
+}
+
+.side-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 4px 8px;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.side-diff-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* A plain inset field, no border. */
+.browser-url {
+  flex: 1;
+  min-width: 0;
+  margin: 0 2px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.browser-url:focus {
+  outline: none;
+  background: var(--hover);
+}
+
+/* An address that was not taken: the old page stays, the text dims. */
+.browser-url[aria-invalid="true"] {
+  color: var(--muted);
+}
+
+.browser-frame {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}

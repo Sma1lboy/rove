@@ -4,14 +4,16 @@ import { tabStripVisible } from "@sma1lboy/rove/src/state/tab-strip.ts"
 import { type CSSProperties, useEffect, useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
-import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import {
   RAIL_DEFAULT_PX,
+  clampPanelWidth,
   clampRailWidth,
   enterWorkspace,
-  narrowFiles,
   narrowPane,
+  narrowView,
+  panelOpen,
+  panelWidth,
   peekRail,
   railFolded,
   railPeek,
@@ -33,17 +35,17 @@ import { PrefixHud } from "./prefix-guide.tsx"
 import { usePrefixLayer } from "./prefix.tsx"
 import { usePrefsApply } from "./prefs-apply.ts"
 import { usePrefs } from "./prefs.ts"
-import { PreviewView } from "./preview-view.tsx"
 import { NarrowBackBar, RailBar, StatusHints } from "./rail-chrome.tsx"
 import { RailView, openMenu, tabLabel } from "./rail-view.tsx"
 import { rowTitle } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
+import { PanelToggle, SidePanel } from "./side-panel.tsx"
 import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { tokenFromInput } from "./token-input.ts"
-import { dialog, newSession, page, preview, zen } from "./ui.ts"
+import { dialog, newSession, page, zen } from "./ui.ts"
 import { UpdateView, checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { UsageChips } from "./usage-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
@@ -100,6 +102,8 @@ function Shell({ model }: { model: AppModel }) {
   const peek = useStore(railPeek)
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
+  const panelPinned = useStore(panelWidth)
+  const panelShown = useStore(panelOpen)
   const pageOn = useStore(page)
   const composing = useStore(newSession) !== null
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
@@ -114,12 +118,16 @@ function Shell({ model }: { model: AppModel }) {
   )
   const openPx = clampRailWidth(pinned ?? RAIL_DEFAULT_PX)
   // The open width rides along while folded, so the rail's contents keep it as the column slides shut.
-  const railVars = { "--rail-w": `${folded ? 0 : openPx}px`, "--rail-open-w": `${openPx}px` } as CSSProperties
+  const railVars = {
+    "--rail-w": `${folded ? 0 : openPx}px`,
+    "--rail-open-w": `${openPx}px`,
+    "--panel-w": panelPinned === null ? undefined : `${clampPanelWidth(panelPinned, folded ? 0 : openPx)}px`,
+  } as CSSProperties
   return (
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
+        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
@@ -130,12 +138,7 @@ function Shell({ model }: { model: AppModel }) {
         )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
-        {task && !zenOn && !narrow && <FilesView key={task.id} model={model} task={task} />}
-        {remoteTask?.machine && !zenOn && !narrow && (
-          <aside className="files">
-            <RemoteNotice host={remoteTask.machine.label} />
-          </aside>
-        )}
+        {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
         <StatusBar model={model} narrow={narrow} />
         <Overlays />
         <PrefixHud model={model} />
@@ -171,22 +174,20 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const tabs = task ? (allTabs[task.id] ?? []) : []
   // Before the first `task.tabs` reply the task's tabs are unknown, not empty: no "no sessions" flash.
   const tabsKnown = task ? task.id in allTabs : false
-  const view = useStore(preview)
-  const shown = view && task && view.taskId === task.id ? view : null
   const pageOn = useStore(page)
   const { prefs } = usePrefs()
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
-  const filesOn = useStore(narrowFiles) && narrow && !!task
-  // Picking a task or tab leaves the composer and the narrow file list, as it leaves a page; a tab sweep
+  const panelOn = useStore(narrowView) !== "terminal" && narrow && !!task
+  // Picking a task or tab leaves the composer and the narrow panel view, as it leaves a page; a tab sweep
   // that rewrites the same selection does not.
   useEffect(() => {
     let last = model.selection.get()
     return model.selection.subscribe(() => {
       newSession.set(null)
       const next = model.selection.get()
-      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowFiles.set(false)
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
       last = next
     })
   }, [model])
@@ -240,31 +241,15 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
               role="tab"
               key={tab.id}
               aria-selected={tab.id === selection.tabId}
-              className={`tab ${tab.id === selection.tabId && !shown ? "is-active" : ""}`}
-              onClick={() => {
-                preview.set(null)
-                model.select(task.id, tab.id)
-              }}
+              className={`tab ${tab.id === selection.tabId ? "is-active" : ""}`}
+              onClick={() => model.select(task.id, tab.id)}
               onContextMenu={(e) => openMenu(e, taskMenu(model, task, tab))}
             >
               <span className="tab-index">{i + 1}</span>
               {tabLabel(tab)}
             </button>
           ))}
-          {shown && (
-            <span className="tab is-active tab-preview" title={shown.path}>
-              <span className="tab-index">{shown.path === "." ? "D" : "d"}</span>
-              {shown.path === "." ? t("preview.whole") : shown.path}
-              <button
-                type="button"
-                className="tab-close"
-                aria-label={t("preview.close")}
-                onClick={() => preview.set(null)}
-              >
-                ×
-              </button>
-            </span>
-          )}
+          {!narrow && <PanelToggle />}
         </div>
       )}
       <div
@@ -282,7 +267,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
             <RemoteNotice host={remoteTask.machine.label} />
           </div>
         )}
-        {task && tabsKnown && tabs.length === 0 && !shown && !filesOn && (
+        {task && tabsKnown && tabs.length === 0 && !panelOn && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
             <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
@@ -297,10 +282,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
             </button>
           </div>
         )}
-        {shown && <PreviewView key={`${shown.taskId}:${shown.path}:${shown.scope}`} model={model} view={shown} />}
-        {task && filesOn && !shown && <FilesView key={task.id} model={model} task={task} narrow />}
+        {task && panelOn && <SidePanel model={model} task={task} narrow />}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
-          <div className={`term-slot ${shown || filesOn ? "is-hidden" : ""}`}>
+          <div className={`term-slot ${panelOn ? "is-hidden" : ""}`}>
             <SplitPane
               key={`${task.id}::${selection.tabId}`}
               model={model}

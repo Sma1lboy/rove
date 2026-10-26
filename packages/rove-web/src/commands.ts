@@ -87,7 +87,7 @@ export function currentSurface(): Surface | null {
   if (el.closest(".xterm")) return "terminal"
   if (el.closest(".rail")) return "sidebar"
   if (el.closest(".files")) return "files"
-  if (el.closest(".workspace")) return "workspace"
+  if (el.closest(".workspace, .side-panel")) return "workspace"
   return null
 }
 

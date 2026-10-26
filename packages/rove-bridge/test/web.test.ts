@@ -115,6 +115,9 @@ describe("static client", () => {
     expect(shell.status).toBe(200)
     expect(await shell.text()).toContain("shell")
     expect(shell.headers.get("content-security-policy")).toContain("default-src 'self'")
+    // The page may frame https and a local dev server, but nothing may frame the page (it holds the token).
+    expect(shell.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
+    expect(shell.headers.get("content-security-policy")).toContain("frame-src https: http://localhost:*")
     expect(await (await fetch(`${h.http}/tasks/abc`)).text()).toContain("shell")
     const asset = await fetch(`${h.http}/assets/app-abc.js`)
     expect(asset.headers.get("cache-control")).toContain("immutable")
