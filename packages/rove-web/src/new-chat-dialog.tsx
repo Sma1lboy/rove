@@ -174,7 +174,9 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className="field">
-          <span className="kicker">{tc("terminal", "tab.newChat.ctxLabel")} · ctrl+f</span>
+          <span className="kicker">
+            {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">· ctrl+f</span>
+          </span>
           <ChipRow
             label={tc("terminal", "tab.newChat.ctxLabel")}
             field="context"
