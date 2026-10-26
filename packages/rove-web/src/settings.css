@@ -35,6 +35,12 @@
   font-size: 12px;
 }
 
+/* A CJK label can break after any character; the hint beside it must not squeeze it to one. */
+.pref-row > .pref-label:has(+ .pref-hint) {
+  flex-shrink: 0;
+  max-width: 40%;
+}
+
 .pref-hint {
   font-size: 11px;
   margin: 0;
