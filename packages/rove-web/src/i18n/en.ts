@@ -202,6 +202,28 @@ export const en = {
     hints: "j/k move · v range · c note · x drop · s send · r reload · q close",
     notes: "{here} notes here · {unsent} unsent",
   },
+  panel: {
+    toggle: "Show or hide the side panel",
+    tabs: "Side panel views",
+    files: "Files",
+    diff: "Diff",
+    browser: "Browser",
+    resize: "Drag to resize the panel, double-click to reset",
+    diffEmpty: "Pick a file in Files to see its diff here.",
+  },
+  browser: {
+    address: "Address",
+    placeholder: "https://… or localhost:3000",
+    back: "Back",
+    forward: "Forward",
+    reload: "Reload",
+    openTab: "Open in a new tab",
+    invalid: "That is not a web address; only http and https pages open here.",
+    empty: "Enter a web address, or a local dev server.",
+    noFrame:
+      "This page can't be shown here. Only https pages, and a local dev server when Rove is open on the same machine, can be framed; pages from the Rove machine aren't reachable from here yet. Use ↗ to open it in a new tab.",
+    self: "That address is Rove itself, which can't be framed. Use ↗ to open it in a new tab.",
+  },
   settings: {
     title: "Settings",
     open: "settings",
@@ -318,6 +340,8 @@ export const en = {
     termKeyInterrupt: "Ctrl+C, interrupt",
     narrowTerminal: "Terminal",
     narrowFiles: "Files",
+    narrowDiff: "Diff",
+    narrowBrowser: "Browser",
   },
   newSession: {
     title: "New session",

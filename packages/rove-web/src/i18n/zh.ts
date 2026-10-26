@@ -198,6 +198,28 @@ export const zh: typeof en = {
     hints: "j/k 移动 · v 选范围 · c 批注 · x 删除 · s 发送 · r 重新加载 · q 关闭",
     notes: "本文件 {here} 条批注 · {unsent} 条未发送",
   },
+  panel: {
+    toggle: "显示或隐藏侧边栏",
+    tabs: "侧边栏视图",
+    files: "文件",
+    diff: "差异",
+    browser: "浏览器",
+    resize: "拖动调整侧边栏宽度，双击复位",
+    diffEmpty: "在“文件”里选一个文件，差异会显示在这里。",
+  },
+  browser: {
+    address: "地址",
+    placeholder: "https://… 或 localhost:3000",
+    back: "后退",
+    forward: "前进",
+    reload: "刷新",
+    openTab: "在新标签页打开",
+    invalid: "这不是网页地址；这里只能打开 http 和 https 页面。",
+    empty: "输入网页地址，或本地开发服务器的地址。",
+    noFrame:
+      "这个页面无法在这里显示。只有 https 页面，以及 Rove 开在同一台机器上时的本地开发服务器可以嵌入；运行 Rove 的那台机器上的页面暂时还访问不到。点 ↗ 在新标签页打开。",
+    self: "这个地址就是 Rove 本身，不能嵌入。点 ↗ 在新标签页打开。",
+  },
   settings: {
     title: "设置",
     open: "设置",
@@ -312,6 +334,8 @@ export const zh: typeof en = {
     termKeyInterrupt: "Ctrl+C 中断",
     narrowTerminal: "终端",
     narrowFiles: "文件",
+    narrowDiff: "差异",
+    narrowBrowser: "浏览器",
   },
   newSession: {
     title: "新会话",

@@ -97,7 +97,6 @@ export const newSession = createStore<NewSessionStart | null>(null)
 
 export function openNewSession(repo?: string, baseBranch?: string): void {
   page.set(null)
-  preview.set(null)
   dialog.set(null)
   newSession.set({ ...(repo ? { repo } : {}), ...(baseBranch ? { baseBranch } : {}) })
 }

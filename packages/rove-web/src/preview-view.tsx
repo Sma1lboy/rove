@@ -1,5 +1,5 @@
 /**
- * A read-only file or diff over the workspace (TUI `ops/preview.tsx` +
+ * A read-only file or diff in the side panel (TUI `ops/preview.tsx` +
  * `preview-review.tsx`). Keys while focused, the TUI's: j/k cursor, v anchor
  * a range, c add a note, x drop the note under the cursor, s send unsent
  * notes to the engine, r reload, q/Esc close.
@@ -10,7 +10,8 @@ import { TextDialog } from "./dialogs.tsx"
 import { type DiffRow, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { type Preview, dialog, preview, toast } from "./ui.ts"
+import { closeDiff } from "./panel-state.ts"
+import { type Preview, dialog, toast } from "./ui.ts"
 
 interface Note {
   readonly id: string
@@ -136,9 +137,10 @@ export function PreviewView({ model, view }: { model: AppModel; view: Preview })
     else if (k === "x") dropNote()
     else if (k === "s") send()
     else if (k === "r") setNonce((n) => n + 1)
-    else if (k === "q" || k === "Escape") preview.set(null)
+    else if (k === "q" || k === "Escape") closeDiff(view.taskId)
     // Ctrl+C closes it as the TUI's preview does; a text selection keeps the browser's own copy.
-    else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString()) preview.set(null)
+    else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString())
+      closeDiff(view.taskId)
     else return
     e.preventDefault()
   }

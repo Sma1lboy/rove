@@ -42,30 +42,42 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
 
 **What exists.**
 
-- The Files pane is already on the right of the terminal on a desktop window,
-  with All and Changes tabs and a working-tree or branch scope
-  ([`files-view.tsx`](../packages/rove-web/src/files-view.tsx)). On a narrow
-  window it takes the whole screen.
-- A file and diff reader with line notes you can send to the engine
+- A side panel beside the terminal on a desktop window, with Files, Diff and
+  Browser buttons along its top and a button at the workspace's top right to
+  show or hide it ([`side-panel.tsx`](../packages/rove-web/src/side-panel.tsx)).
+  It is resizable, and remembers its width, the last view and the last address
+  per task. A view stays mounted while another is up, so the page keeps its
+  place and the diff its scroll.
+- Files, with All and Changes tabs and a working-tree or branch scope
+  ([`files-view.tsx`](../packages/rove-web/src/files-view.tsx)). Opening a file
+  shows its diff in the Diff view, beside the terminal, in the file and diff
+  reader with line notes you can send to the engine
   ([`preview-view.tsx`](../packages/rove-web/src/preview-view.tsx)).
+- Browser, with an address bar, back, forward, reload and open in a new tab
+  ([`browser-view.tsx`](../packages/rove-web/src/browser-view.tsx)). It frames
+  https pages, and a local dev server when Rove is open on the same machine
+  ([`browser-url.ts`](../packages/rove-web/src/browser-url.ts)); the page's
+  content security policy allows exactly those frames
+  ([`web-static.ts`](../packages/rove-bridge/src/web-static.ts)), and the page
+  itself still cannot be framed. Anything else shows why and a new-tab button.
+- On a narrow window the Terminal / Files switch is Terminal / Files / Diff /
+  Browser, one view full-screen.
+- The panel and its buttons are rows #211 and #212 in
+  [web/PARITY.md](web/PARITY.md).
 
 **What is missing.**
 
-- The reader does not sit beside the terminal. It opens as a tab in the strip
-  and hides the terminal while it is open.
-- Nothing in the page shows a web page. The page's content security policy is
-  `default-src 'self'` with `frame-ancestors 'none'`
-  ([`web-static.ts`](../packages/rove-bridge/src/web-static.ts)), so an embedded
-  frame pointing at another origin is blocked until the policy allows it.
 - A dev server runs on the machine that runs the task. For a task on another
   machine, or from a phone, `localhost:3000` in your browser is the wrong
   machine. The page needs a way through to the right one, and
   [web/MEMO.md](web/MEMO.md) says any capability the page needs is a bridge op
-  that the phone apps can use too.
-- Some sites refuse to be framed. The panel needs an "open in a new tab" answer
-  for them.
-- The panel and its buttons are new rows in [web/PARITY.md](web/PARITY.md); the
-  TUI has no counterpart.
+  that the phone apps can use too. Until then the Browser view says such pages
+  are not reachable from here.
+- Back and forward only walk the addresses typed in the bar. A cross-origin
+  page's own history cannot be read, so moves inside the frame are not tracked,
+  and a page that refuses to be framed stays blank (the new-tab button is the
+  way out).
+- Other artifacts a task produces have no view yet.
 
 **See also.** [WEB.md](WEB.md), [web/PARITY.md](web/PARITY.md),
 [web/MEMO.md](web/MEMO.md).
