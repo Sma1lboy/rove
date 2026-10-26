@@ -17,7 +17,7 @@ import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
-import { FoldedRail, PaneKeyHint, RailBar, RailGrip, RecentRow } from "./rail-chrome.tsx"
+import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
@@ -93,21 +93,17 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   })
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
+  // Folded, the rail stays mounted and slides out of its column (the grid animates the width); inert so
+  // nothing in it takes focus or clicks meanwhile.
   const folded = useStore(railFolded) && !narrow
   const recent = narrow ? (tasks.find((task) => task.id === selection.taskId && !task.deleting) ?? null) : null
-  if (folded) {
-    return (
-      <nav className="rail is-folded" ref={rail}>
-        <RailBar model={model} folded />
-        <FoldedRail model={model} selectedTaskId={selection.taskId} />
-      </nav>
-    )
-  }
 
   return (
     <nav
-      className="rail"
+      className={`rail ${folded ? "is-folded" : ""}`}
       ref={rail}
+      inert={folded}
+      aria-hidden={folded}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the rail takes the TUI sidebar's keys while focused
       tabIndex={0}
       onKeyDown={(e) => {
@@ -115,7 +111,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         keys.onKeyDown(e)
       }}
     >
-      {!narrow && <RailBar model={model} folded={false} />}
       <header className="rail-head">
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
@@ -229,7 +224,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         ))}
       </div>
       <PaneKeyHint pane="sidebar" />
-      {!narrow && <RailGrip rail={rail} />}
+      {!narrow && !folded && <RailGrip rail={rail} />}
     </nav>
   )
 }

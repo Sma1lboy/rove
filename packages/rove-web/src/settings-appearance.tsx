@@ -48,7 +48,7 @@ const ROWS: readonly { key: PrefKey; label: string; hint?: string; terminalOnly?
   { key: "transparent", label: "general.transparent", terminalOnly: true },
   { key: "focusAccent", label: "general.focusAccent", hint: "general.focusAccentHint" },
   { key: "splitStyle", label: "general.splitStyle", terminalOnly: true },
-  { key: "railFold", label: "general.railFold", hint: "general.railFoldHint" },
+  { key: "railFold", label: "general.railFold", hint: "general.railFoldHint", terminalOnly: true },
   { key: "workingBorder", label: "general.workingBorder" },
   { key: "taskColors", label: "general.taskColors" },
   { key: "glyphSet", label: "general.glyphSet" },
