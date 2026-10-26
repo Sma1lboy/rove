@@ -1,6 +1,6 @@
 /**
- * Daemon-side PR-status poller: per eligible task, `gh pr list --head <branch>
- * --state all --json …` → neutral {@link TaskPRStatus} → `orch.setPRStatus`.
+ * Daemon-side PR-status poller: per eligible task, find its PR
+ * ({@link makeGhPrViewRunner}) → neutral {@link TaskPRStatus} → `orch.setPRStatus`.
  * Persisting on the Task lets the `task.snapshot` broadcast carry the chip to
  * every pane and the web board, and survives a daemon restart. The poller only
  * persists; the TUI fires the checks-resolved toast/bell.
@@ -33,7 +33,7 @@
  * other tasks.
  */
 
-import { spawn } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { decodeCapturedChunks } from "./poll-scheduling.ts"
@@ -103,8 +103,11 @@ export type PrViewResult =
   | { kind: "empty" }
   | { kind: "error"; error: PrViewErrorKind }
 
-/** Runs `gh pr list --head` for a branch in a worktree. Injectable for tests. */
-export type PrViewRunner = (worktreePath: string, branch: string) => Promise<PrViewResult>
+/**
+ * Finds a repo's PR: `branch` from its worktree, `pinned` the PR number its
+ * last status carried. Injectable for tests.
+ */
+export type PrViewRunner = (worktreePath: string, branch: string, pinned?: number) => Promise<PrViewResult>
 
 export interface GhSpawnResult {
   readonly status: number | null
@@ -149,11 +152,14 @@ export function spawnGh(args: readonly string[], cwd: string, signal: AbortSigna
 type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
 
 /**
- * Exit 0 + parseable JSON → {@link pickPr} (empty array → `empty`); non-zero
- * exit or bad JSON → `classify`, never `empty`. Never throws.
+ * A task's PR, found in order: by its branch (`gh pr list --head`); by the PR
+ * number it already holds (an agent may push HEAD to a differently named ref);
+ * by its HEAD commit, as the head of some PR. Exit 0 + parseable JSON →
+ * {@link pickPr} (nothing anywhere → `empty`); non-zero exit or bad JSON →
+ * `classify`, never `empty`. Never throws.
  */
 export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: string): PrViewRunner {
-  return async (worktreePath, branch) => {
+  const gh = async (args: readonly string[], cwd: string): Promise<{ json: unknown } | PrViewResult> => {
     const controller = new AbortController()
     let timedOut = false
     const timer = setTimeout(() => {
@@ -161,16 +167,10 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
       controller.abort()
     }, PR_VIEW_TIMEOUT_MS)
     try {
-      const res = await spawnGh(
-        ["pr", "list", "--head", branch, "--state", "all", "--json", viewFields],
-        worktreePath,
-        controller.signal,
-      )
+      const res = await spawnGh(args, cwd, controller.signal)
       if (res.status === 0 && !timedOut) {
         try {
-          const views = JSON.parse(res.stdout) as GhPrView[]
-          const picked = Array.isArray(views) ? pickPr(views) : undefined
-          return picked ? { kind: "pr", view: picked } : { kind: "empty" }
+          return { json: JSON.parse(res.stdout) }
         } catch {
           return classify({ parseError: true }) as PrViewResult
         }
@@ -185,6 +185,45 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
       clearTimeout(timer)
     }
   }
+  const pick = (json: unknown): PrViewResult => {
+    const picked = Array.isArray(json) ? pickPr(json as GhPrView[]) : undefined
+    return picked ? { kind: "pr", view: picked } : { kind: "empty" }
+  }
+  return async (worktreePath, branch, pinned) => {
+    const byBranch = await gh(["pr", "list", "--head", branch, "--state", "all", "--json", viewFields], worktreePath)
+    if (!("json" in byBranch)) return byBranch
+    const listed = pick(byBranch.json)
+    if (listed.kind === "pr") return listed
+    // The PR this repo already held: still open, it is the answer. Settled, new work may have a new PR.
+    const held: GhPrView[] = []
+    if (pinned !== undefined) {
+      const byNumber = await gh(["pr", "view", String(pinned), "--json", viewFields], worktreePath)
+      if (!("json" in byNumber)) return byNumber
+      const view = byNumber.json as GhPrView
+      if ((view.state ?? "").toUpperCase() === "OPEN") return pick([view])
+      held.push(view)
+    }
+    const head = await gitHead(worktreePath)
+    if (!head) return pick(held)
+    // A search hit only means the PR contains the commit; it must be the PR's head.
+    const bySha = await gh(
+      ["pr", "list", "--search", head, "--state", "all", "--json", `${viewFields},headRefOid`],
+      worktreePath,
+    )
+    if (!("json" in bySha)) return held.length > 0 ? pick(held) : bySha
+    const hits = Array.isArray(bySha.json) ? bySha.json.filter((v: GhPrView) => v.headRefOid === head) : []
+    return pick([...hits, ...held])
+  }
+}
+
+/** The worktree's HEAD commit, or undefined when git can't say. */
+function gitHead(cwd: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    execFile("git", ["rev-parse", "HEAD"], { cwd, timeout: PR_VIEW_TIMEOUT_MS }, (err, stdout) => {
+      const sha = String(stdout).trim()
+      resolve(!err && /^[0-9a-f]{40,64}$/.test(sha) ? sha : undefined)
+    })
+  })
 }
 
 /** A real branch on a LOCAL worktree; `main` rows and remote projects are skipped. */
@@ -304,7 +343,9 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     const key = pollKey(task.id, extraName)
     const label = extraName === undefined ? task.id : `${task.id} repo ${extraName}`
     try {
-      const result = await opts.run(repo.worktreePath ?? "", repo.branch)
+      const prev =
+        extraName === undefined ? task.prStatus : task.extraRepos?.find((e) => e.name === extraName)?.prStatus
+      const result = await opts.run(repo.worktreePath ?? "", repo.branch, prev?.number)
       if (result.kind === "error") {
         // Not "no PR": keep the last value, log, mark stale, back off.
         logDaemonInfo(
