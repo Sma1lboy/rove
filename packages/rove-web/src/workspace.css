@@ -127,14 +127,6 @@
 .app:not(.is-narrow) .rail > :not(.rail-grip) {
   min-width: var(--rail-open-w);
 }
-.tab-strip {
-  transition: padding-left 220ms cubic-bezier(0.2, 0, 0, 1);
-}
-.app.is-rail-folded .tab-strip {
-  padding-left: 92px;
-  /* With the tabs hidden the strip is empty; keep the bar's row so it never sits on the pane's border. */
-  min-height: 26px;
-}
 /* Folded, the rail leaves the grid's flow and waits off the left edge as a floating card; a hover at the
    edge (or on the card) slides it in over the workspace, as Claude Desktop's folded sidebar. */
 .app.is-rail-folded .rail {
