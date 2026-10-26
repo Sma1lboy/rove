@@ -28,9 +28,15 @@ panelWidth.subscribe(() => {
   else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(width)))
 })
 
-/** The panel beside the terminal (zen still hides it); the button at the workspace's top right flips it. */
-export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) !== "0")
+/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close it. Closed until a task first opens it. */
+export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) === "1")
 panelOpen.subscribe(() => localStorage.setItem(PANEL_OPEN_KEY, panelOpen.get() ? "1" : "0"))
+
+/** The panel covers the terminal's column too. Per page load, and undone whenever the panel closes. */
+export const panelExpanded = createStore<boolean>(false)
+panelOpen.subscribe(() => {
+  if (!panelOpen.get()) panelExpanded.set(false)
+})
 
 /** The pin, clamped on every read like the rail's: it survives a narrow window and returns when it widens. */
 export function clampPanelWidth(px: number, railPx: number, viewport = window.innerWidth): number {

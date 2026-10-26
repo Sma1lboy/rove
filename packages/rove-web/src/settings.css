@@ -478,7 +478,7 @@ html[data-working-border="flow"] .pane.is-working {
   }
 }
 
-/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the panel toggle stays. */
+/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the panel launcher stays. */
 .tab-strip.is-tabs-hidden .tab {
   display: none;
 }

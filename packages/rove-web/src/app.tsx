@@ -10,7 +10,7 @@ import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { type AppModel, selectedRow } from "./model.ts"
 import { Overlays } from "./overlays.tsx"
-import { clampPanelWidth, panelOpen, panelWidth } from "./panel-layout.ts"
+import { clampPanelWidth, panelExpanded, panelOpen, panelWidth } from "./panel-layout.ts"
 import { usePluginChords } from "./plugin-keys.ts"
 import { PrefixHud } from "./prefix-guide.tsx"
 import { usePrefixLayer } from "./prefix.tsx"
@@ -78,6 +78,7 @@ function Shell({ model }: { model: AppModel }) {
   const pane = useStore(narrowPane)
   const panelPinned = useStore(panelWidth)
   const panelShown = useStore(panelOpen)
+  const panelWide = useStore(panelExpanded)
   const pageOn = useStore(page)
   const composing = useStore(newSession) !== null
   // A task on a machine that answers opens like a local one; an unreachable one says where it lives.
@@ -101,7 +102,7 @@ function Shell({ model }: { model: AppModel }) {
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
-        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
+        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${panelWide && !zenOn && !narrow ? "is-panel-expanded" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""}`}
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}

@@ -201,6 +201,20 @@ export function showKind(panel: TaskPanel, kind: PanelKind): TaskPanel {
   return addTab(panel, homeGroup(panel, kind), (id) => (kind === "files" ? { id, kind } : blankBrowser(id)))
 }
 
+/** The kind of the tab shown last (null for an empty panel): the launcher button that reads as on. */
+export function shownKind(panel: TaskPanel): PanelKind | null {
+  const last = panel.recent.at(-1)
+  const hit = last ? findTab(panel, last) : null
+  const id = hit && hit.group.active === last ? last : panel.top.active
+  return (id ? findTab(panel, id)?.tab.kind : null) ?? null
+}
+
+/** A launcher button: shows the latest tab of its kind (opening one if none) and opens the panel; pressed again while that kind is shown, closes the panel. */
+export function launch(panel: TaskPanel, open: boolean, kind: PanelKind): { panel: TaskPanel; open: boolean } {
+  if (open && shownKind(panel) === kind) return { panel, open: false }
+  return { panel: showKind(panel, kind), open: true }
+}
+
 function replaceTab(panel: TaskPanel, tab: PanelItem): TaskPanel {
   const swap = (group: PanelGroup): PanelGroup => ({
     ...group,

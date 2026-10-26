@@ -10,6 +10,7 @@ import {
   type TaskPanel,
   closeTab,
   latestOfKind,
+  launch,
   loadPanels,
   newPanel,
   remember,
@@ -58,6 +59,14 @@ export function showPanel(taskId: string, kind: PanelKind): void {
   editPanel(taskId, (panel) => showKind(panel, kind))
   panelOpen.set(true)
   if (isNarrow()) narrowView.set(kind)
+}
+
+/** A launcher button in the workspace's top bar. Zen hides the panel, so from zen it opens rather than closes (and leaves zen). */
+export function launchPanel(taskId: string, kind: PanelKind): void {
+  const next = launch(panels.get()[taskId] ?? FRESH, panelOpen.get() && !zen.get(), kind)
+  editPanel(taskId, () => next.panel)
+  panelOpen.set(next.open)
+  if (next.open && zen.get()) zen.set(false)
 }
 
 /** A file's diff (`.` = the whole worktree) opens in its own tab beside the terminal, not over it. */

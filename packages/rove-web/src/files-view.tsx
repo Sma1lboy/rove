@@ -10,12 +10,10 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
 import { visibleTree } from "./file-tree.ts"
-import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
-import { PaneKeyHint } from "./rail-chrome.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast, zen } from "./ui.ts"
 
@@ -174,10 +172,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}
-      onKeyDown={(e) => {
-        markHintUsed("files")
-        onKey(e)
-      }}
+      onKeyDown={onKey}
     >
       <div className="files-actions">
         {!narrow && (
@@ -253,7 +248,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           </button>
         ))}
       </div>
-      <PaneKeyHint pane="files" />
     </div>
   )
 }
