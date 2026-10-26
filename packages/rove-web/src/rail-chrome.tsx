@@ -15,6 +15,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, clampRailWidth, enterWorkspace, railFolded, railWidth } from "./layout.ts"
 import type { AppModel } from "./model.ts"
+import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
@@ -71,21 +72,52 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
 }
 
 /** The sidebar icon folds and unfolds the rail, as Claude's: mouse only, as the TUI's (a chord is the owner's call). */
-export function FoldButton({ folded }: { folded: boolean }) {
+/** Top left, folded or not, as Claude Desktop's title bar: fold the rail, then back and forward. */
+export function RailBar({ model, folded }: { model: AppModel; folded: boolean }) {
   useLocale()
+  const nav = useStore(navState)
+  useStore(model.tasks)
+  const live = (place: NavPlace) => isLive(model, place)
+  const fold = folded ? t("layout.railUnfold") : t("layout.railFold")
   return (
-    <button
-      type="button"
-      className="rail-fold-btn"
-      title={folded ? t("layout.railUnfold") : t("layout.railFold")}
-      aria-label={folded ? t("layout.railUnfold") : t("layout.railFold")}
-      onClick={() => railFolded.set(!folded)}
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
-        <path d="M6 2.5v11" />
-      </svg>
-    </button>
+    <div className="rail-bar">
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={fold}
+        aria-label={fold}
+        onClick={() => railFolded.set(!folded)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" />
+          <path d="M6 2.5v11" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={t("layout.navBack")}
+        aria-label={t("layout.navBack")}
+        disabled={step(nav, -1, live) < 0}
+        onClick={() => go(model, -1)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M10 3.5 5.5 8l4.5 4.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="rail-bar-btn"
+        title={t("layout.navForward")}
+        aria-label={t("layout.navForward")}
+        disabled={step(nav, 1, live) < 0}
+        onClick={() => go(model, 1)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 3.5 10.5 8 6 12.5" />
+        </svg>
+      </button>
+    </div>
   )
 }
 

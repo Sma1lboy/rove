@@ -11,6 +11,7 @@ import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
+import { trackNav } from "./nav-history.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { NewSessionView } from "./new-session-view.tsx"
 import { Overlays } from "./overlays.tsx"
@@ -128,6 +129,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const composing = useStore(newSession)
   // Picking a task or tab leaves the composer, as it leaves a page.
   useEffect(() => model.selection.subscribe(() => newSession.set(null)), [model])
+  useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
       <main className="workspace">

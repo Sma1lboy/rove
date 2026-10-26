@@ -17,7 +17,7 @@ import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
-import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
+import { FoldedRail, PaneKeyHint, RailBar, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { NERD, mostUrgentStatus, needsPerson } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
@@ -98,8 +98,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   if (folded) {
     return (
       <nav className="rail is-folded" ref={rail}>
+        <RailBar model={model} folded />
         <FoldedRail model={model} selectedTaskId={selection.taskId} />
-        <FoldButton folded />
       </nav>
     )
   }
@@ -115,6 +115,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         keys.onKeyDown(e)
       }}
     >
+      {!narrow && <RailBar model={model} folded={false} />}
       <header className="rail-head">
         <span className="wordmark">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
@@ -228,7 +229,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         ))}
       </div>
       <PaneKeyHint pane="sidebar" />
-      {!narrow && <FoldButton folded={false} />}
       {!narrow && <RailGrip rail={rail} />}
     </nav>
   )
