@@ -139,7 +139,7 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   // conversation and stays listed (Remove project lives on the project header).
   verbs.push({
     action: "delete",
-    labelKey: task.kind === "dir" || task.kind === "main" ? "tasks.menu.deleteConversation" : "tasks.menu.delete",
+    labelKey: "tasks.menu.delete",
     danger: true,
     bindingId: "sidebar.delete",
   })

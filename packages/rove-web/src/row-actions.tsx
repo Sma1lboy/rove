@@ -284,7 +284,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   }
   items.push({
     // Say what goes: a conversation (in a folder, or a project's main) or a task with its worktree.
-    label: t(task.kind === "task" ? "menu.deleteTask" : "menu.deleteConversation"),
+    label: t("menu.removeSession"),
     section: "danger",
     ...bound("sidebar.delete"),
     danger: true,
