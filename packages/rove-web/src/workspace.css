@@ -633,6 +633,7 @@
   }
   .dialog-close,
   .narrow-back,
+  .narrow-switch button,
   .kb-strip button {
     position: relative;
   }
@@ -645,6 +646,12 @@
   /* The tab strip sits 6px under the back button: stop at the gap. */
   .narrow-back::after {
     bottom: -4px;
+  }
+  /* Terminal/Files sit 2px apart under the screen edge; -6px is `.workspace`'s gap to the tab strip. */
+  .narrow-switch button::after {
+    content: "";
+    position: absolute;
+    inset: -8px -1px -6px;
   }
   /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
   .kb-strip button::after {
