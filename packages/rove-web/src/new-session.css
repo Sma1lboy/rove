@@ -44,7 +44,10 @@
 .composer-input {
   width: 100%;
   min-height: 4.5em;
-  resize: vertical;
+  /* No drag corner: the box grows with what's typed, up to a cap. */
+  max-height: 40vh;
+  resize: none;
+  field-sizing: content;
   border: 0;
   outline: 0;
   background: transparent;

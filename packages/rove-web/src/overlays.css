@@ -85,8 +85,10 @@
 }
 
 .textarea {
-  resize: vertical;
   min-height: 72px;
+  max-height: 50vh;
+  resize: none;
+  field-sizing: content;
   line-height: 1.45;
 }
 
