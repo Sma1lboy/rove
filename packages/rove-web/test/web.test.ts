@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
+import { dotLevels, dotsMove } from "../src/dot-levels.ts"
 import { visibleTree } from "../src/file-tree.ts"
 import { en } from "../src/i18n/en.ts"
 import { zh } from "../src/i18n/zh.ts"
@@ -105,15 +106,15 @@ const st = (kind: RowStatus["kind"], reason?: RowStatus["reason"]): RowStatus =>
 describe("row status marks (the daemon's, through row-status-glyph)", () => {
   const rowWith = (rollup: RowStatus | undefined) => ({ id: "t", rowStatus: rollup }) as unknown as TaskRow
 
-  test("each status draws its dot look in the tone of its kind", () => {
-    expect(statusMark(st("running"))).toEqual({ look: "working", tone: "accent" })
-    expect(statusMark({ kind: "busy", reason: "deleting", since: 1 })).toEqual({ look: "working", tone: "accent" })
+  test("each status draws its dot look in the colour ELYTerminal gives it", () => {
+    expect(statusMark(st("running"))).toEqual({ look: "working", tone: "info" })
+    expect(statusMark({ kind: "busy", reason: "deleting", since: 1 })).toEqual({ look: "working", tone: "info" })
     expect(statusMark(st("needs-input"))).toEqual({ look: "waiting", tone: "warning" })
     // A rate limit clears itself: an amber wait. An error stays until you act: a red X.
     expect(statusMark(st("attention", "rate_limited"))).toEqual({ look: "waiting", tone: "warning" })
     expect(statusMark(st("attention", "error"))).toEqual({ look: "error", tone: "attention" })
     expect(statusMark(st("attention", "dead"))).toEqual({ look: "error", tone: "attention" })
-    expect(statusMark(st("unseen"))).toEqual({ look: "done", tone: "accent" })
+    expect(statusMark(st("unseen"))).toEqual({ look: "done", tone: "success" })
     expect(statusMark(st("idle"))).toEqual({ look: "idle", tone: "muted" })
     // No reading yet is a quiet row.
     expect(statusMark(undefined)).toEqual({ look: "idle", tone: "muted" })
@@ -122,6 +123,51 @@ describe("row status marks (the daemon's, through row-status-glyph)", () => {
   test("a fold counts rows that need a person", () => {
     const rows = [st("needs-input"), st("attention", "rate_limited"), st("unseen"), st("running"), undefined]
     expect(rows.map((s) => needsPerson(rowWith(s)))).toEqual([true, true, false, false, false])
+  })
+})
+
+describe("status dots (ELYTerminal's orb)", () => {
+  const peak = (dot: number) => {
+    const steps = Array.from({ length: 15 }, (_, step) => step)
+    return steps.reduce((best, step) =>
+      dotLevels("working", step, 0)[dot] > dotLevels("working", best, 0)[dot] ? step : best,
+    )
+  }
+
+  test("work ripples from the centre to the edges, then the corners, once per 15 steps", () => {
+    expect(peak(4)).toBe(0)
+    expect(peak(4)).toBeLessThan(peak(1))
+    expect(peak(1)).toBeLessThan(peak(0))
+    expect([3, 5, 7].map(peak)).toEqual([peak(1), peak(1), peak(1)])
+    expect([2, 6, 8].map(peak)).toEqual([peak(0), peak(0), peak(0)])
+    dotLevels("working", 0, 0).forEach((level, dot) => expect(dotLevels("working", 15, 0)[dot]).toBeCloseTo(level, 6))
+  })
+
+  test("a slowed ripple still moves", () => {
+    expect(dotLevels("working", 0, 0, 3)).not.toEqual(dotLevels("working", 5, 0, 3))
+  })
+
+  test("waiting stays lit and dips on steps 0, 1, 4 and 5 of 20", () => {
+    const dips = Array.from({ length: 20 }, (_, step) => step).filter((step) => dotLevels("waiting", step, 0)[0] < 1)
+    expect(dips).toEqual([0, 1, 4, 5])
+    expect(dotLevels("waiting", 2, 0)).toEqual(new Array(9).fill(1))
+    expect(dotLevels("waiting", 0, 0)).toEqual(new Array(9).fill(0.25))
+  })
+
+  test("a settled look draws its shape dot by dot, then holds", () => {
+    expect(dotLevels("done", 0, 0)).toEqual(new Array(9).fill(0.12))
+    const one = dotLevels("done", 0, 1)
+    expect(one[3]).toBeGreaterThan(0.12)
+    expect(one[2]).toBe(0.12)
+    const drawn = dotLevels("done", 0, 5)
+    expect([3, 7, 5, 2].map((dot) => drawn[dot])).toEqual([1, 1, 1, 1])
+    expect(dotLevels("done", 0, 500)).toEqual(drawn)
+    expect(dotsMove("done", 4)).toBe(true)
+    expect(dotsMove("done", 5)).toBe(false)
+    const idle = dotLevels("idle", 0, 9)
+    expect(idle[4]).toBe(0.12)
+    expect([1, 2, 5, 8, 7, 6, 3, 0].map((dot) => idle[dot])).toEqual(new Array(8).fill(0.6))
+    expect(dotsMove("working", 1_000_000) && dotsMove("waiting", 1_000_000)).toBe(true)
   })
 })
 

@@ -482,6 +482,9 @@ button:focus-visible,
 .tone-warning {
   color: var(--warning);
 }
+.tone-info {
+  color: var(--info);
+}
 .tone-success {
   color: var(--success);
 }
