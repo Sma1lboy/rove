@@ -1,0 +1,38 @@
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 0;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tab:hover {
+  background: var(--hover);
+}
+.tab.is-active {
+  color: var(--ink);
+  background: var(--inset);
+}
+.tab-index {
+  color: var(--subtle);
+}
+.tab.is-active .tab-index {
+  color: var(--accent);
+}
+.tab-strip {
+  transition: padding-left 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.app.is-rail-folded .tab-strip {
+  padding-left: 92px;
+  /* With the tabs hidden the strip is empty; keep the bar's row so it never sits on the pane's border. */
+  min-height: 26px;
+}
