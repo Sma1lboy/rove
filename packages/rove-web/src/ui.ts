@@ -69,14 +69,13 @@ dialog.subscribe(() => {
 })
 export const toasts = createStore<readonly Toast[]>([])
 
-/** A read-only file or diff open over the workspace (the TUI's content tab). `path` `.` = whole worktree. */
+/** A read-only file or diff in the side panel (the TUI's content tab). `path` `.` = whole worktree. */
 export interface Preview {
   readonly taskId: string
   readonly path: string
   readonly scope: "working" | "branch"
 }
 
-export const preview = createStore<Preview | null>(null)
 export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "dispatch"
 /** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
 export const page = createStore<PageId | null>(null)

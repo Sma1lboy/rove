@@ -3,11 +3,11 @@
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
 import { createStore } from "./store.ts"
 
-/** The side panel's views, left to right in its button row. */
-export const PANEL_TABS = ["files", "diff", "browser"] as const
-export type PanelTab = (typeof PANEL_TABS)[number]
-/** Narrow mode, a task's content panel: the terminal, or one of the side panel's views (the desktop's right column). */
-export type NarrowView = "terminal" | PanelTab
+/** The side panel's kinds of view; a tab is one instance of a kind. */
+export const PANEL_KINDS = ["files", "diff", "browser"] as const
+export type PanelKind = (typeof PANEL_KINDS)[number]
+/** Narrow mode, a task's content panel: the terminal, or one of the side panel's kinds (the desktop's right column). */
+export type NarrowView = "terminal" | PanelKind
 export const narrowView = createStore<NarrowView>("terminal")
 
 /** The side panel's own minimum; the terminal keeps `MIN_WORKSPACE_WIDTH` of what is left. */

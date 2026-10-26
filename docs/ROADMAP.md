@@ -42,15 +42,24 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
 
 **What exists.**
 
-- A side panel beside the terminal on a desktop window, with Files, Diff and
-  Browser buttons along its top and a button at the workspace's top right to
-  show or hide it ([`side-panel.tsx`](../packages/rove-web/src/side-panel.tsx)).
-  It is resizable, and remembers its width, the last view and the last address
-  per task. A view stays mounted while another is up, so the page keeps its
-  place and the diff its scroll.
+- A side panel beside the terminal on a desktop window, and a button at the
+  workspace's top right to show or hide it
+  ([`side-panel.tsx`](../packages/rove-web/src/side-panel.tsx)). It is
+  resizable and holds several tabs per task: a quiet row of small tabs along
+  its top (Files, a diff per file, a Browser per page), a × on hover,
+  middle-click to close, and a `+` that opens a new Files, a whole-worktree
+  diff or a Browser. A right-click offers Split down or Move to top/bottom,
+  which stacks a second group under the first with its own tab row and a
+  draggable divider; closing a group's last tab collapses the split. Tabs drag
+  to reorder or to the other group. The panel remembers its width and, per
+  task, the tabs, the split and each Browser tab's own history
+  ([`panel-model.ts`](../packages/rove-web/src/panel-model.ts)). A view stays
+  mounted while another is up, so the page keeps its place and the diff its
+  scroll; at most three Browser frames stay live at once (the rest keep their
+  address and reload when shown).
 - Files, with All and Changes tabs and a working-tree or branch scope
   ([`files-view.tsx`](../packages/rove-web/src/files-view.tsx)). Opening a file
-  shows its diff in the Diff view, beside the terminal, in the file and diff
+  opens (or focuses) a Diff tab for that path, beside the terminal, in the file and diff
   reader with line notes you can send to the engine
   ([`preview-view.tsx`](../packages/rove-web/src/preview-view.tsx)).
 - Browser, with an address bar, back, forward, reload and open in a new tab
@@ -61,7 +70,9 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
   ([`web-static.ts`](../packages/rove-bridge/src/web-static.ts)), and the page
   itself still cannot be framed. Anything else shows why and a new-tab button.
 - On a narrow window the Terminal / Files switch is Terminal / Files / Diff /
-  Browser, one view full-screen.
+  Browser, one view full-screen: it shows the latest tab of that kind, and a
+  row of that kind's tabs appears when there is more than one. No split on a
+  phone.
 - The panel and its buttons are rows #211 and #212 in
   [web/PARITY.md](web/PARITY.md).
 

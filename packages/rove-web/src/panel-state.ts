@@ -1,81 +1,87 @@
 /**
- * What the side panel remembers: per task, the view it was last on and the Browser's last address
- * (per browser, in localStorage, for the newest `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
+ * What the side panel remembers: per task, its tabs and split (per browser, in localStorage, for the
+ * newest `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
  */
 
 import { isNarrow } from "./layout.ts"
-import { type PanelPush, planPanelPush } from "./panel-contract.ts"
-import { PANEL_TABS, type PanelTab, narrowView, panelOpen } from "./panel-layout.ts"
+import { type PanelPush, applyPlan, planPanelPush } from "./panel-contract.ts"
+import { type PanelKind, narrowView, panelOpen } from "./panel-layout.ts"
+import {
+  type TaskPanel,
+  closeTab,
+  latestOfKind,
+  loadPanels,
+  newPanel,
+  remember,
+  showDiff,
+  showKind,
+} from "./panel-model.ts"
 import { createStore, useStore } from "./store.ts"
-import { type Preview, preview, zen } from "./ui.ts"
+import { type Preview, zen } from "./ui.ts"
 
-const REMEMBERED_TASKS = 50
+const KEY = "rove.web.panels"
+// What the panel kept before it had tabs: the view per task and the Browser's address per task.
+const LEGACY_VIEW_KEY = "rove.web.panelTab"
+const LEGACY_URL_KEY = "rove.web.panelUrl"
 
-function taskMemory<T extends string>(key: string, valid: (value: unknown) => value is T) {
-  let initial: Record<string, T> = {}
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(key) ?? "{}")
-    if (raw && typeof raw === "object") {
-      initial = Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, T] => valid(entry[1])))
-    }
-  } catch {
-    // A corrupt entry is a fresh start.
+function readPanels(): Record<string, TaskPanel> {
+  const legacy = { tab: localStorage.getItem(LEGACY_VIEW_KEY), url: localStorage.getItem(LEGACY_URL_KEY) }
+  const panels = loadPanels(localStorage.getItem(KEY), legacy)
+  if (legacy.tab !== null || legacy.url !== null) {
+    localStorage.setItem(KEY, JSON.stringify(panels))
+    localStorage.removeItem(LEGACY_VIEW_KEY)
+    localStorage.removeItem(LEGACY_URL_KEY)
   }
-  const store = createStore(initial)
-  /** Writing a task moves it to the newest end, so the oldest fall off first. */
-  const remember = (taskId: string, value: T): void => {
-    const next = Object.fromEntries(Object.entries(store.get()).filter(([id]) => id !== taskId))
-    next[taskId] = value
-    for (const id of Object.keys(next).slice(0, -REMEMBERED_TASKS)) delete next[id]
-    store.set(next)
-    localStorage.setItem(key, JSON.stringify(next))
-  }
-  return { store, remember }
+  return panels
 }
 
-const tabs = taskMemory("rove.web.panelTab", (v): v is PanelTab => PANEL_TABS.some((tab) => tab === v))
-const urls = taskMemory("rove.web.panelUrl", (v): v is string => typeof v === "string")
+const panels = createStore(readPanels())
+/** A task never seen: Files alone. */
+const FRESH = newPanel()
 
-/** The Browser's last address per task (empty = none yet). */
-export const panelUrls = urls.store
-export const rememberUrl = urls.remember
-
-/** The view the desktop panel shows for a task; in narrow mode the switch in the bar decides. */
-export function usePanelTab(taskId: string, narrow: boolean): PanelTab {
-  const remembered = useStore(tabs.store)[taskId] ?? "files"
-  const narrowTab = useStore(narrowView)
-  return narrow ? (narrowTab === "terminal" ? "files" : narrowTab) : remembered
+export function useTaskPanel(taskId: string): TaskPanel {
+  return useStore(panels)[taskId] ?? FRESH
 }
 
-/** Bring a view up: open the panel (and, narrow, leave the terminal for it). */
-export function showPanel(taskId: string, tab: PanelTab): void {
-  tabs.remember(taskId, tab)
+/** Apply an edit to a task's panel and keep it; the task becomes the newest remembered. */
+export function editPanel(taskId: string, edit: (panel: TaskPanel) => TaskPanel): void {
+  const now = panels.get()[taskId] ?? FRESH
+  const next = edit(now)
+  if (next === now) return
+  const all = remember(panels.get(), taskId, next)
+  panels.set(all)
+  localStorage.setItem(KEY, JSON.stringify(all))
+}
+
+/** Bring a kind of view up: open the panel (and, narrow, leave the terminal for it). */
+export function showPanel(taskId: string, kind: PanelKind): void {
+  editPanel(taskId, (panel) => showKind(panel, kind))
   panelOpen.set(true)
-  if (isNarrow()) narrowView.set(tab)
+  if (isNarrow()) narrowView.set(kind)
 }
 
-/** A file's diff (`.` = the whole worktree) opens in the Diff view beside the terminal, not over it. */
+/** A file's diff (`.` = the whole worktree) opens in its own tab beside the terminal, not over it. */
 export function openDiff(view: Preview): void {
-  preview.set(view)
-  showPanel(view.taskId, "diff")
+  editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope))
+  panelOpen.set(true)
+  if (isNarrow()) narrowView.set("diff")
 }
 
-/** Closing the diff goes back to the file list it came from. */
-export function closeDiff(taskId: string): void {
-  preview.set(null)
-  showPanel(taskId, "files")
+/** Closes a tab; the phone's panel always shows something, so it falls back to Files when its kind runs out. */
+export function closePanelTab(taskId: string, id: string): void {
+  editPanel(taskId, (panel) => closeTab(panel, id))
+  const kind = narrowView.get()
+  if (isNarrow() && kind !== "terminal" && !latestOfKind(panels.get()[taskId] ?? FRESH, kind))
+    showPanel(taskId, "files")
 }
 
 /**
- * A `rove api panel-show` request: remember the view (and the Browser's address, a file's diff) for
- * the task whatever page is open; open the panel only here if this page is on that task. A diff for
- * a task this page is not on waits for the user's own pick there: the diff slot is one for all tasks.
+ * A `rove api panel-show` request: every page keeps the view in the task's panel, whatever page is
+ * open; only a page that is on that task opens the panel.
  */
 export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
   const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow() })
-  tabs.remember(push.taskId, plan.tab)
-  if (plan.url) urls.remember(push.taskId, plan.url)
-  if (plan.diff && hereTaskId === push.taskId) preview.set({ taskId: push.taskId, path: plan.diff, scope: "working" })
+  editPanel(push.taskId, (panel) => applyPlan(panel, plan))
   if (plan.show) {
     panelOpen.set(true)
     // Zen hides the panel, and showing it is what was asked for: leave zen, as the panel's own button does.
