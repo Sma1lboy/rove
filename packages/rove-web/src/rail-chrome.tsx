@@ -142,7 +142,14 @@ export function FoldedRail({ model, selectedTaskId }: { model: AppModel; selecte
                   onClick={() => open(task.id)}
                 >
                   {style === "hairline" ? "▌" : <StatusDots status={task.rowStatus} />}
-                  {marker && style !== "hairline" && (marker === "shared" ? "⑂" : "⎇")}
+                  {marker && style !== "hairline" && (
+                    <span
+                      title={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
+                      aria-label={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
+                    >
+                      {marker === "shared" ? "⑂" : "⎇"}
+                    </span>
+                  )}
                   {style === "initials" && <span className="rail-folded-initials">{railInitials(task.title)}</span>}
                 </button>
               )

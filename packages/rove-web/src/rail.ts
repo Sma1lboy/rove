@@ -254,12 +254,14 @@ function isFolded(id: string, childCount: number, descendants: readonly string[]
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
  * matched on its own; a project hit keeps its whole subtree, a task hit its
  * children, a child hit its parents and project. A folded task (`fold`) hides its children.
+ * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
  */
 export function navRows(
   groups: readonly ProjectGroup[],
   query = "",
   expandedRoutines: ReadonlySet<string> = new Set(),
   fold: FoldState = NO_FOLDS,
+  base = 0,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
@@ -298,11 +300,11 @@ export function navRows(
     const routineRows: NavRow[] = []
     for (const task of group.tasks) {
       if (nested.has(task.id) || !hasHit(task)) continue
-      // Routine sessions are the tail of the group: a count row folds them.
+      // Routine sessions are the tail of the group: a count row folds them, and they hang under it as its children.
       if (task.routine) {
         routines.push(task)
-        push(routineRows, task, 0)
-      } else push(under, task, 0)
+        push(routineRows, task, base + 1)
+      } else push(under, task, base)
     }
     if (routines.length > 0) {
       // Search builds fully open, so a folded routine stays findable.

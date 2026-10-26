@@ -187,7 +187,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
                 : undefined
             }
-            onToggleFold={() => row.kind === "task" && filters.toggleTaskFold(row.id, row.fold?.collapsed === true)}
+            onToggleFold={() => {
+              if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
+              if (row.kind === "routines") filters.toggleRoutines(row.key)
+              if (row.kind === "archived") filters.toggleArchived()
+            }}
             onClick={() => {
               keys.setCursor(row.id)
               if (row.kind === "routines") filters.toggleRoutines(row.key)
@@ -300,42 +304,31 @@ function RailRow(props: {
       </h2>
     )
   }
-  if (row.kind === "routines") {
-    const waiting = row.expanded ? 0 : row.tasks.filter(needsPerson).length
+  if (row.kind === "routines" || row.kind === "archived") {
+    const routines = row.kind === "routines"
+    const waiting = routines && !row.expanded ? row.tasks.filter(needsPerson).length : 0
+    const words = routines
+      ? row.tasks.length === 1
+        ? tc("tasks", "routinesRowOne")
+        : tc("tasks", "routinesRow", { count: row.tasks.length })
+      : tc("tasks", "archivedRow", { count: row.count })
     return (
       <button
         type="button"
-        className={`row routines-row ${props.selected ? "is-selected" : ""} ${cursor}`}
+        className={`row count-row ${routines ? `routines-row ${props.selected ? "is-selected" : ""}` : "archived-row"} ${cursor}`}
         aria-expanded={row.expanded}
         onClick={props.onClick}
         {...props.place}
       >
-        <span className="glyph tone-muted">{row.expanded ? "▾" : "▸"}</span>
-        <span className="row-title muted">
-          {row.tasks.length === 1
-            ? tc("tasks", "routinesRowOne")
-            : tc("tasks", "routinesRow", { count: row.tasks.length })}
+        <span className="row-title muted">{words}</span>
+        <span className="chips">
+          {waiting > 0 && (
+            <span className="chip tone-attention">
+              {tc("tasks", "group.waitingOnYou")}: {waiting}
+            </span>
+          )}
+          <FoldToggle collapsed={!row.expanded} onToggle={props.onToggleFold} />
         </span>
-        {waiting > 0 && (
-          <span className="chip tone-attention">
-            {tc("tasks", "group.waitingOnYou")}: {waiting}
-          </span>
-        )}
-      </button>
-    )
-  }
-
-  if (row.kind === "archived") {
-    return (
-      <button
-        type="button"
-        className={`row routines-row archived-row ${cursor}`}
-        aria-expanded={row.expanded}
-        onClick={props.onClick}
-        {...props.place}
-      >
-        <span className="glyph tone-muted">{row.expanded ? "▾" : "▸"}</span>
-        <span className="row-title muted">{tc("tasks", "archivedRow", { count: row.count })}</span>
       </button>
     )
   }
@@ -370,11 +363,22 @@ function RailRow(props: {
           </span>
         )}
         {marker && (
-          <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
+          <span
+            className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`}
+            title={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
+            aria-label={t(marker === "shared" ? "rail.childShared" : "rail.childWorktree")}
+          >
             {marker === "shared" ? NERD.shared : NERD.branch}
           </span>
         )}
-        {row.fold && <FoldToggle fold={row.fold} urgent={props.foldUrgent} onToggle={props.onToggleFold} />}
+        {row.fold && (
+          <FoldToggle
+            collapsed={row.fold.collapsed}
+            count={row.fold.count}
+            urgent={props.foldUrgent}
+            onToggle={props.onToggleFold}
+          />
+        )}
         {task.pinned && <span className="chip muted">▴</span>}
         {task.prChip && (
           <span className={`chip ${prTone(task.prChip, task.prChipStale)}`}>{prGlyph(task.prChip, glyphs)}</span>
@@ -387,14 +391,14 @@ function RailRow(props: {
   )
 }
 
-/** `▸ 3 ●` on a folded task: the fold, how many descendants it hides, and the most urgent of them (a click on a row's fold; the menu and the keyboard use its entry). */
+/** `▸ 3 ●` on a folded task: the fold, how many descendants it hides, and the most urgent of them (a click on a row's fold; the menu and the keyboard use its entry). A fold row's own words say the count, so it passes none. */
 function FoldToggle(props: {
-  fold: RowFold
-  urgent: RowStatus | undefined
+  collapsed: boolean
+  count?: number
+  urgent?: RowStatus | undefined
   onToggle: () => void
 }) {
-  const { fold } = props
-  const label = tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
+  const label = tc("tasks", props.collapsed ? "menu.expandChildren" : "menu.collapseChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
     // biome-ignore lint/a11y/useSemanticElements: same reason: the row is itself a button
@@ -402,7 +406,7 @@ function FoldToggle(props: {
       role="button"
       tabIndex={-1}
       aria-label={label}
-      aria-expanded={!fold.collapsed}
+      aria-expanded={!props.collapsed}
       className="chip fold-toggle muted"
       title={label}
       onClick={(e) => {
@@ -410,9 +414,9 @@ function FoldToggle(props: {
         props.onToggle()
       }}
     >
-      {fold.collapsed ? NERD.folded : NERD.unfolded}
-      {fold.collapsed && ` ${fold.count}`}
-      {fold.collapsed && props.urgent && <StatusDots status={props.urgent} />}
+      {props.collapsed ? NERD.folded : NERD.unfolded}
+      {props.collapsed && props.count !== undefined && ` ${props.count}`}
+      {props.collapsed && props.urgent && <StatusDots status={props.urgent} />}
     </span>
   )
 }

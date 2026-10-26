@@ -7,6 +7,8 @@ export const en = {
     newTask: "New task",
     noProject: "Ungrouped",
     extraRepos: "{count} more repos in this task",
+    childShared: "Shares the parent task's folder: no worktree of its own, edits land in the parent's checkout",
+    childWorktree: "Own worktree and branch, cut from the parent's branch",
     searchPlaceholder: "fuzzy filter",
     engineSwitched: "Engine → {engine} (applies on reopen)",
     engineSwitchFailed: "could not switch engine: {error}",
