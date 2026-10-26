@@ -656,6 +656,13 @@
     width: 20px;
     height: 20px;
   }
+  /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
+     styles sit in several later-loaded sheets, hence !important. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
