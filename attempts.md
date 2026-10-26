@@ -273,3 +273,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Landed tonight as a PR from `perf/nightly-2026-10-26`:** `Terminal.tsx` returns a shared `NO_ROWS` when the viewport slice is empty. switch.perOp.overlay 5 → 3 (2 of 2 runs). Commits, frames, paintRow and timings unchanged (switch.shown 469/466, typing.echo 152/172). The remaining 3 are mount, the `cols` change and the first data; the `cols` one could fold only if the remount knew its geometry up front (see the 10-15/10-16 geometry notes).
 
 **Sandbox:** Playwright asked for headless shell rev 1243 at `chrome-headless-shell-linux64/`; a dir of symlinks plus 1228/1194 → 1243 dir symlinks worked. `BUN_OPTIONS` unset for every run. pre-pr passed 10/10 here.
+
+**Update 2026-10-26:** #1452 merged. Tomorrow's main should read switch.perOp.overlay ~3.
