@@ -9,6 +9,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import {
   RAIL_DEFAULT_PX,
   clampRailWidth,
+  narrowFiles,
   narrowPane,
   peekRail,
   railFolded,
@@ -142,8 +143,18 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   const taskInk = useTaskColor(task?.id)
   const working = task?.rowStatus?.kind === "running"
   const composing = useStore(newSession)
-  // Picking a task or tab leaves the composer, as it leaves a page.
-  useEffect(() => model.selection.subscribe(() => newSession.set(null)), [model])
+  const filesOn = useStore(narrowFiles) && narrow && !!task
+  // Picking a task or tab leaves the composer and the narrow file list, as it leaves a page; a tab sweep
+  // that rewrites the same selection does not.
+  useEffect(() => {
+    let last = model.selection.get()
+    return model.selection.subscribe(() => {
+      newSession.set(null)
+      const next = model.selection.get()
+      if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowFiles.set(false)
+      last = next
+    })
+  }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
@@ -181,7 +192,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
   }
   return (
     <main className="workspace">
-      {narrow && <NarrowBackBar />}
+      {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && (
         <div
           className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`}
@@ -233,7 +244,7 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
             <RemoteNotice host={remoteTask.machine.label} />
           </div>
         )}
-        {task && tabsKnown && tabs.length === 0 && !shown && (
+        {task && tabsKnown && tabs.length === 0 && !shown && !filesOn && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
             <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
@@ -249,8 +260,9 @@ function Workspace({ model, narrow }: { model: AppModel; narrow: boolean }) {
           </div>
         )}
         {shown && <PreviewView key={`${shown.taskId}:${shown.path}:${shown.scope}`} model={model} view={shown} />}
+        {task && filesOn && !shown && <FilesView key={task.id} model={model} task={task} narrow />}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
-          <div className={`term-slot ${shown ? "is-hidden" : ""}`}>
+          <div className={`term-slot ${shown || filesOn ? "is-hidden" : ""}`}>
             <SplitPane
               key={`${task.id}::${selection.tabId}`}
               model={model}

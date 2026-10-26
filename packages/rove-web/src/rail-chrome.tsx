@@ -12,7 +12,16 @@ import { openHelp } from "./help-view.tsx"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
-import { backToTasks, clampRailWidth, enterWorkspace, peekRail, railFolded, railPeek, railWidth } from "./layout.ts"
+import {
+  backToTasks,
+  clampRailWidth,
+  enterWorkspace,
+  narrowFiles,
+  peekRail,
+  railFolded,
+  railPeek,
+  railWidth,
+} from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { ShortcutBadge } from "./prefix-guide.tsx"
@@ -21,7 +30,7 @@ import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { dialog } from "./ui.ts"
+import { dialog, preview } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -129,13 +138,47 @@ export function RailBar({ model }: { model: AppModel }) {
   )
 }
 
-/** Narrow layout, content panel: the way back to the list the viewport has no room to show beside it. */
-export function NarrowBackBar() {
+/**
+ * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
+ * In a task it also switches between the terminal and the file list, the desktop's Files column.
+ */
+export function NarrowBackBar({ taskId }: { taskId?: string }) {
   useLocale()
+  const files = useStore(narrowFiles)
+  // A preview left open on another task is not what this panel shows.
+  const shown = useStore(preview)?.taskId === taskId
   return (
-    <button type="button" className="narrow-back mono" onClick={backToTasks}>
-      <span className="tone-accent">{`‹ ${workspaceText("narrowBack")}`}</span>
-    </button>
+    <div className="narrow-bar">
+      <button type="button" className="narrow-back mono" onClick={backToTasks}>
+        <span className="tone-accent">{`‹ ${workspaceText("narrowBack")}`}</span>
+      </button>
+      {taskId && (
+        <span className="narrow-switch mono" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!files && !shown}
+            onClick={() => {
+              preview.set(null)
+              narrowFiles.set(false)
+            }}
+          >
+            {t("layout.narrowTerminal")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={files || shown}
+            onClick={() => {
+              preview.set(null)
+              narrowFiles.set(true)
+            }}
+          >
+            {t("layout.narrowFiles")}
+          </button>
+        </span>
+      )}
+    </div>
   )
 }
 

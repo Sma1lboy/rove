@@ -298,6 +298,8 @@ export const en = {
     refreshTimeout: "The daemon did not come back on the new build in time; check `rove daemon status`",
     railResize: "Drag to resize the task list, double-click to reset",
     termKeys: "Terminal keys",
+    narrowTerminal: "Terminal",
+    narrowFiles: "Files",
   },
   newSession: {
     title: "New session",
