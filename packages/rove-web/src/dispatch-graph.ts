@@ -57,6 +57,64 @@ export function graphOf(rows: readonly DispatchRow[]): Graph {
   return { senders: [...senders.values()], targets: [...targets.values()] }
 }
 
+/** A registered machine's frame on the target column: its header, then its sessions. */
+export interface MachineFrame {
+  readonly machine: string
+  readonly top: number
+  readonly height: number
+}
+
+export interface TargetColumn {
+  /** Each target's centre line, from the column's top. */
+  readonly y: ReadonlyMap<string, number>
+  /** Targets drawn inside a machine frame, inset from the column edge. */
+  readonly framed: ReadonlySet<string>
+  readonly frames: readonly MachineFrame[]
+  readonly height: number
+}
+
+export const COLUMN = { row: 52, head: 28, pad: 8, gap: 12 } as const
+
+/**
+ * This machine's targets first, unframed (the hub is this machine); then one frame per registered
+ * machine in registration order, holding its targets, drawn even with none so every machine shows.
+ */
+export function targetColumn(
+  targets: readonly GraphNode[],
+  machineOf: (node: GraphNode) => string | undefined,
+  machines: readonly string[],
+): TargetColumn {
+  const y = new Map<string, number>()
+  const framed = new Set<string>()
+  const frames: MachineFrame[] = []
+  const byMachine = new Map<string, GraphNode[]>(machines.map((m) => [m, []]))
+  let at = 0
+  for (const node of targets) {
+    const machine = machineOf(node)
+    if (machine === undefined) {
+      y.set(node.key, at + COLUMN.row / 2)
+      at += COLUMN.row
+    } else {
+      const group = byMachine.get(machine)
+      if (group) group.push(node)
+      else byMachine.set(machine, [node])
+    }
+  }
+  for (const [machine, nodes] of byMachine) {
+    if (at > 0) at += COLUMN.gap
+    const top = at
+    at += COLUMN.head
+    for (const node of nodes) {
+      y.set(node.key, at + COLUMN.row / 2)
+      framed.add(node.key)
+      at += COLUMN.row
+    }
+    at += COLUMN.pad
+    frames.push({ machine, top, height: at - top })
+  }
+  return { y, framed, frames, height: at }
+}
+
 function cubic(a: Point, b: Point, c: Point, d: Point, t: number): Point {
   const u = 1 - t
   return {
