@@ -667,6 +667,12 @@
   .term-search {
     font-size: 16px;
   }
+  /* Primary buttons (connect, sign out, start session) and the engine rows' secondary actions are
+     ~24-28px tall at desktop padding. */
+  .button,
+  .eng-action {
+    min-height: 40px;
+  }
 }
 
 /* Daemon out-of-date banner (TUI VersionSkewBanner) */
