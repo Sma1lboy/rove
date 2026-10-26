@@ -13,7 +13,7 @@ import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
-import { deriveTitleFromSession } from "../monitor/auto-title.ts"
+import { deriveTitleFromSession, deriveTitleFromSessionId } from "../monitor/auto-title.ts"
 import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
@@ -147,6 +147,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   checkLatestVersion: () => checkLatestVersion({ channel: preferredReleaseChannel() }),
   latestTranscriptMtime,
   deriveTitleFromSession,
+  deriveTitleFromSessionId,
   createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),
   async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {

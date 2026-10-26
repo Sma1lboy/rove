@@ -21,6 +21,32 @@ export const DEFAULT_AUTO_TITLE_POLL_MS = 4000
 /** A task's first-user-prompt title from its on-disk transcript; `""` when none yet. */
 export type TitleDeriver = (worktree: string, vendor: VendorId) => Promise<string>
 
+/** A title from ONE session's transcript, by id; `""` when none yet. */
+export type SessionTitleDeriver = (vendor: VendorId, sessionId: string) => Promise<string>
+
+/** The conversation a task's own engine tab pinned, when it pinned one. */
+export type ConversationOf = (taskId: string) => { readonly vendor?: VendorId; readonly sessionId: string } | undefined
+
+/** How a task that shares its directory finds its own conversation. */
+export interface SharedDirNaming {
+  readonly conversationOf: ConversationOf
+  readonly deriveById: SessionTitleDeriver
+}
+
+/**
+ * The session id the task's first engine tab pinned (`EngineTab.sessionId`, written by the
+ * client that spawned it), with that tab's vendor. Rows are opaque to the daemon, so read
+ * defensively: anything unexpected is "no pinned conversation".
+ */
+export function pinnedConversation(
+  state: { readonly tabs: readonly { readonly kind: string; readonly [field: string]: unknown }[] } | null,
+): ReturnType<ConversationOf> {
+  const tab = state?.tabs.find((t) => t.kind === "engine" && typeof t.sessionId === "string" && t.sessionId)
+  if (!tab) return undefined
+  const vendor = typeof tab.vendor === "string" ? (tab.vendor as VendorId) : undefined
+  return { sessionId: tab.sessionId as string, ...(vendor ? { vendor } : {}) }
+}
+
 /** A task that this pass renamed, plus the title it was given. */
 export interface AutoTitled {
   readonly id: string
@@ -40,13 +66,23 @@ export async function runAutoTitlePass(
   /** rove's `DEFAULT_TASK_VENDOR`, via the runtime adapter; required so no
    *  local literal can drift from it. */
   defaultVendor: VendorId,
+  /** Without it, a task sharing its directory keeps its placeholder. */
+  shared?: SharedDirNaming,
 ): Promise<AutoTitled[]> {
   const renamed: AutoTitled[] = []
   const snapshot = orch.listTasks()
   for (const task of snapshot) {
     if (task.title !== placeholderTitle || !task.worktreePath) continue
     try {
-      const derived = await derive(task.worktreePath, task.vendor ?? defaultVendor)
+      // A directory scan finds whichever conversation in that directory came first, so a
+      // second conversation in a shared directory would take its sibling's title. Name it
+      // from its own pinned session instead, or not at all.
+      const sharesDir = snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
+      const own = sharesDir ? shared?.conversationOf(task.id) : undefined
+      if (sharesDir && !own) continue
+      const derived = own
+        ? await (shared as SharedDirNaming).deriveById(own.vendor ?? task.vendor ?? defaultVendor, own.sessionId)
+        : await derive(task.worktreePath, task.vendor ?? defaultVendor)
       if (!derived) continue
       const title = withGroupOrdinal(derived, task.id, task.groupId, snapshot)
       // Re-check the live store: a manual or detach-time rename may have
@@ -87,15 +123,26 @@ function withGroupOrdinal(
  */
 export function startAutoTitlePoller(
   orch: DaemonOrchestrator,
-  runtime: Pick<DaemonRuntimeAdapter, "deriveTitleFromSession" | "placeholderTaskTitle" | "defaultTaskVendor">,
+  runtime: Pick<
+    DaemonRuntimeAdapter,
+    "deriveTitleFromSession" | "deriveTitleFromSessionId" | "placeholderTaskTitle" | "defaultTaskVendor"
+  >,
   intervalMs: number = DEFAULT_AUTO_TITLE_POLL_MS,
   hasSubscribers?: () => boolean,
+  conversationOf?: ConversationOf,
 ): ReturnType<typeof startTicker> {
+  const shared = conversationOf ? { conversationOf, deriveById: runtime.deriveTitleFromSessionId } : undefined
   return startTicker({
     name: "auto-title-poller",
     tickMs: intervalMs,
     ...(hasSubscribers ? { gate: hasSubscribers } : {}),
     run: () =>
-      runAutoTitlePass(orch, runtime.deriveTitleFromSession, runtime.placeholderTaskTitle, runtime.defaultTaskVendor),
+      runAutoTitlePass(
+        orch,
+        runtime.deriveTitleFromSession,
+        runtime.placeholderTaskTitle,
+        runtime.defaultTaskVendor,
+        shared,
+      ),
   })
 }

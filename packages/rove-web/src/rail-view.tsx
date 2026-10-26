@@ -4,6 +4,7 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { errorText } from "./dialogs.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -25,7 +26,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { useTaskColor } from "./task-colors.ts"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, menu } from "./ui.ts"
+import { type MenuItem, dialog, menu, toast } from "./ui.ts"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
 
@@ -50,6 +51,17 @@ function useSpinnerFrame(running: boolean): number {
     return () => window.clearInterval(timer)
   }, [running])
   return frame
+}
+
+/** The header's `+`: a Scratch conversation in $HOME on the default engine, one click (the picker stays in New conversation with…). */
+async function newScratch(model: AppModel): Promise<void> {
+  try {
+    const made = await model.client.request<{ taskId: string }>("task.openScratch", {})
+    model.selectWhenListed(made.taskId)
+    enterWorkspace()
+  } catch (err) {
+    toast(t("rail.newScratchFailed", { error: errorText(err) }), "error")
+  }
 }
 
 export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }) {
@@ -138,6 +150,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           <ShortcutBadge model={model} bindingId="inbox.show" />
         </span>
         <UpdateChip />
+        <button
+          type="button"
+          className="rail-add"
+          title={t("rail.newScratch")}
+          aria-label={t("rail.newScratch")}
+          onClick={() => void newScratch(model)}
+        >
+          +
+        </button>
       </header>
       {moving && (
         <div className="rail-search mono">

@@ -10,7 +10,7 @@ import type { DaemonRpcClient } from "../client/rpc.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
-import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
+import { type ConversationOf, DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
@@ -60,6 +60,8 @@ export interface DaemonCollectorOptions {
   readonly automationTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
   readonly ownerOf?: PtyOwnerResolver
+  /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
+  readonly conversationOf?: ConversationOf
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -233,6 +235,7 @@ export function startDaemonCollectors(
     options.autoTitlePollMs ?? DEFAULT_AUTO_TITLE_POLL_MS,
     // A rename rides the task push, so the consumer to gate on is task.snapshot.
     () => hasSubscribersFor("task.snapshot"),
+    options.conversationOf,
   )
 
   const stopUiPrefsWatcher = startUiPrefsWatcher(bus, {

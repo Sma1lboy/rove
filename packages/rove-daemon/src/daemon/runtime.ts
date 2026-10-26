@@ -98,6 +98,8 @@ export interface DaemonRuntimeAdapter {
   checkLatestVersion(): Promise<UpdateInfo | null>
   latestTranscriptMtime(vendor: VendorId, worktreePath: string): Promise<number>
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
+  /** The first-prompt title of ONE session, by id; `""` when none yet. */
+  deriveTitleFromSessionId(vendor: VendorId, sessionId: string): Promise<string>
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
   /** `baseRef` is the task's RECORDED fork point; absent/stale falls back to
    *  own resolution, and `behind` is omitted when nothing resolves. */

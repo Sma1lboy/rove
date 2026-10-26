@@ -182,7 +182,7 @@ export async function openEditorFlow(model: AppModel, taskId: string): Promise<v
 export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "branch" | "kind">) {
   return (
     <ConfirmDialog
-      title={tc("tasks", "confirm.deleteTitle", { title: task.title })}
+      title={tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.title })}
       body={tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")}
       confirmLabel={tc("tasks", "confirm.deleteConfirm")}
       onConfirm={() => model.client.request("task.delete", { taskId: task.id }).then(() => {})}
