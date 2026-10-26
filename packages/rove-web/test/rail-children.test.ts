@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { mostUrgentStatus } from "../src/rail-glyphs.ts"
-import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
+import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows, treeGuides } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
   ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
@@ -25,6 +25,26 @@ describe("child tasks in the rail", () => {
       ["g", 3, undefined],
       ["c2", 2, undefined],
       ["other", 1, undefined],
+    ])
+  })
+
+  test("guides run down past siblings still to come and hook into the last one", () => {
+    const nav = rows([
+      task("p"),
+      task("c1", { parentTaskId: "p" }),
+      task("g1", { parentTaskId: "c1" }),
+      task("c2", { parentTaskId: "p" }),
+      task("g2", { parentTaskId: "c2" }),
+      task("other"),
+    ])
+    const guides = nav.flatMap((row, i) => (row.kind === "task" ? [[row.id, treeGuides(nav, i)]] : []))
+    expect(guides).toEqual([
+      ["p", []],
+      ["c1", ["tee"]],
+      ["g1", ["pipe", "elbow"]],
+      ["c2", ["elbow"]],
+      ["g2", ["blank", "elbow"]],
+      ["other", []],
     ])
   })
 

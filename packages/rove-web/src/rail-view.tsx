@@ -21,7 +21,16 @@ import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { NERD, anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
-import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
+import {
+  type NavRow,
+  type RowFold,
+  type TreeGuide,
+  childMarkerOf,
+  railRows,
+  repoLabel,
+  rowTitle,
+  treeGuides,
+} from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
@@ -194,10 +203,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
-        {rows.map((row) => (
+        {rows.map((row, i) => (
           <RailRow
             key={row.id}
             row={row}
+            guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
             cloud={rowCloud(row, machines, words)}
             tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
             frame={frame}
@@ -270,6 +280,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
 function RailRow(props: {
   row: NavRow
+  /** A child task's indent columns, outermost first. */
+  guides?: readonly TreeGuide[]
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
   cloud: string | null
   /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
@@ -390,7 +402,14 @@ function RailRow(props: {
       {...props.place}
       {...props.drag}
     >
-      {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 10 }} aria-hidden="true" />}
+      {props.guides && (
+        <span className="child-indent" aria-hidden="true">
+          {props.guides.map((guide, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a column's place is its identity
+            <span key={i} className={`guide is-${guide}`} />
+          ))}
+        </span>
+      )}
       <span className="row-title">{rowTitle(task, props.tabs)}</span>
       <span className="chips">
         {row.level !== undefined && <span className="chip muted">{row.level}</span>}

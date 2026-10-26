@@ -418,12 +418,37 @@ button:focus-visible,
   background: var(--inset);
 }
 
-/* A child steps in under its parent behind a thin guide per level, as Claude's session tree. */
+/* A child steps in under its parent behind Claude's session-tree guides: a line down past each
+   sibling still to come, and a rounded hook into the last one. Each column spans the row's full
+   height (the padding pulled back), so the lines join across rows. */
 .child-indent {
   flex: none;
+  display: flex;
   align-self: stretch;
-  margin: -3px 0;
-  background: repeating-linear-gradient(to right, transparent 0 3px, var(--line) 3px 4px, transparent 4px 10px);
+  margin: -3px -2px -3px 0;
+}
+
+.guide {
+  position: relative;
+  width: 12px;
+}
+
+.guide.is-pipe::before,
+.guide.is-tee::before,
+.guide.is-elbow::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--line-active);
+}
+
+.guide.is-elbow::before {
+  bottom: 50%;
+  right: 0;
+  border-bottom: 1px solid var(--line-active);
+  border-bottom-left-radius: 6px;
 }
 
 .child-mark {
