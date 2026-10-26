@@ -19,13 +19,12 @@ import { type GlyphSet, usePrefs } from "./prefs.ts"
 import { withArchived } from "./rail-archived.ts"
 import { FoldButton, FoldedRail, PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
-import { anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
+import { NERD, anySpinning, mostUrgentStatus, needsPerson, statusGlyph, taskRowGlyph } from "./rail-glyphs.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { type NavRow, type RowFold, childMarkerOf, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { useTaskColor } from "./task-colors.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu, toast } from "./ui.ts"
 import "./taskops.css"
@@ -300,7 +299,6 @@ function RailRow(props: {
   const { row } = props
   const { prefs, glyphSets } = usePrefs()
   const glyphs: GlyphSet | undefined = glyphSets[prefs.glyphSet]
-  const mark = useTaskColor(row.kind === "task" ? row.task.id : null)
   const drop = props.dragging ? "is-dragging" : ""
   const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
   if (row.kind === "project") {
@@ -342,7 +340,6 @@ function RailRow(props: {
       </h2>
     )
   }
-  const markDot = mark ? <span className="task-mark" style={{ background: mark }} aria-hidden="true" /> : null
   if (row.kind === "routines") {
     const waiting = row.expanded ? 0 : row.tasks.filter(needsPerson).length
     return (
@@ -393,8 +390,7 @@ function RailRow(props: {
       {...props.place}
       {...props.drag}
     >
-      {markDot}
-      {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 12 }} aria-hidden="true" />}
+      {row.depth > 1 && <span className="child-indent" style={{ width: (row.depth - 1) * 10 }} aria-hidden="true" />}
       <span className="row-title">{rowTitle(task, props.tabs)}</span>
       <span className="chips">
         {row.level !== undefined && <span className="chip muted">{row.level}</span>}
@@ -405,7 +401,7 @@ function RailRow(props: {
         )}
         {marker && (
           <span className={`chip child-mark ${marker === "shared" ? "tone-accent" : "muted"}`} aria-hidden="true">
-            {marker === "shared" ? "⑂" : "⎇"}
+            {marker === "shared" ? NERD.shared : NERD.branch}
           </span>
         )}
         {row.fold && (
@@ -455,7 +451,7 @@ function FoldToggle(props: {
         props.onToggle()
       }}
     >
-      {fold.collapsed ? "▸" : "▾"}
+      {fold.collapsed ? NERD.folded : NERD.unfolded}
       {fold.collapsed && ` ${fold.count}`}
       {fold.collapsed && props.urgent && <span className={`glyph tone-${mark.tone}`}>{mark.glyph}</span>}
     </span>

@@ -5,6 +5,14 @@
  * for prose.
  */
 
+/* Nerd Font icons (engine status lines, prompt themes, rail marks) without a font installed on the viewer's machine. */
+@font-face {
+  font-family: "Rove Nerd Symbols";
+  src: url("./fonts/symbols-nerd-font-mono.woff2") format("woff2");
+  font-display: block;
+  unicode-range: U+23FB-23FE, U+2665, U+26A1, U+2B58, U+E000-F8FF, U+F0000-FFFFD;
+}
+
 :root {
   --paper: #141413;
   --surface: #1a1917;
@@ -28,7 +36,7 @@
   --error: #d47563;
   --success: #9aca86;
   --warning: #e8c96b;
-  --mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  --mono: "JetBrains Mono", "Rove Nerd Symbols", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --radius: 8px;
   --radius-sm: 6px;
@@ -410,20 +418,12 @@ button:focus-visible,
   background: var(--inset);
 }
 
-.row.is-selected::before {
-  content: "";
-  position: absolute;
-  left: -6px;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--focus);
-}
-
-/* A child steps in under its parent; the colour mark stays flush in the task's column. */
+/* A child steps in under its parent behind a thin guide per level, as Claude's session tree. */
 .child-indent {
   flex: none;
+  align-self: stretch;
+  margin: -3px 0;
+  background: repeating-linear-gradient(to right, transparent 0 3px, var(--line) 3px 4px, transparent 4px 10px);
 }
 
 .child-mark {
