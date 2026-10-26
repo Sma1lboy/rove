@@ -9,6 +9,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import {
   RAIL_DEFAULT_PX,
   clampRailWidth,
+  enterWorkspace,
   narrowFiles,
   narrowPane,
   peekRail,
@@ -81,6 +82,18 @@ function Shell({ model }: { model: AppModel }) {
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
+  // Narrow mode shows one panel: whatever opens a page or the composer (rail, ⌃A, inbox, history) brings it up.
+  useEffect(() => {
+    const show = () => {
+      if (page.get() !== null || newSession.get() !== null) enterWorkspace()
+    }
+    const offPage = page.subscribe(show)
+    const offCompose = newSession.subscribe(show)
+    return () => {
+      offPage()
+      offCompose()
+    }
+  }, [])
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
