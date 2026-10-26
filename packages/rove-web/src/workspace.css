@@ -560,7 +560,9 @@
 
 /* A touch screen has no j/k to press, and no esc/tab/arrows on its soft keyboard. */
 @media (hover: none) and (pointer: coarse) {
-  .pane-hint {
+  .pane-hint,
+  .inbox-hints,
+  .kb-hint-line {
     display: none;
   }
   .term-keys {

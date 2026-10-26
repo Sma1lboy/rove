@@ -8,7 +8,7 @@ import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
-import { enterWorkspace } from "./layout.ts"
+import { enterWorkspace, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { railCursorTask } from "./rail-aim.ts"
@@ -17,7 +17,7 @@ import type { NavRow } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
-import { findBinding, page, toast } from "./ui.ts"
+import { findBinding, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
 const COLLAPSED_KEY = "rove.collapsedProjects"
@@ -279,10 +279,10 @@ export function useRailKeys(
         opts.onSettings()
         break
       case "worktrees.open.sidebar":
-        page.set("worktrees")
+        openPage("worktrees")
         break
       case "tasks.update":
-        page.set("update")
+        openPage("update")
         break
       default:
         return

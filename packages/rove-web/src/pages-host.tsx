@@ -11,6 +11,7 @@ import { DispatchView } from "./dispatch-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { ModsView } from "./mods-view.tsx"
 import { startNewTask } from "./new-session-view.tsx"
@@ -56,7 +57,7 @@ export function PageNav({ model }: { model: AppModel }) {
           key={item.id}
           className={`rail-nav-row ${open === item.id ? "is-active" : ""}`}
           aria-current={open === item.id ? "page" : undefined}
-          onClick={() => page.set(item.id)}
+          onClick={() => openPage(item.id)}
         >
           {item.label === "dispatch" ? t("dispatch.nav") : nav[item.label]}
         </button>

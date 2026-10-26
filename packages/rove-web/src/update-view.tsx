@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
@@ -46,7 +47,7 @@ export function UpdateChip() {
       type="button"
       className="kicker update-chip"
       title={fill(u.chip, { version: state.info.latest })}
-      onClick={() => page.set("update")}
+      onClick={() => openPage("update")}
     >
       ↑<span className="update-chip-version"> {state.info.latest}</span>
     </button>

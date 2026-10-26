@@ -16,6 +16,7 @@ import { type WebCommand, allCommands, appliesOn, currentSurface, registerComman
 import { daemonHealth, refreshRove } from "./daemon-health.tsx"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -27,7 +28,7 @@ import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { isSplit } from "./split-model.ts"
 import { fixChecksFlow, openEditorFlow, syncBaseFlow } from "./task-flows.tsx"
-import { dialog, page, toast, zen } from "./ui.ts"
+import { dialog, toast, zen } from "./ui.ts"
 import { defaultPrefixKeys, prefixKey, userKeys } from "./user-keys.ts"
 
 interface PrefixAction {
@@ -114,9 +115,9 @@ export const ACTIONS: readonly PrefixAction[] = [
     },
   },
   // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.
-  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => page.set("kanban") },
-  { id: "automations.open", live: () => true, run: () => page.set("routines") },
-  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => page.set("issues") },
+  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => openPage("kanban") },
+  { id: "automations.open", live: () => true, run: () => openPage("routines") },
+  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => openPage("issues") },
   {
     id: "task.moveMode",
     live: (m) => !!aimedTask(m),
