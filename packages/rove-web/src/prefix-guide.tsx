@@ -13,7 +13,7 @@ import {
   directGuideOptions,
   shortcutCaption,
 } from "@sma1lboy/rove/src/tui/lib/shortcut-reveal.ts"
-import { useEffect, useState } from "react"
+import { type CSSProperties, useEffect, useState } from "react"
 import { strokeText } from "./chord.ts"
 import { allCommands, appliesOn, currentSurface, reachability, specificity } from "./commands.ts"
 import { useLocale } from "./i18n/index.ts"
@@ -23,6 +23,7 @@ import { GUIDE_DELAY_MS, HUD_TTL_MS, hud } from "./prefix-state.ts"
 import { runPrefixStroke } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { useStore } from "./store.ts"
+import { LEAVE_MS } from "./ui.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 interface GuideOption {
@@ -136,7 +137,12 @@ export function PrefixHud({ model }: { model: AppModel }) {
   return (
     <output className="prefix-hud mono keys-only">
       {fresh.map((entry) => (
-        <div key={entry.id} className="prefix-hud-head">
+        // Fades out as it expires; the render drops it at HUD_TTL_MS.
+        <div
+          key={entry.id}
+          className="prefix-hud-head"
+          style={{ "--hud-out": `${HUD_TTL_MS - LEAVE_MS}ms` } as CSSProperties}
+        >
           <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
           {entry.action ? labelOf(entry.action) : <span className="muted">∅</span>}
         </div>

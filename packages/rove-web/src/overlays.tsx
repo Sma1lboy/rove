@@ -230,7 +230,7 @@ export function Overlays() {
           <button
             type="button"
             key={item.id}
-            className={`toast ${item.tone === "error" ? "is-error" : ""}`}
+            className={`toast ${item.tone === "error" ? "is-error" : ""} ${item.leaving ? "is-leaving" : ""}`}
             onClick={() => dismissToast(item.id)}
           >
             {item.text}
