@@ -161,6 +161,7 @@ describe("schema drill-ins", () => {
       "deliveries",
       "should-run",
       "gates",
+      "github-status",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })

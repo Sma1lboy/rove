@@ -274,6 +274,13 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
 | `DAEMON_GONE` | The daemon died mid-`watch`; the verb never reconnects silently. |
+| `GITHUB_SIGNED_OUT` | `github-sync` or `github-logout` on a machine whose `gh` has no github.com login. |
+| `GITHUB_GH_MISSING` | A `github-*` verb on a machine without `gh`. |
+| `GITHUB_LOGIN_FAILED` | The device flow printed no code, `gh` exited without signing in, or `gh` refused the token `github-apply` was given. |
+| `GITHUB_LOGIN_CANCELLED` | A pending `github-login` was cancelled before its code appeared. |
+| `GITHUB_LOGOUT_FAILED` | `gh auth logout` failed. |
+| `GITHUB_SYNC_FORWARDED` | `github-sync` sent by another machine's hub: an account is only shared from the machine that owns it. |
+| `GITHUB_APPLY_FORWARDED_ONLY` | `github-apply` called directly. Only another machine's `github-sync` may send it. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -1815,3 +1822,45 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 - `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
   GitHub Discussion in the Rove repository's Feedback category via `gh`.
+
+## github
+
+GitHub sign-in per machine. Rove keeps no token: a machine's sign-in is its own
+`gh` login (its keychain), and "Rove's account" is the hub's. These verbs run in
+the daemon, so the device-flow child and its pending state live in one place;
+any `--machine` runs them in that machine's daemon.
+
+- `github-status` *(group `read`)*: can this machine use GitHub? Returns
+  `{ git, gh, account, host, protocol, scopes, gitUsesGh, ssh, login }`: `git`
+  and `gh` are versions or `null`; `account` is the signed-in `gh` login or
+  `null` (`authDetail` says why when `gh` has a login it cannot use);
+  `protocol` is `gh`'s `git_protocol`; `gitUsesGh` is whether git's credential
+  helper for `https://github.com` runs `gh auth git-credential`; `ssh` is
+  `{ ok, user?, detail? }` from `ssh -T git@github.com` with
+  `StrictHostKeyChecking=yes`, so an unknown host key is reported, never
+  accepted; `login` is the pending device flow
+  (`{ state: "pending" | "syncing" | "failed", code?, url?, error? }`) or
+  `null`. A missing tool is a value, never an error. Every probe is bounded.
+- `github-login [--cancel]` *(group `edit`, inbound class `credentials`)*:
+  start the `gh auth login --web` device flow on this machine. Returns
+  `{ state: "pending", code, url }`; type the code at the URL and poll
+  `github-status` (`.login`, then `.account`). One flow per machine: a second
+  call returns the pending one. `--cancel` stops it (`{ cancelled }`). The
+  flow is a child of the daemon and ends with it. When it completes, `gh auth
+  setup-git` runs and, if the flow was started on this machine, every
+  registered machine that is online, has `gh` and is signed out receives the
+  same account. A machine already signed in as someone else is left alone.
+- `github-logout` *(group `edit`, class `credentials`)*: `gh auth logout` for
+  the active github.com account on this machine. It signs `gh` out for every
+  tool, not only Rove. Returns the new `github-status`.
+- `github-sync --to ALIAS` *(group `edit`, class `credentials`)*: give a
+  registered machine this machine's account. The daemon reads its own `gh`
+  token in memory and sends it to `ALIAS` as a parameter of `github-apply`;
+  nothing prints or stores it. Returns that machine's new `github-status`.
+  Named `--to` because `--machine` would run the verb there. Refused
+  (`GITHUB_SYNC_FORWARDED`) when another machine's hub sends it.
+- `github-apply --token TOKEN` *(internal; class `credentials`)*: what
+  `github-sync` sends. Refused unless forwarded from another machine. The token
+  goes to `gh auth login --with-token` on stdin, never argv; the machine's
+  `git_protocol` is kept (unset reads as https), then `gh auth setup-git`
+  runs. Not for direct use.

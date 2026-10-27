@@ -74,7 +74,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // Lazy: the verb table pulls in most of the CLI, which a daemon that never
   // serves `api.invoke` should not load.
   async invokeApi(verb, params, socketPath, route) {
-    const [{ executeVerb, errorEnvelope }, { REMOTE_CALLER }, { RoveDaemonClient }] = await Promise.all([
+    const [{ executeVerb, errorEnvelope }, { daemonCaller }, { RoveDaemonClient }] = await Promise.all([
       import("../cli/api/invoke.ts"),
       import("../cli/api/types.ts"),
       import("@sma1lboy/rove-daemon/client"),
@@ -112,7 +112,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
             () => true,
             () => false,
           ),
-        runHere: () => executeVerb(verb, { params }, { client, caller: REMOTE_CALLER }),
+        runHere: () => executeVerb(verb, { params }, { client, caller: daemonCaller(route?.forwarded === true) }),
       })
     } catch (err) {
       return errorEnvelope(err)

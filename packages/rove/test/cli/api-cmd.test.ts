@@ -217,6 +217,11 @@ describe("API surface (full CRUD)", () => {
       "worktree-usage",
       "discover-adoptable",
       "adopt",
+      "github-status",
+      "github-login",
+      "github-logout",
+      "github-sync",
+      "github-apply",
     ])
   })
 

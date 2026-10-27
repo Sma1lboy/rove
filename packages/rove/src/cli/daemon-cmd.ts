@@ -11,6 +11,7 @@ import type { ChatChannel } from "../channels/chat-channel.ts"
 import { startChatChannels } from "../channels/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
+import { cancelAllLogins } from "../github/login.ts"
 import { RELAY_PREAMBLE } from "../machines/relay-preamble.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -173,6 +174,7 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       keepAlive: () => channels.some((channel) => channel.keepAlive()),
       resident,
       onStop: async () => {
+        cancelAllLogins()
         for (const channel of channels) channel.stop()
         await core?.close()
       },

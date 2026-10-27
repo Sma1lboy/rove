@@ -10,6 +10,7 @@ import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { ConnectorsSection } from "./settings-connectors.tsx"
 import { ts } from "./settings-copy.ts"
 import { DevSection } from "./settings-dev.tsx"
 import { EnginesSection } from "./settings-engines.tsx"
@@ -19,7 +20,7 @@ import { KeysSection } from "./settings-keys.tsx"
 import { PluginsSection } from "./settings-plugins.tsx"
 import { RoutingSection } from "./settings-routing.tsx"
 
-const SECTIONS = ["general", "engines", "autoRouting", "plugins", "keys", "feedback", "dev"] as const
+const SECTIONS = ["general", "engines", "connectors", "autoRouting", "plugins", "keys", "feedback", "dev"] as const
 type Section = (typeof SECTIONS)[number]
 
 const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) => React.ReactNode> = {
@@ -30,6 +31,7 @@ const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) =
   keys: (p) => <KeysSection client={p.client} />,
   feedback: (p) => <FeedbackSection client={p.client} />,
   dev: (p) => <DevSection client={p.client} />,
+  connectors: (p) => <ConnectorsSection model={p.model} />,
 }
 
 export function SettingsDialog({ model, section: opening = "general" }: { model: AppModel; section?: Section }) {
@@ -47,7 +49,7 @@ export function SettingsDialog({ model, section: opening = "general" }: { model:
               className={`settings-tab ${section === id ? "is-active" : ""}`}
               onClick={() => setSection(id)}
             >
-              {ts(`sections.${id}`)}
+              {id === "connectors" ? t("settings.sections.connectors") : ts(`sections.${id}`)}
             </button>
           ))}
         </nav>

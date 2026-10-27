@@ -101,6 +101,15 @@ export interface ApiCaller {
   readonly cli: boolean
   /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
   readonly cwd?: string
+  /** Running inside the daemon process: the one place state that outlives a call (a login child) may live. */
+  readonly daemon?: true
+  /** The call arrived from another machine's hub (`api.invoke` with `forwarded: true`). */
+  readonly forwarded?: true
+}
+
+/** The daemon running a verb for a socket or bridge caller, or for another machine's hub. */
+export function daemonCaller(forwarded: boolean): ApiCaller {
+  return { cli: false, daemon: true, ...(forwarded ? { forwarded: true as const } : {}) }
 }
 
 /** The CLI process itself, read at call time (tests chdir). */
