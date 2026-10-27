@@ -214,9 +214,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                   ? [row.task, ...(row.fold?.descendantIds ?? []).flatMap((id) => byId.get(id) ?? [])]
                   : undefined
               }
-              foldUrgent={
+              rollup={
                 row.kind === "task" && row.fold?.collapsed
-                  ? mostUrgentStatus(row.fold.descendantIds.flatMap((id) => byId.get(id) ?? []))
+                  ? mostUrgentStatus([row.task, ...row.fold.descendantIds.flatMap((id) => byId.get(id) ?? [])])
                   : undefined
               }
               onToggleFold={() => {
@@ -305,8 +305,8 @@ function RailRow(props: {
   onMenu: (e: MouseEvent) => void
   /** A task row's task, then its descendants: their PRs roll up into its PR mark. */
   prTasks?: readonly TaskRow[]
-  /** A folded task's most urgent hidden child. */
-  foldUrgent?: RowStatus
+  /** A folded task: the most urgent state of it and its hidden descendants, drawn in its one status mark. */
+  rollup?: RowStatus | undefined
   onToggleFold: () => void
 }) {
   const { row } = props
@@ -397,21 +397,19 @@ function RailRow(props: {
             +{task.extraRepoCount}
           </span>
         )}
-        {row.fold?.collapsed && (
-          <FoldCount count={row.fold.count} urgent={props.foldUrgent} onUnfold={props.onToggleFold} />
-        )}
+        {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}
         {task.pinned && <span className="chip muted">▴</span>}
         <PrChip tasks={props.prTasks ?? [task]} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
-        <StatusDots status={task.rowStatus} />
+        <StatusDots status={row.fold?.collapsed ? props.rollup : task.rowStatus} />
         {props.cloud && <CloudMark label={props.cloud} />}
       </span>
     </button>
   )
 }
 
-/** `3 ●` on a folded task: how many descendants it hides and the most urgent of them; a click unfolds. No glyph: an open parent shows nothing, and the menu and the keyboard fold it. */
-function FoldCount(props: { count: number; urgent?: RowStatus | undefined; onUnfold: () => void }) {
+/** `3 ›` on a folded task: how many descendants it hides; a click unfolds. An open parent shows nothing; the menu and the keyboard fold it. */
+function FoldCount(props: { count: number; onUnfold: () => void }) {
   const label = tc("tasks", "menu.expandChildren")
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: a button cannot nest in the row's button; the row's menu entry is the keyboard path
@@ -429,7 +427,17 @@ function FoldCount(props: { count: number; urgent?: RowStatus | undefined; onUnf
       }}
     >
       {props.count}
-      {props.urgent && <StatusDots status={props.urgent} />}
+      {/* The project header's folded chevron, so a folded task reads the same way. */}
+      <svg className="project-chevron is-collapsed" viewBox="0 0 10 10" aria-hidden="true">
+        <path
+          d="M2.5 3.75 5 6.25l2.5-2.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </span>
   )
 }

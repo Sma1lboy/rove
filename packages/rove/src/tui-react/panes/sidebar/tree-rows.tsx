@@ -34,7 +34,6 @@ import {
 import {
   type RemoteMark,
   type TreeFold,
-  type TreeGuide,
   childMarkerOf,
   rowLiveBranchPath,
   tabRowActivity,
@@ -187,8 +186,6 @@ export function WorktreeTreeRow(props: {
   readonly depth?: number
   /** The real generation of a row past the indent cap (`TreeRow.level`). */
   readonly level?: number
-  /** Indent columns past the first level (`treeGuideColumns`). */
-  readonly guides?: readonly TreeGuide[]
   /** Set on a task with children. */
   readonly fold?: TreeFold
   /** The engine conversation's own name (`TreeRow.title`), when it has one. */
@@ -273,13 +270,7 @@ export function WorktreeTreeRow(props: {
     normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
   const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
   return (
-    <RowShell
-      rowId={props.rowId}
-      flatIndex={props.flatIndex}
-      depth={props.depth ?? 1}
-      shared={shared}
-      {...(props.guides ? { guides: props.guides } : {})}
-    >
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
       <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
         {`${rowView.stateGlyph} `}
       </text>
