@@ -21,7 +21,7 @@
  */
 
 import { existsSync } from "node:fs"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { rm } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { roveHookInvocation } from "../../cli/invocation.ts"
@@ -29,6 +29,7 @@ import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail } from "../hook-events.ts"
 import type { HookEditOutcome } from "../json-hooks.ts"
 import { updateSharedJson } from "../shared-config-write.ts"
+import { writeIfChanged } from "../write-if-changed.ts"
 import { HERMES_PLUGIN_NAME, setHermesPluginEnabled } from "./config-yaml.ts"
 import { HERMES_PLUGIN_MANIFEST, renderHermesPluginSource } from "./plugin-source.ts"
 
@@ -148,16 +149,5 @@ export class HermesHookAdapter implements EngineHookAdapter {
     }
     if (rejected !== undefined) return { ok: false, file, reason: rejected }
     return { ok: true }
-  }
-}
-
-async function writeIfChanged(file: string, content: string): Promise<void> {
-  try {
-    const current = await readFile(file, "utf8").catch(() => undefined)
-    if (current === content) return
-    await mkdir(path.dirname(file), { recursive: true })
-    await writeFile(file, content)
-  } catch {
-    /* best-effort — never block launch */
   }
 }
