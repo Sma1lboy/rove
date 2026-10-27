@@ -13,6 +13,7 @@ const host = vi.hoisted(() => ({
   sessions: [] as unknown[],
   calls: [] as Array<{ name: string; payload: Record<string, unknown> }>,
   created: true,
+  killAccepted: false,
 }))
 vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
@@ -20,6 +21,7 @@ vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
     rpc: {
       request: async (name: string, payload: Record<string, unknown> = {}) => {
         host.calls.push({ name, payload })
+        if (name === "pty.killAtRest") return { accepted: host.killAccepted }
         if (name === "pty.list") return { sessions: host.sessions, admissionToken: "test" }
         if (name === "pty.open") return { replay: "", alive: true, created: host.created, respawned: !host.created }
         return {}
@@ -49,6 +51,7 @@ beforeEach(() => {
   host.sessions = []
   host.calls = []
   host.created = true
+  host.killAccepted = false
   mkdirSync(join(home, ".config/rove"), { recursive: true })
   writeFileSync(join(home, ".config/rove/state.json"), "{}")
 })
@@ -205,4 +208,96 @@ it("a split leaf is refused with the verb that reopens it", async () => {
     code: "BAD_FLAG",
     data: { nextCommandArgs: expect.arrayContaining(["tab-split", "reset", "leaf-2"]) },
   })
+})
+
+it.each(["running", "permission_needed", "unknown"])(
+  "rechecks daemon activity changed at tabs.get (%s) through the real handler and revive",
+  async (changed) => {
+    host.sessions = [{ key: "t::tab-1", alive: true, generation: "g1", programStatusEvent: { revision: 2 } }]
+    let activity = "idle"
+    const client = new FakeClient({
+      "task.get": () => ({ task: target() }),
+      "task.list": () => ({ tasks: [target()] }),
+      "debug.inspect": () => ({ activity: { tabs: { t: { "tab-1": { state: activity } } } } }),
+      "tabs.get": () => {
+        activity = changed
+        return { state: state(engineRow()) }
+      },
+    })
+    const out = await invokeVerb("tab-revive", ["--task-id", "t", "--tab", "tab-1", "--restart-updated"], {
+      client,
+      runtime: stubRuntime({
+        taskTabs: async () => ({
+          tabs: [
+            {
+              ...engineRow(),
+              kind: "engine",
+              title: null,
+              vendor: "claude",
+              liveVendor: "claude",
+              lastTitle: null,
+              autoTitle: null,
+              alive: true,
+              engineAlive: true,
+              engineUpdated: true,
+              generation: "g1",
+              exit: null,
+            },
+          ],
+          running: true,
+        }),
+        reviveTab: defaultApiRuntime.reviveTab,
+      }),
+    })
+    expect(out).toMatchObject({ revived: false, busy: changed })
+    expect(host.calls.some((c) => c.name === "pty.kill" || c.name === "pty.killAtRest")).toBe(false)
+    expect(opened()).toBeUndefined()
+  },
+)
+
+it("does not open when the host refuses a changed session or activity revision", async () => {
+  host.sessions = [{ key: "t::tab-1", alive: true, generation: "g1", programStatusEvent: { revision: 2 } }]
+  const daemon = tabsDaemon({
+    seed: { t: state(engineRow()) },
+    extra: {
+      "debug.inspect": () => ({ activity: { tabs: { t: { "tab-1": { state: "idle" } } } } }),
+    },
+  })
+  const out = await defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, {
+    restartUpdatedGeneration: "g1",
+  })
+  expect(out).toMatchObject({ revived: false })
+  expect(host.calls.find((c) => c.name === "pty.killAtRest")?.payload).toEqual({
+    key: "t::tab-1",
+    expectedGeneration: "g1",
+    expectedRevision: 2,
+  })
+  expect(host.calls.some((c) => c.name === "pty.kill")).toBe(false)
+  expect(opened()).toBeUndefined()
+})
+
+it("does not replace a different generation found after inspection", async () => {
+  host.sessions = [{ key: "t::tab-1", alive: true, generation: "g2" }]
+  const daemon = tabsDaemon({ seed: { t: state(engineRow()) } })
+  expect(
+    await defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, { restartUpdatedGeneration: "g1" }),
+  ).toMatchObject({ revived: false })
+  expect(host.calls.some((c) => c.name === "pty.kill" || c.name === "pty.killAtRest")).toBe(false)
+  expect(opened()).toBeUndefined()
+})
+
+it("resumes the persisted conversation after the host accepts the guarded removal", async () => {
+  host.killAccepted = true
+  host.sessions = [{ key: "t::tab-1", alive: true, generation: "g1", programStatusEvent: { revision: 2 } }]
+  const daemon = tabsDaemon({
+    seed: { t: state(engineRow({ sessionId: "abc", spawned: true })) },
+    extra: {
+      "debug.inspect": () => ({ activity: { tabs: { t: { "tab-1": { state: "idle" } } } } }),
+    },
+  })
+  expect(
+    await defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, { restartUpdatedGeneration: "g1" }),
+  ).toMatchObject({ revived: true, resumed: true, sessionId: "abc" })
+  expect(launchLine()).toContain("--resume abc")
+  expect(host.calls.some((c) => c.name === "pty.kill")).toBe(false)
 })

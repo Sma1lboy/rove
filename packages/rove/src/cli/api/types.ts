@@ -304,6 +304,7 @@ export interface PromptDeliveryOps {
  */
 type TaskTabRowWithSession = TaskTabRow & {
   readonly sessionId?: string
+  readonly generation?: string
   /** Only with `engineUpdates`: the engine's CLI was reinstalled after it started (`engine-update.ts`); `null` = couldn't tell. */
   readonly engineUpdated?: boolean | null
 }
@@ -334,7 +335,7 @@ export interface ApiRuntime {
     taskId: string,
     engineArgv?: readonly string[],
     scope?: PtyScope,
-    /** `engineUpdates`: also stamp each row's `engineUpdated` (one more `ps` and a `stat` per live engine). */
+    /** `engineUpdates`: also stamp each row's `engineUpdated` (process age and running/launch installation identities). */
     opts?: { readonly engineUpdates?: boolean },
   ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /**
@@ -366,7 +367,7 @@ export interface ApiRuntime {
     target: PromptTarget,
     tabId: string,
     worktree: string,
-    opts?: { readonly replaceExited?: boolean },
+    opts?: { readonly replaceExited?: boolean; readonly restartUpdatedGeneration?: string },
   ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>

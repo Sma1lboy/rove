@@ -267,6 +267,7 @@ export type DaemonRequestName =
   | "pty.openChecked"
   | "pty.write"
   | "pty.resize"
+  | "pty.killAtRest"
   | "pty.kill"
   | "pty.detach"
   | "pty.list"

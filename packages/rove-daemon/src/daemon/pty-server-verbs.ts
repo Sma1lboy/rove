@@ -82,6 +82,15 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       )
       return {}
     }
+    case "pty.killAtRest": {
+      const payload = objectPayload(req.payload)
+      if (typeof payload.expectedRevision !== "number") return { accepted: false }
+      return ptys.killAtRest(
+        requireString(payload, "key"),
+        requireString(payload, "expectedGeneration"),
+        payload.expectedRevision,
+      )
+    }
     case "pty.kill": {
       const payload = objectPayload(req.payload)
       const key = requireString(payload, "key")

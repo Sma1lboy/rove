@@ -57,6 +57,7 @@ export class PtyChildController {
     session.generation = randomUUID()
     session.oscSignals = undefined
     session.programStatusEvent = undefined
+    session.inputStatusRevision = undefined
     this.reportStatus(session, null)
     try {
       session.proc = (this.deps.driver ?? bunTerminalDriver())({

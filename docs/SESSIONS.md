@@ -297,7 +297,9 @@ process, including a reboot.
   **Settings → Engines** and **New conversation with…** for another engine;
   nothing reopens on view. After you upgrade an engine CLI, sessions already
   running stay on the old version: `get-task .tabs[].engineUpdated` names
-  them, and `--restart-updated` relaunches each idle one onto the new version.
+  them when installation identity can be established, and `--restart-updated`
+  relaunches one only with fresh at-rest evidence from its PTY host. Unknown
+  installation or activity evidence leaves the session running.
 
 ## Not supported
 

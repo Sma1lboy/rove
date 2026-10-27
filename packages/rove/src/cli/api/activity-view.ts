@@ -43,7 +43,7 @@ export const ACTIVITY_STATES_DOC =
 export const AT_REST_STATES: ReadonlySet<string> = new Set(["idle", "turn_complete"])
 
 /** One `debug.inspect` per call. `null` = couldn't ask, never an empty registry. */
-export async function readActivityRegistry(daemon: DaemonRpc): Promise<ActivityRegistry | null> {
+export async function readActivityRegistry(daemon: Pick<DaemonRpc, "request">): Promise<ActivityRegistry | null> {
   try {
     const dbg = await daemon.request<{ activity?: Partial<ActivityRegistry> }>("debug.inspect")
     return { tasks: dbg?.activity?.tasks ?? {}, tabs: dbg?.activity?.tabs ?? {} }

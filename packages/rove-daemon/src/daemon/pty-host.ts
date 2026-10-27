@@ -230,6 +230,7 @@ export class PtyHost {
   write(key: string, data: string): void {
     const session = this.sessions.get(key)
     if (!session?.alive || data.length === 0) return
+    session.inputStatusRevision = session.programStatusEvent?.revision ?? 0
     // Audit trail so a delivered prompt and a lost one are distinguishable
     // after the fact. Large writes only: keystrokes would drown the log.
     if (data.length >= LOGGED_WRITE_BYTES) {
@@ -271,6 +272,16 @@ export class PtyHost {
     if (session.generation !== expectedGeneration) return { accepted: false, reason: "generation-mismatch" }
     void this.kill(key).catch((err) => logDaemonError("pty-kill", err))
     return { accepted: true }
+  }
+
+  /** Status and generation are checked in the same turn that removes the session. */
+  killAtRest(key: string, generation: string, revision: number): { accepted: boolean } {
+    const session = this.sessions.get(key)
+    const event = session?.programStatusEvent
+    if (!session?.alive || session.generation !== generation || event?.revision !== revision) return { accepted: false }
+    if (revision <= (session.inputStatusRevision ?? -1)) return { accepted: false }
+    if (event.status?.state !== "idle" && event.status?.state !== "done") return { accepted: false }
+    return this.killIfGeneration(key, generation)
   }
 
   /** End the child AND forget the session (explicit close / task deletion). */

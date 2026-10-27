@@ -401,13 +401,13 @@ edits (`set-vendor`, `rename`,
   (`code`/`signal`/`at`); clean exits stay `exit: null`. A live PTY session
   the persisted snapshot does not list still gets a row, marked
   `unregistered: true`; an alive engine is never invisible here.
-  `engineUpdated` on a tab with a live engine says whether that engine's CLI
-  was reinstalled after it started: `true` = the executable its name resolves
-  to on `PATH` now is newer than the running process, so the tab is still on
-  the old version until relaunched (`tab-revive --restart-updated`); `false`
-  = it is on the installed one; `null` = no engine walked, or the check could
-  not run (a failed `ps`, a binary that no longer resolves). Same rule:
-  never read `null` as `false`.
+  `engineUpdated` compares the running engine's installation with the tab's
+  configured launch command. `true` requires a different installation created
+  after the process started (including a launch symlink moved to a new version).
+  `false` means the same installation predates the process. `null` means the
+  comparison is unresolved: missing process/path evidence, metadata-only
+  changes such as chmod, in-place updates, or an unsupported launch wrapper.
+  Never read `null` as `false`.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
@@ -1338,7 +1338,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   true), putting it on the new version with its conversation resumed — only
   while the tab is at rest (`idle` or `turn_complete`); a tab mid-turn, on a
   permission prompt, or whose state the daemon cannot say is left alone and
-  the result carries `busy: <state>`. A shell tab, an unwalked tab and a tab with a running engine are
+  the result carries `busy: <state>`. The PTY host checks the inspected session's
+  generation and status revision atomically before removal. Input since its last
+  at-rest report, changed status, or missing host status evidence refuses the
+  restart (`busy: unknown`); overlapping requests cannot kill a replacement. A shell tab, an unwalked tab and a tab with a running engine are
   never replaced. An engine tab resumes its
   persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
   none recorded, starts a fresh one with no first message and records the id

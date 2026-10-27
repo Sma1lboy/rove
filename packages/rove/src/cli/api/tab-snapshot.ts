@@ -94,6 +94,7 @@ export function taskEngineArgv(task: { readonly command?: string; readonly vendo
 
 /** The slice of a `pty.list` row the liveness joins below need. */
 export interface TaskSessionRow {
+  readonly generation?: string
   readonly key: string
   readonly alive?: boolean
   readonly exit?: PtySessionExit | null

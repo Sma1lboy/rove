@@ -101,6 +101,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       const registry = await readActivityRegistry(daemon)
       const state = registry ? (registry.tabs[taskId]?.[tabId]?.state ?? "unknown") : "unknown"
       if (!AT_REST_STATES.has(state)) busy = state
+      else if (!row.generation) busy = "unknown"
     }
     const updated = restartUpdated && row?.engineUpdated === true && busy === undefined
     const revived = await ctx.runtime.reviveTab(
@@ -117,7 +118,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       },
       tabId,
       worktree,
-      { replaceExited: exited || updated },
+      { replaceExited: exited, ...(updated && row?.generation ? { restartUpdatedGeneration: row.generation } : {}) },
     )
     return { ok: true, taskId, tabId, ...revived, ...(busy ? { busy } : {}) }
   },

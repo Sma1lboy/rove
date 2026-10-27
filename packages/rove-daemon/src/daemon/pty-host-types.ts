@@ -62,6 +62,7 @@ export interface PtySessionState {
    *  launch (the TUI's dead-reattach passes its `--resume` argv). */
   command: readonly string[]
   title: string
+  inputStatusRevision?: number
   programStatusEvent?: import("./program-status-event").ProgramStatusEvent
   oscSignals?: import("./osc-signals").OscSignals
   /** Unterminated escape tail carried between chunks for the title scan. */

@@ -1,12 +1,4 @@
-/**
- * Is a running engine older than the CLI now installed under its name? An
- * upgrade lands as new files (or a symlink switched to a new version), so the
- * binary the engine's executable resolves to NOW changed after the process
- * started. Inode change time, not mtime: package managers stamp extracted
- * files with a fixed mtime, and nothing in userspace can backdate a ctime.
- */
-
-import { stat } from "node:fs/promises"
+import { realpath, stat } from "node:fs/promises"
 import { isAbsolute } from "node:path"
 import { recordSpawn } from "../lib/spawn-profile.ts"
 import { executableTokenFromArgv } from "./foreground.ts"
@@ -15,6 +7,7 @@ import { executableTokenFromArgv } from "./foreground.ts"
 export interface WalkedEngine {
   readonly pid: number
   readonly argv: string
+  readonly launchArgv?: readonly string[]
 }
 
 export interface EngineUpdateDeps {
@@ -22,9 +15,16 @@ export interface EngineUpdateDeps {
   readonly elapsed: (pids: readonly number[]) => Promise<string>
   /** A bare executable name on PATH, or null. */
   readonly which: (name: string) => string | null
-  /** The path's (symlinks followed) inode change time in ms, or null when unreadable. */
-  readonly changedAt: (path: string) => Promise<number | null>
+  readonly installation: (path: string) => Promise<Installation | null>
   readonly now: () => number
+}
+
+interface Installation {
+  readonly path: string
+  readonly device: number
+  readonly inode: number
+  readonly changedAt: number
+  readonly createdAt: number
 }
 
 /** `etime` is whole seconds, so a binary written in the second before launch must not read as newer. */
@@ -40,18 +40,14 @@ export function parseEtime(text: string): number | null {
 }
 
 /** The file the engine's executable token names now; null for a relative path, which only the engine's cwd could resolve. */
-function binaryPath(argv: string, which: EngineUpdateDeps["which"]): string | null {
-  const token = executableTokenFromArgv(argv.trim().split(/\s+/))
+function binaryPath(argv: readonly string[], which: EngineUpdateDeps["which"]): string | null {
+  const token = executableTokenFromArgv(argv)
   if (!token) return null
   if (token.includes("/")) return isAbsolute(token) ? token : null
   return which(token)
 }
 
-/**
- * Per session key: `true` = the engine's binary changed after it started,
- * `false` = it did not, `null` = could not tell (no engine walked, `ps` or
- * `stat` failed, the binary no longer resolves). Never throws.
- */
+/** True requires a different, newly created launch installation; uncertain comparisons stay null. */
 export async function engineUpdates(
   engines: ReadonlyMap<string, WalkedEngine | null>,
   deps: EngineUpdateDeps = defaultEngineUpdateDeps,
@@ -73,10 +69,27 @@ export async function engineUpdates(
   await Promise.all(
     walked.map(async ([key, engine]) => {
       const started = startedAt.get(engine.pid)
-      const path = binaryPath(engine.argv, deps.which)
-      if (started === undefined || path === null) return
-      const changed = await deps.changedAt(path)
-      if (changed !== null) out.set(key, changed > started + ETIME_SLACK_MS)
+      const runningPath = binaryPath(engine.argv.trim().split(/\s+/), deps.which)
+      const launchPath = engine.launchArgv ? binaryPath(engine.launchArgv, deps.which) : null
+      if (started === undefined || runningPath === null || launchPath === null) return
+      try {
+        const [running, current] = await Promise.all([deps.installation(runningPath), deps.installation(launchPath)])
+        if (!running || !current) return
+        const same = running.device === current.device && running.inode === current.inode
+        if (same) {
+          // A metadata change cannot establish whether the process loaded these bytes.
+          if (current.changedAt < started - ETIME_SLACK_MS) out.set(key, false)
+        } else if (
+          running.path !== current.path &&
+          running.createdAt > 0 &&
+          running.createdAt < started - ETIME_SLACK_MS &&
+          current.createdAt > started + ETIME_SLACK_MS
+        ) {
+          out.set(key, true)
+        }
+      } catch {
+        // An unreadable installation is unknown, never evidence for replacement.
+      }
     }),
   )
   return out
@@ -98,9 +111,11 @@ async function psElapsed(pids: readonly number[]): Promise<string> {
 export const defaultEngineUpdateDeps: EngineUpdateDeps = {
   elapsed: psElapsed,
   which: (name) => Bun.which(name),
-  changedAt: async (path) => {
+  installation: async (path) => {
     try {
-      return (await stat(path)).ctimeMs
+      const resolved = await realpath(path)
+      const info = await stat(resolved)
+      return { path: resolved, device: info.dev, inode: info.ino, changedAt: info.ctimeMs, createdAt: info.birthtimeMs }
     } catch {
       return null
     }
