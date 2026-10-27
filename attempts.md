@@ -275,3 +275,17 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** Playwright asked for headless shell rev 1243 at `chrome-headless-shell-linux64/`; a dir of symlinks plus 1228/1194 → 1243 dir symlinks worked. `BUN_OPTIONS` unset for every run. pre-pr passed 10/10 here.
 
 **Update 2026-10-26:** #1452 merged. Tomorrow's main should read switch.perOp.overlay ~3.
+
+## 2026-10-27 — switch.perOp.commit.root / .workspace (main cf742cd)
+
+**No regression.** Both main runs exited 1 on golden.cli-startup-ms only (67.1/63.1, baseline 35.5, the usual noise). Counts held: root 8/8.5, workspace 7/7.5, sidebar 2/2.4, frame 4/4.3, overlay 3, stateNotify 2/2.5, spawns 0.5/0.6, idle 0. No open `perf:` issues; #1325 (`/proc` walk) is still open. Baseline not moved because of the ✗ timing. Tonight's history line is main run 2.
+
+**Tracer that finally sees every setState.** A Proxy on `React.__CLIENT_INTERNALS…H` (setter-trapped, WeakSet of proxies) that wraps `useState`/`useReducer` setters and `useSyncExternalStore` subscribe callbacks with a 4-frame stack, plus `ROVE_COMMIT_TRACE` lines from `RenderProfiler`'s `onRender` (id, phase, actualDuration) and a `switch` mark from perf-measure. It catches ref-callback setStates (`safelyDetachRef`/`commitAttachRef`), which the 10-15 tracer missed. Imported first in `host-boot.tsx`; `ROVE_COMMIT_TRACE` must be added to the fixture's env passthrough in `visual-fixture.ts`.
+
+**Per-switch commit anatomy (8 root commits within ~35 ms):** (1) click: `SidebarTree` onPress + `selectTask`/`activateTask`; (2) **root-only** nested-update: the footer (`keyboard-hints.tsx`, outside the sidebar/workspace Profilers) re-rendering on the ~12 `bumpStackVersion` from `useBindings` mount/unmount; (3) daemon echo + `use-terminal-geometry` attach; (4) ref detach/attach of the inline body ref while `bodyGeometry` is null; (5) the 0.00 ms commit, right after the footer's two compare-and-set `setSnapshot` calls; (6) `onResize` → `bumpGeomTick`; (7) acquire (`use-terminal-pty.ts:137–145`); (8) first data/publish.
+
+**Approach.** Commit (2) was first attributed to no-op functional updaters queued in passive effects of the remounted tree: `useTurnPolls.reconcile` (`setRawTitles`/`setLiveTitles`/`setTurnVendors`, each returning `prev`) and `NotificationsProvider.markRead` (`removeUnread` returns `prev`). Both were changed to compare against a ref before calling setState, so neither enqueues anything on a no-change switch.
+
+**Why it did not count.** The trace showed the setStates gone, but the root-only commit stayed (it is the footer, see above). Runs read root 8.5/8.4, workspace 7.5/7.4 against main tonight 8/8.5 and 7/7.5: noise. Not kept.
+
+**Next:** commits (2) and (5) are both the footer: the stack-version store re-render and its effect's no-op `setSnapshot`. 10-15 (ref-compare) and 10-17 (subscription instead of version) each removed one source and the commit count did not move, so the footer probably needs both at once: no `useBindingStackVersion` read and no setState unless tokens change. Commit (4) is the inline ref callback (`Terminal.tsx:454`) detaching/attaching while `bodyGeometry` is null; read the `use-terminal-geometry.ts` header before touching it.
