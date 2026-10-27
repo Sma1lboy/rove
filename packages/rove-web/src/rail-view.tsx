@@ -95,10 +95,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   })
   const drag = useRowDrag(model, tasks, !filters.search.active, filters.sort === "default", projectInfo)
   const place = drag.places(rows)
+  const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
     onNewTask: (repo, machine) => startNewTask(model, repo, machine),
-    onSettings: () => dialog.set(<SettingsDialog model={model} />),
+    onSettings: openSettings,
   })
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
@@ -258,6 +259,18 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             />
           ),
         )}
+      </div>
+      {/* Always here: the footer's [settings] hint goes with key hints off or on a phone. */}
+      <div className="rail-nav rail-foot">
+        <button type="button" className="rail-nav-row" onClick={openSettings}>
+          <svg className="rail-nav-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="2" />
+            <path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.06 1.06M11.34 11.34l1.06 1.06M3.6 12.4l1.06-1.06M11.34 4.66l1.06-1.06" />
+            <circle cx="8" cy="8" r="4.25" />
+          </svg>
+          {t("rail.settings")}
+        </button>
+        <ShortcutBadge model={model} bindingId="settings.open" />
       </div>
       <PaneKeyHint pane="sidebar" />
       {!narrow && !folded && <RailGrip rail={rail} />}
