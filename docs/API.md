@@ -267,7 +267,12 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
 | `NOT_A_GIT_REPO` | `spawn` (worktree) from a `dir` task that is not inside a git repository. |
 | `NOT_A_LINKED_REPO` | `spawn --isolate-in` names something that is not a top-level symlink to another git checkout. |
-| `REMOTE_PARENT_UNSUPPORTED` | `spawn` under a task that lives on another machine's project. |
+| `REMOTE_PARENT_UNSUPPORTED` | `spawn` under a task that lives on another machine's project, or `update --parent` with either task on one. |
+| `PARENT_NOT_FOUND` | `update --parent` names no task on the task's own machine. |
+| `PARENT_IS_SELF` | `update --parent` names the task itself. |
+| `PARENT_CYCLE` | `update --parent` names one of the task's own descendants. |
+| `PARENT_IN_GROUP` | `update --group G --parent ID` where `ID` is itself a task of round `G`. |
+| `TASK_NOT_MOVABLE` | `update --parent` on a project's main task or a routine session. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
@@ -1404,23 +1409,46 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `update [--task-id ID] [--title T] [--branch B] [--command CMD] [--model M]
+- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--command CMD] [--model M]
   [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
   [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
-  fields in one call. Every field is validated before anything is written,
-  then applied in a fixed order: branch → command → model/effort → title →
-  pinned → status. The call is not atomic: if a step fails midway, the error
-  reports the fields already `applied`. The result is `{ ok, taskId, updated,
-  command?, protocol?, generic?, engine? }`, where `updated` lists the fields
-  written, in order. Without `--task-id` it targets the caller's own task (the
-  verified `$ROVE_TASK_ID` session), so an agent can retitle the task it runs
-  in; outside a verified session that is `MISSING_TARGET`.
+  fields in one call. The flags are checked before anything is written,
+  then applied in a fixed order: parent → branch → command → model/effort →
+  title → pinned → status. The call is not atomic: if a step fails midway, the
+  error reports the fields already `applied`. The result is `{ ok, taskId,
+  updated, parent?, command?, protocol?, generic?, engine? }`, where `updated`
+  lists the fields written, in order. Without `--task-id` it targets the
+  caller's own task (the verified `$ROVE_TASK_ID` session), so an agent can
+  retitle the task it runs in; outside a verified session that is
+  `MISSING_TARGET`.
   - `--title T`: the task's title. With `--tab TAB` it names one Terminal Tab
     instead (the API twin of the TUI's f2) and `--title` is the only other flag
     allowed. `TAB_NOT_FOUND` when the task's snapshot names no such tab —
     `get-task` lists the addressable ids in `.tabs[].id`.
   - `--branch B`: rename the task's branch (`git branch -m` if materialized,
     else recorded).
+  - `--parent ID|none`: move the task under another task (`none`: to top
+    level) without touching its engine, tabs, worktree or branch. Two things
+    move together: the tree link, and the reply address a bare `send` from the
+    task follows. After `update --task-id A --parent B`, A's bare `send`
+    reaches B — the caller's own tab when `update` runs from inside B, else
+    B's live engine tab, else `tab-1`. The stored parent is B's top-level
+    ancestor (children never nest, as with `spawn` from a child), and A's own
+    children follow it there. Tree actions on that stored parent reach A as
+    well: archiving it, or `delete --cascade` on it, takes A along. `.parent` in the result is
+    `{ parentTaskId, dispatcher, moved }`. `none` also drops a reply address
+    that pointed into the old tree. A parent must live on the same machine as
+    the task: a `--task-id` on another machine runs there, so a parent that is
+    not on that machine is `PARENT_NOT_FOUND`. Other refusals leave every row
+    as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
+    task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
+    `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
+  - `--group GROUPID` (with `--parent` only): move every task of one fan-out
+    round (the `groupId` that `add --count` returns). A member's refusal is
+    recorded in `.results[]` (`status: "failed"`, `code`) instead of stopping
+    the rest; the result is `{ ok, groupId, count, failures, results }`. A
+    parent that is itself in the round is refused up front as
+    `PARENT_IN_GROUP`.
   - `--command CMD`: the engine launch command (takes effect on next session
     rebuild). The protocol Rove speaks to it is derived from the command; the
     result reports which one, and `generic: true` when the command names no

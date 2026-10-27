@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 87 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 88 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -491,7 +491,7 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 
 | Verb | Purpose |
 |---|---|
-| `update [--task-id ID] [--title T] [--branch B] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). Without `--task-id` it changes your own task. `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab (needs `--task-id`). `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
+| `update [--task-id ID] [--title T] [--branch B] [--parent ID\|none] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied parent → branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). Without `--task-id` it changes your own task. `--parent ID` moves the task under another without touching its engine, tabs, worktree or branch, and points its reply address at ID (its bare `send` reaches ID); `--parent none` makes it top level; `--group G --parent ID` moves a whole `add --count` round. Archiving the new parent (or `delete --cascade`) then takes the moved task along. Refusals: `PARENT_NOT_FOUND` (parent must be on the task's machine), `PARENT_IS_SELF`, `PARENT_CYCLE`, `TASK_NOT_MOVABLE`. `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab (needs `--task-id`). `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
 | `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |

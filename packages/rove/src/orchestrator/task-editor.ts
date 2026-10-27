@@ -1,9 +1,12 @@
 /** In-place task-field setters for the {@link Orchestrator}: each a small
  *  guard around one `store` mutation (branch renames also touch git). */
 
+import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
 import { samePrStatus } from "../monitor/pr-status.ts"
+import { isRemoteRepoKey } from "../state/repos.ts"
 import type {
   Task,
   TaskId,
@@ -14,8 +17,15 @@ import type {
   TaskWorkerReport,
   VendorId,
 } from "../types/task.ts"
+import { toTaskId } from "../types/task.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
-import { IllegalTransitionError, TaskNotFoundError } from "./errors.ts"
+import {
+  IllegalTransitionError,
+  REMOTE_PARENT_UNSUPPORTED_CODE,
+  ReparentRefusedError,
+  TaskDeletingError,
+  TaskNotFoundError,
+} from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -189,6 +199,77 @@ export class TaskEditor {
     const next = pinned ?? !task.pinned
     if ((task.pinned ?? false) === next) return
     await this.store.update(task.id, { pinned: next })
+  }
+
+  /**
+   * Move a task under `parentId` (null = top level). Tree and reply address only: the engine, PTYs, worktree and
+   * branch are untouched. Like a spawn, the stored parent is the target's top-level ancestor (children never
+   * nest), and the task's own children follow it there. The reply address is the target itself, so a bare `send`
+   * from the task reaches it; going top level drops a reply address that pointed into the old tree.
+   */
+  async setParent(id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> {
+    const task = this.requireTask(id)
+    if (task.deletion) throw new TaskDeletingError(String(task.id))
+    if (task.kind === "main") {
+      throw new ReparentRefusedError("TASK_NOT_MOVABLE", `${task.id} is a project's main task — it is the project`)
+    }
+    if (task.routine) {
+      throw new ReparentRefusedError(
+        "TASK_NOT_MOVABLE",
+        `${task.id} is a routine session; the sidebar keeps those in the routine fold`,
+      )
+    }
+    if (isRemoteRepoKey(task.repo)) {
+      throw new ReparentRefusedError(
+        REMOTE_PARENT_UNSUPPORTED_CODE,
+        `task ${task.id} lives on a remote project — re-parent it from that machine's rove`,
+      )
+    }
+    const tasks = this.store.list()
+
+    if (parentId === null) {
+      const oldParent = task.parentTaskId
+      const dispatchedFromOldTree =
+        oldParent !== undefined &&
+        task.dispatcher !== undefined &&
+        subtreeIds(tasks, oldParent).includes(task.dispatcher.taskId)
+      await this.store.update(task.id, {
+        parentTaskId: undefined,
+        ...(dispatchedFromOldTree ? { dispatcher: undefined } : {}),
+      })
+      const dispatcher = dispatchedFromOldTree ? undefined : task.dispatcher
+      return { parentTaskId: null, dispatcher: dispatcher ?? null, moved: [] }
+    }
+
+    if (parentId === task.id) throw new ReparentRefusedError("PARENT_IS_SELF", `${task.id} cannot be its own parent`)
+    const parent = this.store.get(parentId)
+    if (!parent) {
+      throw new ReparentRefusedError(
+        "PARENT_NOT_FOUND",
+        `no task ${parentId} on this machine — a parent must live beside its child`,
+      )
+    }
+    if (parent.deletion) throw new TaskDeletingError(String(parent.id))
+    if (isRemoteRepoKey(parent.repo)) {
+      throw new ReparentRefusedError(
+        REMOTE_PARENT_UNSUPPORTED_CODE,
+        `task ${parent.id} lives on a remote project — re-parent under it from that machine's rove`,
+      )
+    }
+    if (subtreeIds(tasks, task.id).includes(parent.id)) {
+      throw new ReparentRefusedError("PARENT_CYCLE", `${parent.id} is already a descendant of ${task.id}`)
+    }
+
+    const root = lineageRootId(tasks, parent.id)
+    // Same target, no explicit tab: keep the tab the task already replies to.
+    const keepReply = task.dispatcher?.taskId === parent.id && replyTab === undefined
+    const dispatcher: TaskDispatcher = keepReply
+      ? (task.dispatcher as TaskDispatcher)
+      : { taskId: parent.id, tabId: replyTab ?? "tab-1" }
+    await this.store.update(task.id, { parentTaskId: toTaskId(root), dispatcher })
+    const moved = childrenOf(tasks, task.id).map((child) => child.id)
+    for (const child of moved) await this.store.update(child, { parentTaskId: toTaskId(root) })
+    return { parentTaskId: root, dispatcher, moved }
   }
 
   /** A project's `main` checkout is the project itself: never archived. */

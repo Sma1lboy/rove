@@ -343,6 +343,15 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "task.setParent",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      // `parentTaskId: null` = top level; absent is a malformed call, not a silent promote.
+      const parentTaskId = payload.parentTaskId === null ? null : requireString(payload, "parentTaskId")
+      return await ctx.orch.setParent(taskId, parentTaskId, optionalString(payload, "replyTab"))
+    },
+  },
+  {
     name: "task.requireReport",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

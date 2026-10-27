@@ -162,6 +162,11 @@ What makes this loop work:
   before merging it (`collect` shows ahead counts and diffstats; `git log`
   in the worktree shows the truth).
 
+A task created outside the loop, or under the wrong coordinator, joins it
+later: `rove api update --task-id A --parent B` moves A under B and points A's
+reply address at B, so A's bare `send` reaches B. A's engine, tabs, worktree
+and branch keep running untouched. `--parent none` makes it top level again.
+
 Peer messages aren't limited to the dispatcher. Any session can message any
 task's engine tab — `send --task-id <id> --tab tab-N` — and because peers
 share a filesystem, a prompt can carry file paths: a screenshot, a log, a

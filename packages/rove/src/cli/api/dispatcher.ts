@@ -12,6 +12,7 @@ import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
 /** The dispatcher pair as recorded on a task. */
@@ -218,6 +219,23 @@ export async function resolveDispatcherTab(
       nextCommandArgs: ["api", "pty-list"],
     },
   )
+}
+
+/**
+ * The tab of `taskId` a task re-parented under it should reply to: the caller's own tab when the caller speaks
+ * for that task, else its live engine tab. `undefined` = none known (the daemon records `tab-1`, and a reply
+ * then falls back to the canonical engine tab if that one is dead — see {@link resolveDispatcherTab}).
+ */
+export async function replyTabOf(runtime: ApiRuntime, daemon: DaemonRpc, taskId: string): Promise<string | undefined> {
+  const self = await ownSession(daemon)
+  if (self?.taskId === taskId) return self.tabId
+  const task = await daemon
+    .request<{ task: SerializedTask }>("task.get", { taskId })
+    .then((res) => res.task)
+    .catch(() => null)
+  if (!task) return undefined
+  const { tabs } = await runtime.taskTabs(taskId, taskEngineArgv(task), await ptyScopeOf(daemon, task))
+  return tabs.find((t) => t.kind === "engine" && t.alive === true && t.engineAlive !== false)?.id
 }
 
 /**

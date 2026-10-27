@@ -101,6 +101,8 @@ export type DaemonRequestName =
   // engine may hold files open.
   | "task.syncBase"
   | "task.pin"
+  // Move a task under another (or to top level) and point its reply address at it; nothing else of the task moves.
+  | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
   | "task.archive"
   | "task.move"

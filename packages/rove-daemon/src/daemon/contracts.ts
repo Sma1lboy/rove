@@ -179,6 +179,16 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** What `setParent` left on the task row (and the siblings it carried along). */
+export interface ReparentResult {
+  /** The stored parent: the requested one's top-level ancestor (children never nest); `null` = top level. */
+  readonly parentTaskId: string | null
+  /** The reply address a bare `send` from the task now follows; `null` = none. */
+  readonly dispatcher: TaskDispatcher | null
+  /** Former children of the moved task, re-pointed to follow it under the new parent. */
+  readonly moved: readonly string[]
+}
+
 /** A migrated child whose conversation is still the live hosted PTY keyed
  *  `<taskId>::<tabId>` under its parent (mirrors rove/types/task.ts). */
 export interface TaskPtyAlias {
@@ -324,6 +334,11 @@ export interface DaemonOrchestrator {
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
+  /**
+   * Re-parent a task (`parentId` null = top level) without touching its engine, PTYs, worktree or branch. Points
+   * the task's reply address at the parent too; `replyTab` picks the parent tab it lands on (default `tab-1`).
+   */
+  setParent(id: string, parentId: string | null, replyTab?: string): Promise<ReparentResult>
   /** Archive or restore ONE task row; the cascade over its descendants is the caller's. */
   setArchived(id: string, archived: boolean): Promise<void>
   setRequireReport(id: string, required: boolean): Promise<void>

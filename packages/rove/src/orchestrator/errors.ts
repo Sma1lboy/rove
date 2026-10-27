@@ -317,6 +317,25 @@ export class RemoteParentUnsupportedError extends Error {
   }
 }
 
+/** Wire codes of a refused `update --parent`; the CLI lifts them off the message as typed `error.code`. */
+export type ReparentRefusal =
+  | "PARENT_NOT_FOUND"
+  | "PARENT_IS_SELF"
+  | "PARENT_CYCLE"
+  | "TASK_NOT_MOVABLE"
+  | typeof REMOTE_PARENT_UNSUPPORTED_CODE
+
+/** A re-parent that would break the task tree. Never worded `task not found`: the wire mapper types that as `TASK_NOT_FOUND`. */
+export class ReparentRefusedError extends Error {
+  constructor(
+    public readonly code: ReparentRefusal,
+    detail: string,
+  ) {
+    super(`${code}: ${detail}`)
+    this.name = "ReparentRefusedError"
+  }
+}
+
 /** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 export const TOO_MANY_REPOS_CODE = "TOO_MANY_REPOS"
 
