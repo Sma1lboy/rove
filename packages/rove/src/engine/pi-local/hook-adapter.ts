@@ -8,7 +8,7 @@
  */
 
 import { existsSync } from "node:fs"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { rm } from "node:fs/promises"
 import path from "node:path"
 import { roveHookInvocation } from "../../cli/invocation.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -16,6 +16,7 @@ import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import type { HookEditOutcome } from "../json-hooks.ts"
 import { type VendorHomeDeps, vendorAgentDir } from "../vendor-home.ts"
+import { writeIfChanged } from "../write-if-changed.ts"
 import { renderPiExtensionSource } from "./extension-source.ts"
 
 /** The pi-family vendors this adapter serves. */
@@ -130,17 +131,5 @@ export class PiFamilyHookAdapter implements EngineHookAdapter {
 
   async removeWorktreeWatchHook(): Promise<void> {
     /* ...nor the PostToolUse(Bash) watch hook. */
-  }
-}
-
-/** Write only when different, so a per-launch reinstall leaves the mtime alone. */
-async function writeIfChanged(file: string, content: string): Promise<void> {
-  try {
-    const current = await readFile(file, "utf8").catch(() => undefined)
-    if (current === content) return
-    await mkdir(path.dirname(file), { recursive: true })
-    await writeFile(file, content)
-  } catch {
-    /* best-effort — never block launch */
   }
 }
