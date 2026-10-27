@@ -1,30 +1,39 @@
 /**
  * New session, claude.ai/code's way: the workspace shows an empty "New session" with the composer at
- * the bottom. Project, worktree, branch and model/effort are chips under the prompt card; Start spawns
+ * the bottom. Machine, project, worktree, branch and model/effort are chips under the prompt card; Start spawns
  * the task with that prompt, so the engine boots in the task's own tab-1 and no empty task exists in
  * between. With Worktree off the session runs in the project's own checkout, as a child of its main task.
+ * Another machine's chip swaps the project list for that machine's, clones a repo it lacks there, and
+ * starts the task through that machine's own daemon and credentials.
  */
 
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { useEffect, useRef, useState } from "react"
-import { BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import {
+  MachineChip,
+  RemoteBranchChip,
+  remoteEmpty,
+  spawnOnMachine,
+  startError,
+  useRemoteRepos,
+} from "./new-session-machine.tsx"
 import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
+import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs, toggleRepo } from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
-import { tc } from "./tui-copy.ts"
 import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
 import "./new-session.css"
 
-/** New task: the composer for this machine's projects, the classic dialog (clone, adopt, remote) for another machine's. */
-export function startNewTask(model: AppModel, repo?: string, machine?: string): void {
-  if (machine === undefined) openNewSession(repo)
-  else dialog.set(<NewTaskDialog model={model} repo={repo} machine={machine} />)
+/** New task: the composer, on this machine or the registered one the caller names. */
+export function startNewTask(repo?: string, machine?: string): void {
+  openNewSession(repo, undefined, machine)
 }
 
 const WORKTREE_KEY = "rove.web.newSession.worktree"
@@ -64,6 +73,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }
   const [error, setError] = useState<string | null>(null)
   const area = useRef<HTMLTextAreaElement>(null)
+  // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
+  const machines = useMachines(model)
+  const [machine, setMachine] = useState(seed.machine ?? "")
+  const remote = machine !== ""
+  const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
+  const remoteList = useRemoteRepos(model, machine)
+  const [remotePick, setRemotePick] = useState<RemotePick | null>(null)
+  const [remoteBase, setRemoteBase] = useState("")
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
@@ -74,7 +91,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       .then(([list, fs]) => {
         setSaved(list.repos)
         setHome(fs.home)
-        const start = initialRepo ?? fallback ?? list.repos[0]
+        // A project the opener named on another machine is a path there, not a project here.
+        const start = (seed.machine ? undefined : initialRepo) ?? fallback ?? list.repos[0]
         setRepos((now) => (now.length > 0 || !start ? now : [start]))
         // The branch the opener chose applies to the project it chose.
         if (start && seed.baseBranch) setBases((now) => ({ ...now, [start]: seed.baseBranch ?? "" }))
@@ -83,7 +101,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }, [model, initialRepo])
 
   // Several repos always get worktrees: one checkout can't hold a multi-repo task.
-  const inPlace = !worktree && repos.length === 1
+  const inPlace = !remote && !worktree && repos.length === 1
   const primary = repos[0] ?? ""
   const probe = probes[primary] ?? null
   // biome-ignore lint/correctness/useExhaustiveDependencies: a repo is probed once, when first picked
@@ -96,6 +114,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         .catch(() => {})
     }
   }, [model, repos])
+
+  // The project a rail row named on another machine is picked once that machine's list is in.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seeded once per list load; a later pick or machine switch stands
+  useEffect(() => {
+    if (!remote || !remoteList.loaded || machine !== seed.machine) return
+    setRemotePick((now) => now ?? seedRemotePick(initialRepo, remoteList.repos))
+  }, [remoteList.loaded])
 
   useEffect(() => area.current?.focus(), [])
 
@@ -121,9 +146,37 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       setRepos((now) => (now.includes(res.path) ? now : toggleRepo(now, res.path)))
       setRepoQuery("")
     } catch (err) {
-      if (err instanceof BridgeRequestError && err.code === "CLONE_FAILED") {
-        setError(tc("newTask", "error.cloneFailed", { error: err.message }))
-      } else setError(err instanceof Error ? err.message : String(err))
+      setError(startError(err))
+    } finally {
+      setBusy(false)
+      setProgress("")
+    }
+  }
+
+  // On another machine `add` runs there: it clones a repo it lacks first, with its own credentials.
+  const startRemote = async (begin: boolean) => {
+    if (!remotePick) return setError(t("newSession.needRepo"))
+    if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
+    setBusy(true)
+    setProgress(
+      remotePick.clone
+        ? t("newSession.cloningOn", { source: remotePick.ref, machine: machineName })
+        : t("newSession.startingOn", { machine: machineName }),
+    )
+    try {
+      const created = await spawnOnMachine(model, {
+        pick: remotePick,
+        machine,
+        engine: choice.engine,
+        prompt: prompt.trim(),
+        begin,
+        baseRef: remoteBase,
+      })
+      promptDraft = ""
+      newSession.set(null)
+      if (created) model.selectWhenListed(created)
+    } catch (err) {
+      setError(startError(err))
     } finally {
       setBusy(false)
       setProgress("")
@@ -133,6 +186,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // `begin` false creates the task without running its engine: no prompt needed.
   const start = async (begin = true) => {
     setError(null)
+    if (remote) return startRemote(begin)
     if (!primary) return setError(t("newSession.needRepo"))
     if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
@@ -236,78 +290,114 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
         </div>
         <div className="composer-bar">
+          {(machines.length > 0 || remote) && (
+            <MachineChip
+              machines={machines}
+              value={machine}
+              onPick={(alias) => {
+                setMachine(alias)
+                setRemotePick(null)
+                setRemoteBase("")
+                setRepoQuery("")
+                setError(null)
+              }}
+            />
+          )}
           <ChipPopover
             field="repo"
-            title={repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")}
+            title={
+              !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
+            }
             label={
               <>
                 <FolderIcon />
-                {repoChipLabel(repos) || t("newSession.repo")}
+                {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
+                  t("newSession.repo")}
+                {remotePick?.clone && <span className="muted"> · {t("newSession.cloneTag")}</span>}
               </>
             }
           >
             {(close) => (
               <RepoMenu
                 model={model}
-                saved={saved}
-                picked={repos}
-                primary={primary}
-                home={home}
+                saved={remote ? remoteList.repos.map(remoteRef) : saved}
+                picked={remote ? (remotePick ? [remotePick.ref] : []) : repos}
+                primary={remote ? "" : primary}
+                home={remote ? "" : home}
                 query={repoQuery}
                 onQuery={setRepoQuery}
-                onToggle={(path) => setRepos((now) => toggleRepo(now, path))}
-                onClone={(source) => void cloneInto(source)}
+                onToggle={(path) => {
+                  if (!remote) return setRepos((now) => toggleRepo(now, path))
+                  setRemotePick({ ref: path, clone: false })
+                  close()
+                }}
+                onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
                 close={close}
+                remote={
+                  remote
+                    ? {
+                        name: machineName,
+                        empty: remoteEmpty(machine, remoteList),
+                        blocked: remoteList.problem !== "",
+                      }
+                    : undefined
+                }
               />
             )}
           </ChipPopover>
-          <button
-            type="button"
-            className={`composer-chip composer-toggle ${inPlace ? "" : "is-on"}`}
-            aria-pressed={!inPlace}
-            disabled={repos.length > 1}
-            title={
-              repos.length > 1
-                ? t("newSession.worktreeMulti")
-                : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
-            }
-            onClick={() => setWorktree(!worktree)}
-          >
-            <BranchIcon />
-            {t("newSession.worktree")}
-          </button>
-          {repos.length > 1 ? (
-            <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
-              {() => (
-                <BranchesMenu
-                  repos={branchRepos}
-                  branch={branchName}
-                  onBranch={setBranchName}
-                  onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
-                />
-              )}
-            </ChipPopover>
+          {remote ? (
+            remotePick && <RemoteBranchChip value={remoteBase} onPick={setRemoteBase} />
           ) : (
-            !inPlace &&
-            probe?.ok &&
-            branchLabel && (
-              <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
-                {(close) => (
-                  <SearchList
-                    placeholder={t("newSession.branchSearch")}
-                    empty={t("newSession.branchEmpty")}
-                    rows={branchRows}
-                    query={branchQuery}
-                    onQuery={setBranchQuery}
-                    onPick={(name) => {
-                      setBases((now) => ({ ...now, [primary]: name }))
-                      setBranchQuery("")
-                      close()
-                    }}
-                  />
-                )}
-              </ChipPopover>
-            )
+            <>
+              <button
+                type="button"
+                className={`composer-chip composer-toggle ${inPlace ? "" : "is-on"}`}
+                aria-pressed={!inPlace}
+                disabled={repos.length > 1}
+                title={
+                  repos.length > 1
+                    ? t("newSession.worktreeMulti")
+                    : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
+                }
+                onClick={() => setWorktree(!worktree)}
+              >
+                <BranchIcon />
+                {t("newSession.worktree")}
+              </button>
+              {repos.length > 1 ? (
+                <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
+                  {() => (
+                    <BranchesMenu
+                      repos={branchRepos}
+                      branch={branchName}
+                      onBranch={setBranchName}
+                      onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
+                    />
+                  )}
+                </ChipPopover>
+              ) : (
+                !inPlace &&
+                probe?.ok &&
+                branchLabel && (
+                  <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
+                    {(close) => (
+                      <SearchList
+                        placeholder={t("newSession.branchSearch")}
+                        empty={t("newSession.branchEmpty")}
+                        rows={branchRows}
+                        query={branchQuery}
+                        onQuery={setBranchQuery}
+                        onPick={(name) => {
+                          setBases((now) => ({ ...now, [primary]: name }))
+                          setBranchQuery("")
+                          close()
+                        }}
+                      />
+                    )}
+                  </ChipPopover>
+                )
+              )}
+            </>
           )}
           <span className="composer-grow" />
           {choice.engines.length > 1 && (
@@ -325,7 +415,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             </ChipPopover>
           )}
-          {!inPlace && (models.length > 0 || efforts.length > 0) && (
+          {!inPlace && !remote && (models.length > 0 || efforts.length > 0) && (
             <ChipPopover
               field="model"
               title={t("newSession.model")}
@@ -352,14 +442,16 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         )}
         {error && <p className="error">※ {error}</p>}
       </form>
-      {/* The rarer ways in sit under the card, out of the composer's own controls. */}
-      <button
-        type="button"
-        className="composer-more"
-        onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
-      >
-        {t("newSession.moreWays")}
-      </button>
+      {/* The rarer ways in sit under the card, out of the composer's own controls; clone and adopt read this machine's disk. */}
+      {!remote && (
+        <button
+          type="button"
+          className="composer-more"
+          onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
+        >
+          {t("newSession.moreWays")}
+        </button>
+      )}
     </div>
   )
 }

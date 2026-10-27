@@ -202,6 +202,11 @@
   background: var(--hover);
 }
 
+.composer-row:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* A fingertip needs ~40px (the rest of the touch sizing is in workspace.css). */
 @media (hover: none) and (pointer: coarse) {
   .composer-row {

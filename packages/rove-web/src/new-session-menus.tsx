@@ -152,7 +152,11 @@ export function SearchList(props: {
   )
 }
 
-type Option = Choice & { readonly dim?: boolean }
+type Option = Choice & {
+  readonly dim?: boolean
+  /** Shown but not pickable; its label says why. */
+  readonly disabled?: boolean
+}
 
 /** A radio row: check on the picked one, the row's digit (when it has one) on the others. */
 function OptionRow(props: {
@@ -169,6 +173,7 @@ function OptionRow(props: {
       role="menuitemradio"
       aria-checked={props.checked}
       tabIndex={-1}
+      disabled={props.option.disabled}
       className={`composer-row ${props.cursor ? "is-cursor" : ""}`}
       onMouseMove={props.onHover}
       onClick={props.onPick}
@@ -176,7 +181,9 @@ function OptionRow(props: {
       <span className="composer-check">{props.checked ? "✓" : ""}</span>
       <span>{props.option.label}</span>
       {props.option.dim && <span className="muted"> ·</span>}
-      {!props.checked && props.digit !== undefined && <span className="muted composer-dim">{props.digit}</span>}
+      {!props.checked && props.digit !== undefined && !props.option.disabled && (
+        <span className="muted composer-dim">{props.digit}</span>
+      )}
     </button>
   )
 }
@@ -215,7 +222,7 @@ export function ChoiceMenu(props: {
         } else if (e.key === "Enter") {
           e.preventDefault()
           const option = props.options[cursor]
-          if (option) props.onPick(option.id)
+          if (option && !option.disabled) props.onPick(option.id)
         } else if (props.onBack && (e.key === "Escape" || e.key === "ArrowLeft")) {
           e.preventDefault()
           e.stopPropagation()
@@ -223,7 +230,7 @@ export function ChoiceMenu(props: {
         } else {
           const digit = props.digits ? digitRow(e.key, props.options.length) : null
           const option = digit === null ? undefined : props.options[digit]
-          if (!option) return
+          if (!option || option.disabled) return
           e.preventDefault()
           props.onPick(option.id)
         }

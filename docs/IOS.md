@@ -139,7 +139,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `repo.branches` | `repo` | `{branches, current}` | `listLocalBranches` | |
 | `notes.list` | `repo` | `{notes}` | `note-list` | |
 | `worktree.adoptable` | `repo` | `{worktrees, unreadable}` | RPC `worktree.discoverAdoptable` | |
-| `task.spawn` | `repo`, `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
+| `task.spawn` | `repo` (an absolute path; with `machine`, also a repo id on that machine: `owner/name`, `host/owner/name` or a clone URL), `machine?` (a registered machine's alias: `add` runs in its daemon), `clone?` (with `machine` and a repo id: that machine clones a repo it lacks, with its own git and gh sign-in; `CLONE_FAILED` carries git's error), `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
 | `task.rename` | `taskId`, `title` | `{}` | `update --title` | |
 | `task.setBranch` | `taskId`, `branch` | `{}` | `update --branch` | |
 | `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `update --command` | |
@@ -269,6 +269,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `update.check` | `force?`, `locale?` (`en`/`zh`) | `checkLatestVersion` + `fetchReleaseNotesRange`: `{current, info, notes}`; `info: null` = could not look, never "up to date". With `locale: "zh"`, each release's notes come from its `release-notes.zh.md` asset when it has one | — |
 | `release.notes` | `version` (`x.y.z`), `locale?` (`en`/`zh`) | `fetchReleaseNotes`: `{notes}` (GitHub release body, or its Chinese asset in `zh`; `null` on failure) | — |
 | `machines.list` | — | the bridge's `MachineHub.machinesSignal()`: `{machines: [{alias, hostLabel, state, version}]}`; read-only | — |
+| `machines.repos` | `machine` (a registered machine's alias) | `{repos: [{id, primary, checkouts}]}` (that machine's repos by id: `host/owner/name`, or `root:<sha>` with no origin), or `{repos: [], reason: "offline" \| "outdated" \| "denied" \| "failed", message}` for a machine that is not online or cannot answer (read-only; never an error, and a machine the hub knows is down is not tried) | `repo-list` (on `machine`) |
 | `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
 | `plugins.list` | — | the Plugins section's `readPluginRows` | — |
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |

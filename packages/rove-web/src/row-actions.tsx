@@ -69,7 +69,7 @@ export interface ProjectInfo {
 }
 
 export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
-  const items: MenuItem[] = [{ label: t("menu.newTask"), section: "open", run: () => startNewTask(model, repo) }]
+  const items: MenuItem[] = [{ label: t("menu.newTask"), section: "open", run: () => startNewTask(repo) }]
   const main = info.mainTaskId
   if (main) {
     if (!info.first) {

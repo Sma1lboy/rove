@@ -77,8 +77,8 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
       <main className="workspace">
         {narrow && <NarrowBackBar />}
         <div className="pane">
-          {/* A different project's + remounts the composer so its project chip follows; the prompt draft survives. */}
-          <NewSessionView key={composing.repo ?? ""} model={model} seed={composing} />
+          {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
+          <NewSessionView key={`${composing.machine ?? ""}\0${composing.repo ?? ""}`} model={model} seed={composing} />
         </div>
       </main>
     )

@@ -28,6 +28,34 @@ describe("task.spawn", () => {
     ])
   })
 
+  test("a repo id with clone has that machine fetch it with its own credentials", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "github.com/sma1lboy/rove", machine: "mac", clone: true, prompt: "p" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=github.com/sma1lboy/rove", "--clone=true", "--prompt=p"], machine: "mac" },
+    ])
+    for (const repo of ["sma1lboy/rove", "git@github.com:sma1lboy/rove.git", "https://gitlab.com/g/s/p.git"]) {
+      const spawned = await run(
+        "task.spawn",
+        { repo, machine: "mac", clone: true },
+        { add: { taskId: "N1", task: {} } },
+      )
+      expect(spawned.calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`, "--clone=true"], machine: "mac" }])
+    }
+  })
+
+  test("clone and repo ids are for another machine's add, and never a flag, a path or a local clone", async () => {
+    await refused("task.spawn", { repo: "sma1lboy/rove", clone: true })
+    await refused("task.spawn", { repo: "sma1lboy/rove" })
+    await refused("task.spawn", { repo: "/Users/me/app", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "--upload-pack=x", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "ext::sh -c id", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "relative/path/here", machine: "mac" })
+  })
+
   test("single task: every flag goes through --name=value", async () => {
     const { result, calls } = await run(
       "task.spawn",
