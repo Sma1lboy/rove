@@ -10,12 +10,12 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ alpha                     |
-| ▎○ charlie                 ☁ |
-| ▎○ delta                   ☁ |
+|▌ ○ alpha                     |
+|  ○ charlie                 ☁ |
+|  ○ delta                   ☁ |
 |                              |
 | api ──────────────────────── |
-| ▎○ echo                      |
+|  ○ echo                      |
 |                              |
 |                              |
 |                              |

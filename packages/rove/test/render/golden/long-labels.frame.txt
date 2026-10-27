@@ -10,8 +10,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎○ Restart the tab stri… ▴ ✓ |
-|▌▎○ alpha                     |
+|  ○ Restart the tab stri… ▴ ✓ |
+|▌ ○ alpha                     |
 |                              |
 |                              |
 |                              |

@@ -1,7 +1,6 @@
 /**
  * Per-task colour: `on` gives every task its own hue (the working border
- * flows in the selected task's colour, sidebar rows carry a mark); `off`
- * keeps the single theme accent.
+ * flows in the selected task's colour); `off` keeps the single theme accent.
  */
 
 export const TASK_COLORS_KEY = "appearance.taskColors"

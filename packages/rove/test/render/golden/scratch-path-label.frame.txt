@@ -10,10 +10,10 @@
 | Issues                       |
 |                              |
 | Ungrouped ────────────────── |
-| ▎○ …deep/nested/project-dir  |
+|  ○ …deep/nested/project-dir  |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ alpha                     |
+|▌ ○ alpha                     |
 |                              |
 |                              |
 |                              |

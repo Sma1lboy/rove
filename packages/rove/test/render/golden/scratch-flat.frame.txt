@@ -10,10 +10,10 @@
 | Issues                       |
 |                              |
 | Ungrouped ────────────────── |
-| ▎○ /wt/scratchy              |
+|  ○ /wt/scratchy              |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ alpha                     |
+|▌ ○ alpha                     |
 |                              |
 |                              |
 |                              |
