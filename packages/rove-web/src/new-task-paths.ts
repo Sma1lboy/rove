@@ -71,6 +71,21 @@ export function deriveFolderName(url: string): string {
   return (cut >= 0 ? trimmed.slice(cut + 1) : trimmed).replace(/\.git$/i, "")
 }
 
+/** localStorage key of the folder clones land in; the New task dialog's clone tab and the composer share it. */
+export const CLONE_PARENT_KEY = "rove.web.cloneParent"
+
+const GIT_URL = /^(?:(?:https?|ssh|git):\/\/[A-Za-z0-9[]\S*|[A-Za-z0-9._-]+@[A-Za-z0-9][A-Za-z0-9.-]*:\S+)$/i
+const GITHUB_SHORTHAND = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/(?![.]+(?:git)?$)[A-Za-z0-9._-]{1,100}$/i
+
+/**
+ * What the project picker's text asks to clone: a git URL (https/ssh/scp form), or a GitHub
+ * `owner/repo` (the bridge picks ssh or https). A path (`/`, `~`, `.` lead; several segments) is not one.
+ */
+export function cloneSource(query: string): string | null {
+  const value = query.trim()
+  return GIT_URL.test(value) || GITHUB_SHORTHAND.test(value) ? value : null
+}
+
 /** `*` any run but `/`, `**` any run, `?` one char; matched against the whole path or the basename. */
 export function matchPathGlob(glob: string, path: string): boolean {
   let re = ""

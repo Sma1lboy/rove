@@ -407,6 +407,35 @@ describe("repo.clone", () => {
     }
     expect(seen.map(([u]) => u)).toHaveLength(5)
   })
+
+  describe("owner/repo shorthand", () => {
+    function ghConfig(protocol: string | null) {
+      taskOpDeps.gh = async () =>
+        protocol === null ? { ok: false, reason: "missing" } : { ok: true, stdout: `${protocol}\n` }
+    }
+
+    test("clones over https unless gh is set to ssh, and https when gh is absent", async () => {
+      const seen = fakeClone()
+      for (const protocol of ["https", null, "ssh"]) {
+        ghConfig(protocol)
+        await run("repo.clone", { url: "octocat/Hello-World", parentDir: "/work" })
+      }
+      expect(seen).toEqual([
+        ["https://github.com/octocat/Hello-World.git", "/work/Hello-World"],
+        ["https://github.com/octocat/Hello-World.git", "/work/Hello-World"],
+        ["git@github.com:octocat/Hello-World.git", "/work/Hello-World"],
+      ])
+    })
+
+    test("a .git suffix is not doubled, and dot-only names are refused", async () => {
+      const seen = fakeClone()
+      ghConfig("https")
+      await run("repo.clone", { url: "o/r.git", parentDir: "/work" })
+      expect(seen[0]?.[0]).toBe("https://github.com/o/r.git")
+      await refused("repo.clone", { url: "o/..", parentDir: "/work" })
+      await refused("repo.clone", { url: "a/b/c", parentDir: "/work" })
+    })
+  })
 })
 
 describe("worktrees", () => {

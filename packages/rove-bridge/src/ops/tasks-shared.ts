@@ -4,6 +4,7 @@
  * reach a `rove api` argv, a daemon RPC or a git process.
  */
 
+import { execFile } from "node:child_process"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
@@ -44,6 +45,7 @@ export const taskOpDeps = {
   resolveCloneTarget,
   findAvailableFolderName,
   deriveFolderName,
+  gh: runGh,
 }
 
 const GIT_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/
@@ -149,6 +151,45 @@ export async function knownRepo(args: Args, ctx: OpContext, name = "repo"): Prom
   const { tasks } = await ctx.api.rpc<{ tasks: ReadonlyArray<{ repo: string }> }>("task.list")
   if (!tasks.some((t) => t.repo === repo)) throw new BridgeError("UNKNOWN_REPO", `${repo} is not a known project`)
   return repo
+}
+
+/** What a `gh` run gave back; `reason` is a short code the app words itself: `missing`, `unauthenticated` or `failed`. */
+export type GhResult = { ok: true; stdout: string } | { ok: false; reason: "missing" | "unauthenticated" | "failed" }
+
+/** The machine's own `gh`, with its own login; never prompts. A timeout or any failure is a result, not a throw. */
+function runGh(args: readonly string[], timeoutMs: number): Promise<GhResult> {
+  const { promise, resolve } = Promise.withResolvers<GhResult>()
+  execFile(
+    "gh",
+    [...args],
+    { timeout: timeoutMs, maxBuffer: 8_000_000, env: { ...process.env, GH_PROMPT_DISABLED: "1", NO_COLOR: "1" } },
+    (err, stdout, stderr) => {
+      if (!err) return resolve({ ok: true, stdout })
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return resolve({ ok: false, reason: "missing" })
+      const signedOut = /gh auth login|not logged in|authentication/i.test(stderr)
+      resolve({ ok: false, reason: signedOut ? "unauthenticated" : "failed" })
+    },
+  )
+  return promise
+}
+
+/** `owner/repo`: GitHub's own name rules, one slash, never a path (`.`/`~`/`/` lead, extra segments). */
+const SHORTHAND = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/
+
+/** The clone URL for `owner/repo`: ssh when `gh` is set to use it, https otherwise (or when `gh` is absent). */
+export async function githubCloneUrl(shorthand: string): Promise<string> {
+  const name = shorthand.replace(/\.git$/i, "")
+  const protocol = await taskOpDeps.gh(["config", "get", "git_protocol"], 3000)
+  return protocol.ok && protocol.stdout.trim() === "ssh"
+    ? `git@github.com:${name}.git`
+    : `https://github.com/${name}.git`
+}
+
+/** `args.url` as a checked clone URL; a bare `owner/repo` is resolved through {@link githubCloneUrl} first. */
+export async function cloneSource(args: Args): Promise<string> {
+  const raw = typeof args.url === "string" ? args.url.trim() : ""
+  if (SHORTHAND.test(raw) && !/\/\.+(git)?$/i.test(raw)) return cloneUrl({ url: await githubCloneUrl(raw) })
+  return cloneUrl(args)
 }
 
 /** Clone URL allowlist: https/http/ssh/git, or scp-form `user@host:path`. Never a leading `-`, `ext::`, `fd::` or `file:`. */

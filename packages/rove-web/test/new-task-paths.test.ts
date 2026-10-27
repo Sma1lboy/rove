@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  cloneSource,
   deriveFolderName,
   filterByGlob,
   joinDrill,
@@ -40,5 +41,41 @@ describe("new-task dialog paths", () => {
     expect(filterByGlob(list, "feature-*")).toEqual([{ path: "/x/feature-1" }])
     expect(filterByGlob(list, "/x/*")).toHaveLength(2)
     expect(filterByGlob(list, "")).toHaveLength(2)
+  })
+})
+
+describe("cloneSource", () => {
+  test("git URLs and owner/repo shorthand are clone sources, trimmed", () => {
+    for (const ok of [
+      "octocat/Hello-World",
+      " octocat/Hello-World ",
+      "o/.github",
+      "o/repo.git",
+      "https://github.com/o/r.git",
+      "ssh://git@host:22/o/r",
+      "git@github.com:o/r.git",
+    ]) {
+      expect(cloneSource(ok)).toBe(ok.trim())
+    }
+  })
+
+  test("paths, deeper paths, names and dot segments stay local", () => {
+    for (const no of [
+      "",
+      "app",
+      "/w/a",
+      "~/w/a",
+      "~/a/b",
+      "./a/b",
+      "../a",
+      "a/b/c",
+      "o/.",
+      "o/..",
+      "o/.git",
+      "-o/x",
+      "o/ x",
+    ]) {
+      expect(cloneSource(no)).toBeNull()
+    }
   })
 })
