@@ -1,6 +1,6 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 
@@ -76,10 +76,12 @@ export interface PickRow {
   readonly text: string
   /** Muted tail (a project's directory). */
   readonly dim?: string
+  /** Full text of a long `dim`; the row stays one line and shows it on hover. */
+  readonly title?: string
   readonly checked?: boolean
 }
 
-/** A searchable single-choice list. `extra` offers the typed text itself as a row (a path no saved project names). */
+/** A searchable single-choice list. `extra` offers the typed text itself as a row (a path no saved project names); `more` is a second group below `rows`. */
 export function SearchList(props: {
   placeholder: string
   empty: string
@@ -87,10 +89,12 @@ export function SearchList(props: {
   query: string
   onQuery: (value: string) => void
   extra?: PickRow | null
+  more?: readonly PickRow[]
+  moreLabel?: string
   onPick: (key: string) => void
 }) {
   const [cursor, setCursor] = useState(0)
-  const all = props.extra ? [props.extra, ...props.rows] : props.rows
+  const all = [...(props.extra ? [props.extra] : []), ...props.rows, ...(props.more ?? [])]
   const at = Math.min(cursor, Math.max(0, all.length - 1))
   const active = useRef<HTMLButtonElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when the cursor or the list moves
@@ -125,20 +129,23 @@ export function SearchList(props: {
       <div className="composer-rows">
         {all.length === 0 && <p className="muted composer-empty">{props.empty}</p>}
         {all.map((row, i) => (
-          <button
-            type="button"
-            aria-current={row.checked === true}
-            ref={i === at ? active : undefined}
-            key={row.key}
-            tabIndex={-1}
-            className={`composer-row ${i === at ? "is-cursor" : ""}`}
-            onMouseMove={() => setCursor(i)}
-            onClick={() => props.onPick(row.key)}
-          >
-            <span className="composer-check">{row.checked ? "✓" : ""}</span>
-            <span>{row.text}</span>
-            {row.dim && <span className="muted composer-dim">{row.dim}</span>}
-          </button>
+          <Fragment key={row.key}>
+            {props.moreLabel && row === props.more?.[0] && <p className="muted composer-group">{props.moreLabel}</p>}
+            <button
+              type="button"
+              aria-current={row.checked === true}
+              ref={i === at ? active : undefined}
+              tabIndex={-1}
+              title={row.title}
+              className={`composer-row ${i === at ? "is-cursor" : ""}`}
+              onMouseMove={() => setCursor(i)}
+              onClick={() => props.onPick(row.key)}
+            >
+              <span className="composer-check">{row.checked ? "✓" : ""}</span>
+              <span className="composer-name">{row.text}</span>
+              {row.dim && <span className={`muted composer-dim ${row.title ? "composer-clip" : ""}`}>{row.dim}</span>}
+            </button>
+          </Fragment>
         ))}
       </div>
     </div>

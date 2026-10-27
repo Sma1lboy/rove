@@ -6,12 +6,10 @@ import { DialogActions } from "./dialogs.tsx"
 import { deviceHint } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import type { AdoptableRow, ProbeResult, RepoField } from "./new-task-dialog.tsx"
-import { deriveFolderName, expandTilde, filterByGlob, joinPicked } from "./new-task-paths.ts"
+import { CLONE_PARENT_KEY, deriveFolderName, expandTilde, filterByGlob, joinPicked } from "./new-task-paths.ts"
 import { SuggestField, focusField } from "./suggest-field.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
-
-const PARENT_KEY = "rove.web.cloneParent"
 
 interface TabProps {
   readonly model: AppModel
@@ -23,7 +21,7 @@ interface TabProps {
 
 export function CloneTab({ model, engine, busy, error, run }: TabProps) {
   const [url, setUrl] = useState("")
-  const [parent, setParent] = useState(() => localStorage.getItem(PARENT_KEY) || "~/")
+  const [parent, setParent] = useState(() => localStorage.getItem(CLONE_PARENT_KEY) || "~/")
   const [folder, setFolder] = useState<string | null>(null)
   const [baseRef, setBaseRef] = useState("main")
   const [progress, setProgress] = useState("")
@@ -75,7 +73,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         }
         throw err
       }
-      localStorage.setItem(PARENT_KEY, parent.trim())
+      localStorage.setItem(CLONE_PARENT_KEY, parent.trim())
       const res = await model.client.request<{ taskIds: string[] }>("task.spawn", {
         repo: cloned.path,
         ...(engine ? { engine } : {}),

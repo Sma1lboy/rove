@@ -7,14 +7,17 @@
 
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { useEffect, useRef, useState } from "react"
+import { BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
+import { RepoMenu } from "./new-session-repo-menu.tsx"
 import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs, toggleRepo } from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
-import { expandTilde, filterText, isPathInput, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
+import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
+import { tc } from "./tui-copy.ts"
 import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
 import "./new-session.css"
 
@@ -53,6 +56,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [pickedModel, setPickedModel] = useState("")
   const [pickedEffort, setPickedEffort] = useState("")
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState("")
   const [worktree, setWorktreeState] = useState(() => localStorage.getItem(WORKTREE_KEY) !== "0")
   const setWorktree = (on: boolean): void => {
     localStorage.setItem(WORKTREE_KEY, on ? "1" : "0")
@@ -101,6 +105,30 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // A pick of the previous engine's model or level means nothing to this one.
   const modelValue = models.some((m) => m.id === pickedModel) ? pickedModel : ""
   const effortValue = efforts.some((e) => e.id === pickedEffort) ? pickedEffort : ""
+
+  const cloneInto = async (source: string) => {
+    setError(null)
+    setBusy(true)
+    setProgress(t("newSession.cloning", { source }))
+    try {
+      const parent = stripTrailingSlash(expandTilde((localStorage.getItem(CLONE_PARENT_KEY) || "~/").trim(), home))
+      const res = await model.client.request<{ path: string }>(
+        "repo.clone",
+        { url: source, parentDir: parent },
+        setProgress,
+      )
+      setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
+      setRepos((now) => (now.includes(res.path) ? now : toggleRepo(now, res.path)))
+      setRepoQuery("")
+    } catch (err) {
+      if (err instanceof BridgeRequestError && err.code === "CLONE_FAILED") {
+        setError(tc("newTask", "error.cloneFailed", { error: err.message }))
+      } else setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+      setProgress("")
+    }
+  }
 
   // `begin` false creates the task without running its engine: no prompt needed.
   const start = async (begin = true) => {
@@ -154,17 +182,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     }
   }
 
-  const typed = repoQuery.trim()
-  const repoRows = filterText(saved, repoQuery).map((path) => {
-    const { base, dir } = splitRepoRow(path)
-    return {
-      key: path,
-      text: base,
-      dim: path === primary && repos.length > 1 ? `${t("newSession.primary")} · ${dir}` : dir,
-      checked: repos.includes(path),
-    }
-  })
-  const typedPath = isPathInput(typed) && !saved.includes(typed) ? stripTrailingSlash(expandTilde(typed, home)) : ""
   const branchRows = filterText(probe?.branches ?? [], branchQuery).map((name) => ({
     key: name,
     text: name,
@@ -229,16 +246,18 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               </>
             }
           >
-            {() => (
-              // A check-list: a pick toggles and the list stays open, so several repos go in one visit.
-              <SearchList
-                placeholder={t("newSession.repoSearch")}
-                empty={t("newSession.repoEmpty")}
-                rows={repoRows}
+            {(close) => (
+              <RepoMenu
+                model={model}
+                saved={saved}
+                picked={repos}
+                primary={primary}
+                home={home}
                 query={repoQuery}
                 onQuery={setRepoQuery}
-                extra={typedPath ? { key: typedPath, text: typedPath, checked: repos.includes(typedPath) } : null}
-                onPick={(path) => setRepos((now) => toggleRepo(now, path))}
+                onToggle={(path) => setRepos((now) => toggleRepo(now, path))}
+                onClone={(source) => void cloneInto(source)}
+                close={close}
               />
             )}
           </ChipPopover>
@@ -326,6 +345,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             </ChipPopover>
           )}
         </div>
+        {busy && progress && (
+          <p className="muted" data-field="clone-progress">
+            {progress}
+          </p>
+        )}
         {error && <p className="error">※ {error}</p>}
       </form>
       {/* The rarer ways in sit under the card, out of the composer's own controls. */}

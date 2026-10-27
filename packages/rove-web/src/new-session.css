@@ -223,8 +223,25 @@
   padding-left: 12px;
 }
 
+.composer-clip {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.composer-name {
+  flex: none;
+  white-space: nowrap;
+}
+
 .composer-empty {
   margin: 4px 8px;
+}
+
+.composer-group {
+  margin: 8px 8px 2px;
+  font-size: 11px;
 }
 
 .composer-more {

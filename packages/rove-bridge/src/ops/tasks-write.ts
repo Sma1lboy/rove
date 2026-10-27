@@ -10,7 +10,7 @@ import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./a
 import {
   checkAgentEngines,
   cloneFolder,
-  cloneUrl,
+  cloneSource,
   effortLevel,
   engineId,
   gitRef,
@@ -118,7 +118,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
 const PROGRESS_GAP_MS = 150
 
 async function clone(args: Args, ctx: OpContext): Promise<unknown> {
-  const url = cloneUrl(args)
+  const url = await cloneSource(args)
   const parentDir = absPath(args, "parentDir")
   const urlProblem = taskOpDeps.validateGitUrl(url)
   if (urlProblem) throw new BridgeError("BAD_ARGS", urlProblem)

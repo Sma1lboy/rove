@@ -152,7 +152,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
 | `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
 | `worktree.adopt` | `repo`, `worktreePath` (must be adoptable), `branch?`, `title?`, `engine?` | `{taskId}` | RPC `worktree.adopt` | |
-| `repo.clone` | `url` (https/http/ssh/git/scp form), `parentDir`, `folder?` | `{path}`; streams `op.progress` lines while git runs | `cloneRepo` | |
+| `repo.clone` | `url` (https/http/ssh/git/scp form, or a GitHub `owner/repo` resolved to ssh when `gh config get git_protocol` is `ssh`, else https), `parentDir`, `folder?` | `{path}`; streams `op.progress` lines while git runs | `cloneRepo` | |
 | `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |
 | `task.removeWorktree` | `taskId`, `force?` | `{removed, worktreePath?, branch?}` | `remove-worktree` | yes |
 
@@ -173,6 +173,7 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `file.openExternal` | `taskId`, `path` (relative to the worktree) | `{}`; opens an image, audio, video, PDF or font in the Mac's own opener. Refused (`NOT_OPENABLE`) for anything else, anything executable, and any path or symlink that leaves the worktree | helper `openExternally` |
 | `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
 | `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
+| `github.repos` | none | `{repos: [{nameWithOwner, description, isPrivate}]}`, or `{repos: [], reason: "missing" \| "unauthenticated" \| "failed"}` when `gh` is absent, signed out or fails (read-only; never an error) | `gh repo list --limit 100` |
 | `welcome.env` | — | `{engines: [{id, name}], signedOut: [{id, name}], git, start}` (read-only): the engines installed and signed in, those installed but signed out, git on PATH, and `start` = `{repo, label, baseRef, engine}` for the quick start on the repo `rove --web` was started in (`null` outside a repo, without git, or without a usable engine) | `probeableEngineIds` + `detectEngineStatuses`, `firstTaskRepo` |
 | `file.openInEditor` | `taskId`, `path` (relative to the worktree) | `{tabId}`; opens the file in the Mac's configured editor (`editor.kind` / custom command, else `$VISUAL`/`$EDITOR`) in the task's editor tab, replacing the previous one. Refused for a path that leaves the worktree (`BAD_FLAG`), a missing file, or no editor (`NO_EDITOR`) | `tab-new --kind editor` |
 | `plugin.panes` | — | `{panes: [{id: "<plugin>.<pane>", title, placement: "split" \| "tab"}]}` (read-only): panes of enabled plugins, never their commands | `listPaneLaunches` |
