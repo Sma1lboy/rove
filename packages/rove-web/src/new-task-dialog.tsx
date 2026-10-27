@@ -1,14 +1,14 @@
 /**
  * The TUI's new-task dialog (`tui-react/component/new-task-dialog`): three modes (Existing,
  * New Repo, Adopt Worktree) in one frame, Ctrl+[ / Ctrl+] switch the mode, Ctrl+E cycles the
- * engine. Copy comes from the TUI's own `newTask` catalog.
+ * engine. Copy comes from the TUI's own `newTask` catalog. This machine's disk only: another
+ * machine's task starts from the composer.
  */
 
 import { useEffect, useRef, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import {
   filterText,
@@ -19,7 +19,6 @@ import {
   resolveRepo,
   splitRepoRow,
 } from "./new-task-paths.ts"
-import { RemoteTab } from "./new-task-remote.tsx"
 import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
 import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
@@ -322,16 +321,9 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
   )
 }
 
-export function NewTaskDialog({
-  model,
-  repo: initialRepo,
-  machine: initialMachine,
-}: { model: AppModel; repo?: string; machine?: string }) {
+export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; repo?: string }) {
   useLocale()
   const choice = useEngineChoice(model)
-  const machines = useMachines(model)
-  const [machine, setMachine] = useState<string>(initialMachine ?? "local")
-  const remoteHost = machines.find((m) => m.alias === machine)
   const [tab, setTab] = useState<NewTaskTab>("existing")
   const { busy, error, setError, submit } = useSubmit()
   const selected = model.selection.get().taskId
@@ -377,55 +369,29 @@ export function NewTaskDialog({
         }}
       >
         <div className="dialog-body">
-          {machines.length > 0 && (
-            <div className="field">
-              <span className="kicker">{t("newTask.machine")}</span>
-              <ChipRow
-                label={t("newTask.machine")}
-                field="machine"
-                value={machine}
-                onChange={(id) => setMachine(id)}
-                choices={[
-                  { id: "local", label: t("newTask.thisMachine") },
-                  ...machines.map((m) => ({ id: m.alias, label: m.hostLabel || m.alias })),
-                ]}
-              />
-            </div>
-          )}
-          {machine === "local" && (
-            <div className="field">
-              <span className="kicker">{tc("newTask", "field.mode")}</span>
-              <ChipRow
-                label={tc("newTask", "field.mode")}
-                field="mode"
-                value={tab}
-                onChange={(id) => setTab(id as NewTaskTab)}
-                choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
-              />
-            </div>
-          )}
+          <div className="field">
+            <span className="kicker">{tc("newTask", "field.mode")}</span>
+            <ChipRow
+              label={tc("newTask", "field.mode")}
+              field="mode"
+              value={tab}
+              onChange={(id) => setTab(id as NewTaskTab)}
+              choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
+            />
+          </div>
           <div className="field">
             <span className="kicker">{tc("newTask", "field.engine")}</span>
             <EnginePicker engines={choice.engines} value={choice.engine} onChange={choice.setEngine} />
           </div>
         </div>
-        {machine !== "local" && (
-          <RemoteTab
-            key={machine}
-            {...common}
-            machine={machine}
-            host={remoteHost?.hostLabel || machine}
-            initialRepo={initialMachine === machine ? initialRepo : undefined}
-          />
-        )}
-        <div hidden={machine !== "local" || tab !== "existing"}>
+        <div hidden={tab !== "existing"}>
           <ExistingTab {...common} repo={repo} />
         </div>
-        <div hidden={machine !== "local" || tab !== "clone"}>
+        <div hidden={tab !== "clone"}>
           <CloneTab {...common} />
         </div>
-        <div hidden={machine !== "local" || tab !== "adopt"}>
-          <AdoptTab {...common} repo={repo} active={machine === "local" && tab === "adopt"} />
+        <div hidden={tab !== "adopt"}>
+          <AdoptTab {...common} repo={repo} active={tab === "adopt"} />
         </div>
         <p className="muted newtask-legend">{tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}</p>
       </div>

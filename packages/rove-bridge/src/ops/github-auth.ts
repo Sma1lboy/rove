@@ -4,36 +4,10 @@
  * answer is a value (`reason`), never a throw: the page shows it in that machine's row.
  */
 
-import { BridgeError, optBool, optStr } from "../protocol.ts"
+import { BridgeError, optBool } from "../protocol.ts"
 import { flag } from "./args.ts"
-import type { Args, OpSpec, OpTable } from "./types.ts"
-
-type Reason = "offline" | "outdated" | "denied" | "failed"
-type Outcome<T> = { ok: true; result: T } | { ok: false; reason: Reason; message: string }
-
-const REASON_BY_CODE: Readonly<Record<string, Reason>> = {
-  MACHINE_UNREACHABLE: "offline",
-  MACHINE_VERSION_SKEW: "outdated",
-  UNKNOWN_VERB: "outdated",
-  INBOUND_DENIED: "denied",
-}
-
-async function attempt<T>(call: Promise<T>): Promise<Outcome<T>> {
-  try {
-    return { ok: true, result: await call }
-  } catch (err) {
-    if (!(err instanceof BridgeError)) throw err
-    const reason = Object.hasOwn(REASON_BY_CODE, err.code) ? (REASON_BY_CODE[err.code] as Reason) : "failed"
-    return { ok: false, reason, message: err.message }
-  }
-}
-
-/** The registered machine an op targets; absent (or `local`) = this machine. */
-function machineOf(args: Args): string | undefined {
-  const machine = optStr(args, "machine")
-  if (machine !== undefined && machine.length > 64) throw new BridgeError("BAD_ARGS", "machine is too long")
-  return machine === "local" ? undefined : machine
-}
+import { attempt, machineOf } from "./machine-outcome.ts"
+import type { OpSpec, OpTable } from "./types.ts"
 
 const spec = (kind: OpSpec["kind"], wraps: string, run: OpSpec["run"], destructive = false): OpSpec => ({
   kind,

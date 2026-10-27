@@ -318,6 +318,14 @@ $ rove api repo-list --machine narwhal
 The sidebar in `rove --web` groups projects by repo id too: a repo you have
 on several machines is one project, with each machine's tasks under it.
 
+The New task composer in `rove --web` has a machine chip that does the same
+from the page. Pick a machine and its project list is that machine's
+`repo-list`; a typed `owner/repo` or URL, or a repo under "Your GitHub
+repositories", is offered as `Clone … on <machine>`, and Start sends
+`add --machine <alias> --repo <id> --clone`, so that machine clones with its
+own git and `gh` sign-in. A machine that is offline or too old is listed with
+its state and cannot be picked.
+
 ## A Windows machine
 
 A Windows PC running native Rove registers like any other machine:

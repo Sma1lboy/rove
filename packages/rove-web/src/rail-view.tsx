@@ -98,7 +98,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, {
     selectedId,
-    onNewTask: (repo, machine) => startNewTask(model, repo, machine),
+    onNewTask: startNewTask,
     onSettings: openSettings,
   })
   const total = stops(build("").rows).length
@@ -200,7 +200,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               dragging={drag.dragging === row.id}
               place={place(row)}
               onNewTask={
-                row.kind === "project" && !row.noProject ? () => startNewTask(model, row.repo, row.machine) : undefined
+                row.kind === "project" && !row.noProject ? () => startNewTask(row.repo, row.machine) : undefined
               }
               moving={
                 moving &&

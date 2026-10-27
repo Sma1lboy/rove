@@ -62,7 +62,7 @@ export const ACTIONS: readonly PrefixAction[] = [
   {
     id: "task.new.global",
     live: () => true,
-    run: (model) => startNewTask(model, selectedTask(model)?.repo),
+    run: (model) => startNewTask(selectedTask(model)?.repo),
   },
   {
     id: "chat.tab.fork",

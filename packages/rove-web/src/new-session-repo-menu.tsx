@@ -1,9 +1,10 @@
-/** The composer's project popover: saved projects, a typed path, and "Clone" for a typed git URL, `owner/repo` or one of the user's GitHub repos. */
+/** The composer's project popover: saved projects (or another machine's), a typed path, and "Clone" for a typed git URL, `owner/repo` or one of the user's GitHub repos. */
 
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { SearchList } from "./new-session-menus.tsx"
+import { githubRepoHeld } from "./new-session-remote.ts"
 import {
   cloneSource,
   expandTilde,
@@ -23,6 +24,7 @@ export const CLONE_PREFIX = "clone:"
 
 export function RepoMenu(props: {
   model: AppModel
+  /** This machine's project paths, or with `remote` that machine's repo ids. */
   saved: readonly string[]
   picked: readonly string[]
   primary: string
@@ -32,8 +34,10 @@ export function RepoMenu(props: {
   onToggle: (path: string) => void
   onClone: (source: string) => void
   close: () => void
+  /** Another machine: its name, what an empty list says (still loading, or why it could not be read), and `blocked` when it could not be read: nothing is offered on it, only that reason. */
+  remote?: { readonly name: string; readonly empty: string; readonly blocked: boolean }
 }) {
-  const { model, saved, picked, primary, home, query } = props
+  const { model, saved, picked, primary, home, query, remote } = props
   // The popover mounts this when it opens, so the list is fetched then and the rows never wait on it.
   const [github, setGithub] = useState<GithubRepos | null>(null)
   useEffect(() => {
@@ -62,18 +66,23 @@ export function RepoMenu(props: {
   const source = cloneSource(typed)
   const clone = source && (source.includes(":") || local.length === 0) ? source : null
   const typedPath =
-    !clone && isPathInput(typed) && !saved.includes(typed) ? stripTrailingSlash(expandTilde(typed, home)) : ""
+    !clone && isPathInput(typed) && !saved.includes(typed) && (!remote || typed.startsWith("/"))
+      ? stripTrailingSlash(expandTilde(typed, home))
+      : ""
   const extra = clone
-    ? { key: CLONE_PREFIX + clone, text: t("newSession.cloneRow", { source: clone }) }
+    ? {
+        key: CLONE_PREFIX + clone,
+        text: remote
+          ? t("newSession.cloneRowOn", { source: clone, machine: remote.name })
+          : t("newSession.cloneRow", { source: clone }),
+      }
     : typedPath
       ? { key: typedPath, text: typedPath, checked: picked.includes(typedPath) }
       : null
-  // A GitHub repo whose name matches a saved project's folder is taken to be that clone.
-  const have = new Set(saved.map((path) => splitRepoRow(path).base.toLowerCase()))
   const needle = typed.toLowerCase()
   const more = (github?.repos ?? [])
     .filter((repo) => repo.nameWithOwner.toLowerCase().includes(needle))
-    .filter((repo) => !have.has(repo.nameWithOwner.split("/")[1]?.toLowerCase() ?? ""))
+    .filter((repo) => !githubRepoHeld(saved, repo.nameWithOwner, remote !== undefined))
     .map((repo) => ({
       key: CLONE_PREFIX + repo.nameWithOwner,
       text: repo.nameWithOwner,
@@ -84,13 +93,13 @@ export function RepoMenu(props: {
   return (
     // A check-list: a pick toggles and the list stays open, so several repos go in one visit.
     <SearchList
-      placeholder={t("newSession.repoSearch")}
-      empty={t("newSession.repoEmpty")}
-      rows={rows}
+      placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
+      empty={remote?.empty ?? t("newSession.repoEmpty")}
+      rows={remote?.blocked ? [] : rows}
       query={query}
       onQuery={props.onQuery}
-      extra={extra}
-      more={more}
+      extra={remote?.blocked ? null : extra}
+      more={remote?.blocked ? [] : more}
       moreLabel={t("newSession.githubGroup")}
       onPick={(key) => {
         if (!key.startsWith(CLONE_PREFIX)) return props.onToggle(key)

@@ -48,7 +48,7 @@ export function PageNav({ model }: { model: AppModel }) {
   return (
     <div className="rail-nav">
       {/* Starting a task is the first destination, drawn like the pages under it. */}
-      <button type="button" className="rail-nav-row" onClick={() => startNewTask(model)}>
+      <button type="button" className="rail-nav-row" onClick={() => startNewTask()}>
         {t("rail.newTask")}
         <span className="rail-nav-plus" aria-hidden="true">
           +

@@ -19,6 +19,7 @@ import {
   optGitRef,
   optModel,
   parseAgents,
+  remoteRepoRef,
   taskOpDeps,
 } from "./tasks-shared.ts"
 import type { Args, OpContext, OpSpec, OpTable } from "./types.ts"
@@ -54,7 +55,9 @@ async function done(call: Promise<unknown>): Promise<Record<string, never>> {
 }
 
 async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
-  const repo = absPath(args, "repo")
+  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
+  const machine = optText(args, "machine", 64)
+  const repo = machine ? remoteRepoRef(args, "repo") : absPath(args, "repo")
   const title = optText(args, "title", 200)
   const prompt = optText(args, "prompt", PROMPT_MAX)
   const branch = optGitRef(args, "branch")
@@ -67,9 +70,11 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const status = optOneOf(args, "status", STATUSES)
   const pin = optBool(args, "pin")
   const engineGiven = args.engine !== undefined && args.engine !== null && args.engine !== ""
-  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
-  const machine = optText(args, "machine", 64)
   const extras = extraRepos(args)
+  // `--clone` has the machine fetch a repo id it has no checkout of; a path there is already a checkout.
+  const clone = optBool(args, "clone")
+  if (clone && !machine) throw new BridgeError("BAD_ARGS", "clone needs a machine")
+  if (clone && repo.startsWith("/")) throw new BridgeError("BAD_ARGS", "clone needs a repo id, not a path")
   if (extras.length > 0 && machine)
     throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 
@@ -84,6 +89,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
   const argv = [flag("repo", repo)]
+  if (clone) argv.push(flag("clone", "true"))
   // Further `--repo`s are the extras; `--base-for REPO=REF` (REPO as a path) is each one's base.
   for (const extra of extras) argv.push(flag("repo", extra.repo))
   for (const extra of extras) if (extra.baseRef) argv.push(flag("base-for", `${extra.repo}=${extra.baseRef}`))

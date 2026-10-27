@@ -192,6 +192,28 @@ export async function cloneSource(args: Args): Promise<string> {
   return cloneUrl(args)
 }
 
+/** `owner/repo` or `host/owner/name` (the host has a dot; GitLab subgroups add segments): a repo id the target machine's `add` resolves. */
+const REPO_ID =
+  /^(?:[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._-]+){2,}|[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100})$/
+
+/**
+ * `--repo` of a task on another machine: a path there (absolute), or a repo id its own `add` resolves to its
+ * checkout — `owner/name`, `host/owner/name` or a clone URL (under the same allowlist as {@link cloneUrl}).
+ */
+export function remoteRepoRef(args: Args, name = "repo"): string {
+  const v = args[name]
+  if (typeof v === "string" && v.startsWith("/")) return absPath(args, name)
+  if (typeof v === "string" && REPO_ID.test(v)) return v
+  try {
+    return cloneUrl(args, name)
+  } catch {
+    throw new BridgeError(
+      "BAD_ARGS",
+      `${name} must be an absolute path or a repo id (owner/name, host/owner/name, or a clone URL)`,
+    )
+  }
+}
+
 /** Clone URL allowlist: https/http/ssh/git, or scp-form `user@host:path`. Never a leading `-`, `ext::`, `fd::` or `file:`. */
 const URL_SCHEME = /^(https?|ssh|git):\/\/[A-Za-z0-9[]\S*$/i
 const URL_SCP = /^[A-Za-z0-9._-]+@[A-Za-z0-9][A-Za-z0-9.-]*:\S+$/
