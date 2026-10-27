@@ -38,15 +38,20 @@ function binaryName(token: string): string {
   return basename(token).replace(/\.(exe|js|mjs|cjs)$/, "")
 }
 
-/** Resolve the executable identity from launch argv, through known wrappers. */
-function executableNameFromArgv(argv: readonly string[]): string | null {
+/** The argv token that names the executable, past env assignments and known wrappers (`node /x/codex.js` → `/x/codex.js`). */
+export function executableTokenFromArgv(argv: readonly string[]): string | null {
   for (const token of argv.slice(0, 8)) {
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue
-    const name = binaryName(token)
-    if (WRAPPERS.has(name)) continue
-    return name || null
+    if (WRAPPERS.has(binaryName(token))) continue
+    return token || null
   }
   return null
+}
+
+/** Resolve the executable identity from launch argv, through known wrappers. */
+function executableNameFromArgv(argv: readonly string[]): string | null {
+  const token = executableTokenFromArgv(argv)
+  return token === null ? null : binaryName(token) || null
 }
 
 /**

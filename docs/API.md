@@ -401,6 +401,13 @@ edits (`set-vendor`, `rename`,
   (`code`/`signal`/`at`); clean exits stay `exit: null`. A live PTY session
   the persisted snapshot does not list still gets a row, marked
   `unregistered: true`; an alive engine is never invisible here.
+  `engineUpdated` on a tab with a live engine says whether that engine's CLI
+  was reinstalled after it started: `true` = the executable its name resolves
+  to on `PATH` now is newer than the running process, so the tab is still on
+  the old version until relaunched (`tab-revive --restart-updated`); `false`
+  = it is on the installed one; `null` = no engine walked, or the check could
+  not run (a failed `ps`, a binary that no longer resolves). Same rule:
+  never read `null` as `false`.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
@@ -1326,7 +1333,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   keep-alive shell still counts as running) unless `--restart-exited` is set
   and a process walk finds no engine in the session (`get-task
   .tabs[].engineAlive` false): that session is then closed and relaunched like
-  a dead one. A shell tab, an unwalked tab and a tab with a running engine are
+  a dead one. `--restart-updated` does the same for an engine tab whose
+  CLI was reinstalled after it started (`get-task .tabs[].engineUpdated`
+  true), putting it on the new version with its conversation resumed — only
+  while the tab is at rest (`idle` or `turn_complete`); a tab mid-turn, on a
+  permission prompt, or whose state the daemon cannot say is left alone and
+  the result carries `busy: <state>`. A shell tab, an unwalked tab and a tab with a running engine are
   never replaced. An engine tab resumes its
   persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
   none recorded, starts a fresh one with no first message and records the id
@@ -1336,7 +1348,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   a split leaf (`tab-1::leaf-2`) is `BAD_FLAG` (`tab-split --action reset`
   reopens it); a preview or viewport tab is `TAB_NOT_REVIVABLE`. A task on
   another registered machine runs there, like every verb. Returns
-  `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
+  `{ok, taskId, tabId, revived, alive?, resumed, sessionId?, busy?}`.
 - `panel-show --view browser|files|diff [--url URL] [--path FILE]
   [--task-id ID]`: bring up the web side panel (Files / Diff / Browser) on a
   task. `--url` (browser view; `http`/`https` only) loads a page; `--path`

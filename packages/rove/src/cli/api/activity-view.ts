@@ -40,7 +40,7 @@ export const ACTIVITY_STATES_DOC =
  * screen explains the stop; `running` only when the error is the last thing
  * drawn — an engine with no failure hook (codex) never ends the claimed turn.
  */
-const AT_REST = new Set(["idle", "turn_complete"])
+export const AT_REST_STATES: ReadonlySet<string> = new Set(["idle", "turn_complete"])
 
 /** One `debug.inspect` per call. `null` = couldn't ask, never an empty registry. */
 export async function readActivityRegistry(daemon: DaemonRpc): Promise<ActivityRegistry | null> {
@@ -70,7 +70,7 @@ export async function activityView(
     ...(entry.detail ? { detail: entry.detail } : {}),
   }
   // The screen read looks at the canonical engine tab only.
-  const atRest = AT_REST.has(entry.state)
+  const atRest = AT_REST_STATES.has(entry.state)
   if (tab || !(atRest || entry.state === "running")) return base
   const note = await engineScreenError(task, { last: !atRest })
   return note ? { ...base, state: "error", detail: { failure: "other", note }, source: "screen" } : base

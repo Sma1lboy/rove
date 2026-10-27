@@ -4,6 +4,7 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { AT_REST_STATES, readActivityRegistry } from "./activity-view.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
@@ -14,7 +15,7 @@ export const TAB_REVIVE_VERB: VerbSpec = {
   name: "tab-revive",
   group: "drive",
   summary:
-    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). With --restart-exited, an engine tab whose session is alive but whose engine has exited (get-task .tabs[].engineAlive false: only the fallback shell is left) is closed and relaunched like a dead one; an engine still running, or a shell tab, is still left alone. An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), and viewport or preview tabs (TAB_NOT_REVIVABLE). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId? }.",
+    "Reopen one Terminal Tab's own session when no PTY runs in it: a dead or freeze-restored tab, or one whose key the PTY host lost (a host restart that dropped its freeze records). A running tab is left alone (`revived: false, alive: true`). With --restart-exited, an engine tab whose session is alive but whose engine has exited (get-task .tabs[].engineAlive false: only the fallback shell is left) is closed and relaunched like a dead one; an engine still running, or a shell tab, is still left alone. With --restart-updated, an engine tab whose CLI was reinstalled after it started (get-task .tabs[].engineUpdated true) and that is at rest is relaunched the same way, onto the new version; one that is busy is left alone (`busy: <state>`). An engine tab resumes its persisted conversation (`resumed: true`) or, with none recorded, starts a fresh one with no first message — the task's original prompt is never replayed; it respects engine.maxLiveSessions. A shell or command tab runs its recorded command in the task's worktree. Refused: a tab id the task does not hold (TAB_NOT_FOUND), a split leaf (`tab-split --action reset` is its reopen), and viewport or preview tabs (TAB_NOT_REVIVABLE). A task on another registered machine runs there, like every verb. Returns { taskId, tabId, revived, resumed, sessionId?, busy? }.",
   flags: [
     F.taskId(true),
     {
@@ -30,6 +31,13 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       placeholder: "BOOL",
       description:
         "Also relaunch a tab whose engine exited inside a still-running session (keepAlive's fallback shell); without it that tab counts as running.",
+    },
+    {
+      name: "restart-updated",
+      type: "bool",
+      placeholder: "BOOL",
+      description:
+        "Also relaunch an engine tab, resuming its conversation, whose engine CLI was reinstalled after it started (get-task .tabs[].engineUpdated true) — only while that tab is at rest (idle or turn_complete); a tab mid-turn, on a prompt, or of unknown state is left alone and reported as `busy`.",
     },
   ],
   handler: async (ctx) => {
@@ -76,12 +84,25 @@ export const TAB_REVIVE_VERB: VerbSpec = {
     }
     const worktree = taskCwd(task)
     if (!worktree) throw new ApiError(`task ${taskId} has no worktree yet`, "NO_WORKTREE")
-    // Positive evidence only: the session is up and a process walk finds no engine in it.
-    const exited =
-      ctx.args.bool("restart-exited") === true &&
-      (await ctx.runtime.taskTabs(taskId, taskEngineArgv(task), scope)).tabs.some(
-        (t) => t.id === tabId && t.kind === "engine" && t.alive === true && t.engineAlive === false,
-      )
+    const restartExited = ctx.args.bool("restart-exited") === true
+    const restartUpdated = ctx.args.bool("restart-updated") === true
+    // Positive evidence only: the session is up, and a process walk finds no
+    // engine in it, or finds one older than the CLI now installed.
+    const row =
+      restartExited || restartUpdated
+        ? (
+            await ctx.runtime.taskTabs(taskId, taskEngineArgv(task), scope, { engineUpdates: restartUpdated })
+          ).tabs.find((t) => t.id === tabId && t.kind === "engine" && t.alive === true)
+        : undefined
+    const exited = restartExited && row?.engineAlive === false
+    let busy: string | undefined
+    if (!exited && restartUpdated && row?.engineUpdated === true) {
+      // Relaunching kills the engine: never mid-turn or on a prompt, nor on an unknown state.
+      const registry = await readActivityRegistry(daemon)
+      const state = registry ? (registry.tabs[taskId]?.[tabId]?.state ?? "unknown") : "unknown"
+      if (!AT_REST_STATES.has(state)) busy = state
+    }
+    const updated = restartUpdated && row?.engineUpdated === true && busy === undefined
     const revived = await ctx.runtime.reviveTab(
       daemon,
       {
@@ -96,8 +117,8 @@ export const TAB_REVIVE_VERB: VerbSpec = {
       },
       tabId,
       worktree,
-      { replaceExited: exited },
+      { replaceExited: exited || updated },
     )
-    return { ok: true, taskId, tabId, ...revived }
+    return { ok: true, taskId, tabId, ...revived, ...(busy ? { busy } : {}) }
   },
 }

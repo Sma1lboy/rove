@@ -450,6 +450,7 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
     taskId,
     taskEngineArgv(res.task),
     await ptyScopeOf(daemon, res.task),
+    { engineUpdates: true },
   )
   // The verdict a scheduler would act on, so a dashboard shows the same answer.
   const runnability = await readRunnability(daemon, taskId)
