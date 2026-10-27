@@ -1,5 +1,13 @@
 # rove-weixin
 
+## 0.0.33
+
+### Patch Changes
+
+- Updated dependencies [[`4343941`](https://github.com/Sma1lboy/rove/commit/4343941db60f1be4cbd2ede1a4a51df27f426722), [`20d8069`](https://github.com/Sma1lboy/rove/commit/20d80697a5ef2652a7641040ea17726fd1d2519e), [`ddb8428`](https://github.com/Sma1lboy/rove/commit/ddb84286a2a7a95c6a26c5964e3447a201094064), [`2996d7a`](https://github.com/Sma1lboy/rove/commit/2996d7a369cbd4dbb577dc9a8a6dbbc02eee389c), [`8ad6934`](https://github.com/Sma1lboy/rove/commit/8ad6934c87bc6dae08bd1e6f6aeee742f01ba12b), [`c6161f7`](https://github.com/Sma1lboy/rove/commit/c6161f773f282ac1fc9835329cb6195c3d35d98e), [`4ef8ffb`](https://github.com/Sma1lboy/rove/commit/4ef8ffbaf815368e60e8b8cc4defb7e55aafc7c5), [`4ef8ffb`](https://github.com/Sma1lboy/rove/commit/4ef8ffbaf815368e60e8b8cc4defb7e55aafc7c5), [`4343941`](https://github.com/Sma1lboy/rove/commit/4343941db60f1be4cbd2ede1a4a51df27f426722), [`edf44ca`](https://github.com/Sma1lboy/rove/commit/edf44ca3e467c1db987370c8f28fae65ef1df4d3), [`edf44ca`](https://github.com/Sma1lboy/rove/commit/edf44ca3e467c1db987370c8f28fae65ef1df4d3), [`edf44ca`](https://github.com/Sma1lboy/rove/commit/edf44ca3e467c1db987370c8f28fae65ef1df4d3), [`0c4f1e4`](https://github.com/Sma1lboy/rove/commit/0c4f1e48674d88aee50eba803c1a42daddf4ea37), [`6b9a4f8`](https://github.com/Sma1lboy/rove/commit/6b9a4f89723c7195b353926478944caf3b8cca62), [`4f8e874`](https://github.com/Sma1lboy/rove/commit/4f8e87454ccdab9a9d64eb9238f8c3fb1c3942f1), [`726da8b`](https://github.com/Sma1lboy/rove/commit/726da8b07eb4b95619bb9a96bb51db9d6abd1505), [`3564ca4`](https://github.com/Sma1lboy/rove/commit/3564ca47053f38279f39f81e6e4a300422df7323), [`3564ca4`](https://github.com/Sma1lboy/rove/commit/3564ca47053f38279f39f81e6e4a300422df7323), [`4b8350c`](https://github.com/Sma1lboy/rove/commit/4b8350cd7cd1eb6f6ee15234210cdb3c924c1b96), [`4ef8ffb`](https://github.com/Sma1lboy/rove/commit/4ef8ffbaf815368e60e8b8cc4defb7e55aafc7c5)]:
+  - @sma1lboy/rove@0.9.272
+  - @sma1lboy/rove-daemon@0.7.23
+
 ## 0.0.32
 
 ### Patch Changes

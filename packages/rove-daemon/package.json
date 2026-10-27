@@ -1,6 +1,6 @@
 {
   "name": "@sma1lboy/rove-daemon",
-  "version": "0.7.22",
+  "version": "0.7.23",
   "description": "Daemon server, protocol, lifecycle, and socket client for Rove.",
   "type": "module",
   "private": true,
