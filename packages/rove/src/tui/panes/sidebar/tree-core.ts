@@ -130,6 +130,36 @@ export const MAX_TREE_DEPTH = 3
 /** A parent with more children than this starts folded; the fold only applies where `collapsedTasks` is passed (the full tree, not search or the icon rail). */
 export const AUTO_FOLD_CHILDREN = 5
 
+/** One indent column of a child row: a line down past a later sibling (`pipe`), the row's own hook (`tee`/`elbow`), or nothing. */
+export type TreeGuide = "pipe" | "tee" | "elbow" | "blank"
+
+function treeLevel(row: TreeRow): number {
+  return row.kind === "worktree" ? (row.level ?? row.depth) : row.depth
+}
+
+/**
+ * Every row's indent columns, one per level past the first (`depth - 1` of them).
+ * Siblings are found by real generation, so a row held at {@link MAX_TREE_DEPTH} is
+ * not taken for its parent's sibling; its last column is its own hook.
+ */
+export function treeGuideColumns(rows: readonly TreeRow[]): ReadonlyArray<readonly TreeGuide[]> {
+  // laterSibling[d]: the nearest later row at level <= d sits at d.
+  const laterSibling: boolean[] = []
+  const out: TreeGuide[][] = new Array(rows.length)
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i] as TreeRow
+    const level = treeLevel(row)
+    const guides: TreeGuide[] = []
+    if (row.kind === "worktree" && row.depth > 1) {
+      for (let d = 2; d < row.depth; d++) guides.push(laterSibling[d] ? "pipe" : "blank")
+      guides.push(laterSibling[level] ? "tee" : "elbow")
+    }
+    out[i] = guides
+    for (let d = level; d < laterSibling.length || d === level; d++) laterSibling[d] = d === level
+  }
+  return out
+}
+
 /** What a task row says about its children. */
 export interface TreeFold {
   /** Every descendant, not just direct children: what a closed fold hides. */

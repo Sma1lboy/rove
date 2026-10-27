@@ -94,18 +94,22 @@ test("a child that has children of its own keeps its marker and fold glyph in se
   expect(line).toMatch(/…\s+⎇ ▾/)
 })
 
-test("the task-colour bar stays in one column while child titles indent past it", async () => {
+test("each generation's state glyph sits in its parent's title column", async () => {
   tabsByTask.clear()
   resetRowStatusForTests()
+  const tasks = [...TASKS, task("grand", { title: "grandchild", parentTaskId: toTaskId("own") })]
   const { frame } = await renderComponent(
-    <SidebarTree tasks={TASKS} selectedId="parent" onSelect={() => {}} focused={true} width={40} />,
+    <SidebarTree tasks={tasks} selectedId="parent" onSelect={() => {}} focused={true} width={40} />,
     { width: 40, height: 16 },
   )
   await settle(80)
 
   const open = await frame()
-  const parent = lineWith(open, "parent")
-  const child = lineWith(open, "check types")
-  expect(child.indexOf("▎")).toBe(parent.indexOf("▎"))
-  expect(child.indexOf("check types")).toBeGreaterThan(parent.indexOf("parent"))
+  // The state glyph cell is two wide (`○ `), right before the title.
+  const glyphColumn = (title: string) => lineWith(open, title).indexOf(title) - 2
+  const titleColumn = (title: string) => lineWith(open, title).indexOf(title)
+  expect(glyphColumn("port tree builder")).toBe(titleColumn("parent"))
+  expect(glyphColumn("check types")).toBe(titleColumn("parent"))
+  expect(glyphColumn("grandchild")).toBe(titleColumn("port tree builder"))
+  expect(open).not.toContain("▎")
 })

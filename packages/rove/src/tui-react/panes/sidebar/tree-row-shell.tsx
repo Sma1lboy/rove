@@ -5,19 +5,18 @@
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import { type BoxRenderable, MouseButton, type RGBA } from "@opentui/core"
+import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
+import type { TreeGuide } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
-const INDENT_CELLS = 1
-/** The task-colour mark; it takes the indent's FIRST cell, so it stays one column while children indent past it. */
-const TASK_MARK = "▎"
+/** A child row's indent column per level past the first: two cells, so a child's glyph sits under its parent's label. */
+const GUIDE_TEXT: Record<TreeGuide, string> = { pipe: "│ ", tee: "├╴", elbow: "╰╴", blank: "  " }
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -87,8 +86,8 @@ export function RowShell(props: {
   readonly flatIndex: number
   readonly depth: number
   readonly shared: TreeRowShared
-  /** The row's task colour (`useTaskColor`); absent keeps a plain indent. */
-  readonly mark?: RGBA
+  /** The child row's indent columns (`treeGuideColumns`); absent or empty = a top-level row. */
+  readonly guides?: readonly TreeGuide[]
   readonly children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -124,15 +123,16 @@ export function RowShell(props: {
       <text fg={selection.markerColor} wrapMode="none">
         {selection.marker}
       </text>
-      {props.mark && props.depth > 0 ? (
-        <text fg={props.mark} wrapMode="none" flexShrink={0}>
-          {`${TASK_MARK}${" ".repeat(props.depth * INDENT_CELLS - 1)}`}
-        </text>
-      ) : (
+      {props.depth > 0 ? (
         <text wrapMode="none" flexShrink={0}>
-          {" ".repeat(props.depth * INDENT_CELLS)}
+          {" "}
         </text>
-      )}
+      ) : null}
+      {props.guides && props.guides.length > 0 ? (
+        <text fg={theme.borderSubtle} wrapMode="none" flexShrink={0}>
+          {props.guides.map((guide) => GUIDE_TEXT[guide]).join("")}
+        </text>
+      ) : null}
       {props.children}
     </box>
   )

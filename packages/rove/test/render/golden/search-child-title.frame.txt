@@ -12,8 +12,8 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ alpha                   ▾ |
-| ▎ ○ check types            ⑂ |
+|▌ ○ alpha                   ▾ |
+|  ╰╴○ check types           ⑂ |
 |                              |
 |                              |
 |                              |
