@@ -7,8 +7,7 @@
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { useMemo } from "react"
-import { SCRATCH_SECTION_ID, type TreeRow, treeGuideColumns } from "../../../tui/panes/sidebar/tree-core"
+import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -31,7 +30,6 @@ export function SidebarTreeBody(props: {
 }) {
   const { theme } = useTheme()
   const t = useT()
-  const guides = useMemo(() => treeGuideColumns(props.rows), [props.rows])
   return (
     <scrollbox
       ref={props.setScrollRef}
@@ -105,7 +103,6 @@ export function SidebarTreeBody(props: {
               task={row.task}
               depth={row.depth}
               level={row.level}
-              guides={guides[i]}
               fold={row.fold}
               title={row.title}
               remote={row.remote}

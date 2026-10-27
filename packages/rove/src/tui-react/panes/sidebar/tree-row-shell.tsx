@@ -8,15 +8,14 @@ import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote
 import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
-import type { TreeGuide } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** A child row's indent column per level past the first: two cells, so a child's glyph sits under its parent's label. */
-const GUIDE_TEXT: Record<TreeGuide, string> = { pipe: "│ ", tee: "├╴", elbow: "╰╴", blank: "  " }
+/** Indent cells at `depth`: one, then two per level past the first, so a child's glyph sits under its parent's title. */
+const indentOf = (depth: number): string => (depth > 0 ? " ".repeat(1 + (depth - 1) * 2) : "")
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -86,8 +85,6 @@ export function RowShell(props: {
   readonly flatIndex: number
   readonly depth: number
   readonly shared: TreeRowShared
-  /** The child row's indent columns (`treeGuideColumns`); absent or empty = a top-level row. */
-  readonly guides?: readonly TreeGuide[]
   readonly children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -125,12 +122,7 @@ export function RowShell(props: {
       </text>
       {props.depth > 0 ? (
         <text wrapMode="none" flexShrink={0}>
-          {" "}
-        </text>
-      ) : null}
-      {props.guides && props.guides.length > 0 ? (
-        <text fg={theme.borderSubtle} wrapMode="none" flexShrink={0}>
-          {props.guides.map((guide) => GUIDE_TEXT[guide]).join("")}
+          {indentOf(props.depth)}
         </text>
       ) : null}
       {props.children}

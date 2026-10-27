@@ -1,10 +1,5 @@
 import { describe, expect, test } from "vitest"
-import {
-  AUTO_FOLD_CHILDREN,
-  buildTreeRows,
-  childMarkerOf,
-  treeGuideColumns,
-} from "../../src/tui/panes/sidebar/tree-core"
+import { AUTO_FOLD_CHILDREN, buildTreeRows, childMarkerOf } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -166,25 +161,6 @@ describe("child tasks", () => {
     expect(shape(result)).toEqual([
       ["s", 1],
       ["sc", 2],
-    ])
-  })
-})
-
-describe("treeGuideColumns", () => {
-  test("a child hooks in with tee or elbow, ancestors with a later sibling draw a line, and a row past the cap is not its parent's sibling", () => {
-    const of = (id: string, parent: string) => task(id, { parentTaskId: toTaskId(parent) })
-    const result = rows({
-      tasks: [task("root"), of("c1", "root"), of("g1", "c1"), of("d4", "g1"), of("c2", "root"), task("other")],
-    })
-    const guides = treeGuideColumns(result)
-    const byId = new Map(result.map((row, i) => [row.id, guides[i]]))
-    expect(result.filter((r) => r.kind === "worktree").map((r) => [r.id, byId.get(r.id)])).toEqual([
-      ["root", []],
-      ["c1", ["tee"]],
-      ["g1", ["pipe", "elbow"]],
-      ["d4", ["pipe", "elbow"]],
-      ["c2", ["elbow"]],
-      ["other", []],
     ])
   })
 })
