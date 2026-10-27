@@ -34,6 +34,23 @@
   font-weight: 700;
 }
 
+/* Settings, pinned under the task list. Holds the prefix guide's badge. */
+.rail-foot {
+  position: relative;
+  padding: 6px 6px 2px;
+}
+
+.rail-nav-icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 7px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
 .mono {
   font-family: var(--mono);
 }

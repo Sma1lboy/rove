@@ -5,6 +5,7 @@ export const en = {
     empty: "no tasks yet",
     emptyHint: "start one with New task above, in the TUI, or with `rove api add`",
     newTask: "New task",
+    settings: "Settings",
     noProject: "Ungrouped",
     extraRepos: "{count} more repos in this task",
     pr: {
@@ -44,6 +45,7 @@ export const zh: typeof en = {
     empty: "还没有任务",
     emptyHint: "用上面的「新建任务」、在 TUI 里或用 `rove api add` 新建一个",
     newTask: "新建任务",
+    settings: "设置",
     noProject: "未分组",
     extraRepos: "这个任务还含 {count} 个仓库",
     pr: {
