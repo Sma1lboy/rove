@@ -1,0 +1,66 @@
+.connector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.connector-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connector-head .engine-detail {
+  white-space: normal;
+}
+
+.connector-glyph {
+  flex: none;
+}
+
+.connector-mark {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.connector-mark.is-same {
+  color: var(--diff-added);
+}
+
+.connector-mark.is-signedOut,
+.connector-mark.is-failed,
+.connector-mark.is-denied {
+  color: var(--diff-removed);
+}
+
+.connector-mark.is-different,
+.connector-mark.is-outdated {
+  color: var(--warning);
+}
+
+.connector-mark.is-offline,
+.connector-mark.is-noGh,
+.connector-mark.is-loading {
+  color: var(--muted);
+}
+
+.connector-flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  font-size: 12px;
+}
+
+.device-code {
+  padding: 2px 8px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}

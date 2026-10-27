@@ -89,6 +89,7 @@ worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
 deliveries          --task-id(REQ) --limit
 should-run          --task-id(REQ) --tab
 gates               --repo --task-id --status{open|answered|withdrawn|all}(open)
+github-status       (none)
 ```
 <!-- generated:end -->
 
@@ -238,24 +239,28 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-publish    --task-id(REQ) --remote
-add        --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
-           --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
-           --count --agents <claude:2,codex:1>
-           --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-           --require-report --expect-report --activate(false) --prompt|--prompt-file
-spawn      --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
-           --command --prompt|--prompt-file
-update     --task-id --title --tab --branch --command --model --effort --pinned
-           --require-report{on|off}
-           --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
-           --report-pr --report-summary
-land       --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-           --remove-worktree(true) --repo
-sync       --task-id(REQ) --repo
-delete     --task-id --group --cascade --force --delete-branch --delete-remote --wait
-archive    --task-id(REQ) --force
-unarchive  --task-id(REQ)
+publish        --task-id(REQ) --remote
+add            --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
+               --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
+               --count --agents <claude:2,codex:1>
+               --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+               --require-report --expect-report --activate(false) --prompt|--prompt-file
+spawn          --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
+               --command --prompt|--prompt-file
+update         --task-id --title --tab --branch --command --model --effort --pinned
+               --require-report{on|off}
+               --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
+               --report-pr --report-summary
+land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+               --remove-worktree(true) --repo
+sync           --task-id(REQ) --repo
+delete         --task-id --group --cascade --force --delete-branch --delete-remote --wait
+archive        --task-id(REQ) --force
+unarchive      --task-id(REQ)
+github-login   --cancel
+github-logout  (none)
+github-sync    --to(REQ)
+github-apply   --token(REQ)
 ```
 <!-- generated:end -->
 

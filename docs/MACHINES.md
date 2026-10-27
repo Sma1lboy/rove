@@ -216,10 +216,39 @@ $ rove machine inbound allow land
 ```
 
 Classes are the verb groups (`rove api schema --group …`: `read`, `create`,
-`drive`, `edit`, `lifecycle`, …) plus `land` for `land` and `publish`. A
+`drive`, `edit`, `lifecycle`, …) plus `land` for `land` and `publish`, and
+`credentials` for the verbs that sign this machine's `gh` in or out
+(`github-login`, `github-logout`, `github-sync`, `github-apply`). A
 refused call comes back as `INBOUND_DENIED`, naming the class and the hub's
 hostname, with the command that lifts it. The policy lives in this machine's
 `state.json` (`machineInbound`); the hub has no say in it.
+
+## GitHub credentials
+
+Rove keeps no GitHub token of its own. A machine can use GitHub as far as its
+own `gh` is signed in (the token sits in that machine's keychain), and git
+pushes through it once `gh auth setup-git` has run. **Rove's account** is the
+hub's own `gh` login; Settings → Connectors → GitHub in the web client shows
+it, and under it every registered machine with a mark: `✓` the same account,
+`⚠ @other` a different one, `✗` signed out, or `gh` missing, Rove there too
+old, offline.
+
+- **Connect** runs the device flow on the hub: a code to type at
+  github.com/login/device, then `gh` stores the token. When it completes, the
+  hub signs in every online machine that is signed out. A machine already on
+  another account is never overwritten; its row offers **Use Rove's account**.
+- **Log in there** runs the same device flow on that machine.
+- **Use Rove's account** (`rove api github-sync --to <alias>`) reads the hub's
+  token inside the hub's daemon and hands it to the machine's `gh` over the
+  forwarded socket; the machine's `git_protocol` is left as it was. The token
+  is not printed, logged or stored by Rove on either side.
+- **Disconnect** signs the hub's `gh` out (`github-logout`) for every tool
+  that uses `gh`, so the web client asks first.
+
+Signing a machine's credentials in or out is the `credentials` class above:
+`rove machine inbound deny credentials` makes a machine refuse all of it
+(`INBOUND_DENIED`). Reading a machine's status stays allowed. The same is in
+the CLI: `rove api github-status --machine <alias>`.
 
 ## Working on a remote task
 

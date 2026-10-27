@@ -3,7 +3,8 @@
  * (`api.invoke` with `forwarded: true`) is checked against a deny list of verb
  * classes kept in this machine's own state.json; the hub's word is never the
  * policy. Classes are the verb groups (`rove api schema --group`) plus `land`
- * for the two verbs that send work out (`land`, `publish`). Everything is
+ * for the two verbs that send work out (`land`, `publish`) and `credentials`
+ * for the verbs that sign this machine's `gh` in or out. Everything is
  * allowed until denied: landing included, by the owner's decision.
  */
 
@@ -12,13 +13,20 @@ import { findVerb } from "../cli/api/verbs.ts"
 import { loadStateFile, updateStateFile } from "../state/store.ts"
 
 export const INBOUND_KEY = "machineInbound"
-export const INBOUND_CLASSES: readonly string[] = [...VERB_GROUP_IDS, "land"]
+export const INBOUND_CLASSES: readonly string[] = [...VERB_GROUP_IDS, "land", "credentials"]
 
 const LAND_VERBS: ReadonlySet<string> = new Set(["land", "publish"])
+const CREDENTIAL_VERBS: Readonly<Record<string, true>> = {
+  "github-login": true,
+  "github-logout": true,
+  "github-sync": true,
+  "github-apply": true,
+}
 
 /** The class a verb is judged under; null for a verb this build does not know. */
 export function inboundClassOf(verb: string): string | null {
   if (LAND_VERBS.has(verb)) return "land"
+  if (Object.hasOwn(CREDENTIAL_VERBS, verb)) return "credentials"
   return findVerb(verb)?.group ?? null
 }
 
