@@ -173,8 +173,8 @@ export interface Task {
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
   /**
-   * Tree lineage: the task this one was spawned from. Distinct from
-   * {@link dispatcher}, which only routes reports back.
+   * Tree lineage: the task this one was spawned from, or later moved under
+   * (`update --parent`). Distinct from {@link dispatcher}, which only routes reports back.
    */
   readonly parentTaskId?: TaskId
   /**

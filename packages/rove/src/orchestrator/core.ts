@@ -5,7 +5,7 @@
  */
 
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
-import type { LandPreflightResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { LandPreflightResult, ReparentResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
@@ -303,6 +303,8 @@ export class Orchestrator {
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
+  setParent = (id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> =>
+    this.editor.setParent(id, parentId, replyTab)
   setArchived = (id: TaskId | string, archived: boolean): Promise<void> => this.editor.setArchived(id, archived)
   setRequireReport = (id: TaskId | string, required: boolean): Promise<void> =>
     this.editor.setRequireReport(id, required)
