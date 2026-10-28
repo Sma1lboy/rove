@@ -9,6 +9,7 @@
  * messaged; the push goes to `undelivered.jsonl` and the daemon log instead.
  */
 
+import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { createAgentControl } from "./agent.ts"
@@ -26,6 +27,7 @@ import {
   isDirectUserMessage,
   messageText,
 } from "./ilink.ts"
+import { saveInboundMedia } from "./media.ts"
 import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
 import { RoutineTracker, renderRoutineRuns } from "./routines.ts"
 import { sendBubbles } from "./send.ts"
@@ -197,8 +199,20 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       },
     })
     const text = messageText(message)
-    const result = text ? await routeInbound(text, deps.ops, agent) : { reply: "Text messages only. Send /help." }
-    if (result.reply) await deliver(from, result.reply)
+    const stem = `${new Date(now()).toISOString().slice(0, 10)}-${(id || randomUUID()).replace(/[^\w-]/g, "_")}`
+    const media = await saveInboundMedia(message, join(deps.store.dir, "inbox"), stem, deps.fetch ?? fetch)
+    for (const miss of media.failed) deps.log("weixin", `${miss.kind} from ${redact(from)} not saved: ${miss.reason}`)
+    // The agent opens attachments by path, so they ride the text as `[image: <path>]` lines.
+    const body = [text, ...media.saved.map((m) => `[${m.kind}: ${m.path}]`)].filter(Boolean).join("\n")
+    const missed = media.failed.map((miss) => `Could not download your ${miss.kind} (${miss.reason}); send it again.`)
+    const result = body
+      ? await routeInbound(body, deps.ops, agent)
+      : {
+          reply:
+            missed.length > 0 ? "" : "Could not read this message (a voice note without a transcript?). Send /help.",
+        }
+    const reply = [...missed, result.reply].filter(Boolean).join("\n")
+    if (reply) await deliver(from, reply)
     if (result.agentTaskId) showTyping(from, result.agentTaskId)
   }
 

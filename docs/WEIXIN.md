@@ -57,6 +57,12 @@ engine (the one `rove .` would start). Its first message tells it who it is,
 that it has the rove skill and `rove api`, and to reply with `rove weixin send`
 (the bridge does not read its screen). Your words arrive prefixed `[WeChat]`.
 
+Pictures, files and videos work too. Rove downloads and decrypts each one into
+`~/.rove/weixin/inbox/`, and it reaches the agent as a line such as
+`[image: ~/.rove/weixin/inbox/2026-10-28-123.png]` that the agent opens. A
+message that quotes a picture brings the picture along. If a download fails,
+the chat says so and the message's text is still delivered.
+
 It holds one conversation at a time:
 
 | Message | What happens |
@@ -196,8 +202,8 @@ stays.
 
 ## Limits
 
-- Text only. Images, files and voice messages without a WeChat transcript get
-  a "text messages only" reply.
+- The bot replies in text only; it cannot send you pictures or files. Voice
+  messages work only when WeChat attaches a transcript.
 - Direct messages only. A QR-bound bot is usually not delivered group chat
   events, so Rove ignores them.
 - One bot per Rove home. `login` with a different WeChat account replaces the

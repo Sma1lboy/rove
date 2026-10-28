@@ -4,8 +4,9 @@
  * `sendmessage` for outbound. Every reply echoes the peer's latest
  * `context_token`; without one iLink only accepts a degraded tokenless send.
  *
- * Text only on purpose: media rides an AES-encrypted CDN Rove has no use for.
- * `fetch` is injected so tests replay recorded responses without a network.
+ * Outbound is text only. Inbound pictures, files and videos ride an
+ * AES-encrypted CDN; `media.ts` fetches them. `fetch` is injected so tests
+ * replay recorded responses without a network.
  */
 
 import { randomBytes, randomUUID } from "node:crypto"
@@ -40,10 +41,24 @@ export function resolveIlinkBaseUrl(env: NodeJS.ProcessEnv = process.env): strin
   return (readRoveEnv("WEIXIN_BASE_URL", env) ?? ILINK_BASE_URL).replace(/\/+$/, "")
 }
 
-interface IlinkItem {
+/** Where a media item's bytes sit on WeChat's CDN and the key that opens them. */
+export interface IlinkCdnMedia {
+  readonly encrypt_query_param?: string
+  readonly full_url?: string
+  /** base64 of the raw 16-byte key, or of its 32-char hex form. */
+  readonly aes_key?: string
+}
+
+export interface IlinkItem {
   readonly type?: number
   readonly text_item?: { readonly text?: string }
   readonly voice_item?: { readonly text?: string }
+  /** `aeskey` (hex), when present, wins over `media.aes_key`. */
+  readonly image_item?: { readonly media?: IlinkCdnMedia; readonly aeskey?: string }
+  readonly file_item?: { readonly media?: IlinkCdnMedia; readonly file_name?: string }
+  readonly video_item?: { readonly media?: IlinkCdnMedia }
+  /** The message this one quotes. */
+  readonly ref_msg?: { readonly message_item?: IlinkItem }
 }
 
 export interface IlinkMessage {

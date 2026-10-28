@@ -21,7 +21,9 @@ export interface RecordedSend {
 
 export interface InboundSpec {
   readonly from: string
-  readonly text: string
+  readonly text?: string
+  /** The raw `item_list`, for pictures and files; default one text item. */
+  readonly items?: readonly Answer[]
   readonly id?: string
   readonly contextToken?: string
 }
@@ -47,6 +49,8 @@ export async function waitFor(check: () => void, timeoutMs = 4_000): Promise<voi
 
 export class FakeIlink {
   readonly sends: RecordedSend[] = []
+  /** Bytes served at `/c2c/download?encrypted_query_param=<key>`, standing in for WeChat's media CDN. */
+  readonly cdn = new Map<string, Buffer>()
   /** `sendtyping` calls, in order. */
   readonly typing: Array<{ readonly to: string; readonly ticket: string; readonly on: boolean }> = []
   /** `getupdates` request bodies, in order. */
@@ -86,7 +90,7 @@ export class FakeIlink {
       to_user_id: FAKE_BOT_ID,
       message_type: 1,
       context_token: spec.contextToken ?? `ctx-${spec.from}-${this.cursor + this.inbox.length + 1}`,
-      item_list: [{ type: 1, text_item: { text: spec.text } }],
+      item_list: spec.items ?? [{ type: 1, text_item: { text: spec.text ?? "" } }],
     })
     for (const wake of this.waiters.splice(0)) wake()
   }
@@ -103,6 +107,12 @@ export class FakeIlink {
     const url = new URL(req.url ?? "/", this.url)
     const chunks: Buffer[] = []
     for await (const chunk of req) chunks.push(chunk as Buffer)
+    if (url.pathname === "/c2c/download") {
+      const bytes = this.cdn.get(url.searchParams.get("encrypted_query_param") ?? "")
+      res.writeHead(bytes ? 200 : 404)
+      res.end(bytes ?? "")
+      return
+    }
     const body = chunks.length > 0 ? (JSON.parse(Buffer.concat(chunks).toString("utf8")) as Answer) : {}
     const auth = req.headers.authorization
     const reply = (answer: Answer, status = 200) => {
