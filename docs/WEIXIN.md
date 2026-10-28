@@ -204,6 +204,8 @@ stays.
 
 - The bot replies in text only; it cannot send you pictures or files. Voice
   messages work only when WeChat attaches a transcript.
+- Nothing cleans `~/.rove/weixin/inbox/`; received files stay until you
+  delete them.
 - Direct messages only. A QR-bound bot is usually not delivered group chat
   events, so Rove ignores them.
 - One bot per Rove home. `login` with a different WeChat account replaces the
