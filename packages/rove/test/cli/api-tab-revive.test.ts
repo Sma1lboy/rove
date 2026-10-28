@@ -14,6 +14,7 @@ const host = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; payload: Record<string, unknown> }>,
   created: true,
   killAccepted: false,
+  killEnded: true,
 }))
 vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
   ...(await original<object>()),
@@ -21,7 +22,9 @@ vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
     rpc: {
       request: async (name: string, payload: Record<string, unknown> = {}) => {
         host.calls.push({ name, payload })
-        if (name === "pty.killAtRest") return { accepted: host.killAccepted }
+        if (name === "pty.killAtRest")
+          return host.killAccepted ? { accepted: true, ended: host.killEnded } : { accepted: false }
+        if (name === "pty.kill") return { accepted: true, ended: host.killEnded }
         if (name === "pty.list") return { sessions: host.sessions, admissionToken: "test" }
         if (name === "pty.open") return { replay: "", alive: true, created: host.created, respawned: !host.created }
         return {}
@@ -52,6 +55,7 @@ beforeEach(() => {
   host.calls = []
   host.created = true
   host.killAccepted = false
+  host.killEnded = true
   mkdirSync(join(home, ".config/rove"), { recursive: true })
   writeFileSync(join(home, ".config/rove/state.json"), "{}")
 })
@@ -300,4 +304,23 @@ it("resumes the persisted conversation after the host accepts the guarded remova
   ).toMatchObject({ revived: true, resumed: true, sessionId: "abc" })
   expect(launchLine()).toContain("--resume abc")
   expect(host.calls.some((c) => c.name === "pty.kill")).toBe(false)
+})
+
+it.each([
+  ["a guarded restart", { restartUpdatedGeneration: "g1" }],
+  ["a replaceExited relaunch", { replaceExited: true }],
+])("%s whose old child the host could not end opens nothing", async (_, opts) => {
+  host.killAccepted = true
+  host.killEnded = false
+  host.sessions = [{ key: "t::tab-1", alive: true, generation: "g1", programStatusEvent: { revision: 2 } }]
+  const daemon = tabsDaemon({
+    seed: { t: state(engineRow({ sessionId: "abc", spawned: true })) },
+    extra: {
+      "debug.inspect": () => ({ activity: { tabs: { t: { "tab-1": { state: "idle" } } } } }),
+    },
+  })
+  await expect(defaultApiRuntime.reviveTab(daemon.client, target(), "tab-1", home, opts)).rejects.toMatchObject({
+    code: "SESSION_FAILED",
+  })
+  expect(opened()).toBeUndefined()
 })

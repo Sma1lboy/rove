@@ -1341,7 +1341,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   the result carries `busy: <state>`. The PTY host checks the inspected session's
   generation and status revision atomically before removal. Input since its last
   at-rest report, changed status, or missing host status evidence refuses the
-  restart (`busy: unknown`); overlapping requests cannot kill a replacement. A shell tab, an unwalked tab and a tab with a running engine are
+  restart (`busy: unknown`); overlapping requests cannot kill a replacement.
+  Any replacement first waits for the old process to exit; if the PTY host
+  cannot confirm it ended, nothing reopens and the verb fails with
+  `SESSION_FAILED`. A shell tab, an unwalked tab and a tab with a running engine are
   never replaced. An engine tab resumes its
   persisted conversation (`resumed: true`, the `sessionId` it reopened) or, with
   none recorded, starts a fresh one with no first message and records the id
