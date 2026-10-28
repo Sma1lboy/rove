@@ -274,14 +274,30 @@ export class PtyHost {
     return { accepted: true }
   }
 
-  /** Status and generation are checked in the same turn that removes the session. */
-  killAtRest(key: string, generation: string, revision: number): { accepted: boolean } {
+  /**
+   * Status, generation and removal happen in one synchronous turn; the reply
+   * waits for the old child's bounded termination, like `pty.kill {wait}`, so
+   * the caller's replacement never overlaps a child still shutting down.
+   */
+  killAtRest(key: string, generation: string, revision: number): Promise<{ accepted: boolean; ended?: boolean }> {
     const session = this.sessions.get(key)
     const event = session?.programStatusEvent
-    if (!session?.alive || session.generation !== generation || event?.revision !== revision) return { accepted: false }
-    if (revision <= (session.inputStatusRevision ?? -1)) return { accepted: false }
-    if (event.status?.state !== "idle" && event.status?.state !== "done") return { accepted: false }
-    return this.killIfGeneration(key, generation)
+    const atRest = event?.status?.state === "idle" || event?.status?.state === "done"
+    if (!session?.alive || session.generation !== generation || event?.revision !== revision || !atRest)
+      return Promise.resolve({ accepted: false })
+    if (revision <= (session.inputStatusRevision ?? -1)) return Promise.resolve({ accepted: false })
+    return this.killAndWait(key)
+  }
+
+  /** `kill`, answering once the child's bounded termination settles: `ended` is false if teardown failed. */
+  killAndWait(key: string): Promise<{ accepted: true; ended: boolean }> {
+    return this.kill(key).then(
+      () => ({ accepted: true, ended: true }),
+      (err) => {
+        logDaemonError("pty-kill", err)
+        return { accepted: true, ended: false }
+      },
+    )
   }
 
   /** End the child AND forget the session (explicit close / task deletion). */

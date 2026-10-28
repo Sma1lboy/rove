@@ -99,15 +99,7 @@ export function dispatchPtyRequest(req: PtyRequest, client: PtyClientState, deps
       // `wait`: the caller will unlink the child's cwd, and a still-exiting
       // process makes it undeletable on Windows. Bounded by the host's
       // SIGTERM → SIGKILL grace, so a wedged child can't hold the reply.
-      if (optionalBoolean(payload, "wait") === true) {
-        return ptys.kill(key).then(
-          () => ({ accepted: true, ended: true }),
-          (err) => {
-            logDaemonError("pty-kill", err)
-            return { accepted: true, ended: false }
-          },
-        )
-      }
+      if (optionalBoolean(payload, "wait") === true) return ptys.killAndWait(key)
       // Session dropped synchronously, teardown not: `accepted` is all this can claim.
       void ptys.kill(key).catch((err) => logDaemonError("pty-kill", err))
       return { accepted: true }
