@@ -64,6 +64,24 @@ export function selectedRow(payload: TasksPayload | null, taskId: string | null)
   return payload?.tasks.find((row) => row.id === taskId) ?? payload?.archived?.find((row) => row.id === taskId)
 }
 
+/**
+ * Where the selection goes once the open task stops being live (archived, being deleted, gone),
+ * as the TUI moves off a deleting task: the latest visit that is still live, else no task.
+ * Null = stay put. Only the change counts, so an archived task opened from the fold stays open.
+ */
+export function selectionAfterLeave(
+  before: readonly TaskRow[],
+  after: readonly TaskRow[],
+  selected: Selection,
+  visits: readonly Visit[],
+): Selection | null {
+  const live = (rows: readonly TaskRow[], id: string) => rows.some((task) => task.id === id && !task.deleting)
+  const id = selected.taskId
+  if (id === null || !live(before, id) || live(after, id)) return null
+  const back = visits.find((visit) => visit.taskId !== id && live(after, visit.taskId))
+  return back ? { taskId: back.taskId, tabId: back.tabId } : { taskId: null, tabId: null }
+}
+
 export class AppModel {
   /** This Mac's rows only: every action and page reads these, so nothing aims a verb at another machine's task. */
   readonly tasks: Store<TasksPayload | null> = createStore<TasksPayload | null>(null)
@@ -251,8 +269,16 @@ export class AppModel {
   }
 
   private acceptTasks(payload: TasksPayload): void {
+    const before = [...(this.tasks.get()?.tasks ?? []), ...this.remote.get()]
     this.remote.set(payload.tasks.filter((task) => task.machine))
     this.tasks.set({ ...payload, tasks: payload.tasks.filter((task) => !task.machine) })
+    const left = selectionAfterLeave(before, payload.tasks, this.selection.get(), this.visits.get())
+    if (left?.taskId) this.commitSelection(left.taskId, left.tabId)
+    else if (left) {
+      this.selection.set(left)
+      localStorage.setItem(SELECTION_KEY, JSON.stringify(left))
+      this.reportViewing()
+    }
     if (this.pendingSelect && payload.tasks.some((task) => task.id === this.pendingSelect)) {
       this.select(this.pendingSelect)
       this.pendingSelect = null
