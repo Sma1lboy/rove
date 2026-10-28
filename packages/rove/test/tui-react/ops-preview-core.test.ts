@@ -17,6 +17,7 @@ import {
   isCombinedPathspec,
   isImagePath,
   loadPreviewData,
+  patchFirstLine,
   unifiedDiffFiles,
 } from "../../src/tui/ops/preview-core.ts"
 
@@ -28,6 +29,46 @@ describe("filetypeOf", () => {
     expect(filetypeOf("README.markdown")).toBe("markdown")
     expect(filetypeOf("Makefile")).toBeUndefined()
     expect(filetypeOf("img.png")).toBeUndefined()
+    expect(filetypeOf("build.zig")).toBe("zig")
+  })
+
+  test.each([
+    ["-S -u NODE_OPTIONS node", "javascript"],
+    ["-S -u node /bin/echo", undefined],
+    ["-S /usr/bin/node", "javascript"],
+    ["-S --unset NODE_OPTIONS /usr/bin/node", "javascript"],
+    ["-S --unset=node /bin/echo", undefined],
+    ["-S -unode /bin/echo", undefined],
+    ["-S -C node /bin/echo", undefined],
+    ["-S --chdir node /usr/bin/bun", "typescript"],
+    ["-S -P node /bin/echo", undefined],
+    ["-S -i NODE_OPTIONS= -- /usr/bin/node", "javascript"],
+    ["-S -u node", undefined],
+  ])("selects the command after env options: %s", (args, expected) => {
+    expect(filetypeOf("bin/cli", `#!/usr/bin/env ${args}`)).toBe(expected)
+  })
+
+  test("an extensionless script takes its grammar from the shebang's interpreter", () => {
+    expect(filetypeOf("bin/cli", "#!/usr/bin/env node")).toBe("javascript")
+    expect(filetypeOf("bin/cli", "#!/usr/bin/env -S bun run --silent")).toBe("typescript")
+    expect(filetypeOf("scripts/dev", "#!/usr/local/bin/deno run -A")).toBe("typescript")
+    expect(filetypeOf("bin/cli", "#!/bin/sh")).toBeUndefined()
+    expect(filetypeOf("bin/cli", "// node")).toBeUndefined()
+    // A bare name that happens to be an extension is not one.
+    expect(filetypeOf("bin/ts")).toBeUndefined()
+    // An extension wins over the shebang.
+    expect(filetypeOf("notes.md", "#!/usr/bin/env node")).toBe("markdown")
+  })
+})
+
+describe("patchFirstLine", () => {
+  test("reads line 1 only from a hunk that starts there", () => {
+    const added =
+      "diff --git a/cli b/cli\nnew file mode 100755\n--- /dev/null\n+++ b/cli\n@@ -0,0 +1,2 @@\n+#!/usr/bin/env node\n+run()\n"
+    expect(patchFirstLine(added)).toBe("#!/usr/bin/env node")
+    const replaced = "@@ -1,2 +1,2 @@\n-#!/bin/sh\n+#!/usr/bin/env bun\n x\n"
+    expect(patchFirstLine(replaced)).toBe("#!/usr/bin/env bun")
+    expect(patchFirstLine("@@ -40,3 +40,4 @@\n a\n+#!/usr/bin/env node\n b\n")).toBeUndefined()
   })
 })
 

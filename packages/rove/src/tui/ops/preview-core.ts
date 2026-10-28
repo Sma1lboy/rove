@@ -7,10 +7,15 @@ import { unquoteGitPath } from "@/lib/git-parsers"
 import { readWorktreeFile, runWorktreeGit, worktreeFileSize } from "@/worktree/content"
 import { t } from "../i18n"
 
-/** Map a file extension to an opentui tree-sitter grammar name. */
-export function filetypeOf(relPath: string): string | undefined {
-  const ext = relPath.slice(relPath.lastIndexOf(".") + 1).toLowerCase()
-  switch (ext) {
+/**
+ * Map a file to an opentui tree-sitter grammar name: by extension, else (an
+ * extensionless script) by the interpreter its `firstLine` shebang names.
+ */
+export function filetypeOf(relPath: string, firstLine?: string): string | undefined {
+  const leaf = relPath.slice(relPath.lastIndexOf("/") + 1)
+  const dot = leaf.lastIndexOf(".")
+  if (dot <= 0) return firstLine === undefined ? undefined : shebangFiletype(firstLine)
+  switch (leaf.slice(dot + 1).toLowerCase()) {
     case "ts":
     case "tsx":
     case "mts":
@@ -24,9 +29,64 @@ export function filetypeOf(relPath: string): string | undefined {
     case "md":
     case "markdown":
       return "markdown"
+    case "zig":
+      return "zig"
     default:
       return undefined
   }
+}
+
+const SHEBANG_INTERPRETERS: ReadonlyMap<string, string> = new Map([
+  ["node", "javascript"],
+  ["nodejs", "javascript"],
+  ["bun", "typescript"],
+  ["deno", "typescript"],
+  ["tsx", "typescript"],
+  ["ts-node", "typescript"],
+])
+
+/** `#!/usr/bin/env -S bun run` → the grammar for `bun`; `env`'s own flags are skipped. */
+function shebangFiletype(line: string): string | undefined {
+  if (!line.startsWith("#!")) return undefined
+  const words = line.slice(2).trim().split(/\s+/)
+  const first = words[0] ?? ""
+  let program = first.slice(first.lastIndexOf("/") + 1)
+  if (program === "env") {
+    let i = 1
+    for (; i < words.length; i++) {
+      const word = words[i] ?? ""
+      if (word === "--") {
+        i++
+        break
+      }
+      if (["-u", "--unset", "-C", "--chdir", "-P", "-a", "--argv0"].includes(word)) {
+        i++
+        continue
+      }
+      if (!word.startsWith("-") && !word.includes("=")) break
+    }
+    const command = words[i] ?? ""
+    program = command.slice(command.lastIndexOf("/") + 1)
+  }
+  return SHEBANG_INTERPRETERS.get(program)
+}
+
+/**
+ * A file's first line as one patch shows it, or undefined when no hunk starts
+ * at line 1 — a shebang only counts on line 1.
+ */
+export function patchFirstLine(patch: string): string | undefined {
+  const lines = patch.split("\n")
+  const at = lines.findIndex((l) => /^@@ -\d+(?:,\d+)? \+1(?:,\d+)? @@/.test(l))
+  if (at < 0) return undefined
+  const body = lines.slice(at + 1).find((l) => l.startsWith(" ") || l.startsWith("+"))
+  return body?.slice(1)
+}
+
+/** First line of a file's own content. */
+export function contentFirstLine(text: string): string {
+  const nl = text.indexOf("\n")
+  return nl < 0 ? text : text.slice(0, nl)
 }
 
 /**
