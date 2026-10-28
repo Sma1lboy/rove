@@ -163,6 +163,7 @@ describe("API surface (full CRUD)", () => {
       "repo-match",
       "repo-list",
       "publish",
+      "pr-attach",
       "deliveries",
       "should-run",
       "add",

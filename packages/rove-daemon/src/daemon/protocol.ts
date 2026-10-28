@@ -110,6 +110,8 @@ export type DaemonRequestName =
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
   // durable, so this copy is what survives engine/context loss.
   | "task.setPrompt"
+  // Attach a PR the engine session opened (any directory); the daemon polls its status.
+  | "task.addSessionPr"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
   | "task.openDir"
@@ -346,30 +348,6 @@ export type SubscribeRole = "gui" | "pane"
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit" | "pty.programStatus"
 
-/**
- * WHY a daemon is going away, on the `daemon.stopping` frame (v5). Clients only
- * wait out `idle`/`socket-lost`/`stop`; `restart` replaces the CODE, so an
- * attached TUI can offer a refresh at once instead of after reconnect + `hello`.
- * `stop` is the default, so an unlabelled stop never claims to be a restart.
- */
-export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
-
-/**
- * The `daemon.stopping` frame's payload. Every field optional: a v4 daemon
- * broadcasts `{}`, and a v4 client ignores what it does not know — so this
- * shape may only ever GROW optional fields.
- */
-export interface DaemonStoppingPayload {
-  readonly reason?: DaemonStopReason
-  /** Outgoing build version, comparable without waiting for the next `hello`. */
-  readonly roveVersion?: string
-}
-
-/** Unknown/absent → `undefined` (an older daemon, or a reason this build doesn't know). */
-export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefined {
-  return value === "restart" || value === "stop" || value === "idle" || value === "socket-lost" ? value : undefined
-}
-
 export interface DaemonError {
   readonly message: string
   readonly name?: string
@@ -436,6 +414,8 @@ export interface SerializedTask {
   readonly worktreeName?: DaemonTask["worktreeName"]
   /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
   readonly extraRepos?: DaemonTask["extraRepos"]
+  /** PRs the session opened from any directory (`rove api pr-attach`); omitted when none. */
+  readonly sessionPrs?: DaemonTask["sessionPrs"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
@@ -492,6 +472,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
     ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
     ...(task.extraRepos?.length ? { extraRepos: task.extraRepos } : {}),
+    ...(task.sessionPrs?.length ? { sessionPrs: task.sessionPrs } : {}),
     requireReport: task.requireReport,
     prompt: task.prompt,
     baseRef: task.baseRef,

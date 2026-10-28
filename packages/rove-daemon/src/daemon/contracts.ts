@@ -206,6 +206,18 @@ export interface TaskLinkedWorkItem {
   readonly url: string
 }
 
+/**
+ * A PR the task's session opened, wherever its branch lives (`rove api pr-attach`).
+ * Keyed by `url`; `status` is what the daemon last polled from the forge (`gh pr view <url>`).
+ */
+export interface TaskSessionPr {
+  /** Canonical `https://github.com/<owner>/<repo>/pull/<n>`. */
+  readonly url: string
+  /** ISO-8601 time it was attached. */
+  readonly addedAt: string
+  readonly status?: TaskPRStatus
+}
+
 export interface DaemonTask {
   readonly id: string
   readonly title: string
@@ -265,6 +277,8 @@ export interface DaemonTask {
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
+  /** PRs the task's session opened anywhere (`rove api pr-attach`), newest last. */
+  readonly sessionPrs?: readonly TaskSessionPr[]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -350,6 +364,10 @@ export interface DaemonOrchestrator {
    *  ordinary, and `setStatus` returns early when the status is unchanged. */
   setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null, repoName?: string): Promise<void>
+  /** Attach a PR the session opened (dedup by `url`, newest last, oldest dropped past a cap). */
+  addSessionPr(id: string, url: string): Promise<void>
+  /** Record the polled forge status of one attached PR; a URL no longer attached is a no-op. */
+  setSessionPrStatus(id: string, url: string, status: TaskPRStatus): Promise<void>
   /** Stamp the external tracker item a task was started from. */
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */

@@ -2,6 +2,7 @@
  *  guard around one `store` mutation (branch renames also touch git). */
 
 import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
 import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
@@ -362,6 +363,30 @@ export class TaskEditor {
     const latest = this.store.get(task.id)?.extraRepos ?? []
     await this.store.update(task.id, {
       extraRepos: latest.map((x) => (x.name === repoName ? { ...x, prStatus: prStatus ?? undefined } : x)),
+    })
+  }
+
+  /**
+   * Attach a PR the session opened. Keyed by `url` (the caller passes the
+   * canonical form); re-attaching keeps the original `addedAt` and position.
+   * Past {@link SESSION_PR_CAP} the oldest entries go.
+   */
+  async addSessionPr(id: TaskId | string, url: string): Promise<void> {
+    const task = this.requireTask(id)
+    const current = task.sessionPrs ?? []
+    if (current.some((p) => p.url === url)) return
+    const next = [...current, { url, addedAt: new Date().toISOString() }].slice(-SESSION_PR_CAP)
+    await this.store.update(task.id, { sessionPrs: next })
+  }
+
+  /** From `pr-status-collector`. No-op when the task or the attached `url` is gone, or nothing rendered changed. */
+  async setSessionPrStatus(id: TaskId | string, url: string, status: TaskPRStatus): Promise<void> {
+    const task = this.store.get(id)
+    const entry = task?.sessionPrs?.find((p) => p.url === url)
+    if (!task || !entry) return
+    if ((entry.status?.lastError ?? null) === (status.lastError ?? null) && samePrStatus(entry.status, status)) return
+    await this.store.update(task.id, {
+      sessionPrs: (task.sessionPrs ?? []).map((p) => (p.url === url ? { ...p, status } : p)),
     })
   }
 

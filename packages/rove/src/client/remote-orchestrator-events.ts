@@ -16,9 +16,9 @@ import {
   type UiPromptPayload,
   isAttentionInboxState,
   isRoutineInboxState,
-  parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
+import { parseDaemonStopReason } from "@sma1lboy/rove-daemon/daemon/stop-reason"
 import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"

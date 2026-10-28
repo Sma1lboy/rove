@@ -57,8 +57,8 @@ async function renameTab(ctx: VerbContext, taskId: string, tabId: string): Promi
   return { ok: true, taskId, tabId, title, renamed: true, clients: reply.clients ?? 0 }
 }
 
-/** `--task-id`, else the caller's own verified session (so an agent can retitle the task it runs in). */
-async function resolveTarget(ctx: VerbContext): Promise<string> {
+/** `--task-id`, else the caller's own verified session (so an agent can act on the task it runs in). */
+export async function resolveTarget(ctx: VerbContext, verb = "update"): Promise<string> {
   const explicit = ctx.args.str("task-id")
   if (explicit) return explicit
   const self = await ownSession(daemonOf(ctx))
@@ -66,7 +66,7 @@ async function resolveTarget(ctx: VerbContext): Promise<string> {
     throw new ApiError(
       "no --task-id given and the caller is not a verified rove session — pass --task-id ID",
       "MISSING_TARGET",
-      helpStep("update"),
+      helpStep(verb),
     )
   }
   return self.taskId

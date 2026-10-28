@@ -7,10 +7,21 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type VerbSpec } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
+import { attachSessionPr } from "./verbs-pr.ts"
+
+/** The PR is the deliverable: record it on the task's row, but a failed attach must not hide a PR that exists. */
+async function published(ctx: VerbContext, taskId: string, branch: string, url: string): Promise<unknown> {
+  const attached = await attachSessionPr(ctx, taskId, url).then(
+    () => ({}),
+    (err: unknown) => ({ attachError: errorMessage(err) }),
+  )
+  return { branch, pushed: true, pr: { url }, ...attached }
+}
 
 function run(cwd: string, cmd: string, args: readonly string[]): { ok: boolean; out: string } {
   const res = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 120_000 })
@@ -41,12 +52,11 @@ export const PUBLISH_VERB: VerbSpec = {
     if (!push.ok) throw new ApiError(`git push to ${remote} failed: ${push.out}`, "PUSH_FAILED")
 
     const existing = run(cwd, "gh", ["pr", "view", task.branch, "--json", "url", "-q", ".url"])
-    if (existing.ok && existing.out.startsWith("http"))
-      return { branch: task.branch, pushed: true, pr: { url: existing.out } }
+    if (existing.ok && existing.out.startsWith("http")) return published(ctx, taskId, task.branch, existing.out)
     const base = task.baseRef ? ["--base", String(task.baseRef)] : []
     const created = run(cwd, "gh", ["pr", "create", "--fill", "--head", task.branch, ...base])
     const url = created.out.split("\n").find((line) => line.startsWith("http"))
-    if (created.ok && url) return { branch: task.branch, pushed: true, pr: { url } }
+    if (created.ok && url) return published(ctx, taskId, task.branch, url)
     return { branch: task.branch, pushed: true, pr: null, prError: created.out || "gh pr create failed" }
   },
 }

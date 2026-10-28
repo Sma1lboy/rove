@@ -1,6 +1,6 @@
 /** Status marks a rail row draws: the dot look, the tone palette, and the rollups over a folded group. */
 
-import type { RowStatus, TaskRow } from "rove-bridge/protocol"
+import type { RowStatus, TaskRow, TaskRowPr } from "rove-bridge/protocol"
 
 export type Tone = "accent" | "muted" | "attention" | "warning" | "success" | "info" | "ink"
 
@@ -87,22 +87,25 @@ export interface PrMark {
 }
 
 /**
- * A task's PR as the rail draws it, after GitHub and Claude's list: the PR's own icon in its
+ * A PR as the rail draws it, after GitHub and Claude's list: the PR's own icon in its
  * lifecycle's colour, red while it can't land, grey when the forge was unreachable last poll.
+ * An unpolled PR (`unknown`) draws as an open one with no check state.
  */
-export function prMark(task: Pick<TaskRow, "pr" | "prChip" | "prChipStale">): PrMark | null {
-  const pr = task.pr
+export function prMarkOf(
+  pr: TaskRowPr | null | undefined,
+  chip: TaskRow["prChip"] | undefined,
+  stale: boolean,
+): PrMark | null {
   if (!pr) return null
-  const stale = task.prChipStale === true
   if (pr.lifecycle === "merged") return { glyph: NERD.prMerged, tone: stale ? "muted" : "tone-merged", state: "merged" }
   if (pr.lifecycle === "closed") return { glyph: NERD.prClosed, tone: "muted", state: "closed" }
-  if (pr.lifecycle !== "open" && pr.lifecycle !== "ready_to_merge") return null
+  if (pr.lifecycle !== "open" && pr.lifecycle !== "ready_to_merge" && pr.lifecycle !== "unknown") return null
   const checks =
-    task.prChip === "conflict"
+    chip === "conflict"
       ? "conflict"
-      : task.prChip === "failing"
+      : chip === "failing"
         ? "failing"
-        : task.prChip === "passing"
+        : chip === "passing"
           ? "passing"
           : pr.checkState === "pending"
             ? "pending"
@@ -115,6 +118,24 @@ export function prMark(task: Pick<TaskRow, "pr" | "prChip" | "prChipStale">): Pr
         ? "tone-success"
         : "muted"
   return { glyph: NERD.prOpen, tone, state: "open", ...(checks ? { checks } : {}) }
+}
+
+/** A task's own branch PR as the rail draws it. */
+export function prMark(task: Pick<TaskRow, "pr" | "prChip" | "prChipStale">): PrMark | null {
+  return prMarkOf(task.pr, task.prChip, task.prChipStale === true)
+}
+
+/** A session PR carries no row chip: the same conflict > failing > passing rule, read off its own status. */
+export function sessionPrMark(pr: TaskRowPr): PrMark | null {
+  const chip =
+    (pr.mergeable ?? "").toUpperCase() === "CONFLICTING"
+      ? "conflict"
+      : pr.checkState === "failing"
+        ? "failing"
+        : pr.checkState === "passing"
+          ? "passing"
+          : null
+  return prMarkOf(pr, chip, false)
 }
 
 /** The mark a row with several PRs leads with: an open one that can't land, any other open one, merged, closed. */

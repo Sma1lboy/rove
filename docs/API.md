@@ -1489,6 +1489,17 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   The old per-field verbs are gone (no aliases): calling one returns
   `UNKNOWN_VERB` with the `update` form in `nextCommandArgs`.
 
+- `pr-attach --url URL|N [--task-id ID]`: show a pull request on a task's row.
+  The daemon's PR poller only follows a task's own branch, so a PR its session
+  opened from another directory (a `main` coordinator's hand-made worktree) is
+  invisible until attached. Run it once after `gh pr create`, from any
+  directory. `--url` takes a GitHub PR URL (a trailing `/files` or `#fragment`
+  is dropped) or a bare number, which `gh pr view` resolves in the current
+  directory's repo. Without `--task-id` it targets your own task
+  (`MISSING_TARGET` when the caller is not a verified session). Idempotent;
+  a task keeps its 20 newest PRs. Returns `{ taskId, url }`. `publish`
+  attaches the PR it opens or finds, so it needs no second call.
+
 ## issues
 
 The daemon-owned issue store (backlog; see

@@ -318,6 +318,9 @@ export class Orchestrator {
     this.editor.setWorkerReport(id, report)
   setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null, repoName?: string): Promise<void> =>
     this.editor.setPRStatus(id, prStatus, repoName)
+  addSessionPr = (id: TaskId | string, url: string): Promise<void> => this.editor.addSessionPr(id, url)
+  setSessionPrStatus = (id: TaskId | string, url: string, status: TaskPRStatus): Promise<void> =>
+    this.editor.setSessionPrStatus(id, url, status)
   setLinkedWorkItem = (id: TaskId | string, item: NonNullable<Task["linkedWorkItem"]> | null): Promise<void> =>
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>

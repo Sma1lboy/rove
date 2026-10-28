@@ -91,6 +91,20 @@ export interface RowTokenChip {
   readonly expiresAt: number
 }
 
+/** A PR as a task row carries it: the task's own (`pr`) or one its session opened (`sessionPrs`). */
+export interface TaskRowPr {
+  readonly number?: number
+  readonly url?: string
+  readonly title?: string
+  readonly additions?: number
+  readonly deletions?: number
+  /** `TaskPRStatus.lifecycle`; `unknown` until the first poll lands. */
+  readonly lifecycle: string
+  readonly checkState: string
+  readonly reviewDecision?: string
+  readonly mergeable?: string
+}
+
 export interface TaskRow {
   readonly id: string
   readonly title: string
@@ -118,17 +132,9 @@ export interface TaskRow {
   readonly tabStatus?: Readonly<Record<string, TabStatus>>
   /** Display name comes from the engine registry; the app never hardcodes vendors. */
   readonly engine: { readonly id: string | null; readonly name: string } | null
-  readonly pr: {
-    readonly number?: number
-    readonly url?: string
-    readonly title?: string
-    readonly additions?: number
-    readonly deletions?: number
-    readonly lifecycle: string
-    readonly checkState: string
-    readonly reviewDecision?: string
-    readonly mergeable?: string
-  } | null
+  readonly pr: TaskRowPr | null
+  /** PRs the task's session opened anywhere (`rove api pr-attach`), newest last; absent = none. */
+  readonly sessionPrs?: readonly TaskRowPr[]
   /** The worker's own claim of what it delivered, not a verification. */
   readonly report: { readonly summary: string; readonly at: string } | null
   readonly deleting: boolean

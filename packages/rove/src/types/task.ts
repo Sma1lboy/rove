@@ -20,6 +20,7 @@ import type {
   TaskPRStatus,
   TaskPtyAlias,
   TaskQuotaResumeState,
+  TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
@@ -33,6 +34,7 @@ export type {
   TaskPRStatus,
   TaskPtyAlias,
   TaskQuotaResumeState,
+  TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
   TaskExtraRepo,
@@ -236,6 +238,12 @@ export interface Task {
    * report a PR that doesn't exist; only `prStatus.checkState` is observed.
    */
   readonly report?: TaskWorkerReport
+  /**
+   * PRs this task's session opened, from any directory (`rove api pr-attach`),
+   * newest last; each carries its last polled forge status. Independent of
+   * {@link prStatus}, which follows the task's own branch.
+   */
+  readonly sessionPrs?: readonly TaskSessionPr[]
   /**
    * Source machine, stamped by the client merging several daemons' lists
    * (`machines/hub.ts`), never by a daemon (it doesn't know the viewer's

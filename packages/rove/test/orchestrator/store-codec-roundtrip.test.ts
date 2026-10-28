@@ -140,6 +140,27 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
       },
     },
   ],
+  sessionPrs: [
+    {
+      url: "https://github.com/o/other/pull/44",
+      addedAt: "2026-08-27T00:00:00.000Z",
+      status: {
+        provider: "github",
+        lifecycle: "merged",
+        checkState: "passing",
+        number: 44,
+        url: "https://github.com/o/other/pull/44",
+        title: "feat: session side",
+        additions: 5,
+        deletions: 2,
+        baseRef: "main",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
   report: {
     branch: "fix/round-trip",
     pr: 921,
@@ -155,5 +176,24 @@ describe("tasks.json codec round-trip", () => {
     const written = JSON.parse(JSON.stringify({ version: 3, tasks: [FULL_TASK] }))
     const loaded = normalizeIndex(written, "round-trip-test").tasks
     expect(loaded).toEqual([FULL_TASK])
+  })
+
+  it("drops malformed session PRs without dropping the row", () => {
+    const row = {
+      ...JSON.parse(JSON.stringify(FULL_TASK)),
+      sessionPrs: [
+        {
+          url: "https://github.com/o/r/pull/1/files",
+          addedAt: "2026-08-27T00:00:00.000Z",
+          status: { provider: "nope" },
+        },
+        { url: "https://github.com/o/r/issues/2", addedAt: "2026-08-27T00:00:00.000Z" },
+        { url: "https://github.com/o/r/pull/3" },
+        "https://github.com/o/r/pull/4",
+        { url: "https://github.com/o/r/pull/1", addedAt: "2026-08-28T00:00:00.000Z" },
+      ],
+    }
+    const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
+    expect(loaded?.sessionPrs).toEqual([{ url: "https://github.com/o/r/pull/1", addedAt: "2026-08-27T00:00:00.000Z" }])
   })
 })
