@@ -402,3 +402,33 @@ describe("task.addSessionPr", () => {
     expect(addSessionPr).not.toHaveBeenCalled()
   })
 })
+
+describe("task.moveToProject", () => {
+  const scratch = { ...TASK, kind: "dir", scratch: true, repo: "/home/u", worktreePath: "/home/u" }
+
+  it("makes the repo a project, then regroups the Ungrouped session under it without moving its directory", async () => {
+    const calls: unknown[][] = []
+    const { ctx } = fakeCtx({
+      getTask: () => scratch,
+      ensureMainTask: async (repo: string) => (calls.push(["main", repo]), { ...TASK, kind: "main", repo }),
+      adoptScratchRepo: async (...args: unknown[]) => void calls.push(["adopt", ...args]),
+    })
+    await expect(dispatch("task.moveToProject", { taskId: "t1", repo: "/src/app" }, ctx)).resolves.toEqual({
+      taskId: "t1",
+      repo: "/src/app",
+    })
+    expect(calls).toEqual([
+      ["main", "/src/app"],
+      ["adopt", "t1", "/src/app", { keepDirectory: true }],
+    ])
+  })
+
+  it("refuses a task that already has a project before creating anything", async () => {
+    const ensureMainTask = vi.fn(async () => TASK)
+    const { ctx } = fakeCtx({ getTask: () => ({ ...TASK, kind: "task" }), ensureMainTask })
+    await expect(dispatch("task.moveToProject", { taskId: "t1", repo: "/src/app" }, ctx)).rejects.toThrow(
+      /^NOT_UNGROUPED: /,
+    )
+    expect(ensureMainTask).not.toHaveBeenCalled()
+  })
+})

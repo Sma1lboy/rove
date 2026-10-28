@@ -122,6 +122,8 @@ export type DaemonRequestName =
   | "task.openDir"
   // Scratch → project migration: repoint + clear the flag.
   | "task.adoptScratchRepo"
+  // An Ungrouped session moves itself under a project (`update --project`); its directory stays.
+  | "task.moveToProject"
   | "project.forget"
   | "task.ensureWorktree"
   | "task.setActive"
@@ -330,6 +332,7 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
   "task.spawn",
   "task.ensureMain",
+  "task.moveToProject",
   "worktree.discoverAdoptable",
   "worktree.adopt",
   "worktree.list",

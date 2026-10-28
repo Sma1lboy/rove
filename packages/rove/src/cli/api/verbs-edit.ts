@@ -5,6 +5,7 @@
  * field, not this file, decides where it lists; specs spread into {@link VERBS}.
  */
 
+import path from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import type { ReparentResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -23,6 +24,7 @@ const TASK_FIELDS = [
   "title",
   "branch",
   "parent",
+  "project",
   "command",
   "model",
   "effort",
@@ -70,6 +72,20 @@ export async function resolveTarget(ctx: VerbContext, verb = "update"): Promise<
     )
   }
   return self.taskId
+}
+
+/** `--project`'s repo: the main checkout of the git repo PATH sits in, checked before anything is written. */
+async function projectRoot(ctx: VerbContext): Promise<string | undefined> {
+  const raw = ctx.args.str("project")?.trim()
+  if (raw === undefined) return undefined
+  if (raw === "") throw new ApiError("--project cannot be empty — pass the repo's path", "BAD_FLAG")
+  const root = await ctx.runtime.resolveRepoRoot(path.resolve(ctx.caller.cwd ?? process.cwd(), raw))
+  if (!(await ctx.runtime.isUsableRepo(root))) {
+    throw new ApiError(`--project ${raw} is not inside a git repository`, "NOT_A_GIT_REPO", {
+      hint: "clone or `git init` the project first, then pass its path",
+    })
+  }
+  return root
 }
 
 /** `--parent none`: promote to top level. */
@@ -184,6 +200,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
 
   const daemon = daemonOf(ctx)
   const protocol = command ? resolveCommandProtocol(command) : undefined
+  const project = await projectRoot(ctx)
   let task: SerializedTask | undefined
   let engine: VendorId | undefined
   if (model !== undefined || effort !== undefined) {
@@ -223,6 +240,8 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
       ...(replyTab ? { replyTab } : {}),
     })
   }
+  // A project move only regroups (NOT_UNGROUPED refuses before it writes), so it too precedes the git rename.
+  if (project !== undefined) await step(["project"], "task.moveToProject", { repo: project })
   if (branch !== undefined) await step(["branch"], "task.setBranch", { branch })
 
   if (command) await step(["command"], "task.setCommand", { command, vendor: protocol })
@@ -281,6 +300,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         placeholder: "ID|none",
         description:
           "Move the task under this task (its engine, tabs, worktree and branch stay as they are), or `none` to make it top level. Refusals: PARENT_NOT_FOUND, PARENT_IS_SELF, PARENT_CYCLE, TASK_NOT_MOVABLE, REMOTE_PARENT_UNSUPPORTED.",
+      },
+      {
+        name: "project",
+        type: "string",
+        placeholder: "PATH",
+        description:
+          "Move an Ungrouped session (a Scratch task) under the project at PATH (relative paths resolve against $PWD; any directory inside the repo names its main checkout), which becomes a project if it was not one. Run it once after cloning or `git init`-ing the repo the session works in. Only the grouping changes: the session keeps running in its own directory. Refusals: NOT_A_GIT_REPO, NOT_UNGROUPED (the task already belongs to a project; `--parent` moves it under another task instead).",
       },
       {
         name: "group",

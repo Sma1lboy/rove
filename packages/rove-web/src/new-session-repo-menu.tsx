@@ -1,4 +1,4 @@
-/** The composer's project popover: saved projects (or another machine's), a typed path, and "Clone" for a typed git URL, `owner/repo` or one of the user's GitHub repos. */
+/** The composer's project popover: Ungrouped (no project; on this machine), saved projects (or another machine's), a typed path, and "Clone" for a typed git URL, `owner/repo` or one of the user's GitHub repos. */
 
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
@@ -14,6 +14,7 @@ import {
   stripTrailingSlash,
 } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { NO_PROJECT_KEY } from "./rail.ts"
 
 interface GithubRepos {
   readonly repos: ReadonlyArray<{ nameWithOwner: string; description: string; isPrivate: boolean }>
@@ -37,6 +38,8 @@ export function RepoMenu(props: {
   close: () => void
   /** Another machine: its name, what an empty list says (still loading, or why it could not be read), and `blocked` when it could not be read: nothing is offered on it, only that reason. */
   remote?: { readonly name: string; readonly empty: string; readonly blocked: boolean }
+  /** This machine only: a session in no project (the rail's Ungrouped), exclusive with the repo picks. */
+  ungrouped?: { readonly on: boolean; readonly pick: () => void }
 }) {
   const { model, saved, picked, primary, home, query, remote } = props
   // The popover mounts this when it opens: the last list shows at once, reread then, and the rows never wait on it.
@@ -53,7 +56,12 @@ export function RepoMenu(props: {
 
   const typed = query.trim()
   const local = filterText(saved, query)
-  const rows = local.map((path) => {
+  const noFolder = t("rail.noProject")
+  const ungrouped =
+    props.ungrouped && (!typed || noFolder.toLowerCase().includes(typed.toLowerCase()))
+      ? [{ key: NO_PROJECT_KEY, text: noFolder, dim: home, checked: props.ungrouped.on }]
+      : []
+  const projects = local.map((path) => {
     const { base, dir } = splitRepoRow(path)
     return {
       key: path,
@@ -95,13 +103,17 @@ export function RepoMenu(props: {
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
       empty={remote?.empty ?? t("newSession.repoEmpty")}
-      rows={remote?.blocked ? [] : rows}
+      rows={remote?.blocked ? [] : [...ungrouped, ...projects]}
       query={query}
       onQuery={props.onQuery}
       extra={remote?.blocked ? null : extra}
       more={remote?.blocked ? [] : more}
       moreLabel={t("newSession.githubGroup")}
       onPick={(key) => {
+        if (key === NO_PROJECT_KEY) {
+          props.ungrouped?.pick()
+          return props.close()
+        }
         if (!key.startsWith(CLONE_PREFIX)) return props.onToggle(key)
         props.onClone(key.slice(CLONE_PREFIX.length))
         props.close()

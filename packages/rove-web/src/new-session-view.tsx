@@ -26,7 +26,15 @@ import {
 import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
 import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
-import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs, toggleRepo } from "./new-session.ts"
+import {
+  effortChoices,
+  modelChipLabel,
+  modelChoices,
+  repoChipLabel,
+  spawnArgs,
+  startUngrouped,
+  toggleRepo,
+} from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -71,6 +79,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     ),
   )
   const probed = useRef(new Set<string>())
+  // The rail's Ungrouped: a session in no project, exclusive with `repos`.
+  const [ungrouped, setUngrouped] = useState(false)
+  const pickUngrouped = (): void => {
+    setUngrouped(true)
+    setRepos([])
+  }
   // The ref each repo's worktree branches from ("" = its current branch), and the one branch name they share.
   const [bases, setBases] = useState<Readonly<Record<string, string>>>(() => {
     const start = startOf(lastSaved)
@@ -174,6 +188,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       )
       setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
       setRepos((now) => (now.includes(res.path) ? now : toggleRepo(now, res.path)))
+      setUngrouped(false)
       setRepoQuery("")
     } catch (err) {
       setError(startError(err))
@@ -217,7 +232,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const start = async (begin = true) => {
     setError(null)
     if (remote) return startRemote(begin)
-    if (!primary) return setError(t("newSession.needRepo"))
+    if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
     if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     const first = withRefs(prompt.trim(), attachments)
@@ -227,7 +242,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const bad = fresh.find((res) => !res.ok)
       if (bad) throw new Error(bad.reason ?? bad.repo)
       let created: string | undefined
-      if (inPlace) {
+      if (ungrouped)
+        created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
+      else if (inPlace) {
         // The kanban "project" placement: a child of the main task, sharing the checkout as it is.
         const main = await model.client.request<{ taskId: string }>("task.openMain", {
           repo: fresh[0]?.repo ?? primary,
@@ -332,6 +349,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               setRemoteBase("")
               setRepoQuery("")
               setError(null)
+              setUngrouped(false)
             }}
           />
           <ChipPopover
@@ -343,7 +361,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               <>
                 <FolderIcon />
                 {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t("newSession.repo")}
+                  t(ungrouped ? "rail.noProject" : "newSession.repo")}
                 {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
               </>
             }
@@ -358,7 +376,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 query={repoQuery}
                 onQuery={setRepoQuery}
                 onToggle={(path) => {
-                  if (!remote) return setRepos((now) => toggleRepo(now, path))
+                  if (!remote) {
+                    setUngrouped(false)
+                    return setRepos((now) => toggleRepo(now, path))
+                  }
                   setRemotePick({ ref: path, clone: false })
                   close()
                 }}
@@ -373,10 +394,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                       }
                     : undefined
                 }
+                ungrouped={remote ? undefined : { on: ungrouped, pick: pickUngrouped }}
               />
             )}
           </ChipPopover>
-          {remote ? (
+          {ungrouped ? null : remote ? (
             remotePick && <RemoteBranchChip value={remoteBase} onPick={setRemoteBase} />
           ) : (
             <>
@@ -457,7 +479,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             </ChipPopover>
           )}
-          {!inPlace && !remote && (models.length > 0 || efforts.length > 0) && (
+          {!inPlace && !remote && !ungrouped && (models.length > 0 || efforts.length > 0) && (
             <ChipPopover
               field="model"
               title={t("newSession.model")}

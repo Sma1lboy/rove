@@ -248,8 +248,8 @@ add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --pa
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
                --require-report --expect-report --activate(false) --prompt|--prompt-file
-update         --task-id --title --tab --branch --parent --group --command --model
-               --effort --pinned --require-report{on|off}
+update         --task-id --title --tab --branch --parent --project --group --command
+               --model --effort --pinned --require-report{on|off}
                --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
                --report-pr --report-summary
 land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch

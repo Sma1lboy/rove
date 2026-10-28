@@ -267,6 +267,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
 | `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
+| `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
+| `NOT_UNGROUPED` | `update --project` on a task that already belongs to a project (only an Ungrouped session moves; `--parent` re-parents any task). |
 | `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
 | `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
 | `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
@@ -1504,11 +1506,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--command CMD] [--model M]
-  [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
-  [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
+- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
+  [--model M] [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S]
+  [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. The flags are checked before anything is written,
-  then applied in a fixed order: parent → branch → command → model/effort →
+  then applied in a fixed order: parent → project → branch → command → model/effort →
   title → pinned → status. The call is not atomic: if a step fails midway, the
   error reports the fields already `applied`. The result is `{ ok, taskId,
   updated, parent?, command?, protocol?, generic?, engine? }`, where `updated`
@@ -1538,6 +1540,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
     task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
     `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
+  - `--project PATH`: move an Ungrouped session (a Scratch task, which runs in
+    the home directory) under the project at `PATH`, after the session cloned
+    or `git init`-ed it. `PATH` may be any directory inside the repo; it names
+    the repo's main checkout, which becomes a project (its main row is created)
+    if it was not one. Only the grouping changes: the session keeps its
+    directory, so its engine keeps running and resumes where it started.
+    Refusals, before anything is written: `NOT_A_GIT_REPO`, and
+    `NOT_UNGROUPED` when the task already belongs to a project (`--parent`
+    moves it under another task instead; the web rail's drag stays within a
+    project).
   - `--group GROUPID` (with `--parent` only): move every task of one fan-out
     round (the `groupId` that `add --count` returns). A member's refusal is
     recorded in `.results[]` (`status: "failed"`, `code`) instead of stopping
