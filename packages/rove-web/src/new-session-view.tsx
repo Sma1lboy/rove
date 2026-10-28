@@ -406,7 +406,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               <>
                 <FolderIcon />
                 {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t(ungrouped ? "rail.noProject" : "newSession.repo")}
+                  t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
                 {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
               </>
             }
