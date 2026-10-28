@@ -358,7 +358,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const onWheel = (e: WheelEvent) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
     const alternateScreen = term.buffer.active.type === "alternate"
-    if (wheelOwner({ alternateScreen, mouseTracking: term.modes.mouseTrackingMode !== "none" }) === "app") return
+    const mouseTracking = term.modes.mouseTrackingMode !== "none"
+    if (wheelOwner({ alternateScreen, mouseTracking, shift: e.shiftKey }) === "app") return
     e.preventDefault()
     e.stopPropagation()
     const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")

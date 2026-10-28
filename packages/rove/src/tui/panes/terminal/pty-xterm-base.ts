@@ -184,8 +184,8 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    *  whether the program wants this event at all is a question about its
    *  mode state, and a null answer means Rove keeps the gesture for itself
    *  (scrollback, selection). */
-  wheel(direction: "up" | "down", col: number, row: number): boolean {
-    return this.emit(this._killed ? null : wheelSequence(this.term, direction, col, row))
+  wheel(direction: "up" | "down", col: number, row: number, shift = false): boolean {
+    return this.emit(this._killed ? null : wheelSequence(this.term, direction, col, row, shift))
   }
 
   click(

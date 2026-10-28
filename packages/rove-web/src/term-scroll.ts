@@ -2,18 +2,21 @@
  * Wheel and follow decisions for the xterm pane, kept pure so they can be tested.
  *
  * The TUI's terminal pane is the reference (`tui-react/panes/terminal`): a wheel
- * goes to the app when it tracks the mouse or owns the alternate screen,
- * otherwise it moves the local scrollback by whole lines; the view follows new
+ * goes to the app on the alternate screen; on the normal screen it moves the
+ * local scrollback by whole lines, unless Shift hands it to an app that tracks
+ * the mouse (an inline app cannot scroll the scrollback itself); the view follows new
  * output only while it sits at the bottom, and when the app wipes the
  * scrollback (`ESC[3J`, `ESC c`) under a scrolled view it keeps the same
  * distance from the bottom (`resolveViewportScrollOffset`'s fallback).
  */
 
-/** Who a wheel tick belongs to, in emulator order. */
-export function wheelOwner(modes: { readonly alternateScreen: boolean; readonly mouseTracking: boolean }):
-  | "app"
-  | "local" {
-  return modes.mouseTracking || modes.alternateScreen ? "app" : "local"
+/** Who a wheel tick belongs to, in emulator order (TUI `encodeWheel`). */
+export function wheelOwner(modes: {
+  readonly alternateScreen: boolean
+  readonly mouseTracking: boolean
+  readonly shift: boolean
+}): "app" | "local" {
+  return modes.alternateScreen || (modes.mouseTracking && modes.shift) ? "app" : "local"
 }
 
 export interface WheelInput {

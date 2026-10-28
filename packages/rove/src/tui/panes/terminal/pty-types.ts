@@ -155,11 +155,12 @@ export interface TaskPtyLike {
    */
   readonly shellPid?: number | null
   /**
-   * Wheel like a real terminal: mouse tracking on → forward an SGR wheel event
-   * at (col,row) (1-based, pane-local); alternate screen without tracking → 3×
-   * arrow keys. False when neither — the CALLER scrolls its local scrollback.
+   * Wheel like a real terminal: an app on the alternate screen with mouse
+   * tracking gets an SGR wheel event at (col,row) (1-based, pane-local), one
+   * without tracking 3× arrow keys. On the normal screen only a `shift` wheel
+   * reaches a tracking app. False otherwise — the CALLER scrolls its local scrollback.
    */
-  wheel(direction: "up" | "down", col: number, row: number): boolean
+  wheel(direction: "up" | "down", col: number, row: number, shift?: boolean): boolean
   /**
    * Mouse tracking on → forward an SGR press/release/drag/hover and return
    * true (the app owns the gesture). False → the caller keeps it for local
