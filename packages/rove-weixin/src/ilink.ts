@@ -4,9 +4,9 @@
  * `sendmessage` for outbound. Every reply echoes the peer's latest
  * `context_token`; without one iLink only accepts a degraded tokenless send.
  *
- * Outbound is text only. Inbound pictures, files and videos ride an
- * AES-encrypted CDN; `media.ts` fetches them. `fetch` is injected so tests
- * replay recorded responses without a network.
+ * Pictures, files and videos ride an AES-encrypted CDN; `media.ts` moves
+ * them both ways. `fetch` is injected so tests replay recorded responses
+ * without a network.
  */
 
 import { randomBytes, randomUUID } from "node:crypto"
@@ -221,7 +221,8 @@ export class IlinkClient {
   constructor(
     private readonly baseUrl: string,
     private readonly token: string,
-    private readonly fetchFn: FetchFn = fetch,
+    /** Also carries CDN uploads, so tests reach one fake for both. */
+    readonly fetchFn: FetchFn = fetch,
   ) {}
 
   private post<T>(endpoint: string, payload: Record<string, unknown>, timeoutMs: number): Promise<T> {
@@ -258,6 +259,11 @@ export class IlinkClient {
 
   /** Send one text bubble. Returns iLink's status object; callers classify it. */
   sendText(to: string, text: string, contextToken: string | null): Promise<IlinkStatus> {
+    return this.sendItem(to, { type: ITEM_TEXT, text_item: { text } }, contextToken)
+  }
+
+  /** Send one message item (text, or a picture/file/video already on the CDN). */
+  sendItem(to: string, item: Record<string, unknown>, contextToken: string | null): Promise<IlinkStatus> {
     return this.post<IlinkStatus>(
       "ilink/bot/sendmessage",
       {
@@ -267,12 +273,25 @@ export class IlinkClient {
           client_id: `rove-weixin-${randomUUID()}`,
           message_type: MSG_TYPE_BOT,
           message_state: MSG_STATE_FINISH,
-          item_list: [{ type: ITEM_TEXT, text_item: { text } }],
+          item_list: [item],
           ...(contextToken ? { context_token: contextToken } : {}),
         },
       },
       API_TIMEOUT_MS,
     )
+  }
+
+  /** Where to POST one encrypted upload; `aeskey` is the hex key the CDN will hold the bytes under. */
+  uploadUrl(request: {
+    readonly filekey: string
+    readonly media_type: number
+    readonly to_user_id: string
+    readonly rawsize: number
+    readonly rawfilemd5: string
+    readonly filesize: number
+    readonly aeskey: string
+  }): Promise<IlinkStatus & { upload_full_url?: string; upload_param?: string }> {
+    return this.post("ilink/bot/getuploadurl", { ...request, no_need_thumb: true }, API_TIMEOUT_MS)
   }
 
   /** The per-user ticket the typing indicator needs ("" when iLink gives none). */

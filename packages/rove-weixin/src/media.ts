@@ -1,24 +1,40 @@
 /**
- * Pictures, files and videos a person sends the bot. iLink hands over only a
- * CDN reference: the bytes are AES-128-ECB ciphertext on WeChat's CDN and the
- * item carries the key. They are saved to disk so the agent can open them by
- * path. Wire format as in Tencent's MIT-licensed `@tencent-weixin/openclaw-weixin`.
+ * Pictures, files and videos to and from WeChat. iLink moves only CDN
+ * references: the bytes are AES-128-ECB ciphertext on WeChat's CDN and the
+ * message item carries the key. Inbound media is saved to disk so the agent
+ * can open it by path; outbound media is encrypted and uploaded before its
+ * item is sent. Wire format as in Tencent's MIT-licensed `@tencent-weixin/openclaw-weixin`.
  */
 
-import { createDecipheriv } from "node:crypto"
-import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
-import type { FetchFn, IlinkCdnMedia, IlinkItem, IlinkMessage } from "./ilink.ts"
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { basename, extname, join } from "node:path"
+import {
+  type FetchFn,
+  type IlinkCdnMedia,
+  type IlinkClient,
+  type IlinkItem,
+  type IlinkMessage,
+  classifyIlink,
+  describeIlink,
+} from "./ilink.ts"
 
 export const CDN_BASE_URL = "https://novac2c.cdn.weixin.qq.com/c2c"
 const MAX_BYTES = 100 * 1024 * 1024
 const DOWNLOAD_TIMEOUT_MS = 60_000
+const UPLOAD_TIMEOUT_MS = 60_000
+const UPLOAD_ATTEMPTS = 3
 
 const ITEM_IMAGE = 2
 const ITEM_FILE = 4
 const ITEM_VIDEO = 5
 
 export type MediaKind = "image" | "file" | "video"
+
+/** `getuploadurl`'s media_type: a different numbering from the message item types. */
+const UPLOAD_TYPE: Record<MediaKind, number> = { image: 1, video: 2, file: 3 }
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"])
+const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".m4v"])
 
 export interface MediaRef {
   readonly kind: MediaKind
@@ -130,4 +146,77 @@ export async function saveInboundMedia(
     }
   }
   return { saved, failed }
+}
+
+/** Pictures and videos by extension; anything else (a .md, a .pdf, a zip) goes as a file. */
+export function attachmentKind(path: string): MediaKind {
+  const ext = extname(path).toLowerCase()
+  return IMAGE_EXTENSIONS.has(ext) ? "image" : VIDEO_EXTENSIONS.has(ext) ? "video" : "file"
+}
+
+/** POST ciphertext to the CDN; its `x-encrypted-param` header is the download reference. A 4xx is final. */
+async function postToCdn(fetchFn: FetchFn, url: string, body: Buffer): Promise<string> {
+  let last: unknown
+  for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetchFn(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: new Uint8Array(body),
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+      })
+      const why = res.headers.get("x-error-message") ?? `status ${res.status}`
+      if (res.status >= 400 && res.status < 500)
+        throw Object.assign(new Error(`CDN refused the upload: ${why}`), { final: true })
+      if (res.status !== 200) throw new Error(`CDN upload failed: ${why}`)
+      const param = res.headers.get("x-encrypted-param")
+      if (!param) throw new Error("CDN upload answered without x-encrypted-param")
+      return param
+    } catch (err) {
+      if ((err as { final?: boolean }).final) throw err
+      last = err
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last))
+}
+
+/** Encrypt and upload the file at `path` for `to`; the message item that shows it. */
+export async function uploadAttachment(
+  client: Pick<IlinkClient, "uploadUrl" | "fetchFn">,
+  to: string,
+  path: string,
+  cdnBaseUrl = CDN_BASE_URL,
+): Promise<Record<string, unknown>> {
+  const kind = attachmentKind(path)
+  const plain = readFileSync(path)
+  if (plain.length > MAX_BYTES) throw new Error(`${basename(path)} is larger than 100 MB`)
+  const key = randomBytes(16)
+  const filekey = randomBytes(16).toString("hex")
+  const cipher = createCipheriv("aes-128-ecb", key, null)
+  const encrypted = Buffer.concat([cipher.update(plain), cipher.final()])
+  const ticket = await client.uploadUrl({
+    filekey,
+    media_type: UPLOAD_TYPE[kind],
+    to_user_id: to,
+    rawsize: plain.length,
+    rawfilemd5: createHash("md5").update(plain).digest("hex"),
+    filesize: encrypted.length,
+    aeskey: key.toString("hex"),
+  })
+  if (classifyIlink(ticket) !== "ok") throw new Error(`iLink refused the upload: ${describeIlink(ticket)}`)
+  const url =
+    ticket.upload_full_url?.trim() ||
+    (ticket.upload_param
+      ? `${cdnBaseUrl}/upload?encrypted_query_param=${encodeURIComponent(ticket.upload_param)}&filekey=${encodeURIComponent(filekey)}`
+      : "")
+  if (!url) throw new Error("iLink gave no upload address")
+  const media = {
+    encrypt_query_param: await postToCdn(client.fetchFn, url, encrypted),
+    // Outbound keys go as base64 of the hex string, as WeChat's own client sends them.
+    aes_key: Buffer.from(key.toString("hex")).toString("base64"),
+    encrypt_type: 1,
+  }
+  if (kind === "image") return { type: ITEM_IMAGE, image_item: { media, mid_size: encrypted.length } }
+  if (kind === "video") return { type: ITEM_VIDEO, video_item: { media, video_size: encrypted.length } }
+  return { type: ITEM_FILE, file_item: { media, file_name: basename(path), len: String(plain.length) } }
 }

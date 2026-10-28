@@ -5,7 +5,8 @@
  * `send` is the exception: it pushes one message itself, so a script or
  * agent can reach the owner without going through the daemon.
  */
-import { readFileSync } from "node:fs"
+import { readFileSync, statSync } from "node:fs"
+import { basename, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { SUBCOMMAND_VERBS } from "@sma1lboy/rove/src/cli/subcommands.ts"
@@ -14,7 +15,7 @@ import qrcode from "qrcode-terminal"
 import { REPLY_WINDOW_MS } from "./bridge.ts"
 import { ILINK_BASE_URL, IlinkClient, resolveIlinkBaseUrl } from "./ilink.ts"
 import { runQrLogin } from "./login.ts"
-import { sendBubbles } from "./send.ts"
+import { sendAttachment, sendBubbles } from "./send.ts"
 import { WeixinStore } from "./store.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
@@ -33,7 +34,8 @@ const WEIXIN_USAGE = [
   "  allow <user-id>     Let another WeChat user command Rove (ids: see status)",
   "  deny <user-id>      Revoke a user added with allow",
   "  send [text]         Message the owner (routines, scripts, agents). Text from the",
-  "                      arguments, --file <path>, or stdin; --subject <line> prepends a header",
+  "                      arguments, --file <path>, or stdin; --subject <line> prepends a header;",
+  "                      --attach <path> (repeatable) sends a picture, video or any file",
   "  agent [<task-id> [tab-N]]  Show the WeChat agent and its conversations, or use an",
   "                      existing task for it; `agent off` returns to the WeChat project",
   "",
@@ -155,29 +157,39 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8")
 }
 
-/** `send [--subject S] [--file F | -] [text…]` → the owner, within the reply window. */
+/** `send [--subject S] [--file F | -] [--attach P]… [text…]` → the owner, within the reply window. */
 async function send(store: WeixinStore, args: readonly string[]): Promise<void> {
   let subject: string | undefined
   let file: string | undefined
+  const attachments: string[] = []
   const words: string[] = []
   for (let i = 0; i < args.length; i++) {
     const a = args[i] ?? ""
     if (a === "--subject" || a === "-s") subject = args[++i]
     else if (a === "--file" || a === "-f") file = args[++i]
-    else words.push(a)
+    else if (a === "--attach" || a === "-a") {
+      const path = args[++i]
+      if (path === undefined) usageError("--attach needs a path")
+      attachments.push(path)
+    } else words.push(a)
   }
   if ((subject === undefined && args.includes("--subject")) || (file === undefined && args.includes("--file")))
     usageError("--subject and --file need a value")
   if (file !== undefined && words.length > 0) usageError("pass the text or --file, not both")
+  for (const path of attachments)
+    if (!statSync(path, { throwIfNoEntry: false })?.isFile()) fail(`no such file: ${path}`)
   const body = (
-    file === "-" || (file === undefined && words.length === 0)
+    file === "-" || (file === undefined && words.length === 0 && attachments.length === 0)
       ? await readStdin()
       : file !== undefined
         ? readFileSync(file, "utf8")
         : words.join(" ")
   ).trim()
-  if (!body && !subject) usageError("nothing to send")
+  if (!body && !subject && attachments.length === 0) usageError("nothing to send")
   const text = subject ? (body ? `${subject}\n${body}` : subject) : body
+  // How the undelivered log keeps the part of a message that never went out.
+  const unsent = (rest: string, paths: readonly string[]) =>
+    [rest, ...paths.map((path) => `[attachment: ${resolve(path)}]`)].filter(Boolean).join("\n")
 
   const account = store.readAccount()
   if (!account) fail(`not bound — run \`${CLI_NAME} weixin login\` first`)
@@ -187,14 +199,29 @@ async function send(store: WeixinStore, args: readonly string[]): Promise<void> 
   const now = Date.now()
   if (!peer || now - peer.lastInboundAt > REPLY_WINDOW_MS) {
     const reason = peer ? "reply window closed (>24h since their last message)" : "no message from the owner yet"
-    store.appendUndelivered({ at: new Date(now).toISOString(), to, reason, text })
+    store.appendUndelivered({ at: new Date(now).toISOString(), to, reason, text: unsent(text, attachments) })
     fail(`not sent: ${reason}. WeChat only lets the bot write within a day of your last message to it.`)
   }
   const client = new IlinkClient(account.baseUrl || ILINK_BASE_URL, account.token)
-  const result = await sendBubbles(client, to, text, peer.contextToken ?? null, (ms) => delay(ms))
-  if (!result.ok) {
-    store.appendUndelivered({ at: new Date().toISOString(), to, reason: result.reason, text: result.rest })
-    fail(`not sent: ${result.reason}`)
+  const token = peer.contextToken ?? null
+  if (text) {
+    const result = await sendBubbles(client, to, text, token, (ms) => delay(ms))
+    if (!result.ok) {
+      store.appendUndelivered({
+        at: new Date().toISOString(),
+        to,
+        reason: result.reason,
+        text: unsent(result.rest, attachments),
+      })
+      fail(`not sent: ${result.reason}`)
+    }
+  }
+  for (const [i, path] of attachments.entries()) {
+    const reason = await sendAttachment(client, to, path, token, (ms) => delay(ms))
+    if (reason) {
+      store.appendUndelivered({ at: new Date().toISOString(), to, reason, text: unsent("", attachments.slice(i)) })
+      fail(`${basename(path)} not sent: ${reason}`)
+    }
   }
   process.stdout.write("Sent.\n")
 }

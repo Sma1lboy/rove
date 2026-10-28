@@ -469,7 +469,7 @@ rove weixin status          # binding, allowed senders, reply windows, undeliver
 rove weixin allow <user-id> # let another WeChat user send commands
 rove weixin deny <user-id>
 rove weixin logout          # remove the binding and its credentials
-rove weixin send "text"     # message the owner from a script or agent (--file, --subject, stdin)
+rove weixin send "text"     # message the owner from a script or agent (--file, --subject, stdin; --attach <path> for a picture or file)
 rove weixin agent           # the WeChat agent and its conversations; `agent <task-id>` uses an existing task
 ```
 

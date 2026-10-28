@@ -51,6 +51,12 @@ export class FakeIlink {
   readonly sends: RecordedSend[] = []
   /** Bytes served at `/c2c/download?encrypted_query_param=<key>`, standing in for WeChat's media CDN. */
   readonly cdn = new Map<string, Buffer>()
+  /** The `item_list[0]` of each `sendmessage`, parallel to `sends`. */
+  readonly sentItems: Answer[] = []
+  /** `getuploadurl` request bodies, in order. */
+  readonly uploadRequests: Answer[] = []
+  /** Set to make the CDN refuse uploads with this status. */
+  uploadRefusal: number | null = null
   /** `sendtyping` calls, in order. */
   readonly typing: Array<{ readonly to: string; readonly ticket: string; readonly on: boolean }> = []
   /** `getupdates` request bodies, in order. */
@@ -107,6 +113,19 @@ export class FakeIlink {
     const url = new URL(req.url ?? "/", this.url)
     const chunks: Buffer[] = []
     for await (const chunk of req) chunks.push(chunk as Buffer)
+    if (url.pathname === "/c2c/upload") {
+      if (this.uploadRefusal) {
+        res.writeHead(this.uploadRefusal, { "x-error-message": "refused by the fake" })
+        res.end()
+        return
+      }
+      // An upload becomes downloadable, as on the real CDN.
+      const param = `dl-${url.searchParams.get("filekey") ?? ""}`
+      this.cdn.set(param, Buffer.concat(chunks))
+      res.writeHead(200, { "x-encrypted-param": param })
+      res.end()
+      return
+    }
     if (url.pathname === "/c2c/download") {
       const bytes = this.cdn.get(url.searchParams.get("encrypted_query_param") ?? "")
       res.writeHead(bytes ? 200 : 404)
@@ -145,7 +164,7 @@ export class FakeIlink {
         const msg = (body.msg ?? {}) as {
           to_user_id?: string
           context_token?: string
-          item_list?: Array<{ text_item?: { text?: string } }>
+          item_list?: Array<Answer & { text_item?: { text?: string } }>
         }
         this.sends.push({
           to: msg.to_user_id ?? "",
@@ -153,8 +172,12 @@ export class FakeIlink {
           ...(msg.context_token ? { contextToken: msg.context_token } : {}),
           ...(auth ? { authorization: auth } : {}),
         })
+        this.sentItems.push(msg.item_list?.[0] ?? {})
         return reply(this.sendAnswers.shift() ?? { ret: 0 })
       }
+      case "/ilink/bot/getuploadurl":
+        this.uploadRequests.push(body)
+        return reply({ ret: 0, upload_full_url: `${this.url}/c2c/upload?filekey=${String(body.filekey ?? "")}` })
       case "/ilink/bot/getconfig":
         return reply({ ret: 0, typing_ticket: `ticket-${String(body.ilink_user_id ?? "")}` })
       case "/ilink/bot/sendtyping":
@@ -169,7 +192,7 @@ export class FakeIlink {
         this.deliver({ from: String(body.from ?? FAKE_OWNER), text: String(body.text ?? "") })
         return reply({ ok: true })
       case "/_sends":
-        return reply({ sends: this.sends })
+        return reply({ sends: this.sends, items: this.sentItems })
       default:
         return reply({ error: "not found" }, 404)
     }

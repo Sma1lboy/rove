@@ -120,6 +120,7 @@ were dropped.
 ```bash
 rove weixin send "deploy finished"
 rove weixin send --subject "[nightly]" --file report.md
+rove weixin send --attach chart.png --attach weekly.md "this week"
 some-check | rove weixin send
 ```
 
@@ -127,6 +128,13 @@ The message goes to the owner who scanned the QR code. It follows the same
 24-hour rule as notifications (below): outside that window nothing is sent,
 the text goes to `undelivered.jsonl`, and the command exits 1. `send` talks to
 iLink itself, so it works without the daemon running.
+
+`--attach <path>` (repeat it for several) sends a file as its own message after
+the text: `.png .jpg .jpeg .gif .webp .bmp` as a picture, `.mp4 .mov .m4v` as
+a video, anything else (a `.md`, a PDF, a zip) as a file attachment, up to
+100 MB each. `--file` is different: it reads that file's text and sends it as
+the message. Your WeChat agent is told to use `--attach` when it has a picture
+or file for you.
 
 Routines can do this without a script of their own: create one with
 `--notify` and every run's response is pushed here (see
@@ -202,8 +210,8 @@ stays.
 
 ## Limits
 
-- The bot replies in text only; it cannot send you pictures or files. Voice
-  messages work only when WeChat attaches a transcript.
+- Voice messages reach the agent only when WeChat attaches a transcript, and
+  the bot cannot send voice messages.
 - Nothing cleans `~/.rove/weixin/inbox/`; received files stay until you
   delete them.
 - Direct messages only. A QR-bound bot is usually not delivered group chat
