@@ -51,7 +51,23 @@ function shebangFiletype(line: string): string | undefined {
   const words = line.slice(2).trim().split(/\s+/)
   const first = words[0] ?? ""
   let program = first.slice(first.lastIndexOf("/") + 1)
-  if (program === "env") program = words.slice(1).find((w) => !w.startsWith("-") && !w.includes("=")) ?? ""
+  if (program === "env") {
+    let i = 1
+    for (; i < words.length; i++) {
+      const word = words[i] ?? ""
+      if (word === "--") {
+        i++
+        break
+      }
+      if (["-u", "--unset", "-C", "--chdir", "-P", "-a", "--argv0"].includes(word)) {
+        i++
+        continue
+      }
+      if (!word.startsWith("-") && !word.includes("=")) break
+    }
+    const command = words[i] ?? ""
+    program = command.slice(command.lastIndexOf("/") + 1)
+  }
   return SHEBANG_INTERPRETERS.get(program)
 }
 
