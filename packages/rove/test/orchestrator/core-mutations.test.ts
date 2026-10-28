@@ -15,6 +15,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import {
@@ -205,6 +206,47 @@ describe("setPRStatus", () => {
 
     await orch.setPRStatus(t.id, null)
     expect(orch.getTask(t.id)?.prStatus).toBeUndefined()
+  })
+})
+
+describe("session PRs", () => {
+  const prUrl = (n: number) => `https://github.com/o/r/pull/${n}`
+
+  it("dedupes by url, keeping the first attachment's position and timestamp", async () => {
+    const t = await makeTask()
+    await orch.addSessionPr(t.id, prUrl(1))
+    await orch.addSessionPr(t.id, prUrl(2))
+    const first = orch.getTask(t.id)?.sessionPrs?.[0]
+    await orch.addSessionPr(t.id, prUrl(1))
+    const prs = orch.getTask(t.id)?.sessionPrs
+    expect(prs?.map((p) => p.url)).toEqual([prUrl(1), prUrl(2)])
+    expect(prs?.[0]).toEqual(first)
+  })
+
+  it("drops the oldest entries past the cap", async () => {
+    const t = await makeTask()
+    for (let n = 1; n <= SESSION_PR_CAP + 3; n++) await orch.addSessionPr(t.id, prUrl(n))
+    const urls = orch.getTask(t.id)?.sessionPrs?.map((p) => p.url)
+    expect(urls).toHaveLength(SESSION_PR_CAP)
+    expect(urls?.[0]).toBe(prUrl(4))
+    expect(urls?.at(-1)).toBe(prUrl(SESSION_PR_CAP + 3))
+  })
+
+  it("records a status on the attached url only, diffing no-op rewrites; an unattached url or gone task is ignored", async () => {
+    const t = await makeTask()
+    const status: TaskPRStatus = { provider: "github", lifecycle: "merged", checkState: "passing", number: 1 }
+    await orch.addSessionPr(t.id, prUrl(1))
+    await orch.addSessionPr(t.id, prUrl(2))
+    await orch.setSessionPrStatus(t.id, prUrl(1), status)
+    const prs = orch.getTask(t.id)?.sessionPrs
+    expect(prs?.[0]?.status).toMatchObject({ lifecycle: "merged", number: 1 })
+    expect(prs?.[1]?.status).toBeUndefined()
+
+    const before = orch.getTask(t.id)?.updatedAt
+    await orch.setSessionPrStatus(t.id, prUrl(1), { ...status, lastCheckedAt: "2026-10-27T00:00:00.000Z" })
+    await orch.setSessionPrStatus(t.id, prUrl(9), status)
+    await orch.setSessionPrStatus("missing-task", prUrl(1), status)
+    expect(orch.getTask(t.id)?.updatedAt).toBe(before)
   })
 })
 

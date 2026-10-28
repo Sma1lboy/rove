@@ -374,3 +374,31 @@ describe("daemon handler registry — child tasks", () => {
     expect(child).toEqual({ taskId: "goes", queued: true, teardown: { goes: { spare: [], also: ["p::tab-3"] } } })
   })
 })
+
+describe("task.addSessionPr", () => {
+  it("attaches the canonical url and replies with it", async () => {
+    const calls: unknown[][] = []
+    const { ctx } = fakeCtx({
+      getTask: () => TASK,
+      addSessionPr: async (...args: unknown[]) => void calls.push(args),
+    })
+    const url = "https://github.com/o/r/pull/9/files#diff-1"
+    await expect(dispatch("task.addSessionPr", { taskId: "t1", url }, ctx)).resolves.toEqual({
+      taskId: "t1",
+      url: "https://github.com/o/r/pull/9",
+    })
+    expect(calls).toEqual([["t1", "https://github.com/o/r/pull/9"]])
+  })
+
+  it("refuses a link that is not a GitHub PR, and an unknown task, without attaching", async () => {
+    const addSessionPr = vi.fn(async () => {})
+    const { ctx } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined), addSessionPr })
+    await expect(
+      dispatch("task.addSessionPr", { taskId: "t1", url: "https://github.com/o/r/issues/9" }, ctx),
+    ).rejects.toThrow(/pull/)
+    await expect(
+      dispatch("task.addSessionPr", { taskId: "nope", url: "https://github.com/o/r/pull/9" }, ctx),
+    ).rejects.toThrow(/task not found/)
+    expect(addSessionPr).not.toHaveBeenCalled()
+  })
+})

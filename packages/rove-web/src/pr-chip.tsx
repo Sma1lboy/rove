@@ -2,13 +2,14 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { TaskRow } from "rove-bridge/protocol"
+import type { TaskRow, TaskRowPr } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
-import { type PrMark, leadPrMark, prMark } from "./rail-glyphs.ts"
+import { type PrMark, leadPrMark, prMark, sessionPrMark } from "./rail-glyphs.ts"
 
 interface Entry {
   readonly task: TaskRow
+  readonly pr: TaskRowPr
   readonly mark: PrMark
 }
 
@@ -25,18 +26,33 @@ function stateText(mark: PrMark): string {
 }
 
 /**
- * One entry per PR: a child sharing its parent's directory sits on the same branch, so the same PR.
- * Each task polls its own checks, so a duplicate keeps whichever copy needs you most.
+ * One entry per PR, from each task's own branch PR and the PRs its session opened. A child sharing
+ * its parent's directory sits on the same branch, so the same PR. Each task polls its own checks, so
+ * a duplicate keeps whichever copy needs you most; a polled copy beats one still `unknown`.
  */
 export function prEntries(tasks: readonly TaskRow[]): Entry[] {
   const byPr = new Map<string, Entry>()
   for (const task of tasks) {
-    const mark = prMark(task)
-    if (!mark) continue
-    const pr = task.pr
-    const key = pr?.url ?? (pr?.number !== undefined ? `${task.repo}#${pr.number}` : task.id)
-    const kept = byPr.get(key)
-    if (!kept || leadPrMark([kept.mark, mark]) !== kept.mark) byPr.set(key, { task, mark })
+    const own = prMark(task)
+    const found = [
+      ...(own && task.pr ? [{ pr: task.pr, mark: own }] : []),
+      ...(task.sessionPrs ?? []).flatMap((pr) => {
+        const mark = sessionPrMark(pr)
+        return mark ? [{ pr, mark }] : []
+      }),
+    ]
+    for (const { pr, mark } of found) {
+      const key = pr.url ?? (pr.number !== undefined ? `${task.repo}#${pr.number}` : task.id)
+      const kept = byPr.get(key)
+      const unpolled = pr.lifecycle === "unknown"
+      const keptUnpolled = kept?.pr.lifecycle === "unknown"
+      if (
+        !kept ||
+        (keptUnpolled && !unpolled) ||
+        (unpolled === keptUnpolled && leadPrMark([kept.mark, mark]) !== kept.mark)
+      )
+        byPr.set(key, { task, pr, mark })
+    }
   }
   return [...byPr.values()]
 }
@@ -96,7 +112,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
   if (!lead) return null
   const label =
     entries.length === 1
-      ? `PR #${entries[0]?.task.pr?.number ?? ""} · ${stateText(lead)}`
+      ? `PR #${entries[0]?.pr.number ?? ""} · ${stateText(lead)}`
       : t("rail.pr.many", { count: entries.length })
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tap is touch-only; keys go to the row's button
@@ -130,19 +146,18 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
             onMouseDown={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.stopPropagation()}
           >
-            {entries.map(({ task, mark }) => {
-              const pr = task.pr
+            {entries.map(({ task, pr, mark }) => {
               const repo = prRepo(pr?.url)
               const stats = pr?.additions !== undefined && pr.deletions !== undefined
               return (
                 <button
-                  key={task.id}
+                  key={pr.url ?? `${task.id}#${pr.number ?? ""}`}
                   type="button"
                   className="pr-list-item"
                   disabled={!pr?.url}
                   onClick={() => pr?.url && window.open(pr.url, "_blank", "noopener")}
                 >
-                  <span className="pr-list-title">{pr?.title || task.title}</span>
+                  <span className="pr-list-title">{pr.title || task.title}</span>
                   <span className="pr-list-line">
                     <span className={`pr-list-state ${mark.tone}`}>
                       <span className="pr-list-glyph">{mark.glyph}</span>

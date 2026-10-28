@@ -24,7 +24,7 @@ import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
-import { prChip } from "../../../tui/panes/sidebar/row-chips"
+import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   type SidebarRowView,
   buildSidebarRowView,
@@ -200,7 +200,7 @@ export function WorktreeTreeRow(props: {
   const kv = useOptionalKV()
   const shared = props.shared
   const task = props.task
-  const chip = prChip(task, glyphs)
+  const chip = sidebarPrChip(task, glyphs)
   // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)

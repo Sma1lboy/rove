@@ -13,7 +13,8 @@
  * `monitor/pr-status.ts` and arrive via `runtime.prStatus.classify` /
  * `viewFields`: rove-daemon must not depend on the `rove` package.
  *
- * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR.
+ * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR. Session PRs
+ * (`task.sessionPrs`, attached by URL) are polled by URL in `session-pr-poll.ts`.
  *
  * Per-task schedule by outcome:
  *   - open PR → tick cadence (checks move).
@@ -34,10 +35,12 @@
  */
 
 import { execFile, spawn } from "node:child_process"
+import os from "node:os"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { decodeCapturedChunks } from "./poll-scheduling.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { pollableSessionPrs, sessionPrJobs, sessionPrKey } from "./session-pr-poll.ts"
 import { startTicker } from "./ticker.ts"
 
 export interface GhPrView {
@@ -109,6 +112,9 @@ export type PrViewResult =
  */
 export type PrViewRunner = (worktreePath: string, branch: string, pinned?: number) => Promise<PrViewResult>
 
+/** Finds one PR by its URL, from any cwd. Never `empty`: an unknown PR is an `error`. */
+export type PrUrlRunner = (url: string) => Promise<PrViewResult>
+
 export interface GhSpawnResult {
   readonly status: number | null
   readonly stdout: string
@@ -151,6 +157,33 @@ export function spawnGh(args: readonly string[], cwd: string, signal: AbortSigna
 /** Structurally rove's `classifyGhFailure`; injected, not imported (see header). */
 type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
 
+/** `gh <args>` in `cwd`: parsed stdout on exit 0, else the classified failure. Never throws. */
+async function ghJson(
+  classify: GhFailureClassifier,
+  args: readonly string[],
+  cwd: string,
+): Promise<{ json: unknown } | PrViewResult> {
+  const controller = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, PR_VIEW_TIMEOUT_MS)
+  try {
+    const res = await spawnGh(args, cwd, controller.signal)
+    if (res.status === 0 && !timedOut) {
+      try {
+        return { json: JSON.parse(res.stdout) }
+      } catch {
+        return classify({ parseError: true }) as PrViewResult
+      }
+    }
+    return classify({ spawnError: res.spawnError, timedOut, exitCode: res.status, stderr: res.stderr }) as PrViewResult
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * A task's PR, found in order: by its branch (`gh pr list --head`); by the PR
  * number it already holds (an agent may push HEAD to a differently named ref);
@@ -159,32 +192,7 @@ type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
  * `classify`, never `empty`. Never throws.
  */
 export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: string): PrViewRunner {
-  const gh = async (args: readonly string[], cwd: string): Promise<{ json: unknown } | PrViewResult> => {
-    const controller = new AbortController()
-    let timedOut = false
-    const timer = setTimeout(() => {
-      timedOut = true
-      controller.abort()
-    }, PR_VIEW_TIMEOUT_MS)
-    try {
-      const res = await spawnGh(args, cwd, controller.signal)
-      if (res.status === 0 && !timedOut) {
-        try {
-          return { json: JSON.parse(res.stdout) }
-        } catch {
-          return classify({ parseError: true }) as PrViewResult
-        }
-      }
-      return classify({
-        spawnError: res.spawnError,
-        timedOut,
-        exitCode: res.status,
-        stderr: res.stderr,
-      }) as PrViewResult
-    } finally {
-      clearTimeout(timer)
-    }
-  }
+  const gh = (args: readonly string[], cwd: string) => ghJson(classify, args, cwd)
   const pick = (json: unknown): PrViewResult => {
     const picked = Array.isArray(json) ? pickPr(json as GhPrView[]) : undefined
     return picked ? { kind: "pr", view: picked } : { kind: "empty" }
@@ -213,6 +221,21 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
     if (!("json" in bySha)) return held.length > 0 ? pick(held) : bySha
     const hits = Array.isArray(bySha.json) ? bySha.json.filter((v: GhPrView) => v.headRefOid === head) : []
     return pick([...hits, ...held])
+  }
+}
+
+/**
+ * One session PR by URL (`gh pr view <url>`), run from the home directory: the
+ * PR's checkout is wherever the session made it, and a URL needs none.
+ */
+export function makeGhPrUrlRunner(classify: GhFailureClassifier, viewFields: string): PrUrlRunner {
+  return async (url) => {
+    const res = await ghJson(classify, ["pr", "view", url, "--json", viewFields], os.homedir())
+    if (!("json" in res)) return res
+    if (!res.json || typeof res.json !== "object" || Array.isArray(res.json)) {
+      return classify({ parseError: true }) as PrViewResult
+    }
+    return { kind: "pr", view: res.json as GhPrView }
   }
 }
 
@@ -259,6 +282,8 @@ function pollKey(taskId: string, extraName: string | undefined): string {
 export interface PrStatusPassOptions {
   readonly runtime: Pick<DaemonRuntimeAdapter, "prStatus">
   readonly run: PrViewRunner
+  /** Resolves session PRs by URL; absent → they are not polled. */
+  readonly runUrl?: PrUrlRunner
   /** Epoch ms. */
   readonly now: number
   /** ISO timestamp stamped onto each status. */
@@ -309,6 +334,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
   for (const task of tasks) {
     liveKeys.add(task.id)
     for (const extra of task.extraRepos ?? []) liveKeys.add(pollKey(task.id, extra.name))
+    for (const { url } of pollableSessionPrs(task)) liveKeys.add(sessionPrKey(task.id, url))
   }
   for (const key of opts.schedule.keys()) {
     if (!liveKeys.has(key)) opts.schedule.delete(key)
@@ -398,17 +424,34 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     }
   }
 
-  // Per-repo slots keep returned ids in task order however polls interleave.
-  const slots = new Array<string | undefined>(due.length)
+  // Session PRs share the pool, queued after the branch repos.
+  const sessionJobs = opts.runUrl
+    ? sessionPrJobs(orch, tasks, {
+        runtime: opts.runtime,
+        run: opts.runUrl,
+        now: opts.now,
+        at: opts.at,
+        schedule: opts.schedule,
+        cfg,
+        rand,
+      })
+    : []
+  const total = due.length + sessionJobs.length
+  // Per-job slots keep returned ids in task order however polls interleave.
+  const slots = new Array<string | undefined>(total)
   let cursor = 0
   const worker = async (): Promise<void> => {
-    for (let i = cursor++; i < due.length; i = cursor++) {
+    for (let i = cursor++; i < total; i = cursor++) {
+      if (i >= due.length) {
+        slots[i] = await sessionJobs[i - due.length]?.()
+        continue
+      }
       const item = due[i]
       if (item) slots[i] = await pollOne(item.task, item.extraName, item.repo, item.prevFailures)
     }
   }
-  await Promise.all(Array.from({ length: Math.min(PR_POLL_CONCURRENCY, due.length) }, worker))
-  // A task with several changed repos reports once.
+  await Promise.all(Array.from({ length: Math.min(PR_POLL_CONCURRENCY, total) }, worker))
+  // A task with several changed PRs reports once.
   return [...new Set(slots.filter((id): id is string => id !== undefined))]
 }
 
@@ -435,6 +478,7 @@ export function startPrStatusPoller(
   hasSubscribers?: () => boolean,
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
+  runUrl: PrUrlRunner = makeGhPrUrlRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
 ): ReturnType<typeof startTicker> {
   const schedule: PrPollSchedule = new Map()
   return startTicker({
@@ -445,6 +489,7 @@ export function startPrStatusPoller(
       runPrStatusPass(orch, {
         runtime,
         run,
+        runUrl,
         now: Date.now(),
         at: new Date().toISOString(),
         schedule,

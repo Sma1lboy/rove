@@ -8,6 +8,7 @@
  * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
+import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
 import type {
@@ -19,6 +20,7 @@ import type {
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskRoutineLink,
+  TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
 } from "../../types/task.ts"
@@ -63,6 +65,7 @@ export function coerceTask(value: unknown): Task | null {
   const lineage = coerceLineage(v, kind)
   const routine = coerceRoutine(v.routine)
   const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
+  const sessionPrs = coerceSessionPrs(v.sessionPrs)
 
   const report = coerceWorkerReport(v.report)
   return {
@@ -106,6 +109,8 @@ export function coerceTask(value: unknown): Task | null {
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
     // A secondary repo's worktree is only findable through this list: lost, it is an orphan nobody deletes.
     ...(extraRepos ? { extraRepos } : {}),
+    // PRs the session opened from other directories: the API is their only source, so a dropped list is unrecoverable.
+    ...(sessionPrs ? { sessionPrs } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
     // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
@@ -143,6 +148,21 @@ function coerceExtraRepos(value: unknown, primary: string): TaskExtraRepo[] | un
     })
   }
   return out.length > 0 ? out : undefined
+}
+
+/** Attached session PRs; an entry without a GitHub PR url or an `addedAt` is dropped, never the row. */
+function coerceSessionPrs(value: unknown): TaskSessionPr[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out: TaskSessionPr[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue
+    const e = entry as Record<string, unknown>
+    const url = typeof e.url === "string" ? canonicalPrUrl(e.url) : undefined
+    if (!url || typeof e.addedAt !== "string" || out.some((o) => o.url === url)) continue
+    const status = coercePRStatus(e.status)
+    out.push({ url, addedAt: e.addedAt, ...(status ? { status } : {}) })
+  }
+  return out.length > 0 ? out.slice(-SESSION_PR_CAP) : undefined
 }
 
 /** A `update --report-*` claim; only its timestamp is required, so none → malformed. */

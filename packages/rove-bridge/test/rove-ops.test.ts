@@ -247,6 +247,21 @@ describe("task row extras", () => {
     expect(bare?.pr).not.toHaveProperty("mergeable")
   })
 
+  test("session PRs ride the row: polled ones like pr, unpolled ones unknown with the number from the URL", () => {
+    const url = (n: number) => `https://github.com/o/r/pull/${n}`
+    const sessionPrs = [
+      { url: url(7), addedAt: "2026-10-27T00:00:00.000Z" },
+      { url: url(8), addedAt: "2026-10-27T00:00:00.000Z", status: pr({ number: 8, checkState: "failing" }) },
+    ]
+    const [row] = taskRows([task({ id: "m", sessionPrs } as never)], null, ENGINES, now)
+    expect(row?.sessionPrs).toEqual([
+      { number: 7, url: url(7), lifecycle: "unknown", checkState: "unknown" },
+      { number: 8, url: url(8), lifecycle: "open", checkState: "failing" },
+    ])
+    const [none] = taskRows([task({ id: "n" })], null, ENGINES, now)
+    expect(none).not.toHaveProperty("sessionPrs")
+  })
+
   test("a row another machine served names it; this Mac's rows carry no machine at all", () => {
     const origin = (stale?: true) => ({ machineId: "narwhal", hostLabel: "narwhal", ...(stale ? { stale } : {}) })
     const rows = taskRows(

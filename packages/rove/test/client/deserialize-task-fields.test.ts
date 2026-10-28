@@ -125,6 +125,27 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
       },
     },
   ],
+  sessionPrs: [
+    {
+      url: "https://github.com/o/other/pull/44",
+      addedAt: "2026-08-27T00:00:00.000Z",
+      status: {
+        provider: "github",
+        lifecycle: "merged",
+        checkState: "passing",
+        number: 44,
+        url: "https://github.com/o/other/pull/44",
+        title: "feat: session side",
+        additions: 5,
+        deletions: 2,
+        baseRef: "main",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
   report: {
     branch: "fix/wire",
     pr: 921,

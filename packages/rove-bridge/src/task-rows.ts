@@ -5,7 +5,7 @@
  * the size cap.
  */
 
-import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { AttentionInboxItem, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
@@ -17,7 +17,7 @@ import {
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
-import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow } from "./protocol.ts"
+import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 
 /** Name a task's engine from the registry: its exact preset, else its protocol's builtin. */
@@ -68,6 +68,35 @@ const PR_CHIP_BY_GLYPH: Record<string, PrChipKind> = {
 function prChipKind(task: SerializedTask): PrChipKind | null {
   const chip = prChip(task as unknown as Parameters<typeof prChip>[0])
   return chip ? (PR_CHIP_BY_GLYPH[chip.glyph] ?? null) : null
+}
+
+/** A polled PR status as the wire carries it. */
+function rowPr(pr: TaskPRStatus): TaskRowPr {
+  return {
+    ...(pr.number !== undefined ? { number: pr.number } : {}),
+    ...(pr.url ? { url: pr.url } : {}),
+    ...(pr.title ? { title: pr.title } : {}),
+    ...(pr.additions !== undefined ? { additions: pr.additions } : {}),
+    ...(pr.deletions !== undefined ? { deletions: pr.deletions } : {}),
+    lifecycle: pr.lifecycle,
+    checkState: pr.checkState,
+    ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),
+    ...(pr.mergeable ? { mergeable: pr.mergeable } : {}),
+  }
+}
+
+/** The PRs a task's session attached: polled ones as `pr` is built, the rest `unknown` until the first poll. */
+function sessionPrRows(task: SerializedTask): TaskRowPr[] {
+  return (task.sessionPrs ?? []).map((entry) => {
+    if (entry.status) return rowPr({ ...entry.status, url: entry.status.url ?? entry.url })
+    const number = Number(entry.url.match(/\/pull\/(\d+)$/)?.[1])
+    return {
+      ...(Number.isInteger(number) ? { number } : {}),
+      url: entry.url,
+      lifecycle: "unknown",
+      checkState: "unknown",
+    }
+  })
 }
 
 /**
@@ -170,6 +199,7 @@ export function taskRows(
     if (!task) return []
     const pr = rollupPr(task)
     const changes = rowChanges(extras?.changes ?? null, task.worktreePath)
+    const sessionPrs = sessionPrRows(task)
     const tokens = rowTokenChips(extras?.tokens, task.id, now)
     const chip = prChipKind(task)
     const daemon = status?.tasks[task.id]
@@ -186,19 +216,8 @@ export function taskRows(
         activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
         ...(daemon ? { rowStatus: daemon.task, tabStatus: daemon.tabs } : {}),
         engine: engineFor(task, engines),
-        pr: pr
-          ? {
-              ...(pr.number !== undefined ? { number: pr.number } : {}),
-              ...(pr.url ? { url: pr.url } : {}),
-              ...(pr.title ? { title: pr.title } : {}),
-              ...(pr.additions !== undefined ? { additions: pr.additions } : {}),
-              ...(pr.deletions !== undefined ? { deletions: pr.deletions } : {}),
-              lifecycle: pr.lifecycle,
-              checkState: pr.checkState,
-              ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),
-              ...(pr.mergeable ? { mergeable: pr.mergeable } : {}),
-            }
-          : null,
+        pr: pr ? rowPr(pr) : null,
+        ...(sessionPrs.length > 0 ? { sessionPrs } : {}),
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,
         deleting: task.deletion?.phase === "queued" || task.deletion?.phase === "running",
         pinned: task.pinned === true,

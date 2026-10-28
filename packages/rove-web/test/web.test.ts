@@ -6,7 +6,7 @@ import { visibleTree } from "../src/file-tree.ts"
 import { en, zh } from "../src/i18n/index.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
 import { prEntries, prRepo } from "../src/pr-chip.tsx"
-import { leadPrMark, needsPerson, prMark, statusMark } from "../src/rail-glyphs.ts"
+import { leadPrMark, needsPerson, prMark, sessionPrMark, statusMark } from "../src/rail-glyphs.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -311,5 +311,34 @@ describe("a task's PR mark", () => {
     const parent = { id: "p", repo: "/r", pr, prChip: "passing" } as unknown as TaskRow
     const child = { id: "c", repo: "/r", pr, prChip: "failing" } as unknown as TaskRow
     expect(prEntries([parent, child]).map((entry) => [entry.task.id, entry.mark.checks])).toEqual([["c", "failing"]])
+  })
+
+  test("a main task's session PRs list beside a child's, one entry per URL", () => {
+    const url = (n: number) => `https://github.com/o/r/pull/${n}`
+    const main = {
+      id: "m",
+      repo: "/r",
+      pr: null,
+      sessionPrs: [
+        { number: 1, url: url(1), lifecycle: "merged", checkState: "none" },
+        { number: 2, url: url(2), lifecycle: "unknown", checkState: "unknown" },
+      ],
+    } as unknown as TaskRow
+    const child = {
+      id: "c",
+      repo: "/r",
+      pr: { number: 2, url: url(2), lifecycle: "open", checkState: "passing" },
+      prChip: "passing",
+    } as unknown as TaskRow
+    const entries = prEntries([main, child])
+    expect(entries.map((entry) => entry.pr.url)).toEqual([url(1), url(2)])
+    expect(entries.map((entry) => entry.mark.state)).toEqual(["merged", "open"])
+    expect(entries[1]?.mark.checks).toBe("passing")
+  })
+
+  test("an unpolled session PR draws as an open one with no check state", () => {
+    const mark = sessionPrMark({ lifecycle: "unknown", checkState: "unknown", url: "https://github.com/o/r/pull/5" })
+    expect(mark).toMatchObject({ state: "open", tone: "muted" })
+    expect(mark?.checks).toBeUndefined()
   })
 })
