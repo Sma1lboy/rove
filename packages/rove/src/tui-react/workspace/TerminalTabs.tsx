@@ -77,6 +77,7 @@ import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
 import { useTabHydration, useTabNaming } from "./use-tab-lifecycle"
 import { useTabRequests } from "./use-tab-requests"
+import { useTabStripMenu } from "./use-tab-strip-menu"
 import { useTabTurnState } from "./use-tab-turn-state"
 
 export interface TerminalTabsProps {
@@ -410,8 +411,17 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     }),
   }))
 
+  const tabMenu = useTabStripMenu({
+    taskId: props.taskId,
+    tabs: state.tabs,
+    activeId: state.activeId,
+    select: (tabId) => update(selectTab(stateRef.current, tabId)),
+    rename: requestRename,
+    closeActive: () => tabClose.closeActive(),
+  })
+
   return (
-    <box flexDirection="column" flexGrow={1}>
+    <box ref={tabMenu.anchorRef} flexDirection="column" flexGrow={1}>
       {/* Tab strip — flush to the pane edge, dense; hides itself for a lone
           tab only when the Settings → Terminal toggle asks it to. */}
       <TabStrip
@@ -419,6 +429,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         tabs={state.tabs}
         activeId={state.activeId}
         onSelect={(tabId) => update(selectTab(state, tabId))}
+        onContextMenu={tabMenu.openForTab}
         vendor={props.vendor}
         liveTitles={liveTitles}
         turnVendors={turnVendors}
@@ -471,6 +482,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           engineTitle={active.title ?? active.autoTitle ?? null}
         />
       )}
+      {tabMenu.overlay}
     </box>
   )
 }

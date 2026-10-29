@@ -25,16 +25,18 @@ and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
-`rove api` call, a `git checkout` or a `cd` in another shell, **Copy tab address**
-on a tab row, which copies the `--task-id … --tab …` pair that sends a
-`rove api send` to that one tab, **Close other tabs** on a tab row of a Task with
-several tabs (it confirms, then ends every other tab's session), and **Open in editor**, **Rename branch**, and
+`rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
 and `d` retires the one under the cursor, which is how a note whose fact has
 stopped being true stops being injected into new sessions) and **Remove
 project**. Clicking anywhere else dismisses that menu.
+
+Right-clicking a tab in the workspace tab strip offers **Rename tab**, **Close
+tab**, **Copy tab address**, which copies the `--task-id … --tab …` pair that
+sends a `rove api send` to that one tab, and **Close other tabs** when the Task
+has several tabs (it confirms, then ends every other tab's session).
 
 The Tasks rail sizes itself from the terminal — wider terminals get a wider
 rail, so branch names stop truncating. Drag its right edge to set the width

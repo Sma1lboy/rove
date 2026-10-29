@@ -238,6 +238,11 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
 
 export type TaskCopyField = "branch" | "path" | "id" | "tab"
 
+/** The flags `rove api send` / `read-output` take to reach one terminal tab. */
+export function tabAddress(taskId: string, tabId: string): string {
+  return `--task-id ${taskId} --tab ${tabId}`
+}
+
 const COPIED_TOAST: Record<TaskCopyField, string> = {
   branch: "tasks.toast.copiedBranch",
   path: "tasks.toast.copiedPath",
@@ -269,7 +274,7 @@ export async function copyTaskFieldFlow(
       : field === "path"
         ? task.worktreePath
         : field === "tab"
-          ? `--task-id ${task.id} --tab ${tabId}`
+          ? tabAddress(task.id, tabId ?? "")
           : task.id
   if (text === "") return
   if (!(await ctx.copyText(text))) {
