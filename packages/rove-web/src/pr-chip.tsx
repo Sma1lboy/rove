@@ -57,8 +57,8 @@ export function prEntries(tasks: readonly TaskRow[]): Entry[] {
   return [...byPr.values()]
 }
 
-/** `tasks`: the row's task, then its descendants; those without a PR draw nothing. */
-export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
+/** `tasks`: the row's task, then its descendants; those without a PR draw nothing. `onOpen`: the list is opening. */
+export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: () => void }) {
   const [at, setAt] = useState<DOMRect | null>(null)
   const [closing, setClosing] = useState(false)
   const chip = useRef<HTMLSpanElement>(null)
@@ -80,6 +80,7 @@ export function PrChip({ tasks }: { tasks: readonly TaskRow[] }) {
     if (overflow > 0) el.style.top = `${Math.max(8, el.getBoundingClientRect().top - overflow)}px`
   }, [at])
   const show = () => {
+    onOpen?.()
     if (leave.current !== null) window.clearTimeout(leave.current)
     leave.current = null
     setClosing(false)

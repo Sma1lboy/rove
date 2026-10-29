@@ -40,6 +40,8 @@ export function useRowTip(
   readonly ref: RefCallback<HTMLElement>
   readonly onPointerEnter: (e: PointerEvent<HTMLElement>) => void
   readonly onPointerLeave: () => void
+  /** Drop the card and any pending one, for another card opening over the same spot (the PR list). */
+  readonly hide: () => void
   readonly tip: ReactNode
 } {
   const [at, setAt] = useState<DOMRect | null>(null)
@@ -52,6 +54,10 @@ export function useRowTip(
   const showSoon = (el: HTMLElement) => {
     clear()
     timer.current = window.setTimeout(() => setAt(el.getBoundingClientRect()), SHOW_AFTER_MS)
+  }
+  const dismiss = () => {
+    clear()
+    setAt(null)
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: the cursor arriving is the trigger; the helpers only touch refs
   useEffect(() => {
@@ -89,10 +95,8 @@ export function useRowTip(
       if (e.pointerType === "touch" || !truncated(e.currentTarget)) return
       showSoon(e.currentTarget)
     },
-    onPointerLeave: () => {
-      clear()
-      setAt(null)
-    },
+    onPointerLeave: dismiss,
+    hide: dismiss,
     tip: at
       ? createPortal(
           <div className="row-tip" role="tooltip" style={{ top: at.top + at.height / 2, left: at.right + 8 }}>
