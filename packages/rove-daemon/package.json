@@ -40,6 +40,7 @@
     "./daemon/row-tokens": "./src/daemon/row-tokens.ts",
     "./daemon/automations-store": "./src/daemon/automations-store.ts",
     "./daemon/child-contracts": "./src/daemon/child-contracts.ts",
+    "./daemon/checkpoint-contracts": "./src/daemon/checkpoint-contracts.ts",
     "./daemon/checkpoint-queue": "./src/daemon/checkpoint-queue.ts",
     "./daemon/contracts": "./src/daemon/contracts.ts",
     "./daemon/deliveries-store": "./src/daemon/deliveries-store.ts",

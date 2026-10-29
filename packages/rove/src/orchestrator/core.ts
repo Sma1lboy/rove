@@ -5,20 +5,14 @@
  */
 
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
-import type {
-  CheckpointRecord,
-  LandPreflightResult,
-  ReparentResult,
-  RewindResult,
-  TakeCheckpointResult,
-  TaskPtyAlias,
-} from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { LandPreflightResult, ReparentResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
+import { WorkspaceCheckpoints } from "./checkpoints.ts"
 import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDirectoryTaskRow } from "./core-create.ts"
 import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
@@ -92,6 +86,7 @@ export class Orchestrator {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
   private readonly workspaces: WorkspaceRegistry
+  private readonly checkpoints: WorkspaceCheckpoints
   /** Owns git-worktree side-effects (allocate / materialise / adopt) + their locks. */
   private readonly worktreeCoordinator: WorktreeCoordinator
   /** Owns in-place task-field edits (title / branch / vendor / status / …). */
@@ -109,6 +104,7 @@ export class Orchestrator {
     this.store = deps.store
     this.worktrees = deps.worktrees
     this.workspaces = deps.workspaces ?? createWorkspaceRegistry(this.worktrees)
+    this.checkpoints = new WorkspaceCheckpoints(this.store, this.worktrees, (id) => this.requireTask(id))
     this.tearDownSession = deps.tearDownSession
     // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
     // throwaway repo must still adopt, it just must not mint a permanent
@@ -321,59 +317,12 @@ export class Orchestrator {
     return this.worktreeCoordinator.ensure(task, opts?.onProgress)
   }
 
-  /** The row that owns `id`'s workspace: a sharer follows its owner (as `ensureWorktree` does); everything else owns its own. */
-  private workspaceOwner(id: TaskId | string): Task {
-    const task = this.requireTask(id)
-    return (task.sharesWorkspaceOf ? this.store.get(task.sharesWorkspaceOf) : undefined) ?? task
-  }
-
-  /**
-   * Checkpoints belong to the workspace owner, so a shared child checkpoints,
-   * lists and rewinds under its owner's id. `sharerIds` is every live task in
-   * that workspace (owner first) — the set whose engines a rewind must not race.
-   */
-  checkpointScope(id: TaskId | string): { ownerId: string; sharerIds: string[] } {
-    const owner = this.workspaceOwner(id)
-    const sharers = this.store.list().filter((t) => t.sharesWorkspaceOf === owner.id && !t.deletion)
-    return { ownerId: String(owner.id), sharerIds: [String(owner.id), ...sharers.map((t) => String(t.id))] }
-  }
-
-  /**
-   * Checkpoints cover managed workspaces only (owner of kind `task`): a main/dir
-   * tree is the user's own. Replaced by the workspace-capabilities check when that lands.
-   */
-  canCheckpoint(id: TaskId | string): boolean {
-    if (!this.store.get(id)) return false
-    const owner = this.workspaceOwner(id)
-    return owner.kind === "task" && !owner.deletion && owner.worktreePath !== ""
-  }
-
-  /** The owner's id and worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
-  private async checkpointTarget(id: TaskId | string): Promise<{ ownerId: string; dir: string }> {
-    const owner = this.workspaceOwner(id)
-    // A managed worktree always has a `.git` entry (file); its absence means a dead or non-git directory.
-    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(`${owner.worktreePath}/.git`))) {
-      throw new Error(
-        `NOT_CHECKPOINTABLE: ${owner.kind === "task" ? "the task has no git worktree on disk" : `a ${owner.kind} task works in your own checkout`}`,
-      )
-    }
-    return { ownerId: String(owner.id), dir: owner.worktreePath }
-  }
-
-  async takeCheckpoint(id: TaskId | string, opts?: { tabId?: string }): Promise<TakeCheckpointResult> {
-    const { ownerId, dir } = await this.checkpointTarget(id)
-    return this.worktrees.takeCheckpoint(dir, ownerId, opts)
-  }
-
-  async listCheckpoints(id: TaskId | string): Promise<CheckpointRecord[]> {
-    const { ownerId, dir } = await this.checkpointTarget(id)
-    return this.worktrees.listCheckpoints(dir, ownerId)
-  }
-
-  async rewindToCheckpoint(id: TaskId | string, n: number): Promise<RewindResult> {
-    const { ownerId, dir } = await this.checkpointTarget(id)
-    return this.worktrees.rewindToCheckpoint(dir, ownerId, n)
-  }
+  // Checkpoints belong to the workspace owner; the rules live in `checkpoints.ts`.
+  canCheckpoint = (id: TaskId | string): boolean => this.checkpoints.canCheckpoint(id)
+  checkpointScope = (id: TaskId | string) => this.checkpoints.checkpointScope(id)
+  takeCheckpoint = (id: TaskId | string, opts?: { tabId?: string }) => this.checkpoints.takeCheckpoint(id, opts)
+  listCheckpoints = (id: TaskId | string) => this.checkpoints.listCheckpoints(id)
+  rewindToCheckpoint = (id: TaskId | string, n: number) => this.checkpoints.rewindToCheckpoint(id, n)
 
   /**
    * Clear a task's `worktreePath` (keeping its branch) after an out-of-band

@@ -3,7 +3,11 @@
  * managed task's worktree (`task.checkpointList` / `task.checkpoint` / `task.rewind`).
  */
 
-import type { CheckpointRecord, RewindResult, TakeCheckpointResult } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type {
+  CheckpointRecord,
+  RewindResult,
+  TakeCheckpointResult,
+} from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
 import { daemonOf } from "./handler-helpers.ts"
 import type { VerbContext } from "./types.ts"
 
