@@ -321,6 +321,7 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.cwdSubpath ? { cwdSubpath: s.cwdSubpath } : {}),
     ...(s.ptyAlias ? { ptyAlias: s.ptyAlias } : {}),
     ...(s.extraRepos?.length ? { extraRepos: s.extraRepos } : {}),
+    ...(s.workspace ? { workspace: s.workspace } : {}),
     ...(s.sessionPrs?.length ? { sessionPrs: s.sessionPrs } : {}),
     requireReport: s.requireReport,
     prompt: s.prompt,

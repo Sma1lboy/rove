@@ -9,6 +9,7 @@
     "./path-identity": "./src/path-identity.ts",
     "./repo-id": "./src/repo-id.ts",
     "./task-tree": "./src/task-tree.ts",
+    "./workspace": "./src/workspace.ts",
     "./compat-env": "./src/compat-env.ts",
     "./client": "./src/client/index.ts",
     "./client/client-log": "./src/client/client-log.ts",

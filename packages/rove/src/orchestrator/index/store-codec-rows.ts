@@ -11,6 +11,7 @@
 import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
+import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import type {
   Task,
   TaskDeletionState,
@@ -23,6 +24,7 @@ import type {
   TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
+  TaskWorkspace,
 } from "../../types/task.ts"
 import { toTaskId } from "../../types/task.ts"
 import { coerceVendorId } from "../../types/vendor.ts"
@@ -65,6 +67,7 @@ export function coerceTask(value: unknown): Task | null {
   const lineage = coerceLineage(v, kind)
   const routine = coerceRoutine(v.routine)
   const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
+  const workspace = coerceWorkspace(v.workspace)
   const sessionPrs = coerceSessionPrs(v.sessionPrs)
 
   const report = coerceWorkerReport(v.report)
@@ -109,6 +112,8 @@ export function coerceTask(value: unknown): Task | null {
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
     // A secondary repo's worktree is only findable through this list: lost, it is an orphan nobody deletes.
     ...(extraRepos ? { extraRepos } : {}),
+    // Lost, a cloned workspace reads as a plain worktree and loses its capabilities.
+    ...(workspace ? { workspace } : {}),
     // PRs the session opened from other directories: the API is their only source, so a dropped list is unrecoverable.
     ...(sessionPrs ? { sessionPrs } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
@@ -120,6 +125,14 @@ export function coerceTask(value: unknown): Task | null {
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
+}
+
+/** An unknown backend id (a newer daemon's) is dropped: the row falls back to the backend its `kind` implies. */
+function coerceWorkspace(value: unknown): TaskWorkspace | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const w = value as Record<string, unknown>
+  if (!isWorkspaceBackendId(w.backend)) return undefined
+  return { backend: w.backend, ...(typeof w.ref === "string" && w.ref.length > 0 ? { ref: w.ref } : {}) }
 }
 
 /**

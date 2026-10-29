@@ -95,6 +95,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     // process, and `collect` compares against this recorded fork point.
     ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
     ...(extraRepos.length > 0 ? { extraRepos } : {}),
+    ...(input.workspace ? { workspace: input.workspace } : {}),
     // Same: allocated lazily, and the caller was already told the path.
     ...(worktreeName ? { worktreeName } : {}),
   })

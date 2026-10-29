@@ -116,6 +116,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
   extraRepos: [
     {
       name: "api",
@@ -195,5 +196,11 @@ describe("tasks.json codec round-trip", () => {
     }
     const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
     expect(loaded?.sessionPrs).toEqual([{ url: "https://github.com/o/r/pull/1", addedAt: "2026-08-27T00:00:00.000Z" }])
+  })
+
+  it("drops a backend this build does not know, so the row falls back to its kind", () => {
+    const row = { ...JSON.parse(JSON.stringify(FULL_TASK)), workspace: { backend: "from-the-future" } }
+    const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
+    expect(loaded && "workspace" in loaded).toBe(false)
   })
 })

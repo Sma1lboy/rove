@@ -6,6 +6,7 @@ import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
 import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import { isRemoteRepoKey } from "../state/repos.ts"
 import type {
@@ -73,7 +74,7 @@ export class TaskEditor {
    *   - a local collision gets a `-2`, `-3`… suffix.
    */
   private async followBranchToTitle(taskBefore: Task, newTitle: string): Promise<void> {
-    if (taskBefore.kind === "main" || !taskBefore.worktreePath) return
+    if (!workspaceCapabilities(taskBefore).ownsBranch || !taskBefore.worktreePath) return
     if (!isPlaceholderDerivedBranch(taskBefore.branch, taskBefore.id)) return
     try {
       const names = await this.worktrees.listBranchNames(taskBefore.repo)
@@ -98,11 +99,12 @@ export class TaskEditor {
     const trimmed = branch.trim()
     if (!trimmed) throw new Error("setBranch: branch is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
-    if (task.kind === "main") {
-      throw new Error("setBranch: a main task tracks the repo's own branch; rename it with git directly")
-    }
-    if (task.kind === "dir") {
-      throw new Error("setBranch: a directory task tracks its own checkout; rename branches with git directly")
+    if (!workspaceCapabilities(task).ownsBranch) {
+      throw new Error(
+        task.kind === "main"
+          ? "setBranch: a main task tracks the repo's own branch; rename it with git directly"
+          : "setBranch: a directory task tracks its own checkout; rename branches with git directly",
+      )
     }
     if (task.branch === trimmed) return
     // Every repo of a multi-repo task still on the shared name renames with it, or none does.

@@ -4,7 +4,7 @@
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
-import type { TaskDispatcher, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
+import type { TaskDispatcher, TaskId, TaskRoutineLink, TaskWorkspace, VendorId } from "../types/task.ts"
 import type { ExtraRepoInput } from "./multi-repo.ts"
 
 /** Input to {@link Orchestrator.createTask}. */
@@ -39,6 +39,8 @@ export interface CreateTaskInput {
   readonly model?: string
   /** The auto-routing tier the engine fields were filled from (`Task.tier`). */
   readonly tier?: string
+  /** Backend that materialises the worktree; absent = `git-worktree`. */
+  readonly workspace?: TaskWorkspace
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string
   /** The rove session (task + tab) dispatching this create, when one is. */

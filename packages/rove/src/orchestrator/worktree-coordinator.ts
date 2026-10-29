@@ -28,6 +28,7 @@ import {
 } from "./multi-repo.ts"
 import { taskWorktreePaths } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
+import { type WorkspaceRegistry, createWorkspaceRegistry, workspaceBackendId } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
 
@@ -53,6 +54,7 @@ export interface AdoptWorktreeInput {
 export class WorktreeCoordinator {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
+  private readonly workspaces: WorkspaceRegistry
   private readonly canonPath: CanonPath
   private readonly ensureProject: EnsureProject
   private readonly slugs: SlugAllocator
@@ -77,6 +79,7 @@ export class WorktreeCoordinator {
   ) {
     this.store = store
     this.worktrees = worktrees
+    this.workspaces = createWorkspaceRegistry(worktrees)
     this.canonPath = canonPath
     this.ensureProject = ensureProject
     // A task's extras occupy slugs in THEIR repo's worktree root, not the primary's.
@@ -139,7 +142,7 @@ export class WorktreeCoordinator {
     const branch = primary?.branch ?? task.branch
     const undoPrimary = async (): Promise<void> => {
       if (!primary) return
-      await rollbackWorktree(this.worktrees, {
+      await rollbackWorktree(this.workspaces.get(workspaceBackendId(task)), {
         path: primary.path,
         ...(primary.fresh ? { fresh: { repo: task.repo, branch } } : {}),
       })
@@ -150,6 +153,7 @@ export class WorktreeCoordinator {
       if (extrasMissing.length > 0) {
         extras = await materialiseExtras({
           worktrees: this.worktrees,
+          backend: this.workspaces.get("git-worktree"),
           slugs: this.slugs,
           task,
           branch,
@@ -168,7 +172,9 @@ export class WorktreeCoordinator {
         ...(extras ? { extraRepos: extras.extraRepos } : {}),
       })
     } catch (err) {
-      for (const wt of [...(extras?.created ?? [])].reverse()) await rollbackWorktree(this.worktrees, wt)
+      for (const wt of [...(extras?.created ?? [])].reverse()) {
+        await rollbackWorktree(this.workspaces.get("git-worktree"), wt)
+      }
       for (const { repo, slug } of extras?.slugs ?? []) this.slugs.cancel(repo, slug)
       await undoPrimary()
       throw err
@@ -193,8 +199,10 @@ export class WorktreeCoordinator {
     try {
       // Read before the add: a branch that exists now was not cut by this call, so a rollback must keep it.
       const fresh = !(await this.worktrees.listBranchNames(task.repo)).includes(branch)
-      const info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef, onProgress })
-      return { path: info.path, branch, slug, fresh }
+      const handle = await this.workspaces
+        .get(workspaceBackendId(task))
+        .materialize({ repo: task.repo, slug, branch, baseRef, onProgress })
+      return { path: handle.path, branch, slug, fresh }
     } catch (err) {
       this.slugs.cancel(task.repo, slug)
       throw err

@@ -17,6 +17,7 @@
 
 import { rollupPr } from "@/orchestrator/task-tree"
 import type { Task } from "@/types/task"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
@@ -121,14 +122,14 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   }
   // Merge base INTO the worktree (the `↓N` chip's action); gated like `land`.
   // Chord `ctrl+a u` is proposed, not signed off.
-  if (task.kind === "task" && task.branch !== "") {
+  if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
   }
   // Menu-only: hand the paused operation's conflicts to the engine.
   if (ctx.operationPaused === true) verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
   // Menu-only (landing's chord is the Worktrees page `l`). `landTask` throws
   // for `main`/`dir`; an unmaterialised task has no branch.
-  if (task.kind === "task" && task.branch !== "") {
+  if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
   // Menu-only. Hides the row and its children; a project's main is the project itself.

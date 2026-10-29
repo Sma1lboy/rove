@@ -102,6 +102,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
   extraRepos: [
     {
       name: "api",

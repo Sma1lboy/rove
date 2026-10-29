@@ -13,7 +13,7 @@ import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDirectoryTaskRow } from "./core-create.ts"
-import { canonPath, repoWorkingDir } from "./core-helpers.ts"
+import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
@@ -28,6 +28,12 @@ import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.
 import { TaskEditor } from "./task-editor.ts"
 import { pickRepos } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
+import {
+  type WorkspaceRegistry,
+  createWorkspaceRegistry,
+  workspaceBackendId,
+  workspaceCapabilities,
+} from "./workspace/index.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
@@ -75,6 +81,7 @@ export { PLACEHOLDER_TASK_TITLE }
 export class Orchestrator {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
+  private readonly workspaces: WorkspaceRegistry
   /** Owns git-worktree side-effects (allocate / materialise / adopt) + their locks. */
   private readonly worktreeCoordinator: WorktreeCoordinator
   /** Owns in-place task-field edits (title / branch / vendor / status / …). */
@@ -91,6 +98,7 @@ export class Orchestrator {
   constructor(deps: OrchestratorDeps) {
     this.store = deps.store
     this.worktrees = deps.worktrees
+    this.workspaces = createWorkspaceRegistry(this.worktrees)
     this.tearDownSession = deps.tearDownSession
     // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
     // throwaway repo must still adopt, it just must not mint a permanent
@@ -246,9 +254,17 @@ export class Orchestrator {
   async ensureWorktree(id: TaskId | string, opts?: { onProgress?: (percent: number) => void }): Promise<string> {
     const task = this.requireTask(id)
     if (task.deletion) throw new TaskDeletingError(String(task.id))
-    if (task.kind === "main") return repoWorkingDir(task.repo)
-    // A dir task pins a user-owned directory — never prune/re-materialise it.
-    if (task.kind === "dir") return task.worktreePath
+    // A borrowed workspace is a user-owned directory — never prune/re-materialise it.
+    if (!workspaceCapabilities(task).ownsDirectory) {
+      const borrowed = await this.workspaces.get(workspaceBackendId(task)).materialize({
+        repo: task.repo,
+        slug: "",
+        branch: task.branch,
+        // A dir task pins its own path; a main task is the repo's checkout.
+        ...(task.kind === "dir" ? { path: task.worktreePath } : {}),
+      })
+      return borrowed.path
+    }
     // A sharer has no worktree of its own: it follows its owner's, and picks up a re-materialised path.
     const owner = task.sharesWorkspaceOf ? this.store.get(task.sharesWorkspaceOf) : undefined
     if (owner) {
@@ -282,7 +298,7 @@ export class Orchestrator {
     // Only a Rove-created worktree is ours to forget: a `dir` task's path IS the
     // user's directory (blanking it makes `ensureWorktree` return "" for good),
     // a `main` task's is the checkout.
-    if (task.kind === "main" || task.kind === "dir") return
+    if (!workspaceCapabilities(task).ownsDirectory) return
     // The directory went for every row in it, not just the one asked about.
     const gone = canonPath(task.worktreePath)
     for (const holder of this.store.list()) {
@@ -365,8 +381,13 @@ export class Orchestrator {
    */
   async landPreflight(id: TaskId | string, repo?: string): Promise<LandPreflightResult> {
     const task = this.requireTask(id)
-    if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
-    if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
+    if (!workspaceCapabilities(task).ownsBranch) {
+      throw new Error(
+        task.kind === "main"
+          ? "landTask: a main task has no branch to land"
+          : "landTask: a directory task has no Rove-managed branch to land",
+      )
+    }
     if (task.deletion) throw new TaskDeletingError(String(task.id))
     pickRepos(task, repo)
     return task.extraRepos?.length ? landPreflightAll(task, repo) : landPreflight(task)

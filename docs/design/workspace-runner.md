@@ -7,7 +7,9 @@
 > unpushed base, `land` on a remote task as push + PR (`publish`), remote tasks
 > opened in the web and the TUI (terminals + Files), the runner's inbound
 > policy, the stdio transport (native Windows hubs) and `machine tunnel`.
-> Not implemented: the `WorkspaceBackend` seam (phase 0) and checkpoint/rewind
+> Phase 0 has landed: the `WorkspaceBackend` seam (`src/orchestrator/workspace/`,
+> `git-worktree` and `borrowed` backends, `Task.workspace`, lifecycle `kind`
+> checks turned into capability checks). Not implemented: checkpoint/rewind
 > (phase 1) below. Decisions marked **OPEN** need the owner.
 
 ## Why

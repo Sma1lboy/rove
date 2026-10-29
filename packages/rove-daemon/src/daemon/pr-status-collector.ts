@@ -36,6 +36,7 @@
 
 import { execFile, spawn } from "node:child_process"
 import os from "node:os"
+import { workspaceCapabilities } from "../workspace.ts"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { decodeCapturedChunks } from "./poll-scheduling.ts"
@@ -256,7 +257,7 @@ export function isPrPollable(task: Task): boolean {
 
 /** {@link isPrPollable} for one repo of `task` (its own repo/branch/worktree). */
 function isRepoPollable(task: Task, view: { repo: string; branch: string; worktreePath?: string }): boolean {
-  if (task.kind === "main") return false
+  if (!workspaceCapabilities(task).ownsBranch) return false
   if (!view.branch || !view.worktreePath) return false
   if (view.repo.startsWith("ssh://") || view.worktreePath.startsWith("ssh://")) return false
   return true

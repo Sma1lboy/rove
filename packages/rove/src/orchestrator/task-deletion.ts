@@ -9,6 +9,13 @@ import {
 } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
+import {
+  type WorkspaceBackend,
+  type WorkspaceRegistry,
+  createWorkspaceRegistry,
+  workspaceBackendId,
+  workspaceCapabilities,
+} from "./workspace/index.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import type { IgnoredWorkProbe } from "./worktree/salvage-ignored.ts"
@@ -38,6 +45,7 @@ function isLeaving(task: Task): boolean {
 export class TaskDeletionCoordinator {
   /** Serialises `finish` per canonical path so two rows of one directory can't each see the other and both skip removal. */
   private readonly pathLocks = new Map<string, Promise<void>>()
+  private readonly workspaces: WorkspaceRegistry
 
   constructor(
     private readonly store: TaskIndexStore,
@@ -52,7 +60,9 @@ export class TaskDeletionCoordinator {
     /** `deleteBranch` was asked for and git refused; otherwise the log would
      *  confirm a branch deletion that never happened. */
     private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
-  ) {}
+  ) {
+    this.workspaces = createWorkspaceRegistry(worktrees)
+  }
 
   /** Ids a deletion of `id` covers, deepest first; the single id unless `cascade`. */
   targets(id: TaskId | string, opts?: TaskDeletionOpts): string[] {
@@ -74,7 +84,7 @@ export class TaskDeletionCoordinator {
     // would remove the directory unchecked.
     const keys = this.targets(task.id, opts).flatMap((targetId) => {
       const target = this.store.get(targetId)
-      return target && target.kind !== "dir" ? taskWorktreePaths(target).map(canonPath) : []
+      return target && workspaceCapabilities(target).ownsDirectory ? taskWorktreePaths(target).map(canonPath) : []
     })
     return this.withPathLocks([...new Set(keys)].sort(), () => this.prepareLocked(task.id, opts))
   }
@@ -97,7 +107,7 @@ export class TaskDeletionCoordinator {
       // index entry goes, so no dirty gate. Likewise while a surviving row
       // still runs in the directory: nothing is removed, nothing is lost (the
       // extras of a multi-repo owner go to that heir, see `transferOwnership`).
-      if (force || target.kind === "dir" || !target.worktreePath) continue
+      if (force || !workspaceCapabilities(target).ownsDirectory || !target.worktreePath) continue
       const primaryKey = canonPath(target.worktreePath)
       if (survivors.some((s) => s.worktreePath && canonPath(s.worktreePath) === primaryKey)) continue
       // Every repo of the task is probed before refusing, so one refusal names all the dirt.
@@ -154,8 +164,9 @@ export class TaskDeletionCoordinator {
     if (!task?.deletion || task.deletion.phase !== "running") return
     const deletion = task.deletion
     // NEVER remove a `dir` task's directory (`rove .`): it's the user's own.
-    const ownsDirectory = Boolean(task.worktreePath) && task.kind !== "dir"
-    const extras = task.kind === "dir" ? [] : (task.extraRepos ?? []).filter((x) => x.worktreePath)
+    const backend = this.workspaces.get(workspaceBackendId(task))
+    const ownsDirectory = Boolean(task.worktreePath) && backend.capabilities.ownsDirectory
+    const extras = backend.capabilities.ownsDirectory ? (task.extraRepos ?? []).filter((x) => x.worktreePath) : []
     const key = ownsDirectory ? canonPath(task.worktreePath) : null
     const keys = [...(key ? [key] : []), ...extras.map((x) => canonPath(x.worktreePath))]
     await this.withPathLocks([...new Set(keys)].sort(), async () => {
@@ -168,12 +179,16 @@ export class TaskDeletionCoordinator {
       try {
         if (ownsDirectory && !shared) {
           if (extras.length > 0) removing = taskRepos(task)[0]?.name
-          await this.removeWorktree(task, deletion, { path: task.worktreePath, repo: task.repo, branch: task.branch })
+          await this.removeWorktree(backend, task, deletion, {
+            path: task.worktreePath,
+            repo: task.repo,
+            branch: task.branch,
+          })
         } else if (ownsDirectory && deletion.deleteBranch) await this.handBranchDeleteOn(task, key)
         // Each removed extra is cleared on the row, so a retry after a later failure skips it.
         for (const extra of extras) {
           removing = extra.name
-          await this.removeWorktree(task, deletion, {
+          await this.removeWorktree(this.workspaces.get("git-worktree"), task, deletion, {
             path: extra.worktreePath,
             repo: extra.repo,
             branch: extra.branch,
@@ -236,18 +251,14 @@ export class TaskDeletionCoordinator {
   }
 
   private async removeWorktree(
+    backend: WorkspaceBackend,
     task: Task,
     deletion: NonNullable<Task["deletion"]>,
     target: { readonly path: string; readonly repo: string; readonly branch: string },
   ): Promise<void> {
-    await this.worktrees.remove(target.path, {
+    await backend.dispose(target, {
       force: deletion.force,
       deleteBranch: deletion.deleteBranch === true,
-      // For an already-gone directory: nothing on disk points back at the
-      // repo, so its stale admin record can only be pruned via this.
-      repo: target.repo,
-      // Likewise: normally read from the (now missing) worktree.
-      branch: target.branch,
       // `force` was frozen at prepare(); this may run in a later daemon
       // (`resume()` replays after restart) after the tree went dirty.
       // Re-gating would fail a confirmed delete; salvage keeps it

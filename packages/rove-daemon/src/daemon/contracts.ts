@@ -1,6 +1,7 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskWorkspace } from "../workspace.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
 import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
 import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
@@ -274,6 +275,8 @@ export interface DaemonTask {
   readonly worktreeName?: string
   /** Secondary repos of a multi-repo task, in pick order (the primary is `repo`). */
   readonly extraRepos?: readonly TaskExtraRepo[]
+  /** Backend that materialised the directory; absent = derived from `kind` (`workspaceBackendId`). */
+  readonly workspace?: TaskWorkspace
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport

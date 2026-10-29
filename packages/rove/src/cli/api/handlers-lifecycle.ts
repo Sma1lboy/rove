@@ -9,6 +9,7 @@ import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
@@ -143,7 +144,10 @@ async function branchHolder(
     (t) =>
       !gone.includes(t.id) &&
       ((subject.worktreePath && t.worktreePath && samePath(t.worktreePath, subject.worktreePath)) ||
-        (subject.branch && t.branch === subject.branch && t.repo === subject.repo && t.kind === "task")),
+        (subject.branch &&
+          t.branch === subject.branch &&
+          t.repo === subject.repo &&
+          workspaceCapabilities(t).ownsBranch)),
   )
   return holder?.title
 }
