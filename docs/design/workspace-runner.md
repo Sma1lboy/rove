@@ -9,8 +9,9 @@
 > policy, the stdio transport (native Windows hubs) and `machine tunnel`.
 > Phase 0 has landed: the `WorkspaceBackend` seam (`src/orchestrator/workspace/`,
 > `git-worktree` and `borrowed` backends, `Task.workspace`, lifecycle `kind`
-> checks turned into capability checks). Not implemented: checkpoint/rewind
-> (phase 1) below. Decisions marked **OPEN** need the owner.
+> checks turned into capability checks), plus the `cow-clone` backend behind
+> `add --fork` (fork with uncommitted state, see WORKTREES.md). Not implemented:
+> checkpoint/rewind (phase 1) below. Decisions marked **OPEN** need the owner.
 
 ## Why
 

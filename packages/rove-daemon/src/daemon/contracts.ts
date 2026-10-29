@@ -321,6 +321,8 @@ export interface DaemonOrchestrator {
     routine?: TaskRoutineLink
     /** Secondary repos in pick order; `baseRef` is that repo's own fork point. */
     extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
+    /** Task whose worktree this one clones, uncommitted work included. */
+    forkFrom?: string
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).

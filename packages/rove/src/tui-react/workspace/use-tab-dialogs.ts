@@ -26,6 +26,7 @@ import type { VendorId } from "@/types/vendor"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
+import { getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { openPluginPane } from "../../tui/workspace/pane-split"
@@ -58,7 +59,7 @@ import {
   retargetUnstartedEngine,
   unstartedEngineTab,
 } from "./fork-chat-tab"
-import { type ChildSpawnRequest, quickForkComposerOptions } from "./quick-fork"
+import { type ChildSpawnRequest, type QuickForkSource, quickForkComposerOptions } from "./quick-fork"
 import { tabTitle } from "./tab-strip"
 
 export interface NewChatPreset {
@@ -84,7 +85,7 @@ export function useTabDialogs(deps: {
   onChooseEngine?: (vendor: VendorId) => void
   /** Absent = new conversations stay tabs (a remote task cannot have local children). */
   onSpawnChild?: (request: ChildSpawnRequest) => void
-  onQuickFork?: (repo: string, result: QuickTaskResult) => void
+  onQuickFork?: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   /** Absent = the dialog's "scratch" destination isn't offered. Engine
    *  undefined = a bare shell. */
   onOpenScratch?: (vendor: VendorId | undefined) => void
@@ -190,7 +191,10 @@ export function useTabDialogs(deps: {
       quickForkComposerOptions(repo, engines.length > 0 ? engines : [vendor], vendor, deps.worktree),
     )
     if (result === undefined) return
-    deps.onQuickFork?.(repo, contextPrompt ? { ...result, prompt: `${contextPrompt}\n\n${result.prompt}` } : result)
+    deps.onQuickFork?.(repo, contextPrompt ? { ...result, prompt: `${contextPrompt}\n\n${result.prompt}` } : result, {
+      taskId: deps.taskId,
+      branch: getCurrentBranch(deps.worktree),
+    })
   }
 
   /** `ctrl+e` opens it pristine; `ctrl+a c` / `ctrl+a f` pre-flip a toggle. */

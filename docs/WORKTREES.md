@@ -51,6 +51,37 @@ or change the list per repo with `.rove/clone-dirs`; see
 [Cloned ignored directories](./CONFIGURATION.md#cloned-ignored-directories).
 Cross-volume, non-APFS, SSH and non-macOS setups behave as before.
 
+## Fork a task with its uncommitted work
+
+A new task normally starts from a branch's last commit, so edits the original
+has not committed stay behind. A **fork** clones the original's worktree
+instead: modified tracked files, staged changes, untracked files and
+gitignored directories (`node_modules`, build output) all arrive, on a new
+branch rooted at the original's HEAD. The original is not touched, and the two
+share no state afterwards: an edit on one side never shows on the other.
+
+```bash
+rove api add --fork <task-id> --command claude --prompt "try the other approach"
+```
+
+The fork is a sibling in the same repo, titled `<original title> (fork)`
+unless you pass `--title`. In the TUI and the web, the quick-fork composer
+(`ctrl+f`, or New conversation → Fork) does the same whenever the base stays
+on the original's own branch.
+
+The copy is made with the filesystem's clone call (`clonefile` on APFS,
+reflink on btrfs and XFS), so it takes well under a second whatever the size
+and uses no extra disk until either side writes. Rove never falls back to a
+full copy. When the volume cannot clone files, `add --fork` fails with
+`FORK_UNSUPPORTED` and creates nothing, and the TUI and web start the task
+the old way and say that the uncommitted work stays in the original. The same
+refusal covers a project's main checkout, a `rove .` directory task, a
+multi-repo task and a remote (SSH) project.
+
+Not carried over: state git keeps in the original's git directory outside the
+index, such as a half-done merge or rebase. Deleting a fork works like deleting
+any worktree, so its uncommitted work needs `--force` (and is salvaged).
+
 ## Open and navigate the page
 
 1. Focus the task sidebar with `ctrl+q`.

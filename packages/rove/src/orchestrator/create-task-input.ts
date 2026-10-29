@@ -41,6 +41,12 @@ export interface CreateTaskInput {
   readonly tier?: string
   /** Backend that materialises the worktree; absent = `git-worktree`. */
   readonly workspace?: TaskWorkspace
+  /**
+   * Clone this task's worktree instead of cutting a fresh one, so the new task starts with its uncommitted,
+   * staged and ignored files, on a new branch at the parent's HEAD (`baseRef` is ignored). Materialised
+   * during the call, not lazily. Refused with `FORK_UNSUPPORTED` when the parent cannot be cloned.
+   */
+  readonly forkFrom?: TaskId
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string
   /** The rove session (task + tab) dispatching this create, when one is. */

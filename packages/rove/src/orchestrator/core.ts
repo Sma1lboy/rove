@@ -16,6 +16,7 @@ import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDi
 import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
+import { forkTaskRow } from "./fork-task.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { landPreflightAll, landTaskAll } from "./land-multi.ts"
 import { landPreflight } from "./land-preflight.ts"
@@ -46,6 +47,8 @@ export type TaskListListener = (snapshot: readonly Task[]) => void
 export interface OrchestratorDeps {
   readonly store: TaskIndexStore
   readonly worktrees: GitWorktreeManager
+  /** Workspace backends; defaults to the real ones. A test injects a clone probe through it. */
+  readonly workspaces?: WorkspaceRegistry
   /** Called when a forced task deletion snapshotted uncommitted work before
    *  destroying it. The daemon binds this to its deletion audit log; a TUI-
    *  local orchestrator leaves it unset and the snapshot is still findable
@@ -98,12 +101,12 @@ export class Orchestrator {
   constructor(deps: OrchestratorDeps) {
     this.store = deps.store
     this.worktrees = deps.worktrees
-    this.workspaces = createWorkspaceRegistry(this.worktrees)
+    this.workspaces = deps.workspaces ?? createWorkspaceRegistry(this.worktrees)
     this.tearDownSession = deps.tearDownSession
     // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
     // throwaway repo must still adopt, it just must not mint a permanent
     // project row for a path that cannot be someone's project.
-    this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, canonPath, (repo) =>
+    this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, this.workspaces, canonPath, (repo) =>
       this.mainTasks.ensureIfEligible(repo),
     )
     this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
@@ -111,6 +114,7 @@ export class Orchestrator {
     this.deletions = new TaskDeletionCoordinator(
       this.store,
       this.worktrees,
+      this.workspaces,
       (id) => this.worktreeCoordinator.forget(id),
       deps.onSalvage,
       deps.onWorktreeResidue,
@@ -202,15 +206,38 @@ export class Orchestrator {
   // --- write ---
 
   /** Create a new task row — body in `core-create.ts`. */
-  createTask = (input: CreateTaskInput): Promise<Task> =>
-    createTaskRow(
+  createTask = (input: CreateTaskInput): Promise<Task> => {
+    const createRow = (row: CreateTaskInput): Promise<Task> =>
+      createTaskRow(
+        {
+          store: this.store,
+          mainTasks: this.mainTasks,
+          claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
+        },
+        row,
+      )
+    const { forkFrom } = input
+    if (!forkFrom) return createRow(input)
+    return forkTaskRow(
       {
         store: this.store,
-        mainTasks: this.mainTasks,
-        claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
+        createRow,
+        ensureWorktree: (id) => this.ensureWorktree(id),
+        cloneInto: (child, parentPath) => this.worktreeCoordinator.ensure(child, undefined, parentPath),
+        discard: async (child) => {
+          const row = this.store.get(child.id)
+          if (!row?.worktreePath) return
+          await this.workspaces
+            .get(workspaceBackendId(row))
+            .dispose(
+              { path: row.worktreePath, repo: row.repo, branch: row.branch },
+              { force: true, deleteBranch: true },
+            )
+        },
       },
-      input,
+      { ...input, forkFrom },
     )
+  }
 
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`). */
   openDirectoryTask = (input: OpenDirectoryTaskInput): Promise<Task> =>

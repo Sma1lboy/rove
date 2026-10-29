@@ -38,6 +38,8 @@ export async function createTaskOp(
     model?: string
     tier?: string
     groupId?: string
+    /** Clone this task's worktree, uncommitted work included (`add --fork`). */
+    forkFrom?: string
   },
 ): Promise<Task> {
   // The wire spells `modelEffort` as `effort`.

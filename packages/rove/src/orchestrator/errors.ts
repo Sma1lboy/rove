@@ -378,3 +378,16 @@ export class ExtraRepoNotGitError extends Error {
     this.name = "ExtraRepoNotGitError"
   }
 }
+
+export const FORK_UNSUPPORTED_CODE = "FORK_UNSUPPORTED"
+
+/**
+ * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a main/dir/multi-repo/remote
+ * parent). Nothing is left behind when it is thrown, so callers can fall back to a plain new task.
+ */
+export class ForkUnsupportedError extends Error {
+  constructor(reason: string) {
+    super(`${FORK_UNSUPPORTED_CODE}: ${reason}`)
+    this.name = "ForkUnsupportedError"
+  }
+}

@@ -17,7 +17,7 @@ import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
-import { InvalidWorktreeNameError } from "./errors.ts"
+import { ForkUnsupportedError, InvalidWorktreeNameError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import {
   type MaterialisedExtras,
@@ -28,7 +28,7 @@ import {
 } from "./multi-repo.ts"
 import { taskWorktreePaths } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
-import { type WorkspaceRegistry, createWorkspaceRegistry, workspaceBackendId } from "./workspace/index.ts"
+import { type WorkspaceRegistry, workspaceBackendId } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
 
@@ -60,7 +60,7 @@ export class WorktreeCoordinator {
   private readonly slugs: SlugAllocator
   /** Resolves to the created path so waiters needn't re-fetch the task (which
    *  throws {@link TaskNotFoundError} if a delete landed meanwhile). */
-  private readonly worktreeLocks = new Map<TaskId, Promise<string>>()
+  private readonly worktreeLocks = new Map<TaskId, { readonly work: Promise<string>; readonly forked: boolean }>()
   /** Keyed by canonical worktree path. */
   private readonly adoptLocks = new Map<string, Promise<Task>>()
   /**
@@ -74,12 +74,13 @@ export class WorktreeCoordinator {
   constructor(
     store: TaskIndexStore,
     worktrees: GitWorktreeManager,
+    workspaces: WorkspaceRegistry,
     canonPath: CanonPath,
     ensureProject: EnsureProject,
   ) {
     this.store = store
     this.worktrees = worktrees
-    this.workspaces = createWorkspaceRegistry(worktrees)
+    this.workspaces = workspaces
     this.canonPath = canonPath
     this.ensureProject = ensureProject
     // A task's extras occupy slugs in THEIR repo's worktree root, not the primary's.
@@ -111,12 +112,21 @@ export class WorktreeCoordinator {
   }
 
   /** `task` is already known unmaterialised (the Orchestrator short-circuits
-   *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. */
-  async ensure(task: Task, onProgress?: (percent: number) => void): Promise<string> {
+   *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. `forkFrom`: the
+   *  parent worktree a `cow-clone` task clones, passed by the one caller forking it
+   *  right now; any later materialisation gets none and cuts a plain worktree. */
+  async ensure(task: Task, onProgress?: (percent: number) => void, forkFrom?: string): Promise<string> {
     const inflight = this.worktreeLocks.get(task.id)
-    if (inflight) return inflight
-    const work = this.createWorktree(task, onProgress)
-    this.worktreeLocks.set(task.id, work)
+    if (inflight) {
+      // A plain enter got there first: handing its worktree to a fork would silently drop the clone.
+      if (forkFrom && !inflight.forked) {
+        await inflight.work.catch(() => {})
+        throw new ForkUnsupportedError("the task was entered before its clone was made")
+      }
+      return inflight.work
+    }
+    const work = this.createWorktree(task, onProgress, forkFrom)
+    this.worktreeLocks.set(task.id, { work, forked: forkFrom !== undefined })
     try {
       return await work
     } finally {
@@ -134,11 +144,13 @@ export class WorktreeCoordinator {
    * Returns the path directly so a delete right after creation can't turn
    * success into a spurious {@link TaskNotFoundError}.
    */
-  private async createWorktree(task: Task, onProgress?: (percent: number) => void): Promise<string> {
+  private async createWorktree(task: Task, onProgress?: (percent: number) => void, forkFrom?: string): Promise<string> {
     const extrasMissing = await extrasToMaterialise(this.worktrees, task.extraRepos)
     if (task.worktreePath && extrasMissing.length === 0) return task.worktreePath
     const total = (task.worktreePath ? 0 : 1) + extrasMissing.length
-    const primary = task.worktreePath ? undefined : await this.createPrimary(task, scaleProgress(onProgress, 0, total))
+    const primary = task.worktreePath
+      ? undefined
+      : await this.createPrimary(task, scaleProgress(onProgress, 0, total), forkFrom)
     const branch = primary?.branch ?? task.branch
     const undoPrimary = async (): Promise<void> => {
       if (!primary) return
@@ -188,6 +200,7 @@ export class WorktreeCoordinator {
   private async createPrimary(
     task: Task,
     onProgress?: (percent: number) => void,
+    forkFrom?: string,
   ): Promise<{ path: string; branch: string; slug: string; fresh: boolean }> {
     // Already claimed at create time; re-claiming would refuse its own
     // pending reservation.
@@ -201,7 +214,7 @@ export class WorktreeCoordinator {
       const fresh = !(await this.worktrees.listBranchNames(task.repo)).includes(branch)
       const handle = await this.workspaces
         .get(workspaceBackendId(task))
-        .materialize({ repo: task.repo, slug, branch, baseRef, onProgress })
+        .materialize({ repo: task.repo, slug, branch, baseRef, onProgress, forkFrom })
       return { path: handle.path, branch, slug, fresh }
     } catch (err) {
       this.slugs.cancel(task.repo, slug)

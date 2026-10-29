@@ -4,6 +4,7 @@ import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { MAX_ATTACHMENT_BYTES, type TerminalOpDeps, matchesMagic, terminalOps } from "../src/ops/terminal.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
+import { BridgeError } from "../src/protocol.ts"
 import { attentionRows } from "../src/rove-ops.ts"
 import { isolateTaskOpDeps } from "./task-ops-harness.ts"
 
@@ -173,6 +174,52 @@ describe("tab.forkTask", () => {
     await run("tab.forkTask", base, {}, { add: { taskId: "T10" } })
     await expect(run("tab.forkTask", { ...base, engine: "claude" }, {}, { add: {} })).rejects.toThrow()
     expect(remembered).toEqual([["/repos/api", "codex"]])
+  })
+
+  describe("with the source task", () => {
+    /** An api whose `add --fork` is refused the way the daemon refuses a clone it cannot make. */
+    function refusingFork() {
+      const calls: Call[] = []
+      const api: BridgeApi = {
+        async verb<T>(name: string, argv: readonly string[]): Promise<T> {
+          calls.push({ kind: "verb", name, argv })
+          if (argv.some((a) => a.startsWith("--fork="))) {
+            throw new BridgeError("FORK_UNSUPPORTED", "FORK_UNSUPPORTED: the volume cannot clone files")
+          }
+          return { taskId: "PLAIN" } as T
+        },
+        async rpc<T>(): Promise<T> {
+          return {} as T
+        },
+      }
+      return { api, calls }
+    }
+
+    test("a single attempt forks the source task, titled from the prompt", async () => {
+      const { result, calls } = await run("tab.forkTask", { ...base, forkFrom: TASK }, {}, { add: { taskId: "F1" } })
+      expect(result).toEqual({ taskIds: ["F1"], forked: true })
+      expect(calls[0]?.argv).toEqual([`--fork=${TASK}`, "--title=try it", "--prompt=try it"])
+    })
+
+    test("falls back to a plain task from the branch and reports why the uncommitted work stayed", async () => {
+      const { api, calls } = refusingFork()
+      const spec = terminalOps(deps())["tab.forkTask"]
+      const result = await spec?.run({ ...base, forkFrom: TASK }, { api })
+      expect(result).toEqual({ taskIds: ["PLAIN"], forkRefused: "the volume cannot clone files" })
+      expect(calls.map((c) => c.argv?.[0])).toEqual([`--fork=${TASK}`, "--repo=/repos/api"])
+    })
+
+    test("a fan-out of attempts never forks: one clone cannot be shared", async () => {
+      const { calls } = await run(
+        "tab.forkTask",
+        { ...base, forkFrom: TASK, count: 2 },
+        {},
+        { add: { tasks: [{ taskId: "A" }, { taskId: "B" }] } },
+      )
+      expect(calls).toHaveLength(1)
+      expect(calls[0]?.argv).toContain("--count=2")
+      expect(calls[0]?.argv?.some((arg) => arg.startsWith("--fork="))).toBe(false)
+    })
   })
 })
 

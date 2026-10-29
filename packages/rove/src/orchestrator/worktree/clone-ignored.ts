@@ -37,7 +37,7 @@ export interface CloneIgnoredDeps {
 
 // darwin <sys/syscall.h>: SYS_clonefileat = 462.
 // AT_FDCWD is -2 on darwin (Linux's -100 gives EINVAL).
-const CLONEFILEAT_PERL =
+export const CLONEFILEAT_PERL =
   'my $r = syscall(462, -2, $ARGV[0], -2, $ARGV[1], 0); if ($r != 0) { print STDERR "clonefileat: $!\\n"; exit 1 }'
 
 export function defaultCloneDeps(exec: ExecHost): CloneIgnoredDeps {

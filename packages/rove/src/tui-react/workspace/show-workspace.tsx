@@ -18,7 +18,7 @@ import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
 import { EmptyWorkspacePane } from "./empty-workspace-pane"
-import type { ChildSpawnRequest } from "./quick-fork"
+import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
 import { RemoteTerminalTabs } from "./remote-terminal-tabs"
 import { useViewingReport } from "./row-status-sync"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
@@ -38,7 +38,7 @@ export function ShowWorkspace(props: {
   onEnginePasteReady: (paste: (text: string) => boolean) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
   onSpawnChild: (request: ChildSpawnRequest) => void
-  onQuickFork: (repo: string, result: QuickTaskResult) => void
+  onQuickFork: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   initialPrompt?: string
   /** The user landed on a tab of the selected task; resolve its episodes. */
   onTabVisited?: (taskId: string, tabId: string) => void

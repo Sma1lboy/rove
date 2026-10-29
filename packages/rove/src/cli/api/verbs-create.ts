@@ -34,6 +34,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
           "With a repo id this machine (or --machine's) has no checkout of: clone it into ~/.rove/repos/<host>/<owner>/<name> first.",
       },
       {
+        name: "fork",
+        type: "string",
+        placeholder: "TASK_ID",
+        description:
+          "Fork that task: the new task is a sibling in the SAME repo whose worktree is a copy-on-write clone of the parent's, so it starts with the parent's uncommitted edits, staged changes, untracked files and gitignored dirs (node_modules, build output), on a new branch rooted at the parent's HEAD. The clone is made during this call and is instant on APFS (macOS) or a reflink filesystem (btrfs, XFS); it costs no disk until either side writes. Replaces --repo (taken from the parent; --repo, --base-branch, --base-for, --count and --agents conflict with it: CONFLICTING_FLAGS). Title defaults to '<parent title> (fork)'. Refused with FORK_UNSUPPORTED — nothing created — when the parent is a main or directory task, is multi-repo or remote, or its worktree sits on a volume that cannot clone files; the parent is never modified. Scratch state the parent keeps in its git directory (a half-done merge or rebase) does not come along.",
+      },
+      {
         name: "allow-fork",
         type: "bool",
         description:

@@ -97,7 +97,7 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   - `src/engine/` — engine registry, command/capability/history adapters,
     protocols, turn detection, and shared session launch composition.
   - `src/orchestrator/` — Task index and Worktree lifecycle. `workspace/` is the
-    backend seam (`git-worktree`, `borrowed`): materialise and dispose go
+    backend seam (`git-worktree`, `borrowed`, and `cow-clone` for forks that keep uncommitted work): materialise and dispose go
     through it, and lifecycle code asks `workspaceCapabilities(task)` rather
     than testing `task.kind`.
   - `src/client/` — framework-free remote Orchestrator client and channel

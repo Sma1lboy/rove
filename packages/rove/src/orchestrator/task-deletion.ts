@@ -12,7 +12,6 @@ import { subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
   type WorkspaceBackend,
   type WorkspaceRegistry,
-  createWorkspaceRegistry,
   workspaceBackendId,
   workspaceCapabilities,
 } from "./workspace/index.ts"
@@ -45,11 +44,11 @@ function isLeaving(task: Task): boolean {
 export class TaskDeletionCoordinator {
   /** Serialises `finish` per canonical path so two rows of one directory can't each see the other and both skip removal. */
   private readonly pathLocks = new Map<string, Promise<void>>()
-  private readonly workspaces: WorkspaceRegistry
 
   constructor(
     private readonly store: TaskIndexStore,
     private readonly worktrees: GitWorktreeManager,
+    private readonly workspaces: WorkspaceRegistry,
     private readonly forgetTask: (id: TaskId) => void,
     // The three hooks below feed the deletion audit log: `finish()` removes the
     // task row, so the log (indexed by title + time) is the only record left.
@@ -60,9 +59,7 @@ export class TaskDeletionCoordinator {
     /** `deleteBranch` was asked for and git refused; otherwise the log would
      *  confirm a branch deletion that never happened. */
     private readonly onBranchKept?: (taskId: TaskId, kept: { branch: string; reason: string }) => void,
-  ) {
-    this.workspaces = createWorkspaceRegistry(worktrees)
-  }
+  ) {}
 
   /** Ids a deletion of `id` covers, deepest first; the single id unless `cascade`. */
   targets(id: TaskId | string, opts?: TaskDeletionOpts): string[] {

@@ -774,7 +774,7 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
@@ -799,6 +799,19 @@ edits (`set-vendor`, `rename`,
   An explicit `--branch` is checked against `git check-ref-format --branch`
   BEFORE the task is created; a name git would refuse is `INVALID_BRANCH`
   and nothing is written.
+
+  `--fork TASK_ID` makes the new task a sibling in that task's repo whose
+  worktree is a copy-on-write clone of the original's, so it starts with the
+  original's uncommitted edits, staged changes, untracked files and gitignored
+  dirs, on a new branch rooted at the original's HEAD (`.task.baseRef`;
+  `.task.workspace` is `{"backend":"cow-clone","ref":"<original id>"}`). The
+  clone is made during the call and the original is never modified. It
+  replaces `--repo`, and `--repo`, `--base-branch`, `--base-for`, `--count`
+  and `--agents` conflict with it (`CONFLICTING_FLAGS`). The title defaults to
+  `<original title> (fork)`, not the prompt's first line. Refused with
+  `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
+  multi-repo or remote task, or a worktree on a volume that cannot clone files;
+  see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
 
   `--repo` is resolved to the repository root, so a path pointing at a
   SUBDIRECTORY is accepted and climbs. When it does, the result carries
