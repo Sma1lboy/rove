@@ -299,3 +299,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** Playwright asked for headless shell rev 1243 at `chrome-headless-shell-linux64/`; a dir of symlinks plus `INSTALLATION_COMPLETE` worked. `bun install` fails on `@next/swc-linux-x64-musl` (download), harmless. pre-pr's ui-evidence check wants the Capture line to name `/harness → xterm.js → PTY → OpenTUI` and a `1280×800` viewport.
 
 **Update 2026-10-28:** #1525 merged. Tomorrow's main should read switch.perOp.commit.root ~7 (equal to workspace).
+
+## 2026-10-29 — switch.perOp.commit.root / .workspace (main f87d55b)
+
+**No regression.** Both main runs exited 1 on timings only: switch.shown 915/926, typing.echo 237/232, golden.cli-startup-ms 98.7/88.6, plus run 1's cold boot.* and vt-1mb-parse, run 2's daemon-connect-replay 25. A `perf:measure` of f2644bf (last night's main) on this machine read switch.shown 752, typing.echo 250, cli-startup 94.6: slow machine, not code (the 8 commits since touch web, weixin, wheel scroll, archive-moves-workspace). #1525 landed: switch.perOp.commit.root 8.5 → 7.1 (= workspace), as expected. Other counts held: sidebar 2, frame 4.2, overlay 3.1, stateNotify 2, spawns 0.7, idle 0. No open `perf:` issues; #1325 (`/proc` walk) still open. Baseline not moved because of the ✗ timings. Tonight's history line is main run 2.
+
+**Approach.** Commit (4) of the 10-27 anatomy (inline body ref detach/attach while `bodyGeometry` is null). `setBodyEl` in `use-terminal-geometry.ts` deferred the `null` to a microtask (`if (!bodyElRef.current) setBodyElState(null)`), so a same-box detach/attach only calls `setBodyElState(el)` with the current value. Terminal render tests 47/47 passed.
+
+**Why it did not count.** One run read root/workspace 7.5 against 7.1 on main tonight, frame 4.4 vs 4.2: no drop. The re-attach's `setState(el)` probably can't eager-bail (the fiber already has pending lanes from the geometry/acquire updates in the same commit), and its render was already batched into a commit that happens anyway. Not kept. **Lesson:** with the footer gone, re-trace (10-27 tracer) before targeting a commit from the old anatomy; the numbering has shifted.
+
+**Sandbox:** Playwright asked for headless shell rev 1243 at `chrome-headless-shell-linux64/`; a dir symlink of `/opt/pw-browsers/chromium_headless_shell-1243` (plus 1228/1194 aliases) was enough. `BUN_OPTIONS=--smol` exported again and unset for every run.
