@@ -59,7 +59,7 @@ const NOTIFY_FLAG = {
   name: "notify",
   type: "bool",
   description:
-    "Push every run's response, and runs that need a human, to the bound chat channel (`rove weixin login`). Off by default.",
+    "Hand every run's response, and runs that need a human, to the bound chat channel's agent (`rove weixin login`), which decides what to tell you. Off by default.",
 } as const
 
 /** `--script` → payload, same empty-clears and timeout-alone rules as {@link precheckPayload}. */

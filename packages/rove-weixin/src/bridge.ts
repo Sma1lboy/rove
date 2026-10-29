@@ -1,12 +1,12 @@
 /**
  * The daemon-side WeChat channel: long-polls iLink for messages from allowed
- * senders, answers them through {@link handleCommand}, and pushes task-group
- * arrivals (needs you / ready for review / ready to merge) and newly opened decisions.
+ * senders and answers them through {@link handleCommand} or the WeChat agent.
+ * The bridge itself never messages anyone unprompted: what appears in WeChat
+ * is a reply to the owner or something the agent chose to send. A `--notify`
+ * routine's report goes to the agent, which decides whether to pass it on.
  *
  * The binding is re-read from disk every cycle, so `rove weixin login` /
- * `logout` take effect without a daemon restart. Pushes respect the reply
- * window: a peer that has not written in {@link REPLY_WINDOW_MS} is not
- * messaged; the push goes to `undelivered.jsonl` and the daemon log instead.
+ * `logout` take effect without a daemon restart.
  */
 
 import { randomUUID } from "node:crypto"
@@ -14,7 +14,6 @@ import { join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { createAgentControl } from "./agent.ts"
 import { type RoveOps, handleInbound as routeInbound } from "./commands.ts"
-import { renderGateArrivals } from "./gates.ts"
 import {
   type FetchFn,
   ILINK_BASE_URL,
@@ -28,7 +27,6 @@ import {
   messageText,
 } from "./ilink.ts"
 import { saveInboundMedia } from "./media.ts"
-import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
 import { RoutineTracker, renderRoutineRuns } from "./routines.ts"
 import { sendBubbles } from "./send.ts"
 import { type WeixinAccount, type WeixinRuntimeState, type WeixinStore, isAllowedSender } from "./store.ts"
@@ -77,8 +75,6 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   let client: IlinkClient | null = null
   let state: WeixinRuntimeState | null = null
   const seen = new Set<string>()
-  const tracker = new GroupTracker()
-  const gateTracker = new GateTracker()
   const routineTracker = new RoutineTracker()
   const agent = createAgentControl({
     ops: deps.ops,
@@ -260,22 +256,10 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     }
   }
 
-  /** Recipients with an open reply window; the rest are logged as undelivered. */
-  async function push(text: string): Promise<void> {
-    if (!account || !state) return
-    const targets = [...new Set([account.ownerUserId, ...account.allow].filter(Boolean))]
-    for (const to of targets) {
-      const last = state.peers[to]?.lastInboundAt
-      if (last === undefined || now() - last > REPLY_WINDOW_MS) {
-        recordUndelivered(
-          to,
-          last === undefined ? "no message from this user yet" : "reply window closed (>24h since their last message)",
-          text,
-        )
-        continue
-      }
-      await deliver(to, text)
-    }
+  /** A routine's report goes to the WeChat agent, never straight to WeChat. */
+  async function handToAgent(text: string): Promise<void> {
+    const { agent: live, created } = await agent.current(text)
+    if (!created) await deps.ops.send(live.taskId, live.tab, text)
   }
 
   let notifying = false
@@ -283,17 +267,10 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     if (notifying || stopped || !account) return
     notifying = true
     try {
-      const snapshot = await deps.ops.status(null)
-      const arrivals = tracker.observe(snapshot.tasks)
-      if (arrivals.length > 0) await push(renderArrivals(arrivals))
-      const decisions = gateTracker.observe(snapshot.gatesUnreadable ? null : snapshot.gates)
-      if (decisions.length > 0) {
-        await push(renderGateArrivals(decisions, new Map(snapshot.tasks.map((t) => [t.taskId, t.title]))))
-      }
       const runs = routineTracker.observe(await deps.ops.notifyingRoutineRuns())
-      for (const text of renderRoutineRuns(runs)) await push(text)
+      for (const text of renderRoutineRuns(runs)) await handToAgent(text)
     } catch (err) {
-      deps.log("weixin", `notify tick failed: ${err instanceof Error ? err.message : String(err)}`)
+      deps.log("weixin", `routine hand-off failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       notifying = false
     }

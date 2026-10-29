@@ -23,14 +23,14 @@ const CLI_NAME = ROVE_PRODUCT_NAME
 const WEIXIN_USAGE = [
   `Usage: ${CLI_NAME} weixin <login|logout|status|allow|deny|send|agent>`,
   "",
-  "Talk to Rove from WeChat (微信): ask for status, message a task's agent,",
-  "start a task, and get pinged when a task needs you. The daemon must be",
-  "running for messages to flow.",
+  "Talk to Rove from WeChat (微信): chat with your WeChat agent, ask for status,",
+  "message a task's agent, start a task. Rove never messages you on its own;",
+  "only the agent does. The daemon must be running for messages to flow.",
   "",
   "Commands:",
   "  login               Show a QR code; scan it in WeChat to bind (re-run to re-bind)",
   "  logout              Remove the binding and its credentials",
-  "  status              Binding, allowed senders, reply windows, undelivered pushes",
+  "  status              Binding, allowed senders, reply windows, undelivered messages",
   "  allow <user-id>     Let another WeChat user command Rove (ids: see status)",
   "  deny <user-id>      Revoke a user added with allow",
   "  send [text]         Message the owner (routines, scripts, agents). Text from the",
@@ -145,7 +145,7 @@ async function status(store: WeixinStore): Promise<void> {
   const undelivered = store.readUndelivered()
   if (undelivered.length > 0) {
     const last = undelivered[undelivered.length - 1]
-    lines.push(`Undelivered pushes: ${undelivered.length} (${store.undeliveredPath})`)
+    lines.push(`Undelivered messages: ${undelivered.length} (${store.undeliveredPath})`)
     if (last) lines.push(`  latest ${last.at}: ${last.reason}`)
   }
   process.stdout.write(`${lines.join("\n")}\n`)

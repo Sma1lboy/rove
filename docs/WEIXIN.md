@@ -5,8 +5,8 @@ Check on Rove and hand it work from the WeChat app on your phone.
 You bind a WeChat bot to Rove once by scanning a QR code. After that, what you
 write goes to your own agent, running on your preferred coding harness with the
 rove skill, which answers you on WeChat. Commands such as `/status` get a
-direct answer from Rove. Rove also messages you when a task needs you, is ready
-for review, has a PR ready to merge, or asks you a question.
+direct answer from Rove. Rove itself never messages you unprompted: no task
+status or decision alerts. Everything else you get comes from the agent.
 
 The bot uses Tencent's iLink Bot API, the same one the official
 `@tencent-weixin/openclaw-weixin` plugin uses. Rove talks to it directly; no
@@ -124,10 +124,10 @@ rove weixin send --attach chart.png --attach weekly.md "this week"
 some-check | rove weixin send
 ```
 
-The message goes to the owner who scanned the QR code. It follows the same
-24-hour rule as notifications (below): outside that window nothing is sent,
-the text goes to `undelivered.jsonl`, and the command exits 1. `send` talks to
-iLink itself, so it works without the daemon running.
+The message goes to the owner who scanned the QR code. It follows the 24-hour
+rule (below): outside that window nothing is sent, the text goes to
+`undelivered.jsonl`, and the command exits 1. `send` talks to iLink itself, so
+it works without the daemon running.
 
 `--attach <path>` (repeat it for several) sends a file as its own message after
 the text: `.png .jpg .jpeg .gif .webp .bmp` as a picture, `.mp4 .mov .m4v` as
@@ -136,38 +136,31 @@ a video, anything else (a `.md`, a PDF, a zip) as a file attachment, up to
 the message. Your WeChat agent is told to use `--attach` when it has a picture
 or file for you.
 
-Routines can do this without a script of their own: create one with
-`--notify` and every run's response is pushed here (see
+Routines can reach you too, through the agent: create one with `--notify` and
+each run's report goes to your WeChat agent (see
 [Routines](ROUTINES.md#tell-me-on-wechat)).
 
-## Notifications
+## What Rove sends on its own
 
-Every 20 seconds the daemon checks every repo's tasks and messages you when a
-task **moves into** one of these:
+Nothing. Rove does not push task status (needs you, ready for review, ready to
+merge) or new decisions to WeChat; check those with `/status` and `/gates`.
 
-- **Needs you**: a permission prompt, a usage limit that will not resume by
-  itself, an error, or an engine that died without reporting.
-- **Ready for review**: a report or finished turn nobody has looked at.
-- **Ready to merge**: its PR is open and approved.
-
-- **Decision needed**: a task opened a decision. The message carries the question,
-  the option keys and the line to reply with, such as `Reply: answer g-12 a`.
-
-- **Routine output**: for a routine created with `--notify`, each run's
-  response once it exists, headed `[<routine name>] #<run>`, and any run that
-  needs you (`script failed`, `dispatch failed`, …) with its error.
-
-A task has to stay in the new state for two checks in a row before you hear
-about it. A decision is announced as soon as it is seen. Tasks and decisions
-already open when the daemon starts are not announced.
+The one thing that runs in the background is the routine hand-off. Every 20
+seconds the daemon looks for new runs of routines created with `--notify`: a
+run's response once it exists, and any run that needs you (`script failed`,
+`dispatch failed`, …) with its error. Each one goes to your WeChat agent's live
+conversation as a message headed `[Routine <name> #<run>]`, creating the agent
+if it does not exist yet. The agent decides whether it is worth telling you and
+writes the message itself. Runs from before the daemon started are not handed
+over.
 
 ### The 24-hour limit
 
 iLink only accepts a bot-initiated message once the person has written to the
 bot, and the session behind it goes stale. Rove applies its own rule on top:
-it sends a notification only if that person messaged the bot in the last 24
-hours. Otherwise the notification is written to
-`~/.rove/weixin/undelivered.jsonl` and the daemon log instead, and
+`rove weixin send` sends only if the owner messaged the bot in the last 24
+hours. Otherwise the message is written to
+`~/.rove/weixin/undelivered.jsonl` instead, the command exits 1, and
 `rove weixin status` shows the count and the latest reason. Any message to the
 bot (even `/s`) opens the window again.
 
@@ -197,8 +190,6 @@ rove weixin allow <user-id>   # this person can now send commands
 rove weixin deny <user-id>    # and no longer can
 ```
 
-Allowed people get notifications too, under the same 24-hour rule.
-
 ## Unbind
 
 ```bash
@@ -218,8 +209,8 @@ stays.
   events, so Rove ignores them.
 - One bot per Rove home. `login` with a different WeChat account replaces the
   binding.
-- Notifications are checked every 20 seconds, so a state can be up to about a
-  minute old when it reaches you.
+- Routine runs are picked up every 20 seconds, so a report can take up to
+  about half a minute to reach the agent.
 - Replies are in English.
 
 ## Where things live
@@ -231,7 +222,7 @@ Under `~/.rove/weixin/` (or `$ROVE_HOME_DIR/.rove/weixin/`), directory mode
 |---|---|---|
 | `account.json` | `rove weixin login`/`allow`/`deny` | bot id, bot token, owner, allowed users |
 | `state.json` | the daemon | long-poll position, the latest session token and last-message time per sender, refused senders |
-| `undelivered.jsonl` | the daemon | notifications that could not be sent, one JSON object per line |
+| `undelivered.jsonl` | the daemon and `rove weixin send` | messages that could not be sent, one JSON object per line |
 
 The bot token is never written to the daemon log. Daemon log lines that mention
 a WeChat id show only its first eight characters.
@@ -240,7 +231,7 @@ a WeChat id show only its first eight characters.
 
 The channel is its own workspace package, `packages/rove-weixin`: the iLink
 client, QR login, the state files above, command handling, message formatting
-and notifications. It is bundled into the `rove` CLI at build time, so
+and the routine hand-off. It is bundled into the `rove` CLI at build time, so
 `npm i -g @sma1lboy/rove` includes it; it is not published on its own.
 
 Rove itself only defines a generic chat-channel contract
@@ -252,7 +243,7 @@ daemon client, `rove api` verbs, the `context` snapshot); Rove never imports
 its internals.
 
 ```bash
-bun --filter rove-weixin test        # protocol, routing and push tests, against a fake iLink server
+bun --filter rove-weixin test        # protocol, routing, media and routine hand-off tests, against a fake iLink server
 bun --filter rove-weixin typecheck
 ```
 
@@ -279,9 +270,7 @@ curl -s localhost:18733/_sends                            # what Rove replied
    line such as `Nothing needs you. 2 running`.
 3. Send `/send <id> say hi` for a task from that list. The text appears in that
    task's engine tab and the bot answers `Sent to <id> …`.
-4. Let a task hit a permission prompt. Within about a minute the bot sends
-   `Needs you:` with that task.
-5. From another WeChat account, message the bot. Nothing comes back, and the id
+4. From another WeChat account, message the bot. Nothing comes back, and the id
    appears under `Refused senders` in `rove weixin status`.
-6. `rove weixin logout`. Within one poll (up to 35 seconds) the daemon log
+5. `rove weixin logout`. Within one poll (up to 35 seconds) the daemon log
    shows `weixin: unbound — stopped polling`.

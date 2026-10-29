@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { agentBrief, agentPrompt } from "../src/agent.ts"
-import { REPLY_WINDOW_MS, type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
+import { type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
 import type { RoveOps } from "../src/commands.ts"
 import type { NotifyingRoutine } from "../src/routines.ts"
 import { WeixinStore } from "../src/store.ts"
@@ -54,6 +54,7 @@ const openAgentTask = mock(async () => ({ taskId: TASK }))
 let nextTab = 1
 let agentRunning = false
 const newConversation = mock(async () => ({ tab: `tab-${nextTab++}` }))
+const routineRuns = mock(async () => routines)
 const ops: RoveOps = {
   status,
   tasks: async () => [{ id: TASK, title: "Fix login", repo: "/r/app" }],
@@ -63,7 +64,7 @@ const ops: RoveOps = {
   gates: async () => [],
   answerGate: async () => ({ delivered: true }),
   clearReport: async () => {},
-  notifyingRoutineRuns: async () => routines,
+  notifyingRoutineRuns: routineRuns,
   openAgentTask,
   newConversation,
   taskRunning: async () => agentRunning,
@@ -99,7 +100,7 @@ beforeEach(async () => {
   clock = Date.now()
   logs.length = 0
   bridge = null
-  for (const fn of [status, send, add, openAgentTask, newConversation]) fn.mockClear()
+  for (const fn of [status, send, add, openAgentTask, newConversation, routineRuns]) fn.mockClear()
   nextTab = 1
   agentRunning = false
 })
@@ -271,40 +272,21 @@ describe("inbound", () => {
   })
 })
 
-describe("pushes", () => {
-  it("pushes a settled arrival into needs-you, but never the state seen at boot", async () => {
-    current = snapshot("ready-for-review")
-    start()
-    // Open the reply window, then let a few ticks pass on the boot state.
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
-    expect(fake.sends).toHaveLength(1)
-
-    current = snapshot("waiting-on-you")
-    const sends = await fake.waitForSends(2)
-    expect(sends[1]?.text).toBe("Needs you:\n• SK0042 Fix login\nReply: send SK0042 <text>")
-  })
-
-  it("pushes a decision that opens after boot with its option keys, never one already standing", async () => {
-    current = { ...snapshot("working"), gates: [GATE] }
+describe("unprompted messages", () => {
+  it("never sends one itself: a task that needs you or a new decision stays out of WeChat", async () => {
     start()
     fake.deliver({ from: FAKE_OWNER, text: "/help" })
     await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
-    expect(fake.sends).toHaveLength(1)
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(2))
 
-    current = { ...snapshot("working"), gates: [GATE, { ...GATE, id: "g-6", question: "Ship it?", options: [] }] }
-    const sends = await fake.waitForSends(2)
-    expect(sends[1]?.text).toBe(
-      "Decision needed:\ng-6 SK0042 Fix login\nShip it?\n  free text only\nReply: answer g-6 <text>",
-    )
-    // Announced once, not on every tick.
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
-    expect(fake.sends).toHaveLength(2)
+    current = { ...snapshot("waiting-on-you"), gates: [GATE] }
+    const ticks = routineRuns.mock.calls.length
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(ticks + 4))
+    expect(fake.sends).toHaveLength(1)
+    expect(store.readUndelivered()).toEqual([])
   })
 
-  it("pushes a --notify routine's new response and failure, never runs from before boot", async () => {
+  it("hands a --notify routine's new response and failure to the agent, never runs from before boot", async () => {
     const run = (n: number, extra: Record<string, unknown>) => ({
       id: `run-${n}`,
       automationId: "r1",
@@ -317,9 +299,7 @@ describe("pushes", () => {
     })
     routines = [{ id: "r1", name: "janitor", runs: [run(1, { response: { text: "old news", at: "" } })] }]
     start()
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(2))
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(2))
 
     routines = [
       {
@@ -332,30 +312,18 @@ describe("pushes", () => {
         ],
       },
     ]
-    const sends = await fake.waitForSends(3)
-    expect(sends.slice(1).map((s) => s.text)).toEqual([
-      "[janitor] #2\nremoved 3 worktrees",
-      "[janitor] #3 script failed\nscript exited 2",
-    ])
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
-    expect(fake.sends).toHaveLength(3)
-  })
-
-  it("logs instead of sending once the peer's reply window has closed", async () => {
-    start()
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(1))
-
-    clock += REPLY_WINDOW_MS + 1
-    current = snapshot("landing")
-    await waitFor(() => expect(store.readUndelivered()).toHaveLength(1))
-    expect(store.readUndelivered()[0]).toMatchObject({
-      to: FAKE_OWNER,
-      reason: "reply window closed (>24h since their last message)",
-      text: "Ready to merge:\n• SK0042 Fix login",
-    })
-    expect(fake.sends).toHaveLength(1)
+    // No agent yet: the first report opens its conversation, the next goes to it.
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(newConversation).toHaveBeenCalledWith(
+      TASK,
+      `${agentBrief("rove")}\n\n[Routine janitor #2]\nremoved 3 worktrees`,
+    )
+    expect(send).toHaveBeenCalledWith(TASK, "tab-1", "[Routine janitor #3 script failed]\nscript exited 2")
+    const ticks = routineRuns.mock.calls.length
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(ticks + 4))
+    expect(newConversation).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(fake.sends).toEqual([])
   })
 })
 
