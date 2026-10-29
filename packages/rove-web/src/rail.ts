@@ -161,13 +161,12 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
     // Never keyed by directory: every no-project task is one group.
     const bucket = isNoProject(task) ? NO_PROJECT_KEY : task.repo
     const list = groups.get(bucket)
-    // The project's main checkout heads its group, whatever the sort.
-    if (list) task.kind === "main" ? list.unshift(task) : list.push(task)
+    if (list) list.push(task)
     else groups.set(bucket, [task])
   }
   const compare = COMPARE[sort]
   const built = [...groups].map(([bucket, rows]): ProjectGroup => {
-    const sorted = compare ? rows.sort(mainFirst(compare)) : rows
+    const sorted = rows.sort(headFirst(compare))
     if (bucket === NO_PROJECT_KEY && rows.every(isNoProject)) {
       return { repo: "", label: t("rail.noProject"), tasks: sorted, key: NO_PROJECT_KEY, noProject: true }
     }
@@ -183,11 +182,14 @@ export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "defa
   return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
-/** The project's main checkouts head its group, whatever the sort. */
-const mainFirst =
-  (compare: (a: TaskRow, b: TaskRow) => number) =>
+/** A project's main checkout heads its group, then its pinned tasks, whatever the sort (TUI `buildRows`). */
+const tier = (task: TaskRow): number => (task.kind === "main" ? 0 : task.pinned ? 1 : 2)
+
+/** Stable, so manual order holds within each tier. */
+const headFirst =
+  (compare: ((a: TaskRow, b: TaskRow) => number) | null) =>
   (a: TaskRow, b: TaskRow): number =>
-    (a.kind === "main") === (b.kind === "main") ? compare(a, b) : a.kind === "main" ? -1 : 1
+    tier(a) - tier(b) || (compare ? compare(a, b) : 0)
 
 /** Indent stops growing here; a deeper row keeps this depth and shows its real level (TUI `MAX_TREE_DEPTH`). */
 export const MAX_ROW_DEPTH = 3
@@ -389,12 +391,7 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
       repo: head.group.repo,
       label: noProject ? head.group.label : "",
       key,
-      tasks:
-        bucket.length === 1
-          ? head.group.tasks
-          : compare
-            ? all.sort(mainFirst(compare))
-            : [...all.filter((task) => task.kind === "main"), ...all.filter((task) => task.kind !== "main")],
+      tasks: bucket.length === 1 ? head.group.tasks : all.sort(headFirst(compare)),
       ...(head.group.repoId ? { repoId: head.group.repoId } : {}),
       // The group acts on no machine: its header has no menu or +.
       ...(head.machine === undefined || noProject ? {} : { machine: head.machine }),

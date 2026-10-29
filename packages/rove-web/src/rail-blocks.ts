@@ -30,6 +30,53 @@ export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow,
   return steps
 }
 
+/** `to` is a row `from` may land beside: a project among projects, a task within its own project. */
+export function dropsOn(from: TaskRow, to: TaskRow): boolean {
+  if (from.id === to.id) return false
+  return from.kind === "main" ? to.kind === "main" : to.kind !== "main" && to.repo === from.repo
+}
+
+export interface DropMove {
+  /** The pin the task takes first, when it changes. */
+  readonly pin?: boolean
+  /** `task.move` steps once the pin has landed. */
+  readonly steps: number
+}
+
+/**
+ * What a drop on `to` does. The daemon moves a task only among its project's tasks with the same pin,
+ * so a task let go among the pinned rows, or above the first task of its project (`atTop`), is pinned
+ * first, and a pinned one let go among the rest is unpinned. A pin keeps the store order, so the steps
+ * count in the new pin's partition. Null when nothing changes.
+ */
+export function dropMove(
+  tasks: readonly TaskRow[],
+  from: TaskRow,
+  to: TaskRow,
+  side: DropSide,
+  atTop: boolean,
+): DropMove | null {
+  if (!dropsOn(from, to)) return null
+  if (from.kind === "main") {
+    const steps = dropSteps(tasks, from, to, side)
+    return steps ? { steps } : null
+  }
+  const pinned = to.pinned === true || (atTop && side === "above")
+  const moved = { ...from, pinned }
+  // Pinned at the top of a project with no pinned task yet: it is the only one, already in place.
+  const steps =
+    pinned === (to.pinned === true)
+      ? (dropSteps(
+          tasks.map((task) => (task.id === from.id ? moved : task)),
+          moved,
+          to,
+          side,
+        ) ?? 0)
+      : 0
+  const pin = pinned !== (from.pinned === true) ? { pin: pinned } : {}
+  return "pin" in pin || steps !== 0 ? { ...pin, steps } : null
+}
+
 /** A row's nesting level: a project 0, its tasks 1, a child task or a pane one deeper than its parent. */
 const depthOf = (row: NavRow | undefined): number =>
   row === undefined || row.kind === "project" ? 0 : row.kind === "task" || row.kind === "pane" ? row.depth : 1
@@ -40,6 +87,21 @@ export function blockEnd(rows: readonly NavRow[], i: number): number {
   let end = i + 1
   while (end < rows.length && depthOf(rows[end]) > depth) end++
   return end
+}
+
+/**
+ * `to`'s row is the first task of its project once the dragged block is lifted out: nothing but the
+ * project header, its main row and the main's children sit above it.
+ */
+export function opensProject(rows: readonly NavRow[], fromId: string, toId: string): boolean {
+  const from = rows.findIndex((row) => row.id === fromId)
+  const rest = from < 0 ? rows : [...rows.slice(0, from), ...rows.slice(blockEnd(rows, from))]
+  for (let i = rest.findIndex((row) => row.id === toId) - 1; i >= 0; i--) {
+    const row = rest[i]
+    if (!row || row.kind === "project") return true
+    if (row.kind === "task" && row.depth === 1 && row.task.kind !== "main") return false
+  }
+  return false
 }
 
 /** One indent column of a child row: a line passing by, nothing, a line on to the next sibling, or the last sibling's hook. */

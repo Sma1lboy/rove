@@ -1,17 +1,18 @@
 /**
- * Drag to reorder: a project header among projects, a task among its project's tasks (same pin),
- * as the TUI's move mode does with keys. While dragging, the rows slide to where the drop would leave
- * them; there is no insertion line. They slide by transform, not by reordering the DOM: Chrome
- * cancels a drag whose source node moves. Any sort drags; a drop outside manual order lands in
- * manual order and the rail switches to it, the only sort that shows where the row went.
+ * Drag to reorder: a project header among projects, a task among its project's tasks, as the TUI's
+ * move mode does with keys. A task let go at the top of its project or among its pinned tasks is
+ * pinned; a pinned one let go among the rest is unpinned. While dragging, the rows slide to where
+ * the drop would leave them; there is no insertion line. They slide by transform, not by reordering
+ * the DOM: Chrome cancels a drag whose source node moves. Any sort drags; a drop outside manual
+ * order lands in manual order and the rail switches to it, the only sort that shows where the row went.
  */
 
 import type { CSSProperties, DragEvent, HTMLAttributes } from "react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
-import { moveTaskBy } from "./move-mode.ts"
-import { type DropSide, blockEnd, dragSteps, dropSteps, previewDrop } from "./rail-blocks.ts"
+import { dropTask } from "./move-mode.ts"
+import { type DropSide, blockEnd, dropMove, dropsOn, opensProject, previewDrop } from "./rail-blocks.ts"
 import { setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { tc } from "./tui-copy.ts"
@@ -133,7 +134,7 @@ export function useRowDrag(
     if (now.from.kind === "main") while (at > 0 && rows[at]?.kind !== "project") at--
     const row = rows[at]
     const task = row && taskOf(row)
-    if (!row || !task || dragSteps(tasks, now.from, task) === null) return null
+    if (!row || !task || !dropsOn(now.from, task)) return null
     return { row: row.id, task }
   }
   // Letting go anywhere in the rail lands the row where the preview shows it.
@@ -165,7 +166,7 @@ export function useRowDrag(
       const now = live.current
       if (!now) return
       e.preventDefault()
-      const steps = dropSteps(tasks, now.from, now.to, now.side)
+      const move = dropMove(tasks, now.from, now.to, now.side, opensProject(shown.current, now.fromRow, now.toRow))
       live.current = null
       if (!manual) {
         // Manual order is the only sort that shows where the row went: switch to it once the move has
@@ -178,7 +179,7 @@ export function useRowDrag(
         }
       } else land.current = () => setDrag(null)
       // The preview stays until the daemon's new order has arrived, so the row doesn't jump back first.
-      if (steps) void moveTaskBy(model, now.from.id, steps).finally(() => setLanding(latest.current))
+      if (move) void dropTask(model, now.from.id, move).finally(() => setLanding(latest.current))
       else land.current()
     },
   }
