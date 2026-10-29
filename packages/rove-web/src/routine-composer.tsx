@@ -293,7 +293,9 @@ export function RoutineComposer(props: {
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend"><Legend text={deviceHint(auto.composerLegend)} /></p>
+          <p className="muted kb-legend">
+            <Legend text={deviceHint(auto.composerLegend)} />
+          </p>
           <div className="actions">
             <button type="button" className="link" onClick={closeDialog}>
               {common.cancel}

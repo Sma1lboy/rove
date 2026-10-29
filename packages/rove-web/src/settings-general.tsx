@@ -57,11 +57,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
       />
       <AppearanceGroup client={client} />
       <Group title={ts("general.notifications")} hint={ts("general.notificationsHint")}>
-        <Toggle
-          label={ts("general.toast")}
-          checked={prefs.toast}
-          onChange={(next) => set("toast", next)}
-        />
+        <Toggle label={ts("general.toast")} checked={prefs.toast} onChange={(next) => set("toast", next)} />
         <Toggle
           label={ts("general.sound")}
           hint={t("prefs.soundHint")}

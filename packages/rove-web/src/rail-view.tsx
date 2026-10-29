@@ -5,11 +5,11 @@ import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { Chevron } from "./chevron.tsx"
-import { Legend } from "./legend.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
+import { Legend } from "./legend.tsx"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
@@ -145,7 +145,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       {moving && (
         <div className="rail-search mono">
           <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
-          <span className="muted keys-only"><Legend text={t("taskops.moveHint")} /></span>
+          <span className="muted keys-only">
+            <Legend text={t("taskops.moveHint")} />
+          </span>
         </div>
       )}
       {filters.search.active && (

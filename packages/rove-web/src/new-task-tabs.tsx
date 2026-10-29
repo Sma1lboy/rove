@@ -302,9 +302,11 @@ export function AdoptTab({
         {list !== null && shown.length === 0 && (
           <span className="muted">{tc("newTask", list.length === 0 ? "adopt.noUnlinked" : "adopt.noMatch")}</span>
         )}
-        {shown.length > 0 && <span className="muted">
+        {shown.length > 0 && (
+          <span className="muted">
             <Legend text={deviceHint(hint)} />
-          </span>}
+          </span>
+        )}
       </div>
       {error && <p className="error">※ {error}</p>}
       <DialogActions busy={busy} submitLabel={tc("newTask", "button.create")} />

@@ -455,10 +455,14 @@ export function IssueDrawer(props: {
                 </div>
               </div>
               <EventsFeed model={props.model} taskId={linkedTaskId} />
-              <p className="muted kb-legend"><Legend text={deviceHint(kanban.detail.openLegend)} /></p>
+              <p className="muted kb-legend">
+                <Legend text={deviceHint(kanban.detail.openLegend)} />
+              </p>
             </>
           ) : (
-            <p className="muted kb-legend"><Legend text={deviceHint(kanban.detail.doneNote)} /></p>
+            <p className="muted kb-legend">
+              <Legend text={deviceHint(kanban.detail.doneNote)} />
+            </p>
           )}
         </div>
       </dialog>

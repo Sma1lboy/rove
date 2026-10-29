@@ -179,7 +179,9 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className="page dp-page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint"><Legend text={deviceHint(t("dispatch.hint"))} /></span>
+        <span className="muted mono pg-hint">
+          <Legend text={deviceHint(t("dispatch.hint"))} />
+        </span>
       </div>
       <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (
