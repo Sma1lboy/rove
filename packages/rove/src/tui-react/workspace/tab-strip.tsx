@@ -9,7 +9,7 @@
  * prefill, notification titles).
  */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useRef, useState } from "react"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
@@ -71,6 +71,8 @@ export function TabStrip(props: {
   tabs: readonly TerminalTab[]
   activeId: string
   onSelect: (tabId: string) => void
+  /** Right-click on a tab, in screen cells. */
+  onContextMenu?: (tabId: string, x: number, y: number) => void
   /** Task-level engine — the default-name fallback for unpinned tabs. */
   vendor: VendorId
   /** tabId → live process display name (see `useTurnPolls().liveTitles`). */
@@ -190,7 +192,17 @@ export function TabStrip(props: {
     return (
       // No row background: transparent mode forces panel backgrounds to alpha-0
       // (applyDisplayOverlay); only the active tab's fill paints.
-      <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
+      <box
+        flexDirection="row"
+        flexShrink={0}
+        paddingLeft={1}
+        paddingRight={1}
+        gap={1}
+        overflow="hidden"
+        onMouseUp={(evt: { button: number; x: number; y: number }) => {
+          if (evt.button === MouseButton.RIGHT) props.onContextMenu?.(active.tab.id, evt.x, evt.y)
+        }}
+      >
         {/* Chip OUTSIDE the fill, for the reason the wide branch dropped its
             own fill: on `focusAccent` the error red lands at a 1.02 contrast
             ratio, so every tone collapses into the orange. On the ambient
@@ -241,7 +253,11 @@ export function TabStrip(props: {
               border={active ? ACTIVE_TAB_SIDES : true}
               borderStyle="rounded"
               borderColor={active ? theme.focusAccent : theme.borderActive}
-              onMouseUp={() => props.onSelect(tab.id)}
+              onMouseUp={(evt: { button: number; x: number; y: number }) => {
+                // Right-click opens the menu and never falls through to select.
+                if (evt.button === MouseButton.RIGHT && props.onContextMenu) props.onContextMenu(tab.id, evt.x, evt.y)
+                else props.onSelect(tab.id)
+              }}
             >
               {/* Turn chip: the daemon's status for the tab, the sidebar
                   row's glyph and tone. Shown once the daemon has a record of

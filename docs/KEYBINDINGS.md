@@ -242,11 +242,7 @@ both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the
 id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
-<id>`) on the clipboard, and is offered on every Task row. A tab row also
-offers **Copy tab address**, which copies `--task-id <id> --tab <tab>`, the
-flags `rove api send` and `read-output` take to reach that one tab, and, when
-the Task has more than one tab, **Close other tabs**, which asks first and then
-closes every other tab of that Task, ending their sessions. **Copy branch name** and
+<id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
 **Copy path** put the Task's branch or recorded worktree path on the system
 clipboard (local clipboard command plus OSC 52, so it also works over SSH);
 copying never creates the worktree, and a project-main or directory row, whose
@@ -262,6 +258,15 @@ the engine entry opens a picker over your available engines instead of
 cycling, and Rename branch follows the same empty-branch rule as Copy branch
 name. (If right-click opens your *terminal's* menu
 instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
+
+Right-click a tab in the workspace tab strip for that tab's menu; it makes the
+tab active first, and `j`/`k`, `⏎` and `esc` drive it the same way. It offers
+**Rename tab** (`F2`) and **Close tab** (`ctrl+w`), **Copy tab address**, which
+copies `--task-id <id> --tab <tab>`, the flags `rove api send` and
+`read-output` take to reach that one tab (not offered on a preview or diff
+tab), and, when the Task has more than one tab, **Close other tabs**, which
+asks first and then closes every other tab, ending their sessions. Copy and
+Close other tabs have no chord of their own.
 
 ## Terminal scrollback
 
