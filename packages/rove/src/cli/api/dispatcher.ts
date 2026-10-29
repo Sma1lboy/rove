@@ -7,6 +7,7 @@
  */
 
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
@@ -17,6 +18,24 @@ import { ApiError, type ApiRuntime } from "./types.ts"
 
 /** The dispatcher pair as recorded on a task. */
 export type Dispatcher = NonNullable<SerializedTask["dispatcher"]>
+
+/** Tell the daemon's dispatch ledger about a paste it never saw; best-effort, an older daemon refuses the verb. */
+export async function recordSend(
+  daemon: DaemonRpc,
+  sent: { taskId: string; tabId?: string; prompt: string; delivered: boolean; deliveryId?: string },
+): Promise<void> {
+  const self = await ownSession(daemon).catch(() => null)
+  await daemon
+    .request("dispatch.record", {
+      taskId: sent.taskId,
+      ...(sent.tabId ? { tabId: sent.tabId } : {}),
+      promptHead: sent.prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS),
+      delivered: sent.delivered,
+      ...(sent.deliveryId ? { deliveryId: sent.deliveryId } : {}),
+      ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
+    })
+    .catch(() => {})
+}
 
 /** The two reads {@link verifiedSelfSession} needs; injectable for tests. */
 export interface SelfSessionProbe {

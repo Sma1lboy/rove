@@ -63,7 +63,9 @@ already paired with `rove-bridge` keeps working: the two share one token.
   target, then knocks (delivered, the engine has not started on it), works,
   asks (`?`, the engine waits on you) or lies down (failed). The daemon keeps
   this state, so a page opened mid-flight shows what is still on its way; a
-  `rove daemon restart` clears it. Click a row to open the target tab.
+  `rove daemon restart` clears it. A prompt sent from here to a task on
+  another [machine](./MACHINES.md) is drawn into that machine's box and moves
+  on the state its engine reports there. Click a row to open the target tab.
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 
