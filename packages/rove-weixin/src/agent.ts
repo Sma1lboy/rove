@@ -17,24 +17,25 @@ export const AGENT_TITLE = "WeChat"
 /** The first message of every conversation: who the agent is and how it answers. */
 export function agentBrief(cli: string): string {
   return [
-    "You are the owner's personal assistant, reached from WeChat through Rove. Each message they send arrives here prefixed with `[WeChat]`.",
-    `The bridge does not read this screen: answer every message with \`${cli} weixin send "<reply>"\` (\`--file <path>\` for long text), short and conclusion-first for a phone, in the language they wrote in.`,
+    "You are the owner's personal assistant, reached from WeChat through Rove. Each message they send arrives here prefixed with `[WeChat]`; a picture, file or video they send arrives as an `[image: <path>]`, `[file: <path>]` or `[video: <path>]` line: open the path to see it.",
+    `The bridge does not read this screen: answer every message with \`${cli} weixin send "<reply>"\` (\`--file <path>\` for long text, \`--attach <path>\` to send them a picture, video or any file such as a .md), short and conclusion-first for a phone, in the language they wrote in.`,
     `You can do anything they could from a shell on this machine. For Rove itself use the rove skill and \`${cli} api\` (\`${cli} api context\` for what is running and what needs them, \`${cli} api add\` to start a task, \`${cli} api send\` to steer one).`,
     "Ask on WeChat before anything irreversible or outward-facing: merging, publishing, deleting, messaging other people.",
+    "A message prefixed `[Routine <name> #<run>]` is a routine's report, not the owner: Rove does not forward it to WeChat. Decide whether it is worth their attention; if so, tell them in your own words with weixin send, otherwise stay quiet.",
     "This tab is one conversation; the owner starts a fresh one with /new.",
   ].join("\n")
 }
 
-/** What a forwarded message looks like to the agent. */
+/** What the owner's message looks like to the agent. */
 export function agentPrompt(text: string): string {
   return `[WeChat] ${text}`
 }
 
 export interface AgentControl {
-  /** The live conversation, creating the agent (and its first conversation) when there is none. */
-  current(firstMessage?: string): Promise<{ readonly agent: WeixinAgentState; readonly created: boolean }>
+  /** The live conversation, creating the agent (and its first conversation, opened with `firstPrompt`) when there is none. */
+  current(firstPrompt?: string): Promise<{ readonly agent: WeixinAgentState; readonly created: boolean }>
   /** Open a new conversation; earlier ones stay as tabs of the same task. */
-  startNew(firstMessage?: string): Promise<WeixinAgentState>
+  startNew(firstPrompt?: string): Promise<WeixinAgentState>
 }
 
 export interface AgentControlDeps {
@@ -52,9 +53,9 @@ export interface AgentControlDeps {
 export function createAgentControl(deps: AgentControlDeps): AgentControl {
   const cli = deps.cli ?? "rove"
 
-  async function open(taskId: string, firstMessage?: string): Promise<WeixinAgentState> {
+  async function open(taskId: string, firstPrompt?: string): Promise<WeixinAgentState> {
     const previous = deps.read()
-    const prompt = firstMessage ? `${agentBrief(cli)}\n\n${agentPrompt(firstMessage)}` : agentBrief(cli)
+    const prompt = firstPrompt ? `${agentBrief(cli)}\n\n${firstPrompt}` : agentBrief(cli)
     const { tab } = await deps.ops.newConversation(taskId, prompt)
     const kept = previous?.taskId === taskId ? previous.conversations : []
     const agent = { taskId, tab, conversations: [...kept, { tab, startedAt: deps.now() }] }
@@ -85,14 +86,14 @@ export function createAgentControl(deps: AgentControlDeps): AgentControl {
   }
 
   return {
-    async current(firstMessage) {
+    async current(firstPrompt) {
       const { taskId, existing } = await resolveTask()
       if (existing) return { agent: existing, created: false }
-      return { agent: await open(taskId, firstMessage), created: true }
+      return { agent: await open(taskId, firstPrompt), created: true }
     },
-    async startNew(firstMessage) {
+    async startNew(firstPrompt) {
       const { taskId } = await resolveTask()
-      return await open(taskId, firstMessage)
+      return await open(taskId, firstPrompt)
     },
   }
 }

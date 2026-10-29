@@ -245,11 +245,13 @@ into a prompt routine (pass `--prompt` in the same call).
 
 ## Tell me on WeChat
 
-`--notify` (on create or update) pushes every run's response, and every run
-that needs a human, to the bound chat channel. For a script routine that is
-its stdout; for an engine routine, the summary the agent reports. Bind the
+`--notify` (on create or update) hands every run's response, and every run
+that needs a human, to your WeChat agent, headed `[Routine <name> #<run>]`.
+For a script routine that is its stdout; for an engine routine, the summary
+the agent reports. Rove does not post it to WeChat itself: the WeChat agent
+decides whether it is worth telling you and writes the message. Bind the
 channel first with `rove weixin login` ([WeChat](WEIXIN.md)). Only runs that
-finish after the daemon starts are pushed.
+finish after the daemon starts are handed over.
 
 ## What each run did
 

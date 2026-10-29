@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { createCipheriv, randomBytes } from "node:crypto"
+import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { agentBrief, agentPrompt } from "../src/agent.ts"
-import { REPLY_WINDOW_MS, type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
+import { type WeixinBridge, startWeixinBridge } from "../src/bridge.ts"
 import type { RoveOps } from "../src/commands.ts"
 import type { NotifyingRoutine } from "../src/routines.ts"
 import { WeixinStore } from "../src/store.ts"
@@ -53,6 +54,7 @@ const openAgentTask = mock(async () => ({ taskId: TASK }))
 let nextTab = 1
 let agentRunning = false
 const newConversation = mock(async () => ({ tab: `tab-${nextTab++}` }))
+const routineRuns = mock(async () => routines)
 const ops: RoveOps = {
   status,
   tasks: async () => [{ id: TASK, title: "Fix login", repo: "/r/app" }],
@@ -62,7 +64,7 @@ const ops: RoveOps = {
   gates: async () => [],
   answerGate: async () => ({ delivered: true }),
   clearReport: async () => {},
-  notifyingRoutineRuns: async () => routines,
+  notifyingRoutineRuns: routineRuns,
   openAgentTask,
   newConversation,
   taskRunning: async () => agentRunning,
@@ -98,7 +100,7 @@ beforeEach(async () => {
   clock = Date.now()
   logs.length = 0
   bridge = null
-  for (const fn of [status, send, add, openAgentTask, newConversation]) fn.mockClear()
+  for (const fn of [status, send, add, openAgentTask, newConversation, routineRuns]) fn.mockClear()
   nextTab = 1
   agentRunning = false
 })
@@ -195,6 +197,72 @@ describe("inbound", () => {
     })
   })
 
+  it("a picture or file arrives decrypted on disk and reaches the agent as a path line", async () => {
+    const encrypt = (plain: Buffer, key: Buffer) => {
+      const cipher = createCipheriv("aes-128-ecb", key, null)
+      return Buffer.concat([cipher.update(plain), cipher.final()])
+    }
+    const cdnMedia = (param: string, aes_key?: string) => ({
+      encrypt_query_param: param,
+      full_url: `${fake.url}/c2c/download?encrypted_query_param=${param}`,
+      ...(aes_key ? { aes_key } : {}),
+    })
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), randomBytes(40)])
+    const pdf = Buffer.from("%PDF-1.7 the report")
+    const imageKey = randomBytes(16)
+    const fileKey = randomBytes(16)
+    fake.cdn.set("img-1", encrypt(png, imageKey))
+    fake.cdn.set("file-1", encrypt(pdf, fileKey))
+    start()
+
+    // Images carry the key as hex in `aeskey`; files as base64 of the hex string.
+    fake.deliver({
+      from: FAKE_OWNER,
+      id: "m1",
+      items: [{ type: 2, image_item: { aeskey: imageKey.toString("hex"), media: cdnMedia("img-1") } }],
+    })
+    await waitFor(() => expect(newConversation).toHaveBeenCalledTimes(1))
+    const imagePath = String(newConversation.mock.calls[0]?.at(1)).match(/\[image: (.+)\]$/)?.[1] ?? ""
+    expect(imagePath.startsWith(join(store.dir, "inbox"))).toBe(true)
+    expect(imagePath.endsWith(".png")).toBe(true)
+    expect(readFileSync(imagePath)).toEqual(png)
+
+    fake.deliver({
+      from: FAKE_OWNER,
+      id: "m2",
+      items: [
+        { type: 1, text_item: { text: "看这个" } },
+        {
+          type: 4,
+          file_item: {
+            file_name: "../report.pdf",
+            media: cdnMedia("file-1", Buffer.from(fileKey.toString("hex")).toString("base64")),
+          },
+        },
+      ],
+    })
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    const filePath = String(send.mock.calls[0]?.at(2)).match(/^\[WeChat\] 看这个\n\[file: (.+)\]$/)?.[1] ?? ""
+    expect(filePath.startsWith(join(store.dir, "inbox"))).toBe(true)
+    expect(filePath.endsWith("-_report.pdf")).toBe(true)
+    expect(readFileSync(filePath)).toEqual(pdf)
+    expect(fake.sends).toEqual([])
+  })
+
+  it("a picture the CDN refuses is reported back; the message's text still reaches the agent", async () => {
+    start()
+    fake.deliver({
+      from: FAKE_OWNER,
+      items: [
+        { type: 1, text_item: { text: "这张图" } },
+        { type: 2, image_item: { media: { full_url: `${fake.url}/c2c/download?encrypted_query_param=gone` } } },
+      ],
+    })
+    const [reply] = await fake.waitForSends(1)
+    expect(reply?.text).toBe("Could not download your image (CDN answered 404); send it again.")
+    expect(newConversation).toHaveBeenCalledWith(TASK, `${agentBrief("rove")}\n\n${agentPrompt("这张图")}`)
+  })
+
   it("routes `send` to the task's engine through RoveOps", async () => {
     start()
     fake.deliver({ from: FAKE_OWNER, text: "/send 0042 please rebase" })
@@ -204,40 +272,21 @@ describe("inbound", () => {
   })
 })
 
-describe("pushes", () => {
-  it("pushes a settled arrival into needs-you, but never the state seen at boot", async () => {
-    current = snapshot("ready-for-review")
-    start()
-    // Open the reply window, then let a few ticks pass on the boot state.
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
-    expect(fake.sends).toHaveLength(1)
-
-    current = snapshot("waiting-on-you")
-    const sends = await fake.waitForSends(2)
-    expect(sends[1]?.text).toBe("Needs you:\n• SK0042 Fix login\nReply: send SK0042 <text>")
-  })
-
-  it("pushes a decision that opens after boot with its option keys, never one already standing", async () => {
-    current = { ...snapshot("working"), gates: [GATE] }
+describe("unprompted messages", () => {
+  it("never sends one itself: a task that needs you or a new decision stays out of WeChat", async () => {
     start()
     fake.deliver({ from: FAKE_OWNER, text: "/help" })
     await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(3))
-    expect(fake.sends).toHaveLength(1)
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(2))
 
-    current = { ...snapshot("working"), gates: [GATE, { ...GATE, id: "g-6", question: "Ship it?", options: [] }] }
-    const sends = await fake.waitForSends(2)
-    expect(sends[1]?.text).toBe(
-      "Decision needed:\ng-6 SK0042 Fix login\nShip it?\n  free text only\nReply: answer g-6 <text>",
-    )
-    // Announced once, not on every tick.
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
-    expect(fake.sends).toHaveLength(2)
+    current = { ...snapshot("waiting-on-you"), gates: [GATE] }
+    const ticks = routineRuns.mock.calls.length
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(ticks + 4))
+    expect(fake.sends).toHaveLength(1)
+    expect(store.readUndelivered()).toEqual([])
   })
 
-  it("pushes a --notify routine's new response and failure, never runs from before boot", async () => {
+  it("hands a --notify routine's new response and failure to the agent, never runs from before boot", async () => {
     const run = (n: number, extra: Record<string, unknown>) => ({
       id: `run-${n}`,
       automationId: "r1",
@@ -250,9 +299,7 @@ describe("pushes", () => {
     })
     routines = [{ id: "r1", name: "janitor", runs: [run(1, { response: { text: "old news", at: "" } })] }]
     start()
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(2))
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(2))
 
     routines = [
       {
@@ -265,30 +312,18 @@ describe("pushes", () => {
         ],
       },
     ]
-    const sends = await fake.waitForSends(3)
-    expect(sends.slice(1).map((s) => s.text)).toEqual([
-      "[janitor] #2\nremoved 3 worktrees",
-      "[janitor] #3 script failed\nscript exited 2",
-    ])
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(8))
-    expect(fake.sends).toHaveLength(3)
-  })
-
-  it("logs instead of sending once the peer's reply window has closed", async () => {
-    start()
-    fake.deliver({ from: FAKE_OWNER, text: "/help" })
-    await fake.waitForSends(1)
-    await waitFor(() => expect(status.mock.calls.length).toBeGreaterThan(1))
-
-    clock += REPLY_WINDOW_MS + 1
-    current = snapshot("landing")
-    await waitFor(() => expect(store.readUndelivered()).toHaveLength(1))
-    expect(store.readUndelivered()[0]).toMatchObject({
-      to: FAKE_OWNER,
-      reason: "reply window closed (>24h since their last message)",
-      text: "Ready to merge:\n• SK0042 Fix login",
-    })
-    expect(fake.sends).toHaveLength(1)
+    // No agent yet: the first report opens its conversation, the next goes to it.
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(newConversation).toHaveBeenCalledWith(
+      TASK,
+      `${agentBrief("rove")}\n\n[Routine janitor #2]\nremoved 3 worktrees`,
+    )
+    expect(send).toHaveBeenCalledWith(TASK, "tab-1", "[Routine janitor #3 script failed]\nscript exited 2")
+    const ticks = routineRuns.mock.calls.length
+    await waitFor(() => expect(routineRuns.mock.calls.length).toBeGreaterThan(ticks + 4))
+    expect(newConversation).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(fake.sends).toEqual([])
   })
 })
 

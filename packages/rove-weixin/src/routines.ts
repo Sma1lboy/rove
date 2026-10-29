@@ -1,10 +1,11 @@
 /**
- * Routine runs worth a push: for every routine created with `--notify`, a
- * run's response once it exists (a script's stdout, or an agent's report),
- * and a run that needs a human (`script_failed`, `dispatch_failed`, …).
+ * Routine runs worth handing to the WeChat agent: for every routine created
+ * with `--notify`, a run's response once it exists (a script's stdout, or an
+ * agent's report), and a run that needs a human (`script_failed`,
+ * `dispatch_failed`, …). The agent decides what reaches the owner.
  *
- * Like {@link GateTracker}, the first observation only seeds: a daemon
- * restart must not replay a routine's history into WeChat.
+ * The first observation only seeds: a daemon restart must not replay a
+ * routine's history into the agent.
  */
 
 import type { AutomationRun } from "@sma1lboy/rove-daemon/daemon/contracts"
@@ -57,11 +58,11 @@ export class RoutineTracker {
   }
 }
 
-/** One message per run, oldest first: the routine's name, then what it said. */
+/** One agent message per run, oldest first: `[Routine <name> #<run>]`, then what it said. */
 export function renderRoutineRuns(pushes: readonly RoutinePush[]): string[] {
   return pushes.map(({ name, run }) => {
     const failed = automationRunNeedsAttention(run.status)
-    const header = `[${name}] #${run.runNumber}${failed ? ` ${run.status.replace(/_/g, " ")}` : ""}`
+    const header = `[Routine ${name} #${run.runNumber}${failed ? ` ${run.status.replace(/_/g, " ")}` : ""}]`
     const body = [run.response?.text, failed ? run.error : undefined].filter(Boolean).join("\n")
     return body ? `${header}\n${body}` : header
   })
