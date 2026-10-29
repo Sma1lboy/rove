@@ -26,7 +26,7 @@
   --color-warn: oklch(75.5% 0.104 79);
   --color-focus: oklch(70.5% 0.095 41);
 
-  --font-display: "Space Grotesk", sans-serif;
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
   --font-body: "JetBrains Mono", ui-monospace, monospace;
 
   --space-2xs: 0.5rem; --space-xs: 0.75rem; --space-sm: 1rem;
