@@ -6,7 +6,6 @@
  */
 
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
@@ -15,7 +14,7 @@ import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
-import { ownSession, readOwnDispatcher, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
+import { ownSession, readOwnDispatcher, recordSend, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
@@ -356,24 +355,6 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
 }
 
 const TARGET_FAILED = new Set(["error", "dead"])
-
-/** Tell the daemon's dispatch ledger about a paste it never saw; best-effort, an older daemon refuses the verb. */
-async function recordSend(
-  daemon: DaemonRpc,
-  sent: { taskId: string; tabId?: string; prompt: string; delivered: boolean; deliveryId?: string },
-): Promise<void> {
-  const self = await ownSession(daemon).catch(() => null)
-  await daemon
-    .request("dispatch.record", {
-      taskId: sent.taskId,
-      ...(sent.tabId ? { tabId: sent.tabId } : {}),
-      promptHead: sent.prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS),
-      delivered: sent.delivered,
-      ...(sent.deliveryId ? { deliveryId: sent.deliveryId } : {}),
-      ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
-    })
-    .catch(() => {})
-}
 
 /** `send.admit`: either the daemon refused the tick, or it claimed the tab (and armed a delivery when one is owed). */
 interface AdmitReply {
