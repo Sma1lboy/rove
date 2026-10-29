@@ -2,7 +2,7 @@
 /**
  * The tab strip's right-click menu. What it OFFERS is `tab-strip-menu.ts`;
  * rename and close are the tab's own F2 / ctrl+w paths, run on the clicked
- * tab once opening the menu has made it active.
+ * tab while it remains selected and present.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -27,6 +27,7 @@ import { closeOtherTaskTabs } from "./terminal-tabs-close"
 export interface TabStripMenuDeps {
   readonly taskId: string
   readonly tabs: readonly TerminalTab[]
+  readonly activeId: string
   /** Make the clicked tab active, so highlight and menu agree. */
   readonly select: (tabId: string) => void
   readonly rename: () => void
@@ -54,7 +55,10 @@ export function useTabStripMenu(deps: TabStripMenuDeps): TabStripMenu {
   const dialog = useDialog()
   const renderer = useRenderer()
   const anchor = useRef<BoxRenderable | null>(null)
-  const [menu, setMenu] = useState<OpenMenu | null>(null)
+  const [openMenu, setMenu] = useState<OpenMenu | null>(null)
+  const menu = openMenu?.tabId === deps.activeId && deps.tabs.some((tab) => tab.id === openMenu.tabId) ? openMenu : null
+  // Clear during render so neither mouse nor key dispatch can use a stale target.
+  if (openMenu && !menu) setMenu(null)
   const [cursor, setCursor] = useState(0)
   const close = (): void => setMenu(null)
 

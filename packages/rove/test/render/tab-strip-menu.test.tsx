@@ -10,8 +10,9 @@ import { expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { useState } from "react"
+import { act, useState } from "react"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
+import { useBindings } from "../../src/tui-react/lib/keymap"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import { useTabStripMenu } from "../../src/tui-react/workspace/use-tab-strip-menu"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
@@ -27,20 +28,33 @@ writeFileSync(
 const RIGHT = 2
 const settle = () => new Promise((r) => setTimeout(r, 80))
 
-function Driver(props: { tabs: readonly TerminalTab[]; onRename: (activeId: string) => void }) {
+function Driver(props: {
+  tabs: readonly TerminalTab[]
+  onRename: (activeId: string) => void
+  onClose?: (activeId: string) => void
+  controls?: { select?: (id: string) => void; remove?: () => void }
+}) {
+  const [removed, setRemoved] = useState(false)
+  const tabs = removed ? props.tabs.slice(0, 1) : props.tabs
   const [activeId, setActiveId] = useState(props.tabs[0]?.id ?? "")
+  if (props.controls) {
+    props.controls.select = setActiveId
+    props.controls.remove = () => setRemoved(true)
+  }
+  useBindings(() => ({ bindings: [{ key: "ctrl+]", cmd: () => setActiveId("tab-1") }] }))
   const menu = useTabStripMenu({
     taskId: "alpha",
-    tabs: props.tabs,
+    tabs,
+    activeId,
     select: setActiveId,
     rename: () => props.onRename(activeId),
-    closeActive: () => {},
+    closeActive: () => props.onClose?.(activeId),
   })
   return (
     <box ref={menu.anchorRef} flexDirection="column" flexGrow={1}>
       <TabStrip
         taskId="alpha"
-        tabs={props.tabs}
+        tabs={tabs}
         activeId={activeId}
         onSelect={setActiveId}
         onContextMenu={menu.openForTab}
@@ -132,3 +146,42 @@ test("on a narrow screen the one visible tab opens the same menu", async () => {
   await settle()
   expect(await frame()).toContain("Close other tabs")
 })
+
+for (const change of ["keyboard", "external selection", "disappearance"] as const) {
+  for (const action of ["rename", "close"] as const) {
+    test(`${action} cannot act on a stale menu after ${change}`, async () => {
+      const tabs: readonly TerminalTab[] = [
+        { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
+        { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
+      ]
+      const actions: string[] = []
+      const controls: { select?: (id: string) => void; remove?: () => void } = {}
+      const { frame, mockMouse, mockInput } = await renderComponent(
+        <Driver
+          tabs={tabs}
+          controls={controls}
+          onRename={(id) => actions.push(`rename:${id}`)}
+          onClose={(id) => actions.push(`close:${id}`)}
+        />,
+        { width: 80, height: 16, providers },
+      )
+      await settle()
+      const at = cellOf(await frame(), "beta-two")
+      await mockMouse.click(at.x, at.y, RIGHT)
+      await settle()
+      if (action === "close") {
+        for (let i = 0; i < 3; i++) act(() => mockInput.pressKey("j"))
+      }
+      act(() => {
+        if (change === "keyboard") mockInput.pressKey("]", { ctrl: true })
+        else if (change === "external selection") controls.select?.("tab-1")
+        else controls.remove?.()
+      })
+      await settle()
+      act(() => mockInput.pressEnter())
+      await settle()
+      expect(actions).toEqual([])
+      expect(await frame()).not.toContain("Rename tab")
+    })
+  }
+}
