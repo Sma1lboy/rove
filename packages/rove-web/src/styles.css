@@ -641,12 +641,29 @@ button:focus-visible,
   flex: 1;
 }
 
-/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. */
+/* One line at any width: only the usage chips give way; the link state, host and hints keep their size. */
+.status > :not(.usage, .spacer) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent.
+   Chips that do not fit wrap onto a clipped second line, so they drop whole as the TUI's
+   budget drops them; a lone chip wider than the room ends in an ellipsis. */
 .usage {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  min-width: 0;
+  height: 1lh;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.usage-chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tone-ok {
