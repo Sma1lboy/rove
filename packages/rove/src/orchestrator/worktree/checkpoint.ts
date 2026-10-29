@@ -108,7 +108,10 @@ async function withTempIndex<T>(
   deps: CheckpointDeps,
   exec: ExecHost,
   cwd: string,
-  body: (gitIdx: (args: readonly string[], extraEnv?: Record<string, string>) => Promise<GitRunResult>) => Promise<T>,
+  body: (
+    gitIdx: (args: readonly string[], extraEnv?: Record<string, string>) => Promise<GitRunResult>,
+    indexPath: string,
+  ) => Promise<T>,
 ): Promise<T> {
   const name = `rove-ckpt-index-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
   const indexPath = (
@@ -116,8 +119,10 @@ async function withTempIndex<T>(
   ).stdout.trim()
   if (!indexPath) throw new CheckpointError("CHECKPOINT_FAILED", `${cwd} is not a git work tree`)
   try {
-    return await body((args, extraEnv) =>
-      deps.runGit(exec, args, { cwd, allowFail: true, env: { GIT_INDEX_FILE: indexPath, ...extraEnv } }),
+    return await body(
+      (args, extraEnv) =>
+        deps.runGit(exec, args, { cwd, allowFail: true, env: { GIT_INDEX_FILE: indexPath, ...extraEnv } }),
+      indexPath,
     )
   } finally {
     await exec.run(["rm", "-f", indexPath], { cwd }).catch(() => undefined)
@@ -131,10 +136,21 @@ async function snapshotTree(
   cwd: string,
   head: string,
 ): Promise<{ tree: string; uncaptured: string[] }> {
-  const tree = await withTempIndex(deps, exec, cwd, async (gitIdx) => {
-    // Seed from HEAD: an empty index makes `.gitignore` hide TRACKED files it
-    // covers, and they would be snapshotted as deletions.
-    if (head && (await gitIdx(["read-tree", head])).exitCode !== 0)
+  const tree = await withTempIndex(deps, exec, cwd, async (gitIdx, indexPath) => {
+    // Seed from the worktree's real index: it carries stat data, so `add -A`
+    // only rehashes files that changed, and it lists every tracked path, so
+    // `.gitignore` cannot hide a tracked file (an empty index would snapshot
+    // it as a deletion). No index yet: seed from HEAD, which has the paths but
+    // no stat data. `cp -p` keeps the index's mtime: git treats an entry as
+    // possibly stale ("racily clean") only when it is not older than the index
+    // file, so a fresh mtime would let a same-size edit made just after the
+    // last index write look unchanged.
+    const real = (
+      await deps.runGit(exec, ["rev-parse", "--git-path", "index"], { cwd, allowFail: true, readOnly: true })
+    ).stdout.trim()
+    const copied =
+      real !== "" && (await exec.run(["cp", "-p", real, indexPath], { cwd }).catch(() => undefined))?.exitCode === 0
+    if (!copied && head && (await gitIdx(["read-tree", head])).exitCode !== 0)
       throw new CheckpointError("CHECKPOINT_FAILED", "read-tree failed")
     if ((await gitIdx(["add", "-A"])).exitCode !== 0)
       throw new CheckpointError("CHECKPOINT_FAILED", "git add -A failed")
