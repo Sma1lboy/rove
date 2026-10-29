@@ -33,6 +33,8 @@ export function fakeOrchestrator(overrides: Record<string, unknown> = {}): Orche
     },
     listTasks: () => [],
     getTask: () => undefined,
+    // `turn-complete` asks before snapshotting; no task here has a worktree.
+    canCheckpoint: () => false,
     ...overrides,
   } as unknown as Orchestrator
 }

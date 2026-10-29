@@ -3,6 +3,7 @@
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { TaskWorkspace } from "../workspace.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
+import type { CheckpointRecord, RewindResult, TakeCheckpointResult } from "./checkpoint-contracts.ts"
 import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
 import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
 
@@ -79,6 +80,8 @@ export type {
   SyncRepoResult,
   SyncReposResult,
 } from "./land-contracts.ts"
+// Checkpoint results, likewise.
+export type { CheckpointRecord, RewindResult, TakeCheckpointResult } from "./checkpoint-contracts.ts"
 
 /** Engine id (rove `VendorId`), opaque to the daemon. Plain `string`: a
  *  literal union with `(string & {})` drifts from rove's list and hides the
@@ -343,6 +346,13 @@ export interface DaemonOrchestrator {
    *  task at the repo root and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
+  /** Whether the task's worktree takes checkpoints: a managed task (not main/dir) with a materialised tree. */
+  canCheckpoint(id: string): boolean
+  /** Snapshot the working tree; `created: false` when it equals the latest checkpoint. Throws `NOT_CHECKPOINTABLE` when {@link canCheckpoint} is false. */
+  takeCheckpoint(id: string, opts?: { tabId?: string }): Promise<TakeCheckpointResult>
+  listCheckpoints(id: string): Promise<CheckpointRecord[]>
+  /** Files-only rewind to checkpoint `n`, after checkpointing the current state (`undo`). */
+  rewindToCheckpoint(id: string, n: number): Promise<RewindResult>
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>
   setBranch(id: string, branch: string): Promise<void>

@@ -348,6 +348,46 @@ The refs are ordinary git refs: they are not garbage-collected, and they are
 never pushed. Delete one you no longer need with
 `git update-ref -d refs/rove/salvage/<branch>-<timestamp>`.
 
+## Checkpoints
+
+Every time an engine finishes a turn in a task's worktree, Rove saves a
+checkpoint: a snapshot of the files as they stand, kept as a git ref in the
+owning repo (`refs/rove/checkpoints/<task>/<n>`). It is the undo button for an
+agent that went the wrong way, one step per turn.
+
+A checkpoint holds tracked edits and files you never `git add`ed. Gitignored
+files (`node_modules/`, build output, `.env`) are left out. It does not touch
+your branch, your index or `HEAD`, and a turn that changed nothing takes no new
+one. The newest 100 per task are kept. Only a task's own worktree is covered —
+a project's main checkout and a directory task are your own files, and get no
+checkpoints. A nested repo or submodule is recorded as a pointer, not its
+files; `checkpoint` reports those paths as `uncaptured`.
+
+```
+rove api checkpoint-list --task-id ID   # what there is, oldest first
+rove api checkpoint --task-id ID        # take one now
+rove api rewind --task-id ID --to 3     # restore the files to checkpoint 3
+```
+
+`rewind` makes the worktree files equal checkpoint 3: files created since are
+deleted, files deleted since come back, ignored files stay. The branch and the
+agent's conversation do not move. It checkpoints the current state first and
+prints that number as `undo.n`, so `rewind --to <undo.n>` puts everything back.
+While the agent is mid-turn or waiting on a permission, `rewind` refuses with
+`TASK_BUSY`; pass `--force` to override.
+
+A checkpoint is an ordinary commit, so the same history is reachable with git
+in the owning repo:
+
+```
+git for-each-ref refs/rove/checkpoints/<task>
+git diff refs/rove/checkpoints/<task>/3
+git restore --source=refs/rove/checkpoints/<task>/3 -- path/to/file
+```
+
+Deleting the task deletes its checkpoint refs; the worktree directory going
+away does not, since the refs live in the repo.
+
 ## Troubleshooting
 
 - **Land says the worktree is not tracked.** Adopt it as a Task first, or

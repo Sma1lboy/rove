@@ -9,6 +9,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
+import { checkpoint, checkpointList, rewind } from "./handlers-checkpoint.ts"
 import { adopt, removeTaskWorktree } from "./handlers-lifecycle.ts"
 import { WORKTREE_USAGE_VERB } from "./handlers-worktree-usage.ts"
 import type { VerbSpec } from "./types.ts"
@@ -36,6 +37,44 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
       },
     ],
     handler: removeTaskWorktree,
+  },
+  {
+    name: "checkpoint-list",
+    group: "worktree",
+    summary:
+      "List a task's checkpoints — file-only undo points of its worktree, taken automatically when an engine turn completes (and by `checkpoint`). Newest last. Managed tasks only (not a project's main checkout or a dir task). Returns { taskId, checkpoints: [{ n, ref, commit, tree, at, tabId? }] }; each is the git ref refs/rove/checkpoints/<task>/<n>, so `git diff <ref>` works too.",
+    flags: [F.taskId()],
+    handler: checkpointList,
+  },
+  {
+    name: "checkpoint",
+    group: "worktree",
+    summary:
+      "Snapshot a task's worktree now (tracked edits and untracked files, minus gitignored ones) as the next checkpoint. Never touches the branch, HEAD or index. Skipped when the tree equals the latest checkpoint. The newest 100 per task are kept. Returns { taskId, created, checkpoint, uncaptured? } — `uncaptured` names nested repos/submodules whose contents are not captured.",
+    flags: [F.taskId()],
+    handler: checkpoint,
+  },
+  {
+    name: "rewind",
+    group: "worktree",
+    summary:
+      "Restore a task's worktree files to checkpoint N — files only: the branch, HEAD and the conversation are not rewound, and the index is reset to HEAD. The current state is checkpointed first, so a rewind is undoable: `rewind --to <undo.n>` goes back. Files created after N are deleted, files deleted since are restored, gitignored files are left alone. Refused with TASK_BUSY while the engine is mid-turn or waiting on you, unless --force. Returns { taskId, target, undo, uncaptured }.",
+    flags: [
+      F.taskId(),
+      {
+        name: "to",
+        type: "int",
+        required: true,
+        placeholder: "N",
+        description: "Checkpoint number to restore (from `checkpoint-list`).",
+      },
+      {
+        name: "force",
+        type: "bool",
+        description: "Rewind even while the engine is running or waiting on permission.",
+      },
+    ],
+    handler: rewind,
   },
   WORKTREE_USAGE_VERB,
   {

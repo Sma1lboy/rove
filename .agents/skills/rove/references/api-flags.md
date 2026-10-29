@@ -292,6 +292,9 @@ returns before the worktree is gone.
 ```text
 ensure-worktree     --task-id(REQ)
 remove-worktree     --task-id(REQ) --force
+checkpoint-list     --task-id(REQ)
+checkpoint          --task-id(REQ)
+rewind              --task-id(REQ) --to(REQ) --force
 worktree-usage      --task-id
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title

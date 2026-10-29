@@ -105,6 +105,10 @@ export type DaemonRequestName =
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
   | "task.archive"
+  // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
+  | "task.checkpointList"
+  | "task.checkpoint"
+  | "task.rewind"
   | "task.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
@@ -325,6 +329,9 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "worktree.adopt",
   "worktree.list",
   "worktree.remove",
+  // Snapshot / rewrite of a user-sized working tree.
+  "task.checkpoint",
+  "task.rewind",
 ])
 
 /**

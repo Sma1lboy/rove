@@ -166,6 +166,7 @@ async function startOwnedServer(
   resources.defer(() => rowStatus.close())
   resources.defer(() => stores.dispatches.close())
   resources.defer(() => deletions.drain())
+  resources.defer(() => stores.checkpoints.drain())
   resources.defer(async () => {
     await Promise.allSettled(requests)
   })

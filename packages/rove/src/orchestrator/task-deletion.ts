@@ -205,6 +205,8 @@ export class TaskDeletionCoordinator {
         })
         throw failure
       }
+      // Checkpoint refs sit in the repo's common gitdir, so removing the worktree leaves them behind.
+      if (task.kind === "task") await this.dropCheckpoints(task)
       await this.store.remove(task.id)
       this.forgetTask(task.id)
     })
@@ -223,6 +225,15 @@ export class TaskDeletionCoordinator {
       }
     }
     if (failure) throw failure
+  }
+
+  /** Best-effort: a stray ref is cheap, a failed deletion is not. */
+  private async dropCheckpoints(task: Task): Promise<void> {
+    try {
+      await this.worktrees.deleteTaskCheckpoints(task.repo, String(task.id))
+    } catch {
+      // refs are tiny and the repo owns them; nothing to retry
+    }
   }
 
   /** Dirty or ignored work in `path`, or null when it is clean (or gone, which `remove()` resolves). */

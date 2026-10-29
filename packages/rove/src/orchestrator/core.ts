@@ -5,7 +5,14 @@
  */
 
 import type { MigratedChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
-import type { LandPreflightResult, ReparentResult, TaskPtyAlias } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type {
+  CheckpointRecord,
+  LandPreflightResult,
+  ReparentResult,
+  RewindResult,
+  TakeCheckpointResult,
+  TaskPtyAlias,
+} from "@sma1lboy/rove-daemon/daemon/contracts"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
@@ -312,6 +319,39 @@ export class Orchestrator {
       return this.worktreeCoordinator.ensure({ ...task, worktreePath: "" }, opts?.onProgress)
     }
     return this.worktreeCoordinator.ensure(task, opts?.onProgress)
+  }
+
+  /**
+   * Checkpoints cover managed tasks only (kind `task`): a main/dir tree is the
+   * user's own. Replaced by the workspace-capabilities check when that lands.
+   */
+  canCheckpoint(id: TaskId | string): boolean {
+    const task = this.store.get(id)
+    return task?.kind === "task" && !task.deletion && task.worktreePath !== ""
+  }
+
+  /** The worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
+  private async checkpointDir(id: TaskId | string): Promise<string> {
+    const task = this.requireTask(id)
+    // A managed worktree always has a `.git` entry (file); its absence means a dead or non-git directory.
+    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(`${task.worktreePath}/.git`))) {
+      throw new Error(
+        `NOT_CHECKPOINTABLE: ${task.kind === "task" ? "the task has no git worktree on disk" : `a ${task.kind} task works in your own checkout`}`,
+      )
+    }
+    return task.worktreePath
+  }
+
+  async takeCheckpoint(id: TaskId | string, opts?: { tabId?: string }): Promise<TakeCheckpointResult> {
+    return this.worktrees.takeCheckpoint(await this.checkpointDir(id), String(id), opts)
+  }
+
+  async listCheckpoints(id: TaskId | string): Promise<CheckpointRecord[]> {
+    return this.worktrees.listCheckpoints(await this.checkpointDir(id), String(id))
+  }
+
+  async rewindToCheckpoint(id: TaskId | string, n: number): Promise<RewindResult> {
+    return this.worktrees.rewindToCheckpoint(await this.checkpointDir(id), String(id), n)
   }
 
   /**
