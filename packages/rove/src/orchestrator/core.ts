@@ -321,37 +321,58 @@ export class Orchestrator {
     return this.worktreeCoordinator.ensure(task, opts?.onProgress)
   }
 
-  /**
-   * Checkpoints cover managed tasks only (kind `task`): a main/dir tree is the
-   * user's own. Replaced by the workspace-capabilities check when that lands.
-   */
-  canCheckpoint(id: TaskId | string): boolean {
-    const task = this.store.get(id)
-    return task?.kind === "task" && !task.deletion && task.worktreePath !== ""
+  /** The row that owns `id`'s workspace: a sharer follows its owner (as `ensureWorktree` does); everything else owns its own. */
+  private workspaceOwner(id: TaskId | string): Task {
+    const task = this.requireTask(id)
+    return (task.sharesWorkspaceOf ? this.store.get(task.sharesWorkspaceOf) : undefined) ?? task
   }
 
-  /** The worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
-  private async checkpointDir(id: TaskId | string): Promise<string> {
-    const task = this.requireTask(id)
+  /**
+   * Checkpoints belong to the workspace owner, so a shared child checkpoints,
+   * lists and rewinds under its owner's id. `sharerIds` is every live task in
+   * that workspace (owner first) — the set whose engines a rewind must not race.
+   */
+  checkpointScope(id: TaskId | string): { ownerId: string; sharerIds: string[] } {
+    const owner = this.workspaceOwner(id)
+    const sharers = this.store.list().filter((t) => t.sharesWorkspaceOf === owner.id && !t.deletion)
+    return { ownerId: String(owner.id), sharerIds: [String(owner.id), ...sharers.map((t) => String(t.id))] }
+  }
+
+  /**
+   * Checkpoints cover managed workspaces only (owner of kind `task`): a main/dir
+   * tree is the user's own. Replaced by the workspace-capabilities check when that lands.
+   */
+  canCheckpoint(id: TaskId | string): boolean {
+    if (!this.store.get(id)) return false
+    const owner = this.workspaceOwner(id)
+    return owner.kind === "task" && !owner.deletion && owner.worktreePath !== ""
+  }
+
+  /** The owner's id and worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
+  private async checkpointTarget(id: TaskId | string): Promise<{ ownerId: string; dir: string }> {
+    const owner = this.workspaceOwner(id)
     // A managed worktree always has a `.git` entry (file); its absence means a dead or non-git directory.
-    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(`${task.worktreePath}/.git`))) {
+    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(`${owner.worktreePath}/.git`))) {
       throw new Error(
-        `NOT_CHECKPOINTABLE: ${task.kind === "task" ? "the task has no git worktree on disk" : `a ${task.kind} task works in your own checkout`}`,
+        `NOT_CHECKPOINTABLE: ${owner.kind === "task" ? "the task has no git worktree on disk" : `a ${owner.kind} task works in your own checkout`}`,
       )
     }
-    return task.worktreePath
+    return { ownerId: String(owner.id), dir: owner.worktreePath }
   }
 
   async takeCheckpoint(id: TaskId | string, opts?: { tabId?: string }): Promise<TakeCheckpointResult> {
-    return this.worktrees.takeCheckpoint(await this.checkpointDir(id), String(id), opts)
+    const { ownerId, dir } = await this.checkpointTarget(id)
+    return this.worktrees.takeCheckpoint(dir, ownerId, opts)
   }
 
   async listCheckpoints(id: TaskId | string): Promise<CheckpointRecord[]> {
-    return this.worktrees.listCheckpoints(await this.checkpointDir(id), String(id))
+    const { ownerId, dir } = await this.checkpointTarget(id)
+    return this.worktrees.listCheckpoints(dir, ownerId)
   }
 
   async rewindToCheckpoint(id: TaskId | string, n: number): Promise<RewindResult> {
-    return this.worktrees.rewindToCheckpoint(await this.checkpointDir(id), String(id), n)
+    const { ownerId, dir } = await this.checkpointTarget(id)
+    return this.worktrees.rewindToCheckpoint(dir, ownerId, n)
   }
 
   /**

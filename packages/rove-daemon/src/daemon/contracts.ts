@@ -346,9 +346,14 @@ export interface DaemonOrchestrator {
    *  task at the repo root and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
-  /** Whether the task's worktree takes checkpoints: a managed task (not main/dir) with a materialised tree. */
+  /** Whether the task's workspace takes checkpoints: its owner is a managed task (not main/dir) with a materialised tree. */
   canCheckpoint(id: string): boolean
-  /** Snapshot the working tree; `created: false` when it equals the latest checkpoint. Throws `NOT_CHECKPOINTABLE` when {@link canCheckpoint} is false. */
+  /**
+   * Checkpoints belong to the workspace owner: `ownerId` is the task whose id keys them (a shared child resolves to
+   * its owner), `sharerIds` every live task in that workspace, owner first.
+   */
+  checkpointScope(id: string): { ownerId: string; sharerIds: string[] }
+  /** Snapshot the working tree under the owner's id; `created: false` when it equals the latest checkpoint. Throws `NOT_CHECKPOINTABLE` when {@link canCheckpoint} is false. */
   takeCheckpoint(id: string, opts?: { tabId?: string }): Promise<TakeCheckpointResult>
   listCheckpoints(id: string): Promise<CheckpointRecord[]>
   /** Files-only rewind to checkpoint `n`, after checkpointing the current state (`undo`). */

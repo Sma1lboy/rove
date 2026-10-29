@@ -19,7 +19,14 @@ import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { parseDirtyPaths } from "../dirty-paths.ts"
 import { checkoutProgressReader } from "./checkout-progress.ts"
-import { type CheckpointDeps, deleteTaskCheckpoints, listCheckpoints, rewindTo, takeCheckpoint } from "./checkpoint.ts"
+import {
+  type CheckpointDeps,
+  deleteTaskCheckpoints,
+  listCheckpoints,
+  moveTaskCheckpoints,
+  rewindTo,
+  takeCheckpoint,
+} from "./checkpoint.ts"
 import { type CloneIgnoredDeps, cloneIgnoredDirs, defaultCloneDeps, regenerableDirNames } from "./clone-ignored.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
@@ -315,6 +322,13 @@ export class GitWorktreeManager implements WorktreeManager {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
     return deleteTaskCheckpoints(this.checkpointDeps(), ctx.exec, ctx.dir, taskId)
+  }
+
+  /** A workspace changed owner: the heir inherits the checkpoint history. */
+  async moveTaskCheckpoints(repo: string, fromId: string, toId: string): Promise<number> {
+    const ctx = this.ctxFor(repo)
+    requireAbsolute("repo", ctx.dir)
+    return moveTaskCheckpoints(this.checkpointDeps(), ctx.exec, ctx.dir, fromId, toId)
   }
 
   /** Throws on detached HEAD (rev-parse prints `HEAD`) rather than returning a

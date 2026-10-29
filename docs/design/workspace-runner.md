@@ -208,15 +208,19 @@ surface ships first on git.
 `salvage.ts`'s temporary-index snapshot, minus its ignored-file pass: a
 checkpoint is exactly tracked + untracked, minus ignored. The daemon takes one
 at the normalized `turn-complete` report (`handlers-engine-report.ts`),
-serialized per task with the `checkpoint` / `rewind` verbs, fire-and-forget so
-the hook reply never waits on git, and skipped when the tree equals the latest
-checkpoint. The gate is a managed task (kind `task`) with a worktree on disk
-(`Orchestrator.canCheckpoint`); phase 0 swaps it for the backend's
-`checkpoint` capability. `rewind` is files-only: it checkpoints the current
-state first (so a rewind is undoable), then lets `git read-tree --reset -u`
-over a throwaway index rewrite the tree, and resets the real index to HEAD; it
-refuses with `TASK_BUSY` while the engine runs unless `--force`. The newest 100
-per task are kept, and deleting a task removes its refs.
+serialized per workspace owner with the `checkpoint` / `rewind` verbs,
+fire-and-forget so the hook reply never waits on git, and skipped when the tree
+equals the latest checkpoint. Checkpoints belong to the **workspace owner**: a
+child sharing its parent's directory resolves to the owner for the trigger and
+all three verbs (replies carry `workspaceTaskId`), and an owner's deletion hands
+the history to the heir. The gate is a managed task (kind `task`) with a
+worktree on disk (`Orchestrator.canCheckpoint`); phase 0 swaps it for the
+backend's `checkpoint` capability. `rewind` is files-only: it checkpoints the
+current state first (so a rewind is undoable), then lets `git read-tree --reset
+-u` over a throwaway index rewrite the tree, and resets the real index to HEAD;
+it refuses with `TASK_BUSY` while any engine sharing the workspace runs unless
+`--force`. The newest 100 per workspace are kept, and deleting a task removes
+its refs.
 
 ## Runner routing: what exists vs what's missing
 

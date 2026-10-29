@@ -312,6 +312,19 @@ export class TaskDeletionCoordinator {
       await this.store.update(heir.id, { sharesWorkspaceOf: undefined, ...(extraRepos ? { extraRepos } : {}) })
       if (extraRepos) await this.store.update(ownerId, { extraRepos: undefined })
       for (const sharer of rest) await this.store.update(sharer.id, { sharesWorkspaceOf: heir.id })
+      // Checkpoints belong to the workspace owner: the heir inherits the history instead of losing it with the owner's refs.
+      await this.moveCheckpoints(ownerId, String(heir.id))
+    }
+  }
+
+  /** Best-effort, like {@link dropCheckpoints}. */
+  private async moveCheckpoints(fromId: string, toId: string): Promise<void> {
+    const owner = this.store.get(fromId)
+    if (owner?.kind !== "task") return
+    try {
+      await this.worktrees.moveTaskCheckpoints(owner.repo, fromId, toId)
+    } catch {
+      // history stays under the old id and is dropped with it; the files are unaffected
     }
   }
 

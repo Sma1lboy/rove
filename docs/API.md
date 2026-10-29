@@ -1855,26 +1855,37 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `checkpoint-list --task-id ID`: the task's checkpoints, oldest first — file-only
   undo points of its worktree. The daemon takes one when an engine turn
   completes (skipped if the files did not change since the last one); the
-  newest 100 per task are kept. Returns `{ taskId, checkpoints: [{ n, ref,
-  commit, tree, at, tabId? }] }`; each `ref` is `refs/rove/checkpoints/<task>/<n>`
-  in the owning repo, so `git diff <ref>` and `git restore --source=<ref>` work
-  without Rove. Managed tasks only: a project's main checkout and a directory
-  task are your own checkout, so they get `NOT_CHECKPOINTABLE`.
+  newest 100 per workspace are kept. Returns `{ taskId, workspaceTaskId,
+  checkpoints: [{ n, ref, commit, tree, at, tabId? }] }`; each `ref` is
+  `refs/rove/checkpoints/<workspaceTaskId>/<n>` in the owning repo, so
+  `git diff <ref>` and `git restore --source=<ref>` work without Rove. Managed
+  tasks only: a project's main checkout and a directory task are your own
+  checkout, so they get `NOT_CHECKPOINTABLE`.
+
+  Checkpoints belong to the workspace owner. A child that shares its parent's
+  directory (`spawn --no-worktree`) has no history of its own: its turns are
+  recorded under the owner's id, and all three verbs, given the child's
+  `--task-id`, act on the owner's checkpoints. `workspaceTaskId` in each reply
+  names that task (it equals `taskId` for an owner). When the owner is deleted
+  while a child remains, the heir takes over the directory and its history.
 - `checkpoint --task-id ID`: take one now. Captures tracked edits and untracked
   files, minus gitignored ones, and never touches the branch, HEAD or index.
-  Returns `{ taskId, created, checkpoint, uncaptured? }`; `created: false` means
-  the tree equals the latest checkpoint, which is returned instead. `uncaptured`
-  names nested repos and submodules, whose contents a checkpoint cannot hold.
+  Returns `{ taskId, workspaceTaskId, created, checkpoint, uncaptured? }`;
+  `created: false` means the tree equals the latest checkpoint, which is
+  returned instead. `uncaptured` names nested repos and submodules, whose
+  contents a checkpoint cannot hold.
 - `rewind --task-id ID --to N [--force]`: restore the worktree files to
   checkpoint `N`. Files only: the branch, HEAD and the engine's conversation
   are not rewound, and the index is reset to HEAD. Files created after `N` are
   deleted, files deleted since are restored, gitignored files are left alone.
   The current state is checkpointed first, so a rewind is undoable:
   `undo.n` in the reply is the number to `rewind --to` to get back. Returns
-  `{ taskId, target, undo, uncaptured }`. Refused with `TASK_BUSY` while an
-  engine in the task is `running` or `permission_needed`, because it would
-  rewrite files under the agent; `--force` rewinds anyway. `CHECKPOINT_NOT_FOUND`
-  for an `N` that was never taken or has been pruned.
+  `{ taskId, workspaceTaskId, target, undo, uncaptured }`. Refused with
+  `TASK_BUSY` while an engine of ANY task sharing the workspace (the owner or a
+  child) is `running` or `permission_needed`, because it would rewrite files
+  under the agent; the error names the busy tasks, and `--force` rewinds
+  anyway. `CHECKPOINT_NOT_FOUND` for an `N` that was never taken or has been
+  pruned.
 - `worktree-usage [--task-id ID]`: the disk each task's own worktrees take,
   largest first, archived tasks included — which ones `remove-worktree` would
   free most. Read-only. Only checkouts a task owns count (its worktree and each

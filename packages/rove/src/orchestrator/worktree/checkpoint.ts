@@ -241,6 +241,31 @@ export async function deleteTaskCheckpoints(
 }
 
 /**
+ * Re-key `fromId`'s checkpoints under `toId` when a workspace changes owner (a
+ * deleted owner's heir inherits the directory, and the history with it). An
+ * existing `toId` ref is never overwritten; returns how many moved.
+ */
+export async function moveTaskCheckpoints(
+  deps: CheckpointDeps,
+  exec: ExecHost,
+  cwd: string,
+  fromId: string,
+  toId: string,
+): Promise<number> {
+  let moved = 0
+  for (const c of await listCheckpoints(deps, exec, cwd, fromId)) {
+    const created = await deps.runGit(exec, ["update-ref", checkpointRef(toId, c.n), c.commit, ""], {
+      cwd,
+      allowFail: true,
+    })
+    if (created.exitCode !== 0) continue
+    await deleteRefs(deps, exec, cwd, [c.ref])
+    moved++
+  }
+  return moved
+}
+
+/**
  * Make the working tree equal checkpoint `n`'s tree, files only. Checkpoints the
  * current state first (reported as `undo`) so the rewind is itself undoable.
  * HEAD and the branch stay; the index is reset to HEAD.

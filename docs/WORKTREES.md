@@ -376,6 +376,13 @@ prints that number as `undo.n`, so `rewind --to <undo.n>` puts everything back.
 While the agent is mid-turn or waiting on a permission, `rewind` refuses with
 `TASK_BUSY`; pass `--force` to override.
 
+Checkpoints belong to the directory's owner. A child task that shares its
+parent's directory has none of its own: its turns are recorded in the owner's
+history, and `--task-id <child>` lists, takes and rewinds the owner's
+checkpoints (replies say which task in `workspaceTaskId`). Because every task
+in the directory edits the same files, `rewind` refuses while *any* of their
+engines is working, not only the one you named.
+
 A checkpoint is an ordinary commit, so the same history is reachable with git
 in the owning repo:
 
@@ -386,7 +393,8 @@ git restore --source=refs/rove/checkpoints/<task>/3 -- path/to/file
 ```
 
 Deleting the task deletes its checkpoint refs; the worktree directory going
-away does not, since the refs live in the repo.
+away does not, since the refs live in the repo. If the owner is deleted while a
+child still uses the directory, the child inherits the history.
 
 ## Troubleshooting
 
