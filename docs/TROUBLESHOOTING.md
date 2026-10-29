@@ -677,16 +677,19 @@ guide is unavailable.
 
 ## Mouse wheel in the embedded terminal
 
-The wheel follows real terminal-emulator semantics, in order:
+The wheel follows the same rules in the TUI and on the web, in order:
 
-1. the embedded app enabled mouse tracking (claude's transcript, `vim`,
-   `less --mouse`) → the wheel is forwarded; the app scrolls itself;
-2. fullscreen app without mouse tracking → 3 arrow keys per tick;
-3. plain shell → Rove's local scrollback (same channel as
-   `ctrl+pgup` / `ctrl+pgdn`; scroll to the bottom to resume following).
+1. a fullscreen app (alternate screen) that enabled mouse tracking (claude's
+   transcript, `vim`, `less --mouse`) → the wheel is forwarded; the app scrolls itself;
+2. a fullscreen app without mouse tracking → 3 arrow keys per tick;
+3. anything on the normal screen → Rove's local scrollback (same channel as
+   `ctrl+pgup` / `ctrl+pgdn`; scroll to the bottom to resume following), even
+   when the app tracks the mouse: an inline app such as omp turns tracking on
+   but cannot scroll the scrollback. Hold `shift` to send the wheel to such an
+   app instead (an inline `fzf` list).
 
-If scrolling "does nothing" inside an app, that app received the events and
-chose not to scroll. Check its own mouse setting (e.g. `:set mouse=a`).
+If scrolling "does nothing" inside a fullscreen app, that app received the
+events and chose not to scroll. Check its own mouse setting (e.g. `:set mouse=a`).
 
 An app may turn mouse tracking on once at startup and never send it again.
 When you reopen a tab, the Hosted PTY host replays only the last 512 KB of

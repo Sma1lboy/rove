@@ -1,11 +1,16 @@
 import { expect, test } from "bun:test"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "../src/term-scroll.ts"
 
-test("the wheel goes to the app only when it tracks the mouse or owns the alternate screen (TUI emulator order)", () => {
-  expect(wheelOwner({ alternateScreen: false, mouseTracking: false })).toBe("local")
-  expect(wheelOwner({ alternateScreen: true, mouseTracking: false })).toBe("app")
-  expect(wheelOwner({ alternateScreen: false, mouseTracking: true })).toBe("app")
-  expect(wheelOwner({ alternateScreen: true, mouseTracking: true })).toBe("app")
+test("the wheel scrolls the normal screen's scrollback even when the app tracks the mouse; Shift or the alternate screen hands it over", () => {
+  const owner = (alternateScreen: boolean, mouseTracking: boolean, shift = false) =>
+    wheelOwner({ alternateScreen, mouseTracking, shift })
+  expect(owner(false, false)).toBe("local")
+  // An inline app with 1003 on (omp) cannot scroll the scrollback itself.
+  expect(owner(false, true)).toBe("local")
+  expect(owner(false, true, true)).toBe("app")
+  expect(owner(false, false, true)).toBe("local")
+  expect(owner(true, false)).toBe("app")
+  expect(owner(true, true)).toBe("app")
 })
 
 test("sub-line touchpad deltas add up to whole lines instead of being dropped", () => {

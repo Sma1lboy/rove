@@ -49,6 +49,7 @@ export function wheelSequence(
   direction: "up" | "down",
   col: number,
   row: number,
+  shift = false,
 ): string | null {
   try {
     return encodeWheel(
@@ -60,6 +61,7 @@ export function wheelSequence(
       direction,
       col,
       row,
+      shift,
     )
   } catch {
     return null

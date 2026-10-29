@@ -347,13 +347,14 @@ function TerminalSession(props: TerminalProps) {
         }
       }}
       onMouseScroll={(evt) => {
-        // Emulator order: mouse tracking → forward; fullscreen without it →
-        // arrow keys (both in pty.wheel); ONLY otherwise local scrollback.
+        // Emulator order (pty.wheel): alternate screen → the app (mouse
+        // report or arrow keys); normal screen → local scrollback, shift → the app.
         const scroll = evt.scroll
         if (!scroll || (scroll.direction !== "up" && scroll.direction !== "down")) return
         // One line per event: the host terminal already granulated the ticks.
         const step = Math.max(1, scroll.delta || 1)
-        const forwarded = scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
+        const lines = scroll.direction === "up" ? -step : step
+        const forwarded = scrollFromPointer(lines, evt.x, evt.y, evt.modifiers?.shift === true)
         // A wheel tick mid-drag scrolls the app; the selection must follow.
         if (forwarded) selection.noteAppScroll()
       }}
