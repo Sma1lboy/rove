@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.274
+
+### Patch Changes
+
+- [#1530](https://github.com/Sma1lboy/rove/pull/1530) [`c422a04`](https://github.com/Sma1lboy/rove/commit/c422a04331b45bb9fe8a149955f332747b1ece97) On the web rail, hovering a task's PR icon no longer opens the PR list on top of the row's full-title tooltip: the tooltip closes when the PR list opens. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.273
 
 ### Patch Changes
