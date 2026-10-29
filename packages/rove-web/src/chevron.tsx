@@ -1,3 +1,5 @@
+import "./chevron.css"
+
 /** The one disclosure glyph (a folder's fold, a project head, a submenu, an engine row): a thin chevron that points down and is turned by CSS (`.is-right`). */
 export function Chevron(props: { readonly className?: string; readonly right?: boolean }) {
   return (

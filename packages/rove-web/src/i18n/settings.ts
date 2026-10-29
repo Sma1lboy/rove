@@ -68,6 +68,7 @@ export const en = {
   },
   prefs: {
     terminalOnly: "Terminal only: the TUI changes, this page has nothing to draw.",
+    languageHint: "Display language, shared with the TUI.",
     soundHint: "chime, plus a desktop notification while this tab is in the background",
     soundVolumeHint: "click cycles; plays the new level",
     zenHint: "Hide the Files pane. The zen chip and ctrl+a z toggle it and write this same setting.",
@@ -179,6 +180,7 @@ export const zh: typeof en = {
   },
   prefs: {
     terminalOnly: "仅终端：TUI 会变化，网页没有可画的东西。",
+    languageHint: "显示语言，与 TUI 共用同一设置。",
     soundHint: "提示音；本页在后台时另发桌面通知",
     soundVolumeHint: "点击切换；会播放新音量",
     zenHint: "收起文件栏。zen 按钮和 ctrl+a z 切换时会写入同一个设置。",

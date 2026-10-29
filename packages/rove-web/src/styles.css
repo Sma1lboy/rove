@@ -225,30 +225,6 @@ button:focus-visible {
   display: none;
 }
 
-/* The one disclosure glyph (chevron.tsx): points down, `is-right` turns it. A flex parent centres it on the label. */
-.chevron {
-  display: block;
-  flex: none;
-  width: 10px;
-  height: 10px;
-  transition: transform 120ms ease;
-}
-
-.chevron.is-right {
-  transform: rotate(-90deg);
-}
-
-.legend {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0 12px;
-}
-
-.file-fold {
-  display: grid;
-  place-items: center;
-}
-
 .muted {
   color: var(--muted);
 }
@@ -611,10 +587,6 @@ button:focus-visible {
   .row:active,
   .tab:active {
     transform: none;
-  }
-
-  .chevron {
-    transition: none;
   }
 
   .rail-search .caret {

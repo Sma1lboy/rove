@@ -182,7 +182,7 @@
   padding: 4px 10px;
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
-  font: var(--fs-meta) var(--sans);
+  font: var(--fs-meta) var(--mono);
   color: var(--muted);
 }
 

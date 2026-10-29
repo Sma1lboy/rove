@@ -50,6 +50,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
     <>
       <Chips
         label={ts("general.language")}
+        hint={t("prefs.languageHint")}
         value={prefs.locale}
         picks={LANGUAGES}
         onPick={(next) => set("locale", next)}
