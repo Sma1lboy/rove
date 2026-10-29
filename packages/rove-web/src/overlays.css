@@ -461,6 +461,10 @@ div.placeholder p {
   gap: 18px;
   max-height: 60vh;
   overflow-y: auto;
+  /* Room for a focus ring (1px outline at a 1px offset), which the scroller would clip, even on a
+     settings row that bleeds 4px for its hover wash (settings.css). Here and not on each
+     field, so group headings and fields share one left edge. */
+  padding-inline: 6px;
 }
 
 /* Narrow mode (`NARROW_QUERY`, 70 cells × 8px − 1): a phone has no room for the list beside the section; the list becomes a row above it. */
