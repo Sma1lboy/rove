@@ -212,12 +212,12 @@ describe("setPRStatus", () => {
 describe("session PRs", () => {
   const prUrl = (n: number) => `https://github.com/o/r/pull/${n}`
 
-  it("dedupes by url, keeping the first attachment's position and timestamp", async () => {
+  it("dedupes by url ignoring case, keeping the first attachment's position, timestamp and spelling", async () => {
     const t = await makeTask()
     await orch.addSessionPr(t.id, prUrl(1))
     await orch.addSessionPr(t.id, prUrl(2))
     const first = orch.getTask(t.id)?.sessionPrs?.[0]
-    await orch.addSessionPr(t.id, prUrl(1))
+    await orch.addSessionPr(t.id, prUrl(1).replace("o/r", "O/R"))
     const prs = orch.getTask(t.id)?.sessionPrs
     expect(prs?.map((p) => p.url)).toEqual([prUrl(1), prUrl(2)])
     expect(prs?.[0]).toEqual(first)
