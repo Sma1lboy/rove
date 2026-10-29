@@ -13,6 +13,7 @@ import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
@@ -235,9 +236,8 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
   return (
     // A hint is a click target, not a focus target: the pane keeps focus so the key it arms reaches it.
     <span className="hint-bar mono" onMouseDown={(e) => e.preventDefault()}>
-      {items.map((item, i) => (
+      {items.map((item) => (
         <span key={item.text}>
-          {i > 0 && <span className="hint-sep subtle">·</span>}
           <button
             type="button"
             className="link"
@@ -264,7 +264,7 @@ export function PaneKeyHint({ pane }: { pane: HintPane }) {
   if (tokens.length === 0) return null
   return (
     <p className="pane-hint mono muted">
-      {tokens.map((token) => `${formatChord(token.cap)} ${hintText(`pane.${token.msg}`)}`).join(" · ")}
+      <Legend text={tokens.map((token) => `${formatChord(token.cap)} ${hintText(`pane.${token.msg}`)}`).join(" · ")} />
     </p>
   )
 }

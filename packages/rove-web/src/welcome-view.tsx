@@ -66,9 +66,9 @@ export function WelcomePane({ model }: { model: AppModel }) {
     env === null
       ? null
       : env.engines.length > 0
-        ? { key: "enginesFound", warn: false, list: env.engines.map((e) => e.name).join(" · ") }
+        ? { key: "enginesFound", warn: false, list: env.engines.map((e) => e.name).join(", ") }
         : env.signedOut.length > 0
-          ? { key: "enginesSignedOut", warn: true, list: env.signedOut.map((e) => e.name).join(" · ") }
+          ? { key: "enginesSignedOut", warn: true, list: env.signedOut.map((e) => e.name).join(", ") }
           : { key: "enginesMissing", warn: true, list: "" }
   const fixes = env !== null && (env.engines.length === 0 || !env.git) ? fixesFor(env) : []
   const start = env?.start ?? null

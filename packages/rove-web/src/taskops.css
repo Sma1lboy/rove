@@ -1,12 +1,12 @@
 /* Task verbs and creation dialogs: Run again, Field notes, Change engine, New task, picker, composer. */
 
 .taskops-hint {
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--sans);
   color: var(--subtle);
 }
 
 .taskops-path {
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   word-break: break-all;
 }
 
@@ -15,10 +15,10 @@
   max-height: 38vh;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper);
-  font: 12px / 1.5 var(--mono);
+  font: var(--fs-meta) / 1.5 var(--mono);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -48,7 +48,7 @@
 }
 
 .note-head {
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--accent);
   white-space: pre;
 }
@@ -64,7 +64,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper);
 }
@@ -82,9 +82,7 @@
 
 .project-head.is-moving::after {
   content: "move";
-  font: 500 10px var(--mono);
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
+  font: 500 var(--fs-meta) var(--mono);
   color: var(--accent);
 }
 
@@ -121,10 +119,10 @@
   padding: 2px;
   max-height: 188px;
   overflow-y: auto;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--inset);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .suggest-row {
@@ -133,7 +131,7 @@
   text-align: left;
   font: inherit;
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius-sm) - 2px);
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
@@ -159,7 +157,7 @@
 
 .newtask-legend {
   margin: 8px 0 0;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--sans);
   color: var(--subtle);
 }
 

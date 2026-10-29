@@ -22,7 +22,7 @@ export function prRepo(url: string | undefined): string | undefined {
 const capitalize = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
 
 function stateText(mark: PrMark): string {
-  return [t(`rail.pr.state.${mark.state}`), ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : [])].join(" · ")
+  return [t(`rail.pr.state.${mark.state}`), ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : [])].join(", ")
 }
 
 /**
@@ -113,7 +113,7 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
   if (!lead) return null
   const label =
     entries.length === 1
-      ? `PR #${entries[0]?.pr.number ?? ""} · ${stateText(lead)}`
+      ? `PR #${entries[0]?.pr.number ?? ""}, ${stateText(lead)}`
       : t("rail.pr.many", { count: entries.length })
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tap is touch-only; keys go to the row's button
@@ -170,7 +170,7 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
                         [repo, pr?.number !== undefined ? `#${pr.number}` : ""].filter(Boolean).join(" "),
                       ]
                         .filter(Boolean)
-                        .map((part) => ` · ${part}`)
+                        .map((part) => `, ${part}`)
                         .join("")}
                     </span>
                     {stats && (

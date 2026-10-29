@@ -24,6 +24,7 @@ import {
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { deviceHint } from "./key-hints.ts"
+import { Legend } from "./legend.tsx"
 import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
@@ -284,15 +285,15 @@ export function RoutineComposer(props: {
             </div>
             {preview.kind === "ok" ? (
               <p className="tone-success mono">
-                {described ? `${described} · ` : ""}
-                {preview.relative} · {preview.absolute}
+                {described ? `${described}, ` : ""}
+                {preview.relative}, {preview.absolute}
               </p>
             ) : (
               <p className="error mono">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend">{deviceHint(auto.composerLegend)}</p>
+          <p className="muted kb-legend"><Legend text={deviceHint(auto.composerLegend)} /></p>
           <div className="actions">
             <button type="button" className="link" onClick={closeDialog}>
               {common.cancel}

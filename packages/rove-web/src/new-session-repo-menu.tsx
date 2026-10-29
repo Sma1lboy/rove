@@ -58,7 +58,7 @@ export function RepoMenu(props: {
     return {
       key: path,
       text: base,
-      dim: path === primary && picked.length > 1 ? `${t("newSession.primary")} · ${dir}` : dir,
+      dim: path === primary && picked.length > 1 ? `${t("newSession.primary")}, ${dir}` : dir,
       checked: picked.includes(path),
     }
   })

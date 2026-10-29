@@ -147,7 +147,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
                 >
                   <span className="note-head mono">
                     {i === cursor ? "▸ " : "  "}
-                    {formatAt(note.at)} · {note.author}
+                    {formatAt(note.at)}, {note.author}
                   </span>
                   <span className="note-text">{note.text}</span>
                 </button>

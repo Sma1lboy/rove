@@ -179,7 +179,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
                     row.engineName,
                     row.model ?? ts("autoRouting.engineDefault"),
                     row.effort ?? ts("autoRouting.engineDefault"),
-                  ].join(" · ")}
+                  ].join(", ")}
                 </span>
                 <button
                   type="button"

@@ -20,7 +20,7 @@
   width: min(440px, calc(100vw - 32px));
   max-height: 76vh;
   padding: 18px 20px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-dialog);
@@ -104,7 +104,7 @@
 .dialog-title {
   margin: 0;
   min-width: 0;
-  font: 600 13px / 1.4 var(--sans);
+  font: 600 var(--fs-body) / 1.4 var(--sans);
   color: var(--ink);
   overflow-wrap: anywhere;
 }
@@ -117,7 +117,7 @@
   margin: -4px -6px -4px 0;
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 18px;
+  font-size: var(--fs-display);
   line-height: 1;
 }
 
@@ -180,10 +180,14 @@
 
 .chip-button {
   padding: 4px 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--sans);
   color: var(--muted);
+}
+
+.chip-button.is-dim {
+  color: var(--subtle);
 }
 
 .chip-button:hover {
@@ -220,7 +224,7 @@
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-popover);
@@ -250,13 +254,13 @@
   justify-content: space-between;
   gap: 24px;
   padding: 5px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius) - 4px);
   text-align: left;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .menu-key {
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--subtle);
 }
 
@@ -284,7 +288,7 @@
 /* An entry with choices a level down: a chevron, and it stays lit while they are open. */
 .menu-chevron,
 .menu-check {
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--subtle);
 }
 
@@ -337,11 +341,11 @@
 .toast {
   max-width: 420px;
   padding: 7px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--inset);
   color: var(--ink);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--sans);
   text-align: left;
   cursor: pointer;
   overflow-wrap: anywhere;
@@ -387,7 +391,7 @@
 .inbox-badge,
 .inbox-age {
   flex: none;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .inbox-age {
@@ -395,7 +399,7 @@
 }
 
 .inbox-sub {
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -403,10 +407,14 @@
 }
 
 .mono {
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 /* Rail + tab strip additions */
+
+.inbox-chip {
+  font-family: var(--mono);
+}
 
 .inbox-chip:hover {
   color: var(--accent);
@@ -435,7 +443,7 @@ div.placeholder p {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-right: 1px solid var(--line);
+  border-right: var(--hairline) solid var(--line);
   padding-right: 10px;
 }
 
@@ -480,7 +488,7 @@ div.placeholder p {
     overflow-x: auto;
     scrollbar-width: none;
     border-right: none;
-    border-bottom: 1px solid var(--line);
+    border-bottom: var(--hairline) solid var(--line);
     padding: 0 0 8px;
   }
 
@@ -498,7 +506,7 @@ div.placeholder p {
 
 .settings-group p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .settings-rows {
@@ -511,7 +519,7 @@ div.placeholder p {
   align-items: center;
   gap: 10px;
   padding: 6px 4px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
 }
 
 .engine-check input {
@@ -527,7 +535,7 @@ div.placeholder p {
 }
 
 .engine-detail {
-  font-size: 11px;
+  font-size: var(--fs-meta);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -536,7 +544,7 @@ div.placeholder p {
 .engine-actions {
   display: flex;
   gap: 10px;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 /* Prefix HUD: bottom-left over the rail, as the TUI's. */
@@ -547,10 +555,10 @@ div.placeholder p {
   z-index: 40;
   min-width: 220px;
   padding: 8px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink);
   box-shadow: var(--shadow-popover);
 }
@@ -580,7 +588,7 @@ div.placeholder p {
   min-height: 0;
   overflow-y: auto;
   padding: 14px 18px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
 }
@@ -591,7 +599,7 @@ div.placeholder p {
 
 .page-title {
   margin: 0 0 6px;
-  font: 700 14px var(--sans);
+  font: 700 var(--fs-title) var(--sans);
 }
 
 .page-group {
@@ -615,11 +623,11 @@ div.placeholder p {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .wt-line.mono {
-  font-size: 11px;
+  font-size: var(--fs-meta);
   justify-content: space-between;
 }
 
@@ -635,7 +643,7 @@ div.placeholder p {
 
 .page-hints {
   margin-top: 16px;
-  font-size: 11px;
+  font-size: var(--fs-meta);
 }
 
 /* Update page and What's New (TUI update-page.tsx, whats-new-dialog.tsx). */
@@ -661,7 +669,7 @@ div.placeholder p {
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   text-align: left;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .update-action.is-cursor {
@@ -674,7 +682,7 @@ div.placeholder p {
 
 .update-chip {
   color: var(--warning);
-  font-size: 10px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
 }
 .rail {
@@ -688,7 +696,7 @@ div.placeholder p {
 
 .release-notes h2 {
   margin: 14px 0 4px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .whats-new-body {
@@ -699,21 +707,19 @@ div.placeholder p {
 
 .whats-new-keys {
   margin-right: auto;
-  font-size: 11px;
+  font-size: var(--fs-meta);
 }
 
 /* Changelog markdown (release-notes.tsx): wrapped, never a sideways scroll. */
 .release-md {
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
 .release-md h3 {
   margin: 12px 0 6px;
-  font: 500 11px var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 500 var(--fs-meta) var(--sans);
   color: var(--muted);
 }
 
@@ -744,5 +750,5 @@ div.placeholder p {
   padding: 0 4px;
   border-radius: var(--radius-sm);
   background: var(--inset);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }

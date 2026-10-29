@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { tc } from "./tui-copy.ts"
 import "./taskops.css"
@@ -180,13 +181,15 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           </div>
         )}
         <p className="muted taskops-hint keys-only">
-          {[
-            tc("tasks", "changeEngine.footer.engine"),
-            ...(engine?.acceptsModel ? [tc("tasks", "changeEngine.footer.model")] : []),
-            ...(choices.length > 0 ? [tc("tasks", "changeEngine.footer.effort")] : []),
-            tc("tasks", "changeEngine.footer.set"),
-            tc("tasks", "changeEngine.footer.cancel"),
-          ].join(" · ")}
+          <Legend
+            text={[
+              tc("tasks", "changeEngine.footer.engine"),
+              ...(engine?.acceptsModel ? [tc("tasks", "changeEngine.footer.model")] : []),
+              ...(choices.length > 0 ? [tc("tasks", "changeEngine.footer.effort")] : []),
+              tc("tasks", "changeEngine.footer.set"),
+              tc("tasks", "changeEngine.footer.cancel"),
+            ].join(" · ")}
+          />
         </p>
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy || !loaded} submitLabel={t("taskops.set")} />

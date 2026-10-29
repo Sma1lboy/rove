@@ -27,7 +27,7 @@
 
 .narrow-back {
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 700;
 }
 
@@ -40,7 +40,7 @@
 .narrow-switch button {
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  font: 600 12px var(--mono);
+  font: 600 var(--fs-meta) var(--mono);
   color: var(--muted);
 }
 
@@ -143,12 +143,12 @@
   z-index: 6;
   box-sizing: border-box;
   width: var(--rail-open-w);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: none;
   transform: translateX(calc(-100% - 12px));
-  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), box-shadow 200ms ease;
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
 }
 .app.is-rail-folded .rail > :not(.rail-grip) {
   min-width: 0;
@@ -229,12 +229,9 @@
   flex-shrink: 0;
   white-space: nowrap;
   align-items: baseline;
-  font-size: 11px;
+  gap: 12px;
+  font-size: var(--fs-meta);
   color: var(--muted);
-}
-
-.hint-sep {
-  margin: 0 6px;
 }
 
 .hint-bar .link:disabled {
@@ -248,11 +245,11 @@
   right: 4px;
   transform: translateY(-50%);
   padding: 1px 5px;
-  border: 1px solid var(--accent);
+  border: var(--hairline) solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--fs-meta);
   cursor: pointer;
   z-index: 8;
 }
@@ -290,20 +287,20 @@
 }
 
 .split.is-box .split-leaf {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: calc(var(--radius) - 1px);
 }
 
 .split.is-line .split-leaf.has-left {
-  border-left: 1px solid var(--line);
+  border-left: var(--hairline) solid var(--line);
 }
 
 .split.is-line .split-leaf.has-top {
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
 }
 
 .split.is-rail .split-leaf {
-  border-left: 2px solid var(--line);
+  border-left: var(--hairline) solid var(--line);
 }
 
 .split.is-rail .split-leaf.has-top {
@@ -311,7 +308,7 @@
 }
 
 .split.is-rule .split-leaf {
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
 }
 
 .split.is-rule .split-leaf.has-left {
@@ -337,7 +334,7 @@
   padding: 0 4px;
   background: var(--paper);
   color: var(--subtle);
-  font: 10px var(--mono);
+  font: var(--fs-meta) var(--mono);
   /* The label takes the pointer so a right click on it opens the pane's menu; the terminal under the rest of the pane keeps its own. */
   z-index: 3;
 }
@@ -354,10 +351,10 @@
   display: flex;
   gap: 12px;
   padding: 4px 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--inset);
-  font-size: 11px;
+  font-size: var(--fs-meta);
   z-index: 4;
 }
 
@@ -374,10 +371,10 @@
   align-items: center;
   gap: 10px;
   padding: 4px 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   z-index: 5;
 }
 
@@ -402,10 +399,10 @@
   max-height: 60vh;
   overflow-y: auto;
   padding: 8px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   box-shadow: var(--shadow-popover);
 }
 
@@ -457,7 +454,7 @@
   padding: 3px 6px;
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   text-align: left;
   white-space: pre;
 }
@@ -480,7 +477,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  font-size: 11px;
+  font-size: var(--fs-meta);
 }
 
 .help-scroll {
@@ -495,7 +492,7 @@
 
 .help-title {
   margin: 0 0 4px;
-  font: 700 12px var(--sans);
+  font: 700 var(--fs-meta) var(--sans);
   color: var(--accent);
 }
 
@@ -503,7 +500,7 @@
   display: flex;
   gap: 12px;
   padding: 1px 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .help-cap {
@@ -519,7 +516,7 @@
 .pane-hint {
   margin: 0;
   padding: 4px 14px;
-  font-size: 11px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -530,7 +527,7 @@
   display: none;
   gap: 4px;
   padding: 4px 6px;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   background: var(--surface);
   overflow-x: auto;
   scrollbar-width: none;
@@ -542,11 +539,11 @@
   min-width: max-content;
   height: 32px;
   padding: 0 2px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: 6px;
   background: var(--inset);
   color: var(--ink);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   touch-action: manipulation;
 }
 
@@ -708,11 +705,11 @@
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,
   select {
-    font-size: 16px !important;
+    font-size: var(--fs-display) !important;
   }
   /* The search row's `/` and count match its 16px field. */
   .term-search {
-    font-size: 16px;
+    font-size: var(--fs-display);
   }
   /* Primary buttons (connect, sign out, start session) and the engine rows' secondary actions are
      ~24-28px tall at desktop padding. */
@@ -741,10 +738,10 @@
   gap: 12px;
   align-items: baseline;
   padding: 4px 14px;
-  border-bottom: 1px solid var(--warning);
+  border-bottom: var(--hairline) solid var(--warning);
   background: var(--inset);
   color: var(--warning);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .daemon-banner span {

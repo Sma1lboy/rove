@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
 }
 
@@ -22,7 +22,7 @@
 }
 
 .connector-mark {
-  font-size: 11px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
 }
 
@@ -54,13 +54,13 @@
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   background: var(--inset);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .device-code {
   padding: 2px 8px;
-  border: 1px dashed var(--line);
+  border: var(--hairline) dashed var(--line);
   border-radius: var(--radius-sm);
-  font-size: 15px;
+  font-size: var(--fs-display);
   letter-spacing: 0.08em;
 }

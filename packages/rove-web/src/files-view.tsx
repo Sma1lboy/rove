@@ -9,9 +9,11 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
+import { Chevron } from "./chevron.tsx"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { useStore } from "./store.ts"
@@ -211,7 +213,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           ) : (
             current && <span>{t("files.noBase")}</span>
           )}
-          <span>{t("files.legend")}</span>
+          <Legend text={t("files.legend")} />
           <button type="button" className="link" onClick={() => open(".")}>
             {t(touch ? "files.diffAllTouch" : "files.diffAll")}
           </button>
@@ -240,7 +242,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             {r.status ? (
               <span className={`glyph status-${r.status === "?" ? "untracked" : r.status}`}>{r.status}</span>
             ) : (
-              <span className="glyph tone-muted">{r.dir ? (r.open ? "▾" : "▸") : " "}</span>
+              <span className="glyph tone-muted file-fold">{r.dir ? <Chevron right={!r.open} /> : null}</span>
             )}
             <span className="row-title">{r.label}</span>
             {r.added ? <span className="chip tone-diff-added">+{r.added}</span> : null}

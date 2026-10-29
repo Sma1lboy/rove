@@ -223,7 +223,7 @@ export function IssuesView({ model }: { model: AppModel }) {
                 </div>
                 <div className="pg-issue-sub">
                   <span className="pg-grow">
-                    {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(" · ")}
+                    {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(", ")}
                   </span>
                   {linked && <span>{fill(copy.linkedChip, { title: titleOf(linked) })}</span>}
                   <span className="mono">{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>

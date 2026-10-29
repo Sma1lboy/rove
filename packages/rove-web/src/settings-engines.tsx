@@ -8,6 +8,7 @@
 import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
 import { useCallback, useEffect, useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
+import { Chevron } from "./chevron.tsx"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { ts } from "./settings-copy.ts"
@@ -113,9 +114,7 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
           aria-controls={detailId}
           onClick={props.onToggleOpen}
         >
-          <svg className="eng-chevron" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+          <Chevron right={!props.open} className="eng-chevron" />
           <span className="eng-title">
             <span className="eng-name">
               {e.name}

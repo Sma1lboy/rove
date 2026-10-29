@@ -19,7 +19,7 @@
   justify-content: flex-end;
   gap: 14px;
   padding: 0 8px 8px;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .files-tabs {
@@ -31,7 +31,7 @@
 .files-tab {
   padding: 3px 10px;
   border-radius: var(--radius-sm);
-  font: 600 12px var(--mono);
+  font: 600 var(--fs-meta) var(--mono);
   color: var(--muted);
 }
 
@@ -45,7 +45,7 @@
   flex-wrap: wrap;
   gap: 4px 10px;
   padding: 0 8px 8px;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--muted);
 }
 
@@ -57,7 +57,7 @@
 
 .file-row {
   min-height: 24px;
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .files:not(:focus) .file-row.is-selected::before {
@@ -80,7 +80,7 @@
 
 .placeholder-line {
   margin: 12px 10px;
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--subtle);
 }
 
@@ -107,7 +107,7 @@
   min-height: 0;
   overflow: auto;
   padding: 6px 0;
-  font: 12px / 1.5 var(--mono);
+  font: var(--fs-meta) / 1.5 var(--mono);
 }
 
 .diff-row {
@@ -165,7 +165,7 @@
   margin-top: 8px;
   color: var(--ink);
   font-weight: 700;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   padding-top: 4px;
 }
 

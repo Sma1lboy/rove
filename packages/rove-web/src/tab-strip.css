@@ -3,7 +3,7 @@
   align-items: center;
   gap: 2px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   min-width: 0;
 }
 .tab {

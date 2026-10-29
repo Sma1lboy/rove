@@ -50,7 +50,6 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
     <>
       <Chips
         label={ts("general.language")}
-        hint={t("prefs.languageHint")}
         value={prefs.locale}
         picks={LANGUAGES}
         onPick={(next) => set("locale", next)}
@@ -59,7 +58,6 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
       <Group title={ts("general.notifications")} hint={ts("general.notificationsHint")}>
         <Toggle
           label={ts("general.toast")}
-          hint={t("prefs.toastHint")}
           checked={prefs.toast}
           onChange={(next) => set("toast", next)}
         />
@@ -89,7 +87,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
           onChange={(next) => set("crossTask", next)}
         />
       </Group>
-      <Group title={ts("general.keyHints")} hint={t("prefs.keyHintsHint")}>
+      <Group title={ts("general.keyHints")}>
         <Toggle
           label={ts("general.keyHintsShow")}
           hint={ts("general.keyHintsShowHint")}

@@ -26,6 +26,7 @@ import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.t
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import { deviceHint } from "./key-hints.ts"
+import { Legend } from "./legend.tsx"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
@@ -178,7 +179,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className="page dp-page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint">{deviceHint(t("dispatch.hint"))}</span>
+        <span className="muted mono pg-hint"><Legend text={deviceHint(t("dispatch.hint"))} /></span>
       </div>
       <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (
@@ -201,7 +202,7 @@ export function DispatchView({ model }: { model: AppModel }) {
             <div
               className="dp-hub mono"
               style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
-              title={conn.hello ? `${conn.hello.host} · v${conn.hello.roveVersion}` : undefined}
+              title={conn.hello ? `${conn.hello.host} v${conn.hello.roveVersion}` : undefined}
             >
               <span className="dp-hub-mark">
                 <b>[</b> rove <b>]</b>
@@ -278,7 +279,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                 {endName(senderOf(row), tasks)} → {endName(targetOf(row), tasks)}
               </span>
               <span className="dp-prompt muted">
-                {row.status === "failed" && row.reason ? `${row.reason} · ` : ""}
+                {row.status === "failed" && row.reason ? `${row.reason}: ` : ""}
                 {row.promptHead}
               </span>
               <span className="muted mono dp-age">{compactAge(now - row.statusAt)}</span>

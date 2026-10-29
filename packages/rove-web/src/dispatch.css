@@ -54,7 +54,7 @@
   height: 42px;
   min-width: 0;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper);
   color: var(--ink);
@@ -84,11 +84,11 @@
 }
 
 .dp-node-title {
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .dp-node-sub {
-  font-size: 11px;
+  font-size: var(--fs-meta);
   color: var(--subtle);
 }
 
@@ -98,7 +98,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line-active);
+  border: var(--hairline) solid var(--line-active);
   border-radius: var(--radius);
   background: var(--paper);
 }
@@ -108,7 +108,7 @@
 }
 
 .dp-hub-mark {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 700;
   color: var(--ink);
 }
@@ -118,7 +118,7 @@
 }
 
 .dp-hub-sub {
-  font-size: 11px;
+  font-size: var(--fs-meta);
   color: var(--subtle);
 }
 
@@ -127,14 +127,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--muted);
 }
 
 /* Another registered machine: a frame around its sessions, its name and state on top. */
 .dp-machine {
   position: absolute;
-  border: 1px solid var(--line-subtle);
+  border: var(--hairline) solid var(--line-subtle);
   border-radius: var(--radius);
 }
 
@@ -144,7 +144,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--fs-meta);
   line-height: 30px;
   color: var(--muted);
 }
@@ -162,7 +162,7 @@
   width: 24px;
   white-space: pre;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 14px;
   /* JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
   font-variant-ligatures: none;
@@ -190,7 +190,7 @@
   right: 0;
   bottom: 10px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   text-align: center;
 }
 
@@ -238,7 +238,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .dp-prompt {
@@ -246,7 +246,7 @@
 }
 
 .dp-age {
-  font-size: 11px;
+  font-size: var(--fs-meta);
 }
 
 .dp-status {
