@@ -6,8 +6,10 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  /* The 4px inset is for the hover wash; the row bleeds it out so its text keeps the fields' edge. */
   padding: 5px 4px;
-  width: 100%;
+  margin-inline: -4px;
+  width: calc(100% + 8px);
   text-align: left;
   font-size: 13px;
 }
@@ -49,7 +51,7 @@
 .pref-field {
   border: 0;
   margin: 0;
-  padding: 4px;
+  padding: 4px 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
