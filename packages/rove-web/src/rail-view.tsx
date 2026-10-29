@@ -399,7 +399,8 @@ function RailRow(props: {
         )}
         {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}
         {task.pinned && <span className="chip muted">▴</span>}
-        <PrChip tasks={props.prTasks ?? [task]} />
+        {/* The PR list opens where the title tip sits; only one card at a time. */}
+        <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
         <StatusDots status={row.fold?.collapsed ? props.rollup : task.rowStatus} />
         {props.cloud && <CloudMark label={props.cloud} />}
