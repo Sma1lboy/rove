@@ -133,10 +133,10 @@ export function UsageChips({
         quota.vendors.map((vendor) => (
           <span key={vendor.vendor} className="usage-chip">
             <span>{vendor.vendor}</span>
-            {vendor.chips.map((chip, i) => (
+            {vendor.chips.map((chip) => (
               <span key={chip.label}>
                 {" "}
-                {i === 0 ? chip.label : `· ${chip.label}`}
+                {chip.label}
                 <UsageBar percentText={chip.percentText} tone={chip.tone} />
                 <span className={`tone-${chip.tone}`}>{chip.percentText}</span>
                 {chip.resetText ? ` ${chip.resetText}` : ""}

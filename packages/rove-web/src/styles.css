@@ -44,10 +44,23 @@
   --success: #9aca86;
   --warning: #e8c96b;
   --mono: "JetBrains Mono", "Rove Nerd Symbols", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  /* The only four sizes: meta (chips, hints, lists), body, titles, and glyphs/inputs (16px keeps iOS from zooming a field). */
+  --fs-meta: 12px;
+  --fs-body: 13px;
+  --fs-title: 14px;
+  --fs-display: 16px;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --radius: 8px;
   --radius-sm: 6px;
+  /* One line weight for every rule and outline: a device pixel's worth on a retina screen, 1px elsewhere. */
+  --hairline: 1px;
   color-scheme: dark;
+}
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --hairline: 0.5px;
+  }
 }
 
 * {
@@ -67,7 +80,7 @@ body {
 body {
   background: var(--paper);
   color: var(--ink);
-  font: 13px / 1.4 var(--sans);
+  font: var(--fs-body) / 1.4 var(--sans);
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
 }
@@ -221,7 +234,7 @@ button:focus-visible {
 }
 
 .wordmark {
-  font: 700 14px var(--mono);
+  font: 700 var(--fs-title) var(--mono);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -231,9 +244,7 @@ button:focus-visible {
 }
 
 .kicker {
-  font: 500 11px var(--mono);
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
+  font: 500 var(--fs-meta) var(--sans);
   color: var(--muted);
   margin: 0;
 }
@@ -292,7 +303,7 @@ button:focus-visible {
   display: flex;
   gap: 6px;
   flex: none;
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .tone-accent {
@@ -325,7 +336,7 @@ button:focus-visible {
 .empty {
   padding: 16px 10px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .empty p {
@@ -348,7 +359,7 @@ button:focus-visible {
   flex: 1;
   min-height: 0;
   display: flex;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
   overflow: hidden;
@@ -356,7 +367,7 @@ button:focus-visible {
 
 .placeholder {
   margin: auto;
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--subtle);
 }
 
@@ -420,10 +431,10 @@ button:focus-visible {
   align-items: center;
   gap: 12px;
   padding: 5px 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--inset);
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--muted);
 }
 
@@ -444,9 +455,9 @@ button:focus-visible {
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   background: var(--surface);
-  font: 11px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--muted);
   white-space: nowrap;
   min-width: 0;
@@ -454,6 +465,10 @@ button:focus-visible {
 
 /* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. It takes the
    footer's spare width, which usage-view.tsx measures to pick the full or compact form. */
+.usage-chip > span:nth-child(n + 3) {
+  margin-left: 8px;
+}
+
 .usage {
   flex: 1 1 0;
   min-width: 0;
@@ -527,7 +542,7 @@ button:focus-visible {
   gap: 12px;
   width: min(460px, 100%);
   padding: 24px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -539,11 +554,11 @@ button:focus-visible {
 .input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--paper);
   color: var(--ink);
-  font: 12px var(--mono);
+  font: var(--fs-meta) var(--mono);
 }
 
 .actions {
@@ -558,7 +573,7 @@ button:focus-visible {
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--paper);
-  font: 600 12px var(--mono);
+  font: 600 var(--fs-meta) var(--sans);
 }
 
 .button:active,
@@ -572,6 +587,10 @@ button:focus-visible {
   .row:active,
   .tab:active {
     transform: none;
+  }
+
+  .rail-search .caret {
+    animation: none;
   }
 }
 
@@ -587,6 +606,6 @@ button:focus-visible {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  font: 12px / 1.5 var(--mono);
+  font: var(--fs-meta) / 1.5 var(--sans);
   text-align: left;
 }

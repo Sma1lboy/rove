@@ -52,12 +52,11 @@ export function ChipRow(props: {
           key={chip.id}
           aria-pressed={chip.id === props.value}
           tabIndex={chip.id === props.value || !props.choices.some((c) => c.id === props.value) ? 0 : -1}
-          className={`chip-button ${chip.id === props.value ? "is-active" : ""}`}
+          className={`chip-button ${chip.id === props.value ? "is-active" : ""} ${chip.dim ? "is-dim" : ""}`}
           title={chip.title}
           onClick={() => props.onChange(chip.id)}
         >
           {chip.label}
-          {chip.dim && <span className="muted"> ·</span>}
         </button>
       ))}
     </div>

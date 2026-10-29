@@ -4,10 +4,12 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { Chevron } from "./chevron.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
+import { Legend } from "./legend.tsx"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
@@ -143,7 +145,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       {moving && (
         <div className="rail-search mono">
           <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
-          <span className="muted keys-only">{t("taskops.moveHint")}</span>
+          <span className="muted keys-only">
+            <Legend text={t("taskops.moveHint")} />
+          </span>
         </div>
       )}
       {filters.search.active && (
@@ -329,20 +333,7 @@ function RailRow(props: {
           onClick={props.onClick}
         >
           <span className="project-label">{row.label}</span>
-          <svg
-            className={`project-chevron ${props.collapsed ? "is-collapsed" : ""}`}
-            viewBox="0 0 10 10"
-            aria-hidden="true"
-          >
-            <path
-              d="M2.5 3.75 5 6.25l2.5-2.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Chevron right={props.collapsed} className="project-chevron" />
         </button>
         {props.onNewTask && (
           <button type="button" className="project-add" title={t("rail.newTask")} onClick={props.onNewTask}>
@@ -429,16 +420,7 @@ function FoldCount(props: { count: number; onUnfold: () => void }) {
     >
       {props.count}
       {/* The project header's folded chevron, so a folded task reads the same way. */}
-      <svg className="project-chevron is-collapsed" viewBox="0 0 10 10" aria-hidden="true">
-        <path
-          d="M2.5 3.75 5 6.25l2.5-2.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <Chevron right className="project-chevron" />
     </span>
   )
 }

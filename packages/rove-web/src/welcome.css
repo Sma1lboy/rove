@@ -8,7 +8,7 @@
   margin: 0 auto;
   padding: 28px 20px;
   overflow-y: auto;
-  font: 12px / 1.5 var(--mono);
+  font: var(--fs-meta) / 1.5 var(--sans);
 }
 
 .welcome p,
@@ -19,7 +19,7 @@
 
 .welcome-title {
   margin: 0;
-  font: 600 14px var(--mono);
+  font: 600 var(--fs-title) var(--sans);
   color: var(--accent);
 }
 

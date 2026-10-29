@@ -344,8 +344,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
                         routine.repo,
                         rows.flatMap((r) => r.repo ?? []),
                       )
-                } · ${routine.schedule}`}</span>
-                {!routine.enabled && <span className="tone-warning mono">{auto.paused} ·</span>}
+                }, ${routine.schedule}`}</span>
+                {!routine.enabled && <span className="tone-warning mono">{auto.paused}</span>}
                 <span className="muted mono">{when(routine.nextRunAt)}</span>
                 <span className={`mono ${tone ? TONE_CLASS[tone] : "muted"}`} style={{ width: "1ch" }}>
                   {tone ? TONE_GLYPH[tone] : " "}
@@ -397,12 +397,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   const state = routineRunResponseState(run, now)
                   const note =
                     state === "awaiting"
-                      ? ` · ${auto.responseAwaiting}`
+                      ? `, ${auto.responseAwaiting}`
                       : state === "missing"
-                        ? ` · ${auto.responseMissing}`
+                        ? `, ${auto.responseMissing}`
                         : ""
                   const tone = state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]
-                  const text = `${run.trigger === "manual" ? "▸" : "·"} #${run.runNumber} ${statusText(run.status)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` — ${run.error}` : ""}${note}  ${when(run.at)}`
+                  const text = `${run.trigger === "manual" ? "▸" : "·"} #${run.runNumber} ${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${run.error ? ` — ${run.error}` : ""}${note}  ${when(run.at)}`
                   // The rail lists no routine runs: a run that made a session opens it from here.
                   const taskId = run.taskId
                   return taskId ? (
@@ -433,7 +433,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   .map((run) => (
                     <div key={run.id}>
                       <p className={`pg-run mono ${TONE_CLASS[runTone(run.status)]}`}>
-                        {`#${run.runNumber} ${statusText(run.status)} · ${when(run.response?.at)}`}
+                        {`#${run.runNumber} ${statusText(run.status)}, ${when(run.response?.at)}`}
                       </p>
                       <p className="pg-response">{run.response?.text}</p>
                     </div>

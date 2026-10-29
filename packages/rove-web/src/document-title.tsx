@@ -11,7 +11,7 @@ export function DocumentTitle({ model }: { model: AppModel }) {
   const remote = useStore(model.remote)
   const task = selectedRow(payload, selection.taskId) ?? remote.find((row) => row.id === selection.taskId)
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
-  const title = `${unread > 0 ? `(${unread}) ` : ""}${task ? `${rowTitle(task, allTabs[task.id])} · ` : ""}rove`
+  const title = `${unread > 0 ? `(${unread}) ` : ""}${task ? `${rowTitle(task, allTabs[task.id])} - ` : ""}rove`
   useEffect(() => {
     document.title = title
   }, [title])

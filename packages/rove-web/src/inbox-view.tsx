@@ -10,6 +10,7 @@ import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
@@ -137,7 +138,9 @@ export function InboxDialog({ model }: { model: AppModel }) {
   return (
     <DialogShell title={t("inbox.title")} wide>
       <div className="dialog-body inbox">
-        <p className="kicker inbox-hints">{t("inbox.hints")}</p>
+        <p className="kicker inbox-hints">
+          <Legend text={t("inbox.hints")} />
+        </p>
         <h2 className="kicker">{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
           <p className="muted mono">{t("inbox.empty")}</p>

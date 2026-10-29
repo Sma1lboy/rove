@@ -1,6 +1,7 @@
 /** The one open menu or dialog, and the toast stack. Esc / outside click dismisses a menu (TUI tree menu). */
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Chevron } from "./chevron.tsx"
 import { useStore } from "./store.ts"
 import { type MenuItem, dialog, dismissToast, menu, toasts } from "./ui.ts"
 
@@ -37,9 +38,7 @@ function MenuRow(props: {
     >
       <span>{item.label}</span>
       {item.children ? (
-        <span className="menu-chevron" aria-hidden>
-          ›
-        </span>
+        <Chevron right className="menu-chevron" />
       ) : item.checked ? (
         <span className="menu-check" aria-hidden>
           ✓

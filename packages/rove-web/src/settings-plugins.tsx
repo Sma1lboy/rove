@@ -57,7 +57,7 @@ function BuiltinMods({ model }: { model: AppModel }) {
             <div className="engine-main">
               <span className="engine-name">{mod.name}</span>
               <span className="muted engine-detail">
-                {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")} · ${mod.description}`}
+                {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")}, ${mod.description}`}
               </span>
             </div>
             <button type="button" onClick={() => flip(mod)}>
@@ -110,7 +110,7 @@ export function PluginsSection({ model }: { model: AppModel }) {
                 <span className="muted engine-detail mono">
                   {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
                     .filter(Boolean)
-                    .join(" · ")}
+                    .join(", ")}
                 </span>
               </div>
             </label>

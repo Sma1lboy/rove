@@ -1,6 +1,7 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Chevron } from "./chevron.tsx"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 
@@ -174,13 +175,12 @@ function OptionRow(props: {
       aria-checked={props.checked}
       tabIndex={-1}
       disabled={props.option.disabled}
-      className={`composer-row ${props.cursor ? "is-cursor" : ""}`}
+      className={`composer-row ${props.cursor ? "is-cursor" : ""} ${props.option.dim ? "is-dim" : ""}`}
       onMouseMove={props.onHover}
       onClick={props.onPick}
     >
       <span className="composer-check">{props.checked ? "✓" : ""}</span>
       <span>{props.option.label}</span>
-      {props.option.dim && <span className="muted"> ·</span>}
       {!props.checked && props.digit !== undefined && !props.option.disabled && (
         <span className="muted composer-dim">{props.digit}</span>
       )}
@@ -350,7 +350,10 @@ export function ModelMenu(props: {
         >
           <span className="composer-check" />
           <span>{t("newSession.effort")}</span>
-          <span className="muted composer-dim">{effortLabel} ›</span>
+          <span className="muted composer-dim">
+            {effortLabel}
+            <Chevron right />
+          </span>
         </button>
       )}
     </div>
@@ -398,7 +401,7 @@ export function BranchesMenu(props: {
         <label key={repo.path} className="composer-field">
           <span>
             {repo.name}
-            {repo.primary && <span className="muted"> · {t("newSession.primary")}</span>}
+            {repo.primary && <span className="muted"> {t("newSession.primary")}</span>}
           </span>
           <select
             className="input"

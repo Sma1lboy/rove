@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
-  font: 12px / 1.5 var(--mono);
+  font: var(--fs-meta) / 1.5 var(--mono);
 }
 
 .new-session-hero {
@@ -39,7 +39,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -111,7 +111,7 @@
   gap: 6px;
   max-width: 28ch;
   padding: 3px 9px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: 999px;
   color: var(--muted);
   font: inherit;
@@ -137,7 +137,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--line-active);
+  border: var(--hairline) solid var(--line-active);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-popover);
@@ -182,8 +182,12 @@
 
 .composer-submenu {
   margin-top: 4px;
-  border-top: 1px solid var(--line);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border-top: var(--hairline) solid var(--line);
+  border-radius: 0 0 calc(var(--radius) - 6px) calc(var(--radius) - 6px);
+}
+
+.composer-row.is-dim {
+  color: var(--subtle);
 }
 
 .composer-row {
@@ -192,7 +196,7 @@
   gap: 8px;
   width: 100%;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius) - 6px);
   color: var(--ink);
   font: inherit;
   text-align: left;
@@ -223,6 +227,12 @@
   color: var(--accent);
 }
 
+.composer-submenu .composer-dim {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .composer-dim {
   margin-left: auto;
   padding-left: 12px;
@@ -246,7 +256,7 @@
 
 .composer-group {
   margin: 8px 8px 2px;
-  font-size: 11px;
+  font-size: var(--fs-meta);
 }
 
 .composer-more {

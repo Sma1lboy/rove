@@ -193,7 +193,7 @@ export function ModsView({ model }: { model: AppModel }) {
         panes.map((pane) => (
           <section className="mod-pane" key={`${pane.plugin}/${pane.id}`}>
             <header className="mod-pane-title">
-              {pane.title} <span className="muted">· {pane.plugin}</span>
+              {pane.title} <span className="muted">{pane.plugin}</span>
             </header>
             <ModTree
               node={pane.tree}

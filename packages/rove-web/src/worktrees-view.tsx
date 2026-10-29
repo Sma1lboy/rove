@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
@@ -224,7 +225,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
         })
       )}
       <p className="page-hints mono muted keys-only">
-        j/k · d {w.delete.button} · l {w.land.button} · q/esc
+        <Legend text={`j/k · d ${w.delete.button} · l ${w.land.button} · q/esc`} />
       </p>
     </div>
   )

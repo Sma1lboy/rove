@@ -132,7 +132,7 @@ function MachineLine(p: LineProps) {
           <span className="engine-name">{p.name}</span>
           <span
             className="muted engine-detail"
-            title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(" · ") || undefined}
+            title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
           >
             {detailOf(status)}
           </span>

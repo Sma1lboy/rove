@@ -14,6 +14,7 @@ import { t } from "./i18n/index.ts"
 import { MAX_ATTACHMENT_BYTES, attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
 import { PLACEMENTS, type Placement } from "./kanban-start.ts"
 import { deviceHint, isTouch } from "./key-hints.ts"
+import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
@@ -89,7 +90,7 @@ function EventsFeed({ model, taskId }: { model: AppModel; taskId: string }) {
           <div key={`${row.at}:${row.kind}:${row.tail}`} className="kb-event mono">
             <span className="muted kb-age">{relativeAge(row.at)}</span>
             <span>{row.kind}</span>
-            {row.tail && <span className="muted">· {row.tail}</span>}
+            {row.tail && <span className="muted">{row.tail}</span>}
           </div>
         ))
       )}
@@ -416,7 +417,7 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <p className="muted kb-legend">
-                {deviceHint(create ? kanban.detail.createLegend : kanban.detail.startLegend)}
+                <Legend text={deviceHint(create ? kanban.detail.createLegend : kanban.detail.startLegend)} />
               </p>
               {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
               <div className="actions">
@@ -454,10 +455,14 @@ export function IssueDrawer(props: {
                 </div>
               </div>
               <EventsFeed model={props.model} taskId={linkedTaskId} />
-              <p className="muted kb-legend">{deviceHint(kanban.detail.openLegend)}</p>
+              <p className="muted kb-legend">
+                <Legend text={deviceHint(kanban.detail.openLegend)} />
+              </p>
             </>
           ) : (
-            <p className="muted kb-legend">{deviceHint(kanban.detail.doneNote)}</p>
+            <p className="muted kb-legend">
+              <Legend text={deviceHint(kanban.detail.doneNote)} />
+            </p>
           )}
         </div>
       </dialog>
