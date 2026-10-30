@@ -15,7 +15,7 @@ import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
-import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
@@ -39,6 +39,11 @@ export interface EngineRow {
   readonly command: string
   readonly protocol: string
   readonly builtin: boolean
+  /**
+   * Not switched off in Settings → Engines (`disabledEngineIds`). A disabled engine stays in the list, because
+   * existing tasks on it are still named from it; a client must not OFFER it for a new session or task.
+   */
+  readonly enabled: boolean
   /** engine-list `models`: suggestions in the engine's own spelling; `null` = unknown. */
   readonly models?: ReadonlyArray<{ readonly id: string; readonly label?: string }> | null
   /** Reasoning levels the engine declares; `[]` = takes none. */
@@ -178,20 +183,26 @@ export function createRoveOps(
   signals?: LiveRowSignals,
   api: BridgeApi = createBridgeApi(client),
 ): RoveOps {
-  let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
+  let engineCache: { at: number; engines: readonly Omit<EngineRow, "enabled">[] } | null = null
   // One cold load at a time: every `task.tabs` needs the list, and a client fans those out per task.
-  let engineLoad: Promise<readonly EngineRow[]> | null = null
+  let engineLoad: Promise<readonly Omit<EngineRow, "enabled">[]> | null = null
 
-  const engines = (): Promise<readonly EngineRow[]> => {
-    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return Promise.resolve(engineCache.engines)
-    engineLoad ??= loadEngines().finally(() => {
-      engineLoad = null
-    })
-    return engineLoad
+  // `enabled` is read per call, not cached with the PATH scan: a switch flipped in the TUI shows at once.
+  const engines = async (): Promise<readonly EngineRow[]> => {
+    let rows: readonly Omit<EngineRow, "enabled">[]
+    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) rows = engineCache.engines
+    else {
+      engineLoad ??= loadEngines().finally(() => {
+        engineLoad = null
+      })
+      rows = await engineLoad
+    }
+    const off = getDisabledEngineIds()
+    return rows.map((row) => ({ ...row, enabled: !off.includes(row.id) }))
   }
 
-  const loadEngines = async (): Promise<readonly EngineRow[]> => {
-    const res = await api.verb<{ engines: ReadonlyArray<EngineRow> }>("engine-list", [])
+  const loadEngines = async (): Promise<readonly Omit<EngineRow, "enabled">[]> => {
+    const res = await api.verb<{ engines: ReadonlyArray<Omit<EngineRow, "enabled">> }>("engine-list", [])
     const rows = await Promise.all(
       res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {
         // `engine-status.ts`: binary found AND (where Rove can read the login) an account exists.

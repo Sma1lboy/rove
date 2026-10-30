@@ -4,13 +4,12 @@ import { useEffect, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import type { ComposerEngine } from "./new-session.ts"
+import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */
 export interface EngineRow extends ComposerEngine {
   readonly name: string
-  readonly ready?: boolean
 }
 
 export interface EngineChoice {
@@ -19,7 +18,7 @@ export interface EngineChoice {
   readonly setEngine: (id: string) => void
 }
 
-/** The engine list, with the first ready engine preselected (the TUI's picker default). */
+/** The engines Settings → Engines has on, with the first ready one preselected (the TUI's picker default). */
 export function useEngineChoice(model: AppModel): EngineChoice {
   const [engines, setEngines] = useState<readonly EngineRow[]>([])
   const [engine, setEngine] = useState("")
@@ -27,8 +26,9 @@ export function useEngineChoice(model: AppModel): EngineChoice {
     void model.client
       .request<{ engines: EngineRow[] }>("engines.list")
       .then((res) => {
-        setEngines(res.engines)
-        setEngine((res.engines.find((e) => e.ready !== false) ?? res.engines[0])?.id ?? "")
+        const offered = offeredEngines(res.engines)
+        setEngines(offered)
+        setEngine(defaultEngineId(offered))
       })
       .catch(() => setEngines([]))
   }, [model])

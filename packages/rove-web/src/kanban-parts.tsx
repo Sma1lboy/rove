@@ -4,6 +4,7 @@ import type { IssueBoardColumn } from "@sma1lboy/rove/src/state/issue-board.ts"
 import { useEffect, useState } from "react"
 import type { EngineOption, Issue } from "./kanban-drawer.tsx"
 import type { AppModel } from "./model.ts"
+import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
 
 export interface Board {
@@ -23,14 +24,14 @@ export const TONE: Record<string, string> = {
 }
 
 export function useEngines(model: AppModel): { engines: readonly EngineOption[]; defaultEngine: string } {
-  const [rows, setRows] = useState<readonly (EngineOption & { ready?: boolean })[]>([])
+  const [rows, setRows] = useState<readonly (EngineOption & ComposerEngine)[]>([])
   useEffect(() => {
     model.client
-      .request<{ engines: (EngineOption & { ready?: boolean })[] }>("engines.list")
-      .then((res) => setRows(res.engines))
+      .request<{ engines: (EngineOption & ComposerEngine)[] }>("engines.list")
+      .then((res) => setRows(offeredEngines(res.engines)))
       .catch(() => setRows([]))
   }, [model])
-  return { engines: rows, defaultEngine: (rows.find((row) => row.ready !== false) ?? rows[0])?.id ?? "" }
+  return { engines: rows, defaultEngine: defaultEngineId(rows) }
 }
 
 /**

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, statSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import {
@@ -18,8 +19,8 @@ import {
 } from "../src/rove-ops.ts"
 
 const ENGINES: EngineRow[] = [
-  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
-  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false },
+  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
+  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false, enabled: true },
 ]
 
 function task(over: Partial<SerializedTask> & { id: string }): SerializedTask {
@@ -137,6 +138,45 @@ describe("engine identity", () => {
     })
     expect(engineFor(task({ id: "b", vendor: "alpha" } as never), ENGINES)).toEqual({ id: "alpha", name: "Alpha" })
     expect(engineFor(task({ id: "c", vendor: "zeta" } as never), ENGINES)).toEqual({ id: null, name: "zeta" })
+  })
+
+  test("a task on an engine switched off still shows that engine's name", () => {
+    const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
+    expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
+      id: "alpha-fast",
+      name: "Alpha Fast",
+    })
+  })
+})
+
+describe("engines.list enabled flag", () => {
+  test("follows Settings → Engines at once, though the engine scan itself is cached", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "bridge-engines-"))
+    const switchOff = (ids: string[]) => {
+      mkdirSync(dirname(kvStatePath()), { recursive: true })
+      writeFileSync(kvStatePath(), JSON.stringify({ disabledEngineIds: ids }))
+    }
+    let scans = 0
+    const api: BridgeApi = {
+      verb: async <T>() => {
+        scans++
+        return { engines: [{ id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: false }] } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    try {
+      const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      switchOff(["alpha"])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([false])
+      switchOff([])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      expect(scans).toBe(1)
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
   })
 })
 

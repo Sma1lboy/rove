@@ -80,7 +80,8 @@ function isPresetId(id: string): boolean {
 
 /** Every registered engine id, built-ins first. */
 export function listPresetIds(): readonly string[] {
-  return [...BUILTIN_VENDORS, ...getCustomEngineIds()]
+  // Deduped: a stale `customEngineIds` entry for an id that is now built in (`omp`) must not list it twice.
+  return [...new Set([...BUILTIN_VENDORS, ...getCustomEngineIds()])]
 }
 
 /** One row of the `engine-list` verb — what the preset launches, verbatim. */
