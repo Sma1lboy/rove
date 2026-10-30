@@ -17,6 +17,7 @@ import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { CommandTab, EngineTab } from "../../tui/workspace/terminal-tabs-core.ts"
+import { AT_REST_STATES, readActivityRegistry } from "./activity-view.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { createdFresh } from "./tab-new.ts"
@@ -25,6 +26,7 @@ import { type TabsRpc, markCliTabSession, readDaemonTabs, seedCanonicalTab } fro
 import { ApiError, type PromptTarget } from "./types.ts"
 
 export interface RevivedTab {
+  readonly busy?: string
   /** A session was opened (or respawned) by this call. */
   readonly revived: boolean
   /** The tab's PTY was already running; nothing was touched. */
@@ -115,6 +117,16 @@ async function openCommandTab(
   return { revived: true, resumed: false }
 }
 
+/** `accepted` only means the host dropped the session; reopening while the old child lives would run the conversation twice. */
+function teardownFailed(taskId: string, tabId: string, key: string): ApiError {
+  return sessionFailed(
+    taskId,
+    `the previous session in tab ${tabId} did not confirm it exited, so nothing was reopened`,
+    "the PTY host could not end the old process — check `rove daemon status` and daemon.log, then retry",
+    { session: key },
+  )
+}
+
 /**
  * Reopen one tab's own session (`<taskId>::<tabId>`) when no PTY is running in
  * it. The row is the tab's identity: no row (or a split leaf, a viewport, a
@@ -126,7 +138,7 @@ export async function reviveTab(
   tabId: string,
   worktree: string,
   /** `replaceExited`: the caller saw the engine gone from a running session (keepAlive's fallback shell); close it and relaunch. */
-  opts: { readonly replaceExited?: boolean } = {},
+  opts: { readonly replaceExited?: boolean; readonly restartUpdatedGeneration?: string } = {},
 ): Promise<RevivedTab> {
   const host = await ensureHostFor(
     target.id,
@@ -136,7 +148,7 @@ export async function reviveTab(
   try {
     const { sessions = [] } = await host.rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
     const listed = sessions.find((s) => s.key === key)
-    if (listed?.alive && !opts.replaceExited) return NO_OP
+    if (listed?.alive && !opts.replaceExited && !opts.restartUpdatedGeneration) return NO_OP
     let row = (await readDaemonTabs(client, target.id))?.tabs.find((t) => t.id === tabId)
     // A session the daemon never listed (its first start failed before the tab was recorded) is the task's own tab-1.
     if (!row && listed && tabId === "tab-1") row = await seedCanonicalTab(client, target.id)
@@ -158,7 +170,23 @@ export async function reviveTab(
       })
     }
     // A freeze-restored corpse is respawned in place by `pty.open`; an ordinary dead one is view-only there, so clear it first.
-    if (listed && listed.restored !== true) await host.rpc.request("pty.kill", { key, wait: true })
+    if (opts.restartUpdatedGeneration) {
+      if (!listed?.alive || listed.generation !== opts.restartUpdatedGeneration) return NO_OP
+      if (!listed.programStatusEvent) return { ...NO_OP, busy: "unknown" }
+      const registry = await readActivityRegistry(client)
+      const state = registry?.tabs[target.id]?.[tabId]?.state ?? "unknown"
+      if (!AT_REST_STATES.has(state)) return { ...NO_OP, busy: state }
+      const result = await host.rpc.request<{ accepted?: boolean; ended?: boolean }>("pty.killAtRest", {
+        key,
+        expectedGeneration: opts.restartUpdatedGeneration,
+        expectedRevision: listed.programStatusEvent.revision,
+      })
+      if (result.accepted !== true) return { ...NO_OP, busy: "unknown" }
+      if (result.ended !== true) throw teardownFailed(target.id, tabId, key)
+    } else if (listed && listed.restored !== true) {
+      const result = await host.rpc.request<{ ended?: boolean }>("pty.kill", { key, wait: true })
+      if (result.ended !== true) throw teardownFailed(target.id, tabId, key)
+    }
     return row.kind === "engine"
       ? await openEngineTab(client, host.rpc, target, row, worktree)
       : await openCommandTab(host.rpc, target, row, worktree)

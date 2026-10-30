@@ -39,7 +39,7 @@ import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
-import { restoredTabLaunch } from "./tab-respawn.ts"
+import { restoredTabLaunch, tabEngineBase } from "./tab-respawn.ts"
 import { reviveTab } from "./tab-revive.ts"
 import {
   type TaskSessionRow,
@@ -285,7 +285,7 @@ export const defaultApiRuntime: ApiRuntime = {
   liveTaskIds: readLiveTaskIds,
   isTaskRunning: async (taskId, engineArgv, scope) =>
     (await defaultApiRuntime.taskTabs(taskId, engineArgv, scope)).running,
-  taskTabs: async (taskId, engineArgv, scope) => {
+  taskTabs: async (taskId, engineArgv, scope, opts) => {
     // No host = "couldn't ask" (`null`), NOT "nothing alive": reporting
     // `false` would let a cleanup loop delete worktrees holding live work.
     // Persisted tabs still return so the layout stays inspectable.
@@ -308,10 +308,12 @@ export const defaultApiRuntime: ApiRuntime = {
     // (`liveVendor`) and whether ANY engine is in the tree (`engineAlive`,
     // what delivery gates on — `alive` can't tell an engine from keepAlive's
     // login shell). A failed ps leaves `engineAlive` unknown, not false.
+    const snapshot = readTabsSnapshot(taskId)
     let liveVendors: Map<string, string | null> | undefined
     let engineAlive: Map<string, boolean> | undefined
+    let engineUpdated: Map<string, boolean | null> | undefined
     try {
-      const { engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot } = await import(
+      const { engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot, vendorFromArgv } = await import(
         "../../engine/foreground.ts"
       )
       const walkable = sessions.filter((s) => s.alive && typeof s.pid === "number" && s.pid > 0)
@@ -320,6 +322,31 @@ export const defaultApiRuntime: ApiRuntime = {
         liveVendors = new Map(walkable.map((s) => [s.key, foregroundEngineIn(rows, s.pid as number)?.vendor ?? null]))
         // Without `engineArgv` a custom engine walks as "no engine".
         engineAlive = new Map(walkable.map((s) => [s.key, engineProcessIn(rows, s.pid as number, engineArgv)]))
+        if (opts?.engineUpdates) {
+          const { engineUpdates } = await import("../../engine/engine-update.ts")
+          engineUpdated = await engineUpdates(
+            new Map(
+              walkable.map((s) => {
+                const engine = foregroundEngineIn(rows, s.pid as number)
+                const tab = snapshot?.tabs.find((tab) => tabPtyKeyFor(taskId, tab) === s.key)
+                const launchArgv =
+                  tab?.kind === "engine" && (tab.vendor || tab.engineCommand)
+                    ? tabEngineBase({ id: taskId }, tab)
+                    : engineArgv
+                return [
+                  s.key,
+                  engine
+                    ? {
+                        ...engine,
+                        launchArgv:
+                          launchArgv && vendorFromArgv(launchArgv.join(" ")) === engine.vendor ? launchArgv : undefined,
+                      }
+                    : null,
+                ]
+              }),
+            ),
+          )
+        }
       } else {
         engineAlive = new Map()
       }
@@ -334,7 +361,6 @@ export const defaultApiRuntime: ApiRuntime = {
     } catch {
       /* keep tabs readable without the records */
     }
-    const snapshot = readTabsSnapshot(taskId)
     // Pinned conversation id per tab: the recovery for a dead engine tab
     // (`claude --resume <id>`), which `send --respawn`'s refusal names.
     const sessionIds = new Map(
@@ -343,7 +369,15 @@ export const defaultApiRuntime: ApiRuntime = {
     return {
       tabs: joinTaskTabs(snapshot, taskId, visible, exits, liveVendors, engineAlive).map((row) => {
         const sessionId = sessionIds.get(row.id)
-        return sessionId ? { ...row, sessionId } : row
+        const withSession = sessionId ? { ...row, sessionId } : row
+        if (!opts?.engineUpdates) return withSession
+        const persisted = snapshot?.tabs.find((t) => t.id === row.id)
+        const key = persisted ? tabPtyKeyFor(taskId, persisted) : `${taskId}::${row.id}`
+        return {
+          ...withSession,
+          generation: sessions.find((s) => s.key === key)?.generation,
+          engineUpdated: row.alive === true ? (engineUpdated?.get(key) ?? null) : null,
+        }
       }),
       running: hostReachable
         ? hasLiveEngineTab(

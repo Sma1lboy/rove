@@ -146,7 +146,7 @@ tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ)
                    --latest --file --line --pane --tab --view-task
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
-tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
+tab-revive         --task-id(REQ) --tab(REQ) --restart-exited --restart-updated
 panel-show         --task-id --view{browser|files|diff}(REQ) --url --path
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
@@ -226,6 +226,10 @@ original prompt, and a running tab answers `revived: false, alive: true`.
 `--restart-exited` also closes and relaunches an engine tab whose session is
 up but whose engine is gone (`engineAlive: false`, the fallback shell's
 `Engine exited (code N)` banner); a running engine is still left alone.
+`--restart-updated` relaunches an engine tab whose CLI was reinstalled after
+it started (`get-task .tabs[].engineUpdated: true`) onto the new version,
+resuming its conversation, but only while the tab is idle or its turn is
+complete; a busy tab is left alone and answers `busy: <state>`.
 Split leaves are `BAD_FLAG` (use `tab-split --action reset`); previews and
 viewport tabs are `TAB_NOT_REVIVABLE`.
 

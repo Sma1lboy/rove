@@ -230,6 +230,7 @@ export class PtyHost {
   write(key: string, data: string): void {
     const session = this.sessions.get(key)
     if (!session?.alive || data.length === 0) return
+    session.inputStatusRevision = session.programStatusEvent?.revision ?? 0
     // Audit trail so a delivered prompt and a lost one are distinguishable
     // after the fact. Large writes only: keystrokes would drown the log.
     if (data.length >= LOGGED_WRITE_BYTES) {
@@ -271,6 +272,32 @@ export class PtyHost {
     if (session.generation !== expectedGeneration) return { accepted: false, reason: "generation-mismatch" }
     void this.kill(key).catch((err) => logDaemonError("pty-kill", err))
     return { accepted: true }
+  }
+
+  /**
+   * Status, generation and removal happen in one synchronous turn; the reply
+   * waits for the old child's bounded termination, like `pty.kill {wait}`, so
+   * the caller's replacement never overlaps a child still shutting down.
+   */
+  killAtRest(key: string, generation: string, revision: number): Promise<{ accepted: boolean; ended?: boolean }> {
+    const session = this.sessions.get(key)
+    const event = session?.programStatusEvent
+    const atRest = event?.status?.state === "idle" || event?.status?.state === "done"
+    if (!session?.alive || session.generation !== generation || event?.revision !== revision || !atRest)
+      return Promise.resolve({ accepted: false })
+    if (revision <= (session.inputStatusRevision ?? -1)) return Promise.resolve({ accepted: false })
+    return this.killAndWait(key)
+  }
+
+  /** `kill`, answering once the child's bounded termination settles: `ended` is false if teardown failed. */
+  killAndWait(key: string): Promise<{ accepted: true; ended: boolean }> {
+    return this.kill(key).then(
+      () => ({ accepted: true, ended: true }),
+      (err) => {
+        logDaemonError("pty-kill", err)
+        return { accepted: true, ended: false }
+      },
+    )
   }
 
   /** End the child AND forget the session (explicit close / task deletion). */

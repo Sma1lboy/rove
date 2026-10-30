@@ -295,7 +295,11 @@ process, including a reboot.
   restored screen, and as **Retry** when the engine exited into its fallback
   shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
   **Settings → Engines** and **New conversation with…** for another engine;
-  nothing reopens on view.
+  nothing reopens on view. After you upgrade an engine CLI, sessions already
+  running stay on the old version: `get-task .tabs[].engineUpdated` names
+  them when installation identity can be established, and `--restart-updated`
+  relaunches one only with fresh at-rest evidence from its PTY host. Unknown
+  installation or activity evidence leaves the session running.
 
 ## Not supported
 
