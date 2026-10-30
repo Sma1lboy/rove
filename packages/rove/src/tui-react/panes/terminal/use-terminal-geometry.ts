@@ -5,12 +5,8 @@
  * the PTY handle or viewport cursor (`use-terminal-host-cursor.ts` owns
  * those effects).
  *
- * `bodyEl` MUST be React state, not a ref, so the effect re-runs the instant
- * the box attaches. The caller's ref callback MUST be an inline arrow, not
- * the stable `setBodyEl`: its re-attach every render is what re-measures
- * after Yoga's first pass (the first attach reports 0x0). A stable ref left
- * three Terminal render tests with no PTY; re-measuring on the frame event, a
- * 0/16ms timer, or one forced post-mount render all land too late.
+ * React state tracks box identity; same-box reattachment does not remeasure.
+ * Terminal dimensions and layout ticks trigger measurement after attachment.
  */
 
 import type { BoxRenderable } from "@opentui/core"

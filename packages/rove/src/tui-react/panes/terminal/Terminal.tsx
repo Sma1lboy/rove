@@ -446,11 +446,7 @@ function TerminalSession(props: TerminalProps) {
         </box>
       ) : null}
 
-      {/* Until the first real measurement the inline arrow is load-bearing: it
-          re-attaches on every render, which re-runs the geometry measurement
-          until Yoga has laid the box out (see `use-terminal-geometry.ts`).
-          After that the stable setter stops each render from scheduling a
-          second one; `onSizeChange` and `dims` cover later resizes. */}
+      {/* Same-box ref reattachment is ignored; layout ticks and terminal dimensions trigger measurement. */}
       <box
         ref={bodyGeometry ? setBodyEl : (r: BoxRenderable | null) => setBodyEl(r)}
         onSizeChange={bumpGeomTick}
