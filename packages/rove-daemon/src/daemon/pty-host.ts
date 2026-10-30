@@ -45,7 +45,7 @@ import {
 } from "./pty-observability.ts"
 import { WarmSpare } from "./pty-warm.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
-import { terminalModePreamble } from "./terminal-modes.ts"
+import { type TerminalModeTrack, replayStart, terminalModePreamble } from "./terminal-modes.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 // Re-exported for the cross-chunk title-boundary tests (pure fold).
@@ -60,6 +60,15 @@ const LOGGED_WRITE_BYTES = 1024
 export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
 const EXIT_TAIL_BYTES = 16 * 1024
+
+/** A full ring replay: the trimmed bytes' modes, then the ring from its first byte outside a string escape. */
+function fullReplay(track: TerminalModeTrack, ring: Buffer): Buffer {
+  return Buffer.concat([
+    Buffer.from(terminalModePreamble(track.modes), "latin1"),
+    ring.subarray(replayStart(track, ring)),
+  ])
+}
+
 /** Freeze cadence policy, re-exported from `pty-freeze-policy.ts`. */
 export { FREEZE_INTERVAL_MS, FREEZE_MIN_APPENDED_BYTES, FREEZE_STALE_MS } from "./pty-freeze-policy.ts"
 
@@ -188,7 +197,7 @@ export class PtyHost {
     // never detaching. The pid check lives here because a stale restore must
     // get the full ring, not a delta the client would discard.
     const windowStart = session.totalBytes - session.bytes
-    let replay = Buffer.concat(session.chunks)
+    let replay: Buffer = Buffer.concat(session.chunks)
     let sinceValid = false
     if (
       !created &&
@@ -206,10 +215,10 @@ export class PtyHost {
       else this.parkRestoreFallbacks++
     }
     // A full replay starts mid-stream: re-set what the trimmed bytes had set
-    // (an engine's startup mouse tracking, above all). A delta lands on a
-    // parked screen that already holds the current modes.
-    if (!sinceValid)
-      replay = Buffer.concat([Buffer.from(terminalModePreamble(session.ringModes.modes), "latin1"), replay])
+    // (an engine's startup mouse tracking, above all), and skip the tail of a
+    // string escape the cut fell inside. A delta lands on a parked screen that
+    // already holds the current modes.
+    if (!sinceValid) replay = fullReplay(session.ringModes, replay)
     return {
       replay: replay.toString("base64"),
       alive: session.alive,
@@ -355,8 +364,7 @@ export class PtyHost {
     const session = this.sessions.get(key)
     const peek = peekRing(session, sinceOffset)
     if (!preamble || !session || sinceOffset !== undefined) return peek
-    const modes = Buffer.from(terminalModePreamble(session.ringModes.modes), "latin1")
-    return { ...peek, data: Buffer.concat([modes, Buffer.from(peek.data, "base64")]).toString("base64") }
+    return { ...peek, data: fullReplay(session.ringModes, Buffer.from(peek.data, "base64")).toString("base64") }
   }
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */
