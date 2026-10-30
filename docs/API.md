@@ -1150,13 +1150,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   for what actually happened.
 
   `interrupt --group GROUPID` stops a whole fan-out round, `interrupt --all`
-  every task on this machine. Only members whose `.activity.state` is
-  `running` are written to — the same bytes on an idle composer are not
-  harmless (a second Esc rewinds the conversation). Returns
-  `{ groupId?, count, interrupted, failures, results }`, one entry per member:
-  `status: "interrupted"` (the single-task reply), `"skipped"` with its
-  `.state`, or `"failed"` with `.error`/`.code`; one member's refusal never
-  aborts the rest. `--tab` goes only with `--task-id`.
+  every task on this machine. Only tabs whose own activity is `running` are
+  written to. Idle tabs and tabs with unknown activity are left alone, even
+  if another tab makes the task's activity `running`. Aliased PTYs belong to
+  their alias owner. Returns `{ groupId?, count, interrupted, failures, results }`:
+  `count` counts members, while `interrupted` and `failures` count tabs.
+  Each attempted tab gets a result with `taskId`, `tabId`, and
+  `status: "interrupted"` (the single-task reply) or `"failed"` with
+  `.error`/`.code`. A member with no known running tabs gets one `"skipped"`
+  result with its task `.state`. One tab's refusal never aborts the rest.
+  `--tab` goes only with `--task-id`.
 
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see

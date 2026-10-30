@@ -8,12 +8,12 @@
  * never guessed at: Esc and ctrl-C mean opposite things across engines and
  * one of them quits.
  *
- * `--group`/`--all` interrupt only the members whose engine is `running`: the
+ * `--group`/`--all` interrupt only tabs whose own activity is `running`: the
  * same bytes on an idle composer are not a no-op (a second Esc rewinds).
  */
 
 import { errorMessage } from "@/lib/error-message"
-import { type AliasRef, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import { type AliasRef, hostedKeyFor, ptyScopeFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { openHostedSessionHost } from "../../engine/hosted-session.ts"
 import { findHostedEngineKey, listHostedSessions } from "../../engine/hosted-session.ts"
 import { getCapabilities } from "../../engine/registry.ts"
@@ -64,7 +64,9 @@ async function interruptTask(ctx: VerbContext): Promise<unknown> {
 /** Every running member of a round (or of the machine); a member's refusal is recorded, not thrown. */
 async function interruptMany(ctx: VerbContext, groupId: string | undefined): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const { tasks } = await daemon.request<{ tasks: { id: string; groupId?: string }[] }>("task.list")
+  const { tasks } = await daemon.request<{ tasks: { id: string; groupId?: string; ptyAlias?: AliasRef }[] }>(
+    "task.list",
+  )
   const members = groupId === undefined ? tasks : tasks.filter((t) => t.groupId === groupId)
   if (groupId !== undefined && members.length === 0) {
     throw new ApiError(`no tasks in group ${groupId}`, "TASK_NOT_FOUND", {
@@ -81,20 +83,26 @@ async function interruptMany(ctx: VerbContext, groupId: string | undefined): Pro
   }
   const results: unknown[] = []
   for (const member of members) {
-    const state = activity.tasks[member.id]?.state
-    if (state !== "running") {
-      results.push({ taskId: member.id, status: "skipped" as const, state: state ?? null })
+    const scope = ptyScopeFor(tasks, member.id)
+    const runningTabs = Object.entries(activity.tabs[member.id] ?? {}).filter(
+      ([tabId, entry]) => entry.state === "running" && hostedKeyFor(member.id, tabId, scope) !== null,
+    )
+    if (runningTabs.length === 0) {
+      results.push({ taskId: member.id, status: "skipped" as const, state: activity.tasks[member.id]?.state ?? null })
       continue
     }
-    try {
-      results.push({ ...(await interruptOne(ctx, member.id, undefined)), status: "interrupted" as const })
-    } catch (err) {
-      results.push({
-        taskId: member.id,
-        status: "failed" as const,
-        error: errorMessage(err),
-        ...(err instanceof ApiError ? { code: err.code } : {}),
-      })
+    for (const [tabId] of runningTabs) {
+      try {
+        results.push({ ...(await interruptOne(ctx, member.id, tabId)), status: "interrupted" as const })
+      } catch (err) {
+        results.push({
+          taskId: member.id,
+          tabId,
+          status: "failed" as const,
+          error: errorMessage(err),
+          ...(err instanceof ApiError ? { code: err.code } : {}),
+        })
+      }
     }
   }
   const count = (status: string) => results.filter((r) => (r as { status: string }).status === status).length
@@ -160,7 +168,7 @@ export const INTERRUPT_VERB: VerbSpec = {
   name: "interrupt",
   group: "drive",
   summary:
-    "Stop the turn a task's engine is currently running — the headless twin of pressing the engine's own interrupt key. Writes the ENGINE-declared interrupt bytes to its pty; the session, its conversation and its worktree all survive, which is what separates this from `tab-close` and `delete`. Use it when a worker runs away: `send` cannot reach it (a busy engine's composer is not quiet), and until now the only levers left destroyed something. Engines that have not declared an interrupt sequence (every `generic` protocol engine) are refused with UNSUPPORTED rather than guessed at — Esc and ctrl-C mean opposite things across engines. Returns { taskId, tabId, vendor, interrupted, bytes }; `interrupted` reports the WRITE, so read `collect`'s .activity.state for the effect. Pass --group (one fan-out round) or --all (every task on this machine) instead of --task-id to stop many at once: only members whose engine is `running` are written to, and the reply is { groupId?, count, interrupted, failures, results } with one entry per member — status interrupted, skipped (with its .state) or failed (with .error/.code).",
+    "Stop the turn a task's engine is currently running — the headless twin of pressing the engine's own interrupt key. Writes the ENGINE-declared interrupt bytes to its pty; the session, its conversation and its worktree all survive, which is what separates this from `tab-close` and `delete`. Use it when a worker runs away: `send` cannot reach it (a busy engine's composer is not quiet), and until now the only levers left destroyed something. Engines that have not declared an interrupt sequence (every `generic` protocol engine) are refused with UNSUPPORTED rather than guessed at — Esc and ctrl-C mean opposite things across engines. Returns { taskId, tabId, vendor, interrupted, bytes }; `interrupted` reports the WRITE, so read `collect`'s .activity.state for the effect. Pass --group (one fan-out round) or --all (every task on this machine) instead of --task-id to stop many at once: only tabs whose own activity is `running` are written to, and the reply is { groupId?, count, interrupted, failures, results } with one entry per attempted tab, or a skipped entry for a member with no known running tabs. count counts members; interrupted and failures count tabs. Entries have status interrupted, skipped (with its .state) or failed (with .error/.code).",
   flags: [
     F.taskId(false),
     {
