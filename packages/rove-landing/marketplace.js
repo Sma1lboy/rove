@@ -1,4 +1,4 @@
-/* Rove marketplace — the plugin list and the hash-routed detail view.
+/* Rove marketplace: the plugin list and the hash-routed detail view.
    Loaded by plugins.html after ROVE_I18N is defined. Classic script (no module),
    so it also runs from file:// while iterating locally. */
 (function () {
@@ -13,8 +13,8 @@
   if (!grid) return;
 
   // The first-party plugins live in subdirectories of one repo. Subdirectories can
-  // never carry a GitHub topic, so they are seeded here — and the parent repo, which
-  // DOES carry the topic, is dropped from the community results below (it would be a
+  // never carry a GitHub topic, so they are seeded here. The parent repo, which DOES
+  // carry the topic, is dropped from the community results below (it would be a
   // seventh card duplicating these six) after lending them its stars and push date.
   var FIRST_PARTY_REPO = 'Sma1lboy/rove-plugins';
   var SEED = [
@@ -72,16 +72,18 @@
     };
   }
 
-  var STAR_SVG = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>';
+  function ratingHtml(it) {
+    var n = starsOf(it);
+    return '<span class="rating" title="' + esc(n + ' ' + ROVE_I18N.t('mk.stars')) + '">★' + esc(n) + '</span>';
+  }
 
-  // chip · language · relative push date — every part optional, no dangling separators
+  // first party, language, relative push date: every part optional
   function metaRow(it) {
     var parts = [];
-    if (it.lang) parts.push('<span class="dot" aria-hidden="true"></span>' + esc(it.lang));
-    if (it.pushed) parts.push(esc(relTime(it.pushed)));
-    var chip = it.firstParty ? '<span class="tag-first">' + esc(ROVE_I18N.t('mk.firstParty')) + '</span>' : '';
-    if (!chip && !parts.length) return '';
-    return chip + parts.join(' <span class="sep">·</span> ');
+    if (it.firstParty) parts.push(ROVE_I18N.t('mk.firstParty'));
+    if (it.lang) parts.push(it.lang);
+    if (it.pushed) parts.push(relTime(it.pushed));
+    return parts.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join('');
   }
 
   function card(it) {
@@ -91,11 +93,11 @@
       '<div class="card-top">' +
         '<a class="card-name" href="#' + esc(it.ref) + '">' +
           '<span class="owner">' + esc(it.owner) + '/</span>' + esc(it.name) + '</a>' +
-        '<span class="card-stars">' + STAR_SVG + starsOf(it) + '</span>' +
+        ratingHtml(it) +
       '</div>' +
       '<p class="card-desc">' + esc(descOf(it)) + '</p>' +
-      '<div class="card-meta">' + (meta || '&nbsp;') + '</div>' +
-      '<button class="card-install" data-cmd="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
+      (meta ? '<div class="card-meta">' + meta + '</div>' : '') +
+      '<button class="card-install" type="button" data-install="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
         '<span class="ps" aria-hidden="true">$</span><span class="cmd">' + esc(cmd) + '</span></button>' +
     '</article>';
   }
@@ -112,7 +114,7 @@
       var bv = key === 'stars' ? (b.stars || 0) : Date.parse(b[key] || 0) || 0;
       return bv - av || a.ref.localeCompare(b.ref);
     });
-    countEl.textContent = list.length + ' ' + ROVE_I18N.t('mk.count');
+    countEl.textContent = list.length + ' ' + ROVE_I18N.t(list.length === 1 ? 'mk.count1' : 'mk.count');
     grid.innerHTML = list.length
       ? list.map(card).join('')
       : '<p class="empty">' + esc(ROVE_I18N.t('mk.none')) + '</p>';
@@ -200,21 +202,18 @@
 
   function detailHtml(it) {
     var cmd = 'rove plugin install ' + it.ref;
-    var facts = ['<span class="det-fact">' + STAR_SVG + starsOf(it) + '</span>'];
-    if (it.lang) facts.push('<span class="det-fact"><span class="dot" aria-hidden="true"></span>' + esc(it.lang) + '</span>');
-    if (it.pushed) facts.push('<span class="det-fact">' + esc(ROVE_I18N.t('det.pushed')) + ' ' + esc(relTime(it.pushed)) + '</span>');
+    var facts = [ratingHtml(it)];
+    if (it.firstParty) facts.push('<span>' + esc(ROVE_I18N.t('mk.firstParty')) + '</span>');
+    if (it.lang) facts.push('<span>' + esc(it.lang) + '</span>');
+    if (it.pushed) facts.push('<span>' + esc(ROVE_I18N.t('det.pushed')) + ' ' + esc(relTime(it.pushed)) + '</span>');
+    facts.push('<a class="det-gh" href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(ROVE_I18N.t('det.viewGithub')) + ' ↗</a>');
     return '<a class="det-back" href="#">' + esc(ROVE_I18N.t('det.back')) + '</a>' +
-      '<div class="det-title">' +
-        '<h2 class="det-name"><span class="owner">' + esc(it.owner) + '/</span>' + esc(it.name) + '</h2>' +
-        (it.firstParty ? '<span class="tag-first">' + esc(ROVE_I18N.t('mk.firstParty')) + '</span>' : '') +
-      '</div>' +
+      '<h2 class="det-name"><span class="owner">' + esc(it.owner) + '/</span>' + esc(it.name) + '</h2>' +
       '<p class="det-desc">' + esc(descOf(it)) + '</p>' +
-      '<div class="det-facts">' + facts.join('<span class="sep">·</span>') +
-        '<a class="det-gh" href="' + esc(urlOf(it)) + '" target="_blank" rel="noopener">' + esc(ROVE_I18N.t('det.viewGithub')) + ' ↗</a></div>' +
-      '<button class="card-install det-install" data-cmd="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
+      '<div class="det-facts">' + facts.join('') + '</div>' +
+      '<button class="card-install det-install" type="button" data-install="' + esc(cmd) + '" title="' + esc(ROVE_I18N.t('mk.copy')) + '">' +
         '<span class="ps" aria-hidden="true">$</span><span class="cmd">' + esc(cmd) + '</span></button>' +
-      '<div class="det-readme"><span class="det-readme-label">README</span>' +
-        '<div class="det-readme-body md"><p class="md-fail">' + esc(ROVE_I18N.t('det.readmeLoading')) + '</p></div></div>';
+      '<div class="det-readme"><div class="det-readme-body md"><p class="md-fail">' + esc(ROVE_I18N.t('det.readmeLoading')) + '</p></div></div>';
   }
 
   function currentRef() { try { return decodeURIComponent((location.hash || '').slice(1)); } catch (e) { return ''; } }
@@ -230,7 +229,7 @@
     headSec.hidden = true; listSec.hidden = true; pubSec.hidden = true;
     detailSec.hidden = false;
     detailSec.innerHTML = detailHtml(it);
-    document.title = it.owner + '/' + it.name + ' — Rove';
+    document.title = it.owner + '/' + it.name + ' | Rove';
     loadReadme(it);
   }
 
@@ -253,27 +252,25 @@
     if (art) location.hash = art.getAttribute('data-ref');
   });
 
-  // copy an install command (delegated on document — list and detail both render buttons)
+  // copy an install command (delegated on document: list and detail both render buttons)
   document.addEventListener('click', function (e) {
     var btn = e.target.closest && e.target.closest('.card-install');
     if (!btn) return;
-    var cmd = btn.getAttribute('data-cmd');
+    var cmd = btn.getAttribute('data-install');
     try { if (navigator.clipboard) navigator.clipboard.writeText(cmd); } catch (err) {}
     var label = btn.querySelector('.cmd');
     label.textContent = ROVE_I18N.t('mk.copied');
     setTimeout(function () { label.textContent = cmd; }, 1500);
   });
 
-  // Seed-only listings get their own banner, and the community disclaimer is
-  // hidden — nothing community-published is on screen to disclaim.
+  // Seed-only listings get their own notice, and the community disclaimer is
+  // hidden: nothing community-published is on screen to disclaim.
   function seedNotice(key, isErr) {
     var host = document.getElementById('disclaimer');
     host.hidden = true;
-    var n = document.createElement('div');
+    var n = document.createElement('p');
     n.className = isErr ? 'notice err' : 'notice';
-    n.innerHTML = '<span class="mk" aria-hidden="true">!</span><span></span>';
-    var msg = n.lastChild;
-    function say() { msg.textContent = ROVE_I18N.t(key); }
+    function say() { n.textContent = ROVE_I18N.t(key); }
     say();
     ROVE_I18N.onChange(say);
     host.insertAdjacentElement('beforebegin', n);
@@ -286,28 +283,21 @@
       .catch(function () { return null; });
   }
 
-  Promise.all([searchTopic('rove-plugin'), searchTopic('rove-plugin')])
-    .then(function (results) {
-      if (results[0] === null && results[1] === null) throw new Error('both topic searches failed');
-      var seen = {};
-      var repos = [].concat(results[0] || [], results[1] || []).filter(function (repo) {
-        var key = String(repo.full_name || '').toLowerCase();
-        if (!key || seen[key]) return false;
-        seen[key] = true;
-        return true;
-      });
+  searchTopic('rove-plugin')
+    .then(function (found) {
+      if (found === null) throw new Error('topic search failed');
       var parent = null;
-      var community = repos.map(fromApi).filter(function (r) {
+      var community = found.map(fromApi).filter(function (r) {
         if (r.ref !== FIRST_PARTY_REPO) return true;
-        parent = r; // the seeds already cover it — keep its numbers, drop the card
+        parent = r; // the seeds already cover it: keep its numbers, drop the card
         return false;
       });
       if (parent) {
         SEED.forEach(function (s) { s.stars = parent.stars; s.pushed = parent.pushed; s.created = parent.created; });
       }
       items = SEED.concat(community);
-      if (!repos.length) seedNotice('mk.empty', false);
-      // nothing community-published on screen → nothing for the disclaimer to disclaim
+      if (!found.length) seedNotice('mk.empty', false);
+      // nothing community-published on screen, so nothing for the disclaimer to disclaim
       else if (!community.length) document.getElementById('disclaimer').hidden = true;
       route(false);
     })
