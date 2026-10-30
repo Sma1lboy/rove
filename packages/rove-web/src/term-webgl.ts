@@ -20,6 +20,9 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
       addon.dispose()
       webgl = null
     })
+    // A full atlas merges its pages, and rows drawn from a dropped page are never redrawn: blank or garbled until
+    // they change. Kitty image placeholders (a distinct glyph per cell) fill it in one paste.
+    addon.onRemoveTextureAtlasCanvas(() => term.refresh(0, term.rows - 1))
     term.loadAddon(addon)
     webgl = addon
     glCanvas =
