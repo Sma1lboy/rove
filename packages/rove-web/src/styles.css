@@ -67,10 +67,13 @@
   box-sizing: border-box;
 }
 
+/* An app, not a document: a drag that runs past a list's top must not pull-to-refresh the page
+   (Chrome Android) or rubber-band it (iOS); every scroller lives inside. */
 html,
 body {
   height: 100%;
   margin: 0;
+  overscroll-behavior: none;
 }
 
 #root {
@@ -388,6 +391,8 @@ button:focus-visible {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  /* `term-touch.ts` scrolls it; the browser starting its own pan here races that into a page pull. */
+  touch-action: none;
   overflow: hidden;
 }
 
