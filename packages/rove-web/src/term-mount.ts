@@ -15,6 +15,7 @@ import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
+import { attachKittyImages } from "./term-images.ts"
 import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
@@ -117,6 +118,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   term.loadAddon(new WebLinksAddon())
   term.open(el)
   const webgl = loadWebgl(term)
+  const images = attachKittyImages(term)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
   let cover: HTMLElement | null = null
@@ -169,11 +171,13 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const acks = createAcks((chars) => {
     if (stream) void client.request("term.ack", { stream, chars }).catch(() => {})
   })
-  const writeAcked = (bytes: Uint8Array, chars: number, parsed?: () => void) =>
+  const writeAcked = (bytes: Uint8Array, chars: number, parsed?: () => void) => {
+    images.push(bytes)
     term.write(bytes, () => {
       parsed?.()
       acks.parsed(chars)
     })
+  }
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
@@ -217,7 +221,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
       else detach()
       if (disposed) return
       term.reset()
-      replies.replay((parsed) => term.write(decode(res.replay), parsed))
+      replies.replay((parsed) => {
+        const bytes = decode(res.replay)
+        images.push(bytes)
+        term.write(bytes, parsed)
+      })
       for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
@@ -471,6 +479,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
         owned.delete(expected)
         if (ownership.attached) detach()
       }
+      images.dispose()
       term.dispose()
       webgl.dispose()
     },

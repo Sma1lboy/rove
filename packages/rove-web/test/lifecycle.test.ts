@@ -18,6 +18,9 @@ class Renderer {
   onScroll() {
     return { dispose() {} }
   }
+  onRender() {
+    return { dispose() {} }
+  }
   onWriteParsed() {
     return { dispose() {} }
   }
