@@ -82,6 +82,23 @@ describe("PtyHost terminal modes", () => {
     expect(term.modes.mouseTrackingMode).toBe("any")
   })
 
+  it("a ring trimmed mid-image does not replay the image's base64 as text", async () => {
+    const screenAfter = async (replay: string) =>
+      (await emulate(replay)).buffer.active.getLine(0)?.translateToString(true)
+    const h = harness()
+    h.host.open(KEY, SPEC, {}, () => {})
+    // One Kitty transmit spanning two reads; the cap drops the first, leaving the ring inside the APC.
+    h.children[0]?.emit(`\x1b_Ga=t,f=100,i=1,m=1;${"QUFB".repeat(20)}`)
+    h.children[0]?.emit(`${"QkJC".repeat(20)}\x1b\\hello`)
+    expect(await screenAfter(h.host.open(KEY, SPEC, {}, () => {}, undefined, undefined, true).replay)).toBe("hello")
+    expect(await screenAfter(h.host.peek(KEY, undefined, true).data)).toBe("hello")
+
+    h.host.flushFrozen()
+    const second = harness()
+    second.host.restoreFrozen([...h.saved.values()])
+    expect(await screenAfter(second.host.open(KEY, SPEC, {}, () => {}).replay)).toBe("hello")
+  })
+
   it("answers an engine's feature probe while only a headless caller is attached", () => {
     const h = harness(4096)
     h.host.open(KEY, SPEC, {}, () => {})

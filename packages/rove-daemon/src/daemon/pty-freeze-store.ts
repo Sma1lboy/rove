@@ -31,7 +31,13 @@ import { defaultPtyFreezeDir } from "./paths.ts"
 import type { PtySessionExit } from "./protocol.ts"
 import type { PtySessionState } from "./pty-host-types.ts"
 import { DEFAULT_TERMINAL_COLORS } from "./terminal-colors.ts"
-import { type TerminalModeTrack, freshModeTrack, normalizeTerminalModes, scanTerminalModes } from "./terminal-modes.ts"
+import {
+  type TerminalModeTrack,
+  freshModeTrack,
+  normalizeTerminalModes,
+  replayStart,
+  scanTerminalModes,
+} from "./terminal-modes.ts"
 
 /** Record format version — unknown versions read as absent (forward-safe). */
 const FREEZE_VERSION = 1
@@ -79,8 +85,9 @@ export interface FreezeableSession {
   readonly ringModes?: TerminalModeTrack
 }
 
-/** Session state → its durable record. Pure. */
+/** Session state → its durable record. Pure. The ring starts outside any string escape, so a thaw needs no string state. */
 export function freezeSession(session: FreezeableSession, now = new Date()): FrozenPtySession {
+  const ring = Buffer.concat(session.chunks as Buffer[])
   return {
     v: FREEZE_VERSION,
     key: session.key,
@@ -91,7 +98,7 @@ export function freezeSession(session: FreezeableSession, now = new Date()): Fro
     title: session.title,
     totalBytes: session.totalBytes,
     exit: session.exit,
-    ringB64: Buffer.concat(session.chunks as Buffer[]).toString("base64"),
+    ringB64: ring.subarray(session.ringModes ? replayStart(session.ringModes, ring) : 0).toString("base64"),
     ...(session.ringModes ? { ringModes: session.ringModes.modes } : {}),
     updatedAt: now.toISOString(),
   }
