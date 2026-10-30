@@ -133,7 +133,7 @@ needs numbers, not when you want to know what a task is doing.
 send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
                    --allow-empty --expect-report --if-runnable
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-interrupt          --task-id(REQ) --tab
+interrupt          --task-id --group --all --tab
 note               --task-id(REQ) --text(REQ)
 note-list          --repo(REQ)
 note-delete        --repo(REQ) --id(REQ)
