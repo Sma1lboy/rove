@@ -19,6 +19,7 @@ import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { attachTouchScroll } from "./term-touch.ts"
 import { loadWebgl } from "./term-webgl.ts"
 import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
 import { activeStream, layoutMoving } from "./ui.ts"
@@ -371,6 +372,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
     term.scrollLines(step.lines)
   }
   el.addEventListener("wheel", onWheel, { capture: true, passive: false })
+  const detachTouch = attachTouchScroll(el, term, () => {
+    heldBack = null
+  })
   const onScrollbarDown = (e: MouseEvent) => {
     if (e.target instanceof Element && e.target.closest(".scrollbar")) heldBack = null
   }
@@ -436,6 +440,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (coverCap !== null) window.clearTimeout(coverCap)
       observer.disconnect()
       el.removeEventListener("wheel", onWheel, { capture: true })
+      detachTouch()
       el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
       textarea?.removeEventListener("paste", followInput)
       textarea?.removeEventListener("compositionend", followInput)
