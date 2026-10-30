@@ -10,6 +10,7 @@ import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
+import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import "./taskops.css"
 import { toast } from "./ui.ts"
@@ -18,6 +19,7 @@ export interface PickerEngine {
   readonly id: string
   readonly name: string
   readonly ready?: boolean
+  readonly enabled?: boolean
   readonly effortLevels?: readonly string[]
   readonly acceptsModel?: boolean
   readonly models?: ReadonlyArray<{ readonly id: string }> | null
@@ -49,8 +51,10 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
       model.client.request<{ engines: PickerEngine[] }>("engines.list"),
       model.client.request<{ task: Current }>("task.get", { taskId }),
     ]).then(([list, got]) => {
-      // The TUI lists detected engines; the task's own stays so it can be re-picked at another level.
-      const usable = list.engines.filter((e) => e.ready !== false || e.id === got.task.engine)
+      // The TUI lists detected, enabled engines; the task's own stays so it can be re-picked at another level.
+      const usable = offeredEngines(list.engines, got.task.engine).filter(
+        (e) => e.ready !== false || e.id === got.task.engine,
+      )
       const start = usable.find((e) => e.id === got.task.engine) ?? usable[0]
       setEngines(usable)
       setCurrent(got.task)

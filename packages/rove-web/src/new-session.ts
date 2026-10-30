@@ -9,6 +9,26 @@ export interface ComposerEngine {
   readonly models?: ReadonlyArray<{ readonly id: string; readonly label?: string }> | null
   readonly effortLevels?: readonly string[]
   readonly acceptsModel?: boolean
+  /** Binary present and signed in; absent = unknown, which counts as usable. */
+  readonly ready?: boolean
+  /** false = switched off in Settings → Engines; absent (an older bridge) = on. */
+  readonly enabled?: boolean
+}
+
+/**
+ * The engines a picker may OFFER for new work: those switched off in Settings → Engines are left out, as the TUI's
+ * pickers do. `keep` is an engine that stays listed anyway (the one an existing task is on, so it can be re-picked).
+ */
+export function offeredEngines<E extends { readonly id: string; readonly enabled?: boolean }>(
+  engines: readonly E[],
+  keep?: string,
+): E[] {
+  return engines.filter((e) => e.enabled !== false || e.id === keep)
+}
+
+/** The engine a picker opens on: the first ready one, else the first; "" when nothing is offered. */
+export function defaultEngineId(offered: readonly { readonly id: string; readonly ready?: boolean }[]): string {
+  return (offered.find((e) => e.ready !== false) ?? offered[0])?.id ?? ""
 }
 
 export interface Choice {

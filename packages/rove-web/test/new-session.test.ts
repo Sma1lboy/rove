@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import {
   REPO_CAP,
+  defaultEngineId,
   digitRow,
   effortChoices,
   modelChipLabel,
   modelChoices,
+  offeredEngines,
   repoChipLabel,
   spawnArgs,
   toggleRepo,
@@ -15,6 +17,29 @@ const engine = {
   models: [{ id: "m-big", label: "Big" }, { id: "m-small" }],
   effortLevels: ["low", "high"],
 }
+
+describe("engines a picker offers", () => {
+  const list = [
+    { id: "claude", name: "Claude", enabled: true, ready: true },
+    { id: "codex", name: "Codex", enabled: false, ready: true },
+    { id: "pi", name: "Pi", ready: false },
+    { id: "bob", name: "Bob" },
+  ]
+
+  test("an engine switched off in Settings is not offered; an older bridge's row with no flag still is", () => {
+    expect(offeredEngines(list).map((e) => e.id)).toEqual(["claude", "pi", "bob"])
+  })
+
+  test("a task's own engine stays pickable even when it is switched off", () => {
+    expect(offeredEngines(list, "codex").map((e) => e.id)).toEqual(["claude", "codex", "pi", "bob"])
+  })
+
+  test("the preselected engine is never a disabled one: the first ready of what is offered", () => {
+    expect(defaultEngineId(offeredEngines(list.slice(1)))).toBe("bob")
+    expect(defaultEngineId(offeredEngines([{ id: "pi", enabled: true, ready: false }]))).toBe("pi")
+    expect(defaultEngineId([])).toBe("")
+  })
+})
 
 describe("New session composer", () => {
   test("the menu offers the engine's default first, then exactly the registry's models and levels", () => {

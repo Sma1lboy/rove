@@ -11,6 +11,7 @@ import { t } from "./i18n/index.ts"
 import { enterWorkspace, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
+import { offeredEngines } from "./new-session.ts"
 import { railCursorTask } from "./rail-aim.ts"
 import { openPane } from "./rail-pane-row.tsx"
 import { cycleRailSort, railSort } from "./rail-sort.ts"
@@ -185,10 +186,10 @@ export function useRailKeys(
   const cycleEngine = async (row: Stop | undefined) => {
     if (row?.kind !== "task" || row.machine !== undefined) return
     try {
-      const { engines } = await model.client.request<{ engines: Array<{ id: string; name: string; ready?: boolean }> }>(
-        "engines.list",
-      )
-      const usable = engines.filter((e) => e.ready !== false)
+      const { engines } = await model.client.request<{
+        engines: Array<{ id: string; name: string; ready?: boolean; enabled?: boolean }>
+      }>("engines.list")
+      const usable = offeredEngines(engines).filter((e) => e.ready !== false)
       const i = usable.findIndex((e) => e.id === row.task.engine?.id)
       const next = usable[(i + 1) % usable.length]
       if (!next || next.id === row.task.engine?.id) return
