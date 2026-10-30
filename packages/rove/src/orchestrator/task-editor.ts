@@ -368,13 +368,14 @@ export class TaskEditor {
 
   /**
    * Attach a PR the session opened. Keyed by `url` (the caller passes the
-   * canonical form); re-attaching keeps the original `addedAt` and position.
+   * canonical form) ignoring case, as GitHub owner and repo names do;
+   * re-attaching keeps the original `addedAt`, position and spelling.
    * Past {@link SESSION_PR_CAP} the oldest entries go.
    */
   async addSessionPr(id: TaskId | string, url: string): Promise<void> {
     const task = this.requireTask(id)
     const current = task.sessionPrs ?? []
-    if (current.some((p) => p.url === url)) return
+    if (current.some((p) => p.url.toLowerCase() === url.toLowerCase())) return
     const next = [...current, { url, addedAt: new Date().toISOString() }].slice(-SESSION_PR_CAP)
     await this.store.update(task.id, { sessionPrs: next })
   }
