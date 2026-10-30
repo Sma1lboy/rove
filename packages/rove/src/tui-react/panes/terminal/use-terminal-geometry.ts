@@ -36,9 +36,22 @@ export function useTerminalGeometry(): UseTerminalGeometryResult {
   const [bodyGeometry, setBodyGeometry] = useState<{ cols: number; rows: number } | null>(null)
   const dims = useTerminalSize()
 
+  // The inline ref's detach/attach of the same box would queue null→el, a no-op
+  // render that still costs a commit; only a real change of box reaches state.
+  const shownElRef = useRef<BoxRenderable | null>(null)
   const setBodyEl = useCallback((el: BoxRenderable | null): void => {
     bodyElRef.current = el
-    setBodyElState(el)
+    if (el) {
+      if (el === shownElRef.current) return
+      shownElRef.current = el
+      setBodyElState(el)
+      return
+    }
+    queueMicrotask(() => {
+      if (bodyElRef.current || !shownElRef.current) return
+      shownElRef.current = null
+      setBodyElState(null)
+    })
   }, [])
 
   const measure = useCallback((el: BoxRenderable): void => {
