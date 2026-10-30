@@ -1125,7 +1125,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   stays `true` (the prompt is still riding an argv that has not run yet) and
   `reason` says so, rather than holding `add` open for the length of an
   install.
-- `interrupt --task-id ID [--tab TAB]`: stop the turn a task's engine is
+- `interrupt (--task-id ID [--tab TAB] | --group GROUPID | --all)`: stop the turn a task's engine is
   currently running — the headless twin of pressing the engine's own
   interrupt key. The session, its conversation and its worktree all survive,
   which is what separates this from `tab-close` and `delete`.
@@ -1148,6 +1148,18 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   reports the WRITE, not the effect — an engine acknowledges an interrupt on
   its own screen and its own schedule, so read `collect`'s `.activity.state`
   for what actually happened.
+
+  `interrupt --group GROUPID` stops a whole fan-out round, `interrupt --all`
+  every task on this machine. Only tabs whose own activity is `running` are
+  written to. Idle tabs and tabs with unknown activity are left alone, even
+  if another tab makes the task's activity `running`. Aliased PTYs belong to
+  their alias owner. Returns `{ groupId?, count, interrupted, failures, results }`:
+  `count` counts members, while `interrupted` and `failures` count tabs.
+  Each attempted tab gets a result with `taskId`, `tabId`, and
+  `status: "interrupted"` (the single-task reply) or `"failed"` with
+  `.error`/`.code`. A member with no known running tabs gets one `"skipped"`
+  result with its task `.state`. One tab's refusal never aborts the rest.
+  `--tab` goes only with `--task-id`.
 
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see
