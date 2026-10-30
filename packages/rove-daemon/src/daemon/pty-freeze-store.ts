@@ -21,6 +21,7 @@ import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
+import { KittyTransmits } from "./kitty-transmits.ts"
 import {
   OWNER_ONLY_DIR_MODE,
   OWNER_ONLY_FILE_MODE,
@@ -156,6 +157,8 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     defaultColors: DEFAULT_TERMINAL_COLORS,
     modes,
     ringModes: ring.ringModes,
+    // Not persisted: a restored ring keeps its placeholders, drawn as empty frames.
+    kitty: new KittyTransmits(),
     sinks: new Map(),
     emulatorSinks: new Set(),
     parked: false,

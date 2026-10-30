@@ -45,7 +45,7 @@ import {
 } from "./pty-observability.ts"
 import { WarmSpare } from "./pty-warm.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
-import { type TerminalModeTrack, replayStart, terminalModePreamble } from "./terminal-modes.ts"
+import { replayStart, terminalModePreamble } from "./terminal-modes.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 // Re-exported for the cross-chunk title-boundary tests (pure fold).
@@ -61,11 +61,12 @@ export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
 const EXIT_TAIL_BYTES = 16 * 1024
 
-/** A full ring replay: the trimmed bytes' modes, then the ring from its first byte outside a string escape. */
-function fullReplay(track: TerminalModeTrack, ring: Buffer): Buffer {
+/** A full ring replay: the trimmed bytes' modes, the images the ring may have lost, then the ring from its first byte outside a string escape. */
+function fullReplay(session: PtySessionState, ring: Buffer): Buffer {
   return Buffer.concat([
-    Buffer.from(terminalModePreamble(track.modes), "latin1"),
-    ring.subarray(replayStart(track, ring)),
+    Buffer.from(terminalModePreamble(session.ringModes.modes), "latin1"),
+    session.kitty.replay(),
+    ring.subarray(replayStart(session.ringModes, ring)),
   ])
 }
 
@@ -218,7 +219,7 @@ export class PtyHost {
     // (an engine's startup mouse tracking, above all), and skip the tail of a
     // string escape the cut fell inside. A delta lands on a parked screen that
     // already holds the current modes.
-    if (!sinceValid) replay = fullReplay(session.ringModes, replay)
+    if (!sinceValid) replay = fullReplay(session, replay)
     return {
       replay: replay.toString("base64"),
       alive: session.alive,
@@ -364,7 +365,7 @@ export class PtyHost {
     const session = this.sessions.get(key)
     const peek = peekRing(session, sinceOffset)
     if (!preamble || !session || sinceOffset !== undefined) return peek
-    return { ...peek, data: fullReplay(session.ringModes, Buffer.from(peek.data, "base64")).toString("base64") }
+    return { ...peek, data: fullReplay(session, Buffer.from(peek.data, "base64")).toString("base64") }
   }
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */

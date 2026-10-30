@@ -161,6 +161,7 @@ export class PtyChildController {
       }
     }
     scanOscTitle(session, buf)
+    session.kitty.push(buf)
     session.chunks.push(buf)
     session.bytes += buf.byteLength
     session.totalBytes += buf.byteLength

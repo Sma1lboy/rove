@@ -99,6 +99,23 @@ describe("PtyHost terminal modes", () => {
     expect(await screenAfter(second.host.open(KEY, SPEC, {}, () => {}).replay)).toBe("hello")
   })
 
+  it("a reattach after the ring trimmed an image upload still receives the image", () => {
+    const h = harness()
+    h.host.open(KEY, SPEC, {}, () => {})
+    const upload = `\x1b_Ga=t,f=100,i=7,q=2,m=1;${"QUFB".repeat(20)}\x1b\\\x1b_Gq=2,m=0;${"QkJC".repeat(20)}\x1b\\`
+    h.children[0]?.emit(upload.slice(0, 50))
+    h.children[0]?.emit(upload.slice(50))
+    h.children[0]?.emit("\x1b_Ga=t,f=100,i=9;Q0ND\x1b\\\x1b_Ga=d,d=i,i=9\x1b\\")
+    scrollStartupOut(h.children[0] as QuietChild)
+    const replay = () =>
+      Buffer.from(h.host.open(KEY, SPEC, {}, () => {}, undefined, undefined, true).replay, "base64").toString("latin1")
+    expect(replay()).toContain(upload)
+    expect(replay()).not.toContain("i=9")
+    // RIS: the terminal forgot every image.
+    h.children[0]?.emit("\x1bc")
+    expect(replay()).not.toContain("i=7")
+  })
+
   it("answers an engine's feature probe while only a headless caller is attached", () => {
     const h = harness(4096)
     h.host.open(KEY, SPEC, {}, () => {})
