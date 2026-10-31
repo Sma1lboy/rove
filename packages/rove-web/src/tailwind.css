@@ -1,0 +1,67 @@
+/*
+ * Tailwind for `src/ui/` and new views. The tokens stay the `:root` variables in styles.css (themes rewrite them at
+ * runtime, prefs-apply.ts), so `@theme inline` points each utility at its variable instead of copying a value.
+ * Tailwind's palette, type scale and radii are cleared: only Rove's tokens exist as utilities.
+ * No preflight: styles.css keeps the page's own reset, and the utilities load unlayered so they win over it.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+
+@theme inline {
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-line: var(--line);
+  --color-line-active: var(--line-active);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-hover: var(--hover);
+  --color-focus: var(--focus);
+  --color-info: var(--info);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-merged: var(--merged);
+  --color-diff-added: var(--diff-added);
+  --color-diff-removed: var(--diff-removed);
+  --color-transparent: transparent;
+
+  --font-*: initial;
+  --font-mono: var(--mono);
+  --font-sans: var(--sans);
+
+  --text-*: initial;
+  --text-meta: var(--fs-meta);
+  --text-body: var(--fs-body);
+  --text-title: var(--fs-title);
+  --text-display: var(--fs-display);
+  /* As the sheets' `font:` shorthand does: a size utility resets line-height rather than inheriting body's 1.4. */
+  --text-meta--line-height: normal;
+  --text-body--line-height: normal;
+  --text-title--line-height: normal;
+  --text-display--line-height: normal;
+
+  /* These three share their name with the styles.css token, so the theme layer also writes `--radius-sm:
+     var(--radius-sm)` on :root; the unlayered styles.css value wins. Keep the tokens there, and unlayered. */
+  --radius-*: initial;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+
+  --shadow-*: initial;
+  --shadow-popover: var(--shadow-popover);
+  --shadow-dialog: var(--shadow-dialog);
+}
+
+/* Phones and tablets: where a control grows an invisible hit area. */
+@custom-variant touch (@media (hover: none) and (pointer: coarse));
+
+/* The one rule weight (a device pixel on retina); pair it with a colour (`border-line`). Tailwind's `border` is
+   1px and, with no preflight, styleless. */
+@utility border-hairline {
+  border-width: var(--hairline);
+  border-style: solid;
+}

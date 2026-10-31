@@ -19,6 +19,9 @@ import { openDiff } from "./panel-state.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { Chip } from "./ui/chip.tsx"
+import { Tabs } from "./ui/tabs.tsx"
 
 type Tab = "all" | "changes"
 
@@ -155,48 +158,41 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
 
   return (
     <div
-      className={`files ${narrow ? "is-narrow" : ""}`}
+      className={`files group/pane ${narrow ? "is-narrow" : ""}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}
       onKeyDown={onKey}
     >
-      <div className="files-actions">
-        <button type="button" className="link" onClick={requestPR}>
-          {t("files.createPR")}
-        </button>
+      <div className="flex justify-end gap-3.5 px-2 pb-2 font-mono text-meta">
+        <Button onClick={requestPR}>{t("files.createPR")}</Button>
       </div>
-      <div className="files-tabs" role="tablist">
-        {(["all", "changes"] as const).map((id) => (
-          <button
-            type="button"
-            role="tab"
-            key={id}
-            aria-selected={tab === id}
-            className={`files-tab ${tab === id ? "is-active" : ""}`}
-            onClick={() => {
-              setTab(id)
-              setCursor(0)
-            }}
-          >
-            {t(id === "all" ? "files.all" : "files.changes")}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="px-1 pb-1.5"
+        tabs={[
+          { id: "all", label: t("files.all") },
+          { id: "changes", label: t("files.changes") },
+        ]}
+        value={tab}
+        onChange={(id) => {
+          setTab(id)
+          setCursor(0)
+        }}
+      />
       {tab === "changes" && (
-        <div className="files-scope">
+        <div className="flex flex-wrap gap-x-2.5 gap-y-1 px-2 pb-2 font-mono text-meta text-muted">
           <span>{branchScope ? t("files.scopeBranch", { base: base ?? "" }) : t("files.scopeWorking")}</span>
           {base != null ? (
-            <button type="button" className="link" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
+            <Button hit="tight" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
               {t(touch ? "files.toggleScopeTouch" : "files.toggleScope")}
-            </button>
+            </Button>
           ) : (
             diff && <span>{t("files.noBase")}</span>
           )}
           <Legend text={t("files.legend")} />
-          <button type="button" className="link" onClick={() => open(".")}>
+          <Button hit="tight" onClick={() => open(".")}>
             {t(touch ? "files.diffAllTouch" : "files.diffAll")}
-          </button>
+          </Button>
         </div>
       )}
       <div className="files-body">
@@ -224,8 +220,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               <span className="glyph tone-muted file-fold">{r.dir ? <Chevron right={!r.open} /> : null}</span>
             )}
             <span className="row-title">{r.label}</span>
-            {r.added ? <span className="chip tone-diff-added">+{r.added}</span> : null}
-            {r.deleted ? <span className="chip tone-diff-removed">−{r.deleted}</span> : null}
+            {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
+            {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
           </button>
         ))}
       </div>

@@ -31,6 +31,7 @@ import { PreviewView } from "./preview-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout, zen } from "./ui.ts"
+import { ResizeGrip } from "./ui/resize-grip.tsx"
 
 /** The top row's end: stretch the panel over the terminal's column (and back), or close it; its tabs stay. */
 function PanelWindowButtons() {
@@ -90,8 +91,8 @@ function PanelGrip({ panel }: { panel: RefObject<HTMLElement | null> }) {
     panelWidth.set(clampPanelWidth(from.width - (e.clientX - from.x), railPx))
   }
   return (
-    <div
-      className="rail-grip panel-grip"
+    <ResizeGrip
+      edge="left"
       title={t("panel.resize")}
       onPointerDown={down}
       onPointerMove={move}

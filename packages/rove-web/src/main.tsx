@@ -26,6 +26,8 @@ import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
+// Last: after every component sheet, so a utility wins over a legacy rule of equal specificity.
+import "./tailwind.css"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
 followVisualViewport()

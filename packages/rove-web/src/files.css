@@ -10,45 +10,6 @@
   outline: none;
 }
 
-.files:focus-within .files-tab.is-active {
-  color: var(--accent);
-}
-
-.files-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  padding: 0 8px 8px;
-  font: var(--fs-meta) var(--mono);
-}
-
-.files-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 0 4px 6px;
-}
-
-.files-tab {
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  font: 600 var(--fs-meta) var(--mono);
-  color: var(--muted);
-}
-
-.files-tab.is-active {
-  color: var(--ink);
-  background: var(--inset);
-}
-
-.files-scope {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  padding: 0 8px 8px;
-  font: var(--fs-meta) var(--mono);
-  color: var(--muted);
-}
-
 .files-body {
   flex: 1;
   min-height: 0;
@@ -118,22 +79,6 @@
   white-space: pre;
   cursor: default;
   position: relative;
-}
-
-.ask-bubble {
-  position: absolute;
-  right: 12px;
-  top: 100%;
-  z-index: 1;
-  padding: 2px 8px;
-  border: 1px solid var(--line-active);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: var(--shadow-popover);
-  color: var(--ink);
-  font: var(--fs-meta) var(--mono);
-  cursor: pointer;
-  white-space: nowrap;
 }
 
 .diff-row .gutter {
