@@ -18,6 +18,7 @@ import {
   remoteEmpty,
   spawnOnMachine,
   startError,
+  usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
 import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
@@ -79,6 +80,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const remote = machine !== ""
   const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
   const remoteList = useRemoteRepos(model, machine)
+  usePrefetchRemoteRepos(model, machines)
   const [remotePick, setRemotePick] = useState<RemotePick | null>(null)
   const [remoteBase, setRemoteBase] = useState("")
 
@@ -290,19 +292,17 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
         </div>
         <div className="composer-bar">
-          {(machines.length > 0 || remote) && (
-            <MachineChip
-              machines={machines}
-              value={machine}
-              onPick={(alias) => {
-                setMachine(alias)
-                setRemotePick(null)
-                setRemoteBase("")
-                setRepoQuery("")
-                setError(null)
-              }}
-            />
-          )}
+          <MachineChip
+            machines={machines}
+            value={machine}
+            onPick={(alias) => {
+              setMachine(alias)
+              setRemotePick(null)
+              setRemoteBase("")
+              setRepoQuery("")
+              setError(null)
+            }}
+          />
           <ChipPopover
             field="repo"
             title={
