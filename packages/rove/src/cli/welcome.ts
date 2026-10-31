@@ -15,12 +15,6 @@ import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
 /** Set once the welcome dialog has been HANDED to the workspace, never unset. */
 const WELCOMED_KEY = "welcomed"
 
-/**
- * The skill install the user asked for. `npx` needs a plain terminal, so
- * `cli/index.ts` runs it after `startTui()` returns rather than under the TUI.
- */
-export const PENDING_SKILL_KEY = "welcomePendingSkillInstall"
-
 /** What the workspace needs to render the welcome dialog. */
 export interface WelcomeRequest {
   /** Null when `$SHELL` is one we generate no completions for; the dialog then skips that question. */

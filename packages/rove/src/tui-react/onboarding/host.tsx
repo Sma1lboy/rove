@@ -130,7 +130,11 @@ export function WelcomeDialogView(props: {
               {questionFor(answered)}
             </text>
             <text fg={theme.text} wrapMode="none">
-              {answers[answered] ? t("onboarding.queued") : t("onboarding.skipped")}
+              {!answers[answered]
+                ? t("onboarding.skipped")
+                : answered === "skill"
+                  ? t("onboarding.skillWillInstall")
+                  : t("onboarding.queued")}
             </text>
           </box>
         ))}

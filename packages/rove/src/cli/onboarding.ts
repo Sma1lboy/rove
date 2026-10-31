@@ -2,26 +2,24 @@
  * First-run welcome — the disk/process half (the dialog is
  * `tui-react/onboarding/host.tsx`). The dialog resolves while the TUI owns
  * the screen, where any stdout line corrupts the frame, so answers are
- * RECORDED then and APPLIED after `startTui()` returns: the `npx` skill
- * installer needs a real terminal, and completions are deferred so their
- * summary line lands beside it. Both are re-runnable later
+ * applied silently: the skill is a file copy done on the spot, and
+ * completions are RECORDED then and APPLIED after `startTui()` returns so
+ * their summary line reaches a real terminal. Both are re-runnable later
  * (`rove completions --help`, `rove skill install`).
  */
 
-import { spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
-import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
+import { installSkill, skillTargets } from "../lib/skill-install.ts"
 import type { ProductCliName } from "../product.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
 import type { OnboardingChoices } from "../tui-react/onboarding/host.tsx"
 import { t } from "../tui/i18n"
 import { type ShellKind, isShellKind, shippedCompletionsPath } from "./completion-scripts.ts"
-import { PENDING_SKILL_KEY } from "./welcome.ts"
 
-/** Completions the user accepted, deferred for the same reason as the skill. */
+/** Completions the user accepted, deferred until the TUI releases the terminal. */
 const PENDING_COMPLETIONS_KEY = "welcomePendingCompletions"
 
 /** Detect the user's shell from $SHELL; null = unknown (step is skipped). */
@@ -100,19 +98,32 @@ export function installCompletions(
   return { path: rc, installed: true }
 }
 
+/** Outcome of the welcome skill install, as recorded in state. */
+function installSkillNow(): { status: "succeeded" } | { status: "failed"; reason: string } {
+  try {
+    const targets = skillTargets()
+    if (targets.length === 0) return { status: "failed", reason: "no supported coding agent found" }
+    const failed = installSkill(targets).filter((r) => r.error)
+    return failed.length === 0
+      ? { status: "succeeded" }
+      : { status: "failed", reason: failed.map((r) => `${r.target.displayName}: ${r.error}`).join("; ") }
+  } catch (error) {
+    return { status: "failed", reason: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 /**
- * Record the dialog's answers for {@link runPendingWelcomeInstalls}. Runs
- * while the TUI owns the screen: state writes only, no stdout, no spawn. A
- * declined skill also settles the one-time startup hint so it isn't re-asked.
+ * Apply the dialog's answers. Runs while the TUI owns the screen: file and
+ * state writes only, no stdout. The skill installs now; completions are
+ * queued for {@link runPendingWelcomeInstalls}.
  */
 export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKind | null): void {
-  if (!choices.skill) markSkillHintSeen()
+  const skill = choices.skill ? installSkillNow() : undefined
   try {
     patchStateFile({
       [PENDING_COMPLETIONS_KEY]: choices.completions && shell !== null ? shell : undefined,
-      [PENDING_SKILL_KEY]: choices.skill ? true : undefined,
       "welcomeInstall.completions": choices.completions ? { status: "queued" } : undefined,
-      "welcomeInstall.skill": choices.skill ? { status: "queued" } : undefined,
+      "welcomeInstall.skill": skill,
     })
   } catch {
     // A read-only home loses the deferred install, not the session.
@@ -123,7 +134,6 @@ export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKin
 export function runPendingWelcomeInstalls(): void {
   const state = loadStateFile()
   const shell = state[PENDING_COMPLETIONS_KEY]
-  const wantsSkill = state[PENDING_SKILL_KEY] === true
   const pendingShell = typeof shell === "string" && isShellKind(shell) ? shell : null
   if (shell !== undefined && pendingShell === null) {
     process.stdout.write(
@@ -138,7 +148,7 @@ export function runPendingWelcomeInstalls(): void {
       /* Read-only settings must not block the remaining setup. */
     }
   }
-  if (pendingShell === null && !wantsSkill) return
+  if (pendingShell === null) return
 
   const cli = ROVE_PRODUCT_NAME
   const out = (line: string) => process.stdout.write(`${line}\n`)
@@ -173,38 +183,14 @@ export function runPendingWelcomeInstalls(): void {
       )
     }
   }
-  if (wantsSkill) {
-    const command = `${cli} skill install`
-    if (isNpxMissing()) {
-      failed("skill", "npx is missing (install Node.js from https://nodejs.org)", command)
-    } else {
-      out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))
-      try {
-        const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
-        if (result.status !== 0) {
-          failed(
-            "skill",
-            result.error?.message ?? (result.signal ? `signal ${result.signal}` : `exit ${result.status}`),
-            command,
-          )
-        } else {
-          save({ [PENDING_SKILL_KEY]: undefined, "welcomeInstall.skill": { status: "succeeded" } })
-          out(t("onboarding.skillSucceeded"))
-        }
-      } catch (error) {
-        failed("skill", error instanceof Error ? error.message : String(error), command)
-      }
-    }
-  }
 }
 
 /** A successful explicit retry satisfies the matching queued setup request. */
-export function settleWelcomeInstall(item: "skill" | "completions", shell?: ShellKind): void {
+export function settleWelcomeInstall(item: "completions", shell?: ShellKind): void {
   const state = loadStateFile()
-  const key = item === "skill" ? PENDING_SKILL_KEY : PENDING_COMPLETIONS_KEY
-  if (item === "skill" ? state[key] !== true : state[key] !== shell) return
+  if (state[PENDING_COMPLETIONS_KEY] !== shell) return
   try {
-    patchStateFile({ [key]: undefined, [`welcomeInstall.${item}`]: { status: "succeeded" } })
+    patchStateFile({ [PENDING_COMPLETIONS_KEY]: undefined, [`welcomeInstall.${item}`]: { status: "succeeded" } })
   } catch {
     process.stderr.write("! Setup succeeded, but its queued state could not be saved. Check settings permissions.\n")
   }

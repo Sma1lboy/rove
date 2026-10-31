@@ -221,10 +221,9 @@ winner.
 rove skill install
 ```
 
-This one step needs [Node.js](https://nodejs.org) on your `PATH` — it wraps
-`npx skills add`. The `install.sh` route above installs Bun and Rove but not
-Node, so install Node first if `npx` is missing. Core Rove on macOS/Linux runs
-without Node; native Windows still needs Node for its PTY host.
+It copies the skill into every coding agent set up on this machine; `rove skill
+status` shows which ones have it. Installed copies refresh themselves when Rove
+upgrades.
 
 **Claude Code users have a one-stop alternative**: the Rove plugin carries the
 skill AND the activity hooks in one install, with no PATH or settings.json

@@ -277,25 +277,26 @@ no flag clears both.
 ## skill
 
 ```bash
-rove skill install [--global|-g | --project|-p] [--agent NAME]…
+rove skill install [--agent ENGINE]…
 rove skill status
-rove skill command [--global|-g | --project|-p] [--agent NAME]…
-                                                   # print, don't run
 rove skill print                                 # print the SKILL.md itself
 ```
 
 Installs the Rove agent skill, which teaches a coding agent to drive
-`rove api`. Installs are **global** (user-level) by default: the skill
-drives a machine-wide daemon, so one copy per machine keeps one staleness
-lifecycle; `--project` / `-p` installs into the current project instead.
-`--global` / `-g` restates the default explicitly. With no `--agent` it
-detects your installed agents and asks. To name them yourself, repeat the flag
-(`--agent claude-code --agent codex`; `--agent=codex` also works); a
-comma-joined list is rejected rather than silently using only the first.
+`rove api`. Rove copies the SKILL.md bundled with this build into the
+user-level skills dir of every engine set up on this machine (Claude Code,
+Codex, Copilot, Pi, OpenCode, Cursor, and the others whose skills dir Rove
+knows). No Node or network needed. `--agent` takes a Rove engine id
+(`claude`, `codex`, …) and may repeat to narrow the set.
 
-The SKILL.md ships inside the npm package, so no repo clone is needed; the
-install itself still runs `npx skills add` (which falls back to a repo clone
-only if the bundled copy is missing).
+`status` lists each engine with its own state (current, out of date, or not
+installed). Copies that are already installed refresh themselves when the
+daemon starts after an upgrade; Rove never adds a copy you didn't ask for.
+With the Rove Claude Code plugin enabled, Claude is skipped: the plugin ships
+its own copy.
+
+For an agent Rove doesn't know, save the skill yourself:
+`rove --skill > <skills dir>/rove/SKILL.md`.
 
 `rove --skill` (top-level flag) is shorthand for `rove skill print`: it dumps
 the bundled SKILL.md to stdout so an agent can learn the `rove api` surface in

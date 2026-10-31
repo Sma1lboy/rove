@@ -1,7 +1,7 @@
 /**
  * Guard: editing the agent skill's CONTENT must bump its version marker.
  *
- * `roveSkillState` decides staleness by comparing marker numbers only
+ * Staleness (`lib/skill-install.ts`) compares marker numbers only
  * (`best.version < ROVE_SKILL_VERSION`) — it never looks at what the file
  * says. So a content edit that skips the bump ships silently: every machine
  * that installed the previous version keeps the old text, and
