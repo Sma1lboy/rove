@@ -153,7 +153,7 @@ function TabView({
   if (tab.kind === "diff") {
     return (
       <PreviewView
-        key={`${tab.path}:${tab.scope}`}
+        key={`${task.id}:${tab.path}:${tab.scope}`}
         model={model}
         view={{ taskId: task.id, path: tab.path, scope: tab.scope }}
         active={active}

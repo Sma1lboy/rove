@@ -10,6 +10,7 @@ import { TextDialog } from "./dialogs.tsx"
 import { type DiffRow, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { type Preview, dialog, toast } from "./ui.ts"
 
 interface Note {
@@ -58,8 +59,15 @@ export function PreviewView({
   onClose,
 }: { model: AppModel; view: Preview; active: boolean; restored: boolean; onClose: () => void }) {
   useLocale()
-  const [loaded, setLoaded] = useState<Loaded | null>(null)
-  const [notes, setNotes] = useState<readonly Note[]>([])
+  const params = { taskId: view.taskId, path: view.path, scope: view.scope }
+  // The diff as last read shows at once; a refresh keeps the rows on screen until the reread lands.
+  const [loaded, setLoaded] = useState<Loaded | null>(() => {
+    const last = lastReply<unknown>(model, "diff.file", params)
+    return last === undefined ? null : load(last, view.path)
+  })
+  const [notes, setNotes] = useState<readonly Note[]>(
+    () => lastReply<{ notes: Note[] }>(model, "review.list", { taskId: view.taskId })?.notes ?? [],
+  )
   const [cursor, setCursor] = useState(0)
   const [anchor, setAnchor] = useState<number | null>(null)
   const [nonce, setNonce] = useState(0)
@@ -69,8 +77,7 @@ export function PreviewView({
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
     let live = true
-    setLoaded(null)
-    c.request("diff.file", { taskId: view.taskId, path: view.path, scope: view.scope }).then(
+    requestRemembered<unknown>(c, "diff.file", params).then(
       (data) => live && setLoaded(load(data, view.path)),
       (err) => live && setLoaded({ kind: "text", text: err instanceof Error ? err.message : String(err), error: true }),
     )
@@ -80,7 +87,7 @@ export function PreviewView({
   }, [c, view.taskId, view.path, view.scope, nonce])
 
   const refreshNotes = () =>
-    void c.request<{ notes: Note[] }>("review.list", { taskId: view.taskId }).then((r) => setNotes(r.notes))
+    void requestRemembered<{ notes: Note[] }>(c, "review.list", { taskId: view.taskId }).then((r) => setNotes(r.notes))
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload with the view.
   useEffect(refreshNotes, [c, view.taskId, nonce])
   // A tab brought to the front takes the keys; one restored when the page loaded leaves them where they were.

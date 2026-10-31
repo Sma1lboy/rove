@@ -11,6 +11,7 @@ import type { BridgeClient } from "./bridge.ts"
 import { Chevron } from "./chevron.tsx"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
 import { toast } from "./ui.ts"
 
@@ -57,11 +58,13 @@ const TONE_CLASS: Record<EngineHealthTone, string> = {
 }
 
 export function EnginesSection({ client }: { client: BridgeClient }) {
-  const [engines, setEngines] = useState<readonly EngineSetting[] | null>(null)
+  const [engines, setEngines] = useState<readonly EngineSetting[] | null>(
+    () => lastReply<{ engines: EngineSetting[] }>(client, "engines.settings")?.engines ?? null,
+  )
   const [open, setOpen] = useState<string | null>(null)
   const load = useCallback(
     () =>
-      client.request<{ engines: EngineSetting[] }>("engines.settings").then(
+      requestRemembered<{ engines: EngineSetting[] }>(client, "engines.settings").then(
         (r) => setEngines(r.engines),
         (e) => toast(errorText(e), "error"),
       ),

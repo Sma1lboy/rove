@@ -10,6 +10,7 @@ import { t } from "./i18n/index.ts"
 import { signOut } from "./login.ts"
 import { allowDesktopNotices, chime } from "./notify.ts"
 import { type PrefKey, type Prefs, choicesOf, nextChoice, prefsStore, setPref, usePrefs } from "./prefs.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
@@ -31,9 +32,10 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
   // A cycle row reads the store at press time: two quick presses step twice before React re-renders.
   const latest = () => prefsStore.get().prefs
   const set = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
-  const [daemon, setDaemon] = useState<{ daemonVersion?: string; stale?: boolean } | null>(null)
+  type DaemonInfo = { daemonVersion?: string; stale?: boolean }
+  const [daemon, setDaemon] = useState<DaemonInfo | null>(() => lastReply<DaemonInfo>(client, "daemon.info") ?? null)
   useEffect(() => {
-    void client.request<typeof daemon>("daemon.info").then(setDaemon, () => setDaemon(null))
+    void requestRemembered<DaemonInfo>(client, "daemon.info").then(setDaemon, () => setDaemon(null))
   }, [client])
 
   // TUI cycle: default → next to project → the remembered custom base (skipped when none) → default.

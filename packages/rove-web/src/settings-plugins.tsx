@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
 
@@ -29,9 +30,11 @@ const MOD_PAGE: Readonly<Record<string, PageId>> = { kanban: "kanban", issues: "
 
 function BuiltinMods({ model }: { model: AppModel }) {
   const installed = useStore(model.installedMods)
-  const [mods, setMods] = useState<readonly ModRow[] | null>(null)
+  const [mods, setMods] = useState<readonly ModRow[] | null>(
+    () => lastReply<{ mods: ModRow[] }>(model, "builtinMods.list")?.mods ?? null,
+  )
   useEffect(() => {
-    void model.client.request<{ mods: ModRow[] }>("builtinMods.list").then(
+    void requestRemembered<{ mods: ModRow[] }>(model, "builtinMods.list").then(
       (r) => setMods(r.mods),
       () => setMods([]),
     )
@@ -72,10 +75,12 @@ function BuiltinMods({ model }: { model: AppModel }) {
 
 export function PluginsSection({ model }: { model: AppModel }) {
   const { client } = model
-  const [plugins, setPlugins] = useState<readonly PluginRow[] | null>(null)
+  const [plugins, setPlugins] = useState<readonly PluginRow[] | null>(
+    () => lastReply<{ plugins: PluginRow[] }>(client, "plugins.list")?.plugins ?? null,
+  )
   const load = useCallback(
     () =>
-      client.request<{ plugins: PluginRow[] }>("plugins.list").then(
+      requestRemembered<{ plugins: PluginRow[] }>(client, "plugins.list").then(
         (r) => setPlugins(r.plugins),
         (e) => toast(errorText(e), "error"),
       ),
