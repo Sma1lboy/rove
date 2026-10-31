@@ -16,17 +16,6 @@
   padding: 0;
 }
 
-/* The rail's grip, on the panel's left edge. Both hairlines sit on their column's edge (the rail clips anything past
-   its own), the same 4px from the terminal pane. */
-.panel-grip {
-  right: auto;
-  left: -3px;
-}
-.panel-grip::after {
-  right: auto;
-  left: 3px;
-}
-
 /* Tab rows, the divider and the views are cells of one grid: moving a tab changes its cell, so a frame is never re-parented. */
 .side-body {
   --divider: 5px;

@@ -39,6 +39,22 @@ const cs = (s, p) => getComputedStyle(document.querySelector(s))[p]
 A difference of 1px or more on a shared edge or center is a finding. Ignore sub-pixel noise
 under 0.5px. Report numbers as before → after.
 
+## 0. Build from `src/ui/`, style with Tailwind
+
+- **A control that appears twice is a component in `packages/rove-web/src/ui/`** (`Button`,
+  `Tabs`, `Chip`, `ResizeGrip`, …). The component owns its spacing, hit area and edge placement;
+  callers pass a variant or an edge, never a CSS override. Two call sites positioned by two
+  stylesheets is how the rail's and the panel's resize lines drifted apart.
+- **New styling is Tailwind utilities** (`src/tailwind.css`). Only Rove's tokens exist as
+  utilities (`bg-paper`, `text-accent`, `text-meta`, `rounded-sm`, `border-hairline border-line`,
+  `touch:` for coarse pointers); Tailwind's own palette and type scale are cleared, so a stray
+  `text-gray-500` does not compile. Arbitrary values (`p-[7px]`) need the same justification as
+  a raw hex.
+- **Legacy sheets shrink, never grow.** When a view moves to `src/ui/`, delete the rules it
+  replaced in the same PR. Raw CSS stays for xterm, the page grid, and `@utility` definitions.
+- **No class merging.** A `className` passed to a `ui/` component may add placement but must not
+  set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
+
 ## 1. Layout and alignment
 
 - **One edge per column.** Everything in a column starts on the same x. In the rail this means

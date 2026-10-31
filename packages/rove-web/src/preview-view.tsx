@@ -15,6 +15,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { type Preview, activeStream, dialog, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 
 interface Note {
   readonly id: string
@@ -223,9 +224,9 @@ export function PreviewView({
               <span className="sign">{row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}</span>
               <span className="code">{row.text}</span>
               {anchor !== null && i === hi && (
-                <button
-                  type="button"
-                  className="ask-bubble"
+                <Button
+                  variant="floating"
+                  className="absolute top-full right-3 z-1"
                   title={t("preview.askInChatHint")}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => {
@@ -234,7 +235,7 @@ export function PreviewView({
                   }}
                 >
                   {t("preview.askInChat")}
-                </button>
+                </Button>
               )}
             </div>
           )

@@ -26,6 +26,7 @@ import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rai
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog, dragLayout } from "./ui.ts"
+import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -63,8 +64,8 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
     } else lastUp.current = now
   }
   return (
-    <div
-      className="rail-grip"
+    <ResizeGrip
+      edge="right"
       title={t("layout.railResize")}
       onPointerDown={down}
       onPointerMove={move}

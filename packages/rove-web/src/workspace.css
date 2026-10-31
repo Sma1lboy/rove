@@ -68,41 +68,6 @@
   position: relative;
 }
 
-.rail-grip {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: col-resize;
-  z-index: 5;
-  touch-action: none;
-}
-
-/* The hit area stays 6px; only a hairline shows, after a beat so passing the cursor over doesn't flash it. */
-.rail-grip::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: 2px;
-  background: var(--line-active);
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.rail-grip:hover::after {
-  opacity: 1;
-  transition-delay: 250ms;
-}
-
-.rail-grip:active::after {
-  background: var(--accent);
-  opacity: 1;
-  transition-delay: 0ms;
-}
-
 /* Top left of the page, folded or not (Claude Desktop's title bar): fold, back, forward. Out of the grid's
    flow, so it stays put while the rail column under it opens and shuts. */
 .app {
@@ -128,7 +93,7 @@
   overflow-x: clip;
 }
 /* The rail's contents keep the open width, so folding slides them out instead of squeezing them. */
-.app:not(.is-narrow) .rail > :not(.rail-grip) {
+.app:not(.is-narrow) .rail > :not([data-grip]) {
   min-width: var(--rail-open-w);
 }
 /* Folded, the rail leaves the grid's flow and waits off the left edge as a floating card; a hover at the
@@ -150,7 +115,7 @@
   transform: translateX(calc(-100% - 12px));
   transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
 }
-.app.is-rail-folded .rail > :not(.rail-grip) {
+.app.is-rail-folded .rail > :not([data-grip]) {
   min-width: 0;
 }
 /* Out of flow, the rail no longer claims column 1; without these the workspace would auto-place into its 0px. */
@@ -615,8 +580,7 @@
   .status .link::after {
     inset: -2px -6px -4px;
   }
-  .pg-actions .link::after,
-  .files-scope .link::after {
+  .pg-actions .link::after {
     inset: -2px -3px;
   }
   /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
@@ -648,7 +612,6 @@
   .dialog-close,
   .narrow-back,
   .narrow-switch button,
-  .files-tab,
   .ptab-close,
   .kb-strip button {
     position: relative;
@@ -677,12 +640,6 @@
     content: "";
     position: absolute;
     inset: -8px -1px -6px;
-  }
-  /* 全部/变更: 4px apart, `.files-actions`' 8px padding above, `.files-tabs`' 6px padding below. */
-  .files-tab::after {
-    content: "";
-    position: absolute;
-    inset: -8px -2px -6px;
   }
   /* The tab's ×: the tab row is 26px tall, the label sits 4px to its left. */
   .ptab-close::after {
