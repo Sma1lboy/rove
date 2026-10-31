@@ -323,3 +323,19 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** Playwright asks for headless shell rev 1243 at `chrome-headless-shell-linux64/`; dir symlinks of `/opt/pw-browsers/chromium_headless_shell-1243` (plus 1228/1194) were enough. `BUN_OPTIONS=--smol` exported again; unset for every run. Render suite: 3 load flakes under the full run (paste, kitty, F5 recovery), all pass in isolation. pre-pr 10/10.
 
 **Update 2026-10-30:** #1541 merged (with the owner's header-comment fix). Tomorrow's main should read switch.perOp.commit.root/workspace ~6.4. Set the git author explicitly before committing: the sandbox default is `Claude <noreply@anthropic.com>`, which counts as AI attribution.
+
+## 2026-10-31 — switch.perOp.commit.root / .workspace (main 9017ab2)
+
+**No regression.** Run 1 exited 1 on cold boot.* only (firstFrame 1137, ready 4386); run 2 on golden.vt-1mb-parse-ms only (134.2 against the 87.8 baseline; run 1 read 94.1, and the 10-28/10-29 history reads 142/184): noise. #1541 landed: commit.root/workspace 6.5/6.5 (baseline 7.4). Other counts held: sidebar 2.4, frame 4.3, overlay 3, paintRow 47, stateNotify 2.5, spawns 0.5, idle 0. No open `perf:` issues; #1325 still open. Baseline not moved (✗ entries). Tonight's history line is main run 2.
+
+**Per-switch anatomy now (7 reconciler commits; the Profiler reads ~6.4):** (1) click: SidebarTree + selectTask/activateTask; (2) **a setState on the deleted outgoing TerminalSession**: `use-terminal-paint.ts` returns `setGrid` itself as the grid's ref, so the deletion's ref detach calls `setGrid(null)` on a deleting fiber (stack is all reconciler frames: `safelyDetachRef` ← `recursivelyTraverseDeletionEffects`); (3) daemon active-task echo (`external-store.ts:69`) + `use-tab-lifecycle.ts:81` `setHydrating(false)`; (4) mount: setBodyEl attach + `use-terminal-pty.ts` not-ready resets (104–109) + 151 + `Terminal.tsx:308`; (5) onSizeChange → bumpGeomTick + measure; (6) effect re-measure + acquire (137–145); (7) `[pty]` effect, onData/publish, `setRecovery`, `onRecovery`.
+
+**Attempt 1: shared `NO_ROWS` for `useTerminalPty`'s snapshot (initial state and every `setSnapshot([])`).** Two runs: root 6.6/6.4 vs 6.5 on main. No drop: commit (4) also carries `setBodyElState(el)` (null → box), a real change, so the resets could never be the only thing in it.
+
+**Attempt 2: the grid ref skips `setGrid(null)` when the owner is unmounting** (a layout-effect cleanup sets a flag; React runs a function component's layout cleanups before detaching child refs). The trace confirmed the deletion update was gone, but still 7 commits: the daemon echo and `setHydrating(false)` stopped sharing a commit and landed as two, in 8 of 8 switches. One run read root 7.3. The deletion commit was only absorbing that timing.
+
+**Attempt 3: `useTabHydration` starts with `hydrating = false` when no tab is `kind: "engine"`.** It never applied: the fixture's bash tabs are engine-kind (an engine tab with a bash command), so verification still runs and line 81 still fires. Root 6.3 (noise). Not kept.
+
+**Next:** (2) and (3) are linked. Removing (2) only helps if the echo and `setHydrating(false)` (a promise continuation after `engineSessionExists`/`discoverSessionId`) are also batched, or if hydration can finish synchronously for a tab whose command is not an engine binary. Read `rehydrateTabs` and how the fixture's tab becomes engine-kind first. The reconciler tracer from 10-30 still works; it also needs a `require("fs")` helper, and perf-measure can append `SWITCH i` markers to `/tmp/ctrace-*.log` between switches.
+
+**Sandbox:** Playwright asks for headless shell rev 1243 at `chrome-headless-shell-linux64/`; dir symlinks of `/opt/pw-browsers/chromium_headless_shell-1243` (plus 1228/1194) were enough. `BUN_OPTIONS=--smol` exported again; unset for every run.
