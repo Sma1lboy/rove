@@ -3,8 +3,8 @@
  * changed files with their status letter, scoped to the working tree or the
  * branch vs its base. Keys are the TUI pane's own, live only while the pane
  * has focus: j/k move, h/l fold, [ ] switch tab, b scope, r refresh,
- * Enter (or a mouse click) opens the file in the Mac's editor tab, d (or a tap) previews its diff, Shift+D the whole
- * diff, a mention `@path`, o opens media in the Mac's app.
+ * Enter, d or a click previews the file in a tab on the right (web only: the TUI opens its editor tab), Shift+D the
+ * whole diff, a mention `@path`, o opens media in the Mac's app.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
@@ -16,7 +16,7 @@ import { isTouch } from "./key-hints.ts"
 import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
-import { lastReply, remember } from "./remembered.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast, zen } from "./ui.ts"
 
@@ -33,24 +33,23 @@ interface Row {
   readonly deleted?: number | null
 }
 
-interface Listing {
-  readonly taskId: string
-  readonly files: readonly string[]
-  readonly changes: readonly DiffFileRow[]
+interface DiffReply {
   readonly base: string | null
+  readonly files: readonly DiffFileRow[]
 }
 
-/**
- * `narrow`: the phone's full-panel list. On a phone or any touch screen a tap previews the file
- * here: a terminal editor needs keys a soft keyboard doesn't have.
- */
+/** `narrow`: the phone's full-panel list. */
 export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
   const touch = isTouch()
   useLocale()
   const [tab, setTab] = useState<Tab>("all")
   const [scope, setScope] = useState<"working" | "branch">("working")
-  const [listing, setListing] = useState<Listing | null>(
-    () => lastReply<Listing>(model, "files.listing", { taskId: task.id }) ?? null,
+  // The tree and the changes load apart: the tree is one `git ls-files`, the changes several git calls.
+  const [files, setFiles] = useState<readonly string[] | null>(
+    () => lastReply<{ files: string[] }>(model, "files.list", { taskId: task.id })?.files ?? null,
+  )
+  const [diff, setDiff] = useState<DiffReply | null>(
+    () => lastReply<DiffReply>(model, "diff.files", { taskId: task.id }) ?? null,
   )
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
@@ -64,38 +63,32 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   // biome-ignore lint/correctness/useExhaustiveDependencies: changeKey and nonce are refetch triggers.
   useEffect(() => {
     let live = true
-    const c = model.client
-    Promise.all([
-      c.request<{ files: string[] }>("files.list", { taskId: task.id }),
-      c.request<{ base: string | null; files: DiffFileRow[] }>("diff.files", { taskId: task.id }),
-    ]).then(
-      ([all, diff]) => {
-        if (!live) return
-        const next = { taskId: task.id, files: all.files, changes: diff.files, base: diff.base }
-        setListing(remember(model, "files.listing", { taskId: task.id }, next))
-        setError(null)
-      },
-      (err) => live && setError(err instanceof Error ? err.message : String(err)),
-    )
+    const failed = (err: unknown) => live && setError(err instanceof Error ? err.message : String(err))
+    requestRemembered<{ files: string[] }>(model, "files.list", { taskId: task.id }).then((r) => {
+      if (!live) return
+      setFiles(r.files)
+      setError(null)
+    }, failed)
+    requestRemembered<DiffReply>(model, "diff.files", { taskId: task.id }).then((r) => live && setDiff(r), failed)
     return () => {
       live = false
     }
   }, [model, task.id, changeKey, nonce])
 
-  // A task switch keeps this view mounted: show that task's last listing until its reread lands.
-  const current =
-    listing?.taskId === task.id ? listing : (lastReply<Listing>(model, "files.listing", { taskId: task.id }) ?? null)
-  const branchScope = scope === "branch" && current?.base != null
+  // The panel remounts per task, so `files` and `diff` are always this task's.
+  const base = diff?.base ?? null
+  const loaded = tab === "all" ? files !== null : diff !== null
+  const branchScope = scope === "branch" && base != null
   const rows: Row[] =
     tab === "all"
-      ? visibleTree(current?.files ?? [], expanded).map((r) => ({
+      ? visibleTree(files ?? [], expanded).map((r) => ({
           path: r.path,
           label: r.name,
           depth: r.depth,
           dir: r.dir,
           open: r.open,
         }))
-      : (current?.changes ?? [])
+      : (diff?.files ?? [])
           .filter((f) => f.scope === (branchScope ? "branch" : "working"))
           .map((f) => ({
             path: f.path,
@@ -117,22 +110,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  const open = (path: string) => openDiff({ taskId: task.id, path, scope: branchScope ? "branch" : "working" })
-  /** The Mac's configured editor in the task's editor tab; a file the branch deleted has nothing to edit, so it shows its diff. */
-  const edit = (r: Row) => {
-    // A file on another machine has no editor here: its diff is what this machine can show.
-    if (r.status === "D" || task.machine) {
-      open(r.path)
-      return
-    }
-    model.client
-      .request<{ tabId: string }>("file.openInEditor", { taskId: task.id, path: r.path })
-      .then(async ({ tabId }) => {
-        await model.refreshTabsNow()
-        model.select(task.id, tabId)
-      })
-      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
-  }
+  // A preview tab on the right: the file (its uncommitted diff when it has one). The branch scope is the Changes tab's alone.
+  const open = (path: string) =>
+    openDiff({ taskId: task.id, path, scope: tab === "changes" && branchScope ? "branch" : "working" })
   const mention = (path: string) => {
     if (!stream?.startsWith(`${task.id}::`)) {
       toast(t("files.mentionNoEngine"), "error")
@@ -160,14 +140,13 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     else if ((key === "l" || key === "ArrowRight") && row?.dir) toggle(row.path, true)
     else if ((key === "h" || key === "ArrowLeft") && row?.dir) toggle(row.path, false)
     else if (key === "[" || key === "]") setTab(tab === "all" ? "changes" : "all")
-    else if (key === "b" && tab === "changes" && current?.base != null)
-      setScope(scope === "working" ? "branch" : "working")
+    else if (key === "b" && tab === "changes" && base != null) setScope(scope === "working" ? "branch" : "working")
     else if (key === "r") setNonce((n) => n + 1)
     else if (key === "D" && e.shiftKey) open(".")
     else if (key === "d" && row) open(row.path)
     else if (key === "Enter" && row) {
       if (row.dir) toggle(row.path)
-      else edit(row)
+      else open(row.path)
     } else if (key === "a" && row) mention(row.path)
     else if (key === "o" && row && !row.dir) openExternal(row.path)
     else return
@@ -211,13 +190,13 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       </div>
       {tab === "changes" && (
         <div className="files-scope">
-          <span>{branchScope ? t("files.scopeBranch", { base: current?.base ?? "" }) : t("files.scopeWorking")}</span>
-          {current?.base != null ? (
+          <span>{branchScope ? t("files.scopeBranch", { base: base ?? "" }) : t("files.scopeWorking")}</span>
+          {base != null ? (
             <button type="button" className="link" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
               {t(touch ? "files.toggleScopeTouch" : "files.toggleScope")}
             </button>
           ) : (
-            current && <span>{t("files.noBase")}</span>
+            diff && <span>{t("files.noBase")}</span>
           )}
           <Legend text={t("files.legend")} />
           <button type="button" className="link" onClick={() => open(".")}>
@@ -227,7 +206,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       )}
       <div className="files-body">
         {error && <p className="error mono">{error}</p>}
-        {!error && current && rows.length === 0 && (
+        {!error && loaded && rows.length === 0 && (
           <p className="placeholder-line">{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
         )}
         {rows.map((r, i) => (
@@ -241,8 +220,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               setCursor(i)
               pane.current?.focus()
               if (r.dir) toggle(r.path)
-              else if (narrow || touch) open(r.path)
-              else edit(r)
+              else open(r.path)
             }}
           >
             {r.status ? (

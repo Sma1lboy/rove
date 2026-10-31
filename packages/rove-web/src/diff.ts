@@ -65,6 +65,12 @@ export function displayLine(row: DiffRow): number | null {
   return row.kind === "del" ? row.oldNo : row.kind === "add" || row.kind === "ctx" ? row.newNo : null
 }
 
+/** A range as text for the engine's prompt: its own `@path` file mention, then the lines in words. */
+export function chatReference(range: { path: string; line: number; startLine?: number }): string {
+  const lines = range.startLine ? `lines ${range.startLine}-${range.line}` : `line ${range.line}`
+  return `@${range.path} (${lines}) `
+}
+
 /** `v` anchor + cursor → the note's range, like the TUI's `commentRange`. */
 export function noteRange(
   rows: readonly DiffRow[],

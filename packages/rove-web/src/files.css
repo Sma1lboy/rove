@@ -102,6 +102,14 @@
   outline: none;
 }
 
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0 8px 6px;
+  font: var(--fs-meta) var(--mono);
+}
+
 .preview-body {
   flex: 1;
   min-height: 0;
