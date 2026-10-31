@@ -1,17 +1,19 @@
 /**
  * A read-only file or diff in the side panel (TUI `ops/preview.tsx` +
  * `preview-review.tsx`). Keys while focused, the TUI's: j/k cursor, v anchor
- * a range, c add a note, x drop the note under the cursor, s send unsent
- * notes to the engine, r reload, q/Esc close.
+ * a range (or Shift+click), c add a note, x drop the note under the cursor, s send unsent
+ * notes to the engine, r reload, q/Esc close. "Ask in chat" puts the line or range in the engine's prompt.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { TextDialog } from "./dialogs.tsx"
-import { type DiffRow, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
+import { type DiffRow, chatReference, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
-import { type Preview, dialog, toast } from "./ui.ts"
+import { useStore } from "./store.ts"
+import { termFor } from "./term-control.ts"
+import { type Preview, activeStream, dialog, toast } from "./ui.ts"
 
 interface Note {
   readonly id: string
@@ -127,6 +129,23 @@ export function PreviewView({
       />,
     )
   }
+  // The selection as a reference in the task's engine prompt, then the prompt takes the keys to ask about it.
+  const stream = useStore(activeStream)
+  const askInChat = () => {
+    const range = noteRange(rows, cursor, anchor)
+    if (!range) return
+    if (!stream?.startsWith(`${view.taskId}::`)) {
+      toast(t("files.mentionNoEngine"), "error")
+      return
+    }
+    void c
+      .request("term.input", { stream, data: chatReference(range) })
+      .then(() => {
+        setAnchor(null)
+        termFor(stream)?.focus()
+      })
+      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+  }
   const dropNote = () => {
     const row = rows[cursor]
     const note = row && notes.find((n) => covers(n, row))
@@ -167,6 +186,13 @@ export function PreviewView({
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
     <div className="preview" tabIndex={0} ref={host} onKeyDown={onKey}>
+      {rows.length > 0 && (
+        <div className="preview-actions">
+          <button type="button" className="link" onClick={askInChat} title={t("preview.askInChatHint")}>
+            {t("preview.askInChat")}
+          </button>
+        </div>
+      )}
       <div className="preview-body">
         {!loaded && <p className="placeholder-line">{t("preview.loading")}</p>}
         {loaded?.kind === "text" && <p className={`placeholder-line ${loaded.error ? "error" : ""}`}>{loaded.text}</p>}
@@ -178,7 +204,12 @@ export function PreviewView({
               key={rowIds[i]}
               data-row={i}
               className={`diff-row kind-${row.kind} ${i >= lo && i <= hi ? "is-cursor" : ""} ${noted ? "is-noted" : ""}`}
-              onClick={() => setCursor(i)}
+              onClick={(e) => {
+                // Shift+click extends a selection from the cursor, as `v` then j/k does.
+                if (e.shiftKey) setAnchor((a) => a ?? cursor)
+                else setAnchor(null)
+                setCursor(i)
+              }}
             >
               <span className="gutter">{row.oldNo ?? ""}</span>
               <span className="gutter">{row.newNo ?? ""}</span>
