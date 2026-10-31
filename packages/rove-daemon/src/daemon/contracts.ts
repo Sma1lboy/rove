@@ -339,7 +339,7 @@ export interface DaemonOrchestrator {
   adoptScratchRepo(id: string, repo: string): Promise<void>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
-  setTitle(id: string, title: string): Promise<void>
+  setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>
   setBranch(id: string, branch: string): Promise<void>
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage(id: string, text: string): Promise<void>

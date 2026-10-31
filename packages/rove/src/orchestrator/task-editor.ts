@@ -47,13 +47,14 @@ export class TaskEditor {
   }
 
   /** Naming a SCRATCH task is the "keep this" gesture: clears the flag so the
-   *  row survives its shell exiting. */
-  async setTitle(id: TaskId | string, title: string): Promise<void> {
+   *  row survives its shell exiting. An automatic name passes `keepScratch`. */
+  async setTitle(id: TaskId | string, title: string, opts?: { keepScratch?: boolean }): Promise<void> {
     const trimmed = sanitizeTaskTitle(title)
     if (!trimmed) throw new Error("setTitle: title is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
-    if (task.title === trimmed && task.scratch !== true) return
-    await this.store.update(task.id, { title: trimmed, ...(task.scratch === true ? { scratch: false } : {}) })
+    const unscratch = task.scratch === true && opts?.keepScratch !== true
+    if (task.title === trimmed && !unscratch) return
+    await this.store.update(task.id, { title: trimmed, ...(unscratch ? { scratch: false } : {}) })
     await this.followBranchToTitle(task, trimmed)
   }
 
