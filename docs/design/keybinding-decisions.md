@@ -918,9 +918,9 @@ worktrees stay. A main with child tasks asks whether to keep or delete them
 too, like any task. Remove project is menu-only, on the project header
 (`forgetProject` carries no chord).
 
-## PROPOSED: `a` in the web preview asks in chat (2026-10-31, awaiting owner)
+## DECLINED: `a` in the web preview asks in chat (2026-10-31)
 
-The web preview has an "ask in chat" button that types the cursor's line or the
-selected range into the task's engine prompt as `@path (lines a-b) `. Proposed
-chord: `a`, matching the Files pane's `a` (insert `@path`), so the same key means
-"mention this in the engine" in both. Not bound until the owner signs off.
+The web preview's "ask in chat" types the selected lines into the task's engine
+prompt as `@path (lines a-b) `. `a` was proposed for it; the owner declined a
+chord. It is a bubble that appears beside a selection (`v`, Shift+click or a
+mouse drag) and nothing else.

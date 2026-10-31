@@ -102,14 +102,6 @@
   outline: none;
 }
 
-.preview-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  padding: 0 8px 6px;
-  font: var(--fs-meta) var(--mono);
-}
-
 .preview-body {
   flex: 1;
   min-height: 0;
@@ -125,6 +117,23 @@
   padding: 0 12px;
   white-space: pre;
   cursor: default;
+  position: relative;
+}
+
+.ask-bubble {
+  position: absolute;
+  right: 12px;
+  top: 100%;
+  z-index: 1;
+  padding: 2px 8px;
+  border: 1px solid var(--line-active);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font: var(--fs-meta) var(--mono);
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .diff-row .gutter {
