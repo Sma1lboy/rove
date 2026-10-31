@@ -2,7 +2,8 @@
  * A read-only file or diff in the side panel (TUI `ops/preview.tsx` +
  * `preview-review.tsx`). Keys while focused, the TUI's: j/k cursor, v anchor
  * a range (or Shift+click), c add a note, x drop the note under the cursor, s send unsent
- * notes to the engine, r reload, q/Esc close. "Ask in chat" puts the line or range in the engine's prompt.
+ * notes to the engine, r reload, q/Esc close. A selection (v, Shift+click or a mouse drag) shows an
+ * "ask in chat" bubble that puts its lines in the engine's prompt.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
@@ -180,20 +181,25 @@ export function PreviewView({
     e.preventDefault()
   }
 
+  // A mouse drag across lines selects them as `v` does.
+  const selectDragged = () => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed) return
+    const rowOf = (n: Node | null) => (n instanceof Element ? n : n?.parentElement)?.closest<HTMLElement>("[data-row]")
+    const from = rowOf(sel.anchorNode)
+    const to = rowOf(sel.focusNode)
+    if (!from || !to) return
+    setAnchor(Number(from.dataset.row))
+    setCursor(Number(to.dataset.row))
+  }
+
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
     <div className="preview" tabIndex={0} ref={host} onKeyDown={onKey}>
-      {rows.length > 0 && (
-        <div className="preview-actions">
-          <button type="button" className="link" onClick={askInChat} title={t("preview.askInChatHint")}>
-            {t("preview.askInChat")}
-          </button>
-        </div>
-      )}
-      <div className="preview-body">
+      <div className="preview-body" onMouseUp={selectDragged}>
         {!loaded && <p className="placeholder-line">{t("preview.loading")}</p>}
         {loaded?.kind === "text" && <p className={`placeholder-line ${loaded.error ? "error" : ""}`}>{loaded.text}</p>}
         {rows.map((row, i) => {
@@ -205,6 +211,7 @@ export function PreviewView({
               data-row={i}
               className={`diff-row kind-${row.kind} ${i >= lo && i <= hi ? "is-cursor" : ""} ${noted ? "is-noted" : ""}`}
               onClick={(e) => {
+                if (window.getSelection()?.isCollapsed === false) return
                 // Shift+click extends a selection from the cursor, as `v` then j/k does.
                 if (e.shiftKey) setAnchor((a) => a ?? cursor)
                 else setAnchor(null)
@@ -215,6 +222,20 @@ export function PreviewView({
               <span className="gutter">{row.newNo ?? ""}</span>
               <span className="sign">{row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}</span>
               <span className="code">{row.text}</span>
+              {anchor !== null && i === hi && (
+                <button
+                  type="button"
+                  className="ask-bubble"
+                  title={t("preview.askInChatHint")}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    askInChat()
+                  }}
+                >
+                  {t("preview.askInChat")}
+                </button>
+              )}
             </div>
           )
         })}
