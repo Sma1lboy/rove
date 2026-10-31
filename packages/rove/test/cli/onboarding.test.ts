@@ -245,6 +245,22 @@ describe("runPendingWelcomeInstalls", () => {
     runPendingWelcomeInstalls()
     expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
   })
+  it("tells a failed welcome skill install once, after the TUI is gone", async () => {
+    let state: Record<string, unknown> = { "welcomeInstall.skill": { status: "failed", reason: "EACCES" } }
+    mocks.loadStateFile.mockImplementation(() => state)
+    mocks.patchStateFile.mockImplementation((patch: Record<string, unknown>) => {
+      state = { ...state, ...patch }
+    })
+    const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")
+    runPendingWelcomeInstalls()
+    runPendingWelcomeInstalls()
+    const printed = stdoutLines(stdoutSpy).filter((line) => line.includes("EACCES"))
+    expect(printed).toHaveLength(1)
+    expect(printed[0]).toContain("rove skill install")
+    mocks.loadStateFile.mockReset()
+    mocks.patchStateFile.mockReset()
+  })
+
   it("rejects a corrupted queued shell without writing a shell config", async () => {
     mocks.loadStateFile.mockReturnValue({ welcomePendingCompletions: "../../invalid" })
     const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")

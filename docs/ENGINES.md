@@ -364,6 +364,14 @@ Cleanup recognizes literal `rove`/`rove` invocations, including absolute
 executables and Bun/Node source or bundle entry paths. Commands behind shell
 wrappers or compound shell commands are left for manual review.
 
+### Agent skill directory
+
+An entry (built-in or contrib) may declare `skillsDir`: the user-level dir the
+engine loads agent skills from, returning null when the engine's home dir is
+absent. `rove skill install` copies the bundled Rove skill into every non-null
+dir, and the daemon refreshes outdated copies on boot. Dirs follow the
+agent-skills CLI's per-agent table.
+
 ### Adding a hook to another engine
 
 Hooks are no longer a built-in-only privilege. A shipped catalog entry in

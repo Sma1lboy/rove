@@ -11,6 +11,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
+import { isObject } from "../lib/is-object.ts"
 import { installSkill, skillTargets } from "../lib/skill-install.ts"
 import type { ProductCliName } from "../product.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -130,9 +131,24 @@ export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKin
   }
 }
 
+/** The dialog installed the skill silently; a failure is told once, on a real terminal. */
+function reportFailedSkillInstall(state: Record<string, unknown>): void {
+  const skill = state["welcomeInstall.skill"]
+  if (!isObject(skill) || skill.status !== "failed") return
+  process.stdout.write(
+    `${t("onboarding.skillInstallFailed", { reason: String(skill.reason), command: `${ROVE_PRODUCT_NAME} skill install` })}\n`,
+  )
+  try {
+    patchStateFile({ "welcomeInstall.skill": { ...skill, status: "failed-reported" } })
+  } catch {
+    // Read-only settings: the line repeats next quit, which beats losing it.
+  }
+}
+
 /** Apply and clear what the welcome dialog recorded. Runs AFTER the renderer is destroyed. */
 export function runPendingWelcomeInstalls(): void {
   const state = loadStateFile()
+  reportFailedSkillInstall(state)
   const shell = state[PENDING_COMPLETIONS_KEY]
   const pendingShell = typeof shell === "string" && isShellKind(shell) ? shell : null
   if (shell !== undefined && pendingShell === null) {

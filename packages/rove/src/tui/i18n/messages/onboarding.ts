@@ -44,6 +44,8 @@ export const en = {
   skillWillInstall: "Installs when this guide closes",
   skipped: "Skipped",
   installFailed: "! {item} failed: {reason}. Retry: {command} (or quit Rove again).",
+  /** After the TUI exits: the welcome guide's skill install failed; {command} retries it */
+  skillInstallFailed: "! agent skill install failed: {reason}. Retry: {command}",
   /** Key legend at the bottom of the dialog */
   legend: "↑↓ select · enter confirm · esc close",
   /** Final informational page: heading. Every {placeholder} below is filled from the LIVE keymap. */
@@ -95,6 +97,7 @@ export const zh: typeof en = {
   skillWillInstall: "关闭本引导后安装",
   skipped: "已跳过",
   installFailed: "! {item} 安装失败：{reason}。重试：{command}（或再次退出 Rove）。",
+  skillInstallFailed: "! agent skill 安装失败：{reason}。重试：{command}",
   legend: "↑↓ 选择 · enter 确认 · esc 关闭",
   keysTitle: "键盘基础",
   keysBare: "裸键作用于当前聚焦面板 — {nav} 移动，{open} 打开。",
