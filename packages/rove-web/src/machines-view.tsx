@@ -97,11 +97,14 @@ export function RemoteNotice({ host }: { host: string }) {
   )
 }
 
+/** The last list each client got, so a fresh mount (each New Task dialog) starts from it instead of an empty row that pops in. */
+const lastRows = new WeakMap<object, readonly MachineRow[]>()
+
 /** Registered machines, reread when the feed says one of them changed reachability. */
 export function useMachines(model: AppModel): readonly MachineRow[] {
   const conn = useStore(model.client.conn)
   const remote = useStore(model.remote)
-  const [rows, setRows] = useState<readonly MachineRow[]>([])
+  const [rows, setRows] = useState<readonly MachineRow[]>(() => lastRows.get(model.client) ?? [])
   const reachability = [...new Set(remote.map((task) => `${task.machine?.id}:${task.machine?.stale ?? false}`))].join()
   // biome-ignore lint/correctness/useExhaustiveDependencies: reachability is a refetch trigger the body doesn't read
   useEffect(() => {
@@ -109,7 +112,10 @@ export function useMachines(model: AppModel): readonly MachineRow[] {
     let live = true
     const load = () =>
       model.client.request<{ machines: MachineRow[] }>("machines.list").then(
-        (r) => live && setRows(r.machines),
+        (r) => {
+          lastRows.set(model.client, r.machines)
+          if (live) setRows(r.machines)
+        },
         () => {},
       )
     void load()
