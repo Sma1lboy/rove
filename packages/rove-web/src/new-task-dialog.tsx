@@ -323,11 +323,11 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
 
 export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; repo?: string }) {
   useLocale()
-  const choice = useEngineChoice(model)
   const [tab, setTab] = useState<NewTaskTab>("existing")
   const { busy, error, setError, submit } = useSubmit()
   const selected = model.selection.get().taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
+  const choice = useEngineChoice(model, initialRepo ?? fallback)
   const repo = useRepoField(model, initialRepo ?? fallback)
   const root = useRef<HTMLDivElement>(null)
   const first = useRef(true)

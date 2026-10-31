@@ -44,9 +44,9 @@ let promptDraft = ""
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
   const initialRepo = seed.repo
   useLocale()
-  const choice = useEngineChoice(model)
   const selected = useStore(model.selection).taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
+  const choice = useEngineChoice(model, initialRepo ?? fallback)
   const [saved, setSaved] = useState<readonly string[]>([])
   const [home, setHome] = useState("")
   const [repos, setRepos] = useState<readonly string[]>([])

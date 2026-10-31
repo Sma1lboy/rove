@@ -102,7 +102,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
 | `tasks.subscribe` | — | `{tasks, attention, gates}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention, gates}` (fresh read) |
-| `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |
+| `engines.list` | `repo?` (absolute) | `{engines: [{id, name, command, protocol, builtin}], preferred}`; `preferred` is the engine a picker opens on: the one `repo` was last started on, else Settings' default |
 | `repos.list` | — | `{repos}` (saved projects plus repos with tasks) |
 | `task.create` | `repo`, `engine?`, `prompt?`, `title?` | `{taskId}` |
 | `task.delete` | `taskId`, `force?`, `cascade?` (also delete every descendant; absent, the task's children are promoted) | `{status}` |
@@ -167,7 +167,7 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `task.landPreflight` | `taskId` | `{branch, landedOn, ahead?, refusal?, message?, baseDir}` (read-only) | RPC `task.landPreflight` |
 | `task.syncBase` | `taskId` | `{baseRef, alreadyCurrent}`; refusals carry `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` | RPC `task.syncBase` |
 | `task.fixChecks` | `taskId`, `tabId?` | `{outcome: "sent" \| "none" \| "unavailable", detail?}` | RPC `pr.failingChecks` + CI prompt + `send --plain` |
-| `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task | RPC `task.openDir` |
+| `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task. No `engine` = the one Scratch was last started on; a picked one is remembered | RPC `task.openDir` |
 | `task.setEngine` | `taskId`, `engine`, `effort?`, `model?` (`""` clears) | `{}` | RPC `task.setVendor` |
 | `tab.move` | `taskId`, `tabId`, `direction` (`up`/`down`) | `{moved}` | `moveTab` on the persisted tab order |
 | `file.openExternal` | `taskId`, `path` (relative to the worktree) | `{}`; opens an image, audio, video, PDF or font in the Mac's own opener. Refused (`NOT_OPENABLE`) for anything else, anything executable, and any path or symlink that leaves the worktree | helper `openExternally` |

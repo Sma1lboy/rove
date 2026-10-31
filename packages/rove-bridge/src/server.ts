@@ -16,7 +16,9 @@ import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
+import { absPath } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
+import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
 import type { PanelFeed } from "./panels.ts"
 import { type Peer, peerOf, viewingFields } from "./peer.ts"
@@ -168,8 +170,11 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     }
     case "tasks.list":
       return deps.feed.refresh()
-    case "engines.list":
-      return { engines: await ops.engines() }
+    case "engines.list": {
+      // `repo` (absolute) asks which engine a picker for that project preselects.
+      const repo = a.repo === undefined ? undefined : absPath(a, "repo")
+      return { engines: await ops.engines(), preferred: taskOpDeps.preferredEngine(repo) }
+    }
     case "repos.list":
       return { repos: await ops.repos() }
     case "task.create":

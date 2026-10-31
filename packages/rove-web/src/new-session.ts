@@ -26,9 +26,13 @@ export function offeredEngines<E extends { readonly id: string; readonly enabled
   return engines.filter((e) => e.enabled !== false || e.id === keep)
 }
 
-/** The engine a picker opens on: the first ready one, else the first; "" when nothing is offered. */
-export function defaultEngineId(offered: readonly { readonly id: string; readonly ready?: boolean }[]): string {
-  return (offered.find((e) => e.ready !== false) ?? offered[0])?.id ?? ""
+/** The engine a picker opens on: `preferred` (the project's last) when offered and ready, else the first ready one, else the first; "" when nothing is offered. */
+export function defaultEngineId(
+  offered: readonly { readonly id: string; readonly ready?: boolean }[],
+  preferred?: string,
+): string {
+  const ready = offered.filter((e) => e.ready !== false)
+  return (ready.find((e) => e.id === preferred) ?? ready[0] ?? offered[0])?.id ?? ""
 }
 
 export interface Choice {

@@ -4,7 +4,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type TaskOpsDeps, reorderDaemonTab, taskOps } from "../src/ops/taskops.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
-import { ENGINES, T, fakeApi } from "./task-ops-harness.ts"
+import { ENGINES, T, fakeApi, isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   homeDir: () => "/home/me",
@@ -225,9 +227,21 @@ describe("task.openScratch", () => {
     })
   })
 
-  test("no engine opens a bare scratch task; an unknown engine is refused", async () => {
-    const bare = await run("task.openScratch", {}, { "task.openDir": { taskId: "S2" } })
-    expect(bare.calls.at(-1)).toEqual({ rpc: "task.openDir", payload: { dir: "/home/me", scratch: true } })
+  test("a picked engine is remembered for Scratch; the one-click + opens on the remembered one", async () => {
+    const memory = new Map<string, string>()
+    taskOpDeps.rememberEngine = (repo, engine) => void memory.set(repo, engine)
+    taskOpDeps.preferredEngine = (repo) => (repo ? memory.get(repo) : undefined) ?? "claude"
+    const first = await run("task.openScratch", {}, { "task.openDir": { taskId: "S1" } })
+    expect(first.calls.at(-1)).toEqual({
+      rpc: "task.openDir",
+      payload: { dir: "/home/me", scratch: true, vendor: "claude" },
+    })
+    await run("task.openScratch", { engine: "codex" }, { "task.openDir": { taskId: "S2" } })
+    const again = await run("task.openScratch", {}, { "task.openDir": { taskId: "S3" } })
+    expect(again.calls.at(-1)).toEqual({
+      rpc: "task.openDir",
+      payload: { dir: "/home/me", scratch: true, vendor: "codex" },
+    })
     await expect(run("task.openScratch", { engine: "nope" })).rejects.toMatchObject({ code: "UNKNOWN_ENGINE" })
   })
 })

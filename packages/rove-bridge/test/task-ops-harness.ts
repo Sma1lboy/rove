@@ -51,12 +51,13 @@ export async function refused(op: string, args: Record<string, unknown>, replies
   ).toEqual([])
 }
 
-/** Each test starts with no saved repos and gets the real deps back afterwards. */
+/** Each test starts with no saved repos and no engine memory (the real one is the user's state.json), and gets the real deps back afterwards. */
 export function isolateTaskOpDeps(): void {
   const saved = { ...taskOpDeps }
   beforeEach(() => {
     taskOpDeps.savedRepos = () => []
     taskOpDeps.rememberEngine = () => {}
+    taskOpDeps.preferredEngine = () => "claude"
   })
   afterEach(() => {
     Object.assign(taskOpDeps, saved)
