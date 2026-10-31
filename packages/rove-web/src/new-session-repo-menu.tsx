@@ -13,6 +13,7 @@ import {
   splitRepoRow,
   stripTrailingSlash,
 } from "./new-task-paths.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 
 interface GithubRepos {
   readonly repos: ReadonlyArray<{ nameWithOwner: string; description: string; isPrivate: boolean }>
@@ -38,12 +39,11 @@ export function RepoMenu(props: {
   remote?: { readonly name: string; readonly empty: string; readonly blocked: boolean }
 }) {
   const { model, saved, picked, primary, home, query, remote } = props
-  // The popover mounts this when it opens, so the list is fetched then and the rows never wait on it.
-  const [github, setGithub] = useState<GithubRepos | null>(null)
+  // The popover mounts this when it opens: the last list shows at once, reread then, and the rows never wait on it.
+  const [github, setGithub] = useState<GithubRepos | null>(() => lastReply<GithubRepos>(model, "github.repos") ?? null)
   useEffect(() => {
     let stale = false
-    model.client
-      .request<GithubRepos>("github.repos")
+    requestRemembered<GithubRepos>(model, "github.repos")
       .then((res) => !stale && setGithub(res))
       .catch(() => !stale && setGithub({ repos: [], reason: "failed" }))
     return () => {

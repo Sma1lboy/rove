@@ -20,6 +20,7 @@ import {
   splitRepoRow,
 } from "./new-task-paths.ts"
 import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
@@ -67,17 +68,21 @@ interface Browse {
 }
 
 function useRepoField(model: AppModel, initial: string | undefined): RepoField {
-  const [saved, setSaved] = useState<readonly string[]>([])
-  const [home, setHome] = useState("")
-  const [text, setTextState] = useState("")
+  const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
+  const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
+  const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
+  const [text, setTextState] = useState(() => {
+    const start = initial ?? lastSaved?.[0]
+    return start ? nameOrPath(start, lastSaved ?? []) : ""
+  })
   const [picked, setPicked] = useState(false)
   const [browse, setBrowse] = useState<Browse | null>(null)
   const [probe, setProbe] = useState<ProbeResult | null>(null)
 
   useEffect(() => {
     void Promise.all([
-      model.client.request<{ repos: string[] }>("repos.list"),
-      model.client.request<{ home: string }>("fs.subdirs", { path: "~/" }),
+      requestRemembered<{ repos: string[] }>(model, "repos.list"),
+      requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
     ])
       .then(([repos, fs]) => {
         setSaved(repos.repos)

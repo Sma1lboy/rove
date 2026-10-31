@@ -5,6 +5,7 @@ import { ChipRow } from "./chip-row.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */
@@ -20,12 +21,18 @@ export interface EngineChoice {
 
 /** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
 export function useEngineChoice(model: AppModel, repo?: string): EngineChoice {
-  const [engines, setEngines] = useState<readonly EngineRow[]>([])
-  const [engine, setEngine] = useState("")
+  type Reply = { engines: EngineRow[]; preferred?: string }
+  const params = repo ? { repo } : {}
+  const [seed] = useState(() => {
+    const last = lastReply<Reply>(model, "engines.list", params)
+    const offered = last ? offeredEngines(last.engines) : []
+    return { offered, engine: last ? defaultEngineId(offered, last.preferred) : "" }
+  })
+  const [engines, setEngines] = useState<readonly EngineRow[]>(seed.offered)
+  const [engine, setEngine] = useState(seed.engine)
   // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog; a later repo change keeps the user's pick
   useEffect(() => {
-    void model.client
-      .request<{ engines: EngineRow[]; preferred?: string }>("engines.list", repo ? { repo } : {})
+    void requestRemembered<Reply>(model, "engines.list", params)
       .then((res) => {
         const offered = offeredEngines(res.engines)
         setEngines(offered)
