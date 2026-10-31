@@ -14,12 +14,14 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { createCover } from "./term-cover.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
 import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { createReplyGate } from "./term-replies.ts"
-import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
+import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
+import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
 import { attachTouchScroll } from "./term-touch.ts"
 import { loadWebgl } from "./term-webgl.ts"
 import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
@@ -59,6 +61,8 @@ export interface MountOpts {
   readonly focusOnMount: boolean
   /** The screen as it last looked (`TermHandle.snapshot`), shown over the terminal until the reattach repaints it. */
   readonly snapshot?: string
+  /** The first replay is on screen (or the attach failed): what the view showed before can go. */
+  readonly onPainted?: () => void
 }
 
 export interface TermHandle {
@@ -92,6 +96,16 @@ function isCopyChord(e: KeyboardEvent): "interrupt-or-copy" | "copy" | null {
 // Attachments are shared by stream within a connection, including pending replies.
 const attachments = new WeakMap<BridgeClient, Map<string, { owners: number; attached: boolean }>>()
 
+const RIS = new Uint8Array([0x1b, 0x63])
+
+/** `bytes` behind a full reset, as one write: xterm parses it in a single pass, so no frame paints the cleared screen. */
+function withReset(bytes: Uint8Array): Uint8Array {
+  const out = new Uint8Array(RIS.length + bytes.length)
+  out.set(RIS)
+  out.set(bytes, RIS.length)
+  return out
+}
+
 export function mountTerminal(o: MountOpts): TermHandle {
   const { client, el, taskId, tabId } = o
   const term = new Terminal({
@@ -121,34 +135,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const images = attachKittyImages(term)
   fit.fit()
   // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
-  let cover: HTMLElement | null = null
-  // xterm sizes its cells from measured glyphs and settles them after the first render, so the
-  // snapshot's rows and columns follow every resize instead of a value read at mount.
-  const fitCover = () => {
-    const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
-    if (!cover || !screen || term.rows <= 0 || term.cols <= 0) return
-    const ctx = document.createElement("canvas").getContext("2d")
-    if (ctx) ctx.font = `${term.options.fontSize ?? 13}px ${FONT_FAMILY}`
-    const glyph = ctx?.measureText("W").width ?? 0
-    cover.style.setProperty("--row-h", `${screen.clientHeight / term.rows}px`)
-    if (glyph > 0) cover.style.letterSpacing = `${screen.clientWidth / term.cols - glyph}px`
-  }
-  if (o.snapshot) {
-    cover = document.createElement("div")
-    cover.className = "term-snapshot"
-    cover.innerHTML = o.snapshot
-    cover.style.backgroundColor = (terminalTheme.get() ?? XTERM_THEME).background ?? ""
-    el.append(cover)
-    fitCover()
-    requestAnimationFrame(fitCover)
-  }
-  const coverResize = term.onResize(fitCover)
-  const uncover = () => {
-    cover?.remove()
-    cover = null
-    coverResize.dispose()
-  }
-  const coverCap = cover ? window.setTimeout(uncover, 1500) : null
+  const cover = createCover(term, el, serialize)
+  let replayed = false
+  if (o.snapshot) cover.raise(o.snapshot)
   if (o.focusOnMount) term.focus()
 
   const expected = streamKey(taskId, tabId, o.leafId)
@@ -186,12 +175,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (held) held.push({ bytes, chars: p.data.length })
     else if (stream) writeAcked(bytes, p.data.length)
   })
-  // RIS goes through xterm's write queue, so output still queued ahead of it is drawn first, then wiped.
+  // RIS and the replay are one chunk: a frame never paints between the wipe and the redraw.
   const offReset = client.on("term.reset", (raw) => {
     const p = resetPayload(raw)
     if (!p || p.stream !== expected || !stream || held) return
-    term.write("\x1bc")
-    replies.replay((parsed) => writeAcked(decode(p.replay), p.replay.length, parsed))
+    replies.replay((parsed) => writeAcked(withReset(decode(p.replay)), p.replay.length, parsed))
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -201,6 +189,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
     o.onExit(p.code ?? null)
   })
 
+  // Once the first replay is parsed and drawn (or the attach failed) the view can let go of what it showed before.
+  let paintedOnce = false
+  const painted = (drawn: boolean) => {
+    if (paintedOnce) return
+    paintedOnce = true
+    if (drawn) requestAnimationFrame(() => requestAnimationFrame(() => o.onPainted?.()))
+    else o.onPainted?.()
+  }
   const attach = async (): Promise<void> => {
     held = []
     stream = null
@@ -220,11 +216,22 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (current) current.attached = true
       else detach()
       if (disposed) return
-      term.reset()
+      smooth.reset()
+      // A screen already showing this session stays up as a snapshot until the engine has repainted over the replay.
+      if (replayed && !cover.raised) cover.raise(cover.snapshot())
+      replayed = true
+      heldBack = null
+      ignoreWipe = true
+      // Reset and replay go in as one chunk, so they parse in one pass and no frame paints between them: a
+      // synchronous `term.reset()` with the replay queued behind it painted the empty terminal for a frame.
       replies.replay((parsed) => {
         const bytes = decode(res.replay)
         images.push(bytes)
-        term.write(bytes, parsed)
+        term.write(withReset(bytes), () => {
+          ignoreWipe = false
+          parsed()
+          painted(true)
+        })
       })
       for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
@@ -243,9 +250,9 @@ export function mountTerminal(o: MountOpts): TermHandle {
               ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
               : undefined,
           )
-          .then(() => window.setTimeout(uncover, 250))
-          .catch(uncover)
-      } else uncover()
+          .then(() => window.setTimeout(cover.lower, 250))
+          .catch(cover.lower)
+      } else cover.lower()
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
       o.setNotice(res.alive ? { kind: "none" } : res.restored ? { kind: "restored" } : { kind: "exited", code: null })
     } catch (err) {
@@ -256,7 +263,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
       }
     } finally {
       held = null
-      if (!stream) uncover()
+      if (!stream) {
+        cover.lower()
+        painted(false)
+      }
     }
   }
   // An unlaid-out box (phone workspace still display:none) would attach at xterm's 80×24 default.
@@ -357,38 +367,29 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Scrolling as the TUI pane does it. A wheel the app does not take moves the scrollback by whole
   // lines here, not through xterm's scrollable, which drops a sub-line touchpad delta whenever new
-  // output lands before it adds up to a row. A view at the bottom follows output; a scrolled one
-  // stays put, and if the app wipes the scrollback under it (ESC[3J, ESC c: a full repaint) it
-  // keeps its distance from the bottom while the wipes go on. Typing returns to the bottom.
+  // output lands before it adds up to a row; the fraction of a line left over shifts the screen by
+  // CSS (`term-smooth.ts`) so the text follows the fingers every frame. A view at the bottom follows
+  // output; a scrolled one stays put, and if the app wipes the scrollback under it (ESC[3J, ESC c: a
+  // full repaint) it keeps its distance from the bottom while the wipes go on. Typing returns to the
+  // bottom.
   const textarea = term.textarea
-  let wheelCarry = 0
   let heldBack: number | null = null
+  // The wipe a reattach's own reset makes is not the app's: the view goes to the bottom, as it always did.
+  let ignoreWipe = false
   let lastWipe = 0
-  const onWheel = (e: WheelEvent) => {
-    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
-    const alternateScreen = term.buffer.active.type === "alternate"
-    const mouseTracking = term.modes.mouseTrackingMode !== "none"
-    if (wheelOwner({ alternateScreen, mouseTracking, shift: e.shiftKey }) === "app") return
-    e.preventDefault()
-    e.stopPropagation()
-    const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
-    const cellHeight = screen && term.rows > 0 ? screen.clientHeight / term.rows : 0
-    const step = wheelLines(wheelCarry, e, cellHeight || 15, term.rows)
-    wheelCarry = step.carry
-    if (step.lines === 0) return
-    heldBack = null
-    term.scrollLines(step.lines)
-  }
-  el.addEventListener("wheel", onWheel, { capture: true, passive: false })
-  const detachTouch = attachTouchScroll(el, term, () => {
+  const smooth = createSmoothScroll(term, () => {
     heldBack = null
   })
+  const detachWheel = attachWheelScroll(el, term, smooth)
+  const detachTouch = attachTouchScroll(el, term, smooth)
   const onScrollbarDown = (e: MouseEvent) => {
-    if (e.target instanceof Element && e.target.closest(".scrollbar")) heldBack = null
+    if (!(e.target instanceof Element && e.target.closest(".scrollbar"))) return
+    heldBack = null
+    smooth.reset()
   }
   el.addEventListener("mousedown", onScrollbarDown, { capture: true })
   const noteWipe = () => {
-    if (term.buffer.active.type === "normal") {
+    if (!ignoreWipe && term.buffer.active.type === "normal") {
       const back = linesFromBottom(term.buffer.active)
       if (heldBack === null && back > 0) heldBack = back
       lastWipe = performance.now()
@@ -401,6 +402,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const wipeAll = term.parser.registerEscHandler({ final: "c" }, noteWipe)
   const followInput = () => {
     heldBack = null
+    smooth.reset()
     if (linesFromBottom(term.buffer.active) > 0) term.scrollToBottom()
   }
   const typed = term.onKey(followInput)
@@ -418,6 +420,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   })
   const userScroll = (move: () => void) => {
     heldBack = null
+    smooth.reset()
     move()
   }
 
@@ -441,14 +444,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
       ctrlNext = onUsed
     },
     reattach: attach,
-    snapshot: () => serialize.serializeAsHTML({ scrollback: 0, includeGlobalBackground: true }),
+    snapshot: cover.snapshot,
     dispose() {
       disposed = true
-      uncover()
-      if (coverCap !== null) window.clearTimeout(coverCap)
+      cover.lower()
       observer.disconnect()
-      el.removeEventListener("wheel", onWheel, { capture: true })
+      detachWheel()
       detachTouch()
+      smooth.dispose()
       el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
       textarea?.removeEventListener("paste", followInput)
       textarea?.removeEventListener("compositionend", followInput)

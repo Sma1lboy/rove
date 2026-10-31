@@ -13,6 +13,10 @@ import { type MountOpts, type Notice, type TermHandle, mountTerminal, streamKey 
 const PARKED_MAX = 8
 /** Snapshots kept for evicted terminals. */
 const SNAPSHOTS_MAX = 32
+/** The longest a leaving terminal stays over the host while the next one waits for its replay. */
+const LEAVING_MAX_MS = 600
+/** A cold mount this soon after a terminal was parked is the view switching to another task. */
+const ADOPT_WITHIN_MS = 100
 
 /** What a view supplies; a parked terminal reaches nobody until the next view binds. */
 export type TermBinding = Pick<
@@ -34,11 +38,15 @@ interface Entry {
   readonly handle: TermHandle
   readonly box: HTMLElement
   readonly slot: Slot
+  /** Timer of a parked box shown over the host (`is-leaving`) until its successor has painted; null otherwise. */
+  leaving: number | null
 }
 
 interface Pool {
   readonly entries: Map<string, Entry>
   readonly snapshots: Map<string, string>
+  /** The terminal parked most recently, which the next cold mount may show over itself. */
+  left: Entry | null
 }
 
 const pools = new WeakMap<BridgeClient, Pool>()
@@ -47,7 +55,7 @@ let parking: HTMLElement | null = null
 function poolOf(client: BridgeClient): Pool {
   let pool = pools.get(client)
   if (!pool) {
-    pool = { entries: new Map(), snapshots: new Map() }
+    pool = { entries: new Map(), snapshots: new Map(), left: null }
     pools.set(client, pool)
   }
   return pool
@@ -74,6 +82,8 @@ function remember(pool: Pool, key: string, html: string): void {
 
 function drop(pool: Pool, entry: Entry, keepSnapshot: boolean): void {
   pool.entries.delete(entry.key)
+  if (entry.leaving !== null) window.clearTimeout(entry.leaving)
+  entry.leaving = null
   if (keepSnapshot) remember(pool, entry.key, entry.handle.snapshot())
   else pool.snapshots.delete(entry.key)
   entry.handle.dispose()
@@ -98,7 +108,7 @@ export function hasParked(client: BridgeClient, taskId: string, tabId: string, l
 }
 
 export function leaseTerminal(
-  o: Omit<MountOpts, keyof TermBinding | "el" | "snapshot"> & { readonly host: HTMLElement },
+  o: Omit<MountOpts, keyof TermBinding | "el" | "snapshot" | "onPainted"> & { readonly host: HTMLElement },
   binding: TermBinding,
 ): Leased {
   const pool = poolOf(o.client)
@@ -108,6 +118,14 @@ export function leaseTerminal(
     const { slot, handle, box } = parked
     slot.parkedAt = null
     slot.binding = binding
+    // It was leaving a moment ago and is the one on screen again: keep it, let the rest go.
+    if (parked.leaving !== null) {
+      window.clearTimeout(parked.leaving)
+      parked.leaving = null
+      box.classList.remove("is-leaving")
+    }
+    pool.left = null
+    settleLeaving(pool)
     o.host.append(box)
     binding.setNotice(slot.notice)
     binding.onScrolled(slot.scrolled)
@@ -119,6 +137,7 @@ export function leaseTerminal(
   const box = document.createElement("div")
   box.className = "term-box"
   o.host.append(box)
+  adoptLeft(pool, o.host)
   // A stream already on screen elsewhere gets its own, unpooled terminal.
   const pooled = !parked
   const slot: Slot = { binding, notice: { kind: "none" }, scrolled: 0, parkedAt: null }
@@ -129,6 +148,7 @@ export function leaseTerminal(
     ...o,
     el: box,
     snapshot,
+    onPainted: () => settleLeaving(pool),
     setNotice: (notice) => {
       slot.notice = notice
       slot.binding?.setNotice(notice)
@@ -155,7 +175,7 @@ export function leaseTerminal(
       },
     }
   }
-  const leased: Entry = { key, handle, box, slot }
+  const leased: Entry = { key, handle, box, slot, leaving: null }
   entry = leased
   pool.entries.set(key, leased)
   return { handle, release: () => park(pool, leased) }
@@ -169,5 +189,30 @@ function park(pool: Pool, entry: Entry): void {
   entry.handle.term.blur()
   slot.parkedAt = performance.now()
   parkingLot().append(entry.box)
+  pool.left = entry
   evict(pool)
+}
+
+/** The terminal that left is shown over the cold one that replaces it, so the pane keeps its last frame until the replay paints. */
+function adoptLeft(pool: Pool, host: HTMLElement): void {
+  const left = pool.left
+  pool.left = null
+  if (!left || left.slot.parkedAt === null || performance.now() - left.slot.parkedAt > ADOPT_WITHIN_MS) return
+  if (pool.entries.get(left.key) !== left) return
+  left.box.classList.add("is-leaving")
+  host.append(left.box)
+  left.leaving = window.setTimeout(() => settle(pool, left), LEAVING_MAX_MS)
+}
+
+/** A leaving terminal goes back to the parking lot: the new one has painted, took the screen, or waited long enough. */
+function settle(pool: Pool, entry: Entry): void {
+  if (entry.leaving === null) return
+  window.clearTimeout(entry.leaving)
+  entry.leaving = null
+  entry.box.classList.remove("is-leaving")
+  if (pool.entries.get(entry.key) === entry && entry.slot.parkedAt !== null) parkingLot().append(entry.box)
+}
+
+function settleLeaving(pool: Pool): void {
+  for (const entry of pool.entries.values()) settle(pool, entry)
 }
