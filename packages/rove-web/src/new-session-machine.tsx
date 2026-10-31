@@ -8,6 +8,7 @@ import { type MachineRow, machineLabel } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ChipPopover, ChoiceMenu, SearchList } from "./new-session-menus.tsx"
 import { type RemoteRepo, type RemoteStartInput, remoteSpawnArgs } from "./new-session-remote.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
@@ -29,16 +30,8 @@ export interface RemoteRepos {
   readonly problem: string
 }
 
-/** The last `machines.repos` reply per client and machine, so a picked machine shows its list at once while it rereads. */
-const repoCache = new WeakMap<object, Map<string, RemoteReply>>()
-
-function readRepos(model: AppModel, machine: string): Promise<RemoteReply> {
-  return model.client.request<RemoteReply>("machines.repos", { machine }).then((reply) => {
-    const byMachine = repoCache.get(model.client) ?? new Map<string, RemoteReply>()
-    repoCache.set(model.client, byMachine.set(machine, reply))
-    return reply
-  })
-}
+const readRepos = (model: AppModel, machine: string): Promise<RemoteReply> =>
+  requestRemembered<RemoteReply>(model, "machines.repos", { machine })
 
 /** Read every online machine's project list before one is picked. */
 export function usePrefetchRemoteRepos(model: AppModel, machines: readonly MachineRow[]): void {
@@ -72,7 +65,7 @@ export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   if (!machine) return { repos: [], loaded: true, problem: "" }
   // A reply for the machine picked before this one is not this one's list.
   const live = state?.machine === machine ? state : undefined
-  const cached = repoCache.get(model.client)?.get(machine)
+  const cached = lastReply<RemoteReply>(model, "machines.repos", { machine })
   if (!live && !cached) return { repos: [], loaded: false, problem: "" }
   const reply = live ? live.reply : (cached as RemoteReply)
   if (!reply)

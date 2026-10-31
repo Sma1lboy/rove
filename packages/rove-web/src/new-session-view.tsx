@@ -27,6 +27,7 @@ import { RepoMenu } from "./new-session-repo-menu.tsx"
 import { effortChoices, modelChipLabel, modelChoices, repoChipLabel, spawnArgs, toggleRepo } from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
@@ -48,13 +49,30 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const selected = useStore(model.selection).taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
   const choice = useEngineChoice(model, initialRepo ?? fallback)
-  const [saved, setSaved] = useState<readonly string[]>([])
-  const [home, setHome] = useState("")
-  const [repos, setRepos] = useState<readonly string[]>([])
-  // Each picked repo's branches, probed once it is picked.
-  const [probes, setProbes] = useState<Readonly<Record<string, ProbeResult>>>({})
+  // The starting project, known now when the opener or the selection names one; else the first saved, once read.
+  const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
+  const startOf = (list?: readonly string[]) => (seed.machine ? undefined : initialRepo) ?? fallback ?? list?.[0]
+  const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
+  const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
+  const [repos, setRepos] = useState<readonly string[]>(() => {
+    const start = startOf(lastSaved)
+    return start ? [start] : []
+  })
+  // Each picked repo's branches: the last probe at once, reread when it is picked.
+  const [probes, setProbes] = useState<Readonly<Record<string, ProbeResult>>>(() =>
+    Object.fromEntries(
+      repos.flatMap((path) => {
+        const last = lastReply<ProbeResult>(model, "repo.probe", { path })
+        return last ? [[path, last]] : []
+      }),
+    ),
+  )
+  const probed = useRef(new Set<string>())
   // The ref each repo's worktree branches from ("" = its current branch), and the one branch name they share.
-  const [bases, setBases] = useState<Readonly<Record<string, string>>>({})
+  const [bases, setBases] = useState<Readonly<Record<string, string>>>(() => {
+    const start = startOf(lastSaved)
+    return start && seed.baseBranch ? { [start]: seed.baseBranch } : {}
+  })
   const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
   const [branchQuery, setBranchQuery] = useState("")
@@ -87,14 +105,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
     void Promise.all([
-      model.client.request<{ repos: string[] }>("repos.list"),
-      model.client.request<{ home: string }>("fs.subdirs", { path: "~/" }),
+      requestRemembered<{ repos: string[] }>(model, "repos.list"),
+      requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
     ])
       .then(([list, fs]) => {
         setSaved(list.repos)
         setHome(fs.home)
         // A project the opener named on another machine is a path there, not a project here.
-        const start = (seed.machine ? undefined : initialRepo) ?? fallback ?? list.repos[0]
+        const start = startOf(list.repos)
         setRepos((now) => (now.length > 0 || !start ? now : [start]))
         // The branch the opener chose applies to the project it chose.
         if (start && seed.baseBranch) setBases((now) => ({ ...now, [start]: seed.baseBranch ?? "" }))
@@ -106,12 +124,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const inPlace = !remote && !worktree && repos.length === 1
   const primary = repos[0] ?? ""
   const probe = probes[primary] ?? null
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a repo is probed once, when first picked
+  // Each repo is reread once per open, when first picked.
   useEffect(() => {
     for (const path of repos) {
-      if (path in probes) continue
-      void model.client
-        .request<ProbeResult>("repo.probe", { path })
+      if (probed.current.has(path)) continue
+      probed.current.add(path)
+      void requestRemembered<ProbeResult>(model, "repo.probe", { path })
         .then((res) => setProbes((now) => ({ ...now, [path]: res })))
         .catch(() => {})
     }
