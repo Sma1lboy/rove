@@ -388,6 +388,7 @@ button:focus-visible {
  * padding (a clipped last row, the pane scrolling sideways).
  */
 .term-host {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -415,6 +416,14 @@ button:focus-visible {
 .term-box {
   position: relative;
   height: 100%;
+}
+
+/* The terminal that was just shown, held over the next one until that one has painted its replay (`term-pool.ts`). */
+.term-box.is-leaving {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
 }
 
 /* The last screen of a reattaching terminal, same grid metrics as the xterm under it. */
