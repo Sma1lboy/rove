@@ -29,7 +29,29 @@ export interface RemoteRepos {
   readonly problem: string
 }
 
-/** `machine`'s repos by id, read when it is picked; nothing is asked for this machine (""). */
+/** The last `machines.repos` reply per client and machine, so a picked machine shows its list at once while it rereads. */
+const repoCache = new WeakMap<object, Map<string, RemoteReply>>()
+
+function readRepos(model: AppModel, machine: string): Promise<RemoteReply> {
+  return model.client.request<RemoteReply>("machines.repos", { machine }).then((reply) => {
+    const byMachine = repoCache.get(model.client) ?? new Map<string, RemoteReply>()
+    repoCache.set(model.client, byMachine.set(machine, reply))
+    return reply
+  })
+}
+
+/** Read every online machine's project list before one is picked. */
+export function usePrefetchRemoteRepos(model: AppModel, machines: readonly MachineRow[]): void {
+  const online = machines
+    .filter((m) => m.state === "online")
+    .map((m) => m.alias)
+    .join("\n")
+  useEffect(() => {
+    for (const alias of online ? online.split("\n") : []) void readRepos(model, alias).catch(() => {})
+  }, [model, online])
+}
+
+/** `machine`'s repos by id, from the prefetched list while it rereads; nothing is asked for this machine (""). */
 export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   useLocale()
   const [state, setState] = useState<{
@@ -40,8 +62,7 @@ export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   useEffect(() => {
     if (!machine) return
     let stale = false
-    model.client
-      .request<RemoteReply>("machines.repos", { machine })
+    readRepos(model, machine)
       .then((reply) => !stale && setState({ machine, reply, failed: "" }))
       .catch((err: unknown) => !stale && setState({ machine, reply: null, failed: String(err) }))
     return () => {
@@ -50,9 +71,12 @@ export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   }, [model, machine])
   if (!machine) return { repos: [], loaded: true, problem: "" }
   // A reply for the machine picked before this one is not this one's list.
-  if (state?.machine !== machine) return { repos: [], loaded: false, problem: "" }
-  const { reply, failed } = state
-  if (!reply) return { repos: [], loaded: true, problem: t("newSession.remoteFailed", { machine, message: failed }) }
+  const live = state?.machine === machine ? state : undefined
+  const cached = repoCache.get(model.client)?.get(machine)
+  if (!live && !cached) return { repos: [], loaded: false, problem: "" }
+  const reply = live ? live.reply : (cached as RemoteReply)
+  if (!reply)
+    return { repos: [], loaded: true, problem: t("newSession.remoteFailed", { machine, message: live?.failed ?? "" }) }
   const key = reply.reason ? REASON_COPY[reply.reason] : undefined
   const problem = reply.reason
     ? key
@@ -62,7 +86,6 @@ export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   return { repos: reply.repos, loaded: true, problem }
 }
 
-/** The text of the project list while it has no rows. */
 export function remoteEmpty(machine: string, list: RemoteRepos): string {
   if (list.problem) return list.problem
   return list.loaded ? t("newSession.remoteNone", { machine }) : t("newSession.remoteLoading", { machine })
