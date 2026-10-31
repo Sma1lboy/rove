@@ -129,9 +129,10 @@ export function thawRing(
 }
 
 /**
- * Record → a restored session state: dead, ring intact, marked `restored`
- * so the host's next `open` respawns the child in place instead of treating
- * it as a view-only corpse. Null for a malformed ring.
+ * Record → a restored session state: dead, ring intact. A host-death casualty
+ * (`exit` null) is marked `restored`, so the host's next `open` respawns the
+ * child in place; a child that already exited on its own stays an ordinary
+ * view-only corpse. Null for a malformed ring.
  */
 export function thawSession(record: FrozenPtySession, cap: number): PtySessionState | null {
   const ring = thawRing(record, cap)
@@ -164,7 +165,7 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     parked: false,
     parkedScreenBytes: 0,
     exit: record.exit,
-    restored: true,
+    restored: record.exit === null,
     lastFreezeAtMs: 0,
   }
 }

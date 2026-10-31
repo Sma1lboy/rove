@@ -77,6 +77,8 @@ export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
   private readonly opts: PtyHostOptions
   private readonly scrollbackCap: number
+  /** Set by `shutdown()`: the children it ends are casualties, not exits to record. */
+  private shuttingDown = false
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
   /** Per-child lifecycle; this class owns the set of sessions. */
@@ -386,6 +388,7 @@ export class PtyHost {
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()
+    this.shuttingDown = true
     const endings = Array.from(this.sessions.values(), (session) => this.childController.endChild(session))
     endings.push(this.warmSpare.end())
     await Promise.all(endings)
@@ -444,7 +447,7 @@ export class PtyHost {
     // lands a tick later and would recreate it with a fresh `updatedAt` that
     // survives the TTL prune — resurrecting a closed tab. Guarded here so
     // every writer honors it.
-    if (session.closedByRequest) return
+    if (session.closedByRequest || this.shuttingDown) return
     const now = Date.now()
     if (!force && !shouldFreeze(session, now)) return
     session.lastFreezeAtMs = now
