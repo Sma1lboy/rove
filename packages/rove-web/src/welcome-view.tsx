@@ -10,6 +10,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { type EngineChip, type QuickStart, QuickStartDialog } from "./quick-start-dialog.tsx"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
@@ -45,11 +46,10 @@ function fixesFor(env: WelcomeEnv): Array<{ id: string; label: string; action: s
 export function WelcomePane({ model }: { model: AppModel }) {
   useLocale()
   useStore(userKeys)
-  const [env, setEnv] = useState<WelcomeEnv | null>(null)
+  const [env, setEnv] = useState<WelcomeEnv | null>(() => lastReply<WelcomeEnv>(model, "welcome.env") ?? null)
   useEffect(() => {
     let live = true
-    model.client
-      .request<WelcomeEnv>("welcome.env")
+    requestRemembered<WelcomeEnv>(model, "welcome.env")
       .then((res) => live && setEnv(res))
       .catch(() => {})
     return () => {

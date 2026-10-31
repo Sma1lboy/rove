@@ -12,6 +12,7 @@ import { useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 
@@ -40,7 +41,13 @@ export function WorktreesView({ model }: { model: AppModel }) {
   const lang = useLocale()
   const w = lang === "zh" ? wtZh : wtEn
   const c = model.client
-  const [projects, setProjects] = useState<readonly Project[] | null>(null)
+  // The list as last read shows at once (the full pass if one landed), and both passes reread it.
+  const [projects, setProjects] = useState<readonly Project[] | null>(() => {
+    const last =
+      lastReply<{ projects: Project[] }>(c, "worktrees.list", { network: true }) ??
+      lastReply<{ projects: Project[] }>(c, "worktrees.list", { network: false })
+    return last?.projects ?? null
+  })
   const [removing, setRemoving] = useState<readonly string[]>([])
   const [cursor, setCursor] = useState(0)
   const [tick, setTick] = useState(0)
@@ -52,8 +59,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
     let live = true
     let full = false
     const load = (network: boolean) =>
-      c
-        .request<{ projects: Project[] }>("worktrees.list", { network })
+      requestRemembered<{ projects: Project[] }>(c, "worktrees.list", { network })
         .then((r) => {
           if (!live || (!network && full)) return
           if (network) full = true

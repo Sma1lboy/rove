@@ -11,6 +11,7 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { tc } from "./tui-copy.ts"
 import "./taskops.css"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { closeDialog } from "./ui.ts"
 
 interface BriefTask {
@@ -22,12 +23,14 @@ interface BriefTask {
 
 /** Re-fire `task.prompt` as a NEW task from the same repo, engine and fork point; only the worktree differs. */
 export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<TaskRow, "id" | "title"> }) {
-  const [brief, setBrief] = useState<BriefTask | null>(null)
+  // A task's prompt never changes, so the last read stands in at once.
+  const [brief, setBrief] = useState<BriefTask | null>(
+    () => lastReply<{ task: BriefTask }>(model, "task.get", { taskId: task.id })?.task ?? null,
+  )
   const [loadError, setLoadError] = useState<string | null>(null)
   const { busy, error, submit } = useSubmit()
   useEffect(() => {
-    model.client
-      .request<{ task: BriefTask }>("task.get", { taskId: task.id })
+    requestRemembered<{ task: BriefTask }>(model, "task.get", { taskId: task.id })
       .then((res) => setBrief(res.task))
       .catch((err) => setLoadError(errorText(err)))
   }, [model, task.id])

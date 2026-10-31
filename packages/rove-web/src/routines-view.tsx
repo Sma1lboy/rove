@@ -29,6 +29,7 @@ import {
   useSelectedRepo,
   useTaskRepos,
 } from "./pages-kit.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
@@ -72,7 +73,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const payload = useStore(model.tasks)
   const taskRepos = useTaskRepos(model)
   const focusRepo = useSelectedRepo(model)
-  const [reply, setReply] = useState<RoutinesReply | null>(null)
+  const [reply, setReply] = useState<RoutinesReply | null>(() => lastReply<RoutinesReply>(c, "routine.list") ?? null)
   const [runs, setRuns] = useState<readonly AutomationRun[]>([])
   const [cursor, setCursor] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -82,7 +83,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
   useEffect(() => {
     let live = true
-    c.request<RoutinesReply>("routine.list")
+    requestRemembered<RoutinesReply>(c, "routine.list")
       .then((res) => live && setReply(res))
       // Stale rows beat none until the next poll succeeds.
       .catch(() => live && setReply((prev) => prev ?? { automations: [], keepsDaemonAlive: false }))
@@ -117,7 +118,10 @@ export function RoutinesView({ model }: { model: AppModel }) {
       setRuns([])
       return
     }
-    c.request<{ runs: AutomationRun[] }>("routine.runs", { id: selected.id })
+    // The cursor's routine shows its runs as last read, not the previous routine's, until the reread lands.
+    const last = lastReply<{ runs: AutomationRun[] }>(c, "routine.runs", { id: selected.id })
+    if (last) setRuns(last.runs)
+    requestRemembered<{ runs: AutomationRun[] }>(c, "routine.runs", { id: selected.id })
       .then((res) => live && setRuns(res.runs))
       .catch(() => live && setRuns([]))
     return () => {

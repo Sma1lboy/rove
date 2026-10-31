@@ -19,6 +19,7 @@ import {
   useSelectedRepo,
   useTaskRepos,
 } from "./pages-kit.ts"
+import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
 
@@ -62,8 +63,21 @@ export function IssuesView({ model }: { model: AppModel }) {
     return Math.max(0, at)
   })
   const repo = repos[repoIndex]
-  const [items, setItems] = useState<readonly WorkItem[] | null>(null)
-  const [links, setLinks] = useState<Readonly<Record<number, string>>>({})
+  // A repo's list (and its linked tasks) as last read shows at once; the reread replaces it.
+  const listKey = (forRepo: string, onlyMine: boolean) => ({
+    repo: forRepo,
+    limit: LIMIT,
+    ...(onlyMine ? { assignee: "@me" } : {}),
+  })
+  type Links = { links: { number: number; taskId: string }[] }
+  const linkMap = (reply: Links) => Object.fromEntries(reply.links.map((link) => [link.number, link.taskId]))
+  const [items, setItems] = useState<readonly WorkItem[] | null>(() =>
+    repo ? (lastReply<{ items: WorkItem[] }>(c, "workitem.list", listKey(repo, false))?.items ?? null) : null,
+  )
+  const [links, setLinks] = useState<Readonly<Record<number, string>>>(() => {
+    const last = repo ? lastReply<Links>(c, "workitem.links", { repo }) : undefined
+    return last ? linkMap(last) : {}
+  })
   const [error, setError] = useState<string | null>(null)
   const [mine, setMine] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
@@ -84,20 +98,18 @@ export function IssuesView({ model }: { model: AppModel }) {
     setError(null)
     const forced = refresh.current
     refresh.current = false
-    c.request<{ items: WorkItem[] }>("workitem.list", {
-      repo,
-      limit: LIMIT,
-      ...(mine ? { assignee: "@me" } : {}),
-      ...(forced ? { refresh: true } : {}),
-    })
-      .then((res) => live && setItems(res.items))
+    const key = listKey(repo, mine)
+    const last = lastReply<{ items: WorkItem[] }>(c, "workitem.list", key)
+    if (last) setItems(last.items)
+    c.request<{ items: WorkItem[] }>("workitem.list", { ...key, ...(forced ? { refresh: true } : {}) })
+      .then((res) => live && setItems(remember(c, "workitem.list", key, res).items))
       .catch((err: unknown) => {
         if (!live) return
         setError(errorMessage(err))
         setItems([])
       })
-    c.request<{ links: { number: number; taskId: string }[] }>("workitem.links", { repo })
-      .then((res) => live && setLinks(Object.fromEntries(res.links.map((link) => [link.number, link.taskId]))))
+    requestRemembered<Links>(c, "workitem.links", { repo })
+      .then((res) => live && setLinks(linkMap(res)))
       .catch(() => live && setLinks({}))
     return () => {
       live = false

@@ -6,6 +6,7 @@ import type { EngineOption, Issue } from "./kanban-drawer.tsx"
 import type { AppModel } from "./model.ts"
 import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
+import { lastReply, remember, requestRemembered } from "./remembered.ts"
 
 export interface Board {
   readonly repoRoot: string
@@ -24,10 +25,13 @@ export const TONE: Record<string, string> = {
 }
 
 export function useEngines(model: AppModel): { engines: readonly EngineOption[]; defaultEngine: string } {
-  const [rows, setRows] = useState<readonly (EngineOption & ComposerEngine)[]>([])
+  type Row = EngineOption & ComposerEngine
+  const [rows, setRows] = useState<readonly Row[]>(() => {
+    const last = lastReply<{ engines: Row[] }>(model, "engines.list")
+    return last ? offeredEngines(last.engines) : []
+  })
   useEffect(() => {
-    model.client
-      .request<{ engines: (EngineOption & ComposerEngine)[] }>("engines.list")
+    requestRemembered<{ engines: Row[] }>(model, "engines.list")
       .then((res) => setRows(offeredEngines(res.engines)))
       .catch(() => setRows([]))
   }, [model])
@@ -41,7 +45,10 @@ export function useEngines(model: AppModel): { engines: readonly EngineOption[];
 export function useBoards(model: AppModel, tick: number) {
   const taskRepos = useTaskRepos(model)
   const repoKey = taskRepos.join("\n")
-  const [boards, setBoards] = useState<readonly Board[] | null>(null)
+  // The boards as last read show at once on every visit; the reread replaces them.
+  const [boards, setBoards] = useState<readonly Board[] | null>(
+    () => lastReply<readonly Board[]>(model, "kanban.boards") ?? null,
+  )
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger; the body reads taskRepos through repoKey
   useEffect(() => {
     let live = true
@@ -65,7 +72,13 @@ export function useBoards(model: AppModel, tick: number) {
         ),
       )
       .then((results) => {
-        if (live) setBoards([...results].sort((a, b) => a.repoRoot.localeCompare(b.repoRoot)))
+        const sorted = remember(
+          model,
+          "kanban.boards",
+          undefined,
+          [...results].sort((a, b) => a.repoRoot.localeCompare(b.repoRoot)),
+        )
+        if (live) setBoards(sorted)
       })
     return () => {
       live = false

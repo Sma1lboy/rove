@@ -16,6 +16,7 @@ import { isTouch } from "./key-hints.ts"
 import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
+import { lastReply, remember } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast, zen } from "./ui.ts"
 
@@ -46,9 +47,11 @@ interface Listing {
 export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
   const touch = isTouch()
   useLocale()
-  const [tab, setTab] = useState<Tab>("changes")
+  const [tab, setTab] = useState<Tab>("all")
   const [scope, setScope] = useState<"working" | "branch">("working")
-  const [listing, setListing] = useState<Listing | null>(null)
+  const [listing, setListing] = useState<Listing | null>(
+    () => lastReply<Listing>(model, "files.listing", { taskId: task.id }) ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [cursor, setCursor] = useState(0)
@@ -68,7 +71,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     ]).then(
       ([all, diff]) => {
         if (!live) return
-        setListing({ taskId: task.id, files: all.files, changes: diff.files, base: diff.base })
+        const next = { taskId: task.id, files: all.files, changes: diff.files, base: diff.base }
+        setListing(remember(model, "files.listing", { taskId: task.id }, next))
         setError(null)
       },
       (err) => live && setError(err instanceof Error ? err.message : String(err)),
@@ -78,7 +82,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     }
   }, [model, task.id, changeKey, nonce])
 
-  const current = listing?.taskId === task.id ? listing : null
+  // A task switch keeps this view mounted: show that task's last listing until its reread lands.
+  const current =
+    listing?.taskId === task.id ? listing : (lastReply<Listing>(model, "files.listing", { taskId: task.id }) ?? null)
   const branchScope = scope === "branch" && current?.base != null
   const rows: Row[] =
     tab === "all"

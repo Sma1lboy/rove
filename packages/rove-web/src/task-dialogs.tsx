@@ -60,10 +60,11 @@ export interface PaneRow {
 
 /** The registered plugin panes, offered beside the engines as the TUI picker does. */
 export function usePanes(model: AppModel): readonly PaneRow[] {
-  const [panes, setPanes] = useState<readonly PaneRow[]>([])
+  const [panes, setPanes] = useState<readonly PaneRow[]>(
+    () => lastReply<{ panes: PaneRow[] }>(model, "plugin.panes")?.panes ?? [],
+  )
   useEffect(() => {
-    void model.client
-      .request<{ panes: PaneRow[] }>("plugin.panes")
+    void requestRemembered<{ panes: PaneRow[] }>(model, "plugin.panes")
       .then((res) => setPanes(res.panes))
       .catch(() => setPanes([]))
   }, [model])

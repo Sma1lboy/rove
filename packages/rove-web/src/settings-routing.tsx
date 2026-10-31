@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
@@ -127,10 +128,10 @@ function nextMode(c: Classifier): Classifier["mode"] {
 }
 
 export function RoutingSection({ client }: { client: BridgeClient }) {
-  const [routing, setRouting] = useState<Routing | null>(null)
+  const [routing, setRouting] = useState<Routing | null>(() => lastReply<Routing>(client, "autoRouting.get") ?? null)
   const [editing, setEditing] = useState<Tier["tier"] | null>(null)
   const load = useCallback(
-    () => client.request<Routing>("autoRouting.get").then(setRouting, (e) => toast(errorText(e), "error")),
+    () => requestRemembered<Routing>(client, "autoRouting.get").then(setRouting, (e) => toast(errorText(e), "error")),
     [client],
   )
   useEffect(() => {
