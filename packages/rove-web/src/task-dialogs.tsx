@@ -18,17 +18,18 @@ export interface EngineChoice {
   readonly setEngine: (id: string) => void
 }
 
-/** The engines Settings → Engines has on, with the first ready one preselected (the TUI's picker default). */
-export function useEngineChoice(model: AppModel): EngineChoice {
+/** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
+export function useEngineChoice(model: AppModel, repo?: string): EngineChoice {
   const [engines, setEngines] = useState<readonly EngineRow[]>([])
   const [engine, setEngine] = useState("")
+  // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog; a later repo change keeps the user's pick
   useEffect(() => {
     void model.client
-      .request<{ engines: EngineRow[] }>("engines.list")
+      .request<{ engines: EngineRow[]; preferred?: string }>("engines.list", repo ? { repo } : {})
       .then((res) => {
         const offered = offeredEngines(res.engines)
         setEngines(offered)
-        setEngine(defaultEngineId(offered))
+        setEngine(defaultEngineId(offered, res.preferred))
       })
       .catch(() => setEngines([]))
   }, [model])

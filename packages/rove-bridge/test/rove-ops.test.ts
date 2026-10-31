@@ -8,6 +8,7 @@ import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/dae
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
+import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import {
   type EngineRow,
@@ -17,6 +18,9 @@ import {
   remoteRowStatus,
   taskRows,
 } from "../src/rove-ops.ts"
+import { isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
@@ -382,6 +386,21 @@ describe("tab.new verb choice", () => {
       const request = name === "send" ? { kind: "engine" as const, prompt: "go" } : { kind: "engine" as const }
       expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
     }
+  })
+
+  test("a picked engine becomes this machine's project default; another machine's task leaves it alone", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    const api = (remote: boolean): BridgeApi => ({
+      verb: async <T>(name: string) =>
+        (name === "get-task" ? { task: task({ id: "T1", repo: "/repos/app" }) } : { tabId: "tab-2" }) as T,
+      rpc: () => Promise.reject(new Error("unused")),
+      machineOf: () => (remote ? "mac" : undefined),
+    })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", engine: "codex" })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", latest: true })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(true)).newTab("T1", { kind: "engine", engine: "omp" })
+    expect(remembered).toEqual([["/repos/app", "codex"]])
   })
 })
 

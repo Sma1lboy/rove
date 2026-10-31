@@ -36,12 +36,12 @@ export function NewChatDialog(props: {
 }) {
   useLocale()
   const { model, taskId } = props
-  const choice = useEngineChoice(model)
+  const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
+  const choice = useEngineChoice(model, task?.repo)
   const [destination, setDestination] = useState<NewChatDestination>(props.destination ?? "tab")
   const [context, setContext] = useState<NewChatContext>(props.context ?? "fresh")
   const [prompt, setPrompt] = useState("")
   const [attempts, setAttempts] = useState("1")
-  const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
   const { busy, error, setError, submit } = useSubmit()
   const { attachments, attach, remove } = useAttachments(model, setError)

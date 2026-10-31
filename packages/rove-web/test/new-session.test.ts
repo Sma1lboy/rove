@@ -39,6 +39,13 @@ describe("engines a picker offers", () => {
     expect(defaultEngineId(offeredEngines([{ id: "pi", enabled: true, ready: false }]))).toBe("pi")
     expect(defaultEngineId([])).toBe("")
   })
+
+  test("the project's last engine is preselected when offered and ready; otherwise the first ready one", () => {
+    const offered = offeredEngines(list)
+    expect(defaultEngineId(offered, "bob")).toBe("bob")
+    expect(defaultEngineId(offered, "codex")).toBe("claude")
+    expect(defaultEngineId(offered, "pi")).toBe("claude")
+  })
 })
 
 describe("New session composer", () => {

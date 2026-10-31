@@ -23,6 +23,7 @@ import { initialTabs } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-life
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optInt, optStr, str } from "../protocol.ts"
 import { absPath, flag, optText, tabId, taskId, text } from "./args.ts"
+import { taskOpDeps } from "./tasks-shared.ts"
 import type { Args, OpTable } from "./types.ts"
 
 /** What an attachment is worth to an engine: raw bytes on disk, named by magic number. */
@@ -168,8 +169,9 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       wraps: "rove api add --base-branch (--count for attempts)",
       async run(a, { api }) {
         const count = optInt(a, "count", 1, MAX_ATTEMPTS) ?? 1
+        const repo = absPath(a, "repo")
         const argv = [
-          flag("repo", absPath(a, "repo")),
+          flag("repo", repo),
           flag("base-branch", gitRef(a, "baseBranch")),
           flag("prompt", text(a, "prompt", PROMPT_MAX)),
         ]
@@ -181,6 +183,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         const res = await api.verb<{ taskId?: string; tasks?: ReadonlyArray<{ taskId: string }> }>("add", argv)
         const taskIds = res.tasks ? res.tasks.map((t) => t.taskId) : res.taskId ? [res.taskId] : []
         if (taskIds.length === 0) throw new BridgeError("ADD_FAILED", "no task was created")
+        if (engine) taskOpDeps.rememberEngine(repo, engine)
         return { taskIds }
       },
     },

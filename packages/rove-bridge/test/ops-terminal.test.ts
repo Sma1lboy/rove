@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { parseFlags } from "@sma1lboy/rove/src/cli/api/flags.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
+import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { MAX_ATTACHMENT_BYTES, type TerminalOpDeps, matchesMagic, terminalOps } from "../src/ops/terminal.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import { attentionRows } from "../src/rove-ops.ts"
+import { isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 type Call = { kind: "verb" | "rpc"; name: string; argv?: readonly string[]; payload?: unknown }
 
@@ -160,6 +164,15 @@ describe("tab.forkTask", () => {
 
   test("a reply naming no task is an error, never a silent success", async () => {
     await expect(run("tab.forkTask", base, {}, { add: {} })).rejects.toThrow("no task was created")
+  })
+
+  test("a fork on a picked engine makes it the project's next New conversation default; a failed fork does not", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    await run("tab.forkTask", { ...base, engine: "codex" }, {}, { add: { taskId: "T9" } })
+    await run("tab.forkTask", base, {}, { add: { taskId: "T10" } })
+    await expect(run("tab.forkTask", { ...base, engine: "claude" }, {}, { add: {} })).rejects.toThrow()
+    expect(remembered).toEqual([["/repos/api", "codex"]])
   })
 })
 

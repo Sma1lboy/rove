@@ -6,7 +6,7 @@
 
 import { execFile } from "node:child_process"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
-import { setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
+import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -25,17 +25,23 @@ import type { Args, OpContext } from "./types.ts"
  * Everything the task ops touch outside `ctx.api`: sync git helpers, the saved-repo list and
  * the clone spawn. One object so tests replace them without a real git remote.
  */
+// Keyed by the main checkout, as the TUI's picks are; a path git cannot read keeps its given spelling.
+function projectKey(path: string): string {
+  try {
+    return resolveMainRepoRoot(path)
+  } catch {
+    return path
+  }
+}
+
 export const taskOpDeps = {
   savedRepos: (): readonly string[] => getSavedRepos(),
   /** The engine a project was last started on, as the TUI's picks record it: "New conversation" there follows it. */
   rememberEngine: (repo: string, engine: string): void => {
-    // Keyed by the main checkout, as the TUI's picks are; a path git cannot read keeps its given spelling.
-    let root = repo
-    try {
-      root = resolveMainRepoRoot(repo)
-    } catch {}
-    setRepoLastActiveVendor(root, engine as VendorId)
+    setRepoLastActiveVendor(projectKey(repo), engine as VendorId)
   },
+  /** What a picker preselects: the project's last engine, else Settings' default, else the first enabled one. */
+  preferredEngine: (repo?: string): string => resolvePreferredVendor(repo === undefined ? undefined : projectKey(repo)),
   listLocalBranches,
   getCurrentBranch,
   validateRepoPath,

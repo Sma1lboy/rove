@@ -28,6 +28,7 @@ import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/rev
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
+import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi } from "./ops/types.ts"
 import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
 import type { RowStatuses } from "./row-status.ts"
@@ -322,6 +323,11 @@ export function createRoveOps(
       const res = await api.verb<{ tabId?: string; session?: string; childTaskId?: string }>(call.verb, call.argv)
       const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
+      // A picked engine becomes the project's next "New conversation" default, as a TUI pick does.
+      if (tab.engine && api.machineOf?.(taskId) === undefined) {
+        const task = await tryRead(() => getTask(taskId))
+        if (task) taskOpDeps.rememberEngine(task.repo, tab.engine)
+      }
       return { tabId, ...(res.childTaskId ? { taskId: res.childTaskId } : {}) }
     },
 
