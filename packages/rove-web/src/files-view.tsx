@@ -18,7 +18,7 @@ import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
-import { activeStream, toast, zen } from "./ui.ts"
+import { activeStream, toast } from "./ui.ts"
 
 type Tab = "all" | "changes"
 
@@ -162,11 +162,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       onKeyDown={onKey}
     >
       <div className="files-actions">
-        {!narrow && (
-          <button type="button" className="link" onClick={() => zen.set(true)}>
-            {t("files.zen")}
-          </button>
-        )}
         <button type="button" className="link" onClick={requestPR}>
           {t("files.createPR")}
         </button>

@@ -1,7 +1,6 @@
 /** `files`, `preview`, `panel`, `browser` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   files: {
-    zen: "Zen",
     createPR: "Ask agent to create PR",
     prRequested: "asked the agent to create the PR",
     remoteNoExternal: "this file is on {host}; open it there",
@@ -73,7 +72,6 @@ export const en = {
 
 export const zh: typeof en = {
   files: {
-    zen: "Zen",
     createPR: "让代理创建 PR",
     prRequested: "已让代理去创建 PR",
     remoteNoExternal: "这个文件在 {host} 上，请到那台机器上打开",
