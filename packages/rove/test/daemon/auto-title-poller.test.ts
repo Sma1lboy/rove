@@ -155,6 +155,31 @@ describe("runAutoTitlePass on a shared directory", () => {
   })
 })
 
+describe("runAutoTitlePass on a scratch conversation", () => {
+  test("is named from its own session, never the directory scan, and stays scratch", async () => {
+    const dir = fs.mkdtempSync(path.join(tmpRoot, "scratch-"))
+    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
+    const scans: string[] = []
+    const deriveScan = async (worktree: string) => {
+      scans.push(worktree)
+      return "someone else's conversation"
+    }
+
+    await runPassWithVendor(orch, deriveScan, "(new task)", "claude", {
+      conversationOf: () => undefined,
+      deriveById: async () => "unused",
+    })
+    expect(orch.getTask(scratch.id)?.title).toBe("")
+
+    await runPassWithVendor(orch, deriveScan, "(new task)", "claude", {
+      conversationOf: () => ({ sessionId: "s-1" }),
+      deriveById: async (_vendor, sessionId) => `own-${sessionId}`,
+    })
+    expect(orch.getTask(scratch.id)).toMatchObject({ title: "own-s-1", scratch: true })
+    expect(scans).toEqual([])
+  })
+})
+
 describe("pinnedConversation", () => {
   test("reads the first engine tab's pinned session and vendor; anything else is none", () => {
     expect(

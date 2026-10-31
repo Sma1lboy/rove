@@ -71,15 +71,20 @@ export async function runAutoTitlePass(
 ): Promise<AutoTitled[]> {
   const renamed: AutoTitled[] = []
   const snapshot = orch.listTasks()
+  // A scratch task is stored untitled (the wire shows its path), so empty counts as unnamed.
+  const unnamed = (t: { title: string; scratch?: boolean }) =>
+    t.title === placeholderTitle || (t.scratch === true && !t.title)
   for (const task of snapshot) {
-    if (task.title !== placeholderTitle || !task.worktreePath) continue
+    if (!unnamed(task) || !task.worktreePath) continue
     try {
       // A directory scan finds whichever conversation in that directory came first, so a
       // second conversation in a shared directory would take its sibling's title. Name it
-      // from its own pinned session instead, or not at all.
-      const sharesDir = snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
-      const own = sharesDir ? shared?.conversationOf(task.id) : undefined
-      if (sharesDir && !own) continue
+      // from its own pinned session instead, or not at all. A scratch task's directory is
+      // usually home, whose first conversation is never its own.
+      const ownOnly =
+        task.scratch === true || snapshot.some((t) => t.id !== task.id && t.worktreePath === task.worktreePath)
+      const own = ownOnly ? shared?.conversationOf(task.id) : undefined
+      if (ownOnly && !own) continue
       const derived = own
         ? await (shared as SharedDirNaming).deriveById(own.vendor ?? task.vendor ?? defaultVendor, own.sessionId)
         : await derive(task.worktreePath, task.vendor ?? defaultVendor)
@@ -88,8 +93,8 @@ export async function runAutoTitlePass(
       // Re-check the live store: a manual or detach-time rename may have
       // landed during the await.
       const current = orch.getTask(task.id)
-      if (!current || current.title !== placeholderTitle) continue
-      await orch.setTitle(task.id, title)
+      if (!current || !unnamed(current)) continue
+      await orch.setTitle(task.id, title, { keepScratch: true })
       renamed.push({ id: task.id, title })
     } catch (err) {
       logDaemonError("auto-title-poller", err)
