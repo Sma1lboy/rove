@@ -68,10 +68,11 @@
   position: relative;
 }
 
+/* Centred on the column boundary, so its hairline sits as far from the terminal pane as the side panel's does. */
 .rail-grip {
   position: absolute;
   top: 0;
-  right: 0;
+  right: -3px;
   bottom: 0;
   width: 6px;
   cursor: col-resize;
