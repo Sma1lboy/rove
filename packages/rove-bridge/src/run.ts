@@ -32,10 +32,12 @@ import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { PREF_DEFS } from "./ops/prefs-defs.ts"
 import { PanelFeed } from "./panels.ts"
 import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
+import { PushHub, sharedCredential } from "./push.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
@@ -275,6 +277,17 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   })
 
   const ptySocket = defaultPtyHostSocketPath()
+  // Closed pages hear about tasks by Web Push; only a browser page (served over https) can subscribe.
+  const push = opts.web
+    ? new PushHub({
+        path: join(bridgeDir, "push.json"),
+        feed,
+        crossTask: () => PREF_DEFS.crossTask.read(readState()) === true,
+        credentialValid: (credential) =>
+          credential === sharedCredential(token) || listDevices(devicesPath).some((d) => d.name === credential),
+        log: (line) => console.error(line),
+      })
+    : null
   const deps: BridgeDeps = {
     // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
     token: sharedToken,
@@ -325,6 +338,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
         }
       : {}),
     publicHost: args.publicHost,
+    ...(push ? { push } : {}),
   }
   const servers = args.hosts.map((hostname) => {
     try {

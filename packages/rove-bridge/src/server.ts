@@ -38,6 +38,7 @@ import {
   responseOk,
   str,
 } from "./protocol.ts"
+import { type Credential, type PushHub, sharedCredential } from "./push.ts"
 import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
@@ -91,6 +92,8 @@ export interface BridgeDeps {
   readonly login?: WebLogin
   /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
   readonly publicHost?: string | null
+  /** Web Push for closed pages (`push.ts`); absent = the `push.*` ops refuse. */
+  readonly push?: Pick<PushHub, "publicKey" | "subscribe" | "unsubscribe" | "subscribed" | "setVisible">
 }
 
 interface Conn {
@@ -100,6 +103,8 @@ interface Conn {
   readonly viewer: string
   /** Who opened it, for the audit lines: the paired device's name (or the shared token) and its address. */
   readonly who: string
+  /** The token this connection presented: a device's name, or the shared token's hash (`push.ts`). */
+  readonly credential: Credential
   terminal: TerminalForwarder | null
   /** One forwarder per other machine whose terminal this connection opened. */
   machineTerminals: Map<string, Promise<TerminalForwarder>>
@@ -309,10 +314,20 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       await ops.dismissAttention(taskId, tabId, deliveryId)
       return {}
     }
+    case "push.key":
+      return { publicKey: requirePush(deps).publicKey() }
+    case "push.status":
+      return { subscribed: requirePush(deps).subscribed(a.endpoint, conn.credential) }
+    case "push.subscribe":
+      requirePush(deps).subscribe(a.subscription, conn.credential)
+      return {}
+    case "push.unsubscribe":
+      return { removed: requirePush(deps).unsubscribe(a.endpoint, conn.credential) }
     case "ui.viewing": {
       // `taskId: null` = this screen shows no task (the page went hidden).
       const taskId = a.taskId === null ? null : str(a, "taskId")
       const tabId = taskId === null ? null : (optStr(a, "tabId") ?? null)
+      deps.push?.setVisible(conn.viewer, taskId !== null)
       deps.rowStatus?.setViewing(conn.viewer, taskId, tabId, viewingFields(a, conn.peer))
       return {}
     }
@@ -327,6 +342,11 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       })
     }
   }
+}
+
+function requirePush(deps: BridgeDeps): NonNullable<BridgeDeps["push"]> {
+  if (!deps.push) throw new BridgeError("UNAVAILABLE", "this bridge sends no push notifications")
+  return deps.push
 }
 
 /** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
@@ -437,6 +457,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         peer: peerOf(req, server.requestIP(req)?.address, deps),
         viewer: `bridge-${++nextViewer}`,
         who: `device=${device ?? "shared-token"} from=${from}`,
+        credential: device ?? sharedCredential(deps.token),
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),
@@ -478,6 +499,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
       close(ws) {
         // What this screen showed is no longer looked at.
         deps.rowStatus?.setViewing(ws.data.viewer, null, null)
+        deps.push?.setVisible(ws.data.viewer, false)
         ws.data.unsubscribeTasks?.()
         ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()

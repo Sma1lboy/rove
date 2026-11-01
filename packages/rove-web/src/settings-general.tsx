@@ -18,6 +18,38 @@ import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx
 import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
 import { ACTIONS, INPUT_FRAME } from "./ui/text.ts"
+import { type PushState, disablePush, enablePush, pushState } from "./web-push.ts"
+
+/** Web Push for when every page is closed; the browser decides whether it can, the bridge keeps the subscription. */
+function PushToggle({ client }: { client: BridgeClient }) {
+  const [state, setState] = useState<PushState | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  useEffect(() => {
+    pushState(client).then(setState, () => setState("off"))
+  }, [client])
+  const flip = (next: boolean) => {
+    setFailed(null)
+    ;(next ? enablePush(client) : disablePush(client)).then(setState, (err: unknown) =>
+      setFailed(err instanceof Error ? err.message : String(err)),
+    )
+  }
+  const hint = failed
+    ? t("prefs.pushFailed", { error: failed })
+    : state === "unsupported"
+      ? t("prefs.pushUnsupported")
+      : state === "blocked"
+        ? t("prefs.pushBlocked")
+        : t("prefs.pushHint")
+  return (
+    <Toggle
+      label={t("prefs.push")}
+      hint={hint}
+      checked={state === "on"}
+      disabled={state === null || state === "unsupported" || state === "blocked"}
+      onChange={flip}
+    />
+  )
+}
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -90,6 +122,7 @@ export function GeneralSection({ model }: { model: AppModel }) {
           checked={prefs.crossTask}
           onChange={(next) => set("crossTask", next)}
         />
+        <PushToggle client={client} />
       </Group>
       <Group title={ts("general.keyHints")}>
         <Toggle

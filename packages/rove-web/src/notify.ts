@@ -20,6 +20,7 @@ import type { TasksPayload } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
 import { prefsStore } from "./prefs.ts"
 import { toast } from "./ui.ts"
+import { showTaskNotice } from "./web-push.ts"
 
 const GLYPH: Record<NotificationKind, string> = { done: "✓", needs_input: "?", error: "✕" }
 
@@ -30,9 +31,9 @@ export function chime(volume: number): void {
   void audio.play().catch(() => undefined)
 }
 
-function desktopNotice(title: string, body: string): void {
+function desktopNotice(taskId: string, kind: NotificationKind, title: string): void {
   if (!document.hidden || typeof Notification === "undefined" || Notification.permission !== "granted") return
-  new Notification(`Rove — ${title}`, { body })
+  void showTaskNotice(taskId, kind, title, GLYPH[kind]).catch(() => undefined)
 }
 
 /** Ask once, from a click: browsers refuse the prompt outside a user gesture. */
@@ -68,7 +69,7 @@ export function useCrossTaskNotices(model: AppModel): void {
         if (shouldShowToast(kind, prefs.toast)) toast(`${GLYPH[kind]} ${title}`, kind === "error" ? "error" : "info")
         if (shouldPlaySound({}, prefs.sound)) {
           chime(prefs.soundVolume)
-          desktopNotice(title, GLYPH[kind])
+          desktopNotice(key, kind, title)
         }
       }
     }

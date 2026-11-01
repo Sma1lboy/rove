@@ -26,6 +26,7 @@ import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./u
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
+import { followTaskLinks } from "./web-push.ts"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
 import { Workspace } from "./workspace-view.tsx"
 
@@ -72,6 +73,8 @@ function Shell({ model }: { model: AppModel }) {
     openNewSessionFromLink()
     return off
   }, [model])
+  // A push notification's click: `?task=` on a fresh page, a worker message on an open one.
+  useEffect(() => followTaskLinks(model), [model])
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)
   const payload = useStore(model.tasks)
