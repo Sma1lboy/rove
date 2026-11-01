@@ -168,7 +168,7 @@ export interface TaskRow {
   readonly repoId?: string
   /** How many repos beyond the primary this task spans (`task.extraRepos`); absent = one repo. */
   readonly extraRepoCount?: number
-  /** The task this one was spawned from (`rove api spawn`); clients nest a child under it. */
+  /** The task this one hangs under (`add` from a session, `add --parent`); clients nest a child under it. */
   readonly parentTaskId?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
   readonly sharesWorkspaceOf?: string

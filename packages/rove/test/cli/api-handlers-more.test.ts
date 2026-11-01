@@ -115,6 +115,7 @@ describe("schema drill-ins", () => {
 
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
+      ["spawn", ["api", "add", "--help"], /--no-worktree/],
       ["set-vendor", ["api", "update", "--help"], /update --command/],
       ["set-status", ["api", "update", "--help"], /--status/],
       ["issue-set-status", ["api", "issue-update", "--help"], /--status/],

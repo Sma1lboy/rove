@@ -105,15 +105,15 @@ dropping SSH, restarting the daemon: none of them touch it.
 > **One thing to watch:** a child that shares its parent's directory shares its
 > worktree, and Rove does not coordinate their writes. Two conversations editing
 > the same file at once will conflict. If you need real isolation, open a new
-> task or `spawn` a child with its own worktree.
+> task or `add --parent <this task>` a child with its own worktree.
 
 ## Terminal Tabs and engine sessions
 
 A Task is one engine conversation: its `tab-1`. A second conversation is a
 **child task**, shown under its parent in the sidebar. A child either shares
 the parent's directory (`ctrl+t`, `ctrl+e`, `send --tab new`,
-`spawn --no-worktree`) or gets its own worktree cut from the parent's branch tip
-(`spawn`). Deleting a parent promotes its children; `delete --cascade` removes
+`add --no-worktree`) or gets its own worktree cut from the parent's branch tip
+(`add` from a task's own session). Deleting a parent promotes its children; `delete --cascade` removes
 the subtree.
 
 A Task owns its Terminal Tabs. The engine tab runs an engine inside an

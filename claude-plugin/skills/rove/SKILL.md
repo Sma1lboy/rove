@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 92 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 93 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -94,14 +94,22 @@ A Task is ONE engine conversation. Another conversation is a **child task**
 shown under it. Isolation drops at every level down:
 
 ```text
-new Task            → own worktree + own branch     (parallel work can't collide)
-child, own worktree → `spawn`: worktree cut from the parent's branch tip
-child, shared dir   → `send --tab new`: own engine session, SAME files (a helper in the same checkout)
+new Task            → `add`: own worktree + own branch   (parallel work can't collide)
+child, shared dir   → `send --tab new` / `add --no-worktree`: own engine session, SAME files (a helper in the same checkout)
 new Split           → same session's screen, one tab divided (a monitor beside the work)
 ```
 
+Inside a Rove session `add` makes a **child of yours**: it shows under your
+top-level task and its worktree is cut from your CURRENT branch tip, so it
+builds on what you committed (uncommitted edits do not come along —
+`parentDirty: true` in the reply says you had some; commit first if the child
+needs them). It nests only in your own repo; another `--repo` stays a
+top-level task. `--no-parent` is the unrelated top-level task cut from the repo
+default, `--parent ID` nests under another task, and a bare `send` from the
+child reports back to you.
+
 The distinction that decides every routing call: **a shared child uses the
-parent's worktree and branch; only a new task (or `spawn`) gets its own.**
+parent's worktree and branch; only a new task (`add`) gets its own.**
 Two conversations in one directory edit the same files, so they can collide —
 that is a feature when the user wants a helper in the same checkout, and a
 bug when they wanted parallel attempts. A split isolates nothing at all: it
@@ -328,10 +336,12 @@ rove api add --repo "$PWD" --title "focused title" --command claude \
 # Parallel attempts of the same prompt (hard cap 10; prefer 3-4).
 rove api add --repo "$PWD" --count 3 --prompt "<prompt>"
 rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
-# A child of THIS task (a second conversation, shown under its parent): its own
-# worktree from the parent's current tip by default; --no-worktree shares the directory.
-rove api spawn --prompt "<prompt>"
-rove api spawn --no-worktree --command codex --prompt "<prompt>"
+# From inside a Rove session `add` nests the new task under yours (shown under your
+# top-level task) and cuts its worktree from YOUR current branch tip, not the repo
+# default. --no-parent makes an unrelated top-level task from the repo default instead.
+rove api add --repo "$PWD" --no-parent --prompt "<prompt>"
+# A child that SHARES this task's directory (same files; read-only parallel work):
+rove api add --no-worktree --command codex --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance

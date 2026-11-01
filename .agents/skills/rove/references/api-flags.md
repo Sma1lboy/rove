@@ -241,14 +241,12 @@ clear the shared active task.
 ```text
 publish        --task-id(REQ) --remote
 pr-attach      --url(REQ) --task-id
-add            --repo(REQ) --clone --fork --allow-fork --title --branch --base-branch
-               --base-for --worktree-name --command --effort
-               --tier{swift|standard|deep|auto} --model --count
+add            --repo(REQ) --clone --fork --allow-fork --parent --no-parent --no-worktree
+               --isolate-in --title --branch --base-branch --base-for --worktree-name
+               --command --effort --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
                --require-report --expect-report --activate(false) --prompt|--prompt-file
-spawn          --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
-               --command --prompt|--prompt-file
 update         --task-id --title --tab --branch --parent --group --command --model
                --effort --pinned --require-report{on|off}
                --status{backlog|in_progress|in_review|done|canceled|error} --report-branch

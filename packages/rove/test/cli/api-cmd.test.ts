@@ -167,7 +167,6 @@ describe("API surface (full CRUD)", () => {
       "deliveries",
       "should-run",
       "add",
-      "spawn",
       "send",
       "dispatch",
       "interrupt",

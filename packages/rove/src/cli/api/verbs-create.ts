@@ -8,7 +8,6 @@
 
 import { F, FANOUT_CAP } from "./flags.ts"
 import { add } from "./handlers-add.ts"
-import { spawn } from "./handlers-spawn.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -16,7 +15,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
   {
     name: "add",
     group: "create",
-    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. \`.engine\` ({ vendor, command, model, effort }; per row with --count/--agents) is what the task actually launches once the flags and the repo default are resolved — check it before trusting the run. \`.warnings\` flags a --model that plainly belongs to another engine's vendor (e.g. codex given a claude-* id); the task is still created. Alias: spawn-task.`,
+    summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. NESTING (children never nest): called from a verified rove session ($ROVE_TASK_ID/$ROVE_TAB_ID that the pty host confirms), the new task becomes a CHILD of the caller's top-level task and shows under it in the sidebar — but only when its repo is that task's own repo and that task is not a routine session; otherwise (another repo, --machine, an unverifiable env, a daemon or routine caller) it stays top level, never an error. --parent ID nests under that task instead, in any repo; --no-parent opts out; --count/--agents siblings all get the parent; \`dispatcher\` still records the exact calling task and tab. A child in the parent's repo cuts its worktree from the parent's CURRENT branch tip (a \`dir\` task inside a git repo gets a worktree at the repo root and runs in the same relative subdirectory) instead of the repo default — unless --base-branch, --fork or several --repo name the fork point. \`parentDirty:true\` in the reply means the parent has uncommitted changes the new worktree does not carry; \`sharedLinks\` lists the parent workspace's top-level symlinks to OTHER git checkouts, which a new worktree does not isolate (--isolate-in LINK cuts the worktree in the linked repo instead). --no-worktree shares the parent's directory instead of cutting a worktree (read-only parallel work: two engines writing one tree will collide); it and --isolate-in need a parent (MISSING_TARGET without one). The child's bare \`send\` replies to the session that added it; \`.task.parentTaskId\` (and \`.task.sharesWorkspaceOf\` for a shared child) say where it landed. Does NOT steal focus — pass --activate to make it the active task. The sidebar shows .task.title and .task.branch — name a task by those (or its id), never by the directory in .task.worktreePath, which the UI never renders. \`.engine\` ({ vendor, command, model, effort }; per row with --count/--agents) is what the task actually launches once the flags and the repo default are resolved — check it before trusting the run. \`.warnings\` flags a --model that plainly belongs to another engine's vendor (e.g. codex given a claude-* id); the task is still created. Alias: spawn-task.`,
     flags: [
       {
         name: "repo",
@@ -45,6 +44,32 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         type: "bool",
         description:
           "With --machine: accept a checkout there that shares the repo's history under another origin (a fork).",
+      },
+      {
+        name: "parent",
+        type: "string",
+        placeholder: "ID",
+        description:
+          "Nest the new task under this task (stored under its top-level ancestor), whatever its repo — the rules of `update --parent`. Default: the verified calling session, when the repo is its own; see the summary. PARENT_NOT_FOUND if no such task.",
+      },
+      {
+        name: "no-parent",
+        type: "bool",
+        description:
+          "Create a top-level task even from inside a rove session. Conflicts with --parent, --no-worktree and --isolate-in (CONFLICTING_FLAGS).",
+      },
+      {
+        name: "no-worktree",
+        type: "bool",
+        description:
+          "Share the parent's directory instead of cutting a worktree. The parent is --parent or the calling session; the child takes its repo, so --repo, --fork, --base-branch, --base-for, --branch, --worktree-name, --count, --agents and --isolate-in conflict with it.",
+      },
+      {
+        name: "isolate-in",
+        type: "string",
+        placeholder: "LINK",
+        description:
+          "Name of a top-level symlink in the parent's workspace that points at another git checkout (see `sharedLinks`): cut the worktree in THAT repo and run the child there. NOT_A_LINKED_REPO when it is not one. Needs a parent; --repo, --fork, --base-for and --no-worktree conflict with it.",
       },
       F.title(),
       {
@@ -137,53 +162,5 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
       F.promptFile(),
     ],
     handler: add,
-  },
-  {
-    name: "spawn",
-    group: "create",
-    summary:
-      "Spawn a CHILD task of the calling session (or --parent): a second conversation that shows under its parent. Default = its own git worktree, branch cut from the parent's CURRENT branch tip (a main checkout's HEAD; a `dir` task inside a git repo gets a worktree at the repo root and runs in the same relative subdirectory; a `dir` outside any repo fails NOT_A_GIT_REPO — never a silent fallback to a shared directory). --no-worktree shares the parent's directory instead (read-only parallel work: two engines writing one tree will collide). The child always runs on the parent's machine, with the parent's engine unless --command says otherwise. Uncommitted changes are NOT carried into a new worktree: `parentDirty:true` in the reply means the parent has some, so commit first if the child needs them. `sharedLinks` lists the workspace's top-level symlinks to OTHER git checkouts, which a new worktree does not isolate (edits under them still land in the one shared repo); --isolate-in LINK cuts the worktree in the linked repo instead (NOT_A_LINKED_REPO if LINK is not such a link). With --prompt the child's engine starts and the brief is delivered; the child's bare `send` replies to the spawning session. Returns { taskId, task, parentDirty, sharedLinks } (+ delivery fields with --prompt); the task carries `.parentTaskId` and, for a shared child, `.sharesWorkspaceOf`.",
-    flags: [
-      {
-        name: "parent",
-        type: "string",
-        placeholder: "ID",
-        description:
-          "Task to spawn under. Default: the calling session, from the verified $ROVE_TASK_ID/$ROVE_TAB_ID (an unverifiable env is MISSING_TARGET, never a guess).",
-      },
-      {
-        name: "worktree",
-        type: "bool",
-        default: "true",
-        description:
-          "Give the child its own worktree, cut from the parent's current branch tip (default). `--worktree=false` is `--no-worktree`.",
-      },
-      {
-        name: "no-worktree",
-        type: "bool",
-        description: "Share the parent's directory instead of cutting a worktree.",
-      },
-      {
-        name: "base-branch",
-        type: "string",
-        placeholder: "B",
-        description: "Cut the new worktree from this ref instead of the parent's current tip.",
-      },
-      {
-        name: "isolate-in",
-        type: "string",
-        placeholder: "LINK",
-        description:
-          "Name of a top-level symlink in the parent's workspace that points at another git checkout (see `sharedLinks`): cut the worktree in THAT repo and run the child there. NOT_A_LINKED_REPO when it is not one.",
-      },
-      F.title(),
-      F.command(),
-      F.prompt(
-        false,
-        "Optional first message — when set, starts the child's engine and pastes it, prefixed with who spawned it.",
-      ),
-      F.promptFile(),
-    ],
-    handler: spawn,
   },
 ]

@@ -1,43 +1,18 @@
 /**
- * The `spawn` verb: a new conversation as a child of an existing task, either
- * in the parent's own directory (`--no-worktree`) or in a fresh worktree cut
- * from the parent's current branch tip. The rules live in the orchestrator
- * (`orchestrator/spawn-child.ts`); this is flag parsing, parent resolution,
- * and first-prompt delivery.
+ * Shared children: the second conversation on a task that already ran its own
+ * (`send --tab new`, `tab-new --kind engine`) is a child sharing the task's
+ * directory. The rules live in the orchestrator (`orchestrator/spawn-child.ts`);
+ * this is the CLI's placement, serialization and failure handling.
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE, deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
-import { launchedEngine } from "./add-engine-fields.ts"
-import { dispatcherEnvPayload, ownSession, withPeerProvenance } from "./dispatcher.ts"
-import { daemonOf } from "./handler-helpers.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { readDaemonTabs, taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type ApiRuntime, type VerbContext, helpStep } from "./types.ts"
-
-/**
- * `--parent`, else the caller's own verified session. A migrated child's PTY
- * still carries its parent's task id, so the aliased tab says which task the
- * caller really is.
- */
-async function resolveParent(ctx: VerbContext, daemon: DaemonRpc): Promise<string> {
-  const explicit = ctx.args.str("parent")
-  if (explicit) return explicit
-  const self = await ownSession(daemon)
-  if (!self) {
-    throw new ApiError(
-      "no --parent given and the caller is not a verified rove session — pass --parent ID",
-      "MISSING_TARGET",
-      helpStep("spawn"),
-    )
-  }
-  return self.taskId
-}
+import { ApiError, type ApiRuntime } from "./types.ts"
 
 /**
  * The shared child that stands in for a later engine conversation on `parentTaskId`
@@ -146,86 +121,4 @@ export async function failSharedChild(
     throw new ApiError(err.message, err.code, { ...err.data, nextCommandArgs: retryArgs })
   }
   throw new ApiError(err.message, err.code, { ...err.data, childTaskId })
-}
-
-export async function spawn(ctx: VerbContext): Promise<unknown> {
-  const { args } = ctx
-  const daemon = daemonOf(ctx)
-  // Read (and validate) the prompt BEFORE `task.spawn`: its throws would
-  // otherwise leave an orphan child behind an error carrying no taskId.
-  const prompt = args.promptText()
-  if (args.bool("worktree") === true && args.bool("no-worktree") === true) {
-    throw new ApiError("--worktree and --no-worktree conflict — pass one", "CONFLICTING_FLAGS", helpStep("spawn"))
-  }
-  // A worktree is the default; `--worktree=false` and `--no-worktree` both opt out.
-  const worktree = args.bool("no-worktree") !== true && args.bool("worktree") !== false
-  if (!worktree && args.str("isolate-in")) {
-    throw new ApiError(
-      "--isolate-in cuts the worktree in the linked repo, so it cannot combine with --no-worktree",
-      "CONFLICTING_FLAGS",
-      helpStep("spawn"),
-    )
-  }
-  const parentTaskId = await resolveParent(ctx, daemon)
-  const command = args.str("command")
-  const vendor = command ? resolveCommandProtocol(command) : undefined
-  const res = await daemon.request<{
-    taskId: string
-    task: SerializedTask
-    parentDirty: boolean
-    sharedLinks: string[]
-  }>("task.spawn", {
-    parentTaskId,
-    worktree,
-    ...(await dispatcherEnvPayload(daemon)),
-    ...(args.str("base-branch") ? { baseRef: args.str("base-branch") } : {}),
-    ...(args.str("isolate-in") ? { isolateIn: args.str("isolate-in") } : {}),
-    ...(args.str("title") ? { title: args.str("title") } : {}),
-    ...(command ? { command } : {}),
-    ...(vendor ? { vendor } : {}),
-  })
-  const { taskId, task, parentDirty, sharedLinks } = res
-  const placed = { taskId, task, engine: launchedEngine(task), parentDirty, sharedLinks }
-  if (!prompt) return { ...placed, started: false }
-
-  // Same provenance prefix `send` carries: the child's brief names its parent session as the reply address.
-  const brief = await withPeerProvenance(daemon, taskId, prompt)
-  const delivered = await ctx.runtime.deliverPrompt(
-    daemon,
-    {
-      id: taskId,
-      worktreePath: taskCwd(task),
-      kind: task.kind,
-      vendor: task.vendor as VendorId | undefined,
-      command: task.command,
-      modelEffort: task.modelEffort,
-      model: task.model,
-      repo: task.repo,
-      ...(task.extraRepos?.length || task.sharesWorkspaceOf ? { multiRepo: true } : {}),
-      newTask: true,
-    },
-    brief,
-  )
-  // The child IS created, so the error carries its id.
-  if (!delivered.delivered) {
-    throw new ApiError(
-      `task ${taskId} spawned but the prompt was not delivered (paste did not land)`,
-      "NOT_DELIVERED",
-      { taskId, engine: placed.engine, parentDirty, sharedLinks },
-    )
-  }
-  // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
-  await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
-    console.error(`[rove api spawn] task.setPrompt failed for ${taskId}:`, err)
-  })
-  return {
-    ...placed,
-    started: delivered.started,
-    engineReady: delivered.engineReady,
-    session: delivered.session,
-    delivered: delivered.delivered,
-    ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
-    ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
-    ...(delivered.reason ? { reason: delivered.reason } : {}),
-  }
 }

@@ -42,7 +42,7 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
     name: "checkpoint-list",
     group: "worktree",
     summary:
-      "List a task's checkpoints — file-only undo points of its worktree, taken automatically when an engine turn completes (and by `checkpoint`). Newest last. Managed tasks only (not a project's main checkout or a dir task). Checkpoints belong to the workspace owner: a child sharing its parent's directory (`spawn --no-worktree`) lists its owner's, and `workspaceTaskId` names whose. Returns { taskId, workspaceTaskId, checkpoints: [{ n, ref, commit, tree, at, tabId? }] }; each is the git ref refs/rove/checkpoints/<workspaceTaskId>/<n>, so `git diff <ref>` works too.",
+      "List a task's checkpoints — file-only undo points of its worktree, taken automatically when an engine turn completes (and by `checkpoint`). Newest last. Managed tasks only (not a project's main checkout or a dir task). Checkpoints belong to the workspace owner: a child sharing its parent's directory (`add --no-worktree`) lists its owner's, and `workspaceTaskId` names whose. Returns { taskId, workspaceTaskId, checkpoints: [{ n, ref, commit, tree, at, tabId? }] }; each is the git ref refs/rove/checkpoints/<workspaceTaskId>/<n>, so `git diff <ref>` works too.",
     flags: [F.taskId()],
     handler: checkpointList,
   },
