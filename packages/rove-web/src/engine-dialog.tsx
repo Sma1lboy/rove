@@ -5,7 +5,6 @@
  * change applies to the task's next session.
  */
 
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { useEffect, useState } from "react"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
@@ -13,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import "./taskops.css"
 import { toast } from "./ui.ts"
 

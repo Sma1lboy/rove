@@ -1,6 +1,5 @@
 /** The Tasks rail: wordmark + inbox count, then project → task → child task rows (TUI `tree-panel`). */
 
-import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
 import { useRef } from "react"
@@ -36,6 +35,7 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
@@ -353,7 +353,9 @@ function RailRow(props: {
         onClick={props.onClick}
         {...props.place}
       >
-        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "muted"}`}>{tc("tasks", "archivedRow", { count: row.count })}</span>
+        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "muted"}`}>
+          {tc("tasks", "archivedRow", { count: row.count })}
+        </span>
       </button>
     )
   }

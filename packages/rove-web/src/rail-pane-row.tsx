@@ -1,6 +1,5 @@
 /** A split tab's pane in the rail: click focuses it, right click renames or closes it. */
 
-import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import type { MouseEvent } from "react"
 import type { AppModel } from "./model.ts"
 import type { TreeGuide } from "./rail-blocks.ts"
@@ -8,6 +7,7 @@ import type { RowPlace } from "./rail-drag.ts"
 import type { NavRow } from "./rail.ts"
 import { activeLeafOf, activeLeaves, focusLeaf } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 export type PaneRow = Extract<NavRow, { kind: "pane" }>
 

@@ -4,7 +4,6 @@
  * Enter or click opens (and clears the episode), `d` clears without opening.
  */
 
-import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { useEffect, useState } from "react"
 import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
@@ -15,6 +14,7 @@ import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 interface Card {
   readonly key: string

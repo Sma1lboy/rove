@@ -7,7 +7,6 @@
  * whole diff, a mention `@path`, o opens media in the Mac's app.
  */
 
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
 import { visibleTree } from "./file-tree.ts"
@@ -22,6 +21,7 @@ import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import { Chip } from "./ui/chip.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
 
 type Tab = "all" | "changes"

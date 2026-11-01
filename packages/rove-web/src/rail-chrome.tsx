@@ -4,7 +4,6 @@
  * hints (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `StatusKeyHintBar`).
  */
 
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { paneHintTokens, statusHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
 import { type PointerEvent, useEffect, useRef, useState } from "react"
@@ -28,6 +27,7 @@ import { useStore } from "./store.ts"
 import { dialog, dragLayout } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */

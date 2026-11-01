@@ -4,9 +4,9 @@
  * stays in the dialog as its message instead of closing it.
  */
 
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import "./taskops.css"
 import { closeDialog } from "./ui.ts"
 
