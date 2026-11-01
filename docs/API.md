@@ -1606,7 +1606,10 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-list`: every routine with its next run time.
 - `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. Pass exactly one
+  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]
+  [--script CMD [--script-timeout SEC]] [--notify]`: schedule a prompt (or, with `--script`, a shell command
+  with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
+  response to the bound chat agent). Pass exactly one
   of `--repo` and `--no-repo` (neither is `MISSING_FLAG`, both is `CONFLICTING_FLAGS`). `--no-repo` makes a
   routine with no project: every run works in `<home>/.rove/routines/<id>/` as a directory session, and it takes
   no `--base-branch`. `--schedule` is five-field
@@ -1616,7 +1619,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   the built-in default; a pinned routine stores that vendor, so runs launch the
   engine the pins were checked against. Without pins or `--vendor`, runs launch
   the built-in default. The daemon refuses model/effort without a vendor.
-- `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
+- `routine-update --id ID [...]`: change any field (including `--script`, `--script-timeout`, `--notify`; `--script ''` turns a script routine back into a prompt routine); `--enabled true|false` pauses / resumes. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
   and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
@@ -1679,6 +1682,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 `dispatch_failed` (needs a human).
 
 ## lifecycle
+
+- `publish --task-id ID [--remote NAME]`: push the task's branch (to `origin` unless `--remote`) and open its
+  pull request with `gh`, or return the one already open; `land` for a task on another machine. Returns
+  `{ branch, pushed, pr: { url } | null, prError? }`: `prError` says why there is no PR (`gh` missing or signed
+  out, a non-GitHub remote, no commits ahead) and the push still happened. Refuses a task with no worktree or
+  branch. The PR it opens or finds is attached to the task.
 
 - `land --task-id ID [--dry-run] [--repo NAME] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
