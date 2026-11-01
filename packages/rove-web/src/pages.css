@@ -365,11 +365,16 @@
   overflow-y: auto;
 }
 
+/* A rail-like list: its bar is hidden, as the rail's is. */
 .rt-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-right: 4px;
+  scrollbar-width: none;
+}
+
+.rt-list::-webkit-scrollbar {
+  display: none;
 }
 
 .rt-group {
@@ -383,18 +388,17 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 8px;
-  border-left: 2px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   min-width: 0;
 }
 
+/* The rail's own pair: a neutral wash on hover, the inset fill for the selected row. */
 .pg-row:hover {
-  background: var(--inset);
+  background: var(--hover);
 }
 
 .pg-row.is-cursor {
-  border-left-color: var(--accent);
   background: var(--inset);
 }
 
@@ -430,13 +434,13 @@
   font-size: var(--fs-meta);
 }
 
+/* Beside the list, split by one hairline: no card inside the page's card. */
 .rt-detail {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 14px;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius);
+  padding: 0 0 0 16px;
+  border-left: var(--hairline) solid var(--line);
 }
 
 .rt-detail p,
@@ -561,6 +565,12 @@
   .rt-detail {
     flex-shrink: 0;
     overflow: visible;
+  }
+
+  .rt-detail {
+    padding: 12px 0 0;
+    border-left: none;
+    border-top: var(--hairline) solid var(--line);
   }
 }
 

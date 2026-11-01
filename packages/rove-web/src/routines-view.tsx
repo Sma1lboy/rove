@@ -440,12 +440,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   </span>
                 </div>
                 <dl className="rt-meta">
-                  <dt className="kicker">{t("pages.routineSchedule")}</dt>
+                  <dt className="muted">{t("pages.routineSchedule")}</dt>
                   <dd>
                     {described ?? <span className="mono">{selected.schedule}</span>}
                     {described && <span className="muted mono">{`  ${selected.schedule}`}</span>}
                   </dd>
-                  <dt className="kicker">{t("pages.routineNext")}</dt>
+                  <dt className="muted">{t("pages.routineNext")}</dt>
                   <dd className={selected.enabled ? "" : "tone-warning"}>
                     {selected.enabled
                       ? Number.isFinite(nextAt)
@@ -459,12 +459,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                         : "—"
                       : auto.paused}
                   </dd>
-                  <dt className="kicker">{t("pages.routineProject")}</dt>
+                  <dt className="muted">{t("pages.routineProject")}</dt>
                   <dd>{repoName(selected.repo)}</dd>
                   {/* A script routine runs a command, not an engine: nothing is delivered anywhere. */}
                   {!selected.script && (
                     <>
-                      <dt className="kicker">{t("pages.routineDelivers")}</dt>
+                      <dt className="muted">{t("pages.routineDelivers")}</dt>
                       <dd>
                         {target
                           ? fill(auto.targetExisting, { task: titleOf(target.taskId), tab: target.tabId })
