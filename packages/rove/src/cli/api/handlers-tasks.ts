@@ -23,6 +23,7 @@ import { readRunnability } from "./handlers-runnability.ts"
 import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
+import { awaitingChoiceError, tabsAwaitingChoice } from "./send-menu-guard.ts"
 import { conversationHome, failSharedChild, withFirstConversationLock } from "./shared-child.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
@@ -222,13 +223,17 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
     })
   }
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // Read BEFORE delivery: a paste into a failed session still "lands", and the
+  // caller has to be told what it landed in.
+  const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
+  if (!childTaskId && tab !== "new") {
+    const waiting = await tabsAwaitingChoice(daemon, taskId, tab, target)
+    if (waiting) throw awaitingChoiceError(taskId, waiting)
+  }
   // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
   // A fresh child is a different conversation: the answer stays owed to its own.
   const owed = childTaskId ? null : await takeOwedGateAnswers(daemon, taskId, tab)
   const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
-  // Read BEFORE delivery: a paste into a failed session still "lands", and the
-  // caller has to be told what it landed in.
-  const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
   // Armed BEFORE the paste: a failed turn can fire its hook within
   // milliseconds of it, and an unarmed delivery can't be flagged missing.
   const expectReport = ctx.args.bool("expect-report") === true
