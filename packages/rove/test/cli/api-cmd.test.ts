@@ -154,6 +154,7 @@ describe("API surface (full CRUD)", () => {
       "inspect",
       "read-output",
       "queue-list",
+      "search",
       "watch",
       "ports",
       "viewers",

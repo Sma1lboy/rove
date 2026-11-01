@@ -628,6 +628,18 @@ edits (`set-vendor`, `rename`,
   Repeat the last two steps (each response's `cursor` is the next poll point).
   The CLI never attaches to the session; this is how an agent follows one
   without taking it over.
+- `search --query TEXT [--repo PATH] [--limit N]`: find TEXT, case-insensitively,
+  in what the user and the agents wrote in every task's engine
+  conversations, newest session first. Tool calls and their output are not
+  searched. Returns `{query, matches:[{taskId, title, tabId?, role, at,
+  snippet}], skipped:[{taskId, reason}], truncated}`. `reason` is
+  `other-machine` (the conversation lives there) or `engine-unsupported` (no
+  history reader, e.g. kimi or a custom engine). At most 3 matches per session,
+  `--limit` (default 20, max 100) in all. Transcript files are prefiltered with
+  `rg` when it is on `PATH` (an in-process scan otherwise), then only matching
+  sessions are parsed; past about 1.5 s of parsing it stops and sets
+  `truncated: true`. A session is credited to the task whose tab pinned it; an
+  unpinned one only when no other task works in that directory.
 - `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
   [--timeout MS]`: block until a watched task's engine reaches one of
   `--until`'s states, streaming every transition on the way. This is the

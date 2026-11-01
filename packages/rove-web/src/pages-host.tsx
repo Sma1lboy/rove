@@ -1,6 +1,6 @@
 /**
  * The rail's page destinations (TUI `SidebarNavRail` + `nav-core.ts`): Kanban, Routines,
- * Issues and the web-only Dispatch, top to bottom, under the search row. Kanban and Issues are first-party mods, listed only
+ * Issues and the web-only Dispatch and Search, top to bottom, under the search row. Kanban and Issues are first-party mods, listed only
  * while installed. A page takes over the workspace; selecting a task
  * brings the terminal back, as picking a task in the TUI rail leaves the page.
  */
@@ -16,14 +16,15 @@ import { ModsView } from "./mods-view.tsx"
 import { startNewTask } from "./new-session-view.tsx"
 import { useCopy } from "./pages-kit.ts"
 import { RoutinesView } from "./routines-view.tsx"
+import { SearchView } from "./search-view.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page } from "./ui.ts"
 import { RAIL_NAV, RAIL_NAV_PLUS, railNavRowClass } from "./ui/page.ts"
 
 interface NavItem {
-  readonly id: PageId & ("kanban" | "routines" | "issues" | "mods" | "dispatch")
-  /** A TUI `tasks.nav` key, or `dispatch`, which only the web has (`t("dispatch.nav")`). */
-  readonly label: "kanban" | "automations" | "issues" | "mods" | "dispatch"
+  readonly id: PageId & ("kanban" | "routines" | "issues" | "mods" | "dispatch" | "search")
+  /** A TUI `tasks.nav` key, or `dispatch` / `search`, which only the web has. */
+  readonly label: "kanban" | "automations" | "issues" | "mods" | "dispatch" | "search"
   /** The first-party mod that has to be installed for this row to show. */
   readonly mod?: "kanban" | "issues"
 }
@@ -35,6 +36,7 @@ const NAV: readonly NavItem[] = [
   { id: "routines", label: "automations" },
   { id: "issues", label: "issues", mod: "issues" },
   { id: "dispatch", label: "dispatch" },
+  { id: "search", label: "search" },
 ]
 
 export function PageNav({ model }: { model: AppModel }) {
@@ -62,7 +64,7 @@ export function PageNav({ model }: { model: AppModel }) {
           aria-current={open === item.id ? "page" : undefined}
           onClick={() => openPage(item.id)}
         >
-          {item.label === "dispatch" ? t("dispatch.nav") : nav[item.label]}
+          {item.label === "dispatch" ? t("dispatch.nav") : item.label === "search" ? t("search.nav") : nav[item.label]}
         </button>
       ))}
     </div>
@@ -83,5 +85,7 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <ModsView model={model} />
   ) : current === "dispatch" ? (
     <DispatchView model={model} />
+  ) : current === "search" ? (
+    <SearchView model={model} />
   ) : null
 }

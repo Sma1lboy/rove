@@ -43,4 +43,23 @@ describe("parseJsonl drops synthetic first rows", () => {
     const raw = JSON.stringify({ type: "user", message: { role: "user", content: "hello world" } })
     expect(parseJsonl(raw, "s1")[0]?.blocks).toEqual([{ type: "text", text: "hello world" }])
   })
+
+  // 630 of an owner's user blocks were injected CLAUDE.md context: every search for a common word,
+  // and every read of "what did the user say", matched them.
+  it("drops wholly injected <system-reminder> text, keeping what the user typed beside it", () => {
+    const reminder = { type: "text", text: "<system-reminder>\nContents of CLAUDE.md …\n</system-reminder>" }
+    const raw = [
+      JSON.stringify({ type: "user", message: { role: "user", content: [reminder] } }),
+      JSON.stringify({
+        type: "user",
+        message: { role: "user", content: [reminder, { type: "text", text: "fix it" }] },
+      }),
+      JSON.stringify({ type: "assistant", message: { role: "assistant", content: [reminder] } }),
+    ].join("\n")
+    const messages = parseJsonl(raw, "s1")
+    expect(messages.map((m) => [m.role, m.blocks])).toEqual([
+      ["user", [{ type: "text", text: "fix it" }]],
+      ["assistant", [reminder]],
+    ])
+  })
 })

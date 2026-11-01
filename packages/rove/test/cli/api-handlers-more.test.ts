@@ -153,6 +153,7 @@ describe("schema drill-ins", () => {
       "inspect",
       "read-output",
       "queue-list",
+      "search",
       "watch",
       "ports",
       "viewers",

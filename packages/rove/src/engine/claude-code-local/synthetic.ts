@@ -31,3 +31,10 @@ export function isClaudeCommandBreadcrumb(blocks: readonly ContentBlock[]): bool
   }
   return true
 }
+
+/** A text block that is wholly a `<system-reminder>` Claude Code wrote into a user turn. */
+export function isClaudeSystemReminder(block: ContentBlock): boolean {
+  if (block.type !== "text") return false
+  const t = block.text.trim()
+  return t.startsWith("<system-reminder>") && t.endsWith("</system-reminder>")
+}
