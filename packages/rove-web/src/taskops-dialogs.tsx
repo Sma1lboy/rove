@@ -9,10 +9,10 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { DialogActions, DialogShell, errorText, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { tc } from "./tui-copy.ts"
-import "./taskops.css"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { tc } from "./tui-copy.ts"
 import { closeDialog } from "./ui.ts"
+import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
 
 interface BriefTask {
   readonly prompt?: string
@@ -58,8 +58,8 @@ export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<Ta
         }}
       >
         <p className="muted">{tc("tasks", "runAgain.source", { title: task.title })}</p>
-        <pre className="brief">{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
-        <p className="muted taskops-hint">{tc("tasks", "runAgain.hint")}</p>
+        <pre className={BRIEF}>{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
+        <p className={HINT}>{tc("tasks", "runAgain.hint")}</p>
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy || !brief?.prompt} submitLabel={tc("tasks", "runAgain.confirm")} />
       </form>
@@ -133,33 +133,33 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
   return (
     <DialogShell title={tc("tasks", "fieldNotes.title")} wide>
       <div className="dialog-body" onKeyDown={onKeyDown}>
-        <p className="muted taskops-path">{repo}</p>
+        <p className="font-mono text-meta break-all text-muted">{repo}</p>
         {state.kind === "loading" && <p className="muted">{tc("tasks", "fieldNotes.loading")}</p>}
         {state.kind === "error" && <p className="error">{state.message}</p>}
         {state.kind === "ready" && notes.length === 0 && <p className="muted">{tc("tasks", "fieldNotes.empty")}</p>}
         {notes.length > 0 && (
-          <ul className="notes choices" ref={list}>
+          <ul className={`choices ${NOTES}`} ref={list}>
             {notes.map((note, i) => (
               <li key={`${note.at}:${i}`}>
                 <button
                   type="button"
-                  className={`note ${i === cursor ? "is-selected" : ""}`}
+                  className={noteClass(i === cursor)}
                   onClick={() => setCursor(i)}
                   // biome-ignore lint/a11y/noAutofocus: the reader's keys need focus inside the dialog
                   autoFocus={i === 0}
                 >
-                  <span className="note-head mono">
+                  <span className="font-mono text-meta whitespace-pre text-accent">
                     {i === cursor ? "▸ " : "  "}
                     {formatAt(note.at)}, {note.author}
                   </span>
-                  <span className="note-text">{note.text}</span>
+                  <span className="text-ink whitespace-pre-wrap wrap-anywhere">{note.text}</span>
                 </button>
               </li>
             ))}
           </ul>
         )}
         {confirming && (
-          <div className="note-confirm">
+          <div className={INSET_BOX}>
             <p>
               <strong>{tc("tasks", "fieldNotes.confirmDelete.title")}</strong>
             </p>
@@ -177,7 +177,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
         )}
         {!confirming && (
           <>
-            <p className="muted taskops-hint keys-only">{tc("tasks", "fieldNotes.footerDeletable")}</p>
+            <p className={`keys-only ${HINT}`}>{tc("tasks", "fieldNotes.footerDeletable")}</p>
             <div className="actions">
               {/* `d`'s tap target, for the note under the cursor (a phone has no `d`). */}
               <button

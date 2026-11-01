@@ -160,6 +160,10 @@
   margin: 0;
 }
 
+.dialog-body + div > .dialog-body {
+  margin-top: 14px;
+}
+
 .field {
   display: flex;
   flex-direction: column;

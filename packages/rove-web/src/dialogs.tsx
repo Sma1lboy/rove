@@ -6,9 +6,8 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import "./taskops.css"
 import { closeDialog } from "./ui.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
@@ -146,7 +145,7 @@ export function ConfirmDialog(props: {
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
       <div className="dialog-body">
-        <p className="muted taskops-body">
+        <p className="muted whitespace-pre-line">
           {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
         </p>
         {error && !(escalated && props.escalate?.body) && <p className="error">{error}</p>}
