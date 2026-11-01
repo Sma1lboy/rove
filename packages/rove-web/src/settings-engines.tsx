@@ -281,7 +281,11 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
             {t("settings.engines.rename")}
           </button>
           {e.custom || e.customized ? (
-            <button type="button" className="eng-action touch:min-h-10" onClick={() => run("engine.reset", { id: e.id })}>
+            <button
+              type="button"
+              className="eng-action touch:min-h-10"
+              onClick={() => run("engine.reset", { id: e.id })}
+            >
               {e.custom ? t("settings.engines.remove") : t("settings.engines.reset")}
             </button>
           ) : null}
