@@ -749,3 +749,24 @@ div.placeholder p {
   background: var(--inset);
   font: var(--fs-meta) var(--mono);
 }
+
+/* Coarse pointers (phones, tablets). */
+@media (hover: none) and (pointer: coarse) {
+  .inbox-hints,
+  .menu-key,
+  .whats-new-keys {
+    display: none !important;
+  }
+  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. */
+  .menu-item {
+    padding-block: 10px;
+  }
+  .dialog-close {
+    position: relative;
+  }
+  .dialog-close::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
+}

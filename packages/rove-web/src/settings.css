@@ -490,3 +490,18 @@ html[data-working-border="flow"] .pane.is-working {
     animation: none;
   }
 }
+
+/* Coarse pointers (phones, tablets). */
+@media (hover: none) and (pointer: coarse) {
+  /* Revealed on hover on a desktop: a finger would hit it unseen. */
+  .eng-make-default {
+    opacity: 1;
+  }
+  .pref-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  .eng-action {
+    min-height: 40px;
+  }
+}

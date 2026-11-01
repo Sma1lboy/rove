@@ -456,16 +456,11 @@
 @media (hover: none) and (pointer: coarse) {
   /* Pure key legends; mixed ones drop their key segments in code (key-hints.ts). */
   .pane-hint,
-  .inbox-hints,
   .kb-hint-line,
   .keys-only,
   .newtask-legend,
-  .menu-key,
   .palette-chord,
-  .whats-new-keys,
-  .update-key,
-  .kb-legend:empty,
-  .pg-hint:empty {
+  .update-key {
     /* Sheets imported after this one (pages.css) set their own display at equal specificity. */
     display: none !important;
   }
@@ -486,21 +481,18 @@
   }
   /* Controls the desktop reveals on hover stay visible: a finger would hit them unseen. */
   .project-chevron,
-  .project-add,
-  .eng-make-default {
+  .project-add {
     opacity: 1;
   }
   /* A fingertip is ~40px: nav rows grow to it; small controls keep their look and get an invisible larger hit area. */
   .rail-nav-row {
     min-height: 40px;
   }
-  .link,
   .project-add,
   .project-toggle,
   .rail-head .kicker {
     position: relative;
   }
-  .link::after,
   .project-add::after,
   .project-toggle::after,
   .rail-head .kicker::after {
@@ -508,47 +500,15 @@
     position: absolute;
     inset: -12px -6px;
   }
-  /* The footer sits under the terminal key row: grow down only, and no further than the footer's 4px bottom
-     padding; past the window edge the page itself grows and scrolls. Wrapping link groups keep neighbours apart. */
-  .status .link::after {
-    inset: -2px -6px -4px;
-  }
-  .pg-actions .link::after {
-    inset: -2px -3px;
-  }
-  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
-  .kb-top .pg-actions .link::after {
-    inset: -6px -3px -4px;
-  }
-  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
-  .pg-top > .pg-actions .link::after {
-    inset: -10px -3px -5px;
-  }
-  .kb-project-name {
-    position: relative;
-  }
-  .kb-project-name::after {
-    content: "";
-    position: absolute;
-    inset: -4px -8px;
-  }
-  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. Composer and suggest rows: their own sheets. */
-  .menu-item,
+  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. */
   .palette-row,
   .prefix-guide-row {
     padding-block: 10px;
   }
-  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
-  .kb-place {
-    padding-block: 6px;
-  }
-  .dialog-close,
   .narrow-back,
-  .narrow-switch button,
-  .kb-strip button {
+  .narrow-switch button {
     position: relative;
   }
-  .dialog-close::after,
   .narrow-back::after {
     content: "";
     position: absolute;
@@ -564,16 +524,6 @@
     position: absolute;
     inset: -8px -1px -6px;
   }
-  /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
-  .kb-strip button::after {
-    content: "";
-    position: absolute;
-    inset: -4px -6px -12px;
-  }
-  .pref-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-  }
   /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
      styles sit in several later-loaded sheets, hence !important. */
   input:not([type="checkbox"]):not([type="radio"]),
@@ -584,12 +534,6 @@
   /* The search row's `/` and count match its 16px field. */
   .term-search {
     font-size: var(--fs-display);
-  }
-  /* Primary buttons (connect, sign out, start session) and the engine rows' secondary actions are
-     ~24-28px tall at desktop padding. */
-  .button,
-  .eng-action {
-    min-height: 40px;
   }
 }
 

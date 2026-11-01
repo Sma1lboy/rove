@@ -805,3 +805,43 @@
   width: 100%;
   font-family: var(--mono);
 }
+
+/* Coarse pointers (phones, tablets). */
+@media (hover: none) and (pointer: coarse) {
+  .kb-legend:empty,
+  .pg-hint:empty {
+    display: none !important;
+  }
+  .pg-actions .link::after {
+    inset: -2px -3px;
+  }
+  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
+  .kb-top .pg-actions .link::after {
+    inset: -6px -3px -4px;
+  }
+  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
+  .pg-top > .pg-actions .link::after {
+    inset: -10px -3px -5px;
+  }
+  .kb-project-name {
+    position: relative;
+  }
+  .kb-project-name::after {
+    content: "";
+    position: absolute;
+    inset: -4px -8px;
+  }
+  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
+  .kb-place {
+    padding-block: 6px;
+  }
+  .kb-strip button {
+    position: relative;
+  }
+  /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
+  .kb-strip button::after {
+    content: "";
+    position: absolute;
+    inset: -4px -6px -12px;
+  }
+}
