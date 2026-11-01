@@ -36,7 +36,7 @@ import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
-import { PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
+import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
 import {
   RT_BODY,
   RT_DETAIL,
@@ -331,9 +331,9 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const nextAt = selected?.nextRunAt ? Date.parse(selected.nextRunAt) : Number.NaN
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className={`page ${RT_PAGE}`} tabIndex={0} ref={root}>
+    <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className="page-title">{auto.title}</h1>
+        <h1 className={PAGE_TITLE}>{auto.title}</h1>
         <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
             <span className="tone-attention">

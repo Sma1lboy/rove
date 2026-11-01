@@ -17,6 +17,7 @@ import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
+import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
 import { HEAD_CHIP } from "./ui/shell.ts"
 import {
   PAGE_HEAD,
@@ -121,9 +122,9 @@ export function UpdateView({ client }: { client: BridgeClient }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={host} onKeyDown={onKey}>
+    <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
       <div className={PAGE_HEAD}>
-        <h1 className="page-title mono">{u.pageTitle}</h1>
+        <h1 className={PAGE_TITLE}>{u.pageTitle}</h1>
         <button type="button" className="link muted mono" onClick={() => activate("close")}>
           {isTouch() ? t("dialog.close") : u.closeHint}
         </button>

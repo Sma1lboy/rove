@@ -33,7 +33,7 @@ import {
   modButtonClass,
   modTextClass,
 } from "./ui/mods.ts"
-import { PG_TOP, pgHintClass } from "./ui/page.ts"
+import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
 
 const SPACE_PX = [0, 6, 12, 20] as const
 
@@ -190,9 +190,9 @@ export function ModsView({ model }: { model: AppModel }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className={`page ${MODS_PAGE}`} tabIndex={0} ref={root}>
+    <div className={`${PAGE_SCROLL} ${MODS_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className="page-title">{copy.title}</h1>
+        <h1 className={PAGE_TITLE}>{copy.title}</h1>
         <span className={`muted keys-only touch:empty:hidden! ${pgHintClass(false)}`}>{copy.keys}</span>
       </div>
       {panes.length === 0 ? (

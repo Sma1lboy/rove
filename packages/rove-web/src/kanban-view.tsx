@@ -32,7 +32,7 @@ import { useStore } from "./store.ts"
 import { dialog, menu, page, toast } from "./ui.ts"
 
 import { type Board, Card, TONE, useBoards, useEngines } from "./kanban-parts.tsx"
-import { PG_ACTIONS, PG_ACTION_LINK } from "./ui/page.ts"
+import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK } from "./ui/page.ts"
 const POLL_MS = 5_000
 /** Four lanes need about this much width before a card stops being readable. */
 const MIN_BOARD_PX = 760
@@ -386,9 +386,9 @@ export function KanbanView({ model }: { model: AppModel }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className={`page ${KB_PAGE}`} tabIndex={0} ref={root}>
+    <div className={`${PAGE} ${KB_PAGE}`} tabIndex={0} ref={root}>
       <div className="kb-top">
-        <h1 className="page-title">{kanban.title}</h1>
+        <h1 className={PAGE_TITLE}>{kanban.title}</h1>
         <span className="muted mono keys-only">{kanban.hint}</span>
         {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
         <span className={`mono ${PG_ACTIONS}`}>

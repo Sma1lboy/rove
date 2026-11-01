@@ -6,7 +6,7 @@
 
 /** A short screen (a phone on its side) lends a dialog nearly all its height. */
 export const OVERLAY =
-  "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
+  "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-fade-out short:pt-3"
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
@@ -26,7 +26,7 @@ export const DIALOG_BODY =
   "dialog-body -m-0.5 flex min-h-0 flex-col gap-3 overflow-y-auto p-0.5 [&_p]:m-0 [&>.actions]:sticky [&>.actions]:-bottom-0.5 [&>.actions]:bg-surface [.dialog-body+div>&]:mt-3.5"
 
 export const menuClass = (sub = false): string =>
-  `menu fixed z-30 flex max-h-[calc(100vh-16px)] ${sub ? "min-w-40" : "min-w-50"} origin-top-left flex-col overflow-y-auto rounded-md border-hairline border-line bg-surface p-1 shadow-popover motion-safe:animate-menu-in [&.is-leaving]:animate-sink-out`
+  `menu fixed z-30 flex max-h-[calc(100vh-16px)] ${sub ? "min-w-40" : "min-w-50"} origin-top-left flex-col overflow-y-auto rounded-md border-hairline border-line bg-surface p-1 shadow-popover motion-safe:animate-menu-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
 /** Label and key share a baseline: two sizes left to stretch sit top-aligned and read off by a few pixels. */
 export const menuItemClass = (s: { selected?: boolean; open?: boolean; danger?: boolean }): string =>
@@ -45,7 +45,7 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 
 export const TOASTS = "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5"
 export const toastClass = (error: boolean): string =>
-  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:animate-sink-out`
+  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
 /** Inbox: one card's line, badge, age and subtitle. */
 export const INBOX_HINTS = "text-subtle"

@@ -30,6 +30,9 @@ import {
   PREFIX_GUIDE_GROUP,
   PREFIX_GUIDE_HEAD,
   PREFIX_GUIDE_ROW,
+  PREFIX_HUD,
+  PREFIX_KEY,
+  prefixHudLine,
   shortcutBadge,
 } from "./ui/shell.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
@@ -131,7 +134,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
                   disabled={direct}
                   onClick={() => strokes[0] && runPrefixStroke(model, strokes[0])}
                 >
-                  <span className="prefix-hud-key">{strokes.map(strokeText).join("/")}</span>
+                  <span className={PREFIX_KEY}>{strokes.map(strokeText).join("/")}</span>
                   <span>{labelOf(action)}</span>
                 </button>
               ))}
@@ -143,7 +146,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
   }
 
   return (
-    <output className="prefix-hud mono keys-only">
+    <output className={PREFIX_HUD}>
       {fresh.map((entry) => (
         <HudLine key={entry.id} at={entry.at}>
           <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
@@ -151,7 +154,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
         </HudLine>
       ))}
       {armedAt !== null && (
-        <div className="prefix-hud-head">
+        <div className={prefixHudLine(false)}>
           <span className="tone-accent">{prefixKey()}</span> ⋯
         </div>
       )}
@@ -166,7 +169,7 @@ function HudLine({ at, children }: { at: number; children: ReactNode }) {
   // Negative once inside the last LEAVE_MS: the fade starts part-way and still ends at HUD_TTL_MS.
   const out = { "--hud-out": `${at + HUD_TTL_MS - LEAVE_MS - mountedAt}ms` } as CSSProperties
   return (
-    <div className={`prefix-hud-head ${late ? "is-back" : ""}`} style={out}>
+    <div className={prefixHudLine(late)} style={out}>
       {children}
     </div>
   )

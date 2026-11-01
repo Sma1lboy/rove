@@ -1,5 +1,11 @@
 /** The full pages' shared frame (Kanban, Routines, Issues, Dispatch, Mods) and the rail's page entries. */
 
+/** A full page over the workspace (the TUI's rail pages); a page that lays out its own scrolling adds `overflow-hidden` instead of PAGE_SCROLL. */
+export const PAGE =
+  "page min-h-0 flex-1 rounded-md border-hairline border-line bg-paper px-4.5 py-3.5 focus:outline-none"
+export const PAGE_SCROLL = `${PAGE} overflow-y-auto`
+export const PAGE_TITLE = "page-title mx-0 mt-0 mb-1.5 font-sans text-title font-bold normal-nums"
+
 /** Title left, key legend right; the title drops its page margin here. */
 export const PG_TOP = "flex items-baseline justify-between gap-4 [&_.page-title]:m-0"
 /** The key legend beside a page title; beside `.mono` (a `font:` shorthand) its line height stays normal. */
