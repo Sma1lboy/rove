@@ -10,6 +10,7 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface PluginRow {
   readonly id: string
@@ -93,9 +94,9 @@ export function PluginsSection({ model }: { model: AppModel }) {
     <>
       <BuiltinMods model={model} />
       {!plugins ? (
-        <p className="placeholder-line">{t("preview.loading")}</p>
+        <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
       ) : plugins.length === 0 ? (
-        <p className="placeholder-line">{t("settings.plugins.empty")}</p>
+        <p className={PLACEHOLDER_LINE}>{t("settings.plugins.empty")}</p>
       ) : (
         <div className="settings-rows">
           {plugins.map((p) => (

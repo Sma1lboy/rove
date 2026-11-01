@@ -6,7 +6,6 @@ import "./styles.css"
 // The rail and tab strip sheets sit right after the tokens: later sheets override them at equal specificity.
 import "./rail.css"
 import "./overlays.css"
-import "./files.css"
 import "./settings.css"
 import "./workspace.css"
 import "./side-panel.css"

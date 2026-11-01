@@ -49,12 +49,6 @@
   background: var(--inset);
 }
 
-/* The phone's file list fills the panel; rows sized for a finger. */
-.files.is-narrow {
-  flex: 1;
-  padding: 10px 6px 8px;
-}
-
 /* Rail edge, fold control */
 .rail {
   position: relative;

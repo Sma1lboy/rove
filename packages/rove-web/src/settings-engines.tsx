@@ -15,6 +15,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
 import { toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
 interface EngineSetting {
@@ -81,7 +82,7 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!engines) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!engines) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   return (
     <section className="settings-group engines">
       <p className="muted">{ts("engines.hint")}</p>
