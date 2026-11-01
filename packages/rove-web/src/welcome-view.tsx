@@ -73,7 +73,10 @@ export function WelcomePane({ model }: { model: AppModel }) {
   const start = env?.start ?? null
 
   return (
-    <div className="mx-auto flex max-w-reading flex-col gap-2.5 overflow-y-auto px-5 py-7 font-sans text-meta/normal" data-field="welcome">
+    <div
+      className="mx-auto flex max-w-reading flex-col gap-2.5 overflow-y-auto px-5 py-7 font-sans text-meta/normal"
+      data-field="welcome"
+    >
       <h1 className="m-0 font-sans text-title font-semibold text-accent">{tc("workspace", "welcome.title")}</h1>
       <p className="muted m-0">{tc("workspace", "welcome.tagline")}</p>
       <dl className="keys-only m-0 flex flex-col gap-0.5 pt-1.5">
