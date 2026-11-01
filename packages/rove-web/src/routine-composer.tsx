@@ -25,7 +25,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { deviceHint } from "./key-hints.ts"
 import { Legend } from "./legend.tsx"
-import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
+import { projectLabel, repoKey, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
 
@@ -33,18 +33,6 @@ export interface TargetTask {
   readonly id: string
   readonly title: string
   readonly repo: string
-}
-
-/** The TUI's `t("automations.x")` over the web copy: `cron-core` asks for keys by their TUI path. */
-function useCronTranslate() {
-  const { auto } = useCopy()
-  return (key: string, params?: Record<string, string | number>): string => {
-    let node: unknown = auto
-    for (const part of key.replace(/^automations\./, "").split(".")) {
-      node = node && typeof node === "object" ? Reflect.get(node, part) : undefined
-    }
-    return typeof node === "string" ? (params ? fill(node, params) : node) : key
-  }
 }
 
 export function RoutineComposer(props: {
