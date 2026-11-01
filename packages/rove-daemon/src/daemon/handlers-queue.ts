@@ -16,10 +16,25 @@ function queueOf(ctx: DaemonHandlerContext): PromptQueue {
   return ctx.promptQueue
 }
 
+/**
+ * Why the tab cannot take a paste right now, read at paste time with the signal `send` refuses on
+ * (`status.list` needs-input, the ledger's permission_needed): Enter into a menu would confirm its
+ * highlighted option. Null when it can.
+ */
+export function heldBack(ctx: Pick<DaemonHandlerContext, "activity" | "rowStatus">, item: QueuedPrompt): string | null {
+  const state = ctx.activity.stateOf(item.taskId, item.tabId)
+  const row = ctx.rowStatus?.list().tasks[item.taskId]?.tabs[item.tabId]
+  if (state === "permission_needed" || row?.kind === "needs-input") return "awaiting-permission"
+  if (state === "running" || state === "rate_limited") return "busy"
+  return null
+}
+
 /** Paste one held prompt; null when it landed, else why not. */
 export async function pasteQueued(ctx: DaemonHandlerContext, item: QueuedPrompt): Promise<string | null> {
   const task = ctx.orch.getTask(item.taskId)
   if (!task || task.deletion || !task.worktreePath) return "task is gone"
+  const blocked = heldBack(ctx, item)
+  if (blocked) return blocked
   let deliveryId: string | null = null
   try {
     if (item.expectReport || task.requireReport === true) {

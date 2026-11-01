@@ -1104,12 +1104,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   permission menu or rate-limited has it held by the daemon, and the reply is
   `{ ok, taskId, tabId, queued: true, queueId: "q-<n>", position }`. Held
   prompts are pasted one per finished turn, in order: a hand-over happens only
-  when the tab's state moves from working (or a menu, or a rate limit) to
-  `turn_complete` or `idle`, never into a menu. A report asked for with
-  `--expect-report` (or a `requireReport` task) is armed when the prompt is
-  pasted, not when it is held. A hand-over that does not land (the engine
-  exited) keeps the prompt at the head with `lastError` and retries at the
-  next turn end. Held prompts live in the daemon's memory: `rove daemon
+  when the tab's state moves from `running` to `turn_complete` or `idle`. A
+  turn end that comes straight from a permission menu hands nothing over (a
+  real approval reports `running` before its Stop; a Stop with the menu still
+  drawn would have Enter confirm the highlighted option). About 1.5 s after
+  the turn ends, the tab is checked again with the same signal plain `send`
+  refuses on (`status.list` needs-input, a `permission_needed` reading) and
+  for a new running turn; either keeps the prompt held, with `lastError`
+  (`awaiting-permission`, `busy`), until the next working turn ends. A report
+  asked for with `--expect-report` (or a `requireReport` task) is armed when
+  the prompt is pasted, not when it is held. A hand-over that does not land
+  (the engine exited) also stays at the head with `lastError`; a dead engine
+  reports no more turns, so take it back with `queue-cancel`. A tab whose
+  engine reports no turn events never hands over. Held prompts live in the
+  daemon's memory: `rove daemon
   restart` drops them. `--queue` does not combine with `--tab new`,
   `--if-runnable` or `--respawn`, and gate answers owed to the tab stay owed
   until a prompt is actually pasted.

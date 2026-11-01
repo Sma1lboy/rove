@@ -4,7 +4,8 @@
  * into a running turn, and Claude Code folds it into the running turn; this is the "after this turn" lane.
  *
  * In memory only: a daemon restart empties it (docs/API.md says so). A tab whose engine is waiting on a
- * permission menu, rate-limited, failed or dead keeps its items; only a turn that ends hands one over.
+ * permission menu, rate-limited, failed or dead keeps its items; only a working turn that ends hands one
+ * over, and the paste re-checks the tab first (`heldBack`).
  */
 
 import type { TaskActivityState } from "./attention-contracts.ts"
@@ -34,6 +35,7 @@ const BUSY: ReadonlySet<TaskActivityState> = new Set(["running", "permission_nee
 const DONE: ReadonlySet<TaskActivityState> = new Set(["turn_complete", "idle"])
 
 const keyOf = (taskId: string, tabId: string): string => `${taskId}::${tabId}`
+const SETTLE_MS = 1500
 
 export class PromptQueue {
   private items: QueuedPrompt[] = []
@@ -47,6 +49,8 @@ export class PromptQueue {
     private readonly stateOf: (taskId: string, tabId: string) => TaskActivityState | undefined,
     private readonly deliver: QueueDeliver,
     private readonly now: () => number = Date.now,
+    /** Between a turn's end and the paste: long enough for a hook that trails the Stop to land. */
+    private readonly settle: () => Promise<void> = () => Bun.sleep(SETTLE_MS),
   ) {
     this.off = bus.onPublish((event) => {
       if (event.channel !== "engine-state") return
@@ -101,17 +105,21 @@ export class PromptQueue {
     const key = keyOf(taskId, tabId)
     const prev = this.last.get(key)
     this.last.set(key, state)
-    // Only the edge out of a turn hands one over: the paste starts the next turn, whose end hands the next.
-    if (prev === undefined || !BUSY.has(prev) || !DONE.has(state)) return
-    void this.handOver(taskId, tabId)
+    // Only a turn seen working and then ending hands one over (the paste starts the next turn, whose end
+    // hands the next). Straight from a menu to an end is a stray Stop with the menu still drawn: a real
+    // approval reports `running` before its Stop. A held-back head waits for that same edge.
+    if (prev === "running" && DONE.has(state)) void this.handOver(taskId, tabId)
   }
 
   private async handOver(taskId: string, tabId: string): Promise<void> {
     const key = keyOf(taskId, tabId)
-    const head = this.forTab(taskId, tabId)[0]
-    if (!head || this.handing.has(key)) return
+    if (!this.forTab(taskId, tabId)[0] || this.handing.has(key)) return
     this.handing.add(key)
     try {
+      // A menu event that trails the turn's end must be seen before the paste: `deliver` re-checks the tab.
+      await this.settle()
+      const head = this.forTab(taskId, tabId)[0]
+      if (!head) return
       const error = await this.deliver(head).catch((err: unknown) => (err instanceof Error ? err.message : String(err)))
       if (error === null) this.items = this.items.filter((i) => i.id !== head.id)
       else this.items = this.items.map((i) => (i.id === head.id ? { ...i, lastError: error } : i))
