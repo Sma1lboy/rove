@@ -314,6 +314,7 @@ describe("welcome dialog — questions then keyboard basics", () => {
         probe={() => Promise.resolve({ engines: ["codex"], signedOut: [], git: true })}
         shell={null}
         onDone={NOOP}
+        installSkill={() => "Installed for Codex"}
       />,
       {
         width: 100,
@@ -361,9 +362,7 @@ describe("welcome dialog — questions then keyboard basics", () => {
     const second = await frame()
     expect(second).toContain("Rove agent skill")
     expect(second).toContain("shell completions for zsh")
-    // Optional skill defaults to Not now; explicitly choose Yes in this path.
-    act(() => mockInput.pressArrow("up"))
-    await settle()
+    // The skill defaults to Yes: a bare Enter installs it.
     act(() => mockInput.pressEnter())
     await settle()
     expect(await frame()).toContain("Keyboard basics")

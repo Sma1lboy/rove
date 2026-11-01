@@ -31,10 +31,10 @@ export const en = {
   /** Step 1 explanation */
   completionsExplain: "Tab-completes rove subcommands. One line is added to your shell config.",
   /** Step 2 question */
-  skillQuestion: "Optional: install the Rove agent skill?",
+  skillQuestion: "Install the Rove agent skill? (recommended)",
   /** Step 2 explanation */
   skillExplain:
-    "Not needed for your first tasks. Copies one skill file into each coding agent on this machine so it can drive Rove; Settings → Engines does the same anytime.",
+    "Lets the coding agents on this machine drive Rove themselves: start tasks, read other sessions, message them. Copies one skill file into each; until then Rove keeps a reminder at the top of the window.",
   /** Recommended option */
   optionYes: "Yes",
   /** Decline option */
@@ -88,9 +88,9 @@ export const zh: typeof en = {
   subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
   completionsQuestion: "可选：为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
-  skillQuestion: "可选：安装 Rove agent skill 吗？",
+  skillQuestion: "安装 Rove agent skill 吗？（推荐）",
   skillExplain:
-    "首次任务无需安装。会往本机每个编码 agent 里放一份 skill 文件，让它能驱动 Rove；之后随时可在 设置 → 引擎 里做同样的事。",
+    "让本机的编码 agent 自己操作 Rove：开任务、读其他会话、给它们发消息。会往每个 agent 里放一份 skill 文件；没装之前，窗口顶部会一直提示。",
   optionYes: "安装",
   optionNo: "跳过",
   queued: "已排队 — 退出 Rove 后安装",

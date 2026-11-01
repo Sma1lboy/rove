@@ -18,8 +18,8 @@ import { usePrefsApply } from "./prefs-apply.ts"
 import { RailBar } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { RailView } from "./rail-view.tsx"
-import { maybeNudgeSkill } from "./settings-engines.tsx"
 import { SidePanel } from "./side-panel.tsx"
+import { SkillBanner, useSkillStatus } from "./skill-banner.tsx"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, page, zen } from "./ui.ts"
@@ -54,13 +54,13 @@ function Shell({ model }: { model: AppModel }) {
     if (!hello) return
     void checkForUpdate(model.client)
     maybeShowWhatsNew(model.client, hello.roveVersion)
-    maybeNudgeSkill(model.client)
   }, [hello, model.client])
   usePluginChords(model)
   useWorkspaceKeys(model)
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)
+  useSkillStatus(model.client)
   // Narrow mode shows one panel: opening the composer or picking a task (rail, Inbox, a page, a menu)
   // brings it up; a page does so through `openPage`.
   useEffect(() => {
@@ -104,6 +104,7 @@ function Shell({ model }: { model: AppModel }) {
   return (
     <div className="app-shell">
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
+      <SkillBanner client={model.client} />
       <div
         className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${panelWide && !zenOn && !narrow ? "is-panel-expanded" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""} ${dragging ? "is-dragging" : ""}`}
         style={narrow ? undefined : railVars}

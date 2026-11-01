@@ -210,19 +210,18 @@ While detached, consult the durable Inbox on return instead.
 
 <a id="install-the-agent-skill" />
 
-## Optional: install the agent skill
+## Install the agent skill
 
-You have already completed two tasks without this. The optional companion skill teaches
-your coding agent (Claude Code, Codex, and so on) how to drive Rove itself:
-spawn tasks, fan a prompt out to several attempts, compare them, land the
-winner.
+The companion skill teaches your coding agent (Claude Code, Codex, and so on) how
+to drive Rove itself: spawn tasks, fan a prompt out to several attempts, compare
+them, land the winner.
 
-Open **Settings → Engines** (in the TUI or the web app) and press **Install** under
-**Rove agent skill**. It copies the skill into every coding agent set up on this
-machine, and each engine's details say whether it has one. When Rove starts and
-finds an engine without the skill, it says so once. From a shell, `rove skill
-install` and `rove skill status` do the same. Installed copies refresh themselves
-when Rove upgrades.
+The welcome guide offers it on first launch, with Yes preselected. Until every
+coding agent set up on this machine has it, Rove keeps a **ROVE SKILL NOT
+INSTALLED** strip at the top of the window (TUI and web) naming the agents that
+lack it; click it to install. **Settings → Engines** shows each engine's copy and
+has the same Install button, and `rove skill install` / `rove skill status` do it
+from a shell. Installed copies refresh themselves when Rove upgrades.
 
 **Claude Code users have a one-stop alternative**: the Rove plugin carries the
 skill AND the activity hooks in one install, with no PATH or settings.json
@@ -259,7 +258,7 @@ rove api land --task-id a              # merge the winning branch
 
 ## Let your agent drive
 
-With the [agent skill](#optional-install-the-agent-skill) in place, you do not have to
+With the [agent skill](#install-the-agent-skill) in place, you do not have to
 type those commands yourself. Ask your coding agent for three attempts at a
 prompt; it runs the `rove api` loop above and reports back which branch to
 land.

@@ -11,6 +11,9 @@
  * {@link StaleInstallBanner} — red; this process runs from a deleted install
  * and can never start a daemon again. The action is reinstalling.
  *
+ * {@link SkillBanner} — accent; an engine set up here has no Rove agent skill.
+ * Not dismissible: it stays until the skill is installed. Clicking it installs.
+ *
  * Do NOT add a socket-disconnect banner: Rove works with the daemon down and
  * the reconnect loop recovers most drops in under a second, so there is
  * nothing to act on.
@@ -22,12 +25,19 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 
 /** Accent rule, bold caps label, one line of action hint. */
-function BannerStrip(props: { tone: RGBA; title: string; hint: string; width: number }) {
+function BannerStrip(props: { tone: RGBA; title: string; hint: string; width: number; onPress?: () => void }) {
   const { theme } = useTheme()
   // Pane width minus the 1-cell selection gutter; floor keeps it visible when narrow.
   const ruleWidth = Math.max(4, props.width - 2)
   return (
-    <box flexDirection="column" flexShrink={0} paddingLeft={1} paddingRight={1} paddingBottom={1}>
+    <box
+      flexDirection="column"
+      flexShrink={0}
+      paddingLeft={1}
+      paddingRight={1}
+      paddingBottom={1}
+      onMouseUp={props.onPress}
+    >
       {/* The accent rule — a bar of `▔` (upper block) so it reads as a thin
           rule above the message, not a heavy fill. */}
       <text fg={props.tone} wrapMode="none">
@@ -89,6 +99,33 @@ export function StaleInstallBanner(props: StaleInstallBannerProps) {
       title={t("update.staleInstall.title")}
       hint={t("update.staleInstall.hint")}
       width={props.width}
+    />
+  )
+}
+
+export type SkillBannerProps = {
+  /** Engines lacking the skill; empty hides the banner. */
+  engines: readonly string[]
+  /** What the last install from the banner could not write. */
+  error: string | null
+  onInstall: () => void
+  width: number
+}
+
+export function SkillBanner(props: SkillBannerProps) {
+  const { theme } = useTheme()
+  const t = useT()
+  if (props.engines.length === 0) return null
+  const hint = props.error
+    ? t("settings.engines.skill.failed", { reason: props.error })
+    : t("settings.engines.skill.bannerHint", { engines: props.engines.join(", ") })
+  return (
+    <BannerStrip
+      tone={props.error ? theme.error : theme.primary}
+      title={t("settings.engines.skill.bannerTitle")}
+      hint={hint}
+      width={props.width}
+      onPress={props.onInstall}
     />
   )
 }

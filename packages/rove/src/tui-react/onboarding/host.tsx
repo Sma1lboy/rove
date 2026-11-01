@@ -52,7 +52,8 @@ export function WelcomeDialogView(props: {
   // No shell detected → no completions question.
   const steps: readonly StepId[] = props.shell === null ? ["skill"] : ["completions", "skill"]
   const [stepIndex, setStepIndex] = useState(0)
-  const [yes, setYes] = useState(props.shell !== null)
+  // Both questions default to Yes; the skill is what lets agents drive Rove.
+  const [yes, setYes] = useState(true)
   const [answers, setAnswers] = useState<Partial<Record<StepId, boolean>>>({})
   const [page, setPage] = useState<WelcomePageKind>("engine")
   const [env, setEnv] = useState<WelcomeEnv | null>(null)
@@ -93,7 +94,7 @@ export function WelcomeDialogView(props: {
       return
     }
     setStepIndex(stepIndex + 1)
-    setYes(steps[stepIndex + 1] !== "skill")
+    setYes(true)
   }
 
   useBindings(() => ({
