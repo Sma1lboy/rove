@@ -168,7 +168,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           base += project.worktrees.length
           return (
             <section key={project.repo} className="page-group">
-              <h2 className="mt-1.5 mr-2 mb-1 ml-0 flex items-center gap-1 font-mono text-meta font-semibold text-subtle">
+              <h2 className="mt-1.5 mr-2 mb-1 ml-0 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle">
                 <span>{project.repo}</span>
                 <span className="rule" />
               </h2>
