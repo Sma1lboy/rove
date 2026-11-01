@@ -22,7 +22,7 @@ import { SidePanel } from "./side-panel.tsx"
 import { SkillBanner, useSkillStatus } from "./skill-banner.tsx"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
-import { layoutMoving, newSession, page, zen } from "./ui.ts"
+import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./ui.ts"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
@@ -66,9 +66,11 @@ function Shell({ model }: { model: AppModel }) {
   // brings it up; a page does so through `openPage`.
   useEffect(() => {
     model.onSelect = enterWorkspace
-    return newSession.subscribe(() => {
+    const off = newSession.subscribe(() => {
       if (newSession.get() !== null) enterWorkspace()
     })
+    openNewSessionFromLink()
+    return off
   }, [model])
   const zenOn = useStore(zen)
   const selection = useStore(model.selection)

@@ -139,6 +139,7 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
             client={model.client}
             model={model}
             engineExit={box.id === "leaf-1" ? engineExit : null}
+            composer={tab.kind === "engine" && box.id === "leaf-1"}
             taskId={taskId}
             tabId={tab.id}
             leafId={box.id}

@@ -91,19 +91,39 @@ export interface NewSessionStart {
   readonly baseBranch?: string
   /** A registered machine's alias; absent = this machine. */
   readonly machine?: string
+  /** A draft to start from (a `?prompt=` link); absent = the last unsent draft. */
+  readonly prompt?: string
 }
 
 /** The prompt-first New session composer in the workspace pane; null = closed. */
 export const newSession = createStore<NewSessionStart | null>(null)
 
-export function openNewSession(repo?: string, baseBranch?: string, machine?: string): void {
+export function openNewSession(repo?: string, baseBranch?: string, machine?: string, prompt?: string): void {
   page.set(null)
   dialog.set(null)
   newSession.set({
     ...(repo ? { repo } : {}),
     ...(baseBranch ? { baseBranch } : {}),
     ...(machine ? { machine } : {}),
+    ...(prompt ? { prompt } : {}),
   })
+}
+
+/**
+ * `?prompt=…&repo=…` (a bookmark, a phone home-screen shortcut) opens New session with that draft and project.
+ * It only fills the composer: a link someone else made never starts an agent. Read once, then taken off the
+ * address bar so a reload does not seed it again.
+ */
+export function openNewSessionFromLink(): void {
+  const params = new URLSearchParams(window.location.search)
+  const prompt = params.get("prompt")
+  if (prompt === null) return
+  const repo = params.get("repo") ?? undefined
+  params.delete("prompt")
+  params.delete("repo")
+  const rest = params.toString()
+  history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`)
+  openNewSession(repo, undefined, undefined, prompt)
 }
 
 let nextToast = 1

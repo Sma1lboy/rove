@@ -13,7 +13,7 @@ import {
 } from "@sma1lboy/rove/src/tui/ops/diff-comments.ts"
 import { listFiles } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { BridgeError, optInt } from "../protocol.ts"
-import { absPath, bool, flag, tabId, taskId, text } from "./args.ts"
+import { absPath, bool, flag, sendReason, tabId, taskId, text } from "./args.ts"
 import type { Args, BridgeApi, OpSpec, OpTable } from "./types.ts"
 
 /** Beyond this the phone gets the first slice and `truncated: true`. */
@@ -198,7 +198,7 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
             sent: 0,
             delivered: false,
             reason:
-              reasonText(res.targetDetail ?? res.reason) ??
+              sendReason(res.targetDetail ?? res.reason) ??
               (res.targetState ? `engine is ${res.targetState}` : "not confirmed"),
           }
         }
@@ -264,12 +264,6 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       },
     }),
   }
-}
-
-/** `send` reports a string or a small object (`{failure: "other"}`); the phone gets one line either way. */
-function reasonText(reason: unknown): string | undefined {
-  if (reason === undefined || reason === null || reason === "") return undefined
-  return typeof reason === "string" ? reason : JSON.stringify(reason)
 }
 
 export const filesOps: OpTable = createFilesOps()

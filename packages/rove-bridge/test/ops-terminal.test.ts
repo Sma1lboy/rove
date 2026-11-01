@@ -272,6 +272,26 @@ describe("tab.requestPR", () => {
   })
 })
 
+describe("tab.send", () => {
+  test("a blank message is refused before anything reaches the engine", async () => {
+    await expect(run("tab.send", { taskId: TASK, tabId: "tab-1", prompt: "  \n " })).rejects.toMatchObject({
+      code: "BAD_ARGS",
+    })
+  })
+
+  test("an undelivered send keeps the composer's draft: delivered is false with the engine's reason", async () => {
+    const { result } = await run(
+      "tab.send",
+      { taskId: TASK, tabId: "tab-1", prompt: "hi" },
+      {},
+      {
+        send: { delivered: false, targetDetail: "no engine process" },
+      },
+    )
+    expect(result).toEqual({ delivered: false, reason: "no engine process" })
+  })
+})
+
 describe("attachment.put", () => {
   const put = (mime: string, bytes: Uint8Array) =>
     run("attachment.put", { mime, data: Buffer.from(bytes).toString("base64") })

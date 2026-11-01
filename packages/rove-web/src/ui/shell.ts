@@ -92,12 +92,11 @@ export const splitLeafClass = (style: string | null, o: { left: boolean; top: bo
 export const splitName = (rule: boolean, active: boolean): string =>
   `absolute right-2 z-3 bg-paper px-1 font-mono text-meta ${FONT_RESET} ${rule ? "-top-2" : "top-0.5"} ${active ? "text-accent" : "text-subtle"}`
 
-/** Overlays on the terminal; on touch they clear the key row. */
+/** Overlays on the terminal, anchored to `TERM_BODY` so the key row and composer under it never cover them. */
 export const TERM_SCROLLED =
-  "absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 text-meta touch:bottom-12"
-export const TERM_SEARCH = `absolute inset-x-2 bottom-2 z-5 flex items-center gap-2.5 rounded-sm border-hairline border-line bg-surface px-2.5 py-1 font-mono text-meta ${FONT_RESET} touch:bottom-12 touch:text-display`
+  "absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 text-meta"
+export const TERM_SEARCH = `absolute inset-x-2 bottom-2 z-5 flex items-center gap-2.5 rounded-sm border-hairline border-line bg-surface px-2.5 py-1 font-mono text-meta ${FONT_RESET} touch:text-display`
 export const TERM_SEARCH_INPUT = "min-w-0 flex-1 border-none bg-transparent text-ink [font:inherit] outline-none"
-export const TERM_NOTICE_TOUCH = "touch:bottom-12"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
 export const TERM_KEY_ROW =
@@ -152,6 +151,8 @@ export const PANE_WORKING =
   "working-flow:border-transparent working-flow:[background:linear-gradient(var(--paper),var(--paper))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--line),var(--task-ink,var(--focus)),var(--line),var(--task-ink,var(--focus)),var(--line))_0_0/300%_100%_border-box] working-flow:motion-safe:animate-flow-border"
 
 export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
+/** The terminal and its overlays; the touch key row and the composer sit under it, outside. */
+export const TERM_BODY = "relative flex min-h-0 min-w-0 flex-1 flex-col"
 /** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (tailwind.css), not its own. `term-host` stays for those xterm rules. */
 export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden"
 /** Kitty placeholder images, over xterm's canvas and under its decorations. */

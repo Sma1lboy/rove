@@ -9,9 +9,11 @@
 
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { useEffect, useRef, useState } from "react"
+import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { BranchIcon, ClipIcon, FolderIcon } from "./new-session-icons.tsx"
 import {
   MachineChip,
   RemoteBranchChip,
@@ -77,7 +79,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
   const [branchQuery, setBranchQuery] = useState("")
-  const [prompt, setPromptState] = useState(promptDraft)
+  // A link's `?prompt=` lands here as a draft to read and edit; nothing starts until Start is pressed.
+  const [prompt, setPromptState] = useState(() => {
+    if (seed.prompt !== undefined) promptDraft = seed.prompt
+    return promptDraft
+  })
   const setPrompt = (text: string): void => {
     promptDraft = text
     setPromptState(text)
@@ -92,11 +98,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setWorktreeState(on)
   }
   const [error, setError] = useState<string | null>(null)
+  const { attachments, attach, remove, clear } = useAttachments(model, setError)
   const area = useRef<HTMLTextAreaElement>(null)
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
   const remote = machine !== ""
+  // Files live on this Mac: another machine's task could not read them.
+  const targets = remote ? null : fileTargets((files) => void attach(files))
   const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
   const remoteList = useRemoteRepos(model, machine)
   usePrefetchRemoteRepos(model, machines)
@@ -211,6 +220,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (!primary) return setError(t("newSession.needRepo"))
     if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
+    const first = withRefs(prompt.trim(), attachments)
     try {
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
       const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
@@ -226,7 +236,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           taskId: main.taskId,
           kind: "engine",
           ...(choice.engine ? { engine: choice.engine } : {}),
-          ...(begin ? { prompt: prompt.trim() } : {}),
+          ...(begin ? { prompt: first } : {}),
         })
         created = res.taskId ?? main.taskId
         // A session that starts is titled from its first message; one that doesn't takes the prompt now.
@@ -239,7 +249,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
             branch: branchName.trim(),
             engine: choice.engine,
-            prompt: prompt.trim(),
+            prompt: first,
             begin,
             model: modelValue,
             effort: effortValue,
@@ -248,6 +258,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         created = res.taskIds[0]
       }
       promptDraft = ""
+      clear()
       newSession.set(null)
       if (created) model.selectWhenListed(created)
     } catch (err) {
@@ -285,7 +296,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           void start()
         }}
       >
-        <div className={C.CARD}>
+        <div className={C.CARD} {...targets?.drop}>
           <textarea
             ref={area}
             className={C.PROMPT}
@@ -295,6 +306,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             value={prompt}
             disabled={busy}
             onChange={(e) => setPrompt(e.target.value)}
+            onPaste={targets?.onPaste}
             onKeyDown={(e) => {
               if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
               e.preventDefault()
@@ -418,6 +430,17 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             </>
           )}
+          {targets && (
+            <AttachPicker
+              className={`${C.chipClass(attachments.length > 0)} cursor-pointer`}
+              title={t("newSession.attachHint")}
+              disabled={busy}
+              onFiles={(files) => void attach(files)}
+            >
+              <ClipIcon />
+              {t("newSession.attach")}
+            </AttachPicker>
+          )}
           <span className={C.GROW} />
           {choice.engines.length > 1 && (
             <ChipPopover field="engine" title={t("newSession.engine")} label={engine?.name ?? t("newSession.engine")}>
@@ -454,6 +477,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             </ChipPopover>
           )}
         </div>
+        {!remote && <AttachmentChips attachments={attachments} onRemove={remove} />}
         {busy && progress && (
           <p className="text-muted" data-field="clone-progress">
             {progress}
@@ -472,24 +496,5 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         </button>
       )}
     </div>
-  )
-}
-
-function FolderIcon() {
-  return (
-    <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-    </svg>
-  )
-}
-
-function BranchIcon() {
-  return (
-    <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="4.5" cy="3.5" r="1.5" />
-      <circle cx="4.5" cy="12.5" r="1.5" />
-      <circle cx="11.5" cy="5" r="1.5" />
-      <path d="M4.5 5v6M11.5 6.5c0 3-7 2-7 4.5" />
-    </svg>
   )
 }
