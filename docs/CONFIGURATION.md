@@ -24,6 +24,24 @@ environment variables are read. New runtime files use canonical names; a live
 pre-rename PTY host can still be attached until it exits or `rove reset` runs.
 See [runtime state](./CLI.md#where-state-lives).
 
+### What an agent may edit
+
+Ask your coding agent to change Rove the way you would ask it to change code.
+These files are plain text, Rove rereads them without a restart, and a bad
+entry is ignored with a warning instead of breaking anything:
+
+| File | Format | How the agent checks its work |
+|---|---|---|
+| `~/.rove/themes/<name>.json` | [Themes](./themes.md#json-shape) | `rove theme list` shows it; it appears in Settings → General → Theme |
+| `~/.rove/settings/keybindings.yaml` | [Customizing keybindings](./KEYBINDINGS.md#customizing) | the YAML parses; Settings → Keybindings lists every applied override and warning |
+
+The web client's Settings starts such a session for you: **Make one with an
+agent** under Theme and **Change them with an agent** under Keybindings open a
+Scratch session whose agent is told the file, the format and the check.
+Settings rereads the file when you open it again. `state.json` is edited
+through Settings or `rove config`, not by an agent: a wrong value there can
+change how every task runs.
+
 ### Runtime path overrides
 
 `ROVE_HOME_DIR` already decides where the daemon and the PTY host put their

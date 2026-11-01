@@ -105,6 +105,12 @@ export const en = {
     createFile: "Create keybindings.yaml",
     exists: "keybindings.yaml already exists; nothing was changed.",
     pluginNoTask: "Select a task before using a plugin chord.",
+    pluginChords: "Plugin chords",
+    agent: "Change them with an agent",
+    agentHint: "opens a Scratch session; reopen Settings to see what it changed.",
+    agentFailed: "couldn't open the session; try again.",
+    agentPrompt:
+      "Change my Rove keybindings. Ask me first what I want changed, unless I already said. Edit {path} (create it if it is missing; keep existing entries and comments you were not asked to change). The format, every binding id and its default chord are in https://github.com/sma1lboy/rove/blob/main/docs/KEYBINDINGS.md (see Customizing). Only use binding ids listed there; a direct override replaces that binding's whole chord list, and null unbinds. The file must stay valid YAML: check it parses (for example with `ruby -ryaml -e 'YAML.load_file(ARGV[0])' {path}` or any YAML parser you have). Rove reloads it live, and unknown ids or invalid chords are ignored with a warning, so when you are done tell me what you changed and ask me to reopen Settings → Keybindings: it lists every applied override and every warning.",
   },
   pages: {
     attachTooLarge: "{name} is larger than 5 MB",
@@ -235,6 +241,12 @@ export const zh: typeof en = {
     createFile: "创建 keybindings.yaml",
     exists: "keybindings.yaml 已存在,未做任何改动。",
     pluginNoTask: "使用插件快捷键前请先选中一个任务。",
+    pluginChords: "插件快捷键",
+    agent: "让 agent 来改",
+    agentHint: "会开一个 Scratch 会话；改好后重新打开设置就能看到。",
+    agentFailed: "会话没打开，再试一次。",
+    agentPrompt:
+      "帮我改 Rove 的快捷键。先问我想改什么，除非我已经说过。编辑 {path}（不存在就新建；没让你改的条目和注释都保留）。格式、每个 binding id 及其默认按键见 https://github.com/sma1lboy/rove/blob/main/docs/KEYBINDINGS.md（Customizing 一节）。只用那里列出的 binding id；直接覆盖会替换该 binding 的整个按键列表，null 表示解绑。文件必须保持合法 YAML：确认它能解析（比如 `ruby -ryaml -e 'YAML.load_file(ARGV[0])' {path}`，或任何你有的 YAML 解析器）。Rove 会实时重新加载它，未知 id 或无效按键会被忽略并给出警告，所以改完后告诉我改了什么，并请我重新打开 设置 → 快捷键：那里会列出所有生效的覆盖和所有警告。",
   },
   pages: {
     attachTooLarge: "{name} 超过 5 MB",

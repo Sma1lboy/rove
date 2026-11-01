@@ -1,19 +1,23 @@
 /**
  * Settings → Keybindings (TUI `KeybindingsSettingsSection`): the prefix-tap guide mode, the
- * config file and what it changed, every load warning, and the starter-file action offered
- * while the file is absent. The file is read and written on the Mac; chords are edited there.
+ * config file and what it changed (overrides and plugin chords), every load warning, the starter-file
+ * action offered while the file is absent, and a Scratch session whose agent edits the file. The file
+ * is read and written on the Mac; chords are edited there, and it is reread each time this opens.
  */
 
 import { FIXED_BINDING_IDS } from "@sma1lboy/rove/src/tui/lib/keymap-overrides.ts"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { askAgent } from "./ask-agent.ts"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { PREF_FIELD, PREF_HINT, PREF_LABEL } from "./ui/settings.ts"
 import { loadUserKeys, userKeys } from "./user-keys.ts"
 
@@ -27,10 +31,12 @@ async function createFile(client: BridgeClient): Promise<void> {
   }
 }
 
-export function KeysSection({ client }: { client: BridgeClient }) {
+export function KeysSection({ model }: { model: AppModel }) {
+  const { client } = model
   const { prefs } = usePrefs()
   const keys = useStore(userKeys)
-  // The file may have changed since the page loaded; reading it is cheap.
+  const [askFailed, setAskFailed] = useState(false)
+  // The file may have changed since the page loaded (an agent's edit, a hand edit); reading it is cheap.
   useEffect(() => void loadUserKeys(client), [client])
   const prefix = keys.prefix.key ?? ts("keybindings.prefixDisabled")
   const fixed = Object.keys(FIXED_BINDING_IDS).sort()
@@ -80,6 +86,25 @@ export function KeysSection({ client }: { client: BridgeClient }) {
           ))}
         </div>
       )}
+      {keys.plugins.length > 0 && (
+        <div className={PREF_FIELD}>
+          <span className={PREF_LABEL}>{t("keys.pluginChords")}</span>
+          {keys.plugins.map((p) => (
+            <p key={p.chord} className="mono">{`${p.chord}  ${p.kind}:${p.target}`}</p>
+          ))}
+        </div>
+      )}
+      <p className={`${PREF_HINT} text-muted`}>
+        <Button
+          onClick={() => {
+            setAskFailed(false)
+            askAgent(model, t("keys.agentPrompt", { path: keys.path })).catch(() => setAskFailed(true))
+          }}
+        >
+          {t("keys.agent")}
+        </Button>{" "}
+        {askFailed ? t("keys.agentFailed") : t("keys.agentHint")}
+      </p>
       <p className="text-muted">{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
       <p className="text-muted">{t("prefs.keysYaml")}</p>
     </Group>
