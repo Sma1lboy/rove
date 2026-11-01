@@ -65,7 +65,7 @@ export const PANE_HINT = `keys-only m-0 overflow-hidden px-3.5 py-1 text-meta te
 
 /** A chord's keycap badge; under the rail head it hangs below its chip. */
 export const shortcutBadge = (head: boolean): string =>
-  `absolute z-8 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px text-meta text-accent ${head ? "top-full right-0" : "top-1/2 right-1 -translate-y-1/2"}`
+  `shortcut-badge absolute z-8 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px text-meta text-accent ${head ? "top-full right-0" : "top-1/2 right-1 -translate-y-1/2"}`
 
 /** Split border styles (TUI `SplitStyle`): box frames every pane, line draws only the shared edge, rail a left bar, rule a top rule with the name riding it. */
 export const SPLIT = "relative min-w-0 flex-1"
@@ -76,7 +76,8 @@ const EDGE = {
 } as const
 const edge = (side: "left" | "top", active: boolean): string => EDGE[side][active ? 1 : 0]
 export const splitLeafClass = (style: string | null, o: { left: boolean; top: boolean; active: boolean }): string => {
-  const base = "absolute box-border flex min-h-0 min-w-0"
+  // `split-leaf` and `is-active` stay: pane-focus.ts finds the active pane by them.
+  const base = `split-leaf absolute box-border flex min-h-0 min-w-0 ${o.active ? "is-active" : ""}`
   const lit = o.active ? "border-accent" : ""
   if (style === "box")
     return `${base} rounded-[calc(var(--radius)-1px)] border-hairline ${o.active ? "border-accent" : "border-line"}`
@@ -103,7 +104,8 @@ export const termKey = (on: boolean): string =>
   `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-[6px] border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
-export const PREFIX_GUIDE = `fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover`
+/** `prefix-guide` stays: overlays.css animates it and prefix.tsx keeps clicks on it from cancelling the prefix. */
+export const PREFIX_GUIDE = `prefix-guide fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover`
 export const PREFIX_GUIDE_HEAD = "mb-1.5 flex justify-between gap-4"
 export const PREFIX_GUIDE_BODY = "columns-[2_220px] gap-x-5"
 export const PREFIX_GUIDE_GROUP = "mb-2 break-inside-avoid"
