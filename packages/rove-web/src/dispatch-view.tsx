@@ -33,6 +33,7 @@ import { useStore } from "./store.ts"
 import { page } from "./ui.ts"
 import * as dp from "./ui/dispatch.ts"
 import { Legend } from "./ui/legend.tsx"
+import { PG_TOP, pgHintClass } from "./ui/page.ts"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
   delivered: "→",
@@ -177,9 +178,9 @@ export function DispatchView({ model }: { model: AppModel }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`page ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
-      <div className="pg-top">
+      <div className={PG_TOP}>
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint touch:empty:hidden!">
+        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>
