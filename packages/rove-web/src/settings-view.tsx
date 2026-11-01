@@ -29,7 +29,7 @@ const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) =
   engines: (p) => <EnginesSection client={p.client} />,
   autoRouting: (p) => <RoutingSection client={p.client} />,
   plugins: (p) => <PluginsSection model={p.model} />,
-  keys: (p) => <KeysSection client={p.client} />,
+  keys: (p) => <KeysSection model={p.model} />,
   feedback: (p) => <FeedbackSection client={p.client} />,
   dev: (p) => <DevSection client={p.client} />,
   connectors: (p) => <ConnectorsSection model={p.model} />,

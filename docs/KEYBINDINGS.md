@@ -426,6 +426,10 @@ plugins:
 
 See [design/plugins.md](./design/plugins.md).
 
+An agent can make these edits for you: Settings → Keybindings → **Change them
+with an agent** in the web client opens a Scratch session for it. See
+[What an agent may edit](./CONFIGURATION.md#what-an-agent-may-edit).
+
 ---
 
 Why each chord sits where it does, and which ones are still open questions:

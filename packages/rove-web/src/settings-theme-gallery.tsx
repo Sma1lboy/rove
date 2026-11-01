@@ -8,13 +8,12 @@
  */
 
 import { type ReactNode, useEffect, useState } from "react"
+import { askAgent } from "./ask-agent.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type Mode, type PreviewTheme, themePreview } from "./prefs-theme.ts"
 import { type ThemeEntry, loadPrefs, setPref } from "./prefs.ts"
 import { createStore, useStore } from "./store.ts"
-import { openTab } from "./task-dialogs.tsx"
-import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
   PREF_FIELD,
@@ -128,15 +127,9 @@ export function ThemeGallery(props: {
     )
   }, [client])
 
-  const askAgent = async (dir: string) => {
+  const askForTheme = (dir: string) => {
     setAskFailed(false)
-    try {
-      const { taskId } = await client.request<{ taskId: string }>("task.openScratch")
-      await openTab(model, taskId, { kind: "engine", prompt: t("prefs.themeAgentPrompt", { dir }) })
-      closeDialog()
-    } catch {
-      setAskFailed(true)
-    }
+    askAgent(model, t("prefs.themeAgentPrompt", { dir })).catch(() => setAskFailed(true))
   }
 
   const dir = hosted?.dir ?? null
@@ -198,7 +191,7 @@ export function ThemeGallery(props: {
       )}
       {dir && (
         <p className={`${PREF_HINT} mt-2 text-muted`}>
-          <Button onClick={() => void askAgent(dir)}>{t("prefs.themeAgent")}</Button>{" "}
+          <Button onClick={() => askForTheme(dir)}>{t("prefs.themeAgent")}</Button>{" "}
           {askFailed ? t("prefs.themeAgentFailed") : t("prefs.themeAgentHint")}
         </p>
       )}
