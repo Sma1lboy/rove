@@ -289,7 +289,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `engine.rename` | `id`, `name` | state.json `engineName.<id>` | yes |
 | `engine.reset` | `id` | state.json `engineCommand`/`engineName`/`engineProtocol`/`customEngineIds` | yes |
 | `skill.install` | — | `installSkillErrors`: copies the Rove agent skill into each engine set up on the Mac that lacks a current copy; `{error}` (null on success) | yes |
-| `skill.missing` | — | `skillTargets`: `{engines}` set up on the Mac with no skill copy (drives the persistent skill banner) | — |
+| `skill.missing` | — | `missingSkillNames`: `{engines}` Rove can run on the Mac (CLI on PATH) with no skill copy (drives the persistent skill banner) | — |
 | `output.read` | `taskId`, `tab?`, `source?`, `cursor?`, `limit?` | `read-output` | — |
 | `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
 | `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |

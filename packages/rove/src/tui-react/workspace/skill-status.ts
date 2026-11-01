@@ -5,10 +5,11 @@
  * so without {@link startSkillStatus} the list stays empty and no banner shows.
  */
 
+import { installedEngineIds } from "../../engine/account-detect"
 import { createStateCell } from "../../lib/external-store"
-import { installSkillErrors, skillTargets } from "../../lib/skill-install"
+import { installSkillErrors, missingSkillNames } from "../../lib/skill-install"
 
-/** Display names of engines with no skill copy. Outdated copies don't count: the daemon refreshes them. */
+/** Display names of runnable engines with no skill copy (`missingSkillNames`). */
 export const skillMissing = createStateCell<readonly string[]>([])
 
 const POLL_MS = 30_000
@@ -16,15 +17,14 @@ let started = false
 
 export function refreshSkillStatus(): void {
   if (!started) return
-  try {
-    const next = skillTargets()
-      .filter((t) => t.state === "not-installed")
-      .map((t) => t.displayName)
-    // A fresh array every poll would re-render the host every 30 s.
-    if (next.join("\n") !== skillMissing.get().join("\n")) skillMissing.set(next)
-  } catch {
+  installedEngineIds()
+    .then((installed) => {
+      const next = missingSkillNames(installed)
+      // A fresh array every poll would re-render the host every 30 s.
+      if (next.join("\n") !== skillMissing.get().join("\n")) skillMissing.set(next)
+    })
     // An unreadable engine home keeps the last answer.
-  }
+    .catch(() => {})
 }
 
 /** Read now and every 30 s, so a `rove skill install` from a shell clears the banner too. */

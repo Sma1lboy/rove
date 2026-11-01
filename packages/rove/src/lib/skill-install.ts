@@ -82,19 +82,30 @@ export function engineSkillDir(vendor: VendorId): string | null {
 }
 
 /**
- * Every engine that declares a skills dir and is set up here. Engines sharing
- * one dir (the common `~/.agents/skills`) collapse to the first.
+ * Every engine (of `vendors`) that declares a skills dir and is set up here.
+ * Engines sharing one dir (the common `~/.agents/skills`) collapse to the first.
  */
-export function skillTargets(): SkillTarget[] {
+export function skillTargets(vendors: readonly VendorId[] = identifiableEngineIds()): SkillTarget[] {
   const seen = new Set<string>()
   const out: SkillTarget[] = []
-  for (const vendor of identifiableEngineIds()) {
+  for (const vendor of vendors) {
     const dir = engineSkillDir(vendor)
     if (!dir || seen.has(dir)) continue
     seen.add(dir)
     out.push({ vendor, displayName: engineEntry(vendor).displayName, dir, ...readSkillCopy(dir) })
   }
   return out
+}
+
+/**
+ * The skill banner's list: engines Rove can run here (`installed`) whose skills dir has no copy.
+ * A home dir left by an uninstalled CLI (`~/.copilot` with no `copilot`) is not an engine to nag
+ * about. Outdated copies don't count: the daemon refreshes them.
+ */
+export function missingSkillNames(installed: readonly VendorId[]): string[] {
+  return skillTargets(installed)
+    .filter((t) => t.state === "not-installed")
+    .map((t) => t.displayName)
 }
 
 /** Aggregate for one-line surfaces (doctor). */

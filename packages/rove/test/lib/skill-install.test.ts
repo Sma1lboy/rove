@@ -19,6 +19,7 @@ vi.mock("node:os", async (importOriginal) => {
 import {
   ROVE_SKILL_VERSION,
   installSkill,
+  missingSkillNames,
   parseSkillVersion,
   skillOverview,
   skillTargets,
@@ -42,6 +43,16 @@ describe("skillTargets", () => {
     mkdirSync(join(fx.home, ".codex"))
     writeFileSync(join(fx.home, ".claude", "settings.json"), JSON.stringify({ enabledPlugins: { "rove@m": true } }))
     expect(skillTargets().map((t) => t.vendor)).toEqual(["codex"])
+  })
+})
+
+describe("missingSkillNames", () => {
+  it("names only engines Rove can run: a home dir left by an uninstalled CLI is not nagged about", () => {
+    mkdirSync(join(fx.home, ".codex"))
+    mkdirSync(join(fx.home, ".copilot"))
+    expect(missingSkillNames(["codex"])).toEqual(["Codex"])
+    installSkill(skillTargets(["codex"]), fx.source)
+    expect(missingSkillNames(["codex"])).toEqual([])
   })
 })
 
