@@ -1,10 +1,57 @@
-/** Image/PDF attachments for a first message: stored on the Mac by `attachment.put`, referenced like the TUI composer does. */
+/** Image/PDF attachments for a message: stored on the Mac by `attachment.put`, referenced like the TUI composer does. */
 
-import { useState } from "react"
+import { type ClipboardEvent, type DragEvent, type ReactNode, useState } from "react"
 import type { AppModel } from "./model.ts"
 import { CHIPS_ROW, chipClass } from "./ui/form.ts"
 
 const MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"]
+
+/** Drop a file on the box, or paste one into its field; text pastes pass through. */
+export function fileTargets(attach: (files: File[]) => void) {
+  return {
+    drop: {
+      onDragOver: (e: DragEvent) => e.dataTransfer.types.includes("Files") && e.preventDefault(),
+      onDrop: (e: DragEvent) => {
+        if (e.dataTransfer.files.length === 0) return
+        e.preventDefault()
+        attach(Array.from(e.dataTransfer.files))
+      },
+    },
+    onPaste: (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData.files)
+      if (files.length === 0) return
+      e.preventDefault()
+      attach(files)
+    },
+  }
+}
+
+/** A label that opens the system file picker (the phone's photo library): `children` is what it shows. */
+export function AttachPicker(props: {
+  className: string
+  title: string
+  disabled?: boolean
+  onFiles: (files: File[]) => void
+  children: ReactNode
+}) {
+  return (
+    <label className={props.className} title={props.title}>
+      {props.children}
+      <input
+        type="file"
+        accept={MIMES.join(",")}
+        multiple
+        className="sr-only"
+        disabled={props.disabled}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? [])
+          e.target.value = ""
+          if (files.length > 0) props.onFiles(files)
+        }}
+      />
+    </label>
+  )
+}
 
 export interface Attachment {
   readonly path: string
@@ -44,7 +91,7 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
     }
   }
   const remove = (path: string) => setAttachments((now) => now.filter((x) => x.path !== path))
-  return { attachments, attach, remove }
+  return { attachments, attach, remove, clear: () => setAttachments([]) }
 }
 
 /** The attached files as removable chips; a click drops one. */

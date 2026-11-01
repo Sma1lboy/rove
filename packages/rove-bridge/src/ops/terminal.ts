@@ -23,7 +23,7 @@ import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs
 import { initialTabs } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-lifecycle.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optInt, optStr, str } from "../protocol.ts"
-import { absPath, flag, optText, tabId, taskId, text } from "./args.ts"
+import { absPath, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
 import { taskOpDeps } from "./tasks-shared.ts"
 import type { Args, OpTable } from "./types.ts"
 
@@ -239,6 +239,20 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
         await api.verb("send", argv)
         return {}
+      },
+    },
+
+    "tab.send": {
+      kind: "write",
+      destructive: false,
+      wraps:
+        "rove api send --plain (a message typed in the page's composer, pasted and submitted by the engine's own composer)",
+      async run(a, { api }) {
+        const argv = [flag("task-id", taskId(a)), "--plain", flag("prompt", text(a, "prompt", PROMPT_MAX))]
+        if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
+        const res = await api.verb<{ delivered?: boolean; reason?: unknown; targetDetail?: unknown }>("send", argv)
+        if (res.delivered === true) return { delivered: true }
+        return { delivered: false, reason: sendReason(res.targetDetail ?? res.reason) ?? "not confirmed" }
       },
     },
 

@@ -51,6 +51,12 @@ export function optText(args: Args, name: string, max: number): string | undefin
   return text(args, name, max)
 }
 
+/** `send` reports a string or a small object (`{failure: "other"}`); a page shows one line either way. */
+export function sendReason(reason: unknown): string | undefined {
+  if (reason === undefined || reason === null || reason === "") return undefined
+  return typeof reason === "string" ? reason : JSON.stringify(reason)
+}
+
 /** The `taskId` most ops take, checked for shape (ids are ULIDs; refuse anything flag-like). */
 export function taskId(args: Args, name = "taskId"): string {
   const v = args[name]

@@ -14,6 +14,7 @@ import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
+import { TermComposer } from "./term-composer.tsx"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { TermKeyRow } from "./term-key-row.tsx"
 import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
@@ -22,7 +23,7 @@ import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
-import { TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
+import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
 
 export interface TerminalViewProps {
@@ -40,6 +41,8 @@ export interface TerminalViewProps {
   readonly onActivate?: () => void
   /** The pane's process ended. */
   readonly onExit?: () => void
+  /** An engine's own session: a touch screen gets a message composer under it. */
+  readonly composer?: boolean
 }
 
 /** A dropped image or PDF is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
@@ -260,36 +263,39 @@ export function TerminalView(props: TerminalViewProps) {
         void (files.length > 0 ? dropFiles(client, handle, files) : pasteClipboardImage(client, handle))
       }}
     >
-      <div className={TERM_HOST} ref={host} />
-      <TermNotice
-        notice={notice}
-        engineExit={answeredExit ? null : (props.engineExit ?? null)}
-        model={props.model}
-        taskId={taskId}
-        revive={revive}
-        onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
-        onRetryAttach={handle ? () => void handle.reattach() : undefined}
-      />
-      {scrolled > 0 && !searching && handle && (
-        <div className={`mono ${TERM_SCROLLED}`}>
-          <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
-          <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
-            {terminalText("scrollFirst")}
-          </button>
-          <button type="button" className={LINK} onClick={() => handle.scrollToBottom()}>
-            {terminalText("scrollLatest")}
-          </button>
-        </div>
-      )}
-      {searching && handle && (
-        <TermSearchBar
-          handle={handle}
-          onClose={() => {
-            setSearching(false)
-            handle.term.focus()
-          }}
+      <div className={TERM_BODY}>
+        <div className={TERM_HOST} ref={host} />
+        <TermNotice
+          notice={notice}
+          engineExit={answeredExit ? null : (props.engineExit ?? null)}
+          model={props.model}
+          taskId={taskId}
+          revive={revive}
+          onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
+          onRetryAttach={handle ? () => void handle.reattach() : undefined}
         />
-      )}
+        {scrolled > 0 && !searching && handle && (
+          <div className={`mono ${TERM_SCROLLED}`}>
+            <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
+            <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
+              {terminalText("scrollFirst")}
+            </button>
+            <button type="button" className={LINK} onClick={() => handle.scrollToBottom()}>
+              {terminalText("scrollLatest")}
+            </button>
+          </div>
+        )}
+        {searching && handle && (
+          <TermSearchBar
+            handle={handle}
+            onClose={() => {
+              setSearching(false)
+              handle.term.focus()
+            }}
+          />
+        )}
+      </div>
+      {props.composer && <TermComposer model={props.model} taskId={taskId} tabId={tabId} />}
       {handle && <TermKeyRow handle={handle} />}
     </div>
   )

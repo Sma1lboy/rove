@@ -41,6 +41,16 @@ already paired with `rove-bridge` keeps working: the two share one token.
   here updates both ([PLUGIN-AUTHORING.md](PLUGIN-AUTHORING.md#mods)).
 - A plugin's input dialog (`rove api prompt`) opens here too; the first
   answer from the web or a TUI wins.
+- On a touch screen an engine tab has a message field under its terminal,
+  above the key row: type, dictate or paste there (images and PDFs too, or
+  pick them with the paperclip) and Send pastes and submits the whole message
+  through the engine's own composer (`tab.send`, as `rove api send`); mid-turn
+  the engine queues it. A draft is kept per tab until the engine takes it.
+  Another machine's tasks have none: they are read-only here.
+- New session takes images and PDFs (paperclip, paste or drop) for its first
+  message. `/?prompt=<text>&repo=<path>` opens New session with that draft and
+  project, for a bookmark or a home-screen shortcut. It only fills the
+  composer; nothing starts until you press Start.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
   agents. It starts closed: the Files, Diff and Browser buttons at the
