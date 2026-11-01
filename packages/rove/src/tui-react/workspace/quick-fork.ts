@@ -301,7 +301,7 @@ export function useQuickFork(
   }
 
   return {
-    onQuickFork: (repo, result) => void onQuickFork(repo, result),
+    onQuickFork: (repo, result, source) => void onQuickFork(repo, result, source),
     onSpawnChild: (request) => void onSpawnChild(request),
     initialPromptFor,
     runAgain: (task) => void onRunAgain(task),
