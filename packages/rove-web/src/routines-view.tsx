@@ -36,6 +36,7 @@ import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
+import { PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
 
 const POLL_MS = 5_000
 
@@ -315,9 +316,9 @@ export function RoutinesView({ model }: { model: AppModel }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className="page rt-page" tabIndex={0} ref={root}>
-      <div className="pg-top">
+      <div className={PG_TOP}>
         <h1 className="page-title">{auto.title}</h1>
-        <span className="pg-actions mono">
+        <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
             <span className="tone-attention">
               {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
@@ -327,7 +328,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
             {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
           </span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
-          <button type="button" className="link" onClick={() => void createRoutine()}>
+          <button type="button" className={`link ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
             {t("pages.new")}
           </button>
         </span>
@@ -336,7 +337,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
       {reply === null ? (
         <p className="muted">{common.loading}</p>
       ) : rows.length === 0 ? (
-        <div className="pg-list">
+        <div className={PG_LIST}>
           <p className="muted">{auto.empty}</p>
           <p className="keys-only">{auto.emptyHint}</p>
         </div>
@@ -390,10 +391,10 @@ export function RoutinesView({ model }: { model: AppModel }) {
               <>
                 <div className="rt-head">
                   <h2 className="rt-name">{selected.name}</h2>
-                  <span className="pg-actions mono">
+                  <span className={`mono ${PG_ACTIONS}`}>
                     <button
                       type="button"
-                      className="link"
+                      className={`link ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void runNow()}
                     >
@@ -401,13 +402,18 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                     <button
                       type="button"
-                      className="link"
+                      className={`link ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void toggleEnabled()}
                     >
                       {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
                     </button>
-                    <button type="button" className="link" disabled={busy === selected.id} onClick={requestDelete}>
+                    <button
+                      type="button"
+                      className={`link ${PG_ACTION_LINK.row}`}
+                      disabled={busy === selected.id}
+                      onClick={requestDelete}
+                    >
                       {t("pages.delete")}
                     </button>
                   </span>
@@ -471,7 +477,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
           </div>
         </div>
       )}
-      {notice && <p className="muted pg-notice">{notice}</p>}
+      {notice && <p className={`muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }

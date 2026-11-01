@@ -22,6 +22,7 @@ import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
+import { PG_TOP, pgHintClass } from "./ui/page.ts"
 
 const SPACE_PX = [0, 6, 12, 20] as const
 
@@ -180,9 +181,9 @@ export function ModsView({ model }: { model: AppModel }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className="page mods-page" tabIndex={0} ref={root}>
-      <div className="pg-top">
+      <div className={PG_TOP}>
         <h1 className="page-title">{copy.title}</h1>
-        <span className="pg-hint muted keys-only touch:empty:hidden!">{copy.keys}</span>
+        <span className={`muted keys-only touch:empty:hidden! ${pgHintClass(false)}`}>{copy.keys}</span>
       </div>
       {panes.length === 0 ? (
         <div className="mods-empty">

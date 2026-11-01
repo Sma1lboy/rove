@@ -22,6 +22,17 @@ import {
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
+import {
+  PG_GROW,
+  PG_ISSUE_LINE,
+  PG_ISSUE_NUM,
+  PG_ISSUE_SUB,
+  PG_LIST,
+  PG_NOTICE,
+  PG_TOP,
+  pgHintClass,
+  pgIssueClass,
+} from "./ui/page.ts"
 
 const LIMIT = 30
 
@@ -200,15 +211,15 @@ export function IssuesView({ model }: { model: AppModel }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className="page" tabIndex={0} ref={root}>
-      <div className="pg-top">
+      <div className={PG_TOP}>
         <h1 className="page-title">{copy.title}</h1>
-        <span className="muted mono pg-hint touch:empty:hidden!">
+        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>
       </div>
       {error ? (
-        <div className="pg-list">
+        <div className={PG_LIST}>
           <p className="error">{error}</p>
           <p className="muted">{hint(error)}</p>
         </div>
@@ -217,7 +228,7 @@ export function IssuesView({ model }: { model: AppModel }) {
       ) : rows.length === 0 ? (
         <p className="muted">{copy.empty}</p>
       ) : (
-        <div className="pg-list" ref={list}>
+        <div className={PG_LIST} ref={list}>
           {rows.map((item, index) => {
             const linked = links[item.number]
             const updated = Date.parse(item.updatedAt)
@@ -226,15 +237,15 @@ export function IssuesView({ model }: { model: AppModel }) {
               <div
                 key={item.number}
                 data-row={index}
-                className={`pg-issue ${index === at ? "is-cursor" : ""}`}
+                className={pgIssueClass(index === at)}
                 onClick={() => (index === at ? void startSelected() : setCursor(index))}
               >
-                <div className="pg-issue-line">
-                  <span className="pg-num mono">#{item.number}</span>
-                  <span className="pg-grow">{item.title}</span>
+                <div className={PG_ISSUE_LINE}>
+                  <span className={`mono ${PG_ISSUE_NUM}`}>#{item.number}</span>
+                  <span>{item.title}</span>
                 </div>
-                <div className="pg-issue-sub">
-                  <span className="pg-grow">
+                <div className={PG_ISSUE_SUB}>
+                  <span className={PG_GROW}>
                     {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(", ")}
                   </span>
                   {linked && <span>{fill(copy.linkedChip, { title: titleOf(linked) })}</span>}
@@ -245,7 +256,7 @@ export function IssuesView({ model }: { model: AppModel }) {
           })}
         </div>
       )}
-      {notice && <p className="muted pg-notice">{notice}</p>}
+      {notice && <p className={`muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }

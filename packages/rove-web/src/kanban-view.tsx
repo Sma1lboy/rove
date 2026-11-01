@@ -32,6 +32,7 @@ import { useStore } from "./store.ts"
 import { dialog, menu, page, toast } from "./ui.ts"
 
 import { type Board, Card, TONE, useBoards, useEngines } from "./kanban-parts.tsx"
+import { PG_ACTIONS, PG_ACTION_LINK } from "./ui/page.ts"
 const POLL_MS = 5_000
 /** Four lanes need about this much width before a card stops being readable. */
 const MIN_BOARD_PX = 760
@@ -390,13 +391,13 @@ export function KanbanView({ model }: { model: AppModel }) {
         <h1 className="page-title">{kanban.title}</h1>
         <span className="muted mono kb-hint-line">{kanban.hint}</span>
         {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
-        <span className="pg-actions mono">
-          <button type="button" className="link" disabled={!board} onClick={openIntake}>
+        <span className={`mono ${PG_ACTIONS}`}>
+          <button type="button" className={`link ${PG_ACTION_LINK.kanban}`} disabled={!board} onClick={openIntake}>
             {t("pages.new")}
           </button>
           <button
             type="button"
-            className="link"
+            className={`link ${PG_ACTION_LINK.kanban}`}
             disabled={!board?.issues.some((entry) => entry.id === selectedId)}
             onClick={requestDelete}
           >

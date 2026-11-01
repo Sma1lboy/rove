@@ -1,95 +1,4 @@
-/* Rail page entries and the Kanban / Routines / Issues pages. Tokens from styles.css. */
-
-.rail-nav {
-  display: flex;
-  flex-direction: column;
-  padding: 0 6px 8px;
-}
-
-.rail-nav-row {
-  display: flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  text-align: left;
-}
-
-.rail-nav-row:hover {
-  background: var(--inset);
-}
-
-/* New task's own +, in the column of the projects' hover +; always shown, in the accent. */
-.rail-nav-plus {
-  margin-left: auto;
-  margin-right: -6.7px;
-  width: 20px;
-  text-align: center;
-  color: var(--accent);
-  font: 400 var(--fs-display) / 1 var(--sans);
-}
-
-.rail-nav-row.is-active {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-/* Settings, pinned under the task list. Holds the prefix guide's badge. */
-.rail-foot {
-  position: relative;
-  padding: 6px 6px 2px;
-}
-
-.rail-nav-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 7px;
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.mono {
-  font-family: var(--mono);
-}
-
-.pg-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.pg-top .page-title {
-  margin: 0;
-}
-
-.pg-hint {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--fs-meta);
-}
-
-.pg-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* Routines and Issues lists */
-
-.pg-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 10px;
-}
+/* The Routines and Mods pages. Tokens from styles.css. */
 
 /* Routines: grouped list beside the selected routine; each column scrolls on its own. */
 
@@ -350,11 +259,6 @@
   font-size: var(--fs-meta);
 }
 
-.pg-notice {
-  margin: 8px 0 0;
-  font-size: var(--fs-meta);
-}
-
 .pg-cron {
   display: flex;
   gap: 18px;
@@ -409,58 +313,6 @@
   .pg-cron-step {
     display: flex;
   }
-  .pg-actions .link::after {
-    inset: -2px -3px;
-  }
-  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
-  .kb-top .pg-actions .link::after {
-    inset: -6px -3px -4px;
-  }
-  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
-  .pg-top > .pg-actions .link::after {
-    inset: -10px -3px -5px;
-  }
-}
-
-.pg-issue-line {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  min-width: 0;
-}
-
-.pg-issue-line .pg-num {
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.pg-issue-sub {
-  display: flex;
-  gap: 10px;
-  padding-left: 4ch;
-  font-size: var(--fs-meta);
-  color: var(--muted);
-}
-
-.pg-issue-sub .pg-grow {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pg-issue {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.pg-issue.is-cursor {
-  background: var(--inset);
 }
 
 /* Mods: the DOM half of the mod element vocabulary (the TUI half is mods-page.tsx). */
