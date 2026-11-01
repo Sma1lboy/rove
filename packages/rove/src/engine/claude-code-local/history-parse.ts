@@ -9,7 +9,7 @@ import { isObject } from "../../lib/is-object.ts"
 import { isJsonlLineWithinBound } from "../file-bounds"
 import { createAppendParseCache, sortByTimestamp } from "../history-cache"
 import { normalizeClaudeContent } from "./normalize"
-import { isClaudeCommandBreadcrumb, isSyntheticClaudeRecord } from "./synthetic"
+import { isClaudeCommandBreadcrumb, isClaudeSystemReminder, isSyntheticClaudeRecord } from "./synthetic"
 
 const cache = createAppendParseCache<readonly Message[], string>({
   initial: () => [],
@@ -59,7 +59,10 @@ function extractMessage(record: Record<string, unknown>, fallbackSessionId: stri
 
   if (!("content" in inner)) return null
   // Empty blocks are kept: "no renderable content" differs from "no message" (null).
-  const blocks = normalizeClaudeContent(inner.content)
+  const all = normalizeClaudeContent(inner.content)
+  // Text Claude Code injects into the user's turn (context, hook output), not anything typed.
+  const blocks = role === "user" ? all.filter((b) => !isClaudeSystemReminder(b)) : all
+  if (all.length > 0 && blocks.length === 0) return null
   // Un-flagged `<command-name>…` breadcrumb before the real prompt; not a title.
   if (role === "user" && isClaudeCommandBreadcrumb(blocks)) return null
 

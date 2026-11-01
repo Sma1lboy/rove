@@ -79,6 +79,10 @@ already paired with `rove-bridge` keeps working: the two share one token.
   `rove daemon restart` clears it. A prompt sent from here to a task on
   another [machine](./MACHINES.md) is drawn into that machine's box and moves
   on the state its engine reports there. Click a row to open the target tab.
+- Search (rail): type a word to find it in what you and the agents wrote in
+  any task's conversation (`rove api search`), newest first, the words around
+  each hit shown. A hit opens its task; the terminal does not scroll to the
+  line. Tool output is not searched, and a task on another machine is not.
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 

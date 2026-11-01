@@ -76,7 +76,7 @@ export interface Preview {
   readonly scope: "working" | "branch"
 }
 
-export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "dispatch"
+export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "dispatch" | "search"
 /** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
 export const page = createStore<PageId | null>(null)
 /** The routine the Inbox sent the Routines page to; the page puts its cursor there once and clears this. */

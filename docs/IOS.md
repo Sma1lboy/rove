@@ -289,6 +289,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `output.read` | `taskId`, `tab?`, `source?`, `cursor?`, `limit?` | `read-output` | — |
 | `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
 | `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |
+| `sessions.search` | `query`, `repo?`, `limit?` | `search` | — |
 
 What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace, set the custom editor command. Engine rows never carry account emails or the launch command's arguments.
 

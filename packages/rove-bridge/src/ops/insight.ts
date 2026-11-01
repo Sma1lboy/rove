@@ -67,4 +67,18 @@ export const insightOps: OpTable = {
       return api.verb("agent-turns", argv)
     },
   },
+  "sessions.search": {
+    kind: "read",
+    destructive: false,
+    wraps: "rove api search (user and assistant prose in every task's engine history)",
+    run(args, { api }) {
+      const query = optText(args, "query", 200)?.trim()
+      if (!query) throw new BridgeError("BAD_ARGS", "query is required")
+      const argv = [flag("query", query)]
+      if (given(args, "repo")) argv.push(flag("repo", absPath(args, "repo")))
+      const limit = optInt(args, "limit", 1, 100)
+      if (limit !== undefined) argv.push(flag("limit", limit))
+      return api.verb("search", argv)
+    },
+  },
 }
