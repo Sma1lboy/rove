@@ -396,6 +396,44 @@ Deleting the task deletes its checkpoint refs; the worktree directory going
 away does not, since the refs live in the repo. If the owner is deleted while a
 child still uses the directory, the child inherits the history.
 
+## LayerFS tasks (experimental)
+
+On a Linux machine with Docker, `rove api add --workspace layerfs` gives a task
+a [LayerFS](https://github.com/Ephemeral-AI-Lab/layerfs) Workspace instead of
+a git worktree. The repo is imported into a LayerFS Store once (its `.git`
+included), each task gets a Sandbox container of its own, and the Workspace is
+mounted inside it at the same path the task row records. Every terminal Rove
+opens in the task runs inside the container through `docker exec`, as uid
+`501:20` with `HOME=/tmp/rove-home`. On the host that directory holds only
+`.rove-launch.json` (the `docker exec` prefix) and `.rove-layerfs.json` (the
+backend's state).
+
+Set `experimental.layerfs` in state.json to an env file of `KEY=VALUE` lines:
+`LAYERFS_CLI` (the CLI's `layerfs.js`) and `LAYERFS_NODE` (the `node` that
+runs it), plus the LayerFS settings `LAYERFS_HOME`, `LAYERFS_STORE_PATH`,
+`LAYERFS_IMAGE` and whichever others your setup needs, all passed through
+as-is. The Store lives under `/var/lib/docker`, so every LayerFS call runs
+through `sudo -n`; without passwordless sudo the task is refused with
+`LAYERFS_NEEDS_ROOT`. Build steps: [workspace-runner.md](./design/workspace-runner.md#layerfs-backend-experimental).
+
+What differs from a worktree task:
+
+- `checkpoint` is a LayerFS commit of the whole tree, `.git` and ignored files
+  included, and `rewind` mounts a fork of that commit at the same path. Close
+  the task's terminals first: `rewind` refuses with `WORKSPACE_BUSY` while a
+  process runs in the directory.
+- No checkpoint at turn end: engine hooks inside the container cannot reach
+  the daemon. Run `rove api checkpoint` yourself.
+- The task's branch lives inside the sandbox. `rove api export-branch` copies
+  its commits into the host repo under the same name; land or push from there.
+- Engines see the container, not your machine: the engine CLI must be in the
+  image, and logins, keys and host paths in its launch flags are not there.
+- Deleting the task kills what still runs in its directory, then unmounts and
+  closes the Sandbox. The LayerFS Branch stays in the Store.
+- A Docker or machine restart ends the Sandbox and loses uncommitted work.
+  The task does not remount; delete it and start a new one (committed state is
+  still in the Store).
+
 ## Troubleshooting
 
 - **Land says the worktree is not tracked.** Adopt it as a Task first, or

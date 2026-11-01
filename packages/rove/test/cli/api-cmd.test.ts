@@ -217,6 +217,7 @@ describe("API surface (full CRUD)", () => {
       "checkpoint-list",
       "checkpoint",
       "rewind",
+      "export-branch",
       "worktree-usage",
       "discover-adoptable",
       "adopt",

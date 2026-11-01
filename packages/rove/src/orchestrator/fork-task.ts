@@ -6,6 +6,7 @@
 
 import { isRemoteRepoKey } from "../state/repos.ts"
 import type { Task, TaskId } from "../types/task.ts"
+import { type CreateDeps, createTaskRow } from "./core-create.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { ForkUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
@@ -20,6 +21,17 @@ export interface ForkTaskDeps {
   /** Materialises `child` as a clone of `parentPath`. */
   readonly cloneInto: (child: Task, parentPath: string) => Promise<string>
   readonly workspaces: Pick<WorkspaceRegistry, "get">
+}
+
+/** A workspace backend that cannot run here refuses before any row exists; a `forkFrom` input forks. */
+export async function createOrForkTask(
+  deps: CreateDeps & Omit<ForkTaskDeps, "createRow">,
+  input: CreateTaskInput,
+): Promise<Task> {
+  if (input.workspace) await deps.workspaces.get(input.workspace.backend).preflight?.()
+  const createRow = (row: CreateTaskInput): Promise<Task> => createTaskRow(deps, row)
+  const { forkFrom } = input
+  return forkFrom ? forkTaskRow({ ...deps, createRow }, { ...input, forkFrom }) : createRow(input)
 }
 
 export async function forkTaskRow(

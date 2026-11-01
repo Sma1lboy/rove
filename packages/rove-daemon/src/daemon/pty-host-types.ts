@@ -11,6 +11,12 @@ import { DEFAULT_TERMINAL_COLORS, type TerminalDefaultColors, parseTerminalDefau
 import { type TerminalModeTrack, freshModeTrack } from "./terminal-modes.ts"
 
 /** Everything `pty.open` needs to spawn a session's child on first open. */
+/**
+ * File a workspace backend drops in a task directory whose files live elsewhere (a container):
+ * `{ "prefix": argv, "reap"?: argv }`, see `launchWrapper` in pty-child-controller.ts.
+ */
+export const LAUNCH_PREFIX_FILE = ".rove-launch.json"
+
 export interface PtySpawnSpec {
   readonly cwd: string
   /** Explicit argv (engine sessions). Falls back to `shell`. */

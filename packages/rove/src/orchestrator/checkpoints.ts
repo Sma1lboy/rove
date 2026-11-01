@@ -6,9 +6,10 @@
  */
 
 import type { CheckpointOrchestrator } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
-import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
+import { workspaceBackendId, workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { Task, TaskId } from "../types/task.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import type { WorkspaceCheckpointer, WorkspaceRegistry } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
 export class WorkspaceCheckpoints implements CheckpointOrchestrator {
@@ -18,6 +19,7 @@ export class WorkspaceCheckpoints implements CheckpointOrchestrator {
       GitWorktreeManager,
       "pathExists" | "takeCheckpoint" | "listCheckpoints" | "rewindToCheckpoint"
     >,
+    private readonly workspaces: Pick<WorkspaceRegistry, "get">,
     private readonly requireTask: (id: TaskId | string) => Task,
   ) {}
 
@@ -41,30 +43,50 @@ export class WorkspaceCheckpoints implements CheckpointOrchestrator {
     return workspaceCapabilities(owner).checkpoint && !owner.deletion && owner.worktreePath !== ""
   }
 
-  /** The owner's id and worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
-  private async target(id: TaskId | string): Promise<{ ownerId: string; dir: string }> {
+  /**
+   * The owner's id, worktree and whoever snapshots it (the backend's own checkpointer, else git refs), or a
+   * `NOT_CHECKPOINTABLE:` error naming why not.
+   */
+  private async target(id: TaskId | string): Promise<{ ownerId: string; dir: string; via: WorkspaceCheckpointer }> {
     const owner = this.workspaceOwner(id)
+    const own = this.canCheckpoint(id) ? this.workspaces.get(workspaceBackendId(owner)).checkpoints : undefined
+    const dir = owner.worktreePath
     // A managed worktree always has a `.git` entry (file); its absence means a dead or non-git directory.
-    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(`${owner.worktreePath}/.git`))) {
+    if (!this.canCheckpoint(id) || !(await this.worktrees.pathExists(own ? dir : `${dir}/.git`))) {
       throw new Error(
-        `NOT_CHECKPOINTABLE: ${owner.kind === "task" ? "the task has no git worktree on disk" : `a ${owner.kind} task works in your own checkout`}`,
+        `NOT_CHECKPOINTABLE: ${owner.kind === "task" ? "the task has no workspace on disk" : `a ${owner.kind} task works in your own checkout`}`,
       )
     }
-    return { ownerId: String(owner.id), dir: owner.worktreePath }
+    const ownerId = String(owner.id)
+    const via: WorkspaceCheckpointer = own ?? {
+      take: (d, opts) => this.worktrees.takeCheckpoint(d, ownerId, opts),
+      list: (d) => this.worktrees.listCheckpoints(d, ownerId),
+      rewind: (d, n) => this.worktrees.rewindToCheckpoint(d, ownerId, n),
+    }
+    return { ownerId, dir, via }
   }
 
   async takeCheckpoint(id: TaskId | string, opts?: { tabId?: string }) {
-    const { ownerId, dir } = await this.target(id)
-    return this.worktrees.takeCheckpoint(dir, ownerId, opts)
+    const { dir, via } = await this.target(id)
+    return via.take(dir, opts)
   }
 
   async listCheckpoints(id: TaskId | string) {
-    const { ownerId, dir } = await this.target(id)
-    return this.worktrees.listCheckpoints(dir, ownerId)
+    const { dir, via } = await this.target(id)
+    return via.list(dir)
   }
 
   async rewindToCheckpoint(id: TaskId | string, n: number) {
-    const { ownerId, dir } = await this.target(id)
-    return this.worktrees.rewindToCheckpoint(dir, ownerId, n)
+    const { dir, via } = await this.target(id)
+    return via.rewind(dir, n)
+  }
+
+  async exportBranch(id: TaskId | string): Promise<{ branch: string; commit: string }> {
+    const owner = this.workspaceOwner(id)
+    const backend = this.workspaces.get(workspaceBackendId(owner))
+    if (!backend.exportBranch || !owner.worktreePath) {
+      throw new Error("EXPORT_UNSUPPORTED: the task's branch is already in its repo (or it has no workspace yet)")
+    }
+    return backend.exportBranch({ path: owner.worktreePath, repo: owner.repo, branch: owner.branch })
   }
 }

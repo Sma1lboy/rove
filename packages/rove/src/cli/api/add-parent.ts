@@ -53,7 +53,7 @@ export function parentFlags(ctx: VerbContext): ParentFlags {
     if (!on) continue
     if (noParent) conflict(flag, "no-parent")
     // The child runs in the parent's directory or its linked repo: a repo of its own, a fork point or a fleet cannot apply.
-    for (const other of ["repo", "fork", "base-for"]) if (has(other)) conflict(flag, other)
+    for (const other of ["repo", "fork", "base-for", "workspace"]) if (has(other)) conflict(flag, other)
   }
   if (noWorktree) {
     for (const other of ["base-branch", "branch", "worktree-name", "count", "agents"]) {
@@ -121,13 +121,13 @@ async function getParent(daemon: DaemonRpc, taskId: string): Promise<SerializedT
 /**
  * What the create looks like once the parent is known. A child cuts from its
  * parent's tip only when nothing else names the fork point: not `--base-branch`,
- * not `--fork`, not a multi-repo task, and the repo is the parent's own.
+ * not `--fork` or `--workspace`, not a multi-repo task, and the repo is the parent's own.
  */
 export async function placeAdd(
   ctx: VerbContext,
   parent: SerializedTask | null,
   flags: ParentFlags,
-  create: { repo: string; fork: boolean; baseRef?: string; multiRepo: boolean },
+  create: { repo: string; fork: boolean; baseRef?: string; multiRepo: boolean; ownWorkspace?: boolean },
 ): Promise<Placement> {
   if (!parent) return { kind: "top" }
   const parentId = parent.id
@@ -135,6 +135,8 @@ export async function placeAdd(
   if (flags.isolateIn) return { kind: "cut", parentId, isolateIn: flags.isolateIn }
   const tip =
     !create.fork &&
+    // `task.spawn` cuts a git worktree: a backend of the caller's choosing nests through `task.create` instead.
+    !create.ownWorkspace &&
     !create.baseRef &&
     !create.multiRepo &&
     !isRemoteRepoKey(parent.repo) &&

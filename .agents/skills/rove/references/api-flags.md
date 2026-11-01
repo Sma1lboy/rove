@@ -241,9 +241,10 @@ clear the shared active task.
 ```text
 publish        --task-id(REQ) --remote
 pr-attach      --url(REQ) --task-id
-add            --repo(REQ) --clone --fork --allow-fork --parent --no-parent --no-worktree
-               --isolate-in --title --branch --base-branch --base-for --worktree-name
-               --command --effort --tier{swift|standard|deep|auto} --model --count
+add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --parent
+               --no-parent --no-worktree --isolate-in --title --branch --base-branch
+               --base-for --worktree-name --command --effort
+               --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
                --require-report --expect-report --activate(false) --prompt|--prompt-file
@@ -293,6 +294,7 @@ remove-worktree     --task-id(REQ) --force
 checkpoint-list     --task-id(REQ)
 checkpoint          --task-id(REQ)
 rewind              --task-id(REQ) --to(REQ) --force
+export-branch       --task-id(REQ)
 worktree-usage      --task-id
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title

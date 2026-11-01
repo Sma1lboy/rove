@@ -14,7 +14,8 @@
 > landed on the seam: checkpoints at turn boundaries, `checkpoint-list` /
 > `checkpoint` / `rewind` (see "Checkpoints" below and
 > [WORKTREES](../WORKTREES.md#checkpoints)), gated by the `checkpoint`
-> workspace capability. Not implemented: the experimental `layerfs` backend.
+> workspace capability. Phase 4 has an experimental `layerfs` backend on Linux
+> Runners (`add --workspace layerfs`, see "LayerFS backend" below).
 > Decisions marked **OPEN** need the owner.
 
 ## Why
@@ -279,7 +280,7 @@ is deleted by this doc).
 | 1 | Git checkpoints at turn boundaries, rewind, fork-with-uncommitted via `cow-clone` **(shipped)** | Yes | Low: refs only, reuses salvage |
 | 2 | Runner routing: hub routes remote-task writes via `api.invoke`; per-machine PTY client; open a remote tab | Yes (machines become writable) | Medium: TUI PTY singleton |
 | 3 | Dispatch: `rove api add --runner`, base-ref reachability, hub inside a resident daemon, placement by capacity | Yes | Medium |
-| 4 | Experimental CoW backend (LayerFS or AgentFS) on Linux Runners, behind `experimental.*` | Opt-in | High upstream risk (preview/beta, no durability guarantee); isolated by the seam |
+| 4 | Experimental CoW backend (LayerFS or AgentFS) on Linux Runners, behind `experimental.*` **(LayerFS shipped, experimental)** | Opt-in | High upstream risk (preview/beta, no durability guarantee); isolated by the seam |
 
 Phase 1 doesn't depend on 2–3, and 2 doesn't depend on 0. The two halves can
 proceed in parallel.
@@ -386,14 +387,18 @@ flowchart LR
 - [ ] Upstream (route C): a Docker-free daemon mode mounting at a
       caller-chosen host path; route B (propagated mount) as the fallback.
 - [ ] Local macOS trial with macFUSE (above).
-- [ ] Spike on Linux + Docker: run a real engine CLI and 6 concurrent
-      builds in surfaced mounts; measure FUSE overhead, overlay size, store
-      growth per commit, lock behaviour.
-- [ ] Check the SDK (Node, native addon) under Bun; else a Node sidecar.
-- [ ] Phase 0 seam first; then a `layerfs` backend with capabilities
+- [x] Spike on Linux + Docker (2026-10-29 pilot on `wsl`): FUSE costs
+      1.1–1.3× on tests and 25–35× on directory scans; Store +0.5–5 MB per
+      commit. A real engine TUI starts under `docker exec -it`.
+- [x] SDK under Bun: not needed. The backend runs the LayerFS CLI under
+      Node through `sudo -n`, one process per call.
+- [x] Phase 0 seam first; then a `layerfs` backend with capabilities
       `{ fork: "committed", checkpoint: true, cheapClone: true, ownsBranch: false, interactive: false }`.
-- [ ] Wire checkpoints to `workspace.commit` at turn boundaries; surface
-      that uncommitted work dies with the Sandbox.
+- [ ] Checkpoints at turn boundaries: `checkpoint` is `workspace.commit`,
+      but engine hooks inside the Sandbox cannot reach the daemon, so no
+      turn-complete report arrives. Needs a hook transport into the container.
+- [ ] `ensureMounted`: after a Docker or machine restart the task does not
+      remount its last Commit.
 - [ ] Runner capability probe in `machine doctor`: Docker, `/dev/fuse`,
       local ext4/xfs/btrfs; the hub places `layerfs` tasks only there.
 - [ ] Build caches outside the mount: Rove sets `CARGO_TARGET_DIR` and
@@ -401,6 +406,98 @@ flowchart LR
       (`clone-ignored.ts`), optional shared sccache.
 - [ ] Upstream asks beyond B: a commit path filter or ignore file, store GC,
       a durable profile; benchmarks for the "0.31" and "0.05 s" claims.
+
+## LayerFS backend (experimental)
+
+`orchestrator/workspace/layerfs.ts`, created by `rove api add --workspace
+layerfs` when `experimental.layerfs` names an env file (user guide:
+[WORKTREES](../WORKTREES.md#layerfs-tasks-experimental)). It is route A from
+the table above, kept inside the invariant:
+
+- **Path.** One Sandbox per task. Its Workspace (`/workspaces/N`) is
+  bind-mounted inside the container at the task's host path
+  (`worktreePathFor(repo, slug)`), so the engine's cwd equals `worktreePath`.
+  The host directory exists and holds `.rove-launch.json` and the backend's
+  `.rove-layerfs.json`.
+- **Launch.** The PTY host reads `.rove-launch.json` in a session's cwd and
+  runs every child behind its `prefix` (`docker exec -it -u 501:20 -w <path>
+  … <container>`), so the neutral layers never name Docker. `reap` runs once
+  the child exits: killing a `docker exec` client does not end the process it
+  started (seen on `wsl`: a closed tab's `bash` kept the bind busy), so each
+  exec carries `ROVE_LAUNCH=<id>` and `reap` kills that id inside the
+  container. The `/proc` scans run as `501:20`, because container root lacks
+  `CAP_SYS_PTRACE` and cannot read another uid's `cwd` or `environ`.
+- **Root.** Every LayerFS call is `sudo -n env LAYERFS_*=… <node> <cli>`. A
+  `sudo -n true` probe refuses with `LAYERFS_NEEDS_ROOT` before any task row
+  exists. Docker calls run as the user (docker group).
+- **Unmount order.** `umount <path>` (the bind) before `workspace unmount`;
+  a refused unmount (`Dirty`) binds the path again. A busy bind refuses with
+  `WORKSPACE_BUSY` and changes nothing. Delete first kills what runs under
+  the path.
+- **Checkpoint and rewind.** `workspace commit`, the first one `--force`d so a
+  clean tree still gets an id; `n → commit` lives in the state file. Rewind
+  commits the current state as `undo`, runs `branch fork <slug>-r<time>
+  <commit>`, unbinds, `workspace unmount --discard`, mounts the fork and binds
+  it at the same path.
+- **Dirty gate.** `sandbox list_workspaces` `changed` answers the delete gate
+  (`dirtyPaths` on the seam), so a dirty task is refused before teardown.
+- **Landing.** `export-branch`: `git bundle create <branch> ^<base>` in the
+  Sandbox, `docker cp` out, `git fetch <bundle> <branch>:refs/heads/<branch>`
+  in the host repo.
+
+### Building it on a Runner
+
+Verified on `wsl` (Ubuntu 24.04, Docker 29.1.3 at Engine API 1.52), with the
+user in the `docker` group and passwordless sudo:
+
+```sh
+export PATH=$HOME/.cargo/bin:$HOME/.local/node/bin:$PATH   # rustup with 1.85.1, node 22
+R=$HOME/rove-layerfs && mkdir -p $R && cd $R
+git clone https://github.com/Ephemeral-AI-Lab/layerfs layerfs && cd layerfs && git checkout 9f97a7e   # v1.1.0
+# LayerFS pins Engine API 1.54; Ubuntu's docker.io serves at most 1.52.
+sed -i 's#/v1\.54/#/v1.52/#g' core/crates/layerfs-sandbox/src/backend/docker/*.rs   # 7 files
+cargo +1.85.1 fetch --locked --manifest-path core/Cargo.toml
+cargo +1.85.1 build --manifest-path core/Cargo.toml --locked --release -p layerfs-daemon -p layerfs-node   # ~75 s on 16 cores
+cp core/target/release/liblayerfs_node.so api/binding/layerfs.node
+(cd api && npm install) && (cd api/agent/cli && npm install)
+```
+
+The Sandbox image needs git, the toolchain and the engine CLI; LayerFS copies
+its own daemon into it:
+
+```dockerfile
+FROM ubuntu:24.04
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl fuse3 procps less openssh-client unzip && rm -rf /var/lib/apt/lists/*
+COPY bun /usr/local/bin/bun
+COPY node /usr/local/node
+ENV PATH=/usr/local/node/bin:$PATH
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx && for b in node npm npx; do ln -s /usr/local/node/bin/$b /usr/local/bin/$b; done
+RUN npm install -g @anthropic-ai/claude-code && ln -sf /usr/local/node/bin/claude /usr/local/bin/claude
+```
+
+```sh
+mkdir -p $R/image && cd $R/image && cp ~/.bun/bin/bun bun && cp -a ~/.local/node node   # plus the Dockerfile above
+docker build -t rove-layerfs-sandbox:1 .
+docker volume create rove-lfs-store
+sudo -n install -d -m 700 -o root -g root $R/lfs-home   # LAYERFS_HOME must be root-owned and private
+cat > $R/layerfs.env <<ENV
+LAYERFS_CLI=$R/layerfs/api/agent/cli/src/layerfs.js
+LAYERFS_NODE=$HOME/.local/node/bin/node
+LAYERFS_HOME=$R/lfs-home
+LAYERFS_STORE_PATH=/var/lib/docker/volumes/rove-lfs-store/_data/global/store.sqlite
+LAYERFS_DOCKER=/var/run/docker.sock
+LAYERFS_IMAGE=$(docker inspect -f '{{.Id}}' rove-layerfs-sandbox:1)
+LAYERFS_VOLUME=rove-lfs-store
+LAYERFS_DAEMON=$R/layerfs/core/target/release/layerfs-daemon
+LAYERFS_NATIVE=$R/layerfs/api/binding/layerfs.node
+LAYERFS_CONTAINER_PREFIX=rove-lfs-
+LAYERFS_DAEMON_HOST=127.0.0.1
+ENV
+```
+
+Then set `"experimental.layerfs": "<R>/layerfs.env"` in
+`~/.config/rove/state.json`. `LAYERFS_IMAGE` must be the `sha256:` id, not a
+tag.
 
 ## Bugs found while surveying (independent of this design)
 

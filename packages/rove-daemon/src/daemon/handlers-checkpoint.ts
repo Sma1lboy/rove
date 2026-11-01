@@ -57,4 +57,13 @@ export const CHECKPOINT_HANDLERS: readonly DaemonRequestHandler[] = [
       return { workspaceTaskId: ownerId, ...result }
     },
   },
+  {
+    name: "task.exportBranch",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const { ownerId } = ctx.orch.checkpointScope(taskId)
+      return { workspaceTaskId: ownerId, ...(await ctx.checkpoints.run(ownerId, () => ctx.orch.exportBranch(taskId))) }
+    },
+  },
 ]

@@ -113,6 +113,17 @@ describe("add from a verified rove session", () => {
     expect(create?.payload).toMatchObject({ parentTaskId: "kid", baseRef: "release" })
   })
 
+  it("nests a --workspace task through task.create, so its backend is not dropped by a cut from the tip", async () => {
+    await asKid()
+    const client = createClient()
+
+    await run(client, ["--repo", "/work/web", "--workspace", "layerfs"])
+
+    const [create] = client.requests.filter((r) => r.name === "task.create")
+    expect(client.requestNames).not.toContain("task.spawn")
+    expect(create?.payload).toMatchObject({ parentTaskId: "kid", workspace: "layerfs" })
+  })
+
   it("gives every --count sibling the parent", async () => {
     await asKid()
     const client = createClient()
@@ -216,6 +227,7 @@ describe("add --no-worktree and --isolate-in", () => {
     [["--parent", "root", "--no-worktree", "--base-branch", "dev"]],
     [["--parent", "root", "--no-worktree", "--count", "2", "--prompt", "p"]],
     [["--parent", "root", "--isolate-in", "lib", "--fork", "root"]],
+    [["--parent", "root", "--no-worktree", "--workspace", "layerfs"]],
   ])("%j conflicts before anything is created", async (argv) => {
     const client = createClient()
 
