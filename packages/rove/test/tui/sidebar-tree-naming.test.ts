@@ -144,14 +144,33 @@ describe("worktreeRowLabel", () => {
 
 describe("conversationTitleOf", () => {
   const tabs = new Map([
-    ["p", [{ id: "tab-1", title: "Parent chat" }]],
-    ["q", [{ id: "tab-1" }, { id: "tab-2", title: "Second" }]],
+    ["p", [{ id: "tab-1", title: "Parent chat", engine: true }]],
+    [
+      "q",
+      [
+        { id: "tab-1", engine: true },
+        { id: "tab-2", title: "Second", engine: true },
+      ],
+    ],
+    [
+      "d",
+      [
+        { id: "tab-3", title: "all", engine: false },
+        { id: "tab-1", title: "Fix the hook", engine: true },
+      ],
+    ],
+    ["s", [{ id: "tab-1", title: "vim", engine: false }]],
   ])
 
   test("a task reads its own first named tab; unnamed or unknown is absent", () => {
     expect(conversationTitleOf(task("p"), tabs)).toBe("Parent chat")
     expect(conversationTitleOf(task("q"), tabs)).toBe("Second")
     expect(conversationTitleOf(task("nobody"), tabs)).toBeUndefined()
+  })
+
+  test("a diff or shell tab's title never names the conversation", () => {
+    expect(conversationTitleOf(task("d"), tabs)).toBe("Fix the hook")
+    expect(conversationTitleOf(task("s"), tabs)).toBeUndefined()
   })
 
   test("a migrated child reads the parent's aliased tab, not the parent's other tabs", () => {
