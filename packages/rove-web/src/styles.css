@@ -592,8 +592,7 @@ button:focus-visible {
     position: absolute;
     inset: -12px -6px;
   }
-  /* The footer sits under the terminal key row: grow down only, and no further than the footer's 4px bottom
-     padding; past the window edge the page itself grows and scrolls. Wrapping link groups keep neighbours apart. */
+  /* The footer sits under the terminal key row: grow down only, at most its 4px bottom padding. */
   .status .link::after {
     inset: -2px -6px -4px;
   }
