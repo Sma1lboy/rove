@@ -141,7 +141,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
     return
   }
-  const { token, revoked } = startupCredentials({
+  const { sharedToken, token, revoked } = startupCredentials({
     tokenPath: join(bridgeDir, "token"),
     devicesPath,
     rotate: args.rotateToken,
