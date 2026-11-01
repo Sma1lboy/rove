@@ -291,6 +291,13 @@ engine's cached quota snapshot already says the window is exhausted (the
 daemon never fetches vendor usage for this), and the check is skipped
 when the quota is unknown. `run now` bypasses the check, like the precheck.
 
+An engine turn that fails because the connection dropped or the provider
+returned a 5xx (`Unable to connect`, `503`) does not stop the routine: the
+next scheduled firing goes ahead and is the retry. Any other failure still
+holds the next firing until you look (dismiss the Inbox row or `run now`).
+Either way the Routines page shows the newest failure under the routine
+(`last failed 3h ago: …`), so an outage that healed itself is still visible.
+
 `dispatched` means the engine PROCESS was seen running — not that the terminal
 opened. An engine whose launch command points at something that is not there
 exits immediately and leaves the login shell behind it, and the terminal is

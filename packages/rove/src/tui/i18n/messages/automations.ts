@@ -104,6 +104,8 @@ export const en = {
   empty: "No routines scheduled.",
   emptyHint: "Press n to create one.",
   precheck: "precheck: {command}",
+  /** The newest failure among the recent runs; `{when}` is relative ("3h ago"). */
+  lastFailed: "last failed {when}: {reason}",
   recentRuns: "RECENT RUNS",
   /** Header of the latest run's precheck detail. `{exit}` is `exited 1` or `timed out`. */
   precheckDetail: "WHY IT SKIPPED — precheck {exit} in {duration}ms",
@@ -221,6 +223,7 @@ export const zh: typeof en = {
   empty: "还没有例行任务。",
   emptyHint: "按 n 新建一条。",
   precheck: "预检：{command}",
+  lastFailed: "上次失败（{when}）：{reason}",
   recentRuns: "最近执行",
   /** 最近一次执行的预检详情标题。`{exit}` 为“退出码 1”或“超时”。 */
   precheckDetail: "为什么跳过 —— 预检{exit}，耗时 {duration}ms",

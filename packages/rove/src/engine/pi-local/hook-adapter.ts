@@ -12,6 +12,7 @@ import { rm } from "node:fs/promises"
 import path from "node:path"
 import { roveHookInvocation } from "../../cli/invocation.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { isTransientFailureText } from "../failure-text.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import type { HookEditOutcome } from "../json-hooks.ts"
@@ -51,6 +52,7 @@ function piFailureDetail(payload: Record<string, unknown>): EngineActivityDetail
       return "billing"
     }
     if (/rate.?limit|too many requests|\b429\b|overloaded|capacity/.test(message)) return "rate_limit"
+    if (isTransientFailureText(message)) return "transient"
     return "other"
   })()
   return { failure, ...(note ? { note } : {}) }

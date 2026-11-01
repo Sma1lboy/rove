@@ -17,7 +17,7 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { isValidCron } from "./cron.ts"
-import { reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
+import { type RoutineFailure, lastRoutineFailure, reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
@@ -97,21 +97,28 @@ function readGraceMinutes(payload: Record<string, unknown>): number | undefined 
 
 const NO_PROJECT_BASE_REF = "a routine with no project has no base branch; drop baseRef or give it a repo"
 
+/** How far back a routine row looks for its last failure: ~8 hours of a 10-minute routine. */
+const FAILURE_LOOKBACK_RUNS = 50
+
 export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "automation.list",
     async handle(_payload, ctx) {
       const automations = ctx.automations.list()
-      // Latest run status so the list shows broken routines. Status only;
-      // details stay behind `automation.runs`.
+      // Latest run status so the list shows broken routines, and the newest failure among the
+      // recent runs so a stalled or self-healed routine still says why. Details stay behind `automation.runs`.
       const lastRunStatus: Record<string, AutomationRunStatus> = {}
+      const lastFailure: Record<string, RoutineFailure> = {}
       for (const automation of automations) {
-        const latest = ctx.automations.runsFor(automation.id, 1)[0]
-        if (latest) lastRunStatus[automation.id] = latest.status
+        const recent = ctx.automations.runsFor(automation.id, FAILURE_LOOKBACK_RUNS)
+        if (recent[0]) lastRunStatus[automation.id] = recent[0].status
+        const failure = lastRoutineFailure(recent, ctx.deliveries)
+        if (failure) lastFailure[automation.id] = failure
       }
       return {
         automations,
         lastRunStatus,
+        lastFailure,
         // Why the daemon stays up, without a second round-trip.
         keepsDaemonAlive: ctx.automations.hasEnabled(),
       }

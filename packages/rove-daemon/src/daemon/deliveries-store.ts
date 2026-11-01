@@ -46,6 +46,7 @@ const CAUSES: readonly string[] = [
   "interrupted",
   "session-end",
   "rate-limited",
+  "transient-failure",
 ]
 
 function str(value: unknown): string | undefined {

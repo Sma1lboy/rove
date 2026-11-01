@@ -12,6 +12,7 @@ import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import type { DaemonTask, EngineActivityDetail, TaskActivityState } from "../../../rove-daemon/src/daemon/contracts.ts"
 import { DeliveriesStore } from "../../../rove-daemon/src/daemon/deliveries-store.ts"
+import { type DeliveryDeps, trackDeliveryTurn } from "../../../rove-daemon/src/daemon/delivery-ops.ts"
 import { GatesStore } from "../../../rove-daemon/src/daemon/gates-store.ts"
 import {
   type DaemonHandlerContext,
@@ -234,6 +235,32 @@ describe("should-run", () => {
         const h = await setup()
         h.setActivity("rate_limited", { failure: "billing", note: "credit balance too low" })
         expect(h.verdict()).toMatchObject({ run: false, reason: "engine-error", detail: "credit balance too low" })
+      })
+    })
+
+    describe("transient engine failure", () => {
+      const noInbox = { recordReportMissing: async () => {}, deleteDeliveryEpisode: async () => {} }
+      async function failedTurn(h: Awaited<ReturnType<typeof setup>>, detail: EngineActivityDetail) {
+        const delivery = await h.deliveries.arm({ taskId: TASK_ID, tabId: TAB, source: "routine", promptHead: "tick" })
+        const deps = { deliveries: h.deliveries, inbox: noInbox, orch: {}, automations: {} } as unknown as DeliveryDeps
+        await trackDeliveryTurn(deps, TASK_ID, TAB, "turn-start", undefined)
+        await trackDeliveryTurn(deps, TASK_ID, TAB, "turn-failed", detail)
+        h.setActivity("error", detail)
+        return h.deliveries.get(delivery.id)
+      }
+
+      it("a lost connection does not block the next tick: the next tick is the retry", async () => {
+        const h = await setup()
+        const failed = await failedTurn(h, { failure: "transient", note: "Unable to connect" })
+        expect(failed?.missing?.cause).toBe("transient-failure")
+        expect(h.verdict()).toEqual({ run: true })
+        expect(h.verdict(null)).toEqual({ run: true })
+      })
+
+      it("any other engine failure still waits for a human", async () => {
+        const h = await setup()
+        await failedTurn(h, { failure: "other", note: "400 invalid_request" })
+        expect(h.verdict()).toMatchObject({ run: false, reason: "report-missing" })
       })
     })
 

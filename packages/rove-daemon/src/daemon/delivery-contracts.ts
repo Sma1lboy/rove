@@ -21,6 +21,8 @@ export type DeliveryMissingCause =
   | "session-end"
   /** The engine hit its quota; quota-resume continues the turn, so no Inbox row. */
   | "rate-limited"
+  /** The connection dropped or the provider 5xx'd: the next tick is the retry, so it does not block one. */
+  | "transient-failure"
 
 export interface DeliveryReport {
   readonly outcome: DeliveryOutcome
