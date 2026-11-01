@@ -127,6 +127,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         model: optionalString(payload, "model"),
         tier: optionalString(payload, "tier"),
         groupId: optionalString(payload, "groupId"),
+        forkFrom: optionalString(payload, "forkFrom"),
         dispatcher,
       })
       if (dispatcher) {

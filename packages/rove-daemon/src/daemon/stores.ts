@@ -8,6 +8,7 @@ import { AliasKeeper } from "./alias-keeper.ts"
 import { AttentionInboxStore, defaultAttentionInboxPath } from "./attention-inbox.ts"
 import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
@@ -34,6 +35,7 @@ export interface DaemonStores {
   readonly inbox: AttentionInboxStore
   readonly agentTurns: AgentTurnsStore
   readonly deletions: TaskDeletionRunner
+  readonly checkpoints: CheckpointQueue
   readonly issues: IssuesStore
   readonly notes: NotesStore
   readonly automations: AutomationsStore
@@ -131,6 +133,7 @@ export async function initDaemonStores(
     inbox,
     agentTurns,
     deletions,
+    checkpoints: new CheckpointQueue(),
     issues,
     notes,
     automations,

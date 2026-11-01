@@ -7,6 +7,7 @@
 
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
@@ -154,7 +155,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   // before opening a picker that could only end in an error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
-    if (!task || task.kind === "main" || task.kind === "dir") return
+    if (!task || !workspaceCapabilities(task).ownsBranch) return
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {

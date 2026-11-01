@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import {
   type ChatForkPlan,
@@ -166,25 +167,44 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
     "tab.forkTask": {
       kind: "write",
       destructive: false,
-      wraps: "rove api add --base-branch (--count for attempts)",
+      wraps: "rove api add --fork (one attempt, from the task's branch), else --base-branch (--count for attempts)",
       async run(a, { api }) {
         const count = optInt(a, "count", 1, MAX_ATTEMPTS) ?? 1
         const repo = absPath(a, "repo")
-        const argv = [
-          flag("repo", repo),
-          flag("base-branch", gitRef(a, "baseBranch")),
-          flag("prompt", text(a, "prompt", PROMPT_MAX)),
-        ]
+        const baseBranch = gitRef(a, "baseBranch")
+        const prompt = text(a, "prompt", PROMPT_MAX)
         const engine = engineId(a)
-        if (engine) argv.push(flag("command", engine))
         const title = optText(a, "title", 200)
+        type Added = { taskId?: string; tasks?: ReadonlyArray<{ taskId: string }> }
+        const tail = [flag("prompt", prompt), ...(engine ? [flag("command", engine)] : [])]
+        // A clone of the source task carries its uncommitted work; a fan-out of attempts cannot share one clone.
+        const forkFrom =
+          count === 1 && a.forkFrom !== undefined && a.forkFrom !== null ? taskId(a, "forkFrom") : undefined
+        let forkRefused: string | undefined
+        if (forkFrom) {
+          try {
+            const res = await api.verb<Added>("add", [
+              flag("fork", forkFrom),
+              flag("title", title ?? deriveTitleFromPrompt(prompt)),
+              ...tail,
+            ])
+            if (res.taskId) {
+              if (engine) taskOpDeps.rememberEngine(repo, engine)
+              return { taskIds: [res.taskId], forked: true }
+            }
+          } catch (err) {
+            if (!(err instanceof BridgeError) || err.code !== "FORK_UNSUPPORTED") throw err
+            forkRefused = err.message.replace("FORK_UNSUPPORTED: ", "")
+          }
+        }
+        const argv = [flag("repo", repo), flag("base-branch", baseBranch), ...tail]
         if (title) argv.push(flag("title", title))
         if (count > 1) argv.push(flag("count", count))
-        const res = await api.verb<{ taskId?: string; tasks?: ReadonlyArray<{ taskId: string }> }>("add", argv)
+        const res = await api.verb<Added>("add", argv)
         const taskIds = res.tasks ? res.tasks.map((t) => t.taskId) : res.taskId ? [res.taskId] : []
         if (taskIds.length === 0) throw new BridgeError("ADD_FAILED", "no task was created")
         if (engine) taskOpDeps.rememberEngine(repo, engine)
-        return { taskIds }
+        return { taskIds, ...(forkRefused ? { forkRefused } : {}) }
       },
     },
 

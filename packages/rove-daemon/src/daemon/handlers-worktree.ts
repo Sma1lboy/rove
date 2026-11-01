@@ -10,6 +10,7 @@
  * remote (`ssh://…`) project would need the git/fs calls over its `ExecHost`.
  */
 
+import { workspaceCapabilities } from "../workspace.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { tasksAtWorktreePath } from "./cwd-task.ts"
 import { optionalString, optionalVendor, requireString } from "./handler-validators.ts"
@@ -88,11 +89,13 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // the project checkout; removing either deletes files Rove never made.
       // Sibling destructive paths refuse these kinds too (`deleteTask`,
       // `ensureWorktree`, `land`), and `clearWorktreePath` skips them.
-      const kind = holderIds.map((id) => tasks.find((t) => t.id === id)?.kind).find((k) => k === "dir" || k === "main")
-      if (kind) {
+      const borrowed = holderIds
+        .map((id) => tasks.find((t) => t.id === id))
+        .find((t) => t && !workspaceCapabilities(t).ownsDirectory)
+      if (borrowed) {
         throw new Error(
           `${NOT_A_ROVE_WORKTREE_CODE}: ${path} is ${
-            kind === "dir" ? "a directory task's own directory" : "the project's own checkout"
+            borrowed.kind === "dir" ? "a directory task's own directory" : "the project's own checkout"
           }, not a Rove-created worktree — refusing to delete it`,
         )
       }

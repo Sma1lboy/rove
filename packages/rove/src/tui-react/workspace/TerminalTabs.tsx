@@ -64,7 +64,7 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
-import type { ChildSpawnRequest } from "./quick-fork"
+import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
 import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
@@ -115,7 +115,7 @@ export interface TerminalTabsProps {
   /** A second conversation here (ctrl+t, the picker, the sidebar): the host spawns a child sharing this directory. */
   onSpawnChild?: (request: ChildSpawnRequest) => void
   /** Quick-fork submitted: parent creates the child in `repo` (the source's main repo root). */
-  onQuickFork?: (repo: string, result: QuickTaskResult) => void
+  onQuickFork?: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   /** Prompt for the first engine tab, riding its FIRST spawn's argv only. */
   initialPrompt?: string
   /** Daemon per-tab `engine-state`; wins over the quiescence poll. */

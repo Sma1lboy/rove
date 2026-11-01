@@ -105,6 +105,10 @@ export type DaemonRequestName =
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
   | "task.archive"
+  // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
+  | "task.checkpointList"
+  | "task.checkpoint"
+  | "task.rewind"
   | "task.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
@@ -325,6 +329,9 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "worktree.adopt",
   "worktree.list",
   "worktree.remove",
+  // Snapshot / rewrite of a user-sized working tree.
+  "task.checkpoint",
+  "task.rewind",
 ])
 
 /**
@@ -414,6 +421,8 @@ export interface SerializedTask {
   readonly worktreeName?: DaemonTask["worktreeName"]
   /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
   readonly extraRepos?: DaemonTask["extraRepos"]
+  /** Workspace backend when it is not the one `kind` implies; omitted otherwise. */
+  readonly workspace?: DaemonTask["workspace"]
   /** PRs the session opened from any directory (`rove api pr-attach`); omitted when none. */
   readonly sessionPrs?: DaemonTask["sessionPrs"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
@@ -472,6 +481,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
     ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
     ...(task.extraRepos?.length ? { extraRepos: task.extraRepos } : {}),
+    ...(task.workspace ? { workspace: task.workspace } : {}),
     ...(task.sessionPrs?.length ? { sessionPrs: task.sessionPrs } : {}),
     requireReport: task.requireReport,
     prompt: task.prompt,

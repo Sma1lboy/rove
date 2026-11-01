@@ -51,6 +51,37 @@ or change the list per repo with `.rove/clone-dirs`; see
 [Cloned ignored directories](./CONFIGURATION.md#cloned-ignored-directories).
 Cross-volume, non-APFS, SSH and non-macOS setups behave as before.
 
+## Fork a task with its uncommitted work
+
+A new task normally starts from a branch's last commit, so edits the original
+has not committed stay behind. A **fork** clones the original's worktree
+instead: modified tracked files, staged changes, untracked files and
+gitignored directories (`node_modules`, build output) all arrive, on a new
+branch rooted at the original's HEAD. The original is not touched, and the two
+share no state afterwards: an edit on one side never shows on the other.
+
+```bash
+rove api add --fork <task-id> --command claude --prompt "try the other approach"
+```
+
+The fork is a sibling in the same repo, titled `<original title> (fork)`
+unless you pass `--title`. In the TUI and the web, the quick-fork composer
+(`ctrl+f`, or New conversation → Fork) does the same whenever the base stays
+on the original's own branch.
+
+The copy is made with the filesystem's clone call (`clonefile` on APFS,
+reflink on btrfs and XFS), so it takes well under a second whatever the size
+and uses no extra disk until either side writes. Rove never falls back to a
+full copy. When the volume cannot clone files, `add --fork` fails with
+`FORK_UNSUPPORTED` and creates nothing, and the TUI and web start the task
+the old way and say that the uncommitted work stays in the original. The same
+refusal covers a project's main checkout, a `rove .` directory task, a
+multi-repo task and a remote (SSH) project.
+
+Not carried over: state git keeps in the original's git directory outside the
+index, such as a half-done merge or rebase. Deleting a fork works like deleting
+any worktree, so its uncommitted work needs `--force` (and is salvaged).
+
 ## Open and navigate the page
 
 1. Focus the task sidebar with `ctrl+q`.
@@ -316,6 +347,54 @@ deletion by task title and time.
 The refs are ordinary git refs: they are not garbage-collected, and they are
 never pushed. Delete one you no longer need with
 `git update-ref -d refs/rove/salvage/<branch>-<timestamp>`.
+
+## Checkpoints
+
+Every time an engine finishes a turn in a task's worktree, Rove saves a
+checkpoint: a snapshot of the files as they stand, kept as a git ref in the
+owning repo (`refs/rove/checkpoints/<task>/<n>`). It is the undo button for an
+agent that went the wrong way, one step per turn.
+
+A checkpoint holds tracked edits and files you never `git add`ed. Gitignored
+files (`node_modules/`, build output, `.env`) are left out. It does not touch
+your branch, your index or `HEAD`, and a turn that changed nothing takes no new
+one. The newest 100 per task are kept. Only a task's own worktree is covered —
+a project's main checkout and a directory task are your own files, and get no
+checkpoints. A nested repo or submodule is recorded as a pointer, not its
+files; `checkpoint` reports those paths as `uncaptured`.
+
+```
+rove api checkpoint-list --task-id ID   # what there is, oldest first
+rove api checkpoint --task-id ID        # take one now
+rove api rewind --task-id ID --to 3     # restore the files to checkpoint 3
+```
+
+`rewind` makes the worktree files equal checkpoint 3: files created since are
+deleted, files deleted since come back, ignored files stay. The branch and the
+agent's conversation do not move. It checkpoints the current state first and
+prints that number as `undo.n`, so `rewind --to <undo.n>` puts everything back.
+While the agent is mid-turn or waiting on a permission, `rewind` refuses with
+`TASK_BUSY`; pass `--force` to override.
+
+Checkpoints belong to the directory's owner. A child task that shares its
+parent's directory has none of its own: its turns are recorded in the owner's
+history, and `--task-id <child>` lists, takes and rewinds the owner's
+checkpoints (replies say which task in `workspaceTaskId`). Because every task
+in the directory edits the same files, `rewind` refuses while *any* of their
+engines is working, not only the one you named.
+
+A checkpoint is an ordinary commit, so the same history is reachable with git
+in the owning repo:
+
+```
+git for-each-ref refs/rove/checkpoints/<task>
+git diff refs/rove/checkpoints/<task>/3
+git restore --source=refs/rove/checkpoints/<task>/3 -- path/to/file
+```
+
+Deleting the task deletes its checkpoint refs; the worktree directory going
+away does not, since the refs live in the repo. If the owner is deleted while a
+child still uses the directory, the child inherits the history.
 
 ## Troubleshooting
 

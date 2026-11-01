@@ -16,6 +16,7 @@ import { ATTEMPTS } from "./quick-start-dialog.tsx"
 import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
+import { toast } from "./ui.ts"
 import { HINT } from "./ui/text.ts"
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
@@ -88,13 +89,17 @@ export function NewChatDialog(props: {
       } else if (fork) {
         if (!task) throw new Error(tc("terminal", "tab.tabGone"))
         if (!prompt.trim()) throw new Error(t("taskops.forkNeedsMessage"))
-        const res = await model.client.request<{ taskIds: string[] }>("tab.forkTask", {
+        const base = baseRef.trim() || task.branch
+        const res = await model.client.request<{ taskIds: string[]; forkRefused?: string }>("tab.forkTask", {
           repo: task.repo,
-          baseBranch: baseRef.trim() || task.branch,
+          baseBranch: base,
           prompt: first,
           ...(pick ? { engine: pick } : {}),
           ...(Number(attempts) > 1 ? { count: Number(attempts) } : {}),
+          // Continuing from the task's own branch (not another base) can clone its worktree, uncommitted work included.
+          ...(base === task.branch ? { forkFrom: taskId } : {}),
         })
+        if (res.forkRefused) toast(t("taskops.forkLeftBehind", { reason: res.forkRefused }))
         const created = res.taskIds[0]
         if (created) model.selectWhenListed(created)
       } else if (shell) await openTab(model, taskId, { kind: "shell" })

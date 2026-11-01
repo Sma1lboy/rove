@@ -9,6 +9,7 @@ import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/c
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
@@ -85,7 +86,7 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   } catch {
     return // stale id / unreadable task — an unknown is never grounds to refuse
   }
-  if (sender.kind === "main" || sender.kind === "dir") return
+  if (!workspaceCapabilities(sender).ownsBranch) return
   if (!sender.worktreePath) return
   // A throwing read is an unknown, and an unknown never refuses.
   let ahead: number | null

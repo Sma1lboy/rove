@@ -11,6 +11,7 @@ import type { ExecHost } from "../exec/exec-host.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { GitCommandFailedError, LandConflictError } from "./errors.ts"
 import { baseRepoCtx, landGit as git, landPreflight, landRefusalError } from "./land-preflight.ts"
+import { workspaceCapabilities } from "./workspace/index.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -58,14 +59,23 @@ interface LandWorktreeCleanup {
   readonly residue?: WorktreeResidue
 }
 
+/** Refuses a task with no Rove-managed branch (main, dir): there is nothing to land. */
+export function assertOwnsBranch(task: Task): void {
+  if (workspaceCapabilities(task).ownsBranch) return
+  throw new Error(
+    task.kind === "main"
+      ? "landTask: a main task has no branch to land"
+      : "landTask: a directory task has no Rove-managed branch to land",
+  )
+}
+
 /**
  * {@link landTask}, then {@link finishLanded}'s cleanup: remove the worktree
  * (default on), delete the branch (opt-in). The merge has committed by then,
  * so cleanup failures are reported in the result, never thrown.
  */
 export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: LandDeps): Promise<LandResult> {
-  if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
-  if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
+  assertOwnsBranch(task)
   const result = await landTask(task, { strategy: opts.strategy })
   return finishLanded(task, result, opts, deps)
 }

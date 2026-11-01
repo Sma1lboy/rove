@@ -1,7 +1,9 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskWorkspace } from "../workspace.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
+import type { CheckpointOrchestrator } from "./checkpoint-contracts.ts"
 import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
 import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
 
@@ -274,6 +276,8 @@ export interface DaemonTask {
   readonly worktreeName?: string
   /** Secondary repos of a multi-repo task, in pick order (the primary is `repo`). */
   readonly extraRepos?: readonly TaskExtraRepo[]
+  /** Backend that materialised the directory; absent = derived from `kind` (`workspaceBackendId`). */
+  readonly workspace?: TaskWorkspace
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
@@ -295,7 +299,7 @@ export interface AdoptableWorktree {
   readonly lastActivityMs: number
 }
 
-export interface DaemonOrchestrator {
+export interface DaemonOrchestrator extends CheckpointOrchestrator {
   activeTaskSignal?(): (() => string | null) | undefined
   subscribeTasks(listener: (tasks: readonly DaemonTask[]) => void): () => void
   listTasks(): DaemonTask[]
@@ -318,6 +322,8 @@ export interface DaemonOrchestrator {
     routine?: TaskRoutineLink
     /** Secondary repos in pick order; `baseRef` is that repo's own fork point. */
     extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
+    /** Task whose worktree this one clones, uncommitted work included. */
+    forkFrom?: string
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).

@@ -23,6 +23,7 @@ import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
+import type { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -32,6 +33,7 @@ import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
 import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { DISPATCH_HANDLERS } from "./handlers-dispatch.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
@@ -104,6 +106,8 @@ export interface DaemonHandlerContext {
   readonly dispatches?: import("./dispatch-ledger.ts").DispatchLedger
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
+  /** Per-task serializer for checkpoint snapshots and rewinds. */
+  readonly checkpoints: CheckpointQueue
   /** Daemon-owned issue tracker store, keyed by git common-dir. */
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
@@ -308,6 +312,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
+    ...CHECKPOINT_HANDLERS,
     ...SESSION_PR_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,

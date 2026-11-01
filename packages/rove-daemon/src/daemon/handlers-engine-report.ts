@@ -133,6 +133,15 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
           ),
       )
     }
+    // File-only undo point of the finished turn, under the workspace owner's id
+    // (a shared child's turn lands in its owner's history). Fire-and-forget
+    // through the per-owner queue: git on a big tree must not delay the hook
+    // reply, and an unchanged tree is skipped inside.
+    if (kind === "turn-complete" && ctx.orch.canCheckpoint(taskId)) {
+      ctx.checkpoints.schedule(ctx.orch.checkpointScope(taskId).ownerId, () =>
+        ctx.orch.takeCheckpoint(taskId, tabId ? { tabId } : undefined),
+      )
+    }
     // A turn starting on a backlog task advances it to in_progress (opt-in
     // state.json flag, checked inside maybeAutoStart). in_review is the
     // agent's own self-report, not a daemon rule.

@@ -102,7 +102,8 @@ async function deliverArmed(
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
   const refs = args.list("repo")
-  const requestedRepo = await resolveRepoFlag(ctx, refs[0] ?? "")
+  const fork = await resolveFork(ctx)
+  const requestedRepo = fork ? fork.repo : await resolveRepoFlag(ctx, refs[0] ?? "")
   const repo = await runtime.resolveRepoRoot(requestedRepo)
   // Without this a non-git `--repo` SUCCEEDS: `resolveRepoRoot` falls back to
   // the path verbatim and the row persists with an empty branch and
@@ -139,6 +140,25 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
+/** Flags that name a different repo or fork point than the parent's own, so they cannot ride along with `--fork`. */
+const FORK_EXCLUSIVE = ["repo", "base-branch", "base-for", "count", "agents"] as const
+
+/** `--fork ID`: the parent task whose worktree (uncommitted work included) the new task clones, and its repo. */
+async function resolveFork(ctx: VerbContext): Promise<{ taskId: string; repo: string } | undefined> {
+  const taskId = ctx.args.str("fork")
+  if (!taskId) return undefined
+  const clash = FORK_EXCLUSIVE.find((flag) => ctx.args.str(flag) !== undefined)
+  if (clash) {
+    throw new ApiError(
+      `--fork and --${clash} conflict — a fork is a sibling in the parent's repo, starting at the parent's HEAD`,
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
+  const { task } = await daemonOf(ctx).request<{ task: SerializedTask }>("task.get", { taskId })
+  return { taskId, repo: task.repo }
+}
+
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
 async function typedEngineFields(ctx: VerbContext, repo: string): Promise<EngineFields> {
   const choice = await engineChoice(ctx, repo)
@@ -165,12 +185,15 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields): P
     ...(await dispatcherEnvPayload(daemon)),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
   }
-  const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
+  // A fork without --title keeps the parent-derived name the daemon gives it rather than being renamed from the prompt.
+  const fork = args.str("fork")
+  const title = args.str("title") || (prompt && !fork ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
   const branch = args.str("branch")
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
   if (baseRef) payload.baseRef = baseRef
+  if (fork) payload.forkFrom = fork
   if (repoSet.extraRepos.length > 0) payload.extraRepos = repoSet.extraRepos
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName

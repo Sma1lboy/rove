@@ -11,6 +11,7 @@ import type { Task, TaskExtraRepo } from "../types/task.ts"
 import { uniqueBranchName } from "./branch-style.ts"
 import { canonPath, normalizeMainRepo } from "./core-helpers.ts"
 import { ExtraRepoNotGitError, RemoteExtraUnsupportedError, RepoDuplicateError, TooManyReposError } from "./errors.ts"
+import type { WorkspaceBackend } from "./workspace/types.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import type { SlugAllocator } from "./worktree/slug-allocator.ts"
 
@@ -55,11 +56,11 @@ export interface CreatedWorktree {
  * Remove a worktree this call just created. `force`: a brand-new checkout holds
  * no user work. Logged, not thrown, so the caller's real error isn't masked.
  */
-export async function rollbackWorktree(worktrees: GitWorktreeManager, created: CreatedWorktree): Promise<void> {
+export async function rollbackWorktree(backend: WorkspaceBackend, created: CreatedWorktree): Promise<void> {
   try {
-    await worktrees.remove(
-      created.path,
-      created.fresh ? { force: true, deleteBranch: true, ...created.fresh } : { force: true },
+    await backend.dispose(
+      { path: created.path, ...created.fresh },
+      created.fresh ? { force: true, deleteBranch: true } : { force: true },
     )
   } catch (err) {
     console.error(`[rove] ensureWorktree rollback failed for ${created.path}:`, err)
@@ -97,6 +98,8 @@ export interface MaterialisedExtras {
 
 export interface MaterialiseExtrasOpts {
   readonly worktrees: GitWorktreeManager
+  /** Creates and (on failure) removes each extra; extras are always plain git worktrees. */
+  readonly backend: WorkspaceBackend
   readonly slugs: SlugAllocator
   readonly task: Task
   /** The branch the primary was cut on (or already holds). */
@@ -114,7 +117,7 @@ export interface MaterialiseExtrasOpts {
  * rethrowing; the caller owns the primary.
  */
 export async function materialiseExtras(opts: MaterialiseExtrasOpts): Promise<MaterialisedExtras> {
-  const { worktrees, slugs, task } = opts
+  const { worktrees, backend, slugs, task } = opts
   const callerNamed = task.branch !== ""
   const created: CreatedWorktree[] = []
   const picked: { repo: string; slug: string }[] = []
@@ -132,7 +135,7 @@ export async function materialiseExtras(opts: MaterialiseExtrasOpts): Promise<Ma
           : uniqueBranchName(opts.branch, new Set(names), task.id))
       const slug = await slugs.allocate(extra.repo)
       picked.push({ repo: extra.repo, slug })
-      const info = await worktrees.createForTask({
+      const info = await backend.materialize({
         repo: extra.repo,
         slug,
         branch,
@@ -146,7 +149,7 @@ export async function materialiseExtras(opts: MaterialiseExtrasOpts): Promise<Ma
       done.set(extra.name, { ...extra, branch, worktreePath: info.path })
     }
   } catch (err) {
-    for (const wt of created.reverse()) await rollbackWorktree(worktrees, wt)
+    for (const wt of created.reverse()) await rollbackWorktree(backend, wt)
     for (const { repo, slug } of picked) slugs.cancel(repo, slug)
     throw err
   }

@@ -25,6 +25,7 @@ import type {
   TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"
 
 export type {
@@ -38,6 +39,7 @@ export type {
   TaskStatus,
   TaskWorkerReport,
   TaskExtraRepo,
+  TaskWorkspace,
 }
 
 /** Engine vendor for a task that records none. */
@@ -232,6 +234,11 @@ export interface Task {
    * of all of them. Only on a `kind: "task"` row that owns its worktree.
    */
   readonly extraRepos?: readonly TaskExtraRepo[]
+  /**
+   * Backend that materialised the directory. Absent = derived from `kind` (`workspaceBackendId`),
+   * so rows written before backends existed need no migration.
+   */
+  readonly workspace?: TaskWorkspace
   /**
    * What the worker claims it delivered (`update --report-*`). Separate
    * from {@link prStatus}, which the daemon polls from the forge: a worker can

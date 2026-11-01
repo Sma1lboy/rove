@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 91 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 92 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -124,6 +124,7 @@ the first row that fits:
 |---|---|---|
 | "you do it", "just fix it", "change X to Y" | you, right here | no Rove verb — edit the files yourself |
 | "try it N ways", "compare approaches" | N new tasks | `rove api add --repo "$PWD" --count N --prompt "…"` |
+| "branch off this and keep my uncommitted changes", "fork this task" | a sibling task cloned from THIS worktree, edits and untracked files included | `rove api add --fork "$ROVE_TASK_ID" --prompt "…"` (refused with `FORK_UNSUPPORTED` where the volume cannot clone; then plain `add --repo` starts from the last commit) |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
 | a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api send --task-id "$ROVE_TASK_ID" --tab new --prompt "…"` |
@@ -496,6 +497,8 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
 | `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |
+| `checkpoint-list --task-id ID` / `checkpoint --task-id ID` | File-only undo points of a task's worktree (`refs/rove/checkpoints/<owner>/<n>`): the daemon takes one when an engine turn completes (skipped if unchanged, newest 100 kept); `checkpoint` takes one now. Tracked + untracked files, minus gitignored; branch/HEAD/index untouched. They belong to the directory's owner: a `spawn --no-worktree` child acts on its owner's, named in `.workspaceTaskId` |
+| `rewind --task-id ID --to N [--force]` | Restore the worktree files to checkpoint N (files only: branch and conversation stay). Checkpoints the current state first and returns it as `undo.n`, so `rewind --to <undo.n>` goes back. `TASK_BUSY` while any engine sharing the directory (owner or child) is running/awaiting unless `--force` |
 | `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |
 | `sync --task-id ID [--repo NAME]` | Merge the base branch INTO the task's Worktree (a multi-repo task: each repo against its own base, `.repos[]`) |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |

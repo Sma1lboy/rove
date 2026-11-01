@@ -7,8 +7,15 @@
 > unpushed base, `land` on a remote task as push + PR (`publish`), remote tasks
 > opened in the web and the TUI (terminals + Files), the runner's inbound
 > policy, the stdio transport (native Windows hubs) and `machine tunnel`.
-> Not implemented: the `WorkspaceBackend` seam (phase 0) and checkpoint/rewind
-> (phase 1) below. Decisions marked **OPEN** need the owner.
+> Phase 0 has landed: the `WorkspaceBackend` seam (`src/orchestrator/workspace/`,
+> `git-worktree` and `borrowed` backends, `Task.workspace`, lifecycle `kind`
+> checks turned into capability checks), plus the `cow-clone` backend behind
+> `add --fork` (fork with uncommitted state, see WORKTREES.md). Phase 1 has
+> landed on the seam: checkpoints at turn boundaries, `checkpoint-list` /
+> `checkpoint` / `rewind` (see "Checkpoints" below and
+> [WORKTREES](../WORKTREES.md#checkpoints)), gated by the `checkpoint`
+> workspace capability. Not implemented: the experimental `layerfs` backend.
+> Decisions marked **OPEN** need the owner.
 
 ## Why
 
@@ -197,6 +204,25 @@ tree into a gc-proof ref (`refs/rove/salvage/*`). Generalize it:
 A CoW backend makes the same verbs O(1) instead of O(tree). The product
 surface ships first on git.
 
+**Status (git backend, shipped).** `orchestrator/worktree/checkpoint.ts` reuses
+`salvage.ts`'s temporary-index snapshot, minus its ignored-file pass: a
+checkpoint is exactly tracked + untracked, minus ignored. The daemon takes one
+at the normalized `turn-complete` report (`handlers-engine-report.ts`),
+serialized per workspace owner with the `checkpoint` / `rewind` verbs,
+fire-and-forget so the hook reply never waits on git, and skipped when the tree
+equals the latest checkpoint. Checkpoints belong to the **workspace owner**: a
+child sharing its parent's directory resolves to the owner for the trigger and
+all three verbs (replies carry `workspaceTaskId`), and an owner's deletion hands
+the history to the heir. The gate is the owner backend's `checkpoint`
+capability (`workspaceCapabilities`: `git-worktree` and `cow-clone` yes,
+`borrowed` no, since a main/dir tree is the user's own) with a worktree on disk
+(`Orchestrator.canCheckpoint`). `rewind` is files-only: it checkpoints the
+current state first (so a rewind is undoable), then lets `git read-tree --reset
+-u` over a throwaway index rewrite the tree, and resets the real index to HEAD;
+it refuses with `TASK_BUSY` while any engine sharing the workspace runs unless
+`--force`. The newest 100 per workspace are kept, and deleting a task removes
+its refs.
+
 ## Runner routing: what exists vs what's missing
 
 | Piece | State |
@@ -249,8 +275,8 @@ is deleted by this doc).
 
 | # | Phase | User-visible? | Risk |
 |---|---|---|---|
-| 0 | Extract `WorkspaceBackend`; git + borrowed implementations; `task.workspace` defaulted from `kind`; lifecycle `kind` checks → capabilities | No (pure refactor) | Medium: wide, so it needs the `worktree*` / `task-deletion` / `land` suites green |
-| 1 | Git checkpoints at turn boundaries, rewind, fork-with-uncommitted | Yes | Low: refs only, reuses salvage |
+| 0 | Extract `WorkspaceBackend`; git + borrowed implementations; `task.workspace` defaulted from `kind`; lifecycle `kind` checks → capabilities **(shipped)** | No (pure refactor) | Medium: wide, so it needs the `worktree*` / `task-deletion` / `land` suites green |
+| 1 | Git checkpoints at turn boundaries, rewind, fork-with-uncommitted via `cow-clone` **(shipped)** | Yes | Low: refs only, reuses salvage |
 | 2 | Runner routing: hub routes remote-task writes via `api.invoke`; per-machine PTY client; open a remote tab | Yes (machines become writable) | Medium: TUI PTY singleton |
 | 3 | Dispatch: `rove api add --runner`, base-ref reachability, hub inside a resident daemon, placement by capacity | Yes | Medium |
 | 4 | Experimental CoW backend (LayerFS or AgentFS) on Linux Runners, behind `experimental.*` | Opt-in | High upstream risk (preview/beta, no durability guarantee); isolated by the seam |
