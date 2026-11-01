@@ -126,7 +126,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
       <div className={PAGE_HEAD}>
         <h1 className={PAGE_TITLE}>{u.pageTitle}</h1>
-        <button type="button" className={`${LINK} mono text-accent`} onClick={() => activate("close")}>
+        <button type="button" className={`${LINK} mono`} onClick={() => activate("close")}>
           {isTouch() ? t("dialog.close") : u.closeHint}
         </button>
       </div>
@@ -222,12 +222,7 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
       </div>
       <div className={ACTIONS}>
         <span className={`mono text-muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
-        <a
-          className={`${LINK} text-accent`}
-          href={props.notes?.url ?? releaseUrl(props.to)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a className={LINK} href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>
         <button ref={ok} type="button" className={buttonClass()} onClick={() => dialog.set(null)}>

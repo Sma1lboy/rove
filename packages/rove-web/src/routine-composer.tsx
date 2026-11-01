@@ -292,7 +292,7 @@ export function RoutineComposer(props: {
             <Legend text={deviceHint(auto.composerLegend)} />
           </p>
           <div className={ACTIONS}>
-            <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
+            <button type="button" className={LINK} onClick={closeDialog}>
               {common.cancel}
             </button>
             <button ref={at("confirm")} type="button" className={buttonClass()} onClick={commit}>

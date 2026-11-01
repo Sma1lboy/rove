@@ -246,7 +246,7 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
         <span key={item.text}>
           <button
             type="button"
-            className={`${LINK} text-accent`}
+            className={LINK}
             disabled={modal}
             data-prefix-arm={item.onPress === armPrefix ? "" : undefined}
             onClick={item.onPress}

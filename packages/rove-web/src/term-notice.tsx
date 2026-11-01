@@ -65,7 +65,7 @@ export function TermNotice(props: {
       {props.onReopen && (reopenable || lostEngine) && (
         <button
           type="button"
-          className={`${LINK} text-accent`}
+          className={LINK}
           disabled={revive.busy}
           onClick={() => props.onReopen?.(lostEngine !== null)}
         >
@@ -73,7 +73,7 @@ export function TermNotice(props: {
         </button>
       )}
       {notice.kind === "failed" && props.onRetryAttach && (
-        <button type="button" className={`${LINK} text-accent`} onClick={props.onRetryAttach}>
+        <button type="button" className={LINK} onClick={props.onRetryAttach}>
           {t("workspace.retry")}
         </button>
       )}
@@ -81,14 +81,14 @@ export function TermNotice(props: {
         <>
           <button
             type="button"
-            className={`${LINK} text-accent`}
+            className={LINK}
             onClick={() => dialog.set(<SettingsDialog model={model} section="engines" />)}
           >
             {t("workspace.engineSettings")}
           </button>
           <button
             type="button"
-            className={`${LINK} text-accent`}
+            className={LINK}
             onClick={() => dialog.set(<NewChatDialog model={model} taskId={taskId} />)}
           >
             {t("menu.newChatPick")}

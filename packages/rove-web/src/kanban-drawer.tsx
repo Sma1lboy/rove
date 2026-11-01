@@ -442,7 +442,7 @@ export function IssueDrawer(props: {
               {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
               <div className={ACTIONS}>
                 {create && (
-                  <button type="button" className={`${LINK} text-accent`} onClick={saveOnly}>
+                  <button type="button" className={LINK} onClick={saveOnly}>
                     {t("pages.storySave")}
                   </button>
                 )}

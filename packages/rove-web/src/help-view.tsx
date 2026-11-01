@@ -109,7 +109,7 @@ function HelpDialog({
           </div>
           <div className={HELP_CORNER}>
             <span className="subtle">{helpText("scrollKeys")}</span>
-            <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
+            <button type="button" className={LINK} onClick={closeDialog}>
               {helpText("esc")}
             </button>
           </div>

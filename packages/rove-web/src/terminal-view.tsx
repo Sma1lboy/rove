@@ -273,10 +273,10 @@ export function TerminalView(props: TerminalViewProps) {
       {scrolled > 0 && !searching && handle && (
         <div className={`mono ${TERM_SCROLLED}`}>
           <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
-          <button type="button" className={`${LINK} text-accent`} onClick={() => handle.scrollToTop()}>
+          <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
             {terminalText("scrollFirst")}
           </button>
-          <button type="button" className={`${LINK} text-accent`} onClick={() => handle.scrollToBottom()}>
+          <button type="button" className={LINK} onClick={() => handle.scrollToBottom()}>
             {terminalText("scrollLatest")}
           </button>
         </div>

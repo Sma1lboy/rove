@@ -23,7 +23,7 @@ export function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean 
         </>
       )}
       {conn.state === "retrying" && (
-        <button type="button" className={`${LINK} text-accent`} onClick={() => client.retryNow()}>
+        <button type="button" className={LINK} onClick={() => client.retryNow()}>
           {t("status.retry")}
         </button>
       )}

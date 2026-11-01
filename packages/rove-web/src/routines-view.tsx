@@ -345,11 +345,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
             {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
           </span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
-          <button
-            type="button"
-            className={`${LINK} text-accent ${PG_ACTION_LINK.header}`}
-            onClick={() => void createRoutine()}
-          >
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
             {t("pages.new")}
           </button>
         </span>
@@ -368,7 +364,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
             {sections.map((section) =>
               section.rows.length === 0 ? null : (
                 <section key={section.key}>
-                  <h2 className={`${KICKER} text-muted ${RT_GROUP} ${section === sections[0] ? "text-error" : ""}`}>
+                  <h2 className={`${KICKER} ${RT_GROUP} ${section === sections[0] ? "text-error" : "text-muted"}`}>
                     {t(section.key)} <span className="mono">{section.rows.length}</span>
                   </h2>
                   {section.rows.map((routine) => {
@@ -415,7 +411,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   <span className={`mono ${PG_ACTIONS}`}>
                     <button
                       type="button"
-                      className={`${LINK} text-accent ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void runNow()}
                     >
@@ -423,7 +419,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                     <button
                       type="button"
-                      className={`${LINK} text-accent ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void toggleEnabled()}
                     >
@@ -431,7 +427,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                     <button
                       type="button"
-                      className={`${LINK} text-accent ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={requestDelete}
                     >

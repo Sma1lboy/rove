@@ -26,7 +26,7 @@ export const suggestRowClass = (o: { readonly cursor: boolean; readonly accent: 
 export const KICKER = "m-0 font-sans text-meta font-medium normal-nums"
 
 /** An inline text action; `link` stays as a hook for the footer and dialog rules that dim a disabled one. */
-export const LINK = "link [&:hover]:underline touch-hit"
+export const LINK = "link text-accent [&:hover]:underline touch-hit"
 
 /** A text field's frame and type, for a field that sizes itself (`PREF_NUMBER`, `ENG_RENAME_INPUT`). */
 export const INPUT_FRAME =

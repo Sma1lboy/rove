@@ -154,7 +154,7 @@ export function ConfirmDialog(props: {
         </p>
         {error && !(escalated && props.escalate?.body) && <p className="text-error">{error}</p>}
         <div className={ACTIONS}>
-          <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
+          <button type="button" className={LINK} onClick={closeDialog}>
             {t("dialog.cancel")}
           </button>
           {props.secondary && !escalated && (
@@ -238,7 +238,7 @@ export function ChoiceDialog(props: {
 export function DialogActions({ busy, submitLabel }: { busy: boolean; submitLabel: string }) {
   return (
     <div className={ACTIONS}>
-      <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
+      <button type="button" className={LINK} onClick={closeDialog}>
         {t("dialog.cancel")}
       </button>
       <button type="submit" className={buttonClass()} disabled={busy}>

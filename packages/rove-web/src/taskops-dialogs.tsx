@@ -171,7 +171,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
             <p className="text-muted">{tc("tasks", "fieldNotes.confirmDelete.body", { text: confirming.text })}</p>
             {deleteError && <p className="text-error">{deleteError}</p>}
             <div className={ACTIONS}>
-              <button type="button" className={`${LINK} text-accent`} onClick={() => setConfirming(null)}>
+              <button type="button" className={LINK} onClick={() => setConfirming(null)}>
                 {t("dialog.cancel")}
               </button>
               <button type="button" className={buttonClass({ danger: true })} onClick={() => void retire(confirming)}>
@@ -187,13 +187,13 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
               {/* `d`'s tap target, for the note under the cursor (a phone has no `d`). */}
               <button
                 type="button"
-                className={`${LINK} text-accent`}
+                className={LINK}
                 disabled={notes[cursor]?.id === undefined}
                 onClick={() => setConfirming(notes[cursor] ?? null)}
               >
                 {t("taskops.retire")}
               </button>
-              <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
+              <button type="button" className={LINK} onClick={closeDialog}>
                 {t("taskops.close")}
               </button>
             </div>

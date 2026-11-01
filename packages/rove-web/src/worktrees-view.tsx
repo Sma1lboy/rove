@@ -211,11 +211,11 @@ export function WorktreesView({ model }: { model: AppModel }) {
                     </div>
                     {n === at && (
                       <div className={WT_LINE}>
-                        <button type="button" className={`${LINK} text-accent`} onClick={() => requestDelete(row)}>
+                        <button type="button" className={LINK} onClick={() => requestDelete(row)}>
                           {w.delete.button}
                         </button>
                         {row.taskId && (
-                          <button type="button" className={`${LINK} text-accent`} onClick={() => requestLand(row)}>
+                          <button type="button" className={LINK} onClick={() => requestLand(row)}>
                             {w.land.button}
                           </button>
                         )}

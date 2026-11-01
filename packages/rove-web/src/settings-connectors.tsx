@@ -83,7 +83,7 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
     return (
       <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
         <span className="text-muted">{c("loginFailed", { error: login.error ?? "" })}</span>
-        <button type="button" className={`${LINK} text-accent`} onClick={onCancel}>
+        <button type="button" className={LINK} onClick={onCancel}>
           {c("dismiss")}
         </button>
       </div>
@@ -115,7 +115,7 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
       ) : (
         <span className="text-muted">{c("loading")}</span>
       )}
-      <button type="button" className={`${LINK} text-accent`} onClick={onCancel}>
+      <button type="button" className={LINK} onClick={onCancel}>
         {t("dialog.cancel")}
       </button>
     </div>
@@ -241,7 +241,7 @@ function GithubCard({ model }: { model: AppModel }) {
         <div className={CONFIRM_INLINE}>
           <p className="text-muted">{c("disconnectBody")}</p>
           <div className={ACTIONS}>
-            <button type="button" className={`${LINK} text-accent`} onClick={() => setConfirming(false)}>
+            <button type="button" className={LINK} onClick={() => setConfirming(false)}>
               {t("dialog.cancel")}
             </button>
             <button
@@ -281,7 +281,7 @@ function GithubCard({ model }: { model: AppModel }) {
               />
             ))}
           </div>
-          <button type="button" className={`${LINK} text-accent`} onClick={() => void refresh()}>
+          <button type="button" className={LINK} onClick={() => void refresh()}>
             {c("refresh")}
           </button>
         </Group>

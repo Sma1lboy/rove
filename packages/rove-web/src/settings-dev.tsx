@@ -56,7 +56,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
           <strong>{ts(`${kind}.title`)}</strong>
           <p className="text-muted">{t(kind === "reset" ? "prefs.resetBody" : "prefs.restartBody")}</p>
           <div className={ACTIONS}>
-            <button type="button" className={`${LINK} text-accent`} onClick={() => setPending(null)}>
+            <button type="button" className={LINK} onClick={() => setPending(null)}>
               {t("dialog.cancel")}
             </button>
             <button type="button" className={buttonClass({ danger })} disabled={busy} onClick={() => void confirm()}>

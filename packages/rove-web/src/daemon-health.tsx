@@ -89,7 +89,7 @@ export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
     <div className={`mono ${DAEMON_BANNER}`} role="alert">
       <b>{tc("update", "skew.title")}</b>
       <span>{hint}</span>
-      <button type="button" className={`${LINK} text-accent`} onClick={onRefresh}>
+      <button type="button" className={LINK} onClick={onRefresh}>
         {tc("update", "refresh.confirmLabel")}
       </button>
     </div>

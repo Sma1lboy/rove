@@ -124,7 +124,7 @@ function TierEditor(props: {
         />
       )}
       <div className={ACTIONS}>
-        <button type="button" className={`${LINK} text-accent`} onClick={props.onCancel}>
+        <button type="button" className={LINK} onClick={props.onCancel}>
           {t("dialog.cancel")}
         </button>
         <button type="submit" className={buttonClass()}>
@@ -197,7 +197,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
                 </span>
                 <button
                   type="button"
-                  className={`${LINK} ml-auto text-accent`}
+                  className={`${LINK} ml-auto`}
                   onClick={() => setEditing(editing === row.tier ? null : row.tier)}
                 >
                   {t("prefs.tierEdit")}

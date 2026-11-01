@@ -393,17 +393,12 @@ export function KanbanView({ model }: { model: AppModel }) {
         <span className="mono keys-only text-muted">{kanban.hint}</span>
         {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
         <span className={`mono ${PG_ACTIONS}`}>
-          <button
-            type="button"
-            className={`${LINK} text-accent ${PG_ACTION_LINK.kanban}`}
-            disabled={!board}
-            onClick={openIntake}
-          >
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.kanban}`} disabled={!board} onClick={openIntake}>
             {t("pages.new")}
           </button>
           <button
             type="button"
-            className={`${LINK} text-accent ${PG_ACTION_LINK.kanban}`}
+            className={`${LINK} ${PG_ACTION_LINK.kanban}`}
             disabled={!board?.issues.some((entry) => entry.id === selectedId)}
             onClick={requestDelete}
           >

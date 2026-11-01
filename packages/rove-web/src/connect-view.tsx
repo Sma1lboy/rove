@@ -47,7 +47,7 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
           {failing && (
             <button
               type="button"
-              className={`${LINK} text-accent`}
+              className={LINK}
               onClick={() => {
                 forgetToken()
                 window.location.reload()
