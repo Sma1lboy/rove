@@ -12,6 +12,7 @@ import {
 import { type CSSProperties, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { useStore } from "./store.ts"
+import { USAGE, USAGE_CHIP, USAGE_TONE, usageBar } from "./ui/shell.ts"
 
 /** The daemon publishes as engines report; the TUI reads a pushed signal, the page polls. */
 const POLL_MS = 10_000
@@ -21,7 +22,7 @@ const BAR_CELLS = 5
 /** The window's fill beside its percent; `percentText` is the TUI's `42%` / `42%~`. */
 function UsageBar({ percentText, tone }: { percentText: string; tone: string }) {
   const percent = Math.min(100, Math.max(0, Number.parseInt(percentText, 10) || 0))
-  return <span className={`usage-bar tone-${tone}`} style={{ "--fill": `${percent}%` } as CSSProperties} />
+  return <span className={usageBar(tone)} style={{ "--fill": `${percent}%` } as CSSProperties} />
 }
 
 /** JetBrains Mono advances 0.6em per glyph; the footer's width in TUI cells is its width over that. */
@@ -116,29 +117,29 @@ export function UsageChips({
   const fitted = rows.length ? footerChips(rows, room - bars) : null
   const quota = fitted?.form === "compact" ? footerChips(rows, room, true) : fitted
   return (
-    <span className="usage" ref={box}>
+    <span className={USAGE} ref={box}>
       {ctx && (
-        <span className="usage-chip">
+        <span className={USAGE_CHIP}>
           <span>{ctx.label}</span>
           <UsageBar percentText={ctx.percentText} tone={ctx.tone} />
-          <span className={`tone-${ctx.tone}`}>{ctx.percentText}</span>
+          <span className={USAGE_TONE[ctx.tone]}>{ctx.percentText}</span>
         </span>
       )}
       {tok && (
-        <span className="usage-chip">
+        <span className={USAGE_CHIP}>
           {tok.label} {tok.text}
         </span>
       )}
       {quota?.form === "full" &&
         quota.vendors.map((vendor) => (
-          <span key={vendor.vendor} className="usage-chip">
+          <span key={vendor.vendor} className={USAGE_CHIP}>
             <span>{vendor.vendor}</span>
             {vendor.chips.map((chip) => (
               <span key={chip.label}>
                 {" "}
                 {chip.label}
                 <UsageBar percentText={chip.percentText} tone={chip.tone} />
-                <span className={`tone-${chip.tone}`}>{chip.percentText}</span>
+                <span className={USAGE_TONE[chip.tone]}>{chip.percentText}</span>
                 {chip.resetText ? ` ${chip.resetText}` : ""}
               </span>
             ))}
@@ -146,8 +147,8 @@ export function UsageChips({
         ))}
       {quota?.form === "compact" &&
         quota.vendors.map((vendor) => (
-          <span key={vendor.vendor} className="usage-chip">
-            {vendor.vendor} <span className={`tone-${vendor.tone}`}>{vendor.percentText}</span>
+          <span key={vendor.vendor} className={USAGE_CHIP}>
+            {vendor.vendor} <span className={USAGE_TONE[vendor.tone]}>{vendor.percentText}</span>
           </span>
         ))}
     </span>

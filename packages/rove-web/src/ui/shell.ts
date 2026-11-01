@@ -142,3 +142,50 @@ export const prefixHudLine = (back: boolean): string =>
 /** The workspace's empty states. */
 export const PLACEHOLDER = `m-auto font-mono text-meta ${FONT_RESET} text-subtle`
 export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 [&_p]:m-0`
+
+/** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
+export const WORKSPACE = "workspace row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
+/** `pane` stays: settings.css marks its focus and the working border on it. */
+export const PANE = "pane flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper"
+
+export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
+/** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (styles.css), not its own. `term-host` stays for those xterm rules. */
+export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden"
+/** Kitty placeholder images, over xterm's canvas and under its decorations. */
+export const TERM_IMAGES = "pointer-events-none absolute inset-0 z-5 h-full w-full"
+/** The terminal's own box (term-pool.ts); a leaving one is held over its successor until that one has painted. */
+export const TERM_BOX =
+  "relative h-full [&.is-leaving]:pointer-events-none [&.is-leaving]:absolute [&.is-leaving]:inset-0 [&.is-leaving]:z-6"
+/** A reattaching terminal's last screen, in the xterm's own grid metrics. */
+export const TERM_SNAPSHOT =
+  "pointer-events-none absolute inset-0 z-1 overflow-hidden pt-1.5 pr-1 pb-1 pl-2 [&_pre]:m-0 [&_pre>div>div]:overflow-hidden [&_pre>div>div]:[height:var(--row-h,1.15em)] [&_pre>div>div]:[line-height:var(--row-h,1.15em)]"
+export const termNotice = (error: boolean): string =>
+  `absolute right-2.5 bottom-2.5 z-5 flex items-center gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.25 font-mono text-meta ${FONT_RESET} ${error ? "text-error" : "text-muted"} [&_.link:disabled]:pointer-events-none [&_.link:disabled]:opacity-60`
+
+/** The footer: usage left, key hints right. `status` stays for the touch block's link inset in styles.css. */
+export const STATUS_BAR = `status col-span-full flex min-w-0 items-center gap-2 [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 py-1 font-mono text-meta ${FONT_RESET} whitespace-nowrap text-muted`
+export const connDot = (retrying: boolean): string => `size-1.5 rounded-full ${retrying ? "bg-warning" : "bg-subtle"}`
+
+/** The usage half takes the footer's spare width; usage-view.tsx measures it to pick the full or compact form. */
+export const USAGE = "flex min-w-0 flex-[1_1_0] gap-4 overflow-hidden whitespace-nowrap"
+/** Gap of 2 TUI cells between a chip's parts; tone only on the percent. */
+export const USAGE_CHIP = "[&>span:nth-child(n+3)]:ml-2"
+export const USAGE_TONE: Readonly<Record<string, string>> = {
+  ok: "text-success",
+  warn: "text-warning",
+  crit: "text-error",
+}
+/** A window's fill beside its percent, in the percent's tone; the track is the same tone, faint. */
+export const usageBar = (tone: string): string =>
+  `relative mx-1.25 mt-0 mb-px inline-block h-1 w-7 overflow-hidden rounded-[2px] bg-[color-mix(in_srgb,currentColor_20%,transparent)] align-middle after:absolute after:inset-y-0 after:left-0 after:w-(--fill) after:bg-current after:content-[''] ${USAGE_TONE[tone] ?? ""}`
+
+export const WORDMARK = "font-mono text-title font-bold normal-nums tracking-[0.02em] whitespace-nowrap"
+export const BRACKET = "text-accent"
+
+/** The connect and login screens. */
+export const CONNECT = "grid h-full place-items-center p-6"
+export const CONNECT_CARD =
+  "flex w-[min(460px,100%)] flex-col gap-3 rounded-md border-hairline border-line bg-surface p-6 [&_p]:m-0"
+
+/** A task on another machine: the pane says where it lives. */
+export const REMOTE_NOTICE = `flex flex-col gap-2 p-3.5 text-left font-sans text-meta ${FONT_RESET} leading-[1.5]`

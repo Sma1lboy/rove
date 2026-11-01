@@ -22,7 +22,7 @@ import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
-import { TERM_SCROLLED } from "./ui/shell.ts"
+import { TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
 
 export interface TerminalViewProps {
   readonly client: BridgeClient
@@ -239,7 +239,7 @@ export function TerminalView(props: TerminalViewProps) {
 
   return (
     <div
-      className="term-pane"
+      className={TERM_PANE}
       data-stream={streamKey(taskId, tabId, leafId)}
       onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
       onDrop={(e) => {
@@ -259,7 +259,7 @@ export function TerminalView(props: TerminalViewProps) {
         void (files.length > 0 ? dropFiles(client, handle, files) : pasteClipboardImage(client, handle))
       }}
     >
-      <div className="term-host" ref={host} />
+      <div className={TERM_HOST} ref={host} />
       <TermNotice
         notice={notice}
         engineExit={answeredExit ? null : (props.engineExit ?? null)}

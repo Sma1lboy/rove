@@ -236,16 +236,6 @@ button:focus-visible {
   color: var(--error);
 }
 
-.wordmark {
-  font: 700 var(--fs-title) var(--mono);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.bracket {
-  color: var(--accent);
-}
-
 .kicker {
   font: 500 var(--fs-meta) var(--sans);
   color: var(--muted);
@@ -292,201 +282,14 @@ button:focus-visible {
   margin: 0 0 4px;
 }
 
-/* Workspace */
-
-.workspace {
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  padding: 8px 4px 4px;
-  gap: 6px;
-}
-
-.pane {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-  overflow: hidden;
-}
-
-.placeholder {
-  margin: auto;
-  font: var(--fs-meta) var(--mono);
-  color: var(--subtle);
-}
-
-.term-pane {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/*
- * The fit addon measures the host's box and subtracts the padding of `.xterm`, not the host's:
- * padding here made it size the terminal for the padded box, so the grid overflowed by the
- * padding (a clipped last row, the pane scrolling sideways).
- */
-.term-host {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  /* `term-touch.ts` scrolls it; the browser starting its own pan here races that into a page pull. */
-  touch-action: none;
-  overflow: hidden;
-}
-
+/* The terminal's padding sits on `.xterm`, not its host: the fit addon subtracts this one. */
 .term-host .xterm {
   height: 100%;
   padding: 6px 4px 4px 8px;
 }
 
-/* Kitty placeholder images (`term-images.ts`), over xterm's own canvas and under its decorations. */
-.term-images {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 5;
-}
-
-/* The terminal's own box, which moves between the pane and the parking lot (`term-pool.ts`). */
-.term-box {
-  position: relative;
-  height: 100%;
-}
-
-/* The terminal that was just shown, held over the next one until that one has painted its replay (`term-pool.ts`). */
-.term-box.is-leaving {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-}
-
-/* The last screen of a reattaching terminal, same grid metrics as the xterm under it. */
-.term-snapshot {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  padding: 6px 4px 4px 8px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.term-snapshot pre {
-  margin: 0;
-}
-
-.term-snapshot pre > div > div {
-  height: var(--row-h, 1.15em);
-  line-height: var(--row-h, 1.15em);
-  overflow: hidden;
-}
-
-.term-notice {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 10px;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--inset);
-  font: var(--fs-meta) var(--mono);
-  color: var(--muted);
-}
-
-.term-notice.is-error {
-  color: var(--error);
-}
-
-.term-notice .link:disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* Footer */
-
-.status {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-top: var(--hairline) solid var(--line);
-  background: var(--surface);
-  font: var(--fs-meta) var(--mono);
-  color: var(--muted);
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* Footer usage: the TUI's chips, gap 2 cells between chips, tone only on the percent. It takes the
-   footer's spare width, which usage-view.tsx measures to pick the full or compact form. */
-.usage-chip > span:nth-child(n + 3) {
-  margin-left: 8px;
-}
-
-.usage {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  gap: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.tone-ok {
-  color: var(--success);
-}
 .tone-warn {
   color: var(--warning);
-}
-.tone-crit {
-  color: var(--error);
-}
-
-/* A usage window's fill beside its percent, in the percent's tone; the track is the same tone, faint. */
-.usage-bar {
-  display: inline-block;
-  position: relative;
-  width: 28px;
-  height: 4px;
-  margin: 0 5px 1px;
-  border-radius: 2px;
-  vertical-align: middle;
-  overflow: hidden;
-  background: color-mix(in srgb, currentColor 20%, transparent);
-}
-.usage-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--fill);
-  background: currentColor;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--subtle);
-}
-
-.dot.state-retrying {
-  background: var(--warning);
 }
 
 .link {
@@ -495,30 +298,6 @@ button:focus-visible {
 
 .link:hover {
   text-decoration: underline;
-}
-
-/* Connect */
-
-.connect {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.connect-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(460px, 100%);
-  padding: 24px;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.connect-card p {
-  margin: 0;
 }
 
 .input {
@@ -536,16 +315,6 @@ button:focus-visible {
   justify-content: flex-end;
   align-items: center;
   gap: 14px;
-}
-
-/* A task on another machine has no tabs or files here: the pane says where it lives (TUI `host-files-pane.tsx`). */
-.remote-notice {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  font: var(--fs-meta) / 1.5 var(--sans);
-  text-align: left;
 }
 
 @media (hover: none) and (pointer: coarse) {

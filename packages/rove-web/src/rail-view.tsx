@@ -53,7 +53,7 @@ import {
   railBody,
 } from "./ui/rail.ts"
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
-import { HEAD_CHIP } from "./ui/shell.ts"
+import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
@@ -145,8 +145,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       }}
     >
       <header className={RAIL_HEAD}>
-        <span className="wordmark mr-auto">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
+        <span className={`${WORDMARK} mr-auto`}>
+          <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
         <span className="relative">
           <button

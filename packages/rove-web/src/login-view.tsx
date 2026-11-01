@@ -4,6 +4,7 @@ import { useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { type LoginOutcome, submitPassword } from "./login.ts"
 import { buttonClass } from "./ui/button.tsx"
+import { BRACKET, CONNECT, CONNECT_CARD, WORDMARK } from "./ui/shell.ts"
 
 function message(outcome: LoginOutcome | null): string | null {
   if (!outcome) return null
@@ -28,9 +29,9 @@ export function LoginScreen() {
   const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
   const error = message(outcome)
   return (
-    <div className="connect">
+    <div className={CONNECT}>
       <form
-        className="connect-card"
+        className={CONNECT_CARD}
         onSubmit={async (e) => {
           e.preventDefault()
           if (busy || !password) return
@@ -45,8 +46,8 @@ export function LoginScreen() {
           setBusy(false)
         }}
       >
-        <span className="wordmark">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
+        <span className={WORDMARK}>
+          <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
         <h1 className="kicker">{t("login.title")}</h1>
         <p className="muted">{t("login.body")}</p>

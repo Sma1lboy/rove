@@ -3,15 +3,16 @@ import { forgetToken, saveToken } from "./auth.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { tokenFromInput } from "./token-input.ts"
 import { buttonClass } from "./ui/button.tsx"
+import { BRACKET, CONNECT, CONNECT_CARD, WORDMARK } from "./ui/shell.ts"
 
 export function ConnectScreen({ failing = false }: { failing?: boolean }) {
   useLocale()
   const [value, setValue] = useState("")
   const [invalid, setInvalid] = useState(false)
   return (
-    <div className="connect">
+    <div className={CONNECT}>
       <form
-        className="connect-card"
+        className={CONNECT_CARD}
         onSubmit={(e) => {
           e.preventDefault()
           const token = tokenFromInput(value)
@@ -23,8 +24,8 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
           window.location.reload()
         }}
       >
-        <span className="wordmark">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
+        <span className={WORDMARK}>
+          <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
         <h1 className="kicker">{t("connect.title")}</h1>
         <p className={failing ? "error" : "muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>

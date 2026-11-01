@@ -8,6 +8,7 @@
 
 import type { BridgeClient } from "./bridge.ts"
 import { type MountOpts, type Notice, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
+import { TERM_BOX } from "./ui/shell.ts"
 
 /** Parked terminals per connection. Each holds a WebGL context, and a browser keeps only ~16 live. */
 const PARKED_MAX = 8
@@ -135,7 +136,7 @@ export function leaseTerminal(
   }
 
   const box = document.createElement("div")
-  box.className = "term-box"
+  box.className = TERM_BOX
   o.host.append(box)
   adoptLeft(pool, o.host)
   // A stream already on screen elsewhere gets its own, unpooled terminal.

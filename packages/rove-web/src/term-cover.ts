@@ -7,6 +7,7 @@ import type { SerializeAddon } from "@xterm/addon-serialize"
 import type { IDisposable, Terminal } from "@xterm/xterm"
 import { terminalTheme } from "./prefs-theme.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
+import { TERM_SNAPSHOT } from "./ui/shell.ts"
 
 /** A cover that no one lowers (a reattach that never settles) goes away on its own after this. */
 const COVER_CAP_MS = 1500
@@ -48,7 +49,7 @@ export function createCover(term: Terminal, host: HTMLElement, serialize: Serial
     raise(html) {
       lower()
       cover = document.createElement("div")
-      cover.className = "term-snapshot"
+      cover.className = TERM_SNAPSHOT
       cover.innerHTML = html
       cover.style.backgroundColor = (terminalTheme.get() ?? XTERM_THEME).background ?? ""
       host.append(cover)

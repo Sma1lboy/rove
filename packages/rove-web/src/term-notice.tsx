@@ -10,7 +10,7 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import type { Notice } from "./term-mount.ts"
 import { dialog } from "./ui.ts"
-import { TERM_NOTICE_TOUCH } from "./ui/shell.ts"
+import { TERM_NOTICE_TOUCH, termNotice } from "./ui/shell.ts"
 
 /** The tab's engine ended while its fallback shell kept the session up (the daemon marked the tab dead). */
 export interface EngineExit {
@@ -59,7 +59,7 @@ export function TermNotice(props: {
       : noticeText(notice)
 
   return (
-    <div className={`term-notice ${TERM_NOTICE_TOUCH} ${notice.kind === "failed" || revive.error ? "is-error" : ""}`}>
+    <div className={`${termNotice(notice.kind === "failed" || !!revive.error)} ${TERM_NOTICE_TOUCH}`}>
       <span>{text}</span>
       {props.onReopen && (reopenable || lostEngine) && (
         <button
