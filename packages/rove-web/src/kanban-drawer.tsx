@@ -18,6 +18,8 @@ import type { AppModel } from "./model.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog, toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHIPS_ROW, FIELD, TEXTAREA, chipClass } from "./ui/form.ts"
 import {
   KB_AGE,
   KB_BODY,
@@ -269,7 +271,7 @@ export function IssueDrawer(props: {
           </button>
         </div>
         <div className={DIALOG_BODY}>
-          <label className="field">
+          <label className={FIELD}>
             <span className="kicker">{kanban.detail.titleLabel}</span>
             <input
               ref={at("title")}
@@ -285,7 +287,7 @@ export function IssueDrawer(props: {
               }}
             />
           </label>
-          <label className="field">
+          <label className={FIELD}>
             <span className={`kicker ${KB_LABEL}`}>
               {kanban.detail.description}
               <span className={`muted ${KB_HINT}`}>
@@ -295,7 +297,7 @@ export function IssueDrawer(props: {
             </span>
             <textarea
               ref={at("description")}
-              className={`input textarea ${KB_BODY}`}
+              className={`input ${TEXTAREA} ${KB_BODY}`}
               rows={8}
               spellCheck={false}
               placeholder={kanban.detail.noDescription}
@@ -305,7 +307,7 @@ export function IssueDrawer(props: {
           </label>
 
           {!create && (
-            <div className="field">
+            <div className={FIELD}>
               <span className={`kicker ${KB_LABEL}`}>
                 {kanban.detail.statusLabel}
                 <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
@@ -313,7 +315,7 @@ export function IssueDrawer(props: {
               <SelectorField
                 fieldRef={at("status")}
                 label={kanban.detail.statusLabel}
-                className="chips-row"
+                className={CHIPS_ROW}
                 onKeyDown={selector("x", (dir) => setStatus(cycle(ISSUE_STATUSES, status, dir)))}
               >
                 {ISSUE_STATUSES.map((value) => (
@@ -322,7 +324,7 @@ export function IssueDrawer(props: {
                     key={value}
                     tabIndex={-1}
                     aria-pressed={value === status}
-                    className={`chip-button ${value === status ? "is-active" : ""}`}
+                    className={chipClass(value === status)}
                     onClick={() => {
                       setStatus(value)
                       refs.current.status?.focus()
@@ -337,7 +339,7 @@ export function IssueDrawer(props: {
 
           {startable ? (
             <>
-              <div className="field">
+              <div className={FIELD}>
                 <span className={`kicker ${KB_LABEL}`}>
                   {kanban.detail.engine}
                   <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
@@ -345,7 +347,7 @@ export function IssueDrawer(props: {
                 <SelectorField
                   fieldRef={at("engine")}
                   label={kanban.detail.engine}
-                  className="chips-row"
+                  className={CHIPS_ROW}
                   onKeyDown={selector(
                     "x",
                     (dir) =>
@@ -365,7 +367,7 @@ export function IssueDrawer(props: {
                       key={option.id}
                       tabIndex={-1}
                       aria-pressed={option.id === engine}
-                      className={`chip-button ${option.id === engine ? "is-active" : ""}`}
+                      className={chipClass(option.id === engine)}
                       onClick={() => {
                         setEngine(option.id)
                         refs.current.engine?.focus()
@@ -376,7 +378,7 @@ export function IssueDrawer(props: {
                   ))}
                 </SelectorField>
               </div>
-              <div className="field">
+              <div className={FIELD}>
                 <span className={`kicker ${KB_LABEL}`}>
                   {kanban.detail.workspace}
                   <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
@@ -405,7 +407,7 @@ export function IssueDrawer(props: {
                   ))}
                 </SelectorField>
               </div>
-              <div className="field">
+              <div className={FIELD}>
                 <span className={`kicker ${KB_LABEL}`}>
                   {kanban.detail.jumpLabel}
                   <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
@@ -413,7 +415,7 @@ export function IssueDrawer(props: {
                 <SelectorField
                   fieldRef={at("jump")}
                   label={kanban.detail.jumpLabel}
-                  className="chips-row"
+                  className={CHIPS_ROW}
                   onKeyDown={selector("x", () => setJump(!jump), commit)}
                 >
                   {([false, true] as const).map((follow) => (
@@ -422,7 +424,7 @@ export function IssueDrawer(props: {
                       key={String(follow)}
                       tabIndex={-1}
                       aria-pressed={follow === jump}
-                      className={`chip-button ${follow === jump ? "is-active" : ""}`}
+                      className={chipClass(follow === jump)}
                       onClick={() => {
                         setJump(follow)
                         refs.current.jump?.focus()
@@ -443,20 +445,20 @@ export function IssueDrawer(props: {
                     {t("pages.storySave")}
                   </button>
                 )}
-                <button type="button" className="button" onClick={commit}>
+                <button type="button" className={buttonClass()} onClick={commit}>
                   {t(create ? "pages.storySaveStart" : "pages.storyStart")}
                 </button>
               </div>
             </>
           ) : linkedTaskId ? (
             <>
-              <div className="field">
+              <div className={FIELD}>
                 <span className="kicker">{kanban.detail.sessionLabel}</span>
-                <div className={`chips-row ${KB_GROUP}`}>
+                <div className={`${CHIPS_ROW} ${KB_GROUP}`}>
                   <button
                     ref={at("open")}
                     type="button"
-                    className="chip-button is-active"
+                    className={chipClass(true)}
                     onClick={() => leave({ kind: "open", taskId: linkedTaskId, ...draft() })}
                   >
                     {kanban.detail.openAction}
@@ -464,7 +466,7 @@ export function IssueDrawer(props: {
                   <button
                     ref={at("unlink")}
                     type="button"
-                    className="chip-button"
+                    className={chipClass()}
                     onClick={() => leave({ kind: "unlink", ...draft() })}
                   >
                     {kanban.detail.unlinkAction}

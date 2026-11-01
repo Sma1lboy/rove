@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { AppModel } from "./model.ts"
+import { CHIPS_ROW, chipClass } from "./ui/form.ts"
 
 const MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"]
 
@@ -50,12 +51,12 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
 export function AttachmentChips(props: { attachments: readonly Attachment[]; onRemove: (path: string) => void }) {
   if (props.attachments.length === 0) return null
   return (
-    <div className="chips-row" data-field="attachments">
+    <div className={CHIPS_ROW} data-field="attachments">
       {props.attachments.map((a, i) => (
         <button
           type="button"
           key={a.path}
-          className="chip-button is-active"
+          className={chipClass(true)}
           title={a.path}
           onClick={() => props.onRemove(a.path)}
         >

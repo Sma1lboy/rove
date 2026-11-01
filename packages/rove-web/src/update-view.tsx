@@ -16,6 +16,7 @@ import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { HEAD_CHIP } from "./ui/shell.ts"
 import {
   PAGE_HEAD,
@@ -222,7 +223,7 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
         <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>
-        <button ref={ok} type="button" className="button" onClick={() => dialog.set(null)}>
+        <button ref={ok} type="button" className={buttonClass()} onClick={() => dialog.set(null)}>
           {t("whatsNew.continue")}
         </button>
       </div>

@@ -10,6 +10,7 @@ import { CLONE_PARENT_KEY, deriveFolderName, expandTilde, filterByGlob, joinPick
 import { SuggestField, focusField } from "./suggest-field.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { FIELD } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 
@@ -93,7 +94,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         void create()
       }}
     >
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.gitUrl")}</span>
         <input
           className="input"
@@ -109,7 +110,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
           }}
         />
       </div>
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.parentDir")}</span>
         <SuggestField
           field="parent"
@@ -139,7 +140,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
         <span className="muted">{tc("newTask", "hint.remembered")}</span>
       </div>
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.folderName")}</span>
         <input
           className="input"
@@ -155,7 +156,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
           }}
         />
       </div>
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.baseBranch")}</span>
         <input
           className="input"
@@ -267,7 +268,7 @@ export function AdoptTab({
         setSelected((now) => (shown.every((w) => now.has(w.path)) ? new Set() : new Set(shown.map((w) => w.path))))
       }}
     >
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.adoptFilter")}</span>
         <SuggestField
           field="filter"

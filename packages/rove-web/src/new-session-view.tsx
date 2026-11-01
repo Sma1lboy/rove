@@ -32,6 +32,7 @@ import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
 import "./new-session.css"
+import { buttonClass } from "./ui/button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {
@@ -304,7 +305,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             <button type="button" className="composer-chip" disabled={busy} onClick={() => void start(false)}>
               {t("newSession.createOnly")}
             </button>
-            <button type="submit" className="button" disabled={busy}>
+            <button type="submit" className={buttonClass()} disabled={busy}>
               {t("newSession.start")}
             </button>
           </div>

@@ -15,13 +15,13 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
 import { installSkill } from "./skill-banner.tsx"
 import { toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import {
   ENG_ACTION,
   ENG_ACTIONS,
   ENG_BOX,
   ENG_BOX_ACTIONS,
-  ENG_BOX_BUTTON,
   ENG_BOX_HEAD,
   ENG_BOX_TITLE,
   ENG_DEFAULT,
@@ -301,7 +301,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
               }
             }}
           />
-          <button type="submit" className="button">
+          <button type="submit" className={buttonClass()}>
             {t("settings.engines.save")}
           </button>
           <button type="button" className={ENG_ACTION} onClick={() => setRenaming(null)}>
@@ -343,7 +343,7 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
       <p className="muted">{ts("engines.integrations.hint")}</p>
       <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
-          <button type="button" className={`button ${ENG_BOX_BUTTON}`} onClick={() => run("engines.hooks.install")}>
+          <button type="button" className={buttonClass({ box: true })} onClick={() => run("engines.hooks.install")}>
             {ts("engines.integrations.install", { count: needInstall })}
           </button>
         ) : (
@@ -378,7 +378,7 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
       <p className="muted">{ts("engines.skill.hint")}</p>
       <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
-          <button type="button" className={`button ${ENG_BOX_BUTTON}`} onClick={install}>
+          <button type="button" className={buttonClass({ box: true })} onClick={install}>
             {ts("engines.skill.install", { count: needInstall })}
           </button>
         ) : (

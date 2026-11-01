@@ -14,6 +14,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { prefixCap, prefixHint, userKeys } from "./user-keys.ts"
 
 interface WelcomeEnv {
@@ -108,7 +109,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
         <div className="flex flex-col gap-1.5 pt-1.5">
           <button
             type="button"
-            className="button self-start"
+            className={`${buttonClass()} self-start`}
             data-field="quick-start"
             onClick={() => dialog.set(<QuickStartDialog model={model} start={start} engines={env.engines} />)}
           >

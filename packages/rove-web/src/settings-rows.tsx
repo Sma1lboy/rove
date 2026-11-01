@@ -1,6 +1,7 @@
 /** Row shapes the Settings sections share: a switch, a one-of-many, and a click-to-cycle row. */
 
 import type { ReactNode } from "react"
+import { CHIPS_ROW, chipClass } from "./ui/form.ts"
 import {
   PREF_CHECKBOX,
   PREF_CYCLE,
@@ -64,13 +65,13 @@ export function Chips<T extends string | number>(props: {
   return (
     <fieldset className={PREF_FIELD}>
       <legend className={PREF_LEGEND}>{props.label}</legend>
-      <div className="chips-row clear-both">
+      <div className={`${CHIPS_ROW} clear-both`}>
         {props.picks.map((pick) => (
           <button
             type="button"
             key={pick.value}
             aria-pressed={pick.value === props.value}
-            className={`chip-button ${pick.value === props.value ? "is-active" : ""}`}
+            className={chipClass(pick.value === props.value)}
             onClick={() => pick.value !== props.value && props.onPick(pick.value)}
           >
             {pick.label}

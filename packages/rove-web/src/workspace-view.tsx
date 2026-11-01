@@ -16,6 +16,7 @@ import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { dialog, newSession, page } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
@@ -106,12 +107,12 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         {task && tabsKnown && tabs.length === 0 && !panelOn && (
           <div className="placeholder">
             <p>{t("workspace.noTabs")}</p>
-            <button type="button" className="button" onClick={() => void newChatHere(model, task.id)}>
+            <button type="button" className={buttonClass()} onClick={() => void newChatHere(model, task.id)}>
               {t("menu.newChat")}
             </button>{" "}
             <button
               type="button"
-              className="button"
+              className={buttonClass()}
               onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
             >
               {t("menu.newChatPick")}

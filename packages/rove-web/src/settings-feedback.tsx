@@ -5,6 +5,8 @@ import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { SETTINGS_GROUP } from "./ui/settings.ts"
 
 export function FeedbackSection({ client }: { client: BridgeClient }) {
@@ -30,16 +32,16 @@ export function FeedbackSection({ client }: { client: BridgeClient }) {
       }}
     >
       <p className="muted">{t("settings.feedback.hint")}</p>
-      <label className="field">
+      <label className={FIELD}>
         <span className="kicker">{t("settings.feedback.titleLabel")}</span>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
       </label>
-      <label className="field">
+      <label className={FIELD}>
         <span className="kicker">{t("settings.feedback.body")}</span>
-        <textarea className="input textarea" rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
+        <textarea className={`input ${TEXTAREA}`} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
       </label>
       <div className="actions">
-        <button type="submit" className="button" disabled={busy || !title.trim() || !body.trim()}>
+        <button type="submit" className={buttonClass()} disabled={busy || !title.trim() || !body.trim()}>
           {t("settings.feedback.send")}
         </button>
       </div>

@@ -13,6 +13,8 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHIPS_ROW, chipClass } from "./ui/form.ts"
 import {
   PREF_CYCLE,
   PREF_CYCLE_LABEL,
@@ -79,13 +81,13 @@ function TierEditor(props: {
         }
       }}
     >
-      <div className="chips-row">
+      <div className={CHIPS_ROW}>
         {props.engines.map((e) => (
           <button
             type="button"
             key={e.id}
             aria-pressed={e.id === engine}
-            className={`chip-button ${e.id === engine ? "is-active" : ""}`}
+            className={chipClass(e.id === engine)}
             onClick={() => {
               setEngine(e.id)
               if (!e.effortLevels.includes(effort)) setEffort("")
@@ -97,13 +99,13 @@ function TierEditor(props: {
         ))}
       </div>
       {picked && picked.effortLevels.length > 0 && (
-        <div className="chips-row">
+        <div className={CHIPS_ROW}>
           {["", ...picked.effortLevels].map((level) => (
             <button
               type="button"
               key={level || "default"}
               aria-pressed={level === effort}
-              className={`chip-button ${level === effort ? "is-active" : ""}`}
+              className={chipClass(level === effort)}
               onClick={() => setEffort(level)}
             >
               {level || ts("autoRouting.engineDefault")}
@@ -125,7 +127,7 @@ function TierEditor(props: {
         <button type="button" className="link" onClick={props.onCancel}>
           {t("dialog.cancel")}
         </button>
-        <button type="submit" className="button">
+        <button type="submit" className={buttonClass()}>
           {ts("action.save")}
         </button>
       </div>
