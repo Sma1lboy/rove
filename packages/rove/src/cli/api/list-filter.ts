@@ -112,6 +112,7 @@ const TASK_FIELDS = {
   dispatcher: true,
   parentTaskId: true,
   sharesWorkspaceOf: true,
+  workspace: true,
   cwdSubpath: true,
   ptyAlias: true,
   requireReport: true,
