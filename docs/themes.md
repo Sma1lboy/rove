@@ -90,7 +90,10 @@ Ten more themes are hosted rather than bundled: `catppuccin`, `dracula`,
 rove theme add https://rove.run/themes/gruvbox.json
 ```
 
-Preview all thirteen at <https://rove.run/themes>.
+Preview all thirteen at <https://rove.run/themes>. In the web client,
+Settings → General → Theme lists the hosted themes you have not installed
+under the installed ones: point at one to preview the page in it, click to
+install it and switch to it.
 
 ## Troubleshooting
 

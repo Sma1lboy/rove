@@ -21,6 +21,7 @@ import { settingsOps } from "./settings.ts"
 import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
+import { hostedThemeOps } from "./theme-hosted.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
 import { welcomeOps } from "./welcome.ts"
@@ -51,6 +52,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   machineOps,
   devOps,
   prefsOps,
+  hostedThemeOps,
   routingOps,
   TASKOPS_OPS,
   WORKSPACE_OPS,

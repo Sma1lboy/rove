@@ -83,11 +83,11 @@ export function AppearanceGroup({ client }: { client: BridgeClient }) {
           return (
             <ThemeGallery
               key={row.key}
+              client={client}
               label={ts(row.label)}
               themes={state.themes}
               value={state.prefs.theme}
               mode={mode}
-              onPick={(next) => pick("theme", next)}
             />
           )
         }

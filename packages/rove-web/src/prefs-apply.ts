@@ -40,7 +40,7 @@ export function usePrefsApply(model: AppModel): void {
 
   useEffect(() => {
     const root = document.documentElement
-    const palette = paletteFor(state.themes, preview ?? state.prefs.theme, mode)
+    const palette = preview ? preview[mode] : paletteFor(state.themes, state.prefs.theme, mode)
     const vars = palette ? cssVars(palette, state.prefs) : {}
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value)
     root.style.colorScheme = mode

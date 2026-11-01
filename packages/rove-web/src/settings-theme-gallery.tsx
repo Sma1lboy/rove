@@ -1,14 +1,17 @@
 /**
  * Settings → Appearance → Theme as cards: each one a miniature window in that theme's own colours.
  * Pointing at a card (or focusing it) paints the whole page in that theme; leaving the gallery puts the
- * saved one back, and a click saves it. Inline colours are the point here: every card shows a different theme.
+ * saved one back, and a click saves it. Below, the rove.run themes not yet installed: the same preview,
+ * and a click installs one (`theme.install`, as `rove theme add`) and switches to it.
+ * Inline colours are the point here: every card shows a different theme.
  */
 
-import { useEffect } from "react"
+import { type ReactNode, useEffect, useState } from "react"
+import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
-import type { Mode } from "./prefs-theme.ts"
-import { paletteFor, themePreview } from "./prefs-theme.ts"
-import type { ThemeEntry } from "./prefs.ts"
+import { type Mode, type PreviewTheme, themePreview } from "./prefs-theme.ts"
+import { type ThemeEntry, loadPrefs, setPref } from "./prefs.ts"
+import { createStore, useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
 import {
   PREF_FIELD,
@@ -25,9 +28,15 @@ import {
   themeCardClass,
 } from "./ui/settings.ts"
 
-function Swatch({ theme, mode }: { theme: ThemeEntry; mode: Mode }) {
-  const p = paletteFor([theme], theme.name, mode)
-  if (!p) return null
+interface HostedTheme extends PreviewTheme {
+  readonly installed: boolean
+}
+
+/** `theme.hosted`, kept for the page's life so reopening Settings draws the catalogue at once; `null` until asked. */
+const hostedStore = createStore<readonly HostedTheme[] | null>(null)
+
+function Swatch({ theme, mode }: { theme: PreviewTheme; mode: Mode }) {
+  const p = theme[mode]
   const bar = (color: string | undefined, width: string) => ({ background: color, width })
   return (
     <span className={THEME_SWATCH} style={{ background: p.background, borderColor: p.border }} aria-hidden>
@@ -51,49 +60,116 @@ function Swatch({ theme, mode }: { theme: ThemeEntry; mode: Mode }) {
   )
 }
 
+function Card(props: { theme: PreviewTheme; mode: Mode; active: boolean; tag?: string; onClick: () => void }) {
+  return (
+    <Button
+      variant="card"
+      aria-pressed={props.active}
+      className={themeCardClass(props.active)}
+      onMouseEnter={() => themePreview.set(props.theme)}
+      onFocus={() => themePreview.set(props.theme)}
+      onClick={props.onClick}
+    >
+      <Swatch theme={props.theme} mode={props.mode} />
+      <span className={THEME_CARD_NAME}>
+        <span className="truncate text-ink">{props.theme.name}</span>
+        {props.tag && <span className="text-subtle">{props.tag}</span>}
+      </span>
+    </Button>
+  )
+}
+
+/** Leaving the grid (pointer or keyboard focus) drops the preview. */
+function Grid({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className={THEME_GRID}
+      onMouseLeave={() => themePreview.set(null)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) themePreview.set(null)
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function ThemeGallery(props: {
+  client: BridgeClient
   label: string
   themes: readonly ThemeEntry[]
   value: string
   mode: Mode
-  onPick: (name: string) => void
 }) {
+  const { client } = props
+  const hosted = useStore(hostedStore)
+  const [installing, setInstalling] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
   // A preview must not outlive the page: leaving Settings mid-hover would keep painting it.
   useEffect(() => () => themePreview.set(null), [])
+  useEffect(() => {
+    if (hostedStore.get() !== null) return
+    client.request<{ themes: HostedTheme[] }>("theme.hosted").then(
+      (reply) => hostedStore.set(reply.themes),
+      () => hostedStore.set([]),
+    )
+  }, [client])
+
+  const install = async (name: string) => {
+    setInstalling(name)
+    setFailed(null)
+    try {
+      await client.request("theme.install", { name })
+      await loadPrefs(client)
+      await setPref(client, "theme", name)
+    } catch {
+      setFailed(name)
+    } finally {
+      setInstalling(null)
+    }
+  }
+
+  const installedNames = new Set(props.themes.map((th) => th.name))
+  const more = (hosted ?? []).filter((th) => !installedNames.has(th.name))
   return (
     <fieldset className={PREF_FIELD}>
       <legend className={PREF_LEGEND}>{props.label}</legend>
       <p className={`${PREF_HINT} clear-both text-muted`}>{t("prefs.themePreviewHint")}</p>
-      <div
-        className={THEME_GRID}
-        onMouseLeave={() => themePreview.set(null)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) themePreview.set(null)
-        }}
-      >
-        {props.themes.map((theme) => {
-          const active = theme.name === props.value
-          return (
-            <Button
-              variant="card"
-              key={theme.name}
-              aria-pressed={active}
-              className={themeCardClass(active)}
-              onMouseEnter={() => themePreview.set(theme.name)}
-              onFocus={() => themePreview.set(theme.name)}
-              onClick={() => {
-                if (!active) props.onPick(theme.name)
-              }}
-            >
-              <Swatch theme={theme} mode={props.mode} />
-              <span className={THEME_CARD_NAME}>
-                <span className="truncate text-ink">{theme.name}</span>
-                {!theme.bundled && <span className="text-subtle">{t("prefs.themeUser")}</span>}
-              </span>
-            </Button>
-          )
-        })}
-      </div>
+      <Grid>
+        {props.themes.map((theme) => (
+          <Card
+            key={theme.name}
+            theme={theme}
+            mode={props.mode}
+            active={theme.name === props.value}
+            tag={theme.bundled ? undefined : t("prefs.themeUser")}
+            onClick={() => theme.name !== props.value && void setPref(client, "theme", theme.name)}
+          />
+        ))}
+      </Grid>
+      {more.length > 0 && (
+        <>
+          <p className={`${PREF_HINT} mt-2 text-muted`}>{t("prefs.themeMoreHint")}</p>
+          <Grid>
+            {more.map((theme) => (
+              <Card
+                key={theme.name}
+                theme={theme}
+                mode={props.mode}
+                active={false}
+                tag={
+                  installing === theme.name
+                    ? t("prefs.themeInstalling")
+                    : failed === theme.name
+                      ? t("prefs.themeInstallFailed")
+                      : t("prefs.themeGet")
+                }
+                onClick={() => installing === null && void install(theme.name)}
+              />
+            ))}
+          </Grid>
+        </>
+      )}
     </fieldset>
   )
 }
