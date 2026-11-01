@@ -15,6 +15,7 @@ import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { PALETTE_LIST, paletteRow } from "./ui/shell.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 /** Rows shown at once; the list scrolls inside (the TUI caps it at ten). */
@@ -114,18 +115,18 @@ function PaletteDialog({
             setSelected(0)
           }}
         />
-        <div className="palette-list" ref={list} style={{ maxHeight: `${VISIBLE_ROWS * 1.9}em` }}>
+        <div className={PALETTE_LIST} ref={list} style={{ maxHeight: `${VISIBLE_ROWS * 1.9}em` }}>
           {shown.length === 0 && <p className="muted">{helpText("noResults")}</p>}
           {shown.map((row, i) => (
             <button
               type="button"
               key={row.command.id}
-              className={`palette-row ${i === index ? "is-selected" : ""}`}
+              className={paletteRow(i === index)}
               onMouseEnter={() => setSelected(i)}
               onClick={() => run(row)}
             >
               <span>{`${i === index ? "› " : "  "}${row.name}`}</span>
-              <span className="palette-chord mono">{row.chord}</span>
+              <span className="keys-only mono text-accent">{row.chord}</span>
             </button>
           ))}
         </div>

@@ -142,7 +142,7 @@ export function closeDialog(): void {
 }
 
 /**
- * A column is moving: `slide` for workspace.css's 220ms grid transition (a fold, a width reset), `drag` while a
+ * A column is moving: `slide` for the app grid's 220ms transition (a fold, a width reset), `drag` while a
  * grip is held (the transition off, so the column stays on the pointer). Terminals refit once it settles: a refit
  * per frame blanks the canvas, reflows the scrollback and SIGWINCHes the engine each time.
  */

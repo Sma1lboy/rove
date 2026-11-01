@@ -24,6 +24,14 @@ import { runPrefixStroke } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { useStore } from "./store.ts"
 import { LEAVE_MS } from "./ui.ts"
+import {
+  PREFIX_GUIDE,
+  PREFIX_GUIDE_BODY,
+  PREFIX_GUIDE_GROUP,
+  PREFIX_GUIDE_HEAD,
+  PREFIX_GUIDE_ROW,
+  shortcutBadge,
+} from "./ui/shell.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 interface GuideOption {
@@ -101,25 +109,25 @@ export function PrefixHud({ model }: { model: AppModel }) {
       : prefixOptions(model)
     return (
       <output
-        className="prefix-guide mono"
+        className={`mono ${PREFIX_GUIDE}`}
         // The guide must not take focus from the pane the stroke is meant for.
         onMouseDown={(e) => e.preventDefault()}
       >
-        <div className="prefix-guide-head">
+        <div className={PREFIX_GUIDE_HEAD}>
           <span className="tone-accent">
             {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: prefixKey() ?? "" })}
           </span>
           <span className="muted keys-only">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
         </div>
-        <div className="prefix-guide-body">
+        <div className={PREFIX_GUIDE_BODY}>
           {groupOptions(options).map((group) => (
-            <div key={group.category} className="prefix-guide-group">
+            <div key={group.category} className={PREFIX_GUIDE_GROUP}>
               <div className="tone-accent">{categoryName(group.category)}</div>
               {group.actions.map(({ action, strokes }) => (
                 <button
                   type="button"
                   key={action}
-                  className="prefix-guide-row"
+                  className={PREFIX_GUIDE_ROW}
                   disabled={direct}
                   onClick={() => strokes[0] && runPrefixStroke(model, strokes[0])}
                 >
@@ -165,7 +173,12 @@ function HudLine({ at, children }: { at: number; children: ReactNode }) {
 }
 
 /** A keycap over a control that already names a binding, shown only while the prefix is armed (`local` mode); a click runs the binding's stroke. */
-export function ShortcutBadge({ model, bindingId }: { model: AppModel; bindingId: string }) {
+/** `head`: under the rail head, where the badge hangs below its chip. */
+export function ShortcutBadge({
+  model,
+  bindingId,
+  head = false,
+}: { model: AppModel; bindingId: string; head?: boolean }) {
   const state = useStore(hud)
   useStore(userKeys)
   const mode = usePrefs().prefs.prefixTap
@@ -180,7 +193,7 @@ export function ShortcutBadge({ model, bindingId }: { model: AppModel; bindingId
   return (
     <button
       type="button"
-      className="shortcut-badge mono"
+      className={`mono ${shortcutBadge(head)}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation()

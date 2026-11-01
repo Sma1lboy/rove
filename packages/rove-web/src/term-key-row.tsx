@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { TERM_KEYS } from "./term-keys.ts"
 import type { TermHandle } from "./term-mount.ts"
+import { TERM_KEY_ROW, termKey } from "./ui/shell.ts"
 
 /** Keys whose cap is a symbol a screen reader can't say. */
 const KEY_NAMES: Readonly<Record<string, string>> = {
@@ -24,19 +25,20 @@ export function TermKeyRow({ handle }: { handle: TermHandle }) {
   const { term } = handle
   return (
     <div
-      className="term-keys mono"
+      className={`mono ${TERM_KEY_ROW}`}
       role="toolbar"
       aria-label={t("layout.termKeys")}
       // A tap must not take focus from xterm's textarea, or the soft keyboard closes.
       onPointerDown={(e) => e.preventDefault()}
     >
-      <button type="button" className={ctrl ? "is-on" : ""} aria-pressed={ctrl} onClick={() => setCtrl(!ctrl)}>
+      <button type="button" className={termKey(ctrl)} aria-pressed={ctrl} onClick={() => setCtrl(!ctrl)}>
         ctrl
       </button>
       {TERM_KEYS.map((key) => (
         <button
           key={key.id}
           type="button"
+          className={termKey(false)}
           aria-label={KEY_NAMES[key.id] ? t(KEY_NAMES[key.id]) : undefined}
           onClick={() => {
             setCtrl(false)

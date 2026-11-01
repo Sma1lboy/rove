@@ -23,6 +23,7 @@ import { SkillBanner, useSkillStatus } from "./skill-banner.tsx"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, page, zen } from "./ui.ts"
+import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
 import { useWorkspaceKeys } from "./workspace-keys.tsx"
@@ -102,18 +103,25 @@ function Shell({ model }: { model: AppModel }) {
     "--panel-w": panelPinned === null ? undefined : `${clampPanelWidth(panelPinned, folded ? 0 : openPx)}px`,
   } as CSSProperties
   return (
-    <div className="app-shell">
+    <div className={APP_SHELL}>
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <SkillBanner client={model.client} />
       <div
-        className={`app ${zenOn || !panelShown || (!task && !remoteTask) || narrow ? "is-zen" : ""} ${panelWide && !zenOn && !narrow ? "is-panel-expanded" : ""} ${surface ? `is-narrow narrow-${surface}` : ""} ${folded && !narrow ? "is-rail-folded" : ""} ${folded && peek && !narrow ? "is-rail-peek" : ""} ${dragging ? "is-dragging" : ""}`}
+        className={appClass({
+          zen: zenOn || !panelShown || (!task && !remoteTask) || narrow,
+          expanded: panelWide && !zenOn && !narrow,
+          surface,
+          folded: folded && !narrow,
+          peek: folded && peek && !narrow,
+          dragging,
+        })}
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
         {/* Folded, the page's left edge brings the rail back as a floating panel; leaving the edge without
             reaching the rail (out of the window, a quick flick) closes it again. */}
         {folded && !narrow && (
-          <div className="rail-peek-edge" onMouseEnter={() => peekRail(true)} onMouseLeave={() => peekRail(false)} />
+          <div className={RAIL_PEEK_EDGE} onMouseEnter={() => peekRail(true)} onMouseLeave={() => peekRail(false)} />
         )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />

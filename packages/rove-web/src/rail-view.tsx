@@ -53,6 +53,7 @@ import {
   railBody,
 } from "./ui/rail.ts"
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
+import { HEAD_CHIP } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
@@ -147,15 +148,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className="wordmark mr-auto">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
-        <span className="badge-host">
+        <span className="relative">
           <button
             type="button"
-            className={`kicker inbox-chip ${INBOX_CHIP} ${unread > 0 ? "is-accent" : ""}`}
+            className={`kicker inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "is-accent" : ""}`}
             onClick={() => dialog.set(<InboxDialog model={model} />)}
           >
             {t("rail.inbox", { count: unread })}
           </button>
-          <ShortcutBadge model={model} bindingId="inbox.show" />
+          <ShortcutBadge model={model} bindingId="inbox.show" head />
         </span>
         <UpdateChip />
       </header>

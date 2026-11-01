@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { terminalText } from "./keymap-text.ts"
 import type { TermHandle } from "./term-mount.ts"
+import { TERM_SEARCH, TERM_SEARCH_INPUT } from "./ui/shell.ts"
 
 /** Hits: the others inverse, the current one accent (`useTerminalSearch`'s `hitPaint`). */
 const DECORATIONS = {
@@ -71,14 +72,14 @@ export function TermSearchBar({ handle, onClose }: { handle: TermHandle; onClose
         : terminalText("search.position", { index: hits.index < 0 ? "?" : hits.index + 1, total: hits.total })
 
   return (
-    <div className="term-search mono">
+    <div className={`mono ${TERM_SEARCH}`}>
       {unavailable ? (
         <span className="tone-warning">{terminalText("search.unavailable")}</span>
       ) : (
         <>
-          <span className="tone-info">/</span>
+          <span className="text-accent">/</span>
           <input
-            className="term-search-input"
+            className={TERM_SEARCH_INPUT}
             // biome-ignore lint/a11y/noAutofocus: the query row is the only thing to type into
             autoFocus
             spellCheck={false}
@@ -91,7 +92,7 @@ export function TermSearchBar({ handle, onClose }: { handle: TermHandle; onClose
       )}
       {unavailable && (
         <input
-          className="term-search-input is-hidden"
+          className={`is-hidden ${TERM_SEARCH_INPUT}`}
           // biome-ignore lint/a11y/noAutofocus: takes Esc for the refusal row
           autoFocus
           readOnly

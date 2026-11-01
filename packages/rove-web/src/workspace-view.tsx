@@ -16,6 +16,7 @@ import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { dialog, newSession, page } from "./ui.ts"
+import { WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -50,7 +51,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
-      <main className="workspace">
+      <main className={`workspace ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <UpdateView client={model.client} />
       </main>
@@ -58,7 +59,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (pageOn === "worktrees") {
     return (
-      <main className="workspace">
+      <main className={`workspace ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <WorktreesView model={model} />
       </main>
@@ -66,7 +67,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (pageOn) {
     return (
-      <main className="workspace">
+      <main className={`workspace ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <PagesHost model={model} page={pageOn} />
       </main>
@@ -74,7 +75,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (composing) {
     return (
-      <main className="workspace">
+      <main className={`workspace ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <div className="pane">
           {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
@@ -84,7 +85,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     )
   }
   return (
-    <main className="workspace">
+    <main className={`workspace ${WORKSPACE_FRAME}`}>
       {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       <div

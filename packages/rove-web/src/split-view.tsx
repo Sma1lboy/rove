@@ -28,6 +28,7 @@ import { type LeafBox, cycleLeaf, isSplit, layoutSplit, leafNames } from "./spli
 import { useStore } from "./store.ts"
 import type { EngineExit } from "./term-notice.tsx"
 import { TerminalView } from "./terminal-view.tsx"
+import { SPLIT, splitLeafClass, splitName } from "./ui/shell.ts"
 
 const hasTab = (model: AppModel): boolean => selectedTab(model) !== null
 const splitNow = (model: AppModel): boolean => isSplit(selectedTab(model)?.tab.split)
@@ -118,11 +119,15 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   const engineExit: EngineExit | null =
     deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
   return (
-    <div className={`split ${several ? `is-${prefs.splitStyle}` : ""}`}>
+    <div className={SPLIT}>
       {(split ? layoutSplit(split.root) : WHOLE).map((box) => (
         <div
           key={box.id}
-          className={`split-leaf ${box.left ? "has-left" : ""} ${box.top ? "has-top" : ""} ${box.id === active ? "is-active" : ""}`}
+          className={splitLeafClass(several ? prefs.splitStyle : null, {
+            left: box.left,
+            top: box.top,
+            active: box.id === active,
+          })}
           style={{
             left: `calc(${box.x * 100}% + var(--ml, 0px))`,
             top: `calc(${box.y * 100}% + var(--mt, 0px))`,
@@ -151,7 +156,10 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
             }}
           />
           {several && (
-            <span className="split-name" onContextMenu={(e) => openMenu(e, splitMenu(model, taskId, tab, box.id))}>
+            <span
+              className={splitName(prefs.splitStyle === "rule", box.id === active)}
+              onContextMenu={(e) => openMenu(e, splitMenu(model, taskId, tab, box.id))}
+            >
               {names.get(box.id)}
             </span>
           )}

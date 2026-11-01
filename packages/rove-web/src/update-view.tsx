@@ -28,6 +28,7 @@ import {
   WHATS_NEW_KEYS,
   updateActionClass,
 } from "./ui/update.ts"
+import { HEAD_CHIP } from "./ui/shell.ts"
 
 interface CheckReply {
   readonly current: string
@@ -60,7 +61,7 @@ export function UpdateChip() {
     // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
     <button
       type="button"
-      className={`kicker ${UPDATE_CHIP}`}
+      className={`kicker ${UPDATE_CHIP} ${HEAD_CHIP}`}
       title={fill(u.chip, { version: state.info.latest })}
       onClick={() => openPage("update")}
     >
@@ -147,7 +148,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
             className={updateActionClass(selected === a.id)}
             onClick={() => activate(a.id)}
           >
-            <span className="tone-accent mono update-key">[{a.key}]</span>
+            <span className="tone-accent mono keys-only">[{a.key}]</span>
             <span className={UPDATE_LABEL}>{a.label}</span>
             <span className="muted">{a.detail}</span>
           </button>

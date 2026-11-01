@@ -256,15 +256,6 @@ button:focus-visible {
   color: var(--accent);
 }
 
-/* Layout: rail | workspace, footer across both. */
-
-.app {
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
-  grid-template-rows: 1fr auto;
-  height: 100%;
-}
-
 .tone-accent {
   color: var(--accent);
 }
@@ -591,5 +582,12 @@ button:focus-visible {
   /* Primary buttons (connect, sign out, start session) are ~24-28px tall at desktop padding. */
   .button {
     min-height: 40px;
+  }
+  /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
+     styles sit in several later-loaded sheets, hence !important. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: var(--fs-display) !important;
   }
 }
