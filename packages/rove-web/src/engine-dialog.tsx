@@ -12,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import "./taskops.css"
 import { toast } from "./ui.ts"
 
@@ -135,11 +136,11 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
               <button
                 type="button"
                 aria-pressed={e.id === pick}
-                className={`row ${e.id === pick ? "is-selected" : ""}`}
+                className={rowClass({ selected: e.id === pick })}
                 onClick={() => choose(e.id)}
               >
-                <span className="glyph tone-accent">{e.id === pick ? "●" : " "}</span>
-                <span className="row-title">{e.name}</span>
+                <span className={`${GLYPH} tone-accent`}>{e.id === pick ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{e.name}</span>
                 {e.id === current.engine && <span className="muted">{tc("tasks", "changeEngine.current")}</span>}
               </button>
             </li>

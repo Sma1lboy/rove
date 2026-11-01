@@ -55,14 +55,6 @@
   padding: 10px 6px 8px;
 }
 
-.files.is-narrow .file-row {
-  min-height: 36px;
-}
-
-.recent-row .glyph {
-  font-weight: 700;
-}
-
 /* Rail edge, fold control */
 .rail {
   position: relative;
@@ -554,8 +546,7 @@
   .eng-make-default {
     opacity: 1;
   }
-  /* A fingertip is ~40px: list rows grow to it; small controls keep their look and get an invisible larger hit area. */
-  .row,
+  /* A fingertip is ~40px: nav rows grow to it; small controls keep their look and get an invisible larger hit area. */
   .rail-nav-row {
     min-height: 40px;
   }

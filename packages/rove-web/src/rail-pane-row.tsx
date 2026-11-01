@@ -7,6 +7,7 @@ import type { RowPlace } from "./rail-drag.ts"
 import type { NavRow } from "./rail.ts"
 import { activeLeafOf, activeLeaves, focusLeaf } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 export type PaneRow = Extract<NavRow, { kind: "pane" }>
 
@@ -36,7 +37,7 @@ export function PaneRowView(props: {
   return (
     <button
       type="button"
-      className={`row pane-row ${active ? "is-active-pane" : ""} ${props.cursor ? "is-cursor" : ""}`}
+      className={`${rowClass({ size: "pane" })} ${props.cursor ? "is-cursor" : ""}`}
       aria-current={active || undefined}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
@@ -48,7 +49,7 @@ export function PaneRowView(props: {
           <span key={i} className={`guide is-${guide}`} />
         ))}
       </span>
-      <span className="row-title">{row.label}</span>
+      <span className={`${ROW_TITLE} text-(length:--fs-meta) ${active ? "text-ink" : "text-muted"}`}>{row.label}</span>
     </button>
   )
 }

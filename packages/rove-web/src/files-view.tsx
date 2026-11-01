@@ -21,6 +21,7 @@ import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import { Chip } from "./ui/chip.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
 
 type Tab = "all" | "changes"
@@ -204,7 +205,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           <button
             type="button"
             key={r.path}
-            className={`row file-row ${i === at ? "is-selected" : ""}`}
+            className={rowClass({ selected: i === at, size: narrow ? "file-narrow" : "file" })}
             style={{ paddingLeft: 8 + r.depth * 14 }}
             title={r.path}
             onClick={() => {
@@ -215,13 +216,13 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             }}
           >
             {r.status ? (
-              <span className={`glyph status-${r.status === "?" ? "untracked" : r.status}`}>{r.status}</span>
+              <span className={`${GLYPH} status-${r.status === "?" ? "untracked" : r.status}`}>{r.status}</span>
             ) : (
-              <span className="glyph tone-muted grid place-items-center">
+              <span className={`${GLYPH} tone-muted grid place-items-center`}>
                 {r.dir ? <Chevron right={!r.open} /> : null}
               </span>
             )}
-            <span className="row-title">{r.label}</span>
+            <span className={ROW_TITLE}>{r.label}</span>
             {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
             {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
           </button>
