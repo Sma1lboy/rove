@@ -8,7 +8,7 @@ bun run --filter rove-bridge start            # your real Rove home, 127.0.0.1:7
 bun run --filter rove-bridge dev              # the dev:sandbox home instead
 ```
 
-With no flags the bridge listens on `127.0.0.1` only, which reaches the Mac itself and the iOS Simulator. A real phone gets in through one of two presets.
+With no flags the bridge listens on `127.0.0.1` only, which reaches the Mac itself and the iOS Simulator. A real phone gets in through one of two presets; the browser client (`rove --web`) also has `--preset relay`, described in [`docs/WEB.md`](../../docs/WEB.md).
 
 ## Every connection, every preset
 
@@ -117,6 +117,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://rove.example.com/
 | --- | --- |
 | `--preset tailscale` | Listen on the Tailscale IPv4 only; pair over MagicDNS (or `--public-host` with `tailscale serve`). |
 | `--preset cf` / `cloudflare` | Listen on 127.0.0.1; require Cloudflare Access. Needs `--cf-team`, `--cf-aud`, `--public-host`. |
+| `--preset relay` | `rove --web` only: dial out to a relay-kit Worker (`--relay-server <url>`); the browser comes back through it, end-to-end encrypted. See [`docs/WEB.md`](../../docs/WEB.md). |
+| `--rotate-relay` | New relay pairing code; every relay browser must pair again. |
+| `--relay-shell <dir>` | Write the page the relay Worker serves (`index.html`), then exit. |
 | `--host <addr>` | Without a preset: an explicit listen address (repeatable). Plain `ws://`, so only for trusted networks. |
 | `--port <n>` | TCP port, default 7878. |
 | `--public-host <name>` | Hostname the phone dials over `wss://`. |

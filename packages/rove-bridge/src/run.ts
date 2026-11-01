@@ -7,8 +7,10 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { hostname as osHostname } from "node:os"
 import { join } from "node:path"
+import { RelayAgent } from "@hsinsekai-nanami/agent"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
@@ -24,7 +26,16 @@ import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
-import { addDevice, deviceOf, listDevices, loadOrCreateToken, pairingUrl, revokeDevice, webUrl } from "./auth.ts"
+import {
+  addDevice,
+  deviceOf,
+  listDevices,
+  loadOrCreateToken,
+  pairingUrl,
+  relayLink,
+  revokeDevice,
+  webUrl,
+} from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
@@ -86,7 +97,12 @@ function readConfig(path: string): BridgeConfig {
     const v = fields.get(k)
     return typeof v === "string" && v.trim() ? v.trim() : undefined
   }
-  return { cfTeam: pick("cfTeam"), cfAud: pick("cfAud"), publicHost: pick("publicHost") }
+  return {
+    cfTeam: pick("cfTeam"),
+    cfAud: pick("cfAud"),
+    publicHost: pick("publicHost"),
+    relayServer: pick("relayServer"),
+  }
 }
 
 export interface RunBridgeOptions {
@@ -130,6 +146,23 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   }
   if (args.action === "setup") {
     printSetup(args.port)
+    return
+  }
+  // The relay page boots the browser client, which only `rove --web` serves.
+  if ((args.action === "relay-shell" || args.preset === "relay") && !opts.web) {
+    console.error(`${opts.name}: the relay is for the browser client; run it as \`rove --web\``)
+    process.exit(2)
+  }
+  if (args.action === "relay-shell" && opts.web) {
+    const shell = join(opts.web.root, "relay", "index.html")
+    if (!existsSync(shell)) {
+      console.error(`${opts.name}: ${shell} is missing; build the web client first`)
+      process.exit(1)
+    }
+    const dir = args.relayShellDir ?? "."
+    mkdirSync(dir, { recursive: true })
+    copyFileSync(shell, join(dir, "index.html"))
+    console.log(`wrote ${join(dir, "index.html")}`)
     return
   }
   if (args.action === "set-password" || args.action === "clear-password" || args.action === "unlock") {
@@ -320,6 +353,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       : {}),
     publicHost: args.publicHost,
   }
+  const relay = args.relayServer ? startRelay(deps, args.relayServer, bridgeDir, args.rotateRelay) : null
   const servers = args.hosts.map((hostname) => {
     try {
       return startBridgeServer(deps, { hostname, port: args.port })
@@ -345,9 +379,16 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     if (opts.web && readPassword(webPasswordPaths(bridgeDir).password)) {
       console.log(`password login: on at ${webUrl({ host: publicHost, port, token: "", tls: args.tls }).split("#")[0]}`)
     }
+    if (relay) continue
     const url = pairingUrl({ host: publicHost, port, token, tls: args.tls, preset: args.preset })
     console.log(`${opts.web ? "" : "\n"}pair: ${url}`)
     if (args.qr && !opts.web) console.log(renderUnicodeCompact(url))
+  }
+  if (relay && args.relayServer) {
+    const link = relayLink({ server: args.relayServer, code: relay.code, token })
+    console.log(`\nrelay (end-to-end encrypted through ${args.relayServer}):\n${link}`)
+    if (args.qr) console.log(renderUnicodeCompact(link))
+    console.log("`--rotate-relay` unpairs every browser paired through the relay.")
   }
   if (args.cloudflare) {
     console.log(
@@ -358,6 +399,21 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   console.log(
     `\nThe ${opts.web ? "links are passwords" : "pairing URL is a password"}. \`--rotate-token\` revokes every paired phone${opts.web ? " and browser" : ""}.`,
   )
+}
+
+/**
+ * `--preset relay`: a second loopback listener that only the relay agent dials. The agent opens its
+ * sockets with no headers, so this one listener takes the token from `?token=`; the bearer token
+ * is still required, the relay's E2E layer is on top of it.
+ */
+function startRelay(deps: BridgeDeps, server: string, bridgeDir: string, rotate: boolean): { code: string } {
+  // Same shape as relay-kit's generateCode (32 random bytes, base64url), owner-only like the token.
+  const code = loadOrCreateToken(join(bridgeDir, "relay-code"), rotate)
+  // Shares `deps.login` (and its lockout): under this preset it already trusts no forwarded IP.
+  const ingress = startBridgeServer({ ...deps, tokenInQuery: true }, { hostname: "127.0.0.1", port: 0 })
+  const agent = new RelayAgent({ serverUrl: server, code, localPort: ingress.port ?? 0, deviceName: osHostname() })
+  agent.start()
+  return { code }
 }
 
 /**
@@ -388,6 +444,18 @@ function printSetup(port: number): void {
       "    rove --web --preset cf --public-host <hostname> --cf-team <team> --cf-aud <aud>",
     )
   } else lines.push("  cloudflared: not installed; only needed to publish through Cloudflare Access.")
+  lines.push(
+    "",
+    "  Relay, end-to-end encrypted (no VPN, no Access; the relay sees only ciphertext). Deploy",
+    "  relay-kit's Worker to your own Cloudflare account once, with this machine's page on it:",
+    "    git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay",
+    "    rove --web --relay-shell public",
+    `    printf '\\n[assets]\\ndirectory = "public"\\n' >> wrangler.toml`,
+    "    npx wrangler login && npx wrangler deploy",
+    "    rove --web --preset relay --relay-server https://<worker>.<account>.workers.dev",
+    "  *.workers.dev is blocked on many mainland China networks: bind a custom domain (wrangler.toml).",
+    "  Redo --relay-shell + deploy only when the page changes; the app itself loads from this machine.",
+  )
   lines.push("", "  Give each phone its own token: rove --web --device <name>; revoke one with --revoke-device <name>.")
   console.log(lines.join("\n"))
 }
