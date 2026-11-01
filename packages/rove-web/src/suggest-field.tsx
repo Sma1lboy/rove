@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
+import { SUGGEST_LIST, suggestRowClass } from "./ui/text.ts"
 
 export interface Suggestion {
   readonly key: string
@@ -70,7 +71,7 @@ export function SuggestField(props: {
   }
 
   return (
-    <div className="suggest">
+    <div className="relative">
       <input
         className="input"
         data-field={props.field}
@@ -87,14 +88,14 @@ export function SuggestField(props: {
         onKeyDown={key}
       />
       {shown && (
-        <ul className="suggest-list">
+        <ul className={SUGGEST_LIST}>
           {props.items.map((item, i) => (
             <li key={item.key} ref={i === at ? active : undefined}>
               <button
                 type="button"
                 tabIndex={-1}
                 aria-pressed={i === at}
-                className={`suggest-row ${i === at ? "is-cursor" : ""} ${item.accent ? "is-accent" : ""}`}
+                className={suggestRowClass({ cursor: i === at, accent: !!item.accent })}
                 onMouseDown={(e) => {
                   e.preventDefault()
                   props.onPick(i)

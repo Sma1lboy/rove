@@ -11,10 +11,10 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
+import { toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import "./taskops.css"
-import { toast } from "./ui.ts"
+import { HINT } from "./ui/text.ts"
 
 export interface PickerEngine {
   readonly id: string
@@ -185,7 +185,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
             </div>
           </div>
         )}
-        <p className="muted taskops-hint keys-only">
+        <p className={`keys-only ${HINT}`}>
           <Legend
             text={[
               tc("tasks", "changeEngine.footer.engine"),

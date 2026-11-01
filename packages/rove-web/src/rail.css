@@ -299,3 +299,31 @@
   align-items: center;
   color: var(--subtle);
 }
+
+/* Reorder (move mode): the dragged row and the project header wear the TUI's move mark. */
+
+.project-head.is-moving {
+  background: var(--accent-soft);
+}
+
+.project-head.is-moving::after {
+  content: "move";
+  font: 500 var(--fs-meta) var(--mono);
+  color: var(--accent);
+}
+
+/* Drag to reorder: the rows already stand where the drop leaves them; the dragged one is washed. */
+
+.project-head.is-dragging {
+  background: var(--accent-soft);
+}
+
+.rail-body.is-sorting > [data-row] {
+  transition: transform 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-body.is-sorting > [data-row] {
+    transition: none;
+  }
+}

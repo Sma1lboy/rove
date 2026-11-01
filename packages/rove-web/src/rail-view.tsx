@@ -37,7 +37,6 @@ import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
-import "./taskops.css"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
