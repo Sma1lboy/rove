@@ -27,6 +27,7 @@ import { deviceHint } from "./key-hints.ts"
 import { projectLabel, repoKey, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
+import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
 
 export interface TargetTask {
@@ -138,7 +139,7 @@ export function RoutineComposer(props: {
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog open className="dialog is-wide kb-drawer" aria-label={auto.newTitle}>
+      <dialog open className={`dialog is-wide ${KB_DRAWER}`} aria-label={auto.newTitle}>
         <h1 className="kicker">{auto.newTitle}</h1>
         <div className="dialog-body">
           <label className="field">
@@ -154,15 +155,15 @@ export function RoutineComposer(props: {
             />
           </label>
           <div className="field">
-            <span className="kicker kb-label">
+            <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldRepo}
-              <span className="muted kb-hint keys-only">↑/↓</span>
+              <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("repo")}
               kind="list"
               label={auto.fieldRepo}
-              className="kb-places"
+              className={KB_PLACES}
               onKeyDown={lists(pickRepo)}
             >
               {places.map((repo) => (
@@ -171,7 +172,7 @@ export function RoutineComposer(props: {
                   key={repo ?? ""}
                   tabIndex={-1}
                   aria-selected={repo === draft.repo}
-                  className={`kb-place touch:py-1.5 ${repo === draft.repo ? "is-active" : ""}`}
+                  className={`touch:py-1.5 ${kbPlaceClass(repo === draft.repo)}`}
                   onClick={() => {
                     patch({ repo, target: undefined })
                     refs.current.repo?.focus()
@@ -184,9 +185,9 @@ export function RoutineComposer(props: {
             </SelectorField>
           </div>
           <div className="field">
-            <span className="kicker kb-label">
+            <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldTarget}
-              <span className="muted kb-hint keys-only">↑/↓</span>
+              <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("target")}
@@ -224,9 +225,9 @@ export function RoutineComposer(props: {
             />
           </label>
           <div className="field">
-            <span className="kicker kb-label">
+            <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldSchedule}
-              <span className="muted kb-hint keys-only">←/→ ↑/↓</span>
+              <span className={`muted keys-only ${KB_HINT}`}>←/→ ↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("schedule")}
@@ -281,7 +282,7 @@ export function RoutineComposer(props: {
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend touch:empty:hidden!">
+          <p className={`muted touch:empty:hidden! ${KB_LEGEND}`}>
             <Legend text={deviceHint(auto.composerLegend)} />
           </p>
           <div className="actions">
