@@ -19,6 +19,7 @@ import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { CONFIRM_INLINE } from "./ui/settings.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -235,7 +236,7 @@ function GithubCard({ model }: { model: AppModel }) {
         )}
       </div>
       {confirming && (
-        <div className="confirm-inline">
+        <div className={CONFIRM_INLINE}>
           <p className="muted">{c("disconnectBody")}</p>
           <div className="actions">
             <button type="button" className="link" onClick={() => setConfirming(false)}>

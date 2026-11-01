@@ -14,6 +14,7 @@ import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { toast } from "./ui.ts"
+import { PREF_FIELD, PREF_HINT, PREF_LABEL } from "./ui/settings.ts"
 import { loadUserKeys, userKeys } from "./user-keys.ts"
 
 async function createFile(client: BridgeClient): Promise<void> {
@@ -35,8 +36,8 @@ export function KeysSection({ client }: { client: BridgeClient }) {
   const fixed = Object.keys(FIXED_BINDING_IDS).sort()
   return (
     <Group title={ts("keybindings.title")} hint={ts("keybindings.hint")}>
-      <div className="pref-field">
-        <span className="pref-label">{ts("keybindings.configFile")}</span>
+      <div className={PREF_FIELD}>
+        <span className={PREF_LABEL}>{ts("keybindings.configFile")}</span>
         <p className="muted mono">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
       </div>
       <Chips
@@ -49,13 +50,15 @@ export function KeysSection({ client }: { client: BridgeClient }) {
         ]}
         onPick={(next) => void setPref(client, "prefixTap", next)}
       />
-      <div className="pref-field">
-        <span className="pref-label">{ts("keybindings.prefixTitle", { prefix })}</span>
-        <p className="pref-hint muted">{ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}</p>
+      <div className={PREF_FIELD}>
+        <span className={PREF_LABEL}>{ts("keybindings.prefixTitle", { prefix })}</span>
+        <p className={`${PREF_HINT} muted`}>
+          {ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
+        </p>
       </div>
       {keys.exists ? (
-        <div className="pref-field">
-          <span className="pref-label">{ts("keybindings.overridesApplied")}</span>
+        <div className={PREF_FIELD}>
+          <span className={PREF_LABEL}>{ts("keybindings.overridesApplied")}</span>
           {keys.applied.length === 0 && <p className="muted">{ts("keybindings.none")}</p>}
           {keys.applied.map((o) => (
             <p key={o.id} className="mono keys-applied">
@@ -64,14 +67,14 @@ export function KeysSection({ client }: { client: BridgeClient }) {
           ))}
         </div>
       ) : (
-        <div className="pref-field">
+        <div className={PREF_FIELD}>
           <p className="muted">{ts("keybindings.createHint")}</p>
           <CycleRow label={t("keys.createFile")} onCycle={() => void createFile(client)} />
         </div>
       )}
       {keys.warnings.length > 0 && (
-        <div className="pref-field">
-          <span className="pref-label tone-warning">{ts("keybindings.warnings")}</span>
+        <div className={PREF_FIELD}>
+          <span className={`${PREF_LABEL} tone-warning`}>{ts("keybindings.warnings")}</span>
           {keys.warnings.map((w) => (
             <p key={w} className="muted mono">{`! ${w}`}</p>
           ))}

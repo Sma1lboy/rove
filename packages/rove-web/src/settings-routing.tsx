@@ -13,6 +13,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { PREF_CYCLE, PREF_CYCLE_LABEL, PREF_HINT, TIER_EDITOR, TIER_HEAD, TIER_ROW } from "./ui/settings.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
@@ -57,7 +58,7 @@ function TierEditor(props: {
   const picked = props.engines.find((e) => e.id === engine)
   return (
     <form
-      className="tier-editor"
+      className={TIER_EDITOR}
       onSubmit={(e) => {
         e.preventDefault()
         props.onSave(engine, picked?.takesModel ? model.trim() : "", effort)
@@ -173,8 +174,8 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
         {!routing.configured && <p className="tone-warning">{ts("autoRouting.unconfigured")}</p>}
         <div className="settings-rows">
           {routing.tiers.map((row) => (
-            <div key={row.tier} className="tier-row">
-              <div className="tier-head">
+            <div key={row.tier} className={TIER_ROW}>
+              <div className={TIER_HEAD}>
                 <span className="engine-name">{tt(`tier.${row.tier}`)}</span>
                 <span className="mono muted">
                   {[
@@ -185,7 +186,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
                 </span>
                 <button
                   type="button"
-                  className="link"
+                  className="link ml-auto"
                   onClick={() => setEditing(editing === row.tier ? null : row.tier)}
                 >
                   {t("prefs.tierEdit")}
@@ -214,7 +215,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
         <p className={c.mode === "off" ? "muted" : "tone-warning"}>{ts("autoRouting.classifierDataFlow")}</p>
         <button
           type="button"
-          className="pref-cycle"
+          className={PREF_CYCLE}
           onClick={() => {
             const next = nextMode({ ...c, mode: mode.current?.next ?? c.mode })
             const pending = { next, inFlight: (mode.current?.inFlight ?? 0) + 1 }
@@ -224,10 +225,10 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
             })
           }}
         >
-          <span className="pref-label">
+          <span className={PREF_CYCLE_LABEL}>
             {ts("autoRouting.classifierLabel")}: {modeLabel}
           </span>
-          <span className="pref-hint muted">{modeHint}</span>
+          <span className={`${PREF_HINT} muted`}>{modeHint}</span>
         </button>
         <ReadOnlyRow
           label={`${ts("autoRouting.endpointLabel")}: ${c.endpointHost || t("prefs.unset")}`}

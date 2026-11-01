@@ -11,6 +11,7 @@ import { type PrefKey, type Prefs, setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { Group, Toggle } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { CONFIRM_INLINE, PREF_CYCLE, PREF_CYCLE_LABEL } from "./ui/settings.ts"
 
 const FLAGS: readonly { key: PrefKey; label: string; hint: string }[] = [
   { key: "remoteProjects", label: "dev.remote", hint: "dev.remoteHint" },
@@ -49,7 +50,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
   const ask = (kind: "reset" | "restart", title: string, hint: string, button: string, danger: boolean) => (
     <Group title={title} hint={hint}>
       {pending === kind ? (
-        <div className="confirm-inline">
+        <div className={CONFIRM_INLINE}>
           <strong>{ts(`${kind}.title`)}</strong>
           <p className="muted">{t(kind === "reset" ? "prefs.resetBody" : "prefs.restartBody")}</p>
           <div className="actions">
@@ -67,8 +68,8 @@ export function DevSection({ client }: { client: BridgeClient }) {
           </div>
         </div>
       ) : (
-        <button type="button" className="pref-cycle" onClick={() => setPending(kind)}>
-          <span className="pref-label">{button}</span>
+        <button type="button" className={PREF_CYCLE} onClick={() => setPending(kind)}>
+          <span className={PREF_CYCLE_LABEL}>{button}</span>
         </button>
       )}
     </Group>

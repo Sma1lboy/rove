@@ -16,6 +16,36 @@ import { ts } from "./settings-copy.ts"
 import { installSkill } from "./skill-banner.tsx"
 import { toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
+import {
+  ENG_ACTION,
+  ENG_ACTIONS,
+  ENG_BOX,
+  ENG_BOX_ACTIONS,
+  ENG_BOX_BUTTON,
+  ENG_BOX_HEAD,
+  ENG_BOX_TITLE,
+  ENG_DEFAULT,
+  ENG_DETAIL_AREA,
+  ENG_FACTS,
+  ENG_FACT_TERM,
+  ENG_ITEM,
+  ENG_LIST,
+  ENG_LIST_HEAD,
+  ENG_MAKE_DEFAULT,
+  ENG_PILL,
+  ENG_RENAME_INPUT,
+  ENG_ROW,
+  ENG_SUB,
+  ENG_SUMMARY,
+  ENG_TITLE,
+  ENG_UPTODATE,
+  type EngTone,
+  engChevronClass,
+  engDotClass,
+  engFactClass,
+  engNameClass,
+  engStatusClass,
+} from "./ui/settings.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
@@ -54,12 +84,12 @@ function health(e: EngineSetting) {
   })
 }
 
-const TONE_CLASS: Record<EngineHealthTone, string> = {
-  ready: "is-ready",
-  attention: "is-attention",
-  error: "is-error",
-  absent: "is-absent",
-  unknown: "is-absent",
+const TONE: Record<EngineHealthTone, EngTone> = {
+  ready: "ready",
+  attention: "attention",
+  error: "error",
+  absent: "absent",
+  unknown: "absent",
 }
 
 export function EnginesSection({ client }: { client: BridgeClient }) {
@@ -87,8 +117,8 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
   return (
     <section className="settings-group engines">
       <p className="muted">{ts("engines.hint")}</p>
-      <div className="eng-list">
-        <div className="eng-list-head" aria-hidden="true">
+      <div className={ENG_LIST}>
+        <div className={ENG_LIST_HEAD} aria-hidden="true">
           <span>{ts("sections.engines")}</span>
           <span>{ts("engines.defaultMark")}</span>
           <span>{ts("engines.available")}</span>
@@ -114,35 +144,35 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
   const detailId = useId()
   const status = health(e)
   return (
-    <div className={`eng-item ${props.open ? "is-open" : ""} ${e.enabled ? "" : "is-off"}`}>
-      <div className="eng-row">
+    <div className={ENG_ITEM}>
+      <div className={ENG_ROW}>
         <button
           type="button"
-          className="eng-summary"
+          className={ENG_SUMMARY}
           aria-expanded={props.open}
           aria-controls={detailId}
           onClick={props.onToggleOpen}
         >
-          <Chevron right={!props.open} className="eng-chevron" />
-          <span className="eng-title">
-            <span className="eng-name">
+          <Chevron right={!props.open} className={engChevronClass(props.open)} />
+          <span className={ENG_TITLE}>
+            <span className={engNameClass(!e.enabled)}>
               {e.name}
-              {e.renamedFrom ? <span className="eng-sub">{e.renamedFrom}</span> : null}
-              {e.custom && !e.renamedFrom ? <span className="eng-sub">{ts("engines.customTag")}</span> : null}
+              {e.renamedFrom ? <span className={ENG_SUB}>{e.renamedFrom}</span> : null}
+              {e.custom && !e.renamedFrom ? <span className={ENG_SUB}>{ts("engines.customTag")}</span> : null}
             </span>
-            <span className={`eng-status ${TONE_CLASS[status.tone]}`}>
-              <span className="eng-dot" aria-hidden="true" />
+            <span className={engStatusClass(TONE[status.tone])}>
+              <span className={engDotClass(TONE[status.tone])} aria-hidden="true" />
               {ts(status.key.slice("settings.".length))}
             </span>
           </span>
         </button>
-        <div className="eng-default">
+        <div className={ENG_DEFAULT}>
           {e.isDefault ? (
-            <span className="eng-pill">{ts("engines.defaultMark")}</span>
+            <span className={ENG_PILL}>{ts("engines.defaultMark")}</span>
           ) : e.canBeDefault ? (
             <button
               type="button"
-              className="eng-make-default touch:opacity-100"
+              className={ENG_MAKE_DEFAULT}
               aria-label={t("settings.engines.default", { name: e.name })}
               onClick={() => run("engine.setDefault", { id: e.id })}
             >
@@ -207,22 +237,24 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
     ),
   ]
   return (
-    <div id={props.id} className="eng-detail-area">
-      <dl className="eng-facts">
-        <dt>{ts("engines.detail.program")}</dt>
-        <dd className={e.binaryFound === false ? "tone-warning" : ""}>{program}</dd>
-        <dt>{ts("engines.detail.signIn")}</dt>
-        <dd className={e.login === "no" ? "tone-warning" : ""}>{signIn}</dd>
-        <dt>{ts("engines.detail.reporting")}</dt>
-        <dd>
+    <div id={props.id} className={ENG_DETAIL_AREA}>
+      <dl className={ENG_FACTS}>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.program")}</dt>
+        <dd className={engFactClass(e.binaryFound === false)}>{program}</dd>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.signIn")}</dt>
+        <dd className={engFactClass(e.login === "no")}>{signIn}</dd>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.reporting")}</dt>
+        <dd className={engFactClass(false)}>
           {reporting.map((line) => (
-            <span key={line}>{line}</span>
+            <span key={line} className="block">
+              {line}
+            </span>
           ))}
         </dd>
         {e.skill !== "unsupported" ? (
           <>
-            <dt>{ts("engines.detail.skill")}</dt>
-            <dd className={e.skill === "installed" ? "" : "tone-warning"}>
+            <dt className={ENG_FACT_TERM}>{ts("engines.detail.skill")}</dt>
+            <dd className={engFactClass(e.skill !== "installed")}>
               {ts(
                 e.skill === "installed"
                   ? "engines.detail.skillInstalledHere"
@@ -235,8 +267,8 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
         ) : null}
         {e.custom ? (
           <>
-            <dt>{ts("engines.detail.adapter")}</dt>
-            <dd>
+            <dt className={ENG_FACT_TERM}>{ts("engines.detail.adapter")}</dt>
+            <dd className={engFactClass(false)}>
               {e.protocol
                 ? ts("engines.detail.adapterDeclared", { protocol: e.protocol })
                 : ts("engines.detail.adapterGeneric")}
@@ -246,7 +278,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
       </dl>
       {renaming !== null ? (
         <form
-          className="eng-rename"
+          className={ENG_ACTIONS}
           onSubmit={(ev) => {
             ev.preventDefault()
             run("engine.rename", { id: e.id, name: renaming })
@@ -254,7 +286,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           }}
         >
           <input
-            className="input"
+            className={`input ${ENG_RENAME_INPUT}`}
             // biome-ignore lint/a11y/noAutofocus: the rename field just opened
             autoFocus
             value={renaming}
@@ -271,21 +303,17 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           <button type="submit" className="button">
             {t("settings.engines.save")}
           </button>
-          <button type="button" className="eng-action touch:min-h-10" onClick={() => setRenaming(null)}>
+          <button type="button" className={ENG_ACTION} onClick={() => setRenaming(null)}>
             {t("settings.engines.cancel")}
           </button>
         </form>
       ) : (
-        <div className="eng-actions">
-          <button type="button" className="eng-action touch:min-h-10" onClick={() => setRenaming(e.name)}>
+        <div className={ENG_ACTIONS}>
+          <button type="button" className={ENG_ACTION} onClick={() => setRenaming(e.name)}>
             {t("settings.engines.rename")}
           </button>
           {e.custom || e.customized ? (
-            <button
-              type="button"
-              className="eng-action touch:min-h-10"
-              onClick={() => run("engine.reset", { id: e.id })}
-            >
+            <button type="button" className={ENG_ACTION} onClick={() => run("engine.reset", { id: e.id })}>
               {e.custom ? t("settings.engines.remove") : t("settings.engines.reset")}
             </button>
           ) : null}
@@ -304,24 +332,24 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
   const onDisk = hooked.filter((e) => e.hooks !== "not-installed").length
   if (hooked.length === 0) return null
   return (
-    <div className="eng-integrations">
-      <div className="eng-integrations-head">
-        <h3>{ts("engines.integrations.title")}</h3>
+    <div className={ENG_BOX}>
+      <div className={ENG_BOX_HEAD}>
+        <h3 className={ENG_BOX_TITLE}>{ts("engines.integrations.title")}</h3>
         <span className="muted">
           {ts("engines.integrations.summary", { installed: current, total: hookable.length })}
         </span>
       </div>
       <p className="muted">{ts("engines.integrations.hint")}</p>
-      <div className="eng-integrations-actions">
+      <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
-          <button type="button" className="button" onClick={() => run("engines.hooks.install")}>
+          <button type="button" className={`button ${ENG_BOX_BUTTON}`} onClick={() => run("engines.hooks.install")}>
             {ts("engines.integrations.install", { count: needInstall })}
           </button>
         ) : (
-          <span className="eng-uptodate">{ts("engines.integrations.upToDate")}</span>
+          <span className={ENG_UPTODATE}>{ts("engines.integrations.upToDate")}</span>
         )}
         {onDisk > 0 ? (
-          <button type="button" className="eng-action touch:min-h-10" onClick={() => run("engines.hooks.uninstall")}>
+          <button type="button" className={ENG_ACTION} onClick={() => run("engines.hooks.uninstall")}>
             {ts("engines.integrations.remove", { count: onDisk })}
           </button>
         ) : null}
@@ -337,9 +365,9 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
   // Shared with the banner, so installing here clears it too.
   const install = () => void installSkill(props.client).then(props.reload)
   return (
-    <div className="eng-integrations">
-      <div className="eng-integrations-head">
-        <h3>{ts("engines.skill.title")}</h3>
+    <div className={ENG_BOX}>
+      <div className={ENG_BOX_HEAD}>
+        <h3 className={ENG_BOX_TITLE}>{ts("engines.skill.title")}</h3>
         {skillable.length > 0 ? (
           <span className="muted">
             {ts("engines.integrations.summary", { installed: current, total: skillable.length })}
@@ -347,13 +375,13 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
         ) : null}
       </div>
       <p className="muted">{ts("engines.skill.hint")}</p>
-      <div className="eng-integrations-actions">
+      <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
-          <button type="button" className="button" onClick={install}>
+          <button type="button" className={`button ${ENG_BOX_BUTTON}`} onClick={install}>
             {ts("engines.skill.install", { count: needInstall })}
           </button>
         ) : (
-          <span className="eng-uptodate">
+          <span className={ENG_UPTODATE}>
             {ts(skillable.length > 0 ? "engines.integrations.upToDate" : "engines.skill.noEngines")}
           </span>
         )}

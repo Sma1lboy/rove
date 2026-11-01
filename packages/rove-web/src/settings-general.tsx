@@ -14,6 +14,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
+import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -169,10 +170,10 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
     else setDraft(String(clamped))
   }
   return (
-    <label className="pref-row">
-      <span className="pref-label">{ts("general.scrollbackTitle")}</span>
+    <label className={PREF_ROW}>
+      <span className={PREF_LABEL}>{ts("general.scrollbackTitle")}</span>
       <input
-        className="input pref-number"
+        className={`input ${PREF_NUMBER}`}
         inputMode="numeric"
         value={draft}
         aria-label={ts("general.scrollbackField")}
@@ -180,7 +181,7 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
         onBlur={save}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
-      <span className="pref-hint muted">{ts("general.scrollbackRowHint")}</span>
+      <span className={`${PREF_HINT} muted`}>{ts("general.scrollbackRowHint")}</span>
     </label>
   )
 }
