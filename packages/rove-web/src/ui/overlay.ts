@@ -46,3 +46,14 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 export const TOASTS = "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5"
 export const toastClass = (error: boolean): string =>
   `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:animate-sink-out`
+
+/** Inbox: one card's line, badge, age and subtitle. */
+export const INBOX_HINTS = "text-subtle"
+export const INBOX_KICKER = "mt-1"
+export const INBOX_CARDS = "m-0 flex list-none flex-col gap-0.5 p-0"
+export const INBOX_LINE = "flex min-w-0 items-baseline gap-2.5"
+export const INBOX_BADGE = "flex-none font-mono text-meta font-normal normal-nums"
+export const INBOX_AGE = `${INBOX_BADGE} text-subtle`
+export const INBOX_SUB = "truncate font-mono text-meta font-normal normal-nums text-muted"
+/** The rail's unread count; `:hover` ungated, as the sheet had. */
+export const INBOX_CHIP = "font-mono [&:hover]:text-accent"

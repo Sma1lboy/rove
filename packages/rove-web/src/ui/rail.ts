@@ -40,7 +40,7 @@ export const ROW_TIP =
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
 
 /** The rail itself; `rail` stays as the hook workspace.css's fold and grid rules hang on. */
-export const RAIL = "group/rail rail row-1 flex min-h-0 flex-col focus:outline-none"
+export const RAIL = "group/rail rail @container row-1 flex min-h-0 flex-col focus:outline-none"
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 export const RAIL_HEAD =
   "rail-head flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"

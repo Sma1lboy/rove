@@ -191,3 +191,8 @@
 
 /* A short screen (a phone on its side): dialogs take nearly all its height. */
 @custom-variant short (@media (max-height: 500px));
+
+/* NARROW_QUERY (layout.ts) as a media query, for what sits outside `.app` (a dialog). */
+@custom-variant w-narrow (@media (max-width: 559px));
+/* The rail is a size container (ui/rail.ts): what drops when it is narrow. */
+@custom-variant rail-tight (@container (max-width: 250px));

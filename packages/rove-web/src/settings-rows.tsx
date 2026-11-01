@@ -13,11 +13,12 @@ import {
   PREF_LEGEND,
   PREF_READONLY,
   PREF_ROW,
+  SETTINGS_GROUP,
 } from "./ui/settings.ts"
 
 export function Group(props: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="settings-group">
+    <section className={SETTINGS_GROUP}>
       <h2 className="kicker">{props.title}</h2>
       {props.hint && <p className="muted">{props.hint}</p>}
       {props.children}

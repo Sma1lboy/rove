@@ -19,6 +19,7 @@ import { GeneralSection } from "./settings-general.tsx"
 import { KeysSection } from "./settings-keys.tsx"
 import { PluginsSection } from "./settings-plugins.tsx"
 import { RoutingSection } from "./settings-routing.tsx"
+import { SETTINGS, SETTINGS_BODY, SETTINGS_NAV, settingsTabClass } from "./ui/settings.ts"
 
 const SECTIONS = ["general", "engines", "connectors", "autoRouting", "plugins", "keys", "feedback", "dev"] as const
 type Section = (typeof SECTIONS)[number]
@@ -40,20 +41,15 @@ export function SettingsDialog({ model, section: opening = "general" }: { model:
   const [section, setSection] = useState<Section>(opening)
   return (
     <DialogShell title={t("settings.title")} wide>
-      <div className="settings">
-        <nav className="settings-nav" aria-label={t("settings.title")}>
+      <div className={SETTINGS}>
+        <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
           {SECTIONS.map((id) => (
-            <button
-              type="button"
-              key={id}
-              className={`settings-tab ${section === id ? "is-active" : ""}`}
-              onClick={() => setSection(id)}
-            >
+            <button type="button" key={id} className={settingsTabClass(section === id)} onClick={() => setSection(id)}>
               {id === "connectors" ? t("settings.sections.connectors") : ts(`sections.${id}`)}
             </button>
           ))}
         </nav>
-        <div className="settings-body">{BODY[section]({ client, model })}</div>
+        <div className={SETTINGS_BODY}>{BODY[section]({ client, model })}</div>
       </div>
     </DialogShell>
   )

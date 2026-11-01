@@ -13,7 +13,16 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
-import { PREF_CYCLE, PREF_CYCLE_LABEL, PREF_HINT, TIER_EDITOR, TIER_HEAD, TIER_ROW } from "./ui/settings.ts"
+import {
+  PREF_CYCLE,
+  PREF_CYCLE_LABEL,
+  PREF_HINT,
+  SETTINGS_ROWS,
+  TIER_EDITOR,
+  TIER_HEAD,
+  TIER_ROW,
+  engineDetailClass,
+} from "./ui/settings.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
@@ -172,7 +181,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
     <>
       <Group title={ts("autoRouting.title")} hint={ts("autoRouting.hint")}>
         {!routing.configured && <p className="tone-warning">{ts("autoRouting.unconfigured")}</p>}
-        <div className="settings-rows">
+        <div className={SETTINGS_ROWS}>
           {routing.tiers.map((row) => (
             <div key={row.tier} className={TIER_ROW}>
               <div className={TIER_HEAD}>
@@ -192,8 +201,8 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
                   {t("prefs.tierEdit")}
                 </button>
               </div>
-              <span className="muted engine-detail">{tt(`tierDesc.${row.tier}`)}</span>
-              <span className={`engine-detail ${row.block ? "tone-warning" : "tone-success"}`}>
+              <span className={`muted ${engineDetailClass()}`}>{tt(`tierDesc.${row.tier}`)}</span>
+              <span className={`${engineDetailClass()} ${row.block ? "tone-warning" : "tone-success"}`}>
                 {row.block ? ts("autoRouting.unavailable", { reason: row.block }) : ts("autoRouting.ready")}
               </span>
               {editing === row.tier && (

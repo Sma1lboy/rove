@@ -40,6 +40,7 @@ import {
   ENG_TITLE,
   ENG_UPTODATE,
   type EngTone,
+  SETTINGS_GROUP,
   engChevronClass,
   engDotClass,
   engFactClass,
@@ -115,7 +116,7 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
       .catch((e) => toast(errorText(e), "error"))
   if (!engines) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   return (
-    <section className="settings-group engines">
+    <section className={`${SETTINGS_GROUP} engines`}>
       <p className="muted">{ts("engines.hint")}</p>
       <div className={ENG_LIST}>
         <div className={ENG_LIST_HEAD} aria-hidden="true">

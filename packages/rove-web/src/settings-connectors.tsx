@@ -19,7 +19,7 @@ import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
-import { CONFIRM_INLINE } from "./ui/settings.ts"
+import { CONFIRM_INLINE, ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -139,11 +139,11 @@ function MachineLine(p: LineProps) {
   const login = status?.login
   return (
     <>
-      <div className="engine-row">
-        <div className="engine-main">
+      <div className={ENGINE_ROW}>
+        <div className={ENGINE_MAIN}>
           <span className="engine-name">{p.name}</span>
           <span
-            className="muted engine-detail"
+            className={`muted ${engineDetailClass()}`}
             title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
           >
             {detailOf(status)}
@@ -211,9 +211,9 @@ function GithubCard({ model }: { model: AppModel }) {
     <div className="flex flex-col gap-2 rounded-sm border-hairline border-line p-2.5">
       <div className="flex items-center gap-2.5">
         <GithubMark />
-        <div className="engine-main">
+        <div className={ENGINE_MAIN}>
           <span className="engine-name">GitHub</span>
-          <span className="muted engine-detail whitespace-normal">{c("githubDescription")}</span>
+          <span className={`muted ${engineDetailClass(true)}`}>{c("githubDescription")}</span>
         </div>
         {rove ? (
           <>
@@ -256,7 +256,7 @@ function GithubCard({ model }: { model: AppModel }) {
       {!rove && local?.status?.login && <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />}
       {rove && (
         <Group title={c("machines")}>
-          <div className="settings-rows">
+          <div className={SETTINGS_ROWS}>
             <MachineLine
               name={c("thisMachine")}
               probe={local}

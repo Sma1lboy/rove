@@ -35,6 +35,7 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { INBOX_CHIP } from "./ui/overlay.ts"
 import { RAIL_FOOT, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import {
   CHILD_INDENT,
@@ -149,7 +150,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className="badge-host">
           <button
             type="button"
-            className={`kicker inbox-chip ${unread > 0 ? "is-accent" : ""}`}
+            className={`kicker inbox-chip ${INBOX_CHIP} ${unread > 0 ? "is-accent" : ""}`}
             onClick={() => dialog.set(<InboxDialog model={model} />)}
           >
             {t("rail.inbox", { count: unread })}
