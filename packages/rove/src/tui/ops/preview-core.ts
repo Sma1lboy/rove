@@ -274,6 +274,34 @@ async function pairRename(
   return null
 }
 
+/** Past this many untracked files the combined diff stops adding them (one git spawn each). */
+const UNTRACKED_DIFF_LIMIT = 200
+
+/**
+ * Untracked, not-ignored files under `relPath` as new-file patches: `git diff HEAD` never lists
+ * them, while the Changes list does (`? path`), so "diff everything" would disagree with it.
+ */
+async function untrackedAdditions(worktree: string, relPath: string): Promise<string> {
+  const listed = await runWorktreeGit(worktree, [
+    "--literal-pathspecs",
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+    "-z",
+    "--",
+    relPath,
+  ])
+  if (listed.status !== 0) return ""
+  const files = listed.stdout.split("\0").filter(Boolean).slice(0, UNTRACKED_DIFF_LIMIT)
+  let out = ""
+  for (const file of files) {
+    // `--no-index` exits 1 when the files differ, which they always do here.
+    const added = await runWorktreeGit(worktree, ["diff", "--no-index", "--", "/dev/null", file])
+    if (added.status === 0 || added.status === 1) out += added.stdout
+  }
+  return out
+}
+
 /**
  * Diff for `relPath`, otherwise its full content. `range` omitted →
  * uncommitted work (`git diff HEAD`); `{ base }` → `git diff <base>...HEAD`
@@ -282,6 +310,7 @@ async function pairRename(
  *
  * Images (by extension) and null-byte content come back as a `binary` card.
  * A COMBINED pathspec ({@link isCombinedPathspec}) yields one multi-file diff,
+ * untracked files under it included as additions when diffing uncommitted work,
  * and `empty` instead of the content fallback. A git refusal of the base
  * (pruned remote, renamed branch) is an `error`, never presented as content
  * or "no changes".
@@ -303,6 +332,7 @@ export async function loadPreviewData(
     return { kind: "error", message: stderr || `git diff ${spec} exited with code ${res.status ?? -1}` }
   }
   let diff = res.status === 0 ? res.stdout : ""
+  if (!range && isCombinedPathspec(relPath)) diff += await untrackedAdditions(worktree, relPath)
   let origPath: string | undefined
   if (diff.trim().length > 0) {
     if (!isCombinedPathspec(relPath)) {

@@ -332,8 +332,10 @@ diff in one tab, and the Changes tab's `[D] diff everything` chip does the same
 for the whole worktree — reviewing a twelve-file attempt is one keypress and one
 tab instead of twelve of each. A combined diff is **read-only**: a review note
 anchors to a single path, so a diff spanning files carries none, and its footer
-says so. Per-file notes are unchanged. A directory with nothing changed in the
-active scope says so rather than opening blank.
+says so. Per-file notes are unchanged. In the working-tree scope, untracked
+files (the `?` rows) are in it as new files, so a task that only created files
+does not read as unchanged. A directory with nothing changed in the active
+scope says so rather than opening blank.
 
 **What a diff states instead of drawing nothing.** A renamed file's diff shows
 the rename and the same `+N −M` as its list row, not the whole file as added. A
