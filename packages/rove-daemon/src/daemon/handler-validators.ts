@@ -60,14 +60,16 @@ export function optionalActivityDetail(payload: Record<string, unknown>): Engine
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined
   const d = raw as Record<string, unknown>
   const out: {
-    failure?: "rate_limit" | "billing" | "other"
+    failure?: "rate_limit" | "billing" | "transient" | "other"
     waiting?: "permission" | "input"
     tool?: { name?: string; id?: string }
     compact?: { trigger?: "manual" | "auto" }
     subagent?: { type?: string; id?: string }
     note?: string
   } = {}
-  if (d.failure === "rate_limit" || d.failure === "billing" || d.failure === "other") out.failure = d.failure
+  if (d.failure === "rate_limit" || d.failure === "billing" || d.failure === "transient" || d.failure === "other") {
+    out.failure = d.failure
+  }
   if (d.waiting === "permission" || d.waiting === "input") out.waiting = d.waiting
   if (typeof d.note === "string") out.note = d.note
   const tool = d.tool as Record<string, unknown> | undefined

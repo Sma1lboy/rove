@@ -283,7 +283,7 @@ that RECOVERED reports nothing.
 
 | detail field | type | meaning |
 |---|---|---|
-| `failure` | `"rate_limit" \| "billing" \| "other"` | normalized failure class |
+| `failure` | `"rate_limit" \| "billing" \| "transient" \| "other"` | normalized failure class; `transient` = the connection dropped or the provider 5xx'd |
 | `note` | string? | the raw vendor error type, for humans; only present when a wrapper self-reports it via `rove api engine-report --detail` (no built-in adapter sets it) |
 
 A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`

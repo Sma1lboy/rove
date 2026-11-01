@@ -48,6 +48,29 @@ export function withDeliveryReport(run: AutomationRun, deliveries: Pick<Deliveri
   }
 }
 
+/** What a routine row says about its most recent failure, so a stall or a self-healed outage is visible. */
+export interface RoutineFailure {
+  /** ISO-8601: when the run was refused or its engine stopped. */
+  readonly at: string
+  readonly reason: string
+}
+
+/**
+ * The newest of `runs` (newest first) that went wrong: a refusal or dispatch error on the run, or a
+ * delivery its engine ended with no report (`turn-failed: Unable to connect`). Undefined when none did.
+ */
+export function lastRoutineFailure(
+  runs: readonly AutomationRun[],
+  deliveries: Pick<DeliveriesStore, "get">,
+): RoutineFailure | undefined {
+  for (const run of runs) {
+    if (run.error) return { at: run.at, reason: run.error }
+    const missing = run.deliveryId ? deliveries.get(run.deliveryId)?.missing : undefined
+    if (missing) return { at: missing.at, reason: `${missing.cause}${missing.note ? `: ${missing.note}` : ""}` }
+  }
+  return undefined
+}
+
 /** Throws on a malformed report; the verb refuses rather than truncating. */
 function validateReport(input: DeliveryReportInput): Omit<DeliveryReport, "at"> {
   if (!DELIVERY_OUTCOMES.includes(input.outcome)) {
@@ -160,7 +183,12 @@ export async function trackDeliveryTurn(
     await markDeliveryMissing(deps, {
       taskId,
       tabId,
-      cause: detail?.failure === "rate_limit" ? "rate-limited" : "turn-failed",
+      cause:
+        detail?.failure === "rate_limit"
+          ? "rate-limited"
+          : detail?.failure === "transient"
+            ? "transient-failure"
+            : "turn-failed",
       scope: "started-or-oldest",
       ...(note ? { note } : {}),
     })

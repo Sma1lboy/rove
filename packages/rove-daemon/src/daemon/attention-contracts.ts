@@ -22,7 +22,8 @@ export type EngineActivityKind =
   | "subagent-stop"
 
 export interface EngineActivityDetail {
-  readonly failure?: "rate_limit" | "billing" | "other"
+  /** `transient`: the connection dropped or the provider 5xx'd; trying again later is the fix. */
+  readonly failure?: "rate_limit" | "billing" | "transient" | "other"
   readonly waiting?: "permission" | "input"
   readonly tool?: { readonly name?: string; readonly id?: string }
   readonly compact?: { readonly trigger?: "manual" | "auto" }

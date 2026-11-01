@@ -754,7 +754,8 @@ edits (`set-vendor`, `rename`,
   `interrupted` (the turn was interrupted), `session-end` (the engine
   session ended), `engine-dead` (`note` is the last line of the tab's
   output), `rate-limited` (the engine hit its quota; quota-resume
-  continues the turn and a late report still lands), or `stalled` (awaiting
+  continues the turn and a late report still lands), `transient-failure`
+  (the connection dropped or the provider 5xx'd; `note` is the error), or `stalled` (awaiting
   for over 10 minutes while the tab was neither running nor at a permission
   prompt; `note` is `tab state: <state>`). A permission prompt does not mark
   a delivery missing.
@@ -778,10 +779,11 @@ edits (`set-vendor`, `rename`,
   `task-missing`; `awaiting-owner` (an open gate; `gateIds`); `report-missing`
   (the tab's newest delivery ended unreported and its Inbox row is neither
   dismissed nor answered by a late `report`; skipped ticks and a delivery the
-  rate limit ended do not count);
+  rate limit or a `transient-failure` ended do not count: the next tick is the retry);
   `quota` (`rate_limited`; `until` is the reset time, from the armed
   quota-resume or else the usage cache, and the block ends there; with no known
-  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included);
+  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included; a
+  `transient` failure is not one);
   `engine-dead` (an exact `--tab` whose engine exited); `awaiting-permission`;
   `busy` (a turn is running, the newest delivery still awaits its report, or
   a `send --if-runnable` is mid-paste). A task whose only gate is answered

@@ -69,6 +69,7 @@ function failureFromErrorType(errorType: unknown): EngineActivityDetail["failure
   if (typeof errorType !== "string") return "other"
   if (errorType === "rate_limit" || errorType === "overloaded") return "rate_limit"
   if (errorType === "billing_error") return "billing"
+  if (errorType === "server_error") return "transient"
   return "other"
 }
 
