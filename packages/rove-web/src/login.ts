@@ -4,6 +4,7 @@
  */
 
 import { forgetToken, saveToken, storedToken } from "./auth.ts"
+import { bridgeFetch } from "./relay-transport.ts"
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>
 
@@ -30,7 +31,7 @@ export function loginOutcome(status: number, body: unknown): LoginOutcome {
 }
 
 /** True when the bridge has a password set; without one `/login` is just the app shell. */
-export async function passwordLoginOn(fetchFn: Fetch = fetch): Promise<boolean> {
+export async function passwordLoginOn(fetchFn: Fetch = bridgeFetch): Promise<boolean> {
   try {
     const res = await fetchFn("/login", { headers: { Accept: "application/json" }, cache: "no-store" })
     if (!res.ok || !(res.headers.get("content-type") ?? "").includes("application/json")) return false
@@ -41,7 +42,7 @@ export async function passwordLoginOn(fetchFn: Fetch = fetch): Promise<boolean> 
   }
 }
 
-export async function submitPassword(password: string, fetchFn: Fetch = fetch): Promise<LoginOutcome> {
+export async function submitPassword(password: string, fetchFn: Fetch = bridgeFetch): Promise<LoginOutcome> {
   try {
     const res = await fetchFn("/login", {
       method: "POST",
@@ -58,7 +59,7 @@ export async function submitPassword(password: string, fetchFn: Fetch = fetch): 
 }
 
 /** Forget this browser's token and revoke it on the bridge (a no-op there for the shared token). */
-export async function signOut(fetchFn: Fetch = fetch): Promise<void> {
+export async function signOut(fetchFn: Fetch = bridgeFetch): Promise<void> {
   const token = storedToken()
   forgetToken()
   if (!token) return

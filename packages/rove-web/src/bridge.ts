@@ -6,6 +6,7 @@
  * clients and replays `onOpen` hooks so subscriptions and terminals reattach.
  */
 
+import { openBridgeSocket } from "./relay-transport.ts"
 import { type Store, createStore } from "./store.ts"
 
 export type ConnState = "connecting" | "open" | "retrying"
@@ -133,7 +134,7 @@ export class BridgeClient {
 
   private connect(): void {
     this.retryTimer = null
-    const ws = new WebSocket(this.url, ["rove.v1", `rove.bearer.${this.token}`])
+    const ws = openBridgeSocket(this.url, ["rove.v1", `rove.bearer.${this.token}`])
     this.ws = ws
     this.armDeadline(ws, CONNECT_DEADLINE_MS)
     ws.onmessage = (ev) => this.receive(String(ev.data))
