@@ -29,18 +29,22 @@ export function rowLiveBranchPath(task: Task): string {
 
 /**
  * The name of the task's one engine conversation: a migrated child reads its
- * parent's aliased tab, any other task its first named engine tab. Absent
- * until the engine has named the session.
+ * parent's aliased tab, any other task its first named engine tab (a diff or
+ * shell tab's title is not the conversation's). Absent until the engine has
+ * named the session.
  */
 export function conversationTitleOf(
   task: Task,
-  tabsByTask: ReadonlyMap<string, readonly { readonly id: string; readonly title?: string }[]>,
+  tabsByTask: ReadonlyMap<
+    string,
+    readonly { readonly id: string; readonly title?: string; readonly engine?: boolean }[]
+  >,
 ): string | undefined {
   const alias = task.ptyAlias
   const tabs = tabsByTask.get(alias?.taskId ?? task.id)
   if (!tabs) return undefined
   if (alias) return tabs.find((tab) => tab.id === alias.tabId)?.title
-  return tabs.find((tab) => tab.title !== undefined)?.title
+  return tabs.find((tab) => tab.engine === true && tab.title !== undefined)?.title
 }
 
 /**
