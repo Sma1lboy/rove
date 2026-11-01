@@ -102,6 +102,10 @@ jobs:
         # line in the PR body exempts only the exact path it names.
         run: bash scripts/file-size-check.sh
 
+      - name: rove-web styles with Tailwind and src/ui
+        # Legacy sheets only shrink; raw buttons and arbitrary values stay in src/ui.
+        run: node scripts/web-ui-gate.mjs origin/main...HEAD
+
   ui-evidence:
     if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
