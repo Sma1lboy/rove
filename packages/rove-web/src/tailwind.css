@@ -66,6 +66,30 @@
   --tracking-*: initial;
   --tracking-code: 0.08em;
 
+  /* Dispatch: a live wire's dashes run toward the target. */
+  --animate-dp-flow: dp-flow 600ms linear infinite;
+  @keyframes dp-flow {
+    to {
+      stroke-dashoffset: -9;
+    }
+  }
+
+  /* The rail's PR card and title tip slide in from the row. */
+  --animate-pr-list-in: pr-list-in 140ms ease-out;
+  @keyframes pr-list-in {
+    from {
+      opacity: 0;
+      translate: -4px 0;
+    }
+  }
+  --animate-row-tip-in: row-tip-in 140ms ease-out;
+  @keyframes row-tip-in {
+    from {
+      opacity: 0;
+      translate: -4px -50%;
+    }
+  }
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);
@@ -94,4 +118,12 @@
 
 @utility transition-padding-left {
   transition-property: padding-left;
+}
+
+/* A list that scrolls without a visible bar. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

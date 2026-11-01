@@ -15,7 +15,6 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
-import { installSkillErrors } from "../../../lib/skill-install"
 import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
@@ -37,6 +36,7 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { useDialog, useDialogPaddingX } from "../../ui/dialog"
+import { installSkillNow } from "../../workspace/skill-status"
 import {
   confirmResetState,
   confirmRestartDaemon,
@@ -116,7 +116,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
   const [skillError, setSkillError] = useState<string | null>(null)
   function runSkillInstall(): void {
-    setSkillError(installSkillErrors())
+    setSkillError(installSkillNow())
     integrations.reprobe()
   }
   // The tier targets, gated against the same account probe the cards read.

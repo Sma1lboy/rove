@@ -6,15 +6,16 @@
  */
 
 import type { ColorInput } from "@opentui/core"
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import { type SelfRefreshInputs, planSelfRefresh } from "../../cli/self-relaunch.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { findBinding } from "../../tui/context/keybindings"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { CURRENT_VERSION } from "../../version.ts"
-import { StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
+import { SkillBanner, StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useAccessor } from "../lib/use-accessor"
+import { installSkillNow, skillMissing } from "./skill-status"
 
 export interface HostBanner {
   /** The banner element — rendered by every one of the host's return paths. */
@@ -45,6 +46,8 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
   const update = useAccessor(orch.updateSignal())
   const staleInstall = useAccessor(orch.staleInstallSignal())
   const daemonRestarting = useAccessor(orch.daemonRestartingSignal())
+  const missingSkill = useAccessor(skillMissing)
+  const [skillError, setSkillError] = useState<string | null>(null)
   const inputs: SelfRefreshInputs = {
     daemonVersion,
     clientVersion: CURRENT_VERSION,
@@ -55,13 +58,21 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
   const element = staleInstall ? (
     <StaleInstallBanner message={staleInstall} width={width} />
   ) : (
-    <VersionSkewBanner
-      stale={daemonStale}
-      daemonVersion={daemonVersion}
-      clientVersion={CURRENT_VERSION}
-      refreshChord={available ? refreshChord() : null}
-      width={width}
-    />
+    <>
+      <VersionSkewBanner
+        stale={daemonStale}
+        daemonVersion={daemonVersion}
+        clientVersion={CURRENT_VERSION}
+        refreshChord={available ? refreshChord() : null}
+        width={width}
+      />
+      <SkillBanner
+        engines={missingSkill}
+        error={skillError}
+        onInstall={() => setSkillError(installSkillNow())}
+        width={width}
+      />
+    </>
   )
   return { element, update, refresh: { available, inputs } }
 }

@@ -139,7 +139,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
   return (
     <DialogShell title={t("inbox.title")} wide>
       <div className="dialog-body inbox">
-        <p className="kicker inbox-hints">
+        <p className="kicker inbox-hints touch:hidden!">
           <Legend text={t("inbox.hints")} />
         </p>
         <h2 className="kicker">{t("inbox.attention")}</h2>

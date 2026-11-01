@@ -24,10 +24,20 @@ import {
 import { closePanelTab, editPanel } from "./panel-state.ts"
 import { openMenu } from "./rail-view.tsx"
 import { type MenuItem, menu } from "./ui.ts"
+import {
+  PTABS,
+  PTAB_CLOSE,
+  PTAB_LABEL,
+  STROKE_ICON,
+  iconButton,
+  ptabClass,
+  ptabMainClass,
+  sideHeadClass,
+} from "./ui/panel.ts"
 
 export function Icon({ children }: { children: ReactNode }) {
   return (
-    <svg className="panel-icon" viewBox="0 0 16 16" aria-hidden="true">
+    <svg className={`size-3.5 ${STROKE_ICON}`} viewBox="0 0 16 16" aria-hidden="true">
       {children}
     </svg>
   )
@@ -158,7 +168,7 @@ export function PanelTabRow({
 
   return (
     <div
-      className="side-head"
+      className={sideHeadClass(narrow)}
       style={{ gridRow: group === "top" ? 1 : 4 }}
       onDragOver={(e) => {
         if (!mine()) return
@@ -170,12 +180,12 @@ export function PanelTabRow({
         drop()
       }}
     >
-      <div className={`ptabs ${compact ? "is-compact" : ""}`} role="tablist" aria-label={t("panel.tabs")} ref={strip}>
+      <div className={PTABS} role="tablist" aria-label={t("panel.tabs")} ref={strip}>
         {tabs.map((tab, i) => (
           <div
             key={tab.id}
             role="presentation"
-            className={`ptab ${tab.id === active ? "is-active" : ""}`}
+            className={ptabClass({ active: tab.id === active, compact })}
             data-drop={over?.id === tab.id ? (over.after ? "after" : "before") : undefined}
             draggable={!narrow}
             onDragStart={() => {
@@ -207,16 +217,16 @@ export function PanelTabRow({
               type="button"
               role="tab"
               aria-selected={tab.id === active}
-              className="ptab-main"
+              className={ptabMainClass(compact && tab.id !== active)}
               title={tooltip(tab)}
               onClick={() => editPanel(taskId, (p) => activate(p, tab.id))}
             >
               <Icon>{ICONS[tab.kind]}</Icon>
-              <span className="ptab-label">{label(tab)}</span>
+              <span className={`${PTAB_LABEL} ${compact && tab.id !== active ? "hidden" : ""}`}>{label(tab)}</span>
             </button>
             <button
               type="button"
-              className="ptab-close"
+              className={`${PTAB_CLOSE} ${compact && tab.id !== active ? "hidden" : ""}`}
               aria-label={t("panel.close")}
               tabIndex={-1}
               onClick={() => closePanelTab(taskId, tab.id)}
@@ -229,7 +239,7 @@ export function PanelTabRow({
       {!narrow && (
         <button
           type="button"
-          className="rail-bar-btn panel-tool"
+          className={iconButton({ tool: true })}
           title={t("panel.new")}
           aria-label={t("panel.new")}
           onClick={openNew}

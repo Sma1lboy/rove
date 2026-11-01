@@ -314,6 +314,7 @@ describe("welcome dialog — questions then keyboard basics", () => {
         probe={() => Promise.resolve({ engines: ["codex"], signedOut: [], git: true })}
         shell={null}
         onDone={NOOP}
+        installSkill={() => "Installed for Codex"}
       />,
       {
         width: 100,
@@ -327,7 +328,7 @@ describe("welcome dialog — questions then keyboard basics", () => {
     const first = await frame()
     expect(first).toContain("Rove agent skill")
     // No shell → nothing to hook completions into, so that question never renders.
-    expect(first).not.toContain("shell completions")
+    expect(first).not.toContain("Shell completions")
     act(() => mockInput.pressEnter())
     await settle()
     const text = await frame()
@@ -351,19 +352,17 @@ describe("welcome dialog — questions then keyboard basics", () => {
     )
     await settle()
     expect(await frame()).toContain("Ready to start a task")
-    expect(await frame()).not.toContain("shell completions for zsh")
+    expect(await frame()).not.toContain("Shell completions for zsh")
     act(() => mockInput.pressEnter())
     await settle()
-    expect(await frame()).toContain("shell completions for zsh")
+    expect(await frame()).toContain("Shell completions for zsh")
     act(() => mockInput.pressEnter())
     await settle()
     // The answered question stays on screen as a transcript line.
     const second = await frame()
     expect(second).toContain("Rove agent skill")
-    expect(second).toContain("shell completions for zsh")
-    // Optional skill defaults to Not now; explicitly choose Yes in this path.
-    act(() => mockInput.pressArrow("up"))
-    await settle()
+    expect(second).toContain("Shell completions for zsh")
+    // The skill defaults to Yes: a bare Enter installs it.
     act(() => mockInput.pressEnter())
     await settle()
     expect(await frame()).toContain("Keyboard basics")

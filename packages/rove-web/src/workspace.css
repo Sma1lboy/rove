@@ -64,15 +64,6 @@
 .app.is-dragging {
   transition: none;
 }
-.rail-bar {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 7;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
 /* Room under the bar in the rail, and beside it in the workspace's tab strip once the rail is gone. */
 .app:not(.is-narrow) .rail {
   padding-top: 34px;
@@ -130,47 +121,6 @@
   .app.is-rail-folded .rail {
     transition: none;
   }
-}
-
-.rail-bar-btn {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--subtle);
-  cursor: pointer;
-}
-.rail-bar-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.25;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.rail-bar-btn:hover:not(:disabled) {
-  color: var(--ink);
-  background: var(--hover);
-}
-.rail-bar-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-/* Folded: a hidden task needs you. */
-.rail-bar-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
 }
 
 /* Footer hints, keycap badges */
@@ -506,16 +456,11 @@
 @media (hover: none) and (pointer: coarse) {
   /* Pure key legends; mixed ones drop their key segments in code (key-hints.ts). */
   .pane-hint,
-  .inbox-hints,
   .kb-hint-line,
   .keys-only,
   .newtask-legend,
-  .menu-key,
   .palette-chord,
-  .whats-new-keys,
-  .update-key,
-  .kb-legend:empty,
-  .pg-hint:empty {
+  .update-key {
     /* Sheets imported after this one (pages.css) set their own display at equal specificity. */
     display: none !important;
   }
@@ -536,21 +481,18 @@
   }
   /* Controls the desktop reveals on hover stay visible: a finger would hit them unseen. */
   .project-chevron,
-  .project-add,
-  .eng-make-default {
+  .project-add {
     opacity: 1;
   }
   /* A fingertip is ~40px: nav rows grow to it; small controls keep their look and get an invisible larger hit area. */
   .rail-nav-row {
     min-height: 40px;
   }
-  .link,
   .project-add,
   .project-toggle,
   .rail-head .kicker {
     position: relative;
   }
-  .link::after,
   .project-add::after,
   .project-toggle::after,
   .rail-head .kicker::after {
@@ -558,61 +500,19 @@
     position: absolute;
     inset: -12px -6px;
   }
-  /* The footer sits under the terminal key row: grow down only, and no further than the footer's 4px bottom
-     padding; past the window edge the page itself grows and scrolls. Wrapping link groups keep neighbours apart. */
-  .status .link::after {
-    inset: -2px -6px -4px;
-  }
-  .pg-actions .link::after {
-    inset: -2px -3px;
-  }
-  /* Kanban header: 新建/删除 and the project name sit 8px apart (`.kb-page` gap); each takes half. */
-  .kb-top .pg-actions .link::after {
-    inset: -6px -3px -4px;
-  }
-  /* Routines header: most of `.page`'s 14px padding above, half of the list's 10px margin below. */
-  .pg-top > .pg-actions .link::after {
-    inset: -10px -3px -5px;
-  }
-  .kb-project-name {
-    position: relative;
-  }
-  .kb-project-name::after {
-    content: "";
-    position: absolute;
-    inset: -4px -8px;
-  }
-  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. Composer and suggest rows: their own sheets. */
-  .menu-item,
+  /* Picker rows grow by padding, so baseline-aligned label and key stay aligned. */
   .palette-row,
   .prefix-guide-row {
     padding-block: 10px;
   }
-  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
-  .kb-place {
-    padding-block: 6px;
-  }
-  .dialog-close,
   .narrow-back,
-  .narrow-switch button,
-  .ptab-close,
-  .kb-strip button {
+  .narrow-switch button {
     position: relative;
   }
-  .dialog-close::after,
   .narrow-back::after {
     content: "";
     position: absolute;
     inset: -10px;
-  }
-  /* Fold/back/forward: 8px from the window corner, 2px apart, the rail head or tab strip ~6px below. */
-  .rail-bar-btn::after {
-    content: "";
-    position: absolute;
-    inset: -8px -1px -5px;
-  }
-  .rail-bar-btn:first-child::after {
-    left: -8px;
   }
   /* The tab strip sits 6px under the back button: stop at the gap. */
   .narrow-back::after {
@@ -624,22 +524,6 @@
     position: absolute;
     inset: -8px -1px -6px;
   }
-  /* The tab's ×: the tab row is 26px tall, the label sits 4px to its left. */
-  .ptab-close::after {
-    content: "";
-    position: absolute;
-    inset: -6px -6px -6px -4px;
-  }
-  /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
-  .kb-strip button::after {
-    content: "";
-    position: absolute;
-    inset: -4px -6px -12px;
-  }
-  .pref-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-  }
   /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
      styles sit in several later-loaded sheets, hence !important. */
   input:not([type="checkbox"]):not([type="radio"]),
@@ -650,12 +534,6 @@
   /* The search row's `/` and count match its 16px field. */
   .term-search {
     font-size: var(--fs-display);
-  }
-  /* Primary buttons (connect, sign out, start session) and the engine rows' secondary actions are
-     ~24-28px tall at desktop padding. */
-  .button,
-  .eng-action {
-    min-height: 40px;
   }
 }
 
@@ -686,4 +564,17 @@
 
 .daemon-banner span {
   color: var(--muted);
+}
+
+/* Expanded: the panel spans the terminal's column too, which keeps its size underneath so the pty is not resized. */
+.app.is-panel-expanded .workspace {
+  grid-column: 2;
+  visibility: hidden;
+}
+
+.app.is-panel-expanded .side-panel {
+  grid-column: 2 / -1;
+  z-index: 2;
+  padding-left: 8px;
+  background: var(--paper);
 }

@@ -65,7 +65,6 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
             orchestrator={orchestrator}
             whatsNewFrom={opts.whatsNewFrom ?? null}
             welcome={opts.welcome ?? null}
-            skillNudge={opts.skillNudge ?? null}
           />
         ),
         onDestroy: () => {

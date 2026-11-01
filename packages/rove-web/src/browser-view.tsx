@@ -11,6 +11,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type PanelItem, browserUrl } from "./panel-model.ts"
 import { useStore } from "./store.ts"
+import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
 
 function Glyph({ d }: { d: string }) {
@@ -73,9 +74,9 @@ export function BrowserView({
       : null
 
   return (
-    <div className="browser">
+    <div className={BROWSER}>
       <form
-        className="browser-bar"
+        className={BROWSER_BAR}
         onSubmit={(e) => {
           e.preventDefault()
           load(draft)
@@ -83,7 +84,7 @@ export function BrowserView({
       >
         <button
           type="button"
-          className="rail-bar-btn"
+          className={iconButton({ small: true })}
           disabled={tab.at <= 0}
           title={t("browser.back")}
           aria-label={t("browser.back")}
@@ -93,7 +94,7 @@ export function BrowserView({
         </button>
         <button
           type="button"
-          className="rail-bar-btn"
+          className={iconButton({ small: true })}
           disabled={tab.at >= tab.urls.length - 1}
           title={t("browser.forward")}
           aria-label={t("browser.forward")}
@@ -103,7 +104,7 @@ export function BrowserView({
         </button>
         <button
           type="button"
-          className="rail-bar-btn"
+          className={iconButton({ small: true })}
           disabled={!framed}
           title={t("browser.reload")}
           aria-label={t("browser.reload")}
@@ -112,7 +113,7 @@ export function BrowserView({
           <Glyph d="M12.5 8a4.5 4.5 0 1 1-1.4-3.3M12.5 2.5v2.7H9.8" />
         </button>
         <input
-          className="browser-url mono"
+          className={`browser-url mono ${BROWSER_URL}`}
           value={draft}
           placeholder={t("browser.placeholder")}
           aria-label={t("browser.address")}
@@ -126,7 +127,7 @@ export function BrowserView({
         {/* The way out when a page refuses to be framed, or cannot be: it works for every address. */}
         {url ? (
           <a
-            className="rail-bar-btn"
+            className={iconButton({ small: true })}
             href={url}
             target="_blank"
             rel="noopener noreferrer"
@@ -136,7 +137,7 @@ export function BrowserView({
             <Glyph d={OPEN_TAB} />
           </a>
         ) : (
-          <button type="button" className="rail-bar-btn" disabled aria-label={t("browser.openTab")}>
+          <button type="button" className={iconButton({ small: true })} disabled aria-label={t("browser.openTab")}>
             <Glyph d={OPEN_TAB} />
           </button>
         )}
@@ -144,14 +145,14 @@ export function BrowserView({
       {framed ? (
         <iframe
           key={`${url}#${reloads}`}
-          className="browser-frame"
+          className={BROWSER_FRAME}
           src={url}
           title={url}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           referrerPolicy="no-referrer"
         />
       ) : message ? (
-        <p className="side-empty">{message}</p>
+        <p className={SIDE_EMPTY}>{message}</p>
       ) : null}
     </div>
   )

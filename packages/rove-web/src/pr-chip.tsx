@@ -6,6 +6,18 @@ import type { TaskRow, TaskRowPr } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { type PrMark, leadPrMark, prMark, sessionPrMark } from "./rail-glyphs.ts"
+import {
+  PR_CHIP,
+  PR_CHIP_COUNT,
+  PR_LIST_GLYPH,
+  PR_LIST_ITEM,
+  PR_LIST_LINE,
+  PR_LIST_META,
+  PR_LIST_STATE,
+  PR_LIST_STATS,
+  PR_LIST_TITLE,
+  prListClass,
+} from "./ui/rail.ts"
 
 interface Entry {
   readonly task: TaskRow
@@ -119,7 +131,7 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
     // biome-ignore lint/a11y/useKeyWithClickEvents: the tap is touch-only; keys go to the row's button
     <span
       ref={chip}
-      className={`chip pr-chip ${lead.tone}`}
+      className={`chip ${PR_CHIP} ${lead.tone}`}
       aria-label={label}
       onMouseEnter={coarse ? undefined : show}
       onMouseLeave={coarse ? undefined : hide}
@@ -132,13 +144,13 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
       }}
     >
       {lead.glyph}
-      {entries.length > 1 && <span className="pr-chip-count">{entries.length}</span>}
+      {entries.length > 1 && <span className={PR_CHIP_COUNT}>{entries.length}</span>}
       {at &&
         createPortal(
           // Events still bubble through the portal to the row's button; the list keeps them.
           <div
             ref={list}
-            className={`pr-list ${closing ? "is-closing" : ""}`}
+            className={prListClass(closing)}
             style={{ top: at.top - 6, left: at.right + 8 }}
             onMouseEnter={coarse ? undefined : show}
             onMouseLeave={coarse ? undefined : hide}
@@ -154,17 +166,17 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
                 <button
                   key={pr.url ?? `${task.id}#${pr.number ?? ""}`}
                   type="button"
-                  className="pr-list-item"
+                  className={PR_LIST_ITEM}
                   disabled={!pr?.url}
                   onClick={() => pr?.url && window.open(pr.url, "_blank", "noopener")}
                 >
-                  <span className="pr-list-title">{pr.title || task.title}</span>
-                  <span className="pr-list-line">
-                    <span className={`pr-list-state ${mark.tone}`}>
-                      <span className="pr-list-glyph">{mark.glyph}</span>
+                  <span className={PR_LIST_TITLE}>{pr.title || task.title}</span>
+                  <span className={PR_LIST_LINE}>
+                    <span className={`${PR_LIST_STATE} ${mark.tone}`}>
+                      <span className={PR_LIST_GLYPH}>{mark.glyph}</span>
                       {capitalize(t(`rail.pr.state.${mark.state}`))}
                     </span>
-                    <span className="pr-list-meta">
+                    <span className={PR_LIST_META}>
                       {[
                         ...(mark.checks ? [t(`rail.pr.checks.${mark.checks}`)] : []),
                         [repo, pr?.number !== undefined ? `#${pr.number}` : ""].filter(Boolean).join(" "),
@@ -174,7 +186,7 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
                         .join("")}
                     </span>
                     {stats && (
-                      <span className="pr-list-stats">
+                      <span className={PR_LIST_STATS}>
                         <span className="tone-success">+{pr.additions}</span>
                         <span className="tone-attention">−{pr.deletions}</span>
                       </span>
