@@ -5,7 +5,6 @@
  * brings the terminal back, as picking a task in the TUI rail leaves the page.
  */
 
-import "./pages.css"
 import { useEffect } from "react"
 import { DispatchView } from "./dispatch-view.tsx"
 import { t } from "./i18n/index.ts"

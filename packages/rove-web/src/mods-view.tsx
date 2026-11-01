@@ -22,6 +22,17 @@ import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
+import {
+  MODS_EMPTY,
+  MODS_PAGE,
+  MOD_FIELD,
+  MOD_FIELD_INPUT,
+  MOD_PANE,
+  MOD_PANE_TITLE,
+  modBoxClass,
+  modButtonClass,
+  modTextClass,
+} from "./ui/mods.ts"
 import { PG_TOP, pgHintClass } from "./ui/page.ts"
 
 const SPACE_PX = [0, 6, 12, 20] as const
@@ -50,7 +61,7 @@ function ModField(props: {
   const [draft, setDraft] = useState(props.value ?? "")
   return (
     <form
-      className="mod-field"
+      className={MOD_FIELD}
       onSubmit={(e) => {
         e.preventDefault()
         props.onSubmit(draft)
@@ -59,7 +70,7 @@ function ModField(props: {
     >
       <input
         id={props.id}
-        className="input"
+        className={`input ${MOD_FIELD_INPUT}`}
         spellCheck={false}
         value={draft}
         placeholder={props.placeholder}
@@ -73,8 +84,7 @@ function ModField(props: {
 function ModTree(props: TreeProps): ReactNode {
   const { node } = props
   if (node.type === "text") {
-    const cls = `mod-text${node.tone ? ` tone-${node.tone}` : ""}${node.bold ? " is-bold" : ""}`
-    return <span className={cls}>{node.text}</span>
+    return <span className={modTextClass(node.tone, node.bold === true)}>{node.text}</span>
   }
   if (node.type === "input") {
     const ref = { kind: "input" as const, plugin: props.pane.plugin, pane: props.pane.id, key: node.key }
@@ -95,7 +105,7 @@ function ModTree(props: TreeProps): ReactNode {
       <button
         type="button"
         id={controlId(ref)}
-        className={`mod-button tone-${node.tone ?? "info"}${sameModControl(ref, props.cursor) ? " is-cursor" : ""}`}
+        className={modButtonClass(node.tone ?? "info", sameModControl(ref, props.cursor))}
         onFocus={() => props.onFocus(ref)}
         onClick={() => props.onPress(ref)}
       >
@@ -105,7 +115,7 @@ function ModTree(props: TreeProps): ReactNode {
   }
   return (
     <div
-      className={`mod-box${node.direction === "row" ? " is-row" : ""}${node.border ? " is-framed" : ""}`}
+      className={modBoxClass(node.direction === "row", node.border === true)}
       style={{
         flexDirection: node.direction ?? "column",
         gap: SPACE_PX[node.gap ?? 0],
@@ -180,20 +190,20 @@ export function ModsView({ model }: { model: AppModel }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page mods-page" tabIndex={0} ref={root}>
+    <div className={`page ${MODS_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className="page-title">{copy.title}</h1>
         <span className={`muted keys-only touch:empty:hidden! ${pgHintClass(false)}`}>{copy.keys}</span>
       </div>
       {panes.length === 0 ? (
-        <div className="mods-empty">
+        <div className={MODS_EMPTY}>
           <p>{copy.empty}</p>
           <p className="muted">{copy.emptyHint}</p>
         </div>
       ) : (
         panes.map((pane) => (
-          <section className="mod-pane" key={`${pane.plugin}/${pane.id}`}>
-            <header className="mod-pane-title">
+          <section className={MOD_PANE} key={`${pane.plugin}/${pane.id}`}>
+            <header className={MOD_PANE_TITLE}>
               {pane.title} <span className="muted">{pane.plugin}</span>
             </header>
             <ModTree
