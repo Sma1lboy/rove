@@ -91,3 +91,17 @@ export const ENGINE_MAIN = "flex min-w-0 flex-1 flex-col gap-0.5"
 /** One line, cut with an ellipsis; `wrap` lets a description run onto more lines. */
 export const engineDetailClass = (wrap = false): string =>
   `overflow-hidden text-ellipsis text-[length:var(--fs-meta)] ${wrap ? "whitespace-normal" : "whitespace-nowrap"}`
+
+/** Settings → Appearance: one card per theme, as many to a row as fit. */
+export const THEME_GRID = "grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2 clear-both"
+/** With `<Button variant="card">`: the picked card's border and fill. */
+export const themeCardClass = (active: boolean): string =>
+  active ? "border-accent bg-accent-soft" : "border-line hover:bg-hover"
+/** The miniature window: a rail and a pane, painted in the card's own theme (inline colours, not tokens). */
+export const THEME_SWATCH = "flex h-12 overflow-hidden rounded-sm border-hairline"
+export const THEME_SWATCH_RAIL = "flex w-2/5 flex-col gap-1 p-1.5"
+export const THEME_SWATCH_PANE = "flex min-w-0 flex-1 flex-col gap-1 p-1.5"
+export const THEME_SWATCH_BAR = "h-1 rounded-sm"
+export const THEME_SWATCH_DOTS = "mt-auto flex gap-1"
+export const THEME_SWATCH_DOT = "size-1.5 rounded-sm"
+export const THEME_CARD_NAME = "flex min-w-0 items-baseline gap-1.5 font-mono text-meta"

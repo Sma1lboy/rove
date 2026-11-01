@@ -125,3 +125,6 @@ export function xtermTheme(palette: Palette): Record<string, string> {
 
 /** The xterm colours in use; null until a palette is known (the terminal keeps its built-in dark ones). */
 export const terminalTheme = createStore<Record<string, string> | null>(null)
+
+/** The theme a gallery card is showing while the pointer or focus is on it; `null` paints the saved one. */
+export const themePreview = createStore<string | null>(null)

@@ -78,6 +78,8 @@ export const en = {
     tierEdit: "edit",
     unset: "(none)",
     modeAuto: "Auto (follow the browser)",
+    themePreviewHint: "Point at a theme to see this page in it; click to keep it. The TUI follows.",
+    themeUser: "yours",
     resetButton: "Reset",
     resetHint:
       "Clears this Mac's saved settings and task list, restarts the Rove daemon, then reloads this page. Worktrees on disk and engine session history are not touched.",
@@ -199,6 +201,8 @@ export const zh: typeof en = {
     tierEdit: "编辑",
     unset: "（无）",
     modeAuto: "自动（跟随浏览器）",
+    themePreviewHint: "鼠标指向一个主题，整页就换成它看看；点一下就定下来。TUI 也会跟着换。",
+    themeUser: "自装",
     resetButton: "重置",
     resetHint:
       "清空这台 Mac 上保存的设置和任务列表,重启 Rove 守护进程,然后刷新本页。磁盘上的工作树和引擎会话历史不受影响。",

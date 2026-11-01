@@ -1,8 +1,8 @@
 /**
  * Settings → General → Appearance: the TUI's twelve appearance settings. Each pick is written to
- * the TUI's own state.json key and shows on this page at once, which is the preview. Two have
- * nothing to draw on a page (transparent background, split-pane style); they are still written so
- * the TUI changes.
+ * the TUI's own state.json key and shows on this page at once; the theme gallery also previews on
+ * hover. Two have nothing to draw on a page (transparent background, split-pane style); they are
+ * still written so the TUI changes.
  */
 
 import type { BridgeClient } from "./bridge.ts"
@@ -10,6 +10,8 @@ import { t } from "./i18n/index.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { Chips, Group, type Pick, Toggle } from "./settings-rows.tsx"
+import { ThemeGallery } from "./settings-theme-gallery.tsx"
+import { useMode } from "./task-colors.ts"
 
 /** The TUI's wording for one choice of an enum setting (`appearance-labels.ts`). */
 const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
@@ -58,6 +60,7 @@ const ROWS: readonly { key: PrefKey; label: string; hint?: string; terminalOnly?
 
 export function AppearanceGroup({ client }: { client: BridgeClient }) {
   const state = usePrefs()
+  const mode = useMode()
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
   return (
     <Group title={ts("general.appearance")}>
@@ -76,17 +79,25 @@ export function AppearanceGroup({ client }: { client: BridgeClient }) {
             />
           )
         }
+        if (row.key === "theme") {
+          return (
+            <ThemeGallery
+              key={row.key}
+              label={ts(row.label)}
+              themes={state.themes}
+              value={state.prefs.theme}
+              mode={mode}
+              onPick={(next) => pick("theme", next)}
+            />
+          )
+        }
         const names = CHOICE_LABEL[row.key]
-        const picks: Pick<string | number>[] = (
-          row.key === "theme" ? state.themes.map((th) => th.name) : choicesOf(state, row.key)
-        ).map((value) => ({
+        const picks: Pick<string | number>[] = choicesOf(state, row.key).map((value) => ({
           value: value as string | number,
           label:
-            row.key === "theme"
-              ? String(value)
-              : row.key === "themeMode" && value === "auto"
-                ? t("prefs.modeAuto")
-                : ts(names?.[String(value)] ?? String(value)),
+            row.key === "themeMode" && value === "auto"
+              ? t("prefs.modeAuto")
+              : ts(names?.[String(value)] ?? String(value)),
         }))
         return (
           <Chips
