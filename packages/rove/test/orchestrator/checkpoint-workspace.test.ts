@@ -86,6 +86,25 @@ describe("workspace-owned checkpoints", { timeout: DURABLE_WRITE_TIMEOUT_MS }, (
     expect((await orch.takeCheckpoint(owner.id)).created).toBe(false)
   })
 
+  it("follows the owner's backend capability, not its kind: cow-clone checkpoints, borrowed does not", async () => {
+    const make = (workspace: NonNullable<Task["workspace"]>) =>
+      store.create({
+        repo,
+        title: workspace.backend,
+        branch: "feature",
+        worktreePath: wt,
+        status: "backlog",
+        kind: "task",
+        vendor: "claude",
+        workspace,
+      })
+    const clone = await make({ backend: "cow-clone" })
+    const borrowed = await make({ backend: "borrowed" })
+    expect(orch.canCheckpoint(clone.id)).toBe(true)
+    expect(orch.canCheckpoint(borrowed.id)).toBe(false)
+    await expect(orch.takeCheckpoint(borrowed.id)).rejects.toThrow(/^NOT_CHECKPOINTABLE:/)
+  })
+
   it("a sharer whose owner is not a managed task is not checkpointable", async () => {
     const main = await store.create({
       repo,

@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, expect, test } from "vitest"
+import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { LocalExecHost } from "../../src/exec/exec-host.ts"
 import {
   CHECKPOINT_RETENTION,
@@ -26,6 +26,9 @@ let tmpRoot: string
 let repo: string
 let wt: string
 const TASK = "task-abc123"
+
+// Every test spawns real git many times; the 5s default trips when the suite runs in parallel.
+vi.setConfig({ testTimeout: 30_000 })
 
 function git(cwd: string, ...args: string[]): string {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" })

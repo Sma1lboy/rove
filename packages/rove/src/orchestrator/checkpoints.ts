@@ -6,6 +6,7 @@
  */
 
 import type { CheckpointOrchestrator } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { Task, TaskId } from "../types/task.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -33,14 +34,11 @@ export class WorkspaceCheckpoints implements CheckpointOrchestrator {
     return { ownerId: String(owner.id), sharerIds: [String(owner.id), ...sharers.map((t) => String(t.id))] }
   }
 
-  /**
-   * Managed workspaces only (owner of kind `task`): a main/dir tree is the
-   * user's own. Replaced by the workspace-capabilities check when that lands.
-   */
+  /** The owner's backend must declare the `checkpoint` capability: a borrowed tree is the user's own. */
   canCheckpoint(id: TaskId | string): boolean {
     if (!this.store.get(id)) return false
     const owner = this.workspaceOwner(id)
-    return owner.kind === "task" && !owner.deletion && owner.worktreePath !== ""
+    return workspaceCapabilities(owner).checkpoint && !owner.deletion && owner.worktreePath !== ""
   }
 
   /** The owner's id and worktree `canCheckpoint` allows, or a `NOT_CHECKPOINTABLE:` error naming why not. */
