@@ -269,7 +269,7 @@ button:focus-visible {
   color: var(--warning);
 }
 .tone-info {
-  color: var(--info);
+  color: var(--accent);
 }
 .tone-success {
   color: var(--success);

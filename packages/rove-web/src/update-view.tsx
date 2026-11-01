@@ -16,6 +16,7 @@ import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
+import { HEAD_CHIP } from "./ui/shell.ts"
 import {
   PAGE_HEAD,
   RELEASE_NOTES,
@@ -28,7 +29,6 @@ import {
   WHATS_NEW_KEYS,
   updateActionClass,
 } from "./ui/update.ts"
-import { HEAD_CHIP } from "./ui/shell.ts"
 
 interface CheckReply {
   readonly current: string
