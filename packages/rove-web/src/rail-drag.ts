@@ -110,7 +110,7 @@ export function useRowDrag(
       onDragStart: (e: DragEvent) => {
         e.dataTransfer.effectAllowed = "move"
         e.dataTransfer.setData("text/plain", task.id)
-        railBody.current = e.currentTarget.closest(".rail-body")
+        railBody.current = e.currentTarget.closest("[data-rail-body]")
         measure(railBody.current)
         const rows = shown.current
         const from = rows.findIndex((r) => r.id === row.id)
