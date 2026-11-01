@@ -64,6 +64,10 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
     hint: "fan-out was folded into `add`: pass --count N (or --agents claude:2,codex:1) to spawn N parallel tasks of one prompt",
     nextCommandArgs: ["api", "add", "--help"],
   },
+  spawn: {
+    hint: "spawn was folded into `add`, which nests the new task under the calling session: --no-worktree shares the parent's directory, --parent ID names another parent, --no-parent opts out",
+    nextCommandArgs: ["api", "add", "--help"],
+  },
   "set-vendor": {
     hint: "set-vendor was replaced by `update --command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "update", "--help"],

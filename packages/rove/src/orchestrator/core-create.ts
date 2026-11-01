@@ -4,11 +4,14 @@
  * Orchestrator, so the Orchestrator stays a thin delegator.
  */
 
+import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
+import { isRemoteRepoKey } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
-import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
+import { DEFAULT_TASK_VENDOR, toTaskId } from "../types/task.ts"
 import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
+import { RemoteParentUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { MainTaskCoordinator } from "./main-task.ts"
 import { planExtraRepos } from "./multi-repo.ts"
@@ -47,6 +50,15 @@ export interface OpenDirectoryTaskInput {
   readonly routine?: TaskRoutineLink
 }
 
+/** The stored parent of a child nested under `id`: its top-level ancestor, since children never nest. */
+function nestingParent(store: TaskIndexStore, id: string): TaskId {
+  const parent = store.get(id)
+  if (!parent) throw new TaskNotFoundError(id)
+  if (parent.deletion) throw new TaskDeletingError(String(parent.id))
+  if (isRemoteRepoKey(parent.repo)) throw new RemoteParentUnsupportedError(String(parent.id))
+  return toTaskId(lineageRootId(store.list(), parent.id))
+}
+
 /**
  * Create a new task entry. Worktree allocation is lazy — the `worktreePath`
  * field stays empty until `ensureWorktree` is called (typically when the user
@@ -56,6 +68,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
   if (!input.repo) throw new Error("createTask: repo is required")
   // Refused before the project row is minted: a rejected multi-repo create leaves nothing behind.
   const extraRepos = planExtraRepos(normalizeMainRepo(input.repo).repo, input.extraRepos ?? [])
+  const parentTaskId = input.parentTaskId ? nestingParent(deps.store, input.parentTaskId) : undefined
   // Ensure the project row only if the repo may BE a project
   // (state/project-eligibility.ts). An ineligible one (`/tmp` fixture,
   // `.dev-sandbox`) still gets its task; `buildTreeRows` renders it under a
@@ -88,7 +101,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     ...(input.tier?.trim() ? { tier: input.tier.trim() } : {}),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
-    ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
+    ...(parentTaskId ? { parentTaskId } : {}),
     ...(input.cwdSubpath ? { cwdSubpath: input.cwdSubpath } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     // Persisted ON the task: `ensureWorktree` may run in a later daemon

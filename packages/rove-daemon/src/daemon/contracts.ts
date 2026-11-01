@@ -324,6 +324,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
     /** Task whose worktree this one clones, uncommitted work included. */
     forkFrom?: string
+    /** Nest the task under this one: stored as its top-level ancestor (children never nest). */
+    parentTaskId?: string
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).

@@ -24,6 +24,15 @@ export interface SpawnChildInput {
   readonly command?: string
   /** The brief, kept on the row; delivery is the caller's. */
   readonly prompt?: string
+  /** Create-time fields `add` carries onto the child as given (a shared child takes only the engine fields and `groupId`). */
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  readonly groupId?: string
+  readonly branch?: string
+  readonly worktreeName?: string
+  /** A worktree child's checkout waits for its first entry (`add`'s lazy worktree) instead of being cut during the call. */
+  readonly lazy?: boolean
   readonly dispatcher?: TaskDispatcher
 }
 

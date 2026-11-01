@@ -6,7 +6,7 @@
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
 import { pickRepos, subtreeIds } from "../task-tree.ts"
-import type { DaemonTask } from "./contracts.ts"
+import type { DaemonTask, TaskDispatcher } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import {
   objectPayload,
@@ -82,6 +82,25 @@ function optionalExtraRepos(payload: Record<string, unknown>): { repo: string; b
   })
 }
 
+/** The CLI's verified `$ROVE_TASK_ID`/`$ROVE_TAB_ID` as the dispatcher (the daemon has no caller env); the tab defaults to tab-1. */
+function payloadDispatcher(payload: Record<string, unknown>): TaskDispatcher | undefined {
+  const taskId = optionalString(payload, "dispatcherTaskId")
+  return taskId ? { taskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" } : undefined
+}
+
+/** A task created from a rove session lands in the dispatch ledger; the first prompt rides the session launch, after this reply. */
+function recordAddDispatch(ctx: DaemonHandlerContext, dispatcher: TaskDispatcher | undefined, task: DaemonTask): void {
+  if (!dispatcher) return
+  ctx.dispatches?.record({
+    kind: "add",
+    from: dispatcher,
+    to: { taskId: task.id, tabId: "tab-1" },
+    // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
+    promptHead: task.title,
+    delivered: true,
+  })
+}
+
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
@@ -108,12 +127,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.create",
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // The CLI sends its $ROVE_TASK_ID/$ROVE_TAB_ID (the daemon has no caller
-      // env). Recorded only with a task id; tab defaults to tab-1.
-      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
-      const dispatcher = dispatcherTaskId
-        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
-        : undefined
+      const dispatcher = payloadDispatcher(payload)
       const task = await ctx.orch.createTask({
         repo,
         title: optionalString(payload, "title"),
@@ -128,19 +142,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         tier: optionalString(payload, "tier"),
         groupId: optionalString(payload, "groupId"),
         forkFrom: optionalString(payload, "forkFrom"),
+        parentTaskId: optionalString(payload, "parentTaskId"),
         dispatcher,
       })
-      if (dispatcher) {
-        // The first prompt rides the session launch, after this reply; the engine's first turn settles it.
-        ctx.dispatches?.record({
-          kind: "add",
-          from: dispatcher,
-          to: { taskId: task.id, tabId: "tab-1" },
-          // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
-          promptHead: task.title,
-          delivered: true,
-        })
-      }
+      recordAddDispatch(ctx, dispatcher, task)
       return { taskId: task.id, task: serializeTask(task) }
     },
   },
@@ -150,11 +155,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     blocking: true,
     async handle(payload, ctx) {
       const parentTaskId = requireString(payload, "parentTaskId")
-      // The CLI sends its verified $ROVE_TASK_ID/$ROVE_TAB_ID; tab defaults to tab-1.
-      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
-      const dispatcher = dispatcherTaskId
-        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
-        : undefined
+      const dispatcher = payloadDispatcher(payload)
       const result = await ctx.orch.spawnChildTask({
         parentTaskId,
         // A child gets its own worktree unless the caller says to share.
@@ -165,8 +166,16 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         prompt: optionalString(payload, "prompt"),
+        modelEffort: optionalString(payload, "effort"),
+        model: optionalString(payload, "model"),
+        tier: optionalString(payload, "tier"),
+        groupId: optionalString(payload, "groupId"),
+        branch: optionalString(payload, "branch"),
+        worktreeName: optionalString(payload, "worktreeName"),
+        lazy: optionalBoolean(payload, "lazy"),
         dispatcher,
       })
+      recordAddDispatch(ctx, dispatcher, result.task)
       return {
         taskId: result.task.id,
         task: serializeTask(result.task),

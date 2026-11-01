@@ -13,7 +13,7 @@ import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 import { taskCwd } from "../../src/orchestrator/task-tree.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
-import type { Task } from "../../src/types/task.ts"
+import { type Task, toTaskId } from "../../src/types/task.ts"
 
 const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 
@@ -127,6 +127,59 @@ describe("worktree children", () => {
 
     await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true })).rejects.toThrow(/NOT_A_GIT_REPO/)
     expect(store.list().filter((t) => t.parentTaskId === parent.id)).toEqual([])
+  })
+})
+
+describe("a lazy worktree child (what `add` creates)", () => {
+  test("fixes its base at the parent's tip now and checks out only when entered", async () => {
+    const parent = await orch.createTask({ repo, title: "parent", vendor: "claude" })
+    const parentDir = await orch.ensureWorktree(parent.id)
+    const tip = commit(parentDir, "parent-work.txt")
+
+    const { task, parentDirty } = await orch.spawnChildTask({ parentTaskId: parent.id, worktree: true, lazy: true })
+    expect(task.worktreePath).toBeFalsy()
+    expect(parentDirty).toBe(false)
+    commit(parentDir, "moved-on.txt")
+
+    const dir = await orch.ensureWorktree(task.id)
+    expect(git(dir, "rev-parse", "HEAD")).toBe(tip)
+  })
+
+  test("carries add's engine fields, group and branch onto the row", async () => {
+    const parent = await mainRow()
+
+    const { task } = await orch.spawnChildTask({
+      parentTaskId: parent.id,
+      worktree: true,
+      lazy: true,
+      model: "opus",
+      modelEffort: "high",
+      groupId: "round-1",
+      branch: "feat/mine",
+    })
+
+    expect(task).toMatchObject({ model: "opus", modelEffort: "high", groupId: "round-1", branch: "feat/mine" })
+  })
+})
+
+describe("createTask under a parent", () => {
+  test("nests under the parent's top-level ancestor: children never nest", async () => {
+    const root = await orch.createTask({ repo, title: "root", vendor: "claude" })
+    const { task: child } = await orch.spawnChildTask({ parentTaskId: root.id, worktree: false })
+
+    const sibling = await orch.createTask({ repo, title: "sibling", vendor: "claude", parentTaskId: child.id })
+
+    expect(sibling.parentTaskId).toBe(root.id)
+    expect(sibling.sharesWorkspaceOf).toBeUndefined()
+  })
+
+  test("a missing parent is refused before anything is created", async () => {
+    const before = store.list().length
+
+    const orphan = orch.createTask({ repo, title: "orphan", vendor: "claude", parentTaskId: toTaskId("nope") })
+    await expect(orphan).rejects.toThrow()
+
+    expect(store.list()).toHaveLength(before)
   })
 })
 

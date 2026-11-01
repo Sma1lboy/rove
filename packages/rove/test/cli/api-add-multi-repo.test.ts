@@ -128,13 +128,14 @@ describe("launches of a task that shares a multi-repo owner's workspace", () => 
     expect(calls[0]?.target.multiRepo).toBeUndefined()
   })
 
-  it("spawn --no-worktree --prompt marks the child it launches", async () => {
+  it("add --no-worktree --prompt marks the child it launches", async () => {
     const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
       "task.spawn": () => ({ taskId: "kid", task: sharer, parentDirty: false, sharedLinks: [] }),
       "task.setPrompt": () => ({}),
     })
     const { calls, deliver } = recordingDelivery()
-    await invokeVerb("spawn", ["--parent", "abc", "--no-worktree", "--prompt", "hi"], {
+    await invokeVerb("add", ["--parent", "abc", "--no-worktree", "--prompt", "hi"], {
       client,
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })

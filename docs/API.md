@@ -264,11 +264,12 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `ENGINE_ADMISSION_BUSY` | The session inventory kept changing during admission; nothing was started, so retry the returned command. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
-| `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
-| `NOT_A_GIT_REPO` | `spawn` (worktree) from a `dir` task that is not inside a git repository. |
-| `NOT_A_LINKED_REPO` | `spawn --isolate-in` names something that is not a top-level symlink to another git checkout. |
-| `REMOTE_PARENT_UNSUPPORTED` | `spawn` under a task that lives on another machine's project, or `update --parent` with either task on one. |
-| `PARENT_NOT_FOUND` | `update --parent` names no task on the task's own machine. |
+| `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
+| `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
+| `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
+| `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
+| `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
+| `MISSING_TARGET` | `add --no-worktree` or `--isolate-in` with no `--parent` and no verified calling session. |
 | `PARENT_IS_SELF` | `update --parent` names the task itself. |
 | `PARENT_CYCLE` | `update --parent` names one of the task's own descendants. |
 | `PARENT_IN_GROUP` | `update --group G --parent ID` where `ID` is itself a task of round `G`. |
@@ -781,7 +782,8 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--parent ID | --no-parent]
+  [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
@@ -953,48 +955,48 @@ only facts about its own worktree; the standing worker instructions, naming its
 branch included, live in the Rove agent skill. Prompts into existing sessions
 (`send`, `send --tab new`, `dispatch`) are never modified.
 
-- `spawn [--parent ID] [--worktree | --no-worktree] [--base-branch B]
-  [--isolate-in LINK] [--title T] [--command CMD] [--prompt TEXT |
-  --prompt-file PATH]`: start a **child task** of the calling session (or
-  `--parent`): a second conversation that shows under its parent. A Task is
-  one engine conversation; `add` makes a top-level task and `spawn` makes a
-  child. `--parent` defaults to the caller's verified `$ROVE_TASK_ID` /
-  `$ROVE_TAB_ID` (an unverifiable env is `MISSING_TARGET`, never a guess).
-  Children never nest: spawned from a child, the new task hangs under that
-  child's parent, while its directory and `dispatcher` still come from the
-  child that spawned it, so a bare `send` from it reports back to that child.
-  The child runs on the parent's machine, on the parent's engine unless
-  `--command` says otherwise.
+  **Nesting (`add` makes children).** A Task is one engine conversation; a
+  task nested under another shows under it in the sidebar. Called from a
+  verified rove session (`$ROVE_TASK_ID` / `$ROVE_TAB_ID`, verified as
+  described above), `add` hangs the new task under the **caller's top-level
+  task** (children never nest: added from a child, it becomes that child's
+  sibling), while `dispatcher` still records the exact calling task and tab, so
+  a bare `send` from it reports back to that session. An unverifiable env, a
+  call from a plain shell, `--machine`, and tasks the daemon creates on its own
+  (routines) stay top level, never an error. Only a task the sidebar would show
+  in the repo you asked for is nested automatically: a call whose `--repo` is not
+  the caller's tree's repo, or whose tree is a routine session, stays top level.
+  `--parent ID` nests under that task whatever its repo (the rules of `update
+  --parent`; `PARENT_NOT_FOUND`, `REMOTE_PARENT_UNSUPPORTED`), and `--no-parent`
+  opts out; the two conflict (`CONFLICTING_FLAGS`). With `--count` / `--agents`
+  every sibling gets the parent; with `--fork X` the parent is the caller, not X.
 
-  **Where the child works.** By default the child gets its own worktree, on a
-  branch cut from the parent's *current* branch tip (`--base-branch` overrides
-  the cut point). A main checkout cuts from its HEAD; a `dir` task inside a git
-  repo gets a worktree at the repo root and runs in the same relative
-  subdirectory; a `dir` task outside any repo fails `NOT_A_GIT_REPO`.
-  `--no-worktree` (or `--worktree=false`) shares the parent's directory
-  instead. That suits parallel reading and review; two engines writing one
-  tree collide.
+  **Where the child works.** A nested task in the parent's own repo is cut from
+  the parent's *current* branch tip instead of the repo's default base, unless
+  `--base-branch`, `--fork` or several `--repo` name the fork point. A main
+  checkout cuts from its HEAD; a `dir` task inside a git repo gets a worktree at
+  the repo root and runs in the same relative subdirectory; a `dir` task outside
+  any repo fails `NOT_A_GIT_REPO`. The branch tip is read when `add` runs, even
+  though the checkout itself waits for the first prompt. `--no-worktree` shares
+  the parent's directory instead, which suits parallel reading and review; two
+  engines writing one tree collide. A shared child and `--isolate-in` need a
+  parent (the caller or `--parent`, else `MISSING_TARGET`) and take its repo, so
+  `--repo`, `--fork`, `--base-for`, and (for `--no-worktree`) `--base-branch`,
+  `--branch`, `--worktree-name`, `--count` and `--agents` conflict with them.
 
   **Uncommitted changes are never copied** into a new worktree: `parentDirty:
   true` in the reply says the parent had some. Top-level entries of the parent
   directory that are symlinks to a git checkout outside it are not isolated by
   a worktree of the root, because git copies the link; they come back as
   `sharedLinks`. `--isolate-in LINK` cuts the worktree in that linked repo
-  instead (`NOT_A_LINKED_REPO` for a name that is not one).
+  instead (`NOT_A_LINKED_REPO` for a name that is not one). Both reply fields
+  appear only for a child cut from its parent's tip or sharing its directory.
 
-  **Reply.** `{taskId, task, engine, parentDirty, sharedLinks, started}`. With
-  `--prompt` the child's engine starts and the text is pasted, prefixed with who
-  spawned it; the reply then also carries the delivery facts `send` reports
-  (`session`, `delivered`, `engineReady`, ...). A prompt that did not land is
-  `NOT_DELIVERED`, and the error still carries the child's `taskId`. A parent on
-  another machine's project is `REMOTE_PARENT_UNSUPPORTED`: spawn from that
-  machine's rove.
-
-  The TUI's and the web's "new conversation" gestures do the same with
-  `--no-worktree`: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab
-  new` and `tab-new --kind engine` start a task's first conversation in its own
-  `tab-1` and, once it holds one, each create a shared child, never a second
-  engine tab. Deleting the parent promotes its children; see `delete --cascade`.
+  The TUI's and the web's "new conversation" gestures make shared children the
+  same way: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab new` and
+  `tab-new --kind engine` start a task's first conversation in its own `tab-1`
+  and, once it holds one, each create a shared child, never a second engine
+  tab. Deleting the parent promotes its children; see `delete --cascade`.
 
 ## drive
 
@@ -1019,7 +1021,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
   failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
   placeholder title becomes the prompt's), else a shared child task of the target
-  (same directory, as `spawn --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
+  (same directory, as `add --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
   (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
@@ -1298,7 +1300,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
-  child task of `--task-id` (same directory, see `spawn --no-worktree`) whose
+  child task of `--task-id` (same directory, as `add --no-worktree`) whose
   engine, the task's own or `--command`'s as `send --tab new --command` pins it,
   starts idle in the child's own `tab-1`, ready for a first message. A task
   holds one engine conversation, so this never adds a second engine tab to it.
@@ -1465,7 +1467,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     task follows. After `update --task-id A --parent B`, A's bare `send`
     reaches B — the caller's own tab when `update` runs from inside B, else
     B's live engine tab, else `tab-1`. The stored parent is B's top-level
-    ancestor (children never nest, as with `spawn` from a child), and A's own
+    ancestor (children never nest, as with `add` from a child), and A's own
     children follow it there. Tree actions on that stored parent reach A as
     well: archiving it, or `delete --cascade` on it, takes A along. `.parent` in the result is
     `{ parentTaskId, dispatcher, moved }`. `none` also drops a reply address
@@ -1815,7 +1817,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   leave the caller unable to tell which of N were already removed. Mutually
   exclusive with `--task-id`.
 
-  **A task with children** (`spawn`) is not orphaned. By default its children
+  **A task with children** (nested by `add`) is not orphaned. By default its children
   are promoted to the deleted task's own parent, or to top level, and keep
   running; `--cascade` deletes the whole subtree instead, and the reply lists
   every removed id as `deleted`. A directory goes only once no remaining task
@@ -1827,7 +1829,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   session stay as they are, and every verb that takes `--task-id` (`send`,
   `read-output`, `get-task`, `context`, `collect`, `digest`, `delete`) keeps
   working on the task by id. `list --archived` lists only archived tasks.
-  Both verbs act on the task and every descendant (`spawn` children,
+  Both verbs act on the task and every descendant (child tasks,
   recursively) together, and return `{ taskId, archived, ids }`, where `ids`
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
@@ -1870,7 +1872,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkout, so they get `NOT_CHECKPOINTABLE`.
 
   Checkpoints belong to the workspace owner. A child that shares its parent's
-  directory (`spawn --no-worktree`) has no history of its own: its turns are
+  directory (`add --no-worktree`) has no history of its own: its turns are
   recorded under the owner's id, and all three verbs, given the child's
   `--task-id`, act on the owner's checkpoints. `workspaceTaskId` in each reply
   names that task (it equals `taskId` for an owner). When the owner is deleted

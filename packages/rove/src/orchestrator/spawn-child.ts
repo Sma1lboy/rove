@@ -52,6 +52,10 @@ export interface ChildRowFields {
   readonly command?: string
   readonly dispatcher?: TaskDispatcher
   readonly prompt?: string
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  readonly groupId?: string
 }
 
 /** The row of a child that shares `parent`'s directory (`workspace`), owner resolved through the parent's own sharing. */
@@ -66,6 +70,10 @@ export function sharedChildRow(parent: Task, workspace: string, fields: ChildRow
     title: fields.title,
     vendor: fields.vendor,
     ...(command ? { command } : {}),
+    ...(fields.modelEffort ? { modelEffort: fields.modelEffort } : {}),
+    ...(fields.model ? { model: fields.model } : {}),
+    ...(fields.tier ? { tier: fields.tier } : {}),
+    ...(fields.groupId ? { groupId: fields.groupId } : {}),
     ...(fields.dispatcher ? { dispatcher: fields.dispatcher } : {}),
     ...(parent.kind === "task" && parent.baseRef ? { baseRef: parent.baseRef } : {}),
     ...(parent.cwdSubpath ? { cwdSubpath: parent.cwdSubpath } : {}),
@@ -97,6 +105,10 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     command: input.command ?? (inherit ? parent.command : undefined),
     dispatcher: input.dispatcher as TaskDispatcher | undefined,
     prompt: input.prompt,
+    modelEffort: input.modelEffort,
+    model: input.model,
+    tier: input.tier,
+    groupId: input.groupId,
   }
 
   if (!input.worktree) {
@@ -126,7 +138,17 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     parentTaskId: toTaskId(common.parentTaskId),
     cwdSubpath,
     projectIntent: "derived",
+    modelEffort: common.modelEffort,
+    model: common.model,
+    tier: common.tier,
+    groupId: common.groupId,
+    branch: input.branch,
+    worktreeName: input.worktreeName,
   })
+  if (input.lazy) {
+    if (input.prompt) await deps.store.update(child.id, { prompt: input.prompt })
+    return { task: deps.store.get(child.id) ?? child, parentDirty, sharedLinks: source ? [] : links.map((l) => l.name) }
+  }
   // Eager, so a refused checkout surfaces here and never leaves a pathless child.
   try {
     await deps.ensureWorktree(child.id)
