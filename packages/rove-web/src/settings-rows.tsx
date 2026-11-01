@@ -9,6 +9,7 @@ import {
   PREF_HINT,
   PREF_LABEL,
   PREF_LABEL_BESIDE_HINT,
+  PREF_LABEL_MONO,
   PREF_LEGEND,
   PREF_READONLY,
   PREF_ROW,
@@ -94,7 +95,7 @@ export function CycleRow(props: { label: string; hint?: string; disabled?: boole
 export function ReadOnlyRow(props: { label: string; note: string }) {
   return (
     <div className={PREF_READONLY}>
-      <span className={`${PREF_LABEL} mono text-muted`}>{props.label}</span>
+      <span className={`${PREF_LABEL_MONO} mono text-muted`}>{props.label}</span>
       <span className={`${PREF_HINT} muted`}>{props.note}</span>
     </div>
   )

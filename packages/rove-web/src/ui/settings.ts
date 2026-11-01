@@ -13,12 +13,14 @@ export const PREF_LABEL_BESIDE_HINT = `${PREF_LABEL} max-w-2/5 shrink-0`
 /** The label of a cycling row, with its chevron. */
 export const PREF_CYCLE_LABEL = `${PREF_LABEL} after:ml-1.5 after:inline-block after:size-2.5 after:bg-subtle after:align-[-1px] after:content-[''] after:chevron-mask`
 export const PREF_HINT = "m-0 text-meta leading-[inherit]"
+/** A `.mono` label: its `font` shorthand set line-height back to normal. */
+export const PREF_LABEL_MONO = "text-meta"
 /** Paths and binding ids have no spaces: they break anywhere rather than widen the section. */
-export const PREF_FIELD = "m-0 flex min-w-0 flex-col gap-1.5 border-none px-0 py-1 [&_p]:wrap-anywhere"
+export const PREF_FIELD = "m-0 flex min-w-0 flex-col gap-1.5 border-none border-current px-0 py-1 [&_p]:wrap-anywhere"
 export const PREF_LEGEND = `${PREF_LABEL} float-left mb-1.5 w-full p-0`
 export const PREF_NUMBER = "w-[9ch] px-1.5 py-0.75"
 
-export const TIER_ROW = "flex flex-col gap-0.75 border-b-hairline border-line px-1 py-2"
+export const TIER_ROW = "flex flex-col gap-0.75 border-b-hairline border-b-line px-1 py-2"
 export const TIER_HEAD = "flex items-baseline gap-3"
 export const TIER_EDITOR = "flex flex-col gap-2 pt-2 pb-0.5"
 
@@ -28,8 +30,8 @@ export const CONFIRM_INLINE =
 
 const ENG_GRID = "grid grid-cols-[minmax(0,1fr)_104px_72px] items-center gap-3"
 export const ENG_LIST = "flex flex-col"
-export const ENG_LIST_HEAD = `${ENG_GRID} border-b-hairline border-line pt-0 pr-1 pb-1.5 pl-7.5 font-sans text-meta font-medium normal-nums text-subtle [&>span:not(:first-child)]:text-center`
-export const ENG_ITEM = "border-b-hairline border-line"
+export const ENG_LIST_HEAD = `${ENG_GRID} border-b-hairline border-b-line pt-0 pr-1 pb-1.5 pl-7.5 font-sans text-meta font-medium normal-nums text-subtle [&>span:not(:first-child)]:text-center`
+export const ENG_ITEM = "border-b-hairline border-b-line"
 /** `group/eng`: the make-default button shows while its row is hovered or focused. */
 export const ENG_ROW = `${ENG_GRID} group/eng rounded-sm py-1 pr-1 pl-0 hover:bg-hover`
 const FOCUS = "focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus"
