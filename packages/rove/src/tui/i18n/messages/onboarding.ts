@@ -27,16 +27,20 @@ export const en = {
   /** One-liner under the header: what Rove actually does, before any question. */
   subtitle: "Managed tasks get isolated worktrees and branches. Directory and project tasks reuse existing files.",
   /** Step 1 question; {shell} is the detected shell name (zsh/bash/fish) */
-  completionsQuestion: "Optional: install shell completions for {shell}?",
+  completionsLabel: "Shell completions for {shell}",
   /** Step 1 explanation */
   completionsExplain: "Tab-completes rove subcommands. One line is added to your shell config.",
   /** Step 2 question */
-  skillQuestion: "Install the Rove agent skill? (recommended)",
+  skillLabel: "Rove agent skill",
   /** Step 2 explanation */
   skillExplain:
-    "Lets the coding agents on this machine drive Rove themselves: start tasks, read other sessions, message them. Copies one skill file into each; until then Rove keeps a reminder at the top of the window.",
+    "Lets the coding agents on this machine drive Rove themselves: start tasks, read other sessions, message them.",
   /** Recommended option */
-  optionYes: "Yes",
+  optionYes: "Install",
+  /** Muted tag beside the skill step's Install option */
+  recommended: "recommended",
+  /** Step position beside the active question's title */
+  stepCounter: "{n} / {total}",
   /** Decline option */
   optionNo: "Not now",
   queued: "Queued — installs when you quit Rove",
@@ -86,12 +90,13 @@ export const zh: typeof en = {
 
   title: "欢迎使用 Rove",
   subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
-  completionsQuestion: "可选：为 {shell} 安装 shell 补全吗？",
+  completionsLabel: "{shell} 的 shell 补全",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
-  skillQuestion: "安装 Rove agent skill 吗？（推荐）",
-  skillExplain:
-    "让本机的编码 agent 自己操作 Rove：开任务、读其他会话、给它们发消息。会往每个 agent 里放一份 skill 文件；没装之前，窗口顶部会一直提示。",
+  skillLabel: "Rove agent skill",
+  skillExplain: "让本机的编码 agent 自己操作 Rove：开任务、读其他会话、给它们发消息。",
   optionYes: "安装",
+  recommended: "推荐",
+  stepCounter: "{n} / {total}",
   optionNo: "跳过",
   queued: "已排队 — 退出 Rove 后安装",
   skillInstalled: "已为 {engines} 安装",

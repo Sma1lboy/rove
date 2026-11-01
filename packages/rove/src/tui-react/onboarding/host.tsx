@@ -69,6 +69,7 @@ export function WelcomeDialogView(props: {
   }, [probe])
 
   const step = steps[stepIndex] as StepId
+  const answeredSteps = steps.slice(0, page === "questions" ? stepIndex : steps.length)
 
   function finish(finalAnswers: Partial<Record<StepId, boolean>>): void {
     props.onDone({ completions: finalAnswers.completions ?? false })
@@ -107,10 +108,10 @@ export function WelcomeDialogView(props: {
     ],
   }))
 
-  function questionFor(s: StepId): string {
+  function labelFor(s: StepId): string {
     return s === "completions"
-      ? t("onboarding.completionsQuestion", { shell: props.shell ?? "" })
-      : t("onboarding.skillQuestion")
+      ? t("onboarding.completionsLabel", { shell: props.shell ?? "" })
+      : t("onboarding.skillLabel")
   }
   const explain = step === "completions" ? t("onboarding.completionsExplain") : t("onboarding.skillExplain")
 
@@ -122,24 +123,29 @@ export function WelcomeDialogView(props: {
         <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
           {t("onboarding.title")}
         </text>
-        <text fg={theme.accent} wrapMode="word">
+        <text fg={theme.textMuted} wrapMode="word">
           {t("onboarding.subtitle")}
         </text>
       </box>
       <box flexDirection="column" flexShrink={1}>
-        {steps.slice(0, page === "engine" ? 0 : page === "questions" ? stepIndex : steps.length).map((answered) => (
-          <box key={answered} flexDirection="row" gap={1}>
-            <text fg={theme.textMuted} wrapMode="none">
-              ·
-            </text>
-            <text fg={theme.textMuted} wrapMode="none">
-              {questionFor(answered)}
-            </text>
-            <text fg={theme.text} wrapMode="none">
-              {!answers[answered] ? t("onboarding.skipped") : answered === "skill" ? skillLine : t("onboarding.queued")}
-            </text>
+        {page !== "engine" && answeredSteps.length > 0 ? (
+          // One quiet line per answered step, a blank line before the active one.
+          <box flexDirection="column" paddingBottom={1}>
+            {answeredSteps.map((answered) => (
+              <box key={answered} flexDirection="row" gap={1}>
+                <text fg={answers[answered] ? theme.success : theme.textMuted} wrapMode="none">
+                  {answers[answered] ? "✓" : "–"}
+                </text>
+                <text fg={theme.text} wrapMode="none">
+                  {labelFor(answered)}
+                </text>
+                <text fg={theme.textMuted} wrapMode="none">
+                  {`· ${!answers[answered] ? t("onboarding.skipped") : answered === "skill" ? skillLine : t("onboarding.queued")}`}
+                </text>
+              </box>
+            ))}
           </box>
-        ))}
+        ) : null}
         {page === "engine" ? (
           <EngineWelcomePage env={env} onContinue={() => confirm()} />
         ) : page === "keys" ? (
@@ -162,26 +168,40 @@ export function WelcomeDialogView(props: {
           </box>
         ) : (
           <>
-            <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="word">
-              {questionFor(step)}
-            </text>
-            <text fg={theme.textMuted} wrapMode="word">
-              {explain}
-            </text>
+            <box flexDirection="row">
+              <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none" flexGrow={1}>
+                {labelFor(step)}
+              </text>
+              <text fg={theme.textMuted} wrapMode="none">
+                {t("onboarding.stepCounter", { n: String(stepIndex + 1), total: String(steps.length) })}
+              </text>
+            </box>
+            <box paddingBottom={1}>
+              <text fg={theme.textMuted} wrapMode="word">
+                {explain}
+              </text>
+            </box>
+            {/* Options as list rows: the selected one is a filled row, as in Settings. */}
             {[true, false].map((option) => {
               const active = yes === option
               return (
-                <box key={String(option)} flexDirection="row" gap={1} paddingLeft={1} onMouseUp={() => confirm(option)}>
-                  <text fg={active ? theme.primary : theme.textMuted} wrapMode="none">
-                    {active ? "❯" : " "}
-                  </text>
-                  <text
-                    fg={active ? theme.primary : theme.textMuted}
-                    attributes={active ? TextAttributes.BOLD : undefined}
-                    wrapMode="none"
-                  >
+                <box
+                  key={String(option)}
+                  flexDirection="row"
+                  gap={2}
+                  paddingLeft={1}
+                  paddingRight={1}
+                  backgroundColor={active ? theme.primary : undefined}
+                  onMouseUp={() => confirm(option)}
+                >
+                  <text fg={active ? theme.selectedListItemText : theme.text} wrapMode="none">
                     {option ? t("onboarding.optionYes") : t("onboarding.optionNo")}
                   </text>
+                  {option && step === "skill" ? (
+                    <text fg={active ? theme.selectedListItemText : theme.textMuted} wrapMode="none">
+                      {t("onboarding.recommended")}
+                    </text>
+                  ) : null}
                 </box>
               )
             })}
