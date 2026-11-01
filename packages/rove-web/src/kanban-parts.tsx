@@ -7,6 +7,7 @@ import type { AppModel } from "./model.ts"
 import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { KB_CARD_BODY, KB_CARD_FOOT, KB_CARD_HEAD, kbCardClass, kbCardTitleClass } from "./ui/kanban.ts"
 
 export interface Board {
   readonly repoRoot: string
@@ -102,19 +103,19 @@ export function Card(props: {
     // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (arrows, Enter) drive the cards
     <div
       data-issue={issue.id}
-      className={`kb-card ${props.selected ? "is-selected" : ""} ${props.column === "done" ? "is-done" : ""} ${props.badge?.tone === "tone-attention" ? "is-attention" : ""}`}
+      className={kbCardClass({ selected: props.selected, attention: props.badge?.tone === "tone-attention" })}
       onClick={() => (props.selected ? props.onOpen() : props.onSelect())}
       onContextMenu={(e) => {
         e.preventDefault()
         props.onMenu(e.clientX, e.clientY)
       }}
     >
-      <div className="kb-card-head">
-        <span className="kb-card-title">{issue.title}</span>
+      <div className={KB_CARD_HEAD}>
+        <span className={kbCardTitleClass(props.column === "done")}>{issue.title}</span>
         <span className="muted mono">#{issue.id}</span>
       </div>
-      <div className="kb-card-body muted">{body}</div>
-      <div className="kb-card-foot mono muted">
+      <div className={`muted ${KB_CARD_BODY}`}>{body}</div>
+      <div className={`mono muted ${KB_CARD_FOOT}`}>
         <span>{issue.created}</span>
         {props.badge && <span className={props.badge.tone}>{props.badge.label}</span>}
       </div>

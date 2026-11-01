@@ -5,6 +5,7 @@
  */
 
 import type { KeyboardEvent, ReactNode, Ref } from "react"
+import { KB_GROUP } from "./ui/kanban.ts"
 
 const ROLE = { choice: "radiogroup", list: "listbox", cells: "group" } as const
 
@@ -24,7 +25,7 @@ export function SelectorField(props: {
       role={ROLE[props.kind ?? "choice"]}
       tabIndex={0}
       aria-label={props.label}
-      className={`kb-group ${props.className ?? ""}`}
+      className={`${KB_GROUP} ${props.className ?? ""}`}
       onKeyDown={props.onKeyDown}
       onClick={props.onClick}
     >

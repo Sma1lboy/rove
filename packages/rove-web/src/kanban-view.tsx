@@ -35,6 +35,21 @@ import { type Board, Card, TONE, useBoards, useEngines } from "./kanban-parts.ts
 const POLL_MS = 5_000
 /** Four lanes need about this much width before a card stops being readable. */
 const MIN_BOARD_PX = 760
+import {
+  KB_BOARD,
+  KB_CARDS,
+  KB_CARDS_NOTE,
+  KB_EMPTY,
+  KB_PAGE,
+  KB_PROJECT,
+  KB_PROJECT_NAME,
+  KB_PROJECT_PATH,
+  KB_SINGLE,
+  KB_STRIP,
+  kbLaneClass,
+  kbLaneHeadClass,
+  kbStripTabClass,
+} from "./ui/kanban.ts"
 
 export function KanbanView({ model }: { model: AppModel }) {
   const { kanban, group, common } = useCopy()
@@ -334,9 +349,9 @@ export function KanbanView({ model }: { model: AppModel }) {
     columns.find((col) => col.issues.length > 0) ??
     columns[0]
   const lane = (col: IssueBoardColumn, header: boolean) => (
-    <section key={col.key} className={`kb-lane kb-lane-${col.key}`}>
+    <section key={col.key} className={kbLaneClass(!header)}>
       {header && (
-        <h2 className="kb-lane-head">
+        <h2 className={kbLaneHeadClass(col.key)}>
           <span>
             {laneLabel[col.key]} ({col.issues.length + col.hiddenCount})
           </span>
@@ -345,7 +360,7 @@ export function KanbanView({ model }: { model: AppModel }) {
           )}
         </h2>
       )}
-      <div className="kb-cards">
+      <div className={KB_CARDS}>
         {col.issues.map((issue) => (
           <Card
             key={issue.id}
@@ -358,15 +373,19 @@ export function KanbanView({ model }: { model: AppModel }) {
             onMenu={(x, y) => openMenuFor(issue, x, y)}
           />
         ))}
-        {col.issues.length === 0 && col.hiddenCount === 0 && <p className="muted mono">{kanban.columnEmpty}</p>}
-        {col.hiddenCount > 0 && <p className="muted mono">{fill(kanban.more, { count: String(col.hiddenCount) })}</p>}
+        {col.issues.length === 0 && col.hiddenCount === 0 && (
+          <p className={`muted mono ${KB_CARDS_NOTE}`}>{kanban.columnEmpty}</p>
+        )}
+        {col.hiddenCount > 0 && (
+          <p className={`muted mono ${KB_CARDS_NOTE}`}>{fill(kanban.more, { count: String(col.hiddenCount) })}</p>
+        )}
       </div>
     </section>
   )
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page kb-page" tabIndex={0} ref={root}>
+    <div className={`page ${KB_PAGE}`} tabIndex={0} ref={root}>
       <div className="kb-top">
         <h1 className="page-title">{kanban.title}</h1>
         <span className="muted mono kb-hint-line">{kanban.hint}</span>
@@ -391,24 +410,26 @@ export function KanbanView({ model }: { model: AppModel }) {
         <p className="muted">{kanban.noRepos}</p>
       ) : (
         <>
-          <div className="kb-project">
-            <button type="button" className="kb-project-name" onClick={() => cycleProject(1)}>
+          <div className={KB_PROJECT}>
+            <button type="button" className={KB_PROJECT_NAME} onClick={() => cycleProject(1)}>
               {projectLabel(board.repoRoot, repoRoots)}
               {list.length > 1 && <span className="muted">{` ${index + 1}/${list.length}`}</span>}
             </button>
-            {!narrow && <span className="muted mono kb-project-path">{board.repoRoot}</span>}
-            {board.issues.length === 0 && !board.readError && <span className="muted kb-empty">{kanban.empty}</span>}
+            {!narrow && <span className={`muted mono ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
+            {board.issues.length === 0 && !board.readError && (
+              <span className={`muted ${KB_EMPTY}`}>{kanban.empty}</span>
+            )}
           </div>
           {board.readError ? (
             <p className="error">{fill(kanban.readFailed, { error: board.readError })}</p>
           ) : narrow && activeLane ? (
-            <div className="kb-single" ref={scroller}>
-              <div className="kb-strip mono">
+            <div className={KB_SINGLE} ref={scroller}>
+              <div className={`mono ${KB_STRIP}`}>
                 {columns.map((col) => (
                   <button
                     type="button"
                     key={col.key}
-                    className={col.key === activeLane.key ? "is-active" : "muted"}
+                    className={kbStripTabClass(col.key === activeLane.key)}
                     onClick={() => {
                       const first = col.issues[0]
                       if (first) setSelectedId(first.id)
@@ -421,7 +442,7 @@ export function KanbanView({ model }: { model: AppModel }) {
               {lane(activeLane, false)}
             </div>
           ) : (
-            <div className="kb-board" ref={scroller}>
+            <div className={KB_BOARD} ref={scroller}>
               {columns.map((col) => lane(col, true))}
             </div>
           )}
