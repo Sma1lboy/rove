@@ -3,7 +3,7 @@ export const en = {
   rail: {
     inbox: "inbox {count}",
     empty: "no tasks yet",
-    emptyHint: "start one with New task above, in the TUI, or with `rove api add`",
+    emptyHint: "New task above: pick a project folder, then say what to do",
     newTask: "New task",
     settings: "Settings",
     noProject: "Ungrouped",
@@ -43,7 +43,7 @@ export const zh: typeof en = {
   rail: {
     inbox: "收件箱 {count}",
     empty: "还没有任务",
-    emptyHint: "用上面的「新建任务」、在 TUI 里或用 `rove api add` 新建一个",
+    emptyHint: "点上面的「新建任务」：选一个项目文件夹，再写要做什么",
     newTask: "新建任务",
     settings: "设置",
     noProject: "未分组",
