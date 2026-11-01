@@ -670,16 +670,14 @@
   .pg-top > .pg-actions .link::after {
     inset: -10px -3px -5px;
   }
-  .kb-project-name {
+  .kb-project-name,
+  .kb-strip button {
     position: relative;
   }
   .kb-project-name::after {
     content: "";
     position: absolute;
     inset: -4px -8px;
-  }
-  .kb-strip button {
-    position: relative;
   }
   /* Lanes sit 16px apart, the project name 8px above: grow down, barely up. */
   .kb-strip button::after {
