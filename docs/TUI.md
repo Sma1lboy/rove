@@ -583,6 +583,7 @@ installed plugins can add pages of their own
 ([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the
 workspace. The chords stay live, so you can hop between pages directly.
+Search has no chord yet; open it from its rail row.
 
 ### Kanban (`ctrl+a` `1`)
 
@@ -673,10 +674,20 @@ shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
 
+### Search
+
+Click **Search** in the sidebar rail and type: Rove finds the words in what
+you and the agents wrote in any task's conversation (the same search as
+`rove api search`), newest session first, with the words around each hit.
+`↑`/`↓` move, `enter` opens the hit's task on the tab it came from (the
+terminal does not scroll to the line), `esc` leaves. Tool calls and their
+output are not searched, and neither is a task on another
+[machine](./MACHINES.md).
+
 ### Mods
 
 While a plugin's `[mod]` has a pane open, the sidebar rail lists **Mods**
-below Issues. Click it to open the page: each mod pane is drawn with its
+below Search. Click it to open the page: each mod pane is drawn with its
 title and plugin id. `↑`/`↓` or `tab` move between buttons and fields,
 `enter` or a click presses a button, `enter` in a field sends its text to the
 mod, `esc` leaves. While a field has focus, letters are typing. The web client draws the same panes, and a press in

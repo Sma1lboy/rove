@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { matchMessages, prefilterToken } from "../../src/cli/api/handlers-search.ts"
+import { matchMessages, prefilterToken } from "../../src/engine/session-search.ts"
 import type { Message } from "../../src/types/engine.ts"
 
 const msg = (role: Message["role"], blocks: Message["blocks"], at = "2026-11-01T00:00:00Z"): Message => ({
