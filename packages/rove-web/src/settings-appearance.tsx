@@ -5,8 +5,8 @@
  * still written so the TUI changes.
  */
 
-import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { Chips, Group, type Pick, Toggle } from "./settings-rows.tsx"
@@ -58,7 +58,8 @@ const ROWS: readonly { key: PrefKey; label: string; hint?: string; terminalOnly?
   { key: "runningTitle", label: "general.runningTitle" },
 ]
 
-export function AppearanceGroup({ client }: { client: BridgeClient }) {
+export function AppearanceGroup({ model }: { model: AppModel }) {
+  const { client } = model
   const state = usePrefs()
   const mode = useMode()
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
@@ -83,7 +84,7 @@ export function AppearanceGroup({ client }: { client: BridgeClient }) {
           return (
             <ThemeGallery
               key={row.key}
-              client={client}
+              model={model}
               label={ts(row.label)}
               themes={state.themes}
               value={state.prefs.theme}

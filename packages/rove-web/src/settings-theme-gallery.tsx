@@ -2,16 +2,19 @@
  * Settings → Appearance → Theme as cards: each one a miniature window in that theme's own colours.
  * Pointing at a card (or focusing it) paints the whole page in that theme; leaving the gallery puts the
  * saved one back, and a click saves it. Below, the rove.run themes not yet installed: the same preview,
- * and a click installs one (`theme.install`, as `rove theme add`) and switches to it.
+ * and a click installs one (`theme.install`, as `rove theme add`) and switches to it. Last, a Scratch
+ * session whose agent is asked to write a new theme into the themes directory; it shows here on reopening.
  * Inline colours are the point here: every card shows a different theme.
  */
 
 import { type ReactNode, useEffect, useState } from "react"
-import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { type Mode, type PreviewTheme, themePreview } from "./prefs-theme.ts"
 import { type ThemeEntry, loadPrefs, setPref } from "./prefs.ts"
 import { createStore, useStore } from "./store.ts"
+import { openTab } from "./task-dialogs.tsx"
+import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import {
   PREF_FIELD,
@@ -32,8 +35,14 @@ interface HostedTheme extends PreviewTheme {
   readonly installed: boolean
 }
 
-/** `theme.hosted`, kept for the page's life so reopening Settings draws the catalogue at once; `null` until asked. */
-const hostedStore = createStore<readonly HostedTheme[] | null>(null)
+/** `theme.hosted`: the catalogue and the themes directory (`null` from a bridge that predates it). */
+interface Hosted {
+  readonly themes: readonly HostedTheme[]
+  readonly dir: string | null
+}
+
+/** Kept for the page's life so reopening Settings draws the catalogue at once; `null` until asked. */
+const hostedStore = createStore<Hosted | null>(null)
 
 function Swatch({ theme, mode }: { theme: PreviewTheme; mode: Mode }) {
   const p = theme[mode]
@@ -95,25 +104,42 @@ function Grid({ children }: { children: ReactNode }) {
 }
 
 export function ThemeGallery(props: {
-  client: BridgeClient
+  model: AppModel
   label: string
   themes: readonly ThemeEntry[]
   value: string
   mode: Mode
 }) {
-  const { client } = props
+  const { model } = props
+  const { client } = model
   const hosted = useStore(hostedStore)
   const [installing, setInstalling] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
+  const [askFailed, setAskFailed] = useState(false)
   // A preview must not outlive the page: leaving Settings mid-hover would keep painting it.
   useEffect(() => () => themePreview.set(null), [])
+  // A theme written under themes/ while the page kept focus (an agent's, a hand edit) shows on reopening.
+  useEffect(() => void loadPrefs(client).catch(() => undefined), [client])
   useEffect(() => {
     if (hostedStore.get() !== null) return
-    client.request<{ themes: HostedTheme[] }>("theme.hosted").then(
-      (reply) => hostedStore.set(reply.themes),
-      () => hostedStore.set([]),
+    client.request<Hosted>("theme.hosted").then(
+      (reply) => hostedStore.set(reply),
+      () => hostedStore.set({ themes: [], dir: null }),
     )
   }, [client])
+
+  const askAgent = async (dir: string) => {
+    setAskFailed(false)
+    try {
+      const { taskId } = await client.request<{ taskId: string }>("task.openScratch")
+      await openTab(model, taskId, { kind: "engine", prompt: t("prefs.themeAgentPrompt", { dir }) })
+      closeDialog()
+    } catch {
+      setAskFailed(true)
+    }
+  }
+
+  const dir = hosted?.dir ?? null
 
   const install = async (name: string) => {
     setInstalling(name)
@@ -130,7 +156,7 @@ export function ThemeGallery(props: {
   }
 
   const installedNames = new Set(props.themes.map((th) => th.name))
-  const more = (hosted ?? []).filter((th) => !installedNames.has(th.name))
+  const more = (hosted?.themes ?? []).filter((th) => !installedNames.has(th.name))
   return (
     <fieldset className={PREF_FIELD}>
       <legend className={PREF_LEGEND}>{props.label}</legend>
@@ -169,6 +195,12 @@ export function ThemeGallery(props: {
             ))}
           </Grid>
         </>
+      )}
+      {dir && (
+        <p className={`${PREF_HINT} mt-2 text-muted`}>
+          <Button onClick={() => void askAgent(dir)}>{t("prefs.themeAgent")}</Button>{" "}
+          {askFailed ? t("prefs.themeAgentFailed") : t("prefs.themeAgentHint")}
+        </p>
       )}
     </fieldset>
   )

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import { signOut } from "./login.ts"
+import type { AppModel } from "./model.ts"
 import { allowDesktopNotices, chime } from "./notify.ts"
 import { type PrefKey, type Prefs, choicesOf, nextChoice, prefsStore, setPref, usePrefs } from "./prefs.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -29,7 +30,8 @@ const WORKTREE_LABEL = {
   custom: "general.worktreeKindCustom",
 } as const
 
-export function GeneralSection({ client }: { client: BridgeClient }) {
+export function GeneralSection({ model }: { model: AppModel }) {
+  const { client } = model
   const state = usePrefs()
   const { prefs, info } = state
   // A cycle row reads the store at press time: two quick presses step twice before React re-renders.
@@ -60,7 +62,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
         picks={LANGUAGES}
         onPick={(next) => set("locale", next)}
       />
-      <AppearanceGroup client={client} />
+      <AppearanceGroup model={model} />
       <Group title={ts("general.notifications")} hint={ts("general.notificationsHint")}>
         <Toggle label={ts("general.toast")} checked={prefs.toast} onChange={(next) => set("toast", next)} />
         <Toggle

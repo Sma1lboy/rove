@@ -2,7 +2,8 @@
  * `theme.hosted` / `theme.install`: the themes served from rove.run (not bundled), resolved to
  * palettes so a page can preview one before it is installed, and installed by name into
  * `<state dir>/themes/` through the same parse and write as `rove theme add`. Only the hosted names
- * are accepted: a page never makes the Mac fetch or write a URL of its choosing.
+ * are accepted: a page never makes the Mac fetch or write a URL of its choosing. `theme.hosted` also
+ * names that directory, which the page hands to an agent asked to write a theme.
  */
 
 import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
@@ -13,7 +14,7 @@ import {
   parseTheme,
   writeUserTheme,
 } from "@sma1lboy/rove/src/tui/context/theme/install.ts"
-import { loadUserThemes } from "@sma1lboy/rove/src/tui/context/theme/loader.ts"
+import { loadUserThemes, userThemesDir } from "@sma1lboy/rove/src/tui/context/theme/loader.ts"
 import { BridgeError } from "../protocol.ts"
 import { palette } from "./theme-palette.ts"
 import type { OpTable } from "./types.ts"
@@ -55,7 +56,7 @@ export function createHostedThemeOps(deps: HostedThemeDeps): OpTable {
       kind: "read",
       destructive: false,
       wraps:
-        "the rove.run theme catalogue, each theme resolved to #rrggbb for dark and light, and whether it is installed",
+        "the rove.run theme catalogue, each theme resolved to #rrggbb for dark and light, whether it is installed, and the user themes directory",
       async run() {
         const installed = new Set(deps.installed())
         const settled = await Promise.allSettled(HOSTED_THEMES.map(load))
@@ -74,7 +75,7 @@ export function createHostedThemeOps(deps: HostedThemeDeps): OpTable {
             light: palette(got.value, "light"),
           })
         }
-        return { themes, unavailable }
+        return { themes, unavailable, dir: userThemesDir() }
       },
     },
     "theme.install": {

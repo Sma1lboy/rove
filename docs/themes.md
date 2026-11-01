@@ -5,7 +5,10 @@ ten more are [one command away](#hosted-themes). You can also write your own.
 
 Any `~/.rove/themes/*.json` file loads at boot and appears in the theme
 picker (Settings → General → Theme, or `ctrl+a` then `,`). A user theme with
-the same name as a bundled one wins.
+the same name as a bundled one wins. The web client rereads the directory
+each time Settings opens, so a new or edited file shows there without a
+restart; its **Make one with an agent** link opens a Scratch session whose
+agent is asked to write a theme into this directory.
 
 ## JSON shape
 
