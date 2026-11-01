@@ -13,6 +13,7 @@ import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { HINT } from "./ui/text.ts"
 
@@ -123,7 +124,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
   return (
     <DialogShell title={tc("tasks", "changeEngine.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={onKeyDown}
         onSubmit={(e) => {
           e.preventDefault()

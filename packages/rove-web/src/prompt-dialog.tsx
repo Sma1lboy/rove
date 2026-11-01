@@ -10,6 +10,7 @@ import type { BridgeClient } from "./bridge.ts"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { dialog } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 
 export interface PromptPush {
   readonly promptId: string
@@ -38,7 +39,7 @@ function PromptDialog({ client, prompt }: { client: BridgeClient; prompt: Prompt
   return (
     <DialogShell title={prompt.title}>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onSubmit={(e) => {
           e.preventDefault()
           void submit(async () => {

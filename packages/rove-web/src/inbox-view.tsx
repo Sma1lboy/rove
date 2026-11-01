@@ -14,6 +14,7 @@ import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 interface Card {
@@ -138,7 +139,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
 
   return (
     <DialogShell title={t("inbox.title")} wide>
-      <div className="dialog-body inbox">
+      <div className={`${DIALOG_BODY} inbox`}>
         <p className="kicker inbox-hints touch:hidden!">
           <Legend text={t("inbox.hints")} />
         </p>

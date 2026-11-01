@@ -7,6 +7,7 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
+import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 
 function errorText(err: unknown): string {
@@ -29,13 +30,13 @@ export function DialogShell(props: { title: string; children: ReactNode; wide?: 
     return () => window.removeEventListener("keydown", onKey)
   }, [])
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog ref={ref} tabIndex={-1} open className={`dialog ${props.wide ? "is-wide" : ""}`} aria-label={props.title}>
-        <div className="dialog-head">
-          <h1 className="dialog-title">{props.title}</h1>
+    <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
+      <dialog ref={ref} tabIndex={-1} open className={dialogClass(props.wide)} aria-label={props.title}>
+        <div className={DIALOG_HEAD}>
+          <h1 className={DIALOG_TITLE}>{props.title}</h1>
           <button
             type="button"
-            className="dialog-close"
+            className={DIALOG_CLOSE}
             aria-label={t("dialog.close")}
             title={t("dialog.close")}
             onClick={closeDialog}
@@ -81,7 +82,7 @@ export function TextDialog(props: {
   return (
     <DialogShell title={props.title}>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onSubmit={(e) => {
           e.preventDefault()
           if (value.trim() || props.allowEmpty) void submit(() => props.onSubmit(value.trim()))
@@ -144,7 +145,7 @@ export function ConfirmDialog(props: {
     })
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
-      <div className="dialog-body">
+      <div className={DIALOG_BODY}>
         <p className="muted whitespace-pre-line">
           {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
         </p>
@@ -201,7 +202,7 @@ export function ChoiceDialog(props: {
   })
   return (
     <DialogShell title={props.title}>
-      <div className="dialog-body">
+      <div className={DIALOG_BODY}>
         <ul className="choices">
           {props.choices.map((choice, i) => (
             <li key={choice.value}>

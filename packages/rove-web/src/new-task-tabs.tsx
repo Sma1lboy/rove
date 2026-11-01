@@ -11,6 +11,7 @@ import { SuggestField, focusField } from "./suggest-field.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 
 interface TabProps {
   readonly model: AppModel
@@ -86,7 +87,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
 
   return (
     <form
-      className="dialog-body"
+      className={DIALOG_BODY}
       onSubmit={(e) => {
         e.preventDefault()
         void create()
@@ -253,7 +254,7 @@ export function AdoptTab({
       : tc("newTask", "adopt.hintDefault")
   return (
     <form
-      className="dialog-body"
+      className={DIALOG_BODY}
       onSubmit={(e) => {
         e.preventDefault()
         void adopt()

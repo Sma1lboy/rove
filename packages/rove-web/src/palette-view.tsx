@@ -14,6 +14,7 @@ import { actionDesc, helpText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 /** Rows shown at once; the list scrolls inside (the TUI caps it at ten). */
@@ -100,7 +101,7 @@ function PaletteDialog({
 
   return (
     <DialogShell title={helpText("palette")} wide>
-      <div className="dialog-body palette" onKeyDown={onKeyDown}>
+      <div className={`${DIALOG_BODY} palette`} onKeyDown={onKeyDown}>
         <input
           className="input"
           // biome-ignore lint/a11y/noAutofocus: the palette's only field

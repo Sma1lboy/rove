@@ -17,6 +17,7 @@ import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
@@ -119,7 +120,7 @@ export function NewChatDialog(props: {
   return (
     <DialogShell title={tc("terminal", "tab.newChat.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={(e) => {
           if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && (fork || !e.shiftKey)) {
             // Fork: the composer's field cycle. Otherwise the picker's: next destination (Shift+Tab stays the browser's).

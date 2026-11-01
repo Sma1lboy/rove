@@ -14,6 +14,7 @@ import type { AppModel } from "./model.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 import { prefixHint } from "./user-keys.ts"
 
@@ -71,7 +72,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
   return (
     <DialogShell title={tc("quickTask", "title", { repoLabel: start.label })} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={(e) => {
           if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey) {
             e.preventDefault()

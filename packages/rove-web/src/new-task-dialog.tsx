@@ -25,6 +25,7 @@ import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
@@ -255,7 +256,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
 
   return (
     <form
-      className="dialog-body"
+      className={DIALOG_BODY}
       onSubmit={(e) => {
         e.preventDefault()
         void create()
@@ -374,7 +375,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
           e.stopPropagation()
         }}
       >
-        <div className="dialog-body">
+        <div className={DIALOG_BODY}>
           <div className="field">
             <span className="kicker">{tc("newTask", "field.mode")}</span>
             <ChipRow

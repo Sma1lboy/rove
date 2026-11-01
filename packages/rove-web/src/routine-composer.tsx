@@ -29,6 +29,7 @@ import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
 import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
 
 export interface TargetTask {
   readonly id: string
@@ -138,10 +139,10 @@ export function RoutineComposer(props: {
   const described = describeCronWith(draft.schedule, tr)
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog open className={`dialog is-wide ${KB_DRAWER}`} aria-label={auto.newTitle}>
+    <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
+      <dialog open className={`${dialogClass(true)} ${KB_DRAWER}`} aria-label={auto.newTitle}>
         <h1 className="kicker">{auto.newTitle}</h1>
-        <div className="dialog-body">
+        <div className={DIALOG_BODY}>
           <label className="field">
             <span className="kicker">{auto.fieldName}</span>
             <input
