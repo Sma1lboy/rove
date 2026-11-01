@@ -44,7 +44,7 @@ export const RAIL = "group/rail rail row-1 flex min-h-0 flex-col focus:outline-n
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 export const RAIL_HEAD =
   "rail-head flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
-export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta leading-[inherit]"
+export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
 export const RAIL_CARET = "text-accent animate-blink motion-reduce:animate-none"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
@@ -54,7 +54,7 @@ export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_
 
 /** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode and a drag wash it. */
 export const projectHead = (o: { moving: boolean; dragging: boolean }): string =>
-  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold text-subtle not-first:mt-4.5 ${o.moving || o.dragging ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:text-accent after:content-['move']" : ""}`
+  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.moving || o.dragging ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
 export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-[4px] border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`
