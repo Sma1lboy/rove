@@ -5,6 +5,7 @@ import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { toast } from "./ui.ts"
+import { SETTINGS_GROUP } from "./ui/settings.ts"
 
 export function FeedbackSection({ client }: { client: BridgeClient }) {
   const [title, setTitle] = useState("")
@@ -12,7 +13,7 @@ export function FeedbackSection({ client }: { client: BridgeClient }) {
   const [busy, setBusy] = useState(false)
   return (
     <form
-      className="settings-group"
+      className={SETTINGS_GROUP}
       onSubmit={(e) => {
         e.preventDefault()
         if (!title.trim() || !body.trim()) return

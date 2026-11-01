@@ -14,7 +14,16 @@ import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
-import { DIALOG_BODY } from "./ui/overlay.ts"
+import {
+  DIALOG_BODY,
+  INBOX_AGE,
+  INBOX_BADGE,
+  INBOX_CARDS,
+  INBOX_HINTS,
+  INBOX_KICKER,
+  INBOX_LINE,
+  INBOX_SUB,
+} from "./ui/overlay.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 interface Card {
@@ -122,16 +131,16 @@ export function InboxDialog({ model }: { model: AppModel }) {
           onMouseEnter={() => setIndex(cards.indexOf(card))}
           onClick={() => open(card)}
         >
-          <span className="inbox-line">
+          <span className={INBOX_LINE}>
             <span className={ROW_TITLE}>{card.identity}</span>
             {badge && (
-              <span className={`inbox-badge tone-${badge.tone}`}>
+              <span className={`${INBOX_BADGE} tone-${badge.tone}`}>
                 {badge.glyph} {t(badge.stateKey)}
               </span>
             )}
-            <span className="inbox-age">{compactAge(now - card.at)}</span>
+            <span className={INBOX_AGE}>{compactAge(now - card.at)}</span>
           </span>
-          {card.subtitle && <span className="inbox-sub">{card.subtitle}</span>}
+          {card.subtitle && <span className={INBOX_SUB}>{card.subtitle}</span>}
         </button>
       </li>
     )
@@ -139,20 +148,20 @@ export function InboxDialog({ model }: { model: AppModel }) {
 
   return (
     <DialogShell title={t("inbox.title")} wide>
-      <div className={`${DIALOG_BODY} inbox`}>
-        <p className="kicker inbox-hints touch:hidden!">
+      <div className={DIALOG_BODY}>
+        <p className={`kicker ${INBOX_HINTS} touch:hidden!`}>
           <Legend text={t("inbox.hints")} />
         </p>
-        <h2 className="kicker">{t("inbox.attention")}</h2>
+        <h2 className={`kicker ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
           <p className="muted mono">{t("inbox.empty")}</p>
         ) : (
-          <ul className="cards">{attention.map(renderCard)}</ul>
+          <ul className={INBOX_CARDS}>{attention.map(renderCard)}</ul>
         )}
         {recent.length > 0 && (
           <>
-            <h2 className="kicker">{t("inbox.recent")}</h2>
-            <ul className="cards">{recent.map(renderCard)}</ul>
+            <h2 className={`kicker ${INBOX_KICKER}`}>{t("inbox.recent")}</h2>
+            <ul className={INBOX_CARDS}>{recent.map(renderCard)}</ul>
           </>
         )}
       </div>

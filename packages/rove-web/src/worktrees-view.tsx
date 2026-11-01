@@ -15,6 +15,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { WT_BRANCH, WT_GROUP, WT_HINTS, WT_LINE, WT_LINE_META, WT_PATH, wtRowClass } from "./ui/update.ts"
 
 interface WorktreeRow {
   readonly path: string
@@ -167,7 +168,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           const start = base
           base += project.worktrees.length
           return (
-            <section key={project.repo} className="page-group">
+            <section key={project.repo} className={WT_GROUP}>
               <h2 className="mt-1.5 mr-2 mb-1 ml-0 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle">
                 <span>{project.repo}</span>
                 <span className="rule" />
@@ -177,14 +178,9 @@ export function WorktreesView({ model }: { model: AppModel }) {
                 const n = start + i
                 return (
                   // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (j/k) move the cursor
-                  <div
-                    key={row.path}
-                    data-row={n}
-                    className={`wt-row ${n === at ? "is-cursor" : ""}`}
-                    onClick={() => setCursor(n)}
-                  >
-                    <div className="wt-line">
-                      <span className="wt-branch">{row.branch || w.row.detached}</span>
+                  <div key={row.path} data-row={n} className={wtRowClass(n === at)} onClick={() => setCursor(n)}>
+                    <div className={WT_LINE}>
+                      <span className={WT_BRANCH}>{row.branch || w.row.detached}</span>
                       {row.roveManaged && <span className="chip muted">{w.badge.roveManaged}</span>}
                       {row.dirty === true && <span className="chip tone-warning">{w.badge.dirty}</span>}
                       {row.dirty === null && <span className="chip muted">{w.badge.dirtyUnknown}</span>}
@@ -205,14 +201,14 @@ export function WorktreesView({ model }: { model: AppModel }) {
                         </span>
                       )}
                     </div>
-                    <div className="wt-line muted mono">
-                      <span className="wt-path">{row.path}</span>
+                    <div className={`${WT_LINE_META} muted mono`}>
+                      <span className={WT_PATH}>{row.path}</span>
                       {row.createdAtMs > 0 && (
                         <span>{fill(w.row.created, { age: compactAge(Date.now() - row.createdAtMs) })}</span>
                       )}
                     </div>
                     {n === at && (
-                      <div className="wt-line wt-actions">
+                      <div className={WT_LINE}>
                         <button type="button" className="link" onClick={() => requestDelete(row)}>
                           {w.delete.button}
                         </button>
@@ -230,7 +226,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           )
         })
       )}
-      <p className="page-hints mono muted keys-only">
+      <p className={`${WT_HINTS} mono muted keys-only`}>
         <Legend text={`j/k · d ${w.delete.button} · l ${w.land.button} · q/esc`} />
       </p>
     </div>

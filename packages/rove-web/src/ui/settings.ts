@@ -74,3 +74,21 @@ export const ENG_BOX_TITLE = "m-0 text-body leading-[inherit] font-medium"
 export const ENG_BOX_ACTIONS = `${ENG_ACTIONS} mt-1`
 export const ENG_BOX_BUTTON = "px-3 py-1.25 font-sans text-meta font-medium normal-nums"
 export const ENG_UPTODATE = "text-meta leading-[inherit] text-success"
+
+/** Settings: the section list beside the section; on a phone the list becomes a row above it. */
+export const SETTINGS =
+  "grid min-h-90 grid-cols-[140px_1fr] gap-4.5 w-narrow:min-h-0 w-narrow:grid-cols-[minmax(0,1fr)] w-narrow:gap-3"
+export const SETTINGS_NAV =
+  "flex flex-col gap-0.5 pr-2.5 [border-right:var(--hairline)_solid_var(--line)] w-narrow:flex-row w-narrow:overflow-x-auto w-narrow:scrollbar-none w-narrow:[border-right:none] w-narrow:[border-bottom:var(--hairline)_solid_var(--line)] w-narrow:p-0 w-narrow:pb-2"
+/** The active tab keeps its inset under the pointer, as `.is-active` outranked `:hover`. */
+export const settingsTabClass = (active: boolean): string =>
+  `rounded-sm px-2.5 py-1.25 text-left w-narrow:flex-none w-narrow:whitespace-nowrap ${active ? "bg-inset text-ink" : "text-muted [&:hover]:bg-hover"}`
+/** The padding leaves room for a focus ring the scroller would clip, so headings and fields share one left edge. */
+export const SETTINGS_BODY = "flex max-h-[60vh] flex-col gap-4.5 overflow-y-auto px-1.5"
+export const SETTINGS_GROUP = "flex flex-col gap-2 [&_p]:m-0 [&_p]:text-[length:var(--fs-meta)]"
+export const SETTINGS_ROWS = "flex flex-col"
+export const ENGINE_ROW = "flex items-center gap-2.5 border-b-hairline border-b-line px-1 py-1.5"
+export const ENGINE_MAIN = "flex min-w-0 flex-1 flex-col gap-0.5"
+/** One line, cut with an ellipsis; `wrap` lets a description run onto more lines. */
+export const engineDetailClass = (wrap = false): string =>
+  `overflow-hidden text-ellipsis text-[length:var(--fs-meta)] ${wrap ? "whitespace-normal" : "whitespace-nowrap"}`

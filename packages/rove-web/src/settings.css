@@ -105,3 +105,32 @@ html[data-working-border="flow"] .pane.is-working {
     animation: none;
   }
 }
+
+/* The plugins section (settings-plugins.tsx) until it moves to ui/settings.ts with its switch. */
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.engine-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engine-detail {
+  font-size: var(--fs-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

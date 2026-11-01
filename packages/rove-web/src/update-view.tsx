@@ -16,6 +16,18 @@ import { openPage } from "./layout.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
+import {
+  PAGE_HEAD,
+  RELEASE_NOTES,
+  UPDATE_ACTIONS,
+  UPDATE_CHIP,
+  UPDATE_CHIP_VERSION,
+  UPDATE_LABEL,
+  UPDATE_VERSIONS,
+  WHATS_NEW_BODY,
+  WHATS_NEW_KEYS,
+  updateActionClass,
+} from "./ui/update.ts"
 
 interface CheckReply {
   readonly current: string
@@ -48,11 +60,11 @@ export function UpdateChip() {
     // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
     <button
       type="button"
-      className="kicker update-chip"
+      className={`kicker ${UPDATE_CHIP}`}
       title={fill(u.chip, { version: state.info.latest })}
       onClick={() => openPage("update")}
     >
-      ↑<span className="update-chip-version"> {state.info.latest}</span>
+      ↑<span className={UPDATE_CHIP_VERSION}> {state.info.latest}</span>
     </button>
   )
 }
@@ -108,13 +120,13 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className="page" tabIndex={0} ref={host} onKeyDown={onKey}>
-      <div className="page-head">
+      <div className={PAGE_HEAD}>
         <h1 className="page-title mono">{u.pageTitle}</h1>
         <button type="button" className="link muted mono" onClick={() => activate("close")}>
           {isTouch() ? t("dialog.close") : u.closeHint}
         </button>
       </div>
-      <p className="mono update-versions">
+      <p className={`mono ${UPDATE_VERSIONS}`}>
         <span className="muted">{u.current}</span> <b>v{current}</b> <span className="muted">{u.latest}</span>{" "}
         {latestUnknown ? (
           <b className="muted">{u.latestUnknown}</b>
@@ -127,16 +139,16 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       {latestUnknown && <p className="muted">{u.registryRetry}</p>}
       {upToDate && <p className="tone-success">{u.upToDate}</p>}
       {hasUpdate && <p className="mono muted">rove update</p>}
-      <div className="update-actions">
+      <div className={UPDATE_ACTIONS}>
         {actions.map((a) => (
           <button
             type="button"
             key={a.id}
-            className={`update-action ${selected === a.id ? "is-cursor" : ""}`}
+            className={updateActionClass(selected === a.id)}
             onClick={() => activate(a.id)}
           >
             <span className="tone-accent mono update-key">[{a.key}]</span>
-            <span className="update-label">{a.label}</span>
+            <span className={UPDATE_LABEL}>{a.label}</span>
             <span className="muted">{a.detail}</span>
           </button>
         ))}
@@ -146,7 +158,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       {!checked && <p className="muted">{u.loadingNotes}</p>}
       {checked && hasUpdate && notes.length === 0 && <p className="muted">{u.notesUnavailable}</p>}
       {notes.map((n) => (
-        <section key={n.version} className="release-notes">
+        <section key={n.version} className={RELEASE_NOTES}>
           <h2 className="mono">v{n.version}</h2>
           <ReleaseNotes body={n.body} />
         </section>
@@ -197,7 +209,7 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
   return (
     <DialogShell title={u.whatsNew.title} wide>
       <p className="muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
-      <div className="whats-new-body">
+      <div className={WHATS_NEW_BODY}>
         {props.notes ? (
           <ReleaseNotes body={props.notes.body} />
         ) : (
@@ -205,7 +217,7 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
         )}
       </div>
       <div className="actions">
-        <span className="mono muted whats-new-keys touch:hidden!">{t("whatsNew.keys")}</span>
+        <span className={`mono muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
         <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>
