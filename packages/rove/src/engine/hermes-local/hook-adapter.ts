@@ -34,7 +34,7 @@ import { HERMES_PLUGIN_NAME, setHermesPluginEnabled } from "./config-yaml.ts"
 import { HERMES_PLUGIN_MANIFEST, renderHermesPluginSource } from "./plugin-source.ts"
 
 /** Hermes' config directory is `~/.hermes`, with no env override. */
-function hermesConfigDir(home: string = homedir()): string {
+export function hermesConfigDir(home: string = homedir()): string {
   return path.join(home, ".hermes")
 }
 

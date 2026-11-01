@@ -81,11 +81,11 @@ describe("generalRows", () => {
 })
 
 describe("engineRows", () => {
-  it("is one row per engine, then the add row, then the two integration buttons", () => {
+  it("is one row per engine, then the add row, then the integration and skill buttons", () => {
     const customs = ["aider", "goose"]
     const list = [...ALL_VENDORS, ...customs]
     const rows = engineRows(list)
-    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 3)
+    expect(rows.length).toBe(ALL_VENDORS.length + customs.length + 4)
     // Engine row index === its position in the engine list (the section's <For> order).
     list.forEach((vendor, i) => {
       expect(rowIndex(rows, engineRowId(vendor))).toBe(i)
@@ -93,20 +93,18 @@ describe("engineRows", () => {
       expect(row?.kind === "engine" && row.vendor).toBe(vendor)
     })
     // The add row sits at index === engine count (the section's addRowIndex),
-    // and the two integration buttons close the section in the order they
-    // render: install first, remove beside it. The view keys off
-    // `addRowIndex + 1` / `+ 2`, so the pair must stay adjacent and in order.
+    // then the buttons in the order they render: hooks install, hooks remove,
+    // skill install. The view keys off `addRowIndex + 1` / `+ 2` / `+ 3`.
     expect(rowAt(rows, list.length)?.kind).toBe("engineAdd")
     expect(rowAt(rows, list.length + 1)?.kind).toBe("engineHooksInstall")
-    expect(rows.at(-1)?.kind).toBe("engineHooksUninstall")
+    expect(rowAt(rows, list.length + 2)?.kind).toBe("engineHooksUninstall")
+    expect(rowAt(rows, list.length + 3)?.kind).toBe("engineSkillInstall")
   })
 
   it("with zero custom engines still ends with the add row", () => {
     const rows = engineRows(ALL_VENDORS)
-    expect(rows.length).toBe(ALL_VENDORS.length + 3)
-    expect(rows.at(-3)?.kind).toBe("engineAdd")
-    expect(rows.at(-2)?.kind).toBe("engineHooksInstall")
-    expect(rows.at(-1)?.kind).toBe("engineHooksUninstall")
+    expect(rows.length).toBe(ALL_VENDORS.length + 4)
+    expect(rows.at(-4)?.kind).toBe("engineAdd")
   })
 })
 
@@ -179,7 +177,7 @@ describe("sectionRows / bodyRowCount", () => {
   it("matches the old per-section count formulas for a representative input", () => {
     const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(LANG + 11 + 14) // language + appearance summaries + remaining preferences
-    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 3) // built-ins + 2 custom + add + install + remove
+    expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 4) // built-ins + 2 custom + add + install + remove + skill
     // swift / standard / deep, then the classifier: mode, endpoint, floor, key.
     expect(bodyRowCount("autoRouting", inp)).toBe(3 + 4)
     expect(bodyRowCount("keys", inp)).toBe(2)

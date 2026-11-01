@@ -9,6 +9,7 @@
  * import-time profile and silently write to the real `~/.claude`.
  */
 
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
 
@@ -129,4 +130,18 @@ export function bobAuthSecretsPath(home?: string): string {
 /** kimi's OAuth credential file (`~/.kimi-code/credentials/kimi-code.json`). */
 export function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
   return path.join(vendorConfigHome("kimi", depsOf(env, home)), "credentials", "kimi-code.json")
+}
+
+/**
+ * `<root>/<sub>` when `root` exists, else null — an engine whose home dir is
+ * absent isn't set up here, so the skill installer skips it. Dirs follow the
+ * agent-skills CLI's per-agent table (`globalSkillsDir`).
+ */
+export function skillsDirUnder(root: string, sub = "skills"): string | null {
+  return existsSync(root) ? path.join(root, sub) : null
+}
+
+/** `$XDG_CONFIG_HOME`, else `~/.config`. */
+export function xdgConfigHome(home: string = homedir()): string {
+  return process.env.XDG_CONFIG_HOME?.trim() || path.join(home, ".config")
 }

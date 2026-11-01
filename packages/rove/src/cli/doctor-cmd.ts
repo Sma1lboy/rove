@@ -19,7 +19,7 @@ import { readPidFile } from "@sma1lboy/rove-daemon/daemon/server"
 import { hookConfigIssues } from "../engine/hook-config-check.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
-import { roveSkillState, skillInstallCommand } from "../lib/skill-install.ts"
+import { skillOverview } from "../lib/skill-install.ts"
 import { readableLegacyIndexPath } from "../orchestrator/index/store-codec.ts"
 
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -340,17 +340,20 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; o
   out.push(...legacyTmuxDoctorLines(legacy), "")
   if (legacy.sessions.length > 0) fixes.push(resetManualFix(CLI_NAME, "resetLegacy"))
 
-  const skill = roveSkillState()
-  const installCommand = skillInstallCommand()
-  if (!skill.installed) {
+  const skill = skillOverview()
+  const installCommand = `${CLI_NAME} skill install`
+  if (skill.targets.length === 0) {
+    out.push("skill:   – no coding agent with a known skills dir found")
+  } else if (!skill.installed) {
     out.push("skill:   ✗ Rove agent skill not installed", `         → ${installCommand}`)
     fixes.push(skillInstallFix(installCommand, false))
-  } else if (skill.stale) {
-    const installed = skill.installedVersion === null ? "unstamped" : `v${skill.installedVersion}`
-    out.push(`skill:   ⚠ Rove agent skill out of date (${installed}; this Rove wants v${skill.currentVersion})`)
-    out.push(`         → ${installCommand}`)
+  } else if (skill.outdated.length > 0) {
+    out.push(
+      `skill:   ⚠ Rove agent skill out of date for ${skill.outdated.map((t) => t.displayName).join(", ")}`,
+      `         → ${installCommand}`,
+    )
     fixes.push(skillInstallFix(installCommand, true))
-  } else out.push(`skill:   ✓ Rove agent skill installed (v${skill.installedVersion})`)
+  } else out.push("skill:   ✓ Rove agent skill installed")
   out.push("")
 
   const count = taskCount(tasksPath)

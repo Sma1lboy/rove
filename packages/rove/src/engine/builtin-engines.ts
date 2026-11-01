@@ -8,6 +8,9 @@
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
 
+import { existsSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 import type { BuiltinVendorId } from "@/types/vendor"
 import {
   detectBobAccount,
@@ -20,6 +23,7 @@ import { BOB_SCREEN_MANIFEST } from "./bob-local/screen.ts"
 import { trustBobWorktree } from "./bob-local/trust.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
+import { isRovePluginEnabled } from "./claude-code-local/plugin-migration.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
 import { trustClaudeWorktree } from "./claude-code-local/trust.ts"
 import { readClaudeTurns } from "./claude-code-local/turns.ts"
@@ -65,6 +69,7 @@ import {
 import { trustPiWorktree } from "./pi-local/trust.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import { ClaudeTurnDetector, CodexTurnDetector, UnknownTurnDetector } from "./turn-detector.ts"
+import { bobHome, skillsDirUnder, vendorAgentDir, vendorConfigHome } from "./vendor-home.ts"
 
 /** Keyed by the vendor union: a new id in `BUILTIN_VENDORS` fails to compile
  *  until its entry lands here. */
@@ -87,6 +92,8 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
     createHookAdapter: () => new ClaudeHookAdapter(),
+    // The enabled plugin ships its own skill; a second copy double-registers.
+    skillsDir: () => (isRovePluginEnabled() ? null : skillsDirUnder(vendorConfigHome("claude"))),
     createTurnDetector: () => new ClaudeTurnDetector(),
     capabilities: claudeCapabilities,
     identity: claudeIdentity,
@@ -136,6 +143,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
 
     detectAccount: (deps) => detectCodexAccount(deps),
     createHookAdapter: () => new CodexHookAdapter(),
+    skillsDir: () => skillsDirUnder(vendorConfigHome("codex")),
     createTurnDetector: () => new CodexTurnDetector(),
     capabilities: codexCapabilities,
     identity: codexIdentity,
@@ -200,6 +208,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     trustWorktree: trustBobWorktree,
     // Bob persists no per-turn completion marker rove can read.
     createHookAdapter: () => new NoopHookAdapter("bob"),
+    skillsDir: () => skillsDirUnder(bobHome()),
     createTurnDetector: () => new UnknownTurnDetector("bob"),
     screenManifest: BOB_SCREEN_MANIFEST,
   },
@@ -211,6 +220,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
     createHookAdapter: () => new CopilotHookAdapter(),
+    skillsDir: () => skillsDirUnder(vendorConfigHome("copilot")),
     // Copilot persists no turn-completion marker rove can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
     trustWorktree: trustCopilotWorktree,
@@ -234,6 +244,8 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     history: kimiHistoryReader,
     detectAccount: (deps) => detectKimiAccount(deps),
     createHookAdapter: () => new KimiHookAdapter(),
+    // Kimi reads the shared `~/.agents/skills`.
+    skillsDir: () => (existsSync(vendorConfigHome("kimi")) ? join(homedir(), ".agents", "skills") : null),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
     // Kimi can't be told a new session's id (`-S [id]` only resumes), so its
     // id is origin (3): discovered from the session store `history` indexes by
@@ -260,6 +272,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // No account detector: pi also authenticates via env var / `--api-key`,
     // so a missing auth file isn't "logged out". Absent = "not detectable".
     createHookAdapter: () => new PiFamilyHookAdapter("pi"),
+    skillsDir: () => skillsDirUnder(vendorAgentDir("pi")),
     // No readable turn marker; hooks are the authority, screen the fallback.
     createTurnDetector: () => new UnknownTurnDetector("pi"),
     capabilities: piCapabilities,

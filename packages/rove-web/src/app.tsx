@@ -18,6 +18,7 @@ import { usePrefsApply } from "./prefs-apply.ts"
 import { RailBar } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { RailView } from "./rail-view.tsx"
+import { maybeNudgeSkill } from "./settings-engines.tsx"
 import { SidePanel } from "./side-panel.tsx"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
@@ -53,6 +54,7 @@ function Shell({ model }: { model: AppModel }) {
     if (!hello) return
     void checkForUpdate(model.client)
     maybeShowWhatsNew(model.client, hello.roveVersion)
+    maybeNudgeSkill(model.client)
   }, [hello, model.client])
   usePluginChords(model)
   useWorkspaceKeys(model)

@@ -17,6 +17,8 @@ import {
   engineDisplayName,
   engineRenamedFrom,
 } from "@sma1lboy/rove/src/engine/interactive-command.ts"
+import { installSkillErrors } from "@sma1lboy/rove/src/lib/skill-install.ts"
+import { takeSkillNudge } from "@sma1lboy/rove/src/lib/skill-nudge.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
@@ -40,6 +42,10 @@ export interface EngineDeps {
   readonly integrations: (ids: readonly string[]) => readonly EngineIntegration[]
   readonly engineName: (id: string) => string
   readonly defaultCommand: (id: string) => readonly string[]
+  /** Copy the Rove skill where it is missing; the failure line, or null. */
+  readonly installSkill: () => string | null
+  /** Engines to name once in the launch skill notice, or null. */
+  readonly takeSkillNudge: () => string[] | null
 }
 
 export const realDeps: EngineDeps = {
@@ -61,6 +67,8 @@ export const realDeps: EngineDeps = {
   integrations: engineIntegrations,
   engineName: engineDisplayName,
   defaultCommand: defaultEngineCommand,
+  installSkill: () => installSkillErrors(),
+  takeSkillNudge,
 }
 
 function strings(state: StateSnapshot, key: string): string[] {
@@ -161,9 +169,28 @@ export function createEngineOps(deps: EngineDeps): OpTable {
               markers: integration?.markers ?? false,
               screen: integration?.screen ?? false,
               ...(integration?.configIssue ? { configIssue: integration.configIssue } : {}),
+              // "unsupported": not set up here, or the engine takes no skill.
+              skill: integration?.skillDir ? integration.skillState : "unsupported",
             }
           }),
         }
+      },
+    },
+    "skill.install": {
+      kind: "write",
+      // Writes into each engine's own config dir, like the hooks install.
+      destructive: true,
+      wraps: "installSkillErrors (lib/skill-install.ts), as Settings → Engines Rove agent skill",
+      async run() {
+        return { error: deps.installSkill() }
+      },
+    },
+    "skill.nudge": {
+      kind: "write",
+      destructive: false,
+      wraps: "takeSkillNudge (lib/skill-nudge.ts): engines to name once in the launch notice",
+      async run() {
+        return { engines: deps.takeSkillNudge() ?? [] }
       },
     },
     "engine.setEnabled": {

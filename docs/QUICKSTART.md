@@ -217,14 +217,12 @@ your coding agent (Claude Code, Codex, and so on) how to drive Rove itself:
 spawn tasks, fan a prompt out to several attempts, compare them, land the
 winner.
 
-```bash
-rove skill install
-```
-
-This one step needs [Node.js](https://nodejs.org) on your `PATH` — it wraps
-`npx skills add`. The `install.sh` route above installs Bun and Rove but not
-Node, so install Node first if `npx` is missing. Core Rove on macOS/Linux runs
-without Node; native Windows still needs Node for its PTY host.
+Open **Settings → Engines** (in the TUI or the web app) and press **Install** under
+**Rove agent skill**. It copies the skill into every coding agent set up on this
+machine, and each engine's details say whether it has one. When Rove starts and
+finds an engine without the skill, it says so once. From a shell, `rove skill
+install` and `rove skill status` do the same. Installed copies refresh themselves
+when Rove upgrades.
 
 **Claude Code users have a one-stop alternative**: the Rove plugin carries the
 skill AND the activity hooks in one install, with no PATH or settings.json

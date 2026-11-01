@@ -130,6 +130,12 @@ export interface EngineRegistryEntry {
   readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
+  /**
+   * The user-level dir this engine loads agent skills from, where Rove's skill
+   * installer writes `rove/`. Null when the engine isn't set up on this machine
+   * or ships the skill another way (Claude's plugin). Absent = no known dir.
+   */
+  readonly skillsDir?: () => string | null
   /** Turn-completion detector (`turn-detector.ts`); copilot/custom get {@link UnknownTurnDetector}. */
   readonly createTurnDetector: () => EngineTurnDetector
   /** Undefined for engines that declare none (copilot, custom). */

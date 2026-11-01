@@ -345,6 +345,7 @@ describe("welcome dialog — questions then keyboard basics", () => {
         probe={() => Promise.resolve({ engines: ["codex"], signedOut: [], git: true })}
         shell="zsh"
         onDone={(c) => answers.push(c)}
+        installSkill={() => "Installed for Codex"}
       />,
       { width: 100, height: 24 },
     )
@@ -366,8 +367,10 @@ describe("welcome dialog — questions then keyboard basics", () => {
     act(() => mockInput.pressEnter())
     await settle()
     expect(await frame()).toContain("Keyboard basics")
+    // Installed on the spot; the transcript line says where.
+    expect(await frame()).toContain("Installed for Codex")
     act(() => mockInput.pressEnter())
     await settle()
-    expect(answers).toEqual([{ completions: true, skill: true }])
+    expect(answers).toEqual([{ completions: true }])
   })
 })
