@@ -1,6 +1,19 @@
 /** Row shapes the Settings sections share: a switch, a one-of-many, and a click-to-cycle row. */
 
 import type { ReactNode } from "react"
+import {
+  PREF_CHECKBOX,
+  PREF_CYCLE,
+  PREF_CYCLE_LABEL,
+  PREF_FIELD,
+  PREF_HINT,
+  PREF_LABEL,
+  PREF_LABEL_BESIDE_HINT,
+  PREF_LABEL_MONO,
+  PREF_LEGEND,
+  PREF_READONLY,
+  PREF_ROW,
+} from "./ui/settings.ts"
 
 export function Group(props: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -20,16 +33,16 @@ export function Toggle(props: {
   onChange: (next: boolean) => void
 }) {
   return (
-    <label className="pref-row">
+    <label className={PREF_ROW}>
       <input
         type="checkbox"
-        className="touch:size-5"
+        className={`${PREF_CHECKBOX} touch:size-5`}
         checked={props.checked}
         disabled={props.disabled}
         onChange={(e) => props.onChange(e.target.checked)}
       />
-      <span className="pref-label">{props.label}</span>
-      {props.hint && <span className="pref-hint muted">{props.hint}</span>}
+      <span className={props.hint ? PREF_LABEL_BESIDE_HINT : PREF_LABEL}>{props.label}</span>
+      {props.hint && <span className={`${PREF_HINT} muted`}>{props.hint}</span>}
     </label>
   )
 }
@@ -48,9 +61,9 @@ export function Chips<T extends string | number>(props: {
   onPick: (next: T) => void
 }) {
   return (
-    <fieldset className="pref-field">
-      <legend className="pref-label">{props.label}</legend>
-      <div className="chips-row">
+    <fieldset className={PREF_FIELD}>
+      <legend className={PREF_LEGEND}>{props.label}</legend>
+      <div className="chips-row clear-both">
         {props.picks.map((pick) => (
           <button
             type="button"
@@ -63,7 +76,7 @@ export function Chips<T extends string | number>(props: {
           </button>
         ))}
       </div>
-      {props.hint && <p className="pref-hint muted">{props.hint}</p>}
+      {props.hint && <p className={`${PREF_HINT} muted`}>{props.hint}</p>}
     </fieldset>
   )
 }
@@ -71,9 +84,9 @@ export function Chips<T extends string | number>(props: {
 /** A row that shows its value and moves to the next one on click, like the TUI's `enter` rows. */
 export function CycleRow(props: { label: string; hint?: string; disabled?: boolean; onCycle: () => void }) {
   return (
-    <button type="button" className="pref-cycle" disabled={props.disabled} onClick={props.onCycle}>
-      <span className="pref-label">{props.label}</span>
-      {props.hint && <span className="pref-hint muted">{props.hint}</span>}
+    <button type="button" className={PREF_CYCLE} disabled={props.disabled} onClick={props.onCycle}>
+      <span className={PREF_CYCLE_LABEL}>{props.label}</span>
+      {props.hint && <span className={`${PREF_HINT} muted`}>{props.hint}</span>}
     </button>
   )
 }
@@ -81,9 +94,9 @@ export function CycleRow(props: { label: string; hint?: string; disabled?: boole
 /** Something this page shows but only the Mac may change (a command or path it would run or store). */
 export function ReadOnlyRow(props: { label: string; note: string }) {
   return (
-    <div className="pref-readonly">
-      <span className="pref-label mono">{props.label}</span>
-      <span className="pref-hint muted">{props.note}</span>
+    <div className={PREF_READONLY}>
+      <span className={`${PREF_LABEL_MONO} mono text-muted`}>{props.label}</span>
+      <span className={`${PREF_HINT} muted`}>{props.note}</span>
     </div>
   )
 }
