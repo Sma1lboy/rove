@@ -35,7 +35,21 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
-import { CHILD_INDENT, FOLD_TOGGLE, guideClass } from "./ui/rail.ts"
+import {
+  CHILD_INDENT,
+  FOLD_TOGGLE,
+  PROJECT_ADD,
+  PROJECT_TOGGLE,
+  RAIL,
+  RAIL_CARET,
+  RAIL_CURSOR,
+  RAIL_HEAD,
+  RAIL_SEARCH,
+  guideClass,
+  projectChevron,
+  projectHead,
+  railBody,
+} from "./ui/rail.ts"
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { UpdateChip } from "./update-view.tsx"
@@ -114,7 +128,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
   return (
     <nav
-      className={`rail ${folded ? "is-folded" : ""}`}
+      className={`${RAIL} ${folded ? "is-folded" : ""}`}
       ref={rail}
       inert={folded && !peek}
       aria-hidden={folded && !peek}
@@ -127,8 +141,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         keys.onKeyDown(e)
       }}
     >
-      <header className="rail-head">
-        <span className="wordmark">
+      <header className={RAIL_HEAD}>
+        <span className="wordmark mr-auto">
           <span className="bracket">[</span> rove <span className="bracket">]</span>
         </span>
         <span className="badge-host">
@@ -144,25 +158,25 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <UpdateChip />
       </header>
       {moving && (
-        <div className="rail-search mono">
+        <div className={`${RAIL_SEARCH} mono`}>
           <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
-          <span className="muted keys-only">
+          <span className="muted keys-only ml-1.5">
             <Legend text={t("taskops.moveHint")} />
           </span>
         </div>
       )}
       {filters.search.active && (
-        <div className="rail-search mono">
+        <div className={`${RAIL_SEARCH} mono`}>
           <span className="tone-accent">/</span>
           <span>{filters.search.query}</span>
-          <span className="caret">█</span>
-          <span className="muted">
+          <span className={RAIL_CARET}>█</span>
+          <span className="muted ml-1.5">
             {filters.search.query ? `${stops(rows).length}/${total}` : t("rail.searchPlaceholder")}
           </span>
         </div>
       )}
       <PageNav model={model} />
-      <div className={`rail-body ${drag.dragging ? "is-sorting" : ""}`} {...drag.body}>
+      <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
           <div className="empty">
@@ -316,28 +330,27 @@ function RailRow(props: {
 }) {
   const { row } = props
   const tip = useRowTip(row.kind === "task" ? rowTitle(row.task, props.tabs) : "", props.cursor && row.kind === "task")
-  const drop = props.dragging ? "is-dragging" : ""
-  const cursor = `${props.cursor ? "is-cursor" : ""} ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`
+  const cursor = props.cursor ? RAIL_CURSOR : ""
   if (row.kind === "project") {
     return (
       <h2
-        className={`project-head ${props.moving ? "is-moving" : ""} ${props.stale ? "is-stale" : ""} ${drop}`}
+        className={projectHead({ moving: props.moving, dragging: props.dragging })}
         onContextMenu={props.onMenu}
         {...props.place}
         {...props.drag}
       >
         <button
           type="button"
-          className="project-toggle"
+          className={PROJECT_TOGGLE}
           title={row.noProject ? undefined : row.repo}
           aria-expanded={!props.collapsed}
           onClick={props.onClick}
         >
-          <span className="project-label">{row.label}</span>
-          <Chevron right={props.collapsed} className="project-chevron" />
+          <span className="truncate">{row.label}</span>
+          <Chevron right={props.collapsed} className={projectChevron(!!props.collapsed)} />
         </button>
         {props.onNewTask && (
-          <button type="button" className="project-add" title={t("rail.newTask")} onClick={props.onNewTask}>
+          <button type="button" className={PROJECT_ADD} title={t("rail.newTask")} onClick={props.onNewTask}>
             +
           </button>
         )}
@@ -423,7 +436,7 @@ function FoldCount(props: { count: number; onUnfold: () => void }) {
     >
       {props.count}
       {/* The project header's folded chevron, so a folded task reads the same way. */}
-      <Chevron right className="project-chevron" />
+      <Chevron right />
     </span>
   )
 }

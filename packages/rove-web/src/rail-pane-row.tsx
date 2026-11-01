@@ -8,6 +8,7 @@ import type { NavRow } from "./rail.ts"
 import { activeLeafOf, activeLeaves, focusLeaf } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
 import { CHILD_INDENT, guideClass } from "./ui/rail.ts"
+import { RAIL_CURSOR } from "./ui/rail.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 export type PaneRow = Extract<NavRow, { kind: "pane" }>
@@ -38,7 +39,7 @@ export function PaneRowView(props: {
   return (
     <button
       type="button"
-      className={`${rowClass({ size: "pane" })} ${props.cursor ? "is-cursor" : ""}`}
+      className={`${rowClass({ size: "pane" })} ${props.cursor ? RAIL_CURSOR : ""}`}
       aria-current={active || undefined}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
