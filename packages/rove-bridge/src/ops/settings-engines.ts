@@ -17,7 +17,7 @@ import {
   engineDisplayName,
   engineRenamedFrom,
 } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { installSkillErrors, skillTargets } from "@sma1lboy/rove/src/lib/skill-install.ts"
+import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove/src/lib/skill-install.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
@@ -43,8 +43,8 @@ export interface EngineDeps {
   readonly defaultCommand: (id: string) => readonly string[]
   /** Copy the Rove skill where it is missing; the failure line, or null. */
   readonly installSkill: () => string | null
-  /** Display names of engines set up here with no skill copy. */
-  readonly skillMissing: () => readonly string[]
+  /** Display names of engines Rove can run here with no skill copy. */
+  readonly skillMissing: () => Promise<readonly string[]>
 }
 
 export const realDeps: EngineDeps = {
@@ -67,10 +67,7 @@ export const realDeps: EngineDeps = {
   engineName: engineDisplayName,
   defaultCommand: defaultEngineCommand,
   installSkill: () => installSkillErrors(),
-  skillMissing: () =>
-    skillTargets()
-      .filter((t) => t.state === "not-installed")
-      .map((t) => t.displayName),
+  skillMissing: async () => missingSkillNames(await installedEngineIds()),
 }
 
 function strings(state: StateSnapshot, key: string): string[] {
@@ -190,9 +187,9 @@ export function createEngineOps(deps: EngineDeps): OpTable {
     "skill.missing": {
       kind: "read",
       destructive: false,
-      wraps: "skillTargets (lib/skill-install.ts): engines with no skill copy, for the persistent banner",
+      wraps: "missingSkillNames (lib/skill-install.ts): runnable engines with no skill copy, for the persistent banner",
       async run() {
-        return { engines: deps.skillMissing() }
+        return { engines: await deps.skillMissing() }
       },
     },
     "engine.setEnabled": {

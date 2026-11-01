@@ -230,7 +230,7 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
     engineName: (id) => id,
     defaultCommand: (id) => [id, "--sandbox=none"],
     installSkill: () => null,
-    skillMissing: () => [],
+    skillMissing: async () => [],
   }
   return { state, ops: createEngineOps(deps) }
 }
