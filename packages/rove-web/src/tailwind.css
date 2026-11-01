@@ -1,11 +1,250 @@
 /*
- * Tailwind for `src/ui/` and new views. The tokens stay the `:root` variables in styles.css (themes rewrite them at
- * runtime, prefs-apply.ts), so `@theme inline` points each utility at its variable instead of copying a value.
- * Tailwind's palette, type scale and radii are cleared: only Rove's tokens exist as utilities.
- * No preflight: styles.css keeps the page's own reset, and the utilities load unlayered so they win over it.
+ * rove-web's one stylesheet. Components style themselves with Tailwind utilities in the TSX and src/ui recipes; this
+ * file holds only what a class can't: the tokens (`:root`, which themes rewrite at runtime, prefs-apply.ts), the
+ * element reset, scrollbars, xterm internals, and the Tailwind theme, variants and utilities that point at them.
+ * Colours: quill design language (~/i/quill-all/DESIGN.md), Rove brand palette (packages/branding/src/colors.ts);
+ * dark is the TUI's default theme. Tailwind's palette, type scale and radii are cleared: only Rove's tokens exist.
+ * No preflight: the reset below is the page's own, in layer base, so any utility wins over it.
  */
+/* The reset (base) ranks below the theme variables and components, whatever order they appear in. */
+@layer base, theme, components;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css";
+
+/* Nerd Font icons (engine status lines, prompt themes, rail marks) without a font installed on the viewer's machine. */
+@font-face {
+  font-family: "Rove Nerd Symbols";
+  src: url("./fonts/symbols-nerd-font-mono.woff2") format("woff2");
+  font-display: block;
+  unicode-range: U+23FB-23FE, U+2665, U+26A1, U+2B58, U+E000-F8FF, U+F0000-FFFFD;
+}
+
+:root {
+  --paper: #141413;
+  --surface: #1a1917;
+  --inset: #2b2a27;
+  --line: #3a3835;
+  --line-active: #5c5853;
+  --ink: #eae7df;
+  --muted: #a9a39a;
+  /* claude dark's `--subtle` after `legibleSubtle` (prefs-theme.ts): AA on first paint, before a palette arrives. */
+  --subtle: #9d9a95;
+  --accent: #cc785c;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Pointer hover and a menu's highlight are a neutral ink wash, as claude.ai's; the accent stays for selection and focus. */
+  --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  /* Elevation, one scale for every floating surface: the surface's own border plus ONE soft shadow.
+     A ring or a second offset shadow on top of the border reads as stacked edges. */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-dialog: 0 16px 48px rgb(0 0 0 / 50%);
+  --scrim: rgb(10 10 9 / 62%);
+  /* A merged PR, as GitHub and Claude draw it. */
+  --merged: #9b87f5;
+  --focus: var(--accent);
+  --info: #61aaf2;
+  --diff-added: var(--success);
+  --diff-removed: var(--error);
+  --diff-added-bg: rgb(154 202 134 / 10%);
+  --diff-removed-bg: rgb(212 117 99 / 10%);
+  --error: #d47563;
+  --success: #9aca86;
+  --warning: #e8c96b;
+  --mono: "JetBrains Mono", "Rove Nerd Symbols", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  /* The only four sizes: meta (chips, hints, lists), body, titles, and glyphs/inputs (16px keeps iOS from zooming a field). */
+  --fs-meta: 12px;
+  --fs-body: 13px;
+  --fs-title: 14px;
+  --fs-display: 16px;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --radius: 8px;
+  --radius-sm: 6px;
+  /* One line weight for every rule and outline: a device pixel's worth on a retina screen, 1px elsewhere. */
+  --hairline: 1px;
+  color-scheme: dark;
+}
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --hairline: 0.5px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* An app, not a document: a drag that runs past a list's top must not pull-to-refresh the page
+   (Chrome Android) or rubber-band it (iOS); every scroller lives inside. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: var(--vvh, 100%);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--fs-body) / 1.4 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The element reset sits in a layer, so a component class (`.mono` in tailwind.css) still outranks it. */
+@layer base {
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  /* Form controls draw no browser chrome anywhere: no drag corner, no native arrow, the page's type. */
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  textarea {
+    resize: none;
+    field-sizing: content;
+  }
+
+  select {
+    appearance: none;
+    cursor: pointer;
+  }
+}
+
+button:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/*
+ * Scrollbars, as claude.ai's: thin, transparent track, no arrows, a faint pill that brightens on
+ * hover and while dragged. Not hidden until the list is hovered, as Claude's sidebar does it:
+ * Chromium doesn't repaint a webkit thumb on its parent's `:hover`, so it would stick shown or
+ * hidden. A container that doesn't overflow shows nothing: every scroller is `overflow: auto` and
+ * none reserves a `scrollbar-gutter`, which would leave an empty lane beside short lists.
+ * Tokens only, so the theme's light and dark halves both follow. Chromium and Safari
+ * paint `::-webkit-scrollbar` (the standard properties, once set, would switch those off), so
+ * the standard pair is only for Firefox.
+ */
+:root {
+  --scroll-thumb: color-mix(in srgb, var(--subtle) 45%, transparent);
+  --scroll-thumb-hover: var(--subtle);
+  --scroll-thumb-active: var(--muted);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+
+  *:hover {
+    scrollbar-color: var(--scroll-thumb-hover) transparent;
+  }
+}
+
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    min-width: 32px;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: var(--scroll-thumb) padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scroll-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--scroll-thumb-active);
+  }
+}
+
+/*
+ * xterm 6 draws its own overlay slider (fades in on hover and scroll). Its lane is 8px
+ * (`SCROLLBAR_WIDTH` in term-mount.ts); a 1px inset leaves the page's 6px pill in the page's
+ * thumb colours, which beat the theme colours xterm injects. Drop VS Code's black inset shadow.
+ */
+.xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  background-color: var(--scroll-thumb);
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
+  background-color: var(--scroll-thumb-hover);
+}
+
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  background-color: var(--scroll-thumb-active);
+}
+
+/* Only there to size the scrollbar lane; rove draws no decorations on it (xterm sets `display` inline). */
+.term-host .xterm-decoration-overview-ruler {
+  display: none !important;
+}
+
+/*
+ * xterm 6 scrolls through its scrollable element; the legacy viewport underneath is a black
+ * `overflow-y: scroll` box that showed as a dark bar below the last row and could grow native
+ * scrollbars of its own.
+ */
+.term-host .xterm .xterm-viewport {
+  overflow: hidden;
+  background-color: transparent;
+}
+
+.xterm .xterm-scrollable-element > .shadow {
+  display: none;
+}
+
+/* The terminal's padding sits on `.xterm`, not its host: the fit addon subtracts this one. */
+.term-host .xterm {
+  height: 100%;
+  padding: 6px 4px 4px 8px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
+     utilities set their own size, hence !important. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: var(--fs-display) !important;
+  }
+}
 
 @theme inline {
   --color-*: initial;
@@ -41,14 +280,14 @@
   --text-body: var(--fs-body);
   --text-title: var(--fs-title);
   --text-display: var(--fs-display);
-  /* As the sheets' `font:` shorthand does: a size utility resets line-height rather than inheriting body's 1.4. */
+  /* As a `font:` shorthand does: a size utility resets line-height rather than inheriting body's 1.4. */
   --text-meta--line-height: normal;
   --text-body--line-height: normal;
   --text-title--line-height: normal;
   --text-display--line-height: normal;
 
-  /* These three share their name with the styles.css token, so the theme layer also writes `--radius-sm:
-     var(--radius-sm)` on :root; the unlayered styles.css value wins. Keep the tokens there, and unlayered. */
+  /* These share their name with the :root token above, so the theme layer also writes `--radius-sm:
+     var(--radius-sm)` on :root; the unlayered :root value wins. Keep the tokens there, and unlayered. */
   --radius-*: initial;
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius);
@@ -60,7 +299,7 @@
   --container-reading: 72ch;
   --container-cap: 8ch;
 
-  /* body's line-height, which a sheet's bare `font-size` kept. */
+  /* body's line-height, which a bare `font-size` keeps. */
   --leading-body: 1.4;
 
   --tracking-*: initial;
@@ -262,7 +501,7 @@
   font-size: var(--fs-meta);
 }
 
-/* Meta-size monospace, the `font` shorthand the old sheet had. A component, not a utility: it outranks the element
+/* Meta-size monospace as one `font` shorthand. A component, not a utility: it outranks the element
    reset (layer base) but loses to any utility on the same element, as `.mono` did. */
 @layer components {
   .mono {

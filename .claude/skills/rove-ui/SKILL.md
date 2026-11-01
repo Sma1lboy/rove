@@ -49,10 +49,12 @@ under 0.5px. Report numbers as before → after.
   utilities (`bg-paper`, `text-accent`, `text-meta`, `rounded-sm`, `border-hairline border-line`,
   `touch:` for coarse pointers); Tailwind's own palette and type scale are cleared, so a stray
   `text-gray-500` does not compile. Arbitrary values (`p-[7px]`) live in `src/ui/` only.
-- **Legacy sheets shrink, never grow.** When a view moves to `src/ui/`, delete the rules it
-  replaced in the same PR. Raw CSS stays for xterm, the page grid, and `@utility` definitions.
+- **One stylesheet: `src/tailwind.css`.** It holds the `:root` tokens, the element reset,
+  scrollbars, xterm internals and the Tailwind theme, variants and `@utility` definitions. No
+  other `.css` file, and no component class rule in it: a look that repeats is a `src/ui/` recipe.
 - **The gate:** `scripts/web-ui-gate.mjs` (pre-pr, and pr-gates for others' PRs) fails a diff that
-  grows the legacy `.css` sheets, adds one, nets new raw `<button>`/checkbox outside `src/ui/`, or
+  leaves any `.css` besides `tailwind.css` under `src/`, adds a component selector to it, nets new
+  raw `<button>`/checkbox outside `src/ui/`, or
   puts an arbitrary value outside it. A line that must break the last two carries `ui-ok: <reason>`.
 - **No class merging.** A `className` passed to a `ui/` component may add placement but must not
   set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
@@ -219,8 +221,8 @@ Probe: `viewport-stress`.
 - **Animate `transform` and `opacity` only**, never `transition: all`. Durations: about 100–160ms
   for a press, 150–250ms for a menu or popover, and 200–300ms for a dialog. High-frequency UI
   (hover, menu highlight) changes instantly.
-- **Respect `prefers-reduced-motion`.** Existing blocks in `styles.css`, `overlays.css` and
-  `settings.css` turn off the press scale; new motion adds itself there.
+- **Respect `prefers-reduced-motion`.** Gate new motion with Tailwind's `motion-safe:` /
+  `motion-reduce:` variants on the element.
 - The rail spinner is a glyph frame from the daemon status, not a CSS animation. It ticks only
   while a row runs (`useSpinnerFrame`).
 
@@ -236,7 +238,7 @@ only last.
   counts, status on a parent row when its children carry it, labels that repeat the heading
   under them, a count with no clear noun, and version or meta strings no one acts on.
 - **Near-duplicate scales and token drift.** Three or more one-off values in one component (a
-  15px font, a 7px radius, an off-palette grey) mean it was built without opening `styles.css`.
+  15px font, a 7px radius, an off-palette grey) mean it was built without opening `tailwind.css`.
 - **Eyebrow and kicker overuse:** more than one uppercase tracked label in a region.
 - **Side stripes.** No coloured 2–4px bar down one edge of a card, row or node (`border-left`,
   `box-shadow: inset 2px 0 0 …`), least of all on a rounded box where the bar bends round the

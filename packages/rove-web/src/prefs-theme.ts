@@ -1,6 +1,6 @@
 /**
  * Theme data → page colours. The bridge resolves each TUI theme to `#rrggbb` per slot
- * (`prefs.get`); this maps those slots onto the quill tokens `styles.css` paints with, and onto
+ * (`prefs.get`); this maps those slots onto the quill tokens `tailwind.css` paints with, and onto
  * the xterm palette. Slots a theme lacks were already filled by the bridge, as `resolveTheme` does.
  */
 

@@ -16,7 +16,7 @@ const LOOK_TONE: Readonly<Record<DotLook, Tone>> = {
   idle: "muted",
 }
 
-/** Nerd Font icons the rail draws (the font ships with the page, `styles.css`). */
+/** Nerd Font icons the rail draws (the font ships with the page, `tailwind.css`). */
 export const NERD = {
   /** nf-oct-git_pull_request / git_merge / git_pull_request_closed: a task's PR, by where it stands. */
   prOpen: "\u{f407}",
