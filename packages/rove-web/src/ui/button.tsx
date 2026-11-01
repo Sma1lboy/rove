@@ -4,7 +4,8 @@ import { cn } from "./cn.ts"
 /**
  * `link`: an accent text action (create PR, toggle scope). `floating`: an action raised over content (a preview's
  * "ask in chat" beside a selection); the caller places it. `row`: a whole list row that opens something; the caller's
- * class paints it all, cursor included.
+ * class paints it all, cursor included. `card`: a pickable tile (the theme gallery); the caller passes its
+ * picked/unpicked border and fill.
  * `hit` sizes a link's invisible touch target to the room around it: `roomy` alone in a header, `tight` in a wrapped
  * row of links. A class the caller passes must not set what the variant or hit already sets (position, colour,
  * padding): with no class merging, which one wins is the stylesheet's order, not the prop's.
@@ -14,6 +15,7 @@ const VARIANT = {
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",
+  card: "flex min-w-0 flex-col gap-1.5 rounded-sm border-hairline p-1.5 text-left focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
 } as const
 
 const HIT = {

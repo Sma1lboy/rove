@@ -8,8 +8,9 @@
 import { useEffect } from "react"
 import type { AppModel } from "./model.ts"
 import { useCrossTaskNotices } from "./notify.ts"
-import { cssVars, paletteFor, terminalTheme, xtermTheme } from "./prefs-theme.ts"
+import { cssVars, paletteFor, terminalTheme, themePreview, xtermTheme } from "./prefs-theme.ts"
 import { loadPrefs, prefsStore, setPref, usePrefs } from "./prefs.ts"
+import { useStore } from "./store.ts"
 import { useMode, useTaskColorFeed } from "./task-colors.ts"
 import { zen } from "./ui.ts"
 
@@ -19,6 +20,7 @@ export function usePrefsApply(model: AppModel): void {
   const { client } = model
   const state = usePrefs()
   const mode = useMode()
+  const preview = useStore(themePreview)
   useTaskColorFeed(model)
   useCrossTaskNotices(model)
 
@@ -38,7 +40,7 @@ export function usePrefsApply(model: AppModel): void {
 
   useEffect(() => {
     const root = document.documentElement
-    const palette = paletteFor(state.themes, state.prefs.theme, mode)
+    const palette = preview ? preview[mode] : paletteFor(state.themes, state.prefs.theme, mode)
     const vars = palette ? cssVars(palette, state.prefs) : {}
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value)
     root.style.colorScheme = mode
@@ -52,7 +54,7 @@ export function usePrefsApply(model: AppModel): void {
       document.head.append(meta)
     }
     meta.content = getComputedStyle(document.body).backgroundColor
-  }, [state, mode])
+  }, [state, mode, preview])
 
   // Zen is the TUI's `zen.active`: it opens in the stored state and toggling it writes it back.
   useEffect(() => {

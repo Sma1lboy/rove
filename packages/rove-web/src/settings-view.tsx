@@ -25,7 +25,7 @@ const SECTIONS = ["general", "engines", "connectors", "autoRouting", "plugins", 
 type Section = (typeof SECTIONS)[number]
 
 const BODY: Record<Section, (props: { client: BridgeClient; model: AppModel }) => React.ReactNode> = {
-  general: (p) => <GeneralSection client={p.client} />,
+  general: (p) => <GeneralSection model={p.model} />,
   engines: (p) => <EnginesSection client={p.client} />,
   autoRouting: (p) => <RoutingSection client={p.client} />,
   plugins: (p) => <PluginsSection model={p.model} />,

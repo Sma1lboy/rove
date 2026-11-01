@@ -125,3 +125,9 @@ export function xtermTheme(palette: Palette): Record<string, string> {
 
 /** The xterm colours in use; null until a palette is known (the terminal keeps its built-in dark ones). */
 export const terminalTheme = createStore<Record<string, string> | null>(null)
+
+/** A theme's two halves, installed or not (a rove.run theme previews before it is installed). */
+export type PreviewTheme = Pick<ThemeEntry, "name" | "dark" | "light">
+
+/** The theme a gallery card is showing while the pointer or focus is on it; `null` paints the saved one. */
+export const themePreview = createStore<PreviewTheme | null>(null)
