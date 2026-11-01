@@ -26,6 +26,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog, dragLayout } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
@@ -102,23 +103,23 @@ export function RailBar({ model }: { model: AppModel }) {
   return (
     // The bar sits over a peeking rail's top: crossing it keeps the peek open rather than opening one.
     <div
-      className="rail-bar"
+      className={RAIL_BAR}
       onMouseEnter={() => folded && railPeek.get() && peekRail(true)}
       onMouseLeave={() => folded && railPeek.get() && peekRail(false)}
     >
       <button
         type="button"
-        className="rail-bar-btn"
+        className={iconButton()}
         title={fold}
         aria-label={fold}
         onClick={() => railFolded.set(!folded)}
       >
         <PaneIcon side="left" />
-        {waiting && <span className="rail-bar-dot" />}
+        {waiting && <span className={ICON_BUTTON_DOT} />}
       </button>
       <button
         type="button"
-        className="rail-bar-btn"
+        className={iconButton()}
         title={t("layout.navBack")}
         aria-label={t("layout.navBack")}
         disabled={step(nav, -1, live) < 0}
@@ -130,7 +131,7 @@ export function RailBar({ model }: { model: AppModel }) {
       </button>
       <button
         type="button"
-        className="rail-bar-btn"
+        className={iconButton()}
         title={t("layout.navForward")}
         aria-label={t("layout.navForward")}
         disabled={step(nav, 1, live) < 0}
