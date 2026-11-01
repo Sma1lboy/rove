@@ -66,6 +66,14 @@
   --tracking-*: initial;
   --tracking-code: 0.08em;
 
+  /* Dispatch: a live wire's dashes run toward the target. */
+  --animate-dp-flow: dp-flow 600ms linear infinite;
+  @keyframes dp-flow {
+    to {
+      stroke-dashoffset: -9;
+    }
+  }
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);

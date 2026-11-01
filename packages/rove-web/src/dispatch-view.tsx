@@ -7,7 +7,6 @@
  * one-line history under the map. Click a node or a row to open that session.
  */
 
-import "./dispatch.css"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import type { DispatchRow, TabRow, TaskRow } from "rove-bridge/protocol"
@@ -32,6 +31,7 @@ import { usePageFocus, usePageKeys } from "./pages-kit.ts"
 import { tabLabel } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { page } from "./ui.ts"
+import * as dp from "./ui/dispatch.ts"
 import { Legend } from "./ui/legend.tsx"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
@@ -51,7 +51,7 @@ const HUB_MIN_W = 96
 /** Room for a wire between a column and the hub. */
 const HUB_GAP = 16
 const HUB_H = 72
-/** Matches `.dp-node`'s height in dispatch.css. */
+/** Matches the node's `h-10.5` in ui/dispatch.ts. */
 const NODE_H = 42
 /** Widest the sender-hub-target band gets; past it the page's sides are margin. */
 const BAND_MAX = 1080
@@ -176,19 +176,19 @@ export function DispatchView({ model }: { model: AppModel }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page dp-page" tabIndex={0} ref={root}>
+    <div className={`page ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
         <span className="muted mono pg-hint">
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>
-      <div className={`dp-stage ${inFlight ? "is-live" : ""}`} ref={stageRef} style={{ minHeight: needed }}>
+      <div className={dp.DP_STAGE} ref={stageRef} style={{ minHeight: needed }}>
         {width > 0 && snapshot !== null ? (
           <>
-            <svg className="dp-wires" width={width} height={height} aria-hidden="true">
+            <svg className={dp.DP_WIRES} width={width} height={height} aria-hidden="true">
               {[...wires.values()].map(({ wire, tone }) => (
-                <path key={wirePath(wire)} d={wirePath(wire)} className={`dp-wire is-${tone}`} />
+                <path key={wirePath(wire)} d={wirePath(wire)} className={dp.wireClass(tone)} />
               ))}
             </svg>
             {graph.senders.map((node) => (
@@ -202,15 +202,15 @@ export function DispatchView({ model }: { model: AppModel }) {
               />
             ))}
             <div
-              className="dp-hub mono"
+              className={`mono ${dp.hubClass(inFlight > 0)}`}
               style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
               title={conn.hello ? `${conn.hello.host} v${conn.hello.roveVersion}` : undefined}
             >
-              <span className="dp-hub-mark">
+              <span className={dp.HUB_MARK}>
                 <b>[</b> rove <b>]</b>
               </span>
-              {conn.hello ? <span className="dp-hub-host">{conn.hello.host}</span> : null}
-              <span className="dp-hub-sub">
+              {conn.hello ? <span className={dp.HUB_HOST}>{conn.hello.host}</span> : null}
+              <span className={dp.HUB_SUB}>
                 {inFlight ? t("dispatch.inFlightCount", { count: inFlight }) : t("dispatch.idle")}
               </span>
             </div>
@@ -220,10 +220,10 @@ export function DispatchView({ model }: { model: AppModel }) {
               return (
                 <div
                   key={frame.machine}
-                  className={`dp-machine ${row?.state === "online" ? "" : "is-stale"}`}
+                  className={dp.DP_MACHINE}
                   style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
-                  <span className="dp-machine-head mono" title={remoteLabel(frame.machine, row, words)}>
+                  <span className={`mono ${dp.machineHeadClass(row?.state !== "online")}`} title={remoteLabel(frame.machine, row, words)}>
                     {label}
                   </span>
                 </div>
@@ -252,7 +252,7 @@ export function DispatchView({ model }: { model: AppModel }) {
               return (
                 <span
                   key={row.id}
-                  className={`dp-courier is-${runner.pose}`}
+                  className={dp.courierClass(runner.pose)}
                   style={{ transform: `translate(${x}px, ${p.y - SPRITE_H + 6}px)` }}
                   title={row.promptHead}
                   aria-hidden="true"
@@ -261,30 +261,30 @@ export function DispatchView({ model }: { model: AppModel }) {
                 </span>
               )
             })}
-            {mapRows.length === 0 ? <p className="dp-empty muted">{t("dispatch.emptyHint")}</p> : null}
+            {mapRows.length === 0 ? <p className={`muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
           </>
         ) : null}
       </div>
       {history.length > 0 ? (
-        <section className="dp-section">
-          <h2 className="kicker">{t("dispatch.recent")}</h2>
+        <section className={dp.DP_SECTION}>
+          <h2 className={`kicker ${dp.DP_KICKER}`}>{t("dispatch.recent")}</h2>
           {history.map((row) => (
             <button
               type="button"
               key={row.id}
-              className="dp-past"
+              className={dp.DP_PAST}
               onClick={() => open(targetOf(row))}
               title={row.promptHead}
             >
-              <span className={`dp-status mono is-${row.status}`}>{STATUS_GLYPH[row.status]}</span>
-              <span className="dp-route mono">
+              <span className={`mono ${dp.statusClass(row.status)}`}>{STATUS_GLYPH[row.status]}</span>
+              <span className={`mono ${dp.DP_ROUTE}`}>
                 {endName(senderOf(row), tasks)} → {endName(targetOf(row), tasks)}
               </span>
-              <span className="dp-prompt muted">
+              <span className={`muted ${dp.DP_PROMPT}`}>
                 {row.status === "failed" && row.reason ? `${row.reason}: ` : ""}
                 {row.promptHead}
               </span>
-              <span className="muted mono dp-age">{compactAge(now - row.statusAt)}</span>
+              <span className={`muted mono ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
             </button>
           ))}
         </section>
@@ -332,20 +332,20 @@ function NodeBox({
   return (
     <button
       type="button"
-      className={`dp-node ${node.taskId ? "" : "is-plain"} ${task?.machine?.stale ? "is-stale" : ""}`}
+      className={dp.nodeClass({ plain: !node.taskId })}
       style={style}
       onClick={() => onOpen(node)}
       disabled={!node.taskId}
       title={title}
     >
-      <span className="dp-node-title">
+      <span className={dp.nodeTitleClass(!!task?.machine?.stale)}>
         {node.routine ? "⟳ " : ""}
         {title}
       </span>
       {sub !== null || status ? (
-        <span className="dp-node-sub">
+        <span className={dp.NODE_SUB}>
           {sub}
-          {status ? <span className={`dp-status mono is-${status}`}> {STATUS_GLYPH[status]}</span> : null}
+          {status ? <span className={`mono ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
         </span>
       ) : null}
     </button>
