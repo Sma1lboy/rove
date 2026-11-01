@@ -21,7 +21,7 @@ export function TabStrip({
   const hidden = !tabStripVisible(prefs.tabStrip, tabs.length)
   return (
     <div
-      className="flex min-w-0 items-center gap-0.5 font-mono text-meta transition-padding-left duration-220 ease-snap motion-reduce:transition-none rail-folded:min-h-6.5 rail-folded:pl-23"
+      className="flex min-w-0 items-center gap-0.5 font-mono text-meta/body transition-padding-left duration-220 ease-snap motion-reduce:transition-none rail-folded:min-h-6.5 rail-folded:pl-23"
       role="tablist"
     >
       {tabs.map((tab, i) => (

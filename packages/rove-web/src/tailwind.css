@@ -58,6 +58,9 @@
   --container-reading: 72ch;
   --container-cap: 8ch;
 
+  /* body's line-height, which a sheet's bare `font-size` kept. */
+  --leading-body: 1.4;
+
   --tracking-*: initial;
   --tracking-code: 0.08em;
 
