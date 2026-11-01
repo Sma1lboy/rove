@@ -45,4 +45,4 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 
 export const TOASTS = "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5"
 export const toastClass = (error: boolean): string =>
-  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:animate-sink-out`
+  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:animate-sink-out`
