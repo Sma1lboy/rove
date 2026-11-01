@@ -7,6 +7,7 @@ import { launchPanel, useTaskPanel } from "./panel-state.ts"
 import { ICONS, Icon } from "./panel-tabs.tsx"
 import { useStore } from "./store.ts"
 import { zen } from "./ui.ts"
+import { PANEL_LAUNCH, iconButton } from "./ui/panel.ts"
 
 export function PanelLauncher({ taskId }: { taskId: string }) {
   useLocale()
@@ -15,12 +16,12 @@ export function PanelLauncher({ taskId }: { taskId: string }) {
   const zenOn = useStore(zen)
   const on = shown && !zenOn ? shownKind(panel) : null
   return (
-    <div className="panel-launch">
+    <div className={PANEL_LAUNCH}>
       {PANEL_KINDS.map((kind) => (
         <button
           type="button"
           key={kind}
-          className={`rail-bar-btn ${on === kind ? "is-on" : ""}`}
+          className={iconButton({ on: on === kind })}
           title={t(`panel.${kind}`)}
           aria-label={t(`panel.${kind}`)}
           aria-pressed={on === kind}

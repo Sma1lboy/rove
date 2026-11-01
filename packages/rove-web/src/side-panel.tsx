@@ -31,6 +31,7 @@ import { PreviewView } from "./preview-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { dragLayout, zen } from "./ui.ts"
+import { SIDE_BODY, SIDE_DIVIDER, SIDE_EMPTY, SIDE_VIEW, iconButton, sidePanelClass } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 
 /** The top row's end: stretch the panel over the terminal's column (and back), or close it; its tabs stay. */
@@ -42,7 +43,7 @@ function PanelWindowButtons() {
     <>
       <button
         type="button"
-        className="rail-bar-btn panel-tool"
+        className={iconButton({ tool: true })}
         title={label}
         aria-label={label}
         aria-pressed={expanded}
@@ -60,7 +61,7 @@ function PanelWindowButtons() {
       </button>
       <button
         type="button"
-        className="rail-bar-btn panel-tool"
+        className={iconButton({ tool: true })}
         title={t("panel.hide")}
         aria-label={t("panel.hide")}
         onClick={() => panelOpen.set(false)}
@@ -124,7 +125,7 @@ function PanelDivider({ taskId, body }: { taskId: string; body: RefObject<HTMLEl
   }
   return (
     <div
-      className="side-divider"
+      className={SIDE_DIVIDER}
       title={t("panel.resizeSplit")}
       onPointerDown={(e) => {
         dragging.current = true
@@ -207,9 +208,9 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
   const empty = !narrow && panel.top.tabs.length === 0
 
   return (
-    <aside className={`side-panel ${narrow ? "is-narrow" : ""}`} ref={aside}>
+    <aside className={sidePanelClass(narrow)} ref={aside}>
       {!narrow && !expanded && <PanelGrip panel={aside} />}
-      <div className="side-body" ref={body} style={{ gridTemplateRows: rows }}>
+      <div className={SIDE_BODY} ref={body} style={{ gridTemplateRows: rows }}>
         {narrow
           ? (ofKind.length > 1 || kind === "diff") && (
               <PanelTabRow
@@ -234,14 +235,14 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
                 {name === "top" && <PanelWindowButtons />}
               </PanelTabRow>
             ))}
-        {empty && <p className="side-empty">{t("panel.empty")}</p>}
+        {empty && <p className={SIDE_EMPTY}>{t("panel.empty")}</p>}
         {split && <PanelDivider taskId={task.id} body={body} />}
         {tabs
           .filter((tab) => mounted.current.includes(tab.id))
           .map((tab) => (
             <div
               key={tab.id}
-              className="side-view"
+              className={SIDE_VIEW}
               hidden={!visible.includes(tab.id)}
               style={{ gridRow: findTab(panel, tab.id)?.name === "bottom" && !narrow ? 5 : 2 }}
             >
@@ -281,7 +282,7 @@ export function SidePanel({
   if (task) return <TaskPanel key={task.id} model={model} task={task} narrow={narrow} />
   if (!remoteHost) return null
   return (
-    <aside className="side-panel">
+    <aside className={sidePanelClass(false)}>
       <RemoteNotice host={remoteHost} />
     </aside>
   )
