@@ -374,13 +374,6 @@
   gap: 2px;
 }
 
-.inbox-card {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  padding: 6px 10px;
-}
-
 .inbox-line {
   display: flex;
   align-items: baseline;

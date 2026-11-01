@@ -292,35 +292,10 @@
   padding-left: 12px;
   font-variant-numeric: tabular-nums;
 }
-/* One list across machines, no machine names: a task row starts flush with its project header (no
-   status cell; status lives on tab rows), and its right edge carries the chips, then a job spinner,
-   then a small cloud for a task on another machine (greyed while that machine is unreachable, TUI
-   `task.origin.stale`), as Claude Desktop's session list does. */
-.task-row > .row-title,
-.count-row > .row-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: var(--fs-title);
-}
-.task-row > .chips,
-.count-row > .chips {
-  margin-left: auto;
-  align-items: center;
-}
+/* A task on another machine: a small cloud at the row's right edge, greyed while unreachable (TUI `task.origin.stale`). */
 .cloud-mark {
   display: inline-flex;
   flex: none;
   align-items: center;
   color: var(--subtle);
-}
-/* A split tab's panes under their task: quiet, with the open tab's active pane in full ink. */
-.pane-row {
-  min-height: 22px;
-}
-.pane-row > .row-title {
-  font-size: var(--fs-meta);
-  color: var(--muted);
-}
-.pane-row.is-active-pane > .row-title {
-  color: var(--ink);
 }

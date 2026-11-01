@@ -75,7 +75,6 @@
 
 /* Reorder (move mode): the dragged row and the project header wear the TUI's move mark. */
 
-.row.is-moving,
 .project-head.is-moving {
   background: var(--accent-soft);
 }
@@ -88,7 +87,6 @@
 
 /* Drag to reorder: the rows already stand where the drop leaves them; the dragged one is washed. */
 
-.row.is-dragging,
 .project-head.is-dragging {
   background: var(--accent-soft);
 }

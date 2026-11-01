@@ -4,6 +4,7 @@
  * Enter or click opens (and clears the episode), `d` clears without opening.
  */
 
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { useEffect, useState } from "react"
 import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
@@ -116,12 +117,12 @@ export function InboxDialog({ model }: { model: AppModel }) {
       <li key={card.key}>
         <button
           type="button"
-          className={`inbox-card row ${active ? "is-selected" : ""}`}
+          className={rowClass({ selected: active, stack: true })}
           onMouseEnter={() => setIndex(cards.indexOf(card))}
           onClick={() => open(card)}
         >
           <span className="inbox-line">
-            <span className="row-title">{card.identity}</span>
+            <span className={ROW_TITLE}>{card.identity}</span>
             {badge && (
               <span className={`inbox-badge tone-${badge.tone}`}>
                 {badge.glyph} {t(badge.stateKey)}

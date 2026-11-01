@@ -16,15 +16,6 @@
   overflow-y: auto;
 }
 
-.file-row {
-  min-height: 24px;
-  font: var(--fs-meta) var(--mono);
-}
-
-.files:not(:focus) .file-row.is-selected::before {
-  background: var(--line-active);
-}
-
 .status-M {
   color: var(--warning);
 }

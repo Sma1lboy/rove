@@ -4,6 +4,7 @@
  * hints (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `StatusKeyHintBar`).
  */
 
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { paneHintTokens, statusHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
 import { type PointerEvent, useEffect, useRef, useState } from "react"
@@ -185,9 +186,9 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
 export function RecentRow({ title }: { title: string }) {
   useLocale()
   return (
-    <button type="button" className="row recent-row" onClick={enterWorkspace}>
-      <span className="glyph tone-accent">↩</span>
-      <span className="row-title">{tasksText("recentJump", { title })}</span>
+    <button type="button" className={rowClass({})} onClick={enterWorkspace}>
+      <span className={`${GLYPH} tone-accent font-bold`}>↩</span>
+      <span className={ROW_TITLE}>{tasksText("recentJump", { title })}</span>
     </button>
   )
 }

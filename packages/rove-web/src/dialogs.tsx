@@ -4,6 +4,7 @@
  * stays in the dialog as its message instead of closing it.
  */
 
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import "./taskops.css"
@@ -209,12 +210,12 @@ export function ChoiceDialog(props: {
                 type="button"
                 aria-pressed={choice.value === props.current}
                 disabled={busy}
-                className={`row ${i === index ? "is-selected" : ""}`}
+                className={rowClass({ selected: i === index })}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => pick(choice.value)}
               >
-                <span className="glyph tone-accent">{choice.value === props.current ? "●" : " "}</span>
-                <span className="row-title">{choice.label}</span>
+                <span className={`${GLYPH} tone-accent`}>{choice.value === props.current ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{choice.label}</span>
               </button>
             </li>
           ))}

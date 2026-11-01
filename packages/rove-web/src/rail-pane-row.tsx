@@ -1,5 +1,6 @@
 /** A split tab's pane in the rail: click focuses it, right click renames or closes it. */
 
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import type { MouseEvent } from "react"
 import type { AppModel } from "./model.ts"
 import type { TreeGuide } from "./rail-blocks.ts"
@@ -36,7 +37,7 @@ export function PaneRowView(props: {
   return (
     <button
       type="button"
-      className={`row pane-row ${active ? "is-active-pane" : ""} ${props.cursor ? "is-cursor" : ""}`}
+      className={`${rowClass({ size: "pane" })} ${props.cursor ? "is-cursor" : ""}`}
       aria-current={active || undefined}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
@@ -48,7 +49,7 @@ export function PaneRowView(props: {
           <span key={i} className={`guide is-${guide}`} />
         ))}
       </span>
-      <span className="row-title">{row.label}</span>
+      <span className={`${ROW_TITLE} text-(length:--fs-meta) ${active ? "text-ink" : "text-muted"}`}>{row.label}</span>
     </button>
   )
 }
