@@ -11,6 +11,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import type { Notice } from "./term-mount.ts"
 import { dialog } from "./ui.ts"
 import { TERM_NOTICE_TOUCH, termNotice } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 
 /** The tab's engine ended while its fallback shell kept the session up (the daemon marked the tab dead). */
 export interface EngineExit {
@@ -64,7 +65,7 @@ export function TermNotice(props: {
       {props.onReopen && (reopenable || lostEngine) && (
         <button
           type="button"
-          className="link text-accent"
+          className={`${LINK} text-accent`}
           disabled={revive.busy}
           onClick={() => props.onReopen?.(lostEngine !== null)}
         >
@@ -72,7 +73,7 @@ export function TermNotice(props: {
         </button>
       )}
       {notice.kind === "failed" && props.onRetryAttach && (
-        <button type="button" className="link text-accent" onClick={props.onRetryAttach}>
+        <button type="button" className={`${LINK} text-accent`} onClick={props.onRetryAttach}>
           {t("workspace.retry")}
         </button>
       )}
@@ -80,14 +81,14 @@ export function TermNotice(props: {
         <>
           <button
             type="button"
-            className="link text-accent"
+            className={`${LINK} text-accent`}
             onClick={() => dialog.set(<SettingsDialog model={model} section="engines" />)}
           >
             {t("workspace.engineSettings")}
           </button>
           <button
             type="button"
-            className="link text-accent"
+            className={`${LINK} text-accent`}
             onClick={() => dialog.set(<NewChatDialog model={model} taskId={taskId} />)}
           >
             {t("menu.newChatPick")}

@@ -25,7 +25,7 @@ import {
   TIER_ROW,
   engineDetailClass,
 } from "./ui/settings.ts"
-import { PLACEHOLDER_LINE } from "./ui/text.ts"
+import { ACTIONS, INPUT, LINK, MONO, PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
   readonly tier: "swift" | "standard" | "deep"
@@ -115,7 +115,7 @@ function TierEditor(props: {
       )}
       {picked?.takesModel && (
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           value={model}
           spellCheck={false}
           placeholder={ts("autoRouting.engineDefault")}
@@ -123,8 +123,8 @@ function TierEditor(props: {
           onChange={(e) => setModel(e.target.value)}
         />
       )}
-      <div className="actions">
-        <button type="button" className="link" onClick={props.onCancel}>
+      <div className={ACTIONS}>
+        <button type="button" className={`${LINK} text-accent`} onClick={props.onCancel}>
           {t("dialog.cancel")}
         </button>
         <button type="submit" className={buttonClass()}>
@@ -182,13 +182,13 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
   return (
     <>
       <Group title={ts("autoRouting.title")} hint={ts("autoRouting.hint")}>
-        {!routing.configured && <p className="tone-warning">{ts("autoRouting.unconfigured")}</p>}
+        {!routing.configured && <p className="text-warning">{ts("autoRouting.unconfigured")}</p>}
         <div className={SETTINGS_ROWS}>
           {routing.tiers.map((row) => (
             <div key={row.tier} className={TIER_ROW}>
               <div className={TIER_HEAD}>
                 <span className="engine-name">{tt(`tier.${row.tier}`)}</span>
-                <span className="mono muted">
+                <span className={`${MONO} text-muted`}>
                   {[
                     row.engineName,
                     row.model ?? ts("autoRouting.engineDefault"),
@@ -197,14 +197,14 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
                 </span>
                 <button
                   type="button"
-                  className="link ml-auto"
+                  className={`${LINK} ml-auto text-accent`}
                   onClick={() => setEditing(editing === row.tier ? null : row.tier)}
                 >
                   {t("prefs.tierEdit")}
                 </button>
               </div>
-              <span className={`muted ${engineDetailClass()}`}>{tt(`tierDesc.${row.tier}`)}</span>
-              <span className={`${engineDetailClass()} ${row.block ? "tone-warning" : "tone-success"}`}>
+              <span className={`text-muted ${engineDetailClass()}`}>{tt(`tierDesc.${row.tier}`)}</span>
+              <span className={`${engineDetailClass()} ${row.block ? "text-warning" : "text-success"}`}>
                 {row.block ? ts("autoRouting.unavailable", { reason: row.block }) : ts("autoRouting.ready")}
               </span>
               {editing === row.tier && (
@@ -223,7 +223,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
         </div>
       </Group>
       <Group title={ts("autoRouting.classifierTitle")} hint={ts("autoRouting.classifierHint")}>
-        <p className={c.mode === "off" ? "muted" : "tone-warning"}>{ts("autoRouting.classifierDataFlow")}</p>
+        <p className={c.mode === "off" ? "text-muted" : "text-warning"}>{ts("autoRouting.classifierDataFlow")}</p>
         <button
           type="button"
           className={PREF_CYCLE}
@@ -239,7 +239,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
           <span className={PREF_CYCLE_LABEL}>
             {ts("autoRouting.classifierLabel")}: {modeLabel}
           </span>
-          <span className={`${PREF_HINT} muted`}>{modeHint}</span>
+          <span className={`${PREF_HINT} text-muted`}>{modeHint}</span>
         </button>
         <ReadOnlyRow
           label={`${ts("autoRouting.endpointLabel")}: ${c.endpointHost || t("prefs.unset")}`}

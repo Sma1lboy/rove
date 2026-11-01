@@ -13,6 +13,7 @@ import { toast } from "./ui.ts"
 import { FIELD } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { INPUT, KICKER } from "./ui/text.ts"
 
 interface TabProps {
   readonly model: AppModel
@@ -95,9 +96,9 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       }}
     >
       <div className={FIELD}>
-        <span className="kicker">{tc("newTask", "field.gitUrl")}</span>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.gitUrl")}</span>
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           data-field="url"
           spellCheck={false}
           placeholder="https://github.com/user/repo.git"
@@ -111,7 +112,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
       </div>
       <div className={FIELD}>
-        <span className="kicker">{tc("newTask", "field.parentDir")}</span>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.parentDir")}</span>
         <SuggestField
           field="parent"
           value={parent}
@@ -138,12 +139,12 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
           }}
           onEnter={() => focusField("folder")}
         />
-        <span className="muted">{tc("newTask", "hint.remembered")}</span>
+        <span className="text-muted">{tc("newTask", "hint.remembered")}</span>
       </div>
       <div className={FIELD}>
-        <span className="kicker">{tc("newTask", "field.folderName")}</span>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.folderName")}</span>
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           data-field="folder"
           spellCheck={false}
           placeholder={tc("newTask", "placeholder.folderName")}
@@ -157,9 +158,9 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
       </div>
       <div className={FIELD}>
-        <span className="kicker">{tc("newTask", "field.baseBranch")}</span>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.baseBranch")}</span>
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           data-field="clone-base"
           spellCheck={false}
           placeholder="main"
@@ -168,11 +169,11 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         />
       </div>
       {busy && (
-        <p className="muted" data-field="clone-progress">
+        <p className="text-muted" data-field="clone-progress">
           {progress || tc("newTask", "clone.progressInto", { target: `${parentDir}/${folderName}` })}
         </p>
       )}
-      {error && <p className="error">※ {error}</p>}
+      {error && <p className="text-error">※ {error}</p>}
       <DialogActions busy={busy} submitLabel={tc("newTask", busy ? "button.cloning" : "button.create")} />
     </form>
   )
@@ -269,7 +270,7 @@ export function AdoptTab({
       }}
     >
       <div className={FIELD}>
-        <span className="kicker">{tc("newTask", "field.adoptFilter")}</span>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.adoptFilter")}</span>
         <SuggestField
           field="filter"
           value={filter}
@@ -297,20 +298,20 @@ export function AdoptTab({
           onCursor={setCursor}
           onEnter={() => {}}
         />
-        <span className="muted">
+        <span className="text-muted">
           {tc("newTask", "adopt.repoLine", { path: repoPath || tc("newTask", "adopt.repoNone") })}
         </span>
-        {list === null && repoPath && <span className="muted">{tc("newTask", "hint.scanningWorktrees")}</span>}
+        {list === null && repoPath && <span className="text-muted">{tc("newTask", "hint.scanningWorktrees")}</span>}
         {list !== null && shown.length === 0 && (
-          <span className="muted">{tc("newTask", list.length === 0 ? "adopt.noUnlinked" : "adopt.noMatch")}</span>
+          <span className="text-muted">{tc("newTask", list.length === 0 ? "adopt.noUnlinked" : "adopt.noMatch")}</span>
         )}
         {shown.length > 0 && (
-          <span className="muted">
+          <span className="text-muted">
             <Legend text={deviceHint(hint)} />
           </span>
         )}
       </div>
-      {error && <p className="error">※ {error}</p>}
+      {error && <p className="text-error">※ {error}</p>}
       <DialogActions busy={busy} submitLabel={tc("newTask", "button.create")} />
     </form>
   )

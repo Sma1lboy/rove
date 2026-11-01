@@ -8,6 +8,7 @@ import { toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { SETTINGS_GROUP } from "./ui/settings.ts"
+import { ACTIONS, INPUT, KICKER } from "./ui/text.ts"
 
 export function FeedbackSection({ client }: { client: BridgeClient }) {
   const [title, setTitle] = useState("")
@@ -31,16 +32,21 @@ export function FeedbackSection({ client }: { client: BridgeClient }) {
           .finally(() => setBusy(false))
       }}
     >
-      <p className="muted">{t("settings.feedback.hint")}</p>
+      <p className="text-muted">{t("settings.feedback.hint")}</p>
       <label className={FIELD}>
-        <span className="kicker">{t("settings.feedback.titleLabel")}</span>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <span className={`${KICKER} text-muted`}>{t("settings.feedback.titleLabel")}</span>
+        <input className={`${INPUT} text-ink`} value={title} onChange={(e) => setTitle(e.target.value)} />
       </label>
       <label className={FIELD}>
-        <span className="kicker">{t("settings.feedback.body")}</span>
-        <textarea className={`input ${TEXTAREA}`} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
+        <span className={`${KICKER} text-muted`}>{t("settings.feedback.body")}</span>
+        <textarea
+          className={`${INPUT} text-ink ${TEXTAREA}`}
+          rows={6}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
       </label>
-      <div className="actions">
+      <div className={ACTIONS}>
         <button type="submit" className={buttonClass()} disabled={busy || !title.trim() || !body.trim()}>
           {t("settings.feedback.send")}
         </button>

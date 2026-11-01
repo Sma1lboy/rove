@@ -11,6 +11,7 @@ import { buttonClass } from "./ui/button.tsx"
 import { CHOICES } from "./ui/form.ts"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { ACTIONS, INPUT, LINK } from "./ui/text.ts"
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
@@ -91,7 +92,7 @@ export function TextDialog(props: {
         }}
       >
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           aria-label={props.title}
           // biome-ignore lint/a11y/noAutofocus: a dialog's only field
           autoFocus
@@ -100,7 +101,7 @@ export function TextDialog(props: {
           onChange={(e) => setValue(e.target.value)}
           onFocus={(e) => e.currentTarget.select()}
         />
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={props.submitLabel} />
       </form>
     </DialogShell>
@@ -148,12 +149,12 @@ export function ConfirmDialog(props: {
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
       <div className={DIALOG_BODY}>
-        <p className="muted whitespace-pre-line">
+        <p className="whitespace-pre-line text-muted">
           {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
         </p>
-        {error && !(escalated && props.escalate?.body) && <p className="error">{error}</p>}
-        <div className="actions">
-          <button type="button" className="link" onClick={closeDialog}>
+        {error && !(escalated && props.escalate?.body) && <p className="text-error">{error}</p>}
+        <div className={ACTIONS}>
+          <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
             {t("dialog.cancel")}
           </button>
           {props.secondary && !escalated && (
@@ -222,13 +223,13 @@ export function ChoiceDialog(props: {
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => pick(choice.value)}
               >
-                <span className={`${GLYPH} tone-accent`}>{choice.value === props.current ? "●" : " "}</span>
+                <span className={`${GLYPH} text-accent`}>{choice.value === props.current ? "●" : " "}</span>
                 <span className={ROW_TITLE}>{choice.label}</span>
               </button>
             </li>
           ))}
         </ul>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
       </div>
     </DialogShell>
   )
@@ -236,8 +237,8 @@ export function ChoiceDialog(props: {
 
 export function DialogActions({ busy, submitLabel }: { busy: boolean; submitLabel: string }) {
   return (
-    <div className="actions">
-      <button type="button" className="link" onClick={closeDialog}>
+    <div className={ACTIONS}>
+      <button type="button" className={`${LINK} text-accent`} onClick={closeDialog}>
         {t("dialog.cancel")}
       </button>
       <button type="submit" className={buttonClass()} disabled={busy}>

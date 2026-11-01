@@ -4,6 +4,7 @@ import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState 
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 import { Chevron } from "./ui/chevron.tsx"
+import { INPUT, KICKER } from "./ui/text.ts"
 
 /** A chip that opens a popover above itself; Esc, a click outside, or `close()` shuts it and returns focus to the chip. */
 export function ChipPopover(props: {
@@ -105,7 +106,7 @@ export function SearchList(props: {
   return (
     <div className="composer-list">
       <input
-        className="input"
+        className={`${INPUT} text-ink`}
         // biome-ignore lint/a11y/noAutofocus: the popover's only field
         autoFocus
         spellCheck={false}
@@ -128,10 +129,12 @@ export function SearchList(props: {
         }}
       />
       <div className="composer-rows">
-        {all.length === 0 && <p className="muted composer-empty">{props.empty}</p>}
+        {all.length === 0 && <p className="composer-empty text-muted">{props.empty}</p>}
         {all.map((row, i) => (
           <Fragment key={row.key}>
-            {props.moreLabel && row === props.more?.[0] && <p className="muted composer-group">{props.moreLabel}</p>}
+            {props.moreLabel && row === props.more?.[0] && (
+              <p className="composer-group text-muted">{props.moreLabel}</p>
+            )}
             <button
               type="button"
               aria-current={row.checked === true}
@@ -144,7 +147,9 @@ export function SearchList(props: {
             >
               <span className="composer-check">{row.checked ? "✓" : ""}</span>
               <span className="composer-name">{row.text}</span>
-              {row.dim && <span className={`muted composer-dim ${row.title ? "composer-clip" : ""}`}>{row.dim}</span>}
+              {row.dim && (
+                <span className={`composer-dim text-muted ${row.title ? "composer-clip" : ""}`}>{row.dim}</span>
+              )}
             </button>
           </Fragment>
         ))}
@@ -182,7 +187,7 @@ function OptionRow(props: {
       <span className="composer-check">{props.checked ? "✓" : ""}</span>
       <span>{props.option.label}</span>
       {!props.checked && props.digit !== undefined && !props.option.disabled && (
-        <span className="muted composer-dim">{props.digit}</span>
+        <span className="composer-dim text-muted">{props.digit}</span>
       )}
     </button>
   )
@@ -237,11 +242,16 @@ export function ChoiceMenu(props: {
       }}
     >
       {props.onBack ? (
-        <button type="button" className="composer-heading kicker composer-back" tabIndex={-1} onClick={props.onBack}>
+        <button
+          type="button"
+          className={`composer-heading ${KICKER} composer-back text-muted`}
+          tabIndex={-1}
+          onClick={props.onBack}
+        >
           ‹ {props.heading}
         </button>
       ) : (
-        <p className="composer-heading kicker">{props.heading}</p>
+        <p className={`composer-heading ${KICKER} text-muted`}>{props.heading}</p>
       )}
       {props.options.map((option, i) => (
         <OptionRow
@@ -327,7 +337,7 @@ export function ModelMenu(props: {
         }
       }}
     >
-      <p className="composer-heading kicker">{t("newSession.modelHeading")}</p>
+      <p className={`composer-heading ${KICKER} text-muted`}>{t("newSession.modelHeading")}</p>
       {props.models.map((option, i) => (
         <OptionRow
           key={option.id}
@@ -350,7 +360,7 @@ export function ModelMenu(props: {
         >
           <span className="composer-check" />
           <span>{t("newSession.effort")}</span>
-          <span className="muted composer-dim">
+          <span className="composer-dim text-muted">
             {effortLabel}
             <Chevron right />
           </span>
@@ -384,11 +394,11 @@ export function BranchesMenu(props: {
 }) {
   return (
     <div className="composer-menu composer-branches">
-      <p className="composer-heading kicker">{t("newSession.branches")}</p>
+      <p className={`composer-heading ${KICKER} text-muted`}>{t("newSession.branches")}</p>
       <label className="composer-field">
-        <span className="muted">{t("newSession.branchName")}</span>
+        <span className="text-muted">{t("newSession.branchName")}</span>
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           // biome-ignore lint/a11y/noAutofocus: the menu's first field
           autoFocus
           spellCheck={false}
@@ -401,10 +411,10 @@ export function BranchesMenu(props: {
         <label key={repo.path} className="composer-field">
           <span>
             {repo.name}
-            {repo.primary && <span className="muted"> {t("newSession.primary")}</span>}
+            {repo.primary && <span className="text-muted"> {t("newSession.primary")}</span>}
           </span>
           <select
-            className="input"
+            className={`${INPUT} text-ink`}
             aria-label={repo.name}
             value={repo.base || repo.current}
             onChange={(e) => props.onBase(repo.path, e.target.value)}

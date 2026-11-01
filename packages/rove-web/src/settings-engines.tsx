@@ -47,7 +47,7 @@ import {
   engNameClass,
   engStatusClass,
 } from "./ui/settings.ts"
-import { PLACEHOLDER_LINE } from "./ui/text.ts"
+import { INPUT, PLACEHOLDER_LINE } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
 interface EngineSetting {
@@ -117,7 +117,7 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
   if (!engines) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   return (
     <section className={`${SETTINGS_GROUP} engines`}>
-      <p className="muted">{ts("engines.hint")}</p>
+      <p className="text-muted">{ts("engines.hint")}</p>
       <div className={ENG_LIST}>
         <div className={ENG_LIST_HEAD} aria-hidden="true">
           <span>{ts("sections.engines")}</span>
@@ -287,7 +287,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           }}
         >
           <input
-            className={`input ${ENG_RENAME_INPUT}`}
+            className={`${INPUT} text-ink ${ENG_RENAME_INPUT}`}
             // biome-ignore lint/a11y/noAutofocus: the rename field just opened
             autoFocus
             value={renaming}
@@ -336,11 +336,11 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
     <div className={ENG_BOX}>
       <div className={ENG_BOX_HEAD}>
         <h3 className={ENG_BOX_TITLE}>{ts("engines.integrations.title")}</h3>
-        <span className="muted">
+        <span className="text-muted">
           {ts("engines.integrations.summary", { installed: current, total: hookable.length })}
         </span>
       </div>
-      <p className="muted">{ts("engines.integrations.hint")}</p>
+      <p className="text-muted">{ts("engines.integrations.hint")}</p>
       <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
           <button type="button" className={buttonClass({ box: true })} onClick={() => run("engines.hooks.install")}>
@@ -370,12 +370,12 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
       <div className={ENG_BOX_HEAD}>
         <h3 className={ENG_BOX_TITLE}>{ts("engines.skill.title")}</h3>
         {skillable.length > 0 ? (
-          <span className="muted">
+          <span className="text-muted">
             {ts("engines.integrations.summary", { installed: current, total: skillable.length })}
           </span>
         ) : null}
       </div>
-      <p className="muted">{ts("engines.skill.hint")}</p>
+      <p className="text-muted">{ts("engines.skill.hint")}</p>
       <div className={ENG_BOX_ACTIONS}>
         {needInstall > 0 ? (
           <button type="button" className={buttonClass({ box: true })} onClick={install}>

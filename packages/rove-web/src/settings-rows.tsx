@@ -16,12 +16,13 @@ import {
   PREF_ROW,
   SETTINGS_GROUP,
 } from "./ui/settings.ts"
+import { KICKER, MONO } from "./ui/text.ts"
 
 export function Group(props: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section className={SETTINGS_GROUP}>
-      <h2 className="kicker">{props.title}</h2>
-      {props.hint && <p className="muted">{props.hint}</p>}
+      <h2 className={`${KICKER} text-muted`}>{props.title}</h2>
+      {props.hint && <p className="text-muted">{props.hint}</p>}
       {props.children}
     </section>
   )
@@ -44,7 +45,7 @@ export function Toggle(props: {
         onChange={(e) => props.onChange(e.target.checked)}
       />
       <span className={props.hint ? PREF_LABEL_BESIDE_HINT : PREF_LABEL}>{props.label}</span>
-      {props.hint && <span className={`${PREF_HINT} muted`}>{props.hint}</span>}
+      {props.hint && <span className={`${PREF_HINT} text-muted`}>{props.hint}</span>}
     </label>
   )
 }
@@ -78,7 +79,7 @@ export function Chips<T extends string | number>(props: {
           </button>
         ))}
       </div>
-      {props.hint && <p className={`${PREF_HINT} muted`}>{props.hint}</p>}
+      {props.hint && <p className={`${PREF_HINT} text-muted`}>{props.hint}</p>}
     </fieldset>
   )
 }
@@ -88,7 +89,7 @@ export function CycleRow(props: { label: string; hint?: string; disabled?: boole
   return (
     <button type="button" className={PREF_CYCLE} disabled={props.disabled} onClick={props.onCycle}>
       <span className={PREF_CYCLE_LABEL}>{props.label}</span>
-      {props.hint && <span className={`${PREF_HINT} muted`}>{props.hint}</span>}
+      {props.hint && <span className={`${PREF_HINT} text-muted`}>{props.hint}</span>}
     </button>
   )
 }
@@ -97,8 +98,8 @@ export function CycleRow(props: { label: string; hint?: string; disabled?: boole
 export function ReadOnlyRow(props: { label: string; note: string }) {
   return (
     <div className={PREF_READONLY}>
-      <span className={`${PREF_LABEL_MONO} mono text-muted`}>{props.label}</span>
-      <span className={`${PREF_HINT} muted`}>{props.note}</span>
+      <span className={`${PREF_LABEL_MONO} ${MONO} text-muted`}>{props.label}</span>
+      <span className={`${PREF_HINT} text-muted`}>{props.note}</span>
     </div>
   )
 }

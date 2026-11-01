@@ -187,8 +187,8 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
                     </span>
                     {stats && (
                       <span className={PR_LIST_STATS}>
-                        <span className="tone-success">+{pr.additions}</span>
-                        <span className="tone-attention">−{pr.deletions}</span>
+                        <span className="text-success">+{pr.additions}</span>
+                        <span className="text-error">−{pr.deletions}</span>
                       </span>
                     )}
                   </span>

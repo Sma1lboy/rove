@@ -276,7 +276,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     <div className="new-session">
       <div className="new-session-hero">
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
-        <p className="muted">{t("newSession.tagline")}</p>
+        <p className="text-muted">{t("newSession.tagline")}</p>
       </div>
       <form
         className="composer"
@@ -332,7 +332,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 <FolderIcon />
                 {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
                   t("newSession.repo")}
-                {remotePick?.clone && <span className="muted"> {t("newSession.cloneTag")}</span>}
+                {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
               </>
             }
           >
@@ -455,11 +455,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
         </div>
         {busy && progress && (
-          <p className="muted" data-field="clone-progress">
+          <p className="text-muted" data-field="clone-progress">
             {progress}
           </p>
         )}
-        {error && <p className="error">※ {error}</p>}
+        {error && <p className="text-error">※ {error}</p>}
       </form>
       {/* The rarer ways in sit under the card, out of the composer's own controls; clone and adopt read this machine's disk. */}
       {!remote && (

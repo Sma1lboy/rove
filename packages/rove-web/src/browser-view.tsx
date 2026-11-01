@@ -12,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import { type PanelItem, browserUrl } from "./panel-model.ts"
 import { useStore } from "./store.ts"
 import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
+import { MONO } from "./ui/text.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
 
 function Glyph({ d }: { d: string }) {
@@ -113,7 +114,7 @@ export function BrowserView({
           <Glyph d="M12.5 8a4.5 4.5 0 1 1-1.4-3.3M12.5 2.5v2.7H9.8" />
         </button>
         <input
-          className={`browser-url mono ${BROWSER_URL}`}
+          className={`browser-url ${MONO} ${BROWSER_URL}`}
           value={draft}
           placeholder={t("browser.placeholder")}
           aria-label={t("browser.address")}

@@ -13,6 +13,7 @@ import { Group, Toggle } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CONFIRM_INLINE, PREF_CYCLE, PREF_CYCLE_LABEL } from "./ui/settings.ts"
+import { ACTIONS, LINK } from "./ui/text.ts"
 
 const FLAGS: readonly { key: PrefKey; label: string; hint: string }[] = [
   { key: "remoteProjects", label: "dev.remote", hint: "dev.remoteHint" },
@@ -53,9 +54,9 @@ export function DevSection({ client }: { client: BridgeClient }) {
       {pending === kind ? (
         <div className={CONFIRM_INLINE}>
           <strong>{ts(`${kind}.title`)}</strong>
-          <p className="muted">{t(kind === "reset" ? "prefs.resetBody" : "prefs.restartBody")}</p>
-          <div className="actions">
-            <button type="button" className="link" onClick={() => setPending(null)}>
+          <p className="text-muted">{t(kind === "reset" ? "prefs.resetBody" : "prefs.restartBody")}</p>
+          <div className={ACTIONS}>
+            <button type="button" className={`${LINK} text-accent`} onClick={() => setPending(null)}>
               {t("dialog.cancel")}
             </button>
             <button type="button" className={buttonClass({ danger })} disabled={busy} onClick={() => void confirm()}>
@@ -75,7 +76,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
     <>
       {ask("reset", ts("dev.reset"), t("prefs.resetHint"), t("prefs.resetButton"), true)}
       {ask("restart", ts("dev.restart"), t("prefs.restartHint"), t("prefs.restartButton"), false)}
-      <p className="muted">{ts("dev.doctorHint")}</p>
+      <p className="text-muted">{ts("dev.doctorHint")}</p>
       <Group title={ts("dev.experimental")}>
         {FLAGS.map((flag) => (
           <Toggle

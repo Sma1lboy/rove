@@ -25,6 +25,8 @@ import {
   INBOX_SUB,
 } from "./ui/overlay.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
+import { KICKER, MONO } from "./ui/text.ts"
+import { TONE_CLASS } from "./ui/tone.ts"
 
 interface Card {
   readonly key: string
@@ -134,7 +136,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
           <span className={INBOX_LINE}>
             <span className={ROW_TITLE}>{card.identity}</span>
             {badge && (
-              <span className={`${INBOX_BADGE} tone-${badge.tone}`}>
+              <span className={`${INBOX_BADGE} ${TONE_CLASS[badge.tone]}`}>
                 {badge.glyph} {t(badge.stateKey)}
               </span>
             )}
@@ -149,18 +151,18 @@ export function InboxDialog({ model }: { model: AppModel }) {
   return (
     <DialogShell title={t("inbox.title")} wide>
       <div className={DIALOG_BODY}>
-        <p className={`kicker ${INBOX_HINTS} touch:hidden!`}>
+        <p className={`${KICKER} text-muted ${INBOX_HINTS} touch:hidden!`}>
           <Legend text={t("inbox.hints")} />
         </p>
-        <h2 className={`kicker ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
+        <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
-          <p className="muted mono">{t("inbox.empty")}</p>
+          <p className={`${MONO} text-muted`}>{t("inbox.empty")}</p>
         ) : (
           <ul className={INBOX_CARDS}>{attention.map(renderCard)}</ul>
         )}
         {recent.length > 0 && (
           <>
-            <h2 className={`kicker ${INBOX_KICKER}`}>{t("inbox.recent")}</h2>
+            <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.recent")}</h2>
             <ul className={INBOX_CARDS}>{recent.map(renderCard)}</ul>
           </>
         )}

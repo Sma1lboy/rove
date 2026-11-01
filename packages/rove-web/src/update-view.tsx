@@ -19,6 +19,7 @@ import { dialog, page } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
 import { HEAD_CHIP } from "./ui/shell.ts"
+import { ACTIONS, KICKER, LINK, MONO } from "./ui/text.ts"
 import {
   PAGE_HEAD,
   RELEASE_NOTES,
@@ -63,7 +64,7 @@ export function UpdateChip() {
     // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
     <button
       type="button"
-      className={`kicker ${UPDATE_CHIP} ${HEAD_CHIP}`}
+      className={`${KICKER} text-muted ${UPDATE_CHIP} ${HEAD_CHIP}`}
       title={fill(u.chip, { version: state.info.latest })}
       onClick={() => openPage("update")}
     >
@@ -125,23 +126,23 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
       <div className={PAGE_HEAD}>
         <h1 className={PAGE_TITLE}>{u.pageTitle}</h1>
-        <button type="button" className="link muted mono" onClick={() => activate("close")}>
+        <button type="button" className={`${LINK} ${MONO} text-accent`} onClick={() => activate("close")}>
           {isTouch() ? t("dialog.close") : u.closeHint}
         </button>
       </div>
-      <p className={`mono ${UPDATE_VERSIONS}`}>
-        <span className="muted">{u.current}</span> <b>v{current}</b> <span className="muted">{u.latest}</span>{" "}
+      <p className={`${MONO} ${UPDATE_VERSIONS}`}>
+        <span className="text-muted">{u.current}</span> <b>v{current}</b> <span className="text-muted">{u.latest}</span>{" "}
         {latestUnknown ? (
-          <b className="muted">{u.latestUnknown}</b>
+          <b className="text-muted">{u.latestUnknown}</b>
         ) : checked ? (
-          <b className={hasUpdate ? "tone-warning" : "tone-success"}>v{latest}</b>
+          <b className={hasUpdate ? "text-warning" : "text-success"}>v{latest}</b>
         ) : (
-          <span className="muted">…</span>
+          <span className="text-muted">…</span>
         )}
       </p>
-      {latestUnknown && <p className="muted">{u.registryRetry}</p>}
-      {upToDate && <p className="tone-success">{u.upToDate}</p>}
-      {hasUpdate && <p className="mono muted">rove update</p>}
+      {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
+      {upToDate && <p className="text-success">{u.upToDate}</p>}
+      {hasUpdate && <p className={`${MONO} text-muted`}>rove update</p>}
       <div className={UPDATE_ACTIONS}>
         {actions.map((a) => (
           <button
@@ -150,19 +151,21 @@ export function UpdateView({ client }: { client: BridgeClient }) {
             className={updateActionClass(selected === a.id)}
             onClick={() => activate(a.id)}
           >
-            <span className="tone-accent mono keys-only">[{a.key}]</span>
+            <span className={`${MONO} keys-only text-accent`}>[{a.key}]</span>
             <span className={UPDATE_LABEL}>{a.label}</span>
-            <span className="muted">{a.detail}</span>
+            <span className="text-muted">{a.detail}</span>
           </button>
         ))}
       </div>
-      {status && <p className="mono tone-accent">{status}</p>}
-      {hasUpdate && <p className="mono muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
-      {!checked && <p className="muted">{u.loadingNotes}</p>}
-      {checked && hasUpdate && notes.length === 0 && <p className="muted">{u.notesUnavailable}</p>}
+      {status && <p className={`${MONO} text-accent`}>{status}</p>}
+      {hasUpdate && (
+        <p className={`${MONO} text-muted`}>{fill(u.changesSectionHeader, { from: current, to: latest })}</p>
+      )}
+      {!checked && <p className="text-muted">{u.loadingNotes}</p>}
+      {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
       {notes.map((n) => (
         <section key={n.version} className={RELEASE_NOTES}>
-          <h2 className="mono">v{n.version}</h2>
+          <h2 className={MONO}>v{n.version}</h2>
           <ReleaseNotes body={n.body} />
         </section>
       ))}
@@ -211,17 +214,22 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
   }, [])
   return (
     <DialogShell title={u.whatsNew.title} wide>
-      <p className="muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
+      <p className="text-muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
       <div className={WHATS_NEW_BODY}>
         {props.notes ? (
           <ReleaseNotes body={props.notes.body} />
         ) : (
-          <p className="muted">{u.whatsNew.notesUnavailable}</p>
+          <p className="text-muted">{u.whatsNew.notesUnavailable}</p>
         )}
       </div>
-      <div className="actions">
-        <span className={`mono muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
-        <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
+      <div className={ACTIONS}>
+        <span className={`${MONO} text-muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
+        <a
+          className={`${LINK} text-accent`}
+          href={props.notes?.url ?? releaseUrl(props.to)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {t("whatsNew.openRelease")}
         </a>
         <button ref={ok} type="button" className={buttonClass()} onClick={() => dialog.set(null)}>

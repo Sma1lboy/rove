@@ -94,8 +94,8 @@ export function RemoteNotice({ host }: { host: string }) {
   useLocale()
   return (
     <div className={REMOTE_NOTICE}>
-      <p className="muted">{tc("tasks", "machine.filesElsewhere", { host })}</p>
-      <p className="muted">{tc("tasks", "machine.filesHint", { host })}</p>
+      <p className="text-muted">{tc("tasks", "machine.filesElsewhere", { host })}</p>
+      <p className="text-muted">{tc("tasks", "machine.filesHint", { host })}</p>
     </div>
   )
 }

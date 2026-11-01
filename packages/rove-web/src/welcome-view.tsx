@@ -15,6 +15,7 @@ import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
+import { MONO } from "./ui/text.ts"
 import { prefixCap, prefixHint, userKeys } from "./user-keys.ts"
 
 interface WelcomeEnv {
@@ -79,30 +80,32 @@ export function WelcomePane({ model }: { model: AppModel }) {
       data-field="welcome"
     >
       <h1 className="m-0 font-sans text-title font-semibold text-accent">{tc("workspace", "welcome.title")}</h1>
-      <p className="muted m-0">{tc("workspace", "welcome.tagline")}</p>
+      <p className="m-0 text-muted">{tc("workspace", "welcome.tagline")}</p>
       <dl className="keys-only m-0 flex flex-col gap-0.5 pt-1.5">
         {steps.map((step) => (
           <div key={step.msg} className="flex gap-3.5">
-            <dt className="mono shrink-0 grow-0 basis-cap text-accent">{step.cap}</dt>
-            <dd className="muted m-0">{tc("workspace", `welcome.${step.msg}`)}</dd>
+            <dt className={`${MONO} shrink-0 grow-0 basis-cap text-accent`}>{step.cap}</dt>
+            <dd className="m-0 text-muted">{tc("workspace", `welcome.${step.msg}`)}</dd>
           </div>
         ))}
       </dl>
-      <p className="muted m-0">{tc("workspace", "welcome.worktreeExplain")}</p>
+      <p className="m-0 text-muted">{tc("workspace", "welcome.worktreeExplain")}</p>
       {env !== null && engineLine !== null && (
         <div className="flex flex-col gap-1.5 pt-1.5">
-          <p className={`m-0 ${engineLine.warn ? "tone-warn" : "muted"}`}>
+          <p className={`m-0 ${engineLine.warn ? "text-warning" : "text-muted"}`}>
             {tc("workspace", `welcome.${engineLine.key}`, { list: engineLine.list })}
           </p>
-          {!env.git && <p className="tone-warn m-0">{tc("workspace", "welcome.gitMissing")}</p>}
+          {!env.git && <p className="m-0 text-warning">{tc("workspace", "welcome.gitMissing")}</p>}
           {fixes.map((fix) => (
             <div key={fix.id} className="flex flex-col gap-0.5">
-              <p className="tone-warn m-0">{fix.label}</p>
-              <p className="tone-accent mono m-0">{fix.action}</p>
-              <p className="muted m-0">{fix.why}</p>
+              <p className="m-0 text-warning">{fix.label}</p>
+              <p className={`${MONO} m-0 text-accent`}>{fix.action}</p>
+              <p className="m-0 text-muted">{fix.why}</p>
             </div>
           ))}
-          {fixes.length > 0 && <p className="muted m-0">{tc("common", "failureHint", { command: "rove doctor" })}</p>}
+          {fixes.length > 0 && (
+            <p className="m-0 text-muted">{tc("common", "failureHint", { command: "rove doctor" })}</p>
+          )}
         </div>
       )}
       {env !== null && start !== null && (
@@ -115,14 +118,14 @@ export function WelcomePane({ model }: { model: AppModel }) {
           >
             {tc("onboarding", "quickStart")}
           </button>
-          <p className="muted m-0">
+          <p className="m-0 text-muted">
             {isTouch()
               ? t("pages.quickIntentTouch")
               : tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}
           </p>
         </div>
       )}
-      <p className="muted m-0 pt-1.5 opacity-70">{tc("workspace", "welcome.docsHint")}</p>
+      <p className="m-0 pt-1.5 opacity-70 text-muted">{tc("workspace", "welcome.docsHint")}</p>
     </div>
   )
 }

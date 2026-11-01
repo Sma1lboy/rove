@@ -55,6 +55,7 @@ import {
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
+import { EMPTY, KICKER, MONO } from "./ui/text.ts"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -151,7 +152,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className="relative">
           <button
             type="button"
-            className={`kicker inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "is-accent" : ""}`}
+            className={`${KICKER} inbox-chip relative text-muted ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "is-accent" : ""}`}
             onClick={() => dialog.set(<InboxDialog model={model} />)}
           >
             {t("rail.inbox", { count: unread })}
@@ -161,19 +162,19 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <UpdateChip />
       </header>
       {moving && (
-        <div className={`${RAIL_SEARCH} mono`}>
-          <span className="tone-accent">{tc("tasks", "moveChip").trim()}</span>
-          <span className="muted keys-only ml-1.5">
+        <div className={`${RAIL_SEARCH} ${MONO}`}>
+          <span className="text-accent">{tc("tasks", "moveChip").trim()}</span>
+          <span className="keys-only ml-1.5 text-muted">
             <Legend text={t("taskops.moveHint")} />
           </span>
         </div>
       )}
       {filters.search.active && (
-        <div className={`${RAIL_SEARCH} mono`}>
-          <span className="tone-accent">/</span>
+        <div className={`${RAIL_SEARCH} ${MONO}`}>
+          <span className="text-accent">/</span>
           <span>{filters.search.query}</span>
           <span className={RAIL_CARET}>█</span>
-          <span className="muted ml-1.5">
+          <span className="ml-1.5 text-muted">
             {filters.search.query ? `${stops(rows).length}/${total}` : t("rail.searchPlaceholder")}
           </span>
         </div>
@@ -182,9 +183,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
-          <div className="empty">
+          <div className={EMPTY}>
             <p>{t("rail.empty")}</p>
-            <p className="muted">{t("rail.emptyHint")}</p>
+            <p className="text-muted">{t("rail.emptyHint")}</p>
           </div>
         )}
         {recent && <RecentRow title={recent.title} />}
@@ -369,7 +370,7 @@ function RailRow(props: {
         onClick={props.onClick}
         {...props.place}
       >
-        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "muted"}`}>
+        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "text-muted"}`}>
           {tc("tasks", "archivedRow", { count: row.count })}
         </span>
       </button>
@@ -430,7 +431,7 @@ function FoldCount(props: { count: number; onUnfold: () => void }) {
       tabIndex={-1}
       aria-label={label}
       aria-expanded={false}
-      className={`chip muted ${FOLD_TOGGLE}`}
+      className={`chip text-muted ${FOLD_TOGGLE}`}
       title={label}
       onClick={(e) => {
         e.stopPropagation()

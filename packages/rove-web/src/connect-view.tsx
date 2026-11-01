@@ -4,6 +4,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { tokenFromInput } from "./token-input.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { BRACKET, CONNECT, CONNECT_CARD, WORDMARK } from "./ui/shell.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export function ConnectScreen({ failing = false }: { failing?: boolean }) {
   useLocale()
@@ -27,10 +28,10 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
         <span className={WORDMARK}>
           <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
-        <h1 className="kicker">{t("connect.title")}</h1>
-        <p className={failing ? "error" : "muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>
+        <h1 className={`${KICKER} text-muted`}>{t("connect.title")}</h1>
+        <p className={failing ? "text-error" : "text-muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>
         <input
-          className="input"
+          className={`${INPUT} text-ink`}
           // biome-ignore lint/a11y/noAutofocus: the only control on the page
           autoFocus
           spellCheck={false}
@@ -41,12 +42,12 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
             setInvalid(false)
           }}
         />
-        {invalid && <p className="error">{t("connect.invalid")}</p>}
-        <div className="actions">
+        {invalid && <p className="text-error">{t("connect.invalid")}</p>}
+        <div className={ACTIONS}>
           {failing && (
             <button
               type="button"
-              className="link"
+              className={`${LINK} text-accent`}
               onClick={() => {
                 forgetToken()
                 window.location.reload()

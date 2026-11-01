@@ -21,6 +21,7 @@ import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CONFIRM_INLINE, ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
+import { ACTIONS, LINK, MONO } from "./ui/text.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -81,8 +82,8 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
   if (login.state === "failed") {
     return (
       <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
-        <span className="muted">{c("loginFailed", { error: login.error ?? "" })}</span>
-        <button type="button" className="link" onClick={onCancel}>
+        <span className="text-muted">{c("loginFailed", { error: login.error ?? "" })}</span>
+        <button type="button" className={`${LINK} text-accent`} onClick={onCancel}>
           {c("dismiss")}
         </button>
       </div>
@@ -91,7 +92,7 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
   if (login.state === "syncing") {
     return (
       <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
-        <span className="muted">{c("syncing")}</span>
+        <span className="text-muted">{c("syncing")}</span>
       </div>
     )
   }
@@ -101,7 +102,7 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
         <>
           <button
             type="button"
-            className="mono rounded-sm border-hairline border-dashed border-line px-2 py-0.5 text-display tracking-code"
+            className="font-mono font-normal normal-nums rounded-sm border-hairline border-dashed border-line px-2 py-0.5 text-display tracking-code"
             title={c("codeHint")}
             onClick={() => copyCode(login.code ?? "")}
           >
@@ -112,9 +113,9 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
           </a>
         </>
       ) : (
-        <span className="muted">{c("loading")}</span>
+        <span className="text-muted">{c("loading")}</span>
       )}
-      <button type="button" className="link" onClick={onCancel}>
+      <button type="button" className={`${LINK} text-accent`} onClick={onCancel}>
         {t("dialog.cancel")}
       </button>
     </div>
@@ -144,7 +145,7 @@ function MachineLine(p: LineProps) {
         <div className={ENGINE_MAIN}>
           <span className="engine-name">{p.name}</span>
           <span
-            className={`muted ${engineDetailClass()}`}
+            className={`text-muted ${engineDetailClass()}`}
             title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
           >
             {detailOf(status)}
@@ -214,11 +215,11 @@ function GithubCard({ model }: { model: AppModel }) {
         <GithubMark />
         <div className={ENGINE_MAIN}>
           <span className="engine-name">GitHub</span>
-          <span className={`muted ${engineDetailClass(true)}`}>{c("githubDescription")}</span>
+          <span className={`text-muted ${engineDetailClass(true)}`}>{c("githubDescription")}</span>
         </div>
         {rove ? (
           <>
-            <span className="mono">@{rove}</span>
+            <span className={MONO}>@{rove}</span>
             <button type="button" disabled={busy !== null} onClick={() => setConfirming(true)}>
               {c("disconnect")}
             </button>
@@ -238,9 +239,9 @@ function GithubCard({ model }: { model: AppModel }) {
       </div>
       {confirming && (
         <div className={CONFIRM_INLINE}>
-          <p className="muted">{c("disconnectBody")}</p>
-          <div className="actions">
-            <button type="button" className="link" onClick={() => setConfirming(false)}>
+          <p className="text-muted">{c("disconnectBody")}</p>
+          <div className={ACTIONS}>
+            <button type="button" className={`${LINK} text-accent`} onClick={() => setConfirming(false)}>
               {t("dialog.cancel")}
             </button>
             <button
@@ -280,7 +281,7 @@ function GithubCard({ model }: { model: AppModel }) {
               />
             ))}
           </div>
-          <button type="button" className="link" onClick={() => void refresh()}>
+          <button type="button" className={`${LINK} text-accent`} onClick={() => void refresh()}>
             {c("refresh")}
           </button>
         </Group>

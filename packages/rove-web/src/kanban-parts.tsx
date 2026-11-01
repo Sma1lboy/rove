@@ -8,6 +8,7 @@ import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-sess
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { KB_CARD_BODY, KB_CARD_FOOT, KB_CARD_HEAD, kbCardClass, kbCardTitleClass } from "./ui/kanban.ts"
+import { MONO } from "./ui/text.ts"
 
 export interface Board {
   readonly repoRoot: string
@@ -19,10 +20,10 @@ export interface Board {
 
 /** Task-group badge tones, as the TUI's `taskGroupTone`. */
 export const TONE: Record<string, string> = {
-  "waiting-on-you": "tone-attention",
-  landing: "tone-success",
-  "ready-for-review": "tone-ink",
-  working: "tone-accent",
+  "waiting-on-you": "text-error",
+  landing: "text-success",
+  "ready-for-review": "text-ink",
+  working: "text-accent",
 }
 
 export function useEngines(model: AppModel): { engines: readonly EngineOption[]; defaultEngine: string } {
@@ -103,7 +104,7 @@ export function Card(props: {
     // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (arrows, Enter) drive the cards
     <div
       data-issue={issue.id}
-      className={kbCardClass({ selected: props.selected, attention: props.badge?.tone === "tone-attention" })}
+      className={kbCardClass({ selected: props.selected, attention: props.badge?.tone === "text-error" })}
       onClick={() => (props.selected ? props.onOpen() : props.onSelect())}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -112,10 +113,10 @@ export function Card(props: {
     >
       <div className={KB_CARD_HEAD}>
         <span className={kbCardTitleClass(props.column === "done")}>{issue.title}</span>
-        <span className="muted mono">#{issue.id}</span>
+        <span className={`${MONO} text-muted`}>#{issue.id}</span>
       </div>
-      <div className={`muted ${KB_CARD_BODY}`}>{body}</div>
-      <div className={`mono muted ${KB_CARD_FOOT}`}>
+      <div className={`text-muted ${KB_CARD_BODY}`}>{body}</div>
+      <div className={`${MONO} text-muted ${KB_CARD_FOOT}`}>
         <span>{issue.created}</span>
         {props.badge && <span className={props.badge.tone}>{props.badge.label}</span>}
       </div>

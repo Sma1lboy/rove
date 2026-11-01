@@ -34,6 +34,7 @@ import { page } from "./ui.ts"
 import * as dp from "./ui/dispatch.ts"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
+import { KICKER, MONO } from "./ui/text.ts"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
   delivered: "→",
@@ -180,7 +181,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className={`${PAGE_SCROLL} ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{t("dispatch.title")}</h1>
-        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
+        <span className={`${MONO} touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>
@@ -203,7 +204,7 @@ export function DispatchView({ model }: { model: AppModel }) {
               />
             ))}
             <div
-              className={`mono ${dp.hubClass(inFlight > 0)}`}
+              className={`${MONO} ${dp.hubClass(inFlight > 0)}`}
               style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
               title={conn.hello ? `${conn.hello.host} v${conn.hello.roveVersion}` : undefined}
             >
@@ -225,7 +226,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                   style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
                   <span
-                    className={`mono ${dp.machineHeadClass(row?.state !== "online")}`}
+                    className={`${MONO} ${dp.machineHeadClass(row?.state !== "online")}`}
                     title={remoteLabel(frame.machine, row, words)}
                   >
                     {label}
@@ -265,13 +266,13 @@ export function DispatchView({ model }: { model: AppModel }) {
                 </span>
               )
             })}
-            {mapRows.length === 0 ? <p className={`muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
+            {mapRows.length === 0 ? <p className={`text-muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
           </>
         ) : null}
       </div>
       {history.length > 0 ? (
         <section className={dp.DP_SECTION}>
-          <h2 className={`kicker ${dp.DP_KICKER}`}>{t("dispatch.recent")}</h2>
+          <h2 className={`${KICKER} text-muted ${dp.DP_KICKER}`}>{t("dispatch.recent")}</h2>
           {history.map((row) => (
             <button
               type="button"
@@ -280,15 +281,15 @@ export function DispatchView({ model }: { model: AppModel }) {
               onClick={() => open(targetOf(row))}
               title={row.promptHead}
             >
-              <span className={`mono ${dp.statusClass(row.status)}`}>{STATUS_GLYPH[row.status]}</span>
-              <span className={`mono ${dp.DP_ROUTE}`}>
+              <span className={`${MONO} ${dp.statusClass(row.status)}`}>{STATUS_GLYPH[row.status]}</span>
+              <span className={`${MONO} ${dp.DP_ROUTE}`}>
                 {endName(senderOf(row), tasks)} → {endName(targetOf(row), tasks)}
               </span>
-              <span className={`muted ${dp.DP_PROMPT}`}>
+              <span className={`text-muted ${dp.DP_PROMPT}`}>
                 {row.status === "failed" && row.reason ? `${row.reason}: ` : ""}
                 {row.promptHead}
               </span>
-              <span className={`muted mono ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
+              <span className={`${MONO} text-muted ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
             </button>
           ))}
         </section>
@@ -349,7 +350,7 @@ function NodeBox({
       {sub !== null || status ? (
         <span className={dp.NODE_SUB}>
           {sub}
-          {status ? <span className={`mono ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
+          {status ? <span className={`${MONO} ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
         </span>
       ) : null}
     </button>

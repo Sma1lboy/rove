@@ -34,6 +34,7 @@ import {
   modTextClass,
 } from "./ui/mods.ts"
 import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
+import { INPUT } from "./ui/text.ts"
 
 const SPACE_PX = [0, 6, 12, 20] as const
 
@@ -70,7 +71,7 @@ function ModField(props: {
     >
       <input
         id={props.id}
-        className={`input ${MOD_FIELD_INPUT}`}
+        className={`${INPUT} text-ink ${MOD_FIELD_INPUT}`}
         spellCheck={false}
         value={draft}
         placeholder={props.placeholder}
@@ -193,18 +194,18 @@ export function ModsView({ model }: { model: AppModel }) {
     <div className={`${PAGE_SCROLL} ${MODS_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
-        <span className={`muted keys-only touch:empty:hidden! ${pgHintClass(false)}`}>{copy.keys}</span>
+        <span className={`keys-only touch:empty:hidden! text-muted ${pgHintClass(false)}`}>{copy.keys}</span>
       </div>
       {panes.length === 0 ? (
         <div className={MODS_EMPTY}>
           <p>{copy.empty}</p>
-          <p className="muted">{copy.emptyHint}</p>
+          <p className="text-muted">{copy.emptyHint}</p>
         </div>
       ) : (
         panes.map((pane) => (
           <section className={MOD_PANE} key={`${pane.plugin}/${pane.id}`}>
             <header className={MOD_PANE_TITLE}>
-              {pane.title} <span className="muted">{pane.plugin}</span>
+              {pane.title} <span className="text-muted">{pane.plugin}</span>
             </header>
             <ModTree
               node={pane.tree}

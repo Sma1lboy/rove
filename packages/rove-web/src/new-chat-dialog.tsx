@@ -19,7 +19,7 @@ import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { HINT } from "./ui/text.ts"
+import { HINT, INPUT, KICKER } from "./ui/text.ts"
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
 export type NewChatContext = "fresh" | "continue"
@@ -160,7 +160,7 @@ export function NewChatDialog(props: {
         }}
       >
         <div className={FIELD}>
-          <span className="kicker">{tc("terminal", "tab.newChat.engine")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.engine")}</span>
           <EnginePicker
             engines={choice.engines}
             value={pick}
@@ -170,7 +170,7 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className={FIELD}>
-          <span className="kicker">{tc("terminal", "tab.newChat.destLabel")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.destLabel")}</span>
           <ChipRow
             label={tc("terminal", "tab.newChat.destLabel")}
             field="destination"
@@ -183,7 +183,7 @@ export function NewChatDialog(props: {
           />
         </div>
         <div className={FIELD}>
-          <span className="kicker">
+          <span className={`${KICKER} text-muted`}>
             {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">ctrl+f</span>
           </span>
           <ChipRow
@@ -200,7 +200,7 @@ export function NewChatDialog(props: {
         {fork && (
           <>
             <div className={FIELD}>
-              <span className="kicker">{tc("quickTask", "attemptsLabel")}</span>
+              <span className={`${KICKER} text-muted`}>{tc("quickTask", "attemptsLabel")}</span>
               <ChipRow
                 label={tc("quickTask", "attemptsLabel")}
                 field="attempts"
@@ -210,9 +210,9 @@ export function NewChatDialog(props: {
               />
             </div>
             <label className={FIELD}>
-              <span className="kicker">{t("taskops.forkBranch")}</span>
+              <span className={`${KICKER} text-muted`}>{t("taskops.forkBranch")}</span>
               <input
-                className="input"
+                className={`${INPUT} text-ink`}
                 data-field="fork-base"
                 spellCheck={false}
                 value={baseRef}
@@ -223,9 +223,9 @@ export function NewChatDialog(props: {
         )}
         {!shell && !pane && destination !== "scratch" && (
           <label className={FIELD}>
-            <span className="kicker">{t("newChat.prompt")}</span>
+            <span className={`${KICKER} text-muted`}>{t("newChat.prompt")}</span>
             <textarea
-              className={`input ${TEXTAREA}`}
+              className={`${INPUT} text-ink ${TEXTAREA}`}
               data-field="message"
               // biome-ignore lint/a11y/noAutofocus: the dialog's main field
               autoFocus
@@ -247,11 +247,11 @@ export function NewChatDialog(props: {
         )}
         <AttachmentChips attachments={attachments} onRemove={remove} />
         {isTouch() ? (
-          <p className="muted">{t("pages.attachHintTouch")}</p>
+          <p className="text-muted">{t("pages.attachHintTouch")}</p>
         ) : (
           <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
         )}
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />
       </form>
     </DialogShell>

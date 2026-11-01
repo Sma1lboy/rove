@@ -120,13 +120,6 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
-/* A field marks focus on its own border, as the composer does: an outside ring is clipped to a
-   lone underline by any scrolling parent (a dialog body). */
-.input:focus-visible {
-  outline: none;
-  border-color: var(--line-active);
-}
-
 /*
  * Scrollbars, as claude.ai's: thin, transparent track, no arrows, a faint pill that brightens on
  * hover and while dragged. Not hidden until the list is hovered, as Claude's sidebar does it:
@@ -228,108 +221,13 @@ button:focus-visible {
   display: none;
 }
 
-.muted {
-  color: var(--muted);
-}
-
-.error {
-  color: var(--error);
-}
-
-.kicker {
-  font: 500 var(--fs-meta) var(--sans);
-  color: var(--muted);
-  margin: 0;
-}
-
-.kicker.is-accent {
-  color: var(--accent);
-}
-
-.tone-accent {
-  color: var(--accent);
-}
-.tone-muted {
-  color: var(--subtle);
-}
-.tone-attention {
-  color: var(--error);
-}
-.tone-warning {
-  color: var(--warning);
-}
-.tone-info {
-  color: var(--accent);
-}
-.tone-success {
-  color: var(--success);
-}
-.tone-merged {
-  color: var(--merged);
-}
-
-.tone-ink {
-  color: var(--ink);
-}
-
-.empty {
-  padding: 16px 10px;
-  font-family: var(--mono);
-  font-size: var(--fs-meta);
-}
-
-.empty p {
-  margin: 0 0 4px;
-}
-
 /* The terminal's padding sits on `.xterm`, not its host: the fit addon subtracts this one. */
 .term-host .xterm {
   height: 100%;
   padding: 6px 4px 4px 8px;
 }
 
-.tone-warn {
-  color: var(--warning);
-}
-
-.link {
-  color: var(--accent);
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-.input {
-  width: 100%;
-  padding: 8px 10px;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
-  font: var(--fs-meta) var(--mono);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 14px;
-}
-
 @media (hover: none) and (pointer: coarse) {
-  .link {
-    position: relative;
-  }
-  .link::after {
-    content: "";
-    position: absolute;
-    inset: -12px -6px;
-  }
-  /* The footer sits under the terminal key row: grow down only, at most its 4px bottom padding. */
-  .status .link::after {
-    inset: -2px -6px -4px;
-  }
   /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
      styles sit in several later-loaded sheets, hence !important. */
   input:not([type="checkbox"]):not([type="radio"]),
@@ -337,9 +235,4 @@ button:focus-visible {
   select {
     font-size: var(--fs-display) !important;
   }
-}
-
-/* Last in the sheet: it outranks every rule above it that shares an element with it. */
-.mono {
-  font: var(--fs-meta) var(--mono);
 }

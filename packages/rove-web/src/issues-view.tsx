@@ -35,6 +35,7 @@ import {
   pgHintClass,
   pgIssueClass,
 } from "./ui/page.ts"
+import { MONO } from "./ui/text.ts"
 
 const LIMIT = 30
 
@@ -215,20 +216,20 @@ export function IssuesView({ model }: { model: AppModel }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
-        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
+        <span className={`${MONO} touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>
       </div>
       {error ? (
         <div className={PG_LIST}>
-          <p className="error">{error}</p>
-          <p className="muted">{hint(error)}</p>
+          <p className="text-error">{error}</p>
+          <p className="text-muted">{hint(error)}</p>
         </div>
       ) : items === null ? (
-        <p className="muted">{common.loading}</p>
+        <p className="text-muted">{common.loading}</p>
       ) : rows.length === 0 ? (
-        <p className="muted">{copy.empty}</p>
+        <p className="text-muted">{copy.empty}</p>
       ) : (
         <div className={PG_LIST} ref={list}>
           {rows.map((item, index) => {
@@ -243,7 +244,7 @@ export function IssuesView({ model }: { model: AppModel }) {
                 onClick={() => (index === at ? void startSelected() : setCursor(index))}
               >
                 <div className={PG_ISSUE_LINE}>
-                  <span className={`mono ${PG_ISSUE_NUM}`}>#{item.number}</span>
+                  <span className={`${MONO} ${PG_ISSUE_NUM}`}>#{item.number}</span>
                   <span>{item.title}</span>
                 </div>
                 <div className={PG_ISSUE_SUB}>
@@ -251,14 +252,14 @@ export function IssuesView({ model }: { model: AppModel }) {
                     {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(", ")}
                   </span>
                   {linked && <span>{fill(copy.linkedChip, { title: titleOf(linked) })}</span>}
-                  <span className="mono">{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>
+                  <span className={MONO}>{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>
                 </div>
               </div>
             )
           })}
         </div>
       )}
-      {notice && <p className={`muted ${PG_NOTICE}`}>{notice}</p>}
+      {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }
