@@ -213,8 +213,3 @@
 @custom-variant w-narrow (@media (max-width: 559px));
 /* The rail is a size container (ui/rail.ts): what drops when it is narrow. */
 @custom-variant rail-tight (@container (max-width: 250px));
-
-/* Code-ish text at the meta size: the `font` shorthand, so it also resets weight, style and line height. */
-@utility mono {
-  font: var(--fs-meta) var(--mono);
-}

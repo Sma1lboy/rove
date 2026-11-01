@@ -37,6 +37,10 @@
   }
 }
 
+.mono {
+  font: var(--fs-meta) var(--mono);
+}
+
 div.placeholder {
   display: flex;
   flex-direction: column;
