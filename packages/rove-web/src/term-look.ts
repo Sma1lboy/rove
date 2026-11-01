@@ -26,7 +26,7 @@ export const XTERM_THEME = {
 }
 
 /**
- * The bundled JetBrains Mono, then the bundled Nerd Font symbols (`styles.css`), so the icons
+ * The bundled JetBrains Mono, then the bundled Nerd Font symbols (`tailwind.css`), so the icons
  * engines draw (Claude Code's status line, prompt themes) render on a machine with no Nerd Font
  * installed. The browser falls back per glyph, so only the icon code points come from the second.
  */

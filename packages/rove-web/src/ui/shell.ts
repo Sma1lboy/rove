@@ -152,7 +152,7 @@ export const PANE_WORKING =
   "working-flow:border-transparent working-flow:[background:linear-gradient(var(--paper),var(--paper))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--line),var(--task-ink,var(--focus)),var(--line),var(--task-ink,var(--focus)),var(--line))_0_0/300%_100%_border-box] working-flow:motion-safe:animate-flow-border"
 
 export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
-/** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (styles.css), not its own. `term-host` stays for those xterm rules. */
+/** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (tailwind.css), not its own. `term-host` stays for those xterm rules. */
 export const TERM_HOST = "term-host relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden"
 /** Kitty placeholder images, over xterm's canvas and under its decorations. */
 export const TERM_IMAGES = "pointer-events-none absolute inset-0 z-5 h-full w-full"

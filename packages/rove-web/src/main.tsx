@@ -2,7 +2,6 @@
 import { storedToken } from "./auth.ts"
 import "@fontsource/jetbrains-mono/400.css"
 import "@fontsource/jetbrains-mono/700.css"
-import "./styles.css"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app.tsx"
@@ -18,7 +17,7 @@ import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
-// Last: after every component sheet, so a utility wins over a legacy rule of equal specificity.
+// The one stylesheet: tokens, reset and the Tailwind theme.
 import "./tailwind.css"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
