@@ -53,8 +53,8 @@ export const WORKSPACE_CAPABILITIES: Readonly<Record<WorkspaceBackendId, Workspa
     interactive: true,
   },
   "cow-clone": { ...GIT_WORKTREE, fork: "with-uncommitted", cheapClone: true },
-  // Runs inside a Linux sandbox: no host reach, no files Rove can walk.
-  layerfs: { ...GIT_WORKTREE, checkpoint: false, interactive: false },
+  // Lives inside a Linux sandbox container: no host reach, and its git branch exists only there until exported.
+  layerfs: { ...GIT_WORKTREE, cheapClone: true, ownsBranch: false, interactive: false },
 }
 
 type WorkspaceTask = { readonly kind?: "main" | "task" | "dir"; readonly workspace?: TaskWorkspace }

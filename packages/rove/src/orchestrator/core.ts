@@ -13,11 +13,11 @@ import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId, TaskPRStatus, TaskStatus, TaskWorkerReport, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { WorkspaceCheckpoints } from "./checkpoints.ts"
-import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDirectoryTaskRow } from "./core-create.ts"
+import { type OpenDirectoryTaskInput, adoptScratchRepoRow, openDirectoryTaskRow } from "./core-create.ts"
 import { canonPath } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
-import { forkTaskRow } from "./fork-task.ts"
+import { createOrForkTask } from "./fork-task.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { landPreflightAll, landTaskAll } from "./land-multi.ts"
 import { landPreflight } from "./land-preflight.ts"
@@ -104,7 +104,9 @@ export class Orchestrator {
     this.store = deps.store
     this.worktrees = deps.worktrees
     this.workspaces = deps.workspaces ?? createWorkspaceRegistry(this.worktrees)
-    this.checkpoints = new WorkspaceCheckpoints(this.store, this.worktrees, (id) => this.requireTask(id))
+    this.checkpoints = new WorkspaceCheckpoints(this.store, this.worktrees, this.workspaces, (id) =>
+      this.requireTask(id),
+    )
     this.tearDownSession = deps.tearDownSession
     // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
     // throwaway repo must still adopt, it just must not mint a permanent
@@ -208,30 +210,19 @@ export class Orchestrator {
 
   // --- write ---
 
-  /** Create a new task row — body in `core-create.ts`. */
-  createTask = (input: CreateTaskInput): Promise<Task> => {
-    const createRow = (row: CreateTaskInput): Promise<Task> =>
-      createTaskRow(
-        {
-          store: this.store,
-          mainTasks: this.mainTasks,
-          claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
-        },
-        row,
-      )
-    const { forkFrom } = input
-    if (!forkFrom) return createRow(input)
-    return forkTaskRow(
+  /** Create a new task row, or a fork of one — routing in `fork-task.ts`, rows in `core-create.ts`. */
+  createTask = (input: CreateTaskInput): Promise<Task> =>
+    createOrForkTask(
       {
         store: this.store,
-        createRow,
+        mainTasks: this.mainTasks,
+        claimWorktreeName: (repo, name) => this.worktreeCoordinator.claimWorktreeName(repo, name),
         ensureWorktree: (id) => this.ensureWorktree(id),
         cloneInto: (child, parentPath) => this.worktreeCoordinator.ensure(child, undefined, parentPath),
         workspaces: this.workspaces,
       },
-      { ...input, forkFrom },
+      input,
     )
-  }
 
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`). */
   openDirectoryTask = (input: OpenDirectoryTaskInput): Promise<Task> =>
@@ -314,6 +305,7 @@ export class Orchestrator {
   takeCheckpoint = (id: TaskId | string, opts?: { tabId?: string }) => this.checkpoints.takeCheckpoint(id, opts)
   listCheckpoints = (id: TaskId | string) => this.checkpoints.listCheckpoints(id)
   rewindToCheckpoint = (id: TaskId | string, n: number) => this.checkpoints.rewindToCheckpoint(id, n)
+  exportBranch = (id: TaskId | string) => this.checkpoints.exportBranch(id)
 
   /**
    * Clear a task's `worktreePath` (keeping its branch) after an out-of-band

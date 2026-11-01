@@ -40,4 +40,6 @@ export interface CheckpointOrchestrator {
   listCheckpoints(id: string): Promise<CheckpointRecord[]>
   /** Files-only rewind to checkpoint `n`, after checkpointing the current state (`undo`). */
   rewindToCheckpoint(id: string, n: number): Promise<RewindResult>
+  /** Copy the owner's git branch into its host repo; `EXPORT_UNSUPPORTED` when the branch already lives there. */
+  exportBranch(id: string): Promise<{ branch: string; commit: string }>
 }

@@ -109,6 +109,7 @@ export type DaemonRequestName =
   | "task.checkpointList"
   | "task.checkpoint"
   | "task.rewind"
+  | "task.exportBranch"
   | "task.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
@@ -332,6 +333,7 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   // Snapshot / rewrite of a user-sized working tree.
   "task.checkpoint",
   "task.rewind",
+  "task.exportBranch",
 ])
 
 /**

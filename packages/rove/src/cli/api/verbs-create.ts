@@ -40,6 +40,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
           "Fork that task: the new task is a sibling in the SAME repo whose worktree is a copy-on-write clone of the parent's, so it starts with the parent's uncommitted edits, staged changes, untracked files and gitignored dirs (node_modules, build output), on a new branch rooted at the parent's HEAD. The clone is made during this call and is instant on APFS (macOS) or a reflink filesystem (btrfs, XFS); it costs no disk until either side writes. Replaces --repo (taken from the parent; --repo, --base-branch, --base-for, --count and --agents conflict with it: CONFLICTING_FLAGS). Title defaults to '<parent title> (fork)'. Refused with FORK_UNSUPPORTED — nothing created — when the parent is a main or directory task, is multi-repo or remote, or its worktree sits on a volume that cannot clone files; the parent is never modified. Scratch state the parent keeps in its git directory (a half-done merge or rebase) does not come along.",
       },
       {
+        name: "workspace",
+        type: "enum",
+        values: ["layerfs"],
+        description:
+          "EXPERIMENTAL, Linux only: put the task's files in a LayerFS Workspace inside a per-task Docker sandbox instead of a git worktree (`experimental.layerfs` in state.json names its env file; Store calls need passwordless sudo). Terminals run inside the sandbox at the task's path; checkpoint/rewind use LayerFS commits; `export-branch` brings its git branch back for landing. Refused with LAYERFS_UNAVAILABLE / LAYERFS_NEEDS_ROOT — nothing created — when it cannot run here. Conflicts with --fork, --count, --agents, --no-worktree, --isolate-in and extra repos (CONFLICTING_FLAGS); inside a session it still nests under the caller, as its own layerfs task rather than a worktree cut from the parent.",
+      },
+      {
         name: "allow-fork",
         type: "bool",
         description:

@@ -110,11 +110,15 @@ export class TaskDeletionCoordinator {
       // Every repo of the task is probed before refusing, so one refusal names all the dirt.
       const repos = taskRepos(target).filter((r) => r.worktreePath)
       const found: DirtyFinding[] = []
+      const backend = this.workspaces.get(workspaceBackendId(target))
       for (const r of repos) {
         const key = canonPath(r.worktreePath)
         if (gated.has(key)) continue
         gated.add(key)
-        const finding = await this.probeDirty(r.worktreePath)
+        const own = r.worktreePath === target.worktreePath ? backend.dirtyPaths?.bind(backend) : undefined
+        const finding = own
+          ? await own(r.worktreePath).then((dirty) => (dirty.length ? { ignored: [], dirty } : null))
+          : await this.probeDirty(r.worktreePath)
         if (finding) found.push({ repo: r.name, ...finding })
       }
       const [head, ...rest] = found

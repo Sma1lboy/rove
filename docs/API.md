@@ -782,7 +782,7 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--parent ID | --no-parent]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--parent ID | --no-parent]
   [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
@@ -821,6 +821,17 @@ edits (`set-vendor`, `rename`,
   `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
   multi-repo or remote task, or a worktree on a volume that cannot clone files;
   see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
+
+  `--workspace layerfs` (experimental, Linux only) puts the task's files in a
+  LayerFS Workspace inside a Docker sandbox of its own instead of a git
+  worktree (`.task.workspace` is `{"backend":"layerfs"}`); see
+  [LayerFS tasks](./WORKTREES.md#layerfs-tasks-experimental). Refused before
+  any task is written with `LAYERFS_UNAVAILABLE` (not Linux, or
+  `experimental.layerfs` unset or incomplete) or `LAYERFS_NEEDS_ROOT`
+  (`sudo -n` cannot run). `--fork`, `--count`, `--agents`, `--no-worktree`,
+  `--isolate-in` and a second `--repo` conflict with it (`CONFLICTING_FLAGS`).
+  Inside a session it still nests under the caller (`task.create` with
+  `parentTaskId`), never a worktree cut from the parent's tip.
 
   `--repo` is resolved to the repository root, so a path pointing at a
   SUBDIRECTORY is accepted and climbs. When it does, the result carries
@@ -1894,7 +1905,15 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   child) is `running` or `permission_needed`, because it would rewrite files
   under the agent; the error names the busy tasks, and `--force` rewinds
   anyway. `CHECKPOINT_NOT_FOUND` for an `N` that was never taken or has been
-  pruned.
+  pruned. A layerfs task rewinds its whole tree, `.git` included, and refuses
+  with `WORKSPACE_BUSY` while any terminal is open in it.
+- `export-branch --task-id ID`: copy a layerfs task's git branch out of its
+  sandbox into the host repo under the same name: a `git bundle` of the
+  commits past the task's starting point, fetched without force (a host branch
+  that has moved elsewhere refuses). Only commits travel, so commit inside the
+  task first. Land, push or open a PR from the host repo afterwards. Returns
+  `{ taskId, workspaceTaskId, branch, commit }`; `EXPORT_UNSUPPORTED` for any
+  other task, whose branch is already in the repo.
 - `worktree-usage [--task-id ID]`: the disk each task's own worktrees take,
   largest first, archived tasks included — which ones `remove-worktree` would
   free most. Read-only. Only checkouts a task owns count (its worktree and each

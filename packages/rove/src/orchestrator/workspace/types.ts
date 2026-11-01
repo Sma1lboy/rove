@@ -5,6 +5,11 @@
  * local path (docs/design/workspace-runner.md, "the one invariant").
  */
 
+import type {
+  CheckpointRecord,
+  RewindResult,
+  TakeCheckpointResult,
+} from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
 import type { WorkspaceBackendId, WorkspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { RemoveOpts } from "../worktree/manager-remove.ts"
 
@@ -39,15 +44,28 @@ export interface DisposeTarget {
   readonly branch?: string
 }
 
+/** A backend that snapshots its own storage instead of the git-ref checkpoints in `worktree/checkpoint.ts`. */
+export interface WorkspaceCheckpointer {
+  take(path: string, opts?: { tabId?: string }): Promise<TakeCheckpointResult>
+  list(path: string): Promise<CheckpointRecord[]>
+  rewind(path: string, n: number): Promise<RewindResult>
+}
+
 /**
- * Room left on purpose: a backend whose path exists only inside a container would add an optional
- * `wrapLaunch?(argv)` here (run the engine/PTY command via `docker exec`) and a `hostPath: false` capability
- * (host-side code must not `fs.stat` `WorkspaceHandle.path`). Neither exists yet; today's callers only pass the path on.
+ * A backend whose files live inside a container keeps a host directory at `WorkspaceHandle.path` holding the PTY
+ * launch prefix (`LAUNCH_PREFIX_FILE`), so every terminal opened there runs inside the container at the same path.
  */
 export interface WorkspaceBackend {
   readonly id: WorkspaceBackendId
   readonly capabilities: WorkspaceCapabilities
+  /** Throws when this backend cannot run here; called before a task row naming it is created. */
+  preflight?(): Promise<void>
   materialize(spec: MaterializeSpec): Promise<WorkspaceHandle>
   /** Take the workspace down. `borrowed` forgets; the others refuse dirty work unless `force`. */
   dispose(target: DisposeTarget, opts: Omit<RemoveOpts, "repo" | "branch">): Promise<void>
+  /** Uncommitted work a removal would lose, for a backend git cannot see into; absent = git status of the path. */
+  dirtyPaths?(path: string): Promise<readonly string[]>
+  readonly checkpoints?: WorkspaceCheckpointer
+  /** Copy the workspace's git branch into the host repo, for a backend whose branch lives elsewhere. */
+  exportBranch?(target: DisposeTarget & { repo: string; branch: string }): Promise<{ branch: string; commit: string }>
 }

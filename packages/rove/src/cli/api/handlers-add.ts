@@ -75,12 +75,21 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // `/private/tmp/x`), and a symlink rewrite is never a prefix of its input.
   const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
   const repoSet: RepoSetFields = inherited ? { extraRepos: [] } : await resolveRepoSet(ctx, repo, refs.slice(1))
+  const workspace = args.str("workspace")
+  if (workspace && (parallel || fork || repoSet.extraRepos.length > 0)) {
+    throw new ApiError(
+      "--workspace takes one task in one repo: it conflicts with --fork, --count, --agents, --no-worktree, --isolate-in and extra repos",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
   const parent = inherited ?? (await resolveAddParent(ctx, daemon, flags, repo))
   const placement = await placeAdd(ctx, parent, flags, {
     repo,
     fork: fork !== undefined,
     baseRef: args.str("base-branch") ?? repoSet.primaryBaseRef,
     multiRepo: repoSet.extraRepos.length > 0,
+    ownWorkspace: workspace !== undefined,
   })
   const result = parallel
     ? await addParallel(ctx, repo, repoSet, placement, count, agentsSpec)
@@ -142,6 +151,8 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
   if (baseRef) payload.baseRef = baseRef
   if (fork) payload.forkFrom = fork
+  const workspace = args.str("workspace")
+  if (workspace) payload.workspace = workspace
   if (repoSet.extraRepos.length > 0) payload.extraRepos = repoSet.extraRepos
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName

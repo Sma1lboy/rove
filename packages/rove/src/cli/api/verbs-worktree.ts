@@ -76,6 +76,17 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
     ],
     handler: rewind,
   },
+  {
+    name: "export-branch",
+    group: "worktree",
+    summary:
+      "Copy a layerfs task's git branch out of its sandbox into the host repo as the same branch name (a `git bundle` of the commits past where the task started, fetched without force). Commit inside the task first: only commits travel. Land, push or open a PR from the host repo afterwards. Refused with EXPORT_UNSUPPORTED for any other backend, whose branch is already in the repo. Returns { taskId, workspaceTaskId, branch, commit }.",
+    flags: [F.taskId()],
+    handler: async (ctx) => {
+      const taskId = ctx.args.require("task-id")
+      return { taskId, ...((await simpleRpc(ctx, "task.exportBranch", { taskId })) as object) }
+    },
+  },
   WORKTREE_USAGE_VERB,
   {
     name: "discover-adoptable",

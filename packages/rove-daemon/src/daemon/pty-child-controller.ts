@@ -6,12 +6,15 @@
 
 import { clearTransientStatuses, createOscSignals, scanOscSignals } from "./osc-signals"
 
+import { spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { resolveSessionShell } from "./platform-shell.js"
 import type { PtySessionExit } from "./protocol.ts"
 import { type PtyDriver, type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
 import { embeddedTerminalEnv } from "./pty-env.js"
-import { type PtySessionState, type PtySpawnSpec, freshSessionState } from "./pty-host-types.ts"
+import { LAUNCH_PREFIX_FILE, type PtySessionState, type PtySpawnSpec, freshSessionState } from "./pty-host-types.ts"
 import { scanOscTitle } from "./pty-observability.ts"
 import { terminatePtyChild } from "./pty-termination.ts"
 import { foldDefaultColorQueries, formatDefaultColorReply } from "./terminal-colors.ts"
@@ -59,8 +62,9 @@ export class PtyChildController {
     session.programStatusEvent = undefined
     this.reportStatus(session, null)
     try {
+      const launch = launchWrapper(session.cwd, session.generation)
       session.proc = (this.deps.driver ?? bunTerminalDriver())({
-        argv: [...session.command],
+        argv: [...launch.prefix, ...session.command],
         cwd: session.cwd,
         env: embeddedTerminalEnv(process.env, {
           TERM: "xterm-256color",
@@ -77,10 +81,15 @@ export class PtyChildController {
         onData: (data) => this.onData(session, data),
       })
       session.alive = true
-      void session.proc.exited.then(
-        (exit) => this.markExited(session, exit),
-        () => this.markExited(session),
-      )
+      const reap = launch.reap
+      void session.proc.exited
+        .then(
+          (exit) => this.markExited(session, exit),
+          () => this.markExited(session),
+        )
+        .then(() => {
+          if (reap.length > 0) spawn(reap[0] as string, reap.slice(1), { detached: true, stdio: "ignore" }).unref()
+        })
     } catch (err) {
       session.alive = false
       this.deps.log?.("pty", `spawn failed for ${session.key}: ${err instanceof Error ? err.message : String(err)}`)
@@ -175,4 +184,27 @@ export class PtyChildController {
     }
     this.deps.onOutput?.(session, buf)
   }
+}
+
+/**
+ * Every child spawned in `cwd` runs behind the directory's launch prefix, if it has one, and its `reap` argv runs
+ * once the child is gone (a `docker exec` client dying does not end what it started). `{launch}` in either is
+ * replaced by an id unique to this spawn.
+ */
+function launchWrapper(cwd: string, id: string): { prefix: readonly string[]; reap: readonly string[] } {
+  let raw: string
+  try {
+    raw = readFileSync(path.join(cwd, LAUNCH_PREFIX_FILE), "utf8")
+  } catch {
+    return { prefix: [], reap: [] }
+  }
+  const file = JSON.parse(raw) as { prefix?: unknown; reap?: unknown }
+  const argv = (field: unknown, name: string): string[] => {
+    if (field === undefined && name === "reap") return []
+    if (!Array.isArray(field) || !field.every((a) => typeof a === "string")) {
+      throw new Error(`${LAUNCH_PREFIX_FILE} in ${cwd}: "${name}" is not a string array`)
+    }
+    return field.map((a) => a.replaceAll("{launch}", id))
+  }
+  return { prefix: argv(file.prefix, "prefix"), reap: argv(file.reap, "reap") }
 }

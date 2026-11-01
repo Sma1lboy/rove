@@ -478,6 +478,7 @@ Off by default. These can change without notice.
 | `experimental.remoteProjects` | Lets `rove add --remote` register a NEW project over SSH. Gates that one command only: remote projects already registered keep working — worktree routing and engine launch never read the flag — so turning it off does not disable them |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
+| `experimental.layerfs` | Path to a LayerFS env file. Set, it lets `rove api add --workspace layerfs` create tasks whose files live in a LayerFS sandbox (Linux only, see [LayerFS tasks](./WORKTREES.md#layerfs-tasks-experimental)). No Settings toggle: edit state.json |
 
 ## Themes
 

@@ -143,6 +143,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         groupId: optionalString(payload, "groupId"),
         forkFrom: optionalString(payload, "forkFrom"),
         parentTaskId: optionalString(payload, "parentTaskId"),
+        ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
         dispatcher,
       })
       recordAddDispatch(ctx, dispatcher, task)
