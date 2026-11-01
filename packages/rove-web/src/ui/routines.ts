@@ -40,8 +40,8 @@ export const rtResponseClass = (mono: boolean): string =>
   `whitespace-pre-wrap wrap-anywhere text-meta ${mono ? "" : "leading-[inherit]"}`
 export const RT_RUN_HEAD = "text-meta"
 
-/** The composer's schedule cells, and the steppers a soft keyboard (no arrows) gets instead. */
-export const RT_CRON = "flex gap-4.5 px-1 py-1.5"
+/** The composer's schedule cells (padding from the SelectorField frame), and the steppers a soft keyboard (no arrows) gets instead. */
+export const RT_CRON = "flex gap-4.5"
 export const rtCronCellClass = (active: boolean): string =>
   `flex min-w-[5ch] flex-col gap-0.5 rounded-sm border-hairline px-1.5 py-1 text-left font-mono text-body normal-nums [&>span]:text-meta [&>span]:text-subtle ${active ? "border-accent font-bold text-accent" : "border-transparent font-normal"}`
 export const RT_CRON_STEP = "hidden gap-2 px-1 pt-0.5 pb-1.5 touch:flex"
