@@ -382,6 +382,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 query={repoQuery}
                 onQuery={setRepoQuery}
                 onToggle={(path) => {
+                  // "Pick a project first" is answered by this pick.
+                  setError(null)
                   if (!remote) {
                     setUngrouped(false)
                     return setRepos((now) => toggleRepo(now, path))
