@@ -14,6 +14,7 @@ import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
+import { useStore } from "./store.ts"
 import { TermComposer } from "./term-composer.tsx"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { TermKeyRow } from "./term-key-row.tsx"
@@ -101,6 +102,9 @@ async function copyText(text: string): Promise<boolean> {
 
 export function TerminalView(props: TerminalViewProps) {
   const { client, taskId, tabId, leafId } = props
+  // The daemon's own `?` for this tab: its engine waits at a menu the key row answers.
+  const atMenu =
+    useStore(props.model.tasks)?.tasks.find((t) => t.id === taskId)?.tabStatus?.[tabId]?.kind === "needs-input"
   useLocale()
   const host = useRef<HTMLDivElement>(null)
   const [notice, setNotice] = useState<Notice>({ kind: "none" })
@@ -296,7 +300,7 @@ export function TerminalView(props: TerminalViewProps) {
         )}
       </div>
       {props.composer && <TermComposer model={props.model} taskId={taskId} tabId={tabId} />}
-      {handle && <TermKeyRow handle={handle} />}
+      {handle && <TermKeyRow handle={handle} atMenu={atMenu} />}
     </div>
   )
 }

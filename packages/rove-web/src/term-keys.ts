@@ -9,6 +9,8 @@ const arrow = (id: string, cap: string, final: string): TermKey => ({
   bytes: (appCursor) => `\x1b${appCursor ? "O" : "["}${final}`,
 })
 
+const ENTER: TermKey = { id: "enter", cap: "⏎", bytes: () => "\r" }
+
 export const TERM_KEYS: readonly TermKey[] = [
   { id: "esc", cap: "esc", bytes: () => "\x1b" },
   { id: "tab", cap: "tab", bytes: () => "\t" },
@@ -18,7 +20,17 @@ export const TERM_KEYS: readonly TermKey[] = [
   arrow("down", "↓", "B"),
   arrow("left", "←", "D"),
   arrow("right", "→", "C"),
+  ENTER,
 ]
+
+const digit = (n: number): TermKey => ({ id: `option-${n}`, cap: String(n), bytes: () => String(n) })
+
+/**
+ * Shown first while the tab's engine waits at a menu (its row reads `?`): the menu takes digits and
+ * Enter as keys. Typed into the composer instead, they would be pasted and Enter would take the
+ * highlighted option, whatever was typed.
+ */
+export const MENU_KEYS: readonly TermKey[] = [digit(1), digit(2), digit(3), digit(4), ENTER]
 
 /** One typed character as its Ctrl chord (`c` → ETX); anything without one passes through. */
 export function ctrlChord(data: string): string {

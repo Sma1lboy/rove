@@ -46,8 +46,17 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       clear()
     } catch (err) {
       // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.
-      const old = err instanceof BridgeRequestError && err.code === "UNKNOWN_OP"
-      toast(old ? t("layout.composerOldBridge") : err instanceof Error ? err.message : String(err), "error")
+      const code = err instanceof BridgeRequestError ? err.code : undefined
+      // The engine waits at a menu: a send would paste into it and Enter would take its highlighted option.
+      const message =
+        code === "UNKNOWN_OP"
+          ? t("layout.composerOldBridge")
+          : code === "AWAITING_PERMISSION"
+            ? t("layout.composerAtMenu")
+            : err instanceof Error
+              ? err.message
+              : String(err)
+      toast(message, "error")
     } finally {
       setBusy(false)
     }
