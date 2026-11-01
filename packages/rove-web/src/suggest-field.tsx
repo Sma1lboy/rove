@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { SUGGEST_LIST, suggestRowClass } from "./ui/text.ts"
+import { INPUT, SUGGEST_LIST, suggestRowClass } from "./ui/text.ts"
 
 export interface Suggestion {
   readonly key: string
@@ -73,7 +73,7 @@ export function SuggestField(props: {
   return (
     <div className="relative">
       <input
-        className="input"
+        className={INPUT}
         data-field={props.field}
         spellCheck={false}
         autoComplete="off"
@@ -102,7 +102,7 @@ export function SuggestField(props: {
                 }}
               >
                 <span>{item.text}</span>
-                {item.dim && <span className="muted"> {item.dim}</span>}
+                {item.dim && <span className="text-muted"> {item.dim}</span>}
               </button>
             </li>
           ))}

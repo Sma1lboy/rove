@@ -36,6 +36,7 @@ import {
 } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
 export type IssueStatus = (typeof ISSUE_STATUSES)[number]
@@ -97,17 +98,17 @@ function EventsFeed({ model, taskId }: { model: AppModel; taskId: string }) {
   }, [model, taskId])
   return (
     <div className={KB_SECTION}>
-      <h2 className="kicker">{kanban.detail.eventsLabel}</h2>
+      <h2 className={`${KICKER} text-muted`}>{kanban.detail.eventsLabel}</h2>
       {rows === null ? (
-        <p className="muted">{kanban.detail.eventsLoading}</p>
+        <p className="text-muted">{kanban.detail.eventsLoading}</p>
       ) : rows.length === 0 ? (
-        <p className="muted">{kanban.detail.eventsNone}</p>
+        <p className="text-muted">{kanban.detail.eventsNone}</p>
       ) : (
         rows.map((row) => (
           <div key={`${row.at}:${row.kind}:${row.tail}`} className={`mono ${KB_EVENT}`}>
-            <span className={`muted ${KB_AGE}`}>{relativeAge(row.at)}</span>
+            <span className={`text-muted ${KB_AGE}`}>{relativeAge(row.at)}</span>
             <span>{row.kind}</span>
-            {row.tail && <span className="muted">{row.tail}</span>}
+            {row.tail && <span className="text-muted">{row.tail}</span>}
           </div>
         ))
       )}
@@ -230,12 +231,12 @@ export function IssueDrawer(props: {
   }
   const statusTone =
     status === "done"
-      ? "tone-success"
+      ? "text-success"
       : status === "hold"
-        ? "tone-warning"
+        ? "text-warning"
         : status === "doing"
-          ? "tone-accent"
-          : "muted"
+          ? "text-accent"
+          : "text-muted"
   const statusLabel = (value: IssueStatus) => kanban.detail.status[value]
 
   return (
@@ -250,13 +251,13 @@ export function IssueDrawer(props: {
       >
         <div className={DIALOG_HEAD}>
           {create ? (
-            <h1 className="kicker">{kanban.detail.newStory}</h1>
+            <h1 className={`${KICKER} text-muted`}>{kanban.detail.newStory}</h1>
           ) : (
-            <h1 className={`kicker ${KB_DRAWER_HEAD}`}>
+            <h1 className={`${KICKER} text-muted ${KB_DRAWER_HEAD}`}>
               <span>#{issue.id}</span>
               <span className={statusTone}>{statusLabel(status)}</span>
-              <span className="muted">{fill(kanban.detail.created, { date: issue.created })}</span>
-              {linkedTaskId && <span className="tone-accent">{kanban.detail.linked}</span>}
+              <span className="text-muted">{fill(kanban.detail.created, { date: issue.created })}</span>
+              {linkedTaskId && <span className="text-accent">{kanban.detail.linked}</span>}
             </h1>
           )}
           {/* Esc's twin for a touch screen: saves an open story, drops a new one. */}
@@ -272,10 +273,10 @@ export function IssueDrawer(props: {
         </div>
         <div className={DIALOG_BODY}>
           <label className={FIELD}>
-            <span className="kicker">{kanban.detail.titleLabel}</span>
+            <span className={`${KICKER} text-muted`}>{kanban.detail.titleLabel}</span>
             <input
               ref={at("title")}
-              className="input"
+              className={INPUT}
               spellCheck={false}
               value={title}
               onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
@@ -288,16 +289,16 @@ export function IssueDrawer(props: {
             />
           </label>
           <label className={FIELD}>
-            <span className={`kicker ${KB_LABEL}`}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {kanban.detail.description}
-              <span className={`muted ${KB_HINT}`}>
+              <span className={`text-muted ${KB_HINT}`}>
                 {isTouch() ? t("pages.attachHintTouch") : kanban.detail.attachHint}
               </span>
-              {uploading && <span className="tone-accent">…</span>}
+              {uploading && <span className="text-accent">…</span>}
             </span>
             <textarea
               ref={at("description")}
-              className={`input ${TEXTAREA} ${KB_BODY}`}
+              className={`${INPUT} ${TEXTAREA} ${KB_BODY}`}
               rows={8}
               spellCheck={false}
               placeholder={kanban.detail.noDescription}
@@ -308,9 +309,9 @@ export function IssueDrawer(props: {
 
           {!create && (
             <div className={FIELD}>
-              <span className={`kicker ${KB_LABEL}`}>
+              <span className={`${KICKER} text-muted ${KB_LABEL}`}>
                 {kanban.detail.statusLabel}
-                <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
+                <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
               </span>
               <SelectorField
                 fieldRef={at("status")}
@@ -340,9 +341,9 @@ export function IssueDrawer(props: {
           {startable ? (
             <>
               <div className={FIELD}>
-                <span className={`kicker ${KB_LABEL}`}>
+                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
                   {kanban.detail.engine}
-                  <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
+                  <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
                 </span>
                 <SelectorField
                   fieldRef={at("engine")}
@@ -379,9 +380,9 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <div className={FIELD}>
-                <span className={`kicker ${KB_LABEL}`}>
+                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
                   {kanban.detail.workspace}
-                  <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
+                  <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
                 </span>
                 <SelectorField
                   fieldRef={at("workspace")}
@@ -408,9 +409,9 @@ export function IssueDrawer(props: {
                 </SelectorField>
               </div>
               <div className={FIELD}>
-                <span className={`kicker ${KB_LABEL}`}>
+                <span className={`${KICKER} text-muted ${KB_LABEL}`}>
                   {kanban.detail.jumpLabel}
-                  <span className={`muted keys-only ${KB_HINT}`}>←/→</span>
+                  <span className={`keys-only text-muted ${KB_HINT}`}>←/→</span>
                 </span>
                 <SelectorField
                   fieldRef={at("jump")}
@@ -435,13 +436,13 @@ export function IssueDrawer(props: {
                   ))}
                 </SelectorField>
               </div>
-              <p className={`muted touch:empty:hidden! ${KB_LEGEND}`}>
+              <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
                 <Legend text={deviceHint(create ? kanban.detail.createLegend : kanban.detail.startLegend)} />
               </p>
               {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
-              <div className="actions">
+              <div className={ACTIONS}>
                 {create && (
-                  <button type="button" className="link" onClick={saveOnly}>
+                  <button type="button" className={LINK} onClick={saveOnly}>
                     {t("pages.storySave")}
                   </button>
                 )}
@@ -453,7 +454,7 @@ export function IssueDrawer(props: {
           ) : linkedTaskId ? (
             <>
               <div className={FIELD}>
-                <span className="kicker">{kanban.detail.sessionLabel}</span>
+                <span className={`${KICKER} text-muted`}>{kanban.detail.sessionLabel}</span>
                 <div className={`${CHIPS_ROW} ${KB_GROUP}`}>
                   <button
                     ref={at("open")}
@@ -474,12 +475,12 @@ export function IssueDrawer(props: {
                 </div>
               </div>
               <EventsFeed model={props.model} taskId={linkedTaskId} />
-              <p className={`muted touch:empty:hidden! ${KB_LEGEND}`}>
+              <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
                 <Legend text={deviceHint(kanban.detail.openLegend)} />
               </p>
             </>
           ) : (
-            <p className={`muted touch:empty:hidden! ${KB_LEGEND}`}>
+            <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
               <Legend text={deviceHint(kanban.detail.doneNote)} />
             </p>
           )}

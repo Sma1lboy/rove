@@ -38,7 +38,7 @@ export function KeysSection({ client }: { client: BridgeClient }) {
     <Group title={ts("keybindings.title")} hint={ts("keybindings.hint")}>
       <div className={PREF_FIELD}>
         <span className={PREF_LABEL}>{ts("keybindings.configFile")}</span>
-        <p className="muted mono">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
+        <p className="mono text-muted">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
       </div>
       <Chips
         label={ts("keybindings.tapPresentation")}
@@ -52,14 +52,14 @@ export function KeysSection({ client }: { client: BridgeClient }) {
       />
       <div className={PREF_FIELD}>
         <span className={PREF_LABEL}>{ts("keybindings.prefixTitle", { prefix })}</span>
-        <p className={`${PREF_HINT} muted`}>
+        <p className={`${PREF_HINT} text-muted`}>
           {ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
         </p>
       </div>
       {keys.exists ? (
         <div className={PREF_FIELD}>
           <span className={PREF_LABEL}>{ts("keybindings.overridesApplied")}</span>
-          {keys.applied.length === 0 && <p className="muted">{ts("keybindings.none")}</p>}
+          {keys.applied.length === 0 && <p className="text-muted">{ts("keybindings.none")}</p>}
           {keys.applied.map((o) => (
             <p key={o.id} className="mono keys-applied">
               {`${o.id}  ${o.keys.length > 0 ? o.keys.join(" / ") : ts("keybindings.unbound")}  (${ts("keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
@@ -68,20 +68,20 @@ export function KeysSection({ client }: { client: BridgeClient }) {
         </div>
       ) : (
         <div className={PREF_FIELD}>
-          <p className="muted">{ts("keybindings.createHint")}</p>
+          <p className="text-muted">{ts("keybindings.createHint")}</p>
           <CycleRow label={t("keys.createFile")} onCycle={() => void createFile(client)} />
         </div>
       )}
       {keys.warnings.length > 0 && (
         <div className={PREF_FIELD}>
-          <span className={`${PREF_LABEL} tone-warning`}>{ts("keybindings.warnings")}</span>
+          <span className={`${PREF_LABEL} text-warning`}>{ts("keybindings.warnings")}</span>
           {keys.warnings.map((w) => (
-            <p key={w} className="muted mono">{`! ${w}`}</p>
+            <p key={w} className="mono text-muted">{`! ${w}`}</p>
           ))}
         </div>
       )}
-      <p className="muted">{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
-      <p className="muted">{t("prefs.keysYaml")}</p>
+      <p className="text-muted">{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
+      <p className="text-muted">{t("prefs.keysYaml")}</p>
     </Group>
   )
 }

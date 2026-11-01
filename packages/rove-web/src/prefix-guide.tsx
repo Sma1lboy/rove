@@ -117,15 +117,15 @@ export function PrefixHud({ model }: { model: AppModel }) {
         onMouseDown={(e) => e.preventDefault()}
       >
         <div className={PREFIX_GUIDE_HEAD}>
-          <span className="tone-accent">
+          <span className="text-accent">
             {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: prefixKey() ?? "" })}
           </span>
-          <span className="muted keys-only">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
+          <span className="keys-only text-muted">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
         </div>
         <div className={PREFIX_GUIDE_BODY}>
           {groupOptions(options).map((group) => (
             <div key={group.category} className={PREFIX_GUIDE_GROUP}>
-              <div className="tone-accent">{categoryName(group.category)}</div>
+              <div className="text-accent">{categoryName(group.category)}</div>
               {group.actions.map(({ action, strokes }) => (
                 <button
                   type="button"
@@ -149,13 +149,13 @@ export function PrefixHud({ model }: { model: AppModel }) {
     <output className={PREFIX_HUD}>
       {fresh.map((entry) => (
         <HudLine key={entry.id} at={entry.at}>
-          <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
-          {entry.action ? labelOf(entry.action) : <span className="muted">∅</span>}
+          <span className="text-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
+          {entry.action ? labelOf(entry.action) : <span className="text-muted">∅</span>}
         </HudLine>
       ))}
       {armedAt !== null && (
         <div className={prefixHudLine(false)}>
-          <span className="tone-accent">{prefixKey()}</span> ⋯
+          <span className="text-accent">{prefixKey()}</span> ⋯
         </div>
       )}
     </output>

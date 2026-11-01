@@ -11,6 +11,7 @@ import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { dialog } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { INPUT } from "./ui/text.ts"
 
 export interface PromptPush {
   readonly promptId: string
@@ -49,7 +50,7 @@ function PromptDialog({ client, prompt }: { client: BridgeClient; prompt: Prompt
         }}
       >
         <input
-          className="input"
+          className={INPUT}
           aria-label={copy.fieldLabel}
           // biome-ignore lint/a11y/noAutofocus: a dialog's only field
           autoFocus
@@ -58,7 +59,7 @@ function PromptDialog({ client, prompt }: { client: BridgeClient; prompt: Prompt
           placeholder={prompt.placeholder}
           onChange={(e) => setValue(e.target.value)}
         />
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={copy.submitLabel} />
       </form>
     </DialogShell>

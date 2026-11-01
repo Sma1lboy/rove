@@ -16,6 +16,7 @@ import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
+import { LINK } from "./ui/text.ts"
 import { WT_BRANCH, WT_GROUP, WT_HINTS, WT_LINE, WT_LINE_META, WT_PATH, wtRowClass } from "./ui/update.ts"
 
 interface WorktreeRow {
@@ -161,9 +162,9 @@ export function WorktreesView({ model }: { model: AppModel }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
       <h1 className={PAGE_TITLE}>{w.title}</h1>
       {projects === null ? (
-        <p className="muted">{w.loading}</p>
+        <p className="text-muted">{w.loading}</p>
       ) : visible.length === 0 ? (
-        <p className="muted">{w.noProjects}</p>
+        <p className="text-muted">{w.noProjects}</p>
       ) : (
         visible.map((project) => {
           const start = base
@@ -174,7 +175,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
                 <span>{project.repo}</span>
                 <span className="rule" />
               </h2>
-              {project.worktrees.length === 0 && <p className="muted mono">{w.noWorktrees}</p>}
+              {project.worktrees.length === 0 && <p className="mono text-muted">{w.noWorktrees}</p>}
               {project.worktrees.map((row, i) => {
                 const n = start + i
                 return (
@@ -182,11 +183,11 @@ export function WorktreesView({ model }: { model: AppModel }) {
                   <div key={row.path} data-row={n} className={wtRowClass(n === at)} onClick={() => setCursor(n)}>
                     <div className={WT_LINE}>
                       <span className={WT_BRANCH}>{row.branch || w.row.detached}</span>
-                      {row.roveManaged && <span className="chip muted">{w.badge.roveManaged}</span>}
-                      {row.dirty === true && <span className="chip tone-warning">{w.badge.dirty}</span>}
-                      {row.dirty === null && <span className="chip muted">{w.badge.dirtyUnknown}</span>}
+                      {row.roveManaged && <span className="chip text-muted">{w.badge.roveManaged}</span>}
+                      {row.dirty === true && <span className="chip text-warning">{w.badge.dirty}</span>}
+                      {row.dirty === null && <span className="chip text-muted">{w.badge.dirtyUnknown}</span>}
                       <span
-                        className={`chip ${row.branchOnRemote === true ? "tone-success" : row.branchOnRemote === false ? "tone-warning" : "muted"}`}
+                        className={`chip ${row.branchOnRemote === true ? "text-success" : row.branchOnRemote === false ? "text-warning" : "text-muted"}`}
                       >
                         {row.branchOnRemote === true
                           ? w.badge.remoteOn
@@ -196,13 +197,13 @@ export function WorktreesView({ model }: { model: AppModel }) {
                       </span>
                       {row.verdictReason !== "dirty" && row.verdictReason !== "fresh" && (
                         <span
-                          className={`chip ${row.verdict === "merged" ? "tone-success" : row.verdict === "stale" ? "tone-warning" : "tone-accent"}`}
+                          className={`chip ${row.verdict === "merged" ? "text-success" : row.verdict === "stale" ? "text-warning" : "text-accent"}`}
                         >
                           {(w.verdict as Record<string, string>)[row.verdictReason] ?? row.verdictReason}
                         </span>
                       )}
                     </div>
-                    <div className={`${WT_LINE_META} muted mono`}>
+                    <div className={`${WT_LINE_META} mono text-muted`}>
                       <span className={WT_PATH}>{row.path}</span>
                       {row.createdAtMs > 0 && (
                         <span>{fill(w.row.created, { age: compactAge(Date.now() - row.createdAtMs) })}</span>
@@ -210,11 +211,11 @@ export function WorktreesView({ model }: { model: AppModel }) {
                     </div>
                     {n === at && (
                       <div className={WT_LINE}>
-                        <button type="button" className="link" onClick={() => requestDelete(row)}>
+                        <button type="button" className={LINK} onClick={() => requestDelete(row)}>
                           {w.delete.button}
                         </button>
                         {row.taskId && (
-                          <button type="button" className="link" onClick={() => requestLand(row)}>
+                          <button type="button" className={LINK} onClick={() => requestLand(row)}>
                             {w.land.button}
                           </button>
                         )}
@@ -227,7 +228,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           )
         })
       )}
-      <p className={`${WT_HINTS} mono muted keys-only`}>
+      <p className={`${WT_HINTS} mono keys-only text-muted`}>
         <Legend text={`j/k · d ${w.delete.button} · l ${w.land.button} · q/esc`} />
       </p>
     </div>

@@ -17,7 +17,7 @@ export const RT_WHEN = "whitespace-nowrap text-meta"
 export const RT_ROW_SUB = "truncate text-meta"
 /** Beside the list, split by one hairline: no card inside the page's card. Its blocks keep their height. */
 export const RT_DETAIL =
-  "flex min-h-0 flex-col gap-1.5 overflow-y-auto py-0 pr-0 pl-4 [border-left:var(--hairline)_solid_var(--line)] [&_h2]:m-0 [&_p]:m-0 [&>*]:shrink-0 [&>.kicker]:mt-2.5 rt-narrow:shrink-0 rt-narrow:overflow-visible rt-narrow:pt-3 rt-narrow:pl-0 rt-narrow:[border-left:none] rt-narrow:[border-top:var(--hairline)_solid_var(--line)]"
+  "flex min-h-0 flex-col gap-1.5 overflow-y-auto py-0 pr-0 pl-4 [border-left:var(--hairline)_solid_var(--line)] [&_h2]:m-0 [&_p]:m-0 [&>*]:shrink-0 [&>h2]:mt-2.5 rt-narrow:shrink-0 rt-narrow:overflow-visible rt-narrow:pt-3 rt-narrow:pl-0 rt-narrow:[border-left:none] rt-narrow:[border-top:var(--hairline)_solid_var(--line)]"
 export const RT_HEAD = "flex flex-wrap items-baseline justify-between gap-3"
 export const RT_NAME = "font-sans text-display font-bold normal-nums wrap-anywhere"
 export const RT_META =

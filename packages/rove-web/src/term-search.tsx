@@ -74,7 +74,7 @@ export function TermSearchBar({ handle, onClose }: { handle: TermHandle; onClose
   return (
     <div className={`mono ${TERM_SEARCH}`}>
       {unavailable ? (
-        <span className="tone-warning">{terminalText("search.unavailable")}</span>
+        <span className="text-warning">{terminalText("search.unavailable")}</span>
       ) : (
         <>
           <span className="text-accent">/</span>
@@ -87,7 +87,7 @@ export function TermSearchBar({ handle, onClose }: { handle: TermHandle; onClose
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
           />
-          <span className="muted">{status}</span>
+          <span className="text-muted">{status}</span>
         </>
       )}
       {unavailable && (

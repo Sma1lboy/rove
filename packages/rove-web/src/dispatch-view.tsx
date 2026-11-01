@@ -34,6 +34,7 @@ import { page } from "./ui.ts"
 import * as dp from "./ui/dispatch.ts"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
+import { KICKER } from "./ui/text.ts"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
   delivered: "→",
@@ -180,7 +181,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className={`${PAGE_SCROLL} ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{t("dispatch.title")}</h1>
-        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>
@@ -265,13 +266,13 @@ export function DispatchView({ model }: { model: AppModel }) {
                 </span>
               )
             })}
-            {mapRows.length === 0 ? <p className={`muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
+            {mapRows.length === 0 ? <p className={`text-muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
           </>
         ) : null}
       </div>
       {history.length > 0 ? (
         <section className={dp.DP_SECTION}>
-          <h2 className={`kicker ${dp.DP_KICKER}`}>{t("dispatch.recent")}</h2>
+          <h2 className={`${KICKER} text-muted ${dp.DP_KICKER}`}>{t("dispatch.recent")}</h2>
           {history.map((row) => (
             <button
               type="button"
@@ -284,11 +285,11 @@ export function DispatchView({ model }: { model: AppModel }) {
               <span className={`mono ${dp.DP_ROUTE}`}>
                 {endName(senderOf(row), tasks)} → {endName(targetOf(row), tasks)}
               </span>
-              <span className={`muted ${dp.DP_PROMPT}`}>
+              <span className={`text-muted ${dp.DP_PROMPT}`}>
                 {row.status === "failed" && row.reason ? `${row.reason}: ` : ""}
                 {row.promptHead}
               </span>
-              <span className={`muted mono ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
+              <span className={`mono text-muted ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
             </button>
           ))}
         </section>

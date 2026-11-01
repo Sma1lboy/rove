@@ -21,3 +21,21 @@ export const SUGGEST_LIST =
   "mx-0 mt-1 mb-0 max-h-47 list-none overflow-y-auto rounded-sm border-hairline border-line bg-inset p-0.5 font-mono text-meta"
 export const suggestRowClass = (o: { readonly cursor: boolean; readonly accent: boolean }): string =>
   `block w-full cursor-pointer overflow-hidden rounded-[calc(var(--radius-sm)-2px)] px-2 py-0.75 text-left text-ellipsis whitespace-nowrap [font:inherit] touch:py-2.5 ${o.cursor ? "bg-hover" : ""} ${o.accent ? "text-accent" : o.cursor ? "text-ink" : "text-muted"}`
+
+/** A section's small label above a list or a block; the caller adds its colour (`text-muted` by default). */
+export const KICKER = "m-0 font-sans text-meta font-medium normal-nums"
+
+/** An inline text action; `link` stays as a hook for the footer and dialog rules that dim a disabled one. */
+export const LINK = "link text-accent [&:hover]:underline touch-hit"
+
+/** A text field's frame and type, for a field that sizes itself (`PREF_NUMBER`, `ENG_RENAME_INPUT`). */
+export const INPUT_FRAME =
+  "rounded-sm border-hairline border-line bg-paper font-mono text-meta font-normal normal-nums text-ink focus-visible:border-line-active focus-visible:outline-none"
+/** A single-line text field. */
+export const INPUT = `${INPUT_FRAME} w-full px-2.5 py-2`
+
+/** An empty list's note block; its paragraphs stack with a 4px gap. */
+export const EMPTY = "px-2.5 py-4 font-mono text-size-meta [&_p]:mx-0 [&_p]:mt-0 [&_p]:mb-1"
+
+/** A row of trailing actions: links and buttons pushed right. */
+export const ACTIONS = "actions flex items-center justify-end gap-3.5"

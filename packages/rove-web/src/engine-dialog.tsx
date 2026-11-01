@@ -16,7 +16,7 @@ import { CHIPS_ROW, CHOICES, FIELD, chipClass } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { HINT } from "./ui/text.ts"
+import { HINT, INPUT, KICKER } from "./ui/text.ts"
 
 export interface PickerEngine {
   readonly id: string
@@ -141,18 +141,18 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
                 className={rowClass({ selected: e.id === pick })}
                 onClick={() => choose(e.id)}
               >
-                <span className={`${GLYPH} tone-accent`}>{e.id === pick ? "●" : " "}</span>
+                <span className={`${GLYPH} text-accent`}>{e.id === pick ? "●" : " "}</span>
                 <span className={ROW_TITLE}>{e.name}</span>
-                {e.id === current.engine && <span className="muted">{tc("tasks", "changeEngine.current")}</span>}
+                {e.id === current.engine && <span className="text-muted">{tc("tasks", "changeEngine.current")}</span>}
               </button>
             </li>
           ))}
         </ul>
         {loaded && engine && engine.acceptsModel && (
           <label className={FIELD}>
-            <span className="kicker">{tc("tasks", "engineModel.label")}</span>
+            <span className={`${KICKER} text-muted`}>{tc("tasks", "engineModel.label")}</span>
             <input
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={tc("tasks", "engineModel.placeholder")}
               value={modelText}
@@ -171,7 +171,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
         )}
         {choices.length > 0 && (
           <div className={FIELD}>
-            <span className="kicker">{tc("tasks", "changeEngine.effortLabel")}</span>
+            <span className={`${KICKER} text-muted`}>{tc("tasks", "changeEngine.effortLabel")}</span>
             <div className={CHIPS_ROW}>
               {choices.map((level) => (
                 <button
@@ -198,7 +198,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
             ].join(" · ")}
           />
         </p>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy || !loaded} submitLabel={t("taskops.set")} />
       </form>
     </DialogShell>

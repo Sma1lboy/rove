@@ -215,20 +215,20 @@ export function IssuesView({ model }: { model: AppModel }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
-        <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>
       </div>
       {error ? (
         <div className={PG_LIST}>
-          <p className="error">{error}</p>
-          <p className="muted">{hint(error)}</p>
+          <p className="text-error">{error}</p>
+          <p className="text-muted">{hint(error)}</p>
         </div>
       ) : items === null ? (
-        <p className="muted">{common.loading}</p>
+        <p className="text-muted">{common.loading}</p>
       ) : rows.length === 0 ? (
-        <p className="muted">{copy.empty}</p>
+        <p className="text-muted">{copy.empty}</p>
       ) : (
         <div className={PG_LIST} ref={list}>
           {rows.map((item, index) => {
@@ -258,7 +258,7 @@ export function IssuesView({ model }: { model: AppModel }) {
           })}
         </div>
       )}
-      {notice && <p className={`muted ${PG_NOTICE}`}>{notice}</p>}
+      {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }

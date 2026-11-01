@@ -168,7 +168,7 @@ export async function spawnOnMachine(model: AppModel, input: RemoteStartInput): 
   return res.taskIds[0]
 }
 
-/** A refusal in the composer's error slot: git's own words for a failed clone, the machine's message otherwise. */
+/** A refusal in the composer's slot: git error's own words for a failed clone, the machine's message otherwise. */
 export function startError(err: unknown): string {
   if (err instanceof BridgeRequestError && err.code === "CLONE_FAILED") {
     return tc("newTask", "error.cloneFailed", { error: err.message })

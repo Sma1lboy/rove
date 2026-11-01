@@ -51,6 +51,7 @@ import {
   kbLaneHeadClass,
   kbStripTabClass,
 } from "./ui/kanban.ts"
+import { LINK } from "./ui/text.ts"
 
 export function KanbanView({ model }: { model: AppModel }) {
   const { kanban, group, common } = useCopy()
@@ -122,7 +123,7 @@ export function KanbanView({ model }: { model: AppModel }) {
             : g === "working"
               ? group.working
               : null
-    return g && label ? { label, tone: TONE[g] ?? "muted" } : null
+    return g && label ? { label, tone: TONE[g] ?? "text-muted" } : null
   }
 
   const mutate = async (op: string, args: Record<string, unknown>, failed: string, id: number) => {
@@ -357,7 +358,7 @@ export function KanbanView({ model }: { model: AppModel }) {
             {laneLabel[col.key]} ({col.issues.length + col.hiddenCount})
           </span>
           {col.key === "in_progress" && attentionCount > 0 && (
-            <span className="tone-warning">{fill(kanban.attention, { count: String(attentionCount) })}</span>
+            <span className="text-warning">{fill(kanban.attention, { count: String(attentionCount) })}</span>
           )}
         </h2>
       )}
@@ -375,10 +376,10 @@ export function KanbanView({ model }: { model: AppModel }) {
           />
         ))}
         {col.issues.length === 0 && col.hiddenCount === 0 && (
-          <p className={`muted mono ${KB_CARDS_NOTE}`}>{kanban.columnEmpty}</p>
+          <p className={`mono text-muted ${KB_CARDS_NOTE}`}>{kanban.columnEmpty}</p>
         )}
         {col.hiddenCount > 0 && (
-          <p className={`muted mono ${KB_CARDS_NOTE}`}>{fill(kanban.more, { count: String(col.hiddenCount) })}</p>
+          <p className={`mono text-muted ${KB_CARDS_NOTE}`}>{fill(kanban.more, { count: String(col.hiddenCount) })}</p>
         )}
       </div>
     </section>
@@ -389,15 +390,15 @@ export function KanbanView({ model }: { model: AppModel }) {
     <div className={`${PAGE} ${KB_PAGE}`} tabIndex={0} ref={root}>
       <div className="kb-top">
         <h1 className={PAGE_TITLE}>{kanban.title}</h1>
-        <span className="muted mono keys-only">{kanban.hint}</span>
+        <span className="mono keys-only text-muted">{kanban.hint}</span>
         {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
         <span className={`mono ${PG_ACTIONS}`}>
-          <button type="button" className={`link ${PG_ACTION_LINK.kanban}`} disabled={!board} onClick={openIntake}>
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.kanban}`} disabled={!board} onClick={openIntake}>
             {t("pages.new")}
           </button>
           <button
             type="button"
-            className={`link ${PG_ACTION_LINK.kanban}`}
+            className={`${LINK} ${PG_ACTION_LINK.kanban}`}
             disabled={!board?.issues.some((entry) => entry.id === selectedId)}
             onClick={requestDelete}
           >
@@ -406,23 +407,23 @@ export function KanbanView({ model }: { model: AppModel }) {
         </span>
       </div>
       {boards === null ? (
-        <p className="muted">{kanban.loading}</p>
+        <p className="text-muted">{kanban.loading}</p>
       ) : !board ? (
-        <p className="muted">{kanban.noRepos}</p>
+        <p className="text-muted">{kanban.noRepos}</p>
       ) : (
         <>
           <div className={KB_PROJECT}>
             <button type="button" className={KB_PROJECT_NAME} onClick={() => cycleProject(1)}>
               {projectLabel(board.repoRoot, repoRoots)}
-              {list.length > 1 && <span className="muted">{` ${index + 1}/${list.length}`}</span>}
+              {list.length > 1 && <span className="text-muted">{` ${index + 1}/${list.length}`}</span>}
             </button>
-            {!narrow && <span className={`muted mono ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
+            {!narrow && <span className={`mono text-muted ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
             {board.issues.length === 0 && !board.readError && (
-              <span className={`muted ${KB_EMPTY}`}>{kanban.empty}</span>
+              <span className={`text-muted ${KB_EMPTY}`}>{kanban.empty}</span>
             )}
           </div>
           {board.readError ? (
-            <p className="error">{fill(kanban.readFailed, { error: board.readError })}</p>
+            <p className="text-error">{fill(kanban.readFailed, { error: board.readError })}</p>
           ) : narrow && activeLane ? (
             <div className={KB_SINGLE} ref={scroller}>
               <div className={`mono ${KB_STRIP}`}>

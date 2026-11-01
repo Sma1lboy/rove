@@ -207,7 +207,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {error && <p className="error mono">{error}</p>}
+        {error && <p className="mono text-error">{error}</p>}
         {!error && loaded && rows.length === 0 && (
           <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
         )}
@@ -228,7 +228,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             {r.status ? (
               <span className={`${GLYPH} ${STATUS_TONE[r.status] ?? ""}`}>{r.status}</span>
             ) : (
-              <span className={`${GLYPH} tone-muted grid place-items-center`}>
+              <span className={`${GLYPH} grid place-items-center text-subtle`}>
                 {r.dir ? <Chevron right={!r.open} /> : null}
               </span>
             )}

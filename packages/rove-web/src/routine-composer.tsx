@@ -33,6 +33,7 @@ import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { RT_CRON, RT_CRON_STEP, RT_CRON_STEP_BUTTON, rtCronCellClass } from "./ui/routines.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export interface TargetTask {
   readonly id: string
@@ -144,13 +145,13 @@ export function RoutineComposer(props: {
   return (
     <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
       <dialog open className={`${dialogClass(true)} ${KB_DRAWER}`} aria-label={auto.newTitle}>
-        <h1 className="kicker">{auto.newTitle}</h1>
+        <h1 className={`${KICKER} text-muted`}>{auto.newTitle}</h1>
         <div className={DIALOG_BODY}>
           <label className={FIELD}>
-            <span className="kicker">{auto.fieldName}</span>
+            <span className={`${KICKER} text-muted`}>{auto.fieldName}</span>
             <input
               ref={at("name")}
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.namePlaceholder}
               value={draft.name}
@@ -159,9 +160,9 @@ export function RoutineComposer(props: {
             />
           </label>
           <div className={FIELD}>
-            <span className={`kicker ${KB_LABEL}`}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldRepo}
-              <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
+              <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("repo")}
@@ -189,9 +190,9 @@ export function RoutineComposer(props: {
             </SelectorField>
           </div>
           <div className={FIELD}>
-            <span className={`kicker ${KB_LABEL}`}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldTarget}
-              <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
+              <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("target")}
@@ -205,10 +206,10 @@ export function RoutineComposer(props: {
           </div>
           {draft.target && (
             <label className={FIELD}>
-              <span className="kicker">{auto.fieldTargetTab}</span>
+              <span className={`${KICKER} text-muted`}>{auto.fieldTargetTab}</span>
               <input
                 ref={at("targetTab")}
-                className="input"
+                className={INPUT}
                 spellCheck={false}
                 value={draft.target.tabId}
                 onChange={(e) => draft.target && patch({ target: { ...draft.target, tabId: e.target.value } })}
@@ -217,10 +218,10 @@ export function RoutineComposer(props: {
             </label>
           )}
           <label className={FIELD}>
-            <span className="kicker">{auto.fieldPrompt}</span>
+            <span className={`${KICKER} text-muted`}>{auto.fieldPrompt}</span>
             <input
               ref={at("prompt")}
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.promptPlaceholder}
               value={draft.prompt}
@@ -229,9 +230,9 @@ export function RoutineComposer(props: {
             />
           </label>
           <div className={FIELD}>
-            <span className={`kicker ${KB_LABEL}`}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldSchedule}
-              <span className={`muted keys-only ${KB_HINT}`}>←/→ ↑/↓</span>
+              <span className={`keys-only text-muted ${KB_HINT}`}>←/→ ↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("schedule")}
@@ -278,20 +279,20 @@ export function RoutineComposer(props: {
               })}
             </div>
             {preview.kind === "ok" ? (
-              <p className="tone-success mono">
+              <p className="mono text-success">
                 {described ? `${described}, ` : ""}
                 {preview.relative}, {preview.absolute}
               </p>
             ) : (
-              <p className="error mono">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
+              <p className="mono text-error">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
             )}
           </div>
-          {error && <p className="error">※ {error}</p>}
-          <p className={`muted touch:empty:hidden! ${KB_LEGEND}`}>
+          {error && <p className="text-error">※ {error}</p>}
+          <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
             <Legend text={deviceHint(auto.composerLegend)} />
           </p>
-          <div className="actions">
-            <button type="button" className="link" onClick={closeDialog}>
+          <div className={ACTIONS}>
+            <button type="button" className={LINK} onClick={closeDialog}>
               {common.cancel}
             </button>
             <button ref={at("confirm")} type="button" className={buttonClass()} onClick={commit}>

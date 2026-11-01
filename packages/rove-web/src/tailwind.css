@@ -213,3 +213,28 @@
 @custom-variant w-narrow (@media (max-width: 559px));
 /* The rail is a size container (ui/rail.ts): what drops when it is narrow. */
 @custom-variant rail-tight (@container (max-width: 250px));
+
+/* A text action's invisible touch target on phones: 12px above and below, 6px each side. */
+@utility touch-hit {
+  @media (hover: none) and (pointer: coarse) {
+    position: relative;
+    &::after {
+      content: "";
+      position: absolute;
+      inset: -12px -6px;
+    }
+  }
+}
+
+/* The meta size alone, line height inherited (`text-meta` also sets it to normal). */
+@utility text-size-meta {
+  font-size: var(--fs-meta);
+}
+
+/* Meta-size monospace, the `font` shorthand the old sheet had. A component, not a utility: it outranks the element
+   reset (layer base) but loses to any utility on the same element, as `.mono` did. */
+@layer components {
+  .mono {
+    font: var(--fs-meta) var(--mono);
+  }
+}

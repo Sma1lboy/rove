@@ -16,7 +16,7 @@ import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { HINT } from "./ui/text.ts"
+import { HINT, INPUT, KICKER } from "./ui/text.ts"
 import { prefixHint } from "./user-keys.ts"
 
 /** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
@@ -105,15 +105,15 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
           void attach(Array.from(e.dataTransfer.files))
         }}
       >
-        <p className="muted">
+        <p className="text-muted">
           {isTouch()
             ? t("pages.quickIntentTouch")
             : tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}
         </p>
         <label className={FIELD}>
-          <span className="kicker">{tc("quickTask", "promptLabel")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("quickTask", "promptLabel")}</span>
           <textarea
-            className={`input ${TEXTAREA}`}
+            className={`${INPUT} ${TEXTAREA}`}
             data-field="message"
             // biome-ignore lint/a11y/noAutofocus: the dialog's main field
             autoFocus
@@ -136,7 +136,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
           />
         </label>
         <div className={FIELD}>
-          <span className="kicker">{tc("quickTask", "attemptsLabel")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("quickTask", "attemptsLabel")}</span>
           <ChipRow
             label={tc("quickTask", "attemptsLabel")}
             field="attempts"
@@ -146,7 +146,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
           />
         </div>
         <div className={FIELD}>
-          <span className="kicker">{tc("quickTask", "engineLabel")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("quickTask", "engineLabel")}</span>
           <ChipRow
             label={tc("quickTask", "engineLabel")}
             field="engine"
@@ -156,9 +156,9 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
           />
         </div>
         <label className={FIELD}>
-          <span className="kicker">{tc("quickTask", "branchLabel")}</span>
+          <span className={`${KICKER} text-muted`}>{tc("quickTask", "branchLabel")}</span>
           <input
-            className="input"
+            className={INPUT}
             data-field="base"
             spellCheck={false}
             value={baseRef}
@@ -167,11 +167,11 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
         </label>
         <AttachmentChips attachments={attachments} onRemove={remove} />
         {isTouch() ? (
-          <p className="muted">{t("pages.attachHintTouch")}</p>
+          <p className="text-muted">{t("pages.attachHintTouch")}</p>
         ) : (
           <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
         )}
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />
       </form>
     </DialogShell>

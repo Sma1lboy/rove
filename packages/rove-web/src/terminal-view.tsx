@@ -23,6 +23,7 @@ import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
 import { TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 
 export interface TerminalViewProps {
   readonly client: BridgeClient
@@ -271,11 +272,11 @@ export function TerminalView(props: TerminalViewProps) {
       />
       {scrolled > 0 && !searching && handle && (
         <div className={`mono ${TERM_SCROLLED}`}>
-          <span className="tone-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
-          <button type="button" className="link text-accent" onClick={() => handle.scrollToTop()}>
+          <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
+          <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
             {terminalText("scrollFirst")}
           </button>
-          <button type="button" className="link text-accent" onClick={() => handle.scrollToBottom()}>
+          <button type="button" className={LINK} onClick={() => handle.scrollToBottom()}>
             {terminalText("scrollLatest")}
           </button>
         </div>

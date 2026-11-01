@@ -16,6 +16,7 @@ import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
 import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
+import { ACTIONS, INPUT_FRAME } from "./ui/text.ts"
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -134,7 +135,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
       </Group>
       {daemon?.daemonVersion && (
         <Group title={t("settings.general.daemon")}>
-          <p className={`mono ${daemon.stale ? "tone-warning" : "muted"}`}>
+          <p className={`mono ${daemon.stale ? "text-warning" : "text-muted"}`}>
             {t(daemon.stale ? "settings.general.daemonStale" : "settings.general.daemonCurrent", {
               version: daemon.daemonVersion,
             })}
@@ -142,7 +143,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
         </Group>
       )}
       <Group title={t("settings.general.browser")} hint={t("settings.general.browserHint")}>
-        <div className="actions">
+        <div className={ACTIONS}>
           <button
             type="button"
             className={buttonClass()}
@@ -178,7 +179,7 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
     <label className={PREF_ROW}>
       <span className={PREF_LABEL}>{ts("general.scrollbackTitle")}</span>
       <input
-        className={`input ${PREF_NUMBER}`}
+        className={`${INPUT_FRAME} ${PREF_NUMBER}`}
         inputMode="numeric"
         value={draft}
         aria-label={ts("general.scrollbackField")}
@@ -186,7 +187,7 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
         onBlur={save}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
-      <span className={`${PREF_HINT} muted`}>{ts("general.scrollbackRowHint")}</span>
+      <span className={`${PREF_HINT} text-muted`}>{ts("general.scrollbackRowHint")}</span>
     </label>
   )
 }

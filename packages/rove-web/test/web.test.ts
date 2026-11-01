@@ -261,16 +261,16 @@ describe("a task's PR mark", () => {
     ({ pr: { number: 7, lifecycle, checkState: "none" }, prChip, ...extra }) as unknown as TaskRow
 
   test("merged and closed PRs keep their own icon instead of disappearing", () => {
-    expect(prMark(withPr("merged"))).toMatchObject({ state: "merged", tone: "tone-merged" })
-    expect(prMark(withPr("closed"))).toMatchObject({ state: "closed", tone: "muted" })
+    expect(prMark(withPr("merged"))).toMatchObject({ state: "merged", tone: "text-merged" })
+    expect(prMark(withPr("closed"))).toMatchObject({ state: "closed", tone: "text-muted" })
     expect(prMark(withPr("merged"))?.glyph).not.toBe(prMark(withPr("open"))?.glyph)
   })
 
   test("an open PR is red while it can't land, green when checks pass, grey when the forge was unreachable", () => {
-    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "tone-attention", checks: "conflict" })
-    expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "tone-attention", checks: "failing" })
-    expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "tone-success", checks: "passing" })
-    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("muted")
+    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "text-error", checks: "conflict" })
+    expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "text-error", checks: "failing" })
+    expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "text-success", checks: "passing" })
+    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("text-muted")
   })
 
   test("no PR, or one still being created, draws nothing", () => {
@@ -338,7 +338,7 @@ describe("a task's PR mark", () => {
 
   test("an unpolled session PR draws as an open one with no check state", () => {
     const mark = sessionPrMark({ lifecycle: "unknown", checkState: "unknown", url: "https://github.com/o/r/pull/5" })
-    expect(mark).toMatchObject({ state: "open", tone: "muted" })
+    expect(mark).toMatchObject({ state: "open", tone: "text-muted" })
     expect(mark?.checks).toBeUndefined()
   })
 })

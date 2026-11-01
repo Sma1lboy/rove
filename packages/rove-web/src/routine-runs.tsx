@@ -16,6 +16,7 @@ import {
   RT_RUN_OPEN,
   rtResponseClass,
 } from "./ui/routines.ts"
+import { KICKER } from "./ui/text.ts"
 
 /** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
 const RUNS_SHOWN = 5
@@ -33,10 +34,10 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   script_failed: "error",
 }
 export const TONE_CLASS = {
-  success: "tone-success",
-  muted: "muted",
-  warning: "tone-warning",
-  error: "tone-attention",
+  success: "text-success",
+  muted: "text-muted",
+  warning: "text-warning",
+  error: "text-error",
 } as const
 export const TONE_GLYPH = { success: "✓", error: "†", warning: "!", muted: "·" } as const
 
@@ -54,22 +55,22 @@ export function RoutineRuns(props: {
   const responded = runs.filter((run) => run.response)
   return (
     <>
-      <h2 className="kicker">{auto.recentRuns}</h2>
+      <h2 className={`${KICKER} text-muted`}>{auto.recentRuns}</h2>
       {runs.length === 0 ? (
-        <p className="muted">{auto.noRuns}</p>
+        <p className="text-muted">{auto.noRuns}</p>
       ) : (
         runs.slice(0, RUNS_SHOWN).map((run) => {
           // A delivered run still owing its response reads as such; a missing one is a warning.
           const state = routineRunResponseState(run, now)
           const note =
             state === "awaiting" ? `, ${auto.responseAwaiting}` : state === "missing" ? `, ${auto.responseMissing}` : ""
-          const tone = state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]
+          const tone = state === "missing" ? "text-warning" : TONE_CLASS[runTone(run.status)]
           const line = (
             <>
               <span>{run.trigger === "manual" ? "▸" : "·"}</span>
               <span>{`#${run.runNumber}`}</span>
               <span className={RT_GROW}>{`${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
-              <span className="muted">{when(run.at)}</span>
+              <span className="text-muted">{when(run.at)}</span>
             </>
           )
           const error = run.error ? runErrorText(run.error) : null
@@ -96,9 +97,9 @@ export function RoutineRuns(props: {
       )}
       {runs[0]?.precheckResult && <PrecheckDetail run={runs[0]} />}
 
-      <h2 className="kicker">{auto.responses}</h2>
+      <h2 className={`${KICKER} text-muted`}>{auto.responses}</h2>
       {responded.length === 0 ? (
-        <p className="muted">{auto.noResponses}</p>
+        <p className="text-muted">{auto.noResponses}</p>
       ) : (
         responded.map((run) => (
           <div key={run.id} className={RT_RESPONSE}>
@@ -127,9 +128,11 @@ function PrecheckDetail({ run }: { run: AutomationRun }) {
   ].filter((stream) => stream.text.trim().length > 0)
   return (
     <div>
-      <h2 className="kicker">{fill(auto.precheckDetail, { exit, duration: String(result.durationMs) })}</h2>
+      <h2 className={`${KICKER} text-muted`}>
+        {fill(auto.precheckDetail, { exit, duration: String(result.durationMs) })}
+      </h2>
       {streams.length === 0 ? (
-        <p className="muted">{auto.precheckNoOutput}</p>
+        <p className="text-muted">{auto.precheckNoOutput}</p>
       ) : (
         streams.map((stream) => (
           <p key={stream.label} className={`mono ${rtResponseClass(true)}`}>

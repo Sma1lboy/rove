@@ -205,7 +205,7 @@ export function PreviewView({
       <div className="min-h-0 flex-1 overflow-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
         {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
         {loaded?.kind === "text" && (
-          <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "error" : ""}`}>{loaded.text}</p>
+          <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "text-error" : ""}`}>{loaded.text}</p>
         )}
         {rows.map((row, i) => {
           const noted = notes.some((n) => covers(n, row))

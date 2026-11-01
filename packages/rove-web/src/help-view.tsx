@@ -22,6 +22,7 @@ import { useStore } from "./store.ts"
 import { closeDialog, dialog } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HELP_CAP, HELP_CORNER, HELP_HEAD, HELP_ROW, HELP_SCROLL, HELP_SECTION, HELP_TITLE } from "./ui/shell.ts"
+import { INPUT, LINK } from "./ui/text.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 const displayCap = (cap: string): string =>
@@ -99,23 +100,23 @@ function HelpDialog({
       <div className={`${DIALOG_BODY} help`}>
         <div className={HELP_HEAD}>
           <div>
-            <p className="muted">
+            <p className="text-muted">
               {surface
                 ? helpText("focused", { surface: categoryName(scopeCategory(surface)) })
                 : helpText("allBindings")}
             </p>
-            <p className="muted">{helpText("grammar", { prefix: prefixCap() })}</p>
+            <p className="text-muted">{helpText("grammar", { prefix: prefixCap() })}</p>
           </div>
           <div className={HELP_CORNER}>
             <span className="subtle">{helpText("scrollKeys")}</span>
-            <button type="button" className="link" onClick={closeDialog}>
+            <button type="button" className={LINK} onClick={closeDialog}>
               {helpText("esc")}
             </button>
           </div>
         </div>
         {filtering ? (
           <input
-            className="input"
+            className={INPUT}
             // biome-ignore lint/a11y/noAutofocus: the filter row replaces the hint
             autoFocus
             spellCheck={false}
@@ -127,9 +128,9 @@ function HelpDialog({
             }}
           />
         ) : (
-          <p className="muted">{helpText("filter")}</p>
+          <p className="text-muted">{helpText("filter")}</p>
         )}
-        {shown.length === 0 && <p className="muted">{helpText("noResults")}</p>}
+        {shown.length === 0 && <p className="text-muted">{helpText("noResults")}</p>}
         <div className={HELP_SCROLL} ref={scroll}>
           {shown.map((section, i) => (
             <section key={`${section.kind}-${section.scope ?? i}`} className={HELP_SECTION}>
@@ -139,7 +140,7 @@ function HelpDialog({
                   <span className={`mono ${HELP_CAP}`}>{displayCap(row.primary)}</span>
                   <span className="flex-1">{actionDesc(row.binding.id)}</span>
                   {row.aliases.length > 0 && (
-                    <span className="muted">{`(${row.aliases.map(displayCap).join(", ")})`}</span>
+                    <span className="text-muted">{`(${row.aliases.map(displayCap).join(", ")})`}</span>
                   )}
                 </div>
               ))}

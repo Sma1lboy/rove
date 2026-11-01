@@ -53,6 +53,7 @@ import {
   rtNameClass,
   rtRowClass,
 } from "./ui/routines.ts"
+import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
 
@@ -336,25 +337,25 @@ export function RoutinesView({ model }: { model: AppModel }) {
         <h1 className={PAGE_TITLE}>{auto.title}</h1>
         <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
-            <span className="tone-attention">
+            <span className="text-error">
               {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
             </span>
           )}
-          <span className={reply?.keepsDaemonAlive ? "tone-success" : "muted"}>
+          <span className={reply?.keepsDaemonAlive ? "text-success" : "text-muted"}>
             {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
           </span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
-          <button type="button" className={`link ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
             {t("pages.new")}
           </button>
         </span>
       </div>
 
       {reply === null ? (
-        <p className="muted">{common.loading}</p>
+        <p className="text-muted">{common.loading}</p>
       ) : rows.length === 0 ? (
         <div className={PG_LIST}>
-          <p className="muted">{auto.empty}</p>
+          <p className="text-muted">{auto.empty}</p>
           <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : (
@@ -363,7 +364,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
             {sections.map((section) =>
               section.rows.length === 0 ? null : (
                 <section key={section.key}>
-                  <h2 className={`kicker ${RT_GROUP} ${section === sections[0] ? "tone-attention" : ""}`}>
+                  <h2 className={`${KICKER} ${RT_GROUP} ${section === sections[0] ? "text-error" : "text-muted"}`}>
                     {t(section.key)} <span className="mono">{section.rows.length}</span>
                   </h2>
                   {section.rows.map((routine) => {
@@ -383,14 +384,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
                       >
                         <span className={RT_ROW_LINE}>
                           <span className={rtNameClass(!routine.enabled)}>{routine.name}</span>
-                          <span className={`muted mono ${RT_WHEN}`}>
+                          <span className={`mono text-muted ${RT_WHEN}`}>
                             {routine.enabled ? when(routine.nextRunAt) : auto.paused}
                           </span>
-                          <span className={`mono ${tone ? TONE_CLASS[tone] : "muted"}`} style={{ width: "1ch" }}>
+                          <span className={`mono ${tone ? TONE_CLASS[tone] : "text-muted"}`} style={{ width: "1ch" }}>
                             {tone ? TONE_GLYPH[tone] : " "}
                           </span>
                         </span>
-                        <span className={`muted mono ${RT_ROW_SUB}`} title={routine.schedule}>
+                        <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
                           {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
                         </span>
                       </div>
@@ -410,7 +411,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   <span className={`mono ${PG_ACTIONS}`}>
                     <button
                       type="button"
-                      className={`link ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void runNow()}
                     >
@@ -418,7 +419,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                     <button
                       type="button"
-                      className={`link ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={() => void toggleEnabled()}
                     >
@@ -426,7 +427,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                     <button
                       type="button"
-                      className={`link ${PG_ACTION_LINK.row}`}
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
                       disabled={busy === selected.id}
                       onClick={requestDelete}
                     >
@@ -435,13 +436,13 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   </span>
                 </div>
                 <dl className={RT_META}>
-                  <dt className="muted">{t("pages.routineSchedule")}</dt>
+                  <dt className="text-muted">{t("pages.routineSchedule")}</dt>
                   <dd>
                     {described ?? <span className="mono">{selected.schedule}</span>}
-                    {described && <span className="muted mono">{`  ${selected.schedule}`}</span>}
+                    {described && <span className="mono text-muted">{`  ${selected.schedule}`}</span>}
                   </dd>
-                  <dt className="muted">{t("pages.routineNext")}</dt>
-                  <dd className={selected.enabled ? "" : "tone-warning"}>
+                  <dt className="text-muted">{t("pages.routineNext")}</dt>
+                  <dd className={selected.enabled ? "" : "text-warning"}>
                     {selected.enabled
                       ? Number.isFinite(nextAt)
                         ? `${when(selected.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, {
@@ -454,12 +455,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                         : "—"
                       : auto.paused}
                   </dd>
-                  <dt className="muted">{t("pages.routineProject")}</dt>
+                  <dt className="text-muted">{t("pages.routineProject")}</dt>
                   <dd>{repoName(selected.repo)}</dd>
                   {/* A script routine runs a command, not an engine: nothing is delivered anywhere. */}
                   {!selected.script && (
                     <>
-                      <dt className="muted">{t("pages.routineDelivers")}</dt>
+                      <dt className="text-muted">{t("pages.routineDelivers")}</dt>
                       <dd>
                         {target
                           ? fill(auto.targetExisting, { task: titleOf(target.taskId), tab: target.tabId })
@@ -471,16 +472,16 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   )}
                 </dl>
                 {selected.precheck && (
-                  <p className="muted mono">{fill(auto.precheck, { command: selected.precheck.command })}</p>
+                  <p className="mono text-muted">{fill(auto.precheck, { command: selected.precheck.command })}</p>
                 )}
                 {selected.script ? (
                   <>
-                    <h2 className="kicker">{t("pages.routineScript")}</h2>
+                    <h2 className={`${KICKER} text-muted`}>{t("pages.routineScript")}</h2>
                     <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
                   </>
                 ) : (
                   <>
-                    <h2 className="kicker">{t("pages.routinePrompt")}</h2>
+                    <h2 className={`${KICKER} text-muted`}>{t("pages.routinePrompt")}</h2>
                     <p className={RT_PROMPT}>{selected.prompt}</p>
                   </>
                 )}
@@ -488,12 +489,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 <RoutineRuns runs={runs} now={now} when={when} openRun={openRun} />
               </>
             ) : (
-              <p className="muted">{auto.noSelection}</p>
+              <p className="text-muted">{auto.noSelection}</p>
             )}
           </div>
         </div>
       )}
-      {notice && <p className={`muted ${PG_NOTICE}`}>{notice}</p>}
+      {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }

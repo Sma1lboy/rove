@@ -15,7 +15,7 @@ import { closeDialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CHOICES } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
+import { ACTIONS, BRIEF, HINT, INSET_BOX, LINK, NOTES, noteClass } from "./ui/text.ts"
 
 interface BriefTask {
   readonly prompt?: string
@@ -60,10 +60,10 @@ export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<Ta
           void run()
         }}
       >
-        <p className="muted">{tc("tasks", "runAgain.source", { title: task.title })}</p>
+        <p className="text-muted">{tc("tasks", "runAgain.source", { title: task.title })}</p>
         <pre className={BRIEF}>{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
         <p className={HINT}>{tc("tasks", "runAgain.hint")}</p>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy || !brief?.prompt} submitLabel={tc("tasks", "runAgain.confirm")} />
       </form>
     </DialogShell>
@@ -137,9 +137,11 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
     <DialogShell title={tc("tasks", "fieldNotes.title")} wide>
       <div className={DIALOG_BODY} onKeyDown={onKeyDown}>
         <p className="font-mono text-meta break-all text-muted">{repo}</p>
-        {state.kind === "loading" && <p className="muted">{tc("tasks", "fieldNotes.loading")}</p>}
-        {state.kind === "error" && <p className="error">{state.message}</p>}
-        {state.kind === "ready" && notes.length === 0 && <p className="muted">{tc("tasks", "fieldNotes.empty")}</p>}
+        {state.kind === "loading" && <p className="text-muted">{tc("tasks", "fieldNotes.loading")}</p>}
+        {state.kind === "error" && <p className="text-error">{state.message}</p>}
+        {state.kind === "ready" && notes.length === 0 && (
+          <p className="text-muted">{tc("tasks", "fieldNotes.empty")}</p>
+        )}
         {notes.length > 0 && (
           <ul className={`${CHOICES} ${NOTES}`} ref={list}>
             {notes.map((note, i) => (
@@ -166,10 +168,10 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
             <p>
               <strong>{tc("tasks", "fieldNotes.confirmDelete.title")}</strong>
             </p>
-            <p className="muted">{tc("tasks", "fieldNotes.confirmDelete.body", { text: confirming.text })}</p>
-            {deleteError && <p className="error">{deleteError}</p>}
-            <div className="actions">
-              <button type="button" className="link" onClick={() => setConfirming(null)}>
+            <p className="text-muted">{tc("tasks", "fieldNotes.confirmDelete.body", { text: confirming.text })}</p>
+            {deleteError && <p className="text-error">{deleteError}</p>}
+            <div className={ACTIONS}>
+              <button type="button" className={LINK} onClick={() => setConfirming(null)}>
                 {t("dialog.cancel")}
               </button>
               <button type="button" className={buttonClass({ danger: true })} onClick={() => void retire(confirming)}>
@@ -181,17 +183,17 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
         {!confirming && (
           <>
             <p className={`keys-only ${HINT}`}>{tc("tasks", "fieldNotes.footerDeletable")}</p>
-            <div className="actions">
+            <div className={ACTIONS}>
               {/* `d`'s tap target, for the note under the cursor (a phone has no `d`). */}
               <button
                 type="button"
-                className="link"
+                className={LINK}
                 disabled={notes[cursor]?.id === undefined}
                 onClick={() => setConfirming(notes[cursor] ?? null)}
               >
                 {t("taskops.retire")}
               </button>
-              <button type="button" className="link" onClick={closeDialog}>
+              <button type="button" className={LINK} onClick={closeDialog}>
                 {t("taskops.close")}
               </button>
             </div>

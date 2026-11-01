@@ -79,8 +79,8 @@ export function mostUrgentStatus(tasks: readonly TaskRow[]): RowStatus | undefin
 
 export interface PrMark {
   readonly glyph: string
-  /** A class from `styles.css`'s tone set. */
-  readonly tone: "tone-success" | "tone-attention" | "tone-merged" | "muted"
+  /** A text-colour utility. */
+  readonly tone: "text-success" | "text-error" | "text-merged" | "text-muted"
   /** `rail.pr.state.*` and, for an open PR, `rail.pr.checks.*`: the hover's words. */
   readonly state: "open" | "merged" | "closed"
   readonly checks?: "conflict" | "failing" | "passing" | "pending"
@@ -97,8 +97,9 @@ export function prMarkOf(
   stale: boolean,
 ): PrMark | null {
   if (!pr) return null
-  if (pr.lifecycle === "merged") return { glyph: NERD.prMerged, tone: stale ? "muted" : "tone-merged", state: "merged" }
-  if (pr.lifecycle === "closed") return { glyph: NERD.prClosed, tone: "muted", state: "closed" }
+  if (pr.lifecycle === "merged")
+    return { glyph: NERD.prMerged, tone: stale ? "text-muted" : "text-merged", state: "merged" }
+  if (pr.lifecycle === "closed") return { glyph: NERD.prClosed, tone: "text-muted", state: "closed" }
   if (pr.lifecycle !== "open" && pr.lifecycle !== "ready_to_merge" && pr.lifecycle !== "unknown") return null
   const checks =
     chip === "conflict"
@@ -111,12 +112,12 @@ export function prMarkOf(
             ? "pending"
             : undefined
   const tone = stale
-    ? "muted"
+    ? "text-muted"
     : checks === "conflict" || checks === "failing"
-      ? "tone-attention"
+      ? "text-error"
       : checks === "passing"
-        ? "tone-success"
-        : "muted"
+        ? "text-success"
+        : "text-muted"
   return { glyph: NERD.prOpen, tone, state: "open", ...(checks ? { checks } : {}) }
 }
 
@@ -141,6 +142,6 @@ export function sessionPrMark(pr: TaskRowPr): PrMark | null {
 /** The mark a row with several PRs leads with: an open one that can't land, any other open one, merged, closed. */
 export function leadPrMark(marks: readonly PrMark[]): PrMark | undefined {
   const rank = (mark: PrMark) =>
-    mark.state === "open" ? (mark.tone === "tone-attention" ? 0 : 1) : mark.state === "merged" ? 2 : 3
+    mark.state === "open" ? (mark.tone === "text-error" ? 0 : 1) : mark.state === "merged" ? 2 : 3
   return [...marks].sort((a, b) => rank(a) - rank(b))[0]
 }

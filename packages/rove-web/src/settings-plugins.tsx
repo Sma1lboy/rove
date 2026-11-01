@@ -60,7 +60,7 @@ function BuiltinMods({ model }: { model: AppModel }) {
           <div key={mod.id} className="engine-row">
             <div className="engine-main">
               <span className="engine-name">{mod.name}</span>
-              <span className="muted engine-detail">
+              <span className="engine-detail text-muted">
                 {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")}, ${mod.description}`}
               </span>
             </div>
@@ -113,7 +113,7 @@ export function PluginsSection({ model }: { model: AppModel }) {
               />
               <div className="engine-main">
                 <span className="engine-name">{p.id}</span>
-                <span className="muted engine-detail mono">
+                <span className="engine-detail mono text-muted">
                   {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
                     .filter(Boolean)
                     .join(", ")}
