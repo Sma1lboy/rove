@@ -72,7 +72,6 @@ export const ENG_BOX = "mt-1.5 flex flex-col gap-1.5 rounded-md border-hairline 
 export const ENG_BOX_HEAD = "flex items-baseline gap-2.5"
 export const ENG_BOX_TITLE = "m-0 text-body leading-[inherit] font-medium"
 export const ENG_BOX_ACTIONS = `${ENG_ACTIONS} mt-1`
-export const ENG_BOX_BUTTON = "px-3 py-1.25 font-sans text-meta font-medium normal-nums"
 export const ENG_UPTODATE = "text-meta leading-[inherit] text-success"
 
 /** Settings: the section list beside the section; on a phone the list becomes a row above it. */

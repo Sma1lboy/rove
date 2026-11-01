@@ -2,6 +2,7 @@ import { useState } from "react"
 import { forgetToken, saveToken } from "./auth.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { tokenFromInput } from "./token-input.ts"
+import { buttonClass } from "./ui/button.tsx"
 
 export function ConnectScreen({ failing = false }: { failing?: boolean }) {
   useLocale()
@@ -53,7 +54,7 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
               {t("connect.forget")}
             </button>
           )}
-          <button type="submit" className="button">
+          <button type="submit" className={buttonClass()}>
             {t("connect.submit")}
           </button>
         </div>

@@ -11,6 +11,7 @@ import { type PrefKey, type Prefs, setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
 import { Group, Toggle } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { CONFIRM_INLINE, PREF_CYCLE, PREF_CYCLE_LABEL } from "./ui/settings.ts"
 
 const FLAGS: readonly { key: PrefKey; label: string; hint: string }[] = [
@@ -57,12 +58,7 @@ export function DevSection({ client }: { client: BridgeClient }) {
             <button type="button" className="link" onClick={() => setPending(null)}>
               {t("dialog.cancel")}
             </button>
-            <button
-              type="button"
-              className={`button ${danger ? "is-danger" : ""}`}
-              disabled={busy}
-              onClick={() => void confirm()}
-            >
+            <button type="button" className={buttonClass({ danger })} disabled={busy} onClick={() => void confirm()}>
               {button}
             </button>
           </div>

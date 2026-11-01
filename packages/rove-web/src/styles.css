@@ -538,24 +538,6 @@ button:focus-visible {
   gap: 14px;
 }
 
-.button {
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--paper);
-  font: 600 var(--fs-meta) var(--sans);
-}
-
-.button:active {
-  transform: scale(0.97);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .button:active {
-    transform: none;
-  }
-}
-
 /* A task on another machine has no tabs or files here: the pane says where it lives (TUI `host-files-pane.tsx`). */
 .remote-notice {
   display: flex;
@@ -578,10 +560,6 @@ button:focus-visible {
   /* The footer sits under the terminal key row: grow down only, at most its 4px bottom padding. */
   .status .link::after {
     inset: -2px -6px -4px;
-  }
-  /* Primary buttons (connect, sign out, start session) are ~24-28px tall at desktop padding. */
-  .button {
-    min-height: 40px;
   }
   /* iOS Safari zooms the page into any focused field under 16px (xterm's hidden textarea too). Field
      styles sit in several later-loaded sheets, hence !important. */

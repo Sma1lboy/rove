@@ -20,6 +20,12 @@ const HIT = {
   none: "",
 } as const
 
+/** The filled action (`.button` before Tailwind). `danger` paints it the error colour; `box` is the Engines page's smaller one. */
+export const buttonClass = ({ danger = false, box = false }: { danger?: boolean; box?: boolean } = {}): string =>
+  `rounded-sm font-sans text-meta not-italic normal-nums text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 ${
+    danger ? "bg-error" : "bg-accent"
+  } ${box ? "px-3 py-1.25 font-medium" : "px-3.5 py-1.5 font-semibold"}`
+
 export function Button({
   variant = "link",
   hit = variant === "link" ? "roomy" : "none",

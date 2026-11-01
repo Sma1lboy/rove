@@ -4,6 +4,7 @@
  */
 
 import { useRef } from "react"
+import { CHIPS_ROW, chipClass } from "./ui/form.ts"
 
 export interface Chip {
   readonly id: string
@@ -37,7 +38,7 @@ export function ChipRow(props: {
   return (
     <div
       ref={root}
-      className="chips-row"
+      className={CHIPS_ROW}
       aria-label={props.label}
       data-field={props.field}
       onKeyDown={(e) => {
@@ -52,7 +53,7 @@ export function ChipRow(props: {
           key={chip.id}
           aria-pressed={chip.id === props.value}
           tabIndex={chip.id === props.value || !props.choices.some((c) => c.id === props.value) ? 0 : -1}
-          className={`chip-button ${chip.id === props.value ? "is-active" : ""} ${chip.dim ? "is-dim" : ""}`}
+          className={chipClass(chip.id === props.value, chip.dim)}
           title={chip.title}
           onClick={() => props.onChange(chip.id)}
         >

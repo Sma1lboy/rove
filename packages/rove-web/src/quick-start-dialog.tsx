@@ -14,6 +14,7 @@ import type { AppModel } from "./model.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 import { prefixHint } from "./user-keys.ts"
@@ -109,10 +110,10 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
             ? t("pages.quickIntentTouch")
             : tc("onboarding", "quickIntent", { key: prefixHint("task.new.global") })}
         </p>
-        <label className="field">
+        <label className={FIELD}>
           <span className="kicker">{tc("quickTask", "promptLabel")}</span>
           <textarea
-            className="input textarea"
+            className={`input ${TEXTAREA}`}
             data-field="message"
             // biome-ignore lint/a11y/noAutofocus: the dialog's main field
             autoFocus
@@ -134,7 +135,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
             }}
           />
         </label>
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("quickTask", "attemptsLabel")}</span>
           <ChipRow
             label={tc("quickTask", "attemptsLabel")}
@@ -144,7 +145,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
             choices={ATTEMPTS.map((n) => ({ id: n, label: n }))}
           />
         </div>
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("quickTask", "engineLabel")}</span>
           <ChipRow
             label={tc("quickTask", "engineLabel")}
@@ -154,7 +155,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
             choices={engines.map((e) => ({ id: e.id, label: e.name }))}
           />
         </div>
-        <label className="field">
+        <label className={FIELD}>
           <span className="kicker">{tc("quickTask", "branchLabel")}</span>
           <input
             className="input"

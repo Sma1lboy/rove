@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { type LoginOutcome, submitPassword } from "./login.ts"
+import { buttonClass } from "./ui/button.tsx"
 
 function message(outcome: LoginOutcome | null): string | null {
   if (!outcome) return null
@@ -70,7 +71,7 @@ export function LoginScreen() {
           </p>
         )}
         <div className="actions">
-          <button type="submit" className="button" disabled={busy || !password}>
+          <button type="submit" className={buttonClass()} disabled={busy || !password}>
             {busy ? t("login.checking") : t("login.submit")}
           </button>
         </div>

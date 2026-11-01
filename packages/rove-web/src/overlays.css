@@ -37,65 +37,6 @@
   }
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.textarea {
-  min-height: 72px;
-  max-height: 50vh;
-  line-height: 1.45;
-}
-
-.chips-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip-button {
-  padding: 4px 10px;
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius-sm);
-  font: var(--fs-meta) var(--mono);
-  color: var(--muted);
-}
-
-.chip-button.is-dim {
-  color: var(--subtle);
-}
-
-.chip-button:hover {
-  background: var(--hover);
-}
-
-.chip-button.is-active {
-  border-color: var(--accent);
-  color: var(--ink);
-  background: var(--accent-soft);
-}
-
-.choices {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.button.is-danger {
-  background: var(--error);
-}
-
-.button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.mono {
-  font: var(--fs-meta) var(--mono);
-}
-
 div.placeholder {
   display: flex;
   flex-direction: column;

@@ -12,6 +12,8 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHOICES } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
 
@@ -139,7 +141,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
         {state.kind === "error" && <p className="error">{state.message}</p>}
         {state.kind === "ready" && notes.length === 0 && <p className="muted">{tc("tasks", "fieldNotes.empty")}</p>}
         {notes.length > 0 && (
-          <ul className={`choices ${NOTES}`} ref={list}>
+          <ul className={`${CHOICES} ${NOTES}`} ref={list}>
             {notes.map((note, i) => (
               <li key={`${note.at}:${i}`}>
                 <button
@@ -170,7 +172,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
               <button type="button" className="link" onClick={() => setConfirming(null)}>
                 {t("dialog.cancel")}
               </button>
-              <button type="button" className="button is-danger" onClick={() => void retire(confirming)}>
+              <button type="button" className={buttonClass({ danger: true })} onClick={() => void retire(confirming)}>
                 {t("taskops.retire")}
               </button>
             </div>

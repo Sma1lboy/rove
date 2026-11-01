@@ -27,6 +27,8 @@ import { deviceHint } from "./key-hints.ts"
 import { projectLabel, repoKey, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { FIELD } from "./ui/form.ts"
 import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
@@ -144,7 +146,7 @@ export function RoutineComposer(props: {
       <dialog open className={`${dialogClass(true)} ${KB_DRAWER}`} aria-label={auto.newTitle}>
         <h1 className="kicker">{auto.newTitle}</h1>
         <div className={DIALOG_BODY}>
-          <label className="field">
+          <label className={FIELD}>
             <span className="kicker">{auto.fieldName}</span>
             <input
               ref={at("name")}
@@ -156,7 +158,7 @@ export function RoutineComposer(props: {
               onKeyDown={nextOnEnter("repo")}
             />
           </label>
-          <div className="field">
+          <div className={FIELD}>
             <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldRepo}
               <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
@@ -186,7 +188,7 @@ export function RoutineComposer(props: {
               ))}
             </SelectorField>
           </div>
-          <div className="field">
+          <div className={FIELD}>
             <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldTarget}
               <span className={`muted keys-only ${KB_HINT}`}>↑/↓</span>
@@ -202,7 +204,7 @@ export function RoutineComposer(props: {
             </SelectorField>
           </div>
           {draft.target && (
-            <label className="field">
+            <label className={FIELD}>
               <span className="kicker">{auto.fieldTargetTab}</span>
               <input
                 ref={at("targetTab")}
@@ -214,7 +216,7 @@ export function RoutineComposer(props: {
               />
             </label>
           )}
-          <label className="field">
+          <label className={FIELD}>
             <span className="kicker">{auto.fieldPrompt}</span>
             <input
               ref={at("prompt")}
@@ -226,7 +228,7 @@ export function RoutineComposer(props: {
               onKeyDown={nextOnEnter("schedule")}
             />
           </label>
-          <div className="field">
+          <div className={FIELD}>
             <span className={`kicker ${KB_LABEL}`}>
               {auto.fieldSchedule}
               <span className={`muted keys-only ${KB_HINT}`}>←/→ ↑/↓</span>
@@ -292,7 +294,7 @@ export function RoutineComposer(props: {
             <button type="button" className="link" onClick={closeDialog}>
               {common.cancel}
             </button>
-            <button ref={at("confirm")} type="button" className="button" onClick={commit}>
+            <button ref={at("confirm")} type="button" className={buttonClass()} onClick={commit}>
               {common.create}
             </button>
           </div>

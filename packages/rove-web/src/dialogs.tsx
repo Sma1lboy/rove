@@ -7,6 +7,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHOICES } from "./ui/form.ts"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 
@@ -155,11 +157,17 @@ export function ConfirmDialog(props: {
             {t("dialog.cancel")}
           </button>
           {props.secondary && !escalated && (
-            <button type="button" className="button is-danger" disabled={busy} onClick={() => go(true)}>
+            <button type="button" className={buttonClass({ danger: true })} disabled={busy} onClick={() => go(true)}>
               {props.secondary.label}
             </button>
           )}
-          <button ref={confirm} type="button" className="button is-danger" disabled={busy} onClick={() => go(false)}>
+          <button
+            ref={confirm}
+            type="button"
+            className={buttonClass({ danger: true })}
+            disabled={busy}
+            onClick={() => go(false)}
+          >
             {escalated && props.escalate ? props.escalate.label : props.confirmLabel}
           </button>
         </div>
@@ -203,7 +211,7 @@ export function ChoiceDialog(props: {
   return (
     <DialogShell title={props.title}>
       <div className={DIALOG_BODY}>
-        <ul className="choices">
+        <ul className={CHOICES}>
           {props.choices.map((choice, i) => (
             <li key={choice.value}>
               <button
@@ -232,7 +240,7 @@ export function DialogActions({ busy, submitLabel }: { busy: boolean; submitLabe
       <button type="button" className="link" onClick={closeDialog}>
         {t("dialog.cancel")}
       </button>
-      <button type="submit" className="button" disabled={busy}>
+      <button type="submit" className={buttonClass()} disabled={busy}>
         {submitLabel}
       </button>
     </div>

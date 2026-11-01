@@ -14,6 +14,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
+import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
 
 const LANGUAGES = [
@@ -142,7 +143,11 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
       )}
       <Group title={t("settings.general.browser")} hint={t("settings.general.browserHint")}>
         <div className="actions">
-          <button type="button" className="button" onClick={() => void signOut().then(() => window.location.reload())}>
+          <button
+            type="button"
+            className={buttonClass()}
+            onClick={() => void signOut().then(() => window.location.reload())}
+          >
             {t("settings.general.signOut")}
           </button>
         </div>

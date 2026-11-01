@@ -12,6 +12,7 @@ import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { CHIPS_ROW, CHOICES, FIELD, chipClass } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
@@ -131,7 +132,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           void apply()
         }}
       >
-        <ul className="choices" aria-label={tc("tasks", "changeEngine.title")}>
+        <ul className={CHOICES} aria-label={tc("tasks", "changeEngine.title")}>
           {engines.map((e) => (
             <li key={e.id}>
               <button
@@ -148,7 +149,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           ))}
         </ul>
         {loaded && engine && engine.acceptsModel && (
-          <label className="field">
+          <label className={FIELD}>
             <span className="kicker">{tc("tasks", "engineModel.label")}</span>
             <input
               className="input"
@@ -158,9 +159,9 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
               onChange={(e) => setModelText(e.target.value)}
             />
             {suggestions.length > 0 && (
-              <div className="chips-row model-suggest">
+              <div className={CHIPS_ROW}>
                 {suggestions.map((id) => (
-                  <button key={id} type="button" className="chip-button" onClick={() => setModelText(id)}>
+                  <button key={id} type="button" className={chipClass()} onClick={() => setModelText(id)}>
                     {id}
                   </button>
                 ))}
@@ -169,15 +170,15 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           </label>
         )}
         {choices.length > 0 && (
-          <div className="field">
+          <div className={FIELD}>
             <span className="kicker">{tc("tasks", "changeEngine.effortLabel")}</span>
-            <div className="chips-row">
+            <div className={CHIPS_ROW}>
               {choices.map((level) => (
                 <button
                   key={level || "default"}
                   type="button"
                   aria-pressed={level === effort}
-                  className={`chip-button ${level === effort ? "is-active" : ""}`}
+                  className={chipClass(level === effort)}
                   onClick={() => setEffort(level)}
                 >
                   {level === "" ? tc("tasks", "changeEngine.noEffort") : level}

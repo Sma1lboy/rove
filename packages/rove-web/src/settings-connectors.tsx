@@ -19,6 +19,7 @@ import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
 import { CONFIRM_INLINE, ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
@@ -226,7 +227,7 @@ function GithubCard({ model }: { model: AppModel }) {
           !flowing && (
             <button
               type="button"
-              className="button"
+              className={buttonClass()}
               disabled={busy !== null || !local}
               onClick={() => void login(LOCAL)}
             >
@@ -244,7 +245,7 @@ function GithubCard({ model }: { model: AppModel }) {
             </button>
             <button
               type="button"
-              className="button is-danger"
+              className={buttonClass({ danger: true })}
               disabled={busy !== null}
               onClick={() => void disconnect()}
             >

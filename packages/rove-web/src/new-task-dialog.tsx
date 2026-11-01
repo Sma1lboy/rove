@@ -25,6 +25,7 @@ import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
+import { FIELD } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 
@@ -262,7 +263,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         void create()
       }}
     >
-      <div className="field">
+      <div className={FIELD}>
         <span className="kicker">{tc("newTask", "field.repo")}</span>
         <SuggestField
           field="repo"
@@ -276,7 +277,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         />
       </div>
       {canOpenProject && (
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("newTask", "field.opens")}</span>
           <ChipRow
             label={tc("newTask", "field.opens")}
@@ -291,7 +292,7 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         </div>
       )}
       {!(intent === "project" && canOpenProject) && (
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("newTask", "field.fromBranch")}</span>
           <SuggestField
             field="branch"
@@ -376,7 +377,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
         }}
       >
         <div className={DIALOG_BODY}>
-          <div className="field">
+          <div className={FIELD}>
             <span className="kicker">{tc("newTask", "field.mode")}</span>
             <ChipRow
               label={tc("newTask", "field.mode")}
@@ -386,7 +387,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
               choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
             />
           </div>
-          <div className="field">
+          <div className={FIELD}>
             <span className="kicker">{tc("newTask", "field.engine")}</span>
             <EnginePicker engines={choice.engines} value={choice.engine} onChange={choice.setEngine} />
           </div>

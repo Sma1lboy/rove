@@ -17,6 +17,7 @@ import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 
@@ -158,7 +159,7 @@ export function NewChatDialog(props: {
           void attach(Array.from(e.dataTransfer.files))
         }}
       >
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("terminal", "tab.newChat.engine")}</span>
           <EnginePicker
             engines={choice.engines}
@@ -168,7 +169,7 @@ export function NewChatDialog(props: {
             panes={paneOk ? panes : []}
           />
         </div>
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">{tc("terminal", "tab.newChat.destLabel")}</span>
           <ChipRow
             label={tc("terminal", "tab.newChat.destLabel")}
@@ -181,7 +182,7 @@ export function NewChatDialog(props: {
             }))}
           />
         </div>
-        <div className="field">
+        <div className={FIELD}>
           <span className="kicker">
             {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">ctrl+f</span>
           </span>
@@ -198,7 +199,7 @@ export function NewChatDialog(props: {
         </div>
         {fork && (
           <>
-            <div className="field">
+            <div className={FIELD}>
               <span className="kicker">{tc("quickTask", "attemptsLabel")}</span>
               <ChipRow
                 label={tc("quickTask", "attemptsLabel")}
@@ -208,7 +209,7 @@ export function NewChatDialog(props: {
                 choices={ATTEMPTS.map((n) => ({ id: n, label: n }))}
               />
             </div>
-            <label className="field">
+            <label className={FIELD}>
               <span className="kicker">{t("taskops.forkBranch")}</span>
               <input
                 className="input"
@@ -221,10 +222,10 @@ export function NewChatDialog(props: {
           </>
         )}
         {!shell && !pane && destination !== "scratch" && (
-          <label className="field">
+          <label className={FIELD}>
             <span className="kicker">{t("newChat.prompt")}</span>
             <textarea
-              className="input textarea"
+              className={`input ${TEXTAREA}`}
               data-field="message"
               // biome-ignore lint/a11y/noAutofocus: the dialog's main field
               autoFocus
