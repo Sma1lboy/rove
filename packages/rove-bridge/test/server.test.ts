@@ -97,7 +97,10 @@ describe("api.invoke", () => {
       ["list", { repo: "/r" }],
       ["land", { "task-id": "T1" }],
     ])
-    expect(lines).toEqual(["[rove-bridge] api.invoke land task-id=T1"])
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(
+      /^\[rove-bridge\] \d{4}-\d\d-\d\dT[\d:.]+Z api\.invoke land task-id=T1 device=shared-token from=\S+$/,
+    )
   })
 })
 
@@ -134,16 +137,26 @@ describe("op allowlist", () => {
         },
       },
     }
-    const h = start({ areaOps, log: (line) => lines.push(line) })
+    const DEVICE_TOKEN = "d".repeat(43)
+    const h = start({
+      areaOps,
+      log: (line) => lines.push(line),
+      deviceOf: (presented) => (presented === DEVICE_TOKEN ? "phone-1" : null),
+    })
     expect(await upgradeStatus(h.url)).toBe(401)
-    const c = await connect(h.url, AUTH)
-    lines.length = 0 // drop the refused-upgrade line above
+    const c = await connect(h.url, { Authorization: `Bearer ${DEVICE_TOKEN}` })
+    lines.length = 0 // drop the refused-upgrade and device-connected lines above
     expect((await c.call("demo.read")).result).toEqual({ ok: 1 })
     expect(lines).toHaveLength(0)
     await c.call("demo.remove", { taskId: "T7", secret: "s3cret" })
     expect(calls).toEqual(["T7"])
-    expect(lines).toEqual(["[rove-bridge] demo.remove taskId=T7"])
+    // When and which paired device: what "who deleted this task" needs, and what a revoke names.
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(
+      /^\[rove-bridge\] \d{4}-\d\d-\d\dT[\d:.]+Z demo\.remove taskId=T7 device=phone-1 from=\S+$/,
+    )
     expect(lines.join("\n")).not.toContain(TOKEN)
+    expect(lines.join("\n")).not.toContain(DEVICE_TOKEN)
     expect(lines.join("\n")).not.toContain("s3cret")
     expect((await c.call("demo.other")).error?.code).toBe("UNKNOWN_OP")
   })
