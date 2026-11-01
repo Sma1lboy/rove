@@ -1604,12 +1604,13 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
 
 - `routine-list`: every routine with its next run time.
-- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
+- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]
-  [--script CMD [--script-timeout SEC]] [--notify]`: schedule a prompt (or, with `--script`, a shell command
+  [--notify]`: schedule a prompt (or, with `--script`, a shell command
   with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
-  response to the bound chat agent). Pass exactly one
+  response to the bound chat agent). Script routines cannot set `--vendor`, `--model`, `--effort`,
+  `--base-branch`, `--persistent-session`, `--target-task`, or `--target-tab`. Pass exactly one
   of `--repo` and `--no-repo` (neither is `MISSING_FLAG`, both is `CONFLICTING_FLAGS`). `--no-repo` makes a
   routine with no project: every run works in `<home>/.rove/routines/<id>/` as a directory session, and it takes
   no `--base-branch`. `--schedule` is five-field
@@ -1619,7 +1620,10 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   the built-in default; a pinned routine stores that vendor, so runs launch the
   engine the pins were checked against. Without pins or `--vendor`, runs launch
   the built-in default. The daemon refuses model/effort without a vendor.
-- `routine-update --id ID [...]`: change any field (including `--script`, `--script-timeout`, `--notify`; `--script ''` turns a script routine back into a prompt routine); `--enabled true|false` pauses / resumes. A new `--schedule`
+- `routine-update --id ID [...]`: change any field (including `--script`, `--script-timeout`, `--notify`).
+  To turn a script routine back into a prompt routine, pass `--script ''` and `--prompt TEXT` in the same update.
+  Changing `--script-timeout` requires repeating `--script CMD`, even for an existing script routine.
+  `--enabled true|false` pauses / resumes. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
   and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
