@@ -127,6 +127,10 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `worktrees.remove` | `path`, `force` | `{removed, residue?}`; a dirty worktree is refused with code `DIRTY_WORKTREE` unless `force` (destructive) |
 | `attention.dismiss` | `taskId`, `tabId?`, `deliveryId?` | `{}`; refused with `GATE_NOT_DISMISSABLE` when `gateId` is named, or when the tab holds only a decision row |
 | `gate.answer` | `gateId`, `option?`, `text?` (at least one) | `{delivered}`; wraps daemon `gate.answer` with `by: "bridge"` |
+| `push.key` | — | `{publicKey}`: the bridge's VAPID key (base64url) a browser subscribes with; `UNAVAILABLE` when the bridge sends no push (no `--web`) |
+| `push.status` | `endpoint` | `{subscribed}`: whether this endpoint is stored under this connection's token |
+| `push.subscribe` | `subscription` (`PushSubscription.toJSON()`: `endpoint`, `keys.p256dh`, `keys.auth`) | `{}`; kept in `bridge/push.json` (0600) under this connection's token. Pushes go out only while no page is on screen, follow the cross-task switch, and stop when the token is revoked |
+| `push.unsubscribe` | `endpoint` | `{removed}` |
 
 ### Task area ops
 

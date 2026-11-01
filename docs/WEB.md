@@ -194,6 +194,20 @@ connect screen (paste the `#token=` link) or, with a password set, the
 password field. Do that once; the app keeps the token after that. Chrome's
 install shares the browser profile, so it is already paired.
 
+## Notifications when the page is closed
+
+Settings → General → Notifications → "Notify when this page is closed"
+subscribes this browser to Web Push. When a task finishes, needs you or fails
+and no Rove page is on screen, the bridge sends an encrypted push (RFC 8291,
+signed with its own VAPID key in `~/.rove/bridge/push.json`) through the
+browser's push service; clicking the notification opens that task. While a
+page is visible nothing is pushed: the page notices on its own. The switch
+follows Cross-task, and a revoked device token stops its pushes.
+
+Push needs a secure page: https (a tunnel or `--public-host`) or
+`localhost`. On iPhone and iPad it also needs the page installed to the home
+screen first (iOS 16.4 or later); the switch says so when it cannot turn on.
+
 ## Limits
 
 - The standalone `rove` binary does not include the page; `rove --web`
