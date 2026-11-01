@@ -83,7 +83,7 @@ export const en = {
       noEngines: "No engine here takes the skill",
       failed: "Install failed: {reason}",
       nudgeTitle: "Rove skill not installed",
-      nudgeBody: "{engines} · install in Settings → Engines",
+      nudgeBody: "{engines} · Settings → Engines",
     },
     integrations: {
       title: "Engine integrations",
@@ -198,7 +198,7 @@ export const zh: typeof en = {
       noEngines: "这台机器上没有能装技能的引擎",
       failed: "安装失败：{reason}",
       nudgeTitle: "Rove 技能未安装",
-      nudgeBody: "{engines} · 到 设置 → 引擎 里安装",
+      nudgeBody: "{engines} · 设置 → 引擎",
     },
     integrations: {
       title: "引擎接入",
