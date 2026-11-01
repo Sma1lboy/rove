@@ -154,6 +154,9 @@
 /* The phone layout (app.tsx `is-narrow`). */
 @custom-variant narrow (:where(.app.is-narrow) &);
 
+/* The Routines page under 720px of its own width: list and detail stack (ui/routines.ts). */
+@custom-variant rt-narrow (@container (max-width: 720px));
+
 /* A long-press opens the element's own menu (long-press.ts), not iOS's callout. */
 @utility touch-callout-none {
   -webkit-touch-callout: none;

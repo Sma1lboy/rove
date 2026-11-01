@@ -6,6 +6,16 @@
 import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { responseText, runErrorText } from "./routine-run-text.ts"
+import {
+  RT_GROW,
+  RT_RESPONSE,
+  RT_RUN,
+  RT_RUN_ERROR,
+  RT_RUN_HEAD,
+  RT_RUN_LINE,
+  RT_RUN_OPEN,
+  rtResponseClass,
+} from "./ui/routines.ts"
 
 /** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
 const RUNS_SHOWN = 5
@@ -58,7 +68,7 @@ export function RoutineRuns(props: {
             <>
               <span>{run.trigger === "manual" ? "▸" : "·"}</span>
               <span>{`#${run.runNumber}`}</span>
-              <span className="pg-grow">{`${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
+              <span className={RT_GROW}>{`${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
               <span className="muted">{when(run.at)}</span>
             </>
           )
@@ -66,16 +76,16 @@ export function RoutineRuns(props: {
           // The rail lists no routine runs: a run that made a session opens it from here.
           const taskId = run.taskId
           return (
-            <div key={run.id} className={`rt-run ${tone}`}>
+            <div key={run.id} className={`${RT_RUN} ${tone}`}>
               {taskId ? (
-                <button type="button" className="rt-run-line pg-run-open mono" onClick={() => props.openRun(taskId)}>
+                <button type="button" className={`mono ${RT_RUN_OPEN}`} onClick={() => props.openRun(taskId)}>
                   {line}
                 </button>
               ) : (
-                <span className="rt-run-line mono">{line}</span>
+                <span className={`mono ${RT_RUN_LINE}`}>{line}</span>
               )}
               {error && (
-                <details className="rt-run-error mono">
+                <details className={`mono ${RT_RUN_ERROR}`}>
                   <summary>{error.summary}</summary>
                   <pre>{error.full}</pre>
                 </details>
@@ -91,11 +101,11 @@ export function RoutineRuns(props: {
         <p className="muted">{auto.noResponses}</p>
       ) : (
         responded.map((run) => (
-          <div key={run.id} className="rt-response">
-            <p className={`pg-run mono ${TONE_CLASS[runTone(run.status)]}`}>
+          <div key={run.id} className={RT_RESPONSE}>
+            <p className={`mono ${RT_RUN_HEAD} ${TONE_CLASS[runTone(run.status)]}`}>
               {`#${run.runNumber} ${statusText(run.status)}, ${when(run.response?.at)}`}
             </p>
-            <p className="pg-response">{responseText(run.response?.text ?? "")}</p>
+            <p className={rtResponseClass(false)}>{responseText(run.response?.text ?? "")}</p>
           </div>
         ))
       )}
@@ -122,7 +132,7 @@ function PrecheckDetail({ run }: { run: AutomationRun }) {
         <p className="muted">{auto.precheckNoOutput}</p>
       ) : (
         streams.map((stream) => (
-          <p key={stream.label} className="pg-response mono">
+          <p key={stream.label} className={`mono ${rtResponseClass(true)}`}>
             {`${stream.label}: ${stream.text.replace(/\s+$/, "").split("\n").slice(-10).join("\n")}`}
           </p>
         ))
