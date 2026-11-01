@@ -152,6 +152,7 @@ describe("schema drill-ins", () => {
       "agent-turns",
       "inspect",
       "read-output",
+      "queue-list",
       "watch",
       "ports",
       "viewers",

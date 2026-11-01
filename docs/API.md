@@ -1096,6 +1096,32 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   creates fresh tasks, which have no prior state to judge. `send --tab new`
   is judged on task-level state only (gates, unreported deliveries).
 
+  **`--queue` waits for a running turn instead of landing in it.** A prompt
+  pasted mid-turn is not held by every engine: Codex drops the work in flight
+  and answers the new prompt, and Claude Code folds it into the running turn
+  when the turn uses tools. With `--queue`, a tab that is idle takes the prompt
+  now, exactly as without the flag. A tab that is working, waiting on a
+  permission menu or rate-limited has it held by the daemon, and the reply is
+  `{ ok, taskId, tabId, queued: true, queueId: "q-<n>", position }`. Held
+  prompts are pasted one per finished turn, in order: a hand-over happens only
+  when the tab's state moves from `running` to `turn_complete` or `idle`. A
+  turn end that comes straight from a permission menu hands nothing over (a
+  real approval reports `running` before its Stop; a Stop with the menu still
+  drawn would have Enter confirm the highlighted option). About 1.5 s after
+  the turn ends, the tab is checked again with the same signal plain `send`
+  refuses on (`status.list` needs-input, a `permission_needed` reading) and
+  for a new running turn; either keeps the prompt held, with `lastError`
+  (`awaiting-permission`, `busy`), until the next working turn ends. A report
+  asked for with `--expect-report` (or a `requireReport` task) is armed when
+  the prompt is pasted, not when it is held. A hand-over that does not land
+  (the engine exited) also stays at the head with `lastError`; a dead engine
+  reports no more turns, so take it back with `queue-cancel`. A tab whose
+  engine reports no turn events never hands over. Held prompts live in the
+  daemon's memory: `rove daemon
+  restart` drops them. `--queue` does not combine with `--tab new`,
+  `--if-runnable` or `--respawn`, and gate answers owed to the tab stay owed
+  until a prompt is actually pasted.
+
   **`engine.maxLiveSessions` caps new sessions.** When that setting is a
   positive number, a call that would START an engine session (`add` with a
   prompt, `send --tab new`, a `send` to a task with no live session) first
@@ -1148,7 +1174,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 
-  Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports.
+  Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports; `--queue` (above) waits for the turn to end instead.
 
   Deliveries into one tab are serialized against each other. The paste and the submit key are one act, and two sends racing on the same tab used to interleave their halves — both messages landing in one composer, submitted together as a single turn by the first Enter while the second Enter hit an empty composer. That is what made several workers reporting into one coordinator tab look like their replies were piling up unsent. A send now waits for any delivery already in flight on that tab; one that waits too long delivers anyway rather than refusing, so a contended tab can still merge in the worst case, but a report is never dropped to avoid it.
 
@@ -1165,6 +1191,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   stays `true` (the prompt is still riding an argv that has not run yet) and
   `reason` says so, rather than holding `add` open for the length of an
   install.
+- `queue-list [--task-id ID]`: prompts `send --queue` is holding, oldest
+  first: `{ items: [{ id, taskId, tabId, text, expectReport, at, lastError? }] }`.
+  A deleted task's held prompts go with it.
+- `queue-cancel --id q-N`: take a held prompt back before it is pasted;
+  `{ cancelled: true|false }`.
 - `interrupt (--task-id ID [--tab TAB] | --group GROUPID | --all)`: stop the turn a task's engine is
   currently running — the headless twin of pressing the engine's own
   interrupt key. The session, its conversation and its worktree all survive,

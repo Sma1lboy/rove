@@ -42,6 +42,7 @@ import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { QUEUE_HANDLERS } from "./handlers-queue.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
@@ -54,6 +55,7 @@ import { WORKTREE_HANDLERS } from "./handlers-worktree.ts"
 import type { IssuesStore } from "./issues-store.ts"
 import type { NotesStore } from "./notes-store.ts"
 import { defaultPtyHostSocketPath } from "./paths.ts"
+import type { PromptQueue } from "./prompt-queue.ts"
 import {
   CHANNEL_NAMES,
   DAEMON_PROTOCOL_VERSION,
@@ -104,6 +106,8 @@ export interface DaemonHandlerContext {
   readonly rowStatus?: import("./row-status-store.ts").RowStatusStore
   /** Prompts sessions handed each other and how far each got (absent in older test doubles). */
   readonly dispatches?: import("./dispatch-ledger.ts").DispatchLedger
+  /** Prompts held for a busy tab until its turn ends (`send --queue`; absent in older test doubles). */
+  readonly promptQueue?: PromptQueue
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
   /** Per-task serializer for checkpoint snapshots and rewinds. */
@@ -320,6 +324,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
     ...DISPATCH_HANDLERS,
+    ...QUEUE_HANDLERS,
     ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,

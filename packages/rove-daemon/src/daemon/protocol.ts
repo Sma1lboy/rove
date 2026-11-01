@@ -195,6 +195,10 @@ export type DaemonRequestName =
   // is the CLI telling the daemon about an `api send` it pasted itself.
   | "dispatch.list"
   | "dispatch.record"
+  // Prompts held for a busy tab until its turn ends (`prompt-queue.ts`, `send --queue`).
+  | "queue.add"
+  | "queue.list"
+  | "queue.cancel"
   // Should-run: `task.runnability` is the read verdict. `send.admit` evaluates,
   // claims and (when the send owes a report) arms in one daemon tick for
   // `send --if-runnable`; `send.release` frees the claim after the paste.
