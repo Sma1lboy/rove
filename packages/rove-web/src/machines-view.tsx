@@ -13,6 +13,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { CLOUD_MARK } from "./ui/rail.ts"
+import { REMOTE_NOTICE } from "./ui/shell.ts"
 
 export interface MachineRow {
   readonly alias: string
@@ -92,7 +93,7 @@ export function CloudMark({ label }: { label: string }) {
 export function RemoteNotice({ host }: { host: string }) {
   useLocale()
   return (
-    <div className="remote-notice">
+    <div className={REMOTE_NOTICE}>
       <p className="muted">{tc("tasks", "machine.filesElsewhere", { host })}</p>
       <p className="muted">{tc("tasks", "machine.filesHint", { host })}</p>
     </div>

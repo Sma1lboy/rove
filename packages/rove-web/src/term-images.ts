@@ -7,6 +7,7 @@
 
 import type { IBufferCell, Terminal } from "@xterm/xterm"
 import { KittyImages, type PlaceholderCell, placeholderDiacritics, resolvePlaceholder } from "./term-kitty.ts"
+import { TERM_IMAGES } from "./ui/shell.ts"
 
 interface Run extends PlaceholderCell {
   readonly x: number
@@ -72,7 +73,7 @@ export function attachKittyImages(term: Terminal): TermImages {
     if (runs.length === 0 && !canvas) return
     if (!canvas) {
       canvas = document.createElement("canvas")
-      canvas.className = "term-images"
+      canvas.className = TERM_IMAGES
       screen.append(canvas)
     }
     const dpr = window.devicePixelRatio || 1

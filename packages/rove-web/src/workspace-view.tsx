@@ -17,7 +17,7 @@ import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { dialog, newSession, page } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE_FRAME } from "./ui/shell.ts"
+import { PANE, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -52,7 +52,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
     return (
-      <main className={`workspace ${WORKSPACE_FRAME}`}>
+      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <UpdateView client={model.client} />
       </main>
@@ -60,7 +60,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (pageOn === "worktrees") {
     return (
-      <main className={`workspace ${WORKSPACE_FRAME}`}>
+      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <WorktreesView model={model} />
       </main>
@@ -68,7 +68,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (pageOn) {
     return (
-      <main className={`workspace ${WORKSPACE_FRAME}`}>
+      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <PagesHost model={model} page={pageOn} />
       </main>
@@ -76,9 +76,9 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   if (composing) {
     return (
-      <main className={`workspace ${WORKSPACE_FRAME}`}>
+      <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
-        <div className="pane">
+        <div className={PANE}>
           {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
           <NewSessionView key={`${composing.machine ?? ""}\0${composing.repo ?? ""}`} model={model} seed={composing} />
         </div>
@@ -86,11 +86,11 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     )
   }
   return (
-    <main className={`workspace ${WORKSPACE_FRAME}`}>
+    <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
       {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       <div
-        className={`pane ${working ? "is-working" : ""}`}
+        className={`${PANE} ${working ? "is-working" : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
         {!narrow && !task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && (
