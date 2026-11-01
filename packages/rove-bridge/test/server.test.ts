@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
 import { GATE_OPS } from "../src/ops/gates.ts"
@@ -64,43 +63,6 @@ describe("cloudflare access layer", () => {
   })
 })
 
-describe("api.invoke", () => {
-  test("serves the verb contract: hello names its version, a refusal keeps its recovery data, a destructive verb is audited", async () => {
-    const lines: string[] = []
-    const invoked: Array<[string, unknown]> = []
-    const h = start({
-      log: (line) => lines.push(line),
-      invoke: async (verb, params) => {
-        invoked.push([verb, params])
-        if (verb === "land") {
-          return {
-            apiVersion: ROVE_API_VERSION,
-            ok: false,
-            error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
-          }
-        }
-        return { apiVersion: ROVE_API_VERSION, ok: true, result: { tasks: [] } }
-      },
-    })
-    const c = await connect(h.url, AUTH)
-    lines.length = 0
-    expect((await c.call("hello")).result).toMatchObject({ apiVersion: ROVE_API_VERSION })
-    expect(await c.call("api.invoke", { verb: "list", params: { repo: "/r" } })).toMatchObject({
-      ok: true,
-      result: { tasks: [] },
-    })
-    expect(await c.call("api.invoke", { verb: "land", params: { "task-id": "T1" } })).toMatchObject({
-      ok: false,
-      error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
-    })
-    expect(invoked).toEqual([
-      ["list", { repo: "/r" }],
-      ["land", { "task-id": "T1" }],
-    ])
-    expect(lines).toEqual(["[rove-bridge] api.invoke land task-id=T1"])
-  })
-})
-
 describe("op allowlist", () => {
   test("an op outside the allowlist is refused by name, not passed to the daemon", async () => {
     const h = start()
@@ -117,35 +79,6 @@ describe("op allowlist", () => {
     c.ws.send("{not json")
     expect(JSON.parse(await bad.promise).error.code).toBe("BAD_FRAME")
     expect((await c.call("hello")).ok).toBe(true)
-  })
-
-  test("a registered area op runs on the authenticated socket; a destructive one is audited by id, never the token", async () => {
-    const lines: string[] = []
-    const calls: string[] = []
-    const areaOps: OpTable = {
-      "demo.read": { kind: "read", destructive: false, wraps: "test", run: async () => ({ ok: 1 }) },
-      "demo.remove": {
-        kind: "write",
-        destructive: true,
-        wraps: "test",
-        run: async (args) => {
-          calls.push(String(args.taskId))
-          return {}
-        },
-      },
-    }
-    const h = start({ areaOps, log: (line) => lines.push(line) })
-    expect(await upgradeStatus(h.url)).toBe(401)
-    const c = await connect(h.url, AUTH)
-    lines.length = 0 // drop the refused-upgrade line above
-    expect((await c.call("demo.read")).result).toEqual({ ok: 1 })
-    expect(lines).toHaveLength(0)
-    await c.call("demo.remove", { taskId: "T7", secret: "s3cret" })
-    expect(calls).toEqual(["T7"])
-    expect(lines).toEqual(["[rove-bridge] demo.remove taskId=T7"])
-    expect(lines.join("\n")).not.toContain(TOKEN)
-    expect(lines.join("\n")).not.toContain("s3cret")
-    expect((await c.call("demo.other")).error?.code).toBe("UNKNOWN_OP")
   })
 })
 

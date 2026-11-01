@@ -98,6 +98,10 @@ has it yet.
   link; `--revoke-device <name>` revokes just that one, and
   `--list-devices` shows them. Only a SHA-256 of each device token is kept
   (`<home>/.rove/bridge/devices.json`, owner-only).
+- Every action that loses work (delete or land a task, close a tab, remove
+  a worktree, delete a routine) is written to the bridge's stderr with the
+  time, the device that sent it and its address, never the token. See
+  [TROUBLESHOOTING](./TROUBLESHOOTING.md#who-deleted-my-task).
 - `--setup` checks for Tailscale and cloudflared on this machine and prints
   the commands to reach the bridge from another device. It changes nothing.
 

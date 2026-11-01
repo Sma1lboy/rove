@@ -98,6 +98,8 @@ interface Conn {
   readonly peer: Peer
   /** This connection's screen as the daemon's row status knows it (`ui.viewing`'s `viewer`). */
   readonly viewer: string
+  /** Who opened it, for the audit lines: the paired device's name (or the shared token) and its address. */
+  readonly who: string
   terminal: TerminalForwarder | null
   /** One forwarder per other machine whose terminal this connection opened. */
   machineTerminals: Map<string, Promise<TerminalForwarder>>
@@ -136,7 +138,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     return pending
   }
   const owner = (stream: string): TerminalForwarder => conn.streamOwner.get(stream) ?? terminal()
-  if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
+  if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, conn, req)
   switch (req.op) {
     case "hello":
       return {
@@ -155,7 +157,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       if (typeof params !== "object" || params === null || Array.isArray(params)) {
         throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
       }
-      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, verb, params as Record<string, unknown>)
+      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, conn, verb, params as Record<string, unknown>)
       const envelope = await deps.invoke(verb, params as ApiParams, optStr(a, "machine"))
       if (envelope.ok) return envelope.result
       throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
@@ -318,7 +320,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const spec = (deps.areaOps ?? AREA_OPS)[req.op]
       // Unreachable for unregistered names: parseRequest already refused them.
       if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
-      if (spec.destructive) logDestructive(deps, req)
+      if (spec.destructive) logDestructive(deps, conn, req)
       return spec.run(a, {
         api: deps.api,
         progress: (line) => ws.send(pushEvent("op.progress", { id: req.id, line })),
@@ -345,19 +347,25 @@ const DESTRUCTIVE_VERBS: ReadonlySet<string> = new Set([
   "note-delete",
 ])
 
-function logDestructiveVerb(deps: BridgeDeps, verb: string, params: Record<string, unknown>): void {
+function logDestructiveVerb(deps: BridgeDeps, conn: Conn, verb: string, params: Record<string, unknown>): void {
   const ids = ["task-id", "tab", "id"]
     .filter((key) => typeof params[key] === "string" || typeof params[key] === "number")
     .map((key) => `${key}=${String(params[key])}`)
-  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] api.invoke ${verb} ${ids.join(" ")}`.trimEnd())
+  audit(deps, conn, `api.invoke ${verb}`, ids)
 }
 
 /** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
-function logDestructive(deps: BridgeDeps, req: Request): void {
+function logDestructive(deps: BridgeDeps, conn: Conn, req: Request): void {
   const ids = ["taskId", "tabId", "path"]
     .filter((key) => typeof req.args[key] === "string")
     .map((key) => `${key}=${String(req.args[key])}`)
-  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] ${req.op} ${ids.join(" ")}`.trimEnd())
+  audit(deps, conn, req.op, ids)
+}
+
+/** When and by whom, so a line can be matched to the daemon's `task-deletion-audit` and to a device to revoke. */
+function audit(deps: BridgeDeps, conn: Conn, what: string, ids: readonly string[]): void {
+  const line = `[rove-bridge] ${new Date().toISOString()} ${what} ${ids.join(" ")}`.trimEnd()
+  ;(deps.log ?? ((l: string) => console.error(l)))(`${line} ${conn.who}`)
 }
 
 async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: string): Promise<void> {
@@ -424,10 +432,11 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
         return new Response("unauthorized\n", { status: 401 })
       }
-      if (device) log(`[rove-bridge] device ${device} connected from ${from}`)
+      if (device) log(`[rove-bridge] ${new Date().toISOString()} device ${device} connected from ${from}`)
       const data: Conn = {
         peer: peerOf(req, server.requestIP(req)?.address, deps),
         viewer: `bridge-${++nextViewer}`,
+        who: `device=${device ?? "shared-token"} from=${from}`,
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),

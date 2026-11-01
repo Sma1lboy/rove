@@ -276,7 +276,8 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
 
   const ptySocket = defaultPtyHostSocketPath()
   const deps: BridgeDeps = {
-    token,
+    // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
+    token: sharedToken,
     ops,
     feed,
     notices,

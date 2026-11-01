@@ -290,6 +290,24 @@ worktree path, the `--force`/`--delete-branch` flags, and who asked:
   context, but it names who CREATED the task, not who deleted it.
 - `client=<n>` — the daemon connection id, which distinguishes concurrent
   callers when neither identity above is present (a TUI keypress, `rove api`).
+  Many `requested` lines with ONE `client` a few seconds apart, and no `by=`,
+  are one long-lived connection: a TUI, or the web app's bridge.
+
+A delete from the web app or a paired phone also leaves a line in the
+bridge's own output (the stderr of `rove --web`, wherever your launcher sends
+it), with the same task id, the time, and who sent it:
+
+```
+[rove-bridge] 2026-11-01T02:13:06.414Z task.delete taskId=01M6… device=phone-1 from=203.0.113.7
+```
+
+`device` is the name given to `--device` or the password login
+(`web-login-<date>`), or `shared-token` for the main link; `from` is the
+address it connected from (behind Cloudflare, the visitor's). Match it to the
+daemon's `requested` line by task id and time. A device you do not recognize:
+`rove --web --revoke-device <name>`. Every other destructive web action
+(landing a task, closing a tab, removing a worktree, deleting a routine)
+writes the same kind of line.
 
 A `salvaged` line appears between `requested` and `removed` when a **forced**
 deletion had uncommitted work to destroy. It names the git ref holding a
