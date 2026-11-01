@@ -750,7 +750,6 @@ div.placeholder p {
   font: var(--fs-meta) var(--mono);
 }
 
-/* Coarse pointers (phones, tablets). */
 @media (hover: none) and (pointer: coarse) {
   .dialog-close {
     position: relative;

@@ -806,7 +806,6 @@
   font-family: var(--mono);
 }
 
-/* Coarse pointers (phones, tablets). */
 @media (hover: none) and (pointer: coarse) {
   .pg-actions .link::after {
     inset: -2px -3px;

@@ -23,6 +23,7 @@ export function Toggle(props: {
     <label className="pref-row">
       <input
         type="checkbox"
+        className="touch:size-5"
         checked={props.checked}
         disabled={props.disabled}
         onChange={(e) => props.onChange(e.target.checked)}

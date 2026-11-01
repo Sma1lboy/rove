@@ -490,11 +490,3 @@ html[data-working-border="flow"] .pane.is-working {
     animation: none;
   }
 }
-
-/* Coarse pointers (phones, tablets). */
-@media (hover: none) and (pointer: coarse) {
-  .pref-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-  }
-}

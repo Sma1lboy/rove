@@ -583,9 +583,7 @@ button:focus-visible {
   text-align: left;
 }
 
-/* Coarse pointers (phones, tablets). */
 @media (hover: none) and (pointer: coarse) {
-  /* A fingertip is ~40px: a link keeps its look and gets an invisible larger hit area. */
   .link {
     position: relative;
   }
