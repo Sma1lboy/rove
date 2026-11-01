@@ -10,6 +10,7 @@ import { useLocale } from "./i18n/index.ts"
 import { ts } from "./settings-copy.ts"
 import { createStore, useStore } from "./store.ts"
 import { toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 
 /** Display names of engines lacking the skill. */
 export const skillMissing = createStore<readonly string[]>([])
@@ -50,12 +51,13 @@ export function SkillBanner({ client }: { client: BridgeClient }) {
   const engines = useStore(skillMissing)
   if (engines.length === 0) return null
   return (
-    <div className="daemon-banner skill-banner mono" role="status">
+    // Accent, not the daemon banner's warning: nothing is broken, a step is missing.
+    <output className="flex flex-wrap items-baseline gap-3 border-0 border-b-[length:var(--hairline)] border-solid border-accent bg-inset px-3.5 py-1 font-mono text-meta text-accent">
       <b>{ts("engines.skill.bannerTitle")}</b>
-      <span>{ts("engines.skill.bannerHintWeb", { engines: engines.join(", ") })}</span>
-      <button type="button" className="link" onClick={() => void installSkill(client)}>
+      <span className="text-muted">{ts("engines.skill.bannerHintWeb", { engines: engines.join(", ") })}</span>
+      <Button hit="tight" onClick={() => void installSkill(client)}>
         {ts("engines.skill.bannerAction")}
-      </button>
-    </div>
+      </Button>
+    </output>
   )
 }

@@ -687,9 +687,3 @@
 .daemon-banner span {
   color: var(--muted);
 }
-
-/* Accent, not warning: nothing is broken, a step is missing. */
-.skill-banner {
-  border-bottom-color: var(--accent);
-  color: var(--accent);
-}
