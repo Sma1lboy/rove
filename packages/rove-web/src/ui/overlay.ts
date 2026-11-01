@@ -5,7 +5,7 @@
  */
 
 /** A short screen (a phone on its side) lends a dialog nearly all its height. */
-export const OVERLAY = "overlay fixed inset-0 z-20 grid items-start justify-items-center bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
+export const OVERLAY = "overlay fixed inset-0 z-20 grid place-items-[start_center] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
@@ -32,7 +32,7 @@ export const menuItemClass = (s: { selected?: boolean; open?: boolean; danger?: 
     s.danger && s.selected ? "bg-error text-paper" : s.selected || s.open ? "bg-hover" : ""
   } ${s.danger && !s.selected ? "text-error" : ""} ${s.selected ? "forced-colors:outline-2 forced-colors:-outline-offset-2 forced-colors:outline-[Highlight] forced-colors:outline-solid" : ""}`
 
-const MENU_META = "font-mono text-meta"
+const MENU_META = "font-mono text-meta normal-nums"
 export const menuKeyClass = (s: { selected?: boolean; danger?: boolean }): string =>
   `${MENU_META} ${s.danger && s.selected ? "text-inherit" : s.selected ? "text-muted" : "text-subtle"} touch:hidden!`
 export const menuChevronClass = (lit: boolean): string => `${MENU_META} ${lit ? "text-ink" : "text-subtle"}`
