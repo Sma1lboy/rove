@@ -5,7 +5,7 @@
  * `machines.repos` reads one machine's repos by id, for the composer's project list there.
  */
 
-import type { MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
+import type { MachineReason, MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
 import { BridgeError } from "../protocol.ts"
 import { attempt, machineOf } from "./machine-outcome.ts"
 import type { OpTable } from "./types.ts"
@@ -39,18 +39,24 @@ export interface MachineRow {
   readonly hostLabel: string
   readonly state: MachineStatus["state"]
   readonly version: string | null
+  /** Why it is not online, as a class; never the hub's raw `error`, which can name hosts, users and paths. */
+  readonly reason: MachineReason | null
 }
 
 export class MachineStore {
   private rows: readonly MachineRow[] = []
 
   set(statuses: readonly MachineStatus[]): void {
-    this.rows = statuses.map((s) => ({
-      alias: s.alias,
-      hostLabel: s.hostLabel,
-      state: s.state,
-      version: s.version ?? null,
-    }))
+    // A second alias for a machine already listed is the hub's bookkeeping, not another machine.
+    this.rows = statuses
+      .filter((s) => !s.duplicateOf)
+      .map((s) => ({
+        alias: s.alias,
+        hostLabel: s.hostLabel,
+        state: s.state,
+        version: s.version ?? null,
+        reason: s.state === "online" ? null : (s.reason ?? null),
+      }))
   }
 
   get(): readonly MachineRow[] {

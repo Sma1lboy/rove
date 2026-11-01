@@ -99,10 +99,13 @@ password is stored as a keychain reference, never as a password.
 rove                          ← your projects, exactly where they were
   main
   fix/machines
-narwhal · v0.9.185            ← a machine
-  narwhal:rove                ← its checkout of a repo you also have
-    remote probe
+narwhal:rove                  ← narwhal's checkout of a repo you also have
+  remote probe ☁              ← a task there: the cloud says where it runs
 ```
+
+There is no row for the machine itself: projects from every machine share one
+list, and a task from another machine carries a cloud mark (`on narwhal ·
+v0.9.185` on the row the cursor is on).
 
 - **Two machines, one repo name.** A repo called `rove` on both machines shows
   as `rove` here and `narwhal:rove` there. The local one keeps the bare name —
@@ -122,6 +125,14 @@ narwhal · v0.9.185            ← a machine
   explains most of what otherwise looks like a bug. A machine whose Rove is too
   old to talk to yours reads `⚠ v0.9.100 (protocol mismatch)` and is the only
   row affected.
+- **A machine you cannot see says why on the web.** One with no tasks yet,
+  or one that never connected since the daemon started, has no rows at all. The
+  web app's rail then lists **Machines** with how many are not connected. That
+  page shows each machine's state and version, the cause in words (nothing
+  answers SSH, the name does not resolve, the key was refused, Rove is not
+  installed there, the link dropped…) and the `rove machine doctor <alias>` to
+  run here. It never shows ssh's own message, which can name users, addresses
+  and paths, because the web app can be opened from anywhere.
 
 ## Check a machine again
 

@@ -3,18 +3,27 @@ import { MachineStore, createMachineOps } from "../src/ops/machines.ts"
 import { BridgeError } from "../src/protocol.ts"
 import { fakeApi } from "./task-ops-harness.ts"
 
-test("machines.list reports each machine's state, and a version only once a handshake gave one", async () => {
+test("machines.list reports each machine's state and why it is down, never the raw ssh error or a duplicate alias", async () => {
   const store = new MachineStore()
   store.set([
     { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246" },
-    { alias: "otter", hostLabel: "otter", state: "offline" },
+    {
+      alias: "otter",
+      hostLabel: "otter",
+      state: "offline",
+      reason: "auth-denied",
+      error: "me@10.0.0.7: Permission denied (publickey)",
+    },
+    { alias: "otter2", hostLabel: "otter2", state: "offline", duplicateOf: "otter" },
   ])
-  expect(await createMachineOps(store)["machines.list"]?.run({}, {} as never)).toEqual({
+  const reply = await createMachineOps(store)["machines.list"]?.run({}, {} as never)
+  expect(reply).toEqual({
     machines: [
-      { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246" },
-      { alias: "otter", hostLabel: "otter", state: "offline", version: null },
+      { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246", reason: null },
+      { alias: "otter", hostLabel: "otter", state: "offline", version: null, reason: "auth-denied" },
     ],
   })
+  expect(JSON.stringify(reply)).not.toContain("10.0.0.7")
 })
 
 const reposOf = (store: MachineStore, args: Record<string, unknown>, replies: Record<string, unknown>) => {

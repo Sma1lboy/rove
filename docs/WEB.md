@@ -83,6 +83,10 @@ already paired with `rove-bridge` keeps working: the two share one token.
   any task's conversation (`rove api search`), newest first, the words around
   each hit shown. A hit opens its task; the terminal does not scroll to the
   line. Tool output is not searched, and a task on another machine is not.
+- Machines (rail, once a machine is registered): each machine's state and
+  version, and for one that is not connected, why and the command to run here
+  (`rove machine doctor <alias>`). The rail entry shows how many are not
+  connected. See [MACHINES.md](./MACHINES.md).
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 
