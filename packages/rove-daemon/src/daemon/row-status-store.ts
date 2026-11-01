@@ -132,6 +132,11 @@ export class RowStatusStore {
     this.schedule()
   }
 
+  /** When the user last answered this tab's question, if ever. */
+  answeredAt(taskId: string, tabId: string): number | undefined {
+    return this.answered.get(tabKey(taskId, tabId))
+  }
+
   close(): void {
     this.closed = true
     this.off()

@@ -201,6 +201,8 @@ export type DaemonRequestName =
   | "queue.add"
   | "queue.list"
   | "queue.cancel"
+  // `send.check`: which tabs of a task a paste would land in a menu on (`handlers-queue.ts`), read-only.
+  | "send.check"
   // Should-run: `task.runnability` is the read verdict. `send.admit` evaluates,
   // claims and (when the send owes a report) arms in one daemon tick for
   // `send --if-runnable`; `send.release` frees the claim after the paste.

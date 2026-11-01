@@ -1082,7 +1082,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `AWAITING_PERMISSION`: a paste is not a menu answer, and the Enter after it
   confirms whichever option is highlighted. Without `--tab`, any of the task's
   tabs at a menu refuses. Answer it with keys in the terminal; once a client
-  has answered it, or the engine reports again, `send` goes through. Engines
+  has answered it, or the engine reports again, `send` goes through. A tab that
+  came to rest straight from a menu (a stray turn-complete with no running turn
+  between) counts as still at the menu until a turn runs or a client answers, the
+  same rule `--queue` pastes under, and a tab that only just came to rest is
+  read again ~1.5 s later, right before the paste. A tab mid-turn is not refused
+  (the text joins the running turn; `--queue` waits for its end). Engines
   that report no permission prompts (no hook) are never refused. Without `--tab`, the canonical target
   is a live engine tab (`tab-1` first, then any surviving engine tab); when
   live tabs exist but none resolves as an engine, `send` refuses with
