@@ -13,6 +13,7 @@ import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
+import { installSkill } from "./skill-banner.tsx"
 import { toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
@@ -329,14 +330,8 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
   const skillable = props.engines.filter((e) => e.skill !== "unsupported")
   const current = skillable.filter((e) => e.skill === "installed").length
   const needInstall = skillable.length - current
-  const install = () =>
-    void props.client
-      .request<{ error: string | null }>("skill.install")
-      .then((r) => {
-        if (r.error) toast(ts("engines.skill.failed", { reason: r.error }), "error")
-        return props.reload()
-      })
-      .catch((e) => toast(errorText(e), "error"))
+  // Shared with the banner, so installing here clears it too.
+  const install = () => void installSkill(props.client).then(props.reload)
   return (
     <div className="eng-integrations">
       <div className="eng-integrations-head">
@@ -360,16 +355,5 @@ function SkillSection(props: { engines: readonly EngineSetting[]; client: Bridge
         )}
       </div>
     </div>
-  )
-}
-
-/** Once per connection: name engines lacking the skill, each only ever once (shared with the TUI). */
-export function maybeNudgeSkill(client: BridgeClient): void {
-  void client.request<{ engines: string[] }>("skill.nudge").then(
-    (r) => {
-      if (r.engines.length > 0)
-        toast(`${ts("engines.skill.nudgeTitle")}: ${ts("engines.skill.nudgeBody", { engines: r.engines.join(", ") })}`)
-    },
-    () => {},
   )
 }
