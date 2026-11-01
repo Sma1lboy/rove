@@ -24,7 +24,7 @@ import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
-import { addDevice, deviceOf, listDevices, loadOrCreateToken, pairingUrl, revokeDevice, webUrl } from "./auth.ts"
+import { deviceOf, listDevices, pairingUrl, revokeDevice, startupCredentials, webUrl } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
@@ -141,9 +141,14 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
     return
   }
-  const sharedToken = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
+  const { token, revoked } = startupCredentials({
+    tokenPath: join(bridgeDir, "token"),
+    devicesPath,
+    rotate: args.rotateToken,
+    device: args.device,
+  })
+  if (revoked > 0) console.log(`${opts.name}: --rotate-token signed out ${revoked} device token(s)`)
   // `--device` prints that device's own link; the bridge still accepts every valid token.
-  const token = args.device ? addDevice(devicesPath, args.device) : sharedToken
 
   const daemonSocket = await ensureDaemonReachable(undefined, "autospawn")
   await ensurePtyHostReachable()
