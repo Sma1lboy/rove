@@ -1,6 +1,6 @@
 /** Class recipes for the page shell: the app grid, the narrow bar, splits, terminal chrome, the key guide, palette and help. */
 
-/** Only the size: these lines keep the line height they inherit. */
+/** Only the size, for lines outside a `.mono` element: they keep the line height they inherit. */
 const META = "text-meta leading-[inherit]"
 /** What the sheets' `font: <size> <family>` shorthand reset besides size and family. */
 const FONT_RESET = "font-normal normal-nums"
@@ -56,16 +56,16 @@ export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3
 
 /** Narrow layout, content panel: back to the list, and the terminal/panel switch. */
 export const NARROW_BAR = "flex items-center gap-2"
-export const NARROW_BACK = `px-1.5 py-0.5 ${META} font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
+export const NARROW_BACK = `px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
 export const NARROW_SWITCH = "ml-auto flex gap-0.5"
 export const NARROW_TAB = `rounded-sm px-2.5 py-1 font-mono text-meta font-semibold normal-nums text-muted aria-selected:bg-inset aria-selected:text-ink ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
 
-export const HINT_BAR = `inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap ${META} text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50`
-export const PANE_HINT = `keys-only m-0 overflow-hidden px-3.5 py-1 ${META} text-ellipsis whitespace-nowrap`
+export const HINT_BAR = `inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50`
+export const PANE_HINT = `keys-only m-0 overflow-hidden px-3.5 py-1 text-meta text-ellipsis whitespace-nowrap`
 
 /** A chord's keycap badge; under the rail head it hangs below its chip. */
 export const shortcutBadge = (head: boolean): string =>
-  `absolute z-8 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px ${META} text-accent ${head ? "top-full right-0" : "top-1/2 right-1 -translate-y-1/2"}`
+  `absolute z-8 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px text-meta text-accent ${head ? "top-full right-0" : "top-1/2 right-1 -translate-y-1/2"}`
 
 /** Split border styles (TUI `SplitStyle`): box frames every pane, line draws only the shared edge, rail a left bar, rule a top rule with the name riding it. */
 export const SPLIT = "relative min-w-0 flex-1"
@@ -91,7 +91,7 @@ export const splitName = (rule: boolean, active: boolean): string =>
   `absolute right-2 z-3 bg-paper px-1 font-mono text-meta ${FONT_RESET} ${rule ? "-top-2" : "top-0.5"} ${active ? "text-accent" : "text-subtle"}`
 
 /** Overlays on the terminal; on touch they clear the key row. */
-export const TERM_SCROLLED = `absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 ${META} touch:bottom-12`
+export const TERM_SCROLLED = `absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 text-meta touch:bottom-12`
 export const TERM_SEARCH = `absolute inset-x-2 bottom-2 z-5 flex items-center gap-2.5 rounded-sm border-hairline border-line bg-surface px-2.5 py-1 font-mono text-meta ${FONT_RESET} touch:bottom-12 touch:text-display`
 export const TERM_SEARCH_INPUT = "min-w-0 flex-1 border-none bg-transparent text-ink [font:inherit] outline-none"
 export const TERM_NOTICE_TOUCH = "touch:bottom-12"
@@ -103,7 +103,7 @@ export const termKey = (on: boolean): string =>
   `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-[6px] border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
-export const PREFIX_GUIDE = `fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 ${META} shadow-popover`
+export const PREFIX_GUIDE = `fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover`
 export const PREFIX_GUIDE_HEAD = "mb-1.5 flex justify-between gap-4"
 export const PREFIX_GUIDE_BODY = "columns-[2_220px] gap-x-5"
 export const PREFIX_GUIDE_GROUP = "mb-2 break-inside-avoid"
@@ -124,4 +124,4 @@ export const HELP_ROW = `flex gap-3 py-px ${META}`
 export const HELP_CAP = "min-w-[14ch] text-ink"
 
 /** Daemon out-of-date banner (TUI VersionSkewBanner). */
-export const DAEMON_BANNER = `flex flex-wrap items-baseline gap-3 [border-bottom:var(--hairline)_solid_var(--warning)] bg-inset px-3.5 py-1 ${META} text-warning [&_span]:text-muted`
+export const DAEMON_BANNER = `flex flex-wrap items-baseline gap-3 [border-bottom:var(--hairline)_solid_var(--warning)] bg-inset px-3.5 py-1 text-meta text-warning [&_span]:text-muted`
