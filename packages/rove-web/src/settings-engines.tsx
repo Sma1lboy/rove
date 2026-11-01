@@ -47,6 +47,7 @@ import {
   engNameClass,
   engStatusClass,
 } from "./ui/settings.ts"
+import { Switch } from "./ui/switch.tsx"
 import { INPUT_FRAME, PLACEHOLDER_LINE } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
@@ -181,16 +182,11 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
             </button>
           ) : null}
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={e.enabled}
+        <Switch
+          on={e.enabled}
           aria-label={t("settings.engines.enabled", { name: e.name })}
-          className="switch"
           onClick={() => run("engine.setEnabled", { id: e.id, enabled: !e.enabled })}
-        >
-          <span className="switch-knob" />
-        </button>
+        />
       </div>
       {props.open ? <EngineDetail id={detailId} engine={e} run={run} /> : null}
     </div>

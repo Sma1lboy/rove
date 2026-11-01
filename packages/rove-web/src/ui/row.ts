@@ -32,6 +32,10 @@ export const ROW_TITLE = "row-title min-w-0 flex-1 truncate"
 /** A rail task row's label: sized by its text before the chips take their share, in the title size. */
 export const ROW_TITLE_RAIL = "row-title min-w-0 flex-auto truncate text-(length:--fs-title)"
 
+/** A running task row's label under the shimmer pref: a light band sweeps across it, then rests. */
+export const ROW_TITLE_RUNNING =
+  "running-shimmer:bg-[linear-gradient(90deg,var(--ink)_0%,var(--ink)_35%,var(--accent)_50%,var(--ink)_65%,var(--ink)_100%)] running-shimmer:bg-size-[300%_100%] running-shimmer:bg-clip-text running-shimmer:text-transparent running-shimmer:animate-shimmer"
+
 /** A one-cell mark at a row's start (a status letter, a radio dot). */
 export const GLYPH = "w-[1ch] flex-none text-center font-mono"
 

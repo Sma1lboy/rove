@@ -17,7 +17,7 @@ import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { dialog, newSession, page } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { PANE, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
+import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -90,7 +90,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
       {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       <div
-        className={`${PANE} ${working ? "is-working" : ""}`}
+        className={`${PANE} ${working ? PANE_WORKING : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}
       >
         {!narrow && !task && !remoteTask && payload && payload.tasks.length + remote.length === 0 && (

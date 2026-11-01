@@ -10,6 +10,7 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
+import { ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface PluginRow {
@@ -53,14 +54,14 @@ function BuiltinMods({ model }: { model: AppModel }) {
       .catch((e) => toast(errorText(e), "error"))
   }
   return (
-    <div className="settings-rows">
+    <div className={SETTINGS_ROWS}>
       {mods.map((mod) => {
         const on = installed.has(mod.id)
         return (
-          <div key={mod.id} className="engine-row">
-            <div className="engine-main">
+          <div key={mod.id} className={ENGINE_ROW}>
+            <div className={ENGINE_MAIN}>
               <span className="engine-name">{mod.name}</span>
-              <span className="engine-detail text-muted">
+              <span className={`text-muted ${engineDetailClass()}`}>
                 {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")}, ${mod.description}`}
               </span>
             </div>
@@ -98,9 +99,9 @@ export function PluginsSection({ model }: { model: AppModel }) {
       ) : plugins.length === 0 ? (
         <p className={PLACEHOLDER_LINE}>{t("settings.plugins.empty")}</p>
       ) : (
-        <div className="settings-rows">
+        <div className={SETTINGS_ROWS}>
           {plugins.map((p) => (
-            <label key={p.id} className="engine-row">
+            <label key={p.id} className={ENGINE_ROW}>
               <input
                 type="checkbox"
                 checked={p.enabled}
@@ -111,9 +112,9 @@ export function PluginsSection({ model }: { model: AppModel }) {
                     .catch((e) => toast(errorText(e), "error"))
                 }
               />
-              <div className="engine-main">
+              <div className={ENGINE_MAIN}>
                 <span className="engine-name">{p.id}</span>
-                <span className="engine-detail mono text-muted">
+                <span className={`mono text-muted ${engineDetailClass()}`}>
                   {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
                     .filter(Boolean)
                     .join(", ")}
