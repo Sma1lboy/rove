@@ -74,6 +74,22 @@
     }
   }
 
+  /* The rail's PR card and title tip slide in from the row. */
+  --animate-pr-list-in: pr-list-in 140ms ease-out;
+  @keyframes pr-list-in {
+    from {
+      opacity: 0;
+      translate: -4px 0;
+    }
+  }
+  --animate-row-tip-in: row-tip-in 140ms ease-out;
+  @keyframes row-tip-in {
+    from {
+      opacity: 0;
+      translate: -4px -50%;
+    }
+  }
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);

@@ -5,6 +5,7 @@
 
 import { type PointerEvent, type ReactNode, type RefCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { ROW_TIP } from "./ui/rail.ts"
 
 const SHOW_AFTER_MS = 450
 
@@ -99,7 +100,7 @@ export function useRowTip(
     hide: dismiss,
     tip: at
       ? createPortal(
-          <div className="row-tip" role="tooltip" style={{ top: at.top + at.height / 2, left: at.right + 8 }}>
+          <div className={ROW_TIP} role="tooltip" style={{ top: at.top + at.height / 2, left: at.right + 8 }}>
             {text}
           </div>,
           document.body,
