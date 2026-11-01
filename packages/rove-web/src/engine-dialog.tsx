@@ -15,6 +15,7 @@ import { toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { HINT } from "./ui/text.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 
 export interface PickerEngine {
   readonly id: string
@@ -123,7 +124,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
   return (
     <DialogShell title={tc("tasks", "changeEngine.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={onKeyDown}
         onSubmit={(e) => {
           e.preventDefault()

@@ -13,6 +13,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { closeDialog } from "./ui.ts"
 import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 
 interface BriefTask {
   readonly prompt?: string
@@ -51,7 +52,7 @@ export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<Ta
   return (
     <DialogShell title={tc("tasks", "runAgain.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onSubmit={(e) => {
           e.preventDefault()
           void run()
@@ -132,7 +133,7 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
 
   return (
     <DialogShell title={tc("tasks", "fieldNotes.title")} wide>
-      <div className="dialog-body" onKeyDown={onKeyDown}>
+      <div className={DIALOG_BODY} onKeyDown={onKeyDown}>
         <p className="font-mono text-meta break-all text-muted">{repo}</p>
         {state.kind === "loading" && <p className="muted">{tc("tasks", "fieldNotes.loading")}</p>}
         {state.kind === "error" && <p className="error">{state.message}</p>}

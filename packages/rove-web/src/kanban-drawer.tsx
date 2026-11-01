@@ -33,6 +33,7 @@ import {
   kbPlaceClass,
 } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, OVERLAY, dialogClass } from "./ui/overlay.ts"
 
 export const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
 export type IssueStatus = (typeof ISSUE_STATUSES)[number]
@@ -236,16 +237,16 @@ export function IssueDrawer(props: {
   const statusLabel = (value: IssueStatus) => kanban.detail.status[value]
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && latest.current.close()}>
+    <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && latest.current.close()}>
       <dialog
         open
-        className={`dialog is-wide ${KB_DRAWER}`}
+        className={`${dialogClass(true)} ${KB_DRAWER}`}
         aria-label={create ? kanban.detail.newStory : `#${issue.id}`}
         onPaste={onPaste}
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="dialog-head">
+        <div className={DIALOG_HEAD}>
           {create ? (
             <h1 className="kicker">{kanban.detail.newStory}</h1>
           ) : (
@@ -259,7 +260,7 @@ export function IssueDrawer(props: {
           {/* Esc's twin for a touch screen: saves an open story, drops a new one. */}
           <button
             type="button"
-            className="dialog-close"
+            className={DIALOG_CLOSE}
             aria-label={t("dialog.close")}
             title={t("dialog.close")}
             onClick={() => latest.current.close()}
@@ -267,7 +268,7 @@ export function IssueDrawer(props: {
             ×
           </button>
         </div>
-        <div className="dialog-body">
+        <div className={DIALOG_BODY}>
           <label className="field">
             <span className="kicker">{kanban.detail.titleLabel}</span>
             <input

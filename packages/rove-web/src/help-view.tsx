@@ -21,6 +21,7 @@ import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog } from "./ui.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 
 const displayCap = (cap: string): string =>
   cap
@@ -94,7 +95,7 @@ function HelpDialog({
 
   return (
     <DialogShell title={helpText("title")} wide>
-      <div className="dialog-body help">
+      <div className={`${DIALOG_BODY} help`}>
         <div className="help-head">
           <div>
             <p className="muted">
