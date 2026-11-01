@@ -25,6 +25,22 @@ vi.mock("../../src/machines/registry.ts", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   updateMachine: () => {},
 }))
+vi.mock("@sma1lboy/rove-daemon/client", () => ({ RoveDaemonClient: class {} }))
+vi.mock("../../src/client/remote-orchestrator.ts", () => {
+  const signal = <T>(value: T) => ({ get: () => value, subscribe: () => () => {} })
+  return {
+    RemoteOrchestrator: class {
+      async init() {}
+      dispose() {}
+      tasksSignal = () => signal([])
+      connectionStateSignal = () => signal("online")
+      engineStateSignal = () => signal(new Map())
+      worktreeChangesSignal = () => signal(new Map())
+      rowTokensSignal = () => signal(new Map())
+      daemonVersionSignal = () => signal("0.9.300")
+    },
+  }
+})
 
 import { MachineHub } from "../../src/machines/hub.ts"
 import type { MachineEntry } from "../../src/machines/registry.ts"
@@ -73,6 +89,18 @@ describe("MachineHub reason", () => {
     await vi.waitFor(() => expect(tunnelListeners).toHaveLength(1))
     for (const listener of tunnelListeners) listener("offline")
     expect(status(hub)).toMatchObject({ state: "offline", reason: "lost" })
+    hub.dispose()
+  })
+
+  it("forgets the cause once the machine comes back online", async () => {
+    discover.mockResolvedValue({ ok: false, code: "SSH_FAILED", ssh: "timeout", message: "ssh: timed out" })
+    const hub = await connected({ alias: "box", host: "box", auth: { kind: "key" }, sockets } as MachineEntry)
+    await vi.waitFor(() => expect(tunnelListeners).toHaveLength(1))
+    for (const listener of tunnelListeners) listener("offline")
+    expect(status(hub)?.reason).toBe("timeout")
+    for (const listener of tunnelListeners) listener("online")
+    await vi.waitFor(() => expect(status(hub)?.state).toBe("online"))
+    expect(status(hub)).toMatchObject({ reason: undefined, error: undefined, version: "0.9.300" })
     hub.dispose()
   })
 })

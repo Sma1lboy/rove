@@ -145,7 +145,8 @@ export const en = {
       refused: "Nothing answers SSH there. Turn on Remote Login (macOS) or start sshd (Windows: Start-Service sshd).",
       timeout: "SSH timed out: the machine is asleep, off, or on another network.",
       "host-key-changed": "Its host key changed. Rove will not trust it on its own: check why, then fix known_hosts.",
-      "host-key-unverified": "Its host key is not trusted yet. The fix shows the fingerprint and asks.",
+      "host-key-unverified":
+        "Its host key is not trusted yet. Connect once with ssh from a terminal here, check the fingerprint and accept it, then check again.",
       "auth-denied":
         "SSH refused this Rove's key. The fix offers to install one (you type that machine's password once).",
       "ssh-failed": "SSH failed for a reason Rove could not tell.",
@@ -332,7 +333,8 @@ export const zh: typeof en = {
       refused: "那边没有 SSH 在听。打开「远程登录」（macOS），或启动 sshd（Windows：Start-Service sshd）。",
       timeout: "SSH 超时：机器睡着了、关机了，或不在同一个网络。",
       "host-key-changed": "它的 host key 变了。Rove 不会自己信任它：先查清原因，再改 known_hosts。",
-      "host-key-unverified": "它的 host key 还没被信任。修复命令会显示指纹并询问。",
+      "host-key-unverified":
+        "它的 host key 还没被信任。先在这台电脑的终端里用 ssh 连一次，核对指纹并接受，再重新检查。",
       "auth-denied": "SSH 拒绝了这个 Rove 的密钥。修复命令会帮你装一把（输一次那台机器的密码）。",
       "ssh-failed": "SSH 失败，Rove 看不出原因。",
       "no-rove": "那边没装 Rove，或 SSH 的 PATH 里找不到。修复命令会帮你装。",
