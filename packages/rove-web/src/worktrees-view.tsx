@@ -15,6 +15,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
 import { WT_BRANCH, WT_GROUP, WT_HINTS, WT_LINE, WT_LINE_META, WT_PATH, wtRowClass } from "./ui/update.ts"
 
 interface WorktreeRow {
@@ -157,8 +158,8 @@ export function WorktreesView({ model }: { model: AppModel }) {
   let base = 0
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={host} onKeyDown={onKey}>
-      <h1 className="page-title">{w.title}</h1>
+    <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
+      <h1 className={PAGE_TITLE}>{w.title}</h1>
       {projects === null ? (
         <p className="muted">{w.loading}</p>
       ) : visible.length === 0 ? (

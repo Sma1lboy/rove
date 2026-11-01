@@ -17,7 +17,7 @@ import { useTaskColor } from "./task-colors.ts"
 import { newChatHere } from "./task-dialogs.tsx"
 import { dialog, newSession, page } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { WORKSPACE_FRAME } from "./ui/shell.ts"
+import { PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 import { WorktreesView } from "./worktrees-view.tsx"
@@ -97,15 +97,15 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
           <WelcomePane model={model} />
         )}
         {!task && !remoteTask && payload && payload.tasks.length + remote.length > 0 && (
-          <p className="placeholder">{t("workspace.pickTask")}</p>
+          <p className={PLACEHOLDER}>{t("workspace.pickTask")}</p>
         )}
         {remoteTask?.machine && (
-          <div className="placeholder">
+          <div className={PLACEHOLDER_BOX}>
             <RemoteNotice host={remoteTask.machine.label} />
           </div>
         )}
         {task && tabsKnown && tabs.length === 0 && !panelOn && (
-          <div className="placeholder">
+          <div className={PLACEHOLDER_BOX}>
             <p>{t("workspace.noTabs")}</p>
             <button type="button" className={buttonClass()} onClick={() => void newChatHere(model, task.id)}>
               {t("menu.newChat")}

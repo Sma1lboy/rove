@@ -4,7 +4,6 @@ import "@fontsource/jetbrains-mono/400.css"
 import "@fontsource/jetbrains-mono/700.css"
 import "./styles.css"
 // The rail and tab strip sheets sit right after the tokens: later sheets override them at equal specificity.
-import "./overlays.css"
 import "./settings.css"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"

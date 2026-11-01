@@ -106,9 +106,10 @@ export const termKey = (on: boolean): string =>
   `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-[6px] border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
-/** `prefix-guide` stays: overlays.css animates it and prefix.tsx keeps clicks on it from cancelling the prefix. */
+/** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
 export const PREFIX_GUIDE =
-  "prefix-guide fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover"
+  "prefix-guide fixed bottom-19 left-3 z-40 max-h-[60vh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-sm border-hairline border-line bg-surface px-3 py-2 text-meta shadow-popover motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out"
+export const PREFIX_KEY = "min-w-[3ch] text-accent"
 export const PREFIX_GUIDE_HEAD = "mb-1.5 flex justify-between gap-4"
 export const PREFIX_GUIDE_BODY = "columns-[2_220px] gap-x-5"
 export const PREFIX_GUIDE_GROUP = "mb-2 break-inside-avoid"
@@ -131,3 +132,13 @@ export const HELP_CAP = "min-w-[14ch] text-ink"
 /** Daemon out-of-date banner (TUI VersionSkewBanner). */
 export const DAEMON_BANNER =
   "flex flex-wrap items-baseline gap-3 [border-bottom:var(--hairline)_solid_var(--warning)] bg-inset px-3.5 py-1 text-meta text-warning [&_span]:text-muted"
+
+/** The prefix HUD, bottom-left over the rail as the TUI's. */
+export const PREFIX_HUD = `keys-only fixed bottom-[34px] left-3 z-40 min-w-55 rounded-sm border-hairline border-line bg-surface px-3 py-2 font-mono text-meta ${FONT_RESET} text-ink shadow-popover`
+/** A HUD line rises in, then sinks out at `--hud-out`; one brought back after the guide only sinks. */
+export const prefixHudLine = (back: boolean): string =>
+  `mb-0.5 ${back ? "motion-safe:[animation:sink-out_140ms_ease-in_var(--hud-out,3860ms)_forwards]" : "motion-safe:[animation:rise-in_140ms_ease-out,sink-out_140ms_ease-in_var(--hud-out,3860ms)_forwards]"}`
+
+/** The workspace's empty states. */
+export const PLACEHOLDER = `m-auto font-mono text-meta ${FONT_RESET} text-subtle`
+export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 [&_p]:m-0`

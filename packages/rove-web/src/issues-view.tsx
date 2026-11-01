@@ -23,6 +23,8 @@ import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
 import {
+  PAGE_SCROLL,
+  PAGE_TITLE,
   PG_GROW,
   PG_ISSUE_LINE,
   PG_ISSUE_NUM,
@@ -210,9 +212,9 @@ export function IssuesView({ model }: { model: AppModel }) {
   const now = Date.now()
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={root}>
+    <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className="page-title">{copy.title}</h1>
+        <h1 className={PAGE_TITLE}>{copy.title}</h1>
         <span className={`muted mono touch:empty:hidden! ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}

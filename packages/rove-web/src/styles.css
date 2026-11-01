@@ -569,3 +569,8 @@ button:focus-visible {
     font-size: var(--fs-display) !important;
   }
 }
+
+/* Last in the sheet: it outranks every rule above it that shares an element with it. */
+.mono {
+  font: var(--fs-meta) var(--mono);
+}
