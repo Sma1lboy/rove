@@ -179,7 +179,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className={`page ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{t("dispatch.title")}</h1>
-        <span className="muted mono pg-hint">
+        <span className="muted mono pg-hint touch:empty:hidden!">
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>

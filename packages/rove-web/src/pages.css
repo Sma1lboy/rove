@@ -808,10 +808,6 @@
 
 /* Coarse pointers (phones, tablets). */
 @media (hover: none) and (pointer: coarse) {
-  .kb-legend:empty,
-  .pg-hint:empty {
-    display: none !important;
-  }
   .pg-actions .link::after {
     inset: -2px -3px;
   }
@@ -830,10 +826,6 @@
     content: "";
     position: absolute;
     inset: -4px -8px;
-  }
-  /* Repo / placement pickers (routine composer, Kanban drawer) stack 2px apart: no room for ::after. */
-  .kb-place {
-    padding-block: 6px;
   }
   .kb-strip button {
     position: relative;

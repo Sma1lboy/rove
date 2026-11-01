@@ -202,7 +202,7 @@ export function IssuesView({ model }: { model: AppModel }) {
     <div className="page" tabIndex={0} ref={root}>
       <div className="pg-top">
         <h1 className="page-title">{copy.title}</h1>
-        <span className="muted mono pg-hint">
+        <span className="muted mono pg-hint touch:empty:hidden!">
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>

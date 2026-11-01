@@ -171,7 +171,7 @@ export function RoutineComposer(props: {
                   key={repo ?? ""}
                   tabIndex={-1}
                   aria-selected={repo === draft.repo}
-                  className={`kb-place ${repo === draft.repo ? "is-active" : ""}`}
+                  className={`kb-place touch:py-1.5 ${repo === draft.repo ? "is-active" : ""}`}
                   onClick={() => {
                     patch({ repo, target: undefined })
                     refs.current.repo?.focus()
@@ -281,7 +281,7 @@ export function RoutineComposer(props: {
             )}
           </div>
           {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend">
+          <p className="muted kb-legend touch:empty:hidden!">
             <Legend text={deviceHint(auto.composerLegend)} />
           </p>
           <div className="actions">

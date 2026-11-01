@@ -376,7 +376,7 @@ export function IssueDrawer(props: {
                       key={option}
                       tabIndex={-1}
                       aria-pressed={option === placement}
-                      className={`kb-place ${option === placement ? "is-active" : ""}`}
+                      className={`kb-place touch:py-1.5 ${option === placement ? "is-active" : ""}`}
                       onClick={() => {
                         setPlacement(option)
                         refs.current.workspace?.focus()
@@ -416,7 +416,7 @@ export function IssueDrawer(props: {
                   ))}
                 </SelectorField>
               </div>
-              <p className="muted kb-legend">
+              <p className="muted kb-legend touch:empty:hidden!">
                 <Legend text={deviceHint(create ? kanban.detail.createLegend : kanban.detail.startLegend)} />
               </p>
               {/* The keys' click targets: a phone has no ctrl+s or ctrl+enter. */}
@@ -455,12 +455,12 @@ export function IssueDrawer(props: {
                 </div>
               </div>
               <EventsFeed model={props.model} taskId={linkedTaskId} />
-              <p className="muted kb-legend">
+              <p className="muted kb-legend touch:empty:hidden!">
                 <Legend text={deviceHint(kanban.detail.openLegend)} />
               </p>
             </>
           ) : (
-            <p className="muted kb-legend">
+            <p className="muted kb-legend touch:empty:hidden!">
               <Legend text={deviceHint(kanban.detail.doneNote)} />
             </p>
           )}

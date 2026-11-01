@@ -142,7 +142,7 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
           ) : e.canBeDefault ? (
             <button
               type="button"
-              className="eng-make-default"
+              className="eng-make-default touch:opacity-100"
               aria-label={t("settings.engines.default", { name: e.name })}
               onClick={() => run("engine.setDefault", { id: e.id })}
             >
@@ -271,17 +271,17 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           <button type="submit" className="button">
             {t("settings.engines.save")}
           </button>
-          <button type="button" className="eng-action" onClick={() => setRenaming(null)}>
+          <button type="button" className="eng-action touch:min-h-10" onClick={() => setRenaming(null)}>
             {t("settings.engines.cancel")}
           </button>
         </form>
       ) : (
         <div className="eng-actions">
-          <button type="button" className="eng-action" onClick={() => setRenaming(e.name)}>
+          <button type="button" className="eng-action touch:min-h-10" onClick={() => setRenaming(e.name)}>
             {t("settings.engines.rename")}
           </button>
           {e.custom || e.customized ? (
-            <button type="button" className="eng-action" onClick={() => run("engine.reset", { id: e.id })}>
+            <button type="button" className="eng-action touch:min-h-10" onClick={() => run("engine.reset", { id: e.id })}>
               {e.custom ? t("settings.engines.remove") : t("settings.engines.reset")}
             </button>
           ) : null}
@@ -317,7 +317,7 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
           <span className="eng-uptodate">{ts("engines.integrations.upToDate")}</span>
         )}
         {onDisk > 0 ? (
-          <button type="button" className="eng-action" onClick={() => run("engines.hooks.uninstall")}>
+          <button type="button" className="eng-action touch:min-h-10" onClick={() => run("engines.hooks.uninstall")}>
             {ts("engines.integrations.remove", { count: onDisk })}
           </button>
         ) : null}
