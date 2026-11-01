@@ -1,7 +1,8 @@
 /**
  * Settings → Engines: one row per engine (name, a plain-language status, whether it is the
  * default, whether it is offered), the detection facts and rename/reset in a detail area that
- * opens under its row, and one section for Rove's engine integrations (the activity hooks).
+ * opens under its row, one section for Rove's engine integrations (the activity hooks) and one
+ * for the Rove agent skill.
  * Launch commands stay a Mac-side edit.
  */
 
@@ -35,6 +36,8 @@ interface EngineSetting {
   readonly markers: boolean
   readonly screen: boolean
   readonly configIssue?: string
+  /** The Rove agent skill copy; "unsupported" when the engine isn't set up here or takes none. */
+  readonly skill: "installed" | "outdated" | "not-installed" | "unsupported"
 }
 
 type Run = (op: string, args?: Record<string, unknown>) => void
@@ -99,6 +102,7 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
         ))}
       </div>
       <Integrations engines={engines} run={run} />
+      <SkillSection engines={engines} client={client} reload={load} />
     </section>
   )
 }
@@ -213,6 +217,20 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
             <span key={line}>{line}</span>
           ))}
         </dd>
+        {e.skill !== "unsupported" ? (
+          <>
+            <dt>{ts("engines.detail.skill")}</dt>
+            <dd className={e.skill === "installed" ? "" : "tone-warning"}>
+              {ts(
+                e.skill === "installed"
+                  ? "engines.detail.skillInstalledHere"
+                  : e.skill === "outdated"
+                    ? "engines.detail.skillOutdated"
+                    : "engines.detail.skillMissing",
+              )}
+            </dd>
+          </>
+        ) : null}
         {e.custom ? (
           <>
             <dt>{ts("engines.detail.adapter")}</dt>
@@ -303,5 +321,54 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
         ) : null}
       </div>
     </div>
+  )
+}
+
+function SkillSection(props: { engines: readonly EngineSetting[]; client: BridgeClient; reload: () => unknown }) {
+  const skillable = props.engines.filter((e) => e.skill !== "unsupported")
+  const current = skillable.filter((e) => e.skill === "installed").length
+  const needInstall = skillable.length - current
+  const install = () =>
+    void props.client
+      .request<{ error: string | null }>("skill.install")
+      .then((r) => {
+        if (r.error) toast(ts("engines.skill.failed", { reason: r.error }), "error")
+        return props.reload()
+      })
+      .catch((e) => toast(errorText(e), "error"))
+  return (
+    <div className="eng-integrations">
+      <div className="eng-integrations-head">
+        <h3>{ts("engines.skill.title")}</h3>
+        {skillable.length > 0 ? (
+          <span className="muted">
+            {ts("engines.integrations.summary", { installed: current, total: skillable.length })}
+          </span>
+        ) : null}
+      </div>
+      <p className="muted">{ts("engines.skill.hint")}</p>
+      <div className="eng-integrations-actions">
+        {needInstall > 0 ? (
+          <button type="button" className="button" onClick={install}>
+            {ts("engines.skill.install", { count: needInstall })}
+          </button>
+        ) : (
+          <span className="eng-uptodate">
+            {ts(skillable.length > 0 ? "engines.integrations.upToDate" : "engines.skill.noEngines")}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Once per connection: name engines lacking the skill, each only ever once (shared with the TUI). */
+export function maybeNudgeSkill(client: BridgeClient): void {
+  void client.request<{ engines: string[] }>("skill.nudge").then(
+    (r) => {
+      if (r.engines.length > 0)
+        toast(`${ts("engines.skill.nudgeTitle")}: ${ts("engines.skill.nudgeBody", { engines: r.engines.join(", ") })}`)
+    },
+    () => {},
   )
 }

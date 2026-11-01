@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-`rove skill install` no longer needs Node or `npx`: Rove copies its bundled skill into every coding agent set up on the machine, `rove skill status` shows each agent's copy, and installed copies refresh themselves after an upgrade. The `rove skill command` verb and the `--project` flag are gone.
+The Rove agent skill now installs from Settings → Engines in the TUI and the web app, which show each engine's copy. When Rove starts and an engine set up on the machine has no skill, a notice names it once. The welcome guide installs the skill on the spot. Installing no longer needs Node or `npx`, and installed copies refresh themselves after an upgrade. `rove skill install`/`status` remain the shell route; `rove skill command` and `--project` are gone.

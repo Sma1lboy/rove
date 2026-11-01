@@ -227,7 +227,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   useTabsSync(orch.tabs, orch.connectionStateSignal())
   useRowStatusSync(orch.rowStatus, orch.connectionStateSignal())
 
-  const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
+  const pages = useHostPagesState(focus, props)
   // Modals, opened here because the dialog stack lives here.
   useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
   useWelcomeDialog(pages.welcome, pages.closeWelcome)

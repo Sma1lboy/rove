@@ -32,8 +32,8 @@ test("accepting in the welcome dialog settles once, with the accepted answer", (
   const { dialog, view } = fakeDialog()
   const calls: OnboardingChoices[] = []
   WelcomeDialog.show(dialog, { shell: "zsh", onDone: (c) => calls.push(c) })
-  view().props.onDone({ completions: true, skill: true })
-  expect(calls).toEqual([{ completions: true, skill: true }])
+  view().props.onDone({ completions: true })
+  expect(calls).toEqual([{ completions: true }])
 })
 
 test("closing without answering settles as declined", () => {
@@ -41,14 +41,12 @@ test("closing without answering settles as declined", () => {
   const calls: OnboardingChoices[] = []
   WelcomeDialog.show(dialog, { shell: "zsh", onDone: (c) => calls.push(c) })
   dialog.clear()
-  expect(calls).toEqual([{ completions: false, skill: false }])
+  expect(calls).toEqual([{ completions: false }])
 })
 
-for (const choices of [
-  { completions: true, skill: false },
-  { completions: true, skill: true },
-]) {
-  test(`dismissal preserves confirmed choices ${JSON.stringify(choices)}`, () => {
+{
+  const choices = { completions: true }
+  test("dismissal preserves confirmed choices", () => {
     const { dialog, view } = fakeDialog()
     const calls: OnboardingChoices[] = []
     WelcomeDialog.show(dialog, { shell: "zsh", onDone: (c) => calls.push(c) })

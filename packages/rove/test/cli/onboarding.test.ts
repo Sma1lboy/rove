@@ -7,7 +7,7 @@
  * themselves, must never stack duplicate source lines) and fish must get an
  * autoload file rather than an rc edit. And the record/apply split must hold:
  * `recordWelcomeChoices` runs while the TUI owns the screen and may not write
- * a byte to stdout or spawn anything (the skill copy happens there, silently),
+ * a byte to stdout or spawn anything,
  * while `runPendingWelcomeInstalls` runs after the renderer is gone.
  */
 
@@ -21,10 +21,6 @@ const mocks = vi.hoisted(() => ({
   spawnSync: vi.fn(),
   getPersistedBool: vi.fn((_key: string) => false),
   setPersistedBool: vi.fn(),
-  skillTargets: vi.fn((): unknown[] => [{ displayName: "Codex", dir: "/x/rove" }]),
-  installSkill: vi.fn((targets: { displayName: string }[]) =>
-    targets.map((target) => ({ target, error: null as string | null })),
-  ),
   loadStateFile: vi.fn(() => ({}) as Record<string, unknown>),
   patchStateFile: vi.fn(),
   /** The home `os.homedir()` reports; undefined = the real one. */
@@ -46,10 +42,6 @@ vi.mock("../../src/state/store.ts", () => ({
   setPersistedBool: mocks.setPersistedBool,
   loadStateFile: mocks.loadStateFile,
   patchStateFile: mocks.patchStateFile,
-}))
-vi.mock("../../src/lib/skill-install.ts", () => ({
-  skillTargets: mocks.skillTargets,
-  installSkill: mocks.installSkill,
 }))
 function freshHome(): string {
   return mkdtempSync(join(tmpdir(), "rove-onboarding-"))
@@ -167,33 +159,15 @@ describe("recordWelcomeChoices", () => {
    */
   it("never writes to stdout or spawns — the TUI still owns the screen", async () => {
     const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: true, skill: true }, "zsh")
+    recordWelcomeChoices({ completions: true }, "zsh")
     expect(stdoutSpy).not.toHaveBeenCalled()
     expect(mocks.spawnSync).not.toHaveBeenCalled()
   })
 
   it("records the shell for an accepted completions answer", async () => {
     const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: true, skill: false }, "fish")
+    recordWelcomeChoices({ completions: true }, "fish")
     expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: "fish" }))
-  })
-
-  it("installs an accepted skill on the spot and records the outcome", async () => {
-    const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: false, skill: true }, "zsh")
-    expect(mocks.installSkill).toHaveBeenCalled()
-    expect(mocks.patchStateFile).toHaveBeenCalledWith(
-      expect.objectContaining({ "welcomeInstall.skill": { status: "succeeded" } }),
-    )
-  })
-
-  it("records a failed skill install instead of claiming success", async () => {
-    mocks.installSkill.mockReturnValueOnce([{ target: { displayName: "Codex" }, error: "EACCES" }])
-    const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    recordWelcomeChoices({ completions: false, skill: true }, "zsh")
-    expect(mocks.patchStateFile).toHaveBeenCalledWith(
-      expect.objectContaining({ "welcomeInstall.skill": { status: "failed", reason: "Codex: EACCES" } }),
-    )
   })
 
   it("a read-only home loses the deferred install, not the session", async () => {
@@ -201,7 +175,7 @@ describe("recordWelcomeChoices", () => {
       throw new Error("EROFS")
     })
     const { recordWelcomeChoices } = await import("../../src/cli/onboarding.ts")
-    expect(() => recordWelcomeChoices({ completions: true, skill: true }, "zsh")).not.toThrow()
+    expect(() => recordWelcomeChoices({ completions: true }, "zsh")).not.toThrow()
   })
 })
 
@@ -245,22 +219,6 @@ describe("runPendingWelcomeInstalls", () => {
     runPendingWelcomeInstalls()
     expect(mocks.patchStateFile).toHaveBeenCalledWith(expect.objectContaining({ welcomePendingCompletions: undefined }))
   })
-  it("tells a failed welcome skill install once, after the TUI is gone", async () => {
-    let state: Record<string, unknown> = { "welcomeInstall.skill": { status: "failed", reason: "EACCES" } }
-    mocks.loadStateFile.mockImplementation(() => state)
-    mocks.patchStateFile.mockImplementation((patch: Record<string, unknown>) => {
-      state = { ...state, ...patch }
-    })
-    const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")
-    runPendingWelcomeInstalls()
-    runPendingWelcomeInstalls()
-    const printed = stdoutLines(stdoutSpy).filter((line) => line.includes("EACCES"))
-    expect(printed).toHaveLength(1)
-    expect(printed[0]).toContain("rove skill install")
-    mocks.loadStateFile.mockReset()
-    mocks.patchStateFile.mockReset()
-  })
-
   it("rejects a corrupted queued shell without writing a shell config", async () => {
     mocks.loadStateFile.mockReturnValue({ welcomePendingCompletions: "../../invalid" })
     const { runPendingWelcomeInstalls } = await import("../../src/cli/onboarding.ts")

@@ -34,18 +34,18 @@ export const en = {
   skillQuestion: "Optional: install the Rove agent skill?",
   /** Step 2 explanation */
   skillExplain:
-    "Not needed for your first tasks. Copies one skill file into each coding agent on this machine so it can drive Rove; `rove skill install` does the same anytime.",
+    "Not needed for your first tasks. Copies one skill file into each coding agent on this machine so it can drive Rove; Settings → Engines does the same anytime.",
   /** Recommended option */
   optionYes: "Yes",
   /** Decline option */
   optionNo: "Not now",
   queued: "Queued — installs when you quit Rove",
-  /** Answered skill step: applied as soon as the guide closes */
-  skillWillInstall: "Installs when this guide closes",
+  /** Answered skill step, installed on the spot: {engines} lists where */
+  skillInstalled: "Installed for {engines}",
+  skillFailed: "Install failed: {reason}",
+  skillNoEngines: "No coding agent here takes the skill",
   skipped: "Skipped",
   installFailed: "! {item} failed: {reason}. Retry: {command} (or quit Rove again).",
-  /** After the TUI exits: the welcome guide's skill install failed; {command} retries it */
-  skillInstallFailed: "! agent skill install failed: {reason}. Retry: {command}",
   /** Key legend at the bottom of the dialog */
   legend: "↑↓ select · enter confirm · esc close",
   /** Final informational page: heading. Every {placeholder} below is filled from the LIVE keymap. */
@@ -90,14 +90,15 @@ export const zh: typeof en = {
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
   skillQuestion: "可选：安装 Rove agent skill 吗？",
   skillExplain:
-    "首次任务无需安装。会往本机每个编码 agent 里放一份 skill 文件，让它能驱动 Rove；之后随时可用 `rove skill install` 做同样的事。",
+    "首次任务无需安装。会往本机每个编码 agent 里放一份 skill 文件，让它能驱动 Rove；之后随时可在 设置 → 引擎 里做同样的事。",
   optionYes: "安装",
   optionNo: "跳过",
   queued: "已排队 — 退出 Rove 后安装",
-  skillWillInstall: "关闭本引导后安装",
+  skillInstalled: "已为 {engines} 安装",
+  skillFailed: "安装失败：{reason}",
+  skillNoEngines: "这台机器上没有能装 skill 的编码 agent",
   skipped: "已跳过",
   installFailed: "! {item} 安装失败：{reason}。重试：{command}（或再次退出 Rove）。",
-  skillInstallFailed: "! agent skill 安装失败：{reason}。重试：{command}",
   legend: "↑↓ 选择 · enter 确认 · esc 关闭",
   keysTitle: "键盘基础",
   keysBare: "裸键作用于当前聚焦面板 — {nav} 移动，{open} 打开。",

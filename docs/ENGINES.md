@@ -368,8 +368,10 @@ wrappers or compound shell commands are left for manual review.
 
 An entry (built-in or contrib) may declare `skillsDir`: the user-level dir the
 engine loads agent skills from, returning null when the engine's home dir is
-absent. `rove skill install` copies the bundled Rove skill into every non-null
-dir, and the daemon refreshes outdated copies on boot. Dirs follow the
+absent. Settings → Engines (TUI and web) and `rove skill install` copy the
+bundled Rove skill into every non-null dir; the per-engine state rides
+`engineIntegrations` (`skillState`), and the daemon refreshes outdated copies on
+boot. Dirs follow the
 agent-skills CLI's per-agent table.
 
 ### Adding a hook to another engine

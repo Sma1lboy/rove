@@ -63,21 +63,22 @@ export interface SkillTarget {
   readonly version: number | null
 }
 
-function readTarget(vendor: VendorId, displayName: string, dir: string): SkillTarget {
-  let version: number | null = null
-  let present = false
+/** What is on disk at one `<engine skills dir>/rove`. Never throws. */
+export function readSkillCopy(dir: string): { state: SkillCopyState; version: number | null } {
+  let text: string
   try {
-    version = parseSkillVersion(readFileSync(join(dir, "SKILL.md"), "utf8"))
-    present = true
+    text = readFileSync(join(dir, "SKILL.md"), "utf8")
   } catch {
-    // absent or unreadable
+    return { state: "not-installed", version: null }
   }
-  const state: SkillCopyState = !present
-    ? "not-installed"
-    : version !== null && version >= ROVE_SKILL_VERSION
-      ? "installed"
-      : "outdated"
-  return { vendor, displayName, dir, state, version }
+  const version = parseSkillVersion(text)
+  return { state: version !== null && version >= ROVE_SKILL_VERSION ? "installed" : "outdated", version }
+}
+
+/** `<skills dir>/rove` for one engine, or null when it isn't set up or takes no skill. */
+export function engineSkillDir(vendor: VendorId): string | null {
+  const base = engineEntry(vendor).skillsDir?.()
+  return base ? join(base, SKILL_NAME) : null
 }
 
 /**
@@ -88,13 +89,10 @@ export function skillTargets(): SkillTarget[] {
   const seen = new Set<string>()
   const out: SkillTarget[] = []
   for (const vendor of identifiableEngineIds()) {
-    const entry = engineEntry(vendor)
-    const base = entry.skillsDir?.()
-    if (!base) continue
-    const dir = join(base, SKILL_NAME)
-    if (seen.has(dir)) continue
+    const dir = engineSkillDir(vendor)
+    if (!dir || seen.has(dir)) continue
     seen.add(dir)
-    out.push(readTarget(vendor, entry.displayName, dir))
+    out.push({ vendor, displayName: engineEntry(vendor).displayName, dir, ...readSkillCopy(dir) })
   }
   return out
 }
@@ -161,6 +159,22 @@ export function refreshOutdatedSkills(source: string | null = bundledSkillDir())
   const outdated = skillOverview().outdated
   if (outdated.length === 0 || !source) return []
   return installSkill(outdated, source)
+}
+
+/**
+ * The Settings action (TUI and web): install into every set-up engine that
+ * lacks a current copy. Returns one line naming what failed, or null.
+ */
+export function installSkillErrors(source: string | null = bundledSkillDir()): string | null {
+  try {
+    const failed = installSkill(
+      skillTargets().filter((t) => t.state !== "installed"),
+      source,
+    ).filter((r) => r.error)
+    return failed.length === 0 ? null : failed.map((r) => `${r.target.displayName}: ${r.error}`).join("; ")
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
 }
 
 /** True when an installed SKILL.md differs from the bundled one (an edit without a version bump). */

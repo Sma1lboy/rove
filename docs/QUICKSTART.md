@@ -217,13 +217,12 @@ your coding agent (Claude Code, Codex, and so on) how to drive Rove itself:
 spawn tasks, fan a prompt out to several attempts, compare them, land the
 winner.
 
-```bash
-rove skill install
-```
-
-It copies the skill into every coding agent set up on this machine; `rove skill
-status` shows which ones have it. Installed copies refresh themselves when Rove
-upgrades.
+Open **Settings → Engines** (in the TUI or the web app) and press **Install** under
+**Rove agent skill**. It copies the skill into every coding agent set up on this
+machine, and each engine's details say whether it has one. When Rove starts and
+finds an engine without the skill, it says so once. From a shell, `rove skill
+install` and `rove skill status` do the same. Installed copies refresh themselves
+when Rove upgrades.
 
 **Claude Code users have a one-stop alternative**: the Rove plugin carries the
 skill AND the activity hooks in one install, with no PATH or settings.json

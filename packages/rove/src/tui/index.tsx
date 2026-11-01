@@ -4,6 +4,7 @@ import { ensureGlobalRoveHooks } from "../cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
 import { takeWelcome } from "../cli/welcome.ts"
 import { takeWhatsNew } from "../cli/whats-new.ts"
+import { takeSkillNudge } from "../lib/skill-nudge.ts"
 import { publishRoveTerminalTitle } from "./lib/outer-terminal-title.ts"
 
 export async function startTui(): Promise<void> {
@@ -13,6 +14,8 @@ export async function startTui(): Promise<void> {
   // Same ordering rule: reads `app.lastRunVersion` to tell a first run from an
   // existing user.
   const welcome = takeWelcome()
+  // The welcome dialog asks about the skill itself.
+  const skillNudge = welcome ? null : takeSkillNudge()
 
   // Breaking-version gate first: refuse to touch daemon/session state that
   // a version in BREAKING_VERSIONS made incompatible (run `rove reset`).
@@ -32,5 +35,5 @@ export async function startTui(): Promise<void> {
   loadPluginEngines()
 
   const { startWorkspaceHost } = await import("../tui-react/workspace/start-workspace.tsx")
-  await startWorkspaceHost({ whatsNewFrom, welcome })
+  await startWorkspaceHost({ whatsNewFrom, welcome, skillNudge })
 }

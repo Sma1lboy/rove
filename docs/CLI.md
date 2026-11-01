@@ -283,7 +283,8 @@ rove skill print                                 # print the SKILL.md itself
 ```
 
 Installs the Rove agent skill, which teaches a coding agent to drive
-`rove api`. Rove copies the SKILL.md bundled with this build into the
+`rove api`. Settings → Engines in the TUI and web shows the same per-engine
+state with an Install button; this verb is the shell route. Rove copies the SKILL.md bundled with this build into the
 user-level skills dir of every engine set up on this machine (Claude Code,
 Codex, Copilot, Pi, OpenCode, Cursor, and the others whose skills dir Rove
 knows). No Node or network needed. `--agent` takes a Rove engine id

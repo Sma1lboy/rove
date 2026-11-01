@@ -2,17 +2,15 @@
  * First-run welcome — the disk/process half (the dialog is
  * `tui-react/onboarding/host.tsx`). The dialog resolves while the TUI owns
  * the screen, where any stdout line corrupts the frame, so answers are
- * applied silently: the skill is a file copy done on the spot, and
- * completions are RECORDED then and APPLIED after `startTui()` returns so
- * their summary line reaches a real terminal. Both are re-runnable later
- * (`rove completions --help`, `rove skill install`).
+ * applied silently: completions are RECORDED then and APPLIED after
+ * `startTui()` returns so their summary line reaches a real terminal
+ * (re-runnable via `rove completions --help`). The skill step installs inside
+ * the dialog itself.
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
-import { isObject } from "../lib/is-object.ts"
-import { installSkill, skillTargets } from "../lib/skill-install.ts"
 import type { ProductCliName } from "../product.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile, patchStateFile } from "../state/store.ts"
@@ -99,56 +97,25 @@ export function installCompletions(
   return { path: rc, installed: true }
 }
 
-/** Outcome of the welcome skill install, as recorded in state. */
-function installSkillNow(): { status: "succeeded" } | { status: "failed"; reason: string } {
-  try {
-    const targets = skillTargets()
-    if (targets.length === 0) return { status: "failed", reason: "no supported coding agent found" }
-    const failed = installSkill(targets).filter((r) => r.error)
-    return failed.length === 0
-      ? { status: "succeeded" }
-      : { status: "failed", reason: failed.map((r) => `${r.target.displayName}: ${r.error}`).join("; ") }
-  } catch (error) {
-    return { status: "failed", reason: error instanceof Error ? error.message : String(error) }
-  }
-}
-
 /**
  * Apply the dialog's answers. Runs while the TUI owns the screen: file and
- * state writes only, no stdout. The skill installs now; completions are
- * queued for {@link runPendingWelcomeInstalls}.
+ * state writes only, no stdout. Completions are queued for
+ * {@link runPendingWelcomeInstalls}.
  */
 export function recordWelcomeChoices(choices: OnboardingChoices, shell: ShellKind | null): void {
-  const skill = choices.skill ? installSkillNow() : undefined
   try {
     patchStateFile({
       [PENDING_COMPLETIONS_KEY]: choices.completions && shell !== null ? shell : undefined,
       "welcomeInstall.completions": choices.completions ? { status: "queued" } : undefined,
-      "welcomeInstall.skill": skill,
     })
   } catch {
     // A read-only home loses the deferred install, not the session.
   }
 }
 
-/** The dialog installed the skill silently; a failure is told once, on a real terminal. */
-function reportFailedSkillInstall(state: Record<string, unknown>): void {
-  const skill = state["welcomeInstall.skill"]
-  if (!isObject(skill) || skill.status !== "failed") return
-  process.stdout.write(
-    `${t("onboarding.skillInstallFailed", { reason: String(skill.reason), command: `${ROVE_PRODUCT_NAME} skill install` })}\n`,
-  )
-  try {
-    patchStateFile({ "welcomeInstall.skill": { ...skill, status: "failed-reported" } })
-  } catch {
-    // Read-only settings: the line repeats next quit, which beats losing it.
-  }
-}
-
 /** Apply and clear what the welcome dialog recorded. Runs AFTER the renderer is destroyed. */
 export function runPendingWelcomeInstalls(): void {
   const state = loadStateFile()
-  reportFailedSkillInstall(state)
   const shell = state[PENDING_COMPLETIONS_KEY]
   const pendingShell = typeof shell === "string" && isShellKind(shell) ? shell : null
   if (shell !== undefined && pendingShell === null) {

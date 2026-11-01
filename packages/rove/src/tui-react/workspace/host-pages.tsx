@@ -20,6 +20,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import { type PageEntry, usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
+import { useSkillNudge } from "./use-skill-nudge"
 
 interface HostPageState {
   readonly worktreesOpen: boolean
@@ -31,6 +32,8 @@ interface HostPageState {
 export interface BootDialogs {
   readonly whatsNewFrom?: string | null
   readonly welcome?: WelcomeRequest | null
+  /** Engines to name in the launch skill toast (`lib/skill-nudge.ts`), else null. */
+  readonly skillNudge?: readonly string[] | null
 }
 
 export interface HostPagesState extends HostPageState {
@@ -78,6 +81,7 @@ export function useHostPagesState(
   const closeWhatsNew = useCallback(() => setWhatsNewFrom(null), [])
   const [welcome, setWelcome] = useState<WelcomeRequest | null>(opts.welcome ?? null)
   const closeWelcome = useCallback(() => setWelcome(null), [])
+  useSkillNudge(opts.skillNudge ?? null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<SectionId | undefined>(undefined)
   const [worktreesOpen, setWorktreesOpen] = useState(false)

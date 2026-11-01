@@ -20,6 +20,8 @@ describe("hook setup guidance", () => {
           hookFile: "/tmp/hooks.json",
           markers: true,
           screen: true,
+          skillDir: "",
+          skillState: "not-installed",
           setupCommand: "/hooks",
         }}
       />,
@@ -41,6 +43,8 @@ const ready: HookReadiness = {
     hookFile: "/fake/hooks.json",
     markers: true,
     screen: true,
+    skillDir: "",
+    skillState: "not-installed",
   },
 }
 const probeReady = async () => ready
