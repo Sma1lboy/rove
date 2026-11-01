@@ -14,9 +14,9 @@ import type { AppModel } from "./model.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT } from "./ui/text.ts"
 import { prefixHint } from "./user-keys.ts"
-import { DIALOG_BODY } from "./ui/overlay.ts"
 
 /** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
 export const ATTEMPTS = ["1", "2", "3", "4", "5"] as const

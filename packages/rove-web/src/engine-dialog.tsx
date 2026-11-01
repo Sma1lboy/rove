@@ -13,9 +13,9 @@ import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { HINT } from "./ui/text.ts"
-import { DIALOG_BODY } from "./ui/overlay.ts"
 
 export interface PickerEngine {
   readonly id: string

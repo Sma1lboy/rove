@@ -25,8 +25,8 @@ import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
-import { HINT } from "./ui/text.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { HINT } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]

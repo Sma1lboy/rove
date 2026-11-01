@@ -7,8 +7,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)

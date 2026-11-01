@@ -5,7 +5,8 @@
  */
 
 /** A short screen (a phone on its side) lends a dialog nearly all its height. */
-export const OVERLAY = "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
+export const OVERLAY =
+  "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
@@ -14,7 +15,8 @@ export const dialogClass = (wide = false): string =>
 export const DIALOG_HEAD = "flex items-center justify-between gap-3"
 
 /** A sentence that often quotes the user's own words: ink and sentence case, never an uppercased kicker. */
-export const DIALOG_TITLE = "m-0 min-w-0 font-sans text-body leading-[1.4] font-semibold normal-nums text-ink wrap-anywhere"
+export const DIALOG_TITLE =
+  "m-0 min-w-0 font-sans text-body leading-[1.4] font-semibold normal-nums text-ink wrap-anywhere"
 
 export const DIALOG_CLOSE =
   "grid size-6 place-items-center -my-1 mr-[-6px] ml-0 rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:relative touch:after:absolute touch:after:-inset-2.5 touch:after:content-['']"

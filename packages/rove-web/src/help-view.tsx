@@ -20,8 +20,8 @@ import { actionDesc, categoryName, helpText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog } from "./ui.ts"
-import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 const displayCap = (cap: string): string =>
   cap

@@ -14,8 +14,8 @@ import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
-import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 interface Card {
   readonly key: string

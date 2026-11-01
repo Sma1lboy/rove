@@ -12,8 +12,8 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { closeDialog } from "./ui.ts"
-import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
+import { BRIEF, HINT, INSET_BOX, NOTES, noteClass } from "./ui/text.ts"
 
 interface BriefTask {
   readonly prompt?: string
