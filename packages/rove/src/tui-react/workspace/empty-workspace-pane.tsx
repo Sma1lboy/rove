@@ -1,9 +1,11 @@
 /** @jsxImportSource @opentui/react */
 import { type ReactNode, useEffect } from "react"
 import { availableEngineIds } from "../../engine/account-detect"
+import { engineDisplayName } from "../../engine/interactive-command"
+import { SHELL_TASK_TITLE } from "../../orchestrator/title.ts"
 import { bindByIds } from "../../tui/context/keybindings"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
-import { openCommandTab } from "../../tui/workspace/terminal-tabs-core"
+import { initialShellTabs, openCommandTab } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../types/task"
 import { NewChatDialog } from "../component/new-chat-dialog"
 import { useOptionalKV } from "../context/kv"
@@ -12,6 +14,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { useLatest } from "../lib/use-latest"
 import { useDialog } from "../ui/dialog"
+import type { ChildSpawnRequest } from "./quick-fork"
 import {
   knownTabsState,
   reviveEmptiedTabs,
@@ -25,6 +28,8 @@ export function EmptyWorkspacePane(props: {
   focused: boolean
   vendor?: VendorId
   command?: string
+  /** A shell opens as a child task sharing this directory; absent = a tab here. */
+  onSpawnChild?: (request: ChildSpawnRequest) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
@@ -53,7 +58,14 @@ export function EmptyWorkspacePane(props: {
 
   const startRequestedTab = useLatest((kind: "chat" | "shell") => {
     if (kind === "chat") chooseEngine()
-    else {
+    else if (props.onSpawnChild) {
+      props.onSpawnChild({
+        parentTaskId: props.taskId,
+        vendor,
+        title: SHELL_TASK_TITLE,
+        tabs: initialShellTabs(defaultShell()),
+      })
+    } else {
       const empty = knownTabsState(kv, props.taskId) ?? { tabs: [], activeId: "", nextOrdinal: 1 }
       setTaskTabs(props.taskId, openCommandTab(empty, [defaultShell()], null))
     }
@@ -79,6 +91,8 @@ export function EmptyWorkspacePane(props: {
       "chat.tab.chooseEngine": chooseEngine,
     }),
   }))
+  // ⏎ reopens what the task last ran; a shell task's last tab was a shell.
+  const reopensShell = knownTabsState(kv, props.taskId)?.reopenAs?.kind === "command"
 
   return (
     <box flexGrow={1} alignItems="center" justifyContent="center">
@@ -88,7 +102,9 @@ export function EmptyWorkspacePane(props: {
           if (event.button === 0) reopen()
         }}
       >
-        {t("workspace.empty.noSessions")}
+        {reopensShell
+          ? t("workspace.empty.noSessionsShell")
+          : t("workspace.empty.noSessions", { engine: engineDisplayName(vendor) })}
       </text>
     </box>
   )

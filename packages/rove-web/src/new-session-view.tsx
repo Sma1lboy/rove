@@ -49,6 +49,11 @@ export function startNewTask(repo?: string, machine?: string): void {
   openNewSession(repo, undefined, machine)
 }
 
+/** New conversation with no folder: the composer opens on its "No folder" choice (the rail's Ungrouped +). */
+export function startNewUngrouped(): void {
+  openNewSession(undefined, undefined, undefined, undefined, true)
+}
+
 const WORKTREE_KEY = "rove.web.newSession.worktree"
 
 // The unsent prompt outlives the view: picking a task unmounts the composer, as switching chats does on claude.ai.
@@ -62,7 +67,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const choice = useEngineChoice(model, initialRepo ?? fallback)
   // The starting project, known now when the opener or the selection names one; else the first saved, once read.
   const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
-  const startOf = (list?: readonly string[]) => (seed.machine ? undefined : initialRepo) ?? fallback ?? list?.[0]
+  const startOf = (list?: readonly string[]) =>
+    seed.ungrouped ? undefined : ((seed.machine ? undefined : initialRepo) ?? fallback ?? list?.[0])
   const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
   const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
   const [repos, setRepos] = useState<readonly string[]>(() => {
@@ -80,7 +86,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   )
   const probed = useRef(new Set<string>())
   // The rail's Ungrouped: a session in no project, exclusive with `repos`.
-  const [ungrouped, setUngrouped] = useState(false)
+  const [ungrouped, setUngrouped] = useState(seed.ungrouped === true)
   const pickUngrouped = (): void => {
     setUngrouped(true)
     setRepos([])

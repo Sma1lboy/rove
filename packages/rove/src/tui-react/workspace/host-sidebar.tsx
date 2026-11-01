@@ -21,8 +21,8 @@ import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
 import { requestNewTab } from "./terminal-tabs-shared"
 
 export interface HostSidebarProps
-  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest">>>,
-    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest">> {
+  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest" | "onOpenScratch">>>,
+    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest" | "onOpenScratch">> {
   readonly width: number
   readonly collapsed?: boolean
   /** Fold / unfold. Absent = the rail renders without the control. */

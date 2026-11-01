@@ -25,6 +25,7 @@ import {
   type TabsState,
   type TerminalTab,
   closeTab,
+  initialShellTabs,
   initialTabs,
   setTabTitle,
   tabPtyKeyFor,
@@ -439,5 +440,16 @@ export async function seedCanonicalTab(client: TabsRpc, taskId: string): Promise
   const { state } = await applyTabOps(client, taskId, [{ op: "seed", state: asShared(initialTabs()) }])
   const tab = state?.tabs.find((t) => t.id === "tab-1")
   if (!tab) throw new Error(`the daemon holds no tab-1 for ${taskId}`)
+  return tab
+}
+
+/**
+ * A fresh shell task's `tab-1`: the daemon seeds the shell as the task's first tab. A task that already
+ * has tabs keeps them, so a `tab-1` that is not a shell throws instead of being spawned into.
+ */
+export async function seedShellHome(client: TabsRpc, taskId: string, shell: string): Promise<TerminalTab> {
+  const { state } = await applyTabOps(client, taskId, [{ op: "seed", state: asShared(initialShellTabs(shell)) }])
+  const tab = state?.tabs.find((t) => t.id === "tab-1")
+  if (tab?.kind !== "command") throw new Error(`${taskId} already has tabs: its tab-1 is not a shell`)
   return tab
 }

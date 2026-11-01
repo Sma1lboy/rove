@@ -5,10 +5,11 @@
  */
 
 import { useCallback, useState } from "react"
+import { resolvePreferredVendor } from "../../../state/vendor-prefs"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
-import type { TreeRow } from "../../../tui/panes/sidebar/tree-core"
+import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { type TreeMenuAction, type TreeMenuContext, treeMenuItems } from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
 import { useGlobalMouseDown } from "../../lib/use-global-mouse-down"
@@ -106,6 +107,10 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     (projectId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.kind === "project" && candidate.id === projectId)
       if (!row) return
+      if (projectId === SCRATCH_SECTION_ID) {
+        openAt(row, { scratchSection: true }, x, y)
+        return
+      }
       // Only THIS daemon's mains are in the move partition; another machine's
       // project is read-only here.
       const movable = (candidate: TreeRow): boolean =>
@@ -147,6 +152,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       const row = menu.row
       setMenu(null)
       if (row.kind === "project") {
+        // The Scratch section: a Scratch task in $HOME, on the preferred engine or a bare shell.
+        if (action === "newScratchChat") actions.onOpenScratch?.(resolvePreferredVendor())
+        if (action === "newScratchShell") actions.onOpenScratch?.(undefined)
         if (action === "newTask") deps.onAddTask?.()
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         const mainId = deps.tree.mainTaskIdOfProject(row.id)

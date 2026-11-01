@@ -9,14 +9,12 @@
  */
 
 import { useEffect } from "react"
-import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { closePluginPanes, openPluginPane } from "../../tui/workspace/pane-split"
 import { absorbTab, adoptTabs } from "../../tui/workspace/tabs-adopt"
 import {
   type TabsState,
   moveTab,
-  openCommandTab,
   selectTab,
   setTabTitle,
   splitLeafPtyKey,
@@ -45,10 +43,12 @@ export interface TabRequestIO {
   readonly activeLeafSizeRef: { readonly current: () => { cols: number; rows: number } | null }
   /** ctrl+t's opener (`TerminalTabs`): what the tree's "New conversation" presses. */
   readonly openNewConversationRef: { readonly current: () => void }
+  /** The "New shell" opener (`TerminalTabs`): the tree's "New shell" presses it. */
+  readonly openNewShellRef: { readonly current: () => void }
 }
 
 export function useTabRequests(io: TabRequestIO): void {
-  const { stateRef, propsRef, updateRef, tabCloseRef, activeLeafSizeRef, openNewConversationRef } = io
+  const { stateRef, propsRef, updateRef, tabCloseRef, activeLeafSizeRef, openNewConversationRef, openNewShellRef } = io
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design — every read goes through a latest-render ref.
   useEffect(() => {
     const consume = (): void => {
@@ -85,7 +85,7 @@ export function useTabRequests(io: TabRequestIO): void {
       // request is claimed by its first mount.
       const newTab = takeNewTab(taskId)
       if (newTab === "chat") openNewConversationRef.current()
-      else if (newTab === "shell") updateRef.current(openCommandTab(stateRef.current, [defaultShell()], null))
+      else if (newTab === "shell") openNewShellRef.current()
       // A live session this state doesn't list becomes a real tab.
       const adopt = takeTabAdopt(taskId)
       if (adopt) {

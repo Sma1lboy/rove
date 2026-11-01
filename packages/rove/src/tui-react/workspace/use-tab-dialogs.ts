@@ -25,6 +25,7 @@ import { setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { type PaneLaunch, listPaneLaunches } from "@sma1lboy/rove-daemon/plugins/pane-command"
+import { SHELL_TASK_TITLE } from "../../orchestrator/title.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -34,6 +35,7 @@ import {
   type TabsState,
   type TerminalTab,
   addTab,
+  initialShellTabs,
   openCommandTab,
   renameActiveTab,
   tabPtyKeyFor,
@@ -96,6 +98,8 @@ export function useTabDialogs(deps: {
   requestNewChat: (preset?: NewChatPreset) => void
   /** True when the pick became a child task rather than a tab here. */
   newConversation: (vendor: VendorId) => boolean
+  /** A new shell: its own row, a child sharing this directory. */
+  newShell: () => void
 } {
   const { dialog, t, state, active, update, pinSession } = deps
 
@@ -134,6 +138,20 @@ export function useTabDialogs(deps: {
     const unstarted = unstartedEngineTab(state, isLive)
     update(unstarted ? retargetUnstartedEngine(state, unstarted.id, vendor) : pinSession(addTab(state, vendor), vendor))
     return false
+  }
+
+  /** A new shell is a child task sharing this directory, as a later conversation is. No `onSpawnChild` (a remote task) keeps a tab here. */
+  const newShell = (): void => {
+    if (!deps.onSpawnChild) {
+      update(openCommandTab(state, [defaultShell()], null))
+      return
+    }
+    deps.onSpawnChild({
+      parentTaskId: deps.taskId,
+      vendor: deps.vendor,
+      title: SHELL_TASK_TITLE,
+      tabs: initialShellTabs(defaultShell()),
+    })
   }
 
   /** Fresh (`newConversation`) or continuing (fork/handoff). Picking the id the tab was
@@ -245,15 +263,15 @@ export function useTabDialogs(deps: {
         update(openPluginPane(state, pane.argv, pane.title, pane.placement, undefined, deps.activeLeafSize()))
         return
       }
-      // Plain terminal tab: no session pin, no vendor-preference write, closes
-      // on exit; null label so the live process names it ("zsh", "vim").
+      // A shell is its own row (a child sharing this directory); null label so the live process names it
+      // ("zsh", "vim").
       if (choice.pick === "shell") {
-        update(openCommandTab(state, [defaultShell()], null))
+        newShell()
         return
       }
       await openTabHere(choice, tabVendor, source)
     })()
   }
 
-  return { requestRename, requestNewChat, newConversation }
+  return { requestRename, requestNewChat, newConversation, newShell }
 }

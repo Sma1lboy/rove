@@ -1,8 +1,15 @@
 import type { ButtonHTMLAttributes } from "react"
 import { cn } from "./cn.ts"
 
+/** The filled action (`.button` before Tailwind). `danger` paints it the error colour; `box` is the Engines page's smaller one. */
+export const buttonClass = ({ danger = false, box = false }: { danger?: boolean; box?: boolean } = {}): string =>
+  `rounded-sm font-sans text-meta not-italic normal-nums text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 ${
+    danger ? "bg-error" : "bg-accent"
+  } ${box ? "px-3 py-1.25 font-medium" : "px-3.5 py-1.5 font-semibold"}`
+
 /**
- * `link`: an accent text action (create PR, toggle scope). `floating`: an action raised over content (a preview's
+ * `link`: an accent text action (create PR, toggle scope). `filled`: the filled action of `buttonClass()` (an empty
+ * state's "Start"). `floating`: an action raised over content (a preview's
  * "ask in chat" beside a selection); the caller places it. `row`: a whole list row that opens something; the caller's
  * class paints it all, cursor included. `card`: a pickable tile (the theme gallery); the caller passes its
  * picked/unpicked border and fill.
@@ -12,6 +19,7 @@ import { cn } from "./cn.ts"
  */
 const VARIANT = {
   link: "text-accent hover:underline",
+  filled: buttonClass(),
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",
@@ -23,12 +31,6 @@ const HIT = {
   tight: "relative touch:after:absolute touch:after:content-[''] touch:after:-inset-x-0.75 touch:after:-inset-y-0.5",
   none: "",
 } as const
-
-/** The filled action (`.button` before Tailwind). `danger` paints it the error colour; `box` is the Engines page's smaller one. */
-export const buttonClass = ({ danger = false, box = false }: { danger?: boolean; box?: boolean } = {}): string =>
-  `rounded-sm font-sans text-meta not-italic normal-nums text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 ${
-    danger ? "bg-error" : "bg-accent"
-  } ${box ? "px-3 py-1.25 font-medium" : "px-3.5 py-1.5 font-semibold"}`
 
 export function Button({
   variant = "link",

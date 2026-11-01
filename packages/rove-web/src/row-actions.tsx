@@ -13,9 +13,9 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { startNewTask } from "./new-session-view.tsx"
+import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { splitMenu } from "./split-actions.tsx"
-import { newChatHere, openTab } from "./task-dialogs.tsx"
+import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
 import {
   archiveFlow,
   deleteTaskDialog,
@@ -103,6 +103,18 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
     })
   }
   return items
+}
+
+/** The Ungrouped header's verbs: a conversation or a shell that lives in no project. */
+export function ungroupedMenu(model: AppModel): MenuItem[] {
+  return [
+    { label: t("menu.newChatNoFolder"), section: "open", run: () => startNewUngrouped() },
+    {
+      label: t("menu.newShell"),
+      section: "open",
+      run: () => void openScratchShell(model).catch((e) => toast(String(e), "error")),
+    },
+  ]
 }
 
 /** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */

@@ -2,6 +2,7 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
+import type { VendorId } from "@/types/vendor"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
@@ -13,6 +14,8 @@ export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
   /** Row menu only: the Worktrees page's `l` land flow. */
   onLandRequest?: (taskId: string) => void
+  /** The Scratch section's menu: a new Scratch task in $HOME on `vendor`'s engine, or a bare shell when undefined. */
+  onOpenScratch?: (vendor: VendorId | undefined) => void
   /** Archive or restore the task and its children (`task.archived` picks which). Menu-only. */
   onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */

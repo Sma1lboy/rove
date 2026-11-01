@@ -11,6 +11,9 @@ export const TITLE_CHAR_CAP = 40
  */
 export const PLACEHOLDER_TASK_TITLE = "(new task)"
 
+/** The title a task opened as a plain shell gets: the shell is the whole task, so there is no conversation to name it. */
+export const SHELL_TASK_TITLE = "shell"
+
 /**
  * Flatten a title to one trimmed line. Called at both orchestrator entry
  * points (`createTask`, `setTitle`) so RPC titles are covered too.

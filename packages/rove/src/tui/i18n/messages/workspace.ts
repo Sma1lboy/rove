@@ -16,7 +16,9 @@ export const en = {
     selectTask: "Select a task with a worktree",
     /** Every tab of this task was closed — the task and its worktree remain.
      *  Both chords are bound by `EmptyWorkspacePane`, which renders this. */
-    noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
+    noSessions: "No sessions here — press ⏎ to start {engine}, or ctrl+e to pick another",
+    /** The same, for a task whose last tab was a shell (a "New shell" row): ⏎ opens a fresh shell, not an engine. */
+    noSessionsShell: "No sessions here — press ⏎ to start a shell, or ctrl+e to pick another",
     /** Experimental remote (`ssh://`) project: the worktree is on the other
      *  machine, and the PTY host only spawns locally. Said here rather than
      *  letting the launch guard throw through the render path. */
@@ -91,7 +93,8 @@ export const zh: typeof en = {
   narrowBack: "任务",
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
-    noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
+    noSessions: "这里没有会话——按 ⏎ 启动 {engine}，或按 ctrl+e 另选一个",
+    noSessionsShell: "这里没有会话——按 ⏎ 启动 shell，或按 ctrl+e 另选一个",
     remoteUnsupported: "尚未实现通过 SSH 启动托管引擎——该任务的 worktree 在 {host} 上",
   },
   welcome: {

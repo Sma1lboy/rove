@@ -802,9 +802,14 @@ edits (`set-vendor`, `rename`,
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
+  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
-  starts the engine, and delivers the prompt. Does not steal focus unless
+  starts the engine, and delivers the prompt. With `--start` and no prompt the
+  engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
+  `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
+  `taskId`. A bare `add` is only the row (`started: false`, status `backlog`),
+  and `--start` beside `--prompt`, `--count` or `--agents` is
+  `CONFLICTING_FLAGS`. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
   (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
   what the task actually launches after the flags and the repo's default
@@ -1358,9 +1363,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
 - `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
-  picker's Enter on an empty message. `shell` runs the login shell
-  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
+  picker's Enter on an empty message. `shell` opens a shared child task of
+  `--task-id` (same directory, titled `shell`, so the rail and the TUI tree list it) whose
+  own `tab-1` runs the login shell (`$SHELL`) in the task's worktree and types the
+  `ROVE_TASK_ID` / `ROVE_TAB_ID` export into it. A fresh Ungrouped (scratch) task with no
+  tabs is the exception: its shell is its own `tab-1`. When the shell exits the row stays
+  with no tabs (`reopenAs: command`), and ⏎ in the TUI or Start in the web starts a fresh
+  shell; nothing deletes the task. `engine` starts a new conversation. A task with no
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, as `add --no-worktree`) whose
@@ -1374,8 +1383,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
-  client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); an engine on a task with no conversation returns
+  client sees the row through `tabs.changed`. A shell returns
+  `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the child (an
+  Ungrouped task's own shell returns `{ok, taskId, tabId, session, kind, clients}`; `clients` =
+  attached connections told, `0` = none); an engine on a task with no conversation returns
   `{ok, taskId, tabId, session, kind, clients}` with `tabId` `tab-1` of the task;
   an engine on a task that holds one returns
   `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the

@@ -34,7 +34,7 @@ const FINGERPRINT = {
   version: 95,
   sha256: {
     "SKILL.md": "5bb772798a3eafb4d0d13174b14a4bab8cbdc1961b267c98efa6c09b739807ce",
-    "references/api-flags.md": "bdd6026782400d511b652251b4b626bc1fe225e04835079509513bd067bc089c",
+    "references/api-flags.md": "a1f59668176078094cd28aeb103689a2ce443a34e7150a418c44ebcbde885d55",
   },
 } as const
 

@@ -348,8 +348,14 @@ export interface ApiRuntime {
   /**
    * Open a tab with no first message (`tab-new`): a login shell or an empty
    * engine. Persists the row, spawns the session, and returns the row as saved.
+   * `home` makes a shell the task's own `tab-1` (a fresh shell task) rather than a later tab.
    */
-  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  openTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    kind: NewTabKind,
+    opts?: { readonly home?: boolean },
+  ): Promise<OpenedTab>
   /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */

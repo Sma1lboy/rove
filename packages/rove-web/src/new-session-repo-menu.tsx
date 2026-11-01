@@ -13,8 +13,8 @@ import {
   splitRepoRow,
   stripTrailingSlash,
 } from "./new-task-paths.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
 import { NO_PROJECT_KEY } from "./rail.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 
 interface GithubRepos {
   readonly repos: ReadonlyArray<{ nameWithOwner: string; description: string; isPrivate: boolean }>

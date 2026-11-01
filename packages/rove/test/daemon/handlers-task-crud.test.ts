@@ -410,7 +410,10 @@ describe("task.moveToProject", () => {
     const calls: unknown[][] = []
     const { ctx } = fakeCtx({
       getTask: () => scratch,
-      ensureMainTask: async (repo: string) => (calls.push(["main", repo]), { ...TASK, kind: "main", repo }),
+      ensureMainTask: async (repo: string) => {
+        calls.push(["main", repo])
+        return { ...TASK, kind: "main", repo }
+      },
       adoptScratchRepo: async (...args: unknown[]) => void calls.push(["adopt", ...args]),
     })
     await expect(dispatch("task.moveToProject", { taskId: "t1", repo: "/src/app" }, ctx)).resolves.toEqual({
