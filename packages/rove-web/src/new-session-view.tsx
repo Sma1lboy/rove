@@ -31,8 +31,8 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
-import "./new-session.css"
 import { buttonClass } from "./ui/button.tsx"
+import * as C from "./ui/composer.ts"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {
@@ -273,22 +273,22 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }))
 
   return (
-    <div className="new-session">
-      <div className="new-session-hero">
+    <div className={C.NEW_SESSION}>
+      <div className={C.HERO}>
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
-        <p className="text-muted">{t("newSession.tagline")}</p>
+        <p className="m-0 text-muted">{t("newSession.tagline")}</p>
       </div>
       <form
-        className="composer"
+        className={C.COMPOSER}
         onSubmit={(e) => {
           e.preventDefault()
           void start()
         }}
       >
-        <div className="composer-card">
+        <div className={C.CARD}>
           <textarea
             ref={area}
-            className="composer-input"
+            className={C.PROMPT}
             rows={4}
             spellCheck={false}
             placeholder={t("newSession.placeholder")}
@@ -301,8 +301,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               void start()
             }}
           />
-          <div className="composer-actions">
-            <button type="button" className="composer-chip" disabled={busy} onClick={() => void start(false)}>
+          <div className={C.CARD_ACTIONS}>
+            <button type="button" className={C.chipClass()} disabled={busy} onClick={() => void start(false)}>
               {t("newSession.createOnly")}
             </button>
             <button type="submit" className={buttonClass()} disabled={busy}>
@@ -310,7 +310,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             </button>
           </div>
         </div>
-        <div className="composer-bar">
+        <div className={C.BAR}>
           <MachineChip
             machines={machines}
             value={machine}
@@ -370,7 +370,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             <>
               <button
                 type="button"
-                className={`composer-chip composer-toggle ${inPlace ? "" : "is-on"}`}
+                className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
                 aria-pressed={!inPlace}
                 disabled={repos.length > 1}
                 title={
@@ -418,7 +418,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             </>
           )}
-          <span className="composer-grow" />
+          <span className={C.GROW} />
           {choice.engines.length > 1 && (
             <ChipPopover field="engine" title={t("newSession.engine")} label={engine?.name ?? t("newSession.engine")}>
               {(close) => (
@@ -465,7 +465,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       {!remote && (
         <button
           type="button"
-          className="composer-more"
+          className={C.MORE}
           onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
         >
           {t("newSession.moreWays")}
@@ -477,7 +477,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
 function FolderIcon() {
   return (
-    <svg className="composer-icon" viewBox="0 0 16 16" aria-hidden="true">
+    <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">
       <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
     </svg>
   )
@@ -485,7 +485,7 @@ function FolderIcon() {
 
 function BranchIcon() {
   return (
-    <svg className="composer-icon" viewBox="0 0 16 16" aria-hidden="true">
+    <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="4.5" cy="3.5" r="1.5" />
       <circle cx="4.5" cy="12.5" r="1.5" />
       <circle cx="11.5" cy="5" r="1.5" />

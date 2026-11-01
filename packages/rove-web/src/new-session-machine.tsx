@@ -10,6 +10,7 @@ import { ChipPopover, ChoiceMenu, SearchList } from "./new-session-menus.tsx"
 import { type RemoteRepo, type RemoteStartInput, remoteSpawnArgs } from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
+import { ICON } from "./ui/composer.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
 const REASON_COPY: Readonly<Record<string, string>> = {
@@ -86,7 +87,7 @@ export function remoteEmpty(machine: string, list: RemoteRepos): string {
 
 function MachineIcon() {
   return (
-    <svg className="composer-icon" viewBox="0 0 16 16" aria-hidden="true">
+    <svg className={ICON} viewBox="0 0 16 16" aria-hidden="true">
       <rect x="2" y="3" width="12" height="8" rx="1" />
       <path d="M5.5 13.5h5M8 11v2.5" />
     </svg>
