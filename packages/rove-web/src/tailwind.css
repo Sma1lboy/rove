@@ -90,6 +90,14 @@
     }
   }
 
+  /* The rail search's caret. */
+  --animate-blink: blink 1s steps(1) infinite;
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);

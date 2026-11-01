@@ -479,22 +479,13 @@
     user-select: none;
     -webkit-touch-callout: none;
   }
-  /* Controls the desktop reveals on hover stay visible: a finger would hit them unseen. */
-  .project-chevron,
-  .project-add {
-    opacity: 1;
-  }
   /* A fingertip is ~40px: nav rows grow to it; small controls keep their look and get an invisible larger hit area. */
   .rail-nav-row {
     min-height: 40px;
   }
-  .project-add,
-  .project-toggle,
   .rail-head .kicker {
     position: relative;
   }
-  .project-add::after,
-  .project-toggle::after,
   .rail-head .kicker::after {
     content: "";
     position: absolute;
