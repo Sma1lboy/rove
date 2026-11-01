@@ -19,7 +19,6 @@ import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
-import "./connectors.css"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -34,6 +33,18 @@ const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
 
 const c = (key: string, params?: Record<string, string | number>): string => t(`settings.connectors.${key}`, params)
 
+const MARK_TONE: Readonly<Record<Mark, string>> = {
+  same: "text-diff-added",
+  signedOut: "text-diff-removed",
+  failed: "text-diff-removed",
+  denied: "text-diff-removed",
+  different: "text-warning",
+  outdated: "text-warning",
+  offline: "text-muted",
+  noGh: "text-muted",
+  loading: "text-muted",
+}
+
 function markText(mark: Mark, status: GithubStatus | null): string {
   if (mark === "loading") return c("loading")
   return c(MARK_KEY[mark], { login: status?.account ?? "" })
@@ -47,7 +58,7 @@ function detailOf(status: GithubStatus | null): string {
 
 function GithubMark() {
   return (
-    <svg className="connector-glyph" viewBox="0 0 16 16" width="22" height="22" aria-hidden="true">
+    <svg className="flex-none" viewBox="0 0 16 16" width="22" height="22" aria-hidden="true">
       <path
         fill="currentColor"
         d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
@@ -67,7 +78,7 @@ function copyCode(code: string): void {
 function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => void }) {
   if (login.state === "failed") {
     return (
-      <div className="connector-flow">
+      <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
         <span className="muted">{c("loginFailed", { error: login.error ?? "" })}</span>
         <button type="button" className="link" onClick={onCancel}>
           {c("dismiss")}
@@ -77,18 +88,18 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
   }
   if (login.state === "syncing") {
     return (
-      <div className="connector-flow">
+      <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
         <span className="muted">{c("syncing")}</span>
       </div>
     )
   }
   return (
-    <div className="connector-flow">
+    <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
       {login.code ? (
         <>
           <button
             type="button"
-            className="device-code mono"
+            className="mono rounded-sm border-hairline border-dashed border-line px-2 py-0.5 text-display tracking-code"
             title={c("codeHint")}
             onClick={() => copyCode(login.code ?? "")}
           >
@@ -137,7 +148,7 @@ function MachineLine(p: LineProps) {
             {detailOf(status)}
           </span>
         </div>
-        <span className={`connector-mark is-${mark}`} title={p.probe?.message}>
+        <span className={`whitespace-nowrap text-meta ${MARK_TONE[mark]}`} title={p.probe?.message}>
           {markText(mark, status)}
         </span>
         {p.onSync && needsAccount && p.rove && !flowing && (
@@ -196,12 +207,12 @@ function GithubCard({ model }: { model: AppModel }) {
     })
 
   return (
-    <div className="connector-card">
-      <div className="connector-head">
+    <div className="flex flex-col gap-2 rounded-sm border-hairline border-line p-2.5">
+      <div className="flex items-center gap-2.5">
         <GithubMark />
         <div className="engine-main">
           <span className="engine-name">GitHub</span>
-          <span className="muted engine-detail">{c("githubDescription")}</span>
+          <span className="muted engine-detail whitespace-normal">{c("githubDescription")}</span>
         </div>
         {rove ? (
           <>
