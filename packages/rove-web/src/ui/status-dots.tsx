@@ -6,9 +6,9 @@
 
 import { useLayoutEffect, useRef, useState } from "react"
 import type { RowStatus } from "rove-bridge/protocol"
-import { STEP_MS, dotLevels, dotsMove } from "./dot-levels.ts"
-import { type DotLook, statusMark } from "./rail-glyphs.ts"
-import "./status-dots.css"
+import { STEP_MS, dotLevels, dotsMove } from "../dot-levels.ts"
+import { type DotLook, type Tone, statusMark } from "../rail-glyphs.ts"
+import { TONE } from "./tone.ts"
 
 /** Work and waiting under reduced motion run this many times slower instead of freezing. */
 const GENTLE = 3
@@ -68,7 +68,10 @@ export function StatusDots({ status }: { status: RowStatus | undefined }) {
   return <Dots key={look} look={look} tone={tone} since={status?.since ?? 0} />
 }
 
-function Dots({ look, tone, since }: { look: DotLook; tone: string; since: number }) {
+// An idle mark is the muted ink, as ELYTerminal's `fg_muted`: one step stronger than the muted tone elsewhere.
+const DOT_TONE = (tone: Tone): string => (tone === "muted" ? "text-muted" : tone === "ink" ? "text-ink" : TONE[tone])
+
+function Dots({ look, tone, since }: { look: DotLook; tone: Tone; since: number }) {
   const ref = useRef<HTMLSpanElement>(null)
   // Read once per mount: a later `since` of the same look must not redraw a shape.
   const [began] = useState(since)
@@ -77,10 +80,14 @@ function Dots({ look, tone, since }: { look: DotLook; tone: string; since: numbe
     return el ? track(el, look, began) : undefined
   }, [look, began])
   return (
-    <span ref={ref} className={`dots tone-${tone}`} aria-hidden="true">
+    <span
+      ref={ref}
+      className={`inline-grid flex-none grid-cols-[repeat(3,3px)] auto-rows-[3px] gap-px self-center ${DOT_TONE(tone)}`}
+      aria-hidden="true"
+    >
       {Array.from({ length: 9 }, (_, dot) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a dot's place is its identity
-        <i key={dot} />
+        <i key={dot} className="rounded-full bg-current opacity-12" />
       ))}
     </span>
   )

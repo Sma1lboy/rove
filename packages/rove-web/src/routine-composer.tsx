@@ -24,7 +24,7 @@ import {
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { deviceHint } from "./key-hints.ts"
-import { Legend } from "./legend.tsx"
+import { Legend } from "./ui/legend.tsx"
 import { projectLabel, repoKey, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"

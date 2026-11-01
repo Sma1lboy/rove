@@ -1,7 +1,7 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Chevron } from "./chevron.tsx"
+import { Chevron } from "./ui/chevron.tsx"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
 

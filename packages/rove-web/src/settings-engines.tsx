@@ -8,7 +8,7 @@
 import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
 import { useCallback, useEffect, useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
-import { Chevron } from "./chevron.tsx"
+import { Chevron } from "./ui/chevron.tsx"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
