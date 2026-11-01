@@ -213,9 +213,10 @@ fire-and-forget so the hook reply never waits on git, and skipped when the tree
 equals the latest checkpoint. Checkpoints belong to the **workspace owner**: a
 child sharing its parent's directory resolves to the owner for the trigger and
 all three verbs (replies carry `workspaceTaskId`), and an owner's deletion hands
-the history to the heir. The gate is a managed task (kind `task`) with a
-worktree on disk (`Orchestrator.canCheckpoint`); phase 0 swaps it for the
-backend's `checkpoint` capability. `rewind` is files-only: it checkpoints the
+the history to the heir. The gate is the owner backend's `checkpoint`
+capability (`workspaceCapabilities`: `git-worktree` and `cow-clone` yes,
+`borrowed` no, since a main/dir tree is the user's own) with a worktree on disk
+(`Orchestrator.canCheckpoint`). `rewind` is files-only: it checkpoints the
 current state first (so a rewind is undoable), then lets `git read-tree --reset
 -u` over a throwaway index rewrite the tree, and resets the real index to HEAD;
 it refuses with `TASK_BUSY` while any engine sharing the workspace runs unless
@@ -274,8 +275,8 @@ is deleted by this doc).
 
 | # | Phase | User-visible? | Risk |
 |---|---|---|---|
-| 0 | Extract `WorkspaceBackend`; git + borrowed implementations; `task.workspace` defaulted from `kind`; lifecycle `kind` checks → capabilities | No (pure refactor) | Medium: wide, so it needs the `worktree*` / `task-deletion` / `land` suites green |
-| 1 | Git checkpoints at turn boundaries, rewind **(shipped)**, fork-with-uncommitted (open) | Yes | Low: refs only, reuses salvage |
+| 0 | Extract `WorkspaceBackend`; git + borrowed implementations; `task.workspace` defaulted from `kind`; lifecycle `kind` checks → capabilities **(shipped)** | No (pure refactor) | Medium: wide, so it needs the `worktree*` / `task-deletion` / `land` suites green |
+| 1 | Git checkpoints at turn boundaries, rewind, fork-with-uncommitted via `cow-clone` **(shipped)** | Yes | Low: refs only, reuses salvage |
 | 2 | Runner routing: hub routes remote-task writes via `api.invoke`; per-machine PTY client; open a remote tab | Yes (machines become writable) | Medium: TUI PTY singleton |
 | 3 | Dispatch: `rove api add --runner`, base-ref reachability, hub inside a resident daemon, placement by capacity | Yes | Medium |
 | 4 | Experimental CoW backend (LayerFS or AgentFS) on Linux Runners, behind `experimental.*` | Opt-in | High upstream risk (preview/beta, no durability guarantee); isolated by the seam |
