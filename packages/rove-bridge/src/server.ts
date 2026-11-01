@@ -91,6 +91,8 @@ export interface BridgeDeps {
   readonly login?: WebLogin
   /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
   readonly publicHost?: string | null
+  /** The relay ingress only (`--preset relay`): the relay agent dials this listener with no headers, so the token rides `?token=` inside the E2E tunnel. */
+  readonly tokenInQuery?: boolean
 }
 
 interface Conn {
@@ -418,7 +420,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
         return new Response("forbidden\n", { status: 403 })
       }
-      const presented = presentedToken(req)
+      const presented = presentedToken(req, deps.tokenInQuery === true)
       const device = tokenMatches(deps.token, presented) ? null : (deps.deviceOf?.(presented) ?? undefined)
       if (device === undefined) {
         log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)

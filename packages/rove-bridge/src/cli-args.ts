@@ -4,7 +4,7 @@
  * here is testable without a tailnet.
  */
 
-export type Preset = "none" | "tailscale" | "cf"
+export type Preset = "none" | "tailscale" | "cf" | "relay"
 
 export interface CloudflareAccess {
   /** `https://<team>.cloudflareaccess.com` — the JWT issuer and certs host. */
@@ -23,12 +23,26 @@ export interface BridgeArgs {
   /** `wss://` when TLS terminates in front of the bridge (Cloudflare, `tailscale serve`). */
   readonly tls: boolean
   readonly cloudflare: CloudflareAccess | null
+  /** `--preset relay`: the relay-kit Worker's origin (`https://relay.example.com`). */
+  readonly relayServer: string | null
   readonly rotateToken: boolean
+  /** Mint a new relay pairing code, unpairing every browser paired through the relay. */
+  readonly rotateRelay: boolean
+  /** `--relay-shell <dir>`: where to write the page the relay Worker serves. */
+  readonly relayShellDir: string | null
   readonly qr: boolean
   /** Print a link carrying this device's own token (minted on first use) instead of the shared one. */
   readonly device: string | null
   /** One-shot actions that print and exit instead of serving. */
-  readonly action: "serve" | "list-devices" | "revoke-device" | "setup" | "set-password" | "clear-password" | "unlock"
+  readonly action:
+    | "serve"
+    | "list-devices"
+    | "revoke-device"
+    | "setup"
+    | "set-password"
+    | "clear-password"
+    | "unlock"
+    | "relay-shell"
 }
 
 /** `<ROVE_HOME>/.rove/bridge/config.json`; flags override it. `publicHost` applies to `--preset cf` only. */
@@ -36,6 +50,7 @@ export interface BridgeConfig {
   readonly cfTeam?: string
   readonly cfAud?: string
   readonly publicHost?: string
+  readonly relayServer?: string
 }
 
 export interface TailscaleInfo {
@@ -45,8 +60,9 @@ export interface TailscaleInfo {
 
 export const DEFAULT_BRIDGE_PORT = 7878
 
-export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host <addr>]... [--port <n>]
+export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [--host <addr>]... [--port <n>]
                   [--public-host <name>] [--cf-team <team>] [--cf-aud <aud>]
+                  [--relay-server <url>] [--rotate-relay] [--relay-shell <dir>]
                   [--rotate-token] [--no-qr] [--device <name>]
                   [--list-devices] [--revoke-device <name>] [--setup]
                   [--set-password] [--clear-password] [--unlock]
@@ -60,6 +76,11 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host 
   --preset cf          listen on 127.0.0.1 for cloudflared; every connection must
                        carry a valid Cloudflare Access JWT. Needs --public-host
                        (the tunnel hostname), --cf-team and --cf-aud.
+  --preset relay       \`rove --web\` only: listen on 127.0.0.1 and dial out to a relay-kit
+                       Worker (--relay-server <url>); the browser reaches this machine
+                       through it, end-to-end encrypted. The bearer token still applies.
+  --rotate-relay       mint a new relay pairing code, unpairing every relay browser
+  --relay-shell <dir>  write the page the relay Worker serves (index.html), then exit
   --port <n>           TCP port (default ${DEFAULT_BRIDGE_PORT})
   --rotate-token       mint a new pairing token, revoking every paired phone
   --no-qr              print the pairing URL without a QR code
@@ -75,8 +96,8 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf] [--host 
   --clear-password     remove the browser login password, then exit
   --unlock             lift a password-login lockout, then exit
 
-  --cf-team, --cf-aud and --public-host may also live in
-  <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost.`
+  --cf-team, --cf-aud, --public-host and --relay-server may also live in
+  <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost, relayServer.`
 
 /** `myteam`, `myteam.cloudflareaccess.com` or its https URL → the issuer origin. */
 export function teamDomainOf(team: string): string {
@@ -90,6 +111,21 @@ export function teamDomainOf(team: string): string {
   return `https://${bare.endsWith(".cloudflareaccess.com") ? bare : `${bare}.cloudflareaccess.com`}`
 }
 
+/** The relay Worker's origin; plain http only for a loopback relay (tests, `wrangler dev`). */
+export function relayOriginOf(raw: string): string {
+  let url: URL
+  try {
+    url = new URL(raw.trim())
+  } catch {
+    throw new Error(`--relay-server must be a URL like https://relay.example.com, got ${raw}`)
+  }
+  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost"
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+    throw new Error(`--relay-server must be https:// (http:// only for 127.0.0.1 or localhost), got ${raw}`)
+  }
+  return url.origin
+}
+
 export function parseBridgeArgs(
   argv: readonly string[],
   deps: { config?: BridgeConfig; tailscale?: () => TailscaleInfo } = {},
@@ -101,7 +137,10 @@ export function parseBridgeArgs(
   let publicHost: string | null = null
   let cfTeam = config.cfTeam
   let cfAud = config.cfAud
+  let relayServer = config.relayServer
   let rotateToken = false
+  let rotateRelay = false
+  let relayShellDir: string | null = null
   let qr = true
   let device: string | null = null
   let action: BridgeArgs["action"] = "serve"
@@ -117,7 +156,8 @@ export function parseBridgeArgs(
       const p = value()
       if (p === "tailscale") preset = "tailscale"
       else if (p === "cf" || p === "cloudflare") preset = "cf"
-      else throw new Error(`--preset must be tailscale or cf, got ${p}`)
+      else if (p === "relay") preset = "relay"
+      else throw new Error(`--preset must be tailscale, cf or relay, got ${p}`)
     } else if (arg === "--port") {
       const raw = value()
       port = Number(raw)
@@ -125,7 +165,12 @@ export function parseBridgeArgs(
     } else if (arg === "--public-host") publicHost = value()
     else if (arg === "--cf-team") cfTeam = value()
     else if (arg === "--cf-aud") cfAud = value()
-    else if (arg === "--rotate-token") rotateToken = true
+    else if (arg === "--relay-server") relayServer = value()
+    else if (arg === "--rotate-relay") rotateRelay = true
+    else if (arg === "--relay-shell") {
+      relayShellDir = value()
+      action = "relay-shell"
+    } else if (arg === "--rotate-token") rotateToken = true
     else if (arg === "--no-qr") qr = false
     else if (arg === "--device") device = value()
     else if (arg === "--list-devices") action = "list-devices"
@@ -149,7 +194,7 @@ export function parseBridgeArgs(
   }
   if (preset !== "none" && hosts.length > 0)
     throw new Error("--host cannot be combined with --preset; the preset picks the address")
-  const base = { port, rotateToken, qr, device, action }
+  const base = { port, rotateToken, rotateRelay, relayShellDir, qr, device, action, relayServer: null }
 
   if (preset === "tailscale") {
     const ts = deps.tailscale?.() ?? { ipv4: null, dnsName: null }
@@ -177,6 +222,21 @@ export function parseBridgeArgs(
       publicHost,
       tls: true,
       cloudflare: { teamDomain: teamDomainOf(cfTeam), aud: cfAud.trim() },
+    }
+  }
+
+  if (preset === "relay") {
+    if (!relayServer)
+      throw new Error("--preset relay needs --relay-server <url> (or relayServer in bridge/config.json)")
+    if (publicHost !== null) throw new Error("--public-host cannot be combined with --preset relay")
+    return {
+      ...base,
+      preset,
+      hosts: ["127.0.0.1"],
+      publicHost: null,
+      tls: false,
+      cloudflare: null,
+      relayServer: relayOriginOf(relayServer),
     }
   }
 

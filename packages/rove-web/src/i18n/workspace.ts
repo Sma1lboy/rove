@@ -38,6 +38,14 @@ export const en = {
     failing: "can't reach rove. Is `rove --web` still running? After `--rotate-token`, open the new link.",
     forget: "forget this link",
   },
+  relay: {
+    unpaired: "open the relay link that `rove --web --preset relay` printed on your computer",
+    connecting: "connecting to your computer through the relay…",
+    loading: "loading rove…",
+    offline:
+      "your computer is not answering on this relay. Is `rove --web --preset relay` still running? After `--rotate-relay`, open the new link. Reload to retry.",
+    failed: "can't reach your computer through the relay ({error}). Reload to retry.",
+  },
   login: {
     title: "sign in",
     body: "Enter the password set with `rove --web --set-password`.",
@@ -112,6 +120,14 @@ export const zh: typeof en = {
     invalid: "这不是 `rove --web` 打印的链接",
     failing: "连不上 rove。`rove --web` 还在运行吗？用过 `--rotate-token` 的话，请打开新的链接。",
     forget: "忘掉这个链接",
+  },
+  relay: {
+    unpaired: "打开电脑上 `rove --web --preset relay` 打印的 relay 链接",
+    connecting: "正在通过 relay 连接你的电脑…",
+    loading: "正在加载 rove…",
+    offline:
+      "你的电脑没有在这个 relay 上应答。`rove --web --preset relay` 还在运行吗？用过 `--rotate-relay` 的话，请打开新的链接。刷新重试。",
+    failed: "无法通过 relay 连到你的电脑（{error}）。刷新重试。",
   },
   login: {
     title: "登录",

@@ -16,11 +16,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hsinsekai-nanami/agent": "0.2.4",
+    "@hsinsekai-nanami/core": "0.2.2",
     "@sma1lboy/rove": "workspace:*",
     "@sma1lboy/rove-daemon": "workspace:*",
     "uqr": "^0.1.3"
   },
   "devDependencies": {
+    "@hsinsekai-nanami/client": "0.2.4",
     "@tsconfig/bun": "1.0.11",
     "@types/bun": "1.3.14",
     "@types/node": "25.6.2",

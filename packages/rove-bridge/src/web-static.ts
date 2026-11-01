@@ -67,7 +67,10 @@ export async function serveWebFile(web: WebRoot, req: Request): Promise<Response
   const file = Bun.file(path)
   // Hashed asset names never change content; the shell must be re-read so a rebuild is picked up.
   const cache = target.startsWith(resolve(root, "assets") + sep) ? "public, max-age=31536000, immutable" : "no-cache"
-  const headers: Record<string, string> = { ...SECURITY_HEADERS, "Content-Type": file.type, "Cache-Control": cache }
+  // The relay shell carries its own CSP (hash-pinned script, relay connections); this one would block it.
+  const { "Content-Security-Policy": _, ...withoutCsp } = SECURITY_HEADERS
+  const security = isFile && pathname.startsWith("/relay/") ? withoutCsp : SECURITY_HEADERS
+  const headers: Record<string, string> = { ...security, "Content-Type": file.type, "Cache-Control": cache }
   if (!COMPRESSIBLE.has(extname(path))) return new Response(req.method === "HEAD" ? null : file, { headers })
   headers.Vary = "Accept-Encoding"
   if (!acceptsGzip(req.headers.get("accept-encoding") ?? "")) {

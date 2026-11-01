@@ -83,8 +83,9 @@ has it yet.
 ## Security
 
 - It listens on `127.0.0.1` only unless you pick a bridge preset
-  (`--preset tailscale` or `--preset cf`, see [IOS.md](IOS.md)). There is no
-  flag that opens it to the whole network by default.
+  (`--preset tailscale` or `--preset cf`, see [IOS.md](IOS.md); or
+  `--preset relay`, below). There is no flag that opens it to the whole
+  network by default.
 - The token rides in the link's `#fragment`, which browsers never send to a
   server, so it reaches no access log. The page stores it in the browser's
   local storage and removes it from the address bar.
@@ -154,6 +155,59 @@ phone pairing and device tokens keep working as before. Cloudflare Access
 reaches the page at all without passing Access first. With no password set,
 none of this exists: there is no login route and the page asks for the link.
 
+### Through an encrypted relay
+
+`--preset relay` reaches this machine from a phone browser with no VPN app and
+no Cloudflare Access, and the relay in the middle sees only ciphertext. It uses
+[relay-kit](https://github.com/nanami-0713/relay-kit) (MIT): a Cloudflare
+Worker you deploy to your own account, and its `relay-e2e/v1` protocol.
+
+```mermaid
+flowchart LR
+  B[phone browser] -- ciphertext --> W[relay Worker] -- ciphertext --> A[rove --web]
+  A -- plaintext, loopback --> I[bridge relay listener]
+```
+
+Set it up once (`rove --web --setup` prints the same steps):
+
+```bash
+git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay
+rove --web --relay-shell public                  # writes public/index.html
+printf '\n[assets]\ndirectory = "public"\n' >> wrangler.toml
+npx wrangler login && npx wrangler deploy        # prints https://<worker>.<account>.workers.dev
+rove --web --preset relay --relay-server https://<worker>.<account>.workers.dev
+```
+
+`--relay-server` can also live in `<home>/.rove/bridge/config.json` as
+`relayServer`. `*.workers.dev` is blocked on many mainland China networks; bind
+a custom domain (the commented `routes` in `wrangler.toml`).
+
+The bridge prints a link and a QR code:
+`https://<relay>/#code=<pairing code>&token=<bridge token>`. Both ride in the
+fragment, so the Worker never receives them.
+
+- **What the Worker serves.** Only the page `--relay-shell` wrote: a small
+  loader. It runs the encrypted handshake, then fetches the real client from
+  this machine through the tunnel, so the client always matches the bridge.
+  Redo `--relay-shell` and `wrangler deploy` only when the loader changes.
+- **Pairing code.** 32 random bytes in `<home>/.rove/bridge/relay-code`
+  (owner-only). It derives the relay room and keys the handshake. `--rotate-relay`
+  mints a new one, which unpairs every browser paired through the relay.
+- **The bridge token still applies.** The relay is a layer on top: a browser
+  with the pairing code but no token, or a revoked device token, gets no
+  socket. `--device`, `--revoke-device` and password login work as on any
+  other preset.
+- The bridge opens a second listener on `127.0.0.1` (a random port) that only
+  the relay agent dials. The agent opens its sockets without headers, so that
+  listener alone takes the token from `?token=`; the main listener still
+  refuses a token in the URL.
+
+What it does not protect against: the relay can drop or delay traffic and see
+message sizes and timing. The loader is served by Cloudflare, so you trust it
+the way you trust any page you load. relay-kit's handshake is its own design
+and has not been audited. One relay link per browser origin: a second machine
+needs its own Worker.
+
 ## Install to the home screen
 
 The page carries a web app manifest, so a browser can install it: Safari's
@@ -173,3 +227,6 @@ install shares the browser profile, so it is already paired.
   says so. The npm package does.
 - A browser tab resizes the shared session to its own width, as the phone
   apps do, so the TUI may redraw at the browser's size while it is open.
+- Through the relay, one message is capped near 700 KB (the Worker's 1 MiB
+  per message, after encoding), so a large image paste fails;
+  the notification sound does not play there either.
