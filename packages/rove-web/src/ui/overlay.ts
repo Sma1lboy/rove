@@ -5,7 +5,7 @@
  */
 
 /** A short screen (a phone on its side) lends a dialog nearly all its height. */
-export const OVERLAY = "overlay fixed inset-0 z-20 grid place-items-[start_center] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
+export const OVERLAY = "overlay fixed inset-0 z-20 grid justify-items-center [align-items:start] bg-(--scrim) pt-[12vh] motion-safe:animate-fade-in [&.is-leaving]:animate-fade-out short:pt-3"
 
 /** `wide` for a form with two columns of fields. */
 export const dialogClass = (wide = false): string =>
