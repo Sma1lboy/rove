@@ -9,7 +9,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { ForkUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { workspaceCapabilities } from "./workspace/index.ts"
+import { type WorkspaceRegistry, workspaceBackendId, workspaceCapabilities } from "./workspace/index.ts"
 import { git } from "./worktree/git.ts"
 
 export interface ForkTaskDeps {
@@ -19,8 +19,7 @@ export interface ForkTaskDeps {
   readonly ensureWorktree: (id: TaskId) => Promise<string>
   /** Materialises `child` as a clone of `parentPath`. */
   readonly cloneInto: (child: Task, parentPath: string) => Promise<string>
-  /** Removes whatever worktree and branch the row picked up, force: a failed fork holds no user work. */
-  readonly discard: (child: Task) => Promise<void>
+  readonly workspaces: Pick<WorkspaceRegistry, "get">
 }
 
 export async function forkTaskRow(
@@ -54,9 +53,20 @@ export async function forkTaskRow(
   try {
     await deps.cloneInto(child, parentPath)
   } catch (err) {
-    await deps.discard(child).catch((cleanup) => console.error(`[rove] fork rollback failed for ${child.id}:`, cleanup))
+    await discard(deps, child).catch((cleanup) =>
+      console.error(`[rove] fork rollback failed for ${child.id}:`, cleanup),
+    )
     await deps.store.remove(child.id)
     throw err
   }
   return deps.store.get(child.id) ?? child
+}
+
+/** Removes whatever worktree and branch the row picked up, force: a failed fork holds no user work. */
+async function discard(deps: ForkTaskDeps, child: Task): Promise<void> {
+  const row = deps.store.get(child.id)
+  if (!row?.worktreePath) return
+  await deps.workspaces
+    .get(workspaceBackendId(row))
+    .dispose({ path: row.worktreePath, repo: row.repo, branch: row.branch }, { force: true, deleteBranch: true })
 }

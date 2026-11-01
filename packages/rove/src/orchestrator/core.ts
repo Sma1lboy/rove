@@ -21,7 +21,7 @@ import { forkTaskRow } from "./fork-task.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { landPreflightAll, landTaskAll } from "./land-multi.ts"
 import { landPreflight } from "./land-preflight.ts"
-import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
+import { type LandResult, type LandTaskOpts, assertOwnsBranch, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
@@ -227,16 +227,7 @@ export class Orchestrator {
         createRow,
         ensureWorktree: (id) => this.ensureWorktree(id),
         cloneInto: (child, parentPath) => this.worktreeCoordinator.ensure(child, undefined, parentPath),
-        discard: async (child) => {
-          const row = this.store.get(child.id)
-          if (!row?.worktreePath) return
-          await this.workspaces
-            .get(workspaceBackendId(row))
-            .dispose(
-              { path: row.worktreePath, repo: row.repo, branch: row.branch },
-              { force: true, deleteBranch: true },
-            )
-        },
+        workspaces: this.workspaces,
       },
       { ...input, forkFrom },
     )
@@ -418,13 +409,7 @@ export class Orchestrator {
    */
   async landPreflight(id: TaskId | string, repo?: string): Promise<LandPreflightResult> {
     const task = this.requireTask(id)
-    if (!workspaceCapabilities(task).ownsBranch) {
-      throw new Error(
-        task.kind === "main"
-          ? "landTask: a main task has no branch to land"
-          : "landTask: a directory task has no Rove-managed branch to land",
-      )
-    }
+    assertOwnsBranch(task)
     if (task.deletion) throw new TaskDeletingError(String(task.id))
     pickRepos(task, repo)
     return task.extraRepos?.length ? landPreflightAll(task, repo) : landPreflight(task)

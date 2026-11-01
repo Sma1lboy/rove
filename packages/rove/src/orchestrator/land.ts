@@ -59,19 +59,23 @@ interface LandWorktreeCleanup {
   readonly residue?: WorktreeResidue
 }
 
+/** Refuses a task with no Rove-managed branch (main, dir): there is nothing to land. */
+export function assertOwnsBranch(task: Task): void {
+  if (workspaceCapabilities(task).ownsBranch) return
+  throw new Error(
+    task.kind === "main"
+      ? "landTask: a main task has no branch to land"
+      : "landTask: a directory task has no Rove-managed branch to land",
+  )
+}
+
 /**
  * {@link landTask}, then {@link finishLanded}'s cleanup: remove the worktree
  * (default on), delete the branch (opt-in). The merge has committed by then,
  * so cleanup failures are reported in the result, never thrown.
  */
 export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: LandDeps): Promise<LandResult> {
-  if (!workspaceCapabilities(task).ownsBranch) {
-    throw new Error(
-      task.kind === "main"
-        ? "landTask: a main task has no branch to land"
-        : "landTask: a directory task has no Rove-managed branch to land",
-    )
-  }
+  assertOwnsBranch(task)
   const result = await landTask(task, { strategy: opts.strategy })
   return finishLanded(task, result, opts, deps)
 }
