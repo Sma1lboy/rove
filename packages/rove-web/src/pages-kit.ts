@@ -33,6 +33,18 @@ export function fill(text: string, params: Record<string, string | number>): str
   return text.replace(/\{(\w+)\}/g, (m, k: string) => String(params[k] ?? m))
 }
 
+/** The TUI's `t("automations.x")` over the web copy: `cron-core` asks for keys by their TUI path. */
+export function useCronTranslate() {
+  const { auto } = useCopy()
+  return (key: string, params?: Record<string, string | number>): string => {
+    let node: unknown = auto
+    for (const part of key.replace(/^automations\./, "").split(".")) {
+      node = node && typeof node === "object" ? Reflect.get(node, part) : undefined
+    }
+    return typeof node === "string" ? (params ? fill(node, params) : node) : key
+  }
+}
+
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
