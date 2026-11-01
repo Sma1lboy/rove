@@ -28,6 +28,8 @@
   --color-merged: var(--merged);
   --color-diff-added: var(--diff-added);
   --color-diff-removed: var(--diff-removed);
+  --color-diff-added-bg: var(--diff-added-bg);
+  --color-diff-removed-bg: var(--diff-removed-bg);
   --color-transparent: transparent;
 
   --font-*: initial;
@@ -81,6 +83,9 @@
 
 /* Under the folded rail: the workspace's top bar clears the floating rail buttons. */
 @custom-variant rail-folded (:where(.app.is-rail-folded) &);
+
+/* The phone layout (app.tsx `is-narrow`). */
+@custom-variant narrow (:where(.app.is-narrow) &);
 
 /* A long-press opens the element's own menu (long-press.ts), not iOS's callout. */
 @utility touch-callout-none {

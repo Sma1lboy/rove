@@ -6,6 +6,8 @@
  * "ask in chat" bubble that puts its lines in the engine's prompt.
  */
 
+import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { TextDialog } from "./dialogs.tsx"
 import { type DiffRow, chatReference, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
@@ -199,10 +201,10 @@ export function PreviewView({
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
-    <div className="preview" tabIndex={0} ref={host} onKeyDown={onKey}>
-      <div className="preview-body" onMouseUp={selectDragged}>
-        {!loaded && <p className="placeholder-line">{t("preview.loading")}</p>}
-        {loaded?.kind === "text" && <p className={`placeholder-line ${loaded.error ? "error" : ""}`}>{loaded.text}</p>}
+    <div className="group/preview flex min-w-0 flex-1 flex-col outline-none" tabIndex={0} ref={host} onKeyDown={onKey}>
+      <div className="min-h-0 flex-1 overflow-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
+        {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
+        {loaded?.kind === "text" && <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "error" : ""}`}>{loaded.text}</p>}
         {rows.map((row, i) => {
           const noted = notes.some((n) => covers(n, row))
           return (
@@ -210,7 +212,7 @@ export function PreviewView({
             <div
               key={rowIds[i]}
               data-row={i}
-              className={`diff-row kind-${row.kind} ${i >= lo && i <= hi ? "is-cursor" : ""} ${noted ? "is-noted" : ""}`}
+              className={diffRowClass(row.kind, { cursor: i >= lo && i <= hi, noted })}
               onClick={(e) => {
                 if (window.getSelection()?.isCollapsed === false) return
                 // Shift+click extends a selection from the cursor, as `v` then j/k does.
@@ -219,10 +221,10 @@ export function PreviewView({
                 setCursor(i)
               }}
             >
-              <span className="gutter">{row.oldNo ?? ""}</span>
-              <span className="gutter">{row.newNo ?? ""}</span>
-              <span className="sign">{row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}</span>
-              <span className="code">{row.text}</span>
+              <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
+              <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
+              <span className={diffSignClass(row.kind, noted)}>{row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}</span>
+              <span className={diffCodeClass(row.kind)}>{row.text}</span>
               {anchor !== null && i === hi && (
                 <Button
                   variant="floating"

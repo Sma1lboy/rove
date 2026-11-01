@@ -6,6 +6,7 @@
  * Launch commands stay a Mac-side edit.
  */
 
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { type EngineHealthTone, engineHealth } from "@sma1lboy/rove/src/engine/engine-health.ts"
 import { useCallback, useEffect, useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
@@ -81,7 +82,7 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!engines) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!engines) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   return (
     <section className="settings-group engines">
       <p className="muted">{ts("engines.hint")}</p>

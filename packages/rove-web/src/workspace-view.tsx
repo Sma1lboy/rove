@@ -119,7 +119,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         )}
         {task && panelOn && <SidePanel model={model} task={task} narrow />}
         {task && selection.tabId && tabs.some((tab) => tab.id === selection.tabId) && (
-          <div className={`term-slot ${panelOn ? "is-hidden" : ""}`}>
+          <div className={`min-w-0 flex-1 ${panelOn ? "hidden" : "flex"}`}>
             <SplitPane
               key={`${task.id}::${selection.tabId}`}
               model={model}

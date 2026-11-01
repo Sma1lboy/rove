@@ -3,6 +3,7 @@
  * registry with an on/off switch each. Manifest settings and the marketplace stay Mac-side.
  */
 
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { useCallback, useEffect, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
@@ -93,9 +94,9 @@ export function PluginsSection({ model }: { model: AppModel }) {
     <>
       <BuiltinMods model={model} />
       {!plugins ? (
-        <p className="placeholder-line">{t("preview.loading")}</p>
+        <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
       ) : plugins.length === 0 ? (
-        <p className="placeholder-line">{t("settings.plugins.empty")}</p>
+        <p className={PLACEHOLDER_LINE}>{t("settings.plugins.empty")}</p>
       ) : (
         <div className="settings-rows">
           {plugins.map((p) => (

@@ -5,6 +5,7 @@
  * a destination and a secret the Mac would use.
  */
 
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
@@ -144,7 +145,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!routing) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!routing) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   const c = routing.classifier
   const modeLabel =
     c.mode === "off"
