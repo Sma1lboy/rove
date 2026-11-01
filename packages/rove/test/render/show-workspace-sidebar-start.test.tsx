@@ -4,6 +4,7 @@ import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import * as engines from "../../src/engine/account-detect"
 import * as terminalTabs from "../../src/tui-react/workspace/TerminalTabs"
+import type { ChildSpawnRequest } from "../../src/tui-react/workspace/quick-fork"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
 import {
   requestNewTab,
@@ -44,6 +45,7 @@ for (const kind of ["main", "dir"] as const) {
           () => available.mockRestore(),
           () => host.mockRestore(),
         )
+        const spawned: ChildSpawnRequest[] = []
         const start = () => {
           reviveEmptiedTabs(null, id, defaultShell())
           requestNewTab(id, action)
@@ -60,7 +62,7 @@ for (const kind of ["main", "dir"] as const) {
             onEngineSendReady={() => {}}
             onEnginePasteReady={() => {}}
             onDiffTabReady={() => {}}
-            onSpawnChild={() => {}}
+            onSpawnChild={(request) => spawned.push(request)}
             onQuickFork={() => {}}
           />,
           { providers: { dialog: true } },
@@ -80,14 +82,19 @@ for (const kind of ["main", "dir"] as const) {
             view.mockInput.pressEnter()
           })
         }
+        if (action === "shell") {
+          // A shell is its own row: a child task whose tab-1 is the shell, not a tab of this task.
+          await waitForFrameText(view.frame, "No sessions here", { timeoutMs: 1000 })
+          expect(spawned).toHaveLength(1)
+          expect(spawned[0]).toMatchObject({ parentTaskId: id, title: "shell" })
+          expect(spawned[0]?.tabs?.tabs).toMatchObject([{ kind: "command", id: "tab-1", command: [defaultShell()] }])
+          expect(takeNewTab(id)).toBeNull()
+          return
+        }
         await waitForFrameText(view.frame, "Tabs mounted", { timeoutMs: 1000 })
         const tabs = tabsByTask.get(id)?.tabs
         expect(tabs).toHaveLength(1)
-        expect(tabs?.[0]).toMatchObject(
-          action === "chat"
-            ? { kind: "engine", vendor: "codex", engineCommand: "codex" }
-            : { kind: "command", command: [defaultShell()] },
-        )
+        expect(tabs?.[0]).toMatchObject({ kind: "engine", vendor: "codex", engineCommand: "codex" })
         expect(takeNewTab(id)).toBeNull()
       })
     })

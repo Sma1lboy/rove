@@ -14,9 +14,9 @@ import { SplitPane } from "./split-view.tsx"
 import { useStore } from "./store.ts"
 import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
-import { newChatHere } from "./task-dialogs.tsx"
-import { dialog, newSession, page } from "./ui.ts"
-import { buttonClass } from "./ui/button.tsx"
+import { newChatHere, openTab } from "./task-dialogs.tsx"
+import { dialog, newSession, page, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { PANE, PANE_WORKING, PLACEHOLDER, PLACEHOLDER_BOX, WORKSPACE, WORKSPACE_FRAME } from "./ui/shell.ts"
 import { UpdateView } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
@@ -80,7 +80,11 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         {narrow && <NarrowBackBar />}
         <div className={PANE}>
           {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
-          <NewSessionView key={`${composing.machine ?? ""}\0${composing.repo ?? ""}`} model={model} seed={composing} />
+          <NewSessionView
+            key={`${composing.machine ?? ""}\0${composing.repo ?? ""}\0${composing.ungrouped ? "u" : ""}`}
+            model={model}
+            seed={composing}
+          />
         </div>
       </main>
     )
@@ -107,16 +111,19 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         {task && tabsKnown && tabs.length === 0 && !panelOn && (
           <div className={PLACEHOLDER_BOX}>
             <p>{t("workspace.noTabs")}</p>
-            <button type="button" className={buttonClass()} onClick={() => void newChatHere(model, task.id)}>
-              {t("menu.newChat")}
-            </button>{" "}
-            <button
-              type="button"
-              className={buttonClass()}
-              onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}
+            {/* The task's own conversation, relaunched in its tab-1 on its stored command; the others make a different child. */}
+            <Button
+              variant="filled"
+              onClick={() => void openTab(model, task.id, { kind: "engine" }).catch((e) => toast(String(e), "error"))}
             >
+              {task.engine ? t("workspace.startEngine", { engine: task.engine.name }) : t("workspace.startSession")}
+            </Button>{" "}
+            <Button variant="filled" onClick={() => void newChatHere(model, task.id)}>
+              {t("menu.newChat")}
+            </Button>{" "}
+            <Button variant="filled" onClick={() => dialog.set(<NewChatDialog model={model} taskId={task.id} />)}>
               {t("menu.newChatPick")}
-            </button>
+            </Button>
           </div>
         )}
         {task && panelOn && <SidePanel model={model} task={task} narrow />}

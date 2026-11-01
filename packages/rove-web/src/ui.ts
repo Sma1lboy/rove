@@ -102,12 +102,14 @@ export interface NewSessionStart {
   readonly machine?: string
   /** A draft to start from (a `?prompt=` link); absent = the last unsent draft. */
   readonly prompt?: string
+  /** Start in no project (the rail's Ungrouped), the composer's "No folder" choice. */
+  readonly ungrouped?: true
 }
 
 /** The prompt-first New session composer in the workspace pane; null = closed. */
 export const newSession = createStore<NewSessionStart | null>(null)
 
-export function openNewSession(repo?: string, baseBranch?: string, machine?: string, prompt?: string): void {
+export function openNewSession(repo?: string, baseBranch?: string, machine?: string, prompt?: string, ungrouped?: boolean): void {
   page.set(null)
   dialog.set(null)
   newSession.set({
@@ -115,6 +117,7 @@ export function openNewSession(repo?: string, baseBranch?: string, machine?: str
     ...(baseBranch ? { baseBranch } : {}),
     ...(machine ? { machine } : {}),
     ...(prompt ? { prompt } : {}),
+    ...(ungrouped ? { ungrouped: true as const } : {}),
   })
 }
 

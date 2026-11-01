@@ -229,8 +229,8 @@ export class Orchestrator {
     openDirectoryTaskRow({ store: this.store }, input)
 
   /** Migrate a scratch task into a repo (adoption) — see `core-create.ts`. */
-  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
-    adoptScratchRepoRow({ store: this.store }, id, repo)
+  adoptScratchRepo = (id: TaskId | string, repo: string, opts?: { keepDirectory?: boolean }): Promise<void> =>
+    adoptScratchRepoRow({ store: this.store }, id, repo, opts)
 
   /** Spawn a child task of `input.parentTaskId` — rules and body in `spawn-child.ts`. */
   spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> =>

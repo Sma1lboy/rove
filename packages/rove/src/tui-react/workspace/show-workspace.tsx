@@ -123,6 +123,7 @@ export function ShowWorkspace(props: {
         focused={props.focused}
         vendor={props.task.vendor}
         command={props.task.command}
+        onSpawnChild={props.onSpawnChild}
       />
     )
   }

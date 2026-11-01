@@ -32,7 +32,7 @@ import { type Placement, parentFlags, placeAdd, placedRequest, resolveAddParent 
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
-import { ApiError, type VerbContext, helpStep } from "./types.ts"
+import { ApiError, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
@@ -57,6 +57,13 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   const parallel = count !== undefined || agentsSpec !== undefined
+  if (args.bool("start") && (parallel || args.promptText())) {
+    throw new ApiError(
+      "--start boots one idle engine without a first message: it conflicts with --prompt/--prompt-file (which already start the engine) and with --count/--agents",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
   // Validate with git before anything is created: an unusable name otherwise
   // fails only at `ensure-worktree` as a raw RPC_ERROR, leaving a row that
   // can never materialize. Skipped for a parallel round, which refuses
@@ -123,6 +130,23 @@ async function typedEngineFields(ctx: VerbContext, repo: string): Promise<Engine
   return { choice, effort: effortFor(ctx, engines), model: modelFor(ctx, engines) }
 }
 
+/** The task as the engine launcher addresses it; `newTask` marks a first prompt the launch itself carries. */
+function deliveryTarget(task: SerializedTask, newTask = false): PromptTarget {
+  return {
+    id: task.id,
+    worktreePath: taskCwd(task),
+    kind: task.kind,
+    vendor: task.vendor as VendorId | undefined,
+    command: task.command,
+    modelEffort: task.modelEffort,
+    model: task.model,
+    repo: task.repo,
+    // A shared child has no repos of its own: its owner's are read.
+    ...(task.extraRepos?.length || task.sharesWorkspaceOf ? { multiRepo: true } : {}),
+    ...(newTask ? { newTask: true } : {}),
+  }
+}
+
 async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, placement: Placement): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
@@ -179,8 +203,29 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
 
   // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
   // to classify, so a note and an absent prompt cannot coexist.
-  if (!prompt)
-    return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
+  if (!prompt) {
+    if (!args.bool("start")) {
+      return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
+    }
+    // `--start`: no first message, but the engine boots idle in the task's own tab-1. The task IS created, so a failure names it.
+    try {
+      const opened = await ctx.runtime.openTab(daemon, deliveryTarget(task), "engine")
+      return {
+        taskId,
+        task,
+        engine: launchedEngine(task),
+        home: homeDir(),
+        ...placed,
+        started: true,
+        tabId: opened.tab.id,
+        session: opened.session,
+        ...warned,
+      }
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err
+      throw new ApiError(err.message, err.code, { ...err.data, taskId, ...placed, ...warned })
+    }
+  }
   // Same provenance prefix `send` carries: the `dispatcher` row field is data
   // a receiver must think to read; this puts the reply address in the brief.
   // No-op for a create from a plain shell.
@@ -192,25 +237,7 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // that leaves an agent unable to tell "it routed to deep and the engine
   // died" from "it never routed at all" without a second round-trip.
   const delivered = await withTierNote(tierNote, () =>
-    deliverArmed(
-      ctx,
-      daemon,
-      taskId,
-      {
-        id: taskId,
-        worktreePath: taskCwd(task),
-        kind: task.kind,
-        vendor: task.vendor as VendorId | undefined,
-        command: task.command,
-        modelEffort: task.modelEffort,
-        model: task.model,
-        repo: task.repo,
-        // A shared child has no repos of its own: its owner's are read.
-        ...(task.extraRepos?.length || task.sharesWorkspaceOf ? { multiRepo: true } : {}),
-        newTask: true,
-      },
-      brief,
-    ),
+    deliverArmed(ctx, daemon, taskId, deliveryTarget(task, true), brief),
   )
   // The task IS created, so carry the taskId in the error.
   if (!delivered.delivered) {

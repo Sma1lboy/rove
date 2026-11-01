@@ -89,6 +89,22 @@ it("a shell tab is a command row with the login shell and no title, opened throu
   expect(typed).toEqual(["t::tab-2", "t::tab-3"])
 })
 
+it("a home shell on a fresh task is its tab-1, never an engine tab-1 with a shell behind it", async () => {
+  seed({})
+  const daemon = tabsDaemon({ seed: {} })
+
+  const opened = await defaultApiRuntime.openTab(daemon.client, target(), "shell", { home: true })
+
+  expect(opened.session).toBe("t::tab-1")
+  expect(daemon.tabs("t")?.tabs).toEqual([
+    { kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["/bin/sh"] },
+  ])
+  // A task that already has tabs keeps them: its tab-1 is not a shell to spawn into.
+  await expect(
+    defaultApiRuntime.openTab(tabsDaemon({ seed: { t: oneEngineTab() } }).client, target(), "shell", { home: true }),
+  ).rejects.toMatchObject({ code: "SESSION_FAILED" })
+})
+
 it("two concurrent tab-news get two distinct ids from the daemon", async () => {
   seed({})
   const daemon = tabsDaemon({ seed: { t: oneEngineTab() } })

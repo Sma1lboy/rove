@@ -125,7 +125,7 @@ for terminal support.
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New conversation: a child task under this one, sharing its directory, on the engine this project used last |
-| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (child task here → fork a child task in a new worktree → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A shell or plugin pane opens as a tab of this Task. A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (child task here → fork a child task in a new worktree → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A plugin pane opens as a tab of this Task; a shell opens as a child task sharing this directory. A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
 | `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` opens the engine chooser there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
@@ -138,7 +138,7 @@ for terminal support.
 | `F5` | Confirm and reset the active terminal |
 | `F7` | Jump to the next Inbox item across all projects |
 
-Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine; Ctrl+E starts the chosen engine and pins its command on the tab. The sidebar's New conversation and New shell actions also start these tasks directly. Managed worktree tasks and scratch tasks keep starting automatically.
+Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine (the empty pane names it: "press ⏎ to start Claude"; after a shell child's last shell exits it offers a shell instead); Ctrl+E starts the chosen engine and pins its command on the tab. The sidebar's New conversation and New shell actions also start these tasks directly. Managed worktree tasks and scratch tasks keep starting automatically.
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
@@ -237,7 +237,7 @@ orphaned.
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
-does: a child task sharing the worktree) and **New shell** (a bare shell tab) for that worktree,
+does: a child task sharing the worktree) and **New shell** (a child task sharing the worktree whose `tab-1` is a login shell) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
 These entries have no chord of their own. **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the

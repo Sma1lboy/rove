@@ -187,6 +187,7 @@ export async function runSpawnChild(
       parentTaskId: request.parentTaskId,
       worktree: false,
       vendor: request.vendor,
+      ...(request.title ? { title: request.title } : {}),
     })
     // Before the child is shown: its first mount reads these.
     if (request.tabs) setTaskTabs(task.id, request.tabs)
@@ -213,6 +214,8 @@ export interface ChildSpawnRequest {
   readonly prompt?: string
   /** The child's first tab, written before it is shown (a native fork of the parent's session). */
   readonly tabs?: TabsState
+  /** The child's row title; absent = the placeholder a first prompt later replaces. */
+  readonly title?: string
 }
 
 export interface UseQuickForkResult {

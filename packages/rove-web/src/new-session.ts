@@ -128,3 +128,22 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
     ...(input.effort ? { effort: input.effort } : {}),
   }
 }
+
+type Request = <T>(op: string, args?: Record<string, unknown>) => Promise<T>
+
+/**
+ * Start an Ungrouped session (no project, in the home directory): the rail's Scratch row, then its
+ * engine tab carrying the prompt. Without `begin` it stays unstarted, titled from the prompt.
+ */
+export async function startUngrouped(
+  request: Request,
+  engine: string,
+  prompt: string,
+  begin: boolean,
+): Promise<string> {
+  const pick = engine ? { engine } : {}
+  const { taskId } = await request<{ taskId: string }>("task.openScratch", pick)
+  if (begin) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
+  else if (prompt.trim()) await request("task.rename", { taskId, title: deriveTitleFromPrompt(prompt) })
+  return taskId
+}

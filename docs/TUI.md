@@ -23,7 +23,8 @@ moves left or right, and `ctrl+q` returns from the workspace to Tasks. From the
 Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
-Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
+Task's worktree (each opens a child Task listed under the row; a shell child's
+last shell exiting leaves the row empty, and `enter` starts a fresh shell), plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
 `rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
@@ -31,7 +32,8 @@ offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
 and `d` retires the one under the cursor, which is how a note whose fact has
 stopped being true stops being injected into new sessions) and **Remove
-project**. Clicking anywhere else dismisses that menu.
+project**. Right-clicking the **Scratch** header offers **New conversation (no
+folder)** and **New shell**, which open a Scratch Task in `$HOME`. Clicking anywhere else dismisses that menu.
 
 Right-clicking a tab in the workspace tab strip offers **Rename tab**, **Close
 tab**, **Copy tab address**, which copies the `--task-id … --tab …` pair that

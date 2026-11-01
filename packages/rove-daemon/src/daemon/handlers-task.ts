@@ -411,27 +411,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.openDir",
-    async handle(payload, ctx) {
-      const dir = requireString(payload, "dir")
-      const task = await ctx.orch.openDirectoryTask({
-        dir,
-        vendor: optionalVendor(payload, "vendor"),
-        scratch: optionalBoolean(payload, "scratch"),
-      })
-      return { taskId: task.id, task: serializeTask(task) }
-    },
-  },
-  {
-    // No-op on non-scratch rows.
-    name: "task.adoptScratchRepo",
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
-      return {}
-    },
-  },
-  {
     name: "task.ensureMain",
     blocking: true,
     async handle(payload, ctx) {

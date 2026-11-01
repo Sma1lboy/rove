@@ -267,6 +267,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
 | `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
+| `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
+| `NOT_UNGROUPED` | `update --project` on a task that already belongs to a project (only an Ungrouped session moves; `--parent` re-parents any task). |
 | `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
 | `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
 | `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
@@ -800,9 +802,14 @@ edits (`set-vendor`, `rename`,
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
+  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
-  starts the engine, and delivers the prompt. Does not steal focus unless
+  starts the engine, and delivers the prompt. With `--start` and no prompt the
+  engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
+  `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
+  `taskId`. A bare `add` is only the row (`started: false`, status `backlog`),
+  and `--start` beside `--prompt`, `--count` or `--agents` is
+  `CONFLICTING_FLAGS`. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
   (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
   what the task actually launches after the flags and the repo's default
@@ -1356,9 +1363,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
 - `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
-  picker's Enter on an empty message. `shell` runs the login shell
-  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
+  picker's Enter on an empty message. `shell` opens a shared child task of
+  `--task-id` (same directory, titled `shell`, so the rail and the TUI tree list it) whose
+  own `tab-1` runs the login shell (`$SHELL`) in the task's worktree and types the
+  `ROVE_TASK_ID` / `ROVE_TAB_ID` export into it. A fresh Ungrouped (scratch) task with no
+  tabs is the exception: its shell is its own `tab-1`. When the shell exits the row stays
+  with no tabs (`reopenAs: command`), and ⏎ in the TUI or Start in the web starts a fresh
+  shell; nothing deletes the task. `engine` starts a new conversation. A task with no
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, as `add --no-worktree`) whose
@@ -1372,8 +1383,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
-  client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); an engine on a task with no conversation returns
+  client sees the row through `tabs.changed`. A shell returns
+  `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the child (an
+  Ungrouped task's own shell returns `{ok, taskId, tabId, session, kind, clients}`; `clients` =
+  attached connections told, `0` = none); an engine on a task with no conversation returns
   `{ok, taskId, tabId, session, kind, clients}` with `tabId` `tab-1` of the task;
   an engine on a task that holds one returns
   `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the
@@ -1504,11 +1517,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--command CMD] [--model M]
-  [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
-  [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
+- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
+  [--model M] [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S]
+  [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. The flags are checked before anything is written,
-  then applied in a fixed order: parent → branch → command → model/effort →
+  then applied in a fixed order: parent → project → branch → command → model/effort →
   title → pinned → status. The call is not atomic: if a step fails midway, the
   error reports the fields already `applied`. The result is `{ ok, taskId,
   updated, parent?, command?, protocol?, generic?, engine? }`, where `updated`
@@ -1538,6 +1551,16 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
     task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
     `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
+  - `--project PATH`: move an Ungrouped session (a Scratch task, which runs in
+    the home directory) under the project at `PATH`, after the session cloned
+    or `git init`-ed it. `PATH` may be any directory inside the repo; it names
+    the repo's main checkout, which becomes a project (its main row is created)
+    if it was not one. Only the grouping changes: the session keeps its
+    directory, so its engine keeps running and resumes where it started.
+    Refusals, before anything is written: `NOT_A_GIT_REPO`, and
+    `NOT_UNGROUPED` when the task already belongs to a project (`--parent`
+    moves it under another task instead; the web rail's drag stays within a
+    project).
   - `--group GROUPID` (with `--parent` only): move every task of one fan-out
     round (the `groupId` that `add --count` returns). A member's refusal is
     recorded in `.results[]` (`status: "failed"`, `code`) instead of stopping

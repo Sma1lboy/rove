@@ -379,6 +379,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               onFixChecks={editor.onFixChecks}
               onResolveConflicts={editor.onResolveConflicts}
               runAgain={quickFork.runAgain}
+              openScratch={scratch.openScratchShell}
               activePane={activePane}
               zen={zen}
               toggleZen={toggleZen}

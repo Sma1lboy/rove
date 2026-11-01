@@ -3,6 +3,8 @@ export const en = {
   workspace: {
     pickTask: "pick a task on the left",
     noTabs: "no open sessions in this task",
+    startEngine: "Start {engine}",
+    startSession: "Start session",
     tabNotLive: "this tab has no running session",
     restored: "restored session, read-only until reopened",
     exited: "session ended (exit {code})",
@@ -88,6 +90,8 @@ export const zh: typeof en = {
   workspace: {
     pickTask: "从左边选一个任务",
     noTabs: "这个任务没有打开的会话",
+    startEngine: "启动 {engine}",
+    startSession: "启动会话",
     tabNotLive: "这个标签没有在运行的会话",
     restored: "已恢复的会话，重新打开前只读",
     exited: "会话已结束（退出码 {code}）",

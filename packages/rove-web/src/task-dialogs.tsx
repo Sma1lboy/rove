@@ -127,3 +127,9 @@ export async function openTab(
   await model.refreshTabsNow()
   model.select(taskId, tabId)
 }
+
+/** "New shell" under Ungrouped: a Scratch shell task, which is its own row, then selected. */
+export async function openScratchShell(model: AppModel): Promise<void> {
+  const made = await model.client.request<{ taskId: string }>("task.openScratch", {})
+  await openTab(model, made.taskId, { kind: "shell" })
+}

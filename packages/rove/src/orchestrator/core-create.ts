@@ -145,11 +145,21 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
 /**
  * Adopt a scratch task into `repo` (its shell's cwd landed there and a coding
  * harness was detected): it becomes an ordinary `dir` row under that repo.
- * No-op unless it is a scratch dir task.
+ * `keepDirectory` (`update --project`) moves only the grouping: the engine still runs where it
+ * started, and resuming it needs that directory. No-op unless it is a scratch dir task.
  */
-export async function adoptScratchRepoRow(deps: StoreDeps, id: TaskId | string, repo: string): Promise<void> {
+export async function adoptScratchRepoRow(
+  deps: StoreDeps,
+  id: TaskId | string,
+  repo: string,
+  opts: { keepDirectory?: boolean } = {},
+): Promise<void> {
   const task = deps.store.get(id)
   if (!task || task.kind !== "dir" || task.scratch !== true) return
   const dir = canonPath(repo)
+  if (opts.keepDirectory) {
+    await deps.store.update(id, { repo: dir, scratch: false, title: task.title || titleFromRepo(dir) })
+    return
+  }
   await deps.store.update(id, { repo: dir, worktreePath: dir, scratch: false, title: titleFromRepo(dir) })
 }

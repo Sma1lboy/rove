@@ -27,6 +27,8 @@ export type TreeMenuAction =
   | "fieldNotes"
   | "newChat"
   | "newShell"
+  | "newScratchChat"
+  | "newScratchShell"
   | "newTask"
   | "rename"
   | "pin"
@@ -68,6 +70,8 @@ export interface TreeMenuContext {
   readonly projectFirst?: boolean
   /** Task rows: the worktree has a merge/rebase/cherry-pick/revert stopped on conflicts. */
   readonly operationPaused?: boolean
+  /** Project rows: the Scratch section header, which stands for no repo. */
+  readonly scratchSection?: boolean
 }
 
 /** The ctrl+e picker, plus a direct shell tab (what the picker's "shell" choice mints). */
@@ -148,6 +152,13 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
 }
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
+  if (row.kind === "project" && ctx.scratchSection === true) {
+    // The Scratch section is no repo: only the two ways to start a task with no folder.
+    return [
+      { action: "newScratchChat", labelKey: "tasks.menu.newScratchChat" },
+      { action: "newScratchShell", labelKey: "tasks.menu.newShell" },
+    ]
+  }
   if (row.kind === "project") {
     // Remove project is menu-only (`d` on the main row ends its conversation instead). Field notes are
     // menu-only too; agents file them with `rove api note`.

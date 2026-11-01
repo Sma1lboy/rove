@@ -321,7 +321,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)
 
-  const { requestRename, requestNewChat, newConversation } = useTabDialogs({
+  const { requestRename, requestNewChat, newConversation, newShell } = useTabDialogs({
     dialog,
     t,
     state,
@@ -362,6 +362,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     return newConversation(vendor)
   }
   const openNewConversationRef = useLatest(openNewConversation)
+  const openNewShellRef = useLatest(newShell)
 
   // Cross-component tab requests. Declared AFTER the dialogs hook so the
   // conversation opener exists to hand over.
@@ -372,6 +373,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     tabCloseRef,
     activeLeafSizeRef,
     openNewConversationRef,
+    openNewShellRef,
   })
 
   useBindings(() => ({

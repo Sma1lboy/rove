@@ -107,6 +107,16 @@ describe("scratch tasks", () => {
     expect(adopted?.kind).toBe("dir")
   })
 
+  it("a project move (`update --project`) regroups the task but leaves its session where it started", async () => {
+    const scratch = await orch.openDirectoryTask({ dir, scratch: true })
+    await orch.adoptScratchRepo(scratch.id, home, { keepDirectory: true })
+    const moved = orch.getTask(scratch.id)
+    expect(moved?.scratch).toBe(false)
+    expect(moved?.repo.endsWith(home.replace(/^\/private/, ""))).toBe(true)
+    // The engine runs in `dir`; repointing the worktree would resume it somewhere it never ran.
+    expect(moved?.worktreePath).toBe(scratch.worktreePath)
+  })
+
   it("renaming a scratch task clears the flag — naming is the keep gesture", async () => {
     const scratch = await orch.openDirectoryTask({ dir, scratch: true })
     await orch.setTitle(scratch.id, "my bench")

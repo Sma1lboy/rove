@@ -342,9 +342,9 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     modelEffort?: string
     routine?: TaskRoutineLink
   }): Promise<DaemonTask>
-  /** Migrate a scratch task into `repo`: repoint the
-   *  task at the repo root and clear the scratch flag. */
-  adoptScratchRepo(id: string, repo: string): Promise<void>
+  /** Migrate a scratch task into `repo` and clear the scratch flag. `keepDirectory` regroups it
+   *  without repointing its worktree, so a session started elsewhere still resumes. */
+  adoptScratchRepo(id: string, repo: string, opts?: { keepDirectory?: boolean }): Promise<void>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>

@@ -11,7 +11,7 @@ import { enterWorkspace } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
-import { startNewTask } from "./new-session-view.tsx"
+import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
@@ -26,7 +26,7 @@ import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
 import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
-import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
+import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
@@ -223,7 +223,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               dragging={drag.dragging === row.id}
               place={place(row)}
               onNewTask={
-                row.kind === "project" && !row.noProject ? () => startNewTask(row.repo, row.machine) : undefined
+                row.kind === "project"
+                  ? row.noProject
+                    ? startNewUngrouped
+                    : () => startNewTask(row.repo, row.machine)
+                  : undefined
               }
               moving={
                 moving &&
@@ -258,7 +262,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               onMenu={(e) => {
                 // Another machine's project has no checkout here, so its header has no menu; its
                 // tasks do (their verbs run on that machine, `taskMenu` drops the local-only ones).
-                if (row.kind === "project" && (row.machine !== undefined || row.noProject)) return
+                if (row.kind === "project" && row.machine !== undefined) return
+                // Ungrouped is no repo and has no main row to stand in for it: it offers only its two starts.
+                if (row.kind === "project" && row.noProject) {
+                  openMenu(e, ungroupedMenu(model))
+                  return
+                }
                 // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
                 if (row.kind === "project") {
                   const info = projectInfo(row.repo)

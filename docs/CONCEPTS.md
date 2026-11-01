@@ -24,6 +24,8 @@ the same directory. Only managed tasks get Rove-created branch/worktree
 isolation; project-main and directory tasks deliberately reuse directories you
 already own.
 
+A **New shell** from a Task row is not a Scratch shell: it is a child Task sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+
 **Scratch shells** are directory Tasks with an unsettled home: press `tab` in
 the `ctrl+e` new-conversation dialog until the destination reads "new scratch
 task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
