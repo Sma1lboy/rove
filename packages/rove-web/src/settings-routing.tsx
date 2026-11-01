@@ -5,7 +5,6 @@
  * a destination and a secret the Mac would use.
  */
 
-import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
@@ -14,6 +13,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
   readonly tier: "swift" | "standard" | "deep"

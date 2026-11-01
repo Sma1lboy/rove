@@ -3,7 +3,6 @@
  * registry with an on/off switch each. Manifest settings and the marketplace stay Mac-side.
  */
 
-import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { useCallback, useEffect, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
@@ -11,6 +10,7 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface PluginRow {
   readonly id: string
