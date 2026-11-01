@@ -10,10 +10,10 @@ import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 
 interface Card {
   readonly key: string

@@ -1,9 +1,9 @@
 /** The one open menu or dialog, and the toast stack. Esc / outside click dismisses a menu (TUI tree menu). */
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Chevron } from "./chevron.tsx"
 import { useStore } from "./store.ts"
 import { type MenuItem, dialog, dismissToast, menu, toasts } from "./ui.ts"
+import { Chevron } from "./ui/chevron.tsx"
 
 /** How long the pointer rests on `Set status ›` before its choices open, so a diagonal sweep past it doesn't flash them. */
 const SUB_OPEN_MS = 120

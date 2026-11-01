@@ -9,18 +9,18 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
-import { Chevron } from "./chevron.tsx"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
+import { Chevron } from "./ui/chevron.tsx"
 import { Chip } from "./ui/chip.tsx"
+import { Legend } from "./ui/legend.tsx"
 import { Tabs } from "./ui/tabs.tsx"
 
 type Tab = "all" | "changes"
@@ -217,7 +217,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             {r.status ? (
               <span className={`glyph status-${r.status === "?" ? "untracked" : r.status}`}>{r.status}</span>
             ) : (
-              <span className="glyph tone-muted file-fold">{r.dir ? <Chevron right={!r.open} /> : null}</span>
+              <span className="glyph tone-muted grid place-items-center">
+                {r.dir ? <Chevron right={!r.open} /> : null}
+              </span>
             )}
             <span className="row-title">{r.label}</span>
             {r.added ? <Chip tone="added">+{r.added}</Chip> : null}

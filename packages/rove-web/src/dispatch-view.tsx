@@ -26,13 +26,13 @@ import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.t
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import { deviceHint } from "./key-hints.ts"
-import { Legend } from "./legend.tsx"
 import { machineLabel, remoteLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { usePageFocus, usePageKeys } from "./pages-kit.ts"
 import { tabLabel } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { page } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
   delivered: "→",
