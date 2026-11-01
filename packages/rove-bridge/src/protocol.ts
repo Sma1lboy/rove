@@ -43,6 +43,12 @@ export const OPS = [
   // What this connection's screen shows ({taskId|null, tabId?, ...ViewingFields}), for the daemon's
   // row status and `rove api viewers`.
   "ui.viewing",
+  // Web Push for a closed page (push.ts): the VAPID key, whether this browser's endpoint is subscribed
+  // under this connection's token, and subscribing/unsubscribing it.
+  "push.key",
+  "push.status",
+  "push.subscribe",
+  "push.unsubscribe",
 ] as const
 
 export type Op = (typeof OPS)[number]
