@@ -280,7 +280,7 @@ export class InvalidWorktreeNameError extends Error {
 
 export const NOT_A_GIT_REPO_CODE = "NOT_A_GIT_REPO"
 
-/** `spawn --worktree` from a directory in no git repo: never a silent fallback to a shared directory. */
+/** A child worktree requested from a directory in no git repo: never a silent fallback to a shared directory. */
 export class NotAGitRepoError extends Error {
   constructor(public readonly dir: string) {
     super(
@@ -292,7 +292,7 @@ export class NotAGitRepoError extends Error {
 
 export const NOT_A_LINKED_REPO_CODE = "NOT_A_LINKED_REPO"
 
-/** `spawn --isolate-in` names something other than a top-level symlink to an outside git checkout. */
+/** `add --isolate-in` names something other than a top-level symlink to an outside git checkout. */
 export class NotALinkedRepoError extends Error {
   constructor(
     public readonly link: string,
@@ -311,7 +311,7 @@ export const REMOTE_PARENT_UNSUPPORTED_CODE = "REMOTE_PARENT_UNSUPPORTED"
 export class RemoteParentUnsupportedError extends Error {
   constructor(public readonly taskId: string) {
     super(
-      `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — spawn from that machine's rove`,
+      `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — add the child from that machine's rove`,
     )
     this.name = "RemoteParentUnsupportedError"
   }

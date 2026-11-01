@@ -109,7 +109,13 @@ export interface NewSessionStart {
 /** The prompt-first New session composer in the workspace pane; null = closed. */
 export const newSession = createStore<NewSessionStart | null>(null)
 
-export function openNewSession(repo?: string, baseBranch?: string, machine?: string, prompt?: string, ungrouped?: boolean): void {
+export function openNewSession(
+  repo?: string,
+  baseBranch?: string,
+  machine?: string,
+  prompt?: string,
+  ungrouped?: boolean,
+): void {
   page.set(null)
   dialog.set(null)
   newSession.set({

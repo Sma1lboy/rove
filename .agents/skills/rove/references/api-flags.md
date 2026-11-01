@@ -79,6 +79,8 @@ digest              --repo(REQ) --since-days(7)
 agent-turns         --task-id --repo --since-days(7) --limit(200)
 inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
+queue-list          --task-id
+search              --query(REQ) --repo --limit(20)
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ports               --task-id --all
 viewers             --task-id
@@ -131,9 +133,10 @@ needs numbers, not when you want to know what a task is doing.
 <!-- generated:begin drive -->
 ```text
 send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-                   --allow-empty --expect-report --if-runnable
+                   --allow-empty --expect-report --if-runnable --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
+queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
 note-list          --repo(REQ)
 note-delete        --repo(REQ) --id(REQ)
