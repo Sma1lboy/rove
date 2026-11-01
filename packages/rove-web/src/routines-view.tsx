@@ -37,6 +37,22 @@ import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 import { PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
+import {
+  RT_BODY,
+  RT_DETAIL,
+  RT_GROUP,
+  RT_HEAD,
+  RT_LIST,
+  RT_META,
+  RT_NAME,
+  RT_PAGE,
+  RT_PROMPT,
+  RT_ROW_LINE,
+  RT_ROW_SUB,
+  RT_WHEN,
+  rtNameClass,
+  rtRowClass,
+} from "./ui/routines.ts"
 
 const POLL_MS = 5_000
 
@@ -315,7 +331,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const nextAt = selected?.nextRunAt ? Date.parse(selected.nextRunAt) : Number.NaN
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page rt-page" tabIndex={0} ref={root}>
+    <div className={`page ${RT_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className="page-title">{auto.title}</h1>
         <span className={`mono ${PG_ACTIONS}`}>
@@ -342,12 +358,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
           <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : (
-        <div className="rt-body">
-          <div className="rt-list" ref={list}>
+        <div className={RT_BODY}>
+          <div className={RT_LIST} ref={list}>
             {sections.map((section) =>
               section.rows.length === 0 ? null : (
                 <section key={section.key}>
-                  <h2 className={`kicker rt-group ${section === sections[0] ? "tone-attention" : ""}`}>
+                  <h2 className={`kicker ${RT_GROUP} ${section === sections[0] ? "tone-attention" : ""}`}>
                     {t(section.key)} <span className="mono">{section.rows.length}</span>
                   </h2>
                   {section.rows.map((routine) => {
@@ -359,22 +375,22 @@ export function RoutinesView({ model }: { model: AppModel }) {
                       <div
                         key={routine.id}
                         data-row={index}
-                        className={`pg-row ${index === at ? "is-cursor" : ""} ${routine.enabled ? "" : "is-off"}`}
+                        className={rtRowClass(index === at)}
                         onClick={() => {
                           setCursor(index)
                           setReveal((n) => n + 1)
                         }}
                       >
-                        <span className="rt-row-line">
-                          <span className="pg-name">{routine.name}</span>
-                          <span className="muted mono rt-when">
+                        <span className={RT_ROW_LINE}>
+                          <span className={rtNameClass(!routine.enabled)}>{routine.name}</span>
+                          <span className={`muted mono ${RT_WHEN}`}>
                             {routine.enabled ? when(routine.nextRunAt) : auto.paused}
                           </span>
                           <span className={`mono ${tone ? TONE_CLASS[tone] : "muted"}`} style={{ width: "1ch" }}>
                             {tone ? TONE_GLYPH[tone] : " "}
                           </span>
                         </span>
-                        <span className="rt-row-sub muted mono" title={routine.schedule}>
+                        <span className={`muted mono ${RT_ROW_SUB}`} title={routine.schedule}>
                           {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
                         </span>
                       </div>
@@ -386,11 +402,11 @@ export function RoutinesView({ model }: { model: AppModel }) {
           </div>
 
           {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
-          <div className="rt-detail" ref={detail}>
+          <div className={RT_DETAIL} ref={detail}>
             {selected ? (
               <>
-                <div className="rt-head">
-                  <h2 className="rt-name">{selected.name}</h2>
+                <div className={RT_HEAD}>
+                  <h2 className={RT_NAME}>{selected.name}</h2>
                   <span className={`mono ${PG_ACTIONS}`}>
                     <button
                       type="button"
@@ -418,7 +434,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                     </button>
                   </span>
                 </div>
-                <dl className="rt-meta">
+                <dl className={RT_META}>
                   <dt className="muted">{t("pages.routineSchedule")}</dt>
                   <dd>
                     {described ?? <span className="mono">{selected.schedule}</span>}
@@ -460,12 +476,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 {selected.script ? (
                   <>
                     <h2 className="kicker">{t("pages.routineScript")}</h2>
-                    <p className="pg-prompt rt-prompt mono">{selected.script.command}</p>
+                    <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
                   </>
                 ) : (
                   <>
                     <h2 className="kicker">{t("pages.routinePrompt")}</h2>
-                    <p className="pg-prompt rt-prompt">{selected.prompt}</p>
+                    <p className={RT_PROMPT}>{selected.prompt}</p>
                   </>
                 )}
 

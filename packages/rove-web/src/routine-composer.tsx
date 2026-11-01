@@ -30,6 +30,7 @@ import { closeDialog } from "./ui.ts"
 import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { RT_CRON, RT_CRON_STEP, RT_CRON_STEP_BUTTON, rtCronCellClass } from "./ui/routines.ts"
 
 export interface TargetTask {
   readonly id: string
@@ -234,7 +235,7 @@ export function RoutineComposer(props: {
               fieldRef={at("schedule")}
               kind="cells"
               label={auto.fieldSchedule}
-              className="pg-cron"
+              className={RT_CRON}
               onKeyDown={scheduleKeys}
             >
               {CRON_SEGMENTS.map((segment, index) => (
@@ -242,7 +243,7 @@ export function RoutineComposer(props: {
                   type="button"
                   key={segment}
                   tabIndex={-1}
-                  className={index === cell ? "is-active" : ""}
+                  className={rtCronCellClass(index === cell)}
                   onClick={() => {
                     setCell(index)
                     refs.current.schedule?.focus()
@@ -254,7 +255,7 @@ export function RoutineComposer(props: {
               ))}
             </SelectorField>
             {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
-            <div className="pg-cron-step">
+            <div className={RT_CRON_STEP}>
               {([-1, 1] as const).map((delta) => {
                 const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
                 return (
@@ -262,6 +263,7 @@ export function RoutineComposer(props: {
                     type="button"
                     key={delta}
                     tabIndex={-1}
+                    className={RT_CRON_STEP_BUTTON}
                     aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
                     onClick={() => {
                       stepCell(delta)
