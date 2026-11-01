@@ -10,6 +10,7 @@ import { compactAge } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { usePageKeys } from "./pages-kit.ts"
 import { page } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { PAGE_SCROLL, PAGE_TITLE, PG_LIST, PG_NOTICE } from "./ui/page.ts"
 import * as s from "./ui/search.ts"
 import { INPUT } from "./ui/text.ts"
@@ -136,8 +137,8 @@ export function SearchView({ model }: { model: AppModel }) {
       {hits.length > 0 && (
         <div className={PG_LIST}>
           {hits.map((hit, i) => (
-            <button
-              type="button"
+            <Button
+              variant="row"
               key={`${hit.taskId}:${hit.at}:${i}`}
               className={s.searchHitClass(i === cursor)}
               onMouseEnter={() => setCursor(i)}
@@ -151,7 +152,7 @@ export function SearchView({ model }: { model: AppModel }) {
                 </span>
               </span>
               <span className={s.SEARCH_SNIPPET}>{marked(hit.snippet, state.kind === "done" ? state.query : "")}</span>
-            </button>
+            </Button>
           ))}
         </div>
       )}
