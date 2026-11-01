@@ -12,7 +12,6 @@ import {
   type AutomationRun,
   type AutomationRunStatus,
   automationRunNeedsAttention,
-  routineRunResponseState,
 } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
@@ -34,41 +33,17 @@ import {
 } from "./pages-kit.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
-import { responseText, runErrorText } from "./routine-run-text.ts"
+import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 
 const POLL_MS = 5_000
-/** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
-const RUNS_SHOWN = 5
 
 interface RoutinesReply {
   readonly automations: readonly Automation[]
   readonly keepsDaemonAlive: boolean
   readonly lastRunStatus?: Readonly<Record<string, AutomationRunStatus>>
 }
-
-/** Run-status → glance tone. `skipped_precheck` is healthy, `dispatch_failed` wants a human. */
-const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
-  dispatched: "success",
-  revived: "success",
-  skipped_precheck: "muted",
-  skipped_cancelled: "muted",
-  skipped_missed: "warning",
-  skipped_unavailable: "warning",
-  dispatch_failed: "error",
-  ran: "success",
-  script_failed: "error",
-}
-const TONE_CLASS = {
-  success: "tone-success",
-  muted: "muted",
-  warning: "tone-warning",
-  error: "tone-attention",
-} as const
-const TONE_GLYPH = { success: "✓", error: "†", warning: "!", muted: "·" } as const
-
-const runTone = (status: string) => RUN_TONE[status] ?? "muted"
 
 export function RoutinesView({ model }: { model: AppModel }) {
   const { auto, common } = useCopy()
@@ -180,7 +155,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
     if (hours < 24) return fill(ahead ? auto.when.inHours : auto.when.hoursAgo, { n: hours })
     return new Date(time).toLocaleDateString()
   }
-  const statusText = (status: string) => (auto.runStatus as Record<string, string>)[status] ?? status
   const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
   const openRun = (taskId: string) => {
     page.set(null)
@@ -338,7 +312,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
           listed.flatMap((r) => r.repo ?? []),
         )
   const nextAt = selected?.nextRunAt ? Date.parse(selected.nextRunAt) : Number.NaN
-  const responded = runs.filter((run) => run.response)
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className="page rt-page" tabIndex={0} ref={root}>
@@ -490,69 +463,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   </>
                 )}
 
-                <h2 className="kicker">{auto.recentRuns}</h2>
-                {runs.length === 0 ? (
-                  <p className="muted">{auto.noRuns}</p>
-                ) : (
-                  runs.slice(0, RUNS_SHOWN).map((run) => {
-                    // A delivered run still owing its response reads as such; a missing one is a warning.
-                    const state = routineRunResponseState(run, now)
-                    const note =
-                      state === "awaiting"
-                        ? `, ${auto.responseAwaiting}`
-                        : state === "missing"
-                          ? `, ${auto.responseMissing}`
-                          : ""
-                    const tone = state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]
-                    const line = (
-                      <>
-                        <span>{run.trigger === "manual" ? "▸" : "·"}</span>
-                        <span>{`#${run.runNumber}`}</span>
-                        <span className="pg-grow">{`${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
-                        <span className="muted">{when(run.at)}</span>
-                      </>
-                    )
-                    const error = run.error ? runErrorText(run.error) : null
-                    // The rail lists no routine runs: a run that made a session opens it from here.
-                    const taskId = run.taskId
-                    return (
-                      <div key={run.id} className={`rt-run ${tone}`}>
-                        {taskId ? (
-                          <button
-                            type="button"
-                            className="rt-run-line pg-run-open mono"
-                            onClick={() => openRun(taskId)}
-                          >
-                            {line}
-                          </button>
-                        ) : (
-                          <span className="rt-run-line mono">{line}</span>
-                        )}
-                        {error && (
-                          <details className="rt-run-error mono">
-                            <summary>{error.summary}</summary>
-                            <pre>{error.full}</pre>
-                          </details>
-                        )}
-                      </div>
-                    )
-                  })
-                )}
-                {runs[0]?.precheckResult && <PrecheckDetail run={runs[0]} />}
-
-                <h2 className="kicker">{auto.responses}</h2>
-                {responded.length === 0 ? (
-                  <p className="muted">{auto.noResponses}</p>
-                ) : (
-                  responded.map((run) => (
-                    <div key={run.id} className="rt-response">
-                      <p className={`pg-run mono ${TONE_CLASS[runTone(run.status)]}`}>
-                        {`#${run.runNumber} ${statusText(run.status)}, ${when(run.response?.at)}`}
-                      </p>
-                      <p className="pg-response">{responseText(run.response?.text ?? "")}</p>
-                    </div>
-                  ))
-                )}
+                <RoutineRuns runs={runs} now={now} when={when} openRun={openRun} />
               </>
             ) : (
               <p className="muted">{auto.noSelection}</p>
@@ -561,34 +472,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
         </div>
       )}
       {notice && <p className="muted pg-notice">{notice}</p>}
-    </div>
-  )
-}
-
-/** Why the latest run did not run: the precheck's exit, duration and captured output (read-only). */
-function PrecheckDetail({ run }: { run: AutomationRun }) {
-  const { auto } = useCopy()
-  const result = run.precheckResult
-  if (!result) return null
-  const exit = result.timedOut
-    ? auto.precheckTimedOut
-    : fill(auto.precheckExited, { code: String(result.exitCode ?? "?") })
-  const streams = [
-    { label: auto.precheckStdout, text: result.stdout },
-    { label: auto.precheckStderr, text: result.stderr },
-  ].filter((stream) => stream.text.trim().length > 0)
-  return (
-    <div>
-      <h2 className="kicker">{fill(auto.precheckDetail, { exit, duration: String(result.durationMs) })}</h2>
-      {streams.length === 0 ? (
-        <p className="muted">{auto.precheckNoOutput}</p>
-      ) : (
-        streams.map((stream) => (
-          <p key={stream.label} className="pg-response mono">
-            {`${stream.label}: ${stream.text.replace(/\s+$/, "").split("\n").slice(-10).join("\n")}`}
-          </p>
-        ))
-      )}
     </div>
   )
 }
