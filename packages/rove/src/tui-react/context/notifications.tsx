@@ -10,6 +10,7 @@ import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { loadStateFile } from "../../state/store"
 import {
+  FINISHED_ALERTS_KEY,
   type NotificationKind,
   type NotifyInput,
   TOAST_DURATION_MS,
@@ -17,6 +18,7 @@ import {
   addUnread,
   osc9,
   removeUnread,
+  shouldAlert,
   shouldPlaySound,
   shouldShowToast,
 } from "../../tui/lib/notify-state"
@@ -48,6 +50,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
         (kv?.get("notifications.sound.enabled") as boolean | undefined) ?? snapshot["notifications.sound.enabled"],
       "notifications.toast.enabled":
         (kv?.get("notifications.toast.enabled") as boolean | undefined) ?? snapshot["notifications.toast.enabled"],
+      [FINISHED_ALERTS_KEY]: (kv?.get(FINISHED_ALERTS_KEY) as boolean | undefined) ?? snapshot[FINISHED_ALERTS_KEY],
     }),
     [kv, snapshot],
   )
@@ -71,6 +74,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
     (input: NotifyInput): void => {
       // The unread dot is passive, so neither toggle gates it.
       setUnread((prev) => addUnread(prev, input))
+      if (!shouldAlert(input, (prefs[FINISHED_ALERTS_KEY] as boolean | undefined) !== false)) return
 
       // One toggle for BEL + chime + OSC 9. OSC 9 matters over SSH: it rides
       // the stream to the LOCAL terminal (iTerm2/kitty/WezTerm/Ghostty raise

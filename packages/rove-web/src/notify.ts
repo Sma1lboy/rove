@@ -3,8 +3,8 @@
  * an attention state (needs an answer, errored, finished a turn) and the page toasts, chimes
  * and, when the tab is in the background, raises a desktop notification. The rules are the
  * TUI's own (`notify-state.ts`): errors always toast, the chime follows the sound switch,
- * the whole thing follows the cross-task switch. The bridge reports one activity per task, so
- * this diffs the task rollup (the TUI does the same for sessions with no tab identity).
+ * finished turns follow the finished-turns switch, the whole thing follows the cross-task
+ * switch. The bridge reports one activity per task, so this diffs the task rollup (the TUI does the same for sessions with no tab identity).
  */
 
 import pulseUrl from "@sma1lboy/rove/src/tui/asset/pulse.wav?url"
@@ -12,6 +12,7 @@ import {
   type NotificationKind,
   attentionEdges,
   attentionKindFor,
+  shouldAlert,
   shouldPlaySound,
   shouldShowToast,
 } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
@@ -64,7 +65,7 @@ export function useCrossTaskNotices(model: AppModel): void {
       const open = model.selection.get().taskId
       const titles = new Map(payload.tasks.map((task) => [task.id, task.title]))
       for (const { key, kind } of edges) {
-        if (key === open) continue
+        if (key === open || !shouldAlert({ kind, turnEnd: true }, prefs.finishedAlerts)) continue
         const title = titles.get(key) ?? key
         if (shouldShowToast(kind, prefs.toast)) toast(`${GLYPH[kind]} ${title}`, kind === "error" ? "error" : "info")
         if (shouldPlaySound({}, prefs.sound)) {

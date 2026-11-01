@@ -69,6 +69,7 @@ import {
   EDITOR_KIND_KEY,
   normalizeEditorKind,
 } from "@sma1lboy/rove/src/tui/lib/editor-prefs.ts"
+import { FINISHED_ALERTS_KEY } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
 import { defaultTransparentBackground } from "@sma1lboy/rove/src/tui/lib/persisted-ui-prefs.ts"
 import {
   DEFAULT_PREFIX_TAP_PRESENTATION,
@@ -170,6 +171,7 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   sound: bool("notifications.sound.enabled", true),
   soundVolume: choice(SOUND_VOLUME_KEY, SOUND_VOLUME_STEPS, (raw) => normalizeSoundVolume(raw ?? DEFAULT_SOUND_VOLUME)),
   crossTask: bool("notifications.crossTask.enabled", true),
+  finishedAlerts: bool(FINISHED_ALERTS_KEY, true),
   // Turning hints on re-arms the first-use pane hints, as the TUI's toggle does.
   keyHints: bool(KEY_HINTS_ENABLED_KEY, true, (on) =>
     on ? Object.fromEntries(PANE_HINT_USED_KEYS.map((k) => [k, false])) : {},

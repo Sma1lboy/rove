@@ -122,6 +122,12 @@ export function GeneralSection({ model }: { model: AppModel }) {
           checked={prefs.crossTask}
           onChange={(next) => set("crossTask", next)}
         />
+        <Toggle
+          label={ts("general.finishedAlerts")}
+          hint={ts("general.finishedAlertsHint")}
+          checked={prefs.finishedAlerts}
+          onChange={(next) => set("finishedAlerts", next)}
+        />
         <PushToggle client={client} />
       </Group>
       <Group title={ts("general.keyHints")}>

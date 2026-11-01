@@ -239,6 +239,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     sound: () => prefs.toggleSound(),
     soundVolume: () => prefs.cycleSoundVolume(),
     crossTask: () => prefs.toggleCrossTask(),
+    finishedAlerts: () => prefs.toggleFinishedAlerts(),
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),

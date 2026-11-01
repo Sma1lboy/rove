@@ -147,6 +147,7 @@ export function useTabTurnState(deps: {
         title: tabTitle(tab, vendorRef.current),
         body: taskTitleRef.current,
         silent: dispatchedRef.current,
+        turnEnd: true,
       })
     }
   }, [turnStates])
