@@ -140,6 +140,21 @@ describe("loadPreviewData", () => {
     expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
     expect(await loadPreviewData(repo, ".")).toEqual({ kind: "empty" })
   })
+
+  // The Changes list shows `? NOTES.md`; "diff everything" said "no changes" for the same task.
+  test("a combined diff of uncommitted work includes untracked files, not ignored ones", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, ".gitignore"), "build.log\n")
+    writeFileSync(join(repo, "NOTES.md"), "restart path audit\n")
+    writeFileSync(join(repo, "build.log"), "noise\n")
+    const data = await loadPreviewData(repo, ".")
+    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    expect(data.text).toContain("+++ b/NOTES.md")
+    expect(data.text).toContain("+restart path audit")
+    expect(data.text).toContain("+++ b/.gitignore")
+    expect(data.text).not.toContain("build.log\n+noise")
+    expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
+  })
 })
 
 describe("isCombinedPathspec", () => {
