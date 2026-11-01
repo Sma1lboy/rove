@@ -59,6 +59,7 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "../../../tui/lib/editor-prefs"
+import { FINISHED_ALERTS_KEY } from "../../../tui/lib/notify-state"
 import {
   PREFIX_TAP_PRESENTATION_KEY,
   type PrefixTapPresentation,
@@ -107,6 +108,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleCrossTask(): void {
     kv.set("notifications.crossTask.enabled", !crossTaskEnabled())
+  }
+  function finishedAlertsEnabled(): boolean {
+    return (kv.get(FINISHED_ALERTS_KEY, true) as boolean) !== false
+  }
+  function toggleFinishedAlerts(): void {
+    kv.set(FINISHED_ALERTS_KEY, !finishedAlertsEnabled())
   }
 
   function prefixTapPresentation(): PrefixTapPresentation {
@@ -343,6 +350,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     cycleSoundVolume,
     toggleSound,
     crossTaskEnabled,
+    finishedAlertsEnabled,
+    toggleFinishedAlerts,
     toggleCrossTask,
     prefixTapPresentation,
     selectPrefixTapPresentation,

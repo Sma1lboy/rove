@@ -340,7 +340,7 @@ keep the buffer they were born with.
 
 ### Notifications
 
-All three default to on.
+All default to on.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -348,6 +348,7 @@ All three default to on.
 | `notifications.sound.enabled` | boolean | Chime when a background tab finishes |
 | `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
+| `notifications.finished.enabled` | boolean | Alerts for finished turns; off, only approvals and errors toast or ring |
 
 Error toasts always show, even with toasts off. See
 [Notifications](#notifications-and-sound) for how they're delivered.
@@ -536,7 +537,10 @@ Full vocabulary: [Keybindings](./KEYBINDINGS.md). The configuration surface:
 ## Notifications and sound
 
 Three kinds: `done` (green), `needs_input` (yellow), `error` (red). Yellow and
-red outrank green when both fire for the same tab. Three delivery channels:
+red outrank green when both fire for the same tab. With **Settings → General →
+Finished turns** off (`notifications.finished.enabled`), a finished turn only
+lights its unread dot, so the toast and chime are left for an agent waiting on
+you or one that failed. Three delivery channels:
 
 - **Toasts.** In-TUI, 4.5 seconds. Error toasts always show, even with
   toasts disabled: a failure shouldn't vanish because you turned off

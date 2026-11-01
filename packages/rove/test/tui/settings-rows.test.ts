@@ -176,7 +176,7 @@ describe("sectionRows / bodyRowCount", () => {
 
   it("matches the old per-section count formulas for a representative input", () => {
     const inp = input({ engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
-    expect(bodyRowCount("general", inp)).toBe(LANG + 11 + 14) // language + appearance summaries + remaining preferences
+    expect(bodyRowCount("general", inp)).toBe(LANG + 11 + 15) // language + appearance summaries + remaining preferences
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 4) // built-ins + 2 custom + add + install + remove + skill
     // swift / standard / deep, then the classifier: mode, endpoint, floor, key.
     expect(bodyRowCount("autoRouting", inp)).toBe(3 + 4)

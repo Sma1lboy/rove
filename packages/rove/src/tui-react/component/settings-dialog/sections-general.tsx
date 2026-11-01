@@ -151,6 +151,7 @@ export function GeneralSettingsSection(
   const soundRow = rowIdx("sound")
   const soundVolumeRow = rowIdx("sound-volume")
   const crossTaskRow = rowIdx("cross-task")
+  const finishedAlertsRow = rowIdx("finished-alerts")
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
   const updateChannelRow = rowIdx("update-channel")
@@ -225,6 +226,16 @@ export function GeneralSettingsSection(
             hint={hint("settings.general.crossTaskHint")}
           >
             {pad(`${check(prefs.crossTaskEnabled())} ${t("settings.general.crossTask")}`)}
+          </Row>
+          <Row
+            cursor={isBodyCursor(finishedAlertsRow)}
+            rowRef={props.rowRef(finishedAlertsRow)}
+            onMouseUp={activate(finishedAlertsRow, prefs.toggleFinishedAlerts)}
+            fg={prefs.finishedAlertsEnabled() ? theme.accent : theme.textMuted}
+            bold={true}
+            hint={hint("settings.general.finishedAlertsHint")}
+          >
+            {pad(`${check(prefs.finishedAlertsEnabled())} ${t("settings.general.finishedAlerts")}`)}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.keyHints")} hint={t("settings.general.keyHintsHint")}>

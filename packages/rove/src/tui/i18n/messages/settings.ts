@@ -104,6 +104,8 @@ export const en = {
     soundVolumeHint: "enter cycles; applies to the next chime",
     crossTask: "Cross-task",
     crossTaskHint: "also for a task you switched away from",
+    finishedAlerts: "Finished turns",
+    finishedAlertsHint: "off: only approvals and errors alert; the unread dot stays",
     /** SubSection title for the keyboard-hints toggle */
     keyHints: "Keyboard hints",
     keyHintsHint: "The status-bar reminder and the first-use hints in the sidebar and files panes.",
@@ -332,6 +334,8 @@ export const zh: typeof en = {
     soundVolumeHint: "回车循环切换；下一声提示音生效",
     crossTask: "跨任务",
     crossTaskHint: "你已切走的任务也通知",
+    finishedAlerts: "回合完成",
+    finishedAlertsHint: "关闭后只有审批和错误会提醒；未读标记照常",
     keyHints: "键盘提示",
     keyHintsHint: "状态栏提醒，以及侧栏和文件面板的首用提示。",
     keyHintsShow: "显示键盘提示",

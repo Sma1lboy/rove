@@ -27,6 +27,7 @@ export interface Prefs {
   readonly sound: boolean
   readonly soundVolume: number
   readonly crossTask: boolean
+  readonly finishedAlerts: boolean
   readonly keyHints: boolean
   readonly zen: boolean
   readonly editorKind: string
@@ -107,6 +108,7 @@ const DEFAULTS: Prefs = {
   sound: true,
   soundVolume: 0.4,
   crossTask: true,
+  finishedAlerts: true,
   keyHints: true,
   zen: true,
   editorKind: "auto",

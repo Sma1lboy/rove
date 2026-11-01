@@ -27,9 +27,15 @@ export interface NotifyInput {
    *  dispatched: a sub-task finishing is an Inbox episode, not news you must
    *  hear. The toast and the unread mark are unaffected. */
   readonly silent?: boolean
+  /** An agent's turn ending, from a turn-state notifier, not an informational toast. A `done` turn
+   *  end is what {@link FINISHED_ALERTS_KEY} mutes. */
+  readonly turnEnd?: boolean
 }
 
 export const TOAST_DURATION_MS = 4500
+
+/** Off: a finished turn only leaves its unread mark; approvals and errors still toast and ring. */
+export const FINISHED_ALERTS_KEY = "notifications.finished.enabled"
 
 export function unreadKey(taskId: string, tabId: string): string {
   return `${taskId}:${tabId}`
@@ -66,6 +72,14 @@ export function removeUnread(
  */
 export function shouldShowToast(kind: NotificationKind, toastEnabled: boolean): boolean {
   return kind === "error" || toastEnabled
+}
+
+/**
+ * Whether a notification alerts at all (toast, chime, OSC 9). With many sessions running, a
+ * finished turn is routine, while an approval blocks work until someone answers it.
+ */
+export function shouldAlert(input: Pick<NotifyInput, "kind" | "turnEnd">, finishedEnabled: boolean): boolean {
+  return finishedEnabled || input.kind !== "done" || input.turnEnd !== true
 }
 
 /**
