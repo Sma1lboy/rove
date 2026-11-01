@@ -1,7 +1,7 @@
 /** The Kanban page and the story / routine drawers that share its pickers. */
 
-/** Meta-size text that keeps the line height it inherits (a bare `font-size`, not the `font:` shorthand). */
-const META = "text-meta leading-[inherit]"
+/** Meta-size text (the pages sit under a `font:` shorthand, so line height is already normal). */
+const META = "text-meta"
 
 export const KB_PAGE = "flex flex-col gap-2 overflow-hidden"
 export const KB_PROJECT = "flex min-w-0 items-baseline gap-3"
@@ -20,7 +20,7 @@ const LANE_TONE = { in_progress: "text-accent", parked: "text-warning", done: "t
 export const kbLaneClass = (single: boolean): string =>
   `flex min-h-0 flex-col rounded-md border-hairline border-line p-2 ${single ? "flex-1" : ""}`
 export const kbLaneHeadClass = (key: string): string =>
-  `m-0 mb-2 flex justify-between gap-2 font-mono text-meta font-bold ${LANE_TONE[key as keyof typeof LANE_TONE] ?? "text-muted"}`
+  `m-0 mb-2 flex justify-between gap-2 font-mono text-meta font-bold normal-nums ${LANE_TONE[key as keyof typeof LANE_TONE] ?? "text-muted"}`
 export const KB_CARDS = "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
 export const KB_CARDS_NOTE = `m-0 ${META}`
 
