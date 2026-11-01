@@ -2,11 +2,13 @@ import type { ClipboardEvent, ReactNode } from "react"
 
 /**
  * The bar under an engine terminal on a touch screen: an attach control, a message field and Send.
- * Its height never changes (a long message scrolls inside the field), so the terminal above is fitted once
- * and never reflows while you type. 16px text: iOS zooms the page into any smaller field it focuses.
+ * Its height never changes (a long message scrolls inside the field; attachment chips float above it, over the
+ * terminal's last rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS
+ * zooms the page into any smaller field it focuses.
  */
-const BAR = "hidden flex-col gap-1 [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1.5 touch:flex"
-const ROW = "flex items-stretch gap-1.5"
+const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1.5 touch:flex"
+const CHIPS = "absolute inset-x-1.5 bottom-full z-5 mb-1"
+const ROW = "flex min-w-0 flex-1 items-stretch gap-1.5"
 const FIELD =
   "h-10 min-w-0 flex-1 resize-none rounded-[6px] border-hairline border-line bg-inset px-2 py-2 font-sans text-[16px] leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
 const SEND =
@@ -31,7 +33,7 @@ export function TermComposerBar(props: {
   busy: boolean
   /** Something to send: text or an attachment. */
   ready: boolean
-  /** Chips for what is attached, above the field. */
+  /** Chips for what is attached, floated above the field. */
   attached?: ReactNode
   /** The file picker, boxed in `COMPOSER_ATTACH`. */
   attach: ReactNode
@@ -47,7 +49,7 @@ export function TermComposerBar(props: {
         props.onSend()
       }}
     >
-      {props.attached}
+      {props.attached && <div className={CHIPS}>{props.attached}</div>}
       <div className={ROW}>
         {props.attach}
         <textarea

@@ -7,6 +7,7 @@
 
 import { useState } from "react"
 import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { BridgeRequestError } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
@@ -44,7 +45,9 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       setText("")
       clear()
     } catch (err) {
-      toast(err instanceof Error ? err.message : String(err), "error")
+      // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.
+      const old = err instanceof BridgeRequestError && err.code === "UNKNOWN_OP"
+      toast(old ? t("layout.composerOldBridge") : err instanceof Error ? err.message : String(err), "error")
     } finally {
       setBusy(false)
     }
