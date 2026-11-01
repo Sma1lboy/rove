@@ -52,7 +52,7 @@ import {
   projectHead,
   railBody,
 } from "./ui/rail.ts"
-import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
+import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { EMPTY } from "./ui/text.ts"
@@ -383,7 +383,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`task-row ${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor} ${running ? "is-running" : ""}`}
+      className={`${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}
@@ -400,7 +400,9 @@ function RailRow(props: {
           ))}
         </span>
       )}
-      <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""}`}>{rowTitle(task, props.tabs)}</span>
+      <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
+        {rowTitle(task, props.tabs)}
+      </span>
       <span className={`${CHIPS} ml-auto items-center`}>
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
         {(task.extraRepoCount ?? 0) > 0 && (

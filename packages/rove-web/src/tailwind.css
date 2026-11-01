@@ -90,6 +90,26 @@
     }
   }
 
+  /* Appearance prefs: a light band sweeps a running row's title; the working pane's border flows. */
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  @keyframes shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+  --animate-flow-border: flow-border 3s linear infinite;
+  @keyframes flow-border {
+    from {
+      background-position: 0 0, 0% 0;
+    }
+    to {
+      background-position: 0 0, -200% 0;
+    }
+  }
+
   /* The rail search's caret. */
   --animate-blink: blink 1s steps(1) infinite;
   @keyframes blink {
@@ -137,6 +157,17 @@
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);
 }
+
+/* The appearance prefs prefs-apply.ts sets on <html>. Not `:where`: they outrank a title's colour and the pane's
+   focus border, as the old sheet's selectors did. The shimmer stops entirely under reduced motion. */
+@custom-variant running-shimmer {
+  html[data-running-title="shimmer"] & {
+    @media (prefers-reduced-motion: no-preference) {
+      @slot;
+    }
+  }
+}
+@custom-variant working-flow (html[data-working-border="flow"] &);
 
 /* Phones and tablets: where a control grows an invisible hit area. */
 @custom-variant touch (@media (hover: none) and (pointer: coarse));

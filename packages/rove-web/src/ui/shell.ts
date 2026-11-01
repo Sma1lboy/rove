@@ -145,8 +145,11 @@ export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 
 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
 export const WORKSPACE = "workspace row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
-/** `pane` stays: settings.css marks its focus and the working border on it. */
-export const PANE = "pane flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper"
+export const PANE =
+  "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus"
+/** The selected task is working: under the flow pref its border runs in the task's colour. */
+export const PANE_WORKING =
+  "working-flow:border-transparent working-flow:[background:linear-gradient(var(--paper),var(--paper))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--line),var(--task-ink,var(--focus)),var(--line),var(--task-ink,var(--focus)),var(--line))_0_0/300%_100%_border-box] working-flow:motion-safe:animate-flow-border"
 
 export const TERM_PANE = "relative flex min-w-0 flex-1 flex-col"
 /** No padding: the fit addon sizes the grid from this box minus `.xterm`'s padding (styles.css), not its own. `term-host` stays for those xterm rules. */
