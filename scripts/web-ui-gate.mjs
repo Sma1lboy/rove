@@ -24,7 +24,9 @@ export function check(diff, added = []) {
   let cssDelta = 0
   let controls = 0
   for (const line of diff.split("\n")) {
-    if (line.startsWith("+++ ")) file = line.slice(4).replace(/^b\//, "")
+    // A deleted file's diff names it only on the `---` line (`+++ /dev/null`).
+    if (line.startsWith("--- ")) file = line.slice(4).replace(/^a\//, "")
+    if (line.startsWith("+++ ") && line !== "+++ /dev/null") file = line.slice(4).replace(/^b\//, "")
     if (/^(\+\+\+|---) /.test(line) || !file?.startsWith(WEB) || !/^[+-]/.test(line)) continue
     const sign = line[0] === "+" ? 1 : -1
     const text = line.slice(1)

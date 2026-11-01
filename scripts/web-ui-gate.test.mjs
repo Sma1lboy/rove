@@ -27,3 +27,8 @@ test("a new stylesheet fails; tailwind.css is the theme, not a sheet", () => {
   assert.equal(check("", ["packages/rove-web/src/new.css"]).length, 1)
   assert.deepEqual(check(diff("packages/rove-web/src/tailwind.css", "+@utility x {}")), [])
 })
+
+test("a deleted sheet's lines count toward the shrink", () => {
+  const gone = "--- a/packages/rove-web/src/old.css\n+++ /dev/null\n-.a {}\n-.b {}\n"
+  assert.deepEqual(check(gone + diff("packages/rove-web/src/rail.css", "+.a {}")), [])
+})
