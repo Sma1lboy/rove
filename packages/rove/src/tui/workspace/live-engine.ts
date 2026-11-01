@@ -1,13 +1,14 @@
 /**
- * Which engine is live in each tab, from the process tree: one `ps` snapshot
- * per tick, walked from each tab's shell pid (`engine/foreground.ts`). Not the
- * OSC title — free text; a claude summary mentioning "codex" would relabel it.
+ * Which engine is live in each tab, from the process tree: one snapshot of the
+ * tab shells' subtrees per tick (`/proc` on Linux, else `ps`), walked from each
+ * tab's shell pid (`engine/foreground.ts`). Not the OSC title — free text; a claude summary mentioning "codex" would relabel it.
  *
  * Enumerates the PTY registry itself so both consumers (turn-poll attach,
  * tab-strip titles) share ONE probe instead of racing reconciles.
  */
 
-import { type PsSnapshot, foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground"
+import { type PsSnapshot, foregroundEngineIn, parsePsSnapshot } from "../../engine/foreground"
+import { descendantSnapshot } from "../../engine/proc-descendants"
 import type { VendorId } from "../../types/vendor"
 import type { TaskPtyLike } from "../panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../panes/terminal/registry"
@@ -42,7 +43,7 @@ export interface LiveEngineStore {
 export type LiveEngineOpts = {
   entries?: PtyEntries
   snapshot?: PsSnapshot
-  /** Engines start and stop on human timescales — one `ps` every 2s. */
+  /** Engines start and stop on human timescales — one probe every 2s. */
   intervalMs?: number
   /**
    * OFF-edge debounce: consecutive engine-free walks before a lit identity
@@ -54,7 +55,7 @@ export type LiveEngineOpts = {
 
 export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
   const entries = opts.entries ?? (() => getDefaultPtyRegistry().entries())
-  const snapshot = opts.snapshot ?? psSnapshot
+  const snapshot = opts.snapshot ?? descendantSnapshot
   const releaseAfterMisses = Math.max(1, opts.releaseAfterMisses ?? 2)
   const vendors = new Map<string, VendorId>()
   /** Consecutive engine-free walks per lit key — the OFF-edge debounce. */
