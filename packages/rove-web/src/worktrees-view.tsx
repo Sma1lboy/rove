@@ -10,11 +10,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
-import { Legend } from "./ui/legend.tsx"
 import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 
 interface WorktreeRow {
   readonly path: string

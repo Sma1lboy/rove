@@ -4,13 +4,13 @@ import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { DialogActions } from "./dialogs.tsx"
 import { deviceHint } from "./key-hints.ts"
-import { Legend } from "./ui/legend.tsx"
 import type { AppModel } from "./model.ts"
 import type { AdoptableRow, ProbeResult, RepoField } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, deriveFolderName, expandTilde, filterByGlob, joinPicked } from "./new-task-paths.ts"
 import { SuggestField, focusField } from "./suggest-field.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 
 interface TabProps {
   readonly model: AppModel

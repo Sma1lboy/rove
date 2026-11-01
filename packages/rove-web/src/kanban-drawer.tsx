@@ -14,11 +14,11 @@ import { t } from "./i18n/index.ts"
 import { MAX_ATTACHMENT_BYTES, attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
 import { PLACEMENTS, type Placement } from "./kanban-start.ts"
 import { deviceHint, isTouch } from "./key-hints.ts"
-import { Legend } from "./ui/legend.tsx"
 import type { AppModel } from "./model.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog, toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 
 export const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
 export type IssueStatus = (typeof ISSUE_STATUSES)[number]

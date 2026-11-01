@@ -1,9 +1,9 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Chevron } from "./ui/chevron.tsx"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
+import { Chevron } from "./ui/chevron.tsx"
 
 /** A chip that opens a popover above itself; Esc, a click outside, or `close()` shuts it and returns focus to the chip. */
 export function ChipPopover(props: {
