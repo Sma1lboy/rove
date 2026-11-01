@@ -55,16 +55,22 @@ export interface RoutineFailure {
   readonly reason: string
 }
 
+/** Run outcomes that are failures. A precheck exiting non-zero, a missed or cancelled tick, or a
+ *  busy/quota skip is the routine working as configured, not something to flag. */
+const FAILED_RUN: ReadonlySet<string> = new Set(["dispatch_failed", "script_failed", "skipped_unavailable"])
+
 /**
- * The newest of `runs` (newest first) that went wrong: a refusal or dispatch error on the run, or a
- * delivery its engine ended with no report (`turn-failed: Unable to connect`). Undefined when none did.
+ * The newest of `runs` (newest first) that went wrong: a dispatch or script error, a firing held on
+ * an unreported tick, or a delivery its engine ended with no report (`transient-failure: Unable to
+ * connect`). Undefined when none did.
  */
 export function lastRoutineFailure(
   runs: readonly AutomationRun[],
   deliveries: Pick<DeliveriesStore, "get">,
 ): RoutineFailure | undefined {
   for (const run of runs) {
-    if (run.error) return { at: run.at, reason: run.error }
+    const held = run.status === "skipped_blocked" && run.blocked?.reason === "report-missing"
+    if (run.error && (FAILED_RUN.has(run.status) || held)) return { at: run.at, reason: run.error }
     const missing = run.deliveryId ? deliveries.get(run.deliveryId)?.missing : undefined
     if (missing) return { at: missing.at, reason: `${missing.cause}${missing.note ? `: ${missing.note}` : ""}` }
   }
