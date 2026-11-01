@@ -6,7 +6,6 @@ import "./styles.css"
 // The rail and tab strip sheets sit right after the tokens: later sheets override them at equal specificity.
 import "./overlays.css"
 import "./settings.css"
-import "./workspace.css"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app.tsx"

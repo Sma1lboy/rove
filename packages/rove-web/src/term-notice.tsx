@@ -10,6 +10,7 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import type { Notice } from "./term-mount.ts"
 import { dialog } from "./ui.ts"
+import { TERM_NOTICE_TOUCH } from "./ui/shell.ts"
 
 /** The tab's engine ended while its fallback shell kept the session up (the daemon marked the tab dead). */
 export interface EngineExit {
@@ -58,12 +59,12 @@ export function TermNotice(props: {
       : noticeText(notice)
 
   return (
-    <div className={`term-notice ${notice.kind === "failed" || revive.error ? "is-error" : ""}`}>
+    <div className={`term-notice ${TERM_NOTICE_TOUCH} ${notice.kind === "failed" || revive.error ? "is-error" : ""}`}>
       <span>{text}</span>
       {props.onReopen && (reopenable || lostEngine) && (
         <button
           type="button"
-          className="link tone-info"
+          className="link text-accent"
           disabled={revive.busy}
           onClick={() => props.onReopen?.(lostEngine !== null)}
         >
@@ -71,7 +72,7 @@ export function TermNotice(props: {
         </button>
       )}
       {notice.kind === "failed" && props.onRetryAttach && (
-        <button type="button" className="link tone-info" onClick={props.onRetryAttach}>
+        <button type="button" className="link text-accent" onClick={props.onRetryAttach}>
           {t("workspace.retry")}
         </button>
       )}
@@ -79,14 +80,14 @@ export function TermNotice(props: {
         <>
           <button
             type="button"
-            className="link tone-info"
+            className="link text-accent"
             onClick={() => dialog.set(<SettingsDialog model={model} section="engines" />)}
           >
             {t("workspace.engineSettings")}
           </button>
           <button
             type="button"
-            className="link tone-info"
+            className="link text-accent"
             onClick={() => dialog.set(<NewChatDialog model={model} taskId={taskId} />)}
           >
             {t("menu.newChatPick")}

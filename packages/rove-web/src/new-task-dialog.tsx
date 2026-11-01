@@ -400,7 +400,7 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
         <div hidden={tab !== "adopt"}>
           <AdoptTab {...common} repo={repo} active={tab === "adopt"} />
         </div>
-        <p className={`newtask-legend mx-0 mt-2 mb-0 ${HINT}`}>
+        <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>
           {tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}
         </p>
       </div>

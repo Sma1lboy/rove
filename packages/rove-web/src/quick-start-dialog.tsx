@@ -168,7 +168,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
         {isTouch() ? (
           <p className="muted">{t("pages.attachHintTouch")}</p>
         ) : (
-          <p className={`newtask-legend mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
+          <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
         )}
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />

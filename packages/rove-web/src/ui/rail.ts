@@ -1,3 +1,5 @@
+import { RAIL_FRAME } from "./shell.ts"
+
 /** Class recipes for the rail row's extras: the tree guides, the fold count, the PR chip and its card, the title tip. */
 
 /** A child steps in under its parent; each column spans the row's full height (the padding pulled back) so lines join. */
@@ -39,11 +41,10 @@ export const ROW_TIP =
 /** A task on another machine: a small cloud at the row's right edge. */
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
 
-/** The rail itself; `rail` stays as the hook workspace.css's fold and grid rules hang on. */
-export const RAIL = "group/rail rail @container row-1 flex min-h-0 flex-col focus:outline-none"
+/** The rail itself; `rail` stays as the hook focus and pane code find it by. */
+export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focus:outline-none ${RAIL_FRAME}`
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
-export const RAIL_HEAD =
-  "rail-head flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
+export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
 export const RAIL_CARET = "text-accent animate-blink motion-reduce:animate-none"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */

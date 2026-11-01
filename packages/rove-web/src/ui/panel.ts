@@ -1,3 +1,5 @@
+import { SIDE_PANEL_FRAME } from "./shell.ts"
+
 /** Class recipes for the side panel (side-panel.tsx, panel-tabs.tsx, browser-view.tsx) and the quiet icon buttons it shares with the rail bar. */
 
 /** A stroked 16-unit icon, as the rail's. */
@@ -21,7 +23,7 @@ export const RAIL_BAR = "absolute top-2 left-2 z-7 flex items-center gap-0.5"
 const RESIZING = "[&.is-resizing_iframe]:pointer-events-none"
 
 export const sidePanelClass = (narrow: boolean): string =>
-  `side-panel relative row-1 flex min-h-0 min-w-0 flex-col ${RESIZING} ${narrow ? "flex-1 p-0" : "pt-2 pr-1 pb-1 pl-0"}`
+  `side-panel ${SIDE_PANEL_FRAME} relative row-1 flex min-h-0 min-w-0 flex-col ${RESIZING} ${narrow ? "flex-1 p-0" : "pt-2 pr-1 pb-1 pl-0"}`
 
 /** Tab rows, the divider and the views are cells of one grid: moving a tab changes its cell, so a frame is never re-parented. */
 export const SIDE_BODY = `grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] [--divider:5px] *:col-1 ${RESIZING}`
