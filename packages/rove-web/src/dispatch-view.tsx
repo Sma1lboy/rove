@@ -34,7 +34,7 @@ import { page } from "./ui.ts"
 import * as dp from "./ui/dispatch.ts"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE, PG_TOP, pgHintClass } from "./ui/page.ts"
-import { KICKER, MONO } from "./ui/text.ts"
+import { KICKER } from "./ui/text.ts"
 
 const STATUS_GLYPH: Record<DispatchRow["status"], string> = {
   delivered: "→",
@@ -181,7 +181,7 @@ export function DispatchView({ model }: { model: AppModel }) {
     <div className={`${PAGE_SCROLL} ${dp.DP_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{t("dispatch.title")}</h1>
-        <span className={`${MONO} touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           <Legend text={deviceHint(t("dispatch.hint"))} />
         </span>
       </div>
@@ -204,7 +204,7 @@ export function DispatchView({ model }: { model: AppModel }) {
               />
             ))}
             <div
-              className={`${MONO} ${dp.hubClass(inFlight > 0)}`}
+              className={`mono ${dp.hubClass(inFlight > 0)}`}
               style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
               title={conn.hello ? `${conn.hello.host} v${conn.hello.roveVersion}` : undefined}
             >
@@ -226,7 +226,7 @@ export function DispatchView({ model }: { model: AppModel }) {
                   style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
                   <span
-                    className={`${MONO} ${dp.machineHeadClass(row?.state !== "online")}`}
+                    className={`mono ${dp.machineHeadClass(row?.state !== "online")}`}
                     title={remoteLabel(frame.machine, row, words)}
                   >
                     {label}
@@ -281,15 +281,15 @@ export function DispatchView({ model }: { model: AppModel }) {
               onClick={() => open(targetOf(row))}
               title={row.promptHead}
             >
-              <span className={`${MONO} ${dp.statusClass(row.status)}`}>{STATUS_GLYPH[row.status]}</span>
-              <span className={`${MONO} ${dp.DP_ROUTE}`}>
+              <span className={`mono ${dp.statusClass(row.status)}`}>{STATUS_GLYPH[row.status]}</span>
+              <span className={`mono ${dp.DP_ROUTE}`}>
                 {endName(senderOf(row), tasks)} → {endName(targetOf(row), tasks)}
               </span>
               <span className={`text-muted ${dp.DP_PROMPT}`}>
                 {row.status === "failed" && row.reason ? `${row.reason}: ` : ""}
                 {row.promptHead}
               </span>
-              <span className={`${MONO} text-muted ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
+              <span className={`mono text-muted ${dp.DP_AGE}`}>{compactAge(now - row.statusAt)}</span>
             </button>
           ))}
         </section>
@@ -350,7 +350,7 @@ function NodeBox({
       {sub !== null || status ? (
         <span className={dp.NODE_SUB}>
           {sub}
-          {status ? <span className={`${MONO} ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
+          {status ? <span className={`mono ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
         </span>
       ) : null}
     </button>

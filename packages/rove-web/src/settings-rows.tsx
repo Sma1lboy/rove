@@ -16,7 +16,7 @@ import {
   PREF_ROW,
   SETTINGS_GROUP,
 } from "./ui/settings.ts"
-import { KICKER, MONO } from "./ui/text.ts"
+import { KICKER } from "./ui/text.ts"
 
 export function Group(props: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -98,7 +98,7 @@ export function CycleRow(props: { label: string; hint?: string; disabled?: boole
 export function ReadOnlyRow(props: { label: string; note: string }) {
   return (
     <div className={PREF_READONLY}>
-      <span className={`${PREF_LABEL_MONO} ${MONO} text-muted`}>{props.label}</span>
+      <span className={`${PREF_LABEL_MONO} mono text-muted`}>{props.label}</span>
       <span className={`${PREF_HINT} text-muted`}>{props.note}</span>
     </div>
   )

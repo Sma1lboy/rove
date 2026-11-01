@@ -35,7 +35,6 @@ import {
   prefixHudLine,
   shortcutBadge,
 } from "./ui/shell.ts"
-import { MONO } from "./ui/text.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 interface GuideOption {
@@ -113,7 +112,7 @@ export function PrefixHud({ model }: { model: AppModel }) {
       : prefixOptions(model)
     return (
       <output
-        className={`${MONO} ${PREFIX_GUIDE}`}
+        className={`mono ${PREFIX_GUIDE}`}
         // The guide must not take focus from the pane the stroke is meant for.
         onMouseDown={(e) => e.preventDefault()}
       >
@@ -197,7 +196,7 @@ export function ShortcutBadge({
   return (
     <button
       type="button"
-      className={`${MONO} ${shortcutBadge(head)}`}
+      className={`mono ${shortcutBadge(head)}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation()

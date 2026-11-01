@@ -88,31 +88,34 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-button {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
+/* The element reset sits in a layer, so a component class (`.mono` in tailwind.css) still outranks it. */
+@layer base {
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
 
-/* Form controls draw no browser chrome anywhere: no drag corner, no native arrow, the page's type. */
-input,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
-}
+  /* Form controls draw no browser chrome anywhere: no drag corner, no native arrow, the page's type. */
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
 
-textarea {
-  resize: none;
-  field-sizing: content;
-}
+  textarea {
+    resize: none;
+    field-sizing: content;
+  }
 
-select {
-  appearance: none;
-  cursor: pointer;
+  select {
+    appearance: none;
+    cursor: pointer;
+  }
 }
 
 button:focus-visible {

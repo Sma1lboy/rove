@@ -55,7 +55,7 @@ import {
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
-import { EMPTY, MONO } from "./ui/text.ts"
+import { EMPTY } from "./ui/text.ts"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -162,7 +162,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <UpdateChip />
       </header>
       {moving && (
-        <div className={`${RAIL_SEARCH} ${MONO}`}>
+        <div className={`${RAIL_SEARCH} mono`}>
           <span className="text-accent">{tc("tasks", "moveChip").trim()}</span>
           <span className="keys-only ml-1.5 text-muted">
             <Legend text={t("taskops.moveHint")} />
@@ -170,7 +170,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       {filters.search.active && (
-        <div className={`${RAIL_SEARCH} ${MONO}`}>
+        <div className={`${RAIL_SEARCH} mono`}>
           <span className="text-accent">/</span>
           <span>{filters.search.query}</span>
           <span className={RAIL_CARET}>█</span>

@@ -53,7 +53,7 @@ import {
   rtNameClass,
   rtRowClass,
 } from "./ui/routines.ts"
-import { KICKER, LINK, MONO } from "./ui/text.ts"
+import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
 
@@ -335,7 +335,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
     <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{auto.title}</h1>
-        <span className={`${MONO} ${PG_ACTIONS}`}>
+        <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
             <span className="text-error">
               {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
@@ -369,7 +369,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
               section.rows.length === 0 ? null : (
                 <section key={section.key}>
                   <h2 className={`${KICKER} text-muted ${RT_GROUP} ${section === sections[0] ? "text-error" : ""}`}>
-                    {t(section.key)} <span className={MONO}>{section.rows.length}</span>
+                    {t(section.key)} <span className="mono">{section.rows.length}</span>
                   </h2>
                   {section.rows.map((routine) => {
                     const index = rows.indexOf(routine)
@@ -388,17 +388,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
                       >
                         <span className={RT_ROW_LINE}>
                           <span className={rtNameClass(!routine.enabled)}>{routine.name}</span>
-                          <span className={`${MONO} text-muted ${RT_WHEN}`}>
+                          <span className={`mono text-muted ${RT_WHEN}`}>
                             {routine.enabled ? when(routine.nextRunAt) : auto.paused}
                           </span>
-                          <span
-                            className={`${MONO} ${tone ? TONE_CLASS[tone] : "text-muted"}`}
-                            style={{ width: "1ch" }}
-                          >
+                          <span className={`mono ${tone ? TONE_CLASS[tone] : "text-muted"}`} style={{ width: "1ch" }}>
                             {tone ? TONE_GLYPH[tone] : " "}
                           </span>
                         </span>
-                        <span className={`${MONO} text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
+                        <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
                           {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
                         </span>
                       </div>
@@ -415,7 +412,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
               <>
                 <div className={RT_HEAD}>
                   <h2 className={RT_NAME}>{selected.name}</h2>
-                  <span className={`${MONO} ${PG_ACTIONS}`}>
+                  <span className={`mono ${PG_ACTIONS}`}>
                     <button
                       type="button"
                       className={`${LINK} text-accent ${PG_ACTION_LINK.row}`}
@@ -445,8 +442,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 <dl className={RT_META}>
                   <dt className="text-muted">{t("pages.routineSchedule")}</dt>
                   <dd>
-                    {described ?? <span className={MONO}>{selected.schedule}</span>}
-                    {described && <span className={`${MONO} text-muted`}>{`  ${selected.schedule}`}</span>}
+                    {described ?? <span className="mono">{selected.schedule}</span>}
+                    {described && <span className="mono text-muted">{`  ${selected.schedule}`}</span>}
                   </dd>
                   <dt className="text-muted">{t("pages.routineNext")}</dt>
                   <dd className={selected.enabled ? "" : "text-warning"}>
@@ -479,12 +476,12 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   )}
                 </dl>
                 {selected.precheck && (
-                  <p className={`${MONO} text-muted`}>{fill(auto.precheck, { command: selected.precheck.command })}</p>
+                  <p className="mono text-muted">{fill(auto.precheck, { command: selected.precheck.command })}</p>
                 )}
                 {selected.script ? (
                   <>
                     <h2 className={`${KICKER} text-muted`}>{t("pages.routineScript")}</h2>
-                    <p className={`${MONO} ${RT_PROMPT}`}>{selected.script.command}</p>
+                    <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
                   </>
                 ) : (
                   <>

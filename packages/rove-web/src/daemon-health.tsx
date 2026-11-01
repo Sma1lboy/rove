@@ -14,7 +14,7 @@ import { createStore, useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
 import { DAEMON_BANNER } from "./ui/shell.ts"
-import { LINK, MONO } from "./ui/text.ts"
+import { LINK } from "./ui/text.ts"
 import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface DaemonHealth {
@@ -86,7 +86,7 @@ export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
     keys: prefixHint("app.refresh"),
   })
   return (
-    <div className={`${MONO} ${DAEMON_BANNER}`} role="alert">
+    <div className={`mono ${DAEMON_BANNER}`} role="alert">
       <b>{tc("update", "skew.title")}</b>
       <span>{hint}</span>
       <button type="button" className={`${LINK} text-accent`} onClick={onRefresh}>

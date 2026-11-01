@@ -25,7 +25,7 @@ import {
   INBOX_SUB,
 } from "./ui/overlay.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
-import { KICKER, MONO } from "./ui/text.ts"
+import { KICKER } from "./ui/text.ts"
 import { TONE_CLASS } from "./ui/tone.ts"
 
 interface Card {
@@ -156,7 +156,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
         </p>
         <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
-          <p className={`${MONO} text-muted`}>{t("inbox.empty")}</p>
+          <p className="mono text-muted">{t("inbox.empty")}</p>
         ) : (
           <ul className={INBOX_CARDS}>{attention.map(renderCard)}</ul>
         )}

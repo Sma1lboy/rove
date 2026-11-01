@@ -21,7 +21,7 @@ import { Group } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { CONFIRM_INLINE, ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
-import { ACTIONS, LINK, MONO } from "./ui/text.ts"
+import { ACTIONS, LINK } from "./ui/text.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -219,7 +219,7 @@ function GithubCard({ model }: { model: AppModel }) {
         </div>
         {rove ? (
           <>
-            <span className={MONO}>@{rove}</span>
+            <span className="mono">@{rove}</span>
             <button type="button" disabled={busy !== null} onClick={() => setConfirming(true)}>
               {c("disconnect")}
             </button>

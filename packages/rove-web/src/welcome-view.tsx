@@ -15,7 +15,6 @@ import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { MONO } from "./ui/text.ts"
 import { prefixCap, prefixHint, userKeys } from "./user-keys.ts"
 
 interface WelcomeEnv {
@@ -84,7 +83,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
       <dl className="keys-only m-0 flex flex-col gap-0.5 pt-1.5">
         {steps.map((step) => (
           <div key={step.msg} className="flex gap-3.5">
-            <dt className={`${MONO} shrink-0 grow-0 basis-cap text-accent`}>{step.cap}</dt>
+            <dt className="mono shrink-0 grow-0 basis-cap text-accent">{step.cap}</dt>
             <dd className="m-0 text-muted">{tc("workspace", `welcome.${step.msg}`)}</dd>
           </div>
         ))}
@@ -99,7 +98,7 @@ export function WelcomePane({ model }: { model: AppModel }) {
           {fixes.map((fix) => (
             <div key={fix.id} className="flex flex-col gap-0.5">
               <p className="m-0 text-warning">{fix.label}</p>
-              <p className={`${MONO} m-0 text-accent`}>{fix.action}</p>
+              <p className="mono m-0 text-accent">{fix.action}</p>
               <p className="m-0 text-muted">{fix.why}</p>
             </div>
           ))}

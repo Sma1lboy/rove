@@ -16,7 +16,7 @@ import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
 import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
-import { ACTIONS, INPUT_FRAME, MONO } from "./ui/text.ts"
+import { ACTIONS, INPUT_FRAME } from "./ui/text.ts"
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -135,7 +135,7 @@ export function GeneralSection({ client }: { client: BridgeClient }) {
       </Group>
       {daemon?.daemonVersion && (
         <Group title={t("settings.general.daemon")}>
-          <p className={`${MONO} ${daemon.stale ? "text-warning" : "text-muted"}`}>
+          <p className={`mono ${daemon.stale ? "text-warning" : "text-muted"}`}>
             {t(daemon.stale ? "settings.general.daemonStale" : "settings.general.daemonCurrent", {
               version: daemon.daemonVersion,
             })}

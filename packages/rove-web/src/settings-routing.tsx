@@ -25,7 +25,7 @@ import {
   TIER_ROW,
   engineDetailClass,
 } from "./ui/settings.ts"
-import { ACTIONS, INPUT, LINK, MONO, PLACEHOLDER_LINE } from "./ui/text.ts"
+import { ACTIONS, INPUT, LINK, PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
   readonly tier: "swift" | "standard" | "deep"
@@ -188,7 +188,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
             <div key={row.tier} className={TIER_ROW}>
               <div className={TIER_HEAD}>
                 <span className="engine-name">{tt(`tier.${row.tier}`)}</span>
-                <span className={`${MONO} text-muted`}>
+                <span className="mono text-muted">
                   {[
                     row.engineName,
                     row.model ?? ts("autoRouting.engineDefault"),

@@ -230,3 +230,11 @@
 @utility text-size-meta {
   font-size: var(--fs-meta);
 }
+
+/* Meta-size monospace, the `font` shorthand the old sheet had. A component, not a utility: it outranks the element
+   reset (layer base) but loses to any utility on the same element, as `.mono` did. */
+@layer components {
+  .mono {
+    font: var(--fs-meta) var(--mono);
+  }
+}

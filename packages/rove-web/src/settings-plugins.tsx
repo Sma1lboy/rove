@@ -10,7 +10,7 @@ import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
-import { MONO, PLACEHOLDER_LINE } from "./ui/text.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface PluginRow {
   readonly id: string
@@ -113,7 +113,7 @@ export function PluginsSection({ model }: { model: AppModel }) {
               />
               <div className="engine-main">
                 <span className="engine-name">{p.id}</span>
-                <span className={`engine-detail ${MONO} text-muted`}>
+                <span className="engine-detail mono text-muted">
                   {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
                     .filter(Boolean)
                     .join(", ")}

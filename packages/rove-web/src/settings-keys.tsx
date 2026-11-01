@@ -15,7 +15,6 @@ import { Chips, CycleRow, Group } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { toast } from "./ui.ts"
 import { PREF_FIELD, PREF_HINT, PREF_LABEL } from "./ui/settings.ts"
-import { MONO } from "./ui/text.ts"
 import { loadUserKeys, userKeys } from "./user-keys.ts"
 
 async function createFile(client: BridgeClient): Promise<void> {
@@ -39,7 +38,7 @@ export function KeysSection({ client }: { client: BridgeClient }) {
     <Group title={ts("keybindings.title")} hint={ts("keybindings.hint")}>
       <div className={PREF_FIELD}>
         <span className={PREF_LABEL}>{ts("keybindings.configFile")}</span>
-        <p className={`${MONO} text-muted`}>{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
+        <p className="mono text-muted">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
       </div>
       <Chips
         label={ts("keybindings.tapPresentation")}
@@ -62,7 +61,7 @@ export function KeysSection({ client }: { client: BridgeClient }) {
           <span className={PREF_LABEL}>{ts("keybindings.overridesApplied")}</span>
           {keys.applied.length === 0 && <p className="text-muted">{ts("keybindings.none")}</p>}
           {keys.applied.map((o) => (
-            <p key={o.id} className={`${MONO} keys-applied`}>
+            <p key={o.id} className="mono keys-applied">
               {`${o.id}  ${o.keys.length > 0 ? o.keys.join(" / ") : ts("keybindings.unbound")}  (${ts("keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
             </p>
           ))}
@@ -77,7 +76,7 @@ export function KeysSection({ client }: { client: BridgeClient }) {
         <div className={PREF_FIELD}>
           <span className={`${PREF_LABEL} text-warning`}>{ts("keybindings.warnings")}</span>
           {keys.warnings.map((w) => (
-            <p key={w} className={`${MONO} text-muted`}>{`! ${w}`}</p>
+            <p key={w} className="mono text-muted">{`! ${w}`}</p>
           ))}
         </div>
       )}

@@ -25,9 +25,6 @@ export const suggestRowClass = (o: { readonly cursor: boolean; readonly accent: 
 /** A section's small label above a list or a block; the caller adds its colour (`text-muted` by default). */
 export const KICKER = "m-0 font-sans text-meta font-medium normal-nums"
 
-/** Meta-size monospace with its own weight and digits, as the old `font:` shorthand set them. */
-export const MONO = "font-mono text-meta font-normal normal-nums"
-
 /** An inline text action; `link` stays as a hook for the footer and dialog rules that dim a disabled one. */
 export const LINK = "link [&:hover]:underline touch-hit"
 

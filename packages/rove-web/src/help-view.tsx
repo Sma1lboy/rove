@@ -22,7 +22,7 @@ import { useStore } from "./store.ts"
 import { closeDialog, dialog } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HELP_CAP, HELP_CORNER, HELP_HEAD, HELP_ROW, HELP_SCROLL, HELP_SECTION, HELP_TITLE } from "./ui/shell.ts"
-import { INPUT, LINK, MONO } from "./ui/text.ts"
+import { INPUT, LINK } from "./ui/text.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 const displayCap = (cap: string): string =>
@@ -137,7 +137,7 @@ function HelpDialog({
               <h2 className={HELP_TITLE}>{sectionTitle(section)}</h2>
               {section.rows.map((row) => (
                 <div key={`${section.kind}-${row.binding.id}`} className={HELP_ROW}>
-                  <span className={`${MONO} ${HELP_CAP}`}>{displayCap(row.primary)}</span>
+                  <span className={`mono ${HELP_CAP}`}>{displayCap(row.primary)}</span>
                   <span className="flex-1">{actionDesc(row.binding.id)}</span>
                   {row.aliases.length > 0 && (
                     <span className="text-muted">{`(${row.aliases.map(displayCap).join(", ")})`}</span>

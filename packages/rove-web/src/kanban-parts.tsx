@@ -8,7 +8,6 @@ import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-sess
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { KB_CARD_BODY, KB_CARD_FOOT, KB_CARD_HEAD, kbCardClass, kbCardTitleClass } from "./ui/kanban.ts"
-import { MONO } from "./ui/text.ts"
 
 export interface Board {
   readonly repoRoot: string
@@ -113,10 +112,10 @@ export function Card(props: {
     >
       <div className={KB_CARD_HEAD}>
         <span className={kbCardTitleClass(props.column === "done")}>{issue.title}</span>
-        <span className={`${MONO} text-muted`}>#{issue.id}</span>
+        <span className="mono text-muted">#{issue.id}</span>
       </div>
       <div className={`text-muted ${KB_CARD_BODY}`}>{body}</div>
-      <div className={`${MONO} text-muted ${KB_CARD_FOOT}`}>
+      <div className={`mono text-muted ${KB_CARD_FOOT}`}>
         <span>{issue.created}</span>
         {props.badge && <span className={props.badge.tone}>{props.badge.label}</span>}
       </div>

@@ -33,7 +33,7 @@ import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { RT_CRON, RT_CRON_STEP, RT_CRON_STEP_BUTTON, rtCronCellClass } from "./ui/routines.ts"
-import { ACTIONS, INPUT, KICKER, LINK, MONO } from "./ui/text.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export interface TargetTask {
   readonly id: string
@@ -279,12 +279,12 @@ export function RoutineComposer(props: {
               })}
             </div>
             {preview.kind === "ok" ? (
-              <p className={`${MONO} text-success`}>
+              <p className="mono text-success">
                 {described ? `${described}, ` : ""}
                 {preview.relative}, {preview.absolute}
               </p>
             ) : (
-              <p className={`${MONO} text-error`}>{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
+              <p className="mono text-error">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
             )}
           </div>
           {error && <p className="text-error">※ {error}</p>}

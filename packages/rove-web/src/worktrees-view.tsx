@@ -16,7 +16,7 @@ import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
-import { LINK, MONO } from "./ui/text.ts"
+import { LINK } from "./ui/text.ts"
 import { WT_BRANCH, WT_GROUP, WT_HINTS, WT_LINE, WT_LINE_META, WT_PATH, wtRowClass } from "./ui/update.ts"
 
 interface WorktreeRow {
@@ -175,7 +175,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
                 <span>{project.repo}</span>
                 <span className="rule" />
               </h2>
-              {project.worktrees.length === 0 && <p className={`${MONO} text-muted`}>{w.noWorktrees}</p>}
+              {project.worktrees.length === 0 && <p className="mono text-muted">{w.noWorktrees}</p>}
               {project.worktrees.map((row, i) => {
                 const n = start + i
                 return (
@@ -203,7 +203,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
                         </span>
                       )}
                     </div>
-                    <div className={`${WT_LINE_META} ${MONO} text-muted`}>
+                    <div className={`${WT_LINE_META} mono text-muted`}>
                       <span className={WT_PATH}>{row.path}</span>
                       {row.createdAtMs > 0 && (
                         <span>{fill(w.row.created, { age: compactAge(Date.now() - row.createdAtMs) })}</span>
@@ -228,7 +228,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
           )
         })
       )}
-      <p className={`${WT_HINTS} ${MONO} keys-only text-muted`}>
+      <p className={`${WT_HINTS} mono keys-only text-muted`}>
         <Legend text={`j/k · d ${w.delete.button} · l ${w.land.button} · q/esc`} />
       </p>
     </div>

@@ -30,7 +30,7 @@ import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { HINT_BAR, NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from "./ui/shell.ts"
-import { LINK, MONO } from "./ui/text.ts"
+import { LINK } from "./ui/text.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -163,11 +163,11 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
   const view = useStore(narrowView)
   return (
     <div className={NARROW_BAR}>
-      <button type="button" className={`${MONO} ${NARROW_BACK}`} onClick={backToTasks}>
+      <button type="button" className={`mono ${NARROW_BACK}`} onClick={backToTasks}>
         <span className="text-accent">{`‹ ${workspaceText("narrowBack")}`}</span>
       </button>
       {taskId && (
-        <span className={`${MONO} ${NARROW_SWITCH}`} role="tablist">
+        <span className={`mono ${NARROW_SWITCH}`} role="tablist">
           {(["terminal", ...PANEL_KINDS] as const).map((id) => (
             <button
               type="button"
@@ -241,7 +241,7 @@ export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolea
   }
   return (
     // A hint is a click target, not a focus target: the pane keeps focus so the key it arms reaches it.
-    <span className={`${MONO} ${HINT_BAR}`} onMouseDown={(e) => e.preventDefault()}>
+    <span className={`mono ${HINT_BAR}`} onMouseDown={(e) => e.preventDefault()}>
       {items.map((item) => (
         <span key={item.text}>
           <button
@@ -269,7 +269,7 @@ export function PaneKeyHint({ pane }: { pane: HintPane }) {
   const tokens = paneHintTokens(pane, used ? "always" : "firstUse")
   if (tokens.length === 0) return null
   return (
-    <p className={`${MONO} text-muted ${PANE_HINT}`}>
+    <p className={`mono text-muted ${PANE_HINT}`}>
       <Legend text={tokens.map((token) => `${formatChord(token.cap)} ${hintText(`pane.${token.msg}`)}`).join(" · ")} />
     </p>
   )

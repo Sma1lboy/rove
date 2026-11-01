@@ -5,7 +5,6 @@ import { t, useLocale } from "./i18n/index.ts"
 import { TERM_KEYS } from "./term-keys.ts"
 import type { TermHandle } from "./term-mount.ts"
 import { TERM_KEY_ROW, termKey } from "./ui/shell.ts"
-import { MONO } from "./ui/text.ts"
 
 /** Keys whose cap is a symbol a screen reader can't say. */
 const KEY_NAMES: Readonly<Record<string, string>> = {
@@ -26,7 +25,7 @@ export function TermKeyRow({ handle }: { handle: TermHandle }) {
   const { term } = handle
   return (
     <div
-      className={`${MONO} ${TERM_KEY_ROW}`}
+      className={`mono ${TERM_KEY_ROW}`}
       role="toolbar"
       aria-label={t("layout.termKeys")}
       // A tap must not take focus from xterm's textarea, or the soft keyboard closes.

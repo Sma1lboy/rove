@@ -35,7 +35,6 @@ import {
   pgHintClass,
   pgIssueClass,
 } from "./ui/page.ts"
-import { MONO } from "./ui/text.ts"
 
 const LIMIT = 30
 
@@ -216,7 +215,7 @@ export function IssuesView({ model }: { model: AppModel }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
-        <span className={`${MONO} touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>
@@ -244,7 +243,7 @@ export function IssuesView({ model }: { model: AppModel }) {
                 onClick={() => (index === at ? void startSelected() : setCursor(index))}
               >
                 <div className={PG_ISSUE_LINE}>
-                  <span className={`${MONO} ${PG_ISSUE_NUM}`}>#{item.number}</span>
+                  <span className={`mono ${PG_ISSUE_NUM}`}>#{item.number}</span>
                   <span>{item.title}</span>
                 </div>
                 <div className={PG_ISSUE_SUB}>
@@ -252,7 +251,7 @@ export function IssuesView({ model }: { model: AppModel }) {
                     {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(", ")}
                   </span>
                   {linked && <span>{fill(copy.linkedChip, { title: titleOf(linked) })}</span>}
-                  <span className={MONO}>{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>
+                  <span className="mono">{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>
                 </div>
               </div>
             )

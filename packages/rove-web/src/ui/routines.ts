@@ -21,7 +21,7 @@ export const RT_DETAIL =
 export const RT_HEAD = "flex flex-wrap items-baseline justify-between gap-3"
 export const RT_NAME = "font-sans text-display font-bold normal-nums wrap-anywhere"
 export const RT_META =
-  "mx-0 mt-1 mb-0 grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3.5 gap-y-1 [&_dd]:m-0 [&_dd]:wrap-anywhere [&_dd_.font-mono]:whitespace-pre"
+  "mx-0 mt-1 mb-0 grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3.5 gap-y-1 [&_dd]:m-0 [&_dd]:wrap-anywhere [&_dd_.mono]:whitespace-pre"
 export const RT_PROMPT =
   "max-h-[12lh] overflow-y-auto rounded-sm bg-inset px-2.5 py-2 whitespace-pre-wrap wrap-anywhere"
 

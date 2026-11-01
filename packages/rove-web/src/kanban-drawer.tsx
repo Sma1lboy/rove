@@ -36,7 +36,7 @@ import {
 } from "./ui/kanban.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, OVERLAY, dialogClass } from "./ui/overlay.ts"
-import { ACTIONS, INPUT, KICKER, LINK, MONO } from "./ui/text.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
 export type IssueStatus = (typeof ISSUE_STATUSES)[number]
@@ -105,7 +105,7 @@ function EventsFeed({ model, taskId }: { model: AppModel; taskId: string }) {
         <p className="text-muted">{kanban.detail.eventsNone}</p>
       ) : (
         rows.map((row) => (
-          <div key={`${row.at}:${row.kind}:${row.tail}`} className={`${MONO} ${KB_EVENT}`}>
+          <div key={`${row.at}:${row.kind}:${row.tail}`} className={`mono ${KB_EVENT}`}>
             <span className={`text-muted ${KB_AGE}`}>{relativeAge(row.at)}</span>
             <span>{row.kind}</span>
             {row.tail && <span className="text-muted">{row.tail}</span>}

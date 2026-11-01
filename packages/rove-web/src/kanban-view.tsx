@@ -51,7 +51,7 @@ import {
   kbLaneHeadClass,
   kbStripTabClass,
 } from "./ui/kanban.ts"
-import { LINK, MONO } from "./ui/text.ts"
+import { LINK } from "./ui/text.ts"
 
 export function KanbanView({ model }: { model: AppModel }) {
   const { kanban, group, common } = useCopy()
@@ -376,12 +376,10 @@ export function KanbanView({ model }: { model: AppModel }) {
           />
         ))}
         {col.issues.length === 0 && col.hiddenCount === 0 && (
-          <p className={`${MONO} text-muted ${KB_CARDS_NOTE}`}>{kanban.columnEmpty}</p>
+          <p className={`mono text-muted ${KB_CARDS_NOTE}`}>{kanban.columnEmpty}</p>
         )}
         {col.hiddenCount > 0 && (
-          <p className={`${MONO} text-muted ${KB_CARDS_NOTE}`}>
-            {fill(kanban.more, { count: String(col.hiddenCount) })}
-          </p>
+          <p className={`mono text-muted ${KB_CARDS_NOTE}`}>{fill(kanban.more, { count: String(col.hiddenCount) })}</p>
         )}
       </div>
     </section>
@@ -392,9 +390,9 @@ export function KanbanView({ model }: { model: AppModel }) {
     <div className={`${PAGE} ${KB_PAGE}`} tabIndex={0} ref={root}>
       <div className="kb-top">
         <h1 className={PAGE_TITLE}>{kanban.title}</h1>
-        <span className={`${MONO} keys-only text-muted`}>{kanban.hint}</span>
+        <span className="mono keys-only text-muted">{kanban.hint}</span>
         {/* A phone has no n/d: the same verbs as buttons. Delete acts on the selected card. */}
-        <span className={`${MONO} ${PG_ACTIONS}`}>
+        <span className={`mono ${PG_ACTIONS}`}>
           <button
             type="button"
             className={`${LINK} text-accent ${PG_ACTION_LINK.kanban}`}
@@ -424,7 +422,7 @@ export function KanbanView({ model }: { model: AppModel }) {
               {projectLabel(board.repoRoot, repoRoots)}
               {list.length > 1 && <span className="text-muted">{` ${index + 1}/${list.length}`}</span>}
             </button>
-            {!narrow && <span className={`${MONO} text-muted ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
+            {!narrow && <span className={`mono text-muted ${KB_PROJECT_PATH}`}>{board.repoRoot}</span>}
             {board.issues.length === 0 && !board.readError && (
               <span className={`text-muted ${KB_EMPTY}`}>{kanban.empty}</span>
             )}
@@ -433,7 +431,7 @@ export function KanbanView({ model }: { model: AppModel }) {
             <p className="text-error">{fill(kanban.readFailed, { error: board.readError })}</p>
           ) : narrow && activeLane ? (
             <div className={KB_SINGLE} ref={scroller}>
-              <div className={`${MONO} ${KB_STRIP}`}>
+              <div className={`mono ${KB_STRIP}`}>
                 {columns.map((col) => (
                   <button
                     type="button"

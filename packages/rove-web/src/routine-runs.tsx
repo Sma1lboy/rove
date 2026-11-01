@@ -16,7 +16,7 @@ import {
   RT_RUN_OPEN,
   rtResponseClass,
 } from "./ui/routines.ts"
-import { KICKER, MONO } from "./ui/text.ts"
+import { KICKER } from "./ui/text.ts"
 
 /** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
 const RUNS_SHOWN = 5
@@ -79,14 +79,14 @@ export function RoutineRuns(props: {
           return (
             <div key={run.id} className={`${RT_RUN} ${tone}`}>
               {taskId ? (
-                <button type="button" className={`${MONO} ${RT_RUN_OPEN}`} onClick={() => props.openRun(taskId)}>
+                <button type="button" className={`mono ${RT_RUN_OPEN}`} onClick={() => props.openRun(taskId)}>
                   {line}
                 </button>
               ) : (
-                <span className={`${MONO} ${RT_RUN_LINE}`}>{line}</span>
+                <span className={`mono ${RT_RUN_LINE}`}>{line}</span>
               )}
               {error && (
-                <details className={`${MONO} ${RT_RUN_ERROR}`}>
+                <details className={`mono ${RT_RUN_ERROR}`}>
                   <summary>{error.summary}</summary>
                   <pre>{error.full}</pre>
                 </details>
@@ -103,7 +103,7 @@ export function RoutineRuns(props: {
       ) : (
         responded.map((run) => (
           <div key={run.id} className={RT_RESPONSE}>
-            <p className={`${MONO} ${RT_RUN_HEAD} ${TONE_CLASS[runTone(run.status)]}`}>
+            <p className={`mono ${RT_RUN_HEAD} ${TONE_CLASS[runTone(run.status)]}`}>
               {`#${run.runNumber} ${statusText(run.status)}, ${when(run.response?.at)}`}
             </p>
             <p className={rtResponseClass(false)}>{responseText(run.response?.text ?? "")}</p>
@@ -135,7 +135,7 @@ function PrecheckDetail({ run }: { run: AutomationRun }) {
         <p className="text-muted">{auto.precheckNoOutput}</p>
       ) : (
         streams.map((stream) => (
-          <p key={stream.label} className={`${MONO} ${rtResponseClass(true)}`}>
+          <p key={stream.label} className={`mono ${rtResponseClass(true)}`}>
             {`${stream.label}: ${stream.text.replace(/\s+$/, "").split("\n").slice(-10).join("\n")}`}
           </p>
         ))

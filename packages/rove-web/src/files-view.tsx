@@ -23,7 +23,7 @@ import { Chip } from "./ui/chip.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
-import { MONO, PLACEHOLDER_LINE } from "./ui/text.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 type Tab = "all" | "changes"
 
@@ -207,7 +207,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {error && <p className={`${MONO} text-error`}>{error}</p>}
+        {error && <p className="mono text-error">{error}</p>}
         {!error && loaded && rows.length === 0 && (
           <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
         )}

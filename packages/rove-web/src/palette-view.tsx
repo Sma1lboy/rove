@@ -16,7 +16,7 @@ import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { PALETTE_LIST, paletteRow } from "./ui/shell.ts"
-import { INPUT, MONO } from "./ui/text.ts"
+import { INPUT } from "./ui/text.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
 /** Rows shown at once; the list scrolls inside (the TUI caps it at ten). */
@@ -127,7 +127,7 @@ function PaletteDialog({
               onClick={() => run(row)}
             >
               <span>{`${i === index ? "› " : "  "}${row.name}`}</span>
-              <span className={`keys-only ${MONO} text-accent`}>{row.chord}</span>
+              <span className="keys-only mono text-accent">{row.chord}</span>
             </button>
           ))}
         </div>

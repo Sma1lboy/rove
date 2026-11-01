@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from "react"
 import { terminalText } from "./keymap-text.ts"
 import type { TermHandle } from "./term-mount.ts"
 import { TERM_SEARCH, TERM_SEARCH_INPUT } from "./ui/shell.ts"
-import { MONO } from "./ui/text.ts"
 
 /** Hits: the others inverse, the current one accent (`useTerminalSearch`'s `hitPaint`). */
 const DECORATIONS = {
@@ -73,7 +72,7 @@ export function TermSearchBar({ handle, onClose }: { handle: TermHandle; onClose
         : terminalText("search.position", { index: hits.index < 0 ? "?" : hits.index + 1, total: hits.total })
 
   return (
-    <div className={`${MONO} ${TERM_SEARCH}`}>
+    <div className={`mono ${TERM_SEARCH}`}>
       {unavailable ? (
         <span className="text-warning">{terminalText("search.unavailable")}</span>
       ) : (
