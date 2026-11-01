@@ -254,6 +254,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
+| `AWAITING_PERMISSION` | `send` to a tab whose engine shows an approval or question menu (the tab's row reads `?`); a paste would land in the menu and Enter would confirm its highlighted option. Answer it with keys, then send. `tabIds` names the tabs. |
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
 | `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
@@ -1057,7 +1058,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   instead of pasting into a shell. When the `ps` probe behind that check fails
   or blows its deadline the refusal is `ENGINE_PROBE_FAILED` instead — the tab
   was never looked at, so nothing is claimed about its engine. Any registered
-  engine passes, so a tab may run a different vendor than its task. Without `--tab`, the canonical target
+  engine passes, so a tab may run a different vendor than its task.
+  A tab showing an approval or question menu (its row reads `?`) refuses with
+  `AWAITING_PERMISSION`: a paste is not a menu answer, and the Enter after it
+  confirms whichever option is highlighted. Without `--tab`, any of the task's
+  tabs at a menu refuses. Answer it with keys in the terminal; once a client
+  has answered it, or the engine reports again, `send` goes through. Engines
+  that report no permission prompts (no hook) are never refused. Without `--tab`, the canonical target
   is a live engine tab (`tab-1` first, then any surviving engine tab); when
   live tabs exist but none resolves as an engine, `send` refuses with
   `NO_ENGINE_TAB` rather than silently spawning a duplicate engine. Only a
