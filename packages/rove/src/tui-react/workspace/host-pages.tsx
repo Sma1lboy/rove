@@ -20,6 +20,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import { type PageEntry, usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
+import { requestTabActivation } from "./terminal-tabs-shared"
 
 interface HostPageState {
   readonly worktreesOpen: boolean
@@ -148,9 +149,10 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
       orchestrator={deps.orchestrator}
       focused={deps.contentFocused}
       onClose={deps.closePage}
-      onOpenTask={(taskId) => {
+      onOpenTask={(taskId, tabId) => {
         deps.closePage()
         deps.activateTask(taskId)
+        if (tabId) requestTabActivation(taskId, tabId)
       }}
       selectedTask={deps.selectedTask}
       engineStates={deps.engineStates}

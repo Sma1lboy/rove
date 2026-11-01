@@ -19,8 +19,8 @@ export interface PageProps {
   /** The content pane has focus; gate bare keys on it. */
   readonly focused: boolean
   readonly onClose: () => void
-  /** Leave the page and enter a task. */
-  readonly onOpenTask: (taskId: string) => void
+  /** Leave the page and enter a task, on `tabId` when given (a tab that is gone is ignored). */
+  readonly onOpenTask: (taskId: string, tabId?: string) => void
   /** The sidebar's selected task, so a page can open on its project. */
   readonly selectedTask: Task | undefined
   readonly engineStates: ReadonlyMap<string, TaskEngineState>
