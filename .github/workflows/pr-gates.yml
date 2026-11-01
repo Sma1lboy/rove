@@ -103,7 +103,7 @@ jobs:
         run: bash scripts/file-size-check.sh
 
       - name: rove-web styles with Tailwind and src/ui
-        # Legacy sheets only shrink; raw buttons and arbitrary values stay in src/ui.
+        # tailwind.css is the only sheet; raw buttons and arbitrary values stay in src/ui.
         run: node scripts/web-ui-gate.mjs origin/main...HEAD
 
   ui-evidence:
