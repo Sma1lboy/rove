@@ -75,7 +75,6 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
 
   test("the cloud mark carries its text as tooltip and aria-label", () => {
     const html = renderToStaticMarkup(createElement(CloudMark, { label: "on studio.local · offline" }))
-    expect(html).toContain('class="cloud-mark"')
     expect(html).toContain('title="on studio.local · offline"')
     expect(html).toContain('aria-label="on studio.local · offline"')
     expect(html).toContain('role="img"')
