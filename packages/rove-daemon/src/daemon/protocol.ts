@@ -195,8 +195,7 @@ export type DaemonRequestName =
   // is the CLI telling the daemon about an `api send` it pasted itself.
   | "dispatch.list"
   | "dispatch.record"
-  // Prompts held for a busy tab (`prompt-queue.ts`): `add` says `queued:false` when the tab can take it
-  // now (the CLI then sends as usual); held ones are pasted, one per turn, as each turn ends.
+  // Prompts held for a busy tab until its turn ends (`prompt-queue.ts`, `send --queue`).
   | "queue.add"
   | "queue.list"
   | "queue.cancel"
