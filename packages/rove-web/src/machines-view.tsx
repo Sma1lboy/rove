@@ -20,6 +20,8 @@ export interface MachineRow {
   readonly hostLabel: string
   readonly state: "connecting" | "online" | "offline" | "unsupported" | "mismatch"
   readonly version: string | null
+  /** Why it is not online (`refused`, `auth-denied`, `lost`…); absent from an older bridge. */
+  readonly reason?: string | null
 }
 
 /** Machines change state on SSH timescales; the bridge holds the hub's latest. */

@@ -21,7 +21,7 @@ import type { ReadableState } from "../lib/external-store.ts"
 import { createStateCell } from "../lib/external-store.ts"
 import { loadStateFile } from "../state/store.ts"
 import type { Task } from "../types/task.ts"
-import { discoverMachine, learnedFrom } from "./discover.ts"
+import { type DiscoverFailure, discoverMachine, learnedFrom } from "./discover.ts"
 import {
   type MachineEntry,
   dedupeMachines,
@@ -31,6 +31,7 @@ import {
   setMachineIdentity,
   updateMachine,
 } from "./registry.ts"
+import type { SshFailureKind } from "./ssh-failure.ts"
 import { type TunnelHandle, startTunnel } from "./tunnel.ts"
 
 /** What a machine row in the sidebar renders from. */
@@ -47,8 +48,34 @@ export interface MachineStatus {
   /** Set when this alias turned out to be a machine already registered under
    *  another name — the row is suppressed and `machine list` reports it. */
   readonly duplicateOf?: string
-  /** Why the machine is not usable, for the row's tooltip / `machine list`. */
+  /** Why the machine is not usable, for the row's tooltip / `machine list`. Raw: may name hosts and paths. */
   readonly error?: string
+  /** `error` as a class, safe to show anywhere (the web app is reachable from the internet); unset while online. */
+  readonly reason?: MachineReason
+}
+
+/** Why a machine is not online: ssh's own cause, then what the probe found on the far side, then the link itself. */
+export type MachineReason =
+  | Exclude<SshFailureKind, "unknown">
+  | "ssh-failed"
+  | "no-rove"
+  | "no-daemon"
+  | "bad-status"
+  | "handshake"
+  | "no-forwarding"
+  | "lost"
+
+export function discoverReason(failure: DiscoverFailure): MachineReason {
+  switch (failure.code) {
+    case "SSH_FAILED":
+      return !failure.ssh || failure.ssh === "unknown" ? "ssh-failed" : failure.ssh
+    case "NO_ROVE":
+      return "no-rove"
+    case "NO_DAEMON":
+      return "no-daemon"
+    default:
+      return "bad-status"
+  }
 }
 
 /**
@@ -158,10 +185,13 @@ export class MachineHub {
     // A failed probe falls back to the known socket paths (they don't move),
     // so the tunnel's backoff waits out a machine that is merely asleep.
     const sockets = found.ok ? { daemon: found.status.socketPath, pty: found.status.ptySocketPath } : entry.sockets
+    const failed = found.ok ? {} : { error: found.message, reason: discoverReason(found) }
     if (!sockets) {
-      this.setStatus(entry.alias, { state: "offline", error: found.ok ? undefined : found.message })
+      this.setStatus(entry.alias, { state: "offline", ...failed })
       return
     }
+    // Kept while the tunnel retries on the old sockets, so its `offline` still says why.
+    if (!found.ok) this.setStatus(entry.alias, failed)
     const learned = found.ok ? learnedFrom(found) : {}
     if (found.ok) updateMachine(entry.alias, learned)
     const tunnel = startTunnel({
@@ -175,6 +205,7 @@ export class MachineHub {
       this.setStatus(entry.alias, {
         state: "unsupported",
         error: "SSH unix-socket forwarding is not available on Windows",
+        reason: "no-forwarding",
       })
       return
     }
@@ -183,7 +214,9 @@ export class MachineHub {
       if (state === "online") void this.openOrchestrator(entry, tunnel)
       // A dropped tunnel keeps the last snapshot on screen, greyed. See `docs/MACHINES.md`.
       else if (state === "offline") {
-        this.setStatus(entry.alias, { state: "offline" })
+        // A probe that failed before the tunnel started already said why; otherwise the link dropped.
+        const known = this.machinesAcc.get().find((row) => row.alias === entry.alias)?.reason
+        this.setStatus(entry.alias, { state: "offline", reason: known ?? "lost" })
         this.republishTasks()
       }
     })
@@ -209,7 +242,7 @@ export class MachineHub {
       if (this.slots.get(entry.alias) !== slot) return
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      this.setStatus(entry.alias, { state: classifyHandshakeFailure(message), error: message })
+      this.setStatus(entry.alias, { state: classifyHandshakeFailure(message), error: message, reason: "handshake" })
       logClientError("machines", err)
       return
     }
@@ -222,7 +255,10 @@ export class MachineHub {
     const stopConnection = orchestrator.connectionStateSignal().subscribe(() => {
       const connected = orchestrator.connectionStateSignal().get() === "online"
       if (this.slots.get(entry.alias) !== slot) return
-      this.setStatus(entry.alias, { state: connected ? "online" : "offline" })
+      this.setStatus(
+        entry.alias,
+        connected ? { state: "online", error: undefined, reason: undefined } : { state: "offline", reason: "lost" },
+      )
       this.republishTasks()
     })
     const live = [
@@ -236,7 +272,12 @@ export class MachineHub {
       for (const stop of live) stop()
     }
     slot.tasks = orchestrator.tasksSignal().get()
-    this.setStatus(entry.alias, { state: "online", version: orchestrator.daemonVersionSignal().get() ?? undefined })
+    this.setStatus(entry.alias, {
+      state: "online",
+      version: orchestrator.daemonVersionSignal().get() ?? undefined,
+      error: undefined,
+      reason: undefined,
+    })
     this.republishTasks()
     this.republishLive()
     logClient("machines", `${entry.alias} online (${slot.tasks.length} tasks)`)
