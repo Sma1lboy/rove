@@ -7,6 +7,7 @@ import type { RowPlace } from "./rail-drag.ts"
 import type { NavRow } from "./rail.ts"
 import { activeLeafOf, activeLeaves, focusLeaf } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
+import { CHILD_INDENT, guideClass } from "./ui/rail.ts"
 import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 export type PaneRow = Extract<NavRow, { kind: "pane" }>
@@ -43,10 +44,10 @@ export function PaneRowView(props: {
       onContextMenu={props.onMenu}
       {...props.place}
     >
-      <span className="child-indent" aria-hidden="true">
+      <span className={CHILD_INDENT} aria-hidden="true">
         {props.guides?.map((guide, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: a column's place is its identity
-          <span key={i} className={`guide is-${guide}`} />
+          <span key={i} className={guideClass(guide)} />
         ))}
       </span>
       <span className={`${ROW_TITLE} text-(length:--fs-meta) ${active ? "text-ink" : "text-muted"}`}>{row.label}</span>

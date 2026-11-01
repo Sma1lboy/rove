@@ -35,6 +35,7 @@ import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
+import { CHILD_INDENT, FOLD_TOGGLE, guideClass } from "./ui/rail.ts"
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { UpdateChip } from "./update-view.tsx"
@@ -375,10 +376,10 @@ function RailRow(props: {
     >
       {tip.tip}
       {props.guides && (
-        <span className="child-indent" aria-hidden="true">
+        <span className={CHILD_INDENT} aria-hidden="true">
           {props.guides.map((guide, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: a column's place is its identity
-            <span key={i} className={`guide is-${guide}`} />
+            <span key={i} className={guideClass(guide)} />
           ))}
         </span>
       )}
@@ -413,7 +414,7 @@ function FoldCount(props: { count: number; onUnfold: () => void }) {
       tabIndex={-1}
       aria-label={label}
       aria-expanded={false}
-      className="chip fold-toggle muted"
+      className={`chip muted ${FOLD_TOGGLE}`}
       title={label}
       onClick={(e) => {
         e.stopPropagation()
