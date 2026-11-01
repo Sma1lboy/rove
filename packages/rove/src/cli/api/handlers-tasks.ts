@@ -19,6 +19,7 @@ import { ownSession, readOwnDispatcher, recordSend, resolveDispatcherTab, withPe
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
+import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
 import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
@@ -178,6 +179,7 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
     )
   }
   const respawn = ctx.args.bool("respawn")
+  assertQueueFlags(ctx, tab)
   // Exact-tab only: the canonical path already respawns a restored tab-1 and
   // `--tab new` spawns by definition, so the flag would be a silent no-op.
   if (respawn && (tab === undefined || tab === "new")) {
@@ -223,6 +225,9 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
     })
   }
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // `--queue` on a busy tab: the daemon holds it until the turn ends, so owed gate answers stay owed too.
+  const held = await queueIfBusy(ctx, daemon, res.task, tab, plain)
+  if (held) return held
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
   const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)

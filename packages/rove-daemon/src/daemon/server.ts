@@ -22,6 +22,7 @@ import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import { GraphicsImageIds } from "./graphics-ids.ts"
+import { pasteQueued } from "./handlers-queue.ts"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
@@ -36,6 +37,7 @@ import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
+import { PromptQueue } from "./prompt-queue.ts"
 import { type DaemonFrame, serializeTask } from "./protocol.ts"
 import { aliasedKeys } from "./pty-alias.ts"
 import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
@@ -364,6 +366,7 @@ async function startOwnedServer(
       ...stores,
       rowStatus,
       selfLink,
+      promptQueue,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
       tabCloses,
@@ -392,6 +395,13 @@ async function startOwnedServer(
   // In-process RPC client; unconditional because automations launch engine
   // sessions whether or not anyone is attached.
   const selfLink = createDirectLink({ ctx: handlerContext })
+  // Reads the context lazily: a hand-over only happens on a turn event, after construction settles.
+  const promptQueue = new PromptQueue(
+    bus,
+    (taskId, tabId) => activity.stateOf(taskId, tabId),
+    (item) => pasteQueued(handlerContext(0), item),
+  )
+  resources.defer(() => promptQueue.close())
 
   // BIND LAST: dispatch starts the instant this resolves and reads the
   // `handlers`/`selfLink` consts, so reaching them early is a ReferenceError

@@ -16,6 +16,7 @@ import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
 import { VIEWERS_VERB } from "./handlers-panel.ts"
 import { PORTS_VERB } from "./handlers-ports.ts"
+import { QUEUE_LIST_VERB } from "./handlers-queue.ts"
 import { REVIEW_COMMENTS_VERB } from "./handlers-review-comments.ts"
 import { getTask, list } from "./handlers-tasks.ts"
 import { WATCH_VERB } from "./handlers-watch.ts"
@@ -97,6 +98,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
   AGENT_TURNS_VERB,
   INSPECT_VERB,
   READ_OUTPUT_VERB,
+  QUEUE_LIST_VERB,
   WATCH_VERB,
   PORTS_VERB,
   VIEWERS_VERB,

@@ -246,13 +246,42 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       kind: "write",
       destructive: false,
       wraps:
-        "rove api send --plain (a message typed in the page's composer, pasted and submitted by the engine's own composer)",
+        "rove api send --plain [--queue] (a message typed in the page's composer, pasted and submitted by the engine's own composer; with `queue`, held for a busy tab until its turn ends)",
       async run(a, { api }) {
         const argv = [flag("task-id", taskId(a)), "--plain", flag("prompt", text(a, "prompt", PROMPT_MAX))]
         if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
-        const res = await api.verb<{ delivered?: boolean; reason?: unknown; targetDetail?: unknown }>("send", argv)
+        if (a.queue === true) argv.push("--queue")
+        const res = await api.verb<{
+          delivered?: boolean
+          queued?: boolean
+          queueId?: unknown
+          position?: unknown
+          reason?: unknown
+          targetDetail?: unknown
+        }>("send", argv)
+        if (res.queued === true) return { delivered: false, queued: true, queueId: res.queueId, position: res.position }
         if (res.delivered === true) return { delivered: true }
         return { delivered: false, reason: sendReason(res.targetDetail ?? res.reason) ?? "not confirmed" }
+      },
+    },
+
+    "queue.list": {
+      kind: "read",
+      destructive: false,
+      wraps: "rove api queue-list --task-id (prompts held for a busy tab, oldest first)",
+      async run(a, { api }) {
+        return await api.verb("queue-list", [flag("task-id", taskId(a))])
+      },
+    },
+
+    "queue.cancel": {
+      kind: "write",
+      destructive: false,
+      wraps: "rove api queue-cancel --id (take back a held prompt before it is pasted)",
+      async run(a, { api }) {
+        const id = str(a, "id")
+        if (!/^q-\d+$/.test(id)) throw new BridgeError("BAD_ARGS", "id must look like q-N")
+        return await api.verb("queue-cancel", [flag("id", id)])
       },
     },
 

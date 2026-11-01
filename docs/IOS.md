@@ -203,7 +203,9 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
 | `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |
 | `tab.requestPR` | `taskId`, `tabId?` | `{}` | `buildPRPrompt` + `send --plain` |
-| `tab.send` | `taskId`, `tabId?`, `prompt` (≤ 100k chars) | `{delivered: true}` or `{delivered: false, reason}` | `send --plain` (the engine's own composer queues it if a turn is running) |
+| `tab.send` | `taskId`, `tabId?`, `prompt` (≤ 100k chars), `queue?` | `{delivered: true}`, `{delivered: false, queued: true, queueId, position}` (with `queue`, held for a busy tab until its turn ends) or `{delivered: false, reason}` | `send --plain [--queue]` |
+| `queue.list` | `taskId` | `{items: [{id, taskId, tabId, text, expectReport, at, lastError?}]}` | `queue-list` |
+| `queue.cancel` | `id` (`q-N`) | `{cancelled}` | `queue-cancel` |
 | `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
