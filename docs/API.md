@@ -373,6 +373,13 @@ edits (`set-vendor`, `rename`,
     An unknown status or state is refused with `BAD_FLAG`.
   - Archived tasks (`archive`) are left out; `--archived` lists only them,
     and combines with the other flags the same way.
+  - `--fields F1,F2` keeps only those keys on each task row, so a large
+    fleet reads short: `rove api list --fields id,title,status,branch`.
+    Any task key is accepted, plus `repoCount` and `activity`; a key a task
+    does not carry stays absent. Filters run first, so
+    `--activity running --fields id,activity` works. `activeTaskId` and
+    `unresolvableRepos` are untouched. A misspelled key is refused with
+    `BAD_FLAG`, and the message lists the valid ones.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/

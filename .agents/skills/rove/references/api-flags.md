@@ -70,7 +70,7 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list                --repo --status <S1,S2> --activity <A1,A2> --archived
+list                --repo --status <S1,S2> --activity <A1,A2> --archived --fields <F1,F2>
 get-task            --task-id(REQ)
 pty-list            (none)
 collect             --task-ids <a,b,c> --group --repo
