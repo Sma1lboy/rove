@@ -19,7 +19,7 @@ export const RT_ROW_SUB = "truncate text-meta"
 export const RT_DETAIL =
   "flex min-h-0 flex-col gap-1.5 overflow-y-auto py-0 pr-0 pl-4 [border-left:var(--hairline)_solid_var(--line)] [&_h2]:m-0 [&_p]:m-0 [&>*]:shrink-0 [&>.kicker]:mt-2.5 rt-narrow:shrink-0 rt-narrow:overflow-visible rt-narrow:pt-3 rt-narrow:pl-0 rt-narrow:[border-left:none] rt-narrow:[border-top:var(--hairline)_solid_var(--line)]"
 export const RT_HEAD = "flex flex-wrap items-baseline justify-between gap-3"
-export const RT_NAME = "font-sans text-display leading-normal font-bold normal-nums wrap-anywhere"
+export const RT_NAME = "font-sans text-display font-bold normal-nums wrap-anywhere"
 export const RT_META =
   "mx-0 mt-1 mb-0 grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3.5 gap-y-1 [&_dd]:m-0 [&_dd]:wrap-anywhere [&_dd_.mono]:whitespace-pre"
 export const RT_PROMPT =
@@ -43,7 +43,7 @@ export const RT_RUN_HEAD = "text-meta"
 /** The composer's schedule cells, and the steppers a soft keyboard (no arrows) gets instead. */
 export const RT_CRON = "flex gap-4.5 px-1 py-1.5"
 export const rtCronCellClass = (active: boolean): string =>
-  `flex min-w-[5ch] flex-col gap-0.5 rounded-sm border-hairline px-1.5 py-1 text-left font-mono text-body leading-normal normal-nums [&>span]:text-meta [&>span]:text-subtle ${active ? "border-accent font-bold text-accent" : "border-transparent font-normal"}`
+  `flex min-w-[5ch] flex-col gap-0.5 rounded-sm border-hairline px-1.5 py-1 text-left font-mono text-body normal-nums [&>span]:text-meta [&>span]:text-subtle ${active ? "border-accent font-bold text-accent" : "border-transparent font-normal"}`
 export const RT_CRON_STEP = "hidden gap-2 px-1 pt-0.5 pb-1.5 touch:flex"
 export const RT_CRON_STEP_BUTTON =
-  "h-8 w-11 touch-manipulation rounded-sm border-hairline border-line bg-inset font-mono text-display leading-normal font-normal normal-nums text-ink"
+  "h-8 w-11 touch-manipulation rounded-sm border-hairline border-line bg-inset font-mono text-display font-normal normal-nums text-ink"
