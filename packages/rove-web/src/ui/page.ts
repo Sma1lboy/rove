@@ -25,8 +25,9 @@ export const PG_GROW = "min-w-0 flex-1 truncate"
 /** The rail's page entries (New task, Kanban, …) and Settings pinned under the task list. */
 export const RAIL_NAV = "flex flex-col px-1.5 pb-2"
 export const RAIL_FOOT = "relative flex flex-col px-1.5 pt-1.5 pb-0.5"
+/** `:hover` without the hover-capable media gate, as the sheet had: a tap leaves the row washed on a phone. */
 export const railNavRowClass = (active: boolean): string =>
-  `flex items-center rounded-sm px-2 py-0.75 text-left hover:bg-inset ${active ? "font-bold text-ink" : "text-muted"}`
+  `flex items-center rounded-sm px-2 py-0.75 text-left [&:hover]:bg-inset ${active ? "font-bold text-ink" : "text-muted"}`
 /** New task's own +, in the column of the projects' hover +; always shown, in the accent. */
 export const RAIL_NAV_PLUS =
   "ml-auto -mr-[6.7px] w-5 text-center font-sans text-display leading-none font-normal text-accent normal-nums"
