@@ -141,7 +141,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .app,
-  .tab-strip,
   .app.is-rail-folded .rail {
     transition: none;
   }
@@ -531,7 +530,7 @@
   .update-key,
   .kb-legend:empty,
   .pg-hint:empty {
-    /* Sheets imported after this one (welcome.css, pages.css) set their own display at equal specificity. */
+    /* Sheets imported after this one (pages.css) set their own display at equal specificity. */
     display: none !important;
   }
   .term-keys {
@@ -544,8 +543,7 @@
     bottom: 48px;
   }
   /* A long-press opens the row's menu (long-press.ts), not iOS's text selection and callout. */
-  .rail,
-  .tab {
+  .rail {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;

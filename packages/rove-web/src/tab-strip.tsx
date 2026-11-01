@@ -17,19 +17,24 @@ export function TabStrip({
 }: { model: AppModel; task: TaskRow; tabs: readonly TabRow[]; narrow: boolean }) {
   const selection = useStore(model.selection)
   const { prefs } = usePrefs()
+  // `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the panel launcher stays.
+  const hidden = !tabStripVisible(prefs.tabStrip, tabs.length)
   return (
-    <div className={`tab-strip ${tabStripVisible(prefs.tabStrip, tabs.length) ? "" : "is-tabs-hidden"}`} role="tablist">
+    <div
+      className="flex min-w-0 items-center gap-0.5 font-mono text-meta transition-padding-left duration-220 ease-snap motion-reduce:transition-none rail-folded:min-h-6.5 rail-folded:pl-23"
+      role="tablist"
+    >
       {tabs.map((tab, i) => (
         <button
           type="button"
           role="tab"
           key={tab.id}
           aria-selected={tab.id === selection.tabId}
-          className={`tab ${tab.id === selection.tabId ? "is-active" : ""}`}
+          className={`group/tab flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 py-1 active:scale-97 motion-reduce:active:scale-none touch:select-none touch:touch-callout-none ${hidden ? "hidden" : ""} ${tab.id === selection.tabId ? "bg-inset text-ink" : "text-muted hover:bg-hover data-menu-open:bg-hover"}`}
           onClick={() => model.select(task.id, tab.id)}
           onContextMenu={(e) => openMenu(e, taskMenu(model, task, tab))}
         >
-          <span className="tab-index">{i + 1}</span>
+          <span className="text-subtle group-aria-selected/tab:text-accent">{i + 1}</span>
           {tabLabel(tab)}
         </button>
       ))}

@@ -278,8 +278,7 @@ button:focus-visible {
 }
 
 .row:hover,
-.row[data-menu-open],
-.tab[data-menu-open] {
+.row[data-menu-open] {
   background: var(--hover);
 }
 
@@ -601,15 +600,13 @@ button:focus-visible {
 }
 
 .button:active,
-.row:active,
-.tab:active {
+.row:active {
   transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .button:active,
-  .row:active,
-  .tab:active {
+  .row:active {
     transform: none;
   }
 
