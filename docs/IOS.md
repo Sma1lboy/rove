@@ -33,7 +33,7 @@ Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a sup
 | `--cf-team`, `--cf-aud` | Cloudflare Access team and application AUD tag; also readable from `<ROVE_HOME>/.rove/bridge/config.json`. |
 | `--host <addr>` | Without a preset: an explicit listen address. Repeatable. |
 | `--port <n>` | TCP port, default `7878`. |
-| `--rotate-token` | Mint a new token. Every paired phone must pair again. |
+| `--rotate-token` | Mint a new token and drop every `--device` token. Every paired phone must pair again. |
 | `--device <name>` | Print a link carrying that device's own token (minted on first use) instead of the shared one. |
 | `--list-devices`, `--revoke-device <name>` | List the per-device tokens, or revoke one without touching the others. See [WEB.md](WEB.md#security). |
 | `--no-qr` | Print the URL without the QR code. |

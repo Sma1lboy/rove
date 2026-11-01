@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { addDevice, deviceOf, listDevices, revokeDevice } from "../src/auth.ts"
+import { addDevice, deviceOf, listDevices, loadOrCreateToken, revokeDevice, startupCredentials } from "../src/auth.ts"
 import { parseBridgeArgs } from "../src/cli-args.ts"
 import { TOKEN, connect, start, stopServers } from "./server-harness.ts"
 
@@ -23,6 +23,32 @@ describe("per-device tokens", () => {
       expect(deviceOf(path, phone)).toBeNull()
       expect(deviceOf(path, laptop)).toBe("laptop")
       expect(listDevices(path).map((d) => d.name)).toEqual(["laptop"])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test("--rotate-token signs out every device too; a plain restart keeps them", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-rotate-"))
+    try {
+      const tokenPath = join(dir, "token")
+      const devicesPath = join(dir, "devices.json")
+      const oldShared = loadOrCreateToken(tokenPath)
+      const phone = addDevice(devicesPath, "phone")
+      const browser = addDevice(devicesPath, "web-login-20261101-120000")
+
+      const restart = startupCredentials({ tokenPath, devicesPath, rotate: false })
+      expect(restart.sharedToken).toBe(oldShared)
+      expect(deviceOf(devicesPath, phone)).toBe("phone")
+
+      const rotated = startupCredentials({ tokenPath, devicesPath, rotate: true, device: "tablet" })
+      expect(rotated.sharedToken).not.toBe(oldShared)
+      expect(rotated.revoked).toBe(2)
+      expect(deviceOf(devicesPath, phone)).toBeNull()
+      expect(deviceOf(devicesPath, browser)).toBeNull()
+      // The device named on the same start is minted after the purge, so it is the one left.
+      expect(deviceOf(devicesPath, rotated.token)).toBe("tablet")
+      expect(listDevices(devicesPath).map((d) => d.name)).toEqual(["tablet"])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

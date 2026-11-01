@@ -4,8 +4,8 @@ import { dirname } from "node:path"
 
 /**
  * The persisted pairing token. Minted on first start, reused afterwards so a
- * paired phone survives bridge restarts; `rotate` mints a fresh one, which
- * revokes every paired phone at once. Owner-only file.
+ * paired phone survives bridge restarts; `rotate` mints a fresh one. Revoking
+ * the per-device tokens as well is `revokeAllDevices`. Owner-only file.
  */
 export function loadOrCreateToken(path: string, rotate = false): string {
   if (!rotate && existsSync(path)) {
@@ -98,9 +98,9 @@ export function pairingUrl(opts: {
 }
 
 /**
- * Per-device credentials: each phone or browser can get its own token, revoked on its own, beside
- * the shared one (`--rotate-token` still revokes everything). Only a SHA-256 of each token is kept,
- * owner-only, so the file cannot be replayed as a credential.
+ * Per-device credentials: each phone or browser (a password login is one too) gets its own token,
+ * revoked on its own beside the shared one. Only a SHA-256 of each token is kept, owner-only, so the
+ * file cannot be replayed as a credential.
  */
 export interface DeviceRecord {
   readonly name: string
@@ -147,6 +147,29 @@ export function revokeDevice(path: string, name: string): boolean {
   if (rest.length === devices.length) return false
   writeDevices(path, rest)
   return true
+}
+
+/** Forget every device token (`--rotate-token`); returns how many there were. */
+export function revokeAllDevices(path: string): number {
+  const count = listDevices(path).length
+  if (count > 0) writeDevices(path, [])
+  return count
+}
+
+/**
+ * The credentials a bridge start serves with. `rotate` mints a new shared token AND forgets every device
+ * token, so a leaked link of either kind stops working; it runs before `device` mints that device's token.
+ */
+export function startupCredentials(opts: {
+  readonly tokenPath: string
+  readonly devicesPath: string
+  readonly rotate: boolean
+  readonly device?: string | null
+}): { readonly sharedToken: string; readonly token: string; readonly revoked: number } {
+  const sharedToken = loadOrCreateToken(opts.tokenPath, opts.rotate)
+  const revoked = opts.rotate ? revokeAllDevices(opts.devicesPath) : 0
+  const token = opts.device ? addDevice(opts.devicesPath, opts.device) : sharedToken
+  return { sharedToken, token, revoked }
 }
 
 /** The device a presented token belongs to, or null. Constant-time per record. */

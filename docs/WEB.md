@@ -91,7 +91,9 @@ has it yet.
 - The page sends the token as a `Sec-WebSocket-Protocol` value, because a
   browser cannot set the `Authorization` header phones use. A socket opened
   from another site is refused even with the token.
-- `--rotate-token` revokes every browser and phone at once.
+- `--rotate-token` revokes every browser and phone at once: the shared token
+  and every device token, password sign-ins included. The web password itself
+  stays; change it with `--set-password`.
 - `--device <name>` gives one phone or browser its own token and prints its
   link; `--revoke-device <name>` revokes just that one, and
   `--list-devices` shows them. Only a SHA-256 of each device token is kept
