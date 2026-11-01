@@ -9,6 +9,7 @@ import { useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { ConnectorsSection } from "./settings-connectors.tsx"
 import { ts } from "./settings-copy.ts"
@@ -19,7 +20,9 @@ import { GeneralSection } from "./settings-general.tsx"
 import { KeysSection } from "./settings-keys.tsx"
 import { PluginsSection } from "./settings-plugins.tsx"
 import { RoutingSection } from "./settings-routing.tsx"
+import { useStore } from "./store.ts"
 import { SETTINGS, SETTINGS_BODY, SETTINGS_NAV, settingsTabClass } from "./ui/settings.ts"
+import { UsageChips } from "./usage-view.tsx"
 
 const SECTIONS = ["general", "engines", "connectors", "autoRouting", "plugins", "keys", "feedback", "dev"] as const
 type Section = (typeof SECTIONS)[number]
@@ -39,8 +42,12 @@ export function SettingsDialog({ model, section: opening = "general" }: { model:
   const client = model.client
   useLocale()
   const [section, setSection] = useState<Section>(opening)
+  const narrow = useNarrow()
+  const selection = useStore(model.selection)
   return (
     <DialogShell title={t("settings.title")} wide>
+      {/* A phone's rail has no foot for the usage line; it leads Settings instead. */}
+      {narrow && <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />}
       <div className={SETTINGS}>
         <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
           {SECTIONS.map((id) => (

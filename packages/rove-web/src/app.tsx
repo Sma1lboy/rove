@@ -19,7 +19,7 @@ import { RailBar } from "./rail-chrome.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
 import { RailView } from "./rail-view.tsx"
 import { SidePanel } from "./side-panel.tsx"
-import { SkillBanner, useSkillStatus } from "./skill-banner.tsx"
+import { useSkillStatus } from "./skill-status.ts"
 import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./ui.ts"
@@ -110,7 +110,6 @@ function Shell({ model }: { model: AppModel }) {
   return (
     <div className={APP_SHELL}>
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
-      <SkillBanner client={model.client} />
       <div
         className={appClass({
           zen: zenOn || !panelShown || (!task && !remoteTask) || narrow,
@@ -131,7 +130,7 @@ function Shell({ model }: { model: AppModel }) {
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />
         {!narrow && <SidePanel model={model} task={task} remoteHost={remoteTask?.machine?.label} />}
-        <StatusBar model={model} narrow={narrow} />
+        <StatusBar model={model} />
         <Overlays />
         <PrefixHud model={model} />
         <DocumentTitle model={model} />
