@@ -31,7 +31,7 @@ export function ConnectScreen({ failing = false }: { failing?: boolean }) {
         <h1 className={`${KICKER} text-muted`}>{t("connect.title")}</h1>
         <p className={failing ? "text-error" : "text-muted"}>{failing ? t("connect.failing") : t("connect.body")}</p>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           // biome-ignore lint/a11y/noAutofocus: the only control on the page
           autoFocus
           spellCheck={false}

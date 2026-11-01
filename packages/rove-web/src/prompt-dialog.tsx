@@ -50,7 +50,7 @@ function PromptDialog({ client, prompt }: { client: BridgeClient; prompt: Prompt
         }}
       >
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           aria-label={copy.fieldLabel}
           // biome-ignore lint/a11y/noAutofocus: a dialog's only field
           autoFocus

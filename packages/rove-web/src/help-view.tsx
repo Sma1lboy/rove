@@ -116,7 +116,7 @@ function HelpDialog({
         </div>
         {filtering ? (
           <input
-            className={`${INPUT} text-ink`}
+            className={INPUT}
             // biome-ignore lint/a11y/noAutofocus: the filter row replaces the hint
             autoFocus
             spellCheck={false}

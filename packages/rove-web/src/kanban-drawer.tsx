@@ -276,7 +276,7 @@ export function IssueDrawer(props: {
             <span className={`${KICKER} text-muted`}>{kanban.detail.titleLabel}</span>
             <input
               ref={at("title")}
-              className={`${INPUT} text-ink`}
+              className={INPUT}
               spellCheck={false}
               value={title}
               onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
@@ -298,7 +298,7 @@ export function IssueDrawer(props: {
             </span>
             <textarea
               ref={at("description")}
-              className={`${INPUT} text-ink ${TEXTAREA} ${KB_BODY}`}
+              className={`${INPUT} ${TEXTAREA} ${KB_BODY}`}
               rows={8}
               spellCheck={false}
               placeholder={kanban.detail.noDescription}

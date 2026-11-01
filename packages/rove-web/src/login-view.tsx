@@ -53,7 +53,7 @@ export function LoginScreen() {
         <h1 className={`${KICKER} text-muted`}>{t("login.title")}</h1>
         <p className="text-muted">{t("login.body")}</p>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           type="password"
           autoComplete="current-password"
           aria-label={t("login.field")}

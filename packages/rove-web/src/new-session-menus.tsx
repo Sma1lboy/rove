@@ -106,7 +106,7 @@ export function SearchList(props: {
   return (
     <div className="composer-list">
       <input
-        className={`${INPUT} text-ink`}
+        className={INPUT}
         // biome-ignore lint/a11y/noAutofocus: the popover's only field
         autoFocus
         spellCheck={false}
@@ -398,7 +398,7 @@ export function BranchesMenu(props: {
       <label className="composer-field">
         <span className="text-muted">{t("newSession.branchName")}</span>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           // biome-ignore lint/a11y/noAutofocus: the menu's first field
           autoFocus
           spellCheck={false}
@@ -414,7 +414,7 @@ export function BranchesMenu(props: {
             {repo.primary && <span className="text-muted"> {t("newSession.primary")}</span>}
           </span>
           <select
-            className={`${INPUT} text-ink`}
+            className={INPUT}
             aria-label={repo.name}
             value={repo.base || repo.current}
             onChange={(e) => props.onBase(repo.path, e.target.value)}

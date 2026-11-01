@@ -71,7 +71,7 @@ function ModField(props: {
     >
       <input
         id={props.id}
-        className={`${INPUT} text-ink ${MOD_FIELD_INPUT}`}
+        className={`${INPUT} ${MOD_FIELD_INPUT}`}
         spellCheck={false}
         value={draft}
         placeholder={props.placeholder}

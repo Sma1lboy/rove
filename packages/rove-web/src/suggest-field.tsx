@@ -73,7 +73,7 @@ export function SuggestField(props: {
   return (
     <div className="relative">
       <input
-        className={`${INPUT} text-ink`}
+        className={INPUT}
         data-field={props.field}
         spellCheck={false}
         autoComplete="off"

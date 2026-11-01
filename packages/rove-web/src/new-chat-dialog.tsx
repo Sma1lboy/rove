@@ -212,7 +212,7 @@ export function NewChatDialog(props: {
             <label className={FIELD}>
               <span className={`${KICKER} text-muted`}>{t("taskops.forkBranch")}</span>
               <input
-                className={`${INPUT} text-ink`}
+                className={INPUT}
                 data-field="fork-base"
                 spellCheck={false}
                 value={baseRef}
@@ -225,7 +225,7 @@ export function NewChatDialog(props: {
           <label className={FIELD}>
             <span className={`${KICKER} text-muted`}>{t("newChat.prompt")}</span>
             <textarea
-              className={`${INPUT} text-ink ${TEXTAREA}`}
+              className={`${INPUT} ${TEXTAREA}`}
               data-field="message"
               // biome-ignore lint/a11y/noAutofocus: the dialog's main field
               autoFocus

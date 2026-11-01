@@ -31,9 +31,11 @@ export const MONO = "font-mono text-meta font-normal normal-nums"
 /** An inline text action; `link` stays as a hook for the footer and dialog rules that dim a disabled one. */
 export const LINK = "link [&:hover]:underline touch-hit"
 
+/** A text field's frame and type, for a field that sizes itself (`PREF_NUMBER`, `ENG_RENAME_INPUT`). */
+export const INPUT_FRAME =
+  "rounded-sm border-hairline border-line bg-paper font-mono text-meta font-normal normal-nums text-ink focus-visible:border-line-active focus-visible:outline-none"
 /** A single-line text field. */
-export const INPUT =
-  "w-full rounded-sm border-hairline border-line bg-paper px-2.5 py-2 font-mono text-meta font-normal normal-nums focus-visible:border-line-active focus-visible:outline-none"
+export const INPUT = `${INPUT_FRAME} w-full px-2.5 py-2`
 
 /** An empty list's note block; its paragraphs stack with a 4px gap. */
 export const EMPTY = "px-2.5 py-4 font-mono text-size-meta [&_p]:mx-0 [&_p]:mt-0 [&_p]:mb-1"

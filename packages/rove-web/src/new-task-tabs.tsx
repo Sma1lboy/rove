@@ -98,7 +98,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       <div className={FIELD}>
         <span className={`${KICKER} text-muted`}>{tc("newTask", "field.gitUrl")}</span>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           data-field="url"
           spellCheck={false}
           placeholder="https://github.com/user/repo.git"
@@ -144,7 +144,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       <div className={FIELD}>
         <span className={`${KICKER} text-muted`}>{tc("newTask", "field.folderName")}</span>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           data-field="folder"
           spellCheck={false}
           placeholder={tc("newTask", "placeholder.folderName")}
@@ -160,7 +160,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
       <div className={FIELD}>
         <span className={`${KICKER} text-muted`}>{tc("newTask", "field.baseBranch")}</span>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           data-field="clone-base"
           spellCheck={false}
           placeholder="main"

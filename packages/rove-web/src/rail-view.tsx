@@ -55,7 +55,7 @@ import {
 import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
-import { EMPTY, KICKER, MONO } from "./ui/text.ts"
+import { EMPTY, MONO } from "./ui/text.ts"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -152,7 +152,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         <span className="relative">
           <button
             type="button"
-            className={`${KICKER} inbox-chip relative text-muted ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "is-accent" : ""}`}
+            className={`m-0 text-meta font-medium normal-nums inbox-chip relative ${INBOX_CHIP} ${HEAD_CHIP} ${unread > 0 ? "text-accent" : "text-muted"}`}
             onClick={() => dialog.set(<InboxDialog model={model} />)}
           >
             {t("rail.inbox", { count: unread })}

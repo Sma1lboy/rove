@@ -151,7 +151,7 @@ export function RoutineComposer(props: {
             <span className={`${KICKER} text-muted`}>{auto.fieldName}</span>
             <input
               ref={at("name")}
-              className={`${INPUT} text-ink`}
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.namePlaceholder}
               value={draft.name}
@@ -209,7 +209,7 @@ export function RoutineComposer(props: {
               <span className={`${KICKER} text-muted`}>{auto.fieldTargetTab}</span>
               <input
                 ref={at("targetTab")}
-                className={`${INPUT} text-ink`}
+                className={INPUT}
                 spellCheck={false}
                 value={draft.target.tabId}
                 onChange={(e) => draft.target && patch({ target: { ...draft.target, tabId: e.target.value } })}
@@ -221,7 +221,7 @@ export function RoutineComposer(props: {
             <span className={`${KICKER} text-muted`}>{auto.fieldPrompt}</span>
             <input
               ref={at("prompt")}
-              className={`${INPUT} text-ink`}
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.promptPlaceholder}
               value={draft.prompt}

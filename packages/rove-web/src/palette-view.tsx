@@ -105,7 +105,7 @@ function PaletteDialog({
     <DialogShell title={helpText("palette")} wide>
       <div className={`${DIALOG_BODY} palette`} onKeyDown={onKeyDown}>
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           // biome-ignore lint/a11y/noAutofocus: the palette's only field
           autoFocus
           spellCheck={false}

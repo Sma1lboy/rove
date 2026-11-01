@@ -152,7 +152,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           <label className={FIELD}>
             <span className={`${KICKER} text-muted`}>{tc("tasks", "engineModel.label")}</span>
             <input
-              className={`${INPUT} text-ink`}
+              className={INPUT}
               spellCheck={false}
               placeholder={tc("tasks", "engineModel.placeholder")}
               value={modelText}

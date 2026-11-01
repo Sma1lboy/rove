@@ -92,7 +92,7 @@ export function TextDialog(props: {
         }}
       >
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           aria-label={props.title}
           // biome-ignore lint/a11y/noAutofocus: a dialog's only field
           autoFocus

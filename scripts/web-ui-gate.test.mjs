@@ -14,7 +14,10 @@ test("moving a raw button is net zero; adding one outside src/ui is not", () => 
   assert.deepEqual(check(moved), [])
   assert.equal(check(diff("packages/rove-web/src/x.tsx", '+<button type="button">')).length, 1)
   assert.deepEqual(check(diff("packages/rove-web/src/ui/button.tsx", '+<button type="button">')), [])
-  assert.deepEqual(check(diff("packages/rove-web/src/x.tsx", '+<button type="button"> {/* ui-ok: native file input */}')), [])
+  assert.deepEqual(
+    check(diff("packages/rove-web/src/x.tsx", '+<button type="button"> {/* ui-ok: native file input */}')),
+    [],
+  )
 })
 
 test("arbitrary values only inside src/ui", () => {
@@ -31,4 +34,13 @@ test("a new stylesheet fails; tailwind.css is the theme, not a sheet", () => {
 test("a deleted sheet's lines count toward the shrink", () => {
   const gone = "--- a/packages/rove-web/src/old.css\n+++ /dev/null\n-.a {}\n-.b {}\n"
   assert.deepEqual(check(gone + diff("packages/rove-web/src/rail.css", "+.a {}")), [])
+})
+
+test("styles.css takes no new class rule, even when another sheet shrinks", () => {
+  const shrink = diff("packages/rove-web/src/settings.css", "-.a {}", "-.b {}")
+  assert.equal(check(shrink + diff("packages/rove-web/src/styles.css", "+.muted {")).length, 1)
+  assert.deepEqual(
+    check(shrink + diff("packages/rove-web/src/styles.css", "+.term-host .xterm {", "+  --ink: #000;")),
+    [],
+  )
 })

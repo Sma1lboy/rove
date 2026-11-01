@@ -35,16 +35,11 @@ export function FeedbackSection({ client }: { client: BridgeClient }) {
       <p className="text-muted">{t("settings.feedback.hint")}</p>
       <label className={FIELD}>
         <span className={`${KICKER} text-muted`}>{t("settings.feedback.titleLabel")}</span>
-        <input className={`${INPUT} text-ink`} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} />
       </label>
       <label className={FIELD}>
         <span className={`${KICKER} text-muted`}>{t("settings.feedback.body")}</span>
-        <textarea
-          className={`${INPUT} text-ink ${TEXTAREA}`}
-          rows={6}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-        />
+        <textarea className={`${INPUT} ${TEXTAREA}`} rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
       </label>
       <div className={ACTIONS}>
         <button type="submit" className={buttonClass()} disabled={busy || !title.trim() || !body.trim()}>

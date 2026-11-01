@@ -47,7 +47,7 @@ import {
   engNameClass,
   engStatusClass,
 } from "./ui/settings.ts"
-import { INPUT, PLACEHOLDER_LINE } from "./ui/text.ts"
+import { INPUT_FRAME, PLACEHOLDER_LINE } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
 interface EngineSetting {
@@ -287,7 +287,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           }}
         >
           <input
-            className={`${INPUT} text-ink ${ENG_RENAME_INPUT}`}
+            className={`${INPUT_FRAME} w-full ${ENG_RENAME_INPUT}`}
             // biome-ignore lint/a11y/noAutofocus: the rename field just opened
             autoFocus
             value={renaming}

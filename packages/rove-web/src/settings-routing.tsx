@@ -115,7 +115,7 @@ function TierEditor(props: {
       )}
       {picked?.takesModel && (
         <input
-          className={`${INPUT} text-ink`}
+          className={INPUT}
           value={model}
           spellCheck={false}
           placeholder={ts("autoRouting.engineDefault")}

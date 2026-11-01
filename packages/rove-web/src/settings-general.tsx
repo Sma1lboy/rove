@@ -16,7 +16,7 @@ import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
 import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
-import { ACTIONS, INPUT, MONO } from "./ui/text.ts"
+import { ACTIONS, INPUT_FRAME, MONO } from "./ui/text.ts"
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -179,7 +179,7 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
     <label className={PREF_ROW}>
       <span className={PREF_LABEL}>{ts("general.scrollbackTitle")}</span>
       <input
-        className={`${INPUT} text-ink ${PREF_NUMBER}`}
+        className={`${INPUT_FRAME} ${PREF_NUMBER}`}
         inputMode="numeric"
         value={draft}
         aria-label={ts("general.scrollbackField")}

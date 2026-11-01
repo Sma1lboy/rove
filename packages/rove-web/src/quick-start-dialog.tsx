@@ -113,7 +113,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
         <label className={FIELD}>
           <span className={`${KICKER} text-muted`}>{tc("quickTask", "promptLabel")}</span>
           <textarea
-            className={`${INPUT} text-ink ${TEXTAREA}`}
+            className={`${INPUT} ${TEXTAREA}`}
             data-field="message"
             // biome-ignore lint/a11y/noAutofocus: the dialog's main field
             autoFocus
@@ -158,7 +158,7 @@ export function QuickStartDialog(props: { model: AppModel; start: QuickStart; en
         <label className={FIELD}>
           <span className={`${KICKER} text-muted`}>{tc("quickTask", "branchLabel")}</span>
           <input
-            className={`${INPUT} text-ink`}
+            className={INPUT}
             data-field="base"
             spellCheck={false}
             value={baseRef}
