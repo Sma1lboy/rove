@@ -749,3 +749,14 @@ div.placeholder p {
   background: var(--inset);
   font: var(--fs-meta) var(--mono);
 }
+
+@media (hover: none) and (pointer: coarse) {
+  .dialog-close {
+    position: relative;
+  }
+  .dialog-close::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
+}

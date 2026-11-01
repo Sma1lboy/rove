@@ -205,7 +205,7 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
         )}
       </div>
       <div className="actions">
-        <span className="mono muted whats-new-keys">{t("whatsNew.keys")}</span>
+        <span className="mono muted whats-new-keys touch:hidden!">{t("whatsNew.keys")}</span>
         <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>

@@ -582,3 +582,22 @@ button:focus-visible {
   font: var(--fs-meta) / 1.5 var(--sans);
   text-align: left;
 }
+
+@media (hover: none) and (pointer: coarse) {
+  .link {
+    position: relative;
+  }
+  .link::after {
+    content: "";
+    position: absolute;
+    inset: -12px -6px;
+  }
+  /* The footer sits under the terminal key row: grow down only, at most its 4px bottom padding. */
+  .status .link::after {
+    inset: -2px -6px -4px;
+  }
+  /* Primary buttons (connect, sign out, start session) are ~24-28px tall at desktop padding. */
+  .button {
+    min-height: 40px;
+  }
+}

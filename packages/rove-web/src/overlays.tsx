@@ -31,7 +31,7 @@ function MenuRow(props: {
       aria-checked={item.checked}
       aria-haspopup={item.children ? "menu" : undefined}
       aria-expanded={item.children ? Boolean(props.open) : undefined}
-      className={`menu-item ${props.selected ? "is-selected" : ""} ${props.open ? "is-open" : ""} ${item.danger ? "is-danger" : ""}`}
+      className={`menu-item touch:py-2.5 ${props.selected ? "is-selected" : ""} ${props.open ? "is-open" : ""} ${item.danger ? "is-danger" : ""}`}
       onMouseEnter={props.onEnter}
       onMouseLeave={props.onLeave}
       onClick={props.onPick}
@@ -44,7 +44,7 @@ function MenuRow(props: {
           ✓
         </span>
       ) : (
-        item.key && <span className="menu-key">{item.key}</span>
+        item.key && <span className="menu-key touch:hidden!">{item.key}</span>
       )}
     </button>
   )
