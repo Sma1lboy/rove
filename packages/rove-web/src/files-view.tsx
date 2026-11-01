@@ -9,21 +9,32 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
-import { Chevron } from "./chevron.tsx"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
+import { Chevron } from "./ui/chevron.tsx"
 import { Chip } from "./ui/chip.tsx"
+import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 type Tab = "all" | "changes"
+
+/** A changed file's status letter in its tone (`?` = untracked). */
+const STATUS_TONE: Partial<Record<string, string>> = {
+  M: "text-warning",
+  A: "text-success",
+  "?": "text-success",
+  D: "text-error",
+  R: "text-accent",
+}
 
 interface Row {
   readonly path: string
@@ -158,7 +169,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
 
   return (
     <div
-      className={`files group/pane ${narrow ? "is-narrow" : ""}`}
+      className={`group/pane flex min-h-0 min-w-0 flex-1 flex-col outline-none ${narrow ? "px-1.5 pt-2.5 pb-2" : "pt-0.5 pr-1.5 pb-1.5 pl-0"}`}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the pane takes focus so its keys stay scoped to it, as in the TUI
       tabIndex={0}
       ref={pane}
@@ -195,16 +206,16 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           </Button>
         </div>
       )}
-      <div className="files-body">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {error && <p className="error mono">{error}</p>}
         {!error && loaded && rows.length === 0 && (
-          <p className="placeholder-line">{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
+          <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
         )}
         {rows.map((r, i) => (
           <button
             type="button"
             key={r.path}
-            className={`row file-row ${i === at ? "is-selected" : ""}`}
+            className={rowClass({ selected: i === at, size: narrow ? "file-narrow" : "file" })}
             style={{ paddingLeft: 8 + r.depth * 14 }}
             title={r.path}
             onClick={() => {
@@ -215,11 +226,13 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             }}
           >
             {r.status ? (
-              <span className={`glyph status-${r.status === "?" ? "untracked" : r.status}`}>{r.status}</span>
+              <span className={`${GLYPH} ${STATUS_TONE[r.status] ?? ""}`}>{r.status}</span>
             ) : (
-              <span className="glyph tone-muted file-fold">{r.dir ? <Chevron right={!r.open} /> : null}</span>
+              <span className={`${GLYPH} tone-muted grid place-items-center`}>
+                {r.dir ? <Chevron right={!r.open} /> : null}
+              </span>
             )}
-            <span className="row-title">{r.label}</span>
+            <span className={ROW_TITLE}>{r.label}</span>
             {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
             {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
           </button>

@@ -8,12 +8,13 @@
 import { useEffect, useState } from "react"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
-import "./taskops.css"
 import { toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { HINT } from "./ui/text.ts"
 
 export interface PickerEngine {
   readonly id: string
@@ -135,11 +136,11 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
               <button
                 type="button"
                 aria-pressed={e.id === pick}
-                className={`row ${e.id === pick ? "is-selected" : ""}`}
+                className={rowClass({ selected: e.id === pick })}
                 onClick={() => choose(e.id)}
               >
-                <span className="glyph tone-accent">{e.id === pick ? "●" : " "}</span>
-                <span className="row-title">{e.name}</span>
+                <span className={`${GLYPH} tone-accent`}>{e.id === pick ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{e.name}</span>
                 {e.id === current.engine && <span className="muted">{tc("tasks", "changeEngine.current")}</span>}
               </button>
             </li>
@@ -184,7 +185,7 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
             </div>
           </div>
         )}
-        <p className="muted taskops-hint keys-only">
+        <p className={`keys-only ${HINT}`}>
           <Legend
             text={[
               tc("tasks", "changeEngine.footer.engine"),

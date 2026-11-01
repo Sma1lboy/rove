@@ -17,6 +17,7 @@ import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
+import { HINT } from "./ui/text.ts"
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
 export type NewChatContext = "fresh" | "continue"
@@ -246,7 +247,7 @@ export function NewChatDialog(props: {
         {isTouch() ? (
           <p className="muted">{t("pages.attachHintTouch")}</p>
         ) : (
-          <p className="muted newtask-legend">{tc("quickTask", "legend")}</p>
+          <p className={`newtask-legend mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
         )}
         {error && <p className="error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />

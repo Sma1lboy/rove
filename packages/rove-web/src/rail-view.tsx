@@ -4,12 +4,10 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
-import { Chevron } from "./chevron.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
-import { Legend } from "./legend.tsx"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { moveMode } from "./move-mode.ts"
@@ -32,11 +30,13 @@ import { type ProjectInfo, projectMenu, taskMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
-import { StatusDots } from "./status-dots.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
-import "./taskops.css"
+import { Chevron } from "./ui/chevron.tsx"
+import { Legend } from "./ui/legend.tsx"
+import { CHIPS, ROW_TITLE_RAIL, rowClass } from "./ui/row.ts"
+import { StatusDots } from "./ui/status-dots.tsx"
 import { UpdateChip } from "./update-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
@@ -347,12 +347,14 @@ function RailRow(props: {
     return (
       <button
         type="button"
-        className={`row count-row archived-row ${cursor}`}
+        className={`${rowClass({ moving: props.moving || props.dragging })} ${cursor}`}
         aria-expanded={row.expanded}
         onClick={props.onClick}
         {...props.place}
       >
-        <span className="row-title muted">{tc("tasks", "archivedRow", { count: row.count })}</span>
+        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "muted"}`}>
+          {tc("tasks", "archivedRow", { count: row.count })}
+        </span>
       </button>
     )
   }
@@ -363,7 +365,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`row task-row ${props.selected ? "is-selected" : ""} ${cursor} ${running ? "is-running" : ""}`}
+      className={`task-row ${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor} ${running ? "is-running" : ""}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}
@@ -380,16 +382,16 @@ function RailRow(props: {
           ))}
         </span>
       )}
-      <span className="row-title">{rowTitle(task, props.tabs)}</span>
-      <span className="chips">
-        {row.level !== undefined && <span className="chip muted">{row.level}</span>}
+      <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""}`}>{rowTitle(task, props.tabs)}</span>
+      <span className={`${CHIPS} ml-auto items-center`}>
+        {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
         {(task.extraRepoCount ?? 0) > 0 && (
-          <span className="chip muted" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
+          <span className="text-subtle" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
             +{task.extraRepoCount}
           </span>
         )}
         {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}
-        {task.pinned && <span className="chip muted">▴</span>}
+        {task.pinned && <span className="text-subtle">▴</span>}
         {/* The PR list opens where the title tip sits; only one card at a time. */}
         <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}

@@ -5,8 +5,9 @@
  *
  * Engine readiness comes first; optional installs follow.
  *
- * Accepted installs are queued until the TUI exits and releases the terminal
- * (`cli/welcome.ts`).
+ * The skill installs the moment it is accepted, and the result shows in the
+ * dialog. Completions are queued until the TUI exits and releases the
+ * terminal (`cli/welcome.ts`).
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -15,6 +16,7 @@ import { useEffect, useRef, useState } from "react"
 import type { ShellKind } from "../../cli/completion-scripts.ts"
 import { trackWelcomeWrite } from "../../cli/launch-tui.ts"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
+import { installSkillErrors, skillTargets } from "../../lib/skill-install.ts"
 import { wizardKeyLines } from "../../tui/lib/keyboard-hints"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { useTheme } from "../context/theme"
@@ -27,7 +29,6 @@ import { EngineWelcomePage } from "./engine-page"
 /** Confirmed choices survive dismissal; unanswered questions default to No. */
 export interface OnboardingChoices {
   readonly completions: boolean
-  readonly skill: boolean
 }
 
 type StepId = "completions" | "skill"
@@ -42,9 +43,12 @@ export function WelcomeDialogView(props: {
   probe?: () => Promise<WelcomeEnv>
   onDone: (choices: OnboardingChoices) => void
   onAnswers?: (choices: OnboardingChoices) => void
+  /** Installs the skill and returns the line to show; injected by the render track. */
+  installSkill?: () => string
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
+  const [skillLine, setSkillLine] = useState<string | null>(null)
   // No shell detected → no completions question.
   const steps: readonly StepId[] = props.shell === null ? ["skill"] : ["completions", "skill"]
   const [stepIndex, setStepIndex] = useState(0)
@@ -66,7 +70,7 @@ export function WelcomeDialogView(props: {
   const step = steps[stepIndex] as StepId
 
   function finish(finalAnswers: Partial<Record<StepId, boolean>>): void {
-    props.onDone({ completions: finalAnswers.completions ?? false, skill: finalAnswers.skill ?? false })
+    props.onDone({ completions: finalAnswers.completions ?? false })
   }
 
   // `choice` defaults to the keyboard cursor; mouse passes its own option
@@ -82,7 +86,8 @@ export function WelcomeDialogView(props: {
     }
     const next = { ...answers, [step]: choice }
     setAnswers(next)
-    props.onAnswers?.({ completions: next.completions ?? false, skill: next.skill ?? false })
+    if (step === "skill" && choice) setSkillLine((props.installSkill ?? (() => installSkillLine(t)))())
+    props.onAnswers?.({ completions: next.completions ?? false })
     if (stepIndex + 1 >= steps.length) {
       setPage("keys")
       return
@@ -130,7 +135,7 @@ export function WelcomeDialogView(props: {
               {questionFor(answered)}
             </text>
             <text fg={theme.text} wrapMode="none">
-              {answers[answered] ? t("onboarding.queued") : t("onboarding.skipped")}
+              {!answers[answered] ? t("onboarding.skipped") : answered === "skill" ? skillLine : t("onboarding.queued")}
             </text>
           </box>
         ))}
@@ -197,12 +202,22 @@ export function WelcomeDialogView(props: {
   )
 }
 
+/** Copy the skill into every engine set up here; the line says where, or why not. */
+function installSkillLine(t: ReturnType<typeof useT>): string {
+  const engines = skillTargets().map((target) => target.displayName)
+  if (engines.length === 0) return t("onboarding.skillNoEngines")
+  const error = installSkillErrors()
+  return error
+    ? t("onboarding.skillFailed", { reason: error })
+    : t("onboarding.skillInstalled", { engines: engines.join(", ") })
+}
+
 /** `replace`, not `push`: it arrives on boot with nothing underneath to return to. */
 function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c: OnboardingChoices) => void }): void {
   // `dialog.clear()` runs this entry's onClose, so without the guard an
   // accepted answer is followed by a "declined everything" one that wins.
   let settled = false
-  let confirmed: OnboardingChoices = { completions: false, skill: false }
+  let confirmed: OnboardingChoices = { completions: false }
   const once = (choices: OnboardingChoices): void => {
     if (settled) return
     settled = true

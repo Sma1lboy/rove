@@ -63,3 +63,7 @@ The full suite (`ci.yml`) is a batch, not a per-PR gate: it runs on `main` every
 `bun run pre-pr -- --full` runs that suite locally instead, in a parallel pool (`--jobs`, default half the cores): the rove unit tests, the render track in four shards, behavior in three, the harness PTY tests, the visual ground truth, and on Windows the plugin-windows acceptance when its paths changed. On Windows the POSIX suites run in a WSL distro against a copy of HEAD (commit first). It cannot run clean-linux-install (docker on Linux/macOS) or the iOS simulator suite. `gh workflow run ci.yml --ref <branch>` runs the cloud suite on a branch.
 
 `bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch: a few seconds). The pre-commit hook stays milliseconds-only.
+
+## Diagrams in `docs/`
+
+Mermaid (` ```mermaid ` fences); ASCII only for ≤3 nodes with no states.

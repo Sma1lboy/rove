@@ -49,20 +49,6 @@
   background: var(--inset);
 }
 
-/* The phone's file list fills the panel; rows sized for a finger. */
-.files.is-narrow {
-  flex: 1;
-  padding: 10px 6px 8px;
-}
-
-.files.is-narrow .file-row {
-  min-height: 36px;
-}
-
-.recent-row .glyph {
-  font-weight: 700;
-}
-
 /* Rail edge, fold control */
 .rail {
   position: relative;
@@ -141,7 +127,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .app,
-  .tab-strip,
   .app.is-rail-folded .rail {
     transition: none;
   }
@@ -531,7 +516,7 @@
   .update-key,
   .kb-legend:empty,
   .pg-hint:empty {
-    /* Sheets imported after this one (welcome.css, pages.css) set their own display at equal specificity. */
+    /* Sheets imported after this one (pages.css) set their own display at equal specificity. */
     display: none !important;
   }
   .term-keys {
@@ -544,8 +529,7 @@
     bottom: 48px;
   }
   /* A long-press opens the row's menu (long-press.ts), not iOS's text selection and callout. */
-  .rail,
-  .tab {
+  .rail {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
@@ -556,8 +540,7 @@
   .eng-make-default {
     opacity: 1;
   }
-  /* A fingertip is ~40px: list rows grow to it; small controls keep their look and get an invisible larger hit area. */
-  .row,
+  /* A fingertip is ~40px: nav rows grow to it; small controls keep their look and get an invisible larger hit area. */
   .rail-nav-row {
     min-height: 40px;
   }

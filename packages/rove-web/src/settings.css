@@ -479,11 +479,6 @@ html[data-working-border="flow"] .pane.is-working {
   }
 }
 
-/* Tab strip: `chat.tabStrip.mode` hides the session tabs (the rail tree lists them); the panel launcher stays. */
-.tab-strip.is-tabs-hidden .tab {
-  display: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   html[data-running-title="shimmer"] .task-row.is-running .row-title {
     animation: none;

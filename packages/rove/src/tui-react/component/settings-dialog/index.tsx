@@ -15,6 +15,7 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
+import { installSkillErrors } from "../../../lib/skill-install"
 import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
@@ -111,6 +112,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
   async function runHookUninstall(): Promise<void> {
     await uninstallEngineHooks()
+    integrations.reprobe()
+  }
+  const [skillError, setSkillError] = useState<string | null>(null)
+  function runSkillInstall(): void {
+    setSkillError(installSkillErrors())
     integrations.reprobe()
   }
   // The tier targets, gated against the same account probe the cards read.
@@ -248,6 +254,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
     engineHooksUninstall: () => void runHookUninstall(),
+    engineSkillInstall: () => runSkillInstall(),
     autoRoutingTier: (row) => void autoRouting.edit(row.tier),
     autoRoutingClassifier: () => classifier.cycle(),
     autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
@@ -404,6 +411,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               hooksInstalled={hooksInstalled}
               onInstallHooks={() => void runHookInstall()}
               onUninstallHooks={() => void runHookUninstall()}
+              skillError={skillError}
+              onInstallSkill={runSkillInstall}
             />
           ) : null}
           {section === "autoRouting" ? (

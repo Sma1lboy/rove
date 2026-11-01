@@ -58,11 +58,11 @@ Ship a new chord only as PROPOSED and surface it. Record each decision and reaso
 ### Layout: flex-first, hardcode last
 Yoga flexbox: panes share width by ratio (`flexGrow`), not pixels. Fixed `width={N}`/`height={N}` only for a documented convention, a fixed terminal glyph, or a modal. Avoid `height="100%"`.
 
+### Web UI: Tailwind in the TSX, controls from `packages/rove-web/src/ui/`
+Style with Tailwind token classes on the element; write no new CSS. A control used twice is a `src/ui/` component (add a variant, never a className override). Rules: the `rove-ui` skill §0.
+
 ### Engine-owned UI data
 The engine adapter owns agent/product identity, capabilities, history, and telemetry. Neutral layers (TUI, web, orchestrator) never hard-code Claude/Codex strings or derive vendor metrics. A new pane needing engine-specific data → extend the engine contract first. Specifics: [`docs/agents/dev-loop.md`](./docs/agents/dev-loop.md).
-
-### Diagrams in `docs/`: Mermaid
-` ```mermaid ` fences; ASCII only for ≤3 nodes with no states.
 
 ### Tests: pin behavior, not implementation
 Test a bug that happened, a boundary users hit, or a contract other code relies on — one test per behavior, at the highest level that can see it. Don't test constants against copies, re-exports, shapes `tsc` checks, mock-was-called with no observable outcome, or the same behavior twice.

@@ -25,6 +25,7 @@ import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
+import { HINT } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]
@@ -398,7 +399,9 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
         <div hidden={tab !== "adopt"}>
           <AdoptTab {...common} repo={repo} active={tab === "adopt"} />
         </div>
-        <p className="muted newtask-legend">{tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}</p>
+        <p className={`newtask-legend mx-0 mt-2 mb-0 ${HINT}`}>
+          {tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}
+        </p>
       </div>
     </DialogShell>
   )

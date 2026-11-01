@@ -6,8 +6,8 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
-import "./taskops.css"
 import { closeDialog } from "./ui.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
@@ -145,7 +145,7 @@ export function ConfirmDialog(props: {
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
       <div className="dialog-body">
-        <p className="muted taskops-body">
+        <p className="muted whitespace-pre-line">
           {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
         </p>
         {error && !(escalated && props.escalate?.body) && <p className="error">{error}</p>}
@@ -209,12 +209,12 @@ export function ChoiceDialog(props: {
                 type="button"
                 aria-pressed={choice.value === props.current}
                 disabled={busy}
-                className={`row ${i === index ? "is-selected" : ""}`}
+                className={rowClass({ selected: i === index })}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => pick(choice.value)}
               >
-                <span className="glyph tone-accent">{choice.value === props.current ? "●" : " "}</span>
-                <span className="row-title">{choice.label}</span>
+                <span className={`${GLYPH} tone-accent`}>{choice.value === props.current ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{choice.label}</span>
               </button>
             </li>
           ))}

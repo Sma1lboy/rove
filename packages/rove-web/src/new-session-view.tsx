@@ -274,7 +274,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   return (
     <div className="new-session">
       <div className="new-session-hero">
-        <h1 className="welcome-title">{t("newSession.title")}</h1>
+        <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
         <p className="muted">{t("newSession.tagline")}</p>
       </div>
       <form

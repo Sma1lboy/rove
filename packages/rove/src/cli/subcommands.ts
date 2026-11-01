@@ -54,7 +54,7 @@ export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string
     "pane",
   ],
   repo: ["show", "set", "unset"],
-  skill: ["install", "status", "command", "print"],
+  skill: ["install", "status", "print"],
   theme: ["list", "add", "remove"],
   weixin: ["login", "logout", "status", "allow", "deny", "send", "agent"],
 }

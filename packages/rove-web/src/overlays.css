@@ -160,6 +160,10 @@
   margin: 0;
 }
 
+.dialog-body + div > .dialog-body {
+  margin-top: 14px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -372,13 +376,6 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.inbox-card {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  padding: 6px 10px;
 }
 
 .inbox-line {

@@ -20,6 +20,8 @@ built-in engine registers an entry exposing:
   `rove doctor`).
 - `createHookAdapter` — installs activity hooks into the engine's own config
   file so sessions report normalized events.
+- `skillsDir` — the user-level dir the engine loads agent skills from, or null
+  when the engine isn't set up here; `rove skill install` copies into it.
 - `createTurnDetector` — turn-completion detection for the chat tab.
 - `defaultCommand` / `displayName` / `effortLevels` / `terminalTitle` /
   `quotaUsage` — launch argv, labels, reasoning-effort flags, OSC title

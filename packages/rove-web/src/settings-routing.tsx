@@ -13,6 +13,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
 import { Group, ReadOnlyRow } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 interface Tier {
   readonly tier: "swift" | "standard" | "deep"
@@ -144,7 +145,7 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!routing) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!routing) return <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
   const c = routing.classifier
   const modeLabel =
     c.mode === "off"

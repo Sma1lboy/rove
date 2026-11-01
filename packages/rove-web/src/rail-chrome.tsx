@@ -13,7 +13,6 @@ import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
@@ -26,7 +25,9 @@ import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rai
 import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
 import { dialog, dragLayout } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Two releases closer together than this are one double-click. */
@@ -185,9 +186,9 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
 export function RecentRow({ title }: { title: string }) {
   useLocale()
   return (
-    <button type="button" className="row recent-row" onClick={enterWorkspace}>
-      <span className="glyph tone-accent">↩</span>
-      <span className="row-title">{tasksText("recentJump", { title })}</span>
+    <button type="button" className={rowClass({})} onClick={enterWorkspace}>
+      <span className={`${GLYPH} tone-accent font-bold`}>↩</span>
+      <span className={ROW_TITLE}>{tasksText("recentJump", { title })}</span>
     </button>
   )
 }

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const spies = vi.hoisted(() => ({
   enforceResetGate: vi.fn(),
-  hintSkillInstall: vi.fn(),
   installHooks: vi.fn(async () => {}),
   publishTitle: vi.fn(),
   startWorkspaceHost: vi.fn(async () => {}),
@@ -20,7 +19,6 @@ vi.mock("../../src/cli/reset-gate.ts", async (importActual) => ({
 }))
 vi.mock("../../src/cli/whats-new.ts", () => ({ takeWhatsNew: spies.takeWhatsNew }))
 vi.mock("../../src/cli/welcome.ts", () => ({ takeWelcome: spies.takeWelcome }))
-vi.mock("../../src/lib/skill-install.ts", () => ({ maybeHintSkillInstall: spies.hintSkillInstall }))
 vi.mock("../../src/tui/lib/outer-terminal-title.ts", () => ({ publishRoveTerminalTitle: spies.publishTitle }))
 vi.mock("../../src/tui-react/workspace/start-workspace", () => ({ startWorkspaceHost: spies.startWorkspaceHost }))
 

@@ -2,7 +2,7 @@
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/rove-daemon/client/daemon-process"
-import { installDaemonCrashHandlers, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
+import { installDaemonCrashHandlers, logDaemonError, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
@@ -12,6 +12,7 @@ import { startChatChannels } from "../channels/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
 import { cancelAllLogins } from "../github/login.ts"
+import { refreshOutdatedSkills } from "../lib/skill-install.ts"
 import { RELAY_PREAMBLE } from "../machines/relay-preamble.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -181,6 +182,15 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     },
   )
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
+  // A boot follows every upgrade: bring installed skill copies up to this build.
+  try {
+    for (const { target, error } of refreshOutdatedSkills()) {
+      if (error) logDaemonError("skill-refresh", new Error(`${target.dir}: ${error}`))
+      else logDaemonInfo("skill-refresh", `refreshed ${target.dir}`)
+    }
+  } catch (err) {
+    logDaemonError("skill-refresh", err)
+  }
   channels = await startChatChannels({
     socketPath: server.socketPath,
     log: logDaemonInfo,

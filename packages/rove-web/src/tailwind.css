@@ -28,6 +28,8 @@
   --color-merged: var(--merged);
   --color-diff-added: var(--diff-added);
   --color-diff-removed: var(--diff-removed);
+  --color-diff-added-bg: var(--diff-added-bg);
+  --color-diff-removed-bg: var(--diff-removed-bg);
   --color-transparent: transparent;
 
   --font-*: initial;
@@ -51,6 +53,19 @@
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius);
 
+  /* The rail's fold and the panels' slide. */
+  --ease-snap: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Text measures: a reading column, a key-cap column. */
+  --container-reading: 72ch;
+  --container-cap: 8ch;
+
+  /* body's line-height, which a sheet's bare `font-size` kept. */
+  --leading-body: 1.4;
+
+  --tracking-*: initial;
+  --tracking-code: 0.08em;
+
   --shadow-*: initial;
   --shadow-popover: var(--shadow-popover);
   --shadow-dialog: var(--shadow-dialog);
@@ -64,4 +79,19 @@
 @utility border-hairline {
   border-width: var(--hairline);
   border-style: solid;
+}
+
+/* Under the folded rail: the workspace's top bar clears the floating rail buttons. */
+@custom-variant rail-folded (:where(.app.is-rail-folded) &);
+
+/* The phone layout (app.tsx `is-narrow`). */
+@custom-variant narrow (:where(.app.is-narrow) &);
+
+/* A long-press opens the element's own menu (long-press.ts), not iOS's callout. */
+@utility touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
+@utility transition-padding-left {
+  transition-property: padding-left;
 }

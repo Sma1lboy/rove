@@ -10,10 +10,11 @@ import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
-import { Legend } from "./legend.tsx"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 
 interface Card {
   readonly key: string
@@ -116,12 +117,12 @@ export function InboxDialog({ model }: { model: AppModel }) {
       <li key={card.key}>
         <button
           type="button"
-          className={`inbox-card row ${active ? "is-selected" : ""}`}
+          className={rowClass({ selected: active, stack: true })}
           onMouseEnter={() => setIndex(cards.indexOf(card))}
           onClick={() => open(card)}
         >
           <span className="inbox-line">
-            <span className="row-title">{card.identity}</span>
+            <span className={ROW_TITLE}>{card.identity}</span>
             {badge && (
               <span className={`inbox-badge tone-${badge.tone}`}>
                 {badge.glyph} {t(badge.stateKey)}

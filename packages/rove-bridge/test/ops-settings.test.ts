@@ -229,6 +229,8 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
     integrations: () => [],
     engineName: (id) => id,
     defaultCommand: (id) => [id, "--sandbox=none"],
+    installSkill: () => null,
+    takeSkillNudge: () => null,
   }
   return { state, ops: createEngineOps(deps) }
 }
@@ -370,7 +372,9 @@ describe("engine switches keep the section's invariants", () => {
 
   test("every engine write is destructive and there is no way to author a launch command", () => {
     const { ops } = engineHarness()
-    for (const [name, spec] of Object.entries(ops)) expect(spec.destructive).toBe(name !== "engines.settings")
+    // skill.nudge only stamps which engines the launch notice already named.
+    const harmless = ["engines.settings", "skill.nudge"]
+    for (const [name, spec] of Object.entries(ops)) expect(spec.destructive).toBe(!harmless.includes(name))
     expect(Object.keys(ops).some((name) => /command/i.test(name))).toBe(false)
   })
 })

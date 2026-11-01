@@ -48,10 +48,12 @@ under 0.5px. Report numbers as before → after.
 - **New styling is Tailwind utilities** (`src/tailwind.css`). Only Rove's tokens exist as
   utilities (`bg-paper`, `text-accent`, `text-meta`, `rounded-sm`, `border-hairline border-line`,
   `touch:` for coarse pointers); Tailwind's own palette and type scale are cleared, so a stray
-  `text-gray-500` does not compile. Arbitrary values (`p-[7px]`) need the same justification as
-  a raw hex.
+  `text-gray-500` does not compile. Arbitrary values (`p-[7px]`) live in `src/ui/` only.
 - **Legacy sheets shrink, never grow.** When a view moves to `src/ui/`, delete the rules it
   replaced in the same PR. Raw CSS stays for xterm, the page grid, and `@utility` definitions.
+- **The gate:** `scripts/web-ui-gate.mjs` (pre-pr, and pr-gates for others' PRs) fails a diff that
+  grows the legacy `.css` sheets, adds one, nets new raw `<button>`/checkbox outside `src/ui/`, or
+  puts an arbitrary value outside it. A line that must break the last two carries `ui-ok: <reason>`.
 - **No class merging.** A `className` passed to a `ui/` component may add placement but must not
   set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
 

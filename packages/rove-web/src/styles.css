@@ -265,55 +265,10 @@ button:focus-visible {
   height: 100%;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 26px;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  text-align: left;
-  position: relative;
-}
-
-.row:hover,
-.row[data-menu-open],
-.tab[data-menu-open] {
-  background: var(--hover);
-}
-
-.row.is-selected {
-  background: var(--inset);
-}
-
-.glyph {
-  flex: none;
-  width: 1ch;
-  font-family: var(--mono);
-  text-align: center;
-}
-
-.row-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chips {
-  display: flex;
-  gap: 6px;
-  flex: none;
-  font: var(--fs-meta) var(--mono);
-}
-
 .tone-accent {
   color: var(--accent);
 }
-.tone-muted,
-.chip.muted {
+.tone-muted {
   color: var(--subtle);
 }
 .tone-attention {
@@ -600,16 +555,12 @@ button:focus-visible {
   font: 600 var(--fs-meta) var(--sans);
 }
 
-.button:active,
-.row:active,
-.tab:active {
+.button:active {
   transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button:active,
-  .row:active,
-  .tab:active {
+  .button:active {
     transform: none;
   }
 
@@ -618,8 +569,6 @@ button:focus-visible {
   }
 }
 
-.row.is-stale .row-title,
-.row.is-stale .glyph,
 .project-head.is-stale {
   color: var(--subtle);
 }

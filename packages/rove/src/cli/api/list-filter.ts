@@ -83,3 +83,64 @@ export async function filterTaskList(
     ...(repo && repo.unresolvableRepos.length > 0 ? { unresolvableRepos: repo.unresolvableRepos } : {}),
   }
 }
+
+// `satisfies` makes tsc fail when SerializedTask gains or loses a key, so `--fields` never drifts from the wire.
+const TASK_FIELDS = {
+  id: true,
+  title: true,
+  repo: true,
+  branch: true,
+  worktreePath: true,
+  kind: true,
+  scratch: true,
+  noProject: true,
+  routine: true,
+  status: true,
+  pinned: true,
+  archived: true,
+  vendor: true,
+  command: true,
+  prStatus: true,
+  modelEffort: true,
+  model: true,
+  tier: true,
+  groupId: true,
+  observedLanguage: true,
+  deletion: true,
+  quotaResume: true,
+  linkedWorkItem: true,
+  dispatcher: true,
+  parentTaskId: true,
+  sharesWorkspaceOf: true,
+  cwdSubpath: true,
+  ptyAlias: true,
+  requireReport: true,
+  prompt: true,
+  baseRef: true,
+  worktreeName: true,
+  extraRepos: true,
+  sessionPrs: true,
+  report: true,
+  origin: true,
+  repoId: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Record<keyof SerializedTask, true>
+
+/** Every name `list --fields` accepts: the task's own keys plus the ones `list` adds. */
+export const LIST_FIELDS: readonly string[] = [...Object.keys(TASK_FIELDS), "repoCount", "activity"]
+
+/** `--fields a,b`: the keys each task row keeps, or `undefined` for the full row. */
+export function listFields(ctx: VerbContext): readonly string[] | undefined {
+  const fields = csvOf(ctx, "fields", LIST_FIELDS)
+  return fields ? [...fields] : undefined
+}
+
+/** Keeps only `fields` on each row; a key a task does not carry stays absent rather than `null`. */
+export function projectTasks<T extends object>(tasks: readonly T[], fields: readonly string[]): Partial<T>[] {
+  return tasks.map((task) => {
+    const row: Record<string, unknown> = {}
+    for (const field of fields) if (field in task) row[field] = (task as Record<string, unknown>)[field]
+    return row as Partial<T>
+  })
+}

@@ -68,6 +68,7 @@ export type SettingsRow =
   | { id: "add-engine"; kind: "engineAdd" }
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
+  | { id: "install-skill"; kind: "engineSkillInstall" }
   | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
   | { id: "auto-routing-classifier"; kind: "autoRoutingClassifier" }
   | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
@@ -179,6 +180,9 @@ export function engineRows(engineList: readonly VendorId[]): SettingsRow[] {
     // buttons, so j/k walks between them and enter fires the one under the
     // cursor — no chord to learn for an action taken once a year.
     { id: "uninstall-hooks", kind: "engineHooksUninstall" },
+    // The Rove agent skill: install only. Removing it is deleting a folder the
+    // user can see in Details, not a Rove integration to tear down.
+    { id: "install-skill", kind: "engineSkillInstall" },
   ]
 }
 

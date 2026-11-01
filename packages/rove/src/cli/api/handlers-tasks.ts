@@ -21,7 +21,7 @@ import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { readRunnability } from "./handlers-runnability.ts"
 import { conversationHome, failSharedChild, withFirstConversationLock } from "./handlers-spawn.ts"
-import { filterTaskList, listFilters } from "./list-filter.ts"
+import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
@@ -450,13 +450,12 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   const wantArchived = ctx.args.bool("archived") ?? false
   const merged = { ...all, tasks: (all.tasks ?? []).filter((task) => (task.archived === true) === wantArchived) }
   const filters = listFilters(ctx)
+  const fields = listFields(ctx)
   const result = filters ? { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) } : merged
   if (!result.tasks) return result
   // `.repoCount` (primary included) marks a multi-repo task; one-repo rows stay as they were.
-  return {
-    ...result,
-    tasks: result.tasks.map((t) => (t.extraRepos?.length ? { ...t, repoCount: t.extraRepos.length + 1 } : t)),
-  }
+  const tasks = result.tasks.map((t) => (t.extraRepos?.length ? { ...t, repoCount: t.extraRepos.length + 1 } : t))
+  return { ...result, tasks: fields ? projectTasks(tasks, fields) : tasks }
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {
