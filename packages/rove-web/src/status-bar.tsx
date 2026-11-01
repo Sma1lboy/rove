@@ -1,33 +1,23 @@
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { StatusHints } from "./rail-chrome.tsx"
 import { useStore } from "./store.ts"
 import { STATUS_BAR, connDot } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
-import { UsageChips } from "./usage-view.tsx"
 
-/** TUI order: usage on the left, key hints on the right; the link speaks up only while it is down. */
-export function StatusBar({ model, narrow }: { model: AppModel; narrow: boolean }) {
+/** Nothing while the link is up: the footer exists only to say it is down (or coming back), with a way to retry. */
+export function StatusBar({ model }: { model: AppModel }) {
   const client = model.client
   const conn = useStore(client.conn)
-  const selection = useStore(model.selection)
+  if (conn.state === "open") return null
   return (
     <footer className={STATUS_BAR}>
-      <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />
-      {conn.state !== "open" && (
-        <>
-          <span className={connDot(conn.state === "retrying")} />
-          <span>
-            {conn.state === "retrying" ? t("status.retrying", { count: conn.failures }) : t("status.connecting")}
-          </span>
-        </>
-      )}
+      <span className={connDot(conn.state === "retrying")} />
+      <span>{conn.state === "retrying" ? t("status.retrying", { count: conn.failures }) : t("status.connecting")}</span>
       {conn.state === "retrying" && (
         <button type="button" className={LINK} onClick={() => client.retryNow()}>
           {t("status.retry")}
         </button>
       )}
-      <StatusHints model={model} narrow={narrow} />
     </footer>
   )
 }

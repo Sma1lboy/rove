@@ -1,14 +1,12 @@
 /**
  * What frames the Tasks rail and the workspace: the rail's drag edge, the top-left fold / back /
- * forward bar, the narrow layout's `‹ Tasks` bar and `↩ Recent` row, and the footer's clickable key
- * hints (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `StatusKeyHintBar`).
+ * forward bar, the narrow layout's `‹ Tasks` bar and `↩ Recent` row, and a pane's key line
+ * (TUI `sidebar-resize-grip`, `collapse-button`, `narrow-back-bar`, `PaneKeyHint`).
  */
 
 import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
-import { paneHintTokens, statusHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
-import { type PointerEvent, useEffect, useRef, useState } from "react"
-import { currentSurface, reachability } from "./commands.ts"
-import { openHelp } from "./help-view.tsx"
+import { paneHintTokens } from "@sma1lboy/rove/src/tui/lib/keyboard-hints.ts"
+import { type PointerEvent, useRef } from "react"
 import { type HintPane, hintsUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
@@ -17,21 +15,16 @@ import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
 import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
-import { ShortcutBadge } from "./prefix-guide.tsx"
-import { armPrefix } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
-import { SettingsDialog } from "./settings-view.tsx"
 import { useStore } from "./store.ts"
-import { dialog, dragLayout } from "./ui.ts"
+import { dragLayout } from "./ui.ts"
 import { Legend } from "./ui/legend.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { HINT_BAR, NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from "./ui/shell.ts"
-import { LINK } from "./ui/text.ts"
-import { prefixKey, userKeys } from "./user-keys.ts"
+import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from "./ui/shell.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -194,69 +187,6 @@ export function RecentRow({ title }: { title: string }) {
       <span className={`${GLYPH} font-bold text-accent`}>↩</span>
       <span className={ROW_TITLE}>{tasksText("recentJump", { title })}</span>
     </button>
-  )
-}
-
-/** Surface (and so the reachable chords) follows focus; re-read when it moves. */
-function useFocusTick(): void {
-  const [, tick] = useState(0)
-  useEffect(() => {
-    const bump = () => tick((n) => n + 1)
-    window.addEventListener("focusin", bump)
-    window.addEventListener("focusout", bump)
-    return () => {
-      window.removeEventListener("focusin", bump)
-      window.removeEventListener("focusout", bump)
-    }
-  }, [])
-}
-
-/** The footer's key hints (`⌃ A commands · F1 help · [settings]`): live chords only, each a click target that does what its key would. */
-export function StatusHints({ model, narrow }: { model: AppModel; narrow: boolean }) {
-  useLocale()
-  useFocusTick()
-  useStore(dialog)
-  useStore(model.selection)
-  useStore(userKeys)
-  const { prefs } = usePrefs()
-  const modal = dialog.get() !== null
-  const tokens = modal ? [] : statusHintTokens(reachability(model, currentSurface()), prefixKey())
-  const press = {
-    commands: armPrefix,
-    help: () => openHelp(model),
-    sidebar: () => document.querySelector<HTMLElement>(".rail")?.focus(),
-  } as const
-  const items: Array<{ text: string; onPress: () => void; bindingId?: string }> = tokens.map((token) => ({
-    text: narrow ? formatChord(token.chord) : hintText(`status.${token.msg}`, { key: formatChord(token.chord) }),
-    onPress: press[token.msg],
-  }))
-  // Hints off (Settings -> General): no footer key line at all, [settings] included, as the TUI.
-  if (!prefs.keyHints) return null
-  if (!narrow) {
-    items.push({
-      text: `[${hintText("status.settings")}]`,
-      onPress: () => dialog.set(<SettingsDialog model={model} />),
-      bindingId: "settings.open",
-    })
-  }
-  return (
-    // A hint is a click target, not a focus target: the pane keeps focus so the key it arms reaches it.
-    <span className={`mono ${HINT_BAR}`} onMouseDown={(e) => e.preventDefault()}>
-      {items.map((item) => (
-        <span key={item.text}>
-          <button
-            type="button"
-            className={LINK}
-            disabled={modal}
-            data-prefix-arm={item.onPress === armPrefix ? "" : undefined}
-            onClick={item.onPress}
-          >
-            {item.text}
-          </button>
-          {item.bindingId && <ShortcutBadge model={model} bindingId={item.bindingId} />}
-        </span>
-      ))}
-    </span>
   )
 }
 
