@@ -32,7 +32,12 @@ export const DP_MACHINE = "absolute rounded-md"
 export const machineHeadClass = (stale: boolean): string =>
   `h-7.5 truncate px-2.5 text-meta leading-[30px] ${stale ? "text-subtle" : "text-muted"}`
 
-const POSE: Record<string, string> = { knock: "text-warning", ask: "text-warning", done: "text-success", failed: "text-error" }
+const POSE: Record<string, string> = {
+  knock: "text-warning",
+  ask: "text-warning",
+  done: "text-success",
+  failed: "text-error",
+}
 /** JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
 export const courierClass = (pose: string): string =>
   `pointer-events-none absolute top-0 left-0 w-6 font-mono text-meta leading-[14px] whitespace-pre [font-variant-ligatures:none] will-change-transform ${POSE[pose] ?? "text-accent"}`
@@ -41,10 +46,16 @@ export const DP_EMPTY = `absolute right-0 bottom-2.5 left-0 m-0 text-center ${SI
 export const DP_SECTION = "flex flex-col gap-0.5"
 export const DP_KICKER = "m-0 mb-1"
 export const DP_PAST =
-  "grid w-full min-w-0 cursor-pointer grid-cols-[2ch_minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-3 rounded-sm border-0 bg-transparent px-2 py-0.75 text-left text-ink [font:inherit] hover:bg-hover touch:py-2.5"
-export const DP_ROUTE = `min-w-0 truncate ${SIZE_META}`
+  "grid w-full min-w-0 cursor-pointer grid-cols-[2ch_minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-3 rounded-sm border-0 border-none bg-transparent px-2 py-0.75 text-left text-ink [font:inherit] hover:bg-hover touch:py-2.5"
+/** Beside `.mono`, whose `font:` shorthand resets the line height: a plain size utility keeps that. */
+export const DP_ROUTE = "min-w-0 truncate text-meta"
 export const DP_PROMPT = `min-w-0 truncate ${SIZE_META} font-sans`
-export const DP_AGE = SIZE_META
+export const DP_AGE = "text-meta"
 
-const STATUS: Record<string, string> = { working: "text-accent", asking: "text-warning", failed: "text-error", done: "text-success" }
+const STATUS: Record<string, string> = {
+  working: "text-accent",
+  asking: "text-warning",
+  failed: "text-error",
+  done: "text-success",
+}
 export const statusClass = (status: string): string => STATUS[status] ?? "text-muted"

@@ -223,7 +223,10 @@ export function DispatchView({ model }: { model: AppModel }) {
                   className={dp.DP_MACHINE}
                   style={{ right: edge, top: columnTop + frame.top, width: nodeW, height: frame.height }}
                 >
-                  <span className={`mono ${dp.machineHeadClass(row?.state !== "online")}`} title={remoteLabel(frame.machine, row, words)}>
+                  <span
+                    className={`mono ${dp.machineHeadClass(row?.state !== "online")}`}
+                    title={remoteLabel(frame.machine, row, words)}
+                  >
                     {label}
                   </span>
                 </div>
