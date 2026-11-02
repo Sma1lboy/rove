@@ -61,6 +61,8 @@ interface RoutinesReply {
   readonly automations: readonly Automation[]
   readonly keepsDaemonAlive: boolean
   readonly lastRunStatus?: Readonly<Record<string, AutomationRunStatus>>
+  /** The newest failure among recent runs; absent when none failed (or an older daemon). */
+  readonly lastFailure?: Readonly<Record<string, { readonly at: string; readonly reason: string }>>
 }
 
 export function RoutinesView({ model }: { model: AppModel }) {
@@ -95,6 +97,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
 
   const listed = reply?.automations ?? []
   const lastRunStatus = reply?.lastRunStatus ?? {}
+  const lastFailure = reply?.lastFailure ?? {}
   const needsYou = (routine: Automation) => {
     const status = lastRunStatus[routine.id]
     return status !== undefined && automationRunNeedsAttention(status)
@@ -394,6 +397,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
                         <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
                           {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
                         </span>
+                        {lastFailure[routine.id] ? (
+                          <span className={`mono text-warning ${RT_ROW_SUB}`} title={lastFailure[routine.id]?.reason}>
+                            {fill(auto.lastFailed, {
+                              when: when(lastFailure[routine.id]?.at),
+                              reason: lastFailure[routine.id]?.reason ?? "",
+                            })}
+                          </span>
+                        ) : null}
                       </div>
                     )
                   })}

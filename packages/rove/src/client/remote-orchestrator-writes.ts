@@ -407,11 +407,13 @@ export async function mutateIssueOp(client: RoveDaemonClient, repoRoot: string, 
 }
 
 /** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
- *  for a never-run routine (row health without a request per row). */
+ *  for a never-run routine (row health without a request per row); `lastFailure`
+ *  = the newest failure among recent runs, absent when none failed. */
 export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
   automations: Automation[]
   keepsDaemonAlive: boolean
   lastRunStatus?: Record<string, AutomationRunStatus>
+  lastFailure?: Record<string, { readonly at: string; readonly reason: string }>
 }> {
   return client.request("automation.list", {})
 }

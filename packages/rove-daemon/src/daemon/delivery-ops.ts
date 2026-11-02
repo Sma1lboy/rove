@@ -48,6 +48,35 @@ export function withDeliveryReport(run: AutomationRun, deliveries: Pick<Deliveri
   }
 }
 
+/** What a routine row says about its most recent failure, so a stall or a self-healed outage is visible. */
+export interface RoutineFailure {
+  /** ISO-8601: when the run was refused or its engine stopped. */
+  readonly at: string
+  readonly reason: string
+}
+
+/** Run outcomes that are failures. A precheck exiting non-zero, a missed or cancelled tick, or a
+ *  busy/quota skip is the routine working as configured, not something to flag. */
+const FAILED_RUN: ReadonlySet<string> = new Set(["dispatch_failed", "script_failed", "skipped_unavailable"])
+
+/**
+ * The newest of `runs` (newest first) that went wrong: a dispatch or script error, a firing held on
+ * an unreported tick, or a delivery its engine ended with no report (`transient-failure: Unable to
+ * connect`). Undefined when none did.
+ */
+export function lastRoutineFailure(
+  runs: readonly AutomationRun[],
+  deliveries: Pick<DeliveriesStore, "get">,
+): RoutineFailure | undefined {
+  for (const run of runs) {
+    const held = run.status === "skipped_blocked" && run.blocked?.reason === "report-missing"
+    if (run.error && (FAILED_RUN.has(run.status) || held)) return { at: run.at, reason: run.error }
+    const missing = run.deliveryId ? deliveries.get(run.deliveryId)?.missing : undefined
+    if (missing) return { at: missing.at, reason: `${missing.cause}${missing.note ? `: ${missing.note}` : ""}` }
+  }
+  return undefined
+}
+
 /** Throws on a malformed report; the verb refuses rather than truncating. */
 function validateReport(input: DeliveryReportInput): Omit<DeliveryReport, "at"> {
   if (!DELIVERY_OUTCOMES.includes(input.outcome)) {
@@ -160,7 +189,12 @@ export async function trackDeliveryTurn(
     await markDeliveryMissing(deps, {
       taskId,
       tabId,
-      cause: detail?.failure === "rate_limit" ? "rate-limited" : "turn-failed",
+      cause:
+        detail?.failure === "rate_limit"
+          ? "rate-limited"
+          : detail?.failure === "transient"
+            ? "transient-failure"
+            : "turn-failed",
       scope: "started-or-oldest",
       ...(note ? { note } : {}),
     })

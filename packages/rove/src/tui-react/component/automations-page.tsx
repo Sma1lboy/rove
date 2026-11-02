@@ -72,6 +72,7 @@ export function AutomationsPage(props: {
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
   /** Latest run status per routine id — the list's health column. */
   const [lastRunStatus, setLastRunStatus] = useState<Record<string, AutomationRunStatus>>({})
+  const [lastFailure, setLastFailure] = useState<Record<string, { readonly at: string; readonly reason: string }>>({})
   const [runs, setRuns] = useState<readonly AutomationRun[]>([])
   const [reloadTick, setReloadTick] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -95,6 +96,7 @@ export function AutomationsPage(props: {
           setKeepsDaemonAlive(result.keepsDaemonAlive)
           // Older daemons omit it; empty renders every row as "never run".
           setLastRunStatus(result.lastRunStatus ?? {})
+          setLastFailure(result.lastFailure ?? {})
         })
         .catch(() => {
           // Keep the previous rows (stale, not wrong) until the next poll succeeds.
@@ -432,6 +434,14 @@ export function AutomationsPage(props: {
               </text>
               {selected.precheck ? (
                 <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
+              ) : null}
+              {lastFailure[selected.id] ? (
+                <text fg={theme.warning} wrapMode="word">
+                  {t("automations.lastFailed", {
+                    when: formatWhen(lastFailure[selected.id]?.at, now),
+                    reason: lastFailure[selected.id]?.reason ?? "",
+                  })}
+                </text>
               ) : null}
               <RunHistory runs={runs} now={now} />
             </box>
