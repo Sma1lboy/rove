@@ -35,11 +35,19 @@ const BUSY: ReadonlySet<TaskActivityState> = new Set(["running", "permission_nee
 const DONE: ReadonlySet<TaskActivityState> = new Set(["turn_complete", "idle"])
 
 const keyOf = (taskId: string, tabId: string): string => `${taskId}::${tabId}`
-const SETTLE_MS = 1500
+/** Between a turn's end and a paste: long enough for a menu event that trails the Stop to land. */
+export const SETTLE_MS = 1500
+
+/** What the queue last saw a tab do. `unconfirmed`: it came to rest straight from a menu, never through a running turn. */
+interface TabReading {
+  readonly state: TaskActivityState
+  readonly at: number
+  readonly unconfirmed: boolean
+}
 
 export class PromptQueue {
   private items: QueuedPrompt[] = []
-  private readonly last = new Map<string, TaskActivityState>()
+  private readonly last = new Map<string, TabReading>()
   private readonly handing = new Set<string>()
   private seq = 1
   private readonly off: () => void
@@ -78,7 +86,10 @@ export class PromptQueue {
       at: this.now(),
     }
     this.items = [...this.items, item]
-    if (state !== undefined) this.last.set(keyOf(input.taskId, input.tabId), state)
+    if (state !== undefined) {
+      const key = keyOf(input.taskId, input.tabId)
+      if (this.last.get(key)?.state !== state) this.last.set(key, { state, at: this.now(), unconfirmed: false })
+    }
     return { queued: true, item, position: ahead + 1 }
   }
 
@@ -93,6 +104,30 @@ export class PromptQueue {
     return this.items.length < before
   }
 
+  /**
+   * The tab's last rest came straight from a menu, never through a running turn: a stray Stop, the menu
+   * possibly still drawn (a real approval reports `running` before its Stop). A client answering the menu
+   * with keys (`answeredAt`, after the rest) closes it. False for a tab the queue never saw.
+   */
+  restUnconfirmed(taskId: string, tabId: string, answeredAt?: number): boolean {
+    const reading = this.last.get(keyOf(taskId, tabId))
+    if (!reading || !DONE.has(reading.state) || !reading.unconfirmed) return false
+    return answeredAt === undefined || answeredAt < reading.at
+  }
+
+  /** Ms until a menu event trailing the tab's turn end would have landed; 0 unless it only just came to rest. */
+  settleLeft(taskId: string, tabId: string): number {
+    const reading = this.last.get(keyOf(taskId, tabId))
+    if (!reading || !DONE.has(reading.state)) return 0
+    return Math.max(0, SETTLE_MS - (this.now() - reading.at))
+  }
+
+  /** Tab ids of `taskId` the queue has a reading for. */
+  tabsOf(taskId: string): string[] {
+    const prefix = `${taskId}::`
+    return [...this.last.keys()].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length))
+  }
+
   close(): void {
     this.off()
   }
@@ -104,11 +139,15 @@ export class PromptQueue {
   private observe(taskId: string, tabId: string, state: TaskActivityState): void {
     const key = keyOf(taskId, tabId)
     const prev = this.last.get(key)
-    this.last.set(key, state)
+    // A rest is unconfirmed when it follows a menu directly, and stays so across further rest states.
+    const unconfirmed =
+      DONE.has(state) &&
+      (prev?.state === "permission_needed" || (prev !== undefined && DONE.has(prev.state) && prev.unconfirmed))
+    this.last.set(key, { state, at: this.now(), unconfirmed })
     // Only a turn seen working and then ending hands one over (the paste starts the next turn, whose end
     // hands the next). Straight from a menu to an end is a stray Stop with the menu still drawn: a real
     // approval reports `running` before its Stop. A held-back head waits for that same edge.
-    if (prev === "running" && DONE.has(state)) void this.handOver(taskId, tabId)
+    if (prev?.state === "running" && DONE.has(state)) void this.handOver(taskId, tabId)
   }
 
   private async handOver(taskId: string, tabId: string): Promise<void> {

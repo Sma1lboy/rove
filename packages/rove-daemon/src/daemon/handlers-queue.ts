@@ -17,14 +17,26 @@ function queueOf(ctx: DaemonHandlerContext): PromptQueue {
 }
 
 /**
- * Why the tab cannot take a paste right now, read at paste time with the signal `send` refuses on
- * (`status.list` needs-input, the ledger's permission_needed): Enter into a menu would confirm its
- * highlighted option. Null when it can.
+ * A paste into this tab could land in a menu: the row status every client shows says it needs input, or the
+ * tab came to rest straight from a menu (a stray Stop; the menu may still be drawn) and no client has since
+ * answered it with keys. Enter into a menu would confirm its highlighted option.
  */
-export function heldBack(ctx: Pick<DaemonHandlerContext, "activity" | "rowStatus">, item: QueuedPrompt): string | null {
+export function awaitingMenu(
+  ctx: Pick<DaemonHandlerContext, "rowStatus" | "promptQueue">,
+  taskId: string,
+  tabId: string,
+): boolean {
+  if (ctx.rowStatus?.list().tasks[taskId]?.tabs[tabId]?.kind === "needs-input") return true
+  return ctx.promptQueue?.restUnconfirmed(taskId, tabId, ctx.rowStatus?.answeredAt(taskId, tabId)) === true
+}
+
+/** Why the tab cannot take a queued paste right now, read at paste time. Null when it can. */
+export function heldBack(
+  ctx: Pick<DaemonHandlerContext, "activity" | "rowStatus" | "promptQueue">,
+  item: QueuedPrompt,
+): string | null {
   const state = ctx.activity.stateOf(item.taskId, item.tabId)
-  const row = ctx.rowStatus?.list().tasks[item.taskId]?.tabs[item.tabId]
-  if (state === "permission_needed" || row?.kind === "needs-input") return "awaiting-permission"
+  if (state === "permission_needed" || awaitingMenu(ctx, item.taskId, item.tabId)) return "awaiting-permission"
   if (state === "running" || state === "rate_limited") return "busy"
   return null
 }
@@ -101,6 +113,27 @@ export const QUEUE_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "queue.cancel",
     handle(payload, ctx) {
       return { cancelled: queueOf(ctx).cancel(requireString(payload, "id")) }
+    },
+  },
+  {
+    // A plain `send` pastes at once, even into a running turn (`--queue` is the after-this-turn lane); it
+    // only refuses a tab at a menu. `settleMs` is how long a menu event trailing a fresh turn end may still land.
+    name: "send.check",
+    handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const named = optionalString(payload, "tabId")
+      const tabs = named
+        ? [named]
+        : [
+            ...new Set([
+              ...Object.keys(ctx.rowStatus?.list().tasks[taskId]?.tabs ?? {}),
+              ...(ctx.promptQueue?.tabsOf(taskId) ?? []),
+            ]),
+          ]
+      return {
+        awaiting: tabs.filter((tab) => awaitingMenu(ctx, taskId, tab)),
+        settleMs: Math.max(0, ...tabs.map((tab) => ctx.promptQueue?.settleLeft(taskId, tab) ?? 0)),
+      }
     },
   },
 ]
