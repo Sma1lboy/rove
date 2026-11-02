@@ -273,6 +273,7 @@ Score: 199 / 217 rows at ✅ (2 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 201 | Press a mod button | click, ↑/↓ + Enter | ✅ | `mod.press` | mods: three clicks on `+1` in the browser took the count 0 -> 3; the harness TUI on the same home then showed `Count: 3` (one mod process, every client redraws). Shots web-same-home, tui-synced. |
 | 203 | Type into a mod's field and submit | field, Enter | ✅ | `mod.submit` | mods: a note typed into the counter-mod field in the harness TUI appeared on the web page, a note typed on the web appeared in the TUI, and both fields emptied after Enter. Shots tui-after, web-mods-notes. |
 | 202 | Answer a plugin's input dialog (`rove api prompt`) | dialog Enter/Esc | ✅ | `prompt` push, `ui.promptReply` | mods: with only the web attached to the harness sandbox, `rove api prompt --title "Repo to watch?"` opened the web's dialog titled by the plugin; typing `Sma1lboy/rove` and submit made the CLI print `{"value":"Sma1lboy/rove"}`. Esc/cancel replies a cancel; a second client answering later gets PROMPT_GONE (bridge test). Shot web-prompt. |
+| 214 | Check for updates (Settings › General › Updates) | row opens Update page | ✅ | `update.check` | Web: the button forces `update.check` and shows current v latest, "No newer release", "vX available" + Update page link + `rove update`, or "could not reach the registry". TUI: the row closes Settings and opens the Update page, which checks on open. Same source: npm dist-tag via `checkLatestVersion`. |
 
 ## Machines and approval boundary
 

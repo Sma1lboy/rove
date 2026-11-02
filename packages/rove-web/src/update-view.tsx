@@ -49,10 +49,15 @@ export function useCatalog() {
   return useLocale() === "zh" ? upZh : upEn
 }
 
-export function checkForUpdate(client: BridgeClient): Promise<void> {
-  return client
-    .request<CheckReply>("update.check", { force: true, locale: locale.get() })
-    .then(updateState.set, () => {})
+/** Asks the registry (bypassing the bridge cache). `false` = the request itself failed. */
+export function checkForUpdate(client: BridgeClient): Promise<boolean> {
+  return client.request<CheckReply>("update.check", { force: true, locale: locale.get() }).then(
+    (reply) => {
+      updateState.set(reply)
+      return true
+    },
+    () => false,
+  )
 }
 
 /** Rail head chip, as the TUI brand row's `↑ v`: only when the registry says newer. */

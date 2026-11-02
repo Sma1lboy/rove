@@ -11,6 +11,8 @@ export const en = {
   /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
   chip: "↑ {version}",
   current: "current",
+  /** Settings › Updates result line when the registry has a newer release. */
+  available: "v{version} available",
   latest: "latest",
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
@@ -102,6 +104,7 @@ export const zh: typeof en = {
   closeHint: "q / esc 关闭",
   chip: "↑ {version}",
   current: "当前",
+  available: "有新版本 v{version}",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",
   registryRetry: "请检查网络，然后关闭并重新打开更新页重试。",

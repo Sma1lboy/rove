@@ -115,6 +115,7 @@ export function GeneralSettingsSection(
     appearance: AppearanceSettings
     currentLocale: LocaleId
     selectLanguage: (locale: LocaleId) => void
+    onCheckUpdate?: () => void
     usage?: UsageSnapshotMap | null
   },
 ) {
@@ -156,6 +157,7 @@ export function GeneralSettingsSection(
   const zenDefaultOnRow = rowIdx("zen-default-on")
   const updateChannelRow = rowIdx("update-channel")
   const updateTryRow = rowIdx("update-try")
+  const updateCheckRow = rowIdx("update-check")
   const tryChannel = tryOutChannel()
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
@@ -285,6 +287,16 @@ export function GeneralSettingsSection(
             hint={hint("settings.general.updateTryHint")}
           >
             {pad(t(`settings.general.updateTry.${tryChannel}`))}
+          </Row>
+          <Row
+            cursor={isBodyCursor(updateCheckRow)}
+            rowRef={props.rowRef(updateCheckRow)}
+            onMouseUp={activate(updateCheckRow, () => props.onCheckUpdate?.())}
+            fg={theme.text}
+            bold={isBodyCursor(updateCheckRow)}
+            hint={hint("settings.general.updateCheckHint")}
+          >
+            {pad(t("settings.general.updateCheck"))}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>
