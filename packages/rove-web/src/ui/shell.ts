@@ -166,12 +166,13 @@ export const TERM_SNAPSHOT =
 export const termNotice = (error: boolean): string =>
   `absolute right-2.5 bottom-2.5 z-5 flex items-center gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.25 font-mono text-meta ${FONT_RESET} ${error ? "text-error" : "text-muted"} [&_.link:disabled]:pointer-events-none [&_.link:disabled]:opacity-60`
 
-/** The footer: usage left, key hints right. Its links grow their touch target down only, at most its 4px bottom padding. */
+/** The link-state footer: shown only while the bridge is down. Its link grows its touch target down only, at most its 4px bottom padding. */
 export const STATUS_BAR = `col-span-full touch:[&_.link]:after:inset-[-2px_-6px_-4px] flex min-w-0 items-center gap-2 [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 py-1 font-mono text-meta ${FONT_RESET} whitespace-nowrap text-muted`
 export const connDot = (retrying: boolean): string => `size-1.5 rounded-full ${retrying ? "bg-warning" : "bg-subtle"}`
 
-/** The usage half takes the footer's spare width; usage-view.tsx measures it to pick the full or compact form. */
-export const USAGE = "flex min-w-0 flex-[1_1_0] gap-4 overflow-hidden whitespace-nowrap"
+/** Usage in the rail's foot and at the top of Settings on a phone: quiet text that wraps, no strip behind it. */
+export const USAGE_QUIET =
+  "flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 px-3.5 pt-1 pb-0.5 whitespace-nowrap text-meta text-muted"
 /** Gap of 2 TUI cells between a chip's parts; tone only on the percent. */
 export const USAGE_CHIP = "[&>span:nth-child(n+3)]:ml-2"
 export const USAGE_TONE: Readonly<Record<string, string>> = {

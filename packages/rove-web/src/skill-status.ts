@@ -1,18 +1,14 @@
 /**
- * The TUI's `SkillBanner`: while an engine set up on the Mac has no Rove agent skill, a strip
- * above the app names it and installs on click. Not dismissible; it clears once installed. One line
- * at any width: the engine list truncates (full text on hover) so a phone keeps its screen.
+ * Which engines set up on the Mac have no Rove agent skill (the TUI's `skill-status.ts`). The rail's Settings
+ * entry shows a dot while any is listed, and Settings › Engines installs; nothing here draws a strip.
  */
 
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
-import { useLocale } from "./i18n/index.ts"
 import { ts } from "./settings-copy.ts"
-import { createStore, useStore } from "./store.ts"
+import { createStore } from "./store.ts"
 import { toast } from "./ui.ts"
-import { Button } from "./ui/button.tsx"
-import { SKILL_BANNER, SKILL_BANNER_HINT, SKILL_BANNER_TITLE } from "./ui/skill-banner.ts"
 
 /** Display names of engines lacking the skill. */
 export const skillMissing = createStore<readonly string[]>([])
@@ -46,23 +42,4 @@ export function installSkill(client: BridgeClient): Promise<void> {
     })
     .catch((e) => toast(errorText(e), "error"))
     .then(() => checkSkill(client))
-}
-
-export function SkillBanner({ client }: { client: BridgeClient }) {
-  useLocale()
-  const engines = useStore(skillMissing)
-  if (engines.length === 0) return null
-  const hint = ts("engines.skill.bannerHintWeb", { engines: engines.join(", ") })
-  return (
-    // Accent, not the daemon banner's warning: nothing is broken, a step is missing.
-    <output className={SKILL_BANNER}>
-      <b className={SKILL_BANNER_TITLE}>{ts("engines.skill.bannerTitle")}</b>
-      <span className={SKILL_BANNER_HINT} title={hint}>
-        {hint}
-      </span>
-      <Button hit="tight" className="shrink-0" onClick={() => void installSkill(client)}>
-        {ts("engines.skill.bannerAction")}
-      </Button>
-    </output>
-  )
 }

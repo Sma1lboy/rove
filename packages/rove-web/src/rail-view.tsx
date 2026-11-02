@@ -28,7 +28,9 @@ import { withPanes } from "./rail-panes.ts"
 import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
+import { ts } from "./settings-copy.ts"
 import { SettingsDialog } from "./settings-view.tsx"
+import { skillMissing } from "./skill-status.ts"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -36,7 +38,7 @@ import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
-import { RAIL_FOOT, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
+import { RAIL_FOOT, RAIL_NAV_DOT, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import {
   CHILD_INDENT,
   FOLD_TOGGLE,
@@ -57,6 +59,7 @@ import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
 import { EMPTY } from "./ui/text.ts"
 import { UpdateChip } from "./update-view.tsx"
+import { UsageChips } from "./usage-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
@@ -77,6 +80,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
+  const skillGap = useStore(skillMissing)
+  const skillHint = ts("engines.skill.bannerHintWeb", { engines: skillGap.join(", ") })
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
@@ -292,7 +297,8 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           ),
         )}
       </div>
-      {/* Always here: the footer's [settings] hint goes with key hints off or on a phone. */}
+      {/* The usage line sits above Settings on a wide rail; a phone finds it at the top of Settings. */}
+      {!narrow && <UsageChips client={model.client} taskId={selection.taskId} tabId={selection.tabId} />}
       <div className={RAIL_FOOT}>
         <button type="button" className={`rail-nav-row ${railNavRowClass(false)}`} onClick={openSettings}>
           {/* Lucide `settings` (ISC). */}
@@ -301,6 +307,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
             <circle cx="12" cy="12" r="3" />
           </svg>
           <span>{t("rail.settings")}</span>
+          {skillGap.length > 0 && (
+            // Nothing is broken, a step is missing: a quiet dot, the engines named on hover. Install is in Settings › Engines.
+            <span className={RAIL_NAV_DOT} role="img" title={skillHint} aria-label={skillHint} />
+          )}
         </button>
         <ShortcutBadge model={model} bindingId="settings.open" />
       </div>

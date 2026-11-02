@@ -85,7 +85,6 @@ export const en = {
       bannerTitle: "ROVE SKILL NOT INSTALLED",
       bannerHint: "{engines} can't drive Rove yet (start tasks, read other sessions). Click here to install.",
       bannerHintWeb: "{engines} can't drive Rove yet (start tasks, read other sessions).",
-      bannerAction: "Install",
     },
     integrations: {
       title: "Engine integrations",
@@ -202,7 +201,6 @@ export const zh: typeof en = {
       bannerTitle: "ROVE 技能未安装",
       bannerHint: "{engines} 还不能操作 Rove（开任务、读其他会话）。点这里安装。",
       bannerHintWeb: "{engines} 还不能操作 Rove（开任务、读其他会话）。",
-      bannerAction: "安装",
     },
     integrations: {
       title: "引擎接入",
