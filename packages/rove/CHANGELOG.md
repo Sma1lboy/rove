@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.276
+
+### Patch Changes
+
+- [#1631](https://github.com/Sma1lboy/rove/pull/1631) [`0420c9b`](https://github.com/Sma1lboy/rove/commit/0420c9bc85c14220ce573a0aa7d87b90a55ef761) Ships the 0.9.275 changes: that version was tagged but never reached npm, because a release-notes check mistook a PR path quoted in a changelog entry for a leftover link. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.275
 
 ### Patch Changes
