@@ -26,6 +26,10 @@ export type QueueAddResult =
   | { readonly queued: false }
   | { readonly queued: true; readonly item: QueuedPrompt; readonly position: number }
 
+export type QueueEditResult =
+  | { readonly edited: true; readonly item: QueuedPrompt }
+  | { readonly edited: false; readonly reason: "not-found" | "pasting" }
+
 /** Pastes one item; resolves to an error string when nothing landed, null when it did. */
 export type QueueDeliver = (item: QueuedPrompt) => Promise<string | null>
 
@@ -49,6 +53,8 @@ export class PromptQueue {
   private items: QueuedPrompt[] = []
   private readonly last = new Map<string, TabReading>()
   private readonly handing = new Set<string>()
+  /** Ids being pasted right now: an edit then would report success for text that never lands. */
+  private readonly pasting = new Set<string>()
   private seq = 1
   private readonly off: () => void
 
@@ -128,6 +134,16 @@ export class PromptQueue {
     return [...this.last.keys()].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length))
   }
 
+  /** Replace a held prompt's text in place, keeping its id and its turn in line. */
+  edit(id: string, text: string): QueueEditResult {
+    if (this.pasting.has(id)) return { edited: false, reason: "pasting" }
+    const found = this.items.find((i) => i.id === id)
+    if (!found) return { edited: false, reason: "not-found" }
+    const item: QueuedPrompt = { ...found, text }
+    this.items = this.items.map((i) => (i.id === id ? item : i))
+    return { edited: true, item }
+  }
+
   close(): void {
     this.off()
   }
@@ -159,7 +175,10 @@ export class PromptQueue {
       await this.settle()
       const head = this.forTab(taskId, tabId)[0]
       if (!head) return
-      const error = await this.deliver(head).catch((err: unknown) => (err instanceof Error ? err.message : String(err)))
+      this.pasting.add(head.id)
+      const error = await this.deliver(head)
+        .catch((err: unknown) => (err instanceof Error ? err.message : String(err)))
+        .finally(() => this.pasting.delete(head.id))
       if (error === null) this.items = this.items.filter((i) => i.id !== head.id)
       else this.items = this.items.map((i) => (i.id === head.id ? { ...i, lastError: error } : i))
     } finally {

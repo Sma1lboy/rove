@@ -200,6 +200,7 @@ export type DaemonRequestName =
   // Prompts held for a busy tab until its turn ends (`prompt-queue.ts`, `send --queue`).
   | "queue.add"
   | "queue.list"
+  | "queue.edit"
   | "queue.cancel"
   // `send.check`: which tabs of a task a paste would land in a menu on (`handlers-queue.ts`), read-only.
   | "send.check"

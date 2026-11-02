@@ -136,6 +136,41 @@ describe("PromptQueue", () => {
     expect(queue.cancel(added.item.id)).toBe(true)
     expect(queue.list()).toEqual([])
   })
+
+  it("edits a held prompt in place: same id, same place in line, new text pasted", async () => {
+    const { queue, pasted, to } = harness("running")
+    const first = queue.add({ taskId: "t", tabId: "tab-1", text: "one" })
+    queue.add({ taskId: "t", tabId: "tab-1", text: "two" })
+    if (!first.queued) throw new Error("expected queued")
+    expect(queue.edit(first.item.id, "one, fixed")).toMatchObject({ edited: true, item: { id: first.item.id } })
+    expect(queue.list().map((i) => i.text)).toEqual(["one, fixed", "two"])
+    to("turn_complete")
+    await vi.waitFor(() => expect(pasted).toEqual(["one, fixed"]))
+    expect(queue.edit(first.item.id, "too late")).toEqual({ edited: false, reason: "not-found" })
+  })
+
+  it("refuses to edit a prompt whose paste has started, so the reply never claims text that did not land", async () => {
+    const bus = new DaemonEventBus()
+    const landing = Promise.withResolvers<string | null>()
+    const pasted: string[] = []
+    const queue = new PromptQueue(
+      bus,
+      () => "running",
+      (item) => {
+        pasted.push(item.text)
+        return landing.promise
+      },
+      Date.now,
+      () => Promise.resolve(),
+    )
+    const added = queue.add({ taskId: "t", tabId: "tab-1", text: "old" })
+    if (!added.queued) throw new Error("expected queued")
+    bus.publish("engine-state", { taskId: "t", tabId: "tab-1", state: "turn_complete", at: 0 })
+    await vi.waitFor(() => expect(pasted).toEqual(["old"]))
+    expect(queue.edit(added.item.id, "new")).toEqual({ edited: false, reason: "pasting" })
+    landing.resolve(null)
+    await vi.waitFor(() => expect(queue.list()).toEqual([]))
+  })
 })
 
 describe("heldBack", () => {

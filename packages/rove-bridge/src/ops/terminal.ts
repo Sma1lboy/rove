@@ -274,6 +274,17 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       },
     },
 
+    "queue.edit": {
+      kind: "write",
+      destructive: false,
+      wraps: "rove api queue-edit --id --prompt (rewrite a held prompt in place)",
+      async run(a, { api }) {
+        const id = str(a, "id")
+        if (!/^q-\d+$/.test(id)) throw new BridgeError("BAD_ARGS", "id must look like q-N")
+        return await api.verb("queue-edit", [flag("id", id), flag("prompt", str(a, "text"))])
+      },
+    },
+
     "queue.cancel": {
       kind: "write",
       destructive: false,

@@ -72,6 +72,23 @@ export const QUEUE_LIST_VERB: VerbSpec = {
     simpleRpc(ctx, "queue.list", ctx.args.str("task-id") ? { taskId: ctx.args.str("task-id") } : {}),
 }
 
+export const QUEUE_EDIT_VERB: VerbSpec = {
+  name: "queue-edit",
+  group: "drive",
+  summary:
+    'Rewrite a prompt `send --queue` is holding (`queue-list` gives the id), keeping its id and its place in line: {edited:true, item} or {edited:false, reason:"not-found"|"pasting"}. `pasting` means its turn already came and the old text is going in.',
+  flags: [
+    { name: "id", type: "string", required: true, placeholder: "q-N", description: "The held prompt's id." },
+    F.prompt(true, "The new text, replacing the held prompt's."),
+    F.promptFile(),
+  ],
+  handler: async (ctx) => {
+    const text = ctx.args.promptText()
+    if (text === undefined) throw new ApiError("pass --prompt or --prompt-file", "MISSING_FLAG", helpStep("queue-edit"))
+    return simpleRpc(ctx, "queue.edit", { id: ctx.args.require("id"), text })
+  },
+}
+
 export const QUEUE_CANCEL_VERB: VerbSpec = {
   name: "queue-cancel",
   group: "drive",
