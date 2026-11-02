@@ -11,6 +11,7 @@ import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/ro
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
 import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
+import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
@@ -145,7 +146,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     return pending
   }
   const owner = (stream: string): TerminalForwarder => conn.streamOwner.get(stream) ?? terminal()
-  if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, conn, req)
+  if (DESTRUCTIVE_CORE[req.op]) logDestructive({ log: deps.log, who: conn.who }, req)
   switch (req.op) {
     case "hello":
       return {
@@ -164,7 +165,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       if (typeof params !== "object" || params === null || Array.isArray(params)) {
         throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
       }
-      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, conn, verb, params as Record<string, unknown>)
+      if (Object.hasOwn(DESTRUCTIVE_VERBS, verb)) {
+        logDestructiveVerb({ log: deps.log, who: conn.who }, verb, params as Record<string, unknown>)
+      }
       const envelope = await deps.invoke(verb, params as ApiParams, optStr(a, "machine"))
       if (envelope.ok) return envelope.result
       throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
@@ -337,7 +340,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const spec = (deps.areaOps ?? AREA_OPS)[req.op]
       // Unreachable for unregistered names: parseRequest already refused them.
       if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
-      if (spec.destructive) logDestructive(deps, conn, req)
+      if (spec.destructive) logDestructive({ log: deps.log, who: conn.who }, req)
       return spec.run(a, {
         api: deps.api,
         progress: (line) => ws.send(pushEvent("op.progress", { id: req.id, line })),
@@ -349,45 +352,6 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
 function requirePush(deps: BridgeDeps): NonNullable<BridgeDeps["push"]> {
   if (!deps.push) throw new BridgeError("UNAVAILABLE", "this bridge sends no push notifications")
   return deps.push
-}
-
-/** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
-const DESTRUCTIVE_CORE: Readonly<Record<string, true>> = { "task.delete": true, "task.land": true, "tab.close": true }
-
-/**
- * Verbs that lose work or are hard to undo, audited like {@link DESTRUCTIVE_CORE}.
- * The token already grants a shell (`term.input`), so serving verbs adds no
- * power; the audit line is what keeps a destructive call visible.
- */
-const DESTRUCTIVE_VERBS: ReadonlySet<string> = new Set([
-  "delete",
-  "land",
-  "remove-worktree",
-  "tab-close",
-  "issue-delete",
-  "routine-delete",
-  "note-delete",
-])
-
-function logDestructiveVerb(deps: BridgeDeps, conn: Conn, verb: string, params: Record<string, unknown>): void {
-  const ids = ["task-id", "tab", "id"]
-    .filter((key) => typeof params[key] === "string" || typeof params[key] === "number")
-    .map((key) => `${key}=${String(params[key])}`)
-  audit(deps, conn, `api.invoke ${verb}`, ids)
-}
-
-/** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
-function logDestructive(deps: BridgeDeps, conn: Conn, req: Request): void {
-  const ids = ["taskId", "tabId", "path"]
-    .filter((key) => typeof req.args[key] === "string")
-    .map((key) => `${key}=${String(req.args[key])}`)
-  audit(deps, conn, req.op, ids)
-}
-
-/** When and by whom, so a line can be matched to the daemon's `task-deletion-audit` and to a device to revoke. */
-function audit(deps: BridgeDeps, conn: Conn, what: string, ids: readonly string[]): void {
-  const line = `[rove-bridge] ${new Date().toISOString()} ${what} ${ids.join(" ")}`.trimEnd()
-  ;(deps.log ?? ((l: string) => console.error(l)))(`${line} ${conn.who}`)
 }
 
 async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: string): Promise<void> {
