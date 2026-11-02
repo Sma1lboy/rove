@@ -65,6 +65,8 @@ export type SettingsDialogProps = {
   orchestrator?: RoveOrchestrator
   /** Section to open on; absent = the first. */
   initialSection?: SectionId
+  /** Leaves Settings for the Update page, which asks the registry on open. */
+  onCheckUpdate?: () => void
   onClose: () => void
 }
 
@@ -245,6 +247,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
     updateChannel: () => prefs.toggleUpdateChannel(),
     updateTry: () => void confirmTryChannel(dialog, renderer, tryOutChannel()),
+    updateCheck: () => props.onCheckUpdate?.(),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),
@@ -387,6 +390,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               appearance={appearance}
               currentLocale={currentLang()}
               selectLanguage={selectLanguage}
+              onCheckUpdate={props.onCheckUpdate}
               usage={usage}
             />
           ) : null}

@@ -122,6 +122,11 @@ export const en = {
     updateChannelName: { latest: "stable", nightly: "nightly preview" },
     updateTry: { latest: "[ Back to stable ]", nightly: "[ Try the nightly preview ]" },
     updateTryHint: "installs it now and follows that channel",
+    updateCheck: "[ Check for updates ]",
+    updateCheckHint: "asks npm for the newest release",
+    updateCheckButton: "Check for updates",
+    updateChecking: "Checking…",
+    updateOpenPage: "Open Update page",
     updateTryTitle: { latest: "Go back to stable?", nightly: "Install the nightly preview?" },
     updateTryBody: {
       latest: "Rove installs the latest stable release, which can be older than this nightly, then quits.",
@@ -350,6 +355,11 @@ export const zh: typeof en = {
     updateChannelName: { latest: "稳定版", nightly: "nightly 预览版" },
     updateTry: { latest: "[ 回到稳定版 ]", nightly: "[ 试用 nightly 预览版 ]" },
     updateTryHint: "立即安装并改为跟随该渠道",
+    updateCheck: "[ 检查更新 ]",
+    updateCheckHint: "向 npm 查询最新版本",
+    updateCheckButton: "检查更新",
+    updateChecking: "检查中…",
+    updateOpenPage: "打开更新页",
     updateTryTitle: { latest: "回到稳定版？", nightly: "安装 nightly 预览版？" },
     updateTryBody: {
       latest: "Rove 会安装最新稳定版（可能比当前 nightly 旧），然后退出。",

@@ -239,6 +239,10 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
         kv={kv}
         orchestrator={orchestrator}
         initialSection={pages.settingsSection}
+        onCheckUpdate={() => {
+          pages.closeSettings()
+          pages.openUpdate()
+        }}
         onClose={pages.closeSettings}
       />
     </box>

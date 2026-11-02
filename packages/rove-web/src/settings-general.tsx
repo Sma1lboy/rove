@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
+import { openPage } from "./layout.ts"
 import { signOut } from "./login.ts"
 import type { AppModel } from "./model.ts"
 import { allowDesktopNotices, chime } from "./notify.ts"
@@ -15,9 +16,11 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { AppearanceGroup } from "./settings-appearance.tsx"
 import { ts } from "./settings-copy.ts"
 import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
+import { useStore } from "./store.ts"
 import { buttonClass } from "./ui/button.tsx"
 import { PREF_HINT, PREF_LABEL, PREF_NUMBER, PREF_ROW } from "./ui/settings.ts"
 import { ACTIONS, INPUT_FRAME } from "./ui/text.ts"
+import { checkForUpdate, updateState, useCatalog } from "./update-view.tsx"
 import { type PushState, disablePush, enablePush, pushState } from "./web-push.ts"
 
 /** Web Push for when every page is closed; the browser decides whether it can, the bridge keeps the subscription. */
@@ -50,6 +53,55 @@ function PushToggle({ client }: { client: BridgeClient }) {
     />
   )
 }
+
+/**
+ * Settings › Updates. "Check for updates" asks the Mac's Rove build (`update.check`, forced) what
+ * the npm registry holds for its channel and shows it beside the running version. Installing stays
+ * a command on that Mac: the bridge never runs the updater, so the action is the Update page
+ * (release notes, link) and the `rove update` command.
+ */
+function UpdateCheck({ client }: { client: BridgeClient }) {
+  const u = useCatalog()
+  const state = useStore(updateState)
+  const [phase, setPhase] = useState<"idle" | "checking" | "done" | "failed">("idle")
+  const run = () => {
+    setPhase("checking")
+    void checkForUpdate(client).then((ok) => setPhase(ok ? "done" : "failed"))
+  }
+  const info = state?.info ?? null
+  const unknown = phase === "failed" || (phase === "done" && info === null)
+  return (
+    <>
+      <div className={ACTIONS}>
+        <button type="button" className={buttonClass()} disabled={phase === "checking"} onClick={run}>
+          {phase === "checking" ? ts("general.updateChecking") : ts("general.updateCheckButton")}
+        </button>
+        {phase === "done" && info?.hasUpdate && (
+          <button type="button" className={buttonClass()} onClick={() => openPage("update")}>
+            {ts("general.updateOpenPage")}
+          </button>
+        )}
+      </div>
+      {phase === "done" && state && info && (
+        <output className="block mono">
+          <span className="text-muted">{u.current}</span> <b>v{state.current}</b>{" "}
+          <span className="text-muted">{u.latest}</span>{" "}
+          <b className={info.hasUpdate ? "text-warning" : "text-success"}>v{info.latest}</b>
+        </output>
+      )}
+      {phase === "done" && info && !info.hasUpdate && <output className="block text-success">{u.upToDate}</output>}
+      {phase === "done" && info?.hasUpdate && (
+        <>
+          <output className="block text-warning">{tFromUpdate(u.available, info.latest)}</output>
+          <p className="mono text-muted">rove update</p>
+        </>
+      )}
+      {unknown && <output className="block text-muted">{u.latestUnknown}</output>}
+    </>
+  )
+}
+
+const tFromUpdate = (template: string, version: string) => template.replace("{version}", version)
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -173,6 +225,9 @@ export function GeneralSection({ model }: { model: AppModel }) {
             set("tabStrip", nextChoice(choicesOf(state, "tabStrip") as Prefs["tabStrip"][], latest().tabStrip))
           }
         />
+      </Group>
+      <Group title={ts("general.updates")} hint={ts("general.updatesHint")}>
+        <UpdateCheck client={client} />
       </Group>
       {daemon?.daemonVersion && (
         <Group title={t("settings.general.daemon")}>

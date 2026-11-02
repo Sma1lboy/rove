@@ -59,6 +59,7 @@ export type SettingsRow =
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "update-channel"; kind: "updateChannel" }
   | { id: "update-try"; kind: "updateTry" }
+  | { id: "update-check"; kind: "updateCheck" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -155,6 +156,7 @@ export function generalRows(): SettingsRow[] {
     { id: "zen-default-on", kind: "zenDefaultOn" },
     { id: "update-channel", kind: "updateChannel" },
     { id: "update-try", kind: "updateTry" },
+    { id: "update-check", kind: "updateCheck" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },
     { id: "worktree-base", kind: "worktreeBase" },
