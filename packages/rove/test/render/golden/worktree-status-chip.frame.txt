@@ -8,6 +8,7 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
+| Search                       |
 |                              |
 | rove ─────────────────────── |
 |▌ ○ review                  ✓ |
@@ -16,7 +17,6 @@
 |  ○ dropped                   |
 |  ○ broke                     |
 |  ○ quiet                     |
-|                              |
 |                              |
 |                              |
 |                              |

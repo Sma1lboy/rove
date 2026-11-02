@@ -8,11 +8,11 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
+| Search                       |
 |                              |
 | rove ─────────────────────── |
 |  ○ Restart the tab stri… ▴ ✓ |
 |▌ ○ alpha                     |
-|                              |
 |                              |
 |                              |
 |                              |

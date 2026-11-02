@@ -150,7 +150,9 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(closed.code, `tab-close failed: stdout=${JSON.stringify(closed.stdout)} stderr=${closed.stderr}`).toBe(0)
     expect(JSON.parse(closed.stdout)).toMatchObject({ ok: true, taskId: shellTask, tabId })
 
-    const parent = JSON.parse(runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout) as GetTaskResult
+    const parent = JSON.parse(
+      runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout,
+    ) as GetTaskResult
     expect(parent.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
     const afterClose = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
     expect(afterClose.sessions.some((entry) => entry.key === `${shellTask}::${tabId}`)).toBe(false)
@@ -172,7 +174,9 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(removed.code, `delete shell row failed: stderr=${removed.stderr}`).toBe(0)
     await waitForConverged(() => {
       const task = runRove(["api", "get-task", "--task-id", shellTask, "--pretty"], env)
-      return task.code === 1 && task.stderr.includes("TASK_NOT_FOUND") ? null : `shell row still addressable: ${task.stdout}`
+      return task.code === 1 && task.stderr.includes("TASK_NOT_FOUND")
+        ? null
+        : `shell row still addressable: ${task.stdout}`
     })
   }, 30_000)
 
