@@ -136,6 +136,7 @@ send               --task-id --prompt|--prompt-file(REQ) --tab --command --respa
                    --allow-empty --expect-report --if-runnable --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
+queue-edit         --id(REQ) --prompt|--prompt-file(REQ)
 queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
 note-list          --repo(REQ)

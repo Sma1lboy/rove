@@ -11,7 +11,7 @@ import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
 import { PANEL_SHOW_VERB } from "./handlers-panel.ts"
-import { QUEUE_CANCEL_VERB } from "./handlers-queue.ts"
+import { QUEUE_CANCEL_VERB, QUEUE_EDIT_VERB } from "./handlers-queue.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
@@ -80,13 +80,14 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         type: "bool",
         required: false,
         description:
-          "Wait for a running turn instead of landing in it. A tab that is idle takes the prompt now, as without the flag; one that is working, waiting on a permission menu or rate-limited has it held by the daemon and pasted when its turn ends, one held prompt per turn, in order. The reply is then `{queued:true, queueId, position, tabId}`. Without it a prompt sent mid-turn lands in that turn: Codex drops the work in flight, Claude Code folds it in. A report (`--expect-report`) is armed when the prompt is pasted, not when it is held. See `queue-list`, `queue-cancel`; a daemon restart drops held prompts.",
+          "Wait for a running turn instead of landing in it. A tab that is idle takes the prompt now, as without the flag; one that is working, waiting on a permission menu or rate-limited has it held by the daemon and pasted when its turn ends, one held prompt per turn, in order. The reply is then `{queued:true, queueId, position, tabId}`. Without it a prompt sent mid-turn lands in that turn: Codex drops the work in flight, Claude Code folds it in. A report (`--expect-report`) is armed when the prompt is pasted, not when it is held. See `queue-list`, `queue-edit`, `queue-cancel`; a daemon restart drops held prompts.",
       },
     ],
     handler: send,
   },
   DISPATCH_VERB,
   INTERRUPT_VERB,
+  QUEUE_EDIT_VERB,
   QUEUE_CANCEL_VERB,
   {
     name: "note",

@@ -209,6 +209,7 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `tab.requestPR` | `taskId`, `tabId?` | `{}` | `buildPRPrompt` + `send --plain` |
 | `tab.send` | `taskId`, `tabId?`, `prompt` (≤ 100k chars), `queue?` | `{delivered: true}`, `{delivered: false, queued: true, queueId, position}` (with `queue`, held for a busy tab until its turn ends) or `{delivered: false, reason}` | `send --plain [--queue]` |
 | `queue.list` | `taskId` | `{items: [{id, taskId, tabId, text, expectReport, at, lastError?}]}` | `queue-list` |
+| `queue.edit` | `id` (`q-N`), `text` | `{edited, item?, reason?}` | `queue-edit` |
 | `queue.cancel` | `id` (`q-N`) | `{cancelled}` | `queue-cancel` |
 | `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
 

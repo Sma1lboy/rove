@@ -1,5 +1,5 @@
 /**
- * `queue.add` / `queue.list` / `queue.cancel` over {@link PromptQueue}, and the hand-over itself: the
+ * `queue.add` / `queue.list` / `queue.edit` / `queue.cancel` over {@link PromptQueue}, and the hand-over itself: the
  * daemon pastes a held prompt into its tab the way it pastes an answered gate, arming a report only then
  * (a delivery armed at enqueue time would be settled by the turn already running).
  */
@@ -107,6 +107,14 @@ export const QUEUE_HANDLERS: readonly DaemonRequestHandler[] = [
       // A deleted task takes its held prompts with it; nothing could ever paste them.
       for (const item of queue.list()) if (!ctx.orch.getTask(item.taskId)) queue.cancel(item.id)
       return { items: queue.list(optionalString(payload, "taskId")) }
+    },
+  },
+  {
+    name: "queue.edit",
+    handle(payload, ctx) {
+      const text = requireString(payload, "text")
+      if (text.trim().length === 0) throw new Error("text is empty; take the prompt back with queue.cancel instead")
+      return queueOf(ctx).edit(requireString(payload, "id"), text)
     },
   },
   {

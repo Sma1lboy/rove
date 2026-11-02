@@ -1141,7 +1141,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   asked for with `--expect-report` (or a `requireReport` task) is armed when
   the prompt is pasted, not when it is held. A hand-over that does not land
   (the engine exited) also stays at the head with `lastError`; a dead engine
-  reports no more turns, so take it back with `queue-cancel`. A tab whose
+  reports no more turns, so take it back with `queue-cancel`
+  (or fix its text with `queue-edit`). A tab whose
   engine reports no turn events never hands over. Held prompts live in the
   daemon's memory: `rove daemon
   restart` drops them. `--queue` does not combine with `--tab new`,
@@ -1220,6 +1221,11 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 - `queue-list [--task-id ID]`: prompts `send --queue` is holding, oldest
   first: `{ items: [{ id, taskId, tabId, text, expectReport, at, lastError? }] }`.
   A deleted task's held prompts go with it.
+- `queue-edit --id q-N (--prompt TEXT | --prompt-file PATH)`: rewrite a held
+  prompt before it is pasted, keeping its id and its place in line;
+  `{ edited: true, item }`, or `{ edited: false, reason }` with `reason`
+  `not-found` (already pasted or cancelled) or `pasting` (its turn came and
+  the old text is going in now).
 - `queue-cancel --id q-N`: take a held prompt back before it is pasted;
   `{ cancelled: true|false }`.
 - `interrupt (--task-id ID [--tab TAB] | --group GROUPID | --all)`: stop the turn a task's engine is
