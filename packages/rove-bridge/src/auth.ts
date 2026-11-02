@@ -39,14 +39,15 @@ const TOKEN_SUBPROTOCOL_PREFIX = "rove.bearer."
  * `Sec-WebSocket-Protocol` instead. Never the query string: a URL token lands
  * in proxy and tunnel access logs, so only the pairing QR carries one.
  */
-export function presentedToken(req: Request): string | null {
+export function presentedToken(req: Request, allowQuery = false): string | null {
   const header = req.headers.get("authorization")
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim()
   for (const offered of (req.headers.get("sec-websocket-protocol") ?? "").split(",")) {
     const name = offered.trim()
     if (name.startsWith(TOKEN_SUBPROTOCOL_PREFIX)) return name.slice(TOKEN_SUBPROTOCOL_PREFIX.length)
   }
-  return null
+  // Only the relay ingress: its URLs exist inside the E2E tunnel and on loopback, never in a proxy log.
+  return allowQuery ? new URL(req.url).searchParams.get("token") : null
 }
 
 /**
@@ -80,6 +81,14 @@ export function webUrl(opts: { host: string; port: number; token: string; tls: b
 }
 
 /**
+ * `--preset relay`'s link: the relay Worker serves the page, and the fragment (never sent to the
+ * Worker) carries the pairing code and the bridge token. Both are passwords.
+ */
+export function relayLink(opts: { server: string; code: string; token: string }): string {
+  return `${opts.server}/#code=${opts.code}&token=${opts.token}`
+}
+
+/**
  * The URL the phone scans once; it IS the credential, so treat it like a
  * password. The app reads `token`/`preset` out of it and never dials it as is.
  * TLS endpoints (a tunnel or `tailscale serve`) are reached on the default port.
@@ -89,7 +98,7 @@ export function pairingUrl(opts: {
   port: number
   token: string
   tls: boolean
-  preset: "none" | "tailscale" | "cf"
+  preset: "none" | "tailscale" | "cf" | "relay"
 }): string {
   const shown = opts.host.includes(":") ? `[${opts.host}]` : opts.host
   const origin = opts.tls ? `wss://${shown}` : `ws://${shown}:${opts.port}`

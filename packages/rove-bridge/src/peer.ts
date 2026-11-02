@@ -18,16 +18,17 @@ export interface Peer {
 /**
  * Behind cloudflared every peer is 127.0.0.1, so a loopback address proves nothing alone: the
  * tunnel's own headers (Cloudflare's client IP, the Access JWT, a forwarded-for) and an Origin on
- * the tunnel hostname all mean "came through the tunnel". Local is loopback AND none of those.
+ * the tunnel hostname all mean "came through the tunnel". So does the relay ingress (`tokenInQuery`):
+ * its agent dials from loopback for a remote phone. Local is loopback AND none of those.
  */
 export function peerOf(
   req: Request,
   address: string | undefined,
-  deps: { readonly access?: unknown; readonly publicHost?: string | null },
+  deps: { readonly access?: unknown; readonly publicHost?: string | null; readonly tokenInQuery?: boolean },
 ): Peer {
   const surface = offersWebSubprotocol(req) ? "web" : "phone"
   const origin = req.headers.get("origin")
-  let viaTunnel = deps.access !== undefined
+  let viaTunnel = deps.access !== undefined || deps.tokenInQuery === true
   if (origin !== null && deps.publicHost) {
     try {
       viaTunnel ||= new URL(origin).hostname === deps.publicHost.toLowerCase()
