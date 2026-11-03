@@ -41,7 +41,7 @@ export interface SearchResult {
   readonly query: string
   readonly matches: readonly SearchMatch[]
   readonly skipped: readonly { readonly taskId: string; readonly reason: SkipReason }[]
-  /** True when `limit` stopped the scan before every candidate session was read. */
+  /** True when `limit` or the time budget stopped the scan before every candidate session was read. */
   readonly truncated: boolean
 }
 
@@ -54,13 +54,14 @@ interface Candidate {
   mtimeMs: number
 }
 
-/** `text` around the first case-insensitive hit of `needle`, whitespace folded; null when absent. */
+/** `text` around the first case-insensitive hit of `needle`, whitespace folded in both; null when absent. */
 export function snippetOf(text: string, needle: string): string | null {
   const flat = text.replace(/\s+/g, " ")
-  const at = flat.toLowerCase().indexOf(needle.toLowerCase())
+  const want = needle.replace(/\s+/g, " ")
+  const at = flat.toLowerCase().indexOf(want.toLowerCase())
   if (at < 0) return null
   const start = Math.max(0, at - SNIPPET_RADIUS)
-  const end = Math.min(flat.length, at + needle.length + SNIPPET_RADIUS)
+  const end = Math.min(flat.length, at + want.length + SNIPPET_RADIUS)
   return `${start > 0 ? "…" : ""}${flat.slice(start, end).trim()}${end < flat.length ? "…" : ""}`
 }
 
@@ -192,19 +193,20 @@ export async function searchTasks(
   // A reader with no file to scan (one database for every session) is read in full.
   const toRead = candidates.filter((c) => c.path === null || hits.has(c.path)).sort((a, b) => b.mtimeMs - a.mtimeMs)
   const matches: SearchMatch[] = []
-  let next = 0
+  // Counted per session, not per batch: the limit can stop the scan partway through the last batch.
+  let scanned = 0
   // A word common in tool output passes the file prefilter in many sessions whose prose lacks it.
-  while (next < toRead.length && matches.length < limit && Date.now() - started < budgetMs) {
-    const batch = toRead.slice(next, next + READ_BATCH)
-    next += batch.length
+  while (scanned < toRead.length && matches.length < limit && Date.now() - started < budgetMs) {
+    const batch = toRead.slice(scanned, scanned + READ_BATCH)
     const read = await Promise.all(batch.map((c) => c.reader.readHistory(c.sessionId).catch(() => [])))
     for (const [i, messages] of read.entries()) {
       const c = batch[i] as Candidate
+      scanned++
       for (const m of matchMessages(messages, query, Math.min(PER_SESSION, limit - matches.length))) {
         matches.push({ taskId: c.task.id, title: c.task.title, ...(c.tabId ? { tabId: c.tabId } : {}), ...m })
       }
       if (matches.length >= limit) break
     }
   }
-  return { query, matches, skipped, truncated: next < toRead.length }
+  return { query, matches, skipped, truncated: scanned < toRead.length }
 }
