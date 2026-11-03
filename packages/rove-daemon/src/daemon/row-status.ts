@@ -9,8 +9,8 @@
  * One tab's state, highest first: a freeze-restored session or an attention
  * state (rate limited, error, dead) → running → needs input (unless just
  * answered) → a finished turn nobody has looked at → idle. The task row: a job
- * or deletion, else its most urgent tab, ranked running → attention →
- * needs input → unseen → idle.
+ * or deletion, else its most urgent tab, ranked running → needs input →
+ * attention → unseen → idle.
  */
 
 import type { TaskActivityState } from "./contracts.ts"

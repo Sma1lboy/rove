@@ -8,8 +8,8 @@
  * The order is by URGENCY, not recency:
  *   - any candidate `running` ⇒ running (newest such `at`). Work in ANY tab
  *     is work in the task; a completion elsewhere must not dim it.
- *   - else attention (`error` / `rate_limited` / `dead`), then
- *     `permission_needed`, then `turn_complete`, then idle.
+ *   - else `permission_needed`, then attention (`error` / `rate_limited` /
+ *     `dead`), then `turn_complete`, then idle.
  * Newest `at` breaks ties within a tier; no sources means unknown.
  */
 

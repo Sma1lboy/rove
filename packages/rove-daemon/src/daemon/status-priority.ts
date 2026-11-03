@@ -1,11 +1,11 @@
 import type { TaskActivityState } from "./contracts.ts"
 
-/** Shared task urgency; running stays first for task-level busy protection. */
+/** Shared task urgency; both in-flight states outrank attention for task-level busy protection. */
 export const STATUS_PRIORITY = {
   busy: 0,
   running: 1,
-  attention: 2,
-  "needs-input": 3,
+  "needs-input": 2,
+  attention: 3,
   unseen: 4,
   idle: 5,
 } as const

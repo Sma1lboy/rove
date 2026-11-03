@@ -26,7 +26,9 @@ describe("tab status", () => {
   it.each([
     ["running", "dead"],
     ["running", "permission_needed"],
-    ["error", "permission_needed"],
+    ["permission_needed", "error"],
+    ["permission_needed", "dead"],
+    ["permission_needed", "rate_limited"],
     ["permission_needed", "turn_complete"],
   ] as const)("keeps %s above a newer %s in both folds", (winner, loser) => {
     const older = { state: winner, at: 1 }
