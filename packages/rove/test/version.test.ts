@@ -63,6 +63,59 @@ describe("checkLatestVersion", () => {
   })
 })
 
+describe("checkLatestVersion — update delay", () => {
+  beforeEach(clearDevEnv)
+
+  afterEach(() => {
+    restoreDevEnv()
+    vi.unstubAllGlobals()
+  })
+
+  const PUBLISHED = Date.parse("2026-11-01T12:00:00Z")
+
+  function stubRegistry(packument: Response | (() => never)): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/latest")) return new Response(JSON.stringify({ version: "999.0.0" }), { status: 200 })
+      return typeof packument === "function" ? packument() : packument
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    return fetchMock
+  }
+
+  const packument = () =>
+    new Response(JSON.stringify({ time: { "999.0.0": new Date(PUBLISHED).toISOString() } }), { status: 200 })
+
+  it("holds the update until the newest release has been out minAgeHours", async () => {
+    stubRegistry(packument())
+    const young = await checkLatestVersion({
+      channel: "latest",
+      minAgeHours: 24,
+      now: () => PUBLISHED + 23 * 3_600_000,
+    })
+    expect(young).toMatchObject({ latest: "999.0.0", hasUpdate: false })
+
+    stubRegistry(packument())
+    const aged = await checkLatestVersion({ channel: "latest", minAgeHours: 24, now: () => PUBLISHED + 24 * 3_600_000 })
+    expect(aged).toMatchObject({ latest: "999.0.0", hasUpdate: true })
+  })
+
+  it("still reports the update when the publish time can't be read", async () => {
+    stubRegistry(new Response("nope", { status: 500 }))
+    await expect(checkLatestVersion({ channel: "latest", minAgeHours: 24 })).resolves.toMatchObject({ hasUpdate: true })
+
+    stubRegistry(() => {
+      throw new Error("offline")
+    })
+    await expect(checkLatestVersion({ channel: "latest", minAgeHours: 24 })).resolves.toMatchObject({ hasUpdate: true })
+  })
+
+  it("skips the large metadata fetch when no delay is set", async () => {
+    const fetchMock = stubRegistry(packument())
+    await checkLatestVersion({ channel: "latest" })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe("checkLatestVersion — dev suppression and the ROVE_FAKE_UPDATE debug hook", () => {
   const ORIGINAL_FAKE = process.env.ROVE_FAKE_UPDATE
 

@@ -9,6 +9,8 @@ import { RELEASE_CHANNELS, type ReleaseChannel, channelOf } from "../version.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile } from "./store.ts"
 
 export const UPDATE_CHANNEL_KEY = "update.channel"
+/** Hand-edited: hours a release must be out before the update chip offers it. */
+export const UPDATE_DELAY_KEY = "update.delayHours"
 
 export function normalizeReleaseChannel(value: unknown): ReleaseChannel | null {
   return RELEASE_CHANNELS.includes(value as ReleaseChannel) ? (value as ReleaseChannel) : null
@@ -25,4 +27,10 @@ export function tryOutChannel(): ReleaseChannel {
 
 export function rememberReleaseChannel(channel: ReleaseChannel): void {
   patchStateFile({ [UPDATE_CHANNEL_KEY]: channel })
+}
+
+/** `update.delayHours`; anything but a non-negative finite number reads as no delay. */
+export function updateDelayHours(state: StateSnapshot = loadStateFile()): number {
+  const value = state[UPDATE_DELAY_KEY]
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0
 }

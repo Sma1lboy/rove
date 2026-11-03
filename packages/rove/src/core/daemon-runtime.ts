@@ -19,8 +19,9 @@ import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { loadStateFile } from "../state/store.ts"
 import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
-import { preferredReleaseChannel } from "../state/update-channel.ts"
+import { preferredReleaseChannel, updateDelayHours } from "../state/update-channel.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -144,7 +145,10 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   // Read per check, so a channel picked in Settings or the CLI applies without a restart.
-  checkLatestVersion: () => checkLatestVersion({ channel: preferredReleaseChannel() }),
+  checkLatestVersion: () => {
+    const state = loadStateFile()
+    return checkLatestVersion({ channel: preferredReleaseChannel(state), minAgeHours: updateDelayHours(state) })
+  },
   latestTranscriptMtime,
   deriveTitleFromSession,
   deriveTitleFromSessionId,

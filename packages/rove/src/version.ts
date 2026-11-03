@@ -7,6 +7,8 @@
  *   versions); async and capped at 3s so startup never waits on npm.
  * - Every failure returns `null`: worst case is no update chip this session.
  * - Informational only: we render a chip, the user runs the install command.
+ * - `minAgeHours` holds the chip until the newest release is that old; its
+ *   publish time needs the full packument, so it is fetched only then.
  */
 
 import { fileURLToPath } from "node:url"
@@ -83,6 +85,8 @@ export function breakingVersionsCrossed(
 }
 
 const FETCH_TIMEOUT_MS = 3_000
+/** The full packument is MBs, not the tag manifest's KBs; it only runs from the daemon's background poll. */
+const PACKUMENT_TIMEOUT_MS = 15_000
 
 /** npm dist-tag an install follows; `nightly` is the automated cut from `main` (`.github/workflows/nightly.yml`). */
 export type ReleaseChannel = "latest" | "nightly"
@@ -122,6 +126,28 @@ async function fetchLatestFromRegistry(packageName: string, channel: ReleaseChan
     const body = (await res.json()) as { version?: unknown }
     if (typeof body.version !== "string") return null
     return body.version
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** When `version` was published, in epoch ms; null when the registry can't say. */
+async function fetchPublishedAt(packageName: string, version: string): Promise<number | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), PACKUMENT_TIMEOUT_MS)
+  try {
+    const encoded = packageName.replace("/", "%2F")
+    const res = await fetch(`https://registry.npmjs.org/${encoded}`, {
+      signal: ctrl.signal,
+      headers: { accept: "application/json" },
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as { time?: Record<string, unknown> }
+    const stamp = body.time?.[version]
+    const ms = typeof stamp === "string" ? Date.parse(stamp) : Number.NaN
+    return Number.isFinite(ms) ? ms : null
   } catch {
     return null
   } finally {
@@ -203,9 +229,12 @@ export function compareSemver(aVersion: string, bVersion: string): number {
  *
  * @param opts.force — bypass dev-mode suppression.
  * @param opts.channel — dist-tag to check; defaults to the running build's channel.
+ * @param opts.minAgeHours — report no update while the newest release is younger
+ *   than this; an unknown publish time reports it, so a failed lookup never hides updates.
+ * @param opts.now — clock for the age check.
  */
 export async function checkLatestVersion(
-  opts: { force?: boolean; channel?: ReleaseChannel } = {},
+  opts: { force?: boolean; channel?: ReleaseChannel; minAgeHours?: number; now?: () => number } = {},
 ): Promise<UpdateInfo | null> {
   const channel = opts.channel ?? channelOf()
   // Debug hook, bypasses dev suppression and the network to exercise the update
@@ -220,12 +249,14 @@ export async function checkLatestVersion(
 
   const latest = await fetchLatestFromRegistry(PACKAGE_NAME, channel)
   if (!latest) return null
-  return {
-    current: CURRENT_VERSION,
-    latest,
-    hasUpdate: isNewerSemver(latest, CURRENT_VERSION),
-    channel,
+  let hasUpdate = isNewerSemver(latest, CURRENT_VERSION)
+  const minAgeMs = (opts.minAgeHours ?? 0) * 3_600_000
+  if (hasUpdate && minAgeMs > 0) {
+    const publishedAt = await fetchPublishedAt(PACKAGE_NAME, latest)
+    const now = (opts.now ?? Date.now)()
+    if (publishedAt !== null && now - publishedAt < minAgeMs) hasUpdate = false
   }
+  return { current: CURRENT_VERSION, latest, hasUpdate, channel }
 }
 
 /* Release notes for the update dialog. */

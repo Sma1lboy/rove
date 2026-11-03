@@ -375,6 +375,7 @@ button also installs the other channel's newest build right away.
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
+| `update.delayHours` | number | `0` | Hours a release must have been out before the update chip offers it. The check runs at daemon start and every six hours, and while the newest release is younger the chip stays hidden. If npm can't say when it was published, the chip shows. The Update page and `rove update` ignore it. Hand-edit only |
 
 ### Worktree location
 
