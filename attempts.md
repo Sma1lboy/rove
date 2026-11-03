@@ -361,3 +361,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next:** the echo commit is cheap where it is; folding it into commit (1) costs latency. If revisited, suppress it without moving work earlier: e.g. keep the cell untouched locally and drop only our own echoes when the value already matches what `selectedId` shows — but the cell then lags for `activeTaskId` readers (kanban, delete fallback), so check them first. Commit-count work on the switch path looks close to floor (6.x = click, ref detach, echo, mount, resize, acquire, first data); consider moving to another metric (paintRow 43/switch, frames 4/switch).
 
 **Sandbox:** bun 1.3.14 from npm. Playwright asks for headless shell rev **1228** (a probe from a plain node dir says 1243 — trust the harness error); `/tmp/pwshim/chromium_headless_shell-1243 → /opt/…-1243/chrome-headless-shell-linux64` dir symlink plus 1228/1194 → 1243 aliases worked.
+
+## 2026-11-03 — switch.perOp.paintRow / .styled (main 0646a7c)
+
+**No regression.** Run 1 exited 1 on cold boot.* only (firstFrame 1256, ready 4541); run 2 exited 0 with nothing past tolerance: commit.root/workspace 6.4 (7.4), sidebar 2.3, frame 4.4, overlay 3, paintRow 43, stateNotify 2.3, spawns 0.6, idle 0; switch.shown 474, typing.echo 159.6. No open GitHub issues. Baseline not moved (no ✓). Tonight's history line is main run 2.
+
+**Landed tonight as a PR from `perf/nightly-2026-11-03` (#1634):** moved off switch commits (near floor per 11-02) to paintRow. Every switch mounts a fresh `TerminalRowPainter`, which built and styled a `TextRenderable` for all ~43 rows; blank rows are `[]` from `xtermLineToChunks` and paint neither glyphs nor bg (the pane box owns the background). Fresh slots now skip empty rows (rows array sparse). switch.perOp.paintRow/styled 43 → 2.3/1.6 (2 of 2, ✓), timings flat, switch.png byte-identical. Typing frames differ in the number of `B>` prompts, but main alone varies 1–3 between runs: noise.
+
+**Next:** once #1634 lands the run should show ✓ on paintRow/styled; move the baseline then. Remaining switch counts: frame 4.3, overlay 3 (three overlay passes per switch: mount, resize, first data).
+
+**Sandbox:** bun 1.3.14 from npm; `/tmp/pwshim/chromium_headless_shell-{1243,1228,1194} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks were enough. Commit as the owner (`GIT_AUTHOR_*`/`GIT_COMMITTER_*`), not the sandbox default.
