@@ -77,7 +77,7 @@ describe("searchTasks", () => {
   })
   const said = (text: string): readonly Message[] => [msg("user", [{ type: "text", text }])]
 
-  // The page is full after two sessions, so the third is never read: the page must say it is partial.
+  // The batch reads all three sessions, but the limit stops match processing after two.
   it("reports a partial page when the limit stops the scan inside its last batch", async () => {
     fake.tabs.set("t1", ["a", "b", "c"])
     for (const id of ["a", "b", "c"]) fake.sessions.set(id, said("deploy the relay"))
