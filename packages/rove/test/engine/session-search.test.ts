@@ -1,6 +1,26 @@
-import { describe, expect, it } from "vitest"
-import { matchMessages, prefilterToken } from "../../src/engine/session-search.ts"
+import { describe, expect, it, vi } from "vitest"
+import { type SearchableTask, matchMessages, prefilterToken, searchTasks } from "../../src/engine/session-search.ts"
 import type { Message } from "../../src/types/engine.ts"
+
+const fake = vi.hoisted(() => ({ sessions: new Map<string, readonly unknown[]>(), tabs: new Map<string, string[]>() }))
+
+vi.mock("../../src/cli/api/tab-snapshot.ts", () => ({
+  readTabsSnapshot: (taskId: string) => ({
+    tabs: (fake.tabs.get(taskId) ?? []).map((sessionId) => ({ id: `tab-${sessionId}`, kind: "engine", sessionId })),
+  }),
+}))
+vi.mock("../../src/engine/registry.ts", () => ({ supportsStructuredHistory: () => true }))
+vi.mock("../../src/engine/engine-presets.ts", () => ({
+  sessionProtocol: (v: string) => v,
+  protocolEntry: () => ({
+    history: {
+      listSessionIdsForWorktree: async () => [],
+      readHistory: async (id: string) => fake.sessions.get(id) ?? [],
+      transcriptPath: async () => null,
+      latestTranscriptMtimeForWorktree: async () => 0,
+    },
+  }),
+}))
 
 const msg = (role: Message["role"], blocks: Message["blocks"], at = "2026-11-01T00:00:00Z"): Message => ({
   role,
@@ -44,5 +64,33 @@ describe("search matching", () => {
     expect(prefilterToken('the "quoted" thing')).toBe("quoted")
     expect(prefilterToken("C:\\Users\\rove")).toBe("Users")
     expect(prefilterToken("推送通知")).toBe("推送通知")
+  })
+})
+
+describe("searchTasks", () => {
+  const task = (id: string): SearchableTask => ({
+    id,
+    title: id,
+    repo: "/r",
+    worktreePath: `/w/${id}`,
+    vendor: "claude",
+  })
+  const said = (text: string): readonly Message[] => [msg("user", [{ type: "text", text }])]
+
+  // The page is full after two sessions, so the third is never read: the page must say it is partial.
+  it("reports a partial page when the limit stops the scan inside its last batch", async () => {
+    fake.tabs.set("t1", ["a", "b", "c"])
+    for (const id of ["a", "b", "c"]) fake.sessions.set(id, said("deploy the relay"))
+    const result = await searchTasks([task("t1")], "relay", 2)
+    expect(result.matches).toHaveLength(2)
+    expect(result.truncated).toBe(true)
+  })
+
+  it("matches a query typed with extra spaces against prose that wraps across lines", async () => {
+    fake.tabs.set("t2", ["d"])
+    fake.sessions.set("d", said("rotate the\n  signing key today"))
+    const result = await searchTasks([task("t2")], "the   signing", 5)
+    expect(result.matches.map((m) => m.snippet)).toEqual(["rotate the signing key today"])
+    expect(result.truncated).toBe(false)
   })
 })
