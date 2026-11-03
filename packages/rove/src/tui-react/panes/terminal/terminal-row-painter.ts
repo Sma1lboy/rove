@@ -14,7 +14,8 @@ type PaintedRow = { source: TerminalRow; text: TextRenderable }
 /** Retain one text buffer per terminal row. Grid coordinates avoid text-flow
  * layout shifting the cursor; selection continues to use the PTY snapshot. */
 export class TerminalRowPainter {
-  private rows: PaintedRow[] = []
+  /** Sparse: a row that has only ever been blank owns no buffer. */
+  private rows: (PaintedRow | undefined)[] = []
   private cols = 0
   private colors: TerminalRenderColors | null = null
 
@@ -33,6 +34,8 @@ export class TerminalRowPainter {
       if (!row) continue
       let painted = this.rows[y]
       if (painted && painted.source === row && !invalidate) continue
+      // An empty row paints nothing (no glyphs, no bg), so a fresh slot needs no buffer.
+      if (!painted && row.length === 0) continue
       const content = profileSpan("styled", () => {
         const resolved = resolveInverseAttributes([textPresentationRow(row)], colors.foreground, colors.background)
         const sealed = sealRowEndAttributes(resolved, cols, colors.foreground, colors.background)
@@ -54,7 +57,7 @@ export class TerminalRowPainter {
         })
         painted = { source: row, text }
         this.parent.add(text)
-        this.rows.push(painted)
+        this.rows[y] = painted
       } else {
         if (invalidate) painted.text.fg = RGBA.fromInts(...colors.foreground)
         painted.text.content = content
@@ -62,18 +65,19 @@ export class TerminalRowPainter {
       }
       profileTick("paintRow")
     }
-    while (this.rows.length > source.length) {
-      const row = this.rows.pop()
+    for (let y = source.length; y < this.rows.length; y++) {
+      const row = this.rows[y]
       if (row && !row.text.isDestroyed) {
         this.parent.remove(row.text)
         row.text.destroy()
       }
     }
+    if (this.rows.length > source.length) this.rows.length = source.length
   }
 
   dispose(): void {
     for (const row of this.rows) {
-      if (row.text.isDestroyed) continue
+      if (!row || row.text.isDestroyed) continue
       if (!this.parent.isDestroyed) this.parent.remove(row.text)
       row.text.destroy()
     }

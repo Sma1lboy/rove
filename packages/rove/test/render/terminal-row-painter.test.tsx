@@ -109,3 +109,23 @@ test("width and theme changes repaint retained rows; destroying the grid release
     handle.destroy()
   }
 })
+
+test("blank rows own no buffer until they fill in, then paint at their own row", async () => {
+  const { handle, grid, painter } = await setup()
+  try {
+    const rows: TerminalRow[] = [[{ text: "prompt" }], [], [], []]
+    painter.paint(rows, 20, colors)
+    expect(grid.getChildren()).toHaveLength(1)
+    rows[2] = [{ text: "later" }]
+    painter.paint(rows, 20, colors)
+    const lines = (await handle.frame()).split("\n")
+    expect(lines[1]).toContain("prompt")
+    expect(lines[2]).not.toContain("later")
+    expect(lines[3]).toContain("later")
+    painter.paint(rows.slice(0, 1), 20, colors)
+    expect(await handle.frame()).not.toContain("later")
+    expect(grid.getChildren()).toHaveLength(1)
+  } finally {
+    handle.destroy()
+  }
+})
