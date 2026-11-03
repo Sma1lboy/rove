@@ -62,6 +62,8 @@ The full suite (`ci.yml`) is a batch, not a per-PR gate: it runs on `main` every
 
 `bun run pre-pr -- --full` runs that suite locally instead, in a parallel pool (`--jobs`, default half the cores): the rove unit tests, the render track in four shards, behavior in three, the harness PTY tests, the visual ground truth, and on Windows the plugin-windows acceptance when its paths changed. On Windows the POSIX suites run in a WSL distro against a copy of HEAD (commit first). It cannot run clean-linux-install (docker on Linux/macOS) or the iOS simulator suite. `gh workflow run ci.yml --ref <branch>` runs the cloud suite on a branch.
 
+The native app workflows (`ios.yml`, `android.yml`) skip the owner's PRs the same way, except a PR whose title starts with `[routine]`: the autopilot merges those on its own once every check passes, so they run the simulator and Gradle suites before landing. The prefix must be in the title when the PR opens; editing it in later starts nothing until the next push.
+
 `bun run hooks:install` also enables a pre-push hook that runs only `pre-pr --quick` (changeset gates, lint, silent-catch: a few seconds). The pre-commit hook stays milliseconds-only.
 
 ## Diagrams in `docs/`

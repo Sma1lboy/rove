@@ -16,7 +16,8 @@ on:
       - "packages/rove-android/**"
       - "packages/rove-ios/Sources/RoveMobile/Demo/demo-fixture.json"
       - ".github/workflows/android.yml"
-  # Others' PRs; the owner's are covered by the push to main.
+  # Others' PRs and routine PRs (`[routine]` title: auto-merged by the autopilot once checks pass);
+  # the owner's own PRs are covered by the push to main.
   pull_request:
     branches: [main]
     paths:
@@ -38,7 +39,10 @@ defaults:
 
 jobs:
   verify:
-    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.author_association != 'OWNER'
+      || startsWith(github.event.pull_request.title, '[routine]')
     # The hosted Ubuntu image ships the Android SDK with ANDROID_HOME set and its licenses accepted, so Gradle
     # installs platform 36 itself if the image lacks it.
     runs-on: ubuntu-latest
