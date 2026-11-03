@@ -13,6 +13,7 @@
  */
 
 import { existsSync } from "node:fs"
+import { homedir } from "node:os"
 import path from "node:path"
 import { pathIdentity as normalize, pathSyntax, pathWithin, samePath } from "../path-identity.ts"
 import { managedWorktreeRootsFor, readWorktreeBaseOverride } from "./worktree-paths.ts"
@@ -80,6 +81,8 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
     for (const worktree of worktreesOf(t)) {
       const wt = normalize(worktree)
       if (pathWithin(wt, target) === null) continue
+      // A home shell does not own unrelated sessions in every non-repo subdirectory.
+      if (samePath(wt, homedir()) && !samePath(wt, target)) continue
       // Longest worktree wins; on a tie (an owner and its sharers) the owner.
       if (!best || wt.length > bestWt.length || (wt.length === bestWt.length && ownerFirst(t, best) < 0)) {
         best = t

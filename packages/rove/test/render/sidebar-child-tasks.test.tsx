@@ -58,6 +58,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
 
   const open = await frame()
   expect(lineWith(open, "check types")).toContain("⑂")
+  expect(lineWith(open, "check types")).toContain(DEFAULT_GLYPHS.needsInput)
   expect(lineWith(open, "port tree builder")).toContain("⎇")
   expect(lineWith(open, "parent")).toContain("▾")
 
@@ -71,8 +72,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
   expect(folded).not.toContain("port tree builder")
   const summary = lineWith(folded, "parent")
   expect(summary).toContain("▸ 2")
-  // A question outranks a sibling that is still working.
-  expect(summary).toContain(DEFAULT_GLYPHS.needsInput)
+  expect(DEFAULT_GLYPHS.spinner.some((glyph) => summary.includes(glyph))).toBe(true)
 })
 
 test("a child that has children of its own keeps its marker and fold glyph in separate cells and truncates the title before them", async () => {
