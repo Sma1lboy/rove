@@ -1,4 +1,4 @@
-type SandboxMode = "run" | "reset" | "home" | "smoketest" | "seed"
+type SandboxMode = "run" | "reset" | "home" | "smoketest" | "seed" | "sweep"
 export type SandboxArgs = {
   readonly mode: SandboxMode
   /** Named sandbox instance (`--name x`): own home/daemon/registry/port. */
@@ -10,7 +10,14 @@ export type SandboxArgs = {
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
 
 function isSandboxMode(value: string | undefined): value is SandboxMode {
-  return value === "run" || value === "reset" || value === "home" || value === "smoketest" || value === "seed"
+  return (
+    value === "run" ||
+    value === "reset" ||
+    value === "home" ||
+    value === "smoketest" ||
+    value === "seed" ||
+    value === "sweep"
+  )
 }
 
 /**
