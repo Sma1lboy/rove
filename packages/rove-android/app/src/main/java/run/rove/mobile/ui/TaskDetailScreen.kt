@@ -46,7 +46,7 @@ import java.util.Locale
     val connection by model.bridge.state.collectAsStateWithLifecycle()
     val connected = connection is Connection.Connected
     val taskSnapshot by model.tasks.collectAsStateWithLifecycle()
-    val task = taskSnapshot.tasks.firstOrNull { it.id == taskId }
+    val task = taskSnapshot.tasks.firstOrNull { it.id == taskId } ?: taskSnapshot.archived.firstOrNull { it.id == taskId }
     var tabs by remember(taskId) { mutableStateOf<List<TabRow>?>(null) }
     var tabStates by remember(taskId) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var diffStat by remember(taskId) { mutableStateOf<DiffStat?>(null) }
