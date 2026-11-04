@@ -127,8 +127,8 @@ object PasteEncoding {
     }
 }
 
-/** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false when the text could not be sent. */
-@Composable fun Composer(engineName: String?, onSend: (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
+/** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false or throws to keep the text; what it throws shows above the field. */
+@Composable fun Composer(engineName: String?, onSend: suspend (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
     var field by remember { mutableStateOf(TextFieldValue("")) }
     val text = field.text
     var uploading by remember { mutableStateOf(false) }
@@ -137,7 +137,19 @@ object PasteEncoding {
     val scope = rememberCoroutineScope()
     val unsupported = stringResource(R.string.attach_error_unsupported)
     val tooLarge = stringResource(R.string.attach_error_too_large)
-    val send = { if (text.isNotEmpty() && onSend(text)) { field = TextFieldValue(""); error = null } }
+    var sending by remember { mutableStateOf(false) }
+    val send: () -> Unit = {
+        if (text.isNotBlank() && !sending) {
+            sending = true
+            error = null
+            scope.launch {
+                try { if (onSend(text)) field = TextFieldValue("") }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { error = e.message ?: e.toString() }
+                finally { sending = false }
+            }
+        }
+    }
     // Reads, checks, uploads, then pastes the path into the engine's input (not submitted).
     val load: (Uri?) -> Unit = { uri ->
         if (uri != null) {
@@ -172,7 +184,7 @@ object PasteEncoding {
                 // JetBrains Mono draws ↵ at half the size SF Mono does; the system face matches the iOS glyph.
                 Text("↵", color = Rove.c.muted, style = Rove.face(20, FontWeight.Medium))
             }
-            val empty = text.isEmpty()
+            val empty = text.isBlank() || sending
             Box(Modifier.height(44.dp).background(if (empty) Rove.c.inset else Rove.c.accent, RoundedCornerShape(Rove.radius))
                 .pressable(enabled = !empty, onClick = send), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.detail_send), Modifier.padding(horizontal = 14.dp), color = if (empty) Rove.c.muted else Rove.c.paper,

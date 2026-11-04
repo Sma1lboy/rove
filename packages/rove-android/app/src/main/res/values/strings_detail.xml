@@ -56,4 +56,9 @@
     <string name="detail_land_body_one">Merge \"%1$s\" into %2$s (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list.</string>
     <string name="detail_land_body_many">Merge \"%1$s\" into %2$s (%3$s commits), then remove this worktree? The branch is kept. Conflicts abort with a file list.</string>
     <string name="detail_land_dirty_base">The base checkout has uncommitted changes. Commit them on the Mac, then land.</string>
+    <string name="detail_composer_not_sent">Not sent: %1$s</string>
+    <string name="detail_composer_at_menu">The agent is waiting on a choice. Answer it with the key row; your message is kept.</string>
+    <string name="detail_composer_queued">The agent is working: sent when this turn ends (#%1$d in line).</string>
+    <string name="detail_queued_chip">queued</string>
+    <string name="detail_queue_cancel">Take this message back</string>
 </resources>
