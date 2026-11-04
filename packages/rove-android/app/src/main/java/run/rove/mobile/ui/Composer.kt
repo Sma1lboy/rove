@@ -129,7 +129,8 @@ object PasteEncoding {
 
 /** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false or throws to keep the text; what it throws shows above the field. */
 @Composable fun Composer(engineName: String?, onSend: suspend (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
-    var field by remember { mutableStateOf(TextFieldValue("")) }
+    val draft = remember { ComposerDraft() }
+    val field = draft.field
     val text = field.text
     var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -143,7 +144,7 @@ object PasteEncoding {
             sending = true
             error = null
             scope.launch {
-                try { if (onSend(text)) field = TextFieldValue("") }
+                try { draft.send(onSend) }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { error = e.message ?: e.toString() }
                 finally { sending = false }
@@ -174,12 +175,12 @@ object PasteEncoding {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AttachMenu(uploading, onPhoto = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onFile = { files.launch(FileTypes) })
-            FieldBox(field, { field = it },
+            FieldBox(field, { draft.field = it },
                 engineName?.let { stringResource(R.string.detail_reply_to, it.lowercase()) } ?: stringResource(R.string.detail_reply),
                 Modifier.weight(1f).heightIn(max = 140.dp), singleLine = false,
                 keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
             // Appended with the cursor after it, as iOS does; a String-bound field would leave the cursor before it.
-            Box(Modifier.size(34.dp, 44.dp).pressable { (text + "\n").let { field = TextFieldValue(it, TextRange(it.length)) } },
+            Box(Modifier.size(34.dp, 44.dp).pressable { (text + "\n").let { draft.field = TextFieldValue(it, TextRange(it.length)) } },
                 contentAlignment = Alignment.Center) {
                 // JetBrains Mono draws ↵ at half the size SF Mono does; the system face matches the iOS glyph.
                 Text("↵", color = Rove.c.muted, style = Rove.face(20, FontWeight.Medium))
