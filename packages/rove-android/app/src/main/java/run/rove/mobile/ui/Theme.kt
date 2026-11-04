@@ -32,7 +32,7 @@ private val Light = RovePalette(
 private val Dark = RovePalette(
     paper = Color(0xFF141413), surface = Color(0xFF1A1917), inset = Color(0xFF2B2A27), line = Color(0xFF3A3835),
     ink = Color(0xFFEAE7DF), muted = Color(0xFFA9A39A), accent = Color(0xFFCC785C), accentSoft = Color(0x24CC785C),
-    success = Color(0xFF9ACA86), error = Color(0xFFD47563), warning = Color(0xFFE8C96B),
+    success = Color(0xFF9ACA86), error = Color(0xFFEC6F74), warning = Color(0xFFE8C96B),
 )
 
 private val LocalPalette = staticCompositionLocalOf { Light }
