@@ -1398,6 +1398,16 @@
         }
       }
     },
+    "Option %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选项 %lld"
+          }
+        }
+      }
+    },
     "PR closed" : {
       "localizations" : {
         "zh-Hans" : {
