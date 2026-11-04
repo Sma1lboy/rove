@@ -3,8 +3,9 @@ import { contrast, cssVars } from "../src/prefs-theme.ts"
 
 const prefs = { focusAccent: "primary", colorblind: "off" } as const
 
-// claude's line-number greys, as the bridge resolves them.
+// claude's muted and line-number greys, as the bridge resolves them.
 const claudeDark = {
+  textMuted: "#a9a39a",
   background: "#141413",
   backgroundPanel: "#1a1917",
   backgroundElement: "#2b2a27",
@@ -12,6 +13,7 @@ const claudeDark = {
   diffLineNumber: "#6b665f",
 }
 const claudeLight = {
+  textMuted: "#5e5953",
   background: "#faf9f5",
   backgroundPanel: "#f0eee6",
   backgroundElement: "#eae7df",
@@ -35,4 +37,20 @@ test("--subtle holds AA on every surface, lightening on dark pages and darkening
 test("--subtle keeps a grey that already reads", () => {
   const conductorLight = { ...claudeLight, diffLineNumber: "#5b5b5b" }
   expect(cssVars(conductorLight, prefs)["--subtle"]).toBe("#5b5b5b")
+})
+
+test("--muted stays a step stronger than --subtle when raising subtle to AA would overtake it", () => {
+  // A light theme whose muted grey sits just past AA: subtle, raised to AA, lands darker than it.
+  const inverted = { ...claudeLight, textMuted: "#6b665f" }
+  const vars = cssVars(inverted, prefs)
+  const surfaces = [inverted.background, inverted.backgroundPanel, inverted.backgroundElement, inverted.backgroundMenu]
+  for (const s of surfaces) {
+    expect(contrast(vars["--muted"] as string, s)).toBeGreaterThan(contrast(vars["--subtle"] as string, s))
+    expect(contrast(vars["--muted"] as string, s)).toBeGreaterThanOrEqual(4.5)
+  }
+})
+
+test("--muted keeps a theme grey that already reads above --subtle", () => {
+  expect(cssVars(claudeLight, prefs)["--muted"]).toBe("#5e5953")
+  expect(cssVars(claudeDark, prefs)["--muted"]).toBe("#a9a39a")
 })

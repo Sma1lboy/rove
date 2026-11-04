@@ -45,7 +45,7 @@ export const PTAB_LABEL = "truncate"
 
 /** Hidden until the tab is hovered or focused; the slot stays so the label never shifts. */
 export const PTAB_CLOSE =
-  "touch:relative size-4 flex-none cursor-pointer rounded-[4px] border-none bg-transparent p-0 mr-1 font-mono text-title leading-none text-subtle opacity-0 group-hover/ptab:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100 touch:after:absolute touch:after:-inset-1.5 touch:after:-left-1 touch:after:content-['']"
+  "touch:relative size-4 flex-none cursor-pointer rounded-xs border-none bg-transparent p-0 mr-1 font-mono text-title leading-none text-subtle opacity-0 group-hover/ptab:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100 touch:after:absolute touch:after:-inset-1.5 touch:after:-left-1 touch:after:content-['']"
 
 /** The top bar's Files / Diff / Browser buttons. */
 export const PANEL_LAUNCH = "ml-auto flex gap-0.5"

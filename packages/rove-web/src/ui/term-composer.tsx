@@ -10,13 +10,13 @@ const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-s
 const CHIPS = "absolute inset-x-1.5 bottom-full z-5 mb-1"
 const ROW = "flex min-w-0 flex-1 items-stretch gap-1.5"
 const FIELD =
-  "h-10 min-w-0 flex-1 resize-none rounded-[6px] border-hairline border-line bg-inset px-2 py-2 font-sans text-[16px] leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
+  "h-10 min-w-0 flex-1 resize-none rounded-sm border-hairline border-line bg-inset px-2 py-2 font-sans text-display leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
 const SEND =
-  "h-10 shrink-0 rounded-[6px] bg-accent px-3.5 font-sans text-meta font-semibold text-paper touch-manipulation active:scale-97 motion-reduce:active:scale-none disabled:opacity-50"
+  "h-10 shrink-0 rounded-sm bg-accent px-3.5 font-sans text-meta font-semibold text-paper touch-manipulation active:scale-97 motion-reduce:active:scale-none disabled:opacity-50"
 
 /** The attach control's box, for the caller's file picker. */
 export const COMPOSER_ATTACH =
-  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[6px] border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60"
+  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60"
 
 export function ClipGlyph() {
   return (

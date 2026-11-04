@@ -111,15 +111,17 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
   settings descriptions and tab-strip titles. The mono "technical voice" is a deliberate Rove
   choice, so don't "fix" it. But don't spread mono into paragraphs, and don't put sans into
   glyph columns (glyph alignment depends on `1ch`).
-- **The scale is the one in use:** 13px body (`body`), 12px secondary and lists, 14px task-row titles in the rail, 11px meta and
-  chips, 14px wordmark, 18px only for the dialog close glyph. 10px is the floor and only for a
-  tiny badge. Nothing new below 11px for readable text. Check:
-  `getComputedStyle(el).fontSize`.
+- **The scale is the four tokens in `tailwind.css`:** 12px `--fs-meta` (secondary text, lists, chips,
+  hints, buttons), 13px `--fs-body` (body, menu items), 14px `--fs-title` (rail task titles, the
+  wordmark, dialog titles), and 16px `--fs-display` (the dialog close glyph, fields on touch). Nothing
+  new below 12px for readable text. Check: `getComputedStyle(el).fontSize`.
 - **Hierarchy by weight and tone, not new sizes.** Use 700 for the wordmark, 600 for project
-  heads (11px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,
+  heads (12px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,
   400 elsewhere. Use `--ink` > `--muted` > `--subtle` for importance.
 - **No weight change on hover or selection.** Bold widens the label and shifts the row. Mark
-  state with background (`--hover`, `--inset`) or colour instead.
+  state with background (`--hover` for a pointer hover, `--menu` for a selected or cursor row) or
+  colour instead. The two must not match: a selected row one step past `--inset` is what keeps it
+  apart from a hovered one in light themes.
 - **Figures are tabular** (`font-variant-numeric: tabular-nums` is set on `body`). Counts and
   versions must not jitter when they change.
 - **Uppercase tracked labels (`.kicker`) are rare.** At most one per region, and only where the
@@ -129,9 +131,11 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
 
 ## 4. Colour, tokens and themes
 
-- **Tokens only.** Use `--paper`, `--surface`, `--inset`, `--line`, `--line-active`, `--ink`,
+- **Tokens only.** Use `--paper`, `--surface`, `--inset`, `--menu`, `--line`, `--line-active`, `--ink`,
   `--muted`, `--subtle`, `--accent`, `--accent-soft`, `--hover`, `--focus`, `--error`,
-  `--warning`, `--success`, `--info`, `--radius` (8), `--radius-sm` (6), `--mono` and `--sans`.
+  `--warning`, `--success`, `--info`, `--radius` (8), `--radius-sm` (6), `--radius-xs` (4), `--mono`
+  and `--sans`. A radius written as `calc(var(--radius) - Npx)` is a concentric inner corner (outer
+  radius minus the parent's padding), not drift; a literal `rounded-[6px]` is.
   `prefs-theme.ts` remaps every token from the active TUI theme for light and dark at runtime,
   so a raw hex or `rgb()` in a stylesheet goes stale on theme switch. Check:
   `rg -n '#[0-9a-fA-F]{3,8}\b|rgb\(' packages/rove-web/src/*.css` and justify each hit (the
@@ -294,7 +298,7 @@ spans the bottom. The rail (`rail-view.tsx`) holds the wordmark row (`[ rove ]`,
 kicker, the update chip), `PageNav`, `.rail-body` (project head → task row → tab rows), then the
 `+ New task` row and the fold and grip controls. The workspace has a tab strip, then split
 terminal panes (xterm) or a page (Kanban, Routines, Issues, Settings, Update, Worktrees,
-Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays.css`.
+Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `src/ui/overlay.ts`.
 
 **The owner's settled decisions.** Don't relitigate these. A difference from them is a defect:
 
@@ -307,7 +311,8 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no
   divider rule**, following Claude Desktop's session list (#1371). The name and chevron fold the
   section (kept in `localStorage` `rove.collapsedProjects`); the `+` shows on hover and is
-  centred on the task rows' cloud column (#1378). Project names are small and quiet (600 11px
+  centred on the task rows' rightmost mark: the 11px status dots, or the cloud when a row has one
+  (#1378). Project names are small and quiet (600 12px
   mono, `--subtle`); task rows read first (14px); tab rows sit 6px in (#1375, #1377).
 - **Idle projects are hidden:** a project whose only row is its repo's main task, with no tab
   open and not selected, is not listed; New task still reaches it. Search shows everything.

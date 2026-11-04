@@ -23,11 +23,13 @@
   --paper: #141413;
   --surface: #1a1917;
   --inset: #2b2a27;
+  /* One step past inset: a selected or cursor row, which a pointer hover (`--hover`) must not look like. */
+  --menu: #33312e;
   --line: #3a3835;
-  --line-active: #5c5853;
+  --line-active: #75706a;
   --ink: #eae7df;
   --muted: #a9a39a;
-  /* claude dark's `--subtle` after `legibleSubtle` (prefs-theme.ts): AA on first paint, before a palette arrives. */
+  /* claude dark's `--subtle` after `quietInks` (prefs-theme.ts): AA on first paint, before a palette arrives. */
   --subtle: #9d9a95;
   --accent: #cc785c;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -45,8 +47,8 @@
   --diff-added: var(--success);
   --diff-removed: var(--error);
   --diff-added-bg: rgb(154 202 134 / 10%);
-  --diff-removed-bg: rgb(212 117 99 / 10%);
-  --error: #d47563;
+  --diff-removed-bg: rgb(236 111 116 / 10%);
+  --error: #ec6f74;
   --success: #9aca86;
   --warning: #e8c96b;
   --mono: "JetBrains Mono", "Rove Nerd Symbols", "IBM Plex Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
@@ -58,6 +60,8 @@
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --radius: 8px;
   --radius-sm: 6px;
+  /* A small control inside a row or tab: a fold toggle, a close box. */
+  --radius-xs: 4px;
   /* One line weight for every rule and outline: a device pixel's worth on a retina screen, 1px elsewhere. */
   --hairline: 1px;
   color-scheme: dark;
@@ -251,6 +255,7 @@ button:focus-visible {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-inset: var(--inset);
+  --color-menu: var(--menu);
   --color-line: var(--line);
   --color-line-active: var(--line-active);
   --color-ink: var(--ink);
@@ -289,6 +294,7 @@ button:focus-visible {
   /* These share their name with the :root token above, so the theme layer also writes `--radius-sm:
      var(--radius-sm)` on :root; the unlayered :root value wins. Keep the tokens there, and unlayered. */
   --radius-*: initial;
+  --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius);
 

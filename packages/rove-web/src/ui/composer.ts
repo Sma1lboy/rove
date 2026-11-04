@@ -18,7 +18,7 @@ export const ICON =
 
 /** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
-  `inline-flex max-w-[28ch] items-center gap-1.5 overflow-hidden rounded-[999px] border-hairline px-2.25 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
+  `inline-flex max-w-[28ch] items-center gap-1.5 overflow-hidden rounded-full border-hairline px-2.5 py-0.75 text-ellipsis whitespace-nowrap touch:py-1.75 [&:hover]:bg-hover [&:hover]:text-ink aria-expanded:bg-hover aria-expanded:text-ink ${
     on
       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-accent-soft text-accent"
       : "border-line text-muted"

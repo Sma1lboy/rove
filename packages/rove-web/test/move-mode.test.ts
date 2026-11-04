@@ -11,7 +11,8 @@ g.window ??= globalThis
 const win = g.window as { setTimeout?: typeof setTimeout }
 win.setTimeout ??= setTimeout
 const memory = new Map<string, string>()
-g.localStorage ??= {
+// Its own store, always: an earlier file may have left a stub that drops writes, and these tests read theirs back.
+g.localStorage = {
   getItem: (k: string) => memory.get(k) ?? null,
   setItem: (k: string, v: string) => void memory.set(k, v),
   removeItem: (k: string) => void memory.delete(k),

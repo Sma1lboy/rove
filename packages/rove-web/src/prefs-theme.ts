@@ -39,16 +39,22 @@ export function contrast(a: string, b: string): number {
 /** WCAG AA for small text. */
 const MIN_TEXT_CONTRAST = 4.5
 
+/** `--muted` reads at least this much stronger than `--subtle` on every surface, so the two stay in order. */
+const MUTED_OVER_SUBTLE = 1.1
+
 /**
- * `--subtle` is the TUI's line-number grey, tuned for a terminal; on the page it is small text on every
- * surface. A grey that already reads is kept; otherwise it is mixed toward white (dark pages) or black
- * (light pages) just far enough to hold AA on all of them, checked on the rounded hex that gets painted.
- * The pole is not the theme's `text`: some themes ink in a hue that is itself under AA on their surfaces.
+ * A text colour kept if it already reaches `floor(surface)` on every surface; otherwise mixed toward white
+ * (dark pages) or black (light pages) just far enough, checked on the rounded hex that gets painted. The pole is not
+ * the theme's `text`: some themes ink in a hue that is itself under AA on their surfaces.
  */
-function legibleSubtle(subtle: string, surfaces: readonly [string, ...string[]]): string {
-  const reads = (c: string) => surfaces.every((s) => contrast(c, s) >= MIN_TEXT_CONTRAST)
-  if (reads(subtle)) return subtle
-  const from = channelsOf(subtle)
+function legibleOn(
+  color: string,
+  surfaces: readonly [string, ...string[]],
+  floor: (surface: string) => number,
+): string {
+  const reads = (c: string) => surfaces.every((s) => contrast(c, s) >= floor(s))
+  if (reads(color)) return color
+  const from = channelsOf(color)
   const pole = luminance(surfaces[0]) < 0.18 ? 255 : 0
   for (let t = 0.02; t < 1; t += 0.02) {
     const mixed = from
@@ -63,9 +69,29 @@ function legibleSubtle(subtle: string, surfaces: readonly [string, ...string[]])
   return pole ? "#ffffff" : "#000000"
 }
 
+/**
+ * `--subtle` is the TUI's line-number grey, tuned for a terminal; on the page it is small text on every surface, so
+ * it is raised to AA. That can leave it stronger than the theme's `textMuted`, which would invert the ink > muted >
+ * subtle order, so `--muted` is raised to stay a step past it (and to AA itself).
+ */
+function quietInks(palette: Palette): { muted: string; subtle: string } {
+  const surfaces: [string, ...string[]] = [
+    palette.background,
+    palette.backgroundPanel,
+    palette.backgroundElement,
+    palette.backgroundMenu,
+  ]
+  const subtle = legibleOn(palette.diffLineNumber, surfaces, () => MIN_TEXT_CONTRAST)
+  const muted = legibleOn(palette.textMuted, surfaces, (s) =>
+    Math.max(MIN_TEXT_CONTRAST, contrast(subtle, s) * MUTED_OVER_SUBTLE),
+  )
+  return { muted, subtle }
+}
+
 /** Custom properties for `:root`. Empty before the first reply, so the stylesheet's own dark tokens stand. */
 export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "colorblind">): Record<string, string> {
   const cb = prefs.colorblind === "on"
+  const quiet = quietInks(palette)
   return {
     "--paper": palette.background,
     "--surface": palette.backgroundPanel,
@@ -75,13 +101,8 @@ export function cssVars(palette: Palette, prefs: Pick<Prefs, "focusAccent" | "co
     "--line-active": palette.borderActive,
     "--line-subtle": palette.borderSubtle,
     "--ink": palette.text,
-    "--muted": palette.textMuted,
-    "--subtle": legibleSubtle(palette.diffLineNumber, [
-      palette.background,
-      palette.backgroundPanel,
-      palette.backgroundElement,
-      palette.backgroundMenu,
-    ]),
+    "--muted": quiet.muted,
+    "--subtle": quiet.subtle,
     "--accent": palette.primary,
     "--error": palette.error,
     "--success": palette.success,

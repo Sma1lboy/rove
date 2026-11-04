@@ -18,7 +18,7 @@ export const guideClass = (kind: keyof typeof GUIDE): string => `relative w-3 ${
 
 /** The whole chip column of the row is the target, not just the glyph. */
 export const FOLD_TOGGLE =
-  "-mx-1 inline-flex min-w-6 cursor-pointer items-center justify-center gap-1 self-stretch rounded-[4px] px-2 font-mono hover:bg-hover"
+  "-mx-1 inline-flex min-w-6 cursor-pointer items-center justify-center gap-1 self-stretch rounded-xs px-2 font-mono hover:bg-hover"
 
 export const PR_CHIP = "inline-flex items-center gap-1"
 export const PR_CHIP_COUNT = "font-sans"
@@ -58,9 +58,9 @@ export const projectHead = (o: { moving: boolean; dragging: boolean }): string =
   `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.moving || o.dragging ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
-export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-[4px] border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`
+export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`
 /** Hidden until the header is hovered or the toggle focused; always shown to a finger. A folded one always shows. */
 export const projectChevron = (folded: boolean): string =>
   folded ? "" : "opacity-0 group-hover/head:opacity-100 group-focus-visible/toggle:opacity-100 touch:opacity-100"
-/** Centred on the task rows' status dot: the dot is ~6.6px wide (1ch of 11px mono), so the 20px + overhangs by ~6.7px. */
-export const PROJECT_ADD = `-mr-[6.7px] ml-auto size-5 cursor-pointer rounded-[4px] border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`
+/** Centred on the task rows' status dots: the 3×3 mark is 11px wide (status-dots.tsx), so the 20px + overhangs by 4.5px. */
+export const PROJECT_ADD = `-mr-[4.5px] ml-auto size-5 cursor-pointer rounded-xs border-none bg-transparent text-muted opacity-0 [font:400_var(--fs-display)/1_var(--sans)] group-hover/head:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 touch:opacity-100 ${HIT}`

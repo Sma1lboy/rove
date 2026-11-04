@@ -23,7 +23,7 @@ export function rowClass(o: {
   readonly stack?: boolean
 }): string {
   const layout = o.stack ? "flex-col items-stretch gap-0.5 px-2.5 py-1.5" : "items-center gap-2 px-2 py-0.75"
-  const bg = o.moving ? "bg-accent-soft" : o.selected ? "bg-inset" : "hover:bg-hover data-menu-open:bg-hover"
+  const bg = o.moving ? "bg-accent-soft" : o.selected ? "bg-menu" : "hover:bg-hover data-menu-open:bg-hover"
   return `relative flex w-full rounded-sm text-left active:scale-97 motion-reduce:active:scale-none ${layout} ${SIZE[o.size ?? "row"]} ${bg}`
 }
 
