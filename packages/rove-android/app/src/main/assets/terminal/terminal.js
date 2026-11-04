@@ -1,7 +1,7 @@
 'use strict';
 // iOS Theme.Terminal: espresso background on the dark tokens, the claude-theme ANSI 0-15 palette, Maple Mono NF at 13.
-const ansi = ['#141413', '#d47563', '#9aca86', '#e8c96b', '#61aaf2', '#9b87f5', '#d4967e', '#a9a39a',
-  '#6b665f', '#d47563', '#9aca86', '#e8c96b', '#61aaf2', '#9b87f5', '#e0ab96', '#eae7df'];
+const ansi = ['#141413', '#ec6f74', '#9aca86', '#e8c96b', '#61aaf2', '#9b87f5', '#d4967e', '#a9a39a',
+  '#6b665f', '#ec6f74', '#9aca86', '#e8c96b', '#61aaf2', '#9b87f5', '#e0ab96', '#eae7df'];
 const names = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
 const theme = { background: '#141413', foreground: '#eae7df', cursor: '#cc785c', selectionBackground: 'rgba(204,120,92,0.35)' };
 names.forEach((n, i) => { theme[n] = ansi[i]; theme['bright' + n[0].toUpperCase() + n.slice(1)] = ansi[i + 8]; });
