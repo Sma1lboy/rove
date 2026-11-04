@@ -383,3 +383,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Sandbox:** bun 1.3.14 from npm. The harness asked for headless shell rev **1228** (node from the harness dir says 1243); `/tmp/pwshim/chromium_headless_shell-{1243,1228} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks worked. The 502 from `create_pull_request` still created the PR — list before retrying.
 
 **Update 2026-11-04:** #1634 merged. Next main should read switch.perOp.paintRow/styled ~2 (✓ against the 47 baseline); move the baseline only if every past-tolerance change is ✓.
+
+**Update 2026-11-04:** #1645 merged. Tomorrow's main should read switch.perOp.spawns ~0.1–0.2 (was 0.5).
