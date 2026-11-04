@@ -119,6 +119,13 @@ export interface EngineRegistryEntry {
    * variadic, so a spaced `--add-dir <dir>` would swallow the positional prompt.
    */
   readonly addDirArgv?: (base: readonly string[], dirs: readonly string[]) => readonly string[]
+  /**
+   * Rewrites every hosted interactive launch's full argv so the engine opens
+   * straight to its composer: a blocking startup screen of its own (an update
+   * offer) would take the first prompt Rove delivers and stall an unattended
+   * task. Must leave a value the user's command override already sets alone.
+   */
+  readonly hostedStartArgv?: (argv: readonly string[]) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**

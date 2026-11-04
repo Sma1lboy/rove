@@ -75,6 +75,8 @@ describe("engineLaunchArgv", () => {
       "model_reasoning_effort=high",
       "-c",
       'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
     ])
   })
 
@@ -95,6 +97,8 @@ describe("engineLaunchArgv", () => {
       "model_reasoning_effort=high",
       "-c",
       'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
     ])
   })
 

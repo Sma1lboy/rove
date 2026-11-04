@@ -215,6 +215,16 @@ task worktree stops at its trust prompt and you have to answer it once in the
 pane. The rest are unmeasured; if a task sits on a dialog at launch, that is
 what you are looking at.
 
+### Engine update prompts
+
+Codex offers to update itself in a menu before its composer opens. That menu
+drops typed input and treats Enter as "update now", which installs and exits,
+so the first prompt of a task, a fan-out sibling, or a routine run would never
+start a turn. Rove launches Codex with `-c check_for_update_on_startup=false`;
+update it with the installer you used (`npm i -g @openai/codex`, `brew upgrade
+codex`). If your launch-command override sets `check_for_update_on_startup`
+itself, Rove leaves it alone.
+
 ### Custom launch commands
 
 Override any engine's launch command in Settings → Engines, or by hand in
