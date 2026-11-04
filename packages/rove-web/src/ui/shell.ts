@@ -102,7 +102,7 @@ export const TERM_SEARCH_INPUT = "min-w-0 flex-1 border-none bg-transparent text
 export const TERM_KEY_ROW =
   "hidden gap-1 overflow-x-auto scrollbar-none [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1 touch:flex"
 export const termKey = (on: boolean): string =>
-  `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-[6px] border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
+  `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-sm border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */

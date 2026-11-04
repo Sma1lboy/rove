@@ -10,7 +10,7 @@ export const RT_LIST =
 export const RT_GROUP = "flex gap-1.5 px-2 pt-0 pb-1"
 /** The rail's own pair: a neutral wash on hover (ungated, as the sheet had), the inset fill for the selected row. */
 export const rtRowClass = (cursor: boolean): string =>
-  `flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 ${cursor ? "bg-inset" : "[&:hover]:bg-hover"}`
+  `flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 ${cursor ? "bg-menu" : "[&:hover]:bg-hover"}`
 export const RT_ROW_LINE = "flex min-w-0 items-baseline gap-2.5"
 export const rtNameClass = (off: boolean): string => `min-w-0 flex-1 truncate font-bold ${off ? "text-muted" : ""}`
 export const RT_WHEN = "whitespace-nowrap text-meta"

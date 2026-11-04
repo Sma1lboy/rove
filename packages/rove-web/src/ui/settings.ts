@@ -55,9 +55,9 @@ export const engDotClass = (tone: EngTone): string => `size-1.75 flex-none round
 
 export const ENG_DEFAULT = "flex justify-center"
 export const ENG_PILL =
-  "rounded-full bg-accent-soft px-2.25 py-0.5 font-sans text-meta font-medium normal-nums capitalize text-accent"
+  "rounded-full bg-accent-soft px-2.5 py-0.5 font-sans text-meta font-medium normal-nums capitalize text-accent"
 export const ENG_MAKE_DEFAULT =
-  "rounded-full border-hairline border-line px-2.25 py-0.5 text-meta leading-[inherit] whitespace-nowrap text-muted opacity-0 transition-opacity duration-120 ease-[ease] group-hover/eng:opacity-100 group-focus-within/eng:opacity-100 hover:border-line-active hover:text-ink motion-reduce:transition-none touch:opacity-100"
+  "rounded-full border-hairline border-line px-2.5 py-0.5 text-meta leading-[inherit] whitespace-nowrap text-muted opacity-0 transition-opacity duration-120 ease-[ease] group-hover/eng:opacity-100 group-focus-within/eng:opacity-100 hover:border-line-active hover:text-ink motion-reduce:transition-none touch:opacity-100"
 
 export const ENG_DETAIL_AREA = "mt-0 mr-1 mb-2.5 ml-7 flex flex-col gap-2.5 rounded-sm bg-inset px-3 py-2.5"
 export const ENG_FACTS = "m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 text-meta leading-[1.5]"
@@ -81,7 +81,7 @@ export const SETTINGS_NAV =
   "flex flex-col gap-0.5 pr-2.5 [border-right:var(--hairline)_solid_var(--line)] w-narrow:flex-row w-narrow:overflow-x-auto w-narrow:scrollbar-none w-narrow:[border-right:none] w-narrow:[border-bottom:var(--hairline)_solid_var(--line)] w-narrow:p-0 w-narrow:pb-2"
 /** The active tab keeps its inset under the pointer, as `.is-active` outranked `:hover`. */
 export const settingsTabClass = (active: boolean): string =>
-  `rounded-sm px-2.5 py-1.25 text-left w-narrow:flex-none w-narrow:whitespace-nowrap ${active ? "bg-inset text-ink" : "text-muted [&:hover]:bg-hover"}`
+  `rounded-sm px-2.5 py-1.25 text-left w-narrow:flex-none w-narrow:whitespace-nowrap ${active ? "bg-menu text-ink" : "text-muted [&:hover]:bg-hover"}`
 /** The padding leaves room for a focus ring the scroller would clip, so headings and fields share one left edge. */
 export const SETTINGS_BODY = "flex max-h-[60vh] flex-col gap-4.5 overflow-y-auto px-1.5"
 export const SETTINGS_GROUP = "flex flex-col gap-2 [&_p]:m-0 [&_p]:text-[length:var(--fs-meta)]"

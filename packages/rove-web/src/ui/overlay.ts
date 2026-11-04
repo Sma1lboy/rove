@@ -16,7 +16,7 @@ export const DIALOG_HEAD = "flex items-center justify-between gap-3"
 
 /** A sentence that often quotes the user's own words: ink and sentence case, never an uppercased kicker. */
 export const DIALOG_TITLE =
-  "m-0 min-w-0 font-sans text-body leading-[1.4] font-semibold normal-nums text-ink wrap-anywhere"
+  "m-0 min-w-0 font-sans text-title leading-[1.4] font-semibold normal-nums text-ink wrap-anywhere"
 
 export const DIALOG_CLOSE =
   "grid size-6 place-items-center -my-1 mr-[-6px] ml-0 rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:relative touch:after:absolute touch:after:-inset-2.5 touch:after:content-['']"
@@ -45,7 +45,7 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 
 export const TOASTS = "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5"
 export const toastClass = (error: boolean): string =>
-  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.75 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
+  `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.5 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
 /** Inbox: one card's line, badge, age and subtitle. */
 export const INBOX_HINTS = "text-subtle"
