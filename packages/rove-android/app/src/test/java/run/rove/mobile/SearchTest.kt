@@ -1,7 +1,6 @@
 package run.rove.mobile
 
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.parseToJsonElement
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import run.rove.mobile.data.wireJson
