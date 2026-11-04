@@ -69,11 +69,28 @@ describe("interactiveEngineCommand", () => {
     ])
   })
 
-  it("leaves an update-check setting the user's override already chose", () => {
-    setPersistedString(engineCommandKey("codex"), "codex -c check_for_update_on_startup=true")
+  it.each([
+    "-c check_for_update_on_startup=true",
+    "--config check_for_update_on_startup=false",
+    "-ccheck_for_update_on_startup=true",
+    "-c=check_for_update_on_startup=false",
+    "--config=check_for_update_on_startup=true",
+    '-c " check_for_update_on_startup = false"',
+  ])("preserves the explicit update-check override %s", (config) => {
+    setPersistedString(engineCommandKey("codex"), `codex ${config}`)
     const argv = interactiveEngineCommand("codex")
-    expect(argv).toContain("check_for_update_on_startup=true")
-    expect(argv).not.toContain("check_for_update_on_startup=false")
+    expect(argv.filter((arg) => arg.includes("check_for_update_on_startup"))).toHaveLength(1)
+  })
+
+  it.each([
+    `-c 'developer_instructions="Explain check_for_update_on_startup"'`,
+    "--config=other_check_for_update_on_startup=true",
+    "-c check_for_update_on_startup_extra=true",
+    "-c nested.check_for_update_on_startup=true",
+    '"Explain check_for_update_on_startup=true"',
+  ])("disables startup updates despite an unrelated mention in %s", (override) => {
+    setPersistedString(engineCommandKey("codex"), `codex ${override}`)
+    expect(interactiveEngineCommand("codex")).toContain("check_for_update_on_startup=false")
   })
 
   it("lets Codex own the tab status and name from its live thread title", () => {

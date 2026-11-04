@@ -138,10 +138,22 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
     // codex-tui's startup update offer is a modal that drops pending input, and
     // Enter on it picks "update now", which installs and exits instead of starting.
-    hostedStartArgv: (argv) =>
-      argv.some((arg) => arg.includes("check_for_update_on_startup"))
-        ? argv
-        : [...argv, "-c", "check_for_update_on_startup=false"],
+    hostedStartArgv: (argv) => {
+      for (let i = 1; i < argv.length; i++) {
+        const arg = argv[i]
+        if (arg === "--") break
+        const config =
+          arg === "-c" || arg === "--config"
+            ? argv[++i]
+            : arg.startsWith("--config=")
+              ? arg.slice("--config=".length)
+              : arg.startsWith("-c")
+                ? arg.slice(2).replace(/^=/, "")
+                : undefined
+        if (config && /^\s*check_for_update_on_startup\s*=/.test(config)) return argv
+      }
+      return [...argv, "-c", "check_for_update_on_startup=false"]
+    },
     foreignModel: isClaudeFamilyModel,
     // codex-tui `new_error_event`: every turn error is one red `■ <message>` row.
     errorLine: /^\s*■\s+\S/,
