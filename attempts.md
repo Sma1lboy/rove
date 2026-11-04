@@ -371,3 +371,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next:** once #1634 lands the run should show ✓ on paintRow/styled; move the baseline then. Remaining switch counts: frame 4.3, overlay 3 (three overlay passes per switch: mount, resize, first data).
 
 **Sandbox:** bun 1.3.14 from npm; `/tmp/pwshim/chromium_headless_shell-{1243,1228,1194} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks were enough. Commit as the owner (`GIT_AUTHOR_*`/`GIT_COMMITTER_*`), not the sandbox default.
+
+## 2026-11-04 — switch.perOp.spawns (main 0bc1630)
+
+**No regression.** Run 1 exited 1 on cold boot.* and vt-1mb-parse (920/4135/155.7); run 2 exited 0 and every change past tolerance was ✓ (commit.root/workspace 7.4 → 6, stateListener 3.5 → 2), so **baseline.json is now run 2's metrics**. A third main run (alternating with the attempt) read root 6.1, switch.shown 491. #1634 (blank-row painter skip) is still open, so paintRow/styled still read 43 on main. No open GitHub issues. Tonight's history line is main run 2.
+
+**Landed tonight as a PR from `perf/nightly-2026-11-04` (#1645):** moved to spawns. Every per-switch/per-key spawn is `engine.foregroundWalk`: the TUI's `live-engine.ts` runs `ps -A` every 2 s once any PTY has a pid (idle.spawns is 0 only because no pid is registered during the idle phase). The interval tick now skips the walk when the walked pid set is unchanged, no OFF-edge miss is pending, every key has a PTY whose `lastOutputAtMs()` equals the stamp taken before the last walk, and the last walk is < 10 s old (`maxQuietSkipMs`). `probe()` itself is unchanged (tests call it directly). switch.perOp.spawns 0.5/0.5 → 0.2/0/0.2 (3 of 3); typing.perOp.spawns stays 0.2 (every key echoes, by design). switch.shown 435/491 main vs 472/507/487: inside main's spread. idle/switch text frames byte-identical; typing differs only in the `B>` prompt count (noise, see 11-03).
+
+**Next:** aux-only keys (hosted tabs this TUI never attached, incl. parked tabs dropped from the registry) have no output stamp and always force a walk; in real use with parked tabs the skip rarely applies. `pty.list` could carry a per-session last-output stamp from the PTY host to cover them. The daemon also walks (`daemon-runtime.ts foregroundEngines`, pid 1694 in spawn.jsonl) — check its cadence.
+
+**Sandbox:** bun 1.3.14 from npm. The harness asked for headless shell rev **1228** (node from the harness dir says 1243); `/tmp/pwshim/chromium_headless_shell-{1243,1228} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks worked. The 502 from `create_pull_request` still created the PR — list before retrying.
