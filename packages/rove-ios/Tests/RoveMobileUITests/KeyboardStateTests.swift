@@ -100,25 +100,30 @@ final class KeyboardStateTests: XCTestCase {
         let row = el("keyRow").frame, bar = el("composerBar").frame
         XCTAssertLessThanOrEqual(abs(bar.minY - row.maxY), 2, "\(label): key row \(row) not on the composer \(bar)")
         XCTAssertLessThanOrEqual(abs(top - bar.maxY), 2, "\(label): composer bar ends at \(bar.maxY), keyboard at \(top)")
-        let rowCenter = el("keyRow").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        /// Back to the row's leading edge (a drag past it just stops there).
-        func rewind() {
-            rowCenter.press(forDuration: 0.05, thenDragTo: rowCenter.withOffset(CGVector(dx: 400, dy: 0)))
-            Thread.sleep(forTimeInterval: 0.5)
+        // A drag must stay inside the scroll view and stop before release to avoid inertial overshoot.
+        func reveal(_ key: XCUIElement) {
+            for _ in 0..<8 {
+                let row = el("keyRow")
+                let frame = row.frame
+                let edge = (kb.done?.frame.minX ?? frame.maxX) - 32
+                let keyFrame = key.frame
+                if keyFrame.minX >= frame.minX && keyFrame.maxX <= edge { return }
+                let center = (frame.minX + edge) / 2
+                let limit = (edge - frame.minX) / 2 - 12
+                let distance = max(-limit, min(limit, center - keyFrame.midX))
+                let start = row.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: center - frame.minX, dy: frame.height / 2))
+                start.press(forDuration: 0.05,
+                            thenDragTo: start.withOffset(CGVector(dx: distance, dy: 0)),
+                            withVelocity: .slow, thenHoldForDuration: 0.3)
+                waitStill(key)
+            }
         }
-        rewind()
         for id in ["key-Esc", "key-Ctrl", "key-↑", "sendButton"] {
             let e = el(id)
-            // Keys: the visible part of the row runs from its left edge to its `done` key, less the 32 pt fade. A
-            // key past that edge is dragged in by its overflow, then must sit inside it. Judged by frame: XCUI's
-            // isHittable throws ("activation point invalid") on keys while the row settles.
+            if id.hasPrefix("key-") { reveal(e) }
             let rowFrame = el("keyRow").frame
             let edge = (kb.done?.frame.minX ?? rowFrame.maxX) - 32
-            let overflow = id.hasPrefix("key-") ? e.frame.maxX - edge : 0
-            if overflow > 0 {
-                rowCenter.press(forDuration: 0.05, thenDragTo: rowCenter.withOffset(CGVector(dx: -(overflow + 40), dy: 0)))
-                Thread.sleep(forTimeInterval: 0.5)
-            }
             if id.hasPrefix("key-") {
                 let f = e.frame
                 XCTAssertTrue(f.minX >= rowFrame.minX - 1 && f.maxX <= edge + 1 && f.width > 0,
@@ -127,8 +132,8 @@ final class KeyboardStateTests: XCTestCase {
                 XCTAssertTrue(e.isHittable, "\(label): \(id) not reachable with the keyboard up")
             }
             XCTAssertLessThanOrEqual(e.frame.maxY, top + 0.5, "\(label): \(id) under the keyboard")
-            if overflow > 0 { rewind() }
         }
+        reveal(el("key-Esc"))
         XCTAssertGreaterThan(el("terminal").frame.height, 40, "\(label): terminal squeezed out")
         let term = el("terminal").frame
         let lum = px.luminance(in: CGRect(x: term.minX + 1, y: term.midY - 10, width: 4, height: 20))
