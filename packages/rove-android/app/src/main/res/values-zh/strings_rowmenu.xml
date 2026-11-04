@@ -11,7 +11,7 @@
     <string name="rowmenu_cancel">取消</string>
     <string name="rowmenu_status_backlog">待办</string>
     <string name="rowmenu_status_in_progress">进行中</string>
-    <string name="rowmenu_status_in_review">评审中</string>
+    <string name="rowmenu_status_in_review">待评审</string>
     <string name="rowmenu_status_done">已完成</string>
     <string name="rowmenu_status_canceled">已取消</string>
     <string name="rowmenu_status_error">出错</string>
