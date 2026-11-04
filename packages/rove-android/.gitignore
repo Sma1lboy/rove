@@ -5,3 +5,5 @@ local.properties
 .idea/
 *.iml
 web/node_modules/
+
+app/src/test/snapshots/images/run.rove.mobile_ScreenshotsTest_searchHits.png

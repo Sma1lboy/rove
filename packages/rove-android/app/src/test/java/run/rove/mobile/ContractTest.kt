@@ -20,7 +20,7 @@ class ContractTest {
     }
     @Test fun navigationStackSurvivesRotation() {
         val stack = listOf(run.rove.mobile.ui.Route.Settings, run.rove.mobile.ui.Route.Task("T1", "tab-2"),
-            run.rove.mobile.ui.Route.Task("T2"), run.rove.mobile.ui.Route.Board)
+            run.rove.mobile.ui.Route.Task("T2"), run.rove.mobile.ui.Route.Board, run.rove.mobile.ui.Route.Search)
         val saver = run.rove.mobile.ui.RouteStackSaver
         val flat = with(saver) { androidx.compose.runtime.saveable.SaverScope { true }.save(stack) }!!
         assertEquals(stack, saver.restore(flat))

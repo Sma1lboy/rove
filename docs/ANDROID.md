@@ -2,7 +2,7 @@
 
 Rove for Android is a Kotlin and Jetpack Compose client in `packages/rove-android`. It speaks bridge protocol version 1, shared with [iOS](IOS.md), and makes no daemon, bridge, or iOS changes. The Mac owns tasks and PTYs; Android holds pairing credentials and transient screen state.
 
-This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues and worktrees. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
+This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues, worktrees and conversation search. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
 
 ## Build
 
@@ -74,6 +74,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
 | `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete |
 | `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
+| `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 
 The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 
@@ -86,6 +87,8 @@ The demo resolver consumes the iOS fixture directly. Reconnects never replay use
 CI runs the same script in `.github/workflows/android.yml` on pushes to `main` and others' PRs that touch the package, then builds an unsigned release bundle. Running the script locally or on allen is still the check before pushing.
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
+
+The search baseline is external to keep its implementation diff free of binaries. Gradle restores it from a commit-pinned URL and verifies SHA-256 before tests run, including direct Paparazzi invocations. After recording and inspecting an intentional search change, publish the new baseline and update the URL and checksum in `prepareSearchSnapshot` in `app/build.gradle.kts`. The downloaded file is gitignored.
 
 ### Emulator screenshots on allen
 
