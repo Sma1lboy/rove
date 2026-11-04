@@ -8,7 +8,7 @@
  * A running TUI picks every key up live from the daemon's `state` push.
  */
 
-import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import type { ThemeJson } from "@sma1lboy/rove/src/tui/context/theme-core.ts"
 import { BUNDLED_THEME_JSONS } from "@sma1lboy/rove/src/tui/context/theme/bundled.ts"
 import { loadUserThemes } from "@sma1lboy/rove/src/tui/context/theme/loader.ts"
@@ -20,15 +20,22 @@ import type { OpTable } from "./types.ts"
 
 export interface PrefsDeps {
   readonly load: () => StateSnapshot
-  readonly patch: (patch: StateSnapshot) => void
+  /** Locked read-modify-write: `compute` sees the file as it is now, so a patch never rests on a stale read. */
+  readonly update: (compute: (fresh: StateSnapshot) => StateSnapshot) => void
   /** Bundled themes, then the user's (`<state dir>/themes/*.json`, which win on a name clash). */
   readonly themes: () => readonly { name: string; bundled: boolean; theme: ThemeJson }[]
 }
 
 const realDeps: PrefsDeps = {
   load: loadStateFile,
-  patch: (patch) => {
-    patchStateFile(patch)
+  update: (compute) => {
+    updateStateFile((state) => {
+      for (const [key, value] of Object.entries(compute(state))) {
+        if (value === undefined) delete state[key]
+        else state[key] = value
+      }
+      return undefined
+    })
   },
   themes: () => {
     const user = loadUserThemes()
@@ -90,10 +97,9 @@ export function createPrefsOps(deps: PrefsDeps): OpTable {
           throw new BridgeError("BAD_ARGS", `key must be one of ${Object.keys(PREF_DEFS).join("|")}`)
         }
         const def = PREF_DEFS[name] as PrefDef
-        const state = deps.load()
         const names = deps.themes().map((t) => t.name)
         const value = checkPrefValue(name, def, args.value, names)
-        deps.patch(def.write(value as never, state))
+        deps.update((fresh) => def.write(value as never, fresh))
         // Read back through the normalizer: what the TUI will now see, not what was sent.
         const { prefs } = readAll(deps, deps.load())
         return { key: name, value: prefs[name], prefs }
