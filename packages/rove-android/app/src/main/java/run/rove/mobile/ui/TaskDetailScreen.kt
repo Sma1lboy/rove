@@ -68,6 +68,20 @@ import java.util.Locale
     var confirmation by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     val tabsError = stringResource(R.string.detail_tabs_error)
+    var preflight by remember(taskId) { mutableStateOf<LandPreflight?>(null) }
+    val dirtyBase = stringResource(R.string.detail_land_dirty_base)
+    // A refusal replaces the dialog instead of following a confirm. A bridge without the op, or a task on another machine, keeps the plain dialog.
+    val startLand: () -> Unit = {
+        model.action {
+            val probe = if (task?.machine != null) null else try { model.repository.landPreflight(taskId) }
+            catch (e: BridgeFailure) { if (e.code == "UNKNOWN_OP") null else throw e }
+            when {
+                probe?.refusal == LandLogic.DIRTY_BASE -> model.error.value = dirtyBase
+                probe?.refusal != null -> model.error.value = probe.message ?: probe.refusal
+                else -> { preflight = probe; action = "land"; confirmation = 1 }
+            }
+        }
+    }
     LaunchedEffect(taskId, connection, revision) {
         if (!connected) return@LaunchedEffect
         try {
@@ -110,7 +124,7 @@ import java.util.Locale
             }
             MetaStrip(task, showMode = selected != null, fit = fit, onFit = { fit = it })
             TabStrip(tabs.orEmpty(), selected, tabStates, diffStat, connected, onSelect = { selected = it },
-                onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = { action = "land"; confirmation = 1 })
+                onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = startLand)
         }
         val current = tabs?.firstOrNull { it.id == selected }
         if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit) }
@@ -118,7 +132,7 @@ import java.util.Locale
     }
     if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
     if (history) TaskHistorySheet(model, taskId) { history = false }
-    if (action != null) ConfirmDialog(action!!, confirmation, busy, task, onDismiss = { if (!busy) action = null }) {
+    if (action != null) ConfirmDialog(action!!, confirmation, busy, task, preflight, onDismiss = { if (!busy) action = null }) {
         if (confirmation == 1) confirmation = 2
         else if (!busy) {
             busy = true
@@ -269,7 +283,7 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
 }
 
 /** Two-step confirmation for the destructive actions: what it does, then the explicit confirm. */
-@Composable private fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, onDismiss: () -> Unit, onContinue: () -> Unit) {
+@Composable private fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, preflight: LandPreflight?, onDismiss: () -> Unit, onContinue: () -> Unit) {
     val delete = action == "delete"
     AlertDialog(onDismissRequest = onDismiss, containerColor = Rove.c.paper,
         title = {
@@ -283,8 +297,12 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
                     Text(task?.displayTitle.orEmpty(), color = Rove.c.ink, style = Rove.face(15, FontWeight.Medium))
                     if (!task?.branch.isNullOrEmpty()) Text(task!!.branch, color = Rove.c.muted, style = Rove.mono(12))
                 }
-                Text(stringResource(if (delete) R.string.detail_delete_body else R.string.detail_land_body),
-                    color = Rove.c.muted, style = Rove.face(14))
+                Text(when {
+                    delete -> stringResource(R.string.detail_delete_body)
+                    preflight == null -> stringResource(R.string.detail_land_body)
+                    preflight.ahead == 1 -> stringResource(R.string.detail_land_body_one, task?.branch.orEmpty(), preflight.landedOn)
+                    else -> stringResource(R.string.detail_land_body_many, task?.branch.orEmpty(), preflight.landedOn, LandLogic.commits(preflight))
+                }, color = Rove.c.muted, style = Rove.face(14))
             }
         },
         dismissButton = { TileLabel(stringResource(R.string.detail_cancel), onClick = onDismiss) },

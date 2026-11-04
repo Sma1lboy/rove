@@ -53,4 +53,7 @@
     <string name="detail_land_confirm">confirm land</string>
     <string name="detail_cancel">cancel</string>
     <string name="detail_working">working…</string>
+    <string name="detail_land_body_one">Merge \"%1$s\" into %2$s (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list.</string>
+    <string name="detail_land_body_many">Merge \"%1$s\" into %2$s (%3$s commits), then remove this worktree? The branch is kept. Conflicts abort with a file list.</string>
+    <string name="detail_land_dirty_base">The base checkout has uncommitted changes. Commit them on the Mac, then land.</string>
 </resources>
