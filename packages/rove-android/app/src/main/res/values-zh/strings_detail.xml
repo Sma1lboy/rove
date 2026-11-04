@@ -40,4 +40,7 @@
     <string name="detail_land_confirm">确认合入</string>
     <string name="detail_cancel">取消</string>
     <string name="detail_working">处理中…</string>
+    <string name="detail_land_body_one">把 \"%1$s\" 合入 %2$s（1 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。</string>
+    <string name="detail_land_body_many">把 \"%1$s\" 合入 %2$s（%3$s 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。</string>
+    <string name="detail_land_dirty_base">基础检出有未提交改动。先在 Mac 上提交，再合入。</string>
 </resources>

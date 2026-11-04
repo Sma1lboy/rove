@@ -15,6 +15,7 @@ data class TaskRow(
     val deleting: Boolean = false,
     val archived: Boolean = false,
     val routine: Boolean = false,
+    val machine: TaskMachine? = null,
     val engine: EngineLabel? = null,
     val status: String = "",
     val activity: TaskActivity? = null,
@@ -29,6 +30,8 @@ data class TaskRow(
     val displayTitle get() = title.ifEmpty { branch.ifEmpty { id } }
     val repoName get() = repo.trimEnd('/').substringAfterLast('/')
 }
+/** The registered machine a remote task lives on; there is no base checkout of it here to merge into. */
+@Serializable data class TaskMachine(val label: String = "")
 @Serializable data class EngineLabel(val id: String? = null, val name: String)
 @Serializable data class TaskActivity(val state: String, val forMs: Double = 0.0)
 @Serializable data class TaskPR(val number: Int? = null, val url: String? = null, val lifecycle: String = "",
