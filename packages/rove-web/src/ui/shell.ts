@@ -172,11 +172,12 @@ export const connDot = (retrying: boolean): string => `size-1.5 rounded-full ${r
 
 /** Usage in the rail's foot and at the top of Settings on a phone: quiet text that wraps, no strip behind it. */
 export const USAGE_QUIET =
-  "flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 px-3.5 pt-1 pb-0.5 whitespace-nowrap text-meta text-muted"
-/** Gap of 2 TUI cells between a chip's parts; tone only on the percent. */
-export const USAGE_CHIP = "[&>span:nth-child(n+3)]:ml-2"
+  "flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 pt-1.5 pb-0.5 font-sans whitespace-nowrap text-meta text-subtle normal-nums"
+/** One reading: its name, then the figure. */
+export const USAGE_CHIP = "inline-flex items-baseline gap-1.5"
+/** Tone sits on the figure only, and only when it asks for attention: a healthy reading stays as quiet as its name. */
 export const USAGE_TONE: Readonly<Record<string, string>> = {
-  ok: "text-success",
+  ok: "text-muted",
   warn: "text-warning",
   crit: "text-error",
 }

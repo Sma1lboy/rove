@@ -20,6 +20,11 @@ export const en = {
     shell: "shell",
     engine: "engine",
   },
+  firstRun: {
+    title: "Run several agents side by side",
+    body: "Every task gets its own worktree and branch, so sessions never step on each other.",
+    start: "Start your first task",
+  },
   status: {
     connecting: "connecting",
     retrying: "reconnecting, attempt {count}",
@@ -114,6 +119,11 @@ export const zh: typeof en = {
   tab: {
     shell: "终端",
     engine: "引擎",
+  },
+  firstRun: {
+    title: "让多个智能体并排工作",
+    body: "每个任务有独立的 worktree 和分支，会话之间互不干扰。",
+    start: "开始第一个任务",
   },
   status: {
     connecting: "连接中",

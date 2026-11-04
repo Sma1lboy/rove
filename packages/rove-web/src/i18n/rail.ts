@@ -3,7 +3,7 @@ export const en = {
   rail: {
     inbox: "inbox {count}",
     empty: "no tasks yet",
-    emptyHint: "New task above: pick a project folder, then say what to do",
+    skillCue: "skill missing",
     newTask: "New task",
     settings: "Settings",
     noProject: "Ungrouped",
@@ -43,7 +43,7 @@ export const zh: typeof en = {
   rail: {
     inbox: "收件箱 {count}",
     empty: "还没有任务",
-    emptyHint: "点上面的「新建任务」：选一个项目文件夹，再写要做什么",
+    skillCue: "缺少技能",
     newTask: "新建任务",
     settings: "设置",
     noProject: "未分组",

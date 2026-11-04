@@ -1,12 +1,12 @@
 /**
  * The usage lines, as the TUI's `host-footer.tsx`: `ctx 62%` and `Σ 45k` for the selected session,
- * then per-engine quota in the compact form (`CLAUDE 11% CODEX 24%`). Text and tones come from
- * the TUI's own `usage-core.ts`; a missing reading draws nothing, never 0.
+ * then each engine's quota under the engine's own name (`Claude 11%  Codex 24%`). Figures and tones
+ * come from the TUI's own `usage-core.ts`; a missing reading draws nothing, never 0.
  */
 
 import {
-  buildFooterChips,
   contextChip,
+  narrowUsageChip,
   tokenTotalChip,
 } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
 import { type CSSProperties, useEffect, useState } from "react"
@@ -47,7 +47,14 @@ export function UsageChips({
   client,
   taskId,
   tabId,
-}: { client: BridgeClient; taskId: string | null; tabId: string | null }) {
+  inset = true,
+}: {
+  client: BridgeClient
+  taskId: string | null
+  tabId: string | null
+  /** The rail's 14px side padding; Settings' sheet already has its own, so it passes false. */
+  inset?: boolean
+}) {
   const conn = useStore(client.conn)
   const [reply, setReply] = useState<UsageReply | null>(null)
   useEffect(() => {
@@ -70,21 +77,15 @@ export function UsageChips({
 
   const ctx = contextChip(reply?.context)
   const tok = tokenTotalChip(reply?.context)
-  const names = new Map((reply?.usage ?? []).map((row) => [row.vendor, row.name]))
-  const rows = reply?.usage ?? []
-  // The line wraps instead of dropping engines, so the budget is unbounded.
-  const quota = rows.length
-    ? buildFooterChips({
-        usage: new Map(rows.map((row) => [row.vendor, { capturedAt: row.capturedAt, windows: row.windows }])),
-        budget: Number.POSITIVE_INFINITY,
-        nowMs: Date.now(),
-        vendorLabel: (vendor) => names.get(vendor) ?? vendor,
-        forceCompact: true,
-      })
-    : null
-  if (!ctx && !tok && quota?.form !== "compact") return null
+  const now = Date.now()
+  // The engine's own name, as the daemon sends it; the session window's reading, else its first.
+  const quota = (reply?.usage ?? []).flatMap((row) => {
+    const chip = narrowUsageChip({ capturedAt: row.capturedAt, windows: row.windows }, now)
+    return chip ? [{ vendor: row.vendor, name: row.name, chip }] : []
+  })
+  if (!ctx && !tok && quota.length === 0) return null
   return (
-    <div className={USAGE_QUIET}>
+    <div className={`${USAGE_QUIET} ${inset ? "px-3.5" : ""}`}>
       {ctx && (
         <span className={USAGE_CHIP}>
           <span>{ctx.label}</span>
@@ -94,15 +95,21 @@ export function UsageChips({
       )}
       {tok && (
         <span className={USAGE_CHIP}>
-          {tok.label} {tok.text}
+          <span>{tok.label}</span>
+          <span className="text-muted">{tok.text}</span>
         </span>
       )}
-      {quota?.form === "compact" &&
-        quota.vendors.map((vendor) => (
-          <span key={vendor.vendor} className={USAGE_CHIP}>
-            {vendor.vendor} <span className={USAGE_TONE[vendor.tone]}>{vendor.percentText}</span>
-          </span>
-        ))}
+      {quota.map(({ vendor, name, chip }) => (
+        // The window and its reset, numbers only: `Claude · 5h 56% → 14:00`.
+        <span
+          key={vendor}
+          className={USAGE_CHIP}
+          title={`${name} · ${chip.label} ${chip.percentText} ${chip.resetText}`.trim()}
+        >
+          <span>{name}</span>
+          <span className={USAGE_TONE[chip.tone]}>{chip.percentText}</span>
+        </span>
+      ))}
     </div>
   )
 }
