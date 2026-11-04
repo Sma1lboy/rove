@@ -2,8 +2,9 @@
  * The Dispatch page: the daemon's dispatch ledger drawn as a network. Senders (you, routines,
  * agent sessions) on the left, this machine's daemon hub in the middle, target sessions on the right,
  * another registered machine's inside its own frame (shown even with nothing dispatched to it); one
- * wire per pair, lit while a prompt is on it. Each prompt is a courier that runs its wire, then
- * knocks, works, asks or falls at the target as that engine reports. Settled prompts leave a
+ * wire per pair, lit while a prompt is on it. A prompt in flight is one small glyph riding its wire;
+ * once it lands, its state shows on the target node: delivered, working, asking, done or failed. A
+ * prompt that failed before it arrived leaves a mark where it stopped. Settled prompts leave a
  * one-line history under the map. Click a node or a row to open that session.
  */
 
@@ -21,7 +22,7 @@ import {
   targetOf,
   wirePath,
 } from "./dispatch-graph.ts"
-import { FRAME_MS, moving, onMap, recent, runnerOf, settled } from "./dispatch.ts"
+import { flightOf, moving, recent, settled, statusByTarget, stoppedAt } from "./dispatch.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import { deviceHint } from "./key-hints.ts"
@@ -57,25 +58,23 @@ const HUB_H = 72
 const NODE_H = 42
 /** Widest the sender-hub-target band gets; past it the page's sides are margin. */
 const BAND_MAX = 1080
-/** The courier sprite box (3 cols × 3 rows of 12px mono) and how far it stands off a node. */
-const SPRITE_W = 24
-const SPRITE_H = 42
-const STAND_OFF = 6
 
 function reducedMotion(): boolean {
   return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
-/** Animation clock: every frame while a courier moves, once a second under reduced motion. */
+/** Clock: every frame while a prompt travels its wire (never under reduced motion), else once a second so the history's ages stay true. */
 function useClock(rows: readonly DispatchRow[]): number {
   const [now, setNow] = useState(Date.now)
-  const live = moving(rows, Date.now())
+  const flying = !reducedMotion() && moving(rows, Date.now())
+  const aging = rows.length > 0
   useEffect(() => {
-    if (!live) return
-    if (reducedMotion()) {
-      const timer = window.setInterval(() => setNow(Date.now()), 1_000)
-      return () => window.clearInterval(timer)
-    }
+    if (!aging) return
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000)
+    return () => window.clearInterval(timer)
+  }, [aging])
+  useEffect(() => {
+    if (!flying) return
     let raf = 0
     const tick = () => {
       setNow(Date.now())
@@ -83,7 +82,7 @@ function useClock(rows: readonly DispatchRow[]): number {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [live])
+  }, [flying])
   return now
 }
 
@@ -131,6 +130,7 @@ export function DispatchView({ model }: { model: AppModel }) {
   const mapRows = rows.filter((row) => !settled(row) || settledOnMap.has(row))
   const graph = graphOf(mapRows)
   const inFlight = rows.filter((row) => !settled(row)).length
+  const still = reducedMotion()
 
   // The graph keeps to a centred band, so a wide window doesn't strand the columns at its edges.
   const band = Math.min(width, BAND_MAX)
@@ -159,17 +159,15 @@ export function DispatchView({ model }: { model: AppModel }) {
     to: { x: width - edge - nodeW + targetInset(targetOf(row).key), y: targetY(targetOf(row).key) },
   })
 
-  // One wire per sender→target pair; its tone is its liveliest prompt.
-  const wires = new Map<string, { wire: Wire; tone: "live" | "failed" | "idle" }>()
+  // One wire per sender→target pair, from its newest prompt: lit while one travels it, red where one stopped short.
+  const flying = (row: DispatchRow) => (still ? null : flightOf(row, now))
+  const wires = new Map<string, { wire: Wire; tone: "live" | "failed" | "idle"; row: DispatchRow }>()
   for (const row of mapRows) {
     const key = `${senderOf(row).key}>${targetOf(row).key}`
-    const tone = !settled(row) ? "live" : row.status === "failed" && onMap(row, now) ? "failed" : "idle"
-    const known = wires.get(key)
-    if (!known || tone === "live" || (tone === "failed" && known.tone === "idle"))
-      wires.set(key, { wire: wireOf(row), tone })
+    const tone = flying(row) !== null ? "live" : stoppedAt(row) !== null ? "failed" : "idle"
+    if (tone === "live" || wires.get(key)?.tone !== "live") wires.set(key, { wire: wireOf(row), tone, row })
   }
-  const lastTo = new Map<string, DispatchRow>()
-  for (const row of mapRows) lastTo.set(targetOf(row).key, row)
+  const statuses = statusByTarget(mapRows, (row) => targetOf(row).key)
 
   const open = (node: GraphNode) => {
     if (node.taskId) model.select(node.taskId, node.tabId)
@@ -190,7 +188,11 @@ export function DispatchView({ model }: { model: AppModel }) {
           <>
             <svg className={dp.DP_WIRES} width={width} height={height} aria-hidden="true">
               {[...wires.values()].map(({ wire, tone }) => (
-                <path key={wirePath(wire)} d={wirePath(wire)} className={dp.wireClass(tone)} />
+                <g key={wirePath(wire)}>
+                  <path d={wirePath(wire)} className={dp.wireClass(tone)} />
+                  <circle cx={wire.from.x} cy={wire.from.y} r={2} className={dp.portClass(tone)} />
+                  <circle cx={wire.to.x} cy={wire.to.y} r={2} className={dp.portClass(tone)} />
+                </g>
               ))}
             </svg>
             {graph.senders.map((node) => (
@@ -199,12 +201,13 @@ export function DispatchView({ model }: { model: AppModel }) {
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
                 tab={tabOf(node)}
+                side="sender"
                 style={{ left: edge, top: (senderY.get(node.key) ?? 0) - NODE_H / 2, width: nodeW }}
                 onOpen={open}
               />
             ))}
             <div
-              className={`mono ${dp.hubClass(inFlight > 0)}`}
+              className={`mono ${dp.hubClass}`}
               style={{ left: hubX - hubW / 2, top: hubY - HUB_H / 2, width: hubW, height: HUB_H }}
               title={conn.hello ? `${conn.hello.host} v${conn.hello.roveVersion}` : undefined}
             >
@@ -212,8 +215,8 @@ export function DispatchView({ model }: { model: AppModel }) {
                 <b>[</b> rove <b>]</b>
               </span>
               {conn.hello ? <span className={dp.HUB_HOST}>{conn.hello.host}</span> : null}
-              <span className={dp.HUB_SUB}>
-                {inFlight ? t("dispatch.inFlightCount", { count: inFlight }) : t("dispatch.idle")}
+              <span className={dp.hubSubClass(inFlight > 0)}>
+                {inFlight ? t("dispatch.openCount", { count: inFlight }) : t("dispatch.idle")}
               </span>
             </div>
             {column.frames.map((frame) => {
@@ -240,7 +243,8 @@ export function DispatchView({ model }: { model: AppModel }) {
                 node={node}
                 task={node.taskId ? tasks.get(node.taskId) : undefined}
                 tab={tabOf(node)}
-                status={lastTo.get(node.key)?.status}
+                side="target"
+                status={statuses.get(node.key)}
                 style={{
                   right: edge + targetInset(node.key),
                   top: targetY(node.key) - NODE_H / 2,
@@ -249,24 +253,43 @@ export function DispatchView({ model }: { model: AppModel }) {
                 onOpen={open}
               />
             ))}
-            {couriersOf(mapRows, now).map((row) => {
-              const runner = runnerOf(row, now, Math.floor(now / FRAME_MS))
-              const p = pointOn(wireOf(row), runner.x)
-              // At the target it stands just off the node instead of on it.
-              const x = runner.x >= 1 ? p.x - SPRITE_W - STAND_OFF : p.x - SPRITE_W / 2
-              return (
+            {mapRows.flatMap((row) => {
+              const at = flying(row)
+              if (at === null) return []
+              const p = pointOn(wireOf(row), at)
+              return [
                 <span
                   key={row.id}
-                  className={dp.courierClass(runner.pose)}
-                  style={{ transform: `translate(${x}px, ${p.y - SPRITE_H + 6}px)` }}
+                  className={dp.FLIGHT}
+                  style={{ transform: `translate(${p.x - 6}px, ${p.y - 6}px)` }}
                   title={row.promptHead}
                   aria-hidden="true"
                 >
-                  {runner.sprite.join("\n")}
-                </span>
-              )
+                  ●
+                </span>,
+              ]
             })}
-            {mapRows.length === 0 ? <p className={`text-muted ${dp.DP_EMPTY}`}>{t("dispatch.emptyHint")}</p> : null}
+            {[...wires.values()].flatMap(({ row, tone }) => {
+              const at = tone === "failed" ? stoppedAt(row) : null
+              if (at === null) return []
+              const p = pointOn(wireOf(row), at)
+              return [
+                <span
+                  key={row.id}
+                  className={dp.STOPPED}
+                  style={{ transform: `translate(${p.x + 4}px, ${p.y - 16}px)` }}
+                  title={row.reason ? `${row.reason}: ${row.promptHead}` : row.promptHead}
+                  aria-hidden="true"
+                >
+                  ✗
+                </span>,
+              ]
+            })}
+            {mapRows.length === 0 ? (
+              <p className={`text-muted ${dp.DP_EMPTY}`} style={{ top: hubY + HUB_H / 2 + 10 }}>
+                {t("dispatch.emptyHint")}
+              </p>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -298,18 +321,6 @@ export function DispatchView({ model }: { model: AppModel }) {
   )
 }
 
-/** Couriers on the map. Arrived ones share a spot by their target, so only its newest stands there; the rest wait behind it. */
-function couriersOf(rows: readonly DispatchRow[], now: number): DispatchRow[] {
-  const standing = new Map<string, DispatchRow>()
-  const out: DispatchRow[] = []
-  for (const row of rows) {
-    if (!onMap(row, now)) continue
-    if (runnerOf(row, now, 0).x < 1) out.push(row)
-    else standing.set(targetOf(row).key, row)
-  }
-  return [...out, ...standing.values()]
-}
-
 function endName(node: GraphNode, tasks: ReadonlyMap<string, TaskRow>): string {
   if (node.routine) return `⟳ ${node.routine}`
   if (!node.taskId) return t("dispatch.you")
@@ -320,6 +331,7 @@ function NodeBox({
   node,
   task,
   tab,
+  side,
   status,
   style,
   onOpen,
@@ -327,6 +339,7 @@ function NodeBox({
   node: GraphNode
   task: TaskRow | undefined
   tab?: TabRow
+  side: "sender" | "target"
   status?: DispatchRow["status"]
   style: CSSProperties
   onOpen: (node: GraphNode) => void
@@ -337,7 +350,7 @@ function NodeBox({
   return (
     <button
       type="button"
-      className={dp.nodeClass({ plain: !node.taskId })}
+      className={dp.nodeClass({ plain: !node.taskId, side, asking: status === "asking" })}
       style={style}
       onClick={() => onOpen(node)}
       disabled={!node.taskId}
@@ -349,8 +362,12 @@ function NodeBox({
       </span>
       {sub !== null || status ? (
         <span className={dp.NODE_SUB}>
-          {sub}
-          {status ? <span className={`mono ${dp.statusClass(status)}`}> {STATUS_GLYPH[status]}</span> : null}
+          <span className={dp.NODE_SUB_LABEL}>{sub}</span>
+          {status ? (
+            <span className={`mono shrink-0 ${dp.statusClass(status)}`}>
+              {STATUS_GLYPH[status]} {t(`dispatch.status.${status}`)}
+            </span>
+          ) : null}
         </span>
       ) : null}
     </button>

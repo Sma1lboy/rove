@@ -152,7 +152,7 @@ export function pointOn(w: Wire, p: number): Point {
   return cubic(w.hubOut, c3, c4, w.to, (k - 0.5) * 2)
 }
 
-/** Ease in and out, so a courier sets off and arrives instead of sliding. */
+/** Ease in and out, so a prompt sets off and arrives instead of sliding. */
 export function ease(t: number): number {
   return (1 - Math.cos(Math.PI * Math.min(1, Math.max(0, t)))) / 2
 }
