@@ -56,7 +56,7 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | Update check | `update.check`, `release.notes` | S |
 | Settings › General | `prefs.get`, `prefs.set`, `theme.*` | L |
 | Connectors | `github.*` | M |
-| Auto routing | `prefs.set` | M |
+| Auto routing | `autoRouting.get`, `autoRouting.setTier`, `autoRouting.setClassifier` | M |
 | Machines page | `machines.list`, `machines.repos` | M |
 | Dispatch page | the `dispatch` push | L |
 | Mods page | `mod.press`, `mod.submit` | M |
