@@ -16,11 +16,11 @@ import {
   type FlowFrame,
   frameAt,
 } from "./ascii-flow.ts"
+import { FLOW_FRAME, FLOW_LAYER, FLOW_RULER } from "./ui/first-run.ts"
 
 const LINE_HEIGHT = 1.3
 const PROBE = "0000000000"
 const FRAME_MS = 1000 / FLOW_FPS
-const LAYER = "col-start-1 row-start-1 m-0 whitespace-pre font-[inherit] leading-[inherit]"
 
 export function AsciiFlow() {
   const box = useRef<HTMLDivElement>(null)
@@ -104,14 +104,14 @@ export function AsciiFlow() {
       ref={box}
       aria-hidden="true"
       data-field="first-run-art"
-      className="relative grid w-full select-none overflow-hidden font-mono text-(length:--fs-body) text-subtle [contain:layout_paint]"
+      className={FLOW_FRAME}
       style={{ height: `${FLOW_ROWS * LINE_HEIGHT}em`, lineHeight: LINE_HEIGHT }}
     >
-      <span ref={probe} className="invisible absolute top-0 left-0 whitespace-pre">
+      <span ref={probe} className={FLOW_RULER}>
         {PROBE}
       </span>
-      <pre ref={base} className={LAYER} />
-      <pre ref={accent} className={`${LAYER} text-accent`} />
+      <pre ref={base} className={FLOW_LAYER} />
+      <pre ref={accent} className={`${FLOW_LAYER} text-accent`} />
     </div>
   )
 }

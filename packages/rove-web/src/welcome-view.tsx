@@ -14,6 +14,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { buttonClass } from "./ui/button.tsx"
+import { FIRST_RUN, FIRST_RUN_COLUMN } from "./ui/first-run.ts"
 import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface EngineChip {
@@ -73,8 +74,8 @@ export function WelcomePane({ model }: { model: AppModel }) {
   const fixes = env !== null && (env.engines.length === 0 || !env.git) ? fixesFor(env) : []
 
   return (
-    <div className="min-h-0 w-full overflow-y-auto" data-field="welcome">
-      <div className="mx-auto mt-[min(16vh,8rem)] flex w-full max-w-130 flex-col gap-4 px-5 pb-7">
+    <div className={FIRST_RUN} data-field="welcome">
+      <div className={FIRST_RUN_COLUMN}>
         <AsciiFlow />
         <div className="flex flex-col gap-1">
           <h1 className="m-0 font-sans text-title font-semibold text-ink">{t("firstRun.title")}</h1>
