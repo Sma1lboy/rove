@@ -57,8 +57,23 @@ describe("interactiveEngineCommand", () => {
   })
 
   it("a whitespace-only override falls back to the built-in default", () => {
+    // The update-check flag keeps Codex's startup update menu (drops pending
+    // input; Enter installs and exits) from taking a hosted launch's first prompt.
     setPersistedString(engineCommandKey("codex"), "   ")
-    expect(interactiveEngineCommand("codex")).toEqual(["codex", "-c", 'tui.terminal_title=["activity","thread-title"]'])
+    expect(interactiveEngineCommand("codex")).toEqual([
+      "codex",
+      "-c",
+      'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
+    ])
+  })
+
+  it("leaves an update-check setting the user's override already chose", () => {
+    setPersistedString(engineCommandKey("codex"), "codex -c check_for_update_on_startup=true")
+    const argv = interactiveEngineCommand("codex")
+    expect(argv).toContain("check_for_update_on_startup=true")
+    expect(argv).not.toContain("check_for_update_on_startup=false")
   })
 
   it("lets Codex own the tab status and name from its live thread title", () => {
@@ -68,6 +83,8 @@ describe("interactiveEngineCommand", () => {
       "model_reasoning_effort=high",
       "-c",
       'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
     ])
   })
 })

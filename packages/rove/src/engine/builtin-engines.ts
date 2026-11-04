@@ -136,6 +136,12 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     listModels: async () => CODEX_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
     addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
+    // codex-tui's startup update offer is a modal that drops pending input, and
+    // Enter on it picks "update now", which installs and exits instead of starting.
+    hostedStartArgv: (argv) =>
+      argv.some((arg) => arg.includes("check_for_update_on_startup"))
+        ? argv
+        : [...argv, "-c", "check_for_update_on_startup=false"],
     foreignModel: isClaudeFamilyModel,
     // codex-tui `new_error_event`: every turn error is one red `■ <message>` row.
     errorLine: /^\s*■\s+\S/,
