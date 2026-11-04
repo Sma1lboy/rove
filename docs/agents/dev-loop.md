@@ -21,7 +21,7 @@ Three runners. Picking the wrong one looks like a broken environment.
 Run scripts via `bun --filter @sma1lboy/rove <script>` or `cd packages/rove && bun <script>`.
 
 - `dev` — real engines, **production** Rove state.
-- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one.
+- `dev:sandbox` — real engines + your real `HOME`, throwaway Rove state under `packages/rove/.dev-sandbox/home`. Use this one. Its daemon, PTY host and engines keep running after the command exits. A sandbox under `.dev-sandbox/` or a temp directory that no `dev:sandbox` command has touched for 6 hours is stopped, engines included, by the next `dev:sandbox` command or by `dev:sandbox sweep`; its files stay. A running TUI or `--web` bridge counts as use. Stop yours right away with `reset`.
 
 The retired npm package `@sma1lboy/kobe` is frozen at 0.9.64; `rove-docs/` is the public docs site (Fumadocs on Next.js, static export, content synced from `docs/`).
 

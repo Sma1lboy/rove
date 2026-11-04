@@ -8,6 +8,7 @@
  *   bun dev:sandbox --name ex-a smoketest    # plugin-event end-to-end self-check
  *   bun dev:sandbox [--name x] seed          # a few tasks, each with a chat tab
  *   bun dev:sandbox [--name x] home|reset
+ *   bun dev:sandbox sweep                    # stop every sandbox idle past the TTL
  *
  * A named instance (`--name`) lives under `.dev-sandbox/named/<name>/home`
  * with its own daemon, PTY host, plugin registry, and a stable per-name web
@@ -16,10 +17,13 @@
  * special verbs: `run plugin link/install/…` is the ordinary plugin CLI
  * running with the sandbox HOME_DIR, and the sandbox daemon file-watches its
  * registry, so links apply live.
+ *
+ * Daemons and PTY hosts outlive this script, so every invocation refreshes its
+ * own lease and stops the sandboxes whose lease has lapsed (dev-sandbox-lease.ts).
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { mkdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
@@ -28,11 +32,12 @@ import { setBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mo
 import { pluginStateDir } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 import { parseSandboxArgs } from "./dev-sandbox-args.ts"
 import { sandboxChildEnv, sandboxRuntimePaths } from "./dev-sandbox-env.ts"
+import { LEASE_HEARTBEAT_MS, dropLease, expiredLeases, isThrowawayHome, touchLease } from "./dev-sandbox-lease.ts"
 import { createTaskWithChatTab } from "./fixture-core.ts"
 
 function usageError(err: unknown): never {
   console.error(err instanceof Error ? err.message : String(err))
-  console.error("usage: bun run scripts/dev-sandbox.ts [--name <x>] [run [rove argv…]|reset|home|smoketest]")
+  console.error("usage: bun run scripts/dev-sandbox.ts [--name <x>] [run [rove argv…]|reset|home|smoketest|sweep]")
   process.exit(2)
 }
 
@@ -47,16 +52,17 @@ async function gitCommonDir(): Promise<string> {
   return stdout.trim()
 }
 
-async function sandboxHome(name?: string): Promise<string> {
-  const explicit = readRoveEnv("SANDBOX_HOME_DIR")?.trim()
-  if (explicit) return explicit
-
+async function sandboxBase(): Promise<string> {
   // Share one dev sandbox across git worktrees. `git-common-dir` points at
   // the primary checkout's `.git`, even when this script runs from a Rove
   // task worktree, so every sandbox run sees the same task store. Named
   // instances nest under the same root, one home per name.
-  const repoRoot = dirname(await gitCommonDir())
-  const base = join(repoRoot, "packages", "rove", ".dev-sandbox")
+  return join(dirname(await gitCommonDir()), "packages", "rove", ".dev-sandbox")
+}
+
+function sandboxHome(base: string, name?: string): string {
+  const explicit = readRoveEnv("SANDBOX_HOME_DIR")?.trim()
+  if (explicit) return explicit
   return name ? join(base, "named", name, "home") : join(base, "home")
 }
 
@@ -67,7 +73,32 @@ try {
   usageError(err)
 }
 const { mode, name, roveArgs } = parsed
-const home = await sandboxHome(name)
+const base = await sandboxBase()
+const home = sandboxHome(base, name)
+const leases = join(base, "leases")
+
+async function stopSandbox(target: string): Promise<boolean> {
+  const paths = sandboxRuntimePaths(target)
+  const daemon = await stopDaemonProcess(paths.daemonSocket, paths.daemonPidPath)
+  const pty = await stopDaemonProcess(paths.ptySocket, paths.ptyPidPath, { force: true })
+  return daemon.method !== "refused" && pty.method !== "refused"
+}
+
+async function sweepSandboxes(): Promise<void> {
+  for (const lease of expiredLeases(leases, Date.now())) {
+    if (await stopSandbox(lease.home)) {
+      rmSync(lease.path, { force: true })
+      console.error(`[rove dev:sandbox] stopped idle sandbox ${lease.home}`)
+    } else {
+      console.error(`[rove dev:sandbox] idle sandbox refused to stop: ${lease.home}`)
+    }
+  }
+}
+
+if (mode === "sweep") {
+  await sweepSandboxes()
+  process.exit(0)
+}
 
 if (mode === "home") {
   console.log(home)
@@ -82,17 +113,16 @@ console.error(`[rove ${label}] home: ${home}`)
 // namespaces are stamped so a child wrapper cannot revive an ambient value.
 const env = sandboxChildEnv(home, process.env)
 
-async function stopSandbox(): Promise<void> {
-  const paths = sandboxRuntimePaths(home)
-  await stopDaemonProcess(paths.daemonSocket, paths.daemonPidPath)
-  await stopDaemonProcess(paths.ptySocket, paths.ptyPidPath, { force: true })
-}
-
 if (mode === "reset") {
-  await stopSandbox()
+  await stopSandbox(home)
+  dropLease(leases, home)
   console.error(`[rove ${label}] stopped daemon and PTY host`)
   process.exit(0)
 }
+
+const leased = isThrowawayHome(home, base)
+if (leased) touchLease(leases, home)
+await sweepSandboxes()
 
 function runRove(argv: readonly string[], stdio: "inherit" | "pipe" = "inherit"): { code: number; stdout: string } {
   const r = spawnSync(process.execPath, ["--conditions=browser", "./src/cli/rove.ts", ...argv], {
@@ -202,7 +232,7 @@ async function smoketest(): Promise<never> {
   // hook's output first: the file is append-only and the sandbox home
   // survives `reset`, so a previous run's lines would satisfy every poll
   // below and the check would pass without the daemon emitting anything.
-  await stopSandbox()
+  await stopSandbox(home)
   mkdirSync(dirname(eventsFile), { recursive: true })
   writeFileSync(eventsFile, "")
 
@@ -223,12 +253,14 @@ async function smoketest(): Promise<never> {
   console.log(
     `[rove ${label}] SMOKETEST PASS -- task.created + issue.changed reached examples.hello-events (${eventsFile})`,
   )
-  await stopSandbox()
+  await stopSandbox(home)
   process.exit(0)
 }
 
 if (mode === "smoketest") await smoketest()
 
+// Alive means in use: a TUI or `--web` bridge can sit here for longer than the TTL.
+if (leased) setInterval(() => touchLease(leases, home), LEASE_HEARTBEAT_MS)
 // `run` with argv execs that rove command in the sandbox env; bare `run`
 // starts the TUI, exactly as before.
 const child = Bun.spawn([process.execPath, "--conditions=browser", "./src/cli/rove.ts", ...roveArgs], {
