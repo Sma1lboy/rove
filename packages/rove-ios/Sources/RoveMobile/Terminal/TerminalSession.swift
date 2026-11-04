@@ -213,6 +213,9 @@ final class TerminalSession {
         }
     }
 
+    /// A menu's option, sent as the key the menu reads.
+    func menuOption(_ option: Int) { send(String(option)) }
+
     /// Text into the engine's input as a bracketed paste, not submitted (attachment paths).
     func paste(_ text: String) { send(PasteEncoding.paste(text)) }
 

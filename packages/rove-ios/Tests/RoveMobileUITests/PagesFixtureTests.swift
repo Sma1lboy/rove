@@ -66,6 +66,23 @@ final class PagesFixtureTests: XCTestCase {
         return url
     }
 
+    /// A tab at a menu (T-WAIT's reads `permission_needed`) answers with 1–4 from the key row; a working one has no such keys.
+    func testMenuKeysLeadTheKeyRowOnlyAtAMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(text("Verify refund webhook signatures"), "waiting task").tap()
+        let option = waitFor(element("key-option-2"), "option key")
+        checkpoint("fx-menu-keys")
+        option.tap()
+        let sent = NSPredicate { _, _ in log.input().hasSuffix("2") }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: sent, evaluatedWith: nil)], timeout: 5), .completed, log.input())
+        element("backButton").tap()
+        waitFor(text("Add pagination to invoices"), "working task").tap()
+        waitFor(element("key-Esc"), "key row")
+        XCTAssertFalse(element("key-option-1").exists)
+    }
+
     func testFixtureBoard() throws {
         pair(try fixture())
         openPage("board")

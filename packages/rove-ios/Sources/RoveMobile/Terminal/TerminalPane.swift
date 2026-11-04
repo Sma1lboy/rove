@@ -4,6 +4,8 @@ import SwiftUI
 struct TerminalPane: View {
     var session: TerminalSession
     var engineName: String?
+    /// The tab's engine waits at a menu (its glyph reads `?`): the key row leads with the menu's keys.
+    var atMenu = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +24,7 @@ struct TerminalPane: View {
             // One bar on the keyboard: its own `done` sits in the key row, and pulling it down drops the keyboard
             // (the terminal's pan scrolls history and must not).
             VStack(spacing: 0) {
-                KeyRow(session: session)
+                KeyRow(session: session, atMenu: atMenu)
                 Composer(session: session, engineName: engineName)
             }
             .simultaneousGesture(DragGesture(minimumDistance: 16).onEnded { drag in
@@ -66,14 +68,18 @@ struct TerminalPane: View {
     }
 }
 
-/// Always-visible key row — Esc, Tab, ⇧Tab, sticky Ctrl, arrows, Enter, ^C — then canned replies.
+/// Always-visible key row — Esc, Tab, ⇧Tab, sticky Ctrl, arrows, Enter, ^C — then canned replies. At a
+/// menu it leads with 1–4 and Enter: typed into the composer they would be pasted, and Enter would take
+/// the highlighted option whatever was typed.
 struct KeyRow: View {
     var session: TerminalSession
+    var atMenu = false
     @Environment(AppModel.self) private var model
     @State private var keyboardUp = false
 
     /// Most-used first, so `enter` is on screen without scrolling.
     private static let order: [AccessoryKey] = [.esc, .enter, .up, .down, .tab, .shiftTab, .ctrl, .left, .right, .ctrlC]
+    private var keyOrder: [AccessoryKey] { atMenu ? [.enter] + Self.order.filter { $0 != .enter } : Self.order }
 
     /// Mono-safe captions in the TUI's chord spelling.
     private static func caption(_ key: AccessoryKey) -> String {
@@ -98,22 +104,33 @@ struct KeyRow: View {
         .accessibilityIdentifier("keyRow")
     }
 
+    private func keyCap(_ caption: String, armed: Bool) -> some View {
+        Text(verbatim: caption)
+            .font(Theme.mono(13, .medium))
+            .foregroundStyle(armed ? Theme.paper : Theme.ink)
+            .fixedSize()
+            .padding(.horizontal, 10)
+            .frame(minWidth: 38, minHeight: 34)
+            .background(armed ? Theme.accent : Theme.surface,
+                        in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                .strokeBorder(armed ? Theme.accent : Theme.line))
+    }
+
     private var keys: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(Self.order, id: \.self) { key in
-                    let armed = key == .ctrl && session.keys.ctrlArmed
+                if atMenu {
+                    ForEach(1...4, id: \.self) { option in
+                        Button { session.menuOption(option) } label: { keyCap(String(option), armed: false) }
+                            .buttonStyle(.pressable)
+                            .accessibilityLabel(Text("Option \(option)"))
+                            .accessibilityIdentifier("key-option-\(option)")
+                    }
+                }
+                ForEach(keyOrder, id: \.self) { key in
                     Button { session.press(key) } label: {
-                        Text(Self.caption(key))
-                            .font(Theme.mono(13, .medium))
-                            .foregroundStyle(armed ? Theme.paper : Theme.ink)
-                            .fixedSize()
-                            .padding(.horizontal, 10)
-                            .frame(minWidth: 38, minHeight: 34)
-                            .background(armed ? Theme.accent : Theme.surface,
-                                        in: RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                                .strokeBorder(armed ? Theme.accent : Theme.line))
+                        keyCap(Self.caption(key), armed: key == .ctrl && session.keys.ctrlArmed)
                     }
                     .buttonStyle(.pressable)
                     .accessibilityLabel(key.label)
