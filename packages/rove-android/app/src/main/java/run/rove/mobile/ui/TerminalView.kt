@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import run.rove.mobile.data.AttachmentLogic
+import run.rove.mobile.data.BridgeFailure
+import run.rove.mobile.data.sendMessage
 import run.rove.mobile.data.putAttachment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -27,6 +29,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
 import run.rove.mobile.domain.QueryReplyFilter
+import run.rove.mobile.domain.QueueLogic
+import run.rove.mobile.domain.SendOutcome
 import java.io.ByteArrayInputStream
 
 // iOS Terminal/TerminalPane.swift: the live terminal, a status banner while not live, the key row and the composer.
@@ -85,6 +89,27 @@ private const val ATTACHING = "connecting"
             if (sent) { attachments = 0; scope.launch { delay(150); session.input("\r") } }
         }
     }
+    var queueRevision by remember { mutableIntStateOf(0) }
+    val atMenu = stringResource(R.string.detail_composer_at_menu)
+    val notSent = stringResource(R.string.detail_composer_not_sent)
+    val queuedLine = stringResource(R.string.detail_composer_queued)
+    // A shell tab has no turns to wait for, the demo has no daemon, and a pasted attachment path already sits in the engine's input line.
+    val compose: suspend (String) -> Boolean = compose@{ text ->
+        if (engineName == null || attachments > 0 || model.demo.value) return@compose reply(text)
+        val answer = try { model.repository.sendMessage(taskId, tabId, text.trim()) }
+        catch (e: BridgeFailure) {
+            when (e.code) {
+                "UNKNOWN_OP" -> return@compose reply(text)
+                "AWAITING_PERMISSION" -> throw IllegalStateException(atMenu)
+                else -> throw e
+            }
+        }
+        when (val outcome = QueueLogic.outcome(answer)) {
+            SendOutcome.Delivered -> true
+            is SendOutcome.Queued -> { queueRevision++; showFlash(queuedLine.format(outcome.position)); true }
+            is SendOutcome.NotSent -> throw IllegalStateException(notSent.format(outcome.reason))
+        }
+    }
     LaunchedEffect(session, fit) { session.setFit(fit) }
     DisposableEffect(web) {
         val assets = WebViewAssetLoader.Builder()
@@ -132,7 +157,8 @@ private const val ATTACHING = "connecting"
                 }
             },
             onReply = { reply(it) }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
-        Composer(engineName, reply) { prepared ->
+        if (engineName != null) QueuedChips(model, taskId, tabId, queueRevision)
+        Composer(engineName, compose) { prepared ->
             val put = model.repository.putAttachment(prepared.mime, prepared.data)
             if (session.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments)))) attachments++
         }
