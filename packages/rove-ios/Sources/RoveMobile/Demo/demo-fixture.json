@@ -2120,5 +2120,35 @@
     "kind": "image",
     "bytes": 2048
   },
-  "feedback.send": {}
+  "feedback.send": {},
+  "tab.send": {
+    "$by": "taskId",
+    "T-WORK": {
+      "delivered": false,
+      "queued": true,
+      "queueId": "q-2",
+      "position": 2
+    },
+    "*": {
+      "delivered": true
+    }
+  },
+  "queue.list": {
+    "$by": "taskId",
+    "T-WORK": {
+      "items": [
+        {
+          "id": "q-1",
+          "taskId": "T-WORK",
+          "tabId": "tab-1",
+          "text": "then add a test for the empty page",
+          "expectReport": false,
+          "at": 0
+        }
+      ]
+    },
+    "*": {
+      "items": []
+    }
+  }
 }

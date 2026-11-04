@@ -4,6 +4,7 @@ import SwiftUI
 struct TerminalPane: View {
     var session: TerminalSession
     var engineName: String?
+    var isEngine = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,8 +23,8 @@ struct TerminalPane: View {
             // One bar on the keyboard: its own `done` sits in the key row, and pulling it down drops the keyboard
             // (the terminal's pan scrolls history and must not).
             VStack(spacing: 0) {
-                KeyRow(session: session)
-                Composer(session: session, engineName: engineName)
+                KeyRow(session: session, isEngine: isEngine)
+                Composer(session: session, engineName: engineName, isEngine: isEngine)
             }
             .simultaneousGesture(DragGesture(minimumDistance: 16).onEnded { drag in
                 let down = drag.translation.height
@@ -69,6 +70,7 @@ struct TerminalPane: View {
 /// Always-visible key row — Esc, Tab, ⇧Tab, sticky Ctrl, arrows, Enter, ^C — then canned replies.
 struct KeyRow: View {
     var session: TerminalSession
+    var isEngine = false
     @Environment(AppModel.self) private var model
     @State private var keyboardUp = false
 
@@ -134,7 +136,9 @@ struct KeyRow: View {
                 .accessibilityLabel("Interrupt turn")
                 .accessibilityIdentifier("key-interrupt")
                 ForEach(["continue", "yes"], id: \.self) { reply in
-                    Button { session.reply(reply) } label: {
+                    Button {
+                        if isEngine { Task { await session.sendCanned(reply) } } else { session.reply(reply) }
+                    } label: {
                         Text(reply)
                             .font(Theme.mono(13, .medium))
                             .foregroundStyle(Theme.accent)

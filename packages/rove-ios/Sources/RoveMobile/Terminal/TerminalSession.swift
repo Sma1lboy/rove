@@ -213,6 +213,25 @@ final class TerminalSession {
         }
     }
 
+    /// A message to the tab's engine through `tab.send`: pasted and submitted by its own composer, or held
+    /// until its turn ends when it is busy. A bridge older than the op gets the keystroke path.
+    func sendToEngine(_ text: String) async throws -> EngineSendReply {
+        do {
+            let args: [String: Any] = ["taskId": taskId, "tabId": tabId, "prompt": text, "queue": true]
+            let answer = try await client.request("tab.send", args, as: EngineSendReply.self)
+            if answer.delivered || answer.queued { attachmentCount = 0 }
+            return answer
+        } catch let error as BridgeError where error.code == "UNKNOWN_OP" {
+            reply(text)
+            return EngineSendReply(delivered: true)
+        }
+    }
+
+    /// A canned reply from the key row: the engine's refusal shows over the terminal.
+    func sendCanned(_ text: String) async {
+        do { _ = try await sendToEngine(text) } catch { flash(error.localizedDescription) }
+    }
+
     /// Text into the engine's input as a bracketed paste, not submitted (attachment paths).
     func paste(_ text: String) { send(PasteEncoding.paste(text)) }
 

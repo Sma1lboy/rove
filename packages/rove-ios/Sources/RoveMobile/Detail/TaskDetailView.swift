@@ -45,7 +45,7 @@ struct TaskDetailView: View {
                     .padding(.horizontal, 20).padding(.vertical, 6)
             }
             if let session {
-                TerminalPane(session: session, engineName: selectedTab?.engineName)
+                TerminalPane(session: session, engineName: selectedTab?.engineName, isEngine: selectedTab?.kind == "engine")
                     .id(session.tabId)
             } else {
                 noTabState

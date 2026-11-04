@@ -173,9 +173,9 @@ final class KeyboardStateTests: XCTestCase {
         el("key-Esc").tap()
         XCTAssertTrue(kb.isUp, "\(label): a key-row press dropped the keyboard")
         if let log {
-            let sent = waitForInput(log) { $0.contains("ship it\r\u{1b}") || $0.hasSuffix("\u{1b}") }
-            XCTAssertTrue(sent.contains("ship it"), "\(label): reply bytes \(sent.debugDescription)")
-            XCTAssertTrue(sent.contains("\r"), "\(label): reply submitted with Enter")
+            let sent = waitForInput(log) { $0.hasSuffix("\u{1b}") }
+            XCTAssertTrue(log.entries().contains { $0.op == "tab.send" && $0.args["prompt"] as? String == "ship it" },
+                          "\(label): the reply went out with tab.send")
             XCTAssertTrue(sent.hasSuffix("\u{1b}"), "\(label): esc after the reply")
         }
 
