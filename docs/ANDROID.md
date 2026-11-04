@@ -88,6 +88,8 @@ CI runs the same script in `.github/workflows/android.yml` on pushes to `main` a
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
 
+The search baseline is external to keep its implementation diff free of binaries. Gradle restores it from a commit-pinned URL and verifies SHA-256 before tests run, including direct Paparazzi invocations. After recording and inspecting an intentional search change, publish the new baseline and update the URL and checksum in `prepareSearchSnapshot` in `app/build.gradle.kts`. The downloaded file is gitignored.
+
 ### Emulator screenshots on allen
 
 Every UI change also needs real emulator frames. Paparazzi does not run WebView, the IME or rotation. Push the branch first, because allen's script builds from GitHub:

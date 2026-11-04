@@ -1,3 +1,6 @@
+import java.net.URI
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -91,3 +94,20 @@ val copyTerminalLicenses by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/terminal/terminal/licenses"))
 }
 tasks.named("preBuild") { dependsOn(copyTerminalLicenses) }
+
+val prepareSearchSnapshot by tasks.registering {
+    val baseline = layout.projectDirectory.file("src/test/snapshots/images/run.rove.mobile_ScreenshotsTest_searchHits.png")
+    val checksum = "9edddbb8f1a4cc47072d1c58c8f84ea1c925b1a86d3ee7d6b467692460f05e83"
+    inputs.property("sha256", checksum)
+    outputs.file(baseline)
+    doLast {
+        val bytes = URI("https://raw.githubusercontent.com/Sma1lboy/rove/7d5e833912636ffe08d0b95ef4098d6957d6aa90/packages/rove-android/app/src/test/snapshots/images/run.rove.mobile_ScreenshotsTest_searchHits.png").toURL().openConnection().apply {
+            connectTimeout = 30_000
+            readTimeout = 30_000
+        }.getInputStream().use { it.readBytes() }
+        val actual = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        check(actual == checksum) { "Search screenshot checksum mismatch: $actual" }
+        baseline.asFile.apply { parentFile.mkdirs(); writeBytes(bytes) }
+    }
+}
+tasks.withType<Test>().configureEach { dependsOn(prepareSearchSnapshot) }

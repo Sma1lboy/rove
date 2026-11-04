@@ -22,7 +22,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import run.rove.mobile.R
 import run.rove.mobile.data.searchSessions
@@ -32,13 +31,6 @@ import run.rove.mobile.domain.*
 
 private const val DEBOUNCE_MS = 300L
 
-internal sealed interface SearchState {
-    data object Idle : SearchState
-    data object Searching : SearchState
-    data class Done(val query: String, val reply: SearchReply) : SearchState
-    data class Failed(val message: String) : SearchState
-}
-
 @Composable fun SearchScreen(model: AppModel, back: () -> Unit, open: (Route) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<SearchState>(SearchState.Idle) }
@@ -47,9 +39,7 @@ internal sealed interface SearchState {
         if (q.length < SearchLogic.MIN_CHARS) { state = SearchState.Idle; return@LaunchedEffect }
         delay(DEBOUNCE_MS)
         state = SearchState.Searching
-        state = try { SearchState.Done(q, model.repository.searchSessions(q)) }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) { SearchState.Failed(e.message ?: e.toString()) }
+        state = searchResult(q) { model.repository.searchSessions(q) }
     }
     SearchContent(query, { query = it }, state, back) { open(Route.Task(it.taskId, it.tabId)) }
 }
