@@ -13,6 +13,8 @@ data class TaskRow(
     val rank: Double = 0.0,
     val pinned: Boolean = false,
     val deleting: Boolean = false,
+    val archived: Boolean = false,
+    val routine: Boolean = false,
     val engine: EngineLabel? = null,
     val status: String = "",
     val activity: TaskActivity? = null,
@@ -47,7 +49,7 @@ data class TaskRow(
     val status: String = "open", val handoff: String? = null, val createdAt: String = "", val label: String = "",
 ) { val isOpen get() = status == "open" }
 @Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList(),
-                               val gates: List<GateRow> = emptyList())
+                               val gates: List<GateRow> = emptyList(), val archived: List<TaskRow> = emptyList())
 @Serializable data class Engines(val engines: List<Engine>)
 @Serializable data class Repos(val repos: List<String>)
 @Serializable data class TabRow(

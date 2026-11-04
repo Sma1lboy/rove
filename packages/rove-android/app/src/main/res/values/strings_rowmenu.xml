@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rowmenu_rename">rename</string>
+    <string name="rowmenu_pin">pin</string>
+    <string name="rowmenu_unpin">unpin</string>
+    <string name="rowmenu_set_status">set status</string>
+    <string name="rowmenu_rename_branch">rename branch</string>
+    <string name="rowmenu_archive">archive</string>
+    <string name="rowmenu_unarchive">unarchive</string>
+    <string name="rowmenu_save">save</string>
+    <string name="rowmenu_cancel">cancel</string>
+    <string name="rowmenu_status_backlog">backlog</string>
+    <string name="rowmenu_status_in_progress">in progress</string>
+    <string name="rowmenu_status_in_review">in review</string>
+    <string name="rowmenu_status_done">done</string>
+    <string name="rowmenu_status_canceled">canceled</string>
+    <string name="rowmenu_status_error">error</string>
+    <string name="rowmenu_archive_busy_title">Archive while it\'s working?</string>
+    <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving hides the row without stopping it.</string>
+    <string name="rowmenu_archive_busy_confirm">archive anyway</string>
+    <string name="rowmenu_archived_fold">archived · %1$d</string>
+</resources>

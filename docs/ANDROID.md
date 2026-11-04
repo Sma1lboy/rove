@@ -73,6 +73,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
 | `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete |
+| `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
 
 The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 

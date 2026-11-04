@@ -10,6 +10,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,7 @@ internal data class ListActions(
     val onRepair: () -> Unit = {},
     val onMove: (taskId: String, direction: String) -> Unit = { _, _ -> },
     val onProject: (ProjectRequest) -> Unit = {},
+    val onRowMenu: (TaskRow, RowMenuItem) -> Unit = { _, _ -> },
 )
 
 @Composable fun TaskListScreen(model: AppModel, onSelect: (String) -> Unit, onCreate: () -> Unit, open: (Route) -> Unit) {
@@ -59,10 +61,13 @@ internal data class ListActions(
         if (controls.searching) tabTitles = model.repository.tabTitles(tasks.tasks.map { it.id })
     }
     var request by remember { mutableStateOf<ProjectRequest?>(null) }
+    var rowRequest by remember { mutableStateOf<RowRequest?>(null) }
     val actions = ListActions(onSelect, model::refresh, onCreate, { open(Route.Inbox) }, open, model::unpair,
-        { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it })
+        { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it },
+        { row, item -> runRowMenuItem(model, row, item) { rowRequest = it } })
     TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions, mods)
     ProjectSheets(model, request) { request = it }
+    RowSheets(model, rowRequest) { rowRequest = it }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +96,9 @@ internal data class ListActions(
     LaunchedEffect(refreshing) { if (refreshing) { delay(1500); refreshing = false } }
     LaunchedEffect(tasks) { refreshing = false }
     val pull = rememberPullToRefreshState()
+    val archived = remember(tasks.archived) { TaskRowMenuLogic.archivedFold(tasks.archived) }
+    val archivedReceipts = remember(archived) { TaskAge.receipts(emptyMap(), archived, System.currentTimeMillis()) }
+    var archivedOpen by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(Rove.c.paper)) {
         ScreenHeader(trailing = {
             ListHeaderControls(controls, repos, TaskListLogic.attentionCount(tasks.attention), actions.onInbox, actions.onPage, mods)
@@ -107,9 +115,17 @@ internal data class ListActions(
                     val mainTaskId = tasks.tasks.firstOrNull { it.repo == section.repo && it.kind == "main" }?.id
                     item(key = "repo:${section.repo}") { SectionHeader(section, mainTaskId, actions) }
                     items(section.rows, key = { it.id }) { row ->
-                        Box(Modifier.padding(horizontal = 8.dp)) {
-                            TaskRowView(row, receipts.getValue(row.id), now) { actions.onSelect(row.id) }
+                        MenuRow(row, receipts.getValue(row.id), now, actions)
+                    }
+                }
+                if (query.isEmpty() && filter == null && archived.isNotEmpty()) {
+                    item(key = "archived") {
+                        Row(Modifier.fillMaxWidth().pressable { archivedOpen = !archivedOpen }.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 6.dp)) {
+                            Kicker((if (archivedOpen) "▾ " else "▸ ") + stringResource(R.string.rowmenu_archived_fold, archived.size))
                         }
+                    }
+                    if (archivedOpen) items(archived, key = { "archived:${it.id}" }) { row ->
+                        MenuRow(row, archivedReceipts.getValue(row.id), now, actions)
                     }
                 }
                 when (TaskListLogic.emptiness(loaded, tasks.tasks.size, shown)) {
@@ -121,6 +137,15 @@ internal data class ListActions(
             }
         }
         NewTaskBar(actions.onCreate)
+    }
+}
+
+/** A row with its long-press menu anchored on it. */
+@Composable private fun MenuRow(row: TaskRow, receipt: Receipt, now: State<Long>, actions: ListActions) {
+    var menu by remember { mutableStateOf(false) }
+    Box(Modifier.padding(horizontal = 8.dp)) {
+        TaskRowView(row, receipt, now, onLongClick = { menu = true }) { actions.onSelect(row.id) }
+        TaskRowMenu(row, menu, { menu = false }) { actions.onRowMenu(row, it) }
     }
 }
 

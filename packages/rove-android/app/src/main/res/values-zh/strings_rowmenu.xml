@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rowmenu_rename">重命名</string>
+    <string name="rowmenu_pin">置顶</string>
+    <string name="rowmenu_unpin">取消置顶</string>
+    <string name="rowmenu_set_status">设置状态</string>
+    <string name="rowmenu_rename_branch">重命名分支</string>
+    <string name="rowmenu_archive">归档</string>
+    <string name="rowmenu_unarchive">取消归档</string>
+    <string name="rowmenu_save">保存</string>
+    <string name="rowmenu_cancel">取消</string>
+    <string name="rowmenu_status_backlog">待办</string>
+    <string name="rowmenu_status_in_progress">进行中</string>
+    <string name="rowmenu_status_in_review">评审中</string>
+    <string name="rowmenu_status_done">已完成</string>
+    <string name="rowmenu_status_canceled">已取消</string>
+    <string name="rowmenu_status_error">出错</string>
+    <string name="rowmenu_archive_busy_title">它还在工作，仍要归档？</string>
+    <string name="rowmenu_archive_busy_body">%1$s 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。</string>
+    <string name="rowmenu_archive_busy_confirm">仍要归档</string>
+    <string name="rowmenu_archived_fold">已归档 · %1$d</string>
+</resources>
