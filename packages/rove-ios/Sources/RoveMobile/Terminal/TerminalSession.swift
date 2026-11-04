@@ -227,11 +227,6 @@ final class TerminalSession {
         }
     }
 
-    /// A canned reply from the key row: the engine's refusal shows over the terminal.
-    func sendCanned(_ text: String) async {
-        do { _ = try await sendToEngine(text) } catch { flash(error.localizedDescription) }
-    }
-
     /// Text into the engine's input as a bracketed paste, not submitted (attachment paths).
     func paste(_ text: String) { send(PasteEncoding.paste(text)) }
 
