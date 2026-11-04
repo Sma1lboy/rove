@@ -39,7 +39,7 @@ Do NOT use this to draft changelog entries — that's `changelog-generator`. Thi
 The look IS the product. The `<style>` block in `assets/template.html` is the source of truth and uses the real Rove `claude` theme values from `src/tui/context/theme/claude.json`:
 
 - Background `#141413`, raised `#1A1917`, inset `#2B2A27`; primary/accent terracotta `#CC785C`, secondary `#D4967E`.
-- FEAT green `#9ACA86`, FIX blue `#61AAF2`, error/red `#D47563`, yellow `#E8C96B`.
+- FEAT green `#9ACA86`, FIX blue `#61AAF2`, error/red `#EC6F74`, yellow `#E8C96B`.
 - Font: JetBrains Mono (the TUI/web font), loaded from Google Fonts.
 - Chrome: a three-dot terminal title bar, a blinking-cursor brand line, BOLD CAPS section headers, dense two-line entries with a fixed-width FEAT/FIX tag column on the left.
 
