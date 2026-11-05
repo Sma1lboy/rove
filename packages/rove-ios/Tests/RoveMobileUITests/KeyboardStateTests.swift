@@ -32,6 +32,16 @@ final class KeyboardStateTests: XCTestCase {
     func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
     func testInputSampleFixtureDark() throws { try sampleInputs(.dark, fixture: try fixtureURL()) }
 
+    func testVisibleKeyboardSettlesAfterPollingDeadline() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        XCTAssertFalse(kb.waitUp(timeout: 0.01))
+        input("composerField").tap()
+        XCTAssertTrue(kb.isUp)
+        // A snapshot can take longer than the polling budget on a hosted simulator.
+        XCTAssertTrue(kb.waitUp(timeout: 0.01))
+    }
+
     func testTerminalDemo() throws {
         for look in looks {
             try start(look, fixture: nil)
