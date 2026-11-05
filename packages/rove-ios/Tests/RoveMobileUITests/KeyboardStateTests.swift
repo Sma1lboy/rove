@@ -25,10 +25,43 @@ final class KeyboardStateTests: XCTestCase {
 
     // MARK: Tests
 
-    // Each theme once and each mode once (the terminal and landscape tests below run every pairing): the
-    // reviewer's path (demo) in light, the fixture bridge in dark. CI's dark pass runs the dark sample, one input
-    // of each kind; the full dark sweep is for local runs (docs/KEYBOARD.md says why).
-    func testInputsDemoLight() throws { try sweepInputs(.light, fixture: nil) }
+    // Each screen starts a fresh app and gets its own test execution allowance. Dark sweeps run locally.
+    func testPairingInputsDemoLight() throws {
+        try launch(.light, fixture: nil)
+        sweepPairing()
+    }
+
+    func testNewTaskInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        sweepList()
+        sweepNewTask()
+    }
+
+    func testDetailInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        sweepDetail()
+    }
+
+    func testRoutineInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        sweepRoutines()
+    }
+
+    func testBoardInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        sweepBoard()
+    }
+
+    func testSettingsInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        sweepSettings()
+    }
+
+    func testDiffInputsDemoLight() throws {
+        try start(.light, fixture: nil)
+        sweepDiff()
+    }
     func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
     func testInputSampleFixtureDark() throws { try sampleInputs(.dark, fixture: try fixtureURL()) }
 
@@ -198,9 +231,9 @@ final class KeyboardStateTests: XCTestCase {
         el("key-Esc").tap()
         XCTAssertTrue(kb.isUp, "\(label): a key-row press dropped the keyboard")
         if let log {
-            let sent = waitForInput(log) { $0.contains("ship it\r\u{1b}") || $0.hasSuffix("\u{1b}") }
-            XCTAssertTrue(sent.contains("ship it"), "\(label): reply bytes \(sent.debugDescription)")
-            XCTAssertTrue(sent.contains("\r"), "\(label): reply submitted with Enter")
+            let sent = waitForInput(log) { $0.hasSuffix("\u{1b}") }
+            XCTAssertTrue(log.entries().contains { $0.op == "tab.send" && $0.args["prompt"] as? String == "ship it" },
+                          "\(label): the reply went out with tab.send")
             XCTAssertTrue(sent.hasSuffix("\u{1b}"), "\(label): esc after the reply")
         }
 

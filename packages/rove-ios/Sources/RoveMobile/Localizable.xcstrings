@@ -1458,6 +1458,16 @@
         }
       }
     },
+    "not sent: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未发送:%@"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1624,6 +1634,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "项目操作"
+          }
+        }
+      }
+    },
+    "queued · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已排队 · %@"
+          }
+        }
+      }
+    },
+    "queued · position %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已排队 · 第 %lld 位"
           }
         }
       }
@@ -2218,6 +2248,16 @@
         }
       }
     },
+    "Take back" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回"
+          }
+        }
+      }
+    },
     "Takes effect the next time the session is rebuilt. A tab that is running keeps its current engine until then." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2274,6 +2314,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "子任务从 %@ 分出：已提交的工作会带过去，未提交的改动留在原处。"
+          }
+        }
+      }
+    },
+    "The engine is at a menu: answer it with the keys above." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引擎停在菜单上:请用上方的按键回答。"
           }
         }
       }

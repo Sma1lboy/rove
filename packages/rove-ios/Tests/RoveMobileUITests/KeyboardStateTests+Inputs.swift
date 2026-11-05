@@ -45,7 +45,7 @@ extension KeyboardStateTests {
               whileUp: { self.assertReachable("feedbackSend") })
     }
 
-    private func sweepPairing() {
+    func sweepPairing() {
         let lm = ["connectButton"]
         check("pairing-link", { self.input("pairingField") }, landmarks: lm)
         el("presetPicker").buttons["cloudflare"].tap()
@@ -63,7 +63,7 @@ extension KeyboardStateTests {
         app.buttons["Remove header"].firstMatch.tap()
     }
 
-    private func sweepList() {
+    func sweepList() {
         // Opening search focuses its field, so the tap belongs to the focus step: the landmarks are measured
         // before it, with no keyboard on the way up.
         check("list-search", { self.input("searchField") }, focus: {
@@ -89,7 +89,7 @@ extension KeyboardStateTests {
         closeSheet()
     }
 
-    private func sweepDetail() {
+    func sweepDetail() {
         let lm = ["taskTitle", "landButton"]
         check("detail-composer", { self.input("composerField") }, landmarks: lm, whileUp: { self.assertTerminalBlock() })
         check("detail-terminal", { self.el("terminal") }, landmarks: lm, whileUp: { self.assertTerminalBlock() })
@@ -109,7 +109,7 @@ extension KeyboardStateTests {
         closeSheet()
     }
 
-    private func sweepRoutines() {
+    func sweepRoutines() {
         openPage("page-routines", until: el("routineNew"))
         open(el("routineNew"), until: el("createRoutine"), "new routine sheet")
         routineFields("routine-new", primary: "createRoutine")
@@ -131,7 +131,7 @@ extension KeyboardStateTests {
         check("\(name)-schedule", { self.input("routineSchedule") }, landmarks: lm, whileUp: reach)
     }
 
-    private func sweepBoard() {
+    func sweepBoard() {
         openPage("page-board", until: el("boardNewStory"))
         open(el("boardNewStory"), until: el("newStorySave"), "new story sheet")
         let lmNew = ["newStorySave", "sheetClose"]
@@ -148,7 +148,7 @@ extension KeyboardStateTests {
         back()
     }
 
-    private func sweepSettings() {
+    func sweepSettings() {
         open(el("settingsButton"), until: el("settingsRow-feedback"), "settings")
         open(el("settingsRow-feedback"), until: el("feedbackSend"), "feedback page")
         let lm = ["feedbackSend"]
@@ -174,7 +174,7 @@ extension KeyboardStateTests {
         waitFor(all, "all files").tap()
     }
 
-    private func sweepDiff() {
+    func sweepDiff() {
         openTask()
         openFiles()
         check("files-search", { self.input("pathSearch") }, landmarks: ["backButton"])
@@ -213,7 +213,7 @@ extension KeyboardStateTests {
     /// Launches unpaired in `look` and checks the app's own paper really is in that theme, since every
     /// keyboard-color check depends on it. Without ROVE_APPEARANCE the test switches the theme itself (a freshly
     /// booted simulator can ignore the first switch, so it retries).
-    private func launch(_ look: XCUIDevice.Appearance, fixture: String?) throws {
+    func launch(_ look: XCUIDevice.Appearance, fixture: String?) throws {
         appearance = look
         label = "\(look == .dark ? "dark" : "light")-portrait-\(fixture == nil ? "demo" : "fixture")"
         app = XCUIApplication()
