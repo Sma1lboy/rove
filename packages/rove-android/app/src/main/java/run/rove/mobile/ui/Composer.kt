@@ -61,6 +61,9 @@ private val Keys = listOf(
     AccessoryKey(R.string.detail_key_ctrl_c, "\u0003"),
 )
 
+// Shown first at a menu, with Enter next. Typed into the composer they would be pasted, and Enter would take the highlighted option.
+private val MenuDigits = listOf("1", "2", "3", "4")
+
 /** Bracketed paste, so a multi-line message reaches an engine without its first newline reading as Enter. */
 object PasteEncoding {
     private const val START = "\u001b[200~"
@@ -77,7 +80,7 @@ object PasteEncoding {
 }
 
 /** Always-visible key row: keys, a divider, then interrupt and the canned replies; `done` while the keyboard is up. */
-@Composable fun KeyRow(ctrl: Boolean, onKey: (String) -> Unit, onCtrl: () -> Unit, onInterrupt: () -> Unit,
+@Composable fun KeyRow(ctrl: Boolean, atMenu: Boolean, onKey: (String) -> Unit, onCtrl: () -> Unit, onInterrupt: () -> Unit,
                        onReply: (String) -> Unit, onDone: (() -> Unit)?) {
     val paper = Rove.c.paper
     Row(Modifier.fillMaxWidth().background(paper).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -91,7 +94,8 @@ object PasteEncoding {
             }
             .horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Keys.forEach { key ->
+            if (atMenu) MenuDigits.forEach { digit -> KeyTile(digit, tint = Rove.c.accent, minWidth = 38.dp) { onKey(digit) } }
+            (if (atMenu) Keys.sortedBy { it.bytes != "\r" } else Keys).forEach { key ->
                 val armed = key.bytes == null && ctrl
                 KeyTile(stringResource(key.label), armed = armed, minWidth = 38.dp) { if (key.bytes == null) onCtrl() else onKey(key.bytes) }
             }

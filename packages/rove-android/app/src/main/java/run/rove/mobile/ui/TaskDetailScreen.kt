@@ -127,7 +127,7 @@ import java.util.Locale
                 onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = startLand)
         }
         val current = tabs?.firstOrNull { it.id == selected }
-        if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit) }
+        if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit, task?.atMenu(current.id) == true) }
         else if (tabs != null) NoTabState(tabs.orEmpty().isEmpty()) { newTab = true }
     }
     if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
