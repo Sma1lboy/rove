@@ -385,3 +385,15 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Update 2026-11-04:** #1634 merged. Next main should read switch.perOp.paintRow/styled ~2 (✓ against the 47 baseline); move the baseline only if every past-tolerance change is ✓.
 
 **Update 2026-11-04:** #1645 merged. Tomorrow's main should read switch.perOp.spawns ~0.1–0.2 (was 0.5).
+
+## 2026-11-05 — golden.cli-startup-ms (main cbf2709)
+
+**No regression.** Run 1 exited 1 on cold boot.firstFrame only (1012.9); runs 2 and 3 on switch.perOp.stateListener 2 → 3.5 only. That count is bimodal on main with no related code (3.5 on 11-03, 2 on 11-04, 2/3.5/3.5 tonight), so noise; flagged to the owner in case it settles at 3.5. #1634 and #1645 landed: switch.perOp.paintRow/styled 43 → 1–2.2 (✓), switch.perOp.spawns 0.5 → 0.1–0.3. Other counts held (root/workspace 6–6.5, sidebar 2, frame 4, overlay 3, idle 0). No open GitHub issues. Baseline not moved (every run had a ✗). Tonight's history line is main run 2.
+
+**Switch counts are at floor in real work.** The 3 overlay passes per switch are mount (NO_ROWS, cols 80), geometry settle (NO_ROWS, real cols) and first data; the first two are identity passes on empty rows, so hiding them would only move the counter. typing spawns 0.2/key are the 2 s walk with output flowing, by design (#1645).
+
+**Landed tonight as a PR from `perf/nightly-2026-11-05` (#1654):** moved to golden.cli-startup-ms. In-process import timing of `src/cli/index.ts`'s static graph: `cli-failure` → `failure-hint` → `tui/i18n` (248 KB of messages) ~10 ms, `open-dir-cmd` → `orchestrator-bridge` → daemon client ~11 ms, both on every call including `--version`. Both are dynamic now (bridge per call site, cli-failure in the top-level catch, `runOpenDirectory` and its bridge import). cli-startup 53.4/66.7/56.8 (main) → 41.7/43.3, every count unchanged. `test/cli/index-*.test.ts` counted `setImmediate` ticks after importing index.ts; the extra import hops outran them, so index.ts now exports `cliDone` and the suites await it.
+
+**Next:** what remains of `--version` (~42 ms vs ~24 ms for `version.ts` alone): `env.ts` (~11 ms, rove-daemon pre-rename-runtime/compat-env) and `cli/startup.ts` (~10 ms, state layout + key migrations run on every call). A per-module timer: `for m of mods: t=performance.now(); await import(m)` in one process (don't include index.ts itself, it runs main()).
+
+**Sandbox:** bun 1.3.14 from npm. Harness Playwright asks for headless shell rev 1228; `/tmp/pwshim/chromium_headless_shell-{1243,1228} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks worked (the 1243 dir already has `chrome-headless-shell-linux64/`, so no per-file symlinks needed).
