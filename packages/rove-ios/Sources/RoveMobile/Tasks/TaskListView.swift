@@ -65,6 +65,7 @@ struct TaskListView: View {
                         Button("board") { model.path.append(.board) }.accessibilityIdentifier("page-board")
                     }
                     Button("routines") { model.path.append(.routines) }.accessibilityIdentifier("page-routines")
+                    Button("search conversations") { model.path.append(.search) }.accessibilityIdentifier("page-search")
                     if model.mods.gate.shows("issues") {
                         Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
                     }
