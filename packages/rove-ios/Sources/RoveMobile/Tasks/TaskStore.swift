@@ -135,7 +135,7 @@ final class TaskStore {
     /// Back to the not-yet-loaded state (leaving demo mode): the next bridge's first snapshot must neither
     /// show demo rows nor be diffed against them for notifications.
     func reset() {
-        tasks = []; attention = []; gates = []; tabTitles = [:]
+        tasks = []; archived = []; attention = []; gates = []; tabTitles = [:]
         loaded = false; error = nil; repoFilter = nil
         snapshot = nil; receivedAt = [:]
         version += 1

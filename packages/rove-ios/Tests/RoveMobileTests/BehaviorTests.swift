@@ -91,6 +91,17 @@ final class BehaviorTests: XCTestCase {
         }
     }
 
+    /// Leaving demo mode resets the store: an archived fixture row must not stay reachable.
+    @MainActor
+    func testResetDropsArchivedRows() {
+        let store = TaskStore(client: BridgeClient())
+        store.apply(TasksPayload(tasks: [], attention: [], archived: [row("old", .idle)]))
+        XCTAssertNotNil(store.task(id: "old"))
+        store.reset()
+        XCTAssertTrue(store.archived.isEmpty)
+        XCTAssertNil(store.task(id: "old"))
+    }
+
     func testAgeFormatting() {
         XCTAssertEqual(TaskListLogic.age(ms: 5_000), "5s")
         XCTAssertEqual(TaskListLogic.age(ms: 125_000), "2m")
