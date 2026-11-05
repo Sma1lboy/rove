@@ -7,7 +7,7 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type MutableRefObject, useCallback } from "react"
+import { type MutableRefObject, useCallback, useMemo } from "react"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
@@ -120,11 +120,14 @@ function CollapsedSidebar(props: {
 }) {
   // No KV provider: tabs unknown, which the hide rules read as "never mounted".
   const kv = useOptionalKV()
+  // The selected tabless main stays listed, as in the tree.
+  const keepTaskIds = useMemo(() => new Set(props.selectedId === null ? [] : [props.selectedId]), [props.selectedId])
   const { groups } = useSidebarGroups({
     tasks: props.tasks,
     kv,
     sortMode: props.sortMode,
     engineState: props.engineState,
+    keepTaskIds,
   })
   return (
     <CollapsedRail

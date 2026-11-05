@@ -63,6 +63,9 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const machines = useMachineRows()
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
+  // The main whose project Reorder is on, held as a row while it moves even with no tab: the
+  // header has no cursor slot, so a hidden main would leave j/k with nothing to drag.
+  const [reorderingTaskId, setReorderingTaskId] = useState<string | null>(null)
   const tree = useTreeState({
     tasks: props.tasks,
     kv,
@@ -73,6 +76,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     engineState: props.engineState,
     branchTick,
     machines,
+    reorderingTaskId,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()
@@ -137,6 +141,16 @@ export function SidebarTree(props: SidebarTreeProps) {
     if (cursorRef.current >= ids.length) setCursorIndex(Math.max(0, ids.length - 1))
     else if (cursorRef.current < 0 && ids.length > 0) setCursorIndex(at >= 0 ? at : 0)
   }, [tree.flatIds, tree.activeRowId, moveMode, setCursorIndex])
+  useEffect(() => {
+    if (!moveMode) setReorderingTaskId(null)
+  }, [moveMode])
+  // The held main appears when Reorder starts; the cursor goes to it so j/k drag its project.
+  const reorderShown = reorderingTaskId !== null && tree.flatIds.includes(reorderingTaskId)
+  useEffect(() => {
+    if (!reorderShown || reorderingTaskId === null) return
+    const at = flatIdsRef.current.indexOf(reorderingTaskId)
+    if (at >= 0) setCursorIndex(at)
+  }, [reorderShown, reorderingTaskId, setCursorIndex])
   // Deps-less on purpose: runs after every commit, so when the follow effect
   // fires on a flatIds change it reads the PREVIOUS render's row id.
   useEffect(() => {
@@ -220,7 +234,13 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex,
     onAddTask: props.onAddTask,
     onNewTab: props.onNewTab,
-    actions: props,
+    actions: {
+      ...props,
+      onLocalMergeRequest: (taskId) => {
+        setReorderingTaskId(taskId)
+        props.onLocalMergeRequest?.(taskId)
+      },
+    },
   })
 
   // Using the pane's own nav/select keys extinguishes its first-use hint.

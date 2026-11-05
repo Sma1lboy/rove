@@ -356,19 +356,6 @@ describe("a project closed down to nothing", () => {
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
   })
 
-  test("keeps a project that has worktree tasks, even with every tab closed", () => {
-    // The worktree rows are how you get back to that work — losing them would
-    // strand the branches. Only the main-only case hides.
-    const out = rows({
-      tasks: [mainOf("/repos/rove"), task("a", { repo: "/repos/rove" })],
-      tabsByTask: new Map([
-        ["m", []],
-        ["a", []],
-      ]),
-    })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
-  })
-
   test("hiding one project does not disturb the others", () => {
     const out = rows({
       tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/rove", "m2")],

@@ -130,10 +130,13 @@ only when that wrapping shell exits or Rove explicitly closes it.
 
 **Closing the last tab is "done for now", not "forget".** Close every tab of a
 managed Task and its row stays in the sidebar; entering it again opens a fresh
-tab in the same worktree. Close every tab of a project whose only row is its
-main checkout (or of a directory Task) and the whole project leaves the
-sidebar, header and row together. Nothing is deleted: the main Task record and
-the saved repository both stay on disk. To bring it back, open New task
+tab in the same worktree. A project's main checkout row is listed only while it
+has a tab open, is selected, or has child Tasks under it: a tabless main row is
+not a row, and a project whose only row it was (or a directory Task with no tab)
+leaves the sidebar, header and row together. The project header and its other
+Tasks stay. Nothing is deleted: the main Task record and the saved repository
+both stay on disk, and `rove api send` to the main Task still works (its first
+tab brings the row back). To bring it back, open New task
 (`n`), pick the same repository, and choose "the project itself" instead of a
 new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
 (`d` on its row) is the separate, un-saving gesture.

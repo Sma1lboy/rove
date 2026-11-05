@@ -54,6 +54,8 @@ export interface TreeStateOpts {
   /** Registered machines: stamps each remote row with its machine's state (the cloud mark).
    *  Absent/empty: rows come back untouched. */
   readonly machines?: readonly MachineLayerEntry[]
+  /** The main whose project Reorder is on: its row stays listed while moving, though it has no tab. */
+  readonly reorderingTaskId?: string | null
 }
 
 /** KV key holding the ids of tasks whose children are folded away. */
@@ -81,6 +83,8 @@ export interface TreeState {
   readonly totalCount: number
   /** The row id the right pane is currently showing. */
   readonly activeRowId: string | null
+  /** A non-empty query has pruned the tree to its matches. */
+  readonly searching: boolean
   /** The project a task belongs to, or null for a project-less `dir` task. */
   readonly projectIdOfTask: (taskId: string) => string | null
   /** The task whose move reorders this project (its `main` checkout). */
@@ -92,7 +96,7 @@ export interface TreeState {
 }
 
 export function useTreeState(opts: TreeStateOpts): TreeState {
-  const { tasks, kv, selectedTaskId } = opts
+  const { tasks, kv, selectedTaskId, reorderingTaskId } = opts
   const query = opts.query ?? ""
   const searching = query.trim() !== ""
 
@@ -135,11 +139,17 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     [kv],
   )
 
+  // A tabless main row stays listed while it is selected or its project is being reordered.
+  const keepTaskIds = useMemo(
+    () => new Set([selectedTaskId, reorderingTaskId].filter((id): id is string => typeof id === "string")),
+    [selectedTaskId, reorderingTaskId],
+  )
   const { groups, tabsByTask } = useSidebarGroups({
     tasks,
     kv,
     sortMode: opts.sortMode,
     engineState: opts.engineState,
+    keepTaskIds,
   })
 
   const archived = useMemo(() => archivedTasks(tasks), [tasks])
@@ -222,6 +232,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     flatIds,
     totalCount,
     activeRowId,
+    searching,
     projectIdOfTask,
     mainTaskIdOfProject: mainTaskOfProject,
     toggleTaskFold,
