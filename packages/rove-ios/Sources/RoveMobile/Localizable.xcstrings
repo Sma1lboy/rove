@@ -306,6 +306,16 @@
         }
       }
     },
+    "%lld task(s) not searched: another machine's, or an engine rove cannot read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 个任务没搜：在别的机器上，或 Rove 读不了它的引擎记录。"
+          }
+        }
+      }
+    },
     "%lld unreadable record skipped, the board may be incomplete" : {
       "localizations" : {
         "zh-Hans" : {
@@ -968,6 +978,16 @@
         }
       }
     },
+    "find something said in any task" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在所有任务的对话里找"
+          }
+        }
+      }
+    },
     "first-party mod, installed" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1384,6 +1404,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未连接到 bridge"
+          }
+        }
+      }
+    },
+    "nothing said matches “%@”." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有说过「%@」。"
           }
         }
       }
@@ -1888,6 +1918,36 @@
         }
       }
     },
+    "search conversations" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索会话"
+          }
+        }
+      }
+    },
+    "searches what you and the agents wrote, newest first; tool output is left out. a hit opens its task." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜你和 agent 写过的话，新的在前；不含工具输出。点结果打开那个任务。"
+          }
+        }
+      }
+    },
+    "searching…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索中…"
+          }
+        }
+      }
+    },
     "Send %lld" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2014,6 +2074,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 Mac 上启动 rove-bridge，然后扫描它显示的二维码，或粘贴它打印的链接。"
+          }
+        }
+      }
+    },
+    "stopped early to stay fast; add a word to narrow it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了快提前停了；多加一个词缩小范围。"
           }
         }
       }

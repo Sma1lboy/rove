@@ -1,4 +1,30 @@
 {
+  "sessions.search": {
+    "$by": "query",
+    "*": {
+      "matches": [
+        {
+          "taskId": "T-WAIT",
+          "title": "Verify refund webhook signatures",
+          "tabId": "tab-1",
+          "role": "assistant",
+          "at": { "$ago_min": 12 },
+          "snippet": "The refund webhook signature check rejects replays older than five minutes."
+        },
+        {
+          "taskId": "T-WORK",
+          "title": "Add pagination to invoices",
+          "tabId": "tab-1",
+          "role": "user",
+          "at": { "$ago_min": 95 },
+          "snippet": "also make sure refund lines keep their order across pages"
+        }
+      ],
+      "skipped": [{ "taskId": "T-REMOTE", "reason": "remote" }],
+      "truncated": false
+    },
+    "nothing": { "matches": [], "skipped": [], "truncated": false }
+  },
   "hello": {
     "protocol": 1,
     "roveVersion": "0.9.240",

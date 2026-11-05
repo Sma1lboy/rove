@@ -370,4 +370,10 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(NotificationPrefs.enabled(in: defaults))
         defaults.removePersistentDomain(forName: "rove.tests.notifications")
     }
+
+    func testSearchMarksEveryCaseInsensitiveMatch() {
+        let parts = SearchLogic.segments("Refund the refund", needle: "refund")
+        XCTAssertEqual(parts.map(\.text), ["Refund", " the ", "refund"])
+        XCTAssertEqual(parts.map(\.hit), [true, false, true])
+    }
 }

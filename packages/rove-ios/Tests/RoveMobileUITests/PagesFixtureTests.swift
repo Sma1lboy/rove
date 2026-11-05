@@ -142,6 +142,25 @@ final class PagesFixtureTests: XCTestCase {
         checkpoint("fx-issues-2-start")
     }
 
+    /// A word finds what was said in any task; a hit opens that task; a miss says so.
+    func testSearchFindsAConversationAndOpensIt() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        openPage("search conversations")
+        let field = waitFor(element("conversationSearchField"), "search field")
+        field.typeText("nothing")
+        waitFor(text("nothing said matches “nothing”."), "no-hit line")
+        field.clearAndType("refund")
+        let hit = waitFor(element("searchHit-T-WAIT"), "hit")
+        checkpoint("fx-search-hits")
+        XCTAssertEqual(log.entries().last { $0.op == "sessions.search" }?.args["query"] as? String, "refund")
+        hideKeyboard()
+        hit.tap()
+        waitFor(element("composerField"), "the hit's task")
+        XCTAssertTrue(text("Verify refund webhook signatures").exists)
+    }
+
     func testFixtureSettings() throws {
         pair(try fixture())
         waitFor(element("settingsButton"), "gear").tap()
