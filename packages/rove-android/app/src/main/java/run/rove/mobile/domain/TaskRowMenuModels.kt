@@ -4,8 +4,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class OpenedTab(val tabId: String, val taskId: String? = null)
 
-enum class RowMenuItem { NewConversation, NewShell, Rename, Pin, Unpin, SetStatus, SyncBase, RenameBranch, Archive, Unarchive }
+enum class RowMenuItem { NewConversation, NewShell, Rename, Pin, Unpin, SetStatus, SyncBase, FixChecks, RenameBranch, Archive, Unarchive }
 
+@Serializable data class FixChecksResult(val outcome: String = "", val detail: String? = null)
 @Serializable data class SyncResult(val baseRef: String = "", val alreadyCurrent: Boolean = false)
 
 sealed interface SyncRefusal {
@@ -25,6 +26,7 @@ object TaskRowMenuLogic {
         add(RowMenuItem.SetStatus)
         // The merge runs on this Mac; another machine's worktree is not here.
         if (row.kind == "task" && row.branch.isNotEmpty() && row.machine == null) add(RowMenuItem.SyncBase)
+        if (row.pr?.checkState == "failing") add(RowMenuItem.FixChecks)
         if (row.branch.isNotEmpty()) add(RowMenuItem.RenameBranch)
         if (row.kind != "main") add(if (row.archived) RowMenuItem.Unarchive else RowMenuItem.Archive)
     }

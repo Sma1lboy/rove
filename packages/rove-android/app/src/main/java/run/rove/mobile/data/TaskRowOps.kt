@@ -3,6 +3,7 @@ package run.rove.mobile.data
 import kotlinx.serialization.json.decodeFromJsonElement
 import run.rove.mobile.domain.OpenedTab
 import run.rove.mobile.domain.SyncResult
+import run.rove.mobile.domain.FixChecksResult
 
 suspend fun RoveRepository.renameTask(taskId: String, title: String) { bridge.request("task.rename", args("taskId" to taskId, "title" to title)) }
 suspend fun RoveRepository.renameBranch(taskId: String, branch: String) { bridge.request("task.setBranch", args("taskId" to taskId, "branch" to branch)) }
@@ -22,3 +23,4 @@ suspend fun RoveRepository.renameTab(taskId: String, tabId: String, title: Strin
 suspend fun RoveRepository.closeTab(taskId: String, tabId: String) { bridge.request("tab.close", args("taskId" to taskId, "tabId" to tabId)) }
 /** Starts the tab's session again, resuming the engine's conversation where it can. */
 suspend fun RoveRepository.reviveTab(taskId: String, tabId: String) { bridge.request("term.revive", args("taskId" to taskId, "tabId" to tabId)) }
+suspend fun RoveRepository.fixChecks(taskId: String): FixChecksResult = wireJson.decodeFromJsonElement(bridge.request("task.fixChecks", args("taskId" to taskId)))

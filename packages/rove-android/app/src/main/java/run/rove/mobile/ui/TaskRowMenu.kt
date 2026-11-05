@@ -38,6 +38,7 @@ internal sealed interface RowRequest {
                 RowMenuItem.Unpin -> R.string.rowmenu_unpin
                 RowMenuItem.SetStatus -> R.string.rowmenu_set_status
                 RowMenuItem.SyncBase -> R.string.rowmenu_sync_base
+                RowMenuItem.FixChecks -> R.string.rowmenu_fix_checks
                 RowMenuItem.RenameBranch -> R.string.rowmenu_rename_branch
                 RowMenuItem.Archive -> R.string.rowmenu_archive
                 RowMenuItem.Unarchive -> R.string.rowmenu_unarchive
@@ -55,6 +56,7 @@ internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, on
         RowMenuItem.RenameBranch -> onRequest(RowRequest.RenameBranch(row))
         RowMenuItem.SetStatus -> onRequest(RowRequest.Status(row))
         RowMenuItem.SyncBase -> syncBase(model, row)
+        RowMenuItem.FixChecks -> fixChecks(model, row)
         RowMenuItem.Pin, RowMenuItem.Unpin -> model.action { model.repository.pinTask(row.id, item == RowMenuItem.Pin); model.refresh() }
         RowMenuItem.Unarchive -> model.action { model.repository.archiveTask(row.id, archived = false); model.refresh() }
         RowMenuItem.Archive -> model.action {
@@ -79,6 +81,19 @@ private fun syncBase(model: AppModel, row: TaskRow) {
                 is SyncRefusal.Dirty -> app.getString(R.string.rowmenu_sync_dirty, refusal.files)
                 null -> app.getString(R.string.rowmenu_sync_failed, e.message)
             }
+        }
+    }
+}
+
+/** The bridge reads the red checks and sends the agent their logs: `none` and `unavailable` are answers, not errors. */
+private fun fixChecks(model: AppModel, row: TaskRow) {
+    val app = model.getApplication<Application>()
+    model.action {
+        val result = model.repository.fixChecks(row.id)
+        when (result.outcome) {
+            "sent" -> Toast.makeText(app, R.string.rowmenu_fix_sent, Toast.LENGTH_SHORT).show()
+            "unavailable" -> model.error.value = app.getString(R.string.rowmenu_fix_unavailable, result.detail.orEmpty().lineSequence().firstOrNull().orEmpty())
+            else -> model.error.value = app.getString(R.string.rowmenu_fix_none)
         }
     }
 }
