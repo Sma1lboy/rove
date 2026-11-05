@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
+import run.rove.mobile.data.reviveTab
 import run.rove.mobile.domain.QueryReplyFilter
 import run.rove.mobile.domain.QueueLogic
 import run.rove.mobile.domain.SendOutcome
@@ -69,6 +71,8 @@ private const val ATTACHING = "connecting"
         queryCursorMode = { complete -> web.evaluateJavascript("window.roveAppCursor();") { complete(it == "true") } },
         send = session::input) }
     val status by session.status.collectAsState()
+    var reviving by remember(session) { mutableStateOf(false) }
+    var reviveError by remember(session) { mutableStateOf<String?>(null) }
     val interruptSent = stringResource(R.string.detail_interrupt_sent)
     val showFlash = { text: String ->
         flashJob?.cancel()
@@ -145,7 +149,16 @@ private const val ATTACHING = "connecting"
         // Inset so glyphs never touch the bezel; xterm fits its columns to the inset width.
         Box(Modifier.weight(1f).fillMaxWidth().background(Rove.Terminal.background)) {
             AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, top = 6.dp))
-            if (status != LIVE) StatusBanner(status, Modifier.align(Alignment.TopCenter))
+            if (status != LIVE) StatusBanner(status, Modifier.align(Alignment.TopCenter), reviving, onReopen = {
+                reviving = true
+                reviveError = null
+                scope.launch {
+                    try { model.repository.reviveTab(taskId, tabId); session.restart() }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { reviveError = e.message.orEmpty() }
+                    finally { reviving = false }
+                }
+            }, reviveError)
             flash?.let {
                 Text(it.lowercase(), Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp)
                     .background(Rove.Terminal.control, RoundedCornerShape(Rove.smallRadius)).padding(horizontal = 10.dp, vertical = 6.dp),
@@ -173,11 +186,15 @@ private const val ATTACHING = "connecting"
 }
 
 /** Only shown while not live: attach progress, an exit, or the attach error. */
-@Composable private fun StatusBanner(status: String, modifier: Modifier) {
+@Composable private fun StatusBanner(status: String, modifier: Modifier, reviving: Boolean, onReopen: () -> Unit, error: String?) {
     val exited = status.startsWith("session")
     Row(modifier.fillMaxWidth().background(Rove.c.inset).padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (status == ATTACHING) BrailleSpinner(12)
-        Text(statusLabel(status), color = if (exited) Rove.c.muted else Rove.c.ink, style = Rove.mono(12), maxLines = 2)
+        Text(error?.let { stringResource(R.string.detail_reopen_failed, it) } ?: statusLabel(status), Modifier.weight(1f),
+            color = if (error != null) Rove.c.error else if (exited) Rove.c.muted else Rove.c.ink, style = Rove.mono(12), maxLines = 2)
+        if (exited) Box(Modifier.heightIn(min = 32.dp).pressable(enabled = !reviving, onClick = onReopen).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(if (reviving) R.string.detail_reopening else R.string.detail_reopen), color = Rove.c.accent, style = Rove.mono(12, FontWeight.SemiBold), maxLines = 1)
+        }
     }
 }

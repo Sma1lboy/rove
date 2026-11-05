@@ -20,3 +20,5 @@ suspend fun RoveRepository.openShell(taskId: String): OpenedTab = wireJson.decod
 suspend fun RoveRepository.syncBase(taskId: String): SyncResult = wireJson.decodeFromJsonElement(bridge.request("task.syncBase", args("taskId" to taskId)))
 suspend fun RoveRepository.renameTab(taskId: String, tabId: String, title: String) { bridge.request("tab.rename", args("taskId" to taskId, "tabId" to tabId, "title" to title)) }
 suspend fun RoveRepository.closeTab(taskId: String, tabId: String) { bridge.request("tab.close", args("taskId" to taskId, "tabId" to tabId)) }
+/** Starts the tab's session again, resuming the engine's conversation where it can. */
+suspend fun RoveRepository.reviveTab(taskId: String, tabId: String) { bridge.request("term.revive", args("taskId" to taskId, "tabId" to tabId)) }

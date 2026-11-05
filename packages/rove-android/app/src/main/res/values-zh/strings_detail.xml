@@ -17,6 +17,8 @@
     <string name="detail_pick_tab">选择一个标签页</string>
     <string name="detail_no_tabs_hint">打开一个引擎标签页，给此任务发下一条消息</string>
     <string name="detail_reopen">重新打开会话</string>
+    <string name="detail_reopening">正在重新打开…</string>
+    <string name="detail_reopen_failed">重新打开失败：%1$s</string>
 
     <string name="detail_key_interrupt">中断</string>
     <string name="detail_key_done">完成</string>

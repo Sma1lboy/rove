@@ -69,5 +69,7 @@ class TerminalSession(private val bridge: BridgeClient, private val scope: Corou
         if (fit) stream?.let { bridge.fire("term.resize", args("stream" to it, "cols" to cols, "rows" to rows)) }
     }
     fun setFit(value: Boolean) { fit = value; if (fit) resize(cols, rows) }
+    /** Attach again after the tab's session came back: `start` reads the connection afresh. */
+    fun restart() { job?.cancel(); status.value = "connecting"; start() }
     fun close() { job?.cancel() }
 }
