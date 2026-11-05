@@ -148,7 +148,12 @@ private const val ATTACHING = "connecting"
                     color = Rove.Terminal.foreground, style = Rove.mono(12))
             }
         }
-        KeyRow(ctrl, menuKeys, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
+        KeyRow(ctrl, menuKeys, onKey = { key ->
+            ctrl = false
+            // Only xterm knows the mode; order holds because the WebView answers each evaluate in turn.
+            if (!CursorKeys.isArrow(key)) session.input(key)
+            else web.evaluateJavascript("window.roveAppCursor();") { on -> session.input(if (on == "true") CursorKeys.applicationMode(key) else key) }
+        }, onCtrl = { ctrl = !ctrl },
             onInterrupt = {
                 scope.launch {
                     try { model.repository.interrupt(taskId, tabId); showFlash(interruptSent) }

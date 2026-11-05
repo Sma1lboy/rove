@@ -64,6 +64,13 @@ private val Keys = listOf(
 // Shown first at a menu, with Enter next. Typed into the composer they would be pasted, and Enter would take the highlighted option.
 private val MenuDigits = listOf("1", "2", "3", "4")
 
+/** DECCKM: a full-screen app that asked for application cursor keys reads `ESC O x`, not `ESC [ x`. */
+object CursorKeys {
+    private val arrow = Regex("\u001b\\[([ABCD])")
+    fun isArrow(bytes: String) = arrow.matches(bytes)
+    fun applicationMode(bytes: String) = arrow.replace(bytes, "\u001bO$1")
+}
+
 /** Bracketed paste, so a multi-line message reaches an engine without its first newline reading as Enter. */
 object PasteEncoding {
     private const val START = "\u001b[200~"
