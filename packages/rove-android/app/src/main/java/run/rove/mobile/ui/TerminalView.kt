@@ -50,7 +50,7 @@ private const val ATTACHING = "connecting"
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("SetJavaScriptEnabled")
-@Composable fun TerminalView(model: AppModel, taskId: String, tabId: String, engineName: String?, fit: Boolean) {
+@Composable fun TerminalView(model: AppModel, taskId: String, tabId: String, engineName: String?, fit: Boolean, menuKeys: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ctrl by remember { mutableStateOf(false) }
@@ -148,7 +148,7 @@ private const val ATTACHING = "connecting"
                     color = Rove.Terminal.foreground, style = Rove.mono(12))
             }
         }
-        KeyRow(ctrl, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
+        KeyRow(ctrl, menuKeys, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
             onInterrupt = {
                 scope.launch {
                     try { model.repository.interrupt(taskId, tabId); showFlash(interruptSent) }

@@ -26,10 +26,14 @@ data class TaskRow(
     val changes: TaskChanges? = null,
     val prChip: String? = null,
     val prChipStale: Boolean = false,
+    val tabStatus: Map<String, TabStatus> = emptyMap(),
 ) {
     val displayTitle get() = title.ifEmpty { branch.ifEmpty { id } }
+    /** The daemon's own reading: this tab's engine waits at a menu that takes digits and Enter as keys. */
+    fun atMenu(tabId: String) = tabStatus[tabId]?.kind == "needs-input"
     val repoName get() = repo.trimEnd('/').substringAfterLast('/')
 }
+@Serializable data class TabStatus(val kind: String = "")
 /** The registered machine a remote task lives on; there is no base checkout of it here to merge into. */
 @Serializable data class TaskMachine(val label: String = "")
 @Serializable data class EngineLabel(val id: String? = null, val name: String)
