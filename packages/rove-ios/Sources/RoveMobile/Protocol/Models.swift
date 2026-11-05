@@ -223,14 +223,17 @@ struct TasksPayload: Codable, Equatable {
     var attention: [AttentionItem]
     /// Open decisions, and answered ones the engine has not received. Absent from older bridges.
     var gates: [GateRow]
-    init(tasks: [TaskRow], attention: [AttentionItem], gates: [GateRow] = []) {
-        self.tasks = tasks; self.attention = attention; self.gates = gates
+    /// Tasks hidden with `task.archive`; never in `tasks`. Absent from older bridges.
+    var archived: [TaskRow]
+    init(tasks: [TaskRow], attention: [AttentionItem], gates: [GateRow] = [], archived: [TaskRow] = []) {
+        self.tasks = tasks; self.attention = attention; self.gates = gates; self.archived = archived
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         tasks = try c.decodeIfPresent([TaskRow].self, forKey: .tasks) ?? []
         attention = try c.decodeIfPresent([AttentionItem].self, forKey: .attention) ?? []
         gates = try c.decodeIfPresent([GateRow].self, forKey: .gates) ?? []
+        archived = try c.decodeIfPresent([TaskRow].self, forKey: .archived) ?? []
     }
 }
 /// `gate.answer`: whether the engine took the answer now (false = it rides the task's next message).
