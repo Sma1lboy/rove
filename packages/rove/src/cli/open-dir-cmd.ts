@@ -17,7 +17,6 @@ import { resolve } from "node:path"
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { expandTilde } from "../lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
-import { withDaemonOrLocal } from "./orchestrator-bridge.ts"
 
 /**
  * True for EXPLICIT path syntax (`.`, `..`, `./x`, `/abs`, `~/x`). Narrow on
@@ -67,6 +66,7 @@ export async function runOpenDirectory(arg: string): Promise<void> {
   }
   // Repo root → the project; anything else → a dir task (see header).
   const projectRoot = await projectRootFor(dir)
+  const { withDaemonOrLocal } = await import("./orchestrator-bridge.ts")
   await withDaemonOrLocal({
     daemon: async (client) => {
       let taskId: string
