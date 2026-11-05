@@ -12,6 +12,10 @@
     <string name="rowmenu_sync_conflict">合并冲突，解决后提交：%1$s</string>
     <string name="rowmenu_sync_dirty">请先提交工作树里的改动，再同步：%1$s</string>
     <string name="rowmenu_sync_failed">同步失败：%1$s</string>
+    <string name="rowmenu_fix_checks">修复失败的检查</string>
+    <string name="rowmenu_fix_sent">已请 agent 修复失败的检查</string>
+    <string name="rowmenu_fix_none">没有可读的失败检查日志，运行记录可能已过期，或检查已不再是红的。</string>
+    <string name="rowmenu_fix_unavailable">gh 读不到这个 PR 的检查状态：%1$s。请在 Mac 上运行 `gh auth status`，然后重试。</string>
     <string name="rowmenu_rename_branch">重命名分支</string>
     <string name="rowmenu_archive">归档</string>
     <string name="rowmenu_unarchive">取消归档</string>

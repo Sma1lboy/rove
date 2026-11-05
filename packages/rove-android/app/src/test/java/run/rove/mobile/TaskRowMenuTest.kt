@@ -29,6 +29,11 @@ class TaskRowMenuTest {
         assertEquals(SyncRefusal.Dirty("a.kt"), TaskRowMenuLogic.syncRefusal("INTERNAL: SYNC_WORKTREE_DIRTY: a.kt"))
         assertEquals(null, TaskRowMenuLogic.syncRefusal("INTERNAL: no remote"))
     }
+    @Test fun fixChecksShowsOnlyWhileThePrIsRed() {
+        fun row(state: String) = TaskRow("t", pr = TaskPR(checkState = state))
+        assertEquals(true, FixChecks in TaskRowMenuLogic.items(row("failing")))
+        assertEquals(false, FixChecks in TaskRowMenuLogic.items(row("passing")))
+    }
     @Test fun archivedRowsArriveBesideTasksAndRoutineRunsStayOutOfTheFold() {
         val tasks = wireJson.decodeFromJsonElement<Tasks>(wireJson.parseToJsonElement(
             """{"tasks":[],"archived":[{"id":"a","archived":true},{"id":"r","archived":true,"routine":true}]}"""))

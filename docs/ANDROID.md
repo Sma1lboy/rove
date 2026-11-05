@@ -81,6 +81,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
 | `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
 | `update.check` | Settings → About: check for updates through the Mac. The app names `rove update` and opens the release; it never installs |
+| `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
 | `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
 | `tab.send`, `queue.list`, `queue.cancel` | Composer on an engine tab sends with `queue: true`, so a busy tab holds the message; held messages show as chips with a cancel. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |

@@ -12,6 +12,10 @@
     <string name="rowmenu_sync_conflict">Merge conflict. Resolve then commit: %1$s</string>
     <string name="rowmenu_sync_dirty">Commit the worktree\'s changes first, then sync: %1$s</string>
     <string name="rowmenu_sync_failed">Sync failed: %1$s</string>
+    <string name="rowmenu_fix_checks">fix failing checks</string>
+    <string name="rowmenu_fix_sent">Asked the agent to fix the failing checks</string>
+    <string name="rowmenu_fix_none">No failing check logs to read. The run may have expired, or the checks are no longer red.</string>
+    <string name="rowmenu_fix_unavailable">gh could not read this PR\'s checks: %1$s. Run `gh auth status` on the Mac, then retry.</string>
     <string name="rowmenu_rename_branch">rename branch</string>
     <string name="rowmenu_archive">archive</string>
     <string name="rowmenu_unarchive">unarchive</string>
