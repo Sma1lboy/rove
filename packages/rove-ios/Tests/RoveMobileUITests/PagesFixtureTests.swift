@@ -107,6 +107,19 @@ final class PagesFixtureTests: XCTestCase {
         checkpoint("fx-board-5-linked-drawer")
     }
 
+    /// The row menu merges the task's base in and says what happened.
+    func testSyncWithBaseFromTheRowMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").press(forDuration: 1.2)
+        let item = waitFor(element("actionSyncBase"), "sync item")
+        checkpoint("fx-sync-base")
+        item.tap()
+        waitFor(element("actionBanner"), "sync result", timeout: 5)
+        XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
+    }
+
     func testFixtureRoutinesAndIssues() throws {
         pair(try fixture())
         openPage("routines")

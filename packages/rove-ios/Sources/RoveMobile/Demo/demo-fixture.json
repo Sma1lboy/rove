@@ -232,6 +232,7 @@
       }
     ]
   },
+  "task.syncBase": { "baseRef": "main", "alreadyCurrent": false },
   "tasks.list": {
     "$same_as": "tasks.subscribe"
   },

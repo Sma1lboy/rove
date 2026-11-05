@@ -116,6 +116,19 @@ final class TaskActionHost {
         } catch { fail(error) }
     }
 
+    /// Merges the task's base into its worktree.
+    func syncBase(_ taskId: String) async {
+        guard let model else { return }
+        do {
+            let r = try await model.client.request("task.syncBase", ["taskId": taskId], as: SyncBaseResult.self)
+            await didMutate(taskId)
+            show(r.alreadyCurrent ? String(localized: "already up to date with \(r.baseRef)")
+                                  : String(localized: "merged \(r.baseRef) into this worktree"))
+        } catch {
+            show(TaskActionLogic.syncFailure((error as? BridgeError)?.message ?? error.localizedDescription), isError: true)
+        }
+    }
+
     /// `direction`: `up`, `down` or `top`.
     func move(_ taskId: String, _ direction: String) async {
         guard let model else { return }
@@ -198,6 +211,13 @@ struct TaskActionItems: View {
                 Button { Task { await host.move(taskId, "up") } } label: { Label("Move up", systemImage: "arrow.up") }
                 Button { Task { await host.move(taskId, "down") } } label: { Label("Move down", systemImage: "arrow.down") }
                 Button { Task { await host.move(taskId, "top") } } label: { Label("Move to top", systemImage: "arrow.up.to.line") }
+            }
+            if plan.syncBase {
+                Divider()
+                Button { Task { await host.syncBase(taskId) } } label: {
+                    Label("Sync with base", systemImage: "arrow.triangle.merge")
+                }
+                .accessibilityIdentifier("actionSyncBase")
             }
             if plan.showsCopyGroup {
                 Divider()
