@@ -67,17 +67,20 @@ struct TaskRow: Codable, Hashable, Identifiable {
     /// `conflict` / `failing` / `passing` (row-chips.ts `prChip`), nil when the row draws no PR chip.
     var prChip: String?
     var prChipStale: Bool
+    /// A routine's firing made this task: it lives on the Routines page, not in the list.
+    var routine: Bool
 
     init(id: String, title: String, branch: String = "", repo: String = "", kind: String = "task",
          status: String = "", group: TaskGroup, rank: Double = 0, activity: TaskActivity? = nil,
          engine: TaskEngine? = nil, pr: TaskPR? = nil, report: TaskReport? = nil, deleting: Bool = false,
          pinned: Bool = false, order: Int? = nil, createdAt: String? = nil, updatedAt: String? = nil,
-         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false) {
+         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false, routine: Bool = false) {
         self.id = id; self.title = title; self.branch = branch; self.repo = repo; self.kind = kind
         self.status = status; self.group = group; self.rank = rank; self.activity = activity
         self.engine = engine; self.pr = pr; self.report = report; self.deleting = deleting
         self.pinned = pinned; self.order = order; self.createdAt = createdAt; self.updatedAt = updatedAt
         self.changes = changes; self.rowTokens = rowTokens; self.prChip = prChip; self.prChipStale = prChipStale
+        self.routine = routine
     }
 
     init(from decoder: Decoder) throws {
@@ -103,6 +106,7 @@ struct TaskRow: Codable, Hashable, Identifiable {
         rowTokens = try c.decodeIfPresent([RowTokenChip].self, forKey: .rowTokens) ?? []
         prChip = try c.decodeIfPresent(String.self, forKey: .prChip)
         prChipStale = try c.decodeIfPresent(Bool.self, forKey: .prChipStale) ?? false
+        routine = try c.decodeIfPresent(Bool.self, forKey: .routine) ?? false
     }
 
     var repoName: String { URL(fileURLWithPath: repo).lastPathComponent }

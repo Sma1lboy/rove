@@ -83,6 +83,15 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertFalse(element("key-option-1").exists)
     }
 
+    /// A routine's run lives on the Routines page: no row, no project section, no project filter entry.
+    func testARoutineRunStaysOffTheTaskList() throws {
+        pair(try fixture())
+        waitFor(text("Fix layout shift on the pricing page"), "an ordinary task")
+        checkpoint("fx-routine-off-list")
+        XCTAssertFalse(text("Nightly dependency sweep").exists)
+        XCTAssertFalse(text("NIGHTLY-RUNS").exists)
+    }
+
     func testFixtureBoard() throws {
         pair(try fixture())
         openPage("board")

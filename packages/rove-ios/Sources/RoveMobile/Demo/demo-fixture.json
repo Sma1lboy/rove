@@ -198,6 +198,22 @@
         "updatedAt": {
           "$ago_min": 180
         }
+      },
+      {
+        "id": "T-NIGHTLY",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/nightly-runs",
+        "routine": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Nightly dependency sweep",
+        "branch": "routine/nightly-deps",
+        "group": "idle",
+        "rank": 5,
+        "order": 5
       }
     ],
     "attention": [
@@ -270,6 +286,9 @@
   },
   "task.tabs": {
     "$by": "taskId",
+    "T-NIGHTLY": {
+      "tabs": [{ "id": "tab-1", "kind": "engine", "title": "claude", "engineName": "Claude", "alive": true, "engineAlive": true }]
+    },
     "T-WAIT": {
       "tabs": [
         {
@@ -752,6 +771,7 @@
       "taskId",
       "tabId"
     ],
+    "T-NIGHTLY:tab-1": { "stream": "demo-T-NIGHTLY-tab-1", "alive": true, "replay": { "$b64": "sweep finished\r\n" } },
     "T-WAIT:tab-1": {
       "stream": "demo-T-WAIT-tab-1",
       "alive": true,
@@ -804,6 +824,7 @@
   },
   "diff.files": {
     "$by": "taskId",
+    "T-NIGHTLY": { "files": [] },
     "T-WAIT": {
       "base": "main",
       "files": [

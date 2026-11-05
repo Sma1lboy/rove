@@ -88,7 +88,7 @@ struct TaskListView: View {
                     ForEach(sections, id: \.repo) { project in
                         projectSection(project.repo, project.rows)
                     }
-                    emptyView(TaskListLogic.emptiness(loaded: store.loaded, total: store.tasks.count, shown: shown))
+                    emptyView(TaskListLogic.emptiness(loaded: store.loaded, total: store.tasks.filter { !$0.routine }.count, shown: shown))
                     if !store.loaded {
                         HStack(spacing: 8) {
                             BrailleSpinner(size: 13)
