@@ -18,6 +18,8 @@
     <string name="detail_pick_tab">pick a tab</string>
     <string name="detail_no_tabs_hint">open an engine tab to give this task its next message</string>
     <string name="detail_reopen">reopen session</string>
+    <string name="detail_reopening">reopening…</string>
+    <string name="detail_reopen_failed">Could not reopen this session: %1$s</string>
 
     <string name="detail_key_esc" translatable="false">esc</string>
     <string name="detail_key_enter" translatable="false">enter</string>
