@@ -6,6 +6,12 @@
     <string name="rowmenu_pin">pin</string>
     <string name="rowmenu_unpin">unpin</string>
     <string name="rowmenu_set_status">set status</string>
+    <string name="rowmenu_sync_base">sync with base</string>
+    <string name="rowmenu_sync_done">Merged %1$s into this worktree</string>
+    <string name="rowmenu_sync_current">Already up to date with %1$s</string>
+    <string name="rowmenu_sync_conflict">Merge conflict. Resolve then commit: %1$s</string>
+    <string name="rowmenu_sync_dirty">Commit the worktree\'s changes first, then sync: %1$s</string>
+    <string name="rowmenu_sync_failed">Sync failed: %1$s</string>
     <string name="rowmenu_rename_branch">rename branch</string>
     <string name="rowmenu_archive">archive</string>
     <string name="rowmenu_unarchive">unarchive</string>

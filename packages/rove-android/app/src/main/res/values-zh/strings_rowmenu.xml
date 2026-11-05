@@ -6,6 +6,12 @@
     <string name="rowmenu_pin">置顶</string>
     <string name="rowmenu_unpin">取消置顶</string>
     <string name="rowmenu_set_status">设置状态</string>
+    <string name="rowmenu_sync_base">同步基础分支</string>
+    <string name="rowmenu_sync_done">已把 %1$s 合并进该工作树</string>
+    <string name="rowmenu_sync_current">已经和 %1$s 同步</string>
+    <string name="rowmenu_sync_conflict">合并冲突，解决后提交：%1$s</string>
+    <string name="rowmenu_sync_dirty">请先提交工作树里的改动，再同步：%1$s</string>
+    <string name="rowmenu_sync_failed">同步失败：%1$s</string>
     <string name="rowmenu_rename_branch">重命名分支</string>
     <string name="rowmenu_archive">归档</string>
     <string name="rowmenu_unarchive">取消归档</string>

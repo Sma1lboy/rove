@@ -2,6 +2,7 @@ package run.rove.mobile.data
 
 import kotlinx.serialization.json.decodeFromJsonElement
 import run.rove.mobile.domain.OpenedTab
+import run.rove.mobile.domain.SyncResult
 
 suspend fun RoveRepository.renameTask(taskId: String, title: String) { bridge.request("task.rename", args("taskId" to taskId, "title" to title)) }
 suspend fun RoveRepository.renameBranch(taskId: String, branch: String) { bridge.request("task.setBranch", args("taskId" to taskId, "branch" to branch)) }
@@ -16,3 +17,4 @@ suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force:
 /** An engine on the project's last-used engine, the TUI's ctrl+t. In a task that already has a conversation it starts a child task, named by the reply. */
 suspend fun RoveRepository.openConversation(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "engine", "latest" to true)))
 suspend fun RoveRepository.openShell(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "shell")))
+suspend fun RoveRepository.syncBase(taskId: String): SyncResult = wireJson.decodeFromJsonElement(bridge.request("task.syncBase", args("taskId" to taskId)))
