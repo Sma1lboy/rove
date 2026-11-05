@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test"
 import {
+  type CoastState,
+  coastStep,
   edgeCarry,
   glideStep,
   isWheelNotch,
@@ -111,4 +113,40 @@ test("after a scrollback wipe a scrolled view keeps its distance from the bottom
   expect(viewportAfterWrite(40, { baseY: 300, viewportY: 260 })).toBeNull()
   // The repaint is shorter than the old distance: as far back as it goes.
   expect(viewportAfterWrite(40, { baseY: 25, viewportY: 25 })).toBe(0)
+})
+
+/** Which deltas of a stream, 16ms apart unless given as `[delta, gapMs]`, are the momentum's tail. */
+const coasted = (stream: readonly (number | readonly [number, number])[]): number[] => {
+  let state: CoastState | null = null
+  let at = 0
+  const out: number[] = []
+  for (const item of stream) {
+    const [delta, gap] = typeof item === "number" ? [item, 16] : item
+    at += gap
+    state = coastStep(state, delta, at)
+    if (state.coasting) out.push(delta)
+  }
+  return out
+}
+
+test("the crawl after a flick is momentum, the flick itself is not", () => {
+  expect(coasted([4, 8, 12, 10, 8, 6, 5, 4, 3, 2, 2, 1, 1, 1])).toEqual([2, 2, 1, 1, 1])
+})
+
+test("a slow steady drag is followed, however small its deltas", () => {
+  expect(coasted([1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1])).toEqual([])
+})
+
+test("a jittering tail stays coasting, a new push ends it", () => {
+  expect(coasted([12, 10, 8, 6, 4, 2, 1, 2, 1, 2])).toEqual([2, 1, 2, 1, 2])
+  expect(coasted([12, 10, 8, 6, 4, 2, 1, 9, 2])).toEqual([2, 1])
+})
+
+test("a pause or a change of direction starts a new gesture", () => {
+  expect(coasted([12, 10, 8, 6, 4, 2, [1, 200]])).toEqual([2])
+  expect(coasted([12, 10, 8, 6, 4, 2, -1])).toEqual([2])
+})
+
+test("momentum dithering around the floor does not read as a new push", () => {
+  expect(coasted([40, 30, 20, 12, 8, 5, 3, 2, 3, 2, 3, 2])).toEqual([2, 2, 2])
 })

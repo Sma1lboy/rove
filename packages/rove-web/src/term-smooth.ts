@@ -9,7 +9,16 @@
 
 import type { Terminal } from "@xterm/xterm"
 import { createEdgeStrips } from "./term-edge.ts"
-import { edgeCarry, glideStep, isWheelNotch, scrollStep, wheelDelta, wheelOwner } from "./term-scroll.ts"
+import {
+  type CoastState,
+  coastStep,
+  edgeCarry,
+  glideStep,
+  isWheelNotch,
+  scrollStep,
+  wheelDelta,
+  wheelOwner,
+} from "./term-scroll.ts"
 
 /** Idle time after the last move before the screen eases back onto the row grid. */
 const SETTLE_AFTER_MS = 140
@@ -168,8 +177,12 @@ export function createSmoothScroll(term: Terminal, onMove: () => void): SmoothSc
   }
 }
 
-/** A wheel the app does not take (normal screen, or mouse tracking without Shift) moves `scroll`; a notch glides. */
+/**
+ * A wheel the app does not take (normal screen, or mouse tracking without Shift) moves `scroll`; a notch glides.
+ * The OS's momentum is followed until its crawl, then the view stops and eases onto the row grid.
+ */
 export function attachWheelScroll(el: HTMLElement, term: Terminal, scroll: SmoothScroll): () => void {
+  let coast: CoastState | null = null
   const onWheel = (e: WheelEvent) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
     const alternateScreen = term.buffer.active.type === "alternate"
@@ -183,7 +196,13 @@ export function attachWheelScroll(el: HTMLElement, term: Terminal, scroll: Smoot
     const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
     const cellHeight = screen && term.rows > 0 ? screen.clientHeight / term.rows : 0
     const delta = wheelDelta(e, cellHeight || FALLBACK_ROW_PX, term.rows)
-    if (isWheelNotch(e)) scroll.glide(delta)
+    if (isWheelNotch(e)) {
+      coast = null
+      scroll.glide(delta)
+      return
+    }
+    coast = coastStep(coast, delta * (cellHeight || FALLBACK_ROW_PX), e.timeStamp)
+    if (coast.coasting) scroll.settle()
     else scroll.by(delta)
   }
   el.addEventListener("wheel", onWheel, { capture: true, passive: false })
