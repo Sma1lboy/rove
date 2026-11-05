@@ -15,6 +15,7 @@ terminal.onData(data => Rove.input(data));
 terminal.onResize(size => Rove.resize(size.cols, size.rows));
 window.roveWrite = encoded => terminal.write(Uint8Array.from(atob(encoded), c => c.charCodeAt(0)));
 window.roveReset = () => terminal.reset();
+window.roveAppCursor = () => terminal.modes.applicationCursorKeysMode;
 const host = document.getElementById('terminal');
 new ResizeObserver(() => fit.fit()).observe(host);
 // When the IME shrinks the viewport, Chromium scrolls the focused helper textarea into view by scrolling this

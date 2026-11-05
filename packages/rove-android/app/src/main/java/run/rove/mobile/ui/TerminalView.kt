@@ -22,6 +22,7 @@ import run.rove.mobile.data.BridgeFailure
 import run.rove.mobile.data.sendMessage
 import run.rove.mobile.data.putAttachment
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -64,6 +65,9 @@ private const val ATTACHING = "connecting"
     val session = remember(web) { TerminalSession(model.bridge, scope, taskId, tabId,
         write = { encoded -> web.evaluateJavascript("window.roveWrite(${JsonPrimitive(encoded)});", null) },
         reset = { web.evaluateJavascript("window.roveReset();", null) }) }
+    val input = remember(session) { TerminalInput(scope,
+        queryCursorMode = { complete -> web.evaluateJavascript("window.roveAppCursor();") { complete(it == "true") } },
+        send = session::input) }
     val status by session.status.collectAsState()
     val interruptSent = stringResource(R.string.detail_interrupt_sent)
     val showFlash = { text: String ->
@@ -76,17 +80,17 @@ private const val ATTACHING = "connecting"
     val send: (String) -> Unit = send@{ raw ->
         val text = QueryReplyFilter.filter(raw)
         if (text.isEmpty()) return@send
-        if (ctrl && text.length == 1 && text[0].code in 64..127) session.input((text[0].code and 31).toChar().toString())
-        else session.input(text)
+        if (ctrl && text.length == 1 && text[0].code in 64..127) input.input((text[0].code and 31).toChar().toString())
+        else input.input(text)
         ctrl = false
     }
     // References pasted since the last reply: `images[0]`, `images[1]`… restart with the next message (iOS `attachmentCount`).
     var attachments by remember(session) { mutableIntStateOf(0) }
     // Text, then Enter after a pause: engine TUIs read text+CR in one burst as a paste and insert a newline.
-    val reply: (String) -> Boolean = { text ->
+    val reply: suspend (String) -> Boolean = { text ->
         val message = PasteEncoding.message(text)
-        (message.isNotEmpty() && session.input(message)).also { sent ->
-            if (sent) { attachments = 0; scope.launch { delay(150); session.input("\r") } }
+        (message.isNotEmpty() && input.input(message).await()).also { sent ->
+            if (sent) { attachments = 0; scope.launch { delay(150); input.input("\r") } }
         }
     }
     var queueRevision by remember { mutableIntStateOf(0) }
@@ -133,7 +137,7 @@ private const val ATTACHING = "connecting"
         }, "Rove")
         web.loadUrl("https://appassets.androidplatform.net/assets/terminal/index.html")
         onDispose {
-            session.close(); web.removeJavascriptInterface("Rove"); web.stopLoading(); web.destroy()
+            input.close(); session.close(); web.removeJavascriptInterface("Rove"); web.stopLoading(); web.destroy()
         }
     }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -148,7 +152,10 @@ private const val ATTACHING = "connecting"
                     color = Rove.Terminal.foreground, style = Rove.mono(12))
             }
         }
-        KeyRow(ctrl, menuKeys, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
+        KeyRow(ctrl, menuKeys, onKey = { key ->
+            ctrl = false
+            input.input(key, cursorKey = true)
+        }, onCtrl = { ctrl = !ctrl },
             onInterrupt = {
                 scope.launch {
                     try { model.repository.interrupt(taskId, tabId); showFlash(interruptSent) }
@@ -156,11 +163,11 @@ private const val ATTACHING = "connecting"
                     catch (e: Exception) { showFlash(e.message ?: "") }
                 }
             },
-            onReply = { reply(it) }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
+            onReply = { scope.launch(start = CoroutineStart.UNDISPATCHED) { reply(it) } }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
         if (engineName != null) QueuedChips(model, taskId, tabId, queueRevision)
         Composer(engineName, compose) { prepared ->
             val put = model.repository.putAttachment(prepared.mime, prepared.data)
-            if (session.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments)))) attachments++
+            if (input.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments))).await()) attachments++
         }
     }
 }
