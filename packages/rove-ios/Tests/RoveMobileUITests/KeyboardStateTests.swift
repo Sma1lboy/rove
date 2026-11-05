@@ -183,7 +183,17 @@ final class KeyboardStateTests: XCTestCase {
         field.tap()
         XCTAssertTrue(kb.waitUp())
         log?.clear()
-        field.typeText("ship it")
+        // Let the software keyboard commit each character before injecting the next one.
+        var reply = ""
+        for character in "ship it" {
+            field.typeText(String(character))
+            reply.append(character)
+            let committed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value == %@", reply), object: field)
+            guard XCTWaiter.wait(for: [committed], timeout: 5) == .completed else {
+                return XCTFail("\(label): composer expected \(reply.debugDescription), got \(String(describing: field.value))")
+            }
+        }
         el("sendButton").tap()
         el("key-Esc").tap()
         XCTAssertTrue(kb.isUp, "\(label): a key-row press dropped the keyboard")
