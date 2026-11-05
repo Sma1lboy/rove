@@ -78,6 +78,8 @@ struct KeyboardProbe {
             }
             Thread.sleep(forTimeInterval: 0.25)
         }
+        // A slow snapshot can exhaust the budget before the visible frame gets its second sample.
+        if let last, isUp, frame == last { Thread.sleep(forTimeInterval: 0.4); return true }
         return false
     }
 

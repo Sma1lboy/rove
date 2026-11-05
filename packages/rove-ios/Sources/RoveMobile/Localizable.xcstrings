@@ -508,6 +508,16 @@
         }
       }
     },
+    "already up to date with %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经和 %@ 同步"
+          }
+        }
+      }
+    },
     "Also discard uncommitted changes" : {
       "localizations" : {
         "zh-Hans" : {
@@ -704,6 +714,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭这个标签页？"
+          }
+        }
+      }
+    },
+    "commit the worktree's changes first, then sync: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先提交工作树里的改动，再同步：%@"
           }
         }
       }
@@ -1234,6 +1254,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "合并"
+          }
+        }
+      }
+    },
+    "merge conflict · resolve then commit: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并冲突——解决后提交：%@"
+          }
+        }
+      }
+    },
+    "merged %@ into this worktree" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已把 %@ 合并进该工作树"
           }
         }
       }
@@ -2144,6 +2184,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开启 %@：TUI 重新提供它，新任务可默认使用它。"
+          }
+        }
+      }
+    },
+    "sync failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步失败：%@"
+          }
+        }
+      }
+    },
+    "Sync with base" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步基础分支"
           }
         }
       }

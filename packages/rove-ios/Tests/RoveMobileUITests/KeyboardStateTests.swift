@@ -32,6 +32,16 @@ final class KeyboardStateTests: XCTestCase {
     func testInputsFixtureDark() throws { try sweepInputs(.dark, fixture: try fixtureURL()) }
     func testInputSampleFixtureDark() throws { try sampleInputs(.dark, fixture: try fixtureURL()) }
 
+    func testVisibleKeyboardSettlesAfterPollingDeadline() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        XCTAssertFalse(kb.waitUp(timeout: 0.01))
+        input("composerField").tap()
+        XCTAssertTrue(kb.isUp)
+        // A snapshot can take longer than the polling budget on a hosted simulator.
+        XCTAssertTrue(kb.waitUp(timeout: 0.01))
+    }
+
     func testTerminalDemo() throws {
         for look in looks {
             try start(look, fixture: nil)
@@ -173,7 +183,17 @@ final class KeyboardStateTests: XCTestCase {
         field.tap()
         XCTAssertTrue(kb.waitUp())
         log?.clear()
-        field.typeText("ship it")
+        // Let the software keyboard commit each character before injecting the next one.
+        var reply = ""
+        for character in "ship it" {
+            field.typeText(String(character))
+            reply.append(character)
+            let committed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value == %@", reply), object: field)
+            guard XCTWaiter.wait(for: [committed], timeout: 5) == .completed else {
+                return XCTFail("\(label): composer expected \(reply.debugDescription), got \(String(describing: field.value))")
+            }
+        }
         el("sendButton").tap()
         el("key-Esc").tap()
         XCTAssertTrue(kb.isUp, "\(label): a key-row press dropped the keyboard")

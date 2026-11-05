@@ -149,6 +149,7 @@ struct OpenMainResult: Codable { var taskId: String }
 struct AdoptResult: Codable { var taskId: String }
 struct CloneResult: Codable { var path: String }
 struct WorktreePathResult: Codable { var worktreePath: String }
+struct SyncBaseResult: Codable { var baseRef: String; var alreadyCurrent: Bool }
 struct RemoveWorktreeResult: Codable {
     var removed: Bool
     var worktreePath: String?
