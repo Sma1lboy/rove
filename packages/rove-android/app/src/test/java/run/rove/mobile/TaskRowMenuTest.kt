@@ -9,11 +9,11 @@ import run.rove.mobile.domain.RowMenuItem.*
 
 class TaskRowMenuTest {
     @Test fun aProjectsMainRowCannotBePinnedOrArchived() {
-        assertEquals(listOf(Rename, SetStatus), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
+        assertEquals(listOf(NewConversation, NewShell, Rename, SetStatus), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
     }
     @Test fun aTaskRowOffersTheOppositeOfItsCurrentState() {
-        assertEquals(listOf(Rename, Pin, SetStatus, RenameBranch, Archive), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))
-        assertEquals(listOf(Rename, Unpin, SetStatus, Unarchive), TaskRowMenuLogic.items(TaskRow("t", pinned = true, archived = true)))
+        assertEquals(listOf(NewConversation, NewShell, Rename, Pin, SetStatus, RenameBranch, Archive), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))
+        assertEquals(listOf(NewConversation, NewShell, Rename, Unpin, SetStatus, Unarchive), TaskRowMenuLogic.items(TaskRow("t", pinned = true, archived = true)))
     }
     @Test fun archivedRowsArriveBesideTasksAndRoutineRunsStayOutOfTheFold() {
         val tasks = wireJson.decodeFromJsonElement<Tasks>(wireJson.parseToJsonElement(

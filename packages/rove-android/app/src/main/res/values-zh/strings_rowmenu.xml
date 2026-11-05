@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="rowmenu_new_conversation">新对话</string>
+    <string name="rowmenu_new_shell">新 shell</string>
     <string name="rowmenu_rename">重命名</string>
     <string name="rowmenu_pin">置顶</string>
     <string name="rowmenu_unpin">取消置顶</string>

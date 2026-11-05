@@ -29,6 +29,8 @@ internal sealed interface RowRequest {
     RoveMenu(open, onDismiss) {
         TaskRowMenuLogic.items(row).forEach { item ->
             RoveMenuItem(stringResource(when (item) {
+                RowMenuItem.NewConversation -> R.string.rowmenu_new_conversation
+                RowMenuItem.NewShell -> R.string.rowmenu_new_shell
                 RowMenuItem.Rename -> R.string.rowmenu_rename
                 RowMenuItem.Pin -> R.string.rowmenu_pin
                 RowMenuItem.Unpin -> R.string.rowmenu_unpin
@@ -42,8 +44,10 @@ internal sealed interface RowRequest {
 }
 
 /** Runs [item], or returns the dialog it needs first. */
-internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, onRequest: (RowRequest) -> Unit) {
+internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, onOpen: (Route) -> Unit, onRequest: (RowRequest) -> Unit) {
     when (item) {
+        RowMenuItem.NewConversation -> model.action { model.repository.openConversation(row.id).let { onOpen(Route.Task(it.taskId ?: row.id, it.tabId)) }; model.refresh() }
+        RowMenuItem.NewShell -> model.action { model.repository.openShell(row.id).let { onOpen(Route.Task(it.taskId ?: row.id, it.tabId)) }; model.refresh() }
         RowMenuItem.Rename -> onRequest(RowRequest.Rename(row))
         RowMenuItem.RenameBranch -> onRequest(RowRequest.RenameBranch(row))
         RowMenuItem.SetStatus -> onRequest(RowRequest.Status(row))
