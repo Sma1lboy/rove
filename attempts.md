@@ -397,3 +397,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next:** what remains of `--version` (~42 ms vs ~24 ms for `version.ts` alone): `env.ts` (~11 ms, rove-daemon pre-rename-runtime/compat-env) and `cli/startup.ts` (~10 ms, state layout + key migrations run on every call). A per-module timer: `for m of mods: t=performance.now(); await import(m)` in one process (don't include index.ts itself, it runs main()).
 
 **Sandbox:** bun 1.3.14 from npm. Harness Playwright asks for headless shell rev 1228; `/tmp/pwshim/chromium_headless_shell-{1243,1228} → /opt/pw-browsers/chromium_headless_shell-1243` dir symlinks worked (the 1243 dir already has `chrome-headless-shell-linux64/`, so no per-file symlinks needed).
+
+**Update 2026-11-05:** #1654 merged. Next main should read golden.cli-startup-ms ~42 (was 53–67).
