@@ -64,7 +64,7 @@ internal data class ListActions(
     var rowRequest by remember { mutableStateOf<RowRequest?>(null) }
     val actions = ListActions(onSelect, model::refresh, onCreate, { open(Route.Inbox) }, open, model::unpair,
         { id, direction -> model.action { model.repository.moveTask(id, direction); model.refresh() } }, { request = it },
-        { row, item -> runRowMenuItem(model, row, item) { rowRequest = it } })
+        { row, item -> runRowMenuItem(model, row, item, open) { rowRequest = it } })
     TaskListContent(tasks, host, connection, engines, controls, tabTitles, actions, mods)
     ProjectSheets(model, request) { request = it }
     RowSheets(model, rowRequest) { rowRequest = it }

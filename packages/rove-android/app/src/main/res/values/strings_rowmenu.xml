@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="rowmenu_new_conversation">new conversation</string>
+    <string name="rowmenu_new_shell">new shell</string>
     <string name="rowmenu_rename">rename</string>
     <string name="rowmenu_pin">pin</string>
     <string name="rowmenu_unpin">unpin</string>
