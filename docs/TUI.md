@@ -176,6 +176,10 @@ needs input, `!` error) over the same saved timestamps, because there the
 glyph sits next to a word that explains it; a `✓` you have already read
 settles back to `○`, and stays settled after a restart.
 
+Help (`F1`) ends with a legend of every mark, drawn in your glyph preset
+(`appearance.glyphSet`) and colors. Its `/` filter searches the legend too:
+type `rate limit` or `!` to see what that mark means.
+
 ## Managing Tasks in the sidebar
 
 Press `/` to fuzzy-search task titles, repositories, branches, and live tab
