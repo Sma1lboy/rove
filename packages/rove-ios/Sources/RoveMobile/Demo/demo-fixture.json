@@ -242,6 +242,24 @@
         "order": 5
       }
     ],
+    "archived": [
+      {
+        "id": "T-OLD",
+        "kind": "task",
+        "status": "done",
+        "repo": "/work/payments-api",
+        "archived": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Spike a ledger rewrite",
+        "branch": "spike/ledger",
+        "group": "idle",
+        "rank": 6,
+        "order": 6
+      }
+    ],
     "attention": [
       {
         "taskId": "T-WAIT",

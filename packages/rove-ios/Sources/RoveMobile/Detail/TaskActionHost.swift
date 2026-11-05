@@ -46,6 +46,8 @@ final class TaskActionHost {
     }
 
     var request: Request?
+    /// `task.archive` refused because an engine in this task is busy; asks before hiding it anyway.
+    var archiveBusy: String?
     /// Called after a task was deleted / a project forgotten, so a detail screen can pop.
     var onRemoved: ((_ taskId: String?) -> Void)?
     /// Called to open a task (e.g. after "run again" spawned a new one).
@@ -126,6 +128,26 @@ final class TaskActionHost {
                                   : String(localized: "merged \(r.baseRef) into this worktree"))
         } catch {
             show(TaskActionLogic.syncFailure((error as? BridgeError)?.message ?? error.localizedDescription), isError: true)
+        }
+    }
+
+    /// Hides the row or brings it back; the worktree, branch and sessions are untouched either way.
+    func toggleArchived(_ taskId: String, force: Bool = false) async {
+        guard let model else { return }
+        let archiving = !model.store.isArchived(taskId)
+        let title = model.store.task(id: taskId)?.displayTitle ?? taskId
+        var args: [String: Any] = ["taskId": taskId, "archived": archiving]
+        if force { args["force"] = true }
+        do {
+            _ = try await model.client.request("task.archive", args, as: EmptyResult.self)
+            await didMutate(taskId)
+            show(archiving ? String(localized: "archived \(title) · worktree, branch and sessions untouched")
+                           : String(localized: "restored \(title)"))
+        } catch let busy as BridgeError where archiving && busy.code == "TASK_BUSY" {
+            archiveBusy = taskId
+        } catch {
+            show(archiving ? String(localized: "couldn't archive: \(error.localizedDescription)")
+                           : String(localized: "couldn't restore: \(error.localizedDescription)"), isError: true)
         }
     }
 
@@ -253,6 +275,13 @@ struct TaskActionItems: View {
                 }
             }
             Divider()
+            if row?.kind != "main" {
+                let archived = host.model?.store.isArchived(taskId) == true
+                Button { Task { await host.toggleArchived(taskId) } } label: {
+                    Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
+                }
+                .accessibilityIdentifier("actionArchive")
+            }
             Button(role: .destructive) { host.request = .delete(taskId: taskId) } label: {
                 Label(plan.delete.menuTitle, systemImage: plan.delete.menuSymbol)
             }
@@ -318,6 +347,10 @@ private struct TaskActionSheets: ViewModifier {
             set: { if !$0, host.request?.confirmed != nil { host.request = nil } })
     }
 
+    private var archiveBusyShown: Binding<Bool> {
+        Binding(get: { host.archiveBusy != nil }, set: { if !$0 { host.archiveBusy = nil } })
+    }
+
     private func plan(for request: TaskActionHost.Request) -> TaskActionLogic.ConfirmPlan {
         switch request {
         case .delete(let id), .confirmDelete(let id): TaskActionLogic.deletePlan(kind: model.store.task(id: id)?.kind ?? "task")
@@ -338,6 +371,11 @@ private struct TaskActionSheets: ViewModifier {
                 }
             } message: {
                 Text(firstPlan?.dialogMessage ?? "")
+            }
+            .alert("archive while it's working?", isPresented: archiveBusyShown, presenting: host.archiveBusy) { id in
+                Button("archive anyway", role: .destructive) { Task { await host.toggleArchived(id, force: true) } }
+            } message: { id in
+                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving hides the row without stopping it.")
             }
             .overlay(alignment: .top) { bannerView }
     }

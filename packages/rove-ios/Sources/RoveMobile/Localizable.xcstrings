@@ -528,6 +528,16 @@
         }
       }
     },
+    "an engine in %@ is still working or waiting on you. archiving hides the row without stopping it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。"
+          }
+        }
+      }
+    },
     "answer" : {
       "localizations" : {
         "zh-Hans" : {
@@ -544,6 +554,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已回答 · 引擎未运行"
+          }
+        }
+      }
+    },
+    "Archive" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档"
+          }
+        }
+      }
+    },
+    "archive anyway" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍要归档"
+          }
+        }
+      }
+    },
+    "archive while it's working?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它还在工作，仍要归档？"
+          }
+        }
+      }
+    },
+    "archived %@ · worktree, branch and sessions untouched" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档 %@。工作树、分支和会话都保持原样"
+          }
+        }
+      }
+    },
+    "archived · %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档 · %lld"
           }
         }
       }
@@ -804,6 +864,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法发送回答。"
+          }
+        }
+      }
+    },
+    "couldn't archive: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档失败：%@"
+          }
+        }
+      }
+    },
+    "couldn't restore: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复失败：%@"
           }
         }
       }
@@ -1938,6 +2018,16 @@
         }
       }
     },
+    "restored %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复 %@"
+          }
+        }
+      }
+    },
     "Rove stops listing it. The repo and its tasks stay on disk." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2414,6 +2504,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入你的回答"
+          }
+        }
+      }
+    },
+    "Unarchive" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消归档"
           }
         }
       }

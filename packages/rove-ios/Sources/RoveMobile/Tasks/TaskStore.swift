@@ -40,6 +40,7 @@ enum TaskListLogic {
 @MainActor @Observable
 final class TaskStore {
     private(set) var tasks: [TaskRow] = []
+    private(set) var archived: [TaskRow] = []
     private(set) var attention: [AttentionItem] = []
     private(set) var gates: [GateRow] = []
     private(set) var loaded = false
@@ -101,7 +102,8 @@ final class TaskStore {
         return TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
     }
 
-    func task(id: String) -> TaskRow? { tasks.first { $0.id == id } }
+    func task(id: String) -> TaskRow? { tasks.first { $0.id == id } ?? archived.first { $0.id == id } }
+    func isArchived(_ id: String) -> Bool { archived.contains { $0.id == id } }
 
     func apply(_ p: TasksPayload) {
         for n in TransitionRule.notices(old: snapshot, new: p.tasks) { onNotice(n) }
@@ -112,6 +114,7 @@ final class TaskStore {
         receivedAt = stamps
         snapshot = p.tasks
         tasks = p.tasks
+        archived = p.archived
         attention = p.attention
         gates = p.gates
         loaded = true

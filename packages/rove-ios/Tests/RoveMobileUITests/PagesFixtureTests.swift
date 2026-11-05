@@ -92,6 +92,30 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertFalse(text("NIGHTLY-RUNS").exists)
     }
 
+    /// Archiving hides a row under a closing fold; the fold opens, and an archived row offers Unarchive.
+    func testArchiveFromTheRowMenuAndTheFold() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        let fold = waitFor(element("archivedFold"), "archived fold")
+        XCTAssertFalse(text("Spike a ledger rewrite").exists)
+        element("task-T-IDLE").press(forDuration: 1.2)
+        waitFor(element("actionArchive"), "archive item").tap()
+        let sent = NSPredicate { _, _ in
+            log.entries().contains { $0.op == "task.archive" && $0.args["taskId"] as? String == "T-IDLE" && $0.args["archived"] as? Bool == true }
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: sent, evaluatedWith: nil)], timeout: 5), .completed)
+        fold.tap()
+        waitFor(text("Spike a ledger rewrite"), "archived row")
+        checkpoint("fx-archived-fold")
+        element("task-T-OLD").press(forDuration: 1.2)
+        waitFor(button("Unarchive"), "unarchive item").tap()
+        let back = NSPredicate { _, _ in
+            log.entries().contains { $0.op == "task.archive" && $0.args["taskId"] as? String == "T-OLD" && $0.args["archived"] as? Bool == false }
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: back, evaluatedWith: nil)], timeout: 5), .completed)
+    }
+
     func testFixtureBoard() throws {
         pair(try fixture())
         openPage("board")
