@@ -76,6 +76,9 @@ object RowSearch {
 }
 
 object TaskListLogic {
+    /** A routine's run lives on the Routines page, however many ticks it has spawned. */
+    fun listed(rows: List<TaskRow>) = rows.filterNot { it.routine }
+
     fun attentionCount(items: List<Attention>) = items.count { it.unread }
 
     fun repos(rows: List<TaskRow>) = rows.map { it.repo }.filter { it.isNotEmpty() }.distinct().sorted()

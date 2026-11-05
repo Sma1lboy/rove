@@ -74,13 +74,14 @@ internal data class ListActions(
 @Composable internal fun TaskListContent(tasks: Tasks, host: String, connection: Connection, engines: List<Engine>,
                                          controls: ListControls, tabTitles: Map<String, List<String>>, actions: ListActions,
                                          mods: ModGate = ModGate.Legacy) {
-    val repos = remember(tasks.tasks) { TaskListLogic.repos(tasks.tasks) }
+    val listed = remember(tasks.tasks) { TaskListLogic.listed(tasks.tasks) }
+    val repos = remember(listed) { TaskListLogic.repos(listed) }
     // A filter whose project disappeared (forgotten, say) stops filtering, as iOS clears it.
     val filter = controls.filter?.takeIf { it in repos }
     LaunchedEffect(repos) { if (controls.filter != null && filter == null) controls.filter = null }
     val query = if (controls.searching) controls.query else ""
-    val sections = remember(tasks.tasks, filter, controls.sort, query, tabTitles) {
-        TaskListLogic.projects(TaskListLogic.filtered(tasks.tasks, filter), controls.sort, query, if (query.isEmpty()) emptyMap() else tabTitles)
+    val sections = remember(listed, filter, controls.sort, query, tabTitles) {
+        TaskListLogic.projects(TaskListLogic.filtered(listed, filter), controls.sort, query, if (query.isEmpty()) emptyMap() else tabTitles)
     }
     val shown = sections.sumOf { it.rows.size }
     val loaded = tasks.tasks.isNotEmpty() || connection is Connection.Connected
@@ -128,7 +129,7 @@ internal data class ListActions(
                         MenuRow(row, archivedReceipts.getValue(row.id), now, actions)
                     }
                 }
-                when (TaskListLogic.emptiness(loaded, tasks.tasks.size, shown)) {
+                when (TaskListLogic.emptiness(loaded, listed.size, shown)) {
                     TaskListEmpty.None -> Unit
                     TaskListEmpty.Welcome -> item(key = "welcome") { Welcome(engines) }
                     TaskListEmpty.NoMatches -> item(key = "noMatches") { NoMatches(controls.query.trim()) }

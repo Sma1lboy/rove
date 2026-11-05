@@ -15,6 +15,9 @@ class TaskRowMenuTest {
         assertEquals(listOf(Rename, Pin, SetStatus, RenameBranch, Archive), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))
         assertEquals(listOf(Rename, Unpin, SetStatus, Unarchive), TaskRowMenuLogic.items(TaskRow("t", pinned = true, archived = true)))
     }
+    @Test fun aRoutineRunStaysOffTheTaskList() {
+        assertEquals(listOf("t"), TaskListLogic.listed(listOf(TaskRow("t"), TaskRow("r", routine = true))).map { it.id })
+    }
     @Test fun archivedRowsArriveBesideTasksAndRoutineRunsStayOutOfTheFold() {
         val tasks = wireJson.decodeFromJsonElement<Tasks>(wireJson.parseToJsonElement(
             """{"tasks":[],"archived":[{"id":"a","archived":true},{"id":"r","archived":true,"routine":true}]}"""))
