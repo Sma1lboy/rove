@@ -18,3 +18,5 @@ suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force:
 suspend fun RoveRepository.openConversation(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "engine", "latest" to true)))
 suspend fun RoveRepository.openShell(taskId: String): OpenedTab = wireJson.decodeFromJsonElement(bridge.request("tab.new", args("taskId" to taskId, "kind" to "shell")))
 suspend fun RoveRepository.syncBase(taskId: String): SyncResult = wireJson.decodeFromJsonElement(bridge.request("task.syncBase", args("taskId" to taskId)))
+suspend fun RoveRepository.renameTab(taskId: String, tabId: String, title: String) { bridge.request("tab.rename", args("taskId" to taskId, "tabId" to tabId, "title" to title)) }
+suspend fun RoveRepository.closeTab(taskId: String, tabId: String) { bridge.request("tab.close", args("taskId" to taskId, "tabId" to tabId)) }
