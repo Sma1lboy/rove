@@ -2,6 +2,8 @@ package run.rove.mobile.ui
 
 import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -56,6 +58,7 @@ import java.util.Locale
     var revision by remember { mutableIntStateOf(0) }
     var diff by remember(taskId) { mutableStateOf(false) }
     var history by remember { mutableStateOf(false) }
+    var tabAction by remember { mutableStateOf<Pair<TabRow, TabAction>?>(null) }
     val context = LocalContext.current
     // iOS `select(tab)`: showing a tab records a visit and clears its pending attention (a decision stays until answered).
     LaunchedEffect(taskId, selected) {
@@ -123,7 +126,7 @@ import java.util.Locale
                 }
             }
             MetaStrip(task, showMode = selected != null, fit = fit, onFit = { fit = it })
-            TabStrip(tabs.orEmpty(), selected, tabStates, diffStat, connected, onSelect = { selected = it },
+            TabStrip(tabs.orEmpty(), selected, tabStates, diffStat, connected, onSelect = { selected = it }, onTabMenu = { tab, a -> tabAction = tab to a },
                 onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = startLand)
         }
         val current = tabs?.firstOrNull { it.id == selected }
@@ -132,6 +135,24 @@ import java.util.Locale
     }
     if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
     if (history) TaskHistorySheet(model, taskId) { history = false }
+    tabAction?.let { (tab, kind) ->
+        val close = { tabAction = null }
+        when (kind) {
+            TabAction.Rename -> TextPrompt(stringResource(R.string.rowmenu_rename), tab.displayTitle, close) { title ->
+                model.action { model.repository.renameTab(taskId, tab.id, title); revision++ }
+            }
+            TabAction.Close -> AlertDialog(onDismissRequest = close, containerColor = Rove.c.paper,
+                title = { Text(stringResource(R.string.detail_tab_close_title, tab.displayTitle), color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
+                text = { Text(stringResource(R.string.detail_tab_close_body), color = Rove.c.muted, style = Rove.mono(13)) },
+                confirmButton = {
+                    TileLabel(stringResource(R.string.detail_tab_close), tint = Rove.c.error, onClick = {
+                        close()
+                        model.action { model.repository.closeTab(taskId, tab.id); revision++ }
+                    })
+                },
+                dismissButton = { TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close) })
+        }
+    }
     if (action != null) ConfirmDialog(action!!, confirmation, busy, task, preflight, onDismiss = { if (!busy) action = null }) {
         if (confirmation == 1) confirmation = 2
         else if (!busy) {
@@ -146,6 +167,8 @@ import java.util.Locale
         }
     }
 }
+
+private enum class TabAction { Rename, Close }
 
 private data class DiffStat(val files: Int, val added: Int, val deleted: Int)
 
@@ -230,14 +253,23 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
 
 /** Terminal tabs in the TUI's bracket grammar (`[ ? codex ]`), then diff and land. */
 @Composable private fun TabStrip(tabs: List<TabRow>, selected: String?, states: Map<String, String>, diff: DiffStat?, connected: Boolean,
-                                 onSelect: (String) -> Unit, onNewTab: () -> Unit, onDiff: () -> Unit, onLand: () -> Unit) {
+                                 onSelect: (String) -> Unit, onTabMenu: (TabRow, TabAction) -> Unit, onNewTab: () -> Unit, onDiff: () -> Unit, onLand: () -> Unit) {
     val line = Rove.c.line
     Row(Modifier.fillMaxWidth().drawBehind {
         drawLine(line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
     }.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(start = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            tabs.forEach { tab -> TabLabel(tab, tab.id == selected, glyphOf(tab, states[tab.id])) { onSelect(tab.id) } }
+            tabs.forEach { tab ->
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    TabLabel(tab, tab.id == selected, glyphOf(tab, states[tab.id]), onLongClick = { if (connected) menu = true }) { onSelect(tab.id) }
+                    RoveMenu(menu, { menu = false }) {
+                        RoveMenuItem(stringResource(R.string.rowmenu_rename)) { menu = false; onTabMenu(tab, TabAction.Rename) }
+                        RoveMenuItem(stringResource(R.string.detail_tab_close)) { menu = false; onTabMenu(tab, TabAction.Close) }
+                    }
+                }
+            }
             Box(Modifier.height(32.dp).pressable(enabled = connected, onClick = onNewTab).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.detail_tab_new), color = Rove.c.muted, style = Rove.mono(13), maxLines = 1, softWrap = false)
             }
@@ -258,9 +290,10 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
     }
 }
 
-@Composable private fun TabLabel(tab: TabRow, selected: Boolean, glyph: Glyph, onClick: () -> Unit) {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable private fun TabLabel(tab: TabRow, selected: Boolean, glyph: Glyph, onLongClick: () -> Unit, onClick: () -> Unit) {
     val style = Rove.mono(13, if (selected) FontWeight.Bold else FontWeight.Normal)
-    Row(Modifier.height(32.dp).pressable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.height(32.dp).combinedClickable(onLongClick = onLongClick, onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
         Text(if (selected) "[ " else "  ", color = Rove.c.accent, style = style, softWrap = false)
         Box(Modifier.widthIn(min = 12.dp), contentAlignment = Alignment.Center) {
             if (glyph == Glyph.Working) BrailleSpinner(12)

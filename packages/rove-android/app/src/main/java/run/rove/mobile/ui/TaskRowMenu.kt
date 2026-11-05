@@ -128,7 +128,7 @@ private fun statusLabel(status: String) = when (status) {
     else -> R.string.rowmenu_status_error
 }
 
-@Composable private fun TextPrompt(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+@Composable internal fun TextPrompt(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
