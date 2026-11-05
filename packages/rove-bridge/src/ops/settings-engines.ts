@@ -18,7 +18,7 @@ import {
   engineRenamedFrom,
 } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove/src/lib/skill-install.ts"
-import { type StateSnapshot, loadStateFile, patchStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { bool, text } from "./args.ts"
@@ -28,8 +28,6 @@ const NAME_MAX = 60
 
 export interface EngineDeps {
   readonly load: () => StateSnapshot
-  /** `undefined` values delete their key (patchStateFile's contract). */
-  readonly patch: (patch: StateSnapshot) => void
   /**
    * Locked fresh read, then the patch `compute` derives from it (`undefined` deletes a key).
    * A write built from an earlier `load` would erase what another client just switched.
@@ -49,9 +47,6 @@ export interface EngineDeps {
 
 export const realDeps: EngineDeps = {
   load: loadStateFile,
-  patch: (patch) => {
-    patchStateFile(patch)
-  },
   update: (compute) => {
     updateStateFile((state) => {
       for (const [key, value] of Object.entries(compute(state))) {

@@ -200,11 +200,15 @@ describe("theme.taskColors", () => {
   })
 })
 
-function routing(initial: State = {}) {
+/** `beforeWrite` runs inside the locked update, as another client's write landing after the op's first read. */
+function routing(initial: State = {}, beforeWrite: (state: State) => void = () => {}) {
   const s = store(initial)
   const deps = {
     load: s.load,
-    patch: s.patch,
+    update: (compute: (fresh: State) => State) => {
+      beforeWrite(s.state)
+      s.patch(compute({ ...s.state }))
+    },
     installed: async () => [],
     statuses: async () => [{ vendor: "claude", account: { kind: "none" } }],
     integrations: () => [],
@@ -266,6 +270,23 @@ describe("autoRouting", () => {
     expect(s.state).toMatchObject({
       "autoRouting.classifier": "off",
       "autoRouting.classifierEndpoint": "https://tiers.internal/pick",
+    })
+  })
+
+  test("leaving custom remembers the endpoint on disk now, not one another client replaced after the op began", async () => {
+    const { ops, s } = routing(
+      {
+        "autoRouting.classifier": "https://old.internal/pick",
+        "autoRouting.classifierEndpoint": "https://old.internal/pick",
+      },
+      (state) => {
+        state["autoRouting.classifier"] = "https://new.internal/pick"
+      },
+    )
+    await call(ops, "autoRouting.setClassifier", { mode: "off" })
+    expect(s.state).toMatchObject({
+      "autoRouting.classifier": "off",
+      "autoRouting.classifierEndpoint": "https://new.internal/pick",
     })
   })
 })

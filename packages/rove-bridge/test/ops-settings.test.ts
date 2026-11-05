@@ -207,14 +207,11 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
   const state: Record<string, unknown> = { ...initial }
   const deps: EngineDeps = {
     load: () => ({ ...state }),
-    patch: (patch) => {
-      for (const [key, value] of Object.entries(patch)) {
+    update: (compute) => {
+      for (const [key, value] of Object.entries(compute({ ...state }))) {
         if (value === undefined) delete state[key]
         else state[key] = value
       }
-    },
-    update: (compute) => {
-      deps.patch(compute({ ...state }))
     },
     installed: async () => installed,
     statuses: async (ids) =>
