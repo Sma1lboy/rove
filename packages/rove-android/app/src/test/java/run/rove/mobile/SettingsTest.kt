@@ -37,4 +37,8 @@ class SettingsTest {
         assertEquals("week", usage.usage!!.single().windows.single().display)
         assertEquals(StatusTone.Error, SettingsFormat.statusTone("dispatch_failed"))
     }
+    @Test fun aFailedRegistryLookupIsNotUpToDate() {
+        assertEquals(false, wireJson.decodeFromString<UpdateCheck>("""{"current":"0.9.276","info":null,"notes":[]}""").upToDate)
+        assertEquals(true, UpdateCheck(info = UpdateInfo("0.9.276", hasUpdate = false)).upToDate)
+    }
 }

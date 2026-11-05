@@ -57,3 +57,7 @@ object NotificationPrefs {
     fun asked(context: Context) = prefs(context).getBoolean(ASKED, false)
     fun markAsked(context: Context) = prefs(context).edit().putBoolean(ASKED, true).apply()
 }
+
+/** Asks the registry through the Mac, past the bridge's cache. Read-only: installing stays a command on the Mac. */
+suspend fun RoveRepository.checkForUpdate(locale: String): UpdateCheck =
+    wireJson.decodeFromJsonElement(bridge.request("update.check", args("force" to true, "locale" to locale)))

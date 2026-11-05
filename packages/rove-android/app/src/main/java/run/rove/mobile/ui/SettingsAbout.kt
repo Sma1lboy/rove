@@ -1,5 +1,6 @@
 package run.rove.mobile.ui
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -8,10 +9,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import kotlinx.coroutines.launch
 import run.rove.mobile.R
 import run.rove.mobile.data.*
 import run.rove.mobile.domain.*
@@ -77,6 +81,7 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
             SettingsInfoRow(stringResource(R.string.settings_tasks), info?.taskCount?.toString() ?: dash)
         }
         (daemon as? SettingsLoad.Failed)?.let { ErrorLine(it.message) }
+        UpdateSection(model)
         Hint(stringResource(R.string.settings_about_language))
         Hint(stringResource(R.string.settings_about_mac_side))
         Column(Modifier.fillMaxWidth().tile()) {
@@ -87,6 +92,42 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
                 shipped.forEachIndexed { index, entry ->
                     if (index > 0) SettingsDivider()
                     DocumentRow(stringResource(entry.name)) { license = entry.asset }
+                }
+            }
+        }
+    }
+}
+
+/** The web's Settings › Check for updates: the Mac asks the registry. There is no update button: the phone names the command instead. */
+@Composable private fun UpdateSection(model: AppModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var check by remember { mutableStateOf<SettingsLoad<UpdateCheck>?>(null) }
+    val locale = LocalConfiguration.current.locales[0].language.takeIf { it == "zh" } ?: "en"
+    val result = (check as? SettingsLoad.Loaded)?.value
+    val latest = result?.info
+    FormSection(stringResource(R.string.settings_updates)) {
+        Column(Modifier.fillMaxWidth().tile()) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable(enabled = check != SettingsLoad.Loading) {
+                check = SettingsLoad.Loading
+                scope.launch { check = settingsCatching { model.repository.checkForUpdate(locale) }.toLoad() }
+            }.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(if (check == SettingsLoad.Loading) R.string.settings_update_checking else R.string.settings_update_check),
+                    Modifier.weight(1f), color = Rove.c.ink, style = Rove.mono(14, FontWeight.Medium))
+            }
+        }
+        (check as? SettingsLoad.Failed)?.let { ErrorLine(it.message) }
+        when {
+            result == null -> Unit
+            result.upToDate -> Hint(stringResource(R.string.settings_update_current))
+            latest == null -> Hint(stringResource(R.string.settings_update_unknown))
+            else -> {
+                Text(stringResource(R.string.settings_update_available, latest.latest), color = Rove.c.accent, style = Rove.mono(13, FontWeight.Medium))
+                Hint(stringResource(R.string.settings_update_command))
+                result.notes.firstOrNull()?.url?.let { url ->
+                    Column(Modifier.fillMaxWidth().tile()) {
+                        DocumentRow(stringResource(R.string.settings_update_open_release)) { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                    }
                 }
             }
         }
