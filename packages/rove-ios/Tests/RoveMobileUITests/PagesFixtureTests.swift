@@ -191,6 +191,41 @@ final class PagesFixtureTests: XCTestCase {
         checkpoint("fx-settings-6-plugin-confirm")
     }
 
+    /// A busy engine tab holds the message and shows it above the field; a shell tab still takes keystrokes.
+    func testComposerQueuesForABusyEngine() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(text("Add pagination to invoices"), "working task").tap()
+        let field = waitFor(element("composerField"), "composer")
+        waitFor(element("heldCancel-q-1"), "held message")
+        log.clear()
+        field.tap()
+        field.typeText("ship it")
+        element("sendButton").tap()
+        waitFor(element("terminalFlash"), "queued line", timeout: 5)
+        checkpoint("fx-composer-queue")
+        let sent = log.entries().first { $0.op == "tab.send" }
+        XCTAssertEqual(sent?.args["prompt"] as? String, "ship it")
+        XCTAssertEqual(sent?.args["queue"] as? Bool, true)
+        XCTAssertEqual(log.input(), "", "a queued message must not reach the terminal mid-turn")
+        hideKeyboard()
+        element("heldCancel-q-1").tap()
+        let cancelled = NSPredicate { _, _ in log.entries().contains { $0.op == "queue.cancel" && $0.args["id"] as? String == "q-1" } }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: cancelled, evaluatedWith: nil)], timeout: 5), .completed)
+        element("backButton").tap()
+        waitFor(text("Verify refund webhook signatures"), "waiting task").tap()
+        waitFor(element("tab-tab-2"), "shell tab").tap()
+        let shell = waitFor(element("composerField"), "shell composer")
+        log.clear()
+        shell.tap()
+        shell.typeText("ls")
+        element("sendButton").tap()
+        let typed = NSPredicate { _, _ in log.input().contains("ls") }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: typed, evaluatedWith: nil)], timeout: 5), .completed, log.input())
+        XCTAssertFalse(log.entries().contains { $0.op == "tab.send" })
+    }
+
     /// The engine-history sheet of a real task (the sandbox's codex task with a structured transcript).
     func testHistorySheet() throws {
         guard let url = env["ROVE_BRIDGE_URL"], !url.isEmpty,

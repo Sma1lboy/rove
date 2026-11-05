@@ -6,6 +6,7 @@ struct TerminalPane: View {
     var engineName: String?
     /// The tab's engine waits at a menu (its glyph reads `?`): the key row leads with the menu's keys.
     var atMenu = false
+    var isEngine = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +26,7 @@ struct TerminalPane: View {
             // (the terminal's pan scrolls history and must not).
             VStack(spacing: 0) {
                 KeyRow(session: session, atMenu: atMenu)
-                Composer(session: session, engineName: engineName)
+                Composer(session: session, engineName: engineName, isEngine: isEngine)
             }
             .simultaneousGesture(DragGesture(minimumDistance: 16).onEnded { drag in
                 let down = drag.translation.height
