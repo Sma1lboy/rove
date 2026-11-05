@@ -8,14 +8,15 @@ import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { rejectionReason } from "../state/project-eligibility.ts"
 import { BUILTIN_VENDORS, type VendorId, coerceVendorId, isBuiltinVendor } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
-// Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
-// orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
 import { switchFlag } from "./argv.ts"
-import { formatCliFailure } from "./cli-failure.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
-import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
-import { openLocalOrchestrator, withDaemonOrLocal } from "./orchestrator-bridge.ts"
+// Static imports here load on every CLI call (`--version` included): the
+// daemon client, orchestrator and i18n catalog stay behind dynamic imports.
+import { isPathLikeArg } from "./open-dir-cmd.ts"
+import type { openLocalOrchestrator } from "./orchestrator-bridge.ts"
 import { topLevelUsage } from "./usage.ts"
+
+const bridge = () => import("./orchestrator-bridge.ts")
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
@@ -68,7 +69,7 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
  *  must not block the add. */
 async function ensureProjectMainTask(repo: string): Promise<void> {
   try {
-    await withDaemonOrLocal({
+    await (await bridge()).withDaemonOrLocal({
       daemon: (client) => client.request("task.ensureMain", { repo }),
       local: (orch) => orch.ensureMainTask(repo),
     })
@@ -148,7 +149,7 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
   const keychainRef = auth?.kind === "password" ? auth.keychainRef : null
   // forgetProject also drops the main task (in the daemon task index, not
   // state.json); removeSavedRepo alone would orphan the sidebar row.
-  await withDaemonOrLocal({
+  await (await bridge()).withDaemonOrLocal({
     daemon: (client) => client.request("project.forget", { repo: target }),
     local: (orch) => orch.forgetProject(target),
   })
@@ -186,7 +187,7 @@ async function reportCredentialExit(
  * daemon. A scan failure is reported, not fatal to `rove add`.
  */
 async function adoptAllWorktrees(repo: string): Promise<void> {
-  const orch = await openLocalOrchestrator()
+  const orch = await (await bridge()).openLocalOrchestrator()
   let candidates: readonly AdoptableWorktree[]
   try {
     candidates = await orch.discoverAdoptableWorktrees(repo)
@@ -212,7 +213,7 @@ async function adoptWorktreesInto(
   vendor: VendorId,
 ): Promise<void> {
   for (const w of list) {
-    const adopted = await withDaemonOrLocal({
+    const adopted = await (await bridge()).withDaemonOrLocal({
       daemon: async (client) =>
         (
           await client.request<{ task: { id: string; title: string } }>("worktree.adopt", {
@@ -289,7 +290,7 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
   const vendor = coerceVendorId(vendorArg)
 
   // Local read: listing never boots a daemon.
-  const orch = await openLocalOrchestrator()
+  const orch = await (await bridge()).openLocalOrchestrator()
   const worktrees = await orch.discoverAdoptableWorktrees(repo)
   if (worktrees.length === 0) {
     console.log(`no adoptable worktrees for ${repo} — every git worktree here is already a task`)
@@ -372,6 +373,7 @@ async function main(): Promise<void> {
 
   // `rove <path>` opens a dir task. Path syntax only, so typos still error.
   if (subcommand !== undefined && isPathLikeArg(subcommand)) {
+    const { runOpenDirectory } = await import("./open-dir-cmd.ts")
     await runOpenDirectory(subcommand)
     return
   }
@@ -391,7 +393,9 @@ async function main(): Promise<void> {
   await launchTui()
 }
 
-main().catch((err) => {
+/** Settles when the command finishes; tests await it instead of counting ticks. */
+export const cliDone = main().catch(async (err) => {
+  const { formatCliFailure } = await import("./cli-failure.ts")
   console.error(formatCliFailure(err, { cliName: CLI_NAME, argv: process.argv, cwd: process.cwd(), env: process.env }))
   process.exit(1)
 })
