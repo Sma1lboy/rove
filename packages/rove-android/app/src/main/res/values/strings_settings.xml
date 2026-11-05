@@ -90,4 +90,12 @@
     <string name="settings_license_jetbrains" translatable="false">JetBrains Mono</string>
     <string name="settings_license_xterm" translatable="false">xterm.js</string>
     <string name="settings_license_addon_fit" translatable="false">xterm addon-fit</string>
+    <string name="settings_updates">updates</string>
+    <string name="settings_update_check">check for updates</string>
+    <string name="settings_update_checking">checking…</string>
+    <string name="settings_update_available">v%1$s available</string>
+    <string name="settings_update_current">No newer release. Nothing to install.</string>
+    <string name="settings_update_unknown">The Mac could not reach the registry. Check its connection, then retry.</string>
+    <string name="settings_update_command">Run `rove update` on the Mac to install it.</string>
+    <string name="settings_update_open_release">open release</string>
 </resources>
