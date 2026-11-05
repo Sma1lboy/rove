@@ -47,7 +47,8 @@ data class TaskRow(
 /** One attention-inbox item (iOS `AttentionItem`); `at` is ms since epoch. */
 @Serializable data class Attention(val taskId: String? = null, val tabId: String? = null, val state: String = "",
                                    val unread: Boolean = false, val at: Double = 0.0, val resumeAt: String? = null,
-                                   val label: String? = null, val deliveryId: String? = null, val gateId: String? = null)
+                                   val label: String? = null, val deliveryId: String? = null, val gateId: String? = null,
+                                   val automationId: String? = null)
 @Serializable data class GateOption(val key: String, val label: String, val detail: String? = null)
 /** A decision a task put to its owner (bridge `GateRow`): `open`, or `answered` with the engine not yet holding the answer. */
 @Serializable data class GateRow(

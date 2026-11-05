@@ -13,6 +13,8 @@ suspend fun RoveRepository.dismissAttention(taskId: String, tabId: String?, deli
     bridge.request("attention.dismiss", args(*pairs.toTypedArray()))
 }
 
+suspend fun RoveRepository.dismissRoutineEpisode(automationId: String) { bridge.request("attention.dismissRoutine", args("automationId" to automationId)) }
+
 /** Answer a decision on the Mac: an option key, a note, or both. Returns whether the engine took it now (false = it rides the next message). */
 suspend fun RoveRepository.answerGate(gateId: String, option: String?, text: String?): Boolean {
     val pairs = listOfNotNull("gateId" to gateId, option?.let { "option" to it }, text?.takeIf { it.isNotBlank() }?.let { "text" to it })
