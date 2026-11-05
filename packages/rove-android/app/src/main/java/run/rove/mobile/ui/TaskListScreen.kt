@@ -128,7 +128,7 @@ internal data class ListActions(
                         MenuRow(row, archivedReceipts.getValue(row.id), now, actions)
                     }
                 }
-                when (TaskListLogic.emptiness(loaded, tasks.tasks.size, shown)) {
+                when (TaskListLogic.emptiness(loaded, TaskListLogic.visible(tasks.tasks).size, shown)) {
                     TaskListEmpty.None -> Unit
                     TaskListEmpty.Welcome -> item(key = "welcome") { Welcome(engines) }
                     TaskListEmpty.NoMatches -> item(key = "noMatches") { NoMatches(controls.query.trim()) }

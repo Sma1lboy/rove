@@ -11,6 +11,13 @@ final class TaskListTests: XCTestCase {
 
     private func ids(_ rows: [TaskRow]) -> [String] { rows.map(\.id) }
 
+    func testARoutineRunStaysOffTheListAndItsProjectFilter() throws {
+        let json = #"[{"id":"run","repo":"/r/nightly","routine":true},{"id":"mine","repo":"/r/app"}]"#
+        let rows = try JSONDecoder().decode([TaskRow].self, from: Data(json.utf8))
+        XCTAssertEqual(ids(TaskListLogic.filtered(rows, repo: nil)), ["mine"])
+        XCTAssertEqual(TaskListLogic.repos(rows), ["/r/app"])
+    }
+
     // MARK: Sort modes
 
     func testAttentionIsTheDefaultAndKeepsGroupOrderWithPinnedFirst() {
