@@ -1,5 +1,7 @@
 package run.rove.mobile.ui
 
+import android.app.Application
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -35,6 +37,7 @@ internal sealed interface RowRequest {
                 RowMenuItem.Pin -> R.string.rowmenu_pin
                 RowMenuItem.Unpin -> R.string.rowmenu_unpin
                 RowMenuItem.SetStatus -> R.string.rowmenu_set_status
+                RowMenuItem.SyncBase -> R.string.rowmenu_sync_base
                 RowMenuItem.RenameBranch -> R.string.rowmenu_rename_branch
                 RowMenuItem.Archive -> R.string.rowmenu_archive
                 RowMenuItem.Unarchive -> R.string.rowmenu_unarchive
@@ -51,11 +54,31 @@ internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, on
         RowMenuItem.Rename -> onRequest(RowRequest.Rename(row))
         RowMenuItem.RenameBranch -> onRequest(RowRequest.RenameBranch(row))
         RowMenuItem.SetStatus -> onRequest(RowRequest.Status(row))
+        RowMenuItem.SyncBase -> syncBase(model, row)
         RowMenuItem.Pin, RowMenuItem.Unpin -> model.action { model.repository.pinTask(row.id, item == RowMenuItem.Pin); model.refresh() }
         RowMenuItem.Unarchive -> model.action { model.repository.archiveTask(row.id, archived = false); model.refresh() }
         RowMenuItem.Archive -> model.action {
             try { model.repository.archiveTask(row.id, archived = true); model.refresh() }
             catch (e: BridgeFailure) { if (e.code == "TASK_BUSY") onRequest(RowRequest.ArchiveBusy(row)) else throw e }
+        }
+    }
+}
+
+/** No confirm: a merge from base is additive, and `git merge --abort` undoes it. */
+private fun syncBase(model: AppModel, row: TaskRow) {
+    val app = model.getApplication<Application>()
+    model.action {
+        try {
+            val synced = model.repository.syncBase(row.id)
+            Toast.makeText(app, app.getString(if (synced.alreadyCurrent) R.string.rowmenu_sync_current else R.string.rowmenu_sync_done, synced.baseRef), Toast.LENGTH_SHORT).show()
+            model.refresh()
+        } catch (e: BridgeFailure) {
+            val detail = "${e.code}: ${e.message}"
+            model.error.value = when (val refusal = TaskRowMenuLogic.syncRefusal(detail)) {
+                is SyncRefusal.Conflict -> app.getString(R.string.rowmenu_sync_conflict, refusal.files)
+                is SyncRefusal.Dirty -> app.getString(R.string.rowmenu_sync_dirty, refusal.files)
+                null -> app.getString(R.string.rowmenu_sync_failed, e.message)
+            }
         }
     }
 }
