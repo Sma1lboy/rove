@@ -77,6 +77,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
 | `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
 | `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
+| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss |
 | `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
 | `tab.send`, `queue.list`, `queue.cancel` | Composer on an engine tab sends with `queue: true`, so a busy tab holds the message; held messages show as chips with a cancel. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
