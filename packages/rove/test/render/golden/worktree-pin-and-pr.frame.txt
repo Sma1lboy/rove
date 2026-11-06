@@ -8,11 +8,11 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
 | rove ─────────────────────── |
 |▌ ○ alpha                 ▴ ✓ |
 |  ○ bravo                   ✗ |
+|                              |
 |                              |
 |                              |
 |                              |

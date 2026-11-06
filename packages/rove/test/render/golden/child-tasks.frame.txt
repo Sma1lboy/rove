@@ -8,7 +8,6 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
 | rove ─────────────────────── |
 |▌ ○ alpha                   ▾ |
@@ -18,6 +17,7 @@
 |      ○ cover depth cap 4 ⎇ ▾ |
 |      ○ fifth generation  5 ⎇ |
 |  ○ bravo                     |
+|                              |
 |                              |
 |                              |
 |                              |
