@@ -45,15 +45,6 @@ class Addon {
   dispose() {}
 }
 mock.module("@xterm/xterm", () => ({ Terminal: Renderer }))
-class SearchAddon {
-  findNext() {}
-  findPrevious() {}
-  clearDecorations() {}
-  onDidChangeResults() {
-    return { dispose() {} }
-  }
-}
-mock.module("@xterm/addon-search", () => ({ SearchAddon }))
 mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))

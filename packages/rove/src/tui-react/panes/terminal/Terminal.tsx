@@ -27,14 +27,12 @@ import { useT } from "../../i18n"
 import { useDialog } from "../../ui/dialog"
 import { type EngineExit, EngineExitBanner } from "./engine-exit-banner"
 import { useTerminalBindings } from "./keys"
-import { TerminalSearchBar } from "./search-bar"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPaint } from "./use-terminal-paint"
 import { useTerminalPointerForward } from "./use-terminal-pointer-forward"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalReset } from "./use-terminal-reset"
-import { useTerminalSearch } from "./use-terminal-search"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
@@ -200,19 +198,6 @@ function TerminalSession(props: TerminalProps) {
     appOwnsMouse: pty?.appOwnsMouse ?? false,
   })
 
-  /* --------- scrollback search ---------- */
-
-  const search = useTerminalSearch({
-    focused,
-    snapshot,
-    snapshotWindow,
-    wrapped,
-    bodyRows,
-    onAlternateScreen: pty?.onAlternateScreen ?? false,
-    scrollState,
-    setScrollState,
-  })
-
   const terminalColors = useMemo(() => {
     const foreground = theme.text.toInts()
     const background = theme.background.toInts()
@@ -227,7 +212,6 @@ function TerminalSession(props: TerminalProps) {
     firstRow: visibleRange.start,
     cols: bodyGeometry?.cols ?? 80,
     selection: selection.selection,
-    paintMatches: search.paint,
     cursor: visibleCursor,
     focused,
     colors: terminalColors,
@@ -285,10 +269,6 @@ function TerminalSession(props: TerminalProps) {
     scroll: scrollBy,
     // With the engine gone the shell holds nothing worth a confirm: F5 is Retry.
     reset: props.engineExit?.onRetry ?? requestReset,
-    searchActive: search.active,
-    openSearch: search.open,
-    stepSearch: search.step,
-    closeSearch: search.close,
   })
 
   /* --------- resize-push + host-cursor anchor ---------- */
@@ -387,17 +367,7 @@ function TerminalSession(props: TerminalProps) {
           </text>
         </box>
       ) : null}
-      {search.active ? (
-        <TerminalSearchBar
-          query={search.query}
-          index={search.index}
-          matchCount={search.matchCount}
-          unavailable={search.unavailable}
-        />
-      ) : null}
-      {/* The query row states where you are, so it replaces this hint rather
-          than stacking on it — both are bottom-anchored overlays. */}
-      {scrollOffset > 0 && !search.active ? (
+      {scrollOffset > 0 ? (
         <box
           position="absolute"
           zIndex={10}

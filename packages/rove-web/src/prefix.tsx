@@ -6,7 +6,7 @@
  * What the HUD shows is `prefix-guide.tsx`; the state it reads is `prefix-state.ts`.
  *
  * Which stroke runs what is read from the command registry, so a stroke registered by
- * any pane (the terminal's `/`, a split's `w`) competes by focus like the TUI's binding stack.
+ * any pane (a split's `w`) competes by focus like the TUI's binding stack.
  */
 
 import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/tui/lib/ctrl-hold.ts"

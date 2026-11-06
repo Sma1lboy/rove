@@ -34,15 +34,6 @@ export function appOwnsMouse(term: XtermModeSource): boolean {
   }
 }
 
-/** True on the alternate screen — a full-screen app, not a scrolling shell. */
-export function onAlternateScreen(term: XtermModeSource): boolean {
-  try {
-    return term.buffer.active.type === "alternate"
-  } catch {
-    return false
-  }
-}
-
 /** Bytes for a wheel tick, or null when the program wants none. */
 export function wheelSequence(
   term: XtermModeSource,

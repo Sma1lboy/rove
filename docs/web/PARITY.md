@@ -11,7 +11,7 @@ Score: 199 / 217 rows at ✅ (2 🟡, 3 🚫, 13 ❌). Regenerate from the table
 
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
-| 1 | Open command palette | `/` prefix or clickable prefix guide | ✅ | local | workspace: e2e-a: with the rail focused, Ctrl+A then `/` opens "Search commands"; rows list only what the web runs, TUI `keys.desc` labels with chords on the right. Inside the terminal `/` is the terminal scope's scrollback search (most-local wins, as the TUI's binding stack); palette stays reachable from rail/files or the F1/palette rows. Also opens from the prefix guide row. Shot 01-palette. |
+| 1 | Open command palette | `/` prefix or clickable prefix guide | ✅ | local | workspace: e2e-a: with the rail focused, Ctrl+A then `/` opens "Search commands"; rows list only what the web runs, TUI `keys.desc` labels with chords on the right. Also from a focused terminal (no scrollback search shadows it). Also opens from the prefix guide row. Shot 01-palette. |
 | 2 | Fuzzy filter palette by action/chord | type in palette | ✅ | local | workspace: Typing `zen` leaves only zen rows; typing `f1` filters by chord (TUI `matchesHelpAction`). Shot 02. |
 | 3 | Move palette selection / run / cancel | ↑/↓, Enter/click, Esc | ✅ | local | workspace: ArrowDown moves selection, Enter runs (zen hid Files), click runs, Esc closes without running; focus returns to the pane it was opened from. |
 | 4 | Show keybindings help | F1 or palette | ✅ | local | workspace: F1 opens "ROVE - KEYBINDINGS" with the TUI's grammar sections (here / one press / after prefix), rows are only actions the web binds, real chords. Shot 04-help. |
@@ -132,8 +132,6 @@ Score: 199 / 217 rows at ✅ (2 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 95 | Copy selection or interrupt | Ctrl+C | ✅ | `tab.interrupt`, `term.input` | workspace: Ctrl+C with a selection copies (no ^C sent); without one it interrupts (`sleep 40` aborted, next command ran at once). |
 | 96 | Copy selection | Cmd+C / Ctrl+Shift+C | ✅ | local | workspace: Ctrl+Shift+C and Meta+C copy the selection. |
 | 97 | Reset active terminal | F5 + confirm | ✅ | `tab.split` (`reset`) | workspace: F5 -> confirm dialog -> shell respawned (exported var gone, checked via file written from the new shell); via `tab.split action=reset`. Engine panes refuse, as the TUI. |
-| 98 | Open scrollback search | prefix `/` in terminal | ✅ | local | workspace: Ctrl+A `/` in the terminal opens the scrollback search row (xterm search addon) (shot 08). |
-| 99 | Search and navigate hits / close | type, Enter/↑, ↓, Esc | ✅ | local | workspace: Typing searches and shows `n / m`; Enter walks to the older hit, `v` back; Esc closes and refocuses the terminal. Up/Down aliases not separately exercised. |
 | 209 | Send Esc / Tab / Ctrl / arrows from a phone | on-screen key row (touch only) | ✅ | local | night r2 (#1447) + r8 (#1455): touch screens get a key row under the terminal (sticky ctrl, esc, tab, ⇧tab, ^C, ↑↓←→; arrows follow DECCKM); esc/↑/ctrl+c sent `\x1b`, `\x1b[A`, `\x03`. Row fits 390 with no scroll (370/370); at 768 labels stay whole (0 clipped). Shots r08-terminal-390/768, r08-keyrow-390-after. |
 
 ## Files, previews and diff review

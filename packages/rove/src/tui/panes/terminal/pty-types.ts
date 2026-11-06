@@ -180,12 +180,6 @@ export interface TaskPtyLike {
    * clear. Emulator-less backends (`PipeTaskPty`) omit it; the pane keeps the mouse.
    */
   readonly appOwnsMouse?: boolean
-  /**
-   * On the ALTERNATE screen (vim, less, engine TUI): the app owns scrollback and
-   * our ring holds one screen, so scrollback search refuses. Emulator-less
-   * backends omit it and count as normal.
-   */
-  readonly onAlternateScreen?: boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a

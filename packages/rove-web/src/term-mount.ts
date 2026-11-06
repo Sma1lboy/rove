@@ -2,10 +2,9 @@
  * One hosted PTY session in xterm.js: `term.attach` replays the host ring, then
  * `term.data` pushes stream live; keystrokes and resizes go back as `term.input`
  * / `term.resize`. Plain TypeScript around the xterm instance so the React view
- * only owns what it draws (notice, scroll chips, search row).
+ * only owns what it draws (notice, scroll chips).
  */
 
-import { SearchAddon } from "@xterm/addon-search"
 import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
@@ -69,7 +68,6 @@ export interface MountOpts {
 
 export interface TermHandle {
   readonly term: Terminal
-  readonly search: SearchAddon
   readonly stream: string
   /** User scrolls (keys, the scroll chips): negative = toward older output. */
   scrollLines(lines: number): void
@@ -124,9 +122,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
     scrollOnUserInput: false,
   })
   const fit = new OverlayFitAddon(term)
-  const search = new SearchAddon()
   term.loadAddon(fit)
-  term.loadAddon(search)
   const serialize = new SerializeAddon()
   term.loadAddon(serialize)
   term.loadAddon(new Unicode11Addon())
@@ -442,7 +438,6 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   return {
     term,
-    search,
     stream: expected,
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
