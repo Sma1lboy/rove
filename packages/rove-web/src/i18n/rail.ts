@@ -7,6 +7,7 @@ export const en = {
     newTask: "New task",
     settings: "Settings",
     noProject: "Ungrouped",
+    state: { needs: "needs you", working: "working", ready: "ready", idle: "idle" },
     extraRepos: "{count} more repos in this task",
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
@@ -55,6 +56,7 @@ export const zh: typeof en = {
     newTask: "新建任务",
     settings: "设置",
     noProject: "未分组",
+    state: { needs: "等你处理", working: "进行中", ready: "待收尾", idle: "空闲" },
     extraRepos: "这个任务还含 {count} 个仓库",
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },

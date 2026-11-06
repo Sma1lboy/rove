@@ -15,6 +15,8 @@ export type RoundRow = Extract<NavRow, { kind: "round" }>
 export function RoundRowView(props: {
   row: RoundRow
   guides?: readonly TreeGuide[] | undefined
+  /** The round's project, named when the rail has no project headers. */
+  repo?: string | undefined
   cursor: boolean
   place: RowPlace
   onClick: () => void
@@ -41,6 +43,7 @@ export function RoundRowView(props: {
       )}
       <span className={`${ROW_TITLE} text-(length:--fs-meta) text-muted`}>{row.title}</span>
       <span className={`${CHIPS} ml-auto items-center`}>
+        {props.repo && <span className="max-w-24 truncate text-subtle">{props.repo}</span>}
         <span className="text-subtle">{row.tasks.length}</span>
         <StatusDots status={mostUrgentStatus(row.tasks)} />
       </span>

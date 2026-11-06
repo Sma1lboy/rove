@@ -8,7 +8,9 @@ import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
+import { mergedLabel, repoLabel } from "./rail-labels.ts"
 import { attemptLabels, roundKey, roundTitle, roundsAmong } from "./rail-rounds.ts"
+import type { RailState } from "./rail-states.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -73,6 +75,15 @@ export type NavRow =
       readonly tasks: readonly TaskRow[]
       readonly depth: number
     })
+  /** A section header of the by-state list: its rows (every top-level task in that state, with its subtree) follow (`rail-states.ts`). */
+  | (Remote & {
+      readonly id: string
+      readonly kind: "state"
+      readonly state: RailState
+      readonly label: string
+      /** The tasks listed under it, folded or not. */
+      readonly count: number
+    })
   /** One pane of a split tab, a quiet row one level under its task (`rail-panes.ts`). */
   | (Remote & {
       readonly id: string
@@ -133,33 +144,6 @@ const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   name: compareName,
 }
 
-export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
-
-/** A repo as the label rules see it: its path plus the host it lives on (`""` = this Mac). */
-export interface LabelledRepo {
-  readonly repo: string
-  readonly host: string
-}
-
-/**
- * `groups.ts` `sidebarProjectLabel` (not importable here: `@/` paths): the narrowest unique header label.
- * A basename unique on screen reads `rove`; shared on one machine, the last two segments (`gihub/rove`);
- * shared only with another machine, `host:basename` (`narwhal:rove`), the local one keeping the bare name.
- */
-export function projectLabel(repo: string, repos: readonly LabelledRepo[], host = ""): string {
-  const base = repoLabel(repo)
-  const collisions = repos.filter(
-    (entry) => (entry.repo !== repo || entry.host !== host) && repoLabel(entry.repo) === base,
-  )
-  if (collisions.length === 0) return base
-  const tailOf = (path: string) => path.split("/").filter(Boolean).slice(-2).join("/")
-  if (collisions.some((entry) => entry.host === host)) {
-    const tailRepeats = collisions.some((entry) => entry.host !== host && tailOf(entry.repo) === tailOf(repo))
-    return tailRepeats && host ? `${host}:${tailOf(repo)}` : tailOf(repo)
-  }
-  return host ? `${host}:${base}` : base
-}
-
 /** The one "Ungrouped" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
 export const NO_PROJECT_KEY = "~scratch"
 
@@ -167,6 +151,10 @@ export const NO_PROJECT_KEY = "~scratch"
 export const isNoProject = (task: TaskRow): boolean =>
   task.kind === "dir" && (task.scratch === true || task.noProject === true)
 
+/** `tasks` in the rail's order for `sort`: manual order, then a project's main and pinned rows first, then the sort. */
+export function orderTasks(tasks: readonly TaskRow[], sort: SortMode): TaskRow[] {
+  return [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank)).sort(headFirst(COMPARE[sort]))
+}
 export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "default"): ProjectGroup[] {
   const ordered = [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
   const groups = new Map<string, TaskRow[]>()
@@ -222,7 +210,7 @@ function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
  * not on screen (or whose lineage loops) stays top level.
  * Children keep list order (`tree-core.ts` `indexChildren`).
  */
-function indexChildren(groups: readonly ProjectGroup[]): {
+export function indexChildren(groups: readonly ProjectGroup[]): {
   children: ReadonlyMap<string, readonly TaskRow[]>
   nested: ReadonlySet<string>
 } {
@@ -382,29 +370,6 @@ interface Part {
 
 type Project = ProjectGroup
 
-/** `owner/name` of a `host/owner/name` id; a `root:` id has no readable name. */
-const repoIdTail = (id: string): string | null => (id.startsWith("root:") ? null : id.split("/").slice(-2).join("/"))
-
-/**
- * The repo's basename, widened only when a DIFFERENT project shares it: a repo id reads `owner/name`
- * (the whole id when even that repeats), a path-only project its path tail ({@link projectLabel} with
- * every checkout as one host): the header never names a machine, the rows' cloud marks do.
- */
-function mergedLabel(project: Project, all: readonly Project[]): string {
-  const base = repoLabel(project.repo)
-  const others = all.filter((other) => other !== project && repoLabel(other.repo) === base)
-  if (others.length === 0) return base
-  const id = project.repoId
-  const tail = id ? repoIdTail(id) : null
-  if (id && tail) {
-    return others.some((other) => other.repoId && other.repoId !== id && repoIdTail(other.repoId) === tail) ? id : tail
-  }
-  return projectLabel(
-    project.repo,
-    [project, ...others].map((entry) => ({ repo: entry.repo, host: "" })),
-  )
-}
-
 /**
  * The whole rail as ONE list of projects from every machine, the way Claude Desktop lists sessions
  * from every environment together. A repo is one project wherever it is checked out: groups with the
@@ -486,7 +451,7 @@ export function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<str
   if (collapsed.size === 0) return rows
   let hiding = false
   return rows.filter((row) => {
-    if (row.kind === "project") {
+    if (row.kind === "project" || row.kind === "state") {
       hiding = collapsed.has(row.id)
       return true
     }

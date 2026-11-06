@@ -27,8 +27,8 @@ export function dropIdleMains(
   const shown = rows.filter((row) => !idleMain(row))
   // A header with no row before the next header (or the end) names an empty project.
   return shown.filter((row, i) => {
-    if (row.kind !== "project") return true
+    if (row.kind !== "project" && row.kind !== "state") return true
     const next = shown[i + 1]
-    return next !== undefined && next.kind !== "project"
+    return next !== undefined && next.kind !== "project" && next.kind !== "state"
   })
 }
