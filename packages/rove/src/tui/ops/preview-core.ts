@@ -305,7 +305,9 @@ async function untrackedAdditions(worktree: string, relPath: string): Promise<st
 /**
  * Diff for `relPath`, otherwise its full content. `range` omitted →
  * uncommitted work (`git diff HEAD`); `{ base }` → `git diff <base>...HEAD`
- * (merge-base, the Changes tab's Branch scope). An empty diff falls back to
+ * (merge-base, the Changes tab's Branch scope); `{ base, working: true }` →
+ * everything since the merge-base, uncommitted and untracked work included
+ * (the whole task against its base). An empty diff falls back to
  * the file's content.
  *
  * Images (by extension) and null-byte content come back as a `binary` card.
@@ -318,12 +320,21 @@ async function untrackedAdditions(worktree: string, relPath: string): Promise<st
 export async function loadPreviewData(
   worktree: string,
   relPath: string,
-  range?: { base: string },
+  range?: { base: string; working?: boolean },
 ): Promise<PreviewData> {
   if (isImagePath(relPath)) {
     return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
   }
-  const spec = range ? `${range.base}...HEAD` : "HEAD"
+  let spec = range ? `${range.base}...HEAD` : "HEAD"
+  if (range?.working) {
+    const mergeBase = await runWorktreeGit(worktree, ["merge-base", range.base, "HEAD"])
+    const sha = mergeBase.status === 0 ? mergeBase.stdout.trim() : ""
+    if (!sha) {
+      const stderr = (mergeBase.stderr ?? "").trim()
+      return { kind: "error", message: stderr || `no merge-base between ${range.base} and HEAD` }
+    }
+    spec = sha
+  }
   const res = await runWorktreeGit(worktree, ["--literal-pathspecs", "diff", spec, "--", relPath])
   // A standalone file may have no repository or no HEAD yet: fall back to
   // its content. Combined/base comparisons have no such fallback.
@@ -332,7 +343,7 @@ export async function loadPreviewData(
     return { kind: "error", message: stderr || `git diff ${spec} exited with code ${res.status ?? -1}` }
   }
   let diff = res.status === 0 ? res.stdout : ""
-  if (!range && isCombinedPathspec(relPath)) diff += await untrackedAdditions(worktree, relPath)
+  if ((!range || range.working) && isCombinedPathspec(relPath)) diff += await untrackedAdditions(worktree, relPath)
   let origPath: string | undefined
   if (diff.trim().length > 0) {
     if (!isCombinedPathspec(relPath)) {

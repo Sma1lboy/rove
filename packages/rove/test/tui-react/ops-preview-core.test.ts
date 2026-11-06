@@ -427,6 +427,22 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     if (data.kind !== "error") throw new Error(`expected error, got ${data.kind}`)
     expect(data.message).toMatch(/origin\/gone/)
   })
+
+  test("the whole task against its base holds commits, uncommitted edits and untracked files", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "committed.ts"), "export const committed = 1\n")
+    commit(repo, "work")
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    writeFileSync(join(repo, "untracked.ts"), "export const untracked = 1\n")
+
+    const task = await loadPreviewData(repo, ".", { base: "HEAD~1", working: true })
+    if (task.kind !== "diff") throw new Error(`expected diff, got ${task.kind}`)
+    expect(unifiedDiffFiles(task.text).map((f) => f.path)).toEqual(["a.ts", "committed.ts", "untracked.ts"])
+    // The committed-only range stays what it was: nothing uncommitted or untracked in it.
+    const branch = await loadPreviewData(repo, ".", { base: "HEAD~1" })
+    if (branch.kind !== "diff") throw new Error(`expected diff, got ${branch.kind}`)
+    expect(unifiedDiffFiles(branch.text).map((f) => f.path)).toEqual(["committed.ts"])
+  })
 })
 
 // The counterpart to the two bad-base cases above: with NO base asked for,

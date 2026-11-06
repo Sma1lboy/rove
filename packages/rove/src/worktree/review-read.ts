@@ -13,6 +13,8 @@ import { type PreviewData, loadPreviewData } from "../tui/ops/preview-core.ts"
 import { type StatusEntry, listFiles, resolveBase, statusFiles, statusFilesBranch } from "../tui/panes/filetree/git.ts"
 
 export type DiffScope = "branch" | "working"
+/** What a preview can compare: a `DiffScope`, or `task` = everything since the base, uncommitted work included. */
+export type PreviewScope = DiffScope | "task"
 
 /** One changed file, flattened out of the TUI's collapsible status tree. */
 export interface DiffFileRow {
@@ -57,16 +59,16 @@ export function isWorktreeRelative(path: string): boolean {
   return !isAbsolute(path) && !normalize(path).split(/[\\/]/).includes("..")
 }
 
-/** One file's preview: its working-tree diff, or its whole branch diff against the base. */
+/** One file's preview: its working-tree diff, its committed diff against the base, or (`task`) everything since the base. */
 export async function worktreeDiffFile(
   worktreePath: string,
   path: string,
-  scope: DiffScope,
+  scope: PreviewScope,
   prBaseRef?: string,
 ): Promise<PreviewData> {
   if (!isWorktreeRelative(path)) throw new ApiError("path must be relative to the worktree", "BAD_ARGS")
   if (scope === "working") return loadPreviewData(worktreePath, path)
   const base = await resolveBase(worktreePath, prBaseRef)
   if (!base) throw new ApiError("could not resolve a base branch for this task", "NO_BASE")
-  return loadPreviewData(worktreePath, path, { base })
+  return loadPreviewData(worktreePath, path, scope === "task" ? { base, working: true } : { base })
 }

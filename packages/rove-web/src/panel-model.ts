@@ -8,7 +8,8 @@
 import type { PanelKind } from "./panel-layout.ts"
 
 export type GroupName = "top" | "bottom"
-export type DiffScope = "working" | "branch"
+/** `working` = uncommitted, `branch` = committed since the base, `task` = both. */
+export type DiffScope = "working" | "branch" | "task"
 
 export type PanelItem =
   | { readonly id: string; readonly kind: "files" }
@@ -314,7 +315,8 @@ function parseItem(raw: unknown): PanelItem | null {
   if (typeof r.id !== "string" || !/^t\d+$/.test(r.id)) return null
   if (r.kind === "files") return { id: r.id, kind: "files" }
   if (r.kind === "diff" && typeof r.path === "string" && r.path !== "") {
-    return { id: r.id, kind: "diff", path: r.path, scope: r.scope === "branch" ? "branch" : "working" }
+    const scope = r.scope === "branch" || r.scope === "task" ? r.scope : "working"
+    return { id: r.id, kind: "diff", path: r.path, scope }
   }
   if (r.kind === "browser" && Array.isArray(r.urls)) {
     const urls = r.urls.filter((u): u is string => typeof u === "string" && u !== "").slice(-BROWSER_HISTORY)

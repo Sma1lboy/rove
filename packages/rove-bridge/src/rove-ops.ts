@@ -24,7 +24,7 @@ import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
-import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
+import { type PreviewScope, type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
@@ -84,7 +84,7 @@ export interface RoveOps {
   /** The registered machine a task lives on; undefined = this machine. */
   machineOf?(taskId: string): string | undefined
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
-  diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
+  diffFile(taskId: string, path: string, scope: PreviewScope): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
@@ -395,7 +395,7 @@ export function createRoveOps(
       if (scope === "working") return loadPreviewData(task.worktreePath, path)
       const base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
       if (!base) throw new BridgeError("NO_BASE", "could not resolve a base branch for this task")
-      return loadPreviewData(task.worktreePath, path, { base })
+      return loadPreviewData(task.worktreePath, path, scope === "task" ? { base, working: true } : { base })
     },
 
     async dismissAttention(taskId, tabId, deliveryId) {
