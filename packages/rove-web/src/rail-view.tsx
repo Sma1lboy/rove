@@ -36,6 +36,7 @@ import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-ac
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
+import { StartsChip } from "./starts-chip.tsx"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
@@ -444,6 +445,7 @@ function RailRow(props: {
           </span>
         )}
         {task.pinned && <span className="text-subtle">▴</span>}
+        {task.startsAt && <StartsChip at={task.startsAt} />}
         {/* The PR list opens where the title tip sits; only one card at a time. */}
         <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}

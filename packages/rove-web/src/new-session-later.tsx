@@ -24,7 +24,7 @@ export function LaterControl(props: {
     <>
       {open && (
         <input
-          className={`${INPUT} w-44`}
+          className={`${INPUT} min-w-0 flex-1 basis-40`}
           value={text}
           placeholder={t("newSession.laterPlaceholder")}
           aria-label={t("newSession.later")}

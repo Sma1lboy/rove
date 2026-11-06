@@ -29,9 +29,9 @@ import {
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
 import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
-import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
 import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {

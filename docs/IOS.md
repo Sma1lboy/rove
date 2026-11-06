@@ -157,6 +157,9 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
 | `task.keep` | `taskId`, `kept` | `{}` | `update --kept` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `task.scheduleStart` | `taskId` (an unstarted task), `at` (ISO-8601, in the future), `prompt` | `{taskId, at}` | RPC `task.scheduleStart` | `ALREADY_STARTED` when the task has its first message |
+| `task.cancelScheduledStart` | `taskId` | `{}` | RPC `task.cancelScheduledStart` | |
+| `task.startScheduledNow` | `taskId` | `{outcome}` (`started`, `failed`, `dropped`) | RPC `task.startScheduledNow` | `NOT_SCHEDULED` |
 | `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
 | `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
@@ -198,7 +201,7 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `keybindings.createFile` | — | `{path, created}`: writes the fixed, fully commented starter; `created: false` when a `.yaml`/`.yml` already exists (never overwritten) | `createKeybindingsFile` |
 | `plugin.chordAction` | `chord` | `{target}`; runs the plugin action the Mac's own `keybindings.yaml` binds to that chord, detached. `NOT_BOUND` for anything else | `rove plugin action invoke` |
 
-Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again); engine rows carry optional `acceptsModel`.
+Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again), `startsAt` (ISO time an unstarted task starts by itself, `task.scheduleStart`); engine rows carry optional `acceptsModel`.
 
 ### Terminal-tab ops and the `notice` push
 
