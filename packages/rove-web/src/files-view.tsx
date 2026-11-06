@@ -17,6 +17,7 @@ import { openDiff } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
+import { TimelineView, useTrackPr } from "./timeline-view.tsx"
 import { activeStream, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
@@ -26,7 +27,8 @@ import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
-type Tab = "all" | "changes"
+type Tab = "all" | "changes" | "activity"
+const TAB_ORDER: readonly Tab[] = ["all", "changes", "activity"]
 
 /** A changed file's status letter in its tone (`?` = untracked). */
 const STATUS_TONE: Partial<Record<string, string>> = {
@@ -71,6 +73,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const [cursor, setCursor] = useState(0)
   const [nonce, setNonce] = useState(0)
   const pane = useRef<HTMLDivElement>(null)
+  useTrackPr(task)
   const stream = useStore(activeStream)
   // The feed's change counts move whenever the worktree does: refetch then, like the TUI's watcher.
   const changeKey = JSON.stringify(task.changes ?? null)
@@ -95,26 +98,28 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const loaded = tab === "all" ? files !== null : diff !== null
   const branchScope = scope === "branch" && base != null
   const rows: Row[] =
-    tab === "all"
-      ? visibleTree(files ?? [], expanded).map((r) => ({
-          path: r.path,
-          label: r.name,
-          depth: r.depth,
-          dir: r.dir,
-          open: r.open,
-        }))
-      : (diff?.files ?? [])
-          .filter((f) => f.scope === (branchScope ? "branch" : "working"))
-          .map((f) => ({
-            path: f.path,
-            label: f.path,
-            depth: 0,
-            dir: false,
-            open: false,
-            status: f.status,
-            added: f.added,
-            deleted: f.deleted,
+    tab === "activity"
+      ? []
+      : tab === "all"
+        ? visibleTree(files ?? [], expanded).map((r) => ({
+            path: r.path,
+            label: r.name,
+            depth: r.depth,
+            dir: r.dir,
+            open: r.open,
           }))
+        : (diff?.files ?? [])
+            .filter((f) => f.scope === (branchScope ? "branch" : "working"))
+            .map((f) => ({
+              path: f.path,
+              label: f.path,
+              depth: 0,
+              dir: false,
+              open: false,
+              status: f.status,
+              added: f.added,
+              deleted: f.deleted,
+            }))
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
   const row = rows[at]
 
@@ -149,7 +154,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     else if (key === "k" || key === "ArrowUp") setCursor(Math.max(0, at - 1))
     else if ((key === "l" || key === "ArrowRight") && row?.dir) toggle(row.path, true)
     else if ((key === "h" || key === "ArrowLeft") && row?.dir) toggle(row.path, false)
-    else if (key === "[" || key === "]") setTab(tab === "all" ? "changes" : "all")
+    else if (key === "[" || key === "]")
+      setTab(TAB_ORDER[(TAB_ORDER.indexOf(tab) + (key === "]" ? 1 : TAB_ORDER.length - 1)) % TAB_ORDER.length] ?? "all")
     else if (key === "b" && tab === "changes" && base != null) setScope(scope === "working" ? "branch" : "working")
     else if (key === "r") setNonce((n) => n + 1)
     else if (key === "D" && e.shiftKey) open(".")
@@ -177,6 +183,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
         tabs={[
           { id: "all", label: t("files.all") },
           { id: "changes", label: t("files.changes") },
+          { id: "activity", label: t("files.activity") },
         ]}
         value={tab}
         onChange={(id) => {
@@ -200,38 +207,42 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           </Button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {error && <p className="mono text-error">{error}</p>}
-        {!error && loaded && rows.length === 0 && (
-          <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
-        )}
-        {rows.map((r, i) => (
-          <button
-            type="button"
-            key={r.path}
-            className={rowClass({ selected: i === at, size: narrow ? "file-narrow" : "file" })}
-            style={{ paddingLeft: 8 + r.depth * 14 }}
-            title={r.path}
-            onClick={() => {
-              setCursor(i)
-              pane.current?.focus()
-              if (r.dir) toggle(r.path)
-              else open(r.path)
-            }}
-          >
-            {r.status ? (
-              <span className={`${GLYPH} ${STATUS_TONE[r.status] ?? ""}`}>{r.status}</span>
-            ) : (
-              <span className={`${GLYPH} grid place-items-center text-subtle`}>
-                {r.dir ? <Chevron right={!r.open} /> : null}
-              </span>
-            )}
-            <span className={ROW_TITLE}>{r.label}</span>
-            {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
-            {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
-          </button>
-        ))}
-      </div>
+      {tab === "activity" ? (
+        <TimelineView model={model} task={task} />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {error && <p className="mono text-error">{error}</p>}
+          {!error && loaded && rows.length === 0 && (
+            <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
+          )}
+          {rows.map((r, i) => (
+            <button
+              type="button"
+              key={r.path}
+              className={rowClass({ selected: i === at, size: narrow ? "file-narrow" : "file" })}
+              style={{ paddingLeft: 8 + r.depth * 14 }}
+              title={r.path}
+              onClick={() => {
+                setCursor(i)
+                pane.current?.focus()
+                if (r.dir) toggle(r.path)
+                else open(r.path)
+              }}
+            >
+              {r.status ? (
+                <span className={`${GLYPH} ${STATUS_TONE[r.status] ?? ""}`}>{r.status}</span>
+              ) : (
+                <span className={`${GLYPH} grid place-items-center text-subtle`}>
+                  {r.dir ? <Chevron right={!r.open} /> : null}
+                </span>
+              )}
+              <span className={ROW_TITLE}>{r.label}</span>
+              {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
+              {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
