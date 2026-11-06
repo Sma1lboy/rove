@@ -1,0 +1,49 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-04T22:38:57Z"
+  },
+  "title": "Rove",
+  "namespace": "Rove",
+  "libraries": [],
+  "sections": {},
+  "groups": [
+    "Logos"
+  ],
+  "assetGroups": {
+    "Logos": {
+      "name": "Logos",
+      "tile": "m",
+      "order": [
+        "rove-icon.png",
+        "rove-icon-maskable.png"
+      ],
+      "files": {
+        "rove-icon.png": {
+          "name": "rove-icon.png",
+          "blob": "01e88b6478a6beda2b1c288a58c6b14c",
+          "size": 8862,
+          "type": "image/png"
+        },
+        "rove-icon-maskable.png": {
+          "name": "rove-icon-maskable.png",
+          "blob": "b43a9fe90d4782ac1c8622145e2d3e2a",
+          "size": 7273,
+          "type": "image/png"
+        }
+      }
+    }
+  },
+  "blobs": {},
+  "docs": {
+    "sections": []
+  },
+  "lastChange": {
+    "by": "Claude",
+    "at": "2026-11-04T23:45:00Z",
+    "via": "GitHub · Sma1lboy/rove@d4a31b2",
+    "note": "Synced to the contrast fix: new light accent, info, muted and red, dark red and line-active, selected rows on menu, 14px dialog titles."
+  }
+}
