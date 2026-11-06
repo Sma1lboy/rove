@@ -7,6 +7,7 @@ import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { createStore, useStore } from "./store.ts"
 import { KIND_LOOK, LOOK_OTHER, type TimelineRow, jumpOf, mergeRows, prChanges } from "./timeline.ts"
+import { Button } from "./ui/button.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
@@ -91,8 +92,8 @@ export function TimelineView({ model, task }: { model: AppModel; task: TaskRow }
         const label = row.kind in KIND_LOOK ? t(`files.activityKind.${row.kind}`) : row.kind
         const jump = jumpOf(row)
         return (
-          <button
-            type="button"
+          <Button
+            variant="row"
             key={`${row.at}:${row.kind}:${row.tabId ?? ""}:${row.sha ?? ""}:${row.tail}`}
             className={rowClass({ size: "file" })}
             disabled={!jump}
@@ -105,7 +106,7 @@ export function TimelineView({ model, task }: { model: AppModel; task: TaskRow }
               {label}
               {row.tail && <span className="text-muted"> {row.tail}</span>}
             </span>
-          </button>
+          </Button>
         )
       })}
     </div>
