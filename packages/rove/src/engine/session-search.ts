@@ -1,6 +1,6 @@
 /**
  * Find text across every task's engine conversations, through each engine's own history reader
- * (`EngineHistoryReader`); the `rove api search` verb and the TUI's Search page both call this. Reading
+ * (`EngineHistoryReader`); the `rove api search` verb and the TUI's command palette both call this. Reading
  * every transcript per query takes seconds at real scale (68 tasks, 441 sessions: ~11 s), so the
  * transcript FILES are prefiltered for the query first (`rg -l`, or an in-process scan without it) and
  * only sessions that contain it are parsed, newest first, until `limit` hits are found. Only user and

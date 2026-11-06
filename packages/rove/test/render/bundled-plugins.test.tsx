@@ -19,7 +19,6 @@ test("a built-in plugin turned off leaves the rail and frees its chord", async (
   expect(pageEntries().map((page) => [page.id, page.action ?? null])).toEqual([
     ["automations", "automations.open"],
     ["issues.github", "workItems.open"],
-    ["search", null],
   ])
   const { frame } = await renderComponent(<SidebarNavRail nav="terminal" setNav={() => {}} />, { width: 24, height: 6 })
   await settle()

@@ -35,7 +35,7 @@ import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
+import { type BootDialogs, openTaskOnTab, useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { NarrowBackBar } from "./narrow-back-bar"
@@ -300,6 +300,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
+    paletteSearch: { orchestrator: orch, tasks, openTask: openTaskOnTab(pages.closePage, activateTask) },
     createPR: () => void editor.onCreatePR(),
     // Park, then enter the row so its workspace mounts and claims the request.
     createPRFor: (id) => {
