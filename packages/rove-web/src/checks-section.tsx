@@ -1,7 +1,8 @@
 /**
  * The Files pane's merge-readiness section: one line (checks passed, merge and review state), then each CI check
- * with its state and duration. A failed Actions job opens its log tail in place. Read on open, on a PR state
- * change and on refresh, never on a timer (`pr.checks` runs `gh`).
+ * with its state, how long it took and how long ago it finished (a running one: how long it has run). A failed
+ * Actions job opens its log tail in place. Read on open, on a PR state change and on refresh, never on a timer
+ * (`pr.checks` runs `gh`).
  */
 
 import { useEffect, useState } from "react"
@@ -13,7 +14,7 @@ import {
   type ChecksReply,
   type LogReply,
   checkCounts,
-  duration,
+  checkTiming,
   hasChecks,
   mergeParts,
 } from "./checks-data.ts"
@@ -123,6 +124,7 @@ function Checks({ model, task }: { model: AppModel; task: TaskRow }) {
   }
 
   const counts = checkCounts(reply.checks)
+  const now = Date.now()
   const expanded = open ?? (counts.fail > 0 || counts.pending > 0)
   const merge = mergeParts(reply)
   return (
@@ -158,6 +160,7 @@ function Checks({ model, task }: { model: AppModel; task: TaskRow }) {
       {expanded &&
         reply.checks.map((check) => {
           const { glyph, tone } = GLYPH[check.state]
+          const timing = checkTiming(check, now)
           const key = `${check.runId}:${check.name}`
           const log = logs[key]
           return (
@@ -167,7 +170,7 @@ function Checks({ model, task }: { model: AppModel; task: TaskRow }) {
                 <span className={CK_NAME} title={check.name}>
                   {check.name}
                 </span>
-                {check.durationMs !== null && <span className={CK_AGE}>{duration(check.durationMs)}</span>}
+                {timing && <span className={CK_AGE}>{t(timing.key, timing.vars)}</span>}
                 {check.state === "fail" && check.runId && (
                   <Button hit="tight" className="flex-none whitespace-nowrap" onClick={() => showLog(check)}>
                     {log ? t("files.checks.hideLog") : t("files.checks.log")}
