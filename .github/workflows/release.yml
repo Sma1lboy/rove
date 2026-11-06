@@ -71,7 +71,7 @@ jobs:
   render-track:
     # Match the required PR render track: real OpenTUI components need Bun's
     # native renderer, and the stable product path is macOS.
-    runs-on: macos-14
+    runs-on: macos-15
     # Hung runners, not failing tests, were eating 40min waits (2026-08-02
     # twice): the gate should fail fast so a rerun is cheap.
     timeout-minutes: 15
