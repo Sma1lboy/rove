@@ -68,7 +68,10 @@ export function NotesView({ model, task }: { model: AppModel; task: TaskRow }) {
   const prompt = todoPrompt(task)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 font-mono text-meta">
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 font-mono text-meta"
+      onKeyDown={(e) => e.stopPropagation()}
+    >
       <div className="flex flex-col gap-0.5">
         {todos.map((todo) => (
           <div key={todo.id} className="flex items-start gap-2 py-0.5">
