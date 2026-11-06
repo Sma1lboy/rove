@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useState } from "react"
 import { ConnectScreen } from "./connect-view.tsx"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
+import { useEscapeInterrupt } from "./esc-interrupt.ts"
 import { useLocale } from "./i18n/index.ts"
 import { enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
@@ -59,6 +60,7 @@ function Shell({ model }: { model: AppModel }) {
   }, [hello, model.client])
   usePluginChords(model)
   useWorkspaceKeys(model)
+  useEscapeInterrupt()
   useUserKeys(model.client)
   usePrefsApply(model)
   useDaemonHealth(model.client)

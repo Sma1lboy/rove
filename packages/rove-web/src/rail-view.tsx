@@ -24,7 +24,7 @@ import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
 import { dropIdleMains } from "./rail-idle.ts"
-import { useRailFilters, useRailKeys } from "./rail-keys.ts"
+import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
@@ -272,10 +272,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
-                if (row.kind === "task") {
-                  model.select(row.task.id)
-                  enterWorkspace()
-                }
+                if (row.kind === "task") openTaskRow(model, row.task.id)
               }}
               onMenu={(e) => {
                 // Another machine's project has no checkout here, so its header has no menu; its
