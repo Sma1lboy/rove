@@ -12,7 +12,7 @@
 
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { type PrChecksUnavailable, ghText } from "./pr-failing-checks.ts"
-import { PR_VIEW_TIMEOUT_MS } from "./pr-status-collector.ts"
+import { PR_VIEW_TIMEOUT_MS } from "./pr-gh-runner.ts"
 
 /** At most this many unresolved threads are reported; the rest are counted. */
 export const MAX_THREADS = 50

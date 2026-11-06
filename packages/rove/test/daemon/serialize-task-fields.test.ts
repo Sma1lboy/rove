@@ -22,7 +22,8 @@
  * carries it.
  */
 
-import { type SerializedTask, serializeTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { describe, expect, it } from "vitest"
 import type { Task } from "../../src/types/task.ts"
 

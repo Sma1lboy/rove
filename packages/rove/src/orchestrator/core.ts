@@ -19,9 +19,10 @@ import type { CreateTaskInput } from "./create-task-input.ts"
 import { TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import { createOrForkTask } from "./fork-task.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
-import { landPreflightAll, landTaskAll } from "./land-multi.ts"
+import { landPreflightAll } from "./land-multi.ts"
 import { landPreflight } from "./land-preflight.ts"
-import { type LandResult, type LandTaskOpts, assertOwnsBranch, landTaskWithCleanup } from "./land.ts"
+import { landRouted } from "./land-routed.ts"
+import { type LandResult, type LandTaskOpts, assertOwnsBranch } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
 import { moveTaskToProjectRow } from "./move-project.ts"
@@ -424,34 +425,12 @@ export class Orchestrator {
     const task = this.requireTask(id)
     // Without it a land races the deletion runner.
     if (task.deletion) throw new TaskDeletingError(String(task.id))
-    pickRepos(task, opts?.repo)
-    // Sharers keep running in the directory a land would unlink.
-    const sharing = (landed: Task, path: string): boolean =>
-      this.store
-        .list()
-        .some(
-          (t) =>
-            t.id !== landed.id &&
-            ((t.worktreePath && canonPath(t.worktreePath) === canonPath(path)) || t.sharesWorkspaceOf === landed.id),
-        )
-    if (task.extraRepos?.length) {
-      return landTaskAll(
-        task,
-        opts ?? {},
-        {
-          worktrees: this.worktrees,
-          tearDownSession: this.tearDownSession,
-          clearRepoWorktreePath: (tid, name) => this.clearRepoWorktreePath(tid, name),
-          sharesRepoWorktree: (landed, repo) => sharing(landed, repo.worktreePath),
-        },
-        opts?.repo,
-      )
-    }
-    return landTaskWithCleanup(task, opts ?? {}, {
+    return landRouted(task, opts ?? {}, {
+      list: () => this.store.list(),
       worktrees: this.worktrees,
-      clearWorktreePath: (tid) => this.clearWorktreePath(tid),
       tearDownSession: this.tearDownSession,
-      sharesWorktree: (landed) => sharing(landed, landed.worktreePath),
+      clearWorktreePath: (tid) => this.clearWorktreePath(tid),
+      clearRepoWorktreePath: (tid, name) => this.clearRepoWorktreePath(tid, name),
     })
   }
 

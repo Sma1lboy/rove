@@ -8,6 +8,12 @@ import type { TaskRoutineLink } from "./automation-contracts.ts"
 import type { CheckpointOrchestrator } from "./checkpoint-contracts.ts"
 import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
 import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
+import type {
+  TaskDeletionState,
+  TaskQuotaResumeState,
+  TaskScheduledStart,
+  TaskWorkerReport,
+} from "./task-state-contracts.ts"
 
 // Re-exported so importers keep naming them through `contracts.ts`.
 export type {
@@ -91,16 +97,6 @@ export type {
 export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
-export interface TaskDeletionState {
-  readonly phase: "queued" | "running" | "error"
-  readonly force: boolean
-  /** Opt-in: also delete the task's git branch. Default (absent/false) keeps
-   *  the branch — git history is the durable record, the task row is not. */
-  readonly deleteBranch?: boolean
-  readonly requestedAt: string
-  readonly error?: string
-}
-
 /** One engine-neutral quota window (mirrors rove/types/engine.ts). */
 export interface EngineQuotaWindow {
   readonly kind: string
@@ -115,37 +111,6 @@ export interface EngineQuotaWindow {
 export interface EngineQuotaUsage {
   readonly windows: readonly EngineQuotaWindow[]
   readonly capturedAt: number
-}
-
-/** A one-shot delayed start of an unstarted task (mirrors rove/types/task.ts). */
-export interface TaskScheduledStart {
-  /** ISO-8601 time the engine starts. */
-  readonly at: string
-  /** The first message the engine starts with; an unstarted task stores none of its own. */
-  readonly prompt: string
-}
-
-/** Durable rate-limit auto-resume schedule (mirrors rove/types/task.ts). */
-export interface TaskQuotaResumeState {
-  /** ISO-8601 time the provider's exhausted quota window resets. */
-  readonly resumeAt: string
-  /** ISO-8601 time the rate limit was observed and this schedule written. */
-  readonly requestedAt: string
-}
-
-/**
- * A worker's own outcome claim (mirrors rove/types/task.ts).
- *
- * Kept apart from {@link TaskPRStatus} on purpose: this is what the worker
- * SAID, that is what the daemon OBSERVED by polling the forge. A dispatcher
- * deciding whether to land needs to know which of the two it is holding.
- */
-export interface TaskWorkerReport {
-  readonly branch?: string
-  readonly pr?: number
-  readonly summary?: string
-  /** ISO-8601 time the report was written. */
-  readonly at: string
 }
 
 export interface TaskPRStatus {

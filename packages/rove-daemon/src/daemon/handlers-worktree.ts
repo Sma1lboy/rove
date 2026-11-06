@@ -15,7 +15,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { tasksAtWorktreePath } from "./cwd-task.ts"
 import { optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
-import { serializeTask } from "./protocol.ts"
+import { serializeTask } from "./serialize-task.ts"
 
 /**
  * Sentinel in `worktree.remove`'s kind refusal. Callers discriminate on the

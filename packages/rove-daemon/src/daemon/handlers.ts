@@ -47,6 +47,7 @@ import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
 import { ARCHIVE_HANDLERS } from "./handlers-task-archive.ts"
+import { FIELD_HANDLERS } from "./handlers-task-fields.ts"
 import { SCHEDULE_HANDLERS } from "./handlers-task-schedule.ts"
 import { SCRATCH_HANDLERS } from "./handlers-task-scratch.ts"
 import { SESSION_PR_HANDLERS } from "./handlers-task-session-pr.ts"
@@ -66,10 +67,10 @@ import {
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   ROVE_API_VERSION,
   isProtocolCompatible,
-  serializeTask,
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { serializeTask } from "./serialize-task.ts"
 import { type DaemonStopReason, parseDaemonStopReason } from "./stop-reason.ts"
 import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
@@ -319,6 +320,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
     ...SCHEDULE_HANDLERS,
+    ...FIELD_HANDLERS,
     ...CHECKPOINT_HANDLERS,
     ...SESSION_PR_HANDLERS,
     ...SCRATCH_HANDLERS,

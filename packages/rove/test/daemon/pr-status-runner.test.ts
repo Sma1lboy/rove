@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { makeGhPrViewRunner } from "@sma1lboy/rove-daemon/daemon/pr-status-collector"
+import { makeGhPrViewRunner } from "@sma1lboy/rove-daemon/daemon/pr-gh-runner"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 

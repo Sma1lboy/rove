@@ -11,7 +11,7 @@
 
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { type PrChecksUnavailable, failingCheckTargets, ghText } from "./pr-failing-checks.ts"
-import { PR_VIEW_TIMEOUT_MS } from "./pr-status-collector.ts"
+import { PR_VIEW_TIMEOUT_MS } from "./pr-gh-runner.ts"
 
 export interface PrRerunResult {
   /** Workflow runs whose failed jobs were restarted. */

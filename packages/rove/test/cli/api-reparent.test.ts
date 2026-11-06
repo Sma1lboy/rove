@@ -10,7 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { serializeTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"

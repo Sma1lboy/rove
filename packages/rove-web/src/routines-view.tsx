@@ -7,11 +7,7 @@
  * CLI-only (`rove api routine-update`).
  */
 
-import {
-  type Automation,
-  type AutomationRunStatus,
-  automationRunNeedsAttention,
-} from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import { type Automation, automationRunNeedsAttention } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
@@ -34,6 +30,7 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
 import { RunLog, useRoutineRuns } from "./routine-run-log.tsx"
 import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
+import type { RoutinesReply } from "./routines-data.ts"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
 import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
@@ -56,14 +53,6 @@ import {
 import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
-
-interface RoutinesReply {
-  readonly automations: readonly Automation[]
-  readonly keepsDaemonAlive: boolean
-  readonly lastRunStatus?: Readonly<Record<string, AutomationRunStatus>>
-  /** The newest failure among recent runs; absent when none failed (or an older daemon). */
-  readonly lastFailure?: Readonly<Record<string, { readonly at: string; readonly reason: string }>>
-}
 
 export function RoutinesView({ model }: { model: AppModel }) {
   const { auto, common } = useCopy()
