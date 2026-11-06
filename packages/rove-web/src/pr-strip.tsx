@@ -58,7 +58,7 @@ export function PrStrip({ model, task }: { model: AppModel; task: TaskRow }) {
   const actions = prActions(task)
   if (actions.length === 0) return null
   return (
-    <div className="flex justify-end gap-3.5 px-2 pb-2 font-mono text-meta">
+    <div className="flex flex-wrap justify-end gap-x-3.5 gap-y-1 px-2 pb-2 font-mono text-meta whitespace-nowrap">
       {actions.map((action) => (
         <Button
           key={action}
