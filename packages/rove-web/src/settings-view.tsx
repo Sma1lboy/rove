@@ -44,6 +44,7 @@ import {
   SETTINGS_TITLE,
   settingsNavItemClass,
 } from "./ui/settings.ts"
+import { UsageChips } from "./usage-view.tsx"
 
 const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   general: (m) => <GeneralSection model={m} />,
@@ -161,6 +162,8 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
             onPick={(id) => setView({ section: id, drilled: true })}
           />
         )}
+        {/* The rail's foot has no room for them on a phone: the quota readings sit under the section list, and open Usage. */}
+        {narrow && showList && <UsageChips client={model.client} taskId={null} tabId={null} inset={false} />}
         {showSection && (
           <div key={view.section} className={SETTINGS_SCROLL}>
             <div className={SETTINGS_COLUMN}>

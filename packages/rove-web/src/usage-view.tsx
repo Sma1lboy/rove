@@ -11,7 +11,11 @@ import {
 } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
 import { type CSSProperties, useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
+import { t } from "./i18n/index.ts"
+import { openPage } from "./layout.ts"
 import { useStore } from "./store.ts"
+import { closeDialog } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { USAGE_CHIP, USAGE_QUIET, USAGE_TONE, usageBar } from "./ui/shell.ts"
 
 /** The daemon publishes as engines report; the TUI reads a pushed signal, the page polls. */
@@ -101,14 +105,21 @@ export function UsageChips({
       )}
       {quota.map(({ vendor, name, chip }) => (
         // The window and its reset, numbers only: `Claude · 5h 56% → 14:00`.
-        <span
+        // A click opens the Usage page, whatever surface the chip sits on (Settings' sheet closes first).
+        <Button
+          variant="row"
           key={vendor}
-          className={USAGE_CHIP}
+          className={`${USAGE_CHIP} cursor-pointer hover:text-ink`}
           title={`${name} · ${chip.label} ${chip.percentText} ${chip.resetText}`.trim()}
+          aria-label={`${t("usage.open")}: ${name}`}
+          onClick={() => {
+            closeDialog()
+            openPage("usage")
+          }}
         >
           <span>{name}</span>
           <span className={USAGE_TONE[chip.tone]}>{chip.percentText}</span>
-        </span>
+        </Button>
       ))}
     </div>
   )

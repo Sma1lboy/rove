@@ -19,6 +19,7 @@ import { RoutinesView } from "./routines-view.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page } from "./ui.ts"
 import { RAIL_NAV, RAIL_NAV_PLUS, railNavRowClass } from "./ui/page.ts"
+import { UsageView } from "./usage-page.tsx"
 
 interface NavItem {
   readonly id: PageId & ("kanban" | "routines" | "issues" | "mods")
@@ -82,5 +83,7 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <ModsView model={model} />
   ) : current === "compare" ? (
     <CompareView model={model} />
+  ) : current === "usage" ? (
+    <UsageView model={model} />
   ) : null
 }

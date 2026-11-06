@@ -14,13 +14,14 @@ import { type Surface, type WebCommand, allCommands, appliesOn, currentSurface }
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { actionDesc, helpText } from "./keymap-text.ts"
-import { enterWorkspace } from "./layout.ts"
+import { enterWorkspace, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { HitEntry, Note, SectionHead, TaskEntry, useConversationHits } from "./palette-search.tsx"
 import { repoLabel } from "./rail-labels.ts"
 import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
-import { closeDialog, dialog, toast } from "./ui.ts"
+import { type PageId, closeDialog, dialog, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { PALETTE_INPUT, PALETTE_LIST, PALETTE_NAME, paletteRow } from "./ui/shell.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
@@ -36,6 +37,7 @@ interface PaletteRow {
 
 type Entry =
   | { readonly kind: "command"; readonly row: PaletteRow }
+  | { readonly kind: "page"; readonly id: PageId; readonly name: string }
   | { readonly kind: "task"; readonly task: TaskRow }
   | { readonly kind: "hit"; readonly hit: Hit }
 
@@ -103,10 +105,15 @@ function PaletteDialog({
               ),
           )
           .slice(0, MAX_TASKS)
+  // Pages with no chord of their own: named, so the palette is the way in beside their own entry points.
+  const pages = [{ id: "usage" as const, name: t("usage.title") }].filter(
+    (entry) => q === "" || fuzzyMatch(q, entry.name),
+  )
   const said = useConversationHits(model, query)
   const hits = said.kind === "done" ? said.reply.matches : []
   const entries: readonly Entry[] = [
     ...shown.map((row): Entry => ({ kind: "command", row })),
+    ...pages.map((entry): Entry => ({ kind: "page", ...entry })),
     ...tasks.map((task): Entry => ({ kind: "task", task })),
     ...hits.map((hit): Entry => ({ kind: "hit", hit })),
   ]
@@ -126,6 +133,10 @@ function PaletteDialog({
       // Re-check: the state may have moved while the palette was open.
       if (entry.row.command.live?.(model) === false) toast(helpText("unavailable"), "error")
       else entry.row.command.run(model)
+      return
+    }
+    if (entry.kind === "page") {
+      openPage(entry.id)
       return
     }
     if (entry.kind === "task") model.select(entry.task.id)
@@ -177,6 +188,21 @@ function PaletteDialog({
               >
                 <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${row.name}`}</span>
               </button>
+            )
+          })}
+          {pages.map((entry) => {
+            const i = next()
+            return (
+              <Button
+                variant="row"
+                key={entry.id}
+                className={paletteRow(i === index)}
+                title={entry.name}
+                onMouseEnter={() => setSelected(i)}
+                onClick={() => open({ kind: "page", ...entry })}
+              >
+                <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${entry.name}`}</span>
+              </Button>
             )
           })}
           {tasks.length > 0 && <SectionHead>{t("search.tasks")}</SectionHead>}

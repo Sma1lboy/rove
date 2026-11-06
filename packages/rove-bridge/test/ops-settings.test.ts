@@ -408,6 +408,8 @@ describe("insight ops", () => {
     expect(digest.calls[0]).toEqual({ kind: "verb", name: "digest", payload: ["--repo=/r", "--since-days=14"] })
     const turns = await run(insightOps, "turns.list", { repo: "/r", limit: 50 })
     expect(turns.calls[0]).toEqual({ kind: "verb", name: "agent-turns", payload: ["--repo=/r", "--limit=50"] })
+    // The reply names the engines that have a turn reader, so a client can tell "no reader" from "no work".
+    expect(turns.result).toMatchObject({ readers: expect.arrayContaining(["claude"]) })
     const all = await run(insightOps, "turns.list", {})
     expect(all.calls[0]?.payload).toEqual([])
     await expect(run(insightOps, "repo.digest", { repo: "r" })).rejects.toThrow("absolute path")
