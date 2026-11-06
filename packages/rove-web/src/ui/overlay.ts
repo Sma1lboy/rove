@@ -55,5 +55,9 @@ export const INBOX_LINE = "flex min-w-0 items-baseline gap-2.5"
 export const INBOX_BADGE = "flex-none font-mono text-meta font-normal normal-nums"
 export const INBOX_AGE = `${INBOX_BADGE} text-subtle`
 export const INBOX_SUB = "truncate font-mono text-meta font-normal normal-nums text-muted"
+/** A card's row: the card, then its reply toggle at the right edge. */
+export const INBOX_CARD = "flex items-center gap-1"
+export const INBOX_CARD_MAIN = "min-w-0 flex-1"
+export const INBOX_PEEK_TOGGLE = "flex-none whitespace-nowrap pr-2 font-mono text-meta"
 /** The rail's unread count; `:hover` ungated, as the sheet had. */
 export const INBOX_CHIP = "font-mono [&:hover]:text-accent"

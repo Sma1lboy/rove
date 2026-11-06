@@ -28,6 +28,13 @@ export const en = {
     attention: "attention",
     recent: "recent",
     empty: "no pending attention",
+    reply: "[ reply ]",
+    hide: "[ hide ]",
+    send: "[ send ]",
+    openTab: "[ open ]",
+    noOutput: "no output yet",
+    replyPlaceholder: "reply to this session",
+    gateKept: "Saved; the engine isn't running and will get it with its next message.",
     state: {
       done: "done",
       needsInput: "needs input",
@@ -35,6 +42,7 @@ export const en = {
       rateLimited: "rate limited",
       dead: "engine exited",
       routineFailed: "routine needs you",
+      decision: "needs a decision",
     },
   },
 }
@@ -63,6 +71,13 @@ export const zh: typeof en = {
     attention: "待处理",
     recent: "最近使用",
     empty: "暂无待处理",
+    reply: "[ 回复 ]",
+    hide: "[ 收起 ]",
+    send: "[ 发送 ]",
+    openTab: "[ 打开 ]",
+    noOutput: "还没有输出",
+    replyPlaceholder: "回复这个会话",
+    gateKept: "已记下；引擎没在运行，下次发消息时一并送达。",
     state: {
       done: "完成",
       needsInput: "需要输入",
@@ -70,6 +85,7 @@ export const zh: typeof en = {
       rateLimited: "限流",
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
+      decision: "等你决定",
     },
   },
 }
