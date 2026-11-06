@@ -97,6 +97,7 @@ const TASK_FIELDS = {
   routine: true,
   status: true,
   pinned: true,
+  kept: true,
   archived: true,
   vendor: true,
   command: true,

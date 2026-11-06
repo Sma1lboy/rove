@@ -58,6 +58,31 @@ export function modelChipLabel(models: readonly Choice[], model: string, effort:
   return effort ? `${name} ${effort}` : name
 }
 
+/** Add or drop `id` in the compare list, keeping pick order; the list never empties. */
+export function toggleEngine(ids: readonly string[], id: string): readonly string[] {
+  if (!ids.includes(id)) return [...ids, id]
+  return ids.length > 1 ? ids.filter((e) => e !== id) : ids
+}
+
+/** The engine chip's text: one name, or the first two joined with `+` and a count of the rest. */
+export function engineChipLabel(names: readonly string[]): string {
+  const [first, second, ...rest] = names
+  if (!first || !second) return first ?? ""
+  return rest.length > 0 ? `${first} + ${second} +${rest.length}` : `${first} + ${second}`
+}
+
+/**
+ * The round a compare Start left behind when some attempt failed to start (`PARTIAL_FANOUT`): its tasks exist, so
+ * the page opens Compare on them rather than stranding them. Undefined for any other failure.
+ */
+export function partialRoundId(err: unknown): string | undefined {
+  if (!(err instanceof Error) || !("code" in err) || err.code !== "PARTIAL_FANOUT") return undefined
+  const detail = "detail" in err && err.detail && typeof err.detail === "object" ? err.detail : undefined
+  return detail && "groupId" in detail && typeof detail.groupId === "string" && detail.groupId
+    ? detail.groupId
+    : undefined
+}
+
 /** A task spans at most this many repos (the daemon's `MULTI_REPO_CAP`). */
 export const REPO_CAP = 8
 
@@ -97,6 +122,8 @@ export interface StartInput {
   /** The branch name every repo's worktree gets; "" = derived. */
   readonly branch: string
   readonly engine: string
+  /** Two or more engines run the prompt as that many sibling attempts of one round; fewer use `engine`. */
+  readonly engines?: readonly string[]
   readonly prompt: string
   /** false: create the task without running its engine. */
   readonly begin: boolean
@@ -107,12 +134,14 @@ export interface StartInput {
 /**
  * The `task.spawn` args for Start: the session is born by this prompt, on the primary repo, with the other
  * picks as `extraRepos` in pick order. Without `begin` the engine stays off and the typed prompt names the
- * task instead of being lost.
+ * task instead of being lost. A compare round (`engines`) fans out as `agents`: each attempt gets its own worktree
+ * and branch, so no shared branch, model or effort rides along.
  */
 export function spawnArgs(input: StartInput): Record<string, unknown> {
   const [primary, ...extras] = input.repos
   if (!primary) throw new Error("no repo")
   const title = input.begin ? "" : deriveTitleFromPrompt(input.prompt)
+  const compare = (input.engines?.length ?? 0) > 1
   return {
     repo: primary.repo,
     ...(primary.baseRef ? { baseBranch: primary.baseRef } : {}),
@@ -120,12 +149,13 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
       ? { extraRepos: extras.map((e) => ({ repo: e.repo, ...(e.baseRef ? { baseRef: e.baseRef } : {}) })) }
       : {}),
     // The shared name is set in the Branches menu, which a lone repo does not have, so a stale one never rides along.
-    ...(extras.length > 0 && input.branch ? { branch: input.branch } : {}),
+    ...(!compare && extras.length > 0 && input.branch ? { branch: input.branch } : {}),
     ...(input.begin && input.prompt ? { prompt: input.prompt } : {}),
     ...(title ? { title } : {}),
-    ...(input.engine ? { engine: input.engine } : {}),
-    ...(input.model ? { model: input.model } : {}),
-    ...(input.effort ? { effort: input.effort } : {}),
+    ...(compare ? { agents: (input.engines ?? []).map((id) => `${id}:1`).join(",") } : {}),
+    ...(!compare && input.engine ? { engine: input.engine } : {}),
+    ...(!compare && input.model ? { model: input.model } : {}),
+    ...(!compare && input.effort ? { effort: input.effort } : {}),
   }
 }
 

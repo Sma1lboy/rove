@@ -62,6 +62,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
+  kept: true,
   archived: true,
   vendor: "claude",
   command: "claude --continue",

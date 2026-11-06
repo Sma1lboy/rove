@@ -154,6 +154,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.setEffort` | `taskId`, `level` | `{}` | `update --effort` | |
 | `task.setStatus` | `taskId`, `status` (six) | `{}` | `update --status` | |
 | `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
+| `task.keep` | `taskId`, `kept` | `{}` | `update --kept` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
 | `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |

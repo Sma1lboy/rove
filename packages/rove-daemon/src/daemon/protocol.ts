@@ -101,6 +101,8 @@ export type DaemonRequestName =
   // engine may hold files open.
   | "task.syncBase"
   | "task.pin"
+  // Mark the attempt kept from a parallel round (`groupId` siblings); a flag only, nothing else of the task moves.
+  | "task.keep"
   // Move a task under another (or to top level) and point its reply address at it; nothing else of the task moves.
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
@@ -392,6 +394,8 @@ export interface SerializedTask {
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
+  /** The attempt kept from a parallel round. */
+  readonly kept?: boolean
   /** Hidden from the sidebar and the default `list`; worktree, branch and sessions untouched. */
   readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
@@ -477,6 +481,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.routine ? { routine: task.routine } : {}),
     status: task.status,
     pinned: task.pinned ?? false,
+    ...(task.kept ? { kept: true } : {}),
     ...(task.archived ? { archived: true } : {}),
     vendor: task.vendor,
     command: task.command,

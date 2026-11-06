@@ -29,6 +29,7 @@ const TASK_FIELDS = [
   "model",
   "effort",
   "pinned",
+  "kept",
   "require-report",
   "status",
 ] as const
@@ -172,6 +173,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   const model = ctx.args.str("model")?.trim()
   const effort = ctx.args.str("effort")?.trim()
   const pinned = ctx.args.bool("pinned")
+  const kept = ctx.args.bool("kept")
   const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
   const status = ctx.args.enumOf<TaskStatus>("status")
   const report = {
@@ -254,6 +256,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   }
   if (title !== undefined) await step(["title"], "task.rename", { title })
   if (pinned !== undefined) await step(["pinned"], "task.pin", { pinned })
+  if (kept !== undefined) await step(["kept"], "task.keep", { kept })
   if (requireReport !== undefined) {
     await step(["require-report"], "task.requireReport", { required: requireReport === "on" })
   }
@@ -350,6 +353,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "bool",
         placeholder: "BOOL",
         description: "true pins the task to the top of the sidebar, false unpins.",
+      },
+      {
+        name: "kept",
+        type: "bool",
+        placeholder: "BOOL",
+        description:
+          "true marks the task as the attempt kept from a parallel round (`add --count` / `--agents`); false clears the mark. A flag only: it archives nothing, and other attempts of the round are untouched.",
       },
       {
         name: "require-report",

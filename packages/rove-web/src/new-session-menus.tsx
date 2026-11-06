@@ -179,10 +179,11 @@ type Option = Choice & {
   readonly disabled?: boolean
 }
 
-/** A radio row: check on the picked one, the row's digit (when it has one) on the others. */
+/** A radio row: check on the picked one, the row's digit (when it has one) on the others. `multi`: a check-list row. */
 function OptionRow(props: {
   option: Option
   checked: boolean
+  multi: boolean
   cursor: boolean
   digit?: number
   onHover: () => void
@@ -191,7 +192,7 @@ function OptionRow(props: {
   return (
     <button
       type="button"
-      role="menuitemradio"
+      role={props.multi ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={props.checked}
       tabIndex={-1}
       disabled={props.option.disabled}
@@ -211,14 +212,17 @@ function OptionRow(props: {
 /**
  * A single-choice menu under a heading. Arrows move, Enter picks, `1`-`9` pick that row when `digits`;
  * with `onBack`, Esc and Left return to the menu it came from instead of closing everything.
+ * `values` makes it a check-list (every id in it is checked, a pick toggles for the caller); `footer` sits under the rows.
  */
 export function ChoiceMenu(props: {
   heading: string
   options: readonly Option[]
   value: string
+  values?: readonly string[]
   onPick: (id: string) => void
   digits?: boolean
   onBack?: () => void
+  footer?: ReactNode
 }) {
   const [cursor, setCursor] = useState(() =>
     Math.max(
@@ -267,13 +271,15 @@ export function ChoiceMenu(props: {
         <OptionRow
           key={option.id}
           option={option}
-          checked={option.id === props.value}
+          checked={props.values ? props.values.includes(option.id) : option.id === props.value}
+          multi={props.values !== undefined}
           cursor={i === cursor}
           digit={props.digits && i < 9 ? i + 1 : undefined}
           onHover={() => setCursor(i)}
           onPick={() => props.onPick(option.id)}
         />
       ))}
+      {props.footer}
     </div>
   )
 }
@@ -353,6 +359,7 @@ export function ModelMenu(props: {
           key={option.id}
           option={option}
           checked={option.id === props.model}
+          multi={false}
           cursor={i === cursor}
           digit={i < 9 ? i + 1 : undefined}
           onHover={() => setCursor(i)}

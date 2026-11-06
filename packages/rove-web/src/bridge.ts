@@ -30,6 +30,8 @@ export class BridgeRequestError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** The refusal's own fields beside `code` and `message` (a partial fan-out's `groupId`); absent for a local failure. */
+    readonly detail?: Readonly<Record<string, unknown>>,
   ) {
     super(message)
   }
@@ -196,7 +198,7 @@ export class BridgeClient {
     const error = "error" in frame && frame.error && typeof frame.error === "object" ? frame.error : {}
     const code = "code" in error && typeof error.code === "string" ? error.code : "INTERNAL"
     const message = "message" in error && typeof error.message === "string" ? error.message : code
-    pending.reject(new BridgeRequestError(code, message))
+    pending.reject(new BridgeRequestError(code, message, error as Readonly<Record<string, unknown>>))
   }
 
   /** Retry now instead of waiting out the backoff (the status bar's reconnect). */

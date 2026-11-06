@@ -152,6 +152,10 @@ export interface TaskRow {
   readonly deleting: boolean
   /** Additive row fields (all optional: absent = not collected / not known). */
   readonly pinned?: boolean
+  /** Shared by the attempts of one parallel round (`add --count` / `--agents`); absent on a lone task. */
+  readonly groupId?: string
+  /** The attempt kept from its round (`update --kept`). */
+  readonly kept?: boolean
   /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */
   readonly archived?: boolean
   /** A task a scheduled routine's firing made (its standing session or one fresh run); kept out of the task list. */

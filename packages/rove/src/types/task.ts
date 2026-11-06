@@ -120,6 +120,8 @@ export interface Task {
   readonly status: TaskStatus
   /** Floats to the top of the sidebar's task list. Defaults to `false` on load. */
   readonly pinned?: boolean
+  /** The attempt kept from a parallel round (`update --kept true`); at most one per `groupId` by convention, never enforced. */
+  readonly kept?: boolean
   /**
    * Hidden from the sidebar and the default `rove api list` while the worktree,
    * branch and sessions stay as they were. Set on a task and its descendants

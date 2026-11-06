@@ -208,6 +208,9 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.pin": write("verb update --task-id --pinned", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("pinned", String(bool(a, "pinned")))])),
   ),
+  "task.keep": write("verb update --task-id --kept", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("kept", String(bool(a, "kept")))])),
+  ),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),

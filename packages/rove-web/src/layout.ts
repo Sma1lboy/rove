@@ -7,7 +7,7 @@
 import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove/src/tui-react/lib/narrow-mode.ts"
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
-import { type PageId, page } from "./ui.ts"
+import { type PageId, compareGroup, page } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
@@ -25,22 +25,34 @@ export function openPage(id: PageId): void {
   page.set(id)
   enterWorkspace()
 }
+/** The Compare page over one parallel round's attempts (`groupId`); no rail row of its own: it opens from a task's menu or a compare Start. */
+export function openCompare(groupId: string): void {
+  compareGroup.set(groupId)
+  openPage("compare")
+}
 
-const narrowQuery = window.matchMedia(NARROW_QUERY)
-export const isNarrow = (): boolean => narrowQuery.matches
+let narrowQuery: MediaQueryList | undefined
+// Read on first use, not at import: a module that only opens a page (a row menu) must load without a browser's `matchMedia`.
+const narrowMedia = (): MediaQueryList => {
+  narrowQuery ??= window.matchMedia(NARROW_QUERY)
+  return narrowQuery
+}
+export const isNarrow = (): boolean => narrowMedia().matches
 /** Runs when the viewport crosses the narrow breakpoint. */
 export const onNarrowChange = (listener: () => void): (() => void) => {
-  narrowQuery.addEventListener("change", listener)
-  return () => narrowQuery.removeEventListener("change", listener)
+  const query = narrowMedia()
+  query.addEventListener("change", listener)
+  return () => query.removeEventListener("change", listener)
 }
 
 export function useNarrow(): boolean {
   return useSyncExternalStore(
     (notify) => {
-      narrowQuery.addEventListener("change", notify)
-      return () => narrowQuery.removeEventListener("change", notify)
+      const query = narrowMedia()
+      query.addEventListener("change", notify)
+      return () => query.removeEventListener("change", notify)
     },
-    () => narrowQuery.matches,
+    () => narrowMedia().matches,
   )
 }
 

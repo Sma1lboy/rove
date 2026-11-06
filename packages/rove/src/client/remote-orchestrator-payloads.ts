@@ -303,6 +303,7 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,
     pinned: s.pinned,
+    ...(s.kept ? { kept: true } : {}),
     ...(s.archived ? { archived: true } : {}),
     vendor: s.vendor,
     command: s.command,
