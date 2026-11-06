@@ -26,6 +26,7 @@ import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
+import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
 import { type NavRow, type RowFold, foldProjects, railRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
@@ -106,7 +107,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         filters.archivedOpen,
         { ...filters.hand, selectedId: selectedId ?? undefined },
       )
-  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project")
+  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project" && row.kind !== "round")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
   const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
@@ -191,7 +192,16 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         )}
         {recent && <RecentRow title={recent.title} />}
         {rows.map((row, i) =>
-          row.kind === "pane" ? (
+          row.kind === "round" ? (
+            <RoundRowView
+              key={row.id}
+              row={row}
+              guides={row.depth > 1 ? treeGuides(rows, i) : undefined}
+              cursor={row.id === keys.cursor}
+              place={place(row)}
+              onClick={() => keys.setCursor(row.id)}
+            />
+          ) : row.kind === "pane" ? (
             <PaneRowView
               key={row.id}
               model={model}
@@ -301,7 +311,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 }
 
 function RailRow(props: {
-  row: Exclude<NavRow, { kind: "pane" }>
+  row: Exclude<NavRow, { kind: "pane" | "round" }>
   /** A child task's indent columns, outermost first. */
   guides?: readonly TreeGuide[]
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
@@ -400,7 +410,7 @@ function RailRow(props: {
         </span>
       )}
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
-        {task.label}
+        {row.attempt ?? task.label}
       </span>
       <span className={`${CHIPS} ml-auto items-center`}>
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
@@ -410,6 +420,11 @@ function RailRow(props: {
           </span>
         )}
         {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}
+        {task.kept && (
+          <span className="text-accent" title={t("compare.kept")}>
+            ✓
+          </span>
+        )}
         {task.pinned && <span className="text-subtle">▴</span>}
         {/* The PR list opens where the title tip sits; only one card at a time. */}
         <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />

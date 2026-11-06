@@ -8,6 +8,7 @@ import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
 import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
+import { attemptLabels, roundKey, roundTitle, roundsAmong } from "./rail-rounds.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -59,6 +60,18 @@ export type NavRow =
       readonly level?: number
       /** Set on a task with children: how many descendants, and whether they are folded away. */
       readonly fold?: RowFold
+      /** An attempt under a round header: the engine it ran on stands in for its title. */
+      readonly attempt?: string
+    })
+  /** The header of a parallel round: its attempts (rows with one `groupId`) nest one level under it (`rail-rounds.ts`). */
+  | (Remote & {
+      readonly id: string
+      readonly kind: "round"
+      readonly groupId: string
+      readonly title: string
+      /** The attempts shown under it, for the count and the status rolled up into the header. */
+      readonly tasks: readonly TaskRow[]
+      readonly depth: number
     })
   /** One pane of a split tab, a quiet row one level under its task (`rail-panes.ts`). */
   | (Remote & {
@@ -249,7 +262,13 @@ function isFolded(id: string, childCount: number, descendants: readonly string[]
  * children, a child hit its parents and project. A folded task (`fold`) hides its children.
  * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
  */
-export function navRows(groups: readonly ProjectGroup[], query = "", fold: FoldState = NO_FOLDS, base = 0): NavRow[] {
+export function navRows(
+  groups: readonly ProjectGroup[],
+  query = "",
+  fold: FoldState = NO_FOLDS,
+  base = 0,
+  rounds = true,
+): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
   const { children, nested } = indexChildren(groups)
@@ -262,7 +281,7 @@ export function navRows(groups: readonly ProjectGroup[], query = "", fold: FoldS
     // A task survives the filter on its own hit or a descendant's.
     const hasHit = (task: TaskRow): boolean => selfHit(task) || (children.get(task.id) ?? []).some(hasHit)
     // A task, then its children one level deeper each.
-    const push = (out: NavRow[], task: TaskRow, generation: number, inherited = false): void => {
+    const push = (out: NavRow[], task: TaskRow, generation: number, inherited = false, attempt?: string): void => {
       const level = generation + 1
       const remote: Remote = task.machine ? { machine: task.machine.id } : {}
       const kids = children.get(task.id)
@@ -276,14 +295,54 @@ export function navRows(groups: readonly ProjectGroup[], query = "", fold: FoldS
         depth: Math.min(level, MAX_ROW_DEPTH),
         ...(level > MAX_ROW_DEPTH ? { level } : {}),
         ...(kids ? { fold: { count: ids.length, collapsed: folded, descendantIds: ids } } : {}),
+        ...(attempt === undefined ? {} : { attempt }),
         ...remote,
       })
       const open = inherited || selfHit(task)
       if (folded) return
-      for (const child of kids ?? []) if (open || hasHit(child)) push(out, child, generation + 1, open)
+      pushAll(
+        out,
+        (kids ?? []).filter((child) => open || hasHit(child)),
+        generation + 1,
+        open,
+      )
+    }
+    // Sibling rows in order; the attempts of a round gather under one header at the first one's place.
+    const pushAll = (out: NavRow[], siblings: readonly TaskRow[], generation: number, inherited: boolean): void => {
+      const byRound = rounds ? roundsAmong(siblings) : new Map<string, TaskRow[]>()
+      const placed = new Set<string>()
+      for (const task of siblings) {
+        const key = roundKey(task)
+        const members = key === null ? undefined : byRound.get(key)
+        if (key === null || !members) {
+          push(out, task, generation, inherited)
+          continue
+        }
+        if (placed.has(key)) continue
+        placed.add(key)
+        const first = members[0]
+        if (!first) continue
+        const level = generation + 1
+        out.push({
+          id: `round:${first.machine?.id ?? ""}:${first.groupId}`,
+          kind: "round",
+          groupId: first.groupId ?? "",
+          title: roundTitle(members),
+          tasks: members,
+          depth: Math.min(level, MAX_ROW_DEPTH),
+          ...(first.machine ? { machine: first.machine.id } : {}),
+        })
+        const labels = attemptLabels(members)
+        for (const member of members) push(out, member, generation + 1, inherited, labels.get(member.id))
+      }
     }
     const under: NavRow[] = []
-    for (const task of group.tasks) if (!nested.has(task.id) && hasHit(task)) push(under, task, base)
+    pushAll(
+      under,
+      group.tasks.filter((task) => !nested.has(task.id) && hasHit(task)),
+      base,
+      false,
+    )
     if (under.length === 0 && !projectHit) continue
     rows.push(
       {

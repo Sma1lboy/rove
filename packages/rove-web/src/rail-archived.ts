@@ -22,6 +22,7 @@ export function withArchived(
   const head: NavRow = { id: ARCHIVED_ROW_ID, kind: "archived", count: archived.length, expanded }
   if (!expanded) return [...rows, head]
   // One header-less group one generation down: `navRows` nests and folds it like any project, then its header is dropped.
-  const under = navRows([{ repo: "", label: "", key: ARCHIVED_ROW_ID, tasks: archived }], "", fold, 1)
+  // Archived attempts stay plain rows: a round's Compare page lists live attempts only.
+  const under = navRows([{ repo: "", label: "", key: ARCHIVED_ROW_ID, tasks: archived }], "", fold, 1, false)
   return [...rows, head, ...under.filter((row) => row.kind !== "project")]
 }
