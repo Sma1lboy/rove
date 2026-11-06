@@ -2,6 +2,7 @@ export const en = {
   quota: {
     used: "{percent}% used",
     resets: "resets {when}",
+    expires: "credit expires {when}",
     loading: "Reading usage…",
     empty: "No meter to show yet: an engine reports its quota after its first turn, and E2B needs E2B_API_KEY.",
     failed: "Couldn't read usage: {error}",
@@ -18,7 +19,8 @@ export const en = {
       left: "Left (est.)",
     },
     note: {
-      estimated: "Estimated from sandboxes Rove has seen running since {since}; E2B has no balance API.",
+      estimated:
+        "Estimated from sandboxes Rove has seen running since {since}; sandboxes started elsewhere (template builds, the SDK) are not counted. E2B has no balance API.",
       approximate: "Approximate.",
       error: "Last check failed: {error}",
     },
@@ -29,6 +31,7 @@ export const zh: typeof en = {
   quota: {
     used: "已用 {percent}%",
     resets: "{when} 重置",
+    expires: "额度 {when} 过期",
     loading: "正在读取用量…",
     empty: "还没有可显示的额度：引擎跑完第一轮后才会报告额度，E2B 需要配置 E2B_API_KEY。",
     failed: "读取用量失败：{error}",
@@ -45,7 +48,8 @@ export const zh: typeof en = {
       left: "剩余（估算）",
     },
     note: {
-      estimated: "根据 {since} 以来 Rove 看到在跑的沙箱估算；E2B 没有查余额的接口。",
+      estimated:
+        "根据 {since} 以来 Rove 看到在跑的沙箱估算；别处起的沙箱（模板构建、SDK 直连）不计入。E2B 没有查余额的接口。",
       approximate: "近似值。",
       error: "上次检查失败：{error}",
     },

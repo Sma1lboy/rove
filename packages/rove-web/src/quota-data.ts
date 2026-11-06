@@ -16,6 +16,7 @@ export interface QuotaMeter {
   readonly percent: number
   readonly amount: string
   readonly resetsAt: number | null
+  readonly expiresAt?: number
   readonly parts: readonly QuotaPart[]
   readonly note?: { readonly key: "estimated" | "approximate"; readonly since?: number; readonly error?: string }
 }

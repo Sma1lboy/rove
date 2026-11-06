@@ -102,6 +102,9 @@ function MeterCard({ meter, folded, onToggle }: { meter: QuotaMeter; folded: boo
         ))}
       </div>
       {meter.resetsAt !== null && <p className={s.QUOTA_NOTE}>{t("quota.resets", { when: when(meter.resetsAt) })}</p>}
+      {meter.expiresAt !== undefined && (
+        <p className={s.QUOTA_NOTE}>{t("quota.expires", { when: day(meter.expiresAt) })}</p>
+      )}
       {!folded && (
         <ul className={s.QUOTA_ROWS}>
           {meter.parts.map((part, i) => {
@@ -138,6 +141,9 @@ function when(ms: number): string {
   return new Date(ms).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })
 }
 
+/** The year only when it is not this one ("Nov 6", "Jan 1, 2027"). */
 function day(ms: number): string {
-  return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  const date = new Date(ms)
+  const year = date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
+  return date.toLocaleDateString(undefined, { year, month: "short", day: "numeric" })
 }

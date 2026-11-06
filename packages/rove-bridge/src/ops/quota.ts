@@ -43,6 +43,8 @@ export interface QuotaMeter {
   /** "255k / 1M", "$3.20 / $100". */
   readonly amount: string
   readonly resetsAt: number | null
+  /** Epoch ms a prepaid credit lapses, unspent or not. */
+  readonly expiresAt?: number
   readonly parts: readonly QuotaPart[]
   /** Where the number comes from when it is not exact: `quota.note.<key>`, with `since` (epoch ms) for `estimated`. */
   readonly note?: { readonly key: "estimated" | "approximate"; readonly since?: number; readonly error?: string }
@@ -51,6 +53,8 @@ export interface QuotaMeter {
 /** E2B list price (Nov 2026): per vCPU-second and per GiB-second of memory. */
 export const E2B_PRICE = { cpuSecond: 0.000014, gibSecond: 0.0000045 } as const
 export const E2B_FREE_CREDIT = 100
+/** This account's credit expiry, as the E2B console's Billing page shows it; no API reports it. Noon UTC so every zone reads Jan 1. */
+export const E2B_CREDIT_EXPIRES = Date.UTC(2027, 0, 1, 12)
 export const E2B_MAX_CONCURRENT = 20
 const E2B_STATE_KEY = "quota.e2b"
 const SAMPLE_MS = 60_000
@@ -103,6 +107,7 @@ export function e2bMeter(ledger: E2bLedger, running: number | null): QuotaMeter 
     percent: share(spent),
     amount: `${dollars(spent)} / ${dollars(E2B_FREE_CREDIT)}`,
     resetsAt: null,
+    expiresAt: E2B_CREDIT_EXPIRES,
     parts: [
       { labelKey: "cpu", value: dollars(cpu), share: share(cpu) },
       { labelKey: "memory", value: dollars(mem), share: share(mem) },
