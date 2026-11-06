@@ -38,7 +38,10 @@ export function App() {
   else if (route)
     body = (
       <p className="text-meta text-muted">
-        这条素材已下架。<a className="text-accent hover:underline" href="#/">看其他素材</a>
+        这条素材已下架。
+        <a className="text-accent hover:underline" href="#/">
+          看其他素材
+        </a>
       </p>
     )
   else body = <Home items={data.items} />
@@ -47,7 +50,12 @@ export function App() {
   const home = route === ""
   return (
     <div className="md:grid md:min-h-dvh md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
-      <Sidebar items={data?.items ?? []} me={data?.me ?? ""} route={route} className={home ? "flex" : "hidden md:flex"} />
+      <Sidebar
+        items={data?.items ?? []}
+        me={data?.me ?? ""}
+        route={route}
+        className={home ? "flex" : "hidden md:flex"}
+      />
       <main className={`min-w-0 px-5 pt-5 pb-16 md:px-8 md:pt-8 ${home ? "hidden md:block" : ""}`}>
         <a href="#/" className="mb-4 inline-block text-meta text-muted hover:underline md:hidden">
           ← 全部素材
@@ -58,6 +66,9 @@ export function App() {
     </div>
   )
 }
+
+// Two characters so the left column stays one width.
+const shortKind = (k?: string) => (k ? k.slice(0, 2) : "—")
 
 function Sidebar({ items, me, route, className }: { items: Item[]; me: string; route: string; className: string }) {
   return (
@@ -78,18 +89,20 @@ function Sidebar({ items, me, route, className }: { items: Item[]; me: string; r
               key={it.id}
               href={`#/${it.id}`}
               aria-current={route === it.id ? "page" : undefined}
-              className="block rounded-sm px-2 py-1.5 hover:bg-hover aria-[current=page]:bg-menu touch:py-2.5"
+              className="flex gap-2.5 rounded-sm px-2 py-1.5 hover:bg-hover aria-[current=page]:bg-menu touch:py-2.5"
             >
-              <div className="truncate text-title text-ink">{it.title}</div>
-              <div className="mt-0.5 flex gap-2 font-mono text-meta text-subtle">
-                <span>{fmtDur(it.video.duration)}</span>
-                {it.posts.length > 1 && <span>{it.posts.length} 条</span>}
-                {mine ? (
-                  <span className="text-success">✓ 你已发</span>
-                ) : (
-                  people > 0 && <span>{people} 人已发</span>
-                )}
-                {videoWarnings(it.video).length > 0 && <span className="text-warning">!</span>}
+              <div className="flex w-7 flex-none flex-col items-start gap-0.5 pt-0.5 font-mono text-meta">
+                <span className={it.kind === "宣传片" ? "text-accent" : "text-ink"}>{shortKind(it.kind)}</span>
+                <span className="text-subtle">{it.lang === "en" ? "EN" : it.lang === "zh" ? "中" : ""}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-title text-ink">{it.title}</div>
+                <div className="mt-0.5 flex gap-2 font-mono text-meta text-subtle">
+                  <span>{fmtDur(it.video.duration)}</span>
+                  {it.posts.length > 1 && <span>{it.posts.length} 条</span>}
+                  {mine ? <span className="text-success">✓ 你已发</span> : people > 0 && <span>{people} 人已发</span>}
+                  {videoWarnings(it.video).length > 0 && <span className="text-warning">!</span>}
+                </div>
               </div>
             </a>
           )
@@ -121,7 +134,13 @@ function Home({ items }: { items: Item[] }) {
               {it.cover ? (
                 <img className="size-full object-cover" src={vurl(it.cover)} alt="" loading="lazy" />
               ) : (
-                <video className="size-full object-cover" src={`${vurl(it.video.key)}#t=0.5`} preload="metadata" muted playsInline />
+                <video
+                  className="size-full object-cover"
+                  src={`${vurl(it.video.key)}#t=0.5`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                />
               )}
             </div>
             <div className="mt-2 truncate text-title font-semibold text-ink">{it.title}</div>

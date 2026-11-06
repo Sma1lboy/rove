@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // Uploader CLI for kit.sma1lboy.me. Reads PROMO_KIT_TOKEN (minted on the site's 上传令牌 page;
 // CF_ACCESS_CLIENT_ID/SECRET are optional) from ~/.env.
-//   bun run kit push <video.mp4> --title "..." --copy copy.md [--cover cover.jpg] [--id slug]
-//   bun run kit copy <id> --copy copy.md [--title "..."]
+//   bun run kit push <video.mp4> --title "..." --copy copy.md [--kind 功能发布] [--lang zh|en] [--cover cover.jpg] [--id slug]
+//   bun run kit copy <id> [--copy copy.md] [--title "..."] [--kind ...] [--lang zh|en]
 //   bun run kit rm <id>
 //   bun run kit ls
 // copy.md: one post per block, blocks separated by a line containing only ---
@@ -80,7 +80,14 @@ if (import.meta.main) {
   const { values: o, positionals: [cmd, arg] } = parseArgs({
     args: Bun.argv.slice(2),
     allowPositionals: true,
-    options: { title: { type: "string" }, copy: { type: "string" }, cover: { type: "string" }, id: { type: "string" } },
+    options: {
+      title: { type: "string" },
+      copy: { type: "string" },
+      cover: { type: "string" },
+      id: { type: "string" },
+      kind: { type: "string" },
+      lang: { type: "string" },
+    },
   })
   if (!process.env.PROMO_KIT_TOKEN) throw new Error("PROMO_KIT_TOKEN missing (put it in ~/.env)")
 
@@ -105,19 +112,21 @@ if (import.meta.main) {
       cover = `${id}/cover${extname(o.cover).toLowerCase()}`
       await upload(o.cover, cover, Bun.file(o.cover).type)
     }
-    await call(`/api/items/${id}`, { method: "PUT", body: JSON.stringify({ title: o.title, video, cover, posts }) })
+    const lang = o.lang ?? (/[\u4e00-\u9fff]/.test(posts.join("")) ? "zh" : "en")
+    const kind = o.kind ?? "功能发布"
+    await call(`/api/items/${id}`, { method: "PUT", body: JSON.stringify({ title: o.title, video, cover, posts, kind, lang }) })
     console.log(`pushed ${BASE}/#/${id}`)
   } else if (cmd === "copy") {
-    if (!arg || !o.copy) throw new Error("usage: kit copy <id> --copy copy.md [--title ...]")
-    const posts = readPosts(await Bun.file(o.copy).text())
-    await call(`/api/items/${arg}`, { method: "PATCH", body: JSON.stringify({ posts, title: o.title }) })
+    if (!arg) throw new Error("usage: kit copy <id> [--copy copy.md] [--title ...] [--kind ...] [--lang zh|en]")
+    const posts = o.copy ? readPosts(await Bun.file(o.copy).text()) : undefined
+    await call(`/api/items/${arg}`, { method: "PATCH", body: JSON.stringify({ posts, title: o.title, kind: o.kind, lang: o.lang }) })
     console.log(`updated ${BASE}/#/${arg}`)
   } else if (cmd === "rm") {
     if (!arg) throw new Error("usage: kit rm <id>")
     await call(`/api/items/${arg}`, { method: "DELETE" })
     console.log(`removed ${arg}`)
   } else if (cmd === "ls") {
-    for (const it of (await call("/api/items")).items) console.log(`${it.id}\t${it.title}\t${it.posts.length} post(s)`)
+    for (const it of (await call("/api/items")).items) console.log(`${it.id}\t${it.kind ?? "-"}\t${it.lang ?? "-"}\t${it.title}\t${it.posts.length} post(s)`)
   } else {
     console.log("commands: push | copy | rm | ls  (see top of kit.ts)")
   }

@@ -2,7 +2,7 @@ export type Video = { key: string; size: number; duration?: number; codec?: stri
 export type Action = "send" | "download" | "copy"
 export type Event = { action: Action; post: number; by: string; at: string }
 export type Version = { posts: string[]; by: string; at?: string }
-export type Item = { id: string; title: string; video: Video; cover?: string; posts: string[]; sends: Event[] }
+export type Item = { id: string; title: string; video: Video; cover?: string; posts: string[]; sends: Event[]; kind?: string; lang?: "zh" | "en" }
 
 export function fmtTime(at?: string) {
   const d = at ? new Date(at) : null
