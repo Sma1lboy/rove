@@ -140,6 +140,15 @@ export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
   return null
 }
 
+/** Leave any page, enter the task, and land on `tabId` when given. */
+export function openTaskOnTab(closePage: () => void, activateTask: (taskId: string) => unknown) {
+  return (taskId: string, tabId?: string): void => {
+    closePage()
+    void activateTask(taskId)
+    if (tabId) requestTabActivation(taskId, tabId)
+  }
+}
+
 /** CONTENT-PANE pages the rail swaps; the task list stays beside them. Null for `terminal` or an unregistered id. */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   const Page = deps.pages.find((page) => page.id === deps.nav)?.component
@@ -149,11 +158,7 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
       orchestrator={deps.orchestrator}
       focused={deps.contentFocused}
       onClose={deps.closePage}
-      onOpenTask={(taskId, tabId) => {
-        deps.closePage()
-        deps.activateTask(taskId)
-        if (tabId) requestTabActivation(taskId, tabId)
-      }}
+      onOpenTask={openTaskOnTab(deps.closePage, deps.activateTask)}
       selectedTask={deps.selectedTask}
       engineStates={deps.engineStates}
     />

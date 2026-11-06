@@ -35,7 +35,7 @@ import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
+import { type BootDialogs, openTaskOnTab, useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { NarrowBackBar } from "./narrow-back-bar"
@@ -49,7 +49,7 @@ import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
 import { SidebarResizeGrip } from "./sidebar-resize-grip"
 import { useTabsSync } from "./tabs-sync"
 import { closeAllTaskTabs } from "./terminal-tabs-close"
-import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
+import { activeTabIdFor, forgetTaskTabs, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
@@ -300,15 +300,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
-    paletteSearch: {
-      orchestrator: orch,
-      tasks,
-      openTask: (taskId, tabId) => {
-        pages.closePage()
-        void activateTask(taskId)
-        if (tabId) requestTabActivation(taskId, tabId)
-      },
-    },
+    paletteSearch: { orchestrator: orch, tasks, openTask: openTaskOnTab(pages.closePage, activateTask) },
     createPR: () => void editor.onCreatePR(),
     // Park, then enter the row so its workspace mounts and claims the request.
     createPRFor: (id) => {
