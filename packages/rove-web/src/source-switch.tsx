@@ -6,8 +6,8 @@ import { useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
 
 const SOURCES: readonly { id: IssuesSource; label: string }[] = [
-  { id: "issues", label: "review.sourceIssues" },
-  { id: "reviews", label: "review.sourceReviews" },
+  { id: "issues", label: "reviewQueue.sourceIssues" },
+  { id: "reviews", label: "reviewQueue.sourceReviews" },
 ]
 
 export function SourceSwitch() {
@@ -18,11 +18,11 @@ export function SourceSwitch() {
       {SOURCES.map((source) =>
         source.id === current ? (
           <span key={source.id} className="text-ink">
-            {t(source.label as "review.sourceIssues")}
+            {t(source.label as "reviewQueue.sourceIssues")}
           </span>
         ) : (
           <Button key={source.id} onClick={() => issuesSource.set(source.id)}>
-            {t(source.label as "review.sourceIssues")}
+            {t(source.label as "reviewQueue.sourceIssues")}
           </Button>
         ),
       )}

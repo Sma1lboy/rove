@@ -1,6 +1,6 @@
 /** `review` messages: the Issues page's "PRs waiting on me" source. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
-  review: {
+  reviewQueue: {
     sourceIssues: "[ issues ]",
     sourceReviews: "[ PRs waiting on me ]",
     palette: "Review queue",
@@ -26,7 +26,7 @@ export const en = {
 }
 
 export const zh: typeof en = {
-  review: {
+  reviewQueue: {
     sourceIssues: "[ 议题 ]",
     sourceReviews: "[ 等我评审的 PR ]",
     palette: "评审队列",

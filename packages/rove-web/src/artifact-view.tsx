@@ -93,8 +93,9 @@ export function ArtifactView({
         title={path}
         sandbox=""
         srcDoc={htmlDocument(textOf(load.file.base64))}
-        // A report assumes a light page: the frame keeps its own canvas whatever the theme.
-        style={{ colorScheme: "light" }}
+        // A report assumes a light page. `color-scheme: light` alone leaves the canvas transparent (the frame and
+        // its document agree), so a report with no background drew black text on the dark panel: paint it white.
+        style={{ colorScheme: "light", background: "#fff" }}
         className="min-h-0 w-full flex-1 border-none"
       />
     )

@@ -27,14 +27,14 @@ import {
 } from "./ui/page.ts"
 
 const CHECKS = {
-  passing: "review.checksPassing",
-  failing: "review.checksFailing",
-  pending: "review.checksPending",
+  passing: "reviewQueue.checksPassing",
+  failing: "reviewQueue.checksFailing",
+  pending: "reviewQueue.checksPending",
 } as const
 const GH_REASON = {
-  missing: "review.gh.missing",
-  unauthenticated: "review.gh.unauthenticated",
-  failed: "review.gh.failed",
+  missing: "reviewQueue.gh.missing",
+  unauthenticated: "reviewQueue.gh.unauthenticated",
+  failed: "reviewQueue.gh.failed",
 } as const
 
 function Row(props: {
@@ -49,8 +49,8 @@ function Row(props: {
   const { pr } = props
   const created = Date.parse(pr.createdAt)
   const tags = [
-    pr.isDraft ? t("review.draft") : "",
-    pr.fork ? t("review.fork") : "",
+    pr.isDraft ? t("reviewQueue.draft") : "",
+    pr.fork ? t("reviewQueue.fork") : "",
     pr.checks ? t(CHECKS[pr.checks]) : "",
   ]
   return (
@@ -62,7 +62,7 @@ function Row(props: {
         </span>
         <span className={PG_GROW}>{pr.title}</span>
         <Button disabled={props.busy} onClick={props.onReview}>
-          {t("review.start")}
+          {t("reviewQueue.start")}
         </Button>
       </div>
       <div className={PG_ISSUE_SUB}>
@@ -116,14 +116,14 @@ export function ReviewQueueView({ model }: { model: AppModel }) {
   const review = async (pr: ReviewPr) => {
     if (busy !== null) return
     setBusy(pr.number)
-    setNotice(t("review.preparing", { number: pr.number }))
+    setNotice(t("reviewQueue.preparing", { number: pr.number }))
     try {
       const { ref } = await c.request<{ ref: string }>("review.prepare", { repo: pr.repo, number: pr.number })
       openNewSessionFrom(
         reviewSeed(
           pr,
           ref,
-          t("review.prompt", {
+          t("reviewQueue.prompt", {
             number: pr.number,
             repo: pr.nameWithOwner,
             title: pr.title,
@@ -134,7 +134,7 @@ export function ReviewQueueView({ model }: { model: AppModel }) {
         ),
       )
     } catch (err) {
-      toast(t("review.failed", { number: pr.number, error: errorMessage(err) }), "error")
+      toast(t("reviewQueue.failed", { number: pr.number, error: errorMessage(err) }), "error")
     } finally {
       setBusy(null)
       setNotice(null)
@@ -179,7 +179,7 @@ export function ReviewQueueView({ model }: { model: AppModel }) {
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{t("review.title")}</h1>
+        <h1 className={PAGE_TITLE}>{t("reviewQueue.title")}</h1>
         <SourceSwitch />
       </div>
       {error ? (
@@ -189,7 +189,7 @@ export function ReviewQueueView({ model }: { model: AppModel }) {
       ) : reply.reason ? (
         <p className="text-muted">{t(GH_REASON[reply.reason])}</p>
       ) : rows.length === 0 ? (
-        <p className="text-muted">{t("review.empty")}</p>
+        <p className="text-muted">{t("reviewQueue.empty")}</p>
       ) : (
         <div className={PG_LIST} ref={list}>
           {rows.map((pr, index) => (
@@ -207,7 +207,7 @@ export function ReviewQueueView({ model }: { model: AppModel }) {
         </div>
       )}
       {reply && reply.other > 0 && (
-        <p className={`text-muted ${PG_NOTICE}`}>{t("review.other", { count: reply.other })}</p>
+        <p className={`text-muted ${PG_NOTICE}`}>{t("reviewQueue.other", { count: reply.other })}</p>
       )}
       {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
