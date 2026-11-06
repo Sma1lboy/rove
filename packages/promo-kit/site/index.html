@@ -59,7 +59,6 @@ button:disabled { opacity: .5; cursor: progress; }
   button:not(.primary), .btn { min-height: 40px; padding: 0 var(--space-1\.5); }
   textarea { font-size: var(--fs-display); }
 }
-.hint { font-size: var(--fs-meta); color: var(--subtle); margin-top: var(--space-2); }
 .back { color: var(--muted); font-size: var(--fs-meta); }
 #toast {
   position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 4px);
@@ -72,7 +71,7 @@ button:disabled { opacity: .5; cursor: progress; }
 </style>
 </head>
 <body>
-<header><a class="wm" href="#/"><b>[</b> rove <b>]</b></a><span>宣发素材 · 用你自己的 X 账号发</span><a class="tok" href="#/token">上传令牌</a></header>
+<header><a class="wm" href="#/"><b>[</b> rove <b>]</b></a><span>宣发素材</span><a class="tok" href="#/token">上传令牌</a></header>
 <main id="app"><p class="muted">加载中…</p></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module">
@@ -118,14 +117,14 @@ function videoWarnings(v) {
 function renderList() {
   document.title = "宣发素材 · promo-kit"
   if (!items.length) { app.innerHTML = `<p class="muted">还没有素材。</p>`; return }
-  app.innerHTML = `<h1>素材</h1><div class="grid">${items.map((it) => `
+  app.innerHTML = `<div class="grid">${items.map((it) => `
     <a class="card" href="#/${esc(it.id)}">
       ${it.cover
         ? `<img class="media" src="${vurl(esc(it.cover))}" alt="" loading="lazy">`
         : `<video class="media" src="${vurl(esc(it.video.key))}#t=0.5" preload="metadata" muted playsinline></video>`}
       <div class="body">
         <div class="t">${esc(it.title)}</div>
-        <div class="meta">${[fmtDur(it.video.duration), it.posts.length > 1 ? `${it.posts.length} 条串推` : "单条", videoWarnings(it.video).length ? "! 视频规格有问题" : ""].filter(Boolean).join(" · ")}</div>
+        <div class="meta">${[fmtDur(it.video.duration), it.posts.length > 1 ? `${it.posts.length} 条串推` : "", videoWarnings(it.video).length ? "! 视频规格有问题" : ""].filter(Boolean).join(" · ")}</div>
       </div>
     </a>`).join("")}</div>`
 }
@@ -140,27 +139,22 @@ function renderDetail(it) {
     <div class="detail">
       <div class="left">
         <video class="player" src="${vurl(esc(it.video.key))}" ${it.cover ? `poster="${vurl(esc(it.cover))}"` : ""} controls playsinline preload="metadata"></video>
-        <div class="meta" style="margin-top:var(--space-1\.5)">${[fmtDur(it.video.duration), fmtSize(it.video.size), it.video.codec].filter(Boolean).join(" · ")}</div>
+        <div class="meta" style="margin-top:var(--space-1\.5)">${[fmtDur(it.video.duration), fmtSize(it.video.size)].filter(Boolean).join(" · ")}</div>
         <div id="warns"></div>
       </div>
       <div>
         ${it.posts.map((p, i) => `
           <div class="post">
-            <div class="head"><span>${it.posts.length > 1 ? `第 ${i + 1} 条${i === 0 ? "（带视频）" : ""}` : "文案"}</span><span class="count" data-i="${i}"></span></div>
+            <div class="head"><span>${it.posts.length > 1 ? `${i + 1} / ${it.posts.length}` : ""}</span><span class="count" data-i="${i}"></span></div>
             <textarea data-i="${i}" aria-label="第 ${i + 1} 条文案">${esc(p)}</textarea>
             ${i === 0 ? `
               <div class="row">
                 <button class="primary" id="send">发到 X</button>
                 <a class="btn" href="${vurl(esc(it.video.key))}?dl=${encodeURIComponent(file)}" download="${esc(file)}">下载视频</a>
-                <button data-copy="0">复制文案</button>
-              </div>
-              <div class="hint">${MOBILE
-                ? "会打开系统分享面板，选 X。文案同时复制到剪贴板，发帖框里没带上就粘贴。"
-                : "会下载视频并打开 X 发帖页（文字已填好），把视频拖进发帖框。"}
-              ${it.posts.length > 1 ? "发出去后，在这条下面回复，逐条复制下面的串推。" : ""}</div>`
-            : `<div class="row"><button data-copy="${i}">复制第 ${i + 1} 条</button></div>`}
+                <button data-copy="0">复制</button>
+              </div>`
+            : `<div class="row"><button data-copy="${i}">复制</button></div>`}
           </div>`).join("")}
-        <p class="muted">这里改的文字只在你这一页生效，不会改动素材库。</p>
       </div>
     </div>`
 
@@ -216,7 +210,7 @@ function renderDetail(it) {
       const copied = copy(t) // started in the same tap as share; not awaited so share keeps the gesture
       try {
         await navigator.share({ files: [videoFile], text: t })
-        toast((await copied) ? "文案已复制。X 发帖框里没有文字的话，粘贴即可。" : "X 发帖框里没有文字的话，回来点「复制文案」。", 6000)
+        toast((await copied) ? "文案已复制。X 发帖框里没有文字的话，粘贴即可。" : "X 发帖框里没有文字的话，回来点「复制」。", 6000)
       } catch (e) {
         if (e.name !== "AbortError") toast("分享失败：" + e.message + "。可以先下载视频再手动发。", 6000)
       }
@@ -251,7 +245,7 @@ function renderToken() {
   app.innerHTML = `
     <a class="back" href="#/">← 全部素材</a>
     <h1>上传令牌</h1>
-    <p class="muted">想自己往素材库推视频，先生成一个令牌，再把下面的 prompt 交给你的 Claude Code / Codex，它会把令牌写进你本机的 ~/.env。令牌只显示这一次；重新生成后旧令牌立刻作废。</p>
+    <p class="muted">令牌只显示一次，重新生成后旧的作废。</p>
     <div class="row"><button class="primary" id="mint">生成我的令牌</button></div>
     <div id="out"></div>`
   const btn = app.querySelector("#mint")
