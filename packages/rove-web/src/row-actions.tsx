@@ -15,6 +15,7 @@ import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
+import { openRetry } from "./retry.tsx"
 import { splitMenu } from "./split-actions.tsx"
 import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
 import {
@@ -206,6 +207,11 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       label: tc("tasks", "menu.runAgain"),
       section: "open",
       run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
+    })
+    items.push({
+      label: t("menu.retryEdit"),
+      section: "open",
+      run: () => void openRetry(model, task),
     })
   }
   // A task on another machine runs its verbs there; what only this machine can do stays off its menu:

@@ -81,7 +81,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         <div className={PANE}>
           {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
           <NewSessionView
-            key={`${composing.machine ?? ""}\0${composing.repo ?? ""}\0${composing.ungrouped ? "u" : ""}`}
+            key={`${composing.machine ?? ""}\0${composing.repo ?? ""}\0${composing.ungrouped ? "u" : ""}\0${composing.retryOf?.id ?? ""}`}
             model={model}
             seed={composing}
           />
