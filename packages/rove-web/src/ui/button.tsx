@@ -27,6 +27,8 @@ const VARIANT = {
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",
+  /** A bracketed choice among a few (the attempts strip): quiet until hovered, the accent while it is the current one (`aria-current`). */
+  pill: "inline-flex flex-none items-center gap-1.5 whitespace-nowrap font-mono text-meta text-muted hover:text-ink aria-[current=true]:text-accent",
   card: "flex min-w-0 flex-col gap-1.5 rounded-sm border-hairline p-1.5 text-left focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
 } as const
 

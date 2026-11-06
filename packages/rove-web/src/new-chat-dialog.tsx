@@ -11,7 +11,9 @@ import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
+import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
+import { partialRoundId } from "./new-session.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
@@ -97,18 +99,30 @@ export function NewChatDialog(props: {
         if (!task) throw new Error(tc("terminal", "tab.tabGone"))
         if (!prompt.trim()) throw new Error(t("taskops.forkNeedsMessage"))
         const base = baseRef.trim() || task.branch
-        const res = await model.client.request<{ taskIds: string[]; forkRefused?: string }>("tab.forkTask", {
-          repo: task.repo,
-          baseBranch: base,
-          prompt: first,
-          ...(pick ? { engine: pick } : {}),
-          ...(Number(attempts) > 1 ? { count: Number(attempts) } : {}),
-          // Continuing from the task's own branch (not another base) can clone its worktree, uncommitted work included.
-          ...(base === task.branch ? { forkFrom: taskId } : {}),
-        })
+        let res: { taskIds: string[]; groupId?: string; forkRefused?: string }
+        try {
+          res = await model.client.request("tab.forkTask", {
+            repo: task.repo,
+            baseBranch: base,
+            prompt: first,
+            ...(pick ? { engine: pick } : {}),
+            ...(Number(attempts) > 1 ? { count: Number(attempts) } : {}),
+            // Continuing from the task's own branch (not another base) can clone its worktree, uncommitted work included.
+            ...(base === task.branch ? { forkFrom: taskId } : {}),
+          })
+        } catch (err) {
+          // Some attempts did start: show the round instead of leaving them unseen in the rail.
+          const round = partialRoundId(err)
+          if (!round) throw err
+          toast(err instanceof Error ? err.message : String(err), "error")
+          openCompare(round)
+          return
+        }
         if (res.forkRefused) toast(t("taskops.forkLeftBehind", { reason: res.forkRefused }))
         const created = res.taskIds[0]
-        if (created) model.selectWhenListed(created)
+        // A round of attempts opens its Compare page; one fork opens the task.
+        if (res.groupId) openCompare(res.groupId)
+        else if (created) model.selectWhenListed(created)
       } else if (shell) await openTab(model, taskId, { kind: "shell" })
       else if (pane) {
         const { selection } = model

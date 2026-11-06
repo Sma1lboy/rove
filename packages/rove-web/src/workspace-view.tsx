@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react"
 import { useEffect } from "react"
+import { AttemptsStrip } from "./attempts-strip.tsx"
 import { t } from "./i18n/index.ts"
 import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
@@ -93,6 +94,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
       {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
+      {task?.groupId && <AttemptsStrip model={model} taskId={task.id} groupId={task.groupId} />}
       <div
         className={`${PANE} ${working ? PANE_WORKING : ""}`}
         style={taskInk ? ({ "--task-ink": taskInk } as CSSProperties) : undefined}

@@ -140,9 +140,9 @@ describe("tab.forkTask", () => {
       "tab.forkTask",
       { ...base, count: 3 },
       {},
-      { add: { tasks: [{ taskId: "A" }, { taskId: "B" }, { taskId: "C" }] } },
+      { add: { groupId: "G1", tasks: [{ taskId: "A" }, { taskId: "B" }, { taskId: "C" }] } },
     )
-    expect(fan.result).toEqual({ taskIds: ["A", "B", "C"] })
+    expect(fan.result).toEqual({ taskIds: ["A", "B", "C"], groupId: "G1" })
     expect(fan.calls[0]?.argv).toContain("--count=3")
   })
 
