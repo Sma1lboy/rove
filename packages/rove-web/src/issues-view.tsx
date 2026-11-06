@@ -139,7 +139,7 @@ export function IssuesView({ model }: { model: AppModel }) {
     list.current?.querySelector(`[data-row="${at}"]`)?.scrollIntoView({ block: "nearest" })
   }, [at])
 
-  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
+  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? taskId
   const openTask = (taskId: string) => {
     page.set(null)
     model.select(taskId)

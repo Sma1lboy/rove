@@ -56,6 +56,19 @@ final class ProtocolTests: XCTestCase {
         XCTAssertTrue(p.tasks.isEmpty)
     }
 
+    /// The bridge names the row (the engine's conversation title); an older bridge sends no `label`, so the stored title shows.
+    func testRowLabelNamesTheRowAndAnOlderBridgeFallsBack() throws {
+        let rows = #"""
+        {"id":5,"ok":true,"result":{"tasks":[
+          {"id":"a","title":"first words of the prompt","label":"Fix the login redirect","group":"working","rank":0},
+          {"id":"b","title":"first words of the prompt","group":"working","rank":0},
+          {"id":"c","title":"","branch":"feat/x","label":"","group":"working","rank":0}],"attention":[]}}
+        """#
+        let p = try result(rows, as: TasksPayload.self)
+        XCTAssertEqual(p.tasks.map(\.displayTitle), ["Fix the login redirect", "first words of the prompt", "feat/x"])
+        XCTAssertEqual(p.tasks[0].title, "first words of the prompt", "the stored title stays what a rename edits")
+    }
+
     /// Additive protocol rule: a newer bridge may add optional fields and push events.
     /// This build must decode the rows it knows and ignore the rest, not drop the frame.
     func testNewerBridgeExtrasAreIgnored() throws {

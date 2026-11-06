@@ -26,7 +26,17 @@ const { BridgeRequestError } = await import("../src/bridge.ts")
 const { dialog, toasts } = await import("../src/ui.ts")
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, status: "in_progress", ...extra }) as TaskRow
+  ({
+    id,
+    title: id,
+    label: id,
+    repo: "/r/app",
+    kind: "task",
+    branch: id,
+    rank: 1,
+    status: "in_progress",
+    ...extra,
+  }) as TaskRow
 
 describe("the rail's Archived fold", () => {
   const rows = navRows(groupByProject([task("m", { kind: "main", branch: "" }), task("live")]))

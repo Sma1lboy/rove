@@ -5,7 +5,7 @@ import { withPanes } from "../src/rail-panes.ts"
 import { type NavRow, foldProjects, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/shop", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/shop", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const leaf = (id: string, own = false, title: string | null = null): SplitNodeView => ({ kind: "leaf", id, title, own })
 const tab = (id: string, children?: SplitNodeView[], title = "claude"): TabRow =>
   ({

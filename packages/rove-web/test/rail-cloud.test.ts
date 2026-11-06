@@ -22,7 +22,7 @@ g.localStorage ??= {
 const { CloudMark, remoteLabel, rowCloud } = await import("../src/machines-view.tsx")
 
 const task = (id: string, repo: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const onMac = (id: string, repo: string, extra: Partial<TaskRow> = {}) =>
   task(id, repo, { machine: { id: "mac", label: "mac" }, ...extra })
 const rove = { repoId: "github.com/me/rove" }

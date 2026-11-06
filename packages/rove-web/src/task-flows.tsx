@@ -10,7 +10,6 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { rowTitle } from "./rail.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
 
@@ -188,7 +187,7 @@ function childrenOf(model: AppModel, id: string): readonly TaskRow[] {
  * daemon's choice: promote them (its default) or delete the whole subtree (`cascade`); a force
  * retry keeps whichever was picked.
  */
-export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "branch" | "kind">) {
+export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "label" | "branch" | "kind">) {
   const children = childrenOf(model, task.id)
   const hasChildren = children.length > 0
   const remove = (opts: { readonly force?: true; readonly cascade?: true }) =>
@@ -197,8 +196,8 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
     <ConfirmDialog
       title={
         hasChildren
-          ? tc("tasks", "confirm.childrenTitle", { title: task.title, count: String(children.length) })
-          : tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.title })
+          ? tc("tasks", "confirm.childrenTitle", { title: task.label, count: String(children.length) })
+          : tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.label })
       }
       body={
         hasChildren
@@ -213,7 +212,7 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
       escalate={{
         when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
         label: tc("tasks", "confirm.forceDeleteConfirm"),
-        title: tc("tasks", "confirm.forceDeleteTitle", { title: task.title }),
+        title: tc("tasks", "confirm.forceDeleteTitle", { title: task.label }),
         // The title already names the task; its raw id is noise in the refusal.
         body: (err) =>
           `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`,
@@ -231,7 +230,7 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
 export function endMainConversationDialog(model: AppModel, task: TaskRow) {
   const children = childrenOf(model, task.id)
   const hasChildren = children.length > 0
-  const title = rowTitle(task, model.tabs.get()[task.id])
+  const title = task.label
   const endConversation = async () => {
     const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
     for (const tab of tabs) await model.client.request("tab.close", { taskId: task.id, tabId: tab.id })
@@ -283,9 +282,9 @@ export function endMainConversationDialog(model: AppModel, task: TaskRow) {
  * No confirm, since nothing stops; only the daemon's TASK_BUSY refusal (an engine still working or
  * waiting on you) asks once, and "Archive anyway" retries with force.
  */
-export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "title" | "archived">): Promise<void> {
+export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "label" | "archived">): Promise<void> {
   const archived = task.archived !== true
-  const title = task.title
+  const title = task.label
   const run = async (force: boolean) => {
     await model.client.request("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
     toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))

@@ -47,6 +47,7 @@ function row(id: string, repo: string, order: number): TaskRow {
   return {
     id,
     title: id,
+    label: id,
     branch: "",
     repo,
     kind: "managed",
@@ -75,8 +76,8 @@ describe("rail", () => {
     const main = { ...row("m", "/w/a", 3), kind: "main", title: "zzz" }
     const tasks = [
       main,
-      { ...row("x", "/w/a", 0), title: "beta", rank: 1 },
-      { ...row("y", "/w/a", 1), title: "alpha", rank: 0 },
+      { ...row("x", "/w/a", 0), title: "beta", label: "beta", rank: 1 },
+      { ...row("y", "/w/a", 1), title: "alpha", label: "alpha", rank: 0 },
     ]
     expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
     expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
@@ -85,10 +86,10 @@ describe("rail", () => {
 
   test("`/` keeps a hit's ancestors: a task hit keeps its children, a child hit keeps its parent", () => {
     const groups = groupByProject([
-      { ...row("t1", "/w/a", 0), title: "Fix retry" },
-      { ...row("c1", "/w/a", 1), title: "claude", parentTaskId: "t1" },
-      { ...row("t2", "/w/a", 2), title: "Audit" },
-      { ...row("c2", "/w/a", 3), title: "vitest", parentTaskId: "t2" },
+      { ...row("t1", "/w/a", 0), title: "Fix retry", label: "Fix retry" },
+      { ...row("c1", "/w/a", 1), title: "claude", label: "claude", parentTaskId: "t1" },
+      { ...row("t2", "/w/a", 2), title: "Audit", label: "Audit" },
+      { ...row("c2", "/w/a", 3), title: "vitest", label: "vitest", parentTaskId: "t2" },
     ])
     const ids = (q: string) => navRows(groups, q).map((r) => r.id)
     expect(ids("retry")).toEqual(["project:/w/a", "t1", "c1"])

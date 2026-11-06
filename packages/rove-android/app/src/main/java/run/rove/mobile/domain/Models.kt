@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class TaskRow(
     val id: String,
     val title: String = "",
+    val label: String? = null,
     val branch: String = "",
     val repo: String = "",
     val kind: String = "task",
@@ -28,7 +29,8 @@ data class TaskRow(
     val prChipStale: Boolean = false,
     val tabStatus: Map<String, TabStatus> = emptyMap(),
 ) {
-    val displayTitle get() = title.ifEmpty { branch.ifEmpty { id } }
+    /** The bridge's row name; an older bridge sends none, then the stored title / branch / id. `title` stays the one a rename edits. */
+    val displayTitle get() = label?.takeIf { it.isNotEmpty() } ?: title.ifEmpty { branch.ifEmpty { id } }
     /** The daemon's own reading: this tab's engine waits at a menu that takes digits and Enter as keys. */
     fun atMenu(tabId: String) = tabStatus[tabId]?.kind == "needs-input"
     val repoName get() = repo.trimEnd('/').substringAfterLast('/')

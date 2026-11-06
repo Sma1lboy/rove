@@ -4,7 +4,7 @@ import { dropIdleMains } from "../src/rail-idle.ts"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/shop", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/shop", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const main = task("shop", { kind: "main" })
 const run = task("daily-release", { routine: true })
 

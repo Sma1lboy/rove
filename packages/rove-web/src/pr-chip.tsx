@@ -170,7 +170,7 @@ export function PrChip({ tasks, onOpen }: { tasks: readonly TaskRow[]; onOpen?: 
                   disabled={!pr?.url}
                   onClick={() => pr?.url && window.open(pr.url, "_blank", "noopener")}
                 >
-                  <span className={PR_LIST_TITLE}>{pr.title || task.title}</span>
+                  <span className={PR_LIST_TITLE}>{pr.title || task.label}</span>
                   <span className={PR_LIST_LINE}>
                     <span className={`${PR_LIST_STATE} ${mark.tone}`}>
                       <span className={PR_LIST_GLYPH}>{mark.glyph}</span>

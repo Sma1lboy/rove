@@ -24,6 +24,9 @@ import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engi
 import { MachineFeed } from "@sma1lboy/rove/src/machines/feed.ts"
 import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { terminalTabsKey } from "@sma1lboy/rove/src/state/tabs-persistence.ts"
+import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import {
@@ -52,6 +55,7 @@ import { PushHub, sharedCredential } from "./push.ts"
 import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
+import { SessionTitles } from "./session-titles.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
 import { createWebLogin } from "./web-login.ts"
@@ -242,6 +246,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     machineOf,
     forward: (alias, verb, params) => forwardVerb(requireMachine(alias), verb, params),
   })
+  const sessionTitles = new SessionTitles(() => new RoveDaemonClient(defaultPtyHostSocketPath()))
   const ops = createRoveOps(
     verbClient,
     {
@@ -256,6 +261,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
           .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
       remoteLive: () => hub.liveSignal().get(),
       rowStatus: () => rowStatus.current(),
+      titleSources: async () => {
+        const sessions = await sessionTitles.current()
+        const state = loadStateFile()
+        return { sessions, tabs: (taskId) => state[terminalTabsKey(taskId)] as TabsState | undefined }
+      },
     },
     api,
   )
@@ -280,6 +290,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   usageStore.setContext(context())
   context.subscribe(() => usageStore.setContext(context()))
   setInterval(() => feed.poke(), TICK_MS)
+  // A retitle (the engine's OSC title) changes no task record; poll the PTY host while a client listens.
+  sessionTitles.watch(
+    () => feed.active,
+    () => feed.poke(),
+  )
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
@@ -304,7 +319,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   startFileWatchTrigger({
     filePath: statePath,
     debounceMs: TABS_DEBOUNCE_MS,
-    onTrigger: () => tabs.check(),
+    onTrigger: () => {
+      tabs.check()
+      // A tab rename in state.json renames the row.
+      feed.poke()
+    },
     // Best-effort: the next write re-checks.
     onError: () => {},
   })

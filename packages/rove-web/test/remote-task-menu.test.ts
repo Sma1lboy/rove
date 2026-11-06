@@ -22,6 +22,7 @@ const task = (extra: Partial<TaskRow> = {}): TaskRow =>
   ({
     id: "t1",
     title: "t1",
+    label: "t1",
     repo: "/w/app",
     kind: "task",
     branch: "fix/x",

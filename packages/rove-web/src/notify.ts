@@ -63,7 +63,7 @@ export function useCrossTaskNotices(model: AppModel): void {
       const { prefs } = prefsStore.get()
       if (!prefs.crossTask) return
       const open = model.selection.get().taskId
-      const titles = new Map(payload.tasks.map((task) => [task.id, task.title]))
+      const titles = new Map(payload.tasks.map((task) => [task.id, task.label]))
       for (const { key, kind } of edges) {
         if (key === open || !shouldAlert({ kind, turnEnd: true }, prefs.finishedAlerts)) continue
         const title = titles.get(key) ?? key

@@ -34,6 +34,8 @@ export function engineFor(task: SerializedTask, engines: readonly EngineRow[]): 
 export interface RowExtras {
   readonly changes: WorktreeChangesMap | null
   readonly tokens: RowTokenMap
+  /** taskId → row name (`rowLabels`); a task not in it reads its stored title. */
+  readonly labels?: ReadonlyMap<string, string>
 }
 
 /** `worktree.changes` for one row: absent when not collected (never zeros), `unreadable` for a tracked path git could not read. */
@@ -207,6 +209,7 @@ export function taskRows(
       {
         id: task.id,
         title: task.title,
+        label: extras?.labels?.get(task.id) ?? task.title,
         branch: task.branch,
         repo: task.repo,
         kind: task.kind ?? "task",
