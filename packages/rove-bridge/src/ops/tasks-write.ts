@@ -187,6 +187,9 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.setBranch": write("verb update --task-id --branch", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("branch", gitRef(a, "branch"))])),
   ),
+  "task.moveToProject": write("verb update --task-id --project", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("project", absPath(a, "repo"))])),
+  ),
   "task.setCommand": write("verb update --task-id --command=<engine id>", async (a, c) => {
     const id = taskId(a)
     const engine = await engineId(a, "engine", c)

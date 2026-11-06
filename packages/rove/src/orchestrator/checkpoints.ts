@@ -6,6 +6,7 @@
  */
 
 import type { CheckpointOrchestrator } from "@sma1lboy/rove-daemon/daemon/checkpoint-contracts"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceBackendId, workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { Task, TaskId } from "../types/task.ts"
 import type { TaskIndexStore } from "./index/store.ts"
@@ -87,6 +88,6 @@ export class WorkspaceCheckpoints implements CheckpointOrchestrator {
     if (!backend.exportBranch || !owner.worktreePath) {
       throw new Error("EXPORT_UNSUPPORTED: the task's branch is already in its repo (or it has no workspace yet)")
     }
-    return backend.exportBranch({ path: owner.worktreePath, repo: owner.repo, branch: owner.branch })
+    return backend.exportBranch({ path: owner.worktreePath, repo: gitRepoOf(owner), branch: owner.branch })
   }
 }

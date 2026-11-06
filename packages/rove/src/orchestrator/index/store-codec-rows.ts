@@ -110,6 +110,8 @@ export function coerceTask(value: unknown): Task | null {
     // Caller-chosen worktree dir; allocation is lazy, so losing it would hand
     // out a random name after the caller was told the path.
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
+    // Lost, a moved row's delete/land would run against the project it was moved to, not the repo that owns its worktree.
+    ...(typeof v.gitRepo === "string" && v.gitRepo.trim().length > 0 ? { gitRepo: v.gitRepo } : {}),
     // A secondary repo's worktree is only findable through this list: lost, it is an orphan nobody deletes.
     ...(extraRepos ? { extraRepos } : {}),
     // Lost, a cloned workspace reads as a plain worktree and loses its capabilities.

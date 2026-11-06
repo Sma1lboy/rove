@@ -119,6 +119,7 @@ const TASK_FIELDS = {
   prompt: true,
   baseRef: true,
   worktreeName: true,
+  gitRepo: true,
   extraRepos: true,
   sessionPrs: true,
   report: true,

@@ -363,6 +363,16 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // `update --project`: regroup only, so the session's directory stays and its engine resumes where it was.
+    name: "task.moveToProject",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const { repo, moved } = await ctx.orch.moveTaskToProject(taskId, requireString(payload, "repo"))
+      return { taskId, repo, moved }
+    },
+  },
+  {
     name: "task.requireReport",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

@@ -118,6 +118,7 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}
       onSetStatusRequest={(id) => void actions.setStatus(id)}
+      onMoveToProjectRequest={(id) => void actions.moveToProject(id)}
       onCopyRequest={(id, field, tabId) => actions.copyTaskField(id, field, tabId)}
       onOpenEditorRequest={props.openTaskWorktree}
       onRenameBranchRequest={(id) => void actions.renameBranch(id)}

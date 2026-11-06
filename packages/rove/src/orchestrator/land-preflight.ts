@@ -10,6 +10,7 @@ import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task } from "../types/task.ts"
 import { isDirtyOutput, parseDirtyPaths } from "./dirty-paths.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, MainCheckoutDirtyError, MissingRefError } from "./errors.ts"
+import { gitRepoOf } from "./task-tree.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
 
@@ -90,7 +91,7 @@ export async function landPreflight(task: Task, deps: WorktreeExecDeps = default
   }
   const branch = task.branch.trim()
   if (!branch) throw new Error(`landPreflight: task ${task.id} has no branch to land (never materialised)`)
-  const { exec, dir } = baseRepoCtx(task.repo, deps)
+  const { exec, dir } = baseRepoCtx(gitRepoOf(task), deps)
 
   // Not `rev-parse --abbrev-ref HEAD`: with NO COMMITS it exits 128 and prints
   // `HEAD`, reading an unborn `main` as detached. `symbolic-ref` names an
@@ -168,7 +169,7 @@ export function landRefusalError(task: Task, pf: LandPreflight & { readonly refu
     case "SAME_BRANCH":
       return new Error(`landTask: base checkout is already on '${pf.branch}' — nothing to land onto`)
     case "MAIN_CHECKOUT_DIRTY":
-      return new MainCheckoutDirtyError(task.repo, pf.baseDir)
+      return new MainCheckoutDirtyError(gitRepoOf(task), pf.baseDir)
     case "MISSING_REF":
       return new MissingRefError(pf.branch, pf.landedOn, pf.baseDir)
     case "EMPTY_BRANCH_DIRTY_WORKTREE":

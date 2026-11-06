@@ -16,11 +16,13 @@
  */
 
 import { rollupPr } from "@/orchestrator/task-tree"
+import { isRemoteRepoKey } from "@/state/repos"
 import type { Task } from "@/types/task"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
+  | "moveToProject"
   | "open"
   | "toggleFold"
   | "forgetProject"
@@ -83,6 +85,19 @@ function newTabVerbs(): TreeMenuItem[] {
   ]
 }
 
+/** Rows `update --project` accepts: top-level, local, single-repo, not a project or routine session. */
+function canMoveToProject(task: Task): boolean {
+  return (
+    task.kind !== "main" &&
+    !task.routine &&
+    !task.parentTaskId &&
+    !task.sharesWorkspaceOf &&
+    !task.extraRepos?.length &&
+    (task.origin?.machineId ?? "local") === "local" &&
+    !isRemoteRepoKey(task.repo)
+  )
+}
+
 /**
  * Per-task verbs for worktree and tab rows. Rule throughout: no entry beats a
  * dead entry — e.g. no pin on `main` (always pinned; `setPinned` no-ops).
@@ -102,6 +117,8 @@ function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // Menu-only. Top-level, local, single-repo rows only: the rest refuse (`rove api update --project`).
+  if (canMoveToProject(task)) verbs.push({ action: "moveToProject", labelKey: "tasks.menu.moveToProject" })
   // The id `rove api ... --task-id` takes; recorded at creation, so always offered.
   verbs.push({ action: "copyId", labelKey: "tasks.menu.copyId" })
   // Copies need the string recorded: `main`/`dir` store `branch === ""`

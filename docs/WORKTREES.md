@@ -40,6 +40,17 @@ Worktree location relocates the root (a `$project_dir` token expands to each
 task's project root). Remote (SSH) projects put worktrees under the remote
 project's own path at `<project>/.rove/worktrees/<slug>`.
 
+## Move a task to another project
+
+A task created in the wrong project moves with the row menu's "Move to
+project…" (TUI and web) or `rove api update --task-id ID --project PATH`. The
+move regroups the rows only: the checkout, branch, terminals and running
+engine stay exactly where they are, so the conversation keeps resuming. A
+worktree task remembers the repo that cut it, so Remove session, Land and
+forks still run in that repo, and moving it back clears the link. Children
+follow their parent; a child, a project's main task, a routine session and a
+multi-repo task are not movable on their own.
+
 ## Ignored directories are cloned in
 
 On macOS a new local task's worktree gets the main checkout's `node_modules`

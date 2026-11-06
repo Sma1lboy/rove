@@ -210,6 +210,11 @@ describe("task edits", () => {
       { verb: "update", argv: [`--task-id=${T}`, "--branch=feat/y"] },
     ],
     [
+      "task.moveToProject",
+      { taskId: T, repo: "/work/app" },
+      { verb: "update", argv: [`--task-id=${T}`, "--project=/work/app"] },
+    ],
+    [
       "task.setModel",
       { taskId: T, model: "gpt-5.1:high" },
       { verb: "update", argv: [`--task-id=${T}`, "--model=gpt-5.1:high"] },

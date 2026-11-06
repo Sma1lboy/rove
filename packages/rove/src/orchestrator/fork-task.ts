@@ -10,6 +10,7 @@ import { type CreateDeps, createTaskRow } from "./core-create.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { ForkUnsupportedError, TaskDeletingError, TaskNotFoundError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import { gitRepoOf } from "./task-tree.ts"
 import { type WorkspaceRegistry, workspaceBackendId, workspaceCapabilities } from "./workspace/index.ts"
 import { git } from "./worktree/git.ts"
 
@@ -55,12 +56,14 @@ export async function forkTaskRow(
   const baseRef = git(["rev-parse", "HEAD"], { cwd: parentPath, readOnly: true }).stdout.trim()
   const child = await deps.createRow({
     ...input,
-    repo: parent.repo,
+    repo: gitRepoOf(parent),
     title: input.title ?? `${parent.title} (fork)`,
     baseRef,
     workspace: { backend: "cow-clone", ref: String(parent.id) },
     ...(parent.cwdSubpath ? { cwdSubpath: parent.cwdSubpath } : {}),
   })
+  // A moved parent's fork is cut from the repo that owns the checkout but shows under the parent's project.
+  if (parent.gitRepo) await deps.store.update(child.id, { repo: parent.repo, gitRepo: parent.gitRepo })
   // Eager: the copy must capture the parent as it is now, not at the child's first enter.
   try {
     await deps.cloneInto(child, parentPath)
@@ -80,5 +83,5 @@ async function discard(deps: ForkTaskDeps, child: Task): Promise<void> {
   if (!row?.worktreePath) return
   await deps.workspaces
     .get(workspaceBackendId(row))
-    .dispose({ path: row.worktreePath, repo: row.repo, branch: row.branch }, { force: true, deleteBranch: true })
+    .dispose({ path: row.worktreePath, repo: gitRepoOf(row), branch: row.branch }, { force: true, deleteBranch: true })
 }

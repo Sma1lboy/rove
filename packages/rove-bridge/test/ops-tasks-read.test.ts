@@ -18,6 +18,7 @@ describe("op table", () => {
         "task.spawn",
         "task.rename",
         "task.setBranch",
+        "task.moveToProject",
         "task.setCommand",
         "task.setModel",
         "task.setEffort",

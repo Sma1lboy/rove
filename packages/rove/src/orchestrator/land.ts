@@ -11,6 +11,7 @@ import type { ExecHost } from "../exec/exec-host.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { GitCommandFailedError, LandConflictError } from "./errors.ts"
 import { baseRepoCtx, landGit as git, landPreflight, landRefusalError } from "./land-preflight.ts"
+import { gitRepoOf } from "./task-tree.ts"
 import { workspaceCapabilities } from "./workspace/index.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
@@ -109,7 +110,7 @@ export async function finishLanded(
   } else if (opts.deleteBranch) {
     // Git can still refuse (another worktree on the branch, a lock, a moved
     // ref); `branchKept` carries git's own reason.
-    const outcome = await deps.worktrees.deleteBranch(task.repo, result.branch, {
+    const outcome = await deps.worktrees.deleteBranch(gitRepoOf(task), result.branch, {
       force: true,
       onAnchor: (record) => {
         branchAnchor = record
@@ -140,7 +141,8 @@ async function removeLandedWorktree(
   // The refusals are string compares, so normalise with the same
   // canonicalizer that matched this worktree to its task.
   const wt = canonicalize(worktreePath)
-  if (samePath(wt, canonicalize(task.repo))) return { removed: false, reason: "refusing to remove the base checkout" }
+  if (samePath(wt, canonicalize(gitRepoOf(task))))
+    return { removed: false, reason: "refusing to remove the base checkout" }
   if (deps.sharesWorktree?.(task)) {
     return { removed: false, reason: `kept ${worktreePath}: other tasks still run in this directory` }
   }
@@ -218,7 +220,7 @@ export async function landTask(
   const preflight = await landPreflight(task, deps)
   if (preflight.refusal) throw landRefusalError(task, { ...preflight, refusal: preflight.refusal })
   const { branch, landedOn } = preflight
-  const { exec, dir } = baseRepoCtx(task.repo, deps)
+  const { exec, dir } = baseRepoCtx(gitRepoOf(task), deps)
 
   if (strategy === "squash") {
     const merge = await git(exec, dir, ["merge", "--squash", branch])

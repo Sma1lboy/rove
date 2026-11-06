@@ -336,6 +336,20 @@ export class ReparentRefusedError extends Error {
   }
 }
 
+/** Wire codes of a refused `update --project`; the CLI lifts them off the message as typed `error.code`. */
+export type MoveRefusal = "TASK_NOT_MOVABLE" | "CHILD_NOT_MOVABLE" | "SAME_PROJECT" | "REMOTE_MOVE_UNSUPPORTED"
+
+/** A project move that would orphan a worktree, split a task tree or cross machines. */
+export class MoveRefusedError extends Error {
+  constructor(
+    public readonly code: MoveRefusal,
+    detail: string,
+  ) {
+    super(`${code}: ${detail}`)
+    this.name = "MoveRefusedError"
+  }
+}
+
 /** Wire sentinel — same reason as {@link DIRTY_WORKTREE_CODE}. */
 export const TOO_MANY_REPOS_CODE = "TOO_MANY_REPOS"
 

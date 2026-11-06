@@ -8,7 +8,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { SpawnChildInput } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
-import { lineageRootId, taskCwd } from "@sma1lboy/rove-daemon/task-tree"
+import { gitRepoOf, lineageRootId, taskCwd } from "@sma1lboy/rove-daemon/task-tree"
 import { isGitRepo, isRemoteRepoKey, resolveMainRepoRoot } from "../state/repos.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { toTaskId } from "../types/task.ts"
@@ -125,7 +125,7 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
   const cwdSubpath = sub && !sub.split(sep).includes("..") && !isAbsolute(sub) ? sub : undefined
   const baseRef = input.baseRef?.trim() || gitOut(sourceDir, ["rev-parse", "HEAD"])
   // Keep a managed parent's own repo key; a dir or linked repo resolves to its primary checkout.
-  const repo = source || parent.kind === "dir" ? resolveMainRepoRoot(sourceDir) : parent.repo
+  const repo = source || parent.kind === "dir" ? resolveMainRepoRoot(sourceDir) : gitRepoOf(parent)
   const parentDirty = await isDirty(deps, sourceDir)
 
   const child = await deps.createTask({
@@ -145,6 +145,8 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     branch: input.branch,
     worktreeName: input.worktreeName,
   })
+  // A moved parent's child is cut from the repo that owns the checkout but shows under the parent's project.
+  if (!source && parent.gitRepo) await deps.store.update(child.id, { repo: parent.repo, gitRepo: parent.gitRepo })
   if (input.lazy) {
     if (input.prompt) await deps.store.update(child.id, { prompt: input.prompt })
     return { task: deps.store.get(child.id) ?? child, parentDirty, sharedLinks: source ? [] : links.map((l) => l.name) }
@@ -157,7 +159,12 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     const partial = deps.store.get(child.id)
     if (partial?.worktreePath) {
       await deps.worktrees
-        .remove(partial.worktreePath, { force: true, deleteBranch: true, repo: partial.repo, branch: partial.branch })
+        .remove(partial.worktreePath, {
+          force: true,
+          deleteBranch: true,
+          repo: gitRepoOf(partial),
+          branch: partial.branch,
+        })
         .catch((cleanup) => console.error(`[rove] spawn rollback failed for ${partial.worktreePath}:`, cleanup))
     }
     await deps.store.remove(child.id)
