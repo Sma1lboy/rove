@@ -199,8 +199,10 @@ async function api(req, env, url, writer, viewer) {
     const idx = await readIndex(env)
     const item = idx.items.find((x) => x.id === m[1])
     if (!item) return json({ error: "no such item" }, 404)
-    const { title, posts } = await req.json()
+    const { title, posts, kind, lang } = await req.json()
     if (title) item.title = title
+    if (typeof kind === "string" && kind.length <= 12) item.kind = kind
+    if (lang === "zh" || lang === "en") item.lang = lang
     if (validPosts(posts)) await saveVersion(env, item, posts, writer)
     item.updated = new Date().toISOString()
     await writeIndex(env, idx)
