@@ -183,6 +183,7 @@ export function TerminalView(props: TerminalViewProps) {
     const control = {
       stream,
       focus: () => term.focus(),
+      input: (data: string) => term.input(data, true),
       reattach: () => handle.reattach(),
       scrollPages: (direction: 1 | -1) => handle.scrollLines(direction * SCROLL_PAGE_LINES),
       hasSelection: () => term.hasSelection(),

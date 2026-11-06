@@ -12,6 +12,7 @@ import { enterWorkspace, openCompare, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { offeredEngines } from "./new-session.ts"
+import { focusActiveTerminal } from "./pane-focus.ts"
 import { railCursorTask } from "./rail-aim.ts"
 import { openPane } from "./rail-pane-row.tsx"
 import { cycleRailSort, railSort } from "./rail-sort.ts"
@@ -246,7 +247,7 @@ export function useRailKeys(
         open(row)
         break
       case "tasks.focusEngine":
-        document.querySelector<HTMLElement>(".term-slot:not(.is-hidden) textarea")?.focus()
+        focusActiveTerminal()
         break
       case "sidebar.rename":
       case "sidebar.pin":

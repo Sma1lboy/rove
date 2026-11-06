@@ -11,6 +11,8 @@ import { createStore } from "./store.ts"
 export interface TermControl {
   readonly stream: string
   focus(): void
+  /** Bytes typed into the engine as if from the keyboard (the page's own Escape for it). */
+  input(data: string): void
   /** `ctrl+pgup` / `ctrl+pgdown`: a page of scrollback (the TUI's ten lines). */
   scrollPages(direction: 1 | -1): void
   hasSelection(): boolean

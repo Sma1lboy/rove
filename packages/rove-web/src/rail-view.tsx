@@ -14,6 +14,7 @@ import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain } from "./move-mode.ts"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
+import { focusActiveTerminal } from "./pane-focus.ts"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { withArchived } from "./rail-archived.ts"
@@ -273,8 +274,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
                 if (row.kind === "task") {
+                  const open = model.selection.get().taskId === row.task.id
                   model.select(row.task.id)
                   enterWorkspace()
+                  // Another task's terminal takes the keyboard as it mounts; the open one is already
+                  // mounted, and the click left focus on this row, where Escape reaches no engine.
+                  if (open) focusActiveTerminal()
                 }
               }}
               onMenu={(e) => {
