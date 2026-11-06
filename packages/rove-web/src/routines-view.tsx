@@ -124,13 +124,9 @@ export function RoutinesView({ model }: { model: AppModel }) {
     routineFocus.set(null)
   }, [wanted, reply])
 
-  // Every routine's runs feed the log; the selected one's also feed its precheck and responses.
-  const allRuns = useRoutineRuns(
-    c,
-    listed.map((routine) => routine.id),
-    tick,
-  )
-  const runs = selected ? (allRuns[selected.id] ?? []) : []
+  // The selected routine's runs feed its Enter key, precheck and responses; the log reads its own.
+  const selectedRuns = useRoutineRuns(c, selected ? [selected.id] : [], tick)
+  const runs = selected ? (selectedRuns[selected.id] ?? []) : []
 
   // A notice names ONE routine: clear it when the selection moves.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the id is the trigger
@@ -484,7 +480,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 )}
 
                 <RunLog
-                  runs={allRuns}
+                  c={c}
+                  tick={tick}
                   routines={listed}
                   followId={selected.id}
                   now={now}

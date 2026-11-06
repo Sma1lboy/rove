@@ -3,6 +3,8 @@ export const en = {
   runLog: {
     title: "Runs",
     all: "all",
+    routine: "Routine",
+    allRoutines: "All routines",
     outcome: { ok: "ok", blocked: "blocked", failed: "failed", skipped: "skipped" },
     source: { schedule: "schedule", manual: "manual", webhook: "webhook" },
     blocked: {
@@ -25,6 +27,8 @@ export const zh: typeof en = {
   runLog: {
     title: "运行记录",
     all: "全部",
+    routine: "例行任务",
+    allRoutines: "全部例行任务",
     outcome: { ok: "成功", blocked: "受阻", failed: "失败", skipped: "跳过" },
     source: { schedule: "定时", manual: "手动", webhook: "Webhook" },
     blocked: {

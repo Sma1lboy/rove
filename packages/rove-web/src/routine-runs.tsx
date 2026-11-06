@@ -14,6 +14,8 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatched: "success",
   revived: "success",
   skipped_precheck: "muted",
+  // Waiting on a person or a limit whose cause is already in the Inbox: noticeable, not an alarm.
+  skipped_blocked: "warning",
   skipped_cancelled: "muted",
   skipped_missed: "warning",
   skipped_unavailable: "warning",

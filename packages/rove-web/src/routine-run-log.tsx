@@ -10,19 +10,12 @@ import type { BridgeClient } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
-import {
-  OUTCOMES,
-  type Outcome,
-  SOURCES,
-  filterRuns,
-  formatDuration,
-  outcomeOf,
-  runDurationMs,
-} from "./routine-run-log.ts"
+import { OUTCOMES, type Outcome, SOURCES, filterRuns, formatDuration, runDurationMs } from "./routine-run-log.ts"
 import { runErrorText } from "./routine-run-text.ts"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { Button } from "./ui/button.tsx"
 import { RT_GROW, RT_RUN, RT_RUN_ERROR, RT_RUN_LINE, RT_RUN_OPEN, RT_RUN_ROUTINE } from "./ui/routines.ts"
+import { Select } from "./ui/select.tsx"
 import { KICKER } from "./ui/text.ts"
 
 /** How many runs the log lists before it says how many more there are. */
@@ -53,13 +46,9 @@ export function useRoutineRuns(c: BridgeClient, ids: readonly string[], tick: nu
   return runs
 }
 
-/** The run's tone: a blocked run waits on someone, so it is a warning rather than the healthy grey of a skip. */
-function toneOf(run: AutomationRun): keyof typeof TONE_CLASS {
-  return outcomeOf(run) === "blocked" ? "warning" : runTone(run.status)
-}
-
 export function RunLog(props: {
-  runs: RunsByRoutine
+  c: BridgeClient
+  tick: number
   routines: readonly { readonly id: string; readonly name: string }[]
   /** The routine the page's cursor is on: the log starts on it, and follows it. */
   followId: string | undefined
@@ -75,8 +64,11 @@ export function RunLog(props: {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the cursor moving is the trigger
   useEffect(() => setRoutine(null), [props.followId])
   const scope = routine === null ? (props.followId ?? "") : routine
+  // Only the routines in view are read: one, or every routine when the log is widened to all.
+  const read = scope === "" ? props.routines.map((r) => r.id) : [scope]
+  const runs = useRoutineRuns(props.c, read, props.tick)
   const nameOf = new Map(props.routines.map((r) => [r.id, r.name]))
-  const shown = filterRuns(props.runs, scope === "" ? null : scope, outcome)
+  const shown = filterRuns(runs, scope === "" ? null : scope, outcome)
   const statusText = (run: AutomationRun): string => {
     if (run.status === "skipped_blocked") {
       const reason = run.blocked?.reason
@@ -95,10 +87,15 @@ export function RunLog(props: {
     <>
       <h2 className={`${KICKER} text-muted`}>{t("runLog.title")}</h2>
       {props.routines.length > 1 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {chip(t("runLog.all"), scope === "", () => setRoutine(""), "all")}
-          {props.routines.map((r) => chip(r.name, scope === r.id, () => setRoutine(r.id), r.id))}
-        </div>
+        <Select
+          label={t("runLog.routine")}
+          value={scope}
+          picks={[
+            { value: "", label: t("runLog.allRoutines") },
+            ...props.routines.map((r) => ({ value: r.id, label: r.name })),
+          ]}
+          onPick={setRoutine}
+        />
       )}
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {chip(t("runLog.all"), outcome === null, () => setOutcome(null), "all")}
@@ -106,11 +103,11 @@ export function RunLog(props: {
       </div>
       {shown.length === 0 ? (
         <p className="text-muted">
-          {filterRuns(props.runs, scope === "" ? null : scope, null).length === 0 ? auto.noRuns : t("runLog.empty")}
+          {filterRuns(runs, scope === "" ? null : scope, null).length === 0 ? auto.noRuns : t("runLog.empty")}
         </p>
       ) : (
         shown.slice(0, SHOWN).map((run) => {
-          const tone = toneOf(run)
+          const tone = runTone(run.status)
           const state = routineRunResponseState(run, props.now)
           const note =
             state === "awaiting" ? `, ${auto.responseAwaiting}` : state === "missing" ? `, ${auto.responseMissing}` : ""
