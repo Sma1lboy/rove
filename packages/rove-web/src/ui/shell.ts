@@ -116,9 +116,12 @@ export const PREFIX_GUIDE_GROUP = "mb-2 break-inside-avoid"
 export const PREFIX_GUIDE_ROW =
   "flex w-full gap-2.5 px-0 py-px text-left text-ink enabled:hover:bg-hover disabled:cursor-default touch:py-2.5"
 
-export const PALETTE_LIST = "mx-0 my-2 overflow-y-auto"
+/** No visible bars, as the rail: a long name ends in an ellipsis instead of scrolling sideways. */
+export const PALETTE_LIST = "mx-0 my-2 overflow-x-hidden overflow-y-auto scrollbar-none"
 export const paletteRow = (selected: boolean): string =>
-  `flex w-full justify-between gap-4 rounded-sm px-1.5 py-0.75 text-left font-mono text-meta ${FONT_RESET} whitespace-pre text-ink touch:py-2.5 ${selected ? "is-selected bg-hover" : ""}`
+  `flex w-full min-w-0 justify-between gap-4 rounded-sm px-1.5 py-0.75 text-left font-mono text-meta ${FONT_RESET} whitespace-pre text-ink touch:py-2.5 ${selected ? "is-selected bg-hover" : ""}`
+export const PALETTE_NAME = "min-w-0 overflow-hidden text-ellipsis"
+export const PALETTE_CHORD = "shrink-0"
 
 export const HELP_HEAD = "flex justify-between gap-4"
 export const HELP_CORNER = `flex flex-col items-end ${META}`
