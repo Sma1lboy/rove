@@ -119,7 +119,7 @@ function PaletteDialog({
   const issuesOn = useStore(model.installedMods).has("issues")
   const pages: { id: PageId; name: string; source?: IssuesSource }[] = [
     { id: "usage" as const, name: t("usage.title") },
-    ...(issuesOn ? [{ id: "issues" as const, name: t("review.palette"), source: "reviews" as const }] : []),
+    ...(issuesOn ? [{ id: "issues" as const, name: t("reviewQueue.palette"), source: "reviews" as const }] : []),
   ].filter((entry) => q === "" || fuzzyMatch(q, entry.name))
   const said = useConversationHits(model, query)
   const hits = said.kind === "done" ? said.reply.matches : []
