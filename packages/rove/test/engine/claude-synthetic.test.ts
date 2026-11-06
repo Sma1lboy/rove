@@ -17,6 +17,30 @@ describe("isSyntheticClaudeRecord", () => {
   })
 })
 
+describe("parseJsonl ignores API request snapshots", () => {
+  it("reads the typed prompt once, not again from the request blob that repeats it", () => {
+    const raw = [
+      JSON.stringify({ type: "user", message: { role: "user", content: "add a --json flag" } }),
+      JSON.stringify({
+        type: "api-request-blob",
+        message: {
+          role: "user",
+          content: [
+            { type: "text", text: "<system-reminder>context</system-reminder>" },
+            { type: "text", text: "add a --json flag" },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: "api-request-blob",
+        message: { role: "system", content: [{ type: "text", text: "hook output" }] },
+      }),
+      JSON.stringify({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "done" }] } }),
+    ].join("\n")
+    expect(parseJsonl(raw, "s1").map((m) => m.role)).toEqual(["user", "assistant"])
+  })
+})
+
 describe("parseJsonl drops synthetic first rows", () => {
   it("skips the caveat + command breadcrumb so the real prompt is first", () => {
     const raw = [

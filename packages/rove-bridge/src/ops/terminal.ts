@@ -9,14 +9,14 @@ import { randomBytes } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import {
   type ChatForkPlan,
   liveSourceProtocol,
   planWorktreeHandoff,
-} from "@sma1lboy/rove/src/tui-react/workspace/fork-chat-tab.ts"
+} from "@sma1lboy/rove/src/engine/session-handoff-plan.ts"
+import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"

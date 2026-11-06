@@ -5,8 +5,8 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { liveSourceProtocol, planWorktreeHandoff } from "../../engine/session-handoff-plan.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
-import { liveSourceProtocol, planWorktreeHandoff } from "../../tui-react/workspace/fork-chat-tab.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { readDaemonTabs, readTabsSnapshot } from "./tab-snapshot.ts"

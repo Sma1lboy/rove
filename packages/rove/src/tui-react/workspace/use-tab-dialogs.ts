@@ -20,6 +20,12 @@
  */
 
 import { availableEngineIds } from "@/engine/account-detect"
+import {
+  type ChatForkPlan,
+  liveSourceProtocol,
+  planChatContinuation,
+  planWorktreeHandoff,
+} from "@/engine/session-handoff-plan"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
@@ -50,14 +56,10 @@ import { QuickTaskComposer, type QuickTaskResult } from "../component/quick-task
 import { RenameTaskDialog } from "../component/rename-task-dialog"
 import type { useDialog } from "../ui/dialog"
 import {
-  type ChatForkPlan,
   addForkTab,
   addHandoffTab,
   engineStarted,
   forkFirstTab,
-  liveSourceProtocol,
-  planChatContinuation,
-  planWorktreeHandoff,
   retargetUnstartedEngine,
   unstartedEngineTab,
 } from "./fork-chat-tab"
