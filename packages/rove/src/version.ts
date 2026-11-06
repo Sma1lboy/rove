@@ -88,20 +88,24 @@ const FETCH_TIMEOUT_MS = 3_000
 /** The full packument is MBs, not the tag manifest's KBs; it only runs from the daemon's background poll. */
 const PACKUMENT_TIMEOUT_MS = 15_000
 
-/** npm dist-tag an install follows; `nightly` is the automated cut from `main` (`.github/workflows/nightly.yml`). */
-export type ReleaseChannel = "latest" | "nightly"
+/**
+ * npm dist-tag an install follows: `latest` is stable (cut by hand), `next` is
+ * every push to `main` (`.github/workflows/next.yml`), `nightly` the daily cut
+ * (`.github/workflows/nightly.yml`).
+ */
+export type ReleaseChannel = "latest" | "next" | "nightly"
 
-export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["latest", "nightly"]
+export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["latest", "next", "nightly"]
 
 export const DEFAULT_RELEASE_CHANNEL: ReleaseChannel = "latest"
 
 /**
- * Channel derived from the RUNNING version (`-nightly.*` tail → nightly), so
+ * Channel derived from the RUNNING version (`-nightly.*` / `-next.*` tail), so
  * no stored preference can drift. Switching channels IS installing from the other.
  */
 export function channelOf(version: string = CURRENT_VERSION): ReleaseChannel {
-  const pre = prereleaseOf(version)
-  return pre?.split(".")[0] === "nightly" ? "nightly" : DEFAULT_RELEASE_CHANNEL
+  const tag = prereleaseOf(version)?.split(".")[0]
+  return tag === "nightly" || tag === "next" ? tag : DEFAULT_RELEASE_CHANNEL
 }
 
 export type UpdateInfo = {

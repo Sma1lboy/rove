@@ -41,7 +41,7 @@ Worth the two seconds: a bad package name is only caught downstream, by `package
 
 This used to fire on every push to `main`, which meant ~10 published versions on a busy day: no two users were on the same build, and no released combination of changes had been exercised as a whole before shipping. Batching is the point — the accumulated set is what you decide to release.
 
-Between releases, `main` still ships continuously on the **nightly channel** (below), so anyone who wants the unbatched stream can opt into it.
+Between releases, `main` still ships continuously on the **`next` and nightly channels** (below), so anyone who wants the unbatched stream can opt into it.
 
 ### 2b. Cutting a release from your machine
 
@@ -87,6 +87,32 @@ What the list drives:
 
 Worktrees are never part of a reset — the gate's cost to the user is daemon/session teardown (plus the task index only if they choose `--hard`).
 
+## Release channels
+
+Three npm dist-tags of `@sma1lboy/rove`:
+
+| Channel | dist-tag | Published | Version | Gate before publish |
+|---|---|---|---|---|
+| **stable** | `latest` | by hand only: `changesets.yml` / `scripts/release.sh` | `X.Y.Z` (tagged, `chore: release` commit) | the FULL `ci.yml` suite (behavior, render, visual, cross-OS), then `release.yml` re-runs its gates from the tag |
+| **next** | `next` | automatically on every push to `main` ([`next.yml`](../.github/workflows/next.yml)) | `X.Y.(Z+1)-next.<run number>` | the fast tier only: lint, typecheck, unit tests, build (what `bun run pre-pr` runs) |
+| **nightly** | `nightly` | 09:00 UTC daily, if `main` moved ([`nightly.yml`](../.github/workflows/nightly.yml)) | `X.Y.(Z+1)-nightly.<date>` | behavior + render + visual, then lint/typecheck/unit/build |
+
+```mermaid
+flowchart LR
+  PR[PR merged to main] --> N[next.yml: fast checks] --> NT[(next)]
+  PR --> C[banked changeset]
+  CRON[09:00 UTC] --> NI[nightly.yml: full gates] --> NG[(nightly)]
+  C --> M[owner: changesets.yml / release.sh] --> CI[full ci.yml] --> R[release.yml] --> L[(latest)]
+```
+
+`next` and nightly overlap — both publish `main` as an unreviewed prerelease; they differ in latency (minutes vs. a day) and rigor (fast tier vs. the full gates). Nightly was kept deliberately for the users who want the slower, fuller-gated stream.
+
+### The `next` channel
+
+[`next.yml`](../.github/workflows/next.yml) runs on every push to `main`, runs the fast tier, stamps the version into the checkout (`scripts/next-version.mjs`: the highest pending changeset bump of `@sma1lboy/rove`, else the current version +patch, plus `-next.<run number>`) and publishes to `next`. Concurrency is cancel-in-progress per ref, and a run whose commit is no longer `main`'s HEAD publishes nothing, so a burst of merges yields the newest build and `next` never moves backwards. The `chore: release` commit pushed with `GITHUB_TOKEN` fires no `next` run. Like the nightly it leaves no tag or commit, never moves `latest`, and publishes only `@sma1lboy/rove`.
+
+Dry-run the version locally: `node scripts/next-version.mjs 42`.
+
 ## The nightly channel
 
 [`nightly.yml`](../.github/workflows/nightly.yml) publishes today's `main` to the npm `nightly` dist-tag every morning (09:00 UTC), behind the same behavior + render + visual gates a release passes. It is less baked by virtue of *what it contains* — unbatched, unreviewed-as-a-set changes — not by skipping verification.
@@ -94,15 +120,16 @@ Worktrees are never part of a reset — the gate's cost to the user is daemon/se
 Users opt in and out with the CLI or Settings → General → Updates:
 
 ```bash
+rove update --next      # every merge to main, fast checks only
 rove update --nightly   # install the nightly and follow it
 rove update --stable    # go back to stable
 rove update             # newest build on the channel you follow
-curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine
+curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine (also --next)
 ```
 
-The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written only after an install of a picked channel succeeds. Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail, so `channelOf()` reports `nightly`. The update check, the Update page and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
+The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written only after an install of a picked channel succeeds. Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail and a next build a `-next.<N>` tail, so `channelOf()` reports `nightly` / `next`. The update check, the Update page and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
 
-**Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. The nightly is the only automatic publish.
+**Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. `next` and the nightly are the only automatic publishes.
 
 Three properties worth knowing before changing any of this:
 
