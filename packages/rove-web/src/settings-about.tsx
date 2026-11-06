@@ -81,7 +81,9 @@ function UpdateRows({ client }: { client: BridgeClient }) {
           hint={info?.hasUpdate ? <code className="font-mono">rove update</code> : undefined}
         >
           {phase === "done" && state && info && (
-            <span className={SETTINGS_VALUE}>{`${u.current} v${state.current} · ${u.latest} v${info.latest}`}</span>
+            <span className={SETTINGS_VALUE} title={`${u.latest} v${info.latest}`}>
+              {`${u.current} v${state.current} · ${u.latest} v${info.latest}`}
+            </span>
           )}
         </Row>
       )}
