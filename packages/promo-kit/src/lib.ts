@@ -1,5 +1,20 @@
 export type Video = { key: string; size: number; duration?: number; codec?: string }
-export type Item = { id: string; title: string; video: Video; cover?: string; posts: string[] }
+export type Action = "send" | "download" | "copy"
+export type Event = { action: Action; post: number; by: string; at: string }
+export type Version = { posts: string[]; by: string; at?: string }
+export type Item = { id: string; title: string; video: Video; cover?: string; posts: string[]; sends: Event[] }
+
+export function fmtTime(at?: string) {
+  const d = at ? new Date(at) : null
+  return d && !Number.isNaN(d.getTime())
+    ? d.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : ""
+}
+export const who = (by: string, me: string) => (by === me ? "你" : by)
+
+export const postJson = (path: string, body: object) =>
+  fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+export const logEvent = (id: string, action: Action, post = 0) => postJson(`/api/items/${id}/events`, { action, post })
 
 export const vurl = (key: string) => `/v/${key}`
 
@@ -40,3 +55,5 @@ export function videoWarnings(v: Video, dims?: { w: number; h: number }) {
 export const primaryBtn =
   "rounded-sm bg-accent px-3.5 py-1.5 text-meta font-semibold text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-progress disabled:opacity-50 touch:min-h-11 touch:text-title"
 export const linkBtn = "text-meta text-accent hover:underline touch:py-2.5"
+export const actionBtn =
+  "rounded-sm border border-line px-3 py-1.25 text-meta text-ink hover:border-line-active hover:bg-hover active:scale-97 motion-reduce:active:scale-none disabled:opacity-50 touch:min-h-10"

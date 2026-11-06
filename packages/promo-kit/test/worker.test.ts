@@ -72,3 +72,32 @@ test("a logged-in member mints an upload token; minting again revokes the old on
   expect((await mint({ authorization: `Bearer ${t2}` })).status).toBe(403)
   expect((await mint({ cookie, "sec-fetch-site": "cross-site" })).status).toBe(403)
 })
+
+test("members save copy versions and log sends; the list shows who sent it", async () => {
+  const env = baseEnv()
+  await env.BUCKET.put("index.json", JSON.stringify({ items: [{ id: "a", title: "A", posts: ["v1"], updated: "t0" }] }))
+  const as = async (email: string) => ({ cookie: `CF_Authorization=${await sign({ aud: ["aud1"], exp, email })}` })
+  const call = async (path: string, headers: Record<string, string>, body?: object) =>
+    worker.fetch(
+      new Request(`https://kit${path}`, { method: body ? "POST" : "GET", headers, body: body && JSON.stringify(body) }),
+      env,
+    )
+  const ann = await as("ann@x.com")
+  const bob = await as("bob@x.com")
+
+  const saved = await (await call("/api/items/a/versions", ann, { posts: ["v2", "reply"] })).json()
+  expect(saved.versions.map((v: { by: string }) => v.by)).toEqual(["上传", "ann@x.com"])
+  // Saving identical copy adds no version.
+  expect((await (await call("/api/items/a/versions", bob, { posts: ["v2", "reply"] })).json()).versions).toHaveLength(2)
+
+  expect((await call("/api/items/a/events", bob, { action: "send" })).status).toBe(200)
+  expect((await call("/api/items/a/events", bob, { action: "post-for-me" })).status).toBe(400)
+
+  const list = await (await call("/api/items", ann)).json()
+  expect(list.me).toBe("ann@x.com")
+  expect(list.items[0].posts).toEqual(["v2", "reply"])
+  expect(list.items[0].sends.map((e: { by: string }) => e.by)).toEqual(["bob@x.com"])
+
+  expect((await call("/api/items/a/versions", {}, { posts: ["x"] })).status).toBe(403)
+  expect((await call("/api/items/a/events", { ...bob, "sec-fetch-site": "cross-site" }, { action: "send" })).status).toBe(403)
+})
