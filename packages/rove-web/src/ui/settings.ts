@@ -19,12 +19,12 @@ export const SETTINGS_NAV =
   "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:[border-right:none] w-narrow:px-3 w-narrow:py-3"
 export const SETTINGS_NAV_TITLE = "m-0 px-2 pb-0.5 font-sans text-title font-semibold normal-nums text-ink"
 export const SETTINGS_NAV_GROUP = "flex flex-col gap-0.5"
-/** A group's name above its sections: faint, not a heading. */
-export const SETTINGS_NAV_LABEL = "m-0 px-2 pb-1 font-sans text-meta font-medium text-subtle"
-/** The active section keeps its wash under the pointer; the quiet group (About, Feedback, Dev) reads a step lighter. */
+/** A group's name above its sections: small mono and faint, so it never reads as one more section. */
+export const SETTINGS_NAV_LABEL = "m-0 px-2 pb-1 font-mono text-meta font-normal text-subtle"
+/** Sections in ink, the group names under them faint; the quiet group (About, Feedback, Dev) reads a step lighter. */
 export const settingsNavItemClass = (active: boolean, quiet: boolean): string =>
   `flex items-center rounded-sm px-2 py-1.25 text-left font-sans text-body touch:min-h-10 w-narrow:min-h-11 w-narrow:px-3 ${
-    active ? "bg-menu text-ink" : `${quiet ? "text-subtle" : "text-muted"} [&:hover]:bg-hover`
+    active ? "bg-menu text-ink" : `${quiet ? "text-muted" : "text-ink"} [&:hover]:bg-hover`
   }`
 export const SETTINGS_NAV_CHEVRON = "ml-auto hidden text-subtle w-narrow:block"
 
