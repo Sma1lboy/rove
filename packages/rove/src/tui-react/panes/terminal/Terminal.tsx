@@ -25,7 +25,7 @@ import {
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialog } from "../../ui/dialog"
-import { type EngineExit, EngineExitBanner } from "./engine-exit-banner"
+import { type EngineExit, EngineExitBanner, type UsageLimit, UsageLimitBanner } from "./engine-exit-banner"
 import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
@@ -88,6 +88,8 @@ export type TerminalProps = {
   terminalPresentation?: EngineTerminalPresentation
   /** Positive evidence the engine died inside the live shell: draws the exit strip, and F5 becomes its Retry. */
   engineExit?: EngineExit
+  /** The engine's usage-limit strip; the dead-engine strip takes precedence. */
+  usageLimit?: UsageLimit
 }
 
 /* --------------------------------------------------------------------- */
@@ -353,6 +355,8 @@ function TerminalSession(props: TerminalProps) {
       ) : null}
       {props.engineExit ? (
         <EngineExitBanner {...props.engineExit} onRequestFocus={props.onRequestFocus} />
+      ) : props.usageLimit ? (
+        <UsageLimitBanner {...props.usageLimit} onRequestFocus={props.onRequestFocus} />
       ) : exited ? (
         <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1}>
           <text

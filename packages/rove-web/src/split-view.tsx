@@ -118,6 +118,8 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   }, [deadSince, model])
   const engineExit: EngineExit | null =
     deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
+  // The engine's own activity state, not a vendor string: `rate_limited` shows the usage-limit strip.
+  const usageLimit = tab.kind === "engine" && liveStatus?.reason === "rate_limited" ? { since: liveStatus.since } : null
   return (
     <div className={SPLIT}>
       {(split ? layoutSplit(split.root) : WHOLE).map((box) => (
@@ -139,6 +141,7 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
             client={model.client}
             model={model}
             engineExit={box.id === "leaf-1" ? engineExit : null}
+            usageLimit={box.id === "leaf-1" ? usageLimit : null}
             composer={tab.kind === "engine" && box.id === "leaf-1"}
             taskId={taskId}
             tabId={tab.id}

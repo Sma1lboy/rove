@@ -48,11 +48,16 @@ export function TermNotice(props: {
   readonly onReopen?: (restartExited: boolean) => void
   /** Attach again after a failed attach. */
   readonly onRetryAttach?: () => void
+  /** The engine's usage limit is reached: a strip offers the move to another engine. Dead/restored/failed notices win. */
+  readonly usageLimit?: boolean
+  /** Hide the usage-limit strip for this limit episode. */
+  readonly onDismissLimit?: () => void
 }) {
   useLocale()
   const { notice, engineExit, model, taskId, tabId, revive } = props
   const lostEngine = notice.kind === "none" ? engineExit : null
-  if (notice.kind === "none" && !lostEngine) return null
+  const limited = notice.kind === "none" && !lostEngine && props.usageLimit === true && !revive.error
+  if (notice.kind === "none" && !lostEngine && !limited) return null
 
   const reopenable = notice.kind === "notLive" || notice.kind === "restored" || notice.kind === "exited"
   const gone = notice.kind === "exited" || lostEngine !== null
@@ -60,7 +65,9 @@ export function TermNotice(props: {
     ? t("workspace.reopenFailed", { message: revive.error })
     : lostEngine
       ? t("workspace.engineExited", { code: lostEngine.code ?? "?" })
-      : noticeText(notice)
+      : limited
+        ? t("workspace.usageLimit")
+        : noticeText(notice)
 
   return (
     <div className={termNotice(notice.kind === "failed" || !!revive.error)}>
@@ -79,6 +86,22 @@ export function TermNotice(props: {
         <button type="button" className={LINK} onClick={props.onRetryAttach}>
           {t("workspace.retry")}
         </button>
+      )}
+      {limited && (
+        <>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
+          <Button variant="link" hit="tight" onClick={props.onDismissLimit}>
+            {t("workspace.dismiss")}
+          </Button>
+        </>
       )}
       {gone && (
         <>

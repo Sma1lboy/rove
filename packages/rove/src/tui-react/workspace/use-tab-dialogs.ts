@@ -60,6 +60,7 @@ import {
   addHandoffTab,
   engineStarted,
   forkFirstTab,
+  replaceTabWithHandoff,
   retargetUnstartedEngine,
   unstartedEngineTab,
 } from "./fork-chat-tab"
@@ -97,6 +98,10 @@ export function useTabDialogs(deps: {
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** Toast for the "nothing to continue from" refusals. */
   notifyError: (title: string) => void
+  /** The active tab's engine is gone (only its fallback shell is left): a handoff takes the tab's slot. */
+  sourceDead: () => boolean
+  /** Relaunch the active tab from its (just rewritten) row, as the dead strip's Retry does. */
+  restartActive: () => void
 }): {
   requestRename: () => void
   requestNewChat: (preset?: NewChatPreset) => void
@@ -171,7 +176,11 @@ export function useTabDialogs(deps: {
           deps.onSpawnChild({ parentTaskId: deps.taskId, vendor, tabs: forkFirstTab(vendor, target, plan.sessionId) })
         } else update(pinSession(addForkTab(state, vendor, target, plan.sessionId), target))
       } else if (plan.kind === "handoff") {
-        if (deps.onSpawnChild) deps.onSpawnChild({ parentTaskId: deps.taskId, vendor, prompt: plan.prompt })
+        if (deps.sourceDead()) {
+          // A dead engine's conversation is replaced where it sat, not accompanied by a child task.
+          update(pinSession(replaceTabWithHandoff(state, active.id, vendor, plan.prompt), vendor))
+          deps.restartActive()
+        } else if (deps.onSpawnChild) deps.onSpawnChild({ parentTaskId: deps.taskId, vendor, prompt: plan.prompt })
         else update(pinSession(addHandoffTab(state, vendor, plan.prompt), vendor))
       } else notifyRefusal(plan)
       return

@@ -9,19 +9,20 @@ import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/c
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
-import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { ownSession, readOwnDispatcher, recordSend, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
+import { assertNotEmptySuccess } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
 import { handoffBrief } from "./handoff-brief.ts"
+import { replaceDeadTab } from "./handoff-replace.ts"
 import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
@@ -60,71 +61,6 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   return state
 }
 
-/**
- * Refuse a `succeeded:` report from a worker whose branch carries no commits —
- * at `send`, where the claim enters, rather than at `land`'s EMPTY_BRANCH after
- * the coordinator may have archived the siblings.
- *
- * Deliberately narrow: a false NEGATIVE is cheap, a false POSITIVE blocks a
- * worker from reporting at all:
- *   - only a VERIFIED self session (the same identity `send` already trusts
- *     for dispatcher routing) — an unverified env names a stranger's branch;
- *   - only a MANAGED task: `main`/`dir` tasks have no Rove-created branch, and
- *     an agent on a main checkout legitimately reads `ahead: 0`;
- *   - only a DEFINITE `ahead === 0`. An unresolvable base reads null — an
- *     honest unknown, never grounds to refuse.
- *
- * Investigation and review tasks genuinely succeed with no commits, so
- * `--allow-empty` (the `git commit` spelling) says so outright.
- */
-async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt: string): Promise<void> {
-  if (ctx.args.bool("allow-empty")) return
-  // Fullwidth colon too: a CJK IME types `succeeded：` without the agent noticing.
-  if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
-  const self = await ownSession(daemon)
-  if (!self) return
-  let sender: SerializedTask
-  try {
-    sender = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })).task
-  } catch {
-    return // stale id / unreadable task — an unknown is never grounds to refuse
-  }
-  if (!workspaceCapabilities(sender).ownsBranch) return
-  if (!sender.worktreePath) return
-  // A throwing read is an unknown, and an unknown never refuses.
-  let ahead: number | null
-  try {
-    // Against the task's RECORDED base (`add --base-branch`), like `collect`,
-    // never the origin/main guess: on a branch cut from `release/2.x` the
-    // guess reads an empty branch as `ahead: 2` and can false-positive too.
-    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath, sender.baseRef)).ahead
-  } catch {
-    return
-  }
-  if (ahead !== 0) return
-  const branch = sender.branch || "your branch"
-  throw new ApiError(
-    `refusing to report success: ${branch} has 0 commits — "succeeded" means COMMITTED, and this report would reach the coordinator as a clean success with nothing to land`,
-    "EMPTY_SUCCESS_REPORT",
-    {
-      taskId: self.taskId,
-      branch,
-      hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
-      // Carry the caller's target forward, or the verbatim retry re-resolves
-      // via the active-task fallback and could land in a DIFFERENT task.
-      nextCommandArgs: [
-        "api",
-        "send",
-        ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
-        ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
-        "--allow-empty",
-        "--prompt",
-        prompt,
-      ],
-    },
-  )
-}
-
 /** `--prompt` or `--prompt-file`, and one of them must be there. */
 export function requirePromptText(ctx: VerbContext, verb: string): string {
   const text = ctx.args.promptText()
@@ -155,20 +91,39 @@ async function resolveSendTask(
   return { taskId: active, tab }
 }
 
-export async function send(ctx: VerbContext): Promise<unknown> {
-  if (ctx.args.str("tab") !== "new") return sendNow(ctx)
-  // Whichever way the task is found, two new conversations on it are serialized.
-  const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
-  return withFirstConversationLock(taskId, () => sendNow(ctx))
+/** Taking back a dead-tab replacement whose handoff did not complete (`handoff-replace.ts`). */
+interface ReplaceRollback {
+  undo?: () => Promise<void>
 }
 
-async function sendNow(ctx: VerbContext): Promise<unknown> {
+export async function send(ctx: VerbContext): Promise<unknown> {
+  const rollback: ReplaceRollback = {}
+  try {
+    if (ctx.args.str("tab") !== "new") return await sendNow(ctx, rollback)
+    // Whichever way the task is found, two new conversations on it are serialized.
+    const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
+    return await withFirstConversationLock(taskId, () => sendNow(ctx, rollback))
+  } catch (err) {
+    await rollback.undo?.().catch(() => {})
+    throw err
+  }
+}
+
+async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const handoffFrom = ctx.args.str("handoff-from")
   let tab = ctx.args.str("tab")
   if (handoffFrom && tab !== "new") {
     throw new ApiError(
       `--handoff-from starts a new conversation; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
+      "BAD_FLAG",
+      helpStep("send"),
+    )
+  }
+  const replace = ctx.args.bool("replace") === true
+  if (replace && !handoffFrom) {
+    throw new ApiError(
+      "--replace takes over a tab for a handoff; pass --handoff-from tab-N",
       "BAD_FLAG",
       helpStep("send"),
     )
@@ -212,7 +167,13 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
   // else a shared child whose own engine gets the prompt.
   let childTaskId: string | undefined
   let freshConversation = false
-  if (tab === "new") {
+  let replacedTab: string | undefined
+  if (tab === "new" && replace && handoffFrom) {
+    // A dead source's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
+    rollback.undo = await replaceDeadTab({ runtime: ctx.runtime, daemon }, res.task, handoffFrom, tabCommand)
+    replacedTab = handoffFrom
+    tab = handoffFrom
+  } else if (tab === "new") {
     const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
     res = { task: home.task }
     freshConversation = true
@@ -332,6 +293,8 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
   if (!delivered.delivered) {
     // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
     const mayLand = promptMayHaveLanded(delivered)
+    // A paste that may have landed is the new engine's now; only a clean miss gives the tab back.
+    if (mayLand) rollback.undo = undefined
     await settle(mayLand, mayLand ? delivered.session : undefined)
     throw new ApiError(
       `prompt was not confirmed in ${taskId}'s engine (paste did not land)`,
@@ -352,6 +315,7 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
     ok: true,
     taskId: requestedTaskId,
     ...(childTaskId ? { childTaskId } : {}),
+    ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,

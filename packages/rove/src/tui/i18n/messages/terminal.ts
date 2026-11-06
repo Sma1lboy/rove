@@ -15,6 +15,10 @@ export const en = {
     another: "Another engine",
     continueIn: "Continue in another engine",
   },
+  usageLimit: {
+    title: "Usage limit reached",
+    dismiss: "Dismiss",
+  },
   restoring: "restoring session…",
   recovery: {
     live: "Live process reattached",
@@ -104,6 +108,10 @@ export const zh: typeof en = {
     settings: "设置 → 引擎",
     another: "换个引擎",
     continueIn: "换个引擎继续",
+  },
+  usageLimit: {
+    title: "已达到用量上限",
+    dismiss: "忽略",
   },
   restoring: "正在恢复会话…",
   tab: {

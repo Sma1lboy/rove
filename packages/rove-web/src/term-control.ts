@@ -18,6 +18,8 @@ export interface TermControl {
   copySelection(): boolean
   /** F5: confirm, then kill the shell and spawn a fresh one. */
   reset(): void
+  /** Attach again to whatever now runs under this stream (a replaced engine). */
+  reattach(): Promise<void>
   size(): { cols: number; rows: number }
 }
 

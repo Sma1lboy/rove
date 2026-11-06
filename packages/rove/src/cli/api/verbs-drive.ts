@@ -53,6 +53,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           "Continue another tab's conversation in the new one (`--tab new`, usually with --command naming the other engine): the prompt becomes a handoff brief — the task title, the source engine's transcript path, the user's last request and a bounded excerpt of the latest turns — followed by --prompt when given, so --prompt is optional. Same directory and branch; the source tab is only read. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT).",
       },
       {
+        name: "replace",
+        type: "bool",
+        required: false,
+        description:
+          "With --handoff-from tab-N: put the new engine in that tab's own slot instead of a shared child task. Only for a source whose engine is dead or exited (`get-task` .tabs[]: `alive: false`, or `engineAlive: false` = only the fallback shell is left); a running engine is refused (TAB_ALIVE) and keeps the child. Same task, same tab id, same worktree: the tab is repointed at the --command engine with a fresh conversation (the old session is left untouched on disk), launched, and handed the brief. The reply adds `replacedTab`. The shipped UIs pass this exact rule on their own; a script chooses it.",
+      },
+      {
         name: "respawn",
         type: "bool",
         required: false,

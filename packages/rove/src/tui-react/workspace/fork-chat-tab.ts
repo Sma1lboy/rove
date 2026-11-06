@@ -34,6 +34,23 @@ export function addHandoffTab(state: TabsState, vendor: VendorId, prompt: string
   return setTabInitialPrompt(next, next.activeId, prompt)
 }
 
+/**
+ * The handoff for a source whose engine is DEAD: the new engine takes that tab's slot (same task, same
+ * tab id) instead of a child task. The tab keeps its place and title; the old conversation's identity
+ * (session, fork point, launch override, live engine) is dropped so the respawn starts fresh on the brief.
+ */
+export function replaceTabWithHandoff(state: TabsState, tabId: string, vendor: VendorId, prompt: string): TabsState {
+  return {
+    ...state,
+    activeId: tabId,
+    tabs: state.tabs.map((tab): TerminalTab => {
+      if (tab.id !== tabId || tab.kind !== "engine") return tab
+      const { sessionId, spawned, forkFrom, engineCommand, liveVendor, lastTitle, autoTitle, ...kept } = tab
+      return { ...kept, vendor, initialPrompt: prompt }
+    }),
+  }
+}
+
 /** A child task's `tab-1` forking `sourceSessionId`: {@link addForkTab}'s tab, as the first one. */
 export function forkFirstTab(pick: VendorId, protocol: VendorId, sourceSessionId: string): TabsState {
   const { sessionId } = withPinnedSessionId(engineLaunchArgv({ vendor: protocol }), protocol)
