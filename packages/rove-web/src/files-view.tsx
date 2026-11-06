@@ -14,6 +14,7 @@ import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
+import { NotesView } from "./notes-view.tsx"
 import { openDiff } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -28,8 +29,8 @@ import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { Tabs } from "./ui/tabs.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
-type Tab = "all" | "changes" | "activity"
-const TAB_ORDER: readonly Tab[] = ["all", "changes", "activity"]
+type Tab = "all" | "changes" | "activity" | "notes"
+const TAB_ORDER: readonly Tab[] = ["all", "changes", "activity", "notes"]
 
 /** A changed file's status letter in its tone (`?` = untracked). */
 const STATUS_TONE: Partial<Record<string, string>> = {
@@ -99,7 +100,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const loaded = tab === "all" ? files !== null : diff !== null
   const branchScope = scope === "branch" && base != null
   const rows: Row[] =
-    tab === "activity"
+    tab === "activity" || tab === "notes"
       ? []
       : tab === "all"
         ? visibleTree(files ?? [], expanded).map((r) => ({
@@ -186,6 +187,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           { id: "all", label: t("files.all") },
           { id: "changes", label: t("files.changes") },
           { id: "activity", label: t("files.activity") },
+          { id: "notes", label: t("files.notes") },
         ]}
         value={tab}
         onChange={(id) => {
@@ -211,6 +213,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       )}
       {tab === "activity" ? (
         <TimelineView model={model} task={task} />
+      ) : tab === "notes" ? (
+        <NotesView model={model} task={task} />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
           {error && <p className="mono text-error">{error}</p>}
