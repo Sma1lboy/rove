@@ -13,7 +13,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { EngineChip, useEnginePicks } from "./new-session-engines.tsx"
+import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { BranchIcon, ClipIcon, FolderIcon } from "./new-session-icons.tsx"
 import {
   MachineChip,
@@ -24,12 +24,11 @@ import {
   usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
-import { BranchesMenu, ChipPopover, ModelMenu, SearchList } from "./new-session-menus.tsx"
+import { BranchesMenu, ChipPopover, SearchList } from "./new-session-menus.tsx"
 import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
   effortChoices,
-  modelChipLabel,
   modelChoices,
   partialRoundId,
   repoChipLabel,
@@ -490,33 +489,16 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             </AttachPicker>
           )}
           <span className={C.GROW} />
-          {choice.engines.length > 1 && (
-            <EngineChip
-              engines={choice.engines}
-              value={choice.engine}
-              picks={picks}
-              available={compareAvailable}
-              onPick={choice.setEngine}
-            />
-          )}
+          <EngineChip choice={choice} picks={picks} available={compareAvailable} />
           {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
-            <ChipPopover
-              field="model"
-              title={t("newSession.model")}
-              label={modelChipLabel(models, modelValue, effortValue, t("newSession.modelDefault"))}
-            >
-              {(close) => (
-                <ModelMenu
-                  models={models}
-                  model={modelValue}
-                  onModel={setPickedModel}
-                  efforts={efforts}
-                  effort={effortValue}
-                  onEffort={setPickedEffort}
-                  close={close}
-                />
-              )}
-            </ChipPopover>
+            <ModelChip
+              models={models}
+              model={modelValue}
+              onModel={setPickedModel}
+              efforts={efforts}
+              effort={effortValue}
+              onEffort={setPickedEffort}
+            />
           )}
         </div>
         {!remote && <AttachmentChips attachments={attachments} onRemove={remove} />}

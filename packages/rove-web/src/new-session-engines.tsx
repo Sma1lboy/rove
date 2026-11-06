@@ -1,9 +1,9 @@
-/** The composer's engine chip with a compare mode: one prompt to several engines, kept apart as sibling attempts. */
+/** The composer's engine and model chips; the engine chip has a compare mode: one prompt to several engines, kept apart as sibling attempts. */
 
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
-import { ChipPopover, ChoiceMenu } from "./new-session-menus.tsx"
-import { engineChipLabel, toggleEngine } from "./new-session.ts"
+import { ChipPopover, ChoiceMenu, ModelMenu } from "./new-session-menus.tsx"
+import { type Choice, engineChipLabel, modelChipLabel, toggleEngine } from "./new-session.ts"
 import { Button } from "./ui/button.tsx"
 
 interface EngineRow {
@@ -47,15 +47,16 @@ export function useEnginePicks(
   }
 }
 
+/** Nothing to choose between with one engine, so no chip. */
 export function EngineChip(props: {
-  engines: readonly EngineRow[]
-  value: string
+  choice: { readonly engines: readonly EngineRow[]; readonly engine: string; readonly setEngine: (id: string) => void }
   picks: EnginePicks
   /** Compare is offered; false = a plain single-engine chip. */
   available: boolean
-  onPick: (id: string) => void
 }) {
-  const { engines, picks } = props
+  const { picks, choice } = props
+  const engines = choice.engines
+  if (engines.length < 2) return null
   const names = picks.ids.map((id) => engines.find((e) => e.id === id)?.name ?? id)
   return (
     <ChipPopover field="engine" title={t("newSession.engine")} label={engineChipLabel(names) || t("newSession.engine")}>
@@ -63,11 +64,11 @@ export function EngineChip(props: {
         <ChoiceMenu
           heading={t("newSession.engine")}
           options={engines.map((e) => ({ id: e.id, label: e.name, dim: e.ready === false }))}
-          value={props.value}
+          value={choice.engine}
           {...(picks.comparing ? { values: picks.ids } : {})}
           onPick={(id) => {
             if (picks.comparing) return picks.toggle(id)
-            props.onPick(id)
+            choice.setEngine(id)
             close()
           }}
           footer={
@@ -84,6 +85,25 @@ export function EngineChip(props: {
           }
         />
       )}
+    </ChipPopover>
+  )
+}
+
+export function ModelChip(props: {
+  models: readonly Choice[]
+  model: string
+  onModel: (id: string) => void
+  efforts: readonly Choice[]
+  effort: string
+  onEffort: (id: string) => void
+}) {
+  return (
+    <ChipPopover
+      field="model"
+      title={t("newSession.model")}
+      label={modelChipLabel(props.models, props.model, props.effort, t("newSession.modelDefault"))}
+    >
+      {(close) => <ModelMenu {...props} close={close} />}
     </ChipPopover>
   )
 }
