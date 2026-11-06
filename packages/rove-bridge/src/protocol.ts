@@ -39,6 +39,7 @@ export const OPS = [
   "term.revive",
   "diff.files",
   "diff.file",
+  "diff.refs",
   "attention.dismiss",
   // What this connection's screen shows ({taskId|null, tabId?, ...ViewingFields}), for the daemon's
   // row status and `rove api viewers`.

@@ -44,3 +44,18 @@ describe("nextAfter", () => {
     expect(nextAfter([], 0)).toBeNull()
   })
 })
+
+describe("a base picked by hand", () => {
+  const raw = ["diff --git a/a.ts b/a.ts", "@@ -7,2 +7,2 @@", " keep", "-gone", "+new"].join("\n")
+  test("removed rows carry no note anchor (their old numbers count another base); new-side rows still do", async () => {
+    const { displayLine } = await import("../src/diff.ts")
+    const rows = parseUnifiedDiff(raw, null, true)
+    expect(rows.filter((r) => r.kind === "del").map(displayLine)).toEqual([null])
+    expect(rows.filter((r) => r.kind === "add" || r.kind === "ctx").map(displayLine)).toEqual([7, 8])
+    expect(
+      parseUnifiedDiff(raw)
+        .filter((r) => r.kind === "del")
+        .map(displayLine),
+    ).toEqual([8])
+  })
+})

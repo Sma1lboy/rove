@@ -267,7 +267,7 @@ The web and the TUI open a task on another machine like a local one. Its tabs
 are listed from that machine. Its terminal attaches that machine's live
 session: you can watch and type, and new and closed tabs happen over there.
 The Files pane reads that machine's worktree through the `worktree-files`,
-`worktree-diff` and `worktree-diff-file` verbs. Nothing is spawned on the hub
+`worktree-diff`, `worktree-diff-file` and `worktree-refs` verbs. Nothing is spawned on the hub
 for a remote task. The other machine needs a Rove with those verbs. Opening a
 file in an editor or another app stays on the machine that has it, and so does
 sync-with-base.

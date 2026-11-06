@@ -13,11 +13,18 @@ export interface DiffRow {
   readonly newNo: number | null
   /** The file this row belongs to (combined diffs carry several). */
   readonly path: string | null
+  /** A removed row whose old-side number counts lines of a base the agent never saw: no note anchors to it. */
+  readonly foreignOld?: true
 }
 
 const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/
 
-export function parseUnifiedDiff(text: string, fallbackPath: string | null = null): DiffRow[] {
+export function parseUnifiedDiff(
+  text: string,
+  fallbackPath: string | null = null,
+  /** Old-side numbers belong to a base picked by hand, so removed rows carry no note anchor. */
+  foreignBase = false,
+): DiffRow[] {
   const rows: DiffRow[] = []
   let oldNo = 0
   let newNo = 0
@@ -45,8 +52,16 @@ export function parseUnifiedDiff(text: string, fallbackPath: string | null = nul
       continue
     }
     if (line.startsWith("+")) rows.push({ kind: "add", text: line.slice(1), oldNo: null, newNo: newNo++, path })
-    else if (line.startsWith("-")) rows.push({ kind: "del", text: line.slice(1), oldNo: oldNo++, newNo: null, path })
-    else if (line.startsWith("\\")) rows.push({ kind: "meta", text: line, oldNo: null, newNo: null, path })
+    else if (line.startsWith("-")) {
+      rows.push({
+        kind: "del",
+        text: line.slice(1),
+        oldNo: oldNo++,
+        newNo: null,
+        path,
+        ...(foreignBase ? { foreignOld: true as const } : {}),
+      })
+    } else if (line.startsWith("\\")) rows.push({ kind: "meta", text: line, oldNo: null, newNo: null, path })
     else rows.push({ kind: "ctx", text: line.slice(1), oldNo: oldNo++, newNo: newNo++, path })
   }
   return rows
@@ -62,7 +77,13 @@ export function codeRows(text: string, path: string): DiffRow[] {
 
 /** The number a note on this row anchors to; null on rows a note can't sit on. */
 export function displayLine(row: DiffRow): number | null {
-  return row.kind === "del" ? row.oldNo : row.kind === "add" || row.kind === "ctx" ? row.newNo : null
+  return row.kind === "del"
+    ? row.foreignOld
+      ? null
+      : row.oldNo
+    : row.kind === "add" || row.kind === "ctx"
+      ? row.newNo
+      : null
 }
 
 /** A range as text for the engine's prompt: its own `@path` file mention, then the lines in words. */

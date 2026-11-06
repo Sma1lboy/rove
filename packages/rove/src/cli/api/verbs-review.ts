@@ -7,7 +7,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { worktreeDiff, worktreeDiffFile, worktreeFiles } from "../../worktree/review-read.ts"
+import { worktreeDiff, worktreeDiffFile, worktreeFiles, worktreeRefs } from "../../worktree/review-read.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
@@ -67,6 +67,13 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
           "`working` = uncommitted changes; `branch` = commits since the base; `task` = commits and uncommitted work since the base.",
       },
       {
+        name: "base",
+        type: "string",
+        placeholder: "REF",
+        description:
+          "With `--scope task`: compare against this branch, tag or commit instead of the task's base. Refused (`BAD_REF`) when it is not a commit in the repository.",
+      },
+      {
         name: "ignore-whitespace",
         type: "bool",
         description: "Diff with `git diff -w`: whitespace-only changes drop out. Off by default.",
@@ -78,7 +85,16 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
       const scope = asked === "branch" || asked === "task" ? asked : "working"
       return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef, {
         ignoreWhitespace: ctx.args.bool("ignore-whitespace") === true,
+        ...(ctx.args.str("base") ? { base: ctx.args.str("base") as string } : {}),
       })
     },
+  },
+  {
+    name: "worktree-refs",
+    group: "read",
+    summary:
+      "What a task's diff can be compared against: its repository's local branches, remote branches and tags, plus the worktree branch's recent commits. Returns { branches, remotes, tags, commits[{ sha, subject }] }.",
+    flags: [F.taskId()],
+    handler: async (ctx) => worktreeRefs((await taskWorktree(ctx)).path),
   },
 ]
