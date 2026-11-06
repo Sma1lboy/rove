@@ -69,6 +69,9 @@ export const en = {
       taskColorsNote: "Gives each task its own hue on the working border and in the list.",
       colorblindNote: "Shows added and removed lines in blue and red instead of green and red.",
       workingBorderNote: "The pane's border while the selected task is working.",
+      railGroup: "Task list",
+      railGroupProject: "By project",
+      railGroupState: "By state",
     },
     notifications: {
       toastNote: "A popup in the corner of this page.",
@@ -256,6 +259,9 @@ export const zh: typeof en = {
       taskColorsNote: "让每个任务在工作边框和列表里有自己的色调。",
       colorblindNote: "新增和删除的行用蓝色和红色，而不是绿色和红色。",
       workingBorderNote: "所选任务工作时，面板边框的样子。",
+      railGroup: "任务列表",
+      railGroupProject: "按项目",
+      railGroupState: "按状态",
     },
     notifications: {
       toastNote: "本页角落里的弹出提示。",

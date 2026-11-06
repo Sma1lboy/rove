@@ -7,9 +7,11 @@
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
+import { RAIL_GROUPS, type RailGroup, railGroup, setRailGroup } from "./rail-group.ts"
 import { ts } from "./settings-copy.ts"
 import { Choice, Group, Toggle } from "./settings-rows.tsx"
 import { ThemeGallery } from "./settings-theme-gallery.tsx"
+import { useStore } from "./store.ts"
 import { useMode } from "./task-colors.ts"
 
 /** The TUI's wording for one choice of an enum setting (`appearance-labels.ts`). */
@@ -47,6 +49,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
   const { client } = model
   const state = usePrefs()
   const mode = useMode()
+  const grouping = useStore(railGroup)
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
 
   const choice = (key: EnumKey, label: string, hint?: string) => (
@@ -96,6 +99,15 @@ export function AppearanceSection({ model }: { model: AppModel }) {
         {choice("runningTitle", "general.runningTitle")}
         {choice("glyphSet", "general.glyphSet")}
         {choice("railFold", "general.railFold", ts("general.railFoldHint"))}
+        <Choice<RailGroup>
+          label={t("settings.appearance.railGroup")}
+          value={grouping}
+          picks={RAIL_GROUPS.map((value) => ({
+            value,
+            label: t(value === "state" ? "settings.appearance.railGroupState" : "settings.appearance.railGroupProject"),
+          }))}
+          onPick={setRailGroup}
+        />
       </Group>
       <Group title={t("settings.appearance.groupTerminal")} hint={t("prefs.terminalOnly")}>
         {flag("transparent", "general.transparent")}

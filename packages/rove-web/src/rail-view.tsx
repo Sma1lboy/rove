@@ -21,14 +21,17 @@ import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
+import { railGroup } from "./rail-group.ts"
 import { dropIdleMains } from "./rail-idle.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
+import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
 import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
-import { type NavRow, type RowFold, foldProjects, railRows, repoLabel } from "./rail.ts"
+import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
+import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -82,9 +85,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
+  const byState = useStore(railGroup) === "state"
   const reordering = useStore(reorderingMain)
   const build = (query: string) =>
-    railRows({
+    (byState ? railStateRows : railRows)({
       tasks,
       remote: remoteTasks,
       machines,
@@ -100,14 +104,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     ? built.rows
     : withArchived(
         foldProjects(
-          withPanes(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering), tabs),
+          withPanes(withStateCounts(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering)), tabs),
           filters.collapsed,
         ),
         payload?.archived ?? [],
         filters.archivedOpen,
         { ...filters.hand, selectedId: selectedId ?? undefined },
       )
-  const stops = (all: readonly NavRow[]) => all.filter((row) => row.kind !== "project" && row.kind !== "round")
+  const stops = (all: readonly NavRow[]) =>
+    all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
   const words = (locale === "zh" ? tasksZh : tasksEn).machine
   const offline = new Set(machines.filter((m) => m.state !== "online").map((m) => m.alias))
   const firstMovable = groups.find((group) => group.tasks.some((task) => task.kind === "main"))?.repo
@@ -116,7 +121,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     label: repoLabel(repo),
     first: repo === firstMovable,
   })
-  const drag = useRowDrag(model, tasks, !filters.search.active, filters.sort === "default", projectInfo)
+  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default", projectInfo)
   const place = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, {
@@ -197,6 +202,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               key={row.id}
               row={row}
               guides={row.depth > 1 ? treeGuides(rows, i) : undefined}
+              repo={byState && row.depth === 1 ? rowRepo(row.tasks[0]) : undefined}
               cursor={row.id === keys.cursor}
               place={place(row)}
               onClick={() => keys.setCursor(row.id)}
@@ -225,11 +231,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               row={row}
               guides={row.kind === "task" && row.depth > 1 ? treeGuides(rows, i) : undefined}
               cloud={rowCloud(row, machines, words)}
+              repo={byState && row.kind === "task" && row.depth === 1 ? rowRepo(row.task) : undefined}
               tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
               selected={row.id === selectedId}
               cursor={row.id === keys.cursor}
               stale={row.machine !== undefined && offline.has(row.machine)}
-              collapsed={row.kind === "project" && filters.collapsed.has(row.id)}
+              collapsed={(row.kind === "project" || row.kind === "state") && filters.collapsed.has(row.id)}
               drag={drag.props(row)}
               dragging={drag.dragging === row.id}
               place={place(row)}
@@ -264,7 +271,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               onClick={() => {
                 keys.setCursor(row.id)
                 if (row.kind === "archived") filters.toggleArchived()
-                if (row.kind === "project") filters.toggleProject(row.id)
+                if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
                 if (row.kind === "task") {
                   model.select(row.task.id)
                   enterWorkspace()
@@ -314,6 +321,8 @@ function RailRow(props: {
   row: Exclude<NavRow, { kind: "pane" | "round" }>
   /** A child task's indent columns, outermost first. */
   guides?: readonly TreeGuide[]
+  /** The task's project, named on a top-level row of the by-state list, which has no project headers. */
+  repo?: string
   /** A task on another machine: its cloud mark's text (`on mac · offline`); null for this machine's rows. */
   cloud: string | null
   /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
@@ -344,7 +353,7 @@ function RailRow(props: {
   const { row } = props
   const tip = useRowTip(row.kind === "task" ? row.task.label : "", props.cursor && row.kind === "task")
   const cursor = props.cursor ? RAIL_CURSOR : ""
-  if (row.kind === "project") {
+  if (row.kind === "project" || row.kind === "state") {
     return (
       <h2
         className={projectHead({ moving: props.moving, dragging: props.dragging })}
@@ -355,14 +364,15 @@ function RailRow(props: {
         <button
           type="button"
           className={PROJECT_TOGGLE}
-          title={row.noProject ? undefined : row.repo}
+          title={row.kind === "project" && !row.noProject ? row.repo : undefined}
           aria-expanded={!props.collapsed}
           onClick={props.onClick}
         >
           <span className="truncate">{row.label}</span>
+          {row.kind === "state" && <span className="font-normal text-subtle">{row.count}</span>}
           <Chevron right={props.collapsed} className={projectChevron(!!props.collapsed)} />
         </button>
-        {props.onNewTask && (
+        {props.onNewTask && row.kind === "project" && (
           <button type="button" className={PROJECT_ADD} title={t("rail.newTask")} onClick={props.onNewTask}>
             +
           </button>
@@ -413,6 +423,7 @@ function RailRow(props: {
         {row.attempt ?? task.label}
       </span>
       <span className={`${CHIPS} ml-auto items-center`}>
+        {props.repo && <span className="max-w-24 truncate text-subtle">{props.repo}</span>}
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}
         {(task.extraRepoCount ?? 0) > 0 && (
           <span className="text-subtle" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
