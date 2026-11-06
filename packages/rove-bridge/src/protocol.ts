@@ -156,6 +156,9 @@ export interface TaskRow {
   readonly groupId?: string
   /** The attempt kept from its round (`update --kept`). */
   readonly kept?: boolean
+  /** The owner's free-text notes and checklist for the task (`rove api todo`); absent = none. */
+  readonly notes?: string
+  readonly todos?: readonly { readonly id: string; readonly text: string; readonly done: boolean }[]
   /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */
   readonly archived?: boolean
   /** A task a scheduled routine's firing made (its standing session or one fresh run); kept out of the task list. */

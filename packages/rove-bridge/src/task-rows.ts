@@ -226,6 +226,8 @@ export function taskRows(
         pinned: task.pinned === true,
         ...(task.groupId ? { groupId: task.groupId } : {}),
         ...(task.kept ? { kept: true } : {}),
+        ...(task.notes ? { notes: task.notes } : {}),
+        ...(task.todos ? { todos: task.todos } : {}),
         ...(task.archived ? { archived: true } : {}),
         ...(task.routine ? { routine: true } : {}),
         ...(task.scratch ? { scratch: true } : {}),

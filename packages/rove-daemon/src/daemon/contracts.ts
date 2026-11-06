@@ -1,6 +1,7 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskTodo, TodoOp } from "../task-notes.ts"
 import type { TaskWorkspace } from "../workspace.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
 import type { CheckpointOrchestrator } from "./checkpoint-contracts.ts"
@@ -237,6 +238,8 @@ export interface DaemonTask {
   readonly status: TaskStatus
   readonly pinned?: boolean
   readonly kept?: boolean
+  readonly notes?: string
+  readonly todos?: readonly TaskTodo[]
   readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
@@ -361,6 +364,11 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   setKept(id: string, kept: boolean): Promise<void>
+  /** Notes (replace) and checklist ops, applied together; returns the task's notes and todos after. */
+  updateNotes(
+    id: string,
+    edit: { notes?: string; ops?: readonly TodoOp[] },
+  ): Promise<{ notes?: string; todos: readonly TaskTodo[] }>
   /**
    * Re-parent a task (`parentId` null = top level) without touching its engine, PTYs, worktree or branch. Points
    * the task's reply address at the parent too; `replyTab` picks the parent tab it lands on (default `tab-1`).

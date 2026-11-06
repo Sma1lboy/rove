@@ -5,6 +5,7 @@ import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemo
 import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import { type TaskTodo, type TodoOp, applyTodoOps, checkNotes } from "@sma1lboy/rove-daemon/task-notes"
 import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { samePrStatus } from "../monitor/pr-status.ts"
@@ -210,6 +211,27 @@ export class TaskEditor {
     const task = this.requireTask(id)
     if ((task.kept ?? false) === kept) return
     await this.store.update(task.id, { kept: kept ? true : undefined })
+  }
+
+  /**
+   * The owner's notes (replaced when given) and checklist (ops applied in order). All or nothing: a refused
+   * op leaves both as they were. Empty notes and an empty list store nothing.
+   */
+  async updateNotes(
+    id: TaskId | string,
+    edit: { notes?: string; ops?: readonly TodoOp[] },
+  ): Promise<{ notes?: string; todos: readonly TaskTodo[] }> {
+    const task = this.requireTask(id)
+    const todos = edit.ops && edit.ops.length > 0 ? applyTodoOps(task.todos ?? [], edit.ops) : (task.todos ?? [])
+    const notes = edit.notes === undefined ? task.notes : checkNotes(edit.notes)
+    // A read, or a write that changes nothing, leaves `updatedAt` alone.
+    if (todos !== (task.todos ?? []) || notes !== task.notes) {
+      await this.store.update(task.id, {
+        notes: notes && notes.length > 0 ? notes : undefined,
+        todos: todos.length > 0 ? todos : undefined,
+      })
+    }
+    return { ...(notes ? { notes } : {}), todos }
   }
 
   /**

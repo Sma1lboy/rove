@@ -10,6 +10,7 @@
 
 import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
 import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
 import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import type {
@@ -69,6 +70,7 @@ export function coerceTask(value: unknown): Task | null {
   const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
   const workspace = coerceWorkspace(v.workspace)
   const sessionPrs = coerceSessionPrs(v.sessionPrs)
+  const todos = coerceTodos(v.todos)
 
   const report = coerceWorkerReport(v.report)
   return {
@@ -80,6 +82,9 @@ export function coerceTask(value: unknown): Task | null {
     status: healedStatus,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     ...(v.kept === true ? { kept: true } : {}),
+    // The owner's own words and checklist: nothing else holds them.
+    ...(typeof v.notes === "string" && v.notes.length > 0 ? { notes: v.notes.slice(0, MAX_NOTES) } : {}),
+    ...(todos ? { todos } : {}),
     kind,
     ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),

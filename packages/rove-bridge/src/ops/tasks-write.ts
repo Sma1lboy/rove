@@ -211,6 +211,19 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.keep": write("verb update --task-id --kept", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("kept", String(bool(a, "kept")))])),
   ),
+  // The checklist's ops are the daemon's to validate (ids, caps, empty text): it refuses the whole call.
+  "task.notes": write("rpc task.notes (notes replace + todo ops, applied together)", (a, c) => {
+    const notes = optText(a, "notes", 20_000)
+    const ops = a.ops
+    if (ops !== undefined && (!Array.isArray(ops) || ops.length > 50)) {
+      throw new BridgeError("BAD_ARGS", "ops must be a list of at most 50")
+    }
+    return c.api.rpc("task.notes", {
+      taskId: taskId(a),
+      ...(notes !== undefined ? { notes } : {}),
+      ...(ops ? { ops } : {}),
+    })
+  }),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),

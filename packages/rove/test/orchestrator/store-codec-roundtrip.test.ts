@@ -63,6 +63,8 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   status: "in_review",
   pinned: true,
   kept: true,
+  notes: "check the migration",
+  todos: [{ id: "t1", text: "run the migration", done: true }],
   archived: true,
   vendor: "claude",
   command: "claude --continue",

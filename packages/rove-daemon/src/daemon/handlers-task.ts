@@ -5,6 +5,7 @@
  */
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
+import { TodoRefusedError, parseTodoOps } from "../task-notes.ts"
 import { pickRepos, subtreeIds } from "../task-tree.ts"
 import type { DaemonTask, TaskDispatcher } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
@@ -359,6 +360,24 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setKept(taskId, optionalBoolean(payload, "kept") ?? true)
       return {}
+    },
+  },
+  {
+    name: "task.notes",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const notes = typeof payload.notes === "string" ? payload.notes : undefined
+      try {
+        const ops = payload.ops === undefined ? undefined : parseTodoOps(payload.ops)
+        return await ctx.orch.updateNotes(taskId, {
+          ...(notes !== undefined ? { notes } : {}),
+          ...(ops ? { ops } : {}),
+        })
+      } catch (err) {
+        // The `CODE: message` shape every daemon refusal travels in.
+        if (err instanceof TodoRefusedError) throw new Error(`${err.code}: ${err.message}`)
+        throw err
+      }
     },
   },
   {

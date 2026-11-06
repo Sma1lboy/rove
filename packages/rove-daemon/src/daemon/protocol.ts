@@ -103,6 +103,8 @@ export type DaemonRequestName =
   | "task.pin"
   // Mark the attempt kept from a parallel round (`groupId` siblings); a flag only, nothing else of the task moves.
   | "task.keep"
+  // The owner's notes and checklist: replace notes, apply todo ops (add/check/edit/remove) atomically.
+  | "task.notes"
   // Move a task under another (or to top level) and point its reply address at it; nothing else of the task moves.
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
@@ -396,6 +398,9 @@ export interface SerializedTask {
   readonly pinned: boolean
   /** The attempt kept from a parallel round. */
   readonly kept?: boolean
+  /** The owner's notes and checklist (`rove api todo`). */
+  readonly notes?: string
+  readonly todos?: DaemonTask["todos"]
   /** Hidden from the sidebar and the default `list`; worktree, branch and sessions untouched. */
   readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
@@ -482,6 +487,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     status: task.status,
     pinned: task.pinned ?? false,
     ...(task.kept ? { kept: true } : {}),
+    ...(task.notes ? { notes: task.notes } : {}),
+    ...(task.todos ? { todos: task.todos } : {}),
     ...(task.archived ? { archived: true } : {}),
     vendor: task.vendor,
     command: task.command,
