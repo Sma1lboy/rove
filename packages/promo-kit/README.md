@@ -10,7 +10,7 @@
 
 ## 上传方怎么推素材
 
-`~/.env` 里需要 `PROMO_KIT_TOKEN`。开了 Access 之后还需要 `CF_ACCESS_CLIENT_ID` 和 `CF_ACCESS_CLIENT_SECRET`（Access 服务令牌）。
+`~/.env` 里需要 `PROMO_KIT_TOKEN`。团队成员登录站点后点右上角「上传令牌」→「生成我的令牌」，把页面给出的 prompt 复制给自己的 agent，它会把令牌写进 `~/.env` 并验证。一个邮箱只有一个令牌，重新生成后旧的立刻作废。令牌只存哈希，放在 R2 的 `auth:tok/` 下。
 
 ```sh
 cd packages/promo-kit
@@ -29,6 +29,6 @@ bunx wrangler deploy                    # 走 wrangler OAuth 登录；环境里�
 bunx wrangler secret put UPLOAD_TOKEN   # 值和 ~/.env 里的 PROMO_KIT_TOKEN 相同
 ```
 
-Worker 会校验 Cloudflare Access 发的 JWT。`wrangler.toml` 里的 `ACCESS_TEAM`（团队域名的前缀）和 `ACCESS_AUD`（Access 应用的 AUD tag）为空时，所有浏览器请求都返回 403。只有带上传令牌的 `/api/*` 请求能通过。
+Worker 会校验 Cloudflare Access 发的 JWT。`wrangler.toml` 里的 `ACCESS_TEAM`（团队域名的前缀）和 `ACCESS_AUD`（Access 应用的 AUD tag）为空时，所有浏览器请求都返回 403。`/api/*` 在 Access 里单独配了 bypass 应用（`kit.sma1lboy.me/api`），Worker 自己校验：要么带上传令牌，要么带浏览器的 `CF_Authorization` cookie。所以 CLI 只需要 `PROMO_KIT_TOKEN`。
 
 本地开发：在 `.dev.vars` 里写 `DEV_NO_ACCESS=1` 和 `UPLOAD_TOKEN=devtoken`，跑 `bun run dev`，再用 `KIT_URL=http://localhost:8787 PROMO_KIT_TOKEN=devtoken bun run kit push ...` 推一条测试素材。

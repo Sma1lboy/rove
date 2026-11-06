@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// Uploader CLI for kit.sma1lboy.me. Reads PROMO_KIT_TOKEN (+ CF_ACCESS_CLIENT_ID /
-// CF_ACCESS_CLIENT_SECRET once Access is on) from ~/.env.
+// Uploader CLI for kit.sma1lboy.me. Reads PROMO_KIT_TOKEN (minted on the site's 上传令牌 page;
+// CF_ACCESS_CLIENT_ID/SECRET are optional) from ~/.env.
 //   bun run kit push <video.mp4> --title "..." --copy copy.md [--cover cover.jpg] [--id slug]
 //   bun run kit copy <id> --copy copy.md [--title "..."]
 //   bun run kit rm <id>
