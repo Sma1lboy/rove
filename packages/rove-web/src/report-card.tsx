@@ -72,8 +72,8 @@ export function ReportCard(props: {
 
   return (
     <section className="flex flex-col gap-1 px-2 pb-2 font-mono text-meta">
-      <button
-        type="button"
+      <Button
+        variant="row"
         aria-expanded={open}
         className="flex items-center gap-1.5 text-left text-muted hover:text-ink"
         onClick={() => setOpen(!open)}
@@ -82,7 +82,7 @@ export function ReportCard(props: {
         <span className="min-w-0 flex-1 truncate">
           {t("files.report.title")} · {facts.files} · +{facts.added} −{facts.removed}
         </span>
-      </button>
+      </Button>
       {open && (
         <>
           <p className="m-0 text-muted">
