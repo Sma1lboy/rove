@@ -47,7 +47,6 @@ import {
   selectTab,
   setTabSessionId,
   setTabSplit,
-  splitLeafPtyKey,
   tabCwdFor,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
@@ -64,6 +63,7 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
+import { activeLeafCells } from "./active-leaf-size"
 import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
 import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
@@ -71,15 +71,14 @@ import { TabStrip } from "./tab-strip"
 import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
-import { useEngineExit } from "./use-engine-exit"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
 import { useTabHydration, useTabNaming } from "./use-tab-lifecycle"
+import { useTabNotices } from "./use-tab-notices"
 import { useTabRequests } from "./use-tab-requests"
 import { useTabStripMenu } from "./use-tab-strip-menu"
 import { useTabTurnState } from "./use-tab-turn-state"
-import { useUsageLimit } from "./use-usage-limit"
 
 export interface TerminalTabsProps {
   taskId: string
@@ -201,15 +200,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const updateRef = useLatest(update)
 
-  /** Focused-leaf emulator cells for split-core's size gate; null → depth-cap fallback. */
-  const activeLeafSize = (): { cols: number; rows: number } | null => {
-    const s = stateRef.current
-    const tab = s.tabs.find((x) => x.id === s.activeId)
-    if (!tab) return null
-    const leafId = tab.splitTree?.activeLeafId ?? "leaf-1"
-    const key = splitLeafPtyKey(tabPtyKeyFor(propsRef.current.taskId, tab), leafId)
-    return getDefaultPtyRegistry().get(key)?.size ?? null
-  }
+  const activeLeafSize = () => activeLeafCells(stateRef.current, propsRef.current.taskId)
   const activeLeafSizeRef = useLatest(activeLeafSize)
 
   /** Supplies IO reads to the pure `engineTabSpawnFor`. */
@@ -347,7 +338,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     restartActive: tabClose.retryActive,
   })
 
-  const engineExit = useEngineExit({
+  const { engineExit, usageLimit } = useTabNotices({
     taskId: props.taskId,
     tab: active,
     hook: props.hookTabStates?.get(active.id),
@@ -356,13 +347,6 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     onOpenSettings: props.onOpenSettings,
   })
   engineDeadRef.current = engineExit !== undefined
-
-  const usageLimit = useUsageLimit({
-    taskId: props.taskId,
-    tab: active,
-    suppressed: engineExit !== undefined,
-    requestNewChat,
-  })
 
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
    *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */

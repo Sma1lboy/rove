@@ -98,9 +98,9 @@ export function TermNotice(props: {
           >
             {t("menu.continueEngine")}
           </Button>
-          <button type="button" className={LINK} onClick={props.onDismissLimit}>
+          <Button variant="link" hit="tight" onClick={props.onDismissLimit}>
             {t("workspace.dismiss")}
-          </button>
+          </Button>
         </>
       )}
       {gone && (
