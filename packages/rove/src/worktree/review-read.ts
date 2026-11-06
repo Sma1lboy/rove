@@ -65,10 +65,11 @@ export async function worktreeDiffFile(
   path: string,
   scope: PreviewScope,
   prBaseRef?: string,
+  opts: { ignoreWhitespace?: boolean } = {},
 ): Promise<PreviewData> {
   if (!isWorktreeRelative(path)) throw new ApiError("path must be relative to the worktree", "BAD_ARGS")
-  if (scope === "working") return loadPreviewData(worktreePath, path)
+  if (scope === "working") return loadPreviewData(worktreePath, path, undefined, opts)
   const base = await resolveBase(worktreePath, prBaseRef)
   if (!base) throw new ApiError("could not resolve a base branch for this task", "NO_BASE")
-  return loadPreviewData(worktreePath, path, scope === "task" ? { base, working: true } : { base })
+  return loadPreviewData(worktreePath, path, scope === "task" ? { base, working: true } : { base }, opts)
 }

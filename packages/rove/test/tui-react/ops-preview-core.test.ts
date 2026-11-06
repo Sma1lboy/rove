@@ -91,6 +91,21 @@ describe("loadPreviewData", () => {
     expect(data.text).toContain("+export const a = 2")
   })
 
+  test("ignoreWhitespace drops a whitespace-only file from the combined diff and keeps real edits", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "b.ts"), "if (x) {\n  y()\n}\n")
+    execFileSync("git", ["add", "b.ts"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "b"], { cwd: repo })
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    writeFileSync(join(repo, "b.ts"), "if (x) {\n    y()\n}\n")
+    const all = await loadPreviewData(repo, ".")
+    const quiet = await loadPreviewData(repo, ".", undefined, { ignoreWhitespace: true })
+    if (all.kind !== "diff" || quiet.kind !== "diff") throw new Error("expected diffs")
+    expect(all.text).toContain("diff --git a/b.ts b/b.ts")
+    expect(quiet.text).not.toContain("b.ts")
+    expect(quiet.text).toContain("+export const a = 2")
+  })
+
   test("a clean file previews as its content", async () => {
     const repo = makeRepo()
     const data = await loadPreviewData(repo, "a.ts")

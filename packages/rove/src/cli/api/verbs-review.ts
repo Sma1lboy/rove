@@ -66,12 +66,19 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
         description:
           "`working` = uncommitted changes; `branch` = commits since the base; `task` = commits and uncommitted work since the base.",
       },
+      {
+        name: "ignore-whitespace",
+        type: "bool",
+        description: "Diff with `git diff -w`: whitespace-only changes drop out. Off by default.",
+      },
     ],
     handler: async (ctx) => {
       const wt = await taskWorktree(ctx)
       const asked = ctx.args.require("scope")
       const scope = asked === "branch" || asked === "task" ? asked : "working"
-      return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef)
+      return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef, {
+        ignoreWhitespace: ctx.args.bool("ignore-whitespace") === true,
+      })
     },
   },
 ]

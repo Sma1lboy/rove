@@ -84,7 +84,7 @@ export interface RoveOps {
   /** The registered machine a task lives on; undefined = this machine. */
   machineOf?(taskId: string): string | undefined
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
-  diffFile(taskId: string, path: string, scope: PreviewScope): Promise<unknown>
+  diffFile(taskId: string, path: string, scope: PreviewScope, ignoreWhitespace?: boolean): Promise<unknown>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
@@ -377,7 +377,7 @@ export function createRoveOps(
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
     },
 
-    async diffFile(taskId, path, scope) {
+    async diffFile(taskId, path, scope, ignoreWhitespace) {
       // git scopes the diff to the worktree, but a `code` preview reads the
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
@@ -388,14 +388,16 @@ export function createRoveOps(
           flag("task-id", taskId),
           flag("path", path),
           flag("scope", scope),
+          ...(ignoreWhitespace ? ["--ignore-whitespace"] : []),
         ])
       }
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
-      if (scope === "working") return loadPreviewData(task.worktreePath, path)
+      const opts = { ignoreWhitespace: ignoreWhitespace === true }
+      if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)
       const base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
       if (!base) throw new BridgeError("NO_BASE", "could not resolve a base branch for this task")
-      return loadPreviewData(task.worktreePath, path, scope === "task" ? { base, working: true } : { base })
+      return loadPreviewData(task.worktreePath, path, scope === "task" ? { base, working: true } : { base }, opts)
     },
 
     async dismissAttention(taskId, tabId, deliveryId) {

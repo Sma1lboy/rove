@@ -321,6 +321,8 @@ export async function loadPreviewData(
   worktree: string,
   relPath: string,
   range?: { base: string; working?: boolean },
+  /** `ignoreWhitespace`: `git diff -w`, so a whitespace-only change drops out of the diff. */
+  opts: { ignoreWhitespace?: boolean } = {},
 ): Promise<PreviewData> {
   if (isImagePath(relPath)) {
     return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
@@ -335,7 +337,14 @@ export async function loadPreviewData(
     }
     spec = sha
   }
-  const res = await runWorktreeGit(worktree, ["--literal-pathspecs", "diff", spec, "--", relPath])
+  const res = await runWorktreeGit(worktree, [
+    "--literal-pathspecs",
+    "diff",
+    ...(opts.ignoreWhitespace ? ["-w"] : []),
+    spec,
+    "--",
+    relPath,
+  ])
   // A standalone file may have no repository or no HEAD yet: fall back to
   // its content. Combined/base comparisons have no such fallback.
   if (res.status !== 0 && (range || isCombinedPathspec(relPath))) {

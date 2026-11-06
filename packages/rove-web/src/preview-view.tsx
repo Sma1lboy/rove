@@ -10,6 +10,18 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
+import { DiffFileRow } from "./diff-file-row.tsx"
+import { DiffToolbar } from "./diff-toolbar.tsx"
+import {
+  fileHashes,
+  loadIgnoreWs,
+  loadMarks,
+  nextAfter,
+  saveIgnoreWs,
+  saveMarks,
+  viewedFiles,
+  withMark,
+} from "./diff-viewed.ts"
 import {
   type DiffRow,
   chatReference,
@@ -32,17 +44,13 @@ import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { type Preview, activeStream, dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { Chevron } from "./ui/chevron.tsx"
-import { Chip } from "./ui/chip.tsx"
 import {
-  DIFF_FILE_NAME,
   DIFF_GUTTER,
   DIFF_NOTE_TEXT,
   diffCodeClass,
   diffRowClass,
   diffSignClass,
 } from "./ui/diff-row.ts"
-import { Tabs } from "./ui/tabs.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 type Loaded =
@@ -89,7 +97,9 @@ export function PreviewView({
 }: { model: AppModel; view: Preview; active: boolean; restored: boolean; onClose: () => void }) {
   useLocale()
   const touch = isTouch()
-  const params = { taskId: view.taskId, path: view.path, scope: view.scope }
+  const [ws, setWs] = useState(loadIgnoreWs)
+  const [marks, setMarks] = useState(loadMarks)
+  const params = { taskId: view.taskId, path: view.path, scope: view.scope, ...(ws ? { ignoreWhitespace: true } : {}) }
   // The diff as last read shows at once; a refresh keeps the rows on screen until the reread lands.
   const [loaded, setLoaded] = useState<Loaded | null>(() => {
     const last = lastReply<unknown>(model, "diff.file", params)
@@ -121,7 +131,7 @@ export function PreviewView({
     return () => {
       live = false
     }
-  }, [c, view.taskId, view.path, view.scope, nonce])
+  }, [c, view.taskId, view.path, view.scope, ws, nonce])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
@@ -152,6 +162,18 @@ export function PreviewView({
   const rowIds = useMemo(() => rows.map((_, n) => `row-${n}`), [rows])
   const shown = useMemo(() => visibleIndexes(rows, folded), [rows, folded])
   const stats = useMemo(() => fileStats(rows), [rows])
+  const hashes = useMemo(() => fileHashes(rows), [rows])
+  const viewed = useMemo(() => viewedFiles(marks, view.taskId, hashes), [marks, view.taskId, hashes])
+  // A file marked viewed folds; one that stops being viewed (unmarked, or its diff changed) opens again.
+  const wasViewed = useRef<ReadonlySet<string>>(new Set())
+  useEffect(() => {
+    const before = wasViewed.current
+    wasViewed.current = viewed
+    const added = [...viewed].filter((p) => !before.has(p))
+    const removed = [...before].filter((p) => !viewed.has(p))
+    if (added.length === 0 && removed.length === 0) return
+    setFolded((cur) => new Set([...[...cur].filter((p) => !removed.includes(p)), ...added]))
+  }, [viewed])
   // Notes handed to the engine are done with; the rest wait in the tray.
   const unsent = useMemo(() => notes.filter((n) => n.sentAt === undefined), [notes])
   const placed = useMemo(() => unsent.map((note) => ({ note, at: locate(note, rows) })), [unsent, rows])
@@ -194,6 +216,19 @@ export function PreviewView({
     })
   const files = [...stats.keys()].flatMap((i) => (rows[i]?.path ? [rows[i]?.path as string] : []))
   const allFolded = files.length > 0 && files.every((path) => folded.has(path))
+  const total = [...stats.values()].reduce(
+    (sum, s) => ({ added: sum.added + s.added, removed: sum.removed + s.removed }),
+    { added: 0, removed: 0 },
+  )
+  const toggleViewed = (path: string) => {
+    const next = withMark(marks, view.taskId, path, viewed.has(path) ? undefined : hashes.get(path))
+    setMarks(next)
+    saveMarks(next)
+  }
+  const toggleWs = () => {
+    saveIgnoreWs(!ws)
+    setWs(!ws)
+  }
 
   const addNote = () => {
     if (!target) return
@@ -286,6 +321,25 @@ export function PreviewView({
       .finally(() => setSending(false))
   }
 
+  const jumpFile = () => {
+    const next = nextAfter([...stats.keys()], cursor)
+    if (next === null) return
+    setCursor(next)
+    setAnchor(null)
+    setPicked(false)
+  }
+  const jumpComment = () => {
+    const next = nextAfter(
+      placed.flatMap(({ at }) => (at ? [at.first] : [])).sort((a, b) => a - b),
+      cursor,
+    )
+    if (next === null) return
+    const path = rows[next]?.path
+    if (path) setFolded((cur) => new Set([...cur].filter((p) => p !== path)))
+    setCursor(next)
+    setAnchor(null)
+    setPicked(false)
+  }
   const step = (by: 1 | -1) =>
     setCursor((cur) => {
       const at = Math.max(0, shown.indexOf(cur))
@@ -343,22 +397,22 @@ export function PreviewView({
       ref={host}
       onKeyDown={onKey}
     >
-      {isDiff && (base !== null || files.length > 1) && (
-        <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 px-2 pt-1.5 font-mono text-meta">
-          {base !== null && (
-            <Tabs
-              className="flex-wrap"
-              tabs={scopes}
-              value={view.scope}
-              onChange={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
-            />
-          )}
-          {files.length > 1 && (
-            <Button hit="tight" className="ml-auto" onClick={() => setFolded(allFolded ? new Set() : new Set(files))}>
-              {allFolded ? t("review.unfoldAll") : t("review.foldAll")}
-            </Button>
-          )}
-        </div>
+      {isDiff && (
+        <DiffToolbar
+          scopes={base !== null ? scopes : null}
+          scope={view.scope}
+          onScope={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
+          ignoreWs={ws}
+          onToggleWs={toggleWs}
+          files={files.length}
+          added={total.added}
+          removed={total.removed}
+          viewed={viewed.size}
+          allFolded={allFolded}
+          onFoldAll={() => setFolded(allFolded ? new Set() : new Set(files))}
+          onNextFile={jumpFile}
+          onNextComment={placed.some(({ at }) => at) ? jumpComment : null}
+        />
       )}
       <div className="min-h-0 flex-1 overflow-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
         {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
@@ -369,34 +423,27 @@ export function PreviewView({
           const row = rows[i] as DiffRow
           const inCursor = i >= lo && i <= hi
           if (row.kind === "file") {
-            const closed = row.path !== null && folded.has(row.path)
             const stat = stats.get(i)
+            const path = row.path
             return (
-              <Button
+              <DiffFileRow
                 key={rowIds[i]}
-                variant="row"
-                data-row={i}
-                aria-expanded={!closed}
-                aria-label={t(closed ? "review.unfold" : "review.fold", { path: row.text })}
-                className={`${diffRowClass("file", { cursor: inCursor, noted: false })} w-full text-left`}
-                onClick={() => {
+                index={i}
+                name={row.text}
+                path={path}
+                closed={path !== null && folded.has(path)}
+                viewed={path !== null && viewed.has(path)}
+                cursor={inCursor}
+                added={stat?.added ?? 0}
+                removed={stat?.removed ?? 0}
+                onToggleFold={() => {
                   setCursor(i)
                   setAnchor(null)
                   setPicked(false)
-                  if (row.path) toggleFold(row.path)
+                  if (path) toggleFold(path)
                 }}
-              >
-                <span />
-                <span />
-                <span className="grid place-items-center text-subtle">
-                  <Chevron right={closed} />
-                </span>
-                <span className={DIFF_FILE_NAME}>
-                  <span className="min-w-0 truncate">{row.text}</span>
-                  {stat?.added ? <Chip tone="added">+{stat.added}</Chip> : null}
-                  {stat?.removed ? <Chip tone="removed">−{stat.removed}</Chip> : null}
-                </span>
-              </Button>
+                onToggleViewed={() => path && toggleViewed(path)}
+              />
             )
           }
           const noted = covered.has(i)
