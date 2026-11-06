@@ -207,12 +207,15 @@ export function runOps(deps: RunDeps = realDeps): OpTable {
     "run.stop": {
       kind: "write",
       destructive: false,
-      wraps: "rove api tab-close on the run tab (its shell and the server under it end); the task keeps its port",
+      wraps:
+        "rove api tab-close on the run tab (its shell and the server under it end), then archive on the empty `shell` row `run.start` made; the task keeps its port",
       async run(a, { api }) {
         const id = taskId(a)
         const record = readRecords(deps.load())[id]
         if (record?.session && record.taskId && record.tabId) {
           await api.verb("tab-close", [flag("task-id", record.taskId), flag("tab", record.tabId)]).catch(() => {})
+          // The run tab was a shared child of the task; left behind it would sit in the rail with no tabs.
+          if (record.taskId !== id) await api.verb("archive", [flag("task-id", record.taskId)]).catch(() => {})
           deps.update((fresh) => ({ [RUN_TASKS_KEY]: { ...readRecords(fresh), [id]: { port: record.port } } }))
         }
         return answer(await state(api, id))

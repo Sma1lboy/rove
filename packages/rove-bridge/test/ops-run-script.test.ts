@@ -93,7 +93,7 @@ describe("run.start / run.stop", () => {
     expect(h.calls.some((c) => "verb" in c && c.verb === "tab-new")).toBe(false)
   })
 
-  test("stop interrupts and closes the run tab but keeps the task's port", async () => {
+  test("stop closes the run tab, archives the empty shell row it made and keeps the task's port", async () => {
     const h = harness({
       state: { [RUN_TASKS_KEY]: { [T]: { port: 4100, session: "C1::tab-1", taskId: "C1", tabId: "tab-1" } } },
     })
@@ -101,6 +101,7 @@ describe("run.start / run.stop", () => {
     expect(h.calls.find((c) => "verb" in c && c.verb === "tab-close")).toMatchObject({
       argv: ["--task-id=C1", "--tab=tab-1"],
     })
+    expect(h.calls.find((c) => "verb" in c && c.verb === "archive")).toMatchObject({ argv: ["--task-id=C1"] })
     expect(h.state()[RUN_TASKS_KEY]).toEqual({ [T]: { port: 4100 } })
   })
 })
