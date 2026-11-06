@@ -47,6 +47,8 @@ export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focu
 export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
 export const RAIL_CARET = "text-accent animate-blink motion-reduce:animate-none"
+/** The rail's note while no task exists; the workspace beside it carries the way forward. On the task rows' left edge. */
+export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
   `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none" : ""}`

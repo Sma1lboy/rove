@@ -140,7 +140,6 @@ export const en = {
     storySaveStart: "save & start",
     storyStart: "start",
     attachHintTouch: "paste a path / a screenshot → inserts an image placeholder",
-    quickIntentTouch: "Creates an isolated worktree and branch.",
   },
 }
 
@@ -281,6 +280,5 @@ export const zh: typeof en = {
     storySaveStart: "保存并启动",
     storyStart: "启动",
     attachHintTouch: "粘贴路径 / 截图 → 插入图片占位行",
-    quickIntentTouch: "创建独立 worktree 和分支。",
   },
 }

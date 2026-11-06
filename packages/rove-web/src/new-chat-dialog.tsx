@@ -12,7 +12,6 @@ import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
-import { ATTEMPTS } from "./quick-start-dialog.tsx"
 import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
@@ -20,6 +19,9 @@ import { toast } from "./ui.ts"
 import { FIELD, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { HINT, INPUT, KICKER } from "./ui/text.ts"
+
+/** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
+const ATTEMPTS = ["1", "2", "3", "4", "5"] as const
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
 export type NewChatContext = "fresh" | "continue"

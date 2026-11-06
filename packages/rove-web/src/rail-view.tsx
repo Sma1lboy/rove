@@ -19,6 +19,7 @@ import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
+import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { dropIdleProjects } from "./rail-idle.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
@@ -28,9 +29,7 @@ import { withPanes } from "./rail-panes.ts"
 import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
-import { ts } from "./settings-copy.ts"
 import { SettingsDialog } from "./settings-view.tsx"
-import { skillMissing } from "./skill-status.ts"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -38,7 +37,6 @@ import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
-import { RAIL_FOOT, RAIL_NAV_DOT, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import {
   CHILD_INDENT,
   FOLD_TOGGLE,
@@ -47,6 +45,7 @@ import {
   RAIL,
   RAIL_CARET,
   RAIL_CURSOR,
+  RAIL_EMPTY,
   RAIL_HEAD,
   RAIL_SEARCH,
   guideClass,
@@ -57,9 +56,7 @@ import {
 import { CHIPS, ROW_TITLE_RAIL, ROW_TITLE_RUNNING, rowClass } from "./ui/row.ts"
 import { BRACKET, HEAD_CHIP, WORDMARK } from "./ui/shell.ts"
 import { StatusDots } from "./ui/status-dots.tsx"
-import { EMPTY } from "./ui/text.ts"
 import { UpdateChip } from "./update-view.tsx"
-import { UsageChips } from "./usage-view.tsx"
 import { WelcomePane } from "./welcome-view.tsx"
 
 /** Right click opens the row's menu where the pointer is (TUI tree menu). */
@@ -80,8 +77,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
-  const skillGap = useStore(skillMissing)
-  const skillHint = ts("engines.skill.bannerHintWeb", { engines: skillGap.join(", ") })
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
@@ -188,10 +183,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
-          <div className={EMPTY}>
-            <p>{t("rail.empty")}</p>
-            <p className="text-muted">{t("rail.emptyHint")}</p>
-          </div>
+          <p className={RAIL_EMPTY}>{t("rail.empty")}</p>
         )}
         {recent && <RecentRow title={recent.title} />}
         {rows.map((row, i) =>
@@ -297,23 +289,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           ),
         )}
       </div>
-      {/* The usage line sits above Settings on a wide rail; a phone finds it at the top of Settings. */}
-      {!narrow && <UsageChips client={model.client} taskId={selection.taskId} tabId={selection.tabId} />}
-      <div className={RAIL_FOOT}>
-        <button type="button" className={`rail-nav-row ${railNavRowClass(false)}`} onClick={openSettings}>
-          {/* Lucide `settings` (ISC). */}
-          <svg className={RAIL_NAV_ICON} viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <span>{t("rail.settings")}</span>
-          {skillGap.length > 0 && (
-            // Nothing is broken, a step is missing: a quiet dot, the engines named on hover. Install is in Settings › Engines.
-            <span className={RAIL_NAV_DOT} role="img" title={skillHint} aria-label={skillHint} />
-          )}
-        </button>
-        <ShortcutBadge model={model} bindingId="settings.open" />
-      </div>
+      <RailFoot model={model} narrow={narrow} onSettings={openSettings} />
       <PaneKeyHint pane="sidebar" />
       {!narrow && !folded && <RailGrip rail={rail} />}
     </nav>

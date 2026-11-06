@@ -39,5 +39,5 @@ export const RAIL_NAV_PLUS =
   "ml-auto -mr-[4.5px] w-5 text-center font-sans text-display leading-none font-normal text-accent normal-nums"
 export const RAIL_NAV_ICON =
   "mr-[7px] size-3.5 flex-none fill-none stroke-current stroke-[1.75] [stroke-linecap:round] [stroke-linejoin:round]"
-/** The Settings entry's cue that an engine lacks the Rove agent skill: a small accent dot after the label. */
-export const RAIL_NAV_DOT = "ml-1.5 size-1.5 flex-none rounded-full bg-accent"
+/** The Settings entry's cue that an engine lacks the Rove agent skill: quiet words after the label. */
+export const RAIL_NAV_CUE = "ml-2 min-w-0 truncate text-meta text-subtle"

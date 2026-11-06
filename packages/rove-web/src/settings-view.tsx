@@ -47,7 +47,7 @@ export function SettingsDialog({ model, section: opening = "general" }: { model:
   return (
     <DialogShell title={t("settings.title")} wide>
       {/* A phone's rail has no foot for the usage line; it leads Settings instead. */}
-      {narrow && <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} />}
+      {narrow && <UsageChips client={client} taskId={selection.taskId} tabId={selection.tabId} inset={false} />}
       <div className={SETTINGS}>
         <nav className={SETTINGS_NAV} aria-label={t("settings.title")}>
           {SECTIONS.map((id) => (
