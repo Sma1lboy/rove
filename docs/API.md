@@ -726,6 +726,13 @@ edits (`set-vendor`, `rename`,
 - `worktree-files --task-id ID`: the task's worktree files, tracked plus
   untracked-not-ignored, worktree-relative. Returns `{ files }`. Runs where the
   worktree lives, so it reads a task on another registered machine too.
+- `worktree-file --task-id ID --path PATH`: one previewable file of the task's
+  worktree for a client to render: markdown, HTML, SVG, PNG/JPEG/GIF/WebP or
+  PDF, at most 5 MB. Returns `{ path, mime, size, base64 }`. `PATH` is
+  worktree-relative and its real path (symlinks resolved) must stay inside the
+  worktree (`BAD_ARGS` otherwise); another file type is `NOT_PREVIEWABLE`, a
+  larger file `TOO_LARGE`. Runs where the worktree lives, so it reads a task on
+  another registered machine too.
 - `worktree-diff --task-id ID`: the task's changed files, committed on its
   branch against the base (`scope: branch`, the PR base first) and then
   uncommitted (`scope: working`). Returns `{ base, files[{ path, status,

@@ -122,6 +122,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` (`working`, `branch` or `task`: commits and uncommitted work since the base) | `{kind, text?, message?}` |
 | `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
+| `file.read` | `taskId`, `path` | `{path, mime, size, base64}` (markdown, HTML, SVG, image or PDF, at most 5 MB, confined to the worktree) |
 | `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
 | `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `code?`, `body` | `{note}`; `code` is the diff rows the note covers (sign + text per line), quoted in the prompt and compared later to flag a note whose code moved |
 | `review.edit` | `taskId`, `id`, `body` | `{note}`: rewrites one note's text in place; `NOT_FOUND` for an unknown id |

@@ -124,6 +124,17 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       },
     }),
 
+    "file.read": spec({
+      kind: "read",
+      destructive: false,
+      wraps:
+        "rove api worktree-file — one markdown/HTML/SVG/image/PDF file of the task's worktree (real path confined to it, 5 MB cap), base64",
+      // The verb runs where the worktree lives and confines the read there; `verb` routes a remote task by its id.
+      async run(args, { api }) {
+        return api.verb("worktree-file", [flag("task-id", taskId(args)), flag("path", relPath(args, "path"))])
+      },
+    }),
+
     "review.list": spec({
       kind: "read",
       destructive: false,

@@ -28,7 +28,7 @@ import {
 } from "./panel-model.ts"
 import { closePanelTab, editPanel, useTaskPanel } from "./panel-state.ts"
 import { PanelTabRow } from "./panel-tabs.tsx"
-import { PreviewView } from "./preview-view.tsx"
+import { PreviewHost } from "./preview-host.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { TranscriptView } from "./transcript-view.tsx"
@@ -157,7 +157,7 @@ function TabView({
   if (tab.kind === "chat") return <TranscriptView model={model} task={task} active={active} />
   if (tab.kind === "diff") {
     return (
-      <PreviewView
+      <PreviewHost
         key={`${task.id}:${tab.path}:${tab.scope}`}
         model={model}
         view={{ taskId: task.id, path: tab.path, scope: tab.scope }}

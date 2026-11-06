@@ -86,6 +86,7 @@ ports               --task-id --all
 viewers             --task-id
 review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
+worktree-file       --task-id(REQ) --path(REQ)
 worktree-diff       --task-id(REQ)
 worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working|task}(REQ) --base
                     --ignore-whitespace
