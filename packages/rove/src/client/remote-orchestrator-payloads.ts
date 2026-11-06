@@ -318,6 +318,7 @@ export function deserializeTask(s: SerializedTask): Task {
     deletion: s.deletion,
     quotaResume: s.quotaResume,
     scheduledStart: s.scheduledStart,
+    ...(s.autoFixCi ? { autoFixCi: s.autoFixCi } : {}),
     linkedWorkItem: s.linkedWorkItem,
     dispatcher: s.dispatcher,
     ...(s.parentTaskId ? { parentTaskId: toTaskId(s.parentTaskId) } : {}),

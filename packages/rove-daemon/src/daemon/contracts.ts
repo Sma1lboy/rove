@@ -1,5 +1,6 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
+import type { AutoFixState } from "../auto-fix-ci.ts"
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { TaskTodo, TodoOp } from "../task-notes.ts"
 import type { TaskWorkspace } from "../workspace.ts"
@@ -160,6 +161,8 @@ export interface TaskPRStatus {
   readonly baseRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
+  /** The PR's head commit; a push changes it, which is what makes a red check a new failure. */
+  readonly headSha?: string
   readonly lastCheckedAt?: string
   readonly lastError?: string
 }
@@ -265,6 +268,7 @@ export interface DaemonTask {
   readonly deletion?: TaskDeletionState
   readonly quotaResume?: TaskQuotaResumeState
   readonly scheduledStart?: TaskScheduledStart
+  readonly autoFixCi?: AutoFixState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
@@ -404,6 +408,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
   /** Arm (or clear, with `null`) the one-shot delayed start. */
   setScheduledStart(id: string, state: TaskScheduledStart | null): Promise<void>
+  /** Turn auto-fix CI on (fresh count) or off, or record the loop's progress; `null` = off. */
+  setAutoFixCi(id: string, state: AutoFixState | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
   deleteTask(id: string, options?: TaskDeleteOptions): Promise<void>

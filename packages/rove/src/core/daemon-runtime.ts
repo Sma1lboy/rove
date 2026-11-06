@@ -15,6 +15,7 @@ import { spawnCapture } from "../lib/poll-scheduling.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
 import { deriveTitleFromSession, deriveTitleFromSessionId } from "../monitor/auto-title.ts"
 import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
+import { buildCIPromptForWorktree } from "../tui/ops/ci-prompt.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
@@ -225,6 +226,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
   getPersistedString,
+  buildCIPrompt: (worktree, state) => buildCIPromptForWorktree(worktree, state as never),
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],
   prStatus: {

@@ -216,7 +216,16 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
     if (!head) return pick(held)
     // A search hit only means the PR contains the commit; it must be the PR's head.
     const bySha = await gh(
-      ["pr", "list", "--search", head, "--state", "all", "--json", `${viewFields},headRefOid`],
+      [
+        "pr",
+        "list",
+        "--search",
+        head,
+        "--state",
+        "all",
+        "--json",
+        viewFields.includes("headRefOid") ? viewFields : `${viewFields},headRefOid`,
+      ],
       worktreePath,
     )
     if (!("json" in bySha)) return held.length > 0 ? pick(held) : bySha

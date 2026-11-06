@@ -158,6 +158,8 @@ export interface TaskRow {
   /** The attempt kept from its round (`update --kept`). */
   readonly kept?: boolean
   /** The owner's free-text notes and checklist for the task (`rove api todo`); absent = none. */
+  /** Auto-fix CI is on (`update --auto-fix-ci on`): attempts so far (of 3) and whether it stopped; absent = off. */
+  readonly autoFixCi?: { readonly attempts: number; readonly stopped?: true }
   readonly notes?: string
   readonly todos?: readonly { readonly id: string; readonly text: string; readonly done: boolean }[]
   /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */

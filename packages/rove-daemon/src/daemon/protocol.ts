@@ -105,6 +105,8 @@ export type DaemonRequestName =
   | "task.keep"
   // The owner's notes and checklist: replace notes, apply todo ops (add/check/edit/remove) atomically.
   | "task.notes"
+  // Opt in or out of auto-fixing failing CI for a task; the daemon keeps the attempt count.
+  | "task.autoFixCi"
   // Move a task under another (or to top level) and point its reply address at it; nothing else of the task moves.
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
@@ -429,6 +431,7 @@ export interface SerializedTask {
   readonly quotaResume?: DaemonTask["quotaResume"]
   /** One-shot delayed start (`task.scheduleStart`). */
   readonly scheduledStart?: DaemonTask["scheduledStart"]
+  readonly autoFixCi?: DaemonTask["autoFixCi"]
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
@@ -509,6 +512,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     deletion: task.deletion,
     quotaResume: task.quotaResume,
     scheduledStart: task.scheduledStart,
+    ...(task.autoFixCi ? { autoFixCi: task.autoFixCi } : {}),
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
     ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),

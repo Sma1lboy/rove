@@ -31,6 +31,7 @@ const TASK_FIELDS = [
   "pinned",
   "kept",
   "require-report",
+  "auto-fix-ci",
   "status",
 ] as const
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
@@ -175,6 +176,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   const pinned = ctx.args.bool("pinned")
   const kept = ctx.args.bool("kept")
   const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
+  const autoFixCi = ctx.args.enumOf<"on" | "off">("auto-fix-ci")
   const status = ctx.args.enumOf<TaskStatus>("status")
   const report = {
     reportBranch: ctx.args.str("report-branch"),
@@ -260,6 +262,7 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   if (requireReport !== undefined) {
     await step(["require-report"], "task.requireReport", { required: requireReport === "on" })
   }
+  if (autoFixCi !== undefined) await step(["auto-fix-ci"], "task.autoFixCi", { enabled: autoFixCi === "on" })
   if (status !== undefined) await step(["status"], "task.status", { status, ...report })
 
   return {
@@ -367,6 +370,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         values: ["on", "off"],
         description:
           "on: every later `send` to this task arms a delivery the agent must close with `report --delivery <id>` (a turn that ends without one raises a `report_missing` Inbox row); off: back to plain sends.",
+      },
+      {
+        name: "auto-fix-ci",
+        type: "enum",
+        values: ["on", "off"],
+        description:
+          "on: when this task's PR checks go red on a new head sha and its engine is at rest, the daemon types the fix-CI prompt (with the failing logs) into the engine, at most once per sha and 3 times in all, then stops and raises an Inbox row; the count starts over when the checks pass. Never interrupts a running turn. off: stop and forget the count.",
       },
       {
         name: "status",

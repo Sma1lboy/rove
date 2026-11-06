@@ -8,6 +8,7 @@
   "exports": {
     "./path-identity": "./src/path-identity.ts",
     "./repo-id": "./src/repo-id.ts",
+    "./auto-fix-ci": "./src/auto-fix-ci.ts",
     "./task-notes": "./src/task-notes.ts",
     "./task-tree": "./src/task-tree.ts",
     "./workspace": "./src/workspace.ts",
@@ -124,6 +125,7 @@
     "./plugins/settings-env": "./src/plugins/settings-env.ts",
     "./daemon/pty-exit-watch": "./src/daemon/pty-exit-watch.ts",
     "./plugins/task-diff": "./src/plugins/task-diff.ts",
+    "./daemon/auto-fix-ci": "./src/daemon/auto-fix-ci.ts",
     "./daemon/quota-resume": "./src/daemon/quota-resume.ts",
     "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts",
     "./prompts/observed-language": "./src/prompts/observed-language.ts",

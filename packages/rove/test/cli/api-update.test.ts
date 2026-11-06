@@ -214,3 +214,15 @@ describe("folded update flags on issues and routines", () => {
     expect(client.requests).toEqual([{ name: "automation.update", payload: { id: "r1", enabled: false } }])
   })
 })
+
+describe("update --auto-fix-ci", () => {
+  it("turns the loop on and off through task.autoFixCi", async () => {
+    const client = new FakeClient({ "task.autoFixCi": () => ({}) })
+    await invokeVerb("update", ["--task-id", "t1", "--auto-fix-ci", "on"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--auto-fix-ci", "off"], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([
+      { name: "task.autoFixCi", payload: { taskId: "t1", enabled: true } },
+      { name: "task.autoFixCi", payload: { taskId: "t1", enabled: false } },
+    ])
+  })
+})

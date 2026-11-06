@@ -112,6 +112,7 @@ const TASK_FIELDS = {
   deletion: true,
   quotaResume: true,
   scheduledStart: true,
+  autoFixCi: true,
   linkedWorkItem: true,
   dispatcher: true,
   parentTaskId: true,

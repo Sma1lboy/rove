@@ -10,6 +10,7 @@
 
 import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
 import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
 import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
@@ -73,6 +74,7 @@ export function coerceTask(value: unknown): Task | null {
   const workspace = coerceWorkspace(v.workspace)
   const sessionPrs = coerceSessionPrs(v.sessionPrs)
   const todos = coerceTodos(v.todos)
+  const autoFixCi = coerceAutoFix(v.autoFixCi)
 
   const report = coerceWorkerReport(v.report)
   return {
@@ -87,6 +89,8 @@ export function coerceTask(value: unknown): Task | null {
     // The owner's own words and checklist: nothing else holds them.
     ...(typeof v.notes === "string" && v.notes.length > 0 ? { notes: v.notes.slice(0, MAX_NOTES) } : {}),
     ...(todos ? { todos } : {}),
+    // On/off and the attempt count: lost, a loop that was told to stop would start over.
+    ...(autoFixCi ? { autoFixCi } : {}),
     kind,
     ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),
@@ -317,6 +321,7 @@ function coercePRStatus(value: unknown): TaskPRStatus | undefined {
     ...(typeof v.baseRef === "string" ? { baseRef: v.baseRef } : {}),
     ...(typeof v.reviewDecision === "string" ? { reviewDecision: v.reviewDecision } : {}),
     ...(typeof v.mergeable === "string" ? { mergeable: v.mergeable } : {}),
+    ...(typeof v.headSha === "string" ? { headSha: v.headSha } : {}),
     ...(typeof v.lastCheckedAt === "string" ? { lastCheckedAt: v.lastCheckedAt } : {}),
     ...(typeof v.lastError === "string" ? { lastError: v.lastError } : {}),
   }

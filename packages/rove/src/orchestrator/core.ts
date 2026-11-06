@@ -372,6 +372,8 @@ export class Orchestrator {
     this.editor.setQuotaResume(id, state)
   setScheduledStart = (id: TaskId | string, state: NonNullable<Task["scheduledStart"]> | null): Promise<void> =>
     this.editor.setScheduledStart(id, state)
+  setAutoFixCi = (id: TaskId | string, state: Parameters<TaskEditor["setAutoFixCi"]>[1]): Promise<void> =>
+    this.editor.setAutoFixCi(id, state)
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 

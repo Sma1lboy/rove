@@ -18,7 +18,7 @@ export type { PrViewErrorKind }
 
 /** The `--json` field set the collector requests from `gh pr list`. */
 export const GH_PR_VIEW_FIELDS =
-  "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup,additions,deletions"
+  "number,url,title,state,baseRefName,headRefOid,reviewDecision,mergeable,statusCheckRollup,additions,deletions"
 
 /**
  * One entry of `gh`'s `statusCheckRollup`. GitHub returns a heterogeneous
@@ -43,6 +43,7 @@ export interface GhPrView {
   readonly title?: string
   readonly state?: string
   readonly baseRefName?: string
+  readonly headRefOid?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly statusCheckRollup?: readonly GhCheckEntry[]
@@ -127,6 +128,7 @@ export function mapGhPrView(view: GhPrView | null | undefined, at: string): Task
     baseRef: view.baseRefName,
     reviewDecision: view.reviewDecision || undefined,
     mergeable: view.mergeable || undefined,
+    ...(view.headRefOid ? { headSha: view.headRefOid } : {}),
     lastCheckedAt: at,
   }
 }
@@ -150,7 +152,8 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
     a.deletions === b.deletions &&
     a.baseRef === b.baseRef &&
     a.reviewDecision === b.reviewDecision &&
-    a.mergeable === b.mergeable
+    a.mergeable === b.mergeable &&
+    a.headSha === b.headSha
   )
 }
 

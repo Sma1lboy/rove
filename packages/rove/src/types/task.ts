@@ -26,6 +26,7 @@ import type {
   TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"
@@ -182,6 +183,8 @@ export interface Task {
   readonly quotaResume?: TaskQuotaResumeState
   /** Present while an unstarted task waits for its one-shot delayed start. */
   readonly scheduledStart?: TaskScheduledStart
+  /** Opt-in auto-fix of failing CI (`update --auto-fix-ci on`); present = on. */
+  readonly autoFixCi?: AutoFixState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */

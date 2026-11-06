@@ -363,6 +363,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "task.autoFixCi",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const enabled = optionalBoolean(payload, "enabled")
+      if (enabled === undefined) throw new Error("enabled must be a boolean")
+      // On starts a fresh count (also what re-enabling after a stop means); off forgets it.
+      await ctx.orch.setAutoFixCi(taskId, enabled ? { attempts: 0 } : null)
+      return {}
+    },
+  },
+  {
     name: "task.notes",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

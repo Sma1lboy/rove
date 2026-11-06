@@ -205,6 +205,16 @@ export interface DaemonRuntimeAdapter {
     | { readonly outcome: "no-session" }
     | { readonly outcome: "no-engine"; readonly tabId: string }
   >
+  /** The fix-CI instruction for a worktree's failing checks (the repo's own template when it has one). */
+  buildCIPrompt(
+    worktree: string,
+    state: {
+      readonly branch: string
+      readonly prNumber?: number
+      readonly checks: readonly unknown[]
+      readonly totalFailing: number
+    },
+  ): Promise<string>
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]
