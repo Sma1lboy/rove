@@ -419,12 +419,11 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
 }
 
 /**
- * A row names its conversation like the TUI's (`conversationTitleOf`): the first engine tab the
- * engine has named, else the task's own title (a project's main row: its `update --title`, else the repo
- * name it starts with). A `dir` task keeps its title: stored dir titles are auto-generated noise.
+ * A row names its conversation like the TUI's (`worktreeRowLabel`): the first engine tab the engine
+ * has named, whatever the task's kind, else the task's own title (a project's main row: its
+ * `update --title`, else the repo name it starts with).
  */
 export function rowTitle(task: TaskRow, tabs: readonly TabRow[] | undefined): string {
-  if (task.kind === "dir") return task.title
   return tabs?.find((tab) => tab.kind === "engine" && tab.conversation)?.conversation ?? task.title
 }
 

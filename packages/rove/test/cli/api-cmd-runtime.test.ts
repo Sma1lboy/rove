@@ -181,6 +181,7 @@ describe("defaultApiRuntime", () => {
         vendor: null,
         liveVendor: null,
         lastTitle: "boot",
+        liveTitle: null,
         autoTitle: null,
         alive: false,
         engineAlive: false,
@@ -193,6 +194,7 @@ describe("defaultApiRuntime", () => {
         vendor: null,
         liveVendor: "claude",
         lastTitle: null,
+        liveTitle: null,
         autoTitle: null,
         alive: true,
         // These rows carry no pid, so nothing walked them: `null` is

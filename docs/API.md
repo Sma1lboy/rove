@@ -387,8 +387,10 @@ edits (`set-vendor`, `rename`,
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
-  `autoTitle`/`sessionId` + per-tab `alive`/`engineAlive`): the discovery read for
-  `send --tab tab-N`. `sessionId` is the conversation the tab pinned — the
+  `autoTitle`/`sessionId` + per-tab `alive`/`engineAlive`/`liveTitle`): the discovery read for
+  `send --tab tab-N`. `liveTitle` is the live session's own window title (the
+  engine's name for the conversation), null when it is dead or set none;
+  `lastTitle` is only recorded while a TUI has the tab open. `sessionId` is the conversation the tab pinned — the
   exact id `claude --resume <id>` (or the engine's own resume verb) reopens,
   and the one `send --tab tab-N --respawn` brings back. Present on engine
   tabs that recorded one, dead tabs included; absent for engines that mint
