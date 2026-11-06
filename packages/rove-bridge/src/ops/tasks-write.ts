@@ -224,6 +224,17 @@ export const TASK_WRITE_OPS: OpTable = {
       ...(ops ? { ops } : {}),
     })
   }),
+  "task.scheduleStart": write("rpc task.scheduleStart", async (a, c) => {
+    const at = text(a, "at", 40)
+    if (!Number.isFinite(Date.parse(at))) throw new BridgeError("BAD_ARGS", "at must be an ISO-8601 time")
+    return c.api.rpc("task.scheduleStart", { taskId: taskId(a), at, prompt: text(a, "prompt", PROMPT_MAX) })
+  }),
+  "task.cancelScheduledStart": write("rpc task.cancelScheduledStart", (a, c) =>
+    done(c.api.rpc("task.cancelScheduledStart", { taskId: taskId(a) })),
+  ),
+  "task.startScheduledNow": write("rpc task.startScheduledNow", (a, c) =>
+    c.api.rpc("task.startScheduledNow", { taskId: taskId(a) }),
+  ),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),

@@ -244,6 +244,7 @@ export function taskRows(
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
         ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
+        ...(task.scheduledStart ? { startsAt: task.scheduledStart.at } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
         ...(task.worktreePath ? {} : { noWorktree: true as const }),
       },

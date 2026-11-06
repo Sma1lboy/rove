@@ -181,6 +181,8 @@ export interface TaskRow {
   readonly prChipStale?: boolean
   /** The task has a stored brief (`task.prompt`), so "Run again" has something to run. */
   readonly hasPrompt?: boolean
+  /** ISO time an unstarted task's engine starts by itself (`task.scheduleStart`); absent = nothing scheduled. */
+  readonly startsAt?: string
   /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
   readonly machine?: MachineTag
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */

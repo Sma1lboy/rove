@@ -109,6 +109,10 @@ export type DaemonRequestName =
   | "task.setParent"
   // Hide or restore a task and its descendants; nothing is stopped or removed.
   | "task.archive"
+  // One-shot delayed start of an unstarted task (scheduled-start.ts); the first writes the schedule, the last starts it now.
+  | "task.scheduleStart"
+  | "task.cancelScheduledStart"
+  | "task.startScheduledNow"
   // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
   | "task.checkpointList"
   | "task.checkpoint"
@@ -330,6 +334,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Materializes the worktree and starts the engine.
+  "task.startScheduledNow",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
   // Serial thread/comment pages each have their own gh subprocess budget.
@@ -421,6 +427,8 @@ export interface SerializedTask {
   readonly deletion?: DaemonTask["deletion"]
   /** Durable rate-limit auto-resume schedule. */
   readonly quotaResume?: DaemonTask["quotaResume"]
+  /** One-shot delayed start (`task.scheduleStart`). */
+  readonly scheduledStart?: DaemonTask["scheduledStart"]
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
@@ -500,6 +508,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     observedLanguage: task.observedLanguage,
     deletion: task.deletion,
     quotaResume: task.quotaResume,
+    scheduledStart: task.scheduledStart,
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
     ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),

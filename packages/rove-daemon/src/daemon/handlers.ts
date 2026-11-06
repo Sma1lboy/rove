@@ -47,6 +47,7 @@ import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
 import { ARCHIVE_HANDLERS } from "./handlers-task-archive.ts"
+import { SCHEDULE_HANDLERS } from "./handlers-task-schedule.ts"
 import { SCRATCH_HANDLERS } from "./handlers-task-scratch.ts"
 import { SESSION_PR_HANDLERS } from "./handlers-task-session-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
@@ -317,6 +318,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
+    ...SCHEDULE_HANDLERS,
     ...CHECKPOINT_HANDLERS,
     ...SESSION_PR_HANDLERS,
     ...SCRATCH_HANDLERS,

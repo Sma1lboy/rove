@@ -111,6 +111,7 @@ const TASK_FIELDS = {
   observedLanguage: true,
   deletion: true,
   quotaResume: true,
+  scheduledStart: true,
   linkedWorkItem: true,
   dispatcher: true,
   parentTaskId: true,

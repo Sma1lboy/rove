@@ -370,6 +370,8 @@ export class Orchestrator {
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>
     this.editor.setQuotaResume(id, state)
+  setScheduledStart = (id: TaskId | string, state: NonNullable<Task["scheduledStart"]> | null): Promise<void> =>
+    this.editor.setScheduledStart(id, state)
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 
