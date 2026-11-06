@@ -16,6 +16,7 @@ import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
 import { createCover } from "./term-cover.ts"
+import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
 import { ctrlChord } from "./term-keys.ts"
@@ -287,6 +288,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       replies.forward(ctrlChord(data))
     } else replies.forward(data)
   })
+  const detachDictation = attachDictationGuard(term, (data) => replies.forward(data))
   // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
   // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
   // and on a keystroke (throttled; the host ignores a size it already has).
@@ -476,6 +478,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       scroll.dispose()
       written.dispose()
       input.dispose()
+      detachDictation()
       keyed.dispose()
       resize.dispose()
       offOpen()
