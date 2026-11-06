@@ -18,6 +18,7 @@ import { NotesView } from "./notes-view.tsx"
 import { openDiff } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { TimelineView, useTrackPr } from "./timeline-view.tsx"
 import { activeStream, toast } from "./ui.ts"
@@ -181,6 +182,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     >
       <PrStrip model={model} task={task} />
       <ChecksSection model={model} task={task} />
+      <RunStrip model={model} task={task} />
       <Tabs
         className="px-1 pb-1.5"
         tabs={[
