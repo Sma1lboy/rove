@@ -64,9 +64,9 @@ export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
 export const PANE_HINT = "keys-only m-0 overflow-hidden px-3.5 py-1 text-meta text-ellipsis whitespace-nowrap"
 
-/** A chord's keycap badge; under the rail head it hangs below its chip. */
+/** A chord's keycap badge; in the rail head it sits left of its chip, since the head clips anything hanging below. */
 export const shortcutBadge = (head: boolean): string =>
-  `shortcut-badge absolute z-8 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px text-meta text-accent ${head ? "top-full right-0" : "top-1/2 right-1 -translate-y-1/2"}`
+  `shortcut-badge absolute top-1/2 z-8 -translate-y-1/2 cursor-pointer rounded-sm border-hairline border-accent bg-surface px-1.25 py-px text-meta text-accent ${head ? "right-full mr-1.5" : "right-1"}`
 
 /** Split border styles (TUI `SplitStyle`): box frames every pane, line draws only the shared edge, rail a left bar, rule a top rule with the name riding it. */
 export const SPLIT = "relative min-w-0 flex-1"
@@ -121,7 +121,9 @@ export const PALETTE_LIST = "mx-0 my-2 overflow-x-hidden overflow-y-auto scrollb
 export const paletteRow = (selected: boolean): string =>
   `flex w-full min-w-0 justify-between gap-4 rounded-sm px-1.5 py-0.75 text-left font-mono text-meta ${FONT_RESET} whitespace-pre text-ink touch:py-2.5 ${selected ? "is-selected bg-hover" : ""}`
 export const PALETTE_NAME = "min-w-0 overflow-hidden text-ellipsis"
-export const PALETTE_CHORD = "shrink-0"
+/** The search field: one faint rule under it, no box and no brighter edge on focus. */
+export const PALETTE_INPUT =
+  "w-full rounded-none border-0 [border-bottom:var(--hairline)_solid_var(--line)] bg-transparent px-1.5 py-2 font-mono text-meta font-normal normal-nums text-ink focus-visible:outline-none"
 
 export const HELP_HEAD = "flex justify-between gap-4"
 export const HELP_CORNER = `flex flex-col items-end ${META}`

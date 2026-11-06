@@ -1,12 +1,11 @@
 /**
  * The command palette (TUI `command-palette.tsx`, prefix `/`): every command the
- * focused pane can run, by the TUI's label with its chord on the right. Rows come
+ * focused pane can run, by the TUI's label. Rows come
  * from the web's own command registry, so nothing listed is unrunnable. Under the commands it lists
  * the tasks whose title matches (the rail's filter) and, from two characters, what was said in any
  * task's conversations.
  */
 
-import { formatChord } from "@sma1lboy/rove/src/tui/lib/chord-glyphs.ts"
 import { matchesHelpAction } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -23,9 +22,8 @@ import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { PALETTE_CHORD, PALETTE_LIST, PALETTE_NAME, paletteRow } from "./ui/shell.ts"
-import { INPUT } from "./ui/text.ts"
-import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
+import { PALETTE_INPUT, PALETTE_LIST, PALETTE_NAME, paletteRow } from "./ui/shell.ts"
+import { prefixKey, userKeys } from "./user-keys.ts"
 
 /** Rows shown at once; the list scrolls inside (the TUI caps it at ten). */
 const VISIBLE_ROWS = 10
@@ -33,8 +31,6 @@ const VISIBLE_ROWS = 10
 interface PaletteRow {
   readonly command: WebCommand
   readonly name: string
-  readonly chord: string
-  /** What the filter matches against: the raw chord, not its glyphs. */
   readonly raw: string
 }
 
@@ -62,7 +58,7 @@ export function paletteRows(model: AppModel, surface: Surface | null): PaletteRo
     rows.push({
       command,
       name: actionDesc(command.id),
-      chord: command.prefix ? `${prefixCap()} + ${formatChord(key)}` : formatChord(key),
+      // The filter still matches the chord, so typing `ctrl+a n` finds New task.
       raw: command.prefix ? `${prefixKey()} + ${key}` : key,
     })
   }
@@ -154,7 +150,7 @@ function PaletteDialog({
     <DialogShell title={helpText("palette")} wide>
       <div className={`${DIALOG_BODY} palette`} onKeyDown={onKeyDown}>
         <input
-          className={INPUT}
+          className={PALETTE_INPUT}
           // biome-ignore lint/a11y/noAutofocus: the palette's only field
           autoFocus
           spellCheck={false}
@@ -179,7 +175,6 @@ function PaletteDialog({
                 onClick={() => open({ kind: "command", row })}
               >
                 <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${row.name}`}</span>
-                <span className={`keys-only mono text-accent ${PALETTE_CHORD}`}>{row.chord}</span>
               </button>
             )
           })}
