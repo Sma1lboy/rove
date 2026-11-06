@@ -3,7 +3,6 @@
 
 import { t } from "../../tui/i18n"
 import { AutomationsPage } from "../component/automations-page"
-import { SearchPage } from "../component/search-page"
 import { type PageEntry, type PageProps, setPageSource } from "./registry"
 
 function RoutinesRailPage(props: PageProps) {
@@ -18,17 +17,6 @@ function RoutinesRailPage(props: PageProps) {
   )
 }
 
-function SearchRailPage(props: PageProps) {
-  return (
-    <SearchPage
-      orchestrator={props.orchestrator}
-      focused={props.focused}
-      onClose={props.onClose}
-      onOpenTask={props.onOpenTask}
-    />
-  )
-}
-
 export const CORE_PAGES: readonly PageEntry[] = [
   {
     id: "automations",
@@ -37,8 +25,6 @@ export const CORE_PAGES: readonly PageEntry[] = [
     action: "automations.open",
     component: RoutinesRailPage,
   },
-  // After Kanban, Routines and Issues (10/20/30); no `action`, so no chord: the rail row is the way in.
-  { id: "search", title: () => t("search.title"), order: 40, component: SearchRailPage },
 ]
 
 export function registerCorePages(): void {

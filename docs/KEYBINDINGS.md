@@ -42,8 +42,9 @@ timeout, pane scope, and cancellation rules.
 Open the command palette with `ctrl+a /`. Type a human-readable action name
 or chord, use ↑/↓ to select, and Enter to run. Escape cancels. It lists typed
 commands available in the current pane; scope checks still apply when you run
-one. In the web client the same input also lists matching tasks by title and,
-from two characters, what was said in any task's conversations. Event-dependent navigation bindings remain in help as references.
+one. The same input also lists matching tasks by title and,
+from two characters, what was said in any task's conversations (Enter opens that
+task on the tab that said it), in the TUI and the web client. Event-dependent navigation bindings remain in help as references.
 
 Inside `F1` help, press `/` to filter the same keymap by name or chord. Clear
 the input to restore all sections. Both searches use case-insensitive fuzzy
@@ -57,7 +58,7 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
-| `ctrl+a` `/` | Search commands by action name, see their chords, and run a selected action |
+| `ctrl+a` `/` | Command palette: search commands (see their chords, run one), tasks by title, and what was said in any conversation |
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new child task sharing the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |

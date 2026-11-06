@@ -902,6 +902,8 @@ The palette invokes typed live commands, preserving scope and confirmation gates
 
 Scope widened (2026-11-05, owner's call, no chord change): the web palette also
 lists tasks by title and conversation hits (`sessions.search`) under the commands.
+The TUI palette follows the same day (no chord change): its standalone Search
+rail page is gone. That page had no chord, so no binding is orphaned.
 
 ## Second conversations open a child task (2026-10-22, approved)
 
