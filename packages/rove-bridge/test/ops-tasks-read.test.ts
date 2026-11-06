@@ -29,6 +29,7 @@ describe("op table", () => {
         "project.forget",
         "notes.delete",
         "task.openMain",
+        "task.openCheckout",
         "worktree.adopt",
         "repo.clone",
         "task.ensureWorktree",

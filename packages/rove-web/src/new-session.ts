@@ -147,3 +147,27 @@ export async function startUngrouped(
   else if (prompt.trim()) await request("task.rename", { taskId, title: deriveTitleFromPrompt(prompt) })
   return taskId
 }
+
+/**
+ * Start a session in the project's own checkout (Worktree off): a top-level row of that project, titled
+ * from `prompt`. It is never a conversation opened on the project's main task, which would nest it there.
+ * `message` is what the engine receives (the prompt plus attachment refs); it defaults to the prompt.
+ */
+export async function startInCheckout(
+  request: Request,
+  repo: string,
+  engine: string,
+  prompt: string,
+  begin: boolean,
+  message: string = prompt.trim(),
+): Promise<string> {
+  const pick = engine ? { engine } : {}
+  const title = prompt.trim() ? deriveTitleFromPrompt(prompt) : ""
+  const { taskId } = await request<{ taskId: string }>("task.openCheckout", {
+    repo,
+    ...pick,
+    ...(title ? { title } : {}),
+  })
+  if (begin) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message })
+  return taskId
+}

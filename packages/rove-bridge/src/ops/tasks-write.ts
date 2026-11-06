@@ -238,6 +238,25 @@ export const TASK_WRITE_OPS: OpTable = {
     const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
     return { taskId: res.task.id }
   }),
+  // A session in the project's own checkout (New session, Worktree off). Its own top-level row, not a
+  // conversation of the main task: `tab.new` on a main that already runs one makes a child nested under it.
+  "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
+    const repo = absPath(a, "repo")
+    const problem = taskOpDeps.validateRepoPath(repo)
+    if (problem) throw new BridgeError("BAD_ARGS", problem)
+    const title = optText(a, "title", 200)
+    const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
+    const engine = engineGiven ? await engineId(a, "engine", c) : undefined
+    // The project row first: a dir task alone on a repo root is what a missing project row adopts.
+    const main = await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })
+    const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
+      dir: main.task.repo,
+      vendor: engine ?? taskOpDeps.preferredEngine(main.task.repo),
+      ...(title ? { title } : {}),
+    })
+    if (engine) taskOpDeps.rememberEngine(main.task.repo, engine)
+    return { taskId: res.taskId }
+  }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
   "repo.clone": write("helper cloneRepo (git clone, fixed argv)", clone),
   "task.ensureWorktree": write("verb ensure-worktree --task-id", async (a, c) => {

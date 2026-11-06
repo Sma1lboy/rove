@@ -158,6 +158,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
 | `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
+| `task.openCheckout` | `repo` (a real git repo), `engine?`, `title?` | `{taskId}`; a new top-level session in the project's own checkout (no branch, no worktree), beside the project's main row rather than under it. Start its engine with `tab.new` on the returned task | RPC `task.ensureMain` then `task.openDir` on the project root | |
 | `worktree.adopt` | `repo`, `worktreePath` (must be adoptable), `branch?`, `title?`, `engine?` | `{taskId}` | RPC `worktree.adopt` | |
 | `repo.clone` | `url` (https/http/ssh/git/scp form, or a GitHub `owner/repo` resolved to ssh when `gh config get git_protocol` is `ssh`, else https), `parentDir`, `folder?` | `{path}`; streams `op.progress` lines while git runs | `cloneRepo` | |
 | `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |

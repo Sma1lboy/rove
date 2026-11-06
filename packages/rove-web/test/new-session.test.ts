@@ -9,6 +9,7 @@ import {
   offeredEngines,
   repoChipLabel,
   spawnArgs,
+  startInCheckout,
   toggleRepo,
 } from "../src/new-session.ts"
 
@@ -174,5 +175,48 @@ describe("New session composer", () => {
     expect(toggleRepo(["/a", "/b"], "/b")).toEqual(["/a"])
     const full = Array.from({ length: REPO_CAP }, (_, i) => `/r${i}`)
     expect(toggleRepo(full, "/extra")).toEqual(full)
+  })
+})
+
+describe("Start with Worktree off", () => {
+  /** A bridge whose project already runs a conversation in its main task: the old path nested the new session there. */
+  function bridge() {
+    const calls: Array<[string, Record<string, unknown> | undefined]> = []
+    const request = async <T>(op: string, args?: Record<string, unknown>): Promise<T> => {
+      calls.push([op, args])
+      if (op === "task.openCheckout") return { taskId: "S1" } as T
+      if (op === "task.openMain") return { taskId: "MAIN" } as T
+      return {} as T
+    }
+    return { calls, request }
+  }
+
+  test("the session is a row of its own, titled from the prompt, and the engine starts in that row, never in the main task", async () => {
+    const { calls, request } = bridge()
+
+    const id = await startInCheckout(
+      request,
+      "/w/rove",
+      "codex",
+      "fix the flaky login test",
+      true,
+      "fix the flaky login test @a.png",
+    )
+
+    expect(id).toBe("S1")
+    expect(calls).toEqual([
+      ["task.openCheckout", { repo: "/w/rove", engine: "codex", title: "fix the flaky login test" }],
+      ["tab.new", { taskId: "S1", kind: "engine", engine: "codex", prompt: "fix the flaky login test @a.png" }],
+    ])
+  })
+
+  test("an unstarted session takes its title from the prompt and starts no engine; no prompt leaves the daemon's title", async () => {
+    const withPrompt = bridge()
+    await startInCheckout(withPrompt.request, "/w/rove", "", "plan the release", false)
+    expect(withPrompt.calls).toEqual([["task.openCheckout", { repo: "/w/rove", title: "plan the release" }]])
+
+    const bare = bridge()
+    await startInCheckout(bare.request, "/w/rove", "", "  ", false)
+    expect(bare.calls).toEqual([["task.openCheckout", { repo: "/w/rove" }]])
   })
 })
