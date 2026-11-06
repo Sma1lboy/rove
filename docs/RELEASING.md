@@ -127,7 +127,7 @@ rove update             # newest build on the channel you follow
 curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine (also --next)
 ```
 
-The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written only after an install of a picked channel succeeds. Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail and a next build a `-next.<N>` tail, so `channelOf()` reports `nightly` / `next`. The update check, the Update page and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
+The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written when Settings picks a channel and after an install of a picked channel succeeds (`rove update --next`). Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail and a next build a `-next.<N>` tail, so `channelOf()` reports `nightly` / `next`. The update check, the Update page, Settings' check button and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
 
 **Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. `next` and the nightly are the only automatic publishes.
 

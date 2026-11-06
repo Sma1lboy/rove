@@ -6,13 +6,14 @@
  */
 
 import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
-import type { ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
+import type { ReleaseChannel, ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
 import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { locale, t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import { openPage } from "./layout.ts"
+import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
@@ -49,9 +50,12 @@ export function useCatalog() {
   return useLocale() === "zh" ? upZh : upEn
 }
 
-/** Asks the registry (bypassing the bridge cache). `false` = the request itself failed. */
-export function checkForUpdate(client: BridgeClient): Promise<boolean> {
-  return client.request<CheckReply>("update.check", { force: true, locale: locale.get() }).then(
+/**
+ * Asks the registry (bypassing the bridge cache). `channel` names the dist-tag; without it the bridge
+ * follows the stored `update.channel`. `false` = the request itself failed.
+ */
+export function checkForUpdate(client: BridgeClient, channel?: ReleaseChannel): Promise<boolean> {
+  return client.request<CheckReply>("update.check", { force: true, locale: locale.get(), channel }).then(
     (reply) => {
       updateState.set(reply)
       return true
@@ -64,7 +68,9 @@ export function checkForUpdate(client: BridgeClient): Promise<boolean> {
 export function UpdateChip() {
   const u = useCatalog()
   const state = useStore(updateState)
-  if (!state?.info?.hasUpdate) return null
+  // `update.notify` off hides the passive chip; Settings' explicit check and the Update page still report.
+  const { prefs } = usePrefs()
+  if (!prefs.updateNotify || !state?.info?.hasUpdate) return null
   return (
     // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
     <button
