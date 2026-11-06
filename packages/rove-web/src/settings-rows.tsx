@@ -1,30 +1,67 @@
-/** Row shapes the Settings sections share: a switch, a one-of-many, and a click-to-cycle row. */
+/** What every Settings section is built from: a group of rows, each a name and note beside its control. */
 
-import type { ReactNode } from "react"
-import { CHIPS_ROW, chipClass } from "./ui/form.ts"
+import { type ReactNode, useId } from "react"
+import { Segmented } from "./ui/segmented.tsx"
+import { Select } from "./ui/select.tsx"
 import {
-  PREF_CHECKBOX,
-  PREF_CYCLE,
-  PREF_CYCLE_LABEL,
-  PREF_FIELD,
-  PREF_HINT,
-  PREF_LABEL,
-  PREF_LABEL_BESIDE_HINT,
-  PREF_LABEL_MONO,
-  PREF_LEGEND,
-  PREF_READONLY,
-  PREF_ROW,
+  SETTINGS_CONTROL,
   SETTINGS_GROUP,
+  SETTINGS_GROUP_HINT,
+  SETTINGS_GROUP_LABEL,
+  SETTINGS_NAME,
+  SETTINGS_NOTE,
+  SETTINGS_ROW,
+  SETTINGS_ROWS,
+  SETTINGS_ROW_INLINE,
+  SETTINGS_ROW_STACK,
+  SETTINGS_TEXT,
+  SETTINGS_VALUE,
 } from "./ui/settings.ts"
-import { KICKER } from "./ui/text.ts"
+import { Switch } from "./ui/switch.tsx"
 
-export function Group(props: { title: string; hint?: string; children: ReactNode }) {
+export function Group(props: { title?: string; hint?: string; children: ReactNode }) {
   return (
     <section className={SETTINGS_GROUP}>
-      <h2 className={`${KICKER} text-muted`}>{props.title}</h2>
-      {props.hint && <p className="text-muted">{props.hint}</p>}
-      {props.children}
+      {props.title && <h2 className={SETTINGS_GROUP_LABEL}>{props.title}</h2>}
+      {props.hint && <p className={SETTINGS_GROUP_HINT}>{props.hint}</p>}
+      <div className={SETTINGS_ROWS}>{props.children}</div>
     </section>
+  )
+}
+
+/**
+ * One setting. `inline` keeps a small control (a switch) beside the text on a phone; `stack` puts a wide one
+ * (a picker, a form) under it. `labelId` ties the text to its control for assistive tech.
+ */
+export function Row(props: {
+  label: ReactNode
+  hint?: ReactNode
+  children?: ReactNode
+  inline?: boolean
+  stack?: boolean
+  labelId?: string
+}) {
+  const text = (
+    <div className={SETTINGS_TEXT}>
+      <span id={props.labelId} className={SETTINGS_NAME}>
+        {props.label}
+      </span>
+      {props.hint && <span className={SETTINGS_NOTE}>{props.hint}</span>}
+    </div>
+  )
+  if (props.stack) {
+    return (
+      <div className={SETTINGS_ROW_STACK}>
+        {text}
+        {props.children}
+      </div>
+    )
+  }
+  return (
+    <div className={props.inline ? SETTINGS_ROW_INLINE : SETTINGS_ROW}>
+      {text}
+      {props.children && <div className={SETTINGS_CONTROL}>{props.children}</div>}
+    </div>
   )
 }
 
@@ -35,18 +72,16 @@ export function Toggle(props: {
   disabled?: boolean
   onChange: (next: boolean) => void
 }) {
+  const id = useId()
   return (
-    <label className={PREF_ROW}>
-      <input
-        type="checkbox"
-        className={`${PREF_CHECKBOX} touch:size-5`}
-        checked={props.checked}
+    <Row label={props.label} hint={props.hint} labelId={id} inline>
+      <Switch
+        on={props.checked}
+        aria-labelledby={id}
         disabled={props.disabled}
-        onChange={(e) => props.onChange(e.target.checked)}
+        onClick={() => props.onChange(!props.checked)}
       />
-      <span className={props.hint ? PREF_LABEL_BESIDE_HINT : PREF_LABEL}>{props.label}</span>
-      {props.hint && <span className={`${PREF_HINT} text-muted`}>{props.hint}</span>}
-    </label>
+    </Row>
   )
 }
 
@@ -55,51 +90,31 @@ export interface Pick<T extends string | number> {
   readonly label: string
 }
 
-/** One of several, all visible: the TUI's picker list laid flat. */
-export function Chips<T extends string | number>(props: {
+/** Up to this many characters of option labels fit joined in a row beside the setting's name. */
+const SEGMENT_CHARS = 36
+
+/** One of several: joined options when they are few and short, a drop-down otherwise. */
+export function Choice<T extends string | number>(props: {
   label: string
   hint?: string
   value: T
   picks: readonly Pick<T>[]
   onPick: (next: T) => void
 }) {
+  const joined = props.picks.length <= 4 && props.picks.reduce((n, pick) => n + pick.label.length, 0) <= SEGMENT_CHARS
+  const Control = joined ? Segmented : Select
   return (
-    <fieldset className={PREF_FIELD}>
-      <legend className={PREF_LEGEND}>{props.label}</legend>
-      <div className={`${CHIPS_ROW} clear-both`}>
-        {props.picks.map((pick) => (
-          <button
-            type="button"
-            key={pick.value}
-            aria-pressed={pick.value === props.value}
-            className={chipClass(pick.value === props.value)}
-            onClick={() => pick.value !== props.value && props.onPick(pick.value)}
-          >
-            {pick.label}
-          </button>
-        ))}
-      </div>
-      {props.hint && <p className={`${PREF_HINT} text-muted`}>{props.hint}</p>}
-    </fieldset>
-  )
-}
-
-/** A row that shows its value and moves to the next one on click, like the TUI's `enter` rows. */
-export function CycleRow(props: { label: string; hint?: string; disabled?: boolean; onCycle: () => void }) {
-  return (
-    <button type="button" className={PREF_CYCLE} disabled={props.disabled} onClick={props.onCycle}>
-      <span className={PREF_CYCLE_LABEL}>{props.label}</span>
-      {props.hint && <span className={`${PREF_HINT} text-muted`}>{props.hint}</span>}
-    </button>
+    <Row label={props.label} hint={props.hint}>
+      <Control label={props.label} value={props.value} picks={props.picks} onPick={props.onPick} />
+    </Row>
   )
 }
 
 /** Something this page shows but only the Mac may change (a command or path it would run or store). */
-export function ReadOnlyRow(props: { label: string; note: string }) {
+export function ReadOnlyRow(props: { label: string; value: string; note?: string }) {
   return (
-    <div className={PREF_READONLY}>
-      <span className={`${PREF_LABEL_MONO} mono text-muted`}>{props.label}</span>
-      <span className={`${PREF_HINT} text-muted`}>{props.note}</span>
-    </div>
+    <Row label={props.label} hint={props.note}>
+      <span className={SETTINGS_VALUE}>{props.value}</span>
+    </Row>
   )
 }

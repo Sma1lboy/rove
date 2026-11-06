@@ -191,8 +191,3 @@ export function choicesOf(state: PrefsState, key: PrefKey): readonly (string | n
   const options = state.options[key]
   return Array.isArray(options) ? options : []
 }
-
-/** The next value after `current`, wrapping: the TUI's cycle rows. */
-export function nextChoice<T extends string | number>(choices: readonly T[], current: T): T {
-  return choices[(choices.indexOf(current) + 1) % choices.length] ?? current
-}

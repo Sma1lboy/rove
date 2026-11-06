@@ -1,8 +1,8 @@
 /**
- * Settings → Appearance → Theme as cards: each one a miniature window in that theme's own colours.
- * Pointing at a card (or focusing it) paints the whole page in that theme; leaving the gallery puts the
- * saved one back, and a click saves it. Below, the rove.run themes not yet installed: the same preview,
- * and a click installs one (`theme.install`, as `rove theme add`) and switches to it. Last, a Scratch
+ * Settings → Appearance → Theme as small tiles: each one a miniature window in that theme's own colours.
+ * Pointing at a tile (or focusing it) paints the whole page in that theme; leaving the grid puts the
+ * saved one back, and a click saves it. Behind a disclosure, the rove.run themes not yet installed: the same
+ * preview, and a click installs one (`theme.install`, as `rove theme add`) and switches to it. Last, a Scratch
  * session whose agent is asked to write a new theme into the themes directory; it shows here on reopening.
  * Inline colours are the point here: every card shows a different theme.
  */
@@ -13,14 +13,15 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type Mode, type PreviewTheme, themePreview } from "./prefs-theme.ts"
 import { type ThemeEntry, loadPrefs, setPref } from "./prefs.ts"
+import { Row } from "./settings-rows.tsx"
 import { createStore, useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
+import { Chevron } from "./ui/chevron.tsx"
 import {
-  PREF_FIELD,
-  PREF_HINT,
-  PREF_LEGEND,
+  SETTINGS_NOTE,
   THEME_CARD_NAME,
   THEME_GRID,
+  THEME_GROUP_LABEL,
   THEME_SWATCH,
   THEME_SWATCH_BAR,
   THEME_SWATCH_DOT,
@@ -115,6 +116,7 @@ export function ThemeGallery(props: {
   const [installing, setInstalling] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [askFailed, setAskFailed] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
   // A preview must not outlive the page: leaving Settings mid-hover would keep painting it.
   useEffect(() => () => themePreview.set(null), [])
   // A theme written under themes/ while the page kept focus (an agent's, a hand edit) shows on reopening.
@@ -151,50 +153,65 @@ export function ThemeGallery(props: {
   const installedNames = new Set(props.themes.map((th) => th.name))
   const more = (hosted?.themes ?? []).filter((th) => !installedNames.has(th.name))
   return (
-    <fieldset className={PREF_FIELD}>
-      <legend className={PREF_LEGEND}>{props.label}</legend>
-      <p className={`${PREF_HINT} clear-both text-muted`}>{t("prefs.themePreviewHint")}</p>
-      <Grid>
-        {props.themes.map((theme) => (
-          <Card
-            key={theme.name}
-            theme={theme}
-            mode={props.mode}
-            active={theme.name === props.value}
-            tag={theme.bundled ? undefined : t("prefs.themeUser")}
-            onClick={() => theme.name !== props.value && void setPref(client, "theme", theme.name)}
-          />
-        ))}
-      </Grid>
+    <Row label={props.label} hint={t("prefs.themePreviewHint")} stack>
+      <div>
+        <p className={THEME_GROUP_LABEL}>{t("prefs.themeInstalled")}</p>
+        <Grid>
+          {props.themes.map((theme) => (
+            <Card
+              key={theme.name}
+              theme={theme}
+              mode={props.mode}
+              active={theme.name === props.value}
+              tag={theme.bundled ? undefined : t("prefs.themeUser")}
+              onClick={() => theme.name !== props.value && void setPref(client, "theme", theme.name)}
+            />
+          ))}
+        </Grid>
+      </div>
       {more.length > 0 && (
-        <>
-          <p className={`${PREF_HINT} mt-2 text-muted`}>{t("prefs.themeMoreHint")}</p>
-          <Grid>
-            {more.map((theme) => (
-              <Card
-                key={theme.name}
-                theme={theme}
-                mode={props.mode}
-                active={false}
-                tag={
-                  installing === theme.name
-                    ? t("prefs.themeInstalling")
-                    : failed === theme.name
-                      ? t("prefs.themeInstallFailed")
-                      : t("prefs.themeGet")
-                }
-                onClick={() => installing === null && void install(theme.name)}
-              />
-            ))}
-          </Grid>
-        </>
+        <div>
+          <Button
+            className="inline-flex items-center gap-1.5"
+            aria-expanded={browsing}
+            onClick={() => setBrowsing(!browsing)}
+          >
+            <Chevron right={!browsing} />
+            {browsing ? t("prefs.themeHide") : t("prefs.themeBrowse", { count: more.length })}
+          </Button>
+          {browsing && (
+            <>
+              <p className={`${THEME_GROUP_LABEL} mt-2.5`}>{t("prefs.themeMoreHint")}</p>
+              <Grid>
+                {more.map((theme) => (
+                  <Card
+                    key={theme.name}
+                    theme={theme}
+                    mode={props.mode}
+                    active={false}
+                    tag={
+                      installing === theme.name
+                        ? t("prefs.themeInstalling")
+                        : failed === theme.name
+                          ? t("prefs.themeInstallFailed")
+                          : t("prefs.themeGet")
+                    }
+                    onClick={() => installing === null && void install(theme.name)}
+                  />
+                ))}
+              </Grid>
+            </>
+          )}
+        </div>
       )}
       {dir && (
-        <p className={`${PREF_HINT} mt-2 text-muted`}>
-          <Button onClick={() => askForTheme(dir)}>{t("prefs.themeAgent")}</Button>{" "}
-          {askFailed ? t("prefs.themeAgentFailed") : t("prefs.themeAgentHint")}
-        </p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button variant="action" onClick={() => askForTheme(dir)}>
+            {t("prefs.themeAgent")}
+          </Button>
+          <span className={SETTINGS_NOTE}>{askFailed ? t("prefs.themeAgentFailed") : t("prefs.themeAgentHint")}</span>
+        </div>
       )}
-    </fieldset>
+    </Row>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Settings → Plugins: the first-party mods (Kanban, Issues) with Install / Uninstall, then the
+ * Settings → Plugins: the first-party mods (Kanban, Issues) with an install switch each, then the
  * registry with an on/off switch each. Manifest settings and the marketplace stay Mac-side.
  */
 
@@ -8,10 +8,11 @@ import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { Group, Row } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
-import { ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
-import { PLACEHOLDER_LINE } from "./ui/text.ts"
+import { SETTINGS_STATUS } from "./ui/settings.ts"
+import { Switch } from "./ui/switch.tsx"
 
 interface PluginRow {
   readonly id: string
@@ -54,24 +55,17 @@ function BuiltinMods({ model }: { model: AppModel }) {
       .catch((e) => toast(errorText(e), "error"))
   }
   return (
-    <div className={SETTINGS_ROWS}>
-      {mods.map((mod) => {
-        const on = installed.has(mod.id)
-        return (
-          <div key={mod.id} className={ENGINE_ROW}>
-            <div className={ENGINE_MAIN}>
-              <span className="engine-name">{mod.name}</span>
-              <span className={`text-muted ${engineDetailClass()}`}>
-                {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")}, ${mod.description}`}
-              </span>
-            </div>
-            <button type="button" onClick={() => flip(mod)}>
-              {t(on ? "settings.plugins.uninstall" : "settings.plugins.install")}
-            </button>
-          </div>
-        )
-      })}
-    </div>
+    <Group title={t("settings.plugins.builtIn")} hint={t("settings.plugins.builtInHint")}>
+      {mods.map((mod) => (
+        <Row key={mod.id} label={mod.name} hint={mod.description} inline>
+          <Switch
+            on={installed.has(mod.id)}
+            aria-label={t("settings.plugins.turnOn", { name: mod.name })}
+            onClick={() => flip(mod)}
+          />
+        </Row>
+      ))}
+    </Group>
   )
 }
 
@@ -94,36 +88,39 @@ export function PluginsSection({ model }: { model: AppModel }) {
   return (
     <>
       <BuiltinMods model={model} />
-      {!plugins ? (
-        <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>
-      ) : plugins.length === 0 ? (
-        <p className={PLACEHOLDER_LINE}>{t("settings.plugins.empty")}</p>
-      ) : (
-        <div className={SETTINGS_ROWS}>
-          {plugins.map((p) => (
-            <label key={p.id} className={ENGINE_ROW}>
-              <input
-                type="checkbox"
-                checked={p.enabled}
-                onChange={() =>
+      <Group title={t("settings.plugins.registered")}>
+        {!plugins ? (
+          <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+        ) : plugins.length === 0 ? (
+          <p className={SETTINGS_STATUS}>{t("settings.plugins.empty")}</p>
+        ) : (
+          plugins.map((p) => (
+            <Row
+              key={p.id}
+              label={p.id}
+              hint={[
+                p.version,
+                p.linked ? t("settings.plugins.linked") : null,
+                p.platformOk === false ? t("settings.plugins.unsupportedPlatform") : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              inline
+            >
+              <Switch
+                on={p.enabled}
+                aria-label={p.id}
+                onClick={() =>
                   void client
                     .request("plugin.setEnabled", { id: p.id, enabled: !p.enabled })
                     .then(load)
                     .catch((e) => toast(errorText(e), "error"))
                 }
               />
-              <div className={ENGINE_MAIN}>
-                <span className="engine-name">{p.id}</span>
-                <span className={`mono text-muted ${engineDetailClass()}`}>
-                  {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span>
-              </div>
-            </label>
-          ))}
-        </div>
-      )}
+            </Row>
+          ))
+        )}
+      </Group>
     </>
   )
 }

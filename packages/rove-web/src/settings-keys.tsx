@@ -14,11 +14,11 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
-import { Chips, CycleRow, Group } from "./settings-rows.tsx"
+import { Choice, Group, Row } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { PREF_FIELD, PREF_HINT, PREF_LABEL } from "./ui/settings.ts"
+import { SETTINGS_GROUP_HINT } from "./ui/settings.ts"
 import { loadUserKeys, userKeys } from "./user-keys.ts"
 
 async function createFile(client: BridgeClient): Promise<void> {
@@ -41,72 +41,79 @@ export function KeysSection({ model }: { model: AppModel }) {
   const prefix = keys.prefix.key ?? ts("keybindings.prefixDisabled")
   const fixed = Object.keys(FIXED_BINDING_IDS).sort()
   return (
-    <Group title={ts("keybindings.title")} hint={ts("keybindings.hint")}>
-      <div className={PREF_FIELD}>
-        <span className={PREF_LABEL}>{ts("keybindings.configFile")}</span>
-        <p className="mono text-muted">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</p>
-      </div>
-      <Chips
-        label={ts("keybindings.tapPresentation")}
-        hint={ts("keybindings.tapPresentationHint")}
-        value={prefs.prefixTap}
-        picks={[
-          { value: "local", label: ts("keybindings.tapPresentationLocal") },
-          { value: "guide", label: ts("keybindings.tapPresentationGuide") },
-        ]}
-        onPick={(next) => void setPref(client, "prefixTap", next)}
-      />
-      <div className={PREF_FIELD}>
-        <span className={PREF_LABEL}>{ts("keybindings.prefixTitle", { prefix })}</span>
-        <p className={`${PREF_HINT} text-muted`}>
-          {ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
-        </p>
-      </div>
-      {keys.exists ? (
-        <div className={PREF_FIELD}>
-          <span className={PREF_LABEL}>{ts("keybindings.overridesApplied")}</span>
-          {keys.applied.length === 0 && <p className="text-muted">{ts("keybindings.none")}</p>}
+    <>
+      <Group>
+        <Choice
+          label={ts("keybindings.tapPresentation")}
+          hint={ts("keybindings.tapPresentationHint")}
+          value={prefs.prefixTap}
+          picks={[
+            { value: "local", label: ts("keybindings.tapPresentationLocal") },
+            { value: "guide", label: ts("keybindings.tapPresentationGuide") },
+          ]}
+          onPick={(next) => void setPref(client, "prefixTap", next)}
+        />
+        <Row
+          label={ts("keybindings.prefixTitle", { prefix })}
+          hint={ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
+        />
+      </Group>
+      <Group title={ts("keybindings.configFile")} hint={`${ts("keybindings.hint")} ${t("prefs.keysYaml")}`}>
+        <Row
+          label={
+            <span className="font-mono break-all">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</span>
+          }
+        />
+        {!keys.exists && (
+          <Row label={t("keys.createFile")} hint={ts("keybindings.createHint")}>
+            <Button variant="action" onClick={() => void createFile(client)}>
+              {t("keys.createFile")}
+            </Button>
+          </Row>
+        )}
+        <Row label={t("keys.agent")} hint={askFailed ? t("keys.agentFailed") : t("keys.agentHint")}>
+          <Button
+            variant="action"
+            onClick={() => {
+              setAskFailed(false)
+              askAgent(model, t("keys.agentPrompt", { path: keys.path })).catch(() => setAskFailed(true))
+            }}
+          >
+            {t("keys.agent")}
+          </Button>
+        </Row>
+      </Group>
+      {keys.exists && (
+        <Group title={ts("keybindings.overridesApplied")}>
+          {keys.applied.length === 0 && <Row label={ts("keybindings.none")} />}
           {keys.applied.map((o) => (
-            <p key={o.id} className="mono keys-applied">
-              {`${o.id}  ${o.keys.length > 0 ? o.keys.join(" / ") : ts("keybindings.unbound")}  (${ts("keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
-            </p>
+            <Row
+              key={o.id}
+              label={<span className="font-mono">{o.id}</span>}
+              hint={`${o.keys.length > 0 ? o.keys.join(" / ") : ts("keybindings.unbound")} (${ts("keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
+            />
           ))}
-        </div>
-      ) : (
-        <div className={PREF_FIELD}>
-          <p className="text-muted">{ts("keybindings.createHint")}</p>
-          <CycleRow label={t("keys.createFile")} onCycle={() => void createFile(client)} />
-        </div>
+        </Group>
       )}
       {keys.warnings.length > 0 && (
-        <div className={PREF_FIELD}>
-          <span className={`${PREF_LABEL} text-warning`}>{ts("keybindings.warnings")}</span>
+        <Group title={ts("keybindings.warnings")}>
           {keys.warnings.map((w) => (
-            <p key={w} className="mono text-muted">{`! ${w}`}</p>
+            <Row key={w} label={<span className="text-warning">{w}</span>} />
           ))}
-        </div>
+        </Group>
       )}
       {keys.plugins.length > 0 && (
-        <div className={PREF_FIELD}>
-          <span className={PREF_LABEL}>{t("keys.pluginChords")}</span>
+        <Group title={t("keys.pluginChords")}>
           {keys.plugins.map((p) => (
-            <p key={p.chord} className="mono">{`${p.chord}  ${p.kind}:${p.target}`}</p>
+            <Row
+              key={p.chord}
+              label={<span className="font-mono">{p.chord}</span>}
+              hint={<span className="font-mono">{`${p.kind}:${p.target}`}</span>}
+            />
           ))}
-        </div>
+        </Group>
       )}
-      <p className={`${PREF_HINT} text-muted`}>
-        <Button
-          onClick={() => {
-            setAskFailed(false)
-            askAgent(model, t("keys.agentPrompt", { path: keys.path })).catch(() => setAskFailed(true))
-          }}
-        >
-          {t("keys.agent")}
-        </Button>{" "}
-        {askFailed ? t("keys.agentFailed") : t("keys.agentHint")}
-      </p>
-      <p className="text-muted">{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
-      <p className="text-muted">{t("prefs.keysYaml")}</p>
-    </Group>
+      <p className={SETTINGS_GROUP_HINT}>{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
+    </>
   )
 }
