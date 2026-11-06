@@ -19,7 +19,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { encodeCwd } from "@/engine/claude-code-local/history"
-import { addForkTab, liveSourceProtocol, planChatContinuation } from "@/tui-react/workspace/fork-chat-tab"
+import { liveSourceProtocol, planChatContinuation } from "@/engine/session-handoff-plan"
+import { addForkTab } from "@/tui-react/workspace/fork-chat-tab"
 import {
   type EngineTab,
   type TabsState,

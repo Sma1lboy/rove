@@ -56,8 +56,9 @@ export function EmptyWorkspacePane(props: {
     })()
   }
 
-  const startRequestedTab = useLatest((kind: "chat" | "shell") => {
-    if (kind === "chat") chooseEngine()
+  const startRequestedTab = useLatest((kind: "chat" | "shell" | "continue") => {
+    // An empty task holds no conversation to continue: the plain picker is all there is.
+    if (kind !== "shell") chooseEngine()
     else if (props.onSpawnChild) {
       props.onSpawnChild({
         parentTaskId: props.taskId,

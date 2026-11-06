@@ -40,8 +40,8 @@ export interface TreeMenuDeps {
   readonly activateRow: (rowId: string) => void
   readonly setCursorIndex: (index: number) => void
   readonly onAddTask?: () => void
-  /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab. */
-  readonly onNewTab?: (taskId: string, kind: "chat" | "shell") => void
+  /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab, `"continue"` the picker preset to carry the conversation over. */
+  readonly onNewTab?: (taskId: string, kind: "chat" | "shell" | "continue") => void
   readonly actions: SidebarTaskCallbacks
 }
 
@@ -187,6 +187,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "newShell":
           deps.onNewTab?.(taskId, "shell")
+          break
+        case "continueEngine":
+          deps.onNewTab?.(taskId, "continue")
           break
         case "rename":
           actions.onRenameRequest?.(taskId)

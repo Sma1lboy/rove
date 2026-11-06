@@ -253,6 +253,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
+| `NO_CONVERSATION` | `send --handoff-from tab-N` where that tab holds no conversation to hand over yet. |
+| `NO_TRANSCRIPT` | `send --handoff-from tab-N` where the tab's engine keeps no transcript Rove can name (a custom engine). |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
 | `AWAITING_PERMISSION` | `send` to a tab whose engine shows an approval or question menu (the tab's row reads `?`); a paste would land in the menu and Enter would confirm its highlighted option. Answer it with keys, then send. `tabIds` names the tabs. |
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
@@ -1038,7 +1040,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
+  [--command CMD] [--handoff-from TAB] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -1078,6 +1080,17 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it runs
   that new child on that engine without changing the target's own. Using it with an
   existing tab is a `BAD_FLAG` error rather than a silent switch.
+  `--handoff-from tab-N` (valid only with `--tab new`) continues that tab's
+  conversation in the new one, e.g. hand stuck work from Claude to Codex:
+  `send --tab new --command codex --handoff-from tab-1`. The first prompt
+  becomes a handoff brief — the task title, the source engine's transcript path,
+  the user's last request and a bounded excerpt (about 8 KB, oldest turns
+  dropped first) of the latest turns, all marked as untrusted history — and
+  `--prompt`, when given, follows it; without one the brief alone is sent, so
+  `--prompt` is optional here. The new engine starts in the same directory and
+  branch; the source tab is only read. `NO_CONVERSATION` = that tab has no
+  conversation yet, `NO_TRANSCRIPT` = its engine keeps no transcript Rove can
+  name, `BAD_FLAG` = not an engine tab, or no `--tab new`.
   Delivery needs a live engine in that tab: one that exited into the
   keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
   instead of pasting into a shell. When the `ps` probe behind that check fails

@@ -39,7 +39,7 @@ import { useTreeState } from "./use-tree-state"
 export type SidebarTreeProps = SidebarProps & {
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree row's menu. */
-  onNewTab?: (taskId: string, kind: "chat" | "shell") => void
+  onNewTab?: (taskId: string, kind: "chat" | "shell" | "continue") => void
   /** Narrow mode's "↩ recent" row: first navigable row; ⏎ re-enters that task. */
   recentTask?: Task | null
   /** Filled with a reader of the task under the cursor, so the host's

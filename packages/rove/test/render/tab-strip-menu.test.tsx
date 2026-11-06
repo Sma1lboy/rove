@@ -31,6 +31,7 @@ const settle = () => new Promise((r) => setTimeout(r, 80))
 function Driver(props: {
   tabs: readonly TerminalTab[]
   onRename: (activeId: string) => void
+  onContinue?: (activeId: string) => void
   onClose?: (activeId: string) => void
   controls?: { select?: (id: string) => void; remove?: () => void }
 }) {
@@ -48,6 +49,7 @@ function Driver(props: {
     activeId,
     select: setActiveId,
     rename: () => props.onRename(activeId),
+    continueEngine: () => props.onContinue?.(activeId),
     closeActive: () => props.onClose?.(activeId),
   })
   return (
@@ -102,6 +104,35 @@ test("right-clicking an inactive tab opens its menu, and Rename acts on that tab
   await settle()
   expect(renamed).toEqual(["tab-2"])
   expect(await frame()).not.toContain("Close other tabs")
+})
+
+test("an engine tab offers Continue in another engine and it acts on the clicked tab; a shell tab does not", async () => {
+  const tabs: readonly TerminalTab[] = [
+    { kind: "engine", id: "tab-1", title: "alpha-one", ordinal: 1 },
+    { kind: "engine", id: "tab-2", title: "beta-two", ordinal: 2 },
+    { kind: "command", id: "tab-3", title: "gamma-three", ordinal: 3, command: ["zsh"] },
+  ]
+  const continued: string[] = []
+  const { frame, mockMouse, mockInput } = await renderComponent(
+    <Driver tabs={tabs} onRename={() => {}} onContinue={(id) => continued.push(id)} />,
+    { width: 80, height: 16, providers },
+  )
+  await settle()
+  const shell = cellOf(await frame(), "gamma-three")
+  await mockMouse.click(shell.x, shell.y, RIGHT)
+  await settle()
+  expect(await frame()).not.toContain("Continue in another engine")
+  mockInput.pressEscape()
+  await settle()
+
+  const engine = cellOf(await frame(), "beta-two")
+  await mockMouse.click(engine.x, engine.y, RIGHT)
+  await settle()
+  expect(await frame()).toContain("Continue in another engine")
+  mockInput.pressArrow("down")
+  mockInput.pressEnter()
+  await settle()
+  expect(continued).toEqual(["tab-2"])
 })
 
 test("a lone preview tab offers only rename and close; escape dismisses", async () => {

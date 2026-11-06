@@ -26,7 +26,10 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. The prompt is pasted into the target composer and submitted; delivery is refused only when there is physically nothing to write to (no such tab, dead PTY, no engine process). A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits. `delivered: true` means the bytes landed, nothing more: when the target session was already in `error` or `dead`, the reply carries `targetState` (+ `targetDetail`) — read it before waiting on an answer.",
     flags: [
       F.taskId(false),
-      F.prompt(true, "Text pasted + submitted into the engine pane."),
+      F.prompt(
+        false,
+        "Text pasted + submitted into the engine pane. One of --prompt / --prompt-file is required, except with --handoff-from.",
+      ),
       F.promptFile(),
       {
         name: "tab",
@@ -40,6 +43,14 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         ...F.command(),
         description:
           "Engine launch command for the child `--tab new` creates — the API twin of the TUI's ctrl+e pick. Lets one directory run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; stored on the child, so it survives restarts. Only valid with --tab new.",
+      },
+      {
+        name: "handoff-from",
+        type: "string",
+        required: false,
+        placeholder: "TAB",
+        description:
+          "Continue another tab's conversation in the new one (`--tab new`, usually with --command naming the other engine): the prompt becomes a handoff brief — the task title, the source engine's transcript path, the user's last request and a bounded excerpt of the latest turns — followed by --prompt when given, so --prompt is optional. Same directory and branch; the source tab is only read. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT).",
       },
       {
         name: "respawn",

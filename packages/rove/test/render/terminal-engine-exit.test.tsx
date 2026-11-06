@@ -25,6 +25,7 @@ const exitProps = (code: number | null): EngineExit => ({
   onRetry: () => calls.push("retry"),
   onSettings: () => calls.push("settings"),
   onAnotherEngine: () => calls.push("another"),
+  onContinueInEngine: () => calls.push("continue"),
 })
 
 test("a healthy engine draws no exit strip", async () => {
@@ -45,6 +46,7 @@ test("the exit strip names the code and each action fires on click", async () =>
     ["[Retry]", "retry"],
     ["[Settings → Engines]", "settings"],
     ["[Another engine]", "another"],
+    ["[Continue in another engine]", "continue"],
   ] as const) {
     const rows = (await frame()).split("\n")
     const y = rows.findIndex((row) => row.includes(label))
@@ -54,7 +56,7 @@ test("the exit strip names the code and each action fires on click", async () =>
     })
     expect(calls.at(-1)).toBe(expected)
   }
-  expect(calls).toEqual(["retry", "settings", "another"])
+  expect(calls).toEqual(["retry", "settings", "another", "continue"])
 })
 
 test("an unrecorded code still states that the engine exited", async () => {

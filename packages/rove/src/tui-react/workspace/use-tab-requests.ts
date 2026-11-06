@@ -45,10 +45,21 @@ export interface TabRequestIO {
   readonly openNewConversationRef: { readonly current: () => void }
   /** The "New shell" opener (`TerminalTabs`): the tree's "New shell" presses it. */
   readonly openNewShellRef: { readonly current: () => void }
+  /** The "Continue in another engine…" opener (`TerminalTabs`): the tree's menu entry presses it. */
+  readonly continueInEngineRef: { readonly current: () => void }
 }
 
 export function useTabRequests(io: TabRequestIO): void {
-  const { stateRef, propsRef, updateRef, tabCloseRef, activeLeafSizeRef, openNewConversationRef, openNewShellRef } = io
+  const {
+    stateRef,
+    propsRef,
+    updateRef,
+    tabCloseRef,
+    activeLeafSizeRef,
+    openNewConversationRef,
+    openNewShellRef,
+    continueInEngineRef,
+  } = io
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design — every read goes through a latest-render ref.
   useEffect(() => {
     const consume = (): void => {
@@ -86,6 +97,7 @@ export function useTabRequests(io: TabRequestIO): void {
       const newTab = takeNewTab(taskId)
       if (newTab === "chat") openNewConversationRef.current()
       else if (newTab === "shell") openNewShellRef.current()
+      else if (newTab === "continue") continueInEngineRef.current()
       // A live session this state doesn't list becomes a real tab.
       const adopt = takeTabAdopt(taskId)
       if (adopt) {

@@ -20,6 +20,8 @@ export interface EngineExit {
   /** Absent = the host cannot open Settings from here; the action is not offered. */
   readonly onSettings?: () => void
   readonly onAnotherEngine: () => void
+  /** Move this conversation to another engine, carrying its context. */
+  readonly onContinueInEngine: () => void
 }
 
 function Action(props: { label: string; bindingId: string; onPress: () => void; onRequestFocus?: () => void }) {
@@ -88,6 +90,11 @@ export function EngineExitBanner(props: EngineExit & { onRequestFocus?: () => vo
         label={t("terminal.engineExit.another")}
         bindingId="chat.tab.chooseEngine"
         onPress={props.onAnotherEngine}
+      />
+      <Action
+        label={t("terminal.engineExit.continueIn")}
+        bindingId="chat.tab.fork"
+        onPress={props.onContinueInEngine}
       />
     </box>
   )

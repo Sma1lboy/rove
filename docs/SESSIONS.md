@@ -294,8 +294,9 @@ process, including a reboot.
   same as **Reopen session** on a tab that shows "no running session" or a
   restored screen, and as **Retry** when the engine exited into its fallback
   shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
-  **Settings → Engines** and **New conversation with…** for another engine;
-  nothing reopens on view.
+  **Settings → Engines**, **New conversation with…** for another engine, and
+  **Continue in another engine** (the conversation's context carried into the
+  new engine's first prompt, same directory); nothing reopens on view.
 
 ## Not supported
 

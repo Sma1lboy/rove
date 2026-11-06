@@ -44,6 +44,7 @@ export const en = {
     expandChildren: "Expand children",
     newChat: "New conversation",
     newShell: "New shell",
+    continueEngine: "Continue in another engine…",
     /** Scratch section header: a new Scratch task in $HOME on the preferred engine. */
     newScratchChat: "New conversation (no folder)",
     newTask: "New task",
@@ -321,6 +322,7 @@ export const zh: typeof en = {
     expandChildren: "展开子任务",
     newChat: "新建会话",
     newShell: "新建终端",
+    continueEngine: "换个引擎继续…",
     newScratchChat: "新建会话（无文件夹）",
     newTask: "新建任务",
     forgetProject: "移除项目",

@@ -13,6 +13,7 @@ export const en = {
     retry: "Retry",
     settings: "Settings → Engines",
     another: "Another engine",
+    continueIn: "Continue in another engine",
   },
   restoring: "restoring session…",
   recovery: {
@@ -53,6 +54,7 @@ export const en = {
     menu: {
       rename: "Rename tab",
       copyAddress: "Copy tab address",
+      continueEngine: "Continue in another engine…",
       closeOthers: "Close other tabs",
       close: "Close tab",
     },
@@ -101,6 +103,7 @@ export const zh: typeof en = {
     retry: "重试",
     settings: "设置 → 引擎",
     another: "换个引擎",
+    continueIn: "换个引擎继续",
   },
   restoring: "正在恢复会话…",
   tab: {
@@ -129,6 +132,7 @@ export const zh: typeof en = {
     menu: {
       rename: "重命名标签页",
       copyAddress: "复制标签页地址",
+      continueEngine: "换个引擎继续…",
       closeOthers: "关闭其他标签页",
       close: "关闭标签页",
     },

@@ -29,6 +29,7 @@ export type TreeMenuAction =
   | "fieldNotes"
   | "newChat"
   | "newShell"
+  | "continueEngine"
   | "newScratchChat"
   | "newScratchShell"
   | "newTask"
@@ -82,6 +83,7 @@ function newTabVerbs(): TreeMenuItem[] {
     { action: "newChat", labelKey: "tasks.menu.newChat", bindingId: "chat.tab.chooseEngine" },
     // No id: "shell" is a row inside the picker, not a chord.
     { action: "newShell", labelKey: "tasks.menu.newShell" },
+    { action: "continueEngine", labelKey: "tasks.menu.continueEngine", bindingId: "chat.tab.fork" },
   ]
 }
 

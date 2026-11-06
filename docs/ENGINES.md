@@ -242,8 +242,10 @@ your override already pins the conversation (`--session-id`, `--resume`,
 If an engine exits non-zero, the terminal stays open with a banner pointing
 at Settings → Engines, and drops you into a shell. The web and the TUI add
 actions beside it: **Retry** (relaunch the engine in this tab, resuming its
-conversation when it recorded one), **Settings → Engines**, and a new
-conversation with another engine.
+conversation when it recorded one), **Settings → Engines**, a new
+conversation with another engine, or **Continue in another engine** (the
+same directory, with the old conversation's context in the new engine's first
+prompt). The same action sits on the tab menu and the task row menu.
 
 The launch command runs through your interactive login shell (`-ilc`), so a
 command that is a shell function or alias, such as `claudecpa`, works the

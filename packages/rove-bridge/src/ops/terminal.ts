@@ -9,14 +9,14 @@ import { randomBytes } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import {
   type ChatForkPlan,
   liveSourceProtocol,
   planWorktreeHandoff,
-} from "@sma1lboy/rove/src/tui-react/workspace/fork-chat-tab.ts"
+} from "@sma1lboy/rove/src/engine/session-handoff-plan.ts"
+import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
@@ -54,7 +54,7 @@ export interface TerminalOpDeps {
   writeFile(path: string, bytes: Uint8Array): void
   /** The persisted tab (carries `sessionId`), if the snapshot has it. */
   readTab(taskId: string, tabId: string): TerminalTab | undefined
-  planHandoff(active: TerminalTab, source: VendorId, worktree: string): Promise<ChatForkPlan>
+  planHandoff(active: TerminalTab, source: VendorId, worktree: string, taskTitle?: string): Promise<ChatForkPlan>
   prPrompt(worktree: string): Promise<string>
 }
 
@@ -219,7 +219,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         // A snapshot-less tab still has a conversation: the planner falls back to the engine's newest session here.
         const active = deps.readTab(id, tab) ?? (initialTabs().tabs[0] as TerminalTab)
         const tabVendor = ((active.kind === "engine" ? active.vendor : undefined) ?? task.vendor) as VendorId
-        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree)
+        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree, task.title)
         return plan.kind === "handoff"
           ? { kind: "handoff", prompt: plan.prompt }
           : plan.kind === "no-transcript"

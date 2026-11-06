@@ -31,6 +31,8 @@ export interface TabStripMenuDeps {
   /** Make the clicked tab active, so highlight and menu agree. */
   readonly select: (tabId: string) => void
   readonly rename: () => void
+  /** "Continue in another engine…" on the (selected) clicked tab. */
+  readonly continueEngine: () => void
   readonly closeActive: () => void
 }
 
@@ -109,6 +111,7 @@ export function useTabStripMenu(deps: TabStripMenuDeps): TabStripMenu {
     const tabId = menu.tabId
     setMenu(null)
     if (action === "rename") deps.rename()
+    else if (action === "continueEngine") deps.continueEngine()
     else if (action === "close") deps.closeActive()
     else if (action === "closeOthers") void closeOthers(tabId)
     else void copyAddress(tabId)

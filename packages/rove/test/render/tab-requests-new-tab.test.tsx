@@ -22,6 +22,7 @@ function harnessFor(taskId: string) {
   const writes: TabsState[] = []
   const chats: number[] = []
   const shells: number[] = []
+  const continues: number[] = []
   const stateRef = { current: initialTabs() }
   const io = {
     stateRef,
@@ -36,12 +37,13 @@ function harnessFor(taskId: string) {
     activeLeafSizeRef: { current: () => null },
     openNewConversationRef: { current: () => chats.push(1) },
     openNewShellRef: { current: () => shells.push(1) },
+    continueInEngineRef: { current: () => continues.push(1) },
   }
   const Probe = () => {
     useTabRequests(io)
     return <text>probe</text>
   }
-  return { Probe, writes, chats, shells, stateRef }
+  return { Probe, writes, chats, shells, continues, stateRef }
 }
 
 test("'new conversation' runs the task's ctrl+t new-conversation action", async () => {
@@ -71,6 +73,19 @@ test("'new shell' runs the task's new-shell action and leaves its own tabs alone
   // The action owns what lands (a child task whose tab-1 is the shell); this task gains no tab.
   expect(shells.length).toBe(1)
   expect(writes.length).toBe(0)
+})
+
+test("'continue in another engine' opens the continue picker, not a fresh conversation", async () => {
+  const { Probe, chats, continues } = harnessFor("newtab-continue")
+  await renderComponent(<Probe />, { width: 20, height: 4 })
+  await settle()
+
+  await act(async () => {
+    requestNewTab("newtab-continue", "continue")
+  })
+
+  expect(continues.length).toBe(1)
+  expect(chats.length).toBe(0)
 })
 
 test("a request for a task whose tabs aren't mounted waits for that mount", async () => {

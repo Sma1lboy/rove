@@ -39,6 +39,8 @@ export function NewChatDialog(props: {
   taskId: string
   destination?: NewChatDestination
   context?: NewChatContext
+  /** The conversation "continue" carries over; default the open tab of this task, else its first. */
+  sourceTabId?: string
 }) {
   useLocale()
   const { model, taskId } = props
@@ -69,9 +71,10 @@ export function NewChatDialog(props: {
   }
 
   const handoff = async (): Promise<string> => {
+    const open = model.selection.get()
     const res = await model.client.request<{ kind: string; prompt?: string; engine?: string }>("tab.handoff", {
       taskId,
-      tabId: model.selection.get().tabId ?? undefined,
+      tabId: props.sourceTabId ?? (open.taskId === taskId ? open.tabId : null) ?? "tab-1",
     })
     if (res.kind === "handoff" && res.prompt) return res.prompt
     throw new Error(
