@@ -312,6 +312,9 @@ What the phone cannot do, because each would make the Mac run a command the phon
 |---|---|---|---|
 | `prefs.get` | — | state.json Settings keys + resolved theme palettes + glyph sets | — |
 | `prefs.set` | `key`, `value` | one allowlisted state.json key | — |
+| `snippets.get` | — | `prompt.snippets` in state.json: `[{name, text}]`, the saved `@name` prompts every client shares | — |
+| `snippets.save` | `name` (letters, digits, `-`, `_`, ≤32), `text` (≤8000) | adds or replaces (name is case-insensitive); at most 100; replies with the full list | — |
+| `snippets.remove` | `name` | drops that snippet; replies with the full list | — |
 | `theme.taskColors` | `theme`, `mode` (`dark`/`light`), `taskIds` (≤500) | the TUI's `taskColor(taskId, theme)` | — |
 | `theme.hosted` | — | the rove.run catalogue, each theme resolved for `dark` and `light`, plus `installed`; names that could not be fetched come back in `unavailable`; `dir` is the user themes directory | — |
 | `theme.install` | `name` (a catalogue name only) | `rove theme add https://rove.run/themes/<name>.json`; never overwrites, `installed:false` when already present | — |
