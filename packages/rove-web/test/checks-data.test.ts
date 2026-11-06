@@ -54,6 +54,23 @@ describe("checks section", () => {
     expect(checkTiming(check({ state: "pending" }), now)).toBeNull()
   })
 
+  test("a finished check keeps its completion age when its duration is unavailable", () => {
+    const completedAt = 1793983746000
+    const check: CheckRow = {
+      name: "typecheck-and-test",
+      state: "skipped",
+      startedAt: 1793983756000,
+      completedAt,
+      durationMs: null,
+      url: "",
+      runId: null,
+    }
+    expect(checkTiming(check, completedAt + 120_000)).toEqual({
+      key: "files.checks.finishedAgo",
+      vars: { age: "2m" },
+    })
+  })
+
   test("a conflict is named instead of a clean merge, and the review decision always shows", () => {
     expect(keys(view)).toEqual(["files.merge.clean"])
     expect(keys({ ...view, mergeable: "CONFLICTING", mergeState: "DIRTY", review: "CHANGES_REQUESTED" })).toEqual([

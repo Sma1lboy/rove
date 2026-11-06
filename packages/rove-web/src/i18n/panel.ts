@@ -38,6 +38,7 @@ export const en = {
       more: "{count} more not shown",
       took: "{duration}",
       tookAgo: "{duration} · {age} ago",
+      finishedAgo: "{age} ago",
       runningFor: "running {elapsed}",
     },
     merge: {
@@ -257,6 +258,7 @@ export const zh: typeof en = {
       more: "还有 {count} 个未显示",
       took: "{duration}",
       tookAgo: "{duration} · {age}前",
+      finishedAgo: "{age}前",
       runningFor: "已运行 {elapsed}",
     },
     merge: {

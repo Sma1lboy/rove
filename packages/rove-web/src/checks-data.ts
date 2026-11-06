@@ -67,7 +67,9 @@ export function checkTiming(
   if (check.state === "pending") {
     return startedAt ? { key: "files.checks.runningFor", vars: { elapsed: duration(now - startedAt) } } : null
   }
-  if (durationMs === null) return null
+  if (durationMs === null) {
+    return completedAt ? { key: "files.checks.finishedAgo", vars: { age: compactAge(now - completedAt) } } : null
+  }
   if (!completedAt) return { key: "files.checks.took", vars: { duration: duration(durationMs) } }
   return { key: "files.checks.tookAgo", vars: { duration: duration(durationMs), age: compactAge(now - completedAt) } }
 }
