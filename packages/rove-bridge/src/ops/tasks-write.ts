@@ -7,6 +7,7 @@
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
+import { commandFromTask } from "./tasks-command-from.ts"
 import {
   checkAgentEngines,
   cloneFolder,
@@ -88,6 +89,9 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   // This machine's engine list says nothing about another's; that machine's `add` validates it.
   const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
+  // Retry: the source task's own launch command in place of the bare engine id.
+  const carried = await commandFromTask(args, ctx, { engine, machine, parallel })
+
   const argv = [flag("repo", repo)]
   if (clone) argv.push(flag("clone", "true"))
   // Further `--repo`s are the extras; `--base-for REPO=REF` (REPO as a path) is each one's base.
@@ -96,7 +100,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (title) argv.push(flag("title", title))
   if (branch) argv.push(flag("branch", branch))
   if (baseBranch) argv.push(flag("base-branch", baseBranch))
-  if (engine) argv.push(flag("command", engine))
+  if (engine) argv.push(flag("command", carried ?? engine))
   if (effort) argv.push(flag("effort", effort))
   if (mdl) argv.push(flag("model", mdl))
   if (count !== undefined) argv.push(flag("count", count))
