@@ -6,6 +6,8 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { termFor } from "./term-control.ts"
+import { streamKey } from "./term-mount.ts"
 import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */
@@ -128,6 +130,8 @@ export async function openTab(
     return
   }
   await model.refreshTabsNow()
+  // A replaced tab keeps its id, so its pane still shows the killed session: attach to the new one.
+  if (args.replaceTab) await termFor(streamKey(taskId, tabId))?.reattach()
   model.select(taskId, tabId)
 }
 
