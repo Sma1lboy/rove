@@ -226,6 +226,14 @@ export function taskRows(
         pinned: task.pinned === true,
         ...(task.groupId ? { groupId: task.groupId } : {}),
         ...(task.kept ? { kept: true } : {}),
+        ...(task.autoFixCi
+          ? {
+              autoFixCi: {
+                attempts: task.autoFixCi.attempts,
+                ...(task.autoFixCi.stopped ? { stopped: true as const } : {}),
+              },
+            }
+          : {}),
         ...(task.notes ? { notes: task.notes } : {}),
         ...(task.todos ? { todos: task.todos } : {}),
         ...(task.archived ? { archived: true } : {}),

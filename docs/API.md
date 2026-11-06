@@ -1570,8 +1570,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## edit
 
 - `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
-  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--require-report on|off] [--status S]
-  [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
+  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--require-report on|off] [--auto-fix-ci on|off]
+  [--status S] [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. The flags are checked before anything is written,
   then applied in a fixed order: parent → project → branch → command → model/effort →
   title → pinned → status. The call is not atomic: if a step fails midway, the
@@ -1646,6 +1646,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     `get-task` report it as `kept`.
   - `--require-report on|off`: `on` makes every later `send` to the task arm
     a delivery, as `add --require-report` does; `off` restores plain sends.
+  - `--auto-fix-ci on|off`: `on` lets the daemon fix failing CI unattended. When
+    the task's open PR goes red on a head commit not yet tried and its engine is
+    at rest (`idle` / `turn_complete`, never mid-turn), the daemon types the fix-CI
+    prompt, with the failing job logs, into the engine session: at most once per
+    head commit and 3 times in all, then it stops and raises an Inbox row. Green
+    checks start the count over. A busy engine only delays it; a prompt nothing
+    took (no live engine, `gh` not answering) spends no attempt. `.autoFixCi`
+    on `list` / `get-task` is `{ attempts, lastSha?, stopped? }`, absent when off.
+    `off` stops it and forgets the count. Daemon RPC: `task.autoFixCi`.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
     `done`, `canceled`, `error`.
   - `--report-branch` / `--report-pr` / `--report-summary` (require

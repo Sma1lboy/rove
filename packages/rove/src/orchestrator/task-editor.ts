@@ -1,6 +1,7 @@
 /** In-place task-field setters for the {@link Orchestrator}: each a small
  *  guard around one `store` mutation (branch renames also touch git). */
 
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
@@ -437,6 +438,16 @@ export class TaskEditor {
     const task = this.requireTask(id)
     if (!task.scheduledStart && !state) return
     await this.store.update(task.id, { scheduledStart: state ?? undefined })
+  }
+
+  /** Auto-fix CI progress; `null` = off. No-op when unchanged, as the sweep and a toggle may both write. */
+  async setAutoFixCi(id: TaskId | string, state: AutoFixState | null): Promise<void> {
+    const task = this.requireTask(id)
+    const was = task.autoFixCi
+    if (was?.attempts === state?.attempts && was?.lastSha === state?.lastSha && was?.stopped === state?.stopped) {
+      if (Boolean(was) === Boolean(state)) return
+    }
+    await this.store.update(task.id, { autoFixCi: state ?? undefined })
   }
 
   /** Stamp the external tracker item this task was started from. Write-once in

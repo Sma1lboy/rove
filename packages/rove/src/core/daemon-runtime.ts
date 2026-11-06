@@ -22,6 +22,7 @@ import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedStri
 import { loadStateFile } from "../state/store.ts"
 import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
 import { preferredReleaseChannel, updateDelayHours } from "../state/update-channel.ts"
+import { buildCIPromptForWorktree } from "../tui/ops/ci-prompt.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -225,6 +226,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
   getPersistedString,
+  buildCIPrompt: (worktree, state) => buildCIPromptForWorktree(worktree, state as never),
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],
   prStatus: {

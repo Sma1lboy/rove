@@ -239,6 +239,9 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.startScheduledNow": write("rpc task.startScheduledNow", (a, c) =>
     c.api.rpc("task.startScheduledNow", { taskId: taskId(a) }),
   ),
+  "task.autoFixCi": write("verb update --task-id --auto-fix-ci", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("auto-fix-ci", bool(a, "enabled") ? "on" : "off")])),
+  ),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),

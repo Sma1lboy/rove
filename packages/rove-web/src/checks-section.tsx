@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
+import { AutoFixLine } from "./auto-fix-line.tsx"
 import {
   type CheckRow,
   type CheckState,
@@ -190,6 +191,7 @@ export function ChecksSection({ model, task }: { model: AppModel; task: TaskRow 
   return (
     <div onKeyDown={(e) => e.stopPropagation()}>
       <Checks model={model} task={task} />
+      <AutoFixLine model={model} task={task} />
     </div>
   )
 }
