@@ -14,6 +14,7 @@ import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
+import { markScrolling } from "./scroll-reveal.ts"
 import { createCover } from "./term-cover.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
@@ -388,6 +389,10 @@ export function mountTerminal(o: MountOpts): TermHandle {
     smooth.reset()
   }
   el.addEventListener("mousedown", onScrollbarDown, { capture: true })
+  // The slider shows only while the user scrolls, not on hover or when output moves the view.
+  const revealSlider = () => markScrolling(el)
+  el.addEventListener("wheel", revealSlider, { capture: true, passive: true })
+  el.addEventListener("touchmove", revealSlider, { capture: true, passive: true })
   const noteWipe = () => {
     if (!ignoreWipe && term.buffer.active.type === "normal") {
       const back = linesFromBottom(term.buffer.active)
@@ -453,6 +458,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       detachTouch()
       smooth.dispose()
       el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
+      el.removeEventListener("wheel", revealSlider, { capture: true })
+      el.removeEventListener("touchmove", revealSlider, { capture: true })
       textarea?.removeEventListener("paste", followInput)
       textarea?.removeEventListener("compositionend", followInput)
       wipeScrollback.dispose()
