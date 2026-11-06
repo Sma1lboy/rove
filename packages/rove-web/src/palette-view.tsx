@@ -102,7 +102,9 @@ function PaletteDialog({
             (task) =>
               !task.routine &&
               !task.deleting &&
-              [task.title, task.branch, repoLabel(task.repo)].some((field) => field !== "" && fuzzyMatch(q, field)),
+              [task.label, task.title, task.branch, repoLabel(task.repo)].some(
+                (field) => field !== "" && fuzzyMatch(q, field),
+              ),
           )
           .slice(0, MAX_TASKS)
   const said = useConversationHits(model, query)
@@ -187,7 +189,7 @@ function PaletteDialog({
             return (
               <TaskEntry
                 key={task.id}
-                title={task.title}
+                title={task.label}
                 repo={repoLabel(task.repo)}
                 selected={i === index}
                 onHover={() => setSelected(i)}

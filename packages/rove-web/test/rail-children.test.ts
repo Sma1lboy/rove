@@ -5,7 +5,7 @@ import { mostUrgentStatus } from "../src/rail-glyphs.ts"
 import { AUTO_FOLD_CHILDREN, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const rows = (tasks: TaskRow[]) => navRows(groupByProject(tasks))
 const shape = (tasks: TaskRow[]) =>
   rows(tasks).flatMap((row) => (row.kind === "task" ? [[row.id, row.depth, row.level]] : []))

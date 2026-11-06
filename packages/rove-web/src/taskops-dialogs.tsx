@@ -25,7 +25,7 @@ interface BriefTask {
 }
 
 /** Re-fire `task.prompt` as a NEW task from the same repo, engine and fork point; only the worktree differs. */
-export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<TaskRow, "id" | "title"> }) {
+export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<TaskRow, "id" | "label"> }) {
   // A task's prompt never changes, so the last read stands in at once.
   const [brief, setBrief] = useState<BriefTask | null>(
     () => lastReply<{ task: BriefTask }>(model, "task.get", { taskId: task.id })?.task ?? null,
@@ -60,7 +60,7 @@ export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<Ta
           void run()
         }}
       >
-        <p className="text-muted">{tc("tasks", "runAgain.source", { title: task.title })}</p>
+        <p className="text-muted">{tc("tasks", "runAgain.source", { title: task.label })}</p>
         <pre className={BRIEF}>{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
         <p className={HINT}>{tc("tasks", "runAgain.hint")}</p>
         {error && <p className="text-error">{error}</p>}

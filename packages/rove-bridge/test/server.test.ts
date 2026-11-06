@@ -149,6 +149,7 @@ describe("task feed", () => {
     const row = {
       id: "T1",
       title: "t",
+      label: "t",
       branch: "b",
       repo: "/r",
       kind: "task",
@@ -183,6 +184,7 @@ describe("task feed", () => {
     const row = {
       id: "T1",
       title: "t",
+      label: "t",
       branch: "b",
       repo: "/r",
       kind: "task",

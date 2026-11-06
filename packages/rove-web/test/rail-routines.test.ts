@@ -4,7 +4,7 @@ import { withArchived } from "../src/rail-archived.ts"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 
 const ids = (tasks: TaskRow[], query = "") =>
   railRows({ tasks, remote: [], machines: [], sort: "default", query }).rows.map((row) => row.id)

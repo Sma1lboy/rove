@@ -44,7 +44,7 @@ const RECENT_MAX = 6
 function identityOf(task: TaskRow | undefined, fallback: string): string {
   if (!task) return fallback
   const project = task.repo.split("/").filter(Boolean).pop() ?? task.repo
-  return `${project} › ${task.title}`
+  return `${project} › ${task.label}`
 }
 
 export function InboxDialog({ model }: { model: AppModel }) {

@@ -176,7 +176,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
     if (hours < 24) return fill(ahead ? auto.when.inHours : auto.when.hoursAgo, { n: hours })
     return new Date(time).toLocaleDateString()
   }
-  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
+  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? taskId
   const openRun = (taskId: string) => {
     page.set(null)
     model.select(taskId)
@@ -227,7 +227,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
         repos={repos}
         tasks={(payload?.tasks ?? [])
           .filter((task) => !task.deleting)
-          .map((task) => ({ id: task.id, title: task.title, repo: task.repo }))}
+          .map((task) => ({ id: task.id, title: task.label, repo: task.repo }))}
         defaultRepo={focusRepo}
         onSubmit={(draft) => {
           void (async () => {

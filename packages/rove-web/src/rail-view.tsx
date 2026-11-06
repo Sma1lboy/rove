@@ -27,7 +27,7 @@ import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
 import { SearchChip } from "./rail-search.tsx"
-import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
+import { type NavRow, type RowFold, foldProjects, railRows, repoLabel } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
@@ -332,7 +332,7 @@ function RailRow(props: {
   onToggleFold: () => void
 }) {
   const { row } = props
-  const tip = useRowTip(row.kind === "task" ? rowTitle(row.task, props.tabs) : "", props.cursor && row.kind === "task")
+  const tip = useRowTip(row.kind === "task" ? row.task.label : "", props.cursor && row.kind === "task")
   const cursor = props.cursor ? RAIL_CURSOR : ""
   if (row.kind === "project") {
     return (
@@ -400,7 +400,7 @@ function RailRow(props: {
         </span>
       )}
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
-        {rowTitle(task, props.tabs)}
+        {task.label}
       </span>
       <span className={`${CHIPS} ml-auto items-center`}>
         {row.level !== undefined && <span className="text-subtle">{row.level}</span>}

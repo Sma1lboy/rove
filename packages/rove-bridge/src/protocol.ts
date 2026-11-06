@@ -114,6 +114,12 @@ export interface TaskRowPr {
 export interface TaskRow {
   readonly id: string
   readonly title: string
+  /**
+   * What every client calls the row: the engine's own conversation title when it has one (TUI rule,
+   * `worktreeRowLabel`), else the stored title / branch / path. `title` stays the stored title, the
+   * one a rename dialog edits. Absent from an older bridge: fall back to `title`.
+   */
+  readonly label: string
   readonly branch: string
   readonly repo: string
   readonly kind: string

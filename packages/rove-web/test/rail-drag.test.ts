@@ -4,7 +4,7 @@ import { dragSteps, dropMove, dropSteps, opensProject, previewDrop } from "../sr
 import { type NavRow, groupByProject } from "../src/rail.ts"
 
 const task = (id: string, repo: string, order: number, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo, kind: "task", branch: id, rank: 1, order, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo, kind: "task", branch: id, rank: 1, order, ...extra }) as TaskRow
 
 const mainA = task("mainA", "/a", 0, { kind: "main" })
 const mainB = task("mainB", "/b", 1, { kind: "main" })

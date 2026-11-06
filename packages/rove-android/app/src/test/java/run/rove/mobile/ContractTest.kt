@@ -80,6 +80,12 @@ class ContractTest {
         val content = wireJson.decodeFromJsonElement<DiffContent>(fixture.answer("diff.file", args("taskId" to "T-WAIT", "path" to file.path, "scope" to file.scope)))
         assertTrue(content.text!!.contains("diff --git"))
     }
+    @Test fun rowLabelNamesTheRowAndAnOlderBridgeFallsBack() {
+        val rows = """{"tasks":[{"id":"a","title":"first words","label":"Fix the login redirect"},{"id":"b","title":"first words"},{"id":"c","branch":"feat/x","label":""}]}"""
+        val tasks = wireJson.decodeFromString<Tasks>(rows).tasks
+        assertEquals(listOf("Fix the login redirect", "first words", "feat/x"), tasks.map { it.displayTitle })
+        assertEquals("first words", tasks[0].title)
+    }
     @Test fun equalDemoAgesTieSoBoardOrderMatchesIos() {
         var clock = java.time.Instant.parse("2026-10-09T12:00:00.100Z")
         val fixture = DemoFixture("""{"x":{"x":[{"a":{"${'$'}ago_min":2880}},{"a":{"${'$'}ago_min":2880}}]}}""") {

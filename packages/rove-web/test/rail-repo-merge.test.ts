@@ -3,7 +3,7 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, repo: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const on =
   (machine: string) =>
   (id: string, repo: string, extra: Partial<TaskRow> = {}) =>

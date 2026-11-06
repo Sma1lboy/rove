@@ -23,7 +23,12 @@ already paired with `rove-bridge` keeps working: the two share one token.
 
 - The Tasks rail: projects, tasks and their tabs, with the TUI's status marks
   (`?` waiting on you, `!` needs you, `●` unseen turn, `○` quiet, a spinner
-  while working) and the `+N` / `−N` / `↑N` / PR marks.
+  while working) and the `+N` / `−N` / `↑N` / PR marks. A task row is named
+  as in the TUI: by the title its engine gave the conversation, else the
+  stored title. The bridge computes that name (`TaskRow.label`) and updates it
+  within a few seconds of the engine retitling, with the task closed; sort by
+  name and search read it too. The web is bundled with its bridge, so it reads
+  `label` with no fallback.
 - Click a task or tab to open its terminal session, and type into it. That
   includes answering an engine's prompts.
 - Right-click a project, task or tab for the same menu the TUI has: new

@@ -3,7 +3,7 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { groupByProject, railRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 
 describe("the Ungrouped group", () => {
   const rows = [

@@ -109,7 +109,7 @@ const compareNewest = (a: TaskRow, b: TaskRow): number => createdTime(b) - creat
 const compareRecent = (a: TaskRow, b: TaskRow): number => taskTime(b) - taskTime(a) || b.id.localeCompare(a.id)
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 const compareName = (a: TaskRow, b: TaskRow): number =>
-  collator.compare(a.title.trim(), b.title.trim()) || a.id.localeCompare(b.id)
+  collator.compare(a.label.trim(), b.label.trim()) || a.id.localeCompare(b.id)
 /** `rank` is the bridge's task-group rank (needs a person next first), as `compareTaskGroup`. */
 const compareAttention = (a: TaskRow, b: TaskRow): number => a.rank - b.rank || compareRecent(a, b)
 
@@ -258,7 +258,7 @@ export function navRows(groups: readonly ProjectGroup[], query = "", fold: FoldS
     const projectHit = q === "" || hit(group.label)
     const head: Remote = group.machine === undefined ? {} : { machine: group.machine }
     const key = group.key ?? group.repo
-    const selfHit = (task: TaskRow) => projectHit || hit(task.title, task.branch, repoLabel(task.repo))
+    const selfHit = (task: TaskRow) => projectHit || hit(task.label, task.title, task.branch, repoLabel(task.repo))
     // A task survives the filter on its own hit or a descendant's.
     const hasHit = (task: TaskRow): boolean => selfHit(task) || (children.get(task.id) ?? []).some(hasHit)
     // A task, then its children one level deeper each.
@@ -416,15 +416,6 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
       return { ...part.group, label: (project && labels.get(project)) ?? part.group.label }
     })
   return { rows, groups }
-}
-
-/**
- * A row names its conversation like the TUI's (`worktreeRowLabel`): the first engine tab the engine
- * has named, whatever the task's kind, else the task's own title (a project's main row: its
- * `update --title`, else the repo name it starts with).
- */
-export function rowTitle(task: TaskRow, tabs: readonly TabRow[] | undefined): string {
-  return tabs?.find((tab) => tab.kind === "engine" && tab.conversation)?.conversation ?? task.title
 }
 
 export function tabLabel(tab: TabRow): string {

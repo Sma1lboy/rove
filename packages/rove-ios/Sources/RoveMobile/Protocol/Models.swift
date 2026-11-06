@@ -45,6 +45,8 @@ struct TaskReport: Codable, Hashable {
 struct TaskRow: Codable, Hashable, Identifiable {
     var id: String
     var title: String
+    /// The name every client shows (`displayTitle`); `title` stays the stored one a rename edits. Absent from older bridges.
+    var label: String?
     var branch: String
     var repo: String
     var kind: String
@@ -74,8 +76,9 @@ struct TaskRow: Codable, Hashable, Identifiable {
          status: String = "", group: TaskGroup, rank: Double = 0, activity: TaskActivity? = nil,
          engine: TaskEngine? = nil, pr: TaskPR? = nil, report: TaskReport? = nil, deleting: Bool = false,
          pinned: Bool = false, order: Int? = nil, createdAt: String? = nil, updatedAt: String? = nil,
-         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false, routine: Bool = false) {
-        self.id = id; self.title = title; self.branch = branch; self.repo = repo; self.kind = kind
+         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false, routine: Bool = false,
+         label: String? = nil) {
+        self.id = id; self.title = title; self.label = label; self.branch = branch; self.repo = repo; self.kind = kind
         self.status = status; self.group = group; self.rank = rank; self.activity = activity
         self.engine = engine; self.pr = pr; self.report = report; self.deleting = deleting
         self.pinned = pinned; self.order = order; self.createdAt = createdAt; self.updatedAt = updatedAt
@@ -87,6 +90,7 @@ struct TaskRow: Codable, Hashable, Identifiable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        label = try c.decodeIfPresent(String.self, forKey: .label)
         branch = try c.decodeIfPresent(String.self, forKey: .branch) ?? ""
         repo = try c.decodeIfPresent(String.self, forKey: .repo) ?? ""
         kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "task"
@@ -110,7 +114,11 @@ struct TaskRow: Codable, Hashable, Identifiable {
     }
 
     var repoName: String { URL(fileURLWithPath: repo).lastPathComponent }
-    var displayTitle: String { title.isEmpty ? (branch.isEmpty ? id : branch) : title }
+    /// The bridge's row name (engine conversation title, else stored title / branch / path); an older bridge sends none.
+    var displayTitle: String {
+        if let label, !label.isEmpty { return label }
+        return title.isEmpty ? (branch.isEmpty ? id : branch) : title
+    }
 }
 
 struct AttentionItem: Codable, Hashable {
