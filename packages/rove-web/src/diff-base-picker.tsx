@@ -71,8 +71,9 @@ export function DiffBasePicker(props: {
     <span
       className="relative"
       onKeyDown={(e) => {
+        // Typing here must not reach the diff view's one-letter keys (r reloads, s sends, c comments).
+        e.stopPropagation()
         if (e.key === "Escape" && open) {
-          e.stopPropagation()
           setOpen(false)
         }
       }}

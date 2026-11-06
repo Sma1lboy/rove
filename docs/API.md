@@ -737,7 +737,8 @@ edits (`set-vendor`, `rename`,
   task against its base; with `--path .`, one diff of everything).
   `--ignore-whitespace` runs the diff as `git diff -w`, so whitespace-only
   changes drop out. `--base REF` (with `--scope task` only) compares against
-  that branch, tag or commit instead of the task's base; a ref that is not a
+  that branch, tag or commit instead of the task's base (still measured from
+  the merge-base with it, as a PR is); a ref that is not a
   commit in the repository is refused as `BAD_REF`. `PATH` is
   worktree-relative; absolute or `..` paths are refused.
 - `worktree-refs --task-id ID`: what a diff can be compared against: the

@@ -8,6 +8,7 @@
  */
 
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
+import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
 import { DiffBasePicker } from "./diff-base-picker.tsx"
 import { useDiffBase } from "./diff-base.ts"
@@ -90,7 +91,16 @@ export function PreviewView({
     let live = true
     requestRemembered<unknown>(c, "diff.file", params).then(
       (data) => live && setLoaded(load(data, view.path, foreign)),
-      (err) => live && setLoaded({ kind: "text", text: err instanceof Error ? err.message : String(err), error: true }),
+      (err) => {
+        if (!live) return
+        // A ref the repository refuses must not stay chosen: it would leave this view with nothing to pick from.
+        if (custom && err instanceof BridgeRequestError && err.code === "BAD_REF") {
+          pickBase(null)
+          toast(err.message, "error")
+          return
+        }
+        setLoaded({ kind: "text", text: err instanceof Error ? err.message : String(err), error: true })
+      },
     )
     return () => {
       live = false
