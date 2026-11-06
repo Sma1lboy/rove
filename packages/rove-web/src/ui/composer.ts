@@ -1,18 +1,22 @@
-/** The New session page: an empty hero above, the composer pinned to the bottom of the workspace pane. */
+/** The New session page: heading and composer as one block, centred a little above the middle of the pane. */
 
 /** Everything below inherits this font: no recipe here sets `text-meta`, which would reset line-height to normal. */
 export const NEW_SESSION =
-  "flex min-h-0 min-w-0 flex-1 flex-col p-4 font-mono text-meta leading-[1.5] font-normal not-italic normal-nums"
-export const HERO = "flex flex-1 flex-col items-center justify-center gap-1.5 text-center"
+  "flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-y-auto p-4 pb-[10vh] font-mono text-meta leading-[1.5] font-normal not-italic normal-nums"
+export const HERO = "mb-6 flex flex-none flex-col items-center gap-1.5 text-center"
 
 /** The prompt card on top; the toolbar of picks sits under it, outside the card. */
 export const COMPOSER = "mx-auto flex w-full max-w-[104ch] flex-col gap-2"
 export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
-export const CARD_ACTIONS = "flex items-center justify-end gap-1.5"
+export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5 [&>*]:flex-none [&>*]:whitespace-nowrap"
+/** Create and Start stay side by side; on a phone the pair wraps as one. */
+export const CARD_SUBMIT = "flex flex-none items-center gap-1.5 [&>*]:whitespace-nowrap"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
-export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
-export const GROW = "flex-1"
+/** Two groups: where it runs (left) and what runs (right); each wraps whole, so no chip is left alone. */
+export const BAR = "flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1"
+export const BAR_GROUP = "flex min-w-0 flex-wrap items-center gap-1.5"
+export const BAR_END = `bar-end ${BAR_GROUP}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
 
@@ -26,10 +30,10 @@ export const chipClass = (on = false): string =>
 /** Only the toggle dims when disabled. */
 export const TOGGLE_DISABLED = "disabled:cursor-default disabled:opacity-60"
 
-/** `group/chip`: the bar's last popover opens leftward from its chip's right edge. */
+/** `bar-end`: the last chip of the right group opens leftward from its chip's right edge. */
 export const CHIP_WRAP = "group/chip relative inline-flex"
 export const POP =
-  "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-last-of-type/chip:right-0 group-last-of-type/chip:left-auto"
+  "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover [.bar-end>:last-child>&]:right-0 [.bar-end>:last-child>&]:left-auto"
 
 export const MENU = "flex min-h-0 flex-col gap-1 overflow-y-auto p-1.5 [outline:0]"
 export const ROWS = "flex min-h-0 flex-col overflow-y-auto"

@@ -337,175 +337,180 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             }}
           />
           <div className={C.CARD_ACTIONS}>
-            <button type="button" className={C.chipClass()} disabled={busy} onClick={() => void start(false)}>
-              {t("newSession.createOnly")}
-            </button>
-            <button type="submit" className={buttonClass()} disabled={busy}>
-              {t("newSession.start")}
-            </button>
+            {targets && (
+              <AttachPicker
+                className={`${C.chipClass(attachments.length > 0)} mr-auto cursor-pointer`}
+                title={t("newSession.attachHint")}
+                disabled={busy}
+                onFiles={(files) => void attach(files)}
+              >
+                <ClipIcon />
+                {t("newSession.attach")}
+              </AttachPicker>
+            )}
+            <div className={C.CARD_SUBMIT}>
+              <button type="button" className={C.chipClass()} disabled={busy} onClick={() => void start(false)}>
+                {t("newSession.createOnly")}
+              </button>
+              <button type="submit" className={buttonClass()} disabled={busy}>
+                {t("newSession.start")}
+              </button>
+            </div>
           </div>
         </div>
         <div className={C.BAR}>
-          <MachineChip
-            machines={machines}
-            value={machine}
-            onPick={(alias) => {
-              setMachine(alias)
-              setRemotePick(null)
-              setRemoteBase("")
-              setRepoQuery("")
-              setError(null)
-              setUngrouped(false)
-            }}
-          />
-          <ChipPopover
-            field="repo"
-            title={
-              !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
-            }
-            label={
-              <>
-                <FolderIcon />
-                {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t(ungrouped ? "rail.noProject" : "newSession.repo")}
-                {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
-              </>
-            }
-          >
-            {(close) => (
-              <RepoMenu
-                model={model}
-                saved={remote ? remoteList.repos.map(remoteRef) : saved}
-                picked={remote ? (remotePick ? [remotePick.ref] : []) : repos}
-                primary={remote ? "" : primary}
-                home={remote ? "" : home}
-                query={repoQuery}
-                onQuery={setRepoQuery}
-                onToggle={(path) => {
-                  // "Pick a project first" is answered by this pick.
-                  setError(null)
-                  if (!remote) {
-                    setUngrouped(false)
-                    return setRepos((now) => toggleRepo(now, path))
+          <div className={C.BAR_GROUP}>
+            <MachineChip
+              machines={machines}
+              value={machine}
+              onPick={(alias) => {
+                setMachine(alias)
+                setRemotePick(null)
+                setRemoteBase("")
+                setRepoQuery("")
+                setError(null)
+                setUngrouped(false)
+              }}
+            />
+            <ChipPopover
+              field="repo"
+              title={
+                !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
+              }
+              label={
+                <>
+                  <FolderIcon />
+                  {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
+                    t(ungrouped ? "rail.noProject" : "newSession.repo")}
+                  {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
+                </>
+              }
+            >
+              {(close) => (
+                <RepoMenu
+                  model={model}
+                  saved={remote ? remoteList.repos.map(remoteRef) : saved}
+                  picked={remote ? (remotePick ? [remotePick.ref] : []) : repos}
+                  primary={remote ? "" : primary}
+                  home={remote ? "" : home}
+                  query={repoQuery}
+                  onQuery={setRepoQuery}
+                  onToggle={(path) => {
+                    // "Pick a project first" is answered by this pick.
+                    setError(null)
+                    if (!remote) {
+                      setUngrouped(false)
+                      return setRepos((now) => toggleRepo(now, path))
+                    }
+                    setRemotePick({ ref: path, clone: false })
+                    close()
+                  }}
+                  onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
+                  close={close}
+                  remote={
+                    remote
+                      ? {
+                          name: machineName,
+                          empty: remoteEmpty(machine, remoteList),
+                          blocked: remoteList.problem !== "",
+                        }
+                      : undefined
                   }
-                  setRemotePick({ ref: path, clone: false })
-                  close()
-                }}
-                onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
-                close={close}
-                remote={
-                  remote
-                    ? {
-                        name: machineName,
-                        empty: remoteEmpty(machine, remoteList),
-                        blocked: remoteList.problem !== "",
-                      }
-                    : undefined
-                }
-                ungrouped={remote ? undefined : { on: ungrouped, pick: pickUngrouped }}
-              />
-            )}
-          </ChipPopover>
-          {ungrouped ? null : remote ? (
-            remotePick && <RemoteBranchChip value={remoteBase} onPick={setRemoteBase} />
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
-                aria-pressed={!inPlace}
-                disabled={repos.length > 1}
-                title={
-                  repos.length > 1
-                    ? t("newSession.worktreeMulti")
-                    : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
-                }
-                onClick={() => setWorktree(!worktree)}
-              >
-                <BranchIcon />
-                {t("newSession.worktree")}
-              </button>
-              {repos.length > 1 ? (
-                <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
-                  {() => (
-                    <BranchesMenu
-                      repos={branchRepos}
-                      branch={branchName}
-                      onBranch={setBranchName}
-                      onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
-                    />
-                  )}
-                </ChipPopover>
-              ) : (
-                !inPlace &&
-                probe?.ok &&
-                branchLabel && (
-                  <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
-                    {(close) => (
-                      <SearchList
-                        placeholder={t("newSession.branchSearch")}
-                        empty={t("newSession.branchEmpty")}
-                        rows={branchRows}
-                        query={branchQuery}
-                        onQuery={setBranchQuery}
-                        onPick={(name) => {
-                          setBases((now) => ({ ...now, [primary]: name }))
-                          setBranchQuery("")
-                          close()
-                        }}
+                  ungrouped={remote ? undefined : { on: ungrouped, pick: pickUngrouped }}
+                />
+              )}
+            </ChipPopover>
+            {ungrouped ? null : remote ? (
+              remotePick && <RemoteBranchChip value={remoteBase} onPick={setRemoteBase} />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
+                  aria-pressed={!inPlace}
+                  disabled={repos.length > 1}
+                  title={
+                    repos.length > 1
+                      ? t("newSession.worktreeMulti")
+                      : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
+                  }
+                  onClick={() => setWorktree(!worktree)}
+                >
+                  <BranchIcon />
+                  {t("newSession.worktree")}
+                </button>
+                {repos.length > 1 ? (
+                  <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
+                    {() => (
+                      <BranchesMenu
+                        repos={branchRepos}
+                        branch={branchName}
+                        onBranch={setBranchName}
+                        onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
                       />
                     )}
                   </ChipPopover>
-                )
-              )}
-            </>
-          )}
-          {targets && (
-            <AttachPicker
-              className={`${C.chipClass(attachments.length > 0)} cursor-pointer`}
-              title={t("newSession.attachHint")}
-              disabled={busy}
-              onFiles={(files) => void attach(files)}
-            >
-              <ClipIcon />
-              {t("newSession.attach")}
-            </AttachPicker>
-          )}
-          <span className={C.GROW} />
-          {choice.engines.length > 1 && (
-            <ChipPopover field="engine" title={t("newSession.engine")} label={engine?.name ?? t("newSession.engine")}>
-              {(close) => (
-                <ChoiceMenu
-                  heading={t("newSession.engine")}
-                  options={choice.engines.map((e) => ({ id: e.id, label: e.name, dim: e.ready === false }))}
-                  value={choice.engine}
-                  onPick={(id) => {
-                    choice.setEngine(id)
-                    close()
-                  }}
-                />
-              )}
-            </ChipPopover>
-          )}
-          {!inPlace && !remote && !ungrouped && (models.length > 0 || efforts.length > 0) && (
-            <ChipPopover
-              field="model"
-              title={t("newSession.model")}
-              label={modelChipLabel(models, modelValue, effortValue, t("newSession.modelDefault"))}
-            >
-              {(close) => (
-                <ModelMenu
-                  models={models}
-                  model={modelValue}
-                  onModel={setPickedModel}
-                  efforts={efforts}
-                  effort={effortValue}
-                  onEffort={setPickedEffort}
-                  close={close}
-                />
-              )}
-            </ChipPopover>
-          )}
+                ) : (
+                  !inPlace &&
+                  probe?.ok &&
+                  branchLabel && (
+                    <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
+                      {(close) => (
+                        <SearchList
+                          placeholder={t("newSession.branchSearch")}
+                          empty={t("newSession.branchEmpty")}
+                          rows={branchRows}
+                          query={branchQuery}
+                          onQuery={setBranchQuery}
+                          onPick={(name) => {
+                            setBases((now) => ({ ...now, [primary]: name }))
+                            setBranchQuery("")
+                            close()
+                          }}
+                        />
+                      )}
+                    </ChipPopover>
+                  )
+                )}
+              </>
+            )}
+          </div>
+          <div className={C.BAR_END}>
+            {choice.engines.length > 1 && (
+              <ChipPopover field="engine" title={t("newSession.engine")} label={engine?.name ?? t("newSession.engine")}>
+                {(close) => (
+                  <ChoiceMenu
+                    heading={t("newSession.engine")}
+                    options={choice.engines.map((e) => ({ id: e.id, label: e.name, dim: e.ready === false }))}
+                    value={choice.engine}
+                    onPick={(id) => {
+                      choice.setEngine(id)
+                      close()
+                    }}
+                  />
+                )}
+              </ChipPopover>
+            )}
+            {!inPlace && !remote && !ungrouped && (models.length > 0 || efforts.length > 0) && (
+              <ChipPopover
+                field="model"
+                title={t("newSession.model")}
+                label={modelChipLabel(models, modelValue, effortValue, t("newSession.modelDefault"))}
+              >
+                {(close) => (
+                  <ModelMenu
+                    models={models}
+                    model={modelValue}
+                    onModel={setPickedModel}
+                    efforts={efforts}
+                    effort={effortValue}
+                    onEffort={setPickedEffort}
+                    close={close}
+                  />
+                )}
+              </ChipPopover>
+            )}
+          </div>
         </div>
         {!remote && <AttachmentChips attachments={attachments} onRemove={remove} />}
         {busy && progress && (
