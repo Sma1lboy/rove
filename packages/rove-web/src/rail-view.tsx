@@ -30,7 +30,7 @@ import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
 import { RoundRowView } from "./rail-round-row.tsx"
 import { SearchChip } from "./rail-search.tsx"
-import { railStateRows, rowRepo } from "./rail-states.ts"
+import { railStateRows, rowRepo, withStateCounts } from "./rail-states.ts"
 import { type NavRow, type RowFold, foldProjects, railRows } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
@@ -104,7 +104,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     ? built.rows
     : withArchived(
         foldProjects(
-          withPanes(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering), tabs),
+          withPanes(withStateCounts(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering)), tabs),
           filters.collapsed,
         ),
         payload?.archived ?? [],

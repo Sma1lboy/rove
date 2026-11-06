@@ -100,16 +100,21 @@ export function railStateRows(input: RailInput): { rows: NavRow[]; groups: Proje
     ...input.remote.filter((task) => !task.routine && task.machine !== undefined && known.has(task.machine.id)),
   ]
   const listed = navRows(stateGroups(tasks, input), input.query, input.fold)
-  const counts = new Map<string, number>()
-  let head = ""
-  for (const row of listed) {
-    if (row.kind === "project") head = row.id
-    else if (row.kind === "task") counts.set(head, (counts.get(head) ?? 0) + 1)
-  }
   const rows = listed.map((row): NavRow => {
     if (row.kind !== "project") return row
     const state = row.id.slice(`project:${KEY_PREFIX}`.length) as RailState
-    return { id: `state:${state}`, kind: "state", state, label: row.label, count: counts.get(row.id) ?? 0 }
+    return { id: `state:${state}`, kind: "state", state, label: row.label, count: 0 }
   })
-  return { rows, groups: [] }
+  return { rows: withStateCounts(rows), groups: [] }
+}
+
+/** Each state header's count = the task rows listed under it in `rows`; call after rows are dropped (idle mains), before a fold hides any. */
+export function withStateCounts(rows: readonly NavRow[]): NavRow[] {
+  const counts = new Map<string, number>()
+  let head = ""
+  for (const row of rows) {
+    if (row.kind === "state") head = row.id
+    else if (row.kind === "task") counts.set(head, (counts.get(head) ?? 0) + 1)
+  }
+  return rows.map((row) => (row.kind === "state" ? { ...row, count: counts.get(row.id) ?? 0 } : row))
 }
