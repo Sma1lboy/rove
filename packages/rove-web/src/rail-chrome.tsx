@@ -142,6 +142,7 @@ export function RailBar({ model }: { model: AppModel }) {
 
 const NARROW_LABEL = {
   terminal: "layout.narrowTerminal",
+  chat: "layout.narrowChat",
   files: "layout.narrowFiles",
   diff: "layout.narrowDiff",
   browser: "layout.narrowBrowser",

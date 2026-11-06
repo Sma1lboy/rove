@@ -30,6 +30,7 @@ import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewView } from "./preview-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
+import { TranscriptView } from "./transcript-view.tsx"
 import { dragLayout, zen } from "./ui.ts"
 import { SIDE_BODY, SIDE_DIVIDER, SIDE_EMPTY, SIDE_VIEW, iconButton, sidePanelClass } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
@@ -152,6 +153,7 @@ function TabView({
   restored,
 }: { model: AppModel; task: TaskRow; tab: PanelItem; narrow: boolean; active: boolean; restored: boolean }) {
   if (tab.kind === "files") return <FilesView model={model} task={task} narrow={narrow} />
+  if (tab.kind === "chat") return <TranscriptView model={model} task={task} active={active} />
   if (tab.kind === "diff") {
     return (
       <PreviewView

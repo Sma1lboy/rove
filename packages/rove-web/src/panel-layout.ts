@@ -5,7 +5,7 @@ import { createStore } from "./store.ts"
 import { slideLayout } from "./ui.ts"
 
 /** The side panel's kinds of view; a tab is one instance of a kind. */
-export const PANEL_KINDS = ["files", "diff", "browser"] as const
+export const PANEL_KINDS = ["chat", "files", "diff", "browser"] as const
 export type PanelKind = (typeof PANEL_KINDS)[number]
 /** Narrow mode, a task's content panel: the terminal, or one of the side panel's kinds (the desktop's right column). */
 export type NarrowView = "terminal" | PanelKind
