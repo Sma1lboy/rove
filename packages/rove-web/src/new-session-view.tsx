@@ -40,6 +40,7 @@ import {
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
@@ -122,6 +123,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [error, setError] = useState<string | null>(null)
   const { attachments, attach, remove, clear } = useAttachments(model, setError)
   const area = useRef<HTMLTextAreaElement>(null)
+  const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area })
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
@@ -339,14 +341,16 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             placeholder={t("newSession.placeholder")}
             value={prompt}
             disabled={busy}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={snippets.change}
+            onSelect={snippets.select}
             onPaste={targets?.onPaste}
             onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
+              if (snippets.key(e) || e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
               e.preventDefault()
               void start()
             }}
           />
+          {snippets.list}
           <div className={C.CARD_ACTIONS}>
             <button
               type="button"

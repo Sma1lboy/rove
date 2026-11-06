@@ -22,6 +22,7 @@ import { NotificationsSection } from "./settings-notifications.tsx"
 import { PluginsSection } from "./settings-plugins.tsx"
 import { RoutingSection } from "./settings-routing.tsx"
 import { SECTION_GROUPS, type SettingsSection, backFrom, initialView } from "./settings-sections.ts"
+import { SnippetsSection } from "./settings-snippets.tsx"
 import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
@@ -48,6 +49,7 @@ const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   general: (m) => <GeneralSection model={m} />,
   appearance: (m) => <AppearanceSection model={m} />,
   notifications: (m) => <NotificationsSection model={m} />,
+  snippets: (m) => <SnippetsSection model={m} />,
   keys: (m) => <KeysSection model={m} />,
   engines: (m) => <EnginesSection client={m.client} />,
   autoRouting: (m) => <RoutingSection client={m.client} />,

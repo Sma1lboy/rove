@@ -6,17 +6,17 @@
  * A draft survives switching tabs; it is cleared once the engine took the message or the daemon held it.
  */
 
-import { useState } from "react"
+import { useRef, useState, useSyncExternalStore } from "react"
 import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
+import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
 import { QueuedChips } from "./term-queue.tsx"
 import { toast } from "./ui.ts"
 import { COMPOSER_ATTACH, ClipGlyph, TermComposerBar } from "./ui/term-composer.tsx"
-
-const drafts = new Map<string, string>()
 
 interface SendReply {
   readonly delivered: boolean
@@ -28,15 +28,18 @@ interface SendReply {
 export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId: string; tabId: string }) {
   // Another machine's rows are read-only here, as in the TUI: nothing is sent to them.
   const local = useStore(model.tasks)?.tasks.some((task) => task.id === taskId) ?? false
-  const key = `${taskId}/${tabId}`
-  const [text, setText] = useState(() => drafts.get(key) ?? "")
+  const key = draftKey(taskId, tabId)
+  const text = useSyncExternalStore(subscribeDrafts, () => getDraft(key))
   const [busy, setBusy] = useState(false)
   const [revision, setRevision] = useState(0)
   const { attachments, attach, remove, clear } = useAttachments(model, (message) => toast(message, "error"))
-  const edit = (next: string) => {
-    drafts.set(key, next)
-    setText(next)
-  }
+  const field = useRef<HTMLTextAreaElement>(null)
+  const snippets = useSnippetSuggest({
+    value: text,
+    onChange: (next) => setDraft(key, next),
+    area: field,
+    listClassName: "m-0",
+  })
   const send = async () => {
     const prompt = withRefs(text.trim(), attachments).trim()
     if (!prompt) return
@@ -51,8 +54,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
         toast(t("layout.composerQueued", { position: res.position ?? 1 }))
         setRevision((n) => n + 1)
       }
-      drafts.delete(key)
-      setText("")
+      setDraft(key, "")
       clear()
     } catch (err) {
       // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.
@@ -92,7 +94,12 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
           <ClipGlyph />
         </AttachPicker>
       }
-      onChange={edit}
+      composerKey={key}
+      fieldRef={field}
+      suggest={snippets.list}
+      onSelect={snippets.select}
+      onKeyDown={(e) => void snippets.key(e)}
+      onChange={snippets.change}
       onPaste={fileTargets(onFiles).onPaste}
       onSend={() => void send()}
     />

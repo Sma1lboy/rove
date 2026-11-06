@@ -3,7 +3,13 @@ export const en = {
   settings: {
     title: "Settings",
     open: "settings",
-    sections: { connectors: "Connectors", appearance: "Appearance", notifications: "Notifications", about: "About" },
+    sections: {
+      connectors: "Connectors",
+      appearance: "Appearance",
+      notifications: "Notifications",
+      snippets: "Snippets",
+      about: "About",
+    },
     groups: { preferences: "Preferences", agents: "Agents and tools", more: "More" },
     pages: {
       general: "Language, layout, and where Rove opens files and creates worktrees.",
@@ -17,6 +23,7 @@ export const en = {
       about: "Versions, updates, and this browser.",
       feedback: "Send a note to the Rove team.",
       dev: "Experimental switches, restarts and resets.",
+      snippets: "Prompt text you reuse. Type @name in a prompt to insert it.",
     },
     connectors: {
       githubDescription: "Clone, push and open PRs on every machine with one GitHub account",
@@ -189,7 +196,7 @@ export const zh: typeof en = {
   settings: {
     title: "设置",
     open: "设置",
-    sections: { connectors: "连接器", appearance: "外观", notifications: "通知", about: "关于" },
+    sections: { connectors: "连接器", appearance: "外观", notifications: "通知", snippets: "片段", about: "关于" },
     groups: { preferences: "偏好", agents: "智能体与工具", more: "更多" },
     pages: {
       general: "语言、布局，以及 Rove 在哪里打开文件、创建 worktree。",
@@ -203,6 +210,7 @@ export const zh: typeof en = {
       about: "版本、更新，以及此浏览器。",
       feedback: "给 Rove 团队留一条意见。",
       dev: "实验开关、重启和重置。",
+      snippets: "常用的提示词文本。在提示词里输入 @名称 即可插入。",
     },
     connectors: {
       githubDescription: "用同一个 GitHub 账号在每台机器上克隆、推送和开 PR",

@@ -95,6 +95,8 @@ export const splitName = (rule: boolean, active: boolean): string =>
 /** Overlays on the terminal, anchored to `TERM_BODY` so the key row and composer under it never cover them. */
 export const TERM_SCROLLED =
   "absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 text-meta"
+/** The quote action over a terminal selection, opposite the scroll chips. */
+export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
 export const TERM_KEY_ROW =
