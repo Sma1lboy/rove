@@ -175,6 +175,7 @@ function PaletteDialog({
                 type="button"
                 key={row.command.id}
                 className={paletteRow(i === index)}
+                title={row.name}
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => open({ kind: "command", row })}
               >
