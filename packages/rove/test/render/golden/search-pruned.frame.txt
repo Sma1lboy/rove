@@ -10,10 +10,10 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
 | rove ─────────────────────── |
 |▌ ○ bravo                     |
+|                              |
 |                              |
 |                              |
 |                              |
