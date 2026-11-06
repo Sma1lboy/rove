@@ -47,14 +47,18 @@ export function conversationTitleOf(
   return tabs.find((tab) => tab.engine === true && tab.title !== undefined)?.title
 }
 
+/** The `<dir>-xxxx` title `openDirectoryTaskRow` mints when no title is given. */
+const AUTO_DIR_TITLE = /^\S+-[0-9a-z]{4}$/
+
 /**
  * A row is a conversation, so it is named like one: the engine session's own
  * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
  * title, else its branch. The task title names `task` rows and children; a
  * `main` row only when it was renamed (it starts as the repo name, which would
  * hide the live HEAD), else it reads its live HEAD, and a `dir` row its
- * tail-truncated directory (stored dir titles are auto-generated noise like
- * `jacksonc-xxxx`, and this needs no data migration). Then the path; then
+ * tail-truncated directory unless it was named (a prompt-derived or renamed
+ * title; the auto-minted `jacksonc-xxxx` and repo-name titles are noise, and
+ * this needs no data migration). Then the path; then
  * "scratch", never blank. The branch stays searchable (`tree-search.ts`).
  *
  * `liveBranch` is the caller-resolved HEAD for branchless rows
@@ -68,7 +72,9 @@ export function worktreeRowLabel(
   if (live) return live
   const title = task.title.trim()
   const renamedMain = task.kind === "main" && title !== "" && title !== repoBasename(task.repo)
-  if (title && (task.parentTaskId !== undefined || task.kind === "task" || renamedMain)) return title
+  // A `dir` title a person or a prompt gave, not the repo's name (an adopted scratch) or the auto-minted `<dir>-xxxx`.
+  const namedDir = task.kind === "dir" && title !== repoBasename(task.repo) && !AUTO_DIR_TITLE.test(title)
+  if (title && (task.parentTaskId !== undefined || task.kind === "task" || renamedMain || namedDir)) return title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

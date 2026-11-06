@@ -62,7 +62,13 @@ describe("rowLiveBranchPath", () => {
   })
 
   test("a dir row with the live branch resolved is named by it, not by its path", () => {
-    const dir = task("d", { kind: "dir", branch: "", worktreePath: "/Users/me/x", repo: "/Users/me/x" })
+    const dir = task("d", {
+      kind: "dir",
+      branch: "",
+      title: "x-ab3d",
+      worktreePath: "/Users/me/x",
+      repo: "/Users/me/x",
+    })
     expect(worktreeRowLabel(dir, { liveBranch: "main", home: "/Users/me" })).toBe("main")
     // Not a repo (poller answers "") → the path fallback still stands.
     expect(worktreeRowLabel(dir, { liveBranch: "", home: "/Users/me" })).toBe("~/x")
@@ -113,6 +119,20 @@ describe("worktreeRowLabel", () => {
     // "~/projects/deep/nested/dir" is 26 chars → tail-truncated to 24.
     expect(label).toBe("…rojects/deep/nested/dir")
     expect(label).not.toContain("jacksonc")
+  })
+
+  test("a dir task named from a prompt or renamed reads that name, not its branch or path", () => {
+    const named = task("d", {
+      kind: "dir",
+      branch: "",
+      title: "fix the flaky login test",
+      worktreePath: "/Users/me/rove",
+      repo: "/Users/me/rove",
+    })
+    expect(worktreeRowLabel(named, { home: "/Users/me" })).toBe("fix the flaky login test")
+    expect(worktreeRowLabel(named, { liveBranch: "main", home: "/Users/me" })).toBe("fix the flaky login test")
+    // Titled with the repo's own name (an adopted scratch) it is still the path/branch.
+    expect(worktreeRowLabel({ ...named, title: "rove" }, { liveBranch: "main" })).toBe("main")
   })
 
   test("a path under $HOME tildifies before truncation", () => {
