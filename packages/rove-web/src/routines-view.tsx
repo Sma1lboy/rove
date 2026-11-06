@@ -344,9 +344,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
               {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
             </span>
           )}
-          <span className={reply?.keepsDaemonAlive ? "text-success" : "text-muted"}>
-            {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
-          </span>
+          <span className="text-muted">{reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}</span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
           <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
             {t("pages.new")}

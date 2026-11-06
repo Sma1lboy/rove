@@ -37,7 +37,7 @@
   --hover: color-mix(in srgb, var(--ink) 7%, transparent);
   /* Elevation, one scale for every floating surface: the surface's own border plus ONE soft shadow.
      A ring or a second offset shadow on top of the border reads as stacked edges. */
-  --shadow-popover: 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-popover: 0 2px 8px rgb(0 0 0 / 25%);
   /* Tight: a wide blur over the scrim darkens the text around a dialog into a second box. */
   --shadow-dialog: 0 4px 12px rgb(0 0 0 / 30%);
   --scrim: rgb(10 10 9 / 62%);
