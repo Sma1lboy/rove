@@ -1,6 +1,13 @@
 /** `files`, `preview`, `panel`, `browser` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   files: {
+    autoFix: {
+      on: "[ auto-fix CI ]",
+      off: "[ turn off ]",
+      count: "auto-fix {n}/{max}",
+      stopped: "auto-fix stopped {n}/{max}",
+      hint: "When checks fail on a new push and the agent is idle, send it the failing logs. At most once per push, 3 times in all, then it stops and tells your Inbox.",
+    },
     stripCreate: "[ create PR ]",
     stripFixCi: "[ fix CI ]",
     stripConflicts: "[ resolve conflicts ]",
@@ -210,6 +217,13 @@ export const en = {
 
 export const zh: typeof en = {
   files: {
+    autoFix: {
+      on: "[ 自动修复 CI ]",
+      off: "[ 关闭 ]",
+      count: "自动修复 {n}/{max}",
+      stopped: "自动修复已停止 {n}/{max}",
+      hint: "检查在新提交上失败且代理空闲时，自动把失败日志发给它。每次提交最多一次、总共 3 次，之后停止并通知收件箱。",
+    },
     stripCreate: "[ 创建 PR ]",
     stripFixCi: "[ 修复 CI ]",
     stripConflicts: "[ 解决冲突 ]",
