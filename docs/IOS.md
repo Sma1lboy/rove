@@ -276,6 +276,8 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |
 | `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
+| `pr.checks` | `taskId`, `fresh?` | `gh pr view <n> --json statusCheckRollup,mergeable,mergeStateStatus,reviewDecision,isDraft` in the task's worktree, cached 30 s: `{outcome: "ok", total, checks[{name, state: fail\|pending\|pass\|skipped, durationMs, url, runId}] (failures first, at most 60), mergeable, mergeState, review, draft}`, `none` (no PR yet) or `unavailable` + `detail` | — |
+| `pr.checkLog` | `taskId`, `runId` (digits), `job` | `gh run view <runId> --log-failed`, cached 60 s per run: `{outcome: "ok", tail}` (last 40 lines / 4000 chars of that job), `none` or `unavailable` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |

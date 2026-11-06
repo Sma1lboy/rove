@@ -2,17 +2,28 @@
 
 import type { TaskRow } from "rove-bridge/protocol"
 
-export type PrAction = "createPR" | "conflicts" | "fixCI" | "comments" | "archive"
+export type PrAction = "commit" | "createPR" | "conflicts" | "fixCI" | "comments" | "archive"
 
 /** The actions that prefill the engine's input; the rest act directly. */
 export type PrPromptKind = Exclude<PrAction, "archive">
 
+/** An own worktree task with uncommitted changes (never one whose changes could not be read). */
+function dirty(task: TaskRow): boolean {
+  const own = task.kind === "task" && !task.noWorktree && !task.machine && !task.archived
+  const changes = task.changes
+  return own && !!changes && "added" in changes && changes.added + changes.deleted > 0
+}
+
 /**
- * Only what applies, in the order a PR gets unblocked: conflicts first (CI will rerun after the
- * merge), then red checks, then review feedback. A merged PR offers archive alone; a closed or
- * not-yet-polled one offers nothing, since its state is not known to act on.
+ * Commit first when the worktree is dirty (it needs no PR). Then only what applies to the PR, in the order
+ * it gets unblocked: conflicts (CI reruns after the merge), red checks, then review feedback. A merged PR
+ * offers archive; a closed or not-yet-polled one nothing, since its state is not known to act on.
  */
 export function prActions(task: TaskRow): readonly PrAction[] {
+  return [...(dirty(task) ? (["commit"] as const) : []), ...prStateActions(task)]
+}
+
+function prStateActions(task: TaskRow): readonly PrAction[] {
   const pr = task.pr
   if (!pr) {
     // Only a worktree task opens PRs from its own branch.

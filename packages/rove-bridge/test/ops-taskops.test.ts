@@ -120,6 +120,15 @@ describe("task.prompt", () => {
     expect([create, conflicts, comments].some((r) => sent(r?.calls ?? []))).toBe(false)
   })
 
+  test("commit needs no PR, asks for commits and says not to push", async () => {
+    const { result, calls } = await run("task.prompt", { taskId: T, kind: "commit" }, { "get-task": task({}) })
+    const prompt = (result as { prompt: string }).prompt
+    expect(prompt).toContain("Commit the uncommitted changes")
+    expect(prompt).toContain("do not push")
+    expect(prompt).not.toContain("\n")
+    expect(sent(calls)).toBe(false)
+  })
+
   test("a PR without a known base still names a base to merge", async () => {
     const { result } = await run("task.prompt", { taskId: T, kind: "conflicts" }, { "get-task": task({}) })
     expect((result as { prompt: string }).prompt).toContain("This task's PR has merge conflicts with its base branch")
