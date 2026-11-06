@@ -20,9 +20,8 @@ export function RoundRowView(props: {
   onClick: () => void
 }) {
   const { row } = props
-  // ui-ok: a rail row is a button in the row recipe (`rowClass`), as the pane and task rows are
   return (
-    <button
+    <button // ui-ok: a rail row is a button in the row recipe (`rowClass`), as the pane and task rows are
       type="button"
       className={`${rowClass({ size: "pane" })} ${props.cursor ? RAIL_CURSOR : ""}`}
       title={t("compare.menu")}
