@@ -239,6 +239,7 @@ export function taskRows(
         ...(task.repoId ? { repoId: task.repoId } : {}),
         ...(task.extraRepos?.length ? { extraRepoCount: task.extraRepos.length } : {}),
         ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
+        ...(task.baseRef ? { baseRef: task.baseRef } : {}),
         ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
