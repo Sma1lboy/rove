@@ -105,7 +105,7 @@ jobs:
   render-track:
     needs: changes
     if: needs.changes.outputs.should_publish == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - name: Checkout main
