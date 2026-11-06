@@ -202,6 +202,8 @@ export function useRailKeys(
 
   const onKeyDown = (e: KeyboardEvent) => {
     const row = rows[at]
+    // The chip's own field takes the characters; the arrows, Enter and Esc stay here.
+    const typing = e.target instanceof HTMLInputElement
     if (search.active) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === "Escape") setSearch({ active: false, query: "" })
@@ -210,8 +212,8 @@ export function useRailKeys(
         setSearch({ active: false, query: "" })
       } else if (e.key === "ArrowDown") move(at + 1)
       else if (e.key === "ArrowUp") move(at - 1)
-      else if (e.key === "Backspace") setSearch((s) => ({ ...s, query: s.query.slice(0, -1) }))
-      else if (e.key.length === 1) setSearch((s) => ({ ...s, query: s.query + e.key }))
+      else if (e.key === "Backspace" && !typing) setSearch((s) => ({ ...s, query: s.query.slice(0, -1) }))
+      else if (e.key.length === 1 && !typing) setSearch((s) => ({ ...s, query: s.query + e.key }))
       else return
       e.preventDefault()
       return

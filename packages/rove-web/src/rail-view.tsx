@@ -26,6 +26,7 @@ import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
 import { withPanes } from "./rail-panes.ts"
+import { SearchChip } from "./rail-search.tsx"
 import { type NavRow, type RowFold, foldProjects, railRows, repoLabel, rowTitle } from "./rail.ts"
 import { type ProjectInfo, projectMenu, taskMenu, ungroupedMenu } from "./row-actions.tsx"
 import { useRowTip } from "./row-tip.tsx"
@@ -43,7 +44,6 @@ import {
   PROJECT_ADD,
   PROJECT_TOGGLE,
   RAIL,
-  RAIL_CARET,
   RAIL_CURSOR,
   RAIL_EMPTY,
   RAIL_HEAD,
@@ -177,14 +177,11 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         </div>
       )}
       {filters.search.active && (
-        <div className={`${RAIL_SEARCH} mono`}>
-          <span className="text-accent">/</span>
-          <span>{filters.search.query}</span>
-          <span className={RAIL_CARET}>█</span>
-          <span className="ml-1.5 text-muted">
-            {filters.search.query ? `${stops(rows).length}/${total}` : t("rail.searchPlaceholder")}
-          </span>
-        </div>
+        <SearchChip
+          query={filters.search.query}
+          count={`${stops(rows).length}/${total}`}
+          onChange={(query) => filters.setSearch((s) => ({ ...s, query }))}
+        />
       )}
       <PageNav model={model} />
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>

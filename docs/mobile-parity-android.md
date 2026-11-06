@@ -58,12 +58,10 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | Review notes on a diff | `review.add`, `review.list`, `review.send` | M |
 | Connectors | `github.*` | M |
 | Auto routing | `autoRouting.get`, `autoRouting.setTier`, `autoRouting.setClassifier` | M |
-| Machines page | `machines.list`, `machines.repos` | M |
 | Mods page | `mod.press`, `mod.submit` | M |
 | Install the Rove skill from Engines | `skill.missing`, `skill.install` | S |
 | New session: branch, clone, adopt, folder, machine | `repo.branches`, `repo.probe`, `repo.clone`, `fs.subdirs`, `machines.list`, `task.spawn` | L |
 | Settings › General | `prefs.get`, `prefs.set`, `theme.*` | L |
-| Dispatch page | the `dispatch` push | L |
 
 From reading the code, not run: the `+` sheet in task detail drops the `taskId` in the `tab.new` reply, so a prompt that starts a child task does not open that child.
 

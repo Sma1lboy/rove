@@ -35,7 +35,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 |---|---|---|---|
 | 菜单数字键：at menu 时 key row 以 1–4、Enter 开头 | `term-key-row.tsx` | `term.input` | 已对齐（#1639） |
 | Composer 走 `tab.send`，忙时排到 turn 结束；排队 chip | `term-composer.tsx`、`term-queue.tsx` | `tab.send`、`queue.list`、`queue.cancel` | **有 PR** [#1659](https://github.com/Sma1lboy/rove/pull/1659) |
-| 搜索所有对话 | `search-view.tsx` | `sessions.search` | **有 PR** [#1656](https://github.com/Sma1lboy/rove/pull/1656) |
+| 搜索所有对话 | `palette-search.tsx`、`search-hits.ts` | `sessions.search` | **有 PR** [#1656](https://github.com/Sma1lboy/rove/pull/1656) |
 | Routine 的任务不进任务列表 | `rail.ts` 按 `routine` 过滤 | 行字段 `routine` | **有 PR** [#1655](https://github.com/Sma1lboy/rove/pull/1655) |
 | 归档 / 取消归档，Archived 折叠行 | `archiveFlow`、`rail-archived.ts` | `task.archive`，`TasksPayload.archived` | **有 PR** [#1657](https://github.com/Sma1lboy/rove/pull/1657) |
 | 行菜单 Sync with base | `syncBaseFlow` | `task.syncBase` | **有 PR** [#1658](https://github.com/Sma1lboy/rove/pull/1658) |
@@ -44,9 +44,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 复活已退出的 tab | `terminal-view.tsx` | `term.revive` | **缺** |
 | Land 前预检 | `landFlow` | `task.landPreflight` | **缺** |
 | 清掉 routine 的 Inbox 项 | `inbox-view.tsx` | `attention.dismissRoutine` | **缺** |
-| Machines 页 | `machines-page.tsx` | `machines.list`、`machines.repos` | **缺** |
 | 在别的机器上新建 / clone | `new-session-machine.tsx` | `task.spawn` 的 `machine`、`clone` | **缺**，依赖 Machines |
-| Dispatch 页 | `dispatch-view.tsx` | `dispatch` 推送 | **缺** |
 | Mods 页 | `mods-view.tsx` | `mods` 推送、`mod.press`、`mod.submit` | **缺** |
 | 从 GitHub 账号选仓库 clone | `new-session-repo-menu.tsx` | `github.repos` | **缺** |
 | Settings → Connectors（GitHub 登录、同步） | `settings-connectors.tsx` | `github.status/login/logout/sync` | **缺** |

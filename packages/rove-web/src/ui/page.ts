@@ -1,4 +1,4 @@
-/** The full pages' shared frame (Kanban, Routines, Issues, Dispatch, Mods) and the rail's page entries. */
+/** The full pages' shared frame (Kanban, Routines, Issues, Mods) and the rail's page entries. */
 
 /** A full page over the workspace (the TUI's rail pages); a page that lays out its own scrolling adds `overflow-hidden` instead of PAGE_SCROLL. */
 export const PAGE =
