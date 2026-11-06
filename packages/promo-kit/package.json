@@ -1,0 +1,13 @@
+{
+  "name": "promo-kit",
+  "version": "0.0.0",
+  "description": "Team X promo library at kit.sma1lboy.me: Cloudflare Worker + R2, behind Cloudflare Access.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "kit": "bun kit.ts",
+    "dev": "bunx wrangler dev",
+    "deploy": "bunx wrangler deploy",
+    "test": "bun test test"
+  }
+}

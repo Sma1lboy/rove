@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>宣发素材 · promo-kit</title>
+<style>
+/* Neutral graphite: the page is a handoff desk, X is where the post lives.
+   The one strong colour is the "发到 X" button, near-black (inverted in dark) like X's own UI.
+   Warnings use separate semantic tones so a bad video stands out. */
+:root {
+  --bg: #f4f5f7; --surface: #fff; --ink: #14171a; --muted: #5b6670; --line: #dde1e5;
+  --primary: #0f1419; --on-primary: #fff;
+  --warn-ink: #8a4b00; --warn-bg: #fff3dc; --bad: #c4302b; --ok: #1d7a46;
+  --r: 12px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e10; --surface: #16191c; --ink: #e6e9ec; --muted: #8b96a0; --line: #2a2f34;
+    --primary: #eff3f4; --on-primary: #0f1419;
+    --warn-ink: #f2b860; --warn-bg: #2a200f; --bad: #ff6b63; --ok: #4cc683;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+header { padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 2; }
+header a { color: inherit; text-decoration: none; font-weight: 600; }
+header span { color: var(--muted); font-size: 14px; margin-left: 8px; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); }
+h1 { font-size: 20px; line-height: 1.3; margin: 8px 0 12px; }
+.muted { color: var(--muted); font-size: 14px; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; color: inherit; text-decoration: none; display: block; }
+.card .media { aspect-ratio: 16 / 9; background: #000; display: block; width: 100%; object-fit: cover; }
+.card .body { padding: 10px 12px 12px; }
+.card .t { font-weight: 600; }
+.detail { display: grid; gap: 20px; }
+@media (min-width: 860px) { .detail { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; } .detail .left { position: sticky; top: 72px; } }
+video.player { width: 100%; max-height: 70vh; background: #000; border-radius: var(--r); display: block; }
+.warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; font-size: 14px; margin-top: 10px; }
+.warn ul { margin: 4px 0 0; padding-left: 18px; }
+.post { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 12px; }
+.post .head { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+.count { font-variant-numeric: tabular-nums; }
+.count.over { color: var(--bad); font-weight: 600; }
+textarea { width: 100%; min-height: 96px; resize: vertical; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+button, .btn {
+  font: inherit; font-size: 15px; border-radius: 999px; padding: 10px 16px; min-height: 44px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; display: inline-flex; align-items: center;
+}
+button.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); font-weight: 600; flex: 1 1 auto; justify-content: center; }
+button:disabled { opacity: .55; cursor: progress; }
+.hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.back { color: var(--muted); text-decoration: none; font-size: 14px; }
+#toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  max-width: min(92vw, 480px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px;
+  font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+#toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header><a href="#/">宣发素材</a><span>用你自己的 X 账号发</span></header>
+<main id="app"><p class="muted">加载中…</p></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module">
+import { xLength, X_MAX } from "./xcount.js"
+
+const app = document.getElementById("app")
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
+const vurl = (key) => "/v/" + key
+const fmtDur = (s) => (s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : "")
+const fmtSize = (b) => (b / 1024 / 1024).toFixed(1) + " MB"
+const toastEl = document.getElementById("toast")
+let toastTimer
+function toast(msg, ms = 4000) {
+  toastEl.textContent = msg
+  toastEl.classList.add("on")
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => toastEl.classList.remove("on"), ms)
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); return true } catch { return false }
+}
+
+// Phone = touch screen whose share sheet takes video files (iOS Safari, Android Chrome).
+const MOBILE = matchMedia("(pointer: coarse)").matches &&
+  !!navigator.canShare?.({ files: [new File([""], "a.mp4", { type: "video/mp4" })] })
+
+let items = null
+async function load() {
+  const r = await fetch("/api/items")
+  if (!r.ok) throw new Error(r.status + " " + (await r.text()))
+  items = (await r.json()).items
+}
+
+function videoWarnings(v) {
+  const w = []
+  if (!/\.mp4$/i.test(v.key)) w.push("不是 mp4 文件")
+  if (v.codec && !/^avc/.test(v.codec)) w.push(`编码是 ${v.codec}，X 要求 H.264`)
+  if (v.duration > 140) w.push(`时长 ${fmtDur(v.duration)}，超过 X 的 2:20 上限`)
+  if (v.size > 512 * 1024 * 1024) w.push(`大小 ${fmtSize(v.size)}，超过 X 的 512 MB 上限`)
+  return w
+}
+
+function renderList() {
+  document.title = "宣发素材 · promo-kit"
+  if (!items.length) { app.innerHTML = `<p class="muted">还没有素材。</p>`; return }
+  app.innerHTML = `<h1>素材</h1><div class="grid">${items.map((it) => `
+    <a class="card" href="#/${esc(it.id)}">
+      ${it.cover
+        ? `<img class="media" src="${vurl(esc(it.cover))}" alt="" loading="lazy">`
+        : `<video class="media" src="${vurl(esc(it.video.key))}#t=0.5" preload="metadata" muted playsinline></video>`}
+      <div class="body">
+        <div class="t">${esc(it.title)}</div>
+        <div class="muted">${[fmtDur(it.video.duration), it.posts.length > 1 ? `${it.posts.length} 条串推` : "单条", videoWarnings(it.video).length ? "⚠ 视频规格有问题" : ""].filter(Boolean).join(" · ")}</div>
+      </div>
+    </a>`).join("")}</div>`
+}
+
+function renderDetail(it) {
+  document.title = it.title + " · 宣发素材"
+  const warns = videoWarnings(it.video)
+  const file = it.id + ".mp4"
+  app.innerHTML = `
+    <a class="back" href="#/">← 全部素材</a>
+    <h1>${esc(it.title)}</h1>
+    <div class="detail">
+      <div class="left">
+        <video class="player" src="${vurl(esc(it.video.key))}" ${it.cover ? `poster="${vurl(esc(it.cover))}"` : ""} controls playsinline preload="metadata"></video>
+        <div class="muted" style="margin-top:6px">${[fmtDur(it.video.duration), fmtSize(it.video.size), it.video.codec].filter(Boolean).join(" · ")}</div>
+        <div id="warns"></div>
+      </div>
+      <div>
+        ${it.posts.map((p, i) => `
+          <div class="post">
+            <div class="head"><span>${it.posts.length > 1 ? `第 ${i + 1} 条${i === 0 ? "（带视频）" : ""}` : "文案"}</span><span class="count" data-i="${i}"></span></div>
+            <textarea data-i="${i}" aria-label="第 ${i + 1} 条文案">${esc(p)}</textarea>
+            ${i === 0 ? `
+              <div class="row">
+                <button class="primary" id="send">发到 X</button>
+                <a class="btn" href="${vurl(esc(it.video.key))}?dl=${encodeURIComponent(file)}" download="${esc(file)}">下载视频</a>
+                <button data-copy="0">复制文案</button>
+              </div>
+              <div class="hint">${MOBILE
+                ? "会打开系统分享面板，选 X。文案同时复制到剪贴板，发帖框里没带上就粘贴。"
+                : "会下载视频并打开 X 发帖页（文字已填好），把视频拖进发帖框。"}
+              ${it.posts.length > 1 ? "发出去后，在这条下面回复，逐条复制下面的串推。" : ""}</div>`
+            : `<div class="row"><button data-copy="${i}">复制第 ${i + 1} 条</button></div>`}
+          </div>`).join("")}
+        <p class="muted">这里改的文字只在你这一页生效，不会改动素材库。</p>
+      </div>
+    </div>`
+
+  const areas = [...app.querySelectorAll("textarea")]
+  const text = (i) => areas[i].value.trim()
+  const recount = (i) => {
+    const n = xLength(text(i)), el = app.querySelector(`.count[data-i="${i}"]`)
+    el.textContent = `${n} / ${X_MAX}`
+    el.classList.toggle("over", n > X_MAX)
+    el.title = n > X_MAX ? "超过 X 字数上限（中文按 2 算，链接按 23 算）" : "按 X 规则计数：中文 2，链接 23"
+  }
+  const fit = (a) => { a.style.height = "auto"; a.style.height = a.scrollHeight + 2 + "px" }
+  areas.forEach((a, i) => { recount(i); fit(a); a.addEventListener("input", () => { recount(i); fit(a) }) })
+
+  const warnBox = app.querySelector("#warns")
+  const showWarns = (list) => {
+    warnBox.innerHTML = list.length ? `<div class="warn">X 可能不收这个视频：<ul>${list.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""
+  }
+  showWarns(warns)
+  const player = app.querySelector("video")
+  player.addEventListener("loadedmetadata", () => {
+    const r = player.videoWidth / player.videoHeight
+    if (r && (r > 2.39 || r < 1 / 2.39)) showWarns([...warns, `画面比例 ${player.videoWidth}×${player.videoHeight}，超出 X 的 1:2.39 – 2.39:1`])
+  }, { once: true })
+
+  app.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    const i = Number(b.dataset.copy)
+    toast((await copy(text(i))) ? `第 ${i + 1} 条已复制` : "复制失败，长按文本框手动复制")
+  }))
+
+  const send = app.querySelector("#send")
+  if (MOBILE) {
+    // navigator.share must run inside the tap, so the file is fetched ahead of time.
+    let videoFile = null
+    send.disabled = true
+    const total = it.video.size
+    ;(async () => {
+      const r = await fetch(vurl(it.video.key))
+      const reader = r.body.getReader(), chunks = []
+      let got = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value); got += value.length
+        if (total) send.textContent = `视频准备中 ${Math.round((got / total) * 100)}%`
+      }
+      videoFile = new File(chunks, file, { type: "video/mp4" })
+      send.textContent = "发到 X"
+      send.disabled = false
+    })().catch(() => { send.textContent = "视频加载失败，点下载视频"; })
+    send.addEventListener("click", async () => {
+      const t = text(0)
+      const copied = copy(t) // started in the same tap as share; not awaited so share keeps the gesture
+      try {
+        await navigator.share({ files: [videoFile], text: t })
+        toast((await copied) ? "文案已复制。X 发帖框里没有文字的话，粘贴即可。" : "X 发帖框里没有文字的话，回来点「复制文案」。", 6000)
+      } catch (e) {
+        if (e.name !== "AbortError") toast("分享失败：" + e.message + "。可以先下载视频再手动发。", 6000)
+      }
+    })
+  } else {
+    send.addEventListener("click", () => {
+      const a = document.createElement("a")
+      a.href = `${vurl(it.video.key)}?dl=${encodeURIComponent(file)}`
+      a.download = file
+      a.click()
+      window.open("https://x.com/intent/post?text=" + encodeURIComponent(text(0)), "_blank", "noopener")
+      toast("视频开始下载了。到 X 的发帖页里把视频拖进去，检查一遍再发。", 7000)
+    })
+  }
+}
+
+async function route() {
+  try {
+    if (!items) await load()
+  } catch (e) {
+    app.innerHTML = `<p class="muted">加载失败：${esc(e.message)}</p>`
+    return
+  }
+  const id = location.hash.replace(/^#\/?/, "")
+  const it = id && items.find((x) => x.id === id)
+  if (id && !it) app.innerHTML = `<p class="muted">素材不存在或已下架。<a href="#/">回到列表</a></p>`
+  else if (it) renderDetail(it)
+  else renderList()
+  scrollTo(0, 0)
+}
+addEventListener("hashchange", route)
+route()
+</script>
+</body>
+</html>
