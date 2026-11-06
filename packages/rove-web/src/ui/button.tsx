@@ -1,15 +1,16 @@
 import type { ButtonHTMLAttributes } from "react"
 import { cn } from "./cn.ts"
 
-/** The filled action (`.button` before Tailwind). `danger` paints it the error colour; `box` is the Engines page's smaller one. */
-export const buttonClass = ({ danger = false, box = false }: { danger?: boolean; box?: boolean } = {}): string =>
+/** The filled action (`.button` before Tailwind). `danger` paints it the error colour. */
+export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): string =>
   `rounded-sm font-sans text-meta not-italic normal-nums text-paper active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 ${
     danger ? "bg-error" : "bg-accent"
-  } ${box ? "px-3 py-1.25 font-medium" : "px-3.5 py-1.5 font-semibold"}`
+  } px-3.5 py-1.5 font-semibold`
 
 /**
  * `link`: an accent text action (create PR, toggle scope). `filled`: the filled action of `buttonClass()` (an empty
- * state's "Start"). `floating`: an action raised over content (a preview's
+ * state's "Start"). `danger`: the same in the error colour. `action`: a quiet bordered action beside a setting.
+ * `floating`: an action raised over content (a preview's
  * "ask in chat" beside a selection); the caller places it. `row`: a whole list row that opens something; the caller's
  * class paints it all, cursor included. `card`: a pickable tile (the theme gallery); the caller passes its
  * picked/unpicked border and fill.
@@ -20,6 +21,9 @@ export const buttonClass = ({ danger = false, box = false }: { danger?: boolean;
 const VARIANT = {
   link: "text-accent hover:underline",
   filled: buttonClass(),
+  danger: buttonClass({ danger: true }),
+  action:
+    "rounded-sm border-hairline border-line px-3 py-1.25 font-sans text-meta text-ink hover:border-line-active hover:bg-hover active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",

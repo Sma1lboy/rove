@@ -1,5 +1,5 @@
 /**
- * Settings → Connectors. One card per service, GitHub for now: Rove's account is this machine's own
+ * Settings → Connectors. One group per service, GitHub for now: Rove's account is this machine's own
  * `gh` login, and the machines below it show whether theirs matches. Rove stores no token.
  */
 
@@ -17,11 +17,19 @@ import {
 import { t } from "./i18n/index.ts"
 import type { MachineRow } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { Group } from "./settings-rows.tsx"
+import { Group, Row } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
-import { buttonClass } from "./ui/button.tsx"
-import { CONFIRM_INLINE, ENGINE_MAIN, ENGINE_ROW, SETTINGS_ROWS, engineDetailClass } from "./ui/settings.ts"
-import { ACTIONS, LINK } from "./ui/text.ts"
+import { Button } from "./ui/button.tsx"
+import {
+  CONFIRM_INLINE,
+  LINE_MAIN,
+  LINE_ROW,
+  SETTINGS_ACTIONS,
+  SETTINGS_NAME,
+  SETTINGS_PANEL,
+  SETTINGS_VALUE,
+  lineDetailClass,
+} from "./ui/settings.ts"
 
 const MARK_KEY: Readonly<Record<Exclude<Mark, "loading">, string>> = {
   same: "markSame",
@@ -81,23 +89,23 @@ function copyCode(code: string): void {
 function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => void }) {
   if (login.state === "failed") {
     return (
-      <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
+      <div className={SETTINGS_PANEL}>
         <span className="text-muted">{c("loginFailed", { error: login.error ?? "" })}</span>
-        <button type="button" className={LINK} onClick={onCancel}>
+        <Button className="ml-auto" onClick={onCancel}>
           {c("dismiss")}
-        </button>
+        </Button>
       </div>
     )
   }
   if (login.state === "syncing") {
     return (
-      <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
+      <div className={SETTINGS_PANEL}>
         <span className="text-muted">{c("syncing")}</span>
       </div>
     )
   }
   return (
-    <div className="flex items-center gap-2.5 rounded-sm bg-inset px-2 py-1.5 text-meta">
+    <div className={SETTINGS_PANEL}>
       {login.code ? (
         <>
           <button
@@ -115,9 +123,9 @@ function DeviceFlow({ login, onCancel }: { login: LoginState; onCancel: () => vo
       ) : (
         <span className="text-muted">{c("loading")}</span>
       )}
-      <button type="button" className={LINK} onClick={onCancel}>
+      <Button className="ml-auto" onClick={onCancel}>
         {t("dialog.cancel")}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -140,12 +148,12 @@ function MachineLine(p: LineProps) {
   const needsAccount = mark === "different" || mark === "signedOut"
   const login = status?.login
   return (
-    <>
-      <div className={ENGINE_ROW}>
-        <div className={ENGINE_MAIN}>
-          <span className="engine-name">{p.name}</span>
+    <div>
+      <div className={LINE_ROW}>
+        <div className={LINE_MAIN}>
+          <span className={SETTINGS_NAME}>{p.name}</span>
           <span
-            className={`text-muted ${engineDetailClass()}`}
+            className={lineDetailClass()}
             title={[status?.authDetail, status?.ssh.detail].filter(Boolean).join(", ") || undefined}
           >
             {detailOf(status)}
@@ -155,18 +163,22 @@ function MachineLine(p: LineProps) {
           {markText(mark, status)}
         </span>
         {p.onSync && needsAccount && p.rove && !flowing && (
-          <button type="button" disabled={p.busy} onClick={p.onSync}>
+          <Button variant="action" disabled={p.busy} onClick={p.onSync}>
             {c("useRove")}
-          </button>
+          </Button>
         )}
         {p.onLogin && needsAccount && !flowing && (
-          <button type="button" disabled={p.busy} onClick={p.onLogin}>
+          <Button variant="action" disabled={p.busy} onClick={p.onLogin}>
             {c("loginThere")}
-          </button>
+          </Button>
         )}
       </div>
-      {login && <DeviceFlow login={login} onCancel={p.onCancel} />}
-    </>
+      {login && (
+        <div className="pb-3">
+          <DeviceFlow login={login} onCancel={p.onCancel} />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -210,83 +222,82 @@ function GithubCard({ model }: { model: AppModel }) {
     })
 
   return (
-    <div className="flex flex-col gap-2 rounded-sm border-hairline border-line p-2.5">
-      <div className="flex items-center gap-2.5">
-        <GithubMark />
-        <div className={ENGINE_MAIN}>
-          <span className="engine-name">GitHub</span>
-          <span className={`text-muted ${engineDetailClass(true)}`}>{c("githubDescription")}</span>
+    <>
+      <Group>
+        <div>
+          <Row
+            label={
+              <span className="flex items-center gap-2.5">
+                <GithubMark />
+                GitHub
+              </span>
+            }
+            hint={c("githubDescription")}
+          >
+            {rove ? (
+              <>
+                <span className={SETTINGS_VALUE}>@{rove}</span>
+                <Button variant="action" disabled={busy !== null} onClick={() => setConfirming(true)}>
+                  {c("disconnect")}
+                </Button>
+              </>
+            ) : (
+              !flowing && (
+                <Button variant="filled" disabled={busy !== null || !local} onClick={() => void login(LOCAL)}>
+                  {c("connect")}
+                </Button>
+              )
+            )}
+          </Row>
+          {confirming && (
+            <div className="pb-3">
+              <div className={CONFIRM_INLINE}>
+                <p>{c("disconnectBody")}</p>
+                <div className={SETTINGS_ACTIONS}>
+                  <Button onClick={() => setConfirming(false)}>{t("dialog.cancel")}</Button>
+                  <Button variant="danger" disabled={busy !== null} onClick={() => void disconnect()}>
+                    {c("disconnect")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {!rove && local?.status?.login && (
+            <div className="pb-3">
+              <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />
+            </div>
+          )}
         </div>
-        {rove ? (
-          <>
-            <span className="mono">@{rove}</span>
-            <button type="button" disabled={busy !== null} onClick={() => setConfirming(true)}>
-              {c("disconnect")}
-            </button>
-          </>
-        ) : (
-          !flowing && (
-            <button
-              type="button"
-              className={buttonClass()}
-              disabled={busy !== null || !local}
-              onClick={() => void login(LOCAL)}
-            >
-              {c("connect")}
-            </button>
-          )
-        )}
-      </div>
-      {confirming && (
-        <div className={CONFIRM_INLINE}>
-          <p className="text-muted">{c("disconnectBody")}</p>
-          <div className={ACTIONS}>
-            <button type="button" className={LINK} onClick={() => setConfirming(false)}>
-              {t("dialog.cancel")}
-            </button>
-            <button
-              type="button"
-              className={buttonClass({ danger: true })}
-              disabled={busy !== null}
-              onClick={() => void disconnect()}
-            >
-              {c("disconnect")}
-            </button>
-          </div>
-        </div>
-      )}
-      {!rove && local?.status?.login && <DeviceFlow login={local.status.login} onCancel={() => void cancel(LOCAL)} />}
+      </Group>
       {rove && (
         <Group title={c("machines")}>
-          <div className={SETTINGS_ROWS}>
+          <MachineLine
+            name={c("thisMachine")}
+            probe={local}
+            machine={null}
+            rove={rove}
+            busy={busy !== null}
+            onCancel={() => void cancel(LOCAL)}
+          />
+          {machines.map((m) => (
             <MachineLine
-              name={c("thisMachine")}
-              probe={local}
-              machine={null}
+              key={m.alias}
+              name={m.alias}
+              probe={probes[m.alias]}
+              machine={m.state}
               rove={rove}
               busy={busy !== null}
-              onCancel={() => void cancel(LOCAL)}
+              onSync={() => void sync(m.alias)}
+              onLogin={() => void login(m.alias)}
+              onCancel={() => void cancel(m.alias)}
             />
-            {machines.map((m) => (
-              <MachineLine
-                key={m.alias}
-                name={m.alias}
-                probe={probes[m.alias]}
-                machine={m.state}
-                rove={rove}
-                busy={busy !== null}
-                onSync={() => void sync(m.alias)}
-                onLogin={() => void login(m.alias)}
-                onCancel={() => void cancel(m.alias)}
-              />
-            ))}
+          ))}
+          <div className="py-2.5">
+            <Button onClick={() => void refresh()}>{c("refresh")}</Button>
           </div>
-          <button type="button" className={LINK} onClick={() => void refresh()}>
-            {c("refresh")}
-          </button>
         </Group>
       )}
-    </div>
+    </>
   )
 }
 
