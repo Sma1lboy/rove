@@ -53,8 +53,10 @@ function killGroup(child: ReturnType<typeof spawn>): void {
  *
  * `set +m` disables job control so the watchdog neither prints `[1] 12345`
  * into stderr nor gets its own process group (escaping the group kill). The
- * EXIT trap reaps it when the command finishes first; POSIX keeps a trap from
- * changing the exit status.
+ * EXIT trap reaps it when the command finishes first, with SIGKILL: an
+ * interactive bash (`-i`, the macOS `/bin/sh`) ignores SIGTERM, and that
+ * subshell holds a copy of the captured pipe on fd 255 for the whole sleep.
+ * POSIX keeps a trap from changing the exit status.
  *
  * The watchdog gets its own stdio: otherwise it holds the captured pipes, Node
  * fires `close` only when every writer lets go, and a fast precheck would wait
@@ -65,7 +67,7 @@ export function withWatchdog(command: string, timeoutSeconds: number): string {
     "set +m 2>/dev/null",
     `{ sleep ${timeoutSeconds} && { kill -9 -$$ 2>/dev/null || kill -9 $$ ; } ; } >/dev/null 2>&1 </dev/null &`,
     "__rove_watchdog=$!",
-    `trap 'kill "$__rove_watchdog" 2>/dev/null' EXIT`,
+    `trap 'kill -9 "$__rove_watchdog" 2>/dev/null' EXIT`,
     command,
   ].join("\n")
 }
