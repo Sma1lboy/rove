@@ -53,6 +53,8 @@ describe("parseUpdateArgs", () => {
     expect(parseUpdateArgs(["--channel=nightly"]).channel).toBe("nightly")
     expect(parseUpdateArgs(["latest"]).channel).toBe("latest")
     expect(parseUpdateArgs(["--nightly"]).channel).toBe("nightly")
+    expect(parseUpdateArgs(["--next"]).channel).toBe("next")
+    expect(parseUpdateArgs(["next"]).channel).toBe("next")
     expect(parseUpdateArgs(["--stable"]).channel).toBe("latest")
     expect(parseUpdateArgs(["stable"]).channel).toBe("latest")
     // No channel named = stay on whichever one this build came from.
@@ -68,7 +70,7 @@ describe("parseUpdateArgs", () => {
     try {
       expect(() => parseUpdateArgs(["--channel", "bleeding"])).toThrow("exit 2")
       const err = errSpy.mock.calls.map((c) => String(c[0])).join("")
-      expect(err).toContain('--channel expects one of latest, nightly (got "bleeding")')
+      expect(err).toContain('--channel expects one of latest, next, nightly (got "bleeding")')
       // A trailing --channel with no value is the same refusal, not a crash.
       errSpy.mockClear()
       expect(() => parseUpdateArgs(["--channel"])).toThrow("exit 2")

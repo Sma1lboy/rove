@@ -200,6 +200,9 @@ describe("semver helpers", () => {
   // every nightly user silently stays on the build they first installed.
   it("orders two nightlies of the same core by their date tail", () => {
     expect(isNewerSemver("0.9.13-nightly.20260831", "0.9.13-nightly.20260830")).toBe(true)
+    // next.N is numeric: run 10 outranks run 9, and both sit below the release.
+    expect(isNewerSemver("0.9.13-next.10", "0.9.13-next.9")).toBe(true)
+    expect(isNewerSemver("0.9.13", "0.9.13-next.10")).toBe(true)
     expect(isNewerSemver("0.9.13-nightly.20260830", "0.9.13-nightly.20260831")).toBe(false)
   })
 
@@ -223,6 +226,7 @@ describe("release channels", () => {
   it("derives the channel from the running build, with no stored setting to drift", () => {
     expect(channelOf("0.9.13")).toBe("latest")
     expect(channelOf("0.9.13-nightly.20260831")).toBe("nightly")
+    expect(channelOf("0.9.13-next.7")).toBe("next")
     // An unrelated prerelease line is not the nightly channel.
     expect(channelOf("0.9.13-experimental.0")).toBe("latest")
   })

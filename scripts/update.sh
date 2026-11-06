@@ -16,8 +16,9 @@ VERSION="${1:-}"
 # Channel shorthands, so `--nightly` can never fall through to a stable install.
 case "$VERSION" in
   --nightly) VERSION="nightly" ;;
+  --next) VERSION="next" ;;
   --stable | --latest | stable | latest) VERSION="" ;;
-  -*) [ "$VERSION" = "--list" ] || { echo "unknown option: $VERSION (expected a version, nightly, --nightly or --stable)" >&2; exit 2; } ;;
+  -*) [ "$VERSION" = "--list" ] || { echo "unknown option: $VERSION (expected a version, next, nightly, --next, --nightly or --stable)" >&2; exit 2; } ;;
 esac
 
 if [ "$VERSION" = "--list" ]; then

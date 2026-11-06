@@ -293,7 +293,7 @@ async function main() {
       for (const e of errors) console.error(e)
       return errors.length === 0
     })
-    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs", "scripts/web-ui-gate.test.mjs"]))
+    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs", "scripts/web-ui-gate.test.mjs", "scripts/next-version.test.mjs"]))
     const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
     if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
     process.stdout.write(`\n▶ ${opts.full ? "full" : "fast"} tier, suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)

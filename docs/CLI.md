@@ -34,16 +34,19 @@ and `~/.config/rove/state.json`.
 ```bash
 rove update            # newest build on the channel you follow
 rove update 0.7.90     # pin a version
+rove update --next     # install the newest build of main and follow it (also: next, --channel next)
 rove update --nightly  # install the nightly preview and follow it (also: nightly, --channel nightly)
 rove update --stable   # go back to stable releases (also: latest, stable)
 rove update list       # browse recent versions (also: --list)
 rove update dry-run    # print the command without running it (also: --dry-run)
 ```
 
-There are two channels. `latest` is the stable line — batched, reviewed
-releases. `nightly` is an automated daily cut from `main`: it passes the same
-test gates, but its contents haven't been reviewed as a set, so expect rough
-edges in exchange for changes landing days earlier.
+There are three channels. `latest` is the stable line — batched, reviewed
+releases, cut by hand. `next` is published on every merge to `main` after the
+fast checks (lint, typecheck, unit tests, build) only. `nightly` is an automated
+daily cut from `main` behind the full suite. Neither `next` nor `nightly` has
+been reviewed as a set, so expect rough edges in exchange for changes landing
+days (nightly) or minutes (next) earlier.
 
 The channel you pick is remembered in `~/.config/rove/state.json`
 (`update.channel`) once its install succeeds, so a bare `rove update` and the
@@ -54,7 +57,7 @@ never changes the setting.
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
-`npm install -g @sma1lboy/rove@latest` (or `@nightly`).
+`npm install -g @sma1lboy/rove@latest` (or `@next`, `@nightly`).
 
 The update script is POSIX shell. On Windows, Rove runs it through Git for
 Windows' bash — the same shell every engine and terminal tab launches through

@@ -1,0 +1,108 @@
+# Next channel: publish EVERY push to `main` to the npm `next` dist-tag.
+#
+# Same shape as nightly.yml (no git tag, no commit, never moves `latest`),
+# but per merge instead of per day, and gated only by the fast tier — the
+# checks `bun run pre-pr` runs: lint, typecheck, unit tests, build. The full
+# ci.yml suite (behavior, render, visual, cross-OS) runs only on the
+# stable path (changesets.yml / scripts/release.sh).
+#
+#   - Version: `<next stable version>-next.<run_number>`, computed by
+#     scripts/next-version.mjs from the pending changesets (or current+patch)
+#     and stamped into the checkout only. It sorts BELOW the release it
+#     anticipates, so stable users and `next` users roll forward cleanly.
+#   - Concurrency: a burst of merges publishes only the newest; a cancelled
+#     run publishes nothing. A rerun of a superseded commit also publishes
+#     nothing (the HEAD check below), so `next` never moves backwards.
+#   - The `chore: release` commit changesets.yml pushes uses GITHUB_TOKEN, so
+#     it does not fire this workflow; the stable version it carries is
+#     reached through `latest`, not `next`.
+#   - Publishes ONLY @sma1lboy/rove (the compat aliases and the plugin SDK
+#     ride stable releases).
+
+name: Next
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: next-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # npm provenance (OIDC)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        working-directory: packages/rove
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+      - name: Compute the next version
+        id: version
+        run: echo "version=$(node scripts/next-version.mjs "$GITHUB_RUN_NUMBER")" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp the version (working tree only — never committed)
+        working-directory: packages/rove
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs')
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+            pkg.version = process.env.VERSION
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
+          "
+          echo "stamped $VERSION"
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to the next dist-tag
+        working-directory: packages/rove
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Superseded (a newer merge landed while this ran, or this is a
+          # rerun of an old commit): the newer run owns the tag.
+          git fetch --quiet origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ] && [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "main moved past $GITHUB_SHA — the newer run publishes; nothing to do"
+            exit 0
+          fi
+          if npm view "@sma1lboy/rove@$VERSION" version >/dev/null 2>&1; then
+            echo "@sma1lboy/rove@$VERSION already published — nothing to do"
+            exit 0
+          fi
+          # --ignore-scripts: prepublishOnly re-runs typecheck+build, which
+          # already ran above against this exact tree.
+          npm publish --access public --provenance --ignore-scripts --tag next
