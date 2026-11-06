@@ -90,7 +90,6 @@ export function SnippetsSection({ model }: { model: AppModel }) {
   useEffect(() => void loadSnippets(client).catch(() => undefined), [client])
   return (
     <div className="flex flex-col gap-4">
-      <p className={`m-0 ${SETTINGS_NOTE}`}>{t("snippets.hint")}</p>
       <Group>
         {snippets.length === 0 && form === null && <Row label={t("snippets.empty")} />}
         {snippets.map((s) => (

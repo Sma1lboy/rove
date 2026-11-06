@@ -7,7 +7,6 @@ export const en = {
     notReady: "The agent's prompt is not taking pasted text yet. Try again in a moment.",
   },
   snippets: {
-    hint: "Type @name in a prompt and press Tab or Enter to insert the text. Shared by every browser connected to this Mac.",
     empty: "No snippets yet.",
     name: "Name",
     namePlaceholder: "review",
@@ -31,7 +30,6 @@ export const zh: typeof en = {
     notReady: "agent 的输入框暂时还不接受粘贴。稍等一下再试。",
   },
   snippets: {
-    hint: "在提示词里输入 @名称，按 Tab 或 Enter 插入文本。连接到这台 Mac 的所有浏览器共用同一份。",
     empty: "还没有片段。",
     name: "名称",
     namePlaceholder: "review",
