@@ -254,7 +254,7 @@ add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --pa
                --require-report --expect-report --activate(false) --start
                --prompt|--prompt-file
 update         --task-id --title --tab --branch --parent --project --group --command
-               --model --effort --pinned --require-report{on|off}
+               --model --effort --pinned --kept --require-report{on|off}
                --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
                --report-pr --report-summary
 land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch

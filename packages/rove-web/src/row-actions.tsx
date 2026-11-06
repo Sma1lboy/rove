@@ -10,6 +10,7 @@ import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
+import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -217,6 +218,12 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       ...bound("tasks.openWorktree"),
       run: () => void openEditorFlow(model, task.id),
     })
+  }
+
+  // A parallel round's attempts side by side, from any one of them.
+  if (task.groupId) {
+    const groupId = task.groupId
+    items.push({ label: t("compare.menu"), section: "open", run: () => openCompare(groupId) })
   }
 
   // Edit: the task's own fields and place in the rail.

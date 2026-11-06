@@ -4,12 +4,14 @@ import {
   defaultEngineId,
   digitRow,
   effortChoices,
+  engineChipLabel,
   modelChipLabel,
   modelChoices,
   offeredEngines,
   repoChipLabel,
   spawnArgs,
   startInCheckout,
+  toggleEngine,
   toggleRepo,
 } from "../src/new-session.ts"
 
@@ -175,6 +177,46 @@ describe("New session composer", () => {
     expect(toggleRepo(["/a", "/b"], "/b")).toEqual(["/a"])
     const full = Array.from({ length: REPO_CAP }, (_, i) => `/r${i}`)
     expect(toggleRepo(full, "/extra")).toEqual(full)
+  })
+
+  test("several engines fan out as one attempt each; no shared branch, model or effort rides along", () => {
+    const compare = {
+      repos: [
+        { repo: "/w/app", baseRef: "dev" },
+        { repo: "/w/api", baseRef: "" },
+      ],
+      branch: "shared",
+      engine: "alpha",
+      engines: ["alpha", "beta", "gamma"],
+      prompt: "fix it",
+      begin: true,
+      model: "m-big",
+      effort: "high",
+    }
+    expect(spawnArgs(compare)).toEqual({
+      repo: "/w/app",
+      baseBranch: "dev",
+      extraRepos: [{ repo: "/w/api" }],
+      prompt: "fix it",
+      agents: "alpha:1,beta:1,gamma:1",
+    })
+    // One engine in the list is a plain start.
+    expect(spawnArgs({ ...compare, repos: [{ repo: "/w/app", baseRef: "" }], engines: ["alpha"] })).toEqual({
+      repo: "/w/app",
+      prompt: "fix it",
+      engine: "alpha",
+      model: "m-big",
+      effort: "high",
+    })
+  })
+
+  test("the compare list keeps pick order, never empties, and the chip names the first two", () => {
+    expect(toggleEngine(["a"], "b")).toEqual(["a", "b"])
+    expect(toggleEngine(["a", "b"], "a")).toEqual(["b"])
+    expect(toggleEngine(["a"], "a")).toEqual(["a"])
+    expect(engineChipLabel(["Claude"])).toBe("Claude")
+    expect(engineChipLabel(["Claude", "Codex"])).toBe("Claude + Codex")
+    expect(engineChipLabel(["Claude", "Codex", "Pi", "Omp"])).toBe("Claude + Codex +2")
   })
 })
 

@@ -59,6 +59,14 @@ already paired with `rove-bridge` keeps working: the two share one token.
   message. `/?prompt=<text>&repo=<path>` opens New session with that draft and
   project, for a bookmark or a home-screen shortcut. It only fills the
   composer; nothing starts until you press Start.
+- One prompt, several engines: the New session engine chip's `[ compare engines ]`
+  turns it into a check-list (Claude + Codex …), and Start fans the prompt out
+  as one attempt per engine (`add --agents`, each in its own worktree, sharing
+  a `groupId`) and opens Compare. Compare is also on any attempt's row menu:
+  each attempt's status, latest reply, and changed files side by side (stacked
+  on a phone), with its terminal and diff one click away. `[ keep this one ]`
+  marks it kept (`update --kept`) and offers to archive the others behind the
+  usual confirm. Not available in place, ungrouped, or on another machine.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
   agents. It starts closed: the Files, Diff and Browser buttons at the

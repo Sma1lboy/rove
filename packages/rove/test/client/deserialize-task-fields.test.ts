@@ -51,6 +51,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
+  kept: true,
   archived: true,
   vendor: "claude",
   command: "claude --dangerously-skip-permissions",

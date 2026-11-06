@@ -79,6 +79,7 @@ export function coerceTask(value: unknown): Task | null {
     worktreePath: v.worktreePath,
     status: healedStatus,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
+    ...(v.kept === true ? { kept: true } : {}),
     kind,
     ...(scratch ? { scratch: true } : {}),
     ...(noProject ? { noProject: true } : {}),

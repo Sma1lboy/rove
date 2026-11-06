@@ -73,6 +73,8 @@ export function launchPanel(taskId: string, kind: PanelKind): void {
 export function openDiff(view: Preview): void {
   editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope))
   panelOpen.set(true)
+  // Zen hides the panel, and showing the diff is what was asked for (as `launchPanel` and a panel push do).
+  if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("diff")
 }
 

@@ -6,6 +6,7 @@
  */
 
 import { useEffect } from "react"
+import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
 import { KanbanView } from "./kanban-view.tsx"
@@ -79,5 +80,7 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <IssuesView model={model} />
   ) : current === "mods" ? (
     <ModsView model={model} />
+  ) : current === "compare" ? (
+    <CompareView model={model} />
   ) : null
 }

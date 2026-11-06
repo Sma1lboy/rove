@@ -10,8 +10,10 @@
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { EngineChip, useEnginePicks } from "./new-session-engines.tsx"
 import { BranchIcon, ClipIcon, FolderIcon } from "./new-session-icons.tsx"
 import {
   MachineChip,
@@ -22,7 +24,7 @@ import {
   usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
-import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
+import { BranchesMenu, ChipPopover, ModelMenu, SearchList } from "./new-session-menus.tsx"
 import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
@@ -174,6 +176,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   useEffect(() => area.current?.focus(), [])
 
+  // One attempt per engine needs a worktree each, on this machine, in a project.
+  const compareAvailable = !remote && !ungrouped && !inPlace
+  const picks = useEnginePicks(choice, compareAvailable)
   const engine = choice.engines.find((e) => e.id === choice.engine)
   const models = modelChoices(engine, t("newSession.modelDefault"))
   const efforts = effortChoices(engine, t("newSession.effortDefault"))
@@ -248,6 +253,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const bad = fresh.find((res) => !res.ok)
       if (bad) throw new Error(bad.reason ?? bad.repo)
       let created: string | undefined
+      let compared: string | undefined
       if (ungrouped)
         created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
       else if (inPlace)
@@ -260,12 +266,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           first,
         )
       else {
-        const res = await model.client.request<{ taskIds: string[] }>(
+        const res = await model.client.request<{ taskIds: string[]; groupId?: string }>(
           "task.spawn",
           spawnArgs({
             repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
             branch: branchName.trim(),
             engine: choice.engine,
+            engines: begin ? picks.ids : [],
             prompt: first,
             begin,
             model: modelValue,
@@ -273,11 +280,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           }),
         )
         created = res.taskIds[0]
+        compared = res.groupId
       }
       promptDraft = ""
       clear()
       newSession.set(null)
-      if (created) model.selectWhenListed(created)
+      if (compared) openCompare(compared)
+      else if (created) model.selectWhenListed(created)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -331,7 +340,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             }}
           />
           <div className={C.CARD_ACTIONS}>
-            <button type="button" className={C.chipClass()} disabled={busy} onClick={() => void start(false)}>
+            <button
+              type="button"
+              className={C.chipClass()}
+              disabled={busy || picks.comparing}
+              title={picks.comparing ? t("compare.needsPrompt") : undefined}
+              onClick={() => void start(false)}
+            >
               {t("newSession.createOnly")}
             </button>
             <button type="submit" className={buttonClass()} disabled={busy}>
@@ -467,21 +482,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
           <span className={C.GROW} />
           {choice.engines.length > 1 && (
-            <ChipPopover field="engine" title={t("newSession.engine")} label={engine?.name ?? t("newSession.engine")}>
-              {(close) => (
-                <ChoiceMenu
-                  heading={t("newSession.engine")}
-                  options={choice.engines.map((e) => ({ id: e.id, label: e.name, dim: e.ready === false }))}
-                  value={choice.engine}
-                  onPick={(id) => {
-                    choice.setEngine(id)
-                    close()
-                  }}
-                />
-              )}
-            </ChipPopover>
+            <EngineChip
+              engines={choice.engines}
+              value={choice.engine}
+              picks={picks}
+              available={compareAvailable}
+              onPick={choice.setEngine}
+            />
           )}
-          {!inPlace && !remote && !ungrouped && (models.length > 0 || efforts.length > 0) && (
+          {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
             <ChipPopover
               field="model"
               title={t("newSession.model")}

@@ -18,6 +18,7 @@ const writes = {
   "task.setVendor": ok,
   "task.rename": ok,
   "task.pin": ok,
+  "task.keep": ok,
   "task.status": ok,
 }
 
@@ -58,6 +59,17 @@ describe("update", () => {
       protocol: "codex",
       engine: "codex",
     })
+  })
+
+  it("--kept marks and clears the round's kept attempt through task.keep", async () => {
+    const client = new FakeClient({ ...writes })
+    const on = await invokeVerb("update", ["--task-id", "t1", "--kept", "true"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--kept", "false"], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([
+      { name: "task.keep", payload: { taskId: "t1", kept: true } },
+      { name: "task.keep", payload: { taskId: "t1", kept: false } },
+    ])
+    expect(on).toMatchObject({ updated: ["kept"] })
   })
 
   it("writes nothing when any field is invalid", async () => {

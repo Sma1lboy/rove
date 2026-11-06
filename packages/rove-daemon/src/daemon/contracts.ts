@@ -236,6 +236,7 @@ export interface DaemonTask {
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   readonly pinned?: boolean
+  readonly kept?: boolean
   readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
@@ -359,6 +360,7 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
+  setKept(id: string, kept: boolean): Promise<void>
   /**
    * Re-parent a task (`parentId` null = top level) without touching its engine, PTYs, worktree or branch. Points
    * the task's reply address at the parent too; `replyTab` picks the parent tab it lands on (default `tab-1`).

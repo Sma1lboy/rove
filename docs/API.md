@@ -1548,7 +1548,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## edit
 
 - `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
-  [--model M] [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S]
+  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--require-report on|off] [--status S]
   [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
   fields in one call. The flags are checked before anything is written,
   then applied in a fixed order: parent → project → branch → command → model/effort →
@@ -1618,6 +1618,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     A `--command` that changes the task's engine clears its model and effort
     pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
+  - `--kept true|false`: mark the task as the attempt kept from its parallel round
+    (`add --count` / `--agents`, same `groupId`), or clear the mark. A flag only:
+    it archives nothing and leaves the round's other attempts alone. `list` and
+    `get-task` report it as `kept`.
   - `--require-report on|off`: `on` makes every later `send` to the task arm
     a delivery, as `add --require-report` does; `off` restores plain sends.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,

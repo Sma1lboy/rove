@@ -354,6 +354,14 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "task.keep",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      await ctx.orch.setKept(taskId, optionalBoolean(payload, "kept") ?? true)
+      return {}
+    },
+  },
+  {
     name: "task.setParent",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

@@ -205,6 +205,13 @@ export class TaskEditor {
     await this.store.update(task.id, { pinned: next })
   }
 
+  /** Mark (or unmark) the attempt kept from a parallel round; an unmark stores no flag. */
+  async setKept(id: TaskId | string, kept: boolean): Promise<void> {
+    const task = this.requireTask(id)
+    if ((task.kept ?? false) === kept) return
+    await this.store.update(task.id, { kept: kept ? true : undefined })
+  }
+
   /**
    * Move a task under `parentId` (null = top level). Tree and reply address only: the engine, PTYs, worktree and
    * branch are untouched. Like a spawn, the stored parent is the target's top-level ancestor (children never

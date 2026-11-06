@@ -224,6 +224,8 @@ export function taskRows(
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,
         deleting: task.deletion?.phase === "queued" || task.deletion?.phase === "running",
         pinned: task.pinned === true,
+        ...(task.groupId ? { groupId: task.groupId } : {}),
+        ...(task.kept ? { kept: true } : {}),
         ...(task.archived ? { archived: true } : {}),
         ...(task.routine ? { routine: true } : {}),
         ...(task.scratch ? { scratch: true } : {}),
