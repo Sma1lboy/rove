@@ -12,6 +12,7 @@ export type TaskId = string & { readonly [TaskIdBrand]: never }
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type {
   TaskDeletionState,
   TaskDispatcher,
@@ -26,7 +27,6 @@ import type {
   TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
-import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"

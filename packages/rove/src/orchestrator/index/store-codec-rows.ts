@@ -8,9 +8,9 @@
  * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
+import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
-import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
 import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
 import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"

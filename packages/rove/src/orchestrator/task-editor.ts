@@ -1,11 +1,11 @@
 /** In-place task-field setters for the {@link Orchestrator}: each a small
  *  guard around one `store` mutation (branch renames also touch git). */
 
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
-import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import { type TaskTodo, type TodoOp, applyTodoOps, checkNotes } from "@sma1lboy/rove-daemon/task-notes"
 import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
