@@ -80,6 +80,12 @@ describe("quota runway", () => {
     expect(runway(window(80, 3), NOW)).toEqual({ kind: "full", at: NOW + 0.5 * HOUR })
   })
 
+  test("says nothing early in a window, when the pace is noise", () => {
+    // 6 minutes into a 5h window (2%): no projection.
+    expect(runway(window(3, 4.9), NOW)).toBeNull()
+    expect(runway(window(30, 4), NOW)).not.toBeNull()
+  })
+
   test("says nothing without a length, a reset time or any use", () => {
     expect(runway(window(0, 2), NOW)).toBeNull()
     expect(runway(window(50, 2, "opus"), NOW)).toBeNull()

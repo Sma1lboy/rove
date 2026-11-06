@@ -168,19 +168,23 @@ export type Runway =
   /** At the pace so far the window lasts until it resets. */
   | { readonly kind: "lasts" }
 
+/** The share of a window that must have passed before its pace means anything. */
+const MIN_ELAPSED = 0.1
+
 const WINDOW_LABEL = /^(\d+)\s*(h|d)$/
 
 /**
  * A rough runway from what the engine already reports: the window's length (its label, `5h` / `7d`), how far into it
  * we are (its reset time) and the percent used. The pace is the average over the window so far, not a forecast;
- * null when the label, reset time or percent give nothing to go on.
+ * null when the label, reset time or percent give nothing to go on, or under a tenth of the window has passed.
  */
 export function runway(window: QuotaWindow, now: number): Runway | null {
   const match = WINDOW_LABEL.exec(window.label.trim())
   if (!match || window.resetsAt === null || window.percent <= 0) return null
   const length = Number(match[1]) * (match[2] === "d" ? 24 : 1) * 3_600_000
   const elapsed = length - (window.resetsAt - now)
-  if (!(elapsed > 0) || elapsed > length) return null
+  // Too little of the window gone to say anything: 3% after five minutes is noise, not a pace.
+  if (!(elapsed >= length * MIN_ELAPSED) || elapsed > length) return null
   if (window.percent >= 100) return { kind: "full", at: now }
   const at = now + ((100 - window.percent) / window.percent) * elapsed
   return at < window.resetsAt ? { kind: "full", at } : { kind: "lasts" }
