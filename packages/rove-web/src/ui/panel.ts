@@ -65,4 +65,5 @@ export const BROWSER_BAR = "flex items-center gap-0.5 [&_svg]:flex-none"
 /** A plain inset field, no border; an address that was not taken dims. */
 export const BROWSER_URL =
   "mx-0.5 min-w-0 flex-1 rounded-sm border-none bg-inset px-2 py-1 text-ink [font-size:var(--fs-meta)] focus:bg-hover focus:outline-none aria-invalid:text-muted"
-export const BROWSER_FRAME = "min-w-0 flex-1 rounded-sm border-none bg-[#fff]"
+/** Theme background where the page paints nothing; a light page without a dark scheme still gets the browser's own white backdrop. */
+export const BROWSER_FRAME = "min-w-0 flex-1 rounded-sm border-none bg-paper"
