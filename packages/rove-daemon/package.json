@@ -8,6 +8,7 @@
   "exports": {
     "./path-identity": "./src/path-identity.ts",
     "./repo-id": "./src/repo-id.ts",
+    "./task-notes": "./src/task-notes.ts",
     "./task-tree": "./src/task-tree.ts",
     "./workspace": "./src/workspace.ts",
     "./compat-env": "./src/compat-env.ts",

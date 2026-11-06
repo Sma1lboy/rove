@@ -10,6 +10,7 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { openTodos } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
 
@@ -63,15 +64,20 @@ export async function landFlow(
     return
   }
   const branch = task.branch || task.title
+  // A warning, not a gate: the owner's checklist is theirs to override.
+  const unchecked = openTodos(model.tasks.get()?.tasks.find((row) => row.id === task.id) ?? {}).length
   dialog.set(
     <ConfirmDialog
       title={tc("worktrees", "land.confirmTitle")}
-      body={tc("worktrees", probe.ahead === 1 ? "land.confirmBodyOne" : "land.confirmBody", {
-        branch,
-        landedOn: probe.landedOn,
-        // Never invent a count: `?` only when git printed a non-number.
-        commits: probe.ahead ?? "?",
-      })}
+      body={[
+        tc("worktrees", probe.ahead === 1 ? "land.confirmBodyOne" : "land.confirmBody", {
+          branch,
+          landedOn: probe.landedOn,
+          // Never invent a count: `?` only when git printed a non-number.
+          commits: probe.ahead ?? "?",
+        }),
+        ...(unchecked > 0 ? [t("files.landTodos", { count: unchecked })] : []),
+      ].join("\n\n")}
       confirmLabel={tc("worktrees", "land.button")}
       onConfirm={async () => {
         try {

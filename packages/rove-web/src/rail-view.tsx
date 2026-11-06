@@ -37,6 +37,7 @@ import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { useStore } from "./store.ts"
+import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
@@ -398,6 +399,7 @@ function RailRow(props: {
 
   const task = row.task
   const running = task.rowStatus?.kind === "running"
+  const count = todoCount(task)
   return (
     <button
       type="button"
@@ -428,6 +430,11 @@ function RailRow(props: {
         {(task.extraRepoCount ?? 0) > 0 && (
           <span className="text-subtle" title={t("rail.extraRepos", { count: task.extraRepoCount ?? 0 })}>
             +{task.extraRepoCount}
+          </span>
+        )}
+        {count && (
+          <span className="text-subtle tabular-nums" title={t("rail.todos", count)}>
+            {count.done}/{count.total}
           </span>
         )}
         {row.fold?.collapsed && <FoldCount count={row.fold.count} onUnfold={props.onToggleFold} />}

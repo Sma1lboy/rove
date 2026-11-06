@@ -25,6 +25,7 @@ import type {
   TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"
 
@@ -122,6 +123,9 @@ export interface Task {
   readonly pinned?: boolean
   /** The attempt kept from a parallel round (`update --kept true`); at most one per `groupId` by convention, never enforced. */
   readonly kept?: boolean
+  /** The owner's free-text notes and checklist for this task (`rove api todo`); absent = none. */
+  readonly notes?: string
+  readonly todos?: readonly TaskTodo[]
   /**
    * Hidden from the sidebar and the default `rove api list` while the worktree,
    * branch and sessions stay as they were. Set on a task and its descendants

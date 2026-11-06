@@ -235,6 +235,19 @@ describe("task edits", () => {
     })
   }
 
+  test("task.notes hands the notes and todo ops to the daemon as one call and answers with its result", async () => {
+    const after = { notes: "n", todos: [{ id: "t1", text: "a", done: false }] }
+    const ops = [{ op: "add", text: "a" }]
+    const { result, calls } = await run("task.notes", { taskId: T, notes: "n", ops }, { "task.notes": after })
+    expect(calls).toEqual([{ rpc: "task.notes", payload: { taskId: T, notes: "n", ops } }])
+    expect(result).toEqual(after)
+  })
+
+  test("task.notes refuses ops that are not a short list", async () => {
+    await refused("task.notes", { taskId: T, ops: "add" })
+    await refused("task.notes", { taskId: T, ops: Array.from({ length: 51 }, () => ({ op: "add", text: "x" })) })
+  })
+
   test("task.setCommand takes an engine id and reports the protocol", async () => {
     const { result, calls } = await run(
       "task.setCommand",

@@ -25,6 +25,7 @@ describe("op table", () => {
         "task.setStatus",
         "task.pin",
         "task.keep",
+        "task.notes",
         "task.archive",
         "task.move",
         "project.forget",

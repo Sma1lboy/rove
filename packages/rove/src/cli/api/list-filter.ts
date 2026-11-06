@@ -98,6 +98,8 @@ const TASK_FIELDS = {
   status: true,
   pinned: true,
   kept: true,
+  notes: true,
+  todos: true,
   archived: true,
   vendor: true,
   command: true,
