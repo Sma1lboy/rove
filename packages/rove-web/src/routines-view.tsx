@@ -9,7 +9,6 @@
 
 import {
   type Automation,
-  type AutomationRun,
   type AutomationRunStatus,
   automationRunNeedsAttention,
 } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
@@ -33,6 +32,7 @@ import {
 } from "./pages-kit.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
+import { RunLog, useRoutineRuns } from "./routine-run-log.tsx"
 import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
@@ -73,7 +73,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const taskRepos = useTaskRepos(model)
   const focusRepo = useSelectedRepo(model)
   const [reply, setReply] = useState<RoutinesReply | null>(() => lastReply<RoutinesReply>(c, "routine.list") ?? null)
-  const [runs, setRuns] = useState<readonly AutomationRun[]>([])
   // The cursor follows the routine, not its row: pausing one moves it to another group.
   const [cursorId, setCursorId] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -125,24 +124,13 @@ export function RoutinesView({ model }: { model: AppModel }) {
     routineFocus.set(null)
   }, [wanted, reply])
 
-  // Run history follows the cursor.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger
-  useEffect(() => {
-    let live = true
-    if (!selected) {
-      setRuns([])
-      return
-    }
-    // The cursor's routine shows its runs as last read, not the previous routine's, until the reread lands.
-    const last = lastReply<{ runs: AutomationRun[] }>(c, "routine.runs", { id: selected.id })
-    if (last) setRuns(last.runs)
-    requestRemembered<{ runs: AutomationRun[] }>(c, "routine.runs", { id: selected.id })
-      .then((res) => live && setRuns(res.runs))
-      .catch(() => live && setRuns([]))
-    return () => {
-      live = false
-    }
-  }, [c, selected?.id, tick])
+  // Every routine's runs feed the log; the selected one's also feed its precheck and responses.
+  const allRuns = useRoutineRuns(
+    c,
+    listed.map((routine) => routine.id),
+    tick,
+  )
+  const runs = selected ? (allRuns[selected.id] ?? []) : []
 
   // A notice names ONE routine: clear it when the selection moves.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the id is the trigger
@@ -495,7 +483,15 @@ export function RoutinesView({ model }: { model: AppModel }) {
                   </>
                 )}
 
-                <RoutineRuns runs={runs} now={now} when={when} openRun={openRun} />
+                <RunLog
+                  runs={allRuns}
+                  routines={listed}
+                  followId={selected.id}
+                  now={now}
+                  when={when}
+                  openRun={openRun}
+                />
+                <RoutineRuns runs={runs} when={when} />
               </>
             ) : (
               <p className="text-muted">{auto.noSelection}</p>
