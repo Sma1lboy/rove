@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
@@ -326,6 +326,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         }}
       >
         <div className={C.CARD} {...targets?.drop}>
+          {!remote && <AttachmentThumbs attachments={attachments} onRemove={remove} />}
           <textarea
             ref={area}
             className={C.PROMPT}
@@ -456,7 +457,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             />
           )}
         </div>
-        {!remote && <AttachmentChips attachments={attachments} onRemove={remove} />}
         {busy && progress && (
           <p className="text-muted" data-field="clone-progress">
             {progress}

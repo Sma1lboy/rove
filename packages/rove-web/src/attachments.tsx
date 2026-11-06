@@ -2,7 +2,7 @@
 
 import { type ClipboardEvent, type DragEvent, type ReactNode, useState } from "react"
 import type { AppModel } from "./model.ts"
-import { CHIPS_ROW, chipClass } from "./ui/form.ts"
+import { AttachThumbs } from "./ui/attach-thumbs.tsx"
 
 const MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"]
 
@@ -56,7 +56,7 @@ export function AttachPicker(props: {
 export interface Attachment {
   readonly path: string
   readonly kind: string
-  readonly name: string
+  readonly file: File
 }
 
 /** `images[0]: /path` lines, as the TUI appends them to the first prompt. */
@@ -84,7 +84,7 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
           mime: file.type,
           data: await toBase64(file),
         })
-        setAttachments((now) => [...now, { path: res.path, kind: res.kind, name: file.name || res.path }])
+        setAttachments((now) => [...now, { path: res.path, kind: res.kind, file }])
       } catch (err) {
         onError(err instanceof Error ? err.message : String(err))
       }
@@ -94,22 +94,7 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
   return { attachments, attach, remove, clear: () => setAttachments([]) }
 }
 
-/** The attached files as removable chips; a click drops one. */
-export function AttachmentChips(props: { attachments: readonly Attachment[]; onRemove: (path: string) => void }) {
-  if (props.attachments.length === 0) return null
-  return (
-    <div className={CHIPS_ROW} data-field="attachments">
-      {props.attachments.map((a, i) => (
-        <button
-          type="button"
-          key={a.path}
-          className={chipClass(true)}
-          title={a.path}
-          onClick={() => props.onRemove(a.path)}
-        >
-          {a.kind === "pdf" ? "pdf" : "images"}[{i}] ×
-        </button>
-      ))}
-    </div>
-  )
+/** The attached files as small previews; a click on × drops one. */
+export function AttachmentThumbs(props: { attachments: readonly Attachment[]; onRemove: (path: string) => void }) {
+  return <AttachThumbs items={props.attachments.map((a) => ({ id: a.path, file: a.file }))} onRemove={props.onRemove} />
 }

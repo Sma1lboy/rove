@@ -7,7 +7,7 @@
  */
 
 import { useRef, useState, useSyncExternalStore } from "react"
-import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -85,7 +85,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       attached={
         <>
           <QueuedChips model={model} taskId={taskId} tabId={tabId} revision={revision} />
-          <AttachmentChips attachments={attachments} onRemove={remove} />
+          <AttachmentThumbs attachments={attachments} onRemove={remove} />
         </>
       }
       attach={
