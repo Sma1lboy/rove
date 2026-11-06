@@ -58,6 +58,9 @@ export interface TaskTabRow {
   readonly vendor: string | null
   readonly liveVendor: string | null
   readonly lastTitle: string | null
+  /** The live session's OSC window title (the engine's own name for the conversation), null when
+   *  the session is not alive or has set none. `lastTitle` is only recorded while a TUI is open. */
+  readonly liveTitle: string | null
   readonly autoTitle: string | null
   /** Is the tab's PTY SESSION alive. `null` = the pty host could not be
    *  asked ("couldn't look", not a dead tab). */
@@ -101,6 +104,8 @@ export interface TaskSessionRow {
   /** Spawn argv. Absent fails only the argv half of the engine-tab
    *  judgement, never the label half. */
   readonly command?: readonly string[]
+  /** Last OSC 0/2 title the session set; `""` until it sets one. */
+  readonly title?: string
 }
 
 /** The task's persisted `terminalTabs.<taskId>` snapshot; undefined when absent/malformed/unreadable. */
@@ -268,6 +273,7 @@ export function joinTaskTabs(
   const rows0 = sessions ?? []
   const alive = aliveKeysOf(rows0)
   const sessionExits = new Map(rows0.map((s) => [s.key, s.exit]))
+  const liveTitles = new Map(rows0.filter((s) => s.alive && s.title?.trim()).map((s) => [s.key, s.title as string]))
   // The live host's exit wins (fresher if the key was reopened) but has no
   // tail; merge the durable record's tail only for the SAME death (`at`
   // matches), so a stale record never captions a newer one.
@@ -315,6 +321,7 @@ export function joinTaskTabs(
       vendor: (t as { vendor?: string }).vendor ?? null,
       liveVendor: walked !== undefined ? walked : (t.liveVendor ?? null),
       lastTitle: t.lastTitle ?? null,
+      liveTitle: liveTitles.get(key) ?? null,
       autoTitle: t.autoTitle ?? null,
       alive: isAlive,
       engineAlive: engineIsAlive,
@@ -336,6 +343,7 @@ export function joinTaskTabs(
       vendor: null,
       liveVendor: null,
       lastTitle: null,
+      liveTitle: liveTitles.get(key) ?? null,
       autoTitle: null,
       alive: true,
       engineAlive: engineIsAlive,

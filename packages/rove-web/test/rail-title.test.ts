@@ -28,9 +28,10 @@ describe("task row title", () => {
     expect(rowTitle({ ...main, title: "Release train" }, undefined)).toBe("Release train")
   })
 
-  test("a directory task keeps its stored title: it is auto-generated noise next to the conversation", () => {
-    expect(rowTitle(task({ kind: "dir", title: "jacksonc-ab3x" }), [tab({ conversation: "Fix it" })])).toBe(
-      "jacksonc-ab3x",
-    )
+  test("a directory task (a new conversation's child too) is named by its conversation, not its stored prompt prefix", () => {
+    expect(
+      rowTitle(task({ kind: "dir", title: "[Image #1] why is the title" }), [tab({ conversation: "Fix it" })]),
+    ).toBe("Fix it")
+    expect(rowTitle(task({ kind: "dir", title: "jacksonc-ab3x" }), [tab({ conversation: null })])).toBe("jacksonc-ab3x")
   })
 })

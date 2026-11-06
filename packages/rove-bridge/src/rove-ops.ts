@@ -135,6 +135,8 @@ export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[stri
               liveVendor: (t.liveVendor ?? undefined) as VendorId | undefined,
             } as unknown as TerminalTab,
             (t.liveVendor ?? t.vendor ?? DEFAULT_TASK_VENDOR) as VendorId,
+            // The session's own title: `lastTitle` is only recorded while a TUI has the tab open.
+            t.liveTitle,
           )
         : null,
     alive: t.alive,
