@@ -22,7 +22,7 @@ import {
 import { runErrorText } from "./routine-run-text.ts"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { Button } from "./ui/button.tsx"
-import { RT_GROW, RT_RUN, RT_RUN_ERROR, RT_RUN_LINE, RT_RUN_OPEN } from "./ui/routines.ts"
+import { RT_GROW, RT_RUN, RT_RUN_ERROR, RT_RUN_LINE, RT_RUN_OPEN, RT_RUN_ROUTINE } from "./ui/routines.ts"
 import { KICKER } from "./ui/text.ts"
 
 /** How many runs the log lists before it says how many more there are. */
@@ -119,7 +119,7 @@ export function RunLog(props: {
             <>
               <span>{TONE_GLYPH[tone]}</span>
               <span>{`#${run.runNumber}`}</span>
-              {scope === "" && <span className="max-w-[20ch] truncate">{nameOf.get(run.automationId) ?? ""}</span>}
+              {scope === "" && <span className={RT_RUN_ROUTINE}>{nameOf.get(run.automationId) ?? ""}</span>}
               <span className={RT_GROW}>{`${statusText(run)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
               <span className="text-subtle">{t(`runLog.source.${SOURCES[run.trigger]}`)}</span>
               {duration !== null && <span className="text-muted">{formatDuration(duration)}</span>}
