@@ -192,6 +192,8 @@ export interface TaskRow {
   readonly extraRepoCount?: number
   /** The task this one hangs under (`add` from a session, `add --parent`); clients nest a child under it. */
   readonly parentTaskId?: string
+  /** What the task's branch was cut from: a branch name, or the parent's HEAD sha for a cut child. Absent on a main or directory task. */
+  readonly baseRef?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
   readonly sharesWorkspaceOf?: string
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */

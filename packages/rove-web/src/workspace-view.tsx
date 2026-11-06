@@ -12,6 +12,7 @@ import { narrowView } from "./panel-layout.ts"
 import { NarrowBackBar } from "./rail-chrome.tsx"
 import { SidePanel } from "./side-panel.tsx"
 import { SplitPane } from "./split-view.tsx"
+import { StackStrip } from "./stack-strip.tsx"
 import { useStore } from "./store.ts"
 import { TabStrip } from "./tab-strip.tsx"
 import { useTaskColor } from "./task-colors.ts"
@@ -94,6 +95,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
     <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
       {narrow && <NarrowBackBar taskId={task?.id} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
+      {task && !task.groupId && <StackStrip model={model} taskId={task.id} />}
       {task?.groupId && <AttemptsStrip model={model} taskId={task.id} groupId={task.groupId} />}
       <div
         className={`${PANE} ${working ? PANE_WORKING : ""}`}
