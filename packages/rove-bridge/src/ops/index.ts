@@ -16,6 +16,7 @@ import { panelOps } from "./panel.ts"
 import { PR_CHECKS_OPS } from "./pr-checks.ts"
 import { prefsOps } from "./prefs.ts"
 import { promptOps } from "./prompts.ts"
+import { quotaOps } from "./quota.ts"
 import { reviewOps } from "./review-queue.ts"
 import { routingOps } from "./routing.ts"
 import { RUN_OPS } from "./run-script.ts"
@@ -74,4 +75,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   TIMELINE_OPS,
   PR_CHECKS_OPS,
   RUN_OPS,
+  quotaOps,
 )

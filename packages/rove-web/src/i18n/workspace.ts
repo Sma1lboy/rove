@@ -99,6 +99,7 @@ export const en = {
     narrowFiles: "Files",
     narrowDiff: "Diff",
     narrowBrowser: "Browser",
+    narrowQuota: "Usage",
   },
 }
 
@@ -202,5 +203,6 @@ export const zh: typeof en = {
     narrowFiles: "文件",
     narrowDiff: "差异",
     narrowBrowser: "浏览器",
+    narrowQuota: "用量",
   },
 }

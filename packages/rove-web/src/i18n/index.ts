@@ -12,6 +12,7 @@ import * as dialogs from "./dialogs.ts"
 import * as machines from "./machines.ts"
 import * as panel from "./panel.ts"
 import * as prompts from "./prompts.ts"
+import * as quota from "./quota.ts"
 import * as rail from "./rail.ts"
 import * as review from "./review.ts"
 import * as runLog from "./run-log.ts"
@@ -36,6 +37,7 @@ const parts = [
   machines,
   artifact,
   review,
+  quota,
 ]
 
 /** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
@@ -51,7 +53,8 @@ export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof r
   typeof transcript.en &
   typeof machines.en &
   typeof artifact.en &
-  typeof review.en
+  typeof review.en &
+  typeof quota.en
 export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }

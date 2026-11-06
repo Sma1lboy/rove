@@ -146,6 +146,7 @@ const NARROW_LABEL = {
   files: "layout.narrowFiles",
   diff: "layout.narrowDiff",
   browser: "layout.narrowBrowser",
+  quota: "layout.narrowQuota",
 } as const
 
 /**
