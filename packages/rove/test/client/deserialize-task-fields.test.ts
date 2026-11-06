@@ -88,6 +88,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
     resumeAt: "2026-08-30T01:00:00.000Z",
     requestedAt: "2026-08-30T00:00:00.000Z",
   },
+  scheduledStart: { at: "2026-07-01T03:00:00.000Z", prompt: "run the nightly migration" },
   linkedWorkItem: {
     provider: "github",
     type: "issue",
