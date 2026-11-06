@@ -161,6 +161,7 @@ describe("schema drill-ins", () => {
       "worktree-files",
       "worktree-diff",
       "worktree-diff-file",
+      "worktree-refs",
       "deliveries",
       "should-run",
       "gates",
