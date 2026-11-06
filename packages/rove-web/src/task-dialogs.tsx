@@ -20,13 +20,13 @@ export interface EngineChoice {
 }
 
 /** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
-export function useEngineChoice(model: AppModel, repo?: string): EngineChoice {
+export function useEngineChoice(model: AppModel, repo?: string, wanted?: string): EngineChoice {
   type Reply = { engines: EngineRow[]; preferred?: string }
   const params = repo ? { repo } : {}
   const [seed] = useState(() => {
     const last = lastReply<Reply>(model, "engines.list", params)
     const offered = last ? offeredEngines(last.engines) : []
-    return { offered, engine: last ? defaultEngineId(offered, last.preferred) : "" }
+    return { offered, engine: last ? defaultEngineId(offered, wanted ?? last.preferred) : "" }
   })
   const [engines, setEngines] = useState<readonly EngineRow[]>(seed.offered)
   const [engine, setEngine] = useState(seed.engine)
@@ -36,7 +36,7 @@ export function useEngineChoice(model: AppModel, repo?: string): EngineChoice {
       .then((res) => {
         const offered = offeredEngines(res.engines)
         setEngines(offered)
-        setEngine(defaultEngineId(offered, res.preferred))
+        setEngine(defaultEngineId(offered, wanted ?? res.preferred))
       })
       .catch(() => setEngines([]))
   }, [model])

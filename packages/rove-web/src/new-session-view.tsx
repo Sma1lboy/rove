@@ -13,18 +13,18 @@ import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { BranchChips } from "./new-session-branch.tsx"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
-import { BranchIcon, ClipIcon, FolderIcon } from "./new-session-icons.tsx"
+import { ClipIcon, FolderIcon } from "./new-session-icons.tsx"
 import {
   MachineChip,
-  RemoteBranchChip,
   remoteEmpty,
   spawnOnMachine,
   startError,
   usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
-import { BranchesMenu, ChipPopover, SearchList } from "./new-session-menus.tsx"
+import { ChipPopover } from "./new-session-menus.tsx"
 import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
@@ -38,8 +38,9 @@ import {
   toggleRepo,
 } from "./new-session.ts"
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
-import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
+import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { offerArchiveOriginal } from "./retry.tsx"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
@@ -67,7 +68,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   useLocale()
   const selected = useStore(model.selection).taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
-  const choice = useEngineChoice(model, initialRepo ?? fallback)
+  const choice = useEngineChoice(model, initialRepo ?? fallback, seed.engine)
   // The starting project, known now when the opener or the selection names one; else the first saved, once read.
   const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
   const startOf = (list?: readonly string[]) =>
@@ -101,7 +102,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   })
   const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
-  const [branchQuery, setBranchQuery] = useState("")
   // A link's `?prompt=` lands here as a draft to read and edit; nothing starts until Start is pressed.
   const [prompt, setPromptState] = useState(() => {
     if (seed.prompt !== undefined) promptDraft = seed.prompt
@@ -115,7 +115,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [pickedEffort, setPickedEffort] = useState("")
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState("")
-  const [worktree, setWorktreeState] = useState(() => localStorage.getItem(WORKTREE_KEY) !== "0")
+  const [worktree, setWorktreeState] = useState(() => seed.worktree ?? localStorage.getItem(WORKTREE_KEY) !== "0")
   const setWorktree = (on: boolean): void => {
     localStorage.setItem(WORKTREE_KEY, on ? "1" : "0")
     setWorktreeState(on)
@@ -156,7 +156,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // Several repos always get worktrees: one checkout can't hold a multi-repo task.
   const inPlace = !remote && !worktree && repos.length === 1
   const primary = repos[0] ?? ""
-  const probe = probes[primary] ?? null
   // Each repo is reread once per open, when first picked.
   useEffect(() => {
     for (const path of repos) {
@@ -232,6 +231,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       promptDraft = ""
       newSession.set(null)
       if (created) model.selectWhenListed(created)
+      if (seed.retryOf && created) offerArchiveOriginal(model, seed.retryOf)
     } catch (err) {
       setError(startError(err))
     } finally {
@@ -288,6 +288,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       newSession.set(null)
       if (compared) openCompare(compared)
       else if (created) model.selectWhenListed(created)
+      if (seed.retryOf && created) offerArchiveOriginal(model, seed.retryOf)
     } catch (err) {
       const round = partialRoundId(err)
       if (round) {
@@ -304,21 +305,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }
 
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
-
-  const branchRows = filterText(probe?.branches ?? [], branchQuery).map((name) => ({
-    key: name,
-    text: name,
-    checked: name === (bases[primary] || probe?.current),
-  }))
-  const branchLabel = bases[primary] || probe?.current || ""
-  const branchRepos = repos.map((path) => ({
-    path,
-    name: splitRepoRow(path).base,
-    primary: path === primary,
-    branches: probes[path]?.branches ?? [],
-    current: probes[path]?.current ?? "",
-    base: bases[path] ?? "",
-  }))
 
   return (
     <div className={C.NEW_SESSION}>
@@ -422,60 +408,21 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               />
             )}
           </ChipPopover>
-          {ungrouped ? null : remote ? (
-            remotePick && <RemoteBranchChip value={remoteBase} onPick={setRemoteBase} />
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
-                aria-pressed={!inPlace}
-                disabled={repos.length > 1}
-                title={
-                  repos.length > 1
-                    ? t("newSession.worktreeMulti")
-                    : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
-                }
-                onClick={() => setWorktree(!worktree)}
-              >
-                <BranchIcon />
-                {t("newSession.worktree")}
-              </button>
-              {repos.length > 1 ? (
-                <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
-                  {() => (
-                    <BranchesMenu
-                      repos={branchRepos}
-                      branch={branchName}
-                      onBranch={setBranchName}
-                      onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
-                    />
-                  )}
-                </ChipPopover>
-              ) : (
-                !inPlace &&
-                probe?.ok &&
-                branchLabel && (
-                  <ChipPopover field="branch" title={t("newSession.branch")} label={branchLabel}>
-                    {(close) => (
-                      <SearchList
-                        placeholder={t("newSession.branchSearch")}
-                        empty={t("newSession.branchEmpty")}
-                        rows={branchRows}
-                        query={branchQuery}
-                        onQuery={setBranchQuery}
-                        onPick={(name) => {
-                          setBases((now) => ({ ...now, [primary]: name }))
-                          setBranchQuery("")
-                          close()
-                        }}
-                      />
-                    )}
-                  </ChipPopover>
-                )
-              )}
-            </>
-          )}
+          <BranchChips
+            remote={remote}
+            remotePick={remotePick}
+            remoteBase={remoteBase}
+            onRemoteBase={setRemoteBase}
+            ungrouped={ungrouped}
+            inPlace={inPlace}
+            onToggleWorktree={() => setWorktree(!worktree)}
+            repos={repos}
+            probes={probes}
+            bases={bases}
+            onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
+            branchName={branchName}
+            onBranchName={setBranchName}
+          />
           {targets && (
             <AttachPicker
               className={`${C.chipClass(attachments.length > 0)} cursor-pointer`}

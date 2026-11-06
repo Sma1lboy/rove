@@ -98,6 +98,12 @@ export interface NewSessionStart {
   readonly prompt?: string
   /** Start in no project (the rail's Ungrouped), the composer's "No folder" choice. */
   readonly ungrouped?: true
+  /** The engine to pick, ahead of the project's preferred one (Retry). */
+  readonly engine?: string
+  /** Worktree on or off, ahead of the remembered choice (Retry: as the task it retries was made). */
+  readonly worktree?: boolean
+  /** The task being retried: once the new one starts, the composer offers to archive this one. */
+  readonly retryOf?: { readonly id: string; readonly label: string }
 }
 
 /** The prompt-first New session composer in the workspace pane; null = closed. */
@@ -110,15 +116,19 @@ export function openNewSession(
   prompt?: string,
   ungrouped?: boolean,
 ): void {
-  page.set(null)
-  dialog.set(null)
-  newSession.set({
+  openNewSessionFrom({
     ...(repo ? { repo } : {}),
     ...(baseBranch ? { baseBranch } : {}),
     ...(machine ? { machine } : {}),
     ...(prompt ? { prompt } : {}),
     ...(ungrouped ? { ungrouped: true as const } : {}),
   })
+}
+
+export function openNewSessionFrom(seed: NewSessionStart): void {
+  page.set(null)
+  dialog.set(null)
+  newSession.set(seed)
 }
 
 /**
