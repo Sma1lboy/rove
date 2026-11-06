@@ -6,7 +6,7 @@
  */
 
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
-import type { DispatchSnapshot, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
@@ -92,8 +92,6 @@ export class AppModel {
   readonly tabsSettled: Store<boolean> = createStore(false)
   /** Every open mod pane, re-validated from the `mods` push (the bridge sends it on connect). */
   readonly mods: Store<readonly ModPaneView[]> = createStore<readonly ModPaneView[]>([])
-  /** The daemon's dispatch ledger, as the bridge last pushed it; null until it does (or the daemon has none). */
-  readonly dispatches: Store<DispatchSnapshot | null> = createStore<DispatchSnapshot | null>(null)
   /** First-party mods (Kanban, Issues) installed on this machine; none until `builtinMods.list` answers. */
   readonly installedMods: Store<ReadonlySet<string>> = createStore<ReadonlySet<string>>(new Set())
   readonly selection: Store<Selection> = createStore(loadSelection())
@@ -140,11 +138,6 @@ export class AppModel {
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
     client.on("tabs", () => this.scheduleTabRefresh())
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
-    client.on("dispatch", (data) => {
-      if (data && typeof data === "object" && "rows" in data && Array.isArray(data.rows)) {
-        this.dispatches.set(data as DispatchSnapshot)
-      }
-    })
   }
 
   async refreshMods(): Promise<void> {

@@ -311,14 +311,6 @@ button:focus-visible {
   --tracking-*: initial;
   --tracking-code: 0.08em;
 
-  /* Dispatch: a live wire's dashes run toward the target. */
-  --animate-dp-flow: dp-flow 600ms linear infinite;
-  @keyframes dp-flow {
-    to {
-      stroke-dashoffset: -9;
-    }
-  }
-
   /* The rail's PR card and title tip slide in from the row. */
   --animate-pr-list-in: pr-list-in 140ms ease-out;
   @keyframes pr-list-in {
@@ -352,14 +344,6 @@ button:focus-visible {
     }
     to {
       background-position: 0 0, -200% 0;
-    }
-  }
-
-  /* The rail search's caret. */
-  --animate-blink: blink 1s steps(1) infinite;
-  @keyframes blink {
-    50% {
-      opacity: 0;
     }
   }
 

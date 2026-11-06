@@ -900,6 +900,9 @@ terminal without claiming a typing key. Prefix `/` was unused; sidebar `/`
 remains scoped task search. Help and palette share the action names and matcher.
 The palette invokes typed live commands, preserving scope and confirmation gates.
 
+Scope widened (2026-11-05, owner's call, no chord change): the web palette also
+lists tasks by title and conversation hits (`sessions.search`) under the commands.
+
 ## Second conversations open a child task (2026-10-22, approved)
 
 The owner approved keeping `ctrl+t`, `ctrl+e` and `ctrl+a c` on their keys

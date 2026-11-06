@@ -46,7 +46,8 @@ export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focu
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
-export const RAIL_CARET = "text-accent animate-blink motion-reduce:animate-none"
+export const RAIL_SEARCH_FIELD =
+  "min-w-0 flex-1 border-none bg-transparent p-0 text-ink [font:inherit] outline-none placeholder:text-subtle"
 /** The rail's note while no task exists; the workspace beside it carries the way forward. On the task rows' left edge. */
 export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */

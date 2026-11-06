@@ -42,7 +42,8 @@ timeout, pane scope, and cancellation rules.
 Open the command palette with `ctrl+a /`. Type a human-readable action name
 or chord, use ↑/↓ to select, and Enter to run. Escape cancels. It lists typed
 commands available in the current pane; scope checks still apply when you run
-one. Event-dependent navigation bindings remain in help as references.
+one. In the web client the same input also lists matching tasks by title and,
+from two characters, what was said in any task's conversations. Event-dependent navigation bindings remain in help as references.
 
 Inside `F1` help, press `/` to filter the same keymap by name or chord. Clear
 the input to restore all sections. Both searches use case-insensitive fuzzy

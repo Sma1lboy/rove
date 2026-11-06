@@ -70,27 +70,14 @@ already paired with `rove-bridge` keeps working: the two share one token.
   that task with a panel, without taking focus or switching task. The Browser
   asks the bridge (`browser.probe`) whether a page forbids framing before it
   loads it.
-- Dispatch (rail): every prompt one session hands another — `rove api send`,
-  `api dispatch`, `api add` from an agent, a routine firing — while it is in
-  flight and for a while after. A prompt in flight is one small dot riding
-  its wire from sender to target; once it lands, the target node shows its
-  state: `→ delivered` (the engine has not started on it), `● working`,
-  `? needs you` (amber outline: the engine waits on you), `✓ done` or
-  `✗ failed`. A prompt that failed before it arrived leaves a `✗` where it
-  stopped. Nothing animates once no prompt is travelling, and reduced motion
-  turns the travel off. The daemon keeps
-  this state, so a page opened mid-flight shows what is still on its way; a
-  `rove daemon restart` clears it. A prompt sent from here to a task on
-  another [machine](./MACHINES.md) is drawn into that machine's box and moves
-  on the state its engine reports there. Click a row to open the target tab.
-- Search (rail): type a word to find it in what you and the agents wrote in
-  any task's conversation (`rove api search`), newest first, the words around
-  each hit shown. A hit opens its task; the terminal does not scroll to the
-  line. Tool output is not searched, and a task on another machine is not.
-- Machines (rail, once a machine is registered): each machine's state and
-  version, and for one that is not connected, why and the command to run here
-  (`rove machine doctor <alias>`). The rail entry shows how many are not
-  connected. See [MACHINES.md](./MACHINES.md).
+- Command palette (`ctrl+a /`): the commands, then the tasks whose title,
+  branch or project matches, then what you and the agents wrote in any task's
+  conversation (`rove api search`, from two characters), newest first, the words
+  around each hit shown. A task or hit opens its task; the terminal does not
+  scroll to the line. Tool output is not searched, and a task on another machine
+  is not. A machine that is not connected greys its rows in the rail; the cloud
+  mark's hover says why, and `rove machine doctor <alias>` fixes it
+  ([MACHINES.md](./MACHINES.md)).
 - The Inbox: click `INBOX n` at the top of the rail. `↑↓` moves, Enter opens
   the session and clears it, `d` clears it without opening.
 
