@@ -22,8 +22,10 @@ import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
+import { quoteSelection } from "./term-quote.ts"
 import { dialog, toast } from "./ui.ts"
-import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
+import { Button } from "./ui/button.tsx"
+import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_QUOTE, TERM_SCROLLED } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
 
 export interface TerminalViewProps {
@@ -160,6 +162,18 @@ export function TerminalView(props: TerminalViewProps) {
     }
   }, [client, taskId, tabId, leafId])
 
+  // The quote action shows while something is selected.
+  const [selected, setSelected] = useState(false)
+  useEffect(() => {
+    if (!handle) return
+    setSelected(handle.term.hasSelection())
+    const sub = handle.term.onSelectionChange(() => setSelected(handle.term.hasSelection()))
+    return () => {
+      sub.dispose()
+      setSelected(false)
+    }
+  }, [handle])
+
   // The control other parts of the page drive: palette, F1 keys, split commands.
   useEffect(() => {
     if (!handle) return
@@ -275,6 +289,16 @@ export function TerminalView(props: TerminalViewProps) {
           onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
           onRetryAttach={handle ? () => void handle.reattach() : undefined}
         />
+        {selected && props.composer && handle && (
+          <Button
+            variant="floating"
+            className={TERM_QUOTE}
+            title={t("quote.title")}
+            onClick={() => quoteSelection(handle, taskId, tabId, atMenu)}
+          >
+            {t("quote.action")}
+          </Button>
+        )}
         {scrolled > 0 && handle && (
           <div className={`mono ${TERM_SCROLLED}`}>
             <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>

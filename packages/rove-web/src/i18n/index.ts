@@ -9,13 +9,14 @@ import { createStore, useStore } from "../store.ts"
 import * as compare from "./compare.ts"
 import * as dialogs from "./dialogs.ts"
 import * as panel from "./panel.ts"
+import * as prompts from "./prompts.ts"
 import * as rail from "./rail.ts"
 import * as settings from "./settings.ts"
 import * as workspace from "./workspace.ts"
 
 export type Locale = "en" | "zh"
 
-const parts = [rail, workspace, dialogs, panel, settings, compare]
+const parts = [rail, workspace, dialogs, panel, settings, compare, prompts]
 
 /** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
 export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof rail.en &
@@ -23,7 +24,8 @@ export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof r
   typeof dialogs.en &
   typeof panel.en &
   typeof settings.en &
-  typeof compare.en
+  typeof compare.en &
+  typeof prompts.en
 export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }

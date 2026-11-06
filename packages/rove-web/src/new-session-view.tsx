@@ -40,6 +40,7 @@ import {
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
@@ -302,6 +303,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     }
   }
 
+  const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
+
   const branchRows = filterText(probe?.branches ?? [], branchQuery).map((name) => ({
     key: name,
     text: name,
@@ -339,14 +342,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             placeholder={t("newSession.placeholder")}
             value={prompt}
             disabled={busy}
-            onChange={(e) => setPrompt(e.target.value)}
             onPaste={targets?.onPaste}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
-              e.preventDefault()
-              void start()
-            }}
+            {...snippets.field}
           />
+          {snippets.list}
           <div className={C.CARD_ACTIONS}>
             <button
               type="button"

@@ -338,6 +338,12 @@ once a task has more than one tab. (An older
 Scrollback changes apply to terminals started *after* the change; live ones
 keep the buffer they were born with.
 
+### Prompt snippets
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `prompt.snippets` | `[{name, text}]` | `[]` | Saved prompts the web composers expand from `@name` (Settings → Snippets on web). Name: letters, digits, `-`, `_`, up to 32; text up to 8,000 characters; at most 100. Entries that don't fit are ignored. The TUI does not read them |
+
 ### Notifications
 
 All default to on.

@@ -18,6 +18,7 @@ import { promptOps } from "./prompts.ts"
 import { routingOps } from "./routing.ts"
 import { engineOps } from "./settings-engines.ts"
 import { settingsOps } from "./settings.ts"
+import { snippetOps } from "./snippets.ts"
 import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
@@ -61,6 +62,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   launchOps,
   modsOps,
   promptOps,
+  snippetOps,
   panelOps,
   githubOps,
   githubAuthOps,

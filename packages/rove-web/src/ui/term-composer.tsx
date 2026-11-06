@@ -1,4 +1,4 @@
-import type { ClipboardEvent, ReactNode } from "react"
+import type { ChangeEvent, ClipboardEvent, KeyboardEvent, ReactNode, RefObject } from "react"
 
 /**
  * The bar under an engine terminal on a touch screen: an attach control, a message field and Send.
@@ -8,6 +8,7 @@ import type { ClipboardEvent, ReactNode } from "react"
  */
 const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1.5 touch:flex"
 const CHIPS = "absolute inset-x-1.5 bottom-full z-5 mb-1"
+const SUGGEST = "absolute inset-x-1.5 bottom-full z-6 mb-1"
 const ROW = "flex min-w-0 flex-1 items-stretch gap-1.5"
 const FIELD =
   "h-10 min-w-0 flex-1 resize-none rounded-sm border-hairline border-line bg-inset px-2 py-2 font-sans text-display leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
@@ -37,29 +38,41 @@ export function TermComposerBar(props: {
   attached?: ReactNode
   /** The file picker, boxed in `COMPOSER_ATTACH`. */
   attach: ReactNode
-  onChange: (text: string) => void
+  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
   onPaste: (e: ClipboardEvent) => void
+  onSelect?: (e: { currentTarget: HTMLTextAreaElement }) => void
+  onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
+  fieldRef?: RefObject<HTMLTextAreaElement | null>
+  /** Names this composer so a quote from the terminal above can find it. */
+  composerKey?: string
+  /** The `@name` suggestions, floated over the terminal like the chips. */
+  suggest?: ReactNode
   onSend: () => void
 }) {
   return (
     <form
       className={BAR}
+      data-composer={props.composerKey}
       onSubmit={(e) => {
         e.preventDefault()
         props.onSend()
       }}
     >
       {props.attached && <div className={CHIPS}>{props.attached}</div>}
+      {props.suggest && <div className={SUGGEST}>{props.suggest}</div>}
       <div className={ROW}>
         {props.attach}
         <textarea
+          ref={props.fieldRef}
           className={FIELD}
           rows={1}
           value={props.value}
           placeholder={props.placeholder}
           disabled={props.busy}
           enterKeyHint="send"
-          onChange={(e) => props.onChange(e.target.value)}
+          onChange={props.onChange}
+          onSelect={props.onSelect}
+          onKeyDown={props.onKeyDown}
           onPaste={props.onPaste}
         />
         <button type="submit" className={SEND} disabled={props.busy || !props.ready}>
