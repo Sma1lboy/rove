@@ -138,7 +138,7 @@ async function worktreeAndBranch(ctx: OpContext, id: string) {
   return { worktree: worktreePath, branch: branch ?? "", prNumber: prStatus?.number, baseRef: prStatus?.baseRef }
 }
 
-const PR_PROMPT_KINDS = ["createPR", "fixCI", "conflicts", "comments"] as const
+const PR_PROMPT_KINDS = ["commit", "createPR", "fixCI", "conflicts", "comments"] as const
 
 /** One line each: the page types them into an engine's input, where a newline would send. */
 function conflictsPrompt(pr: string, base: string): string {
@@ -148,6 +148,9 @@ function conflictsPrompt(pr: string, base: string): string {
 function commentsPrompt(pr: string): string {
   return `${pr} has review feedback to address. Read it with \`gh pr view --comments\` and \`gh api repos/{owner}/{repo}/pulls/<number>/comments\`, make a change for each point (reply only where you disagree and say why), run the project's checks, then commit and push.`
 }
+
+const COMMIT_PROMPT =
+  "Commit the uncommitted changes in this worktree. Review them with `git status` and `git diff`, split them into logical commits when they are unrelated, write each message in the style of this repo's recent `git log`, and do not push."
 
 export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
   return {
@@ -209,13 +212,14 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       kind: "read",
       destructive: false,
       wraps:
-        "buildPRPrompt | rpc pr.failingChecks + buildCIPromptForWorktree | fixed text; returns the prompt, sends nothing",
+        "buildPRPrompt | rpc pr.failingChecks + buildCIPromptForWorktree | fixed text (commit, conflicts, comments); returns the prompt, sends nothing",
       async run(a, ctx) {
         const id = taskId(a)
         const kind = oneOf(a, "kind", PR_PROMPT_KINDS)
         const { worktree, branch, prNumber, baseRef } = await worktreeAndBranch(ctx, id)
         const pr = prNumber === undefined ? "This task's PR" : `PR #${prNumber}`
         if (kind === "createPR") return { outcome: "ok", prompt: await deps.prPrompt(worktree) }
+        if (kind === "commit") return { outcome: "ok", prompt: COMMIT_PROMPT }
         if (kind === "conflicts") return { outcome: "ok", prompt: conflictsPrompt(pr, baseRef || "its base branch") }
         if (kind === "comments") return { outcome: "ok", prompt: commentsPrompt(pr) }
         const read = await ctx.api.rpc<{

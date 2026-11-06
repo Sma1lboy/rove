@@ -9,6 +9,7 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
+import { ChecksSection } from "./checks-section.tsx"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
@@ -178,6 +179,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       onKeyDown={onKey}
     >
       <PrStrip model={model} task={task} />
+      <ChecksSection model={model} task={task} />
       <Tabs
         className="px-1 pb-1.5"
         tabs={[

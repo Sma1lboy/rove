@@ -13,6 +13,7 @@ import { machineOps } from "./machines.ts"
 import { modsOps } from "./mods.ts"
 import { pagesOps } from "./pages.ts"
 import { panelOps } from "./panel.ts"
+import { PR_CHECKS_OPS } from "./pr-checks.ts"
 import { prefsOps } from "./prefs.ts"
 import { promptOps } from "./prompts.ts"
 import { routingOps } from "./routing.ts"
@@ -68,4 +69,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   githubOps,
   githubAuthOps,
   TIMELINE_OPS,
+  PR_CHECKS_OPS,
 )

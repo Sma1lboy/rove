@@ -37,4 +37,14 @@ describe("prActions", () => {
     expect(prActions(task({ pr: pr({ lifecycle: "closed", checkState: "failing" }) }))).toEqual([])
     expect(prActions(task({ pr: pr({ lifecycle: "unknown", checkState: "failing" }) }))).toEqual([])
   })
+
+  test("a dirty worktree offers commit first, with or without a PR; an unreadable or clean one does not", () => {
+    const dirty = { added: 2, deleted: 0 }
+    expect(prActions(task({ changes: dirty }))).toEqual(["commit", "createPR"])
+    expect(prActions(task({ changes: dirty, pr: pr({ checkState: "failing" }) }))).toEqual(["commit", "fixCI"])
+    expect(prActions(task({ changes: { added: 0, deleted: 0 } }))).toEqual(["createPR"])
+    expect(prActions(task({ changes: { unreadable: true } }))).toEqual(["createPR"])
+    expect(prActions(task({ changes: dirty, kind: "main" }))).toEqual([])
+    expect(prActions(task({ changes: dirty, machine: { id: "m", label: "m" } }))).toEqual([])
+  })
 })

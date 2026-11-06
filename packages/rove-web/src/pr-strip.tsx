@@ -47,6 +47,7 @@ async function prefill(model: AppModel, task: TaskRow, kind: PrPromptKind): Prom
 }
 
 const LABEL: Record<PrAction, string> = {
+  commit: "files.stripCommit",
   createPR: "files.stripCreate",
   conflicts: "files.stripConflicts",
   fixCI: "files.stripFixCi",
