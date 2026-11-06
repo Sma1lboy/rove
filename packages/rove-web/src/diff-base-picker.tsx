@@ -88,7 +88,7 @@ export function DiffBasePicker(props: {
         {t("review.basePicker", { base: props.custom ?? props.base })}
       </Button>
       {open && (
-        <div className="absolute top-full left-0 z-3 mt-1 w-64 max-w-[calc(100vw-24px)] rounded-sm border-hairline border-line-active bg-surface p-1 shadow-popover">
+        <div className="absolute top-full left-0 z-3 mt-1 w-64 max-w-full rounded-sm border-hairline border-line-active bg-surface p-1 shadow-popover">
           <SuggestField
             field="diff-base"
             autoFocus

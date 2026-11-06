@@ -52,6 +52,10 @@ describe("a base picked by hand", () => {
     const rows = parseUnifiedDiff(raw, null, true)
     expect(rows.filter((r) => r.kind === "del").map(displayLine)).toEqual([null])
     expect(rows.filter((r) => r.kind === "add" || r.kind === "ctx").map(displayLine)).toEqual([7, 8])
-    expect(parseUnifiedDiff(raw).filter((r) => r.kind === "del").map(displayLine)).toEqual([8])
+    expect(
+      parseUnifiedDiff(raw)
+        .filter((r) => r.kind === "del")
+        .map(displayLine),
+    ).toEqual([8])
   })
 })
