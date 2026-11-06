@@ -29,6 +29,7 @@ import {
 import { closePanelTab, editPanel, useTaskPanel } from "./panel-state.ts"
 import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewHost } from "./preview-host.tsx"
+import { QuotaView } from "./quota-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { TranscriptView } from "./transcript-view.tsx"
@@ -155,6 +156,7 @@ function TabView({
 }: { model: AppModel; task: TaskRow; tab: PanelItem; narrow: boolean; active: boolean; restored: boolean }) {
   if (tab.kind === "files") return <FilesView model={model} task={task} narrow={narrow} />
   if (tab.kind === "chat") return <TranscriptView model={model} task={task} active={active} />
+  if (tab.kind === "quota") return <QuotaView model={model} task={task} active={active} />
   if (tab.kind === "diff") {
     return (
       <PreviewHost

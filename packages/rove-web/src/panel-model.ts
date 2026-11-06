@@ -14,6 +14,7 @@ export type DiffScope = "working" | "branch" | "task"
 export type PanelItem =
   | { readonly id: string; readonly kind: "files" }
   | { readonly id: string; readonly kind: "chat" }
+  | { readonly id: string; readonly kind: "quota" }
   | { readonly id: string; readonly kind: "diff"; readonly path: string; readonly scope: DiffScope }
   | { readonly id: string; readonly kind: "browser"; readonly urls: readonly string[]; readonly at: number }
 
@@ -43,7 +44,7 @@ export const BROWSER_HISTORY = 30
 export const MIN_RATIO = 0.2
 export const REMEMBERED_TASKS = 50
 
-const KINDS: readonly string[] = ["files", "chat", "diff", "browser"] satisfies readonly PanelKind[]
+const KINDS: readonly string[] = ["files", "chat", "diff", "browser", "quota"] satisfies readonly PanelKind[]
 
 export function newPanel(): TaskPanel {
   return {
@@ -201,7 +202,7 @@ export function showKind(panel: TaskPanel, kind: PanelKind): TaskPanel {
   if (hit) return activate(panel, hit.id)
   if (kind === "diff") return showDiff(panel, ".", "working")
   return addTab(panel, homeGroup(panel, kind), (id) =>
-    kind === "files" || kind === "chat" ? { id, kind } : blankBrowser(id),
+    kind === "files" || kind === "chat" || kind === "quota" ? { id, kind } : blankBrowser(id),
   )
 }
 
@@ -316,7 +317,7 @@ function parseItem(raw: unknown): PanelItem | null {
   if (!raw || typeof raw !== "object") return null
   const r = raw as Record<string, unknown>
   if (typeof r.id !== "string" || !/^t\d+$/.test(r.id)) return null
-  if (r.kind === "files" || r.kind === "chat") return { id: r.id, kind: r.kind }
+  if (r.kind === "files" || r.kind === "chat" || r.kind === "quota") return { id: r.id, kind: r.kind }
   if (r.kind === "diff" && typeof r.path === "string" && r.path !== "") {
     const scope = r.scope === "branch" || r.scope === "task" ? r.scope : "working"
     return { id: r.id, kind: "diff", path: r.path, scope }
