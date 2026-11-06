@@ -2,35 +2,54 @@
  * A read-only file or diff in the side panel (TUI `ops/preview.tsx` +
  * `preview-review.tsx`). Keys while focused, the TUI's: j/k cursor, v anchor
  * a range (or Shift+click), c add a note, x drop the note under the cursor, s send unsent
- * notes to the engine, r reload, q/Esc close. A selection (v, Shift+click or a mouse drag) shows an
- * "ask in chat" bubble that puts its lines in the engine's prompt.
+ * notes to the engine, z fold the file, r reload, q/Esc close. A click (a tap, on a phone) picks a line
+ * and offers "comment"; a selection also offers "ask in chat", which puts its lines in the engine's prompt.
+ * Notes wait in the tray under the diff until one send delivers them all.
  */
 
-import { type KeyboardEvent, useEffect, useRef, useState } from "react"
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
+import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
-import { type DiffRow, chatReference, codeRows, displayLine, noteRange, parseUnifiedDiff } from "./diff.ts"
+import {
+  type DiffRow,
+  chatReference,
+  codeRows,
+  fileStats,
+  noteRange,
+  noteTarget,
+  parseUnifiedDiff,
+  visibleIndexes,
+} from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
+import type { DiffScope } from "./panel-model.ts"
+import { openDiff } from "./panel-state.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { type Note, type NoteState, locate, noteLabel, noteState, quoteRows } from "./review-notes.ts"
+import { ReviewTray } from "./review-tray.tsx"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { type Preview, activeStream, dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+import { Chevron } from "./ui/chevron.tsx"
+import { Chip } from "./ui/chip.tsx"
+import {
+  DIFF_FILE_NAME,
+  DIFF_GUTTER,
+  DIFF_NOTE_TEXT,
+  diffCodeClass,
+  diffRowClass,
+  diffSignClass,
+} from "./ui/diff-row.ts"
+import { Tabs } from "./ui/tabs.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
-
-interface Note {
-  readonly id: string
-  readonly filePath: string
-  readonly startLine?: number
-  readonly line: number
-  readonly body: string
-  readonly sentAt?: number
-}
 
 type Loaded =
   | { readonly kind: "rows"; readonly rows: DiffRow[]; readonly diff: boolean }
   | { readonly kind: "text"; readonly text: string; readonly error?: boolean }
+
+const NO_ROWS: DiffRow[] = []
 
 /** `diff.file` result (`PreviewData`, `tui/ops/preview-core.ts`) → what this view draws. */
 function load(data: unknown, path: string): Loaded {
@@ -52,9 +71,13 @@ function load(data: unknown, path: string): Loaded {
   }
 }
 
-function covers(note: Note, row: DiffRow): boolean {
-  const line = displayLine(row)
-  return line !== null && note.filePath === row.path && line >= (note.startLine ?? note.line) && line <= note.line
+/** A bridge older than the page has no `review.edit`: say so rather than print `unknown op`. */
+function bridgeError(err: unknown): Error {
+  return err instanceof BridgeRequestError && err.code === "UNKNOWN_OP"
+    ? new Error(t("review.notSupported"))
+    : err instanceof Error
+      ? err
+      : new Error(String(err))
 }
 
 export function PreviewView({
@@ -65,6 +88,7 @@ export function PreviewView({
   onClose,
 }: { model: AppModel; view: Preview; active: boolean; restored: boolean; onClose: () => void }) {
   useLocale()
+  const touch = isTouch()
   const params = { taskId: view.taskId, path: view.path, scope: view.scope }
   // The diff as last read shows at once; a refresh keeps the rows on screen until the reread lands.
   const [loaded, setLoaded] = useState<Loaded | null>(() => {
@@ -74,8 +98,15 @@ export function PreviewView({
   const [notes, setNotes] = useState<readonly Note[]>(
     () => lastReply<{ notes: Note[] }>(model, "review.list", { taskId: view.taskId })?.notes ?? [],
   )
+  const [base, setBase] = useState<string | null>(
+    () => lastReply<{ base: string | null }>(model, "diff.files", { taskId: view.taskId })?.base ?? null,
+  )
   const [cursor, setCursor] = useState(0)
   const [anchor, setAnchor] = useState<number | null>(null)
+  // A line was clicked or tapped: the cursor row that opens with the view is not an offer to comment.
+  const [picked, setPicked] = useState(false)
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
+  const [sending, setSending] = useState(false)
   const [nonce, setNonce] = useState(0)
   const host = useRef<HTMLDivElement>(null)
   const c = model.client
@@ -92,6 +123,18 @@ export function PreviewView({
     }
   }, [c, view.taskId, view.path, view.scope, nonce])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
+  useEffect(() => {
+    let live = true
+    requestRemembered<{ base: string | null }>(c, "diff.files", { taskId: view.taskId }).then(
+      (r) => live && setBase(r.base),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [c, view.taskId, nonce])
+
   const refreshNotes = () =>
     void requestRemembered<{ notes: Note[] }>(c, "review.list", { taskId: view.taskId }).then((r) => setNotes(r.notes))
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload with the view.
@@ -103,36 +146,101 @@ export function PreviewView({
     mounted.current = true
   }, [active, restored])
 
-  const rows = loaded?.kind === "rows" ? loaded.rows : []
+  const rows = loaded?.kind === "rows" ? loaded.rows : NO_ROWS
+  const isDiff = loaded?.kind === "rows" && loaded.diff
   // Row order is fixed per load (the view remounts per file), so position is identity.
-  const rowIds = rows.map((_, n) => `row-${n}`)
+  const rowIds = useMemo(() => rows.map((_, n) => `row-${n}`), [rows])
+  const shown = useMemo(() => visibleIndexes(rows, folded), [rows, folded])
+  const stats = useMemo(() => fileStats(rows), [rows])
+  // Notes handed to the engine are done with; the rest wait in the tray.
+  const unsent = useMemo(() => notes.filter((n) => n.sentAt === undefined), [notes])
+  const placed = useMemo(() => unsent.map((note) => ({ note, at: locate(note, rows) })), [unsent, rows])
+  const covered = useMemo(() => {
+    const set = new Set<number>()
+    for (const { at } of placed) if (at) for (let i = at.first; i <= at.last; i++) set.add(i)
+    return set
+  }, [placed])
+  const endingAt = useMemo(() => {
+    const byRow = new Map<number, Note[]>()
+    for (const { note, at } of placed) if (at) byRow.set(at.last, [...(byRow.get(at.last) ?? []), note])
+    return byRow
+  }, [placed])
+  // Every changed file is on screen only in the whole-worktree view, once it has loaded.
+  const whole = view.path === "." && loaded !== null && !(loaded.kind === "text" && loaded.error)
+  const states = useMemo(() => {
+    const byNote = new Map<string, NoteState>()
+    for (const { note } of placed) byNote.set(note.id, noteState(note, rows, whole))
+    return byNote
+  }, [placed, rows, whole])
+
+  // A fold that hides the cursor moves it to the file's header.
+  useEffect(() => {
+    if (shown.includes(cursor)) return
+    let i = cursor
+    while (i > 0 && rows[i]?.kind !== "file") i--
+    setCursor(i)
+    setAnchor(null)
+  }, [shown, cursor, rows])
   useEffect(() => {
     host.current?.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" })
   }, [cursor])
 
+  const target = noteTarget(rows, cursor, anchor)
+  const toggleFold = (path: string) =>
+    setFolded((cur) => {
+      const next = new Set(cur)
+      if (!next.delete(path)) next.add(path)
+      return next
+    })
+  const files = [...stats.keys()].flatMap((i) => (rows[i]?.path ? [rows[i]?.path as string] : []))
+  const allFolded = files.length > 0 && files.every((path) => folded.has(path))
+
   const addNote = () => {
-    const range = noteRange(rows, cursor, anchor)
-    if (!range) return
-    const location = range.startLine ? `${range.path}:${range.startLine}-${range.line}` : `${range.path}:${range.line}`
+    if (!target) return
+    const location = noteLabel({ filePath: target.path, startLine: target.startLine, line: target.line })
     dialog.set(
       <TextDialog
+        multiline
         title={t("preview.noteTitle", { location })}
         submitLabel={t("preview.noteSubmit")}
         onSubmit={async (body) => {
           await c.request("review.add", {
             taskId: view.taskId,
-            filePath: range.path,
-            line: range.line,
-            ...(range.startLine ? { startLine: range.startLine } : {}),
+            filePath: target.path,
+            line: target.line,
+            ...(target.startLine ? { startLine: target.startLine } : {}),
+            code: quoteRows(rows, target.first, target.last),
             body,
           })
           setAnchor(null)
+          setPicked(false)
           refreshNotes()
           host.current?.focus()
         }}
       />,
     )
   }
+  const editNote = (note: Note) =>
+    dialog.set(
+      <TextDialog
+        multiline
+        title={t("review.editTitle", { location: noteLabel(note) })}
+        initial={note.body}
+        submitLabel={t("review.editSubmit")}
+        onSubmit={async (body) => {
+          await c.request("review.edit", { taskId: view.taskId, id: note.id, body }).catch((e) => {
+            throw bridgeError(e)
+          })
+          refreshNotes()
+          host.current?.focus()
+        }}
+      />,
+    )
+  const dropNote = (note: Note) =>
+    void c
+      .request("review.remove", { taskId: view.taskId, id: note.id })
+      .then(refreshNotes)
+      .catch((e) => toast(bridgeError(e).message, "error"))
   // The selection as a reference in the task's engine prompt, then the prompt takes the keys to ask about it.
   const stream = useStore(activeStream)
   const askInChat = () => {
@@ -150,13 +258,21 @@ export function PreviewView({
       })
       .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
   }
-  const dropNote = () => {
-    const row = rows[cursor]
-    const note = row && notes.find((n) => covers(n, row))
-    if (!note) return
-    void c.request("review.remove", { taskId: view.taskId, id: note.id }).then(refreshNotes)
+  // From the tray: the note's lines when they are on screen, else the file where they were.
+  const showNote = (note: Note) => {
+    const at = locate(note, rows)
+    const header = rows.findIndex((row) => row.kind === "file" && row.path === note.filePath)
+    if (at) {
+      setFolded((cur) => new Set([...cur].filter((path) => path !== note.filePath)))
+      setCursor(at.first)
+    } else if (view.path === "." && header >= 0) setCursor(header)
+    else if (view.path !== note.filePath && view.path !== ".")
+      openDiff({ taskId: view.taskId, path: note.filePath, scope: view.scope })
+    setAnchor(null)
+    setPicked(false)
   }
-  const send = () =>
+  const send = () => {
+    setSending(true)
     void c
       .request<{ sent: number; delivered: boolean; reason?: string }>("review.send", model.engineTarget(view.taskId))
       .then((r) => {
@@ -167,16 +283,30 @@ export function PreviewView({
         refreshNotes()
       })
       .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+      .finally(() => setSending(false))
+  }
 
+  const step = (by: 1 | -1) =>
+    setCursor((cur) => {
+      const at = Math.max(0, shown.indexOf(cur))
+      return shown[Math.min(shown.length - 1, Math.max(0, at + by))] ?? cur
+    })
   const onKey = (e: KeyboardEvent) => {
     const k = e.key
-    if (k === "j" || k === "ArrowDown") setCursor((i) => Math.min(rows.length - 1, i + 1))
-    else if (k === "k" || k === "ArrowUp") setCursor((i) => Math.max(0, i - 1))
-    else if (k === "v") setAnchor((a) => (a === null ? cursor : null))
-    else if (k === "c" && !e.ctrlKey) addNote()
-    else if (k === "x") dropNote()
-    else if (k === "s") send()
-    else if (k === "r") setNonce((n) => n + 1)
+    if (k === "j" || k === "ArrowDown") step(1)
+    else if (k === "k" || k === "ArrowUp") step(-1)
+    else if (k === "v") {
+      setAnchor((a) => (a === null ? cursor : null))
+      setPicked(true)
+    } else if (k === "c" && !e.ctrlKey) addNote()
+    else if (k === "x") {
+      const hit = placed.find(({ at }) => at && cursor >= at.first && cursor <= at.last)
+      if (hit) dropNote(hit.note)
+    } else if (k === "s") send()
+    else if (k === "z") {
+      const path = rows[cursor]?.path
+      if (path && isDiff) toggleFold(path)
+    } else if (k === "r") setNonce((n) => n + 1)
     else if (k === "q" || k === "Escape") onClose()
     // Ctrl+C closes it as the TUI's preview does; a text selection keeps the browser's own copy.
     else if (e.ctrlKey && !e.metaKey && k.toLowerCase() === "c" && !window.getSelection()?.toString()) onClose()
@@ -194,59 +324,169 @@ export function PreviewView({
     if (!from || !to) return
     setAnchor(Number(from.dataset.row))
     setCursor(Number(to.dataset.row))
+    setPicked(true)
   }
 
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
+  const scopes: { id: DiffScope; label: string }[] = [
+    { id: "working", label: t("review.scopeWorking") },
+    { id: "branch", label: t("review.scopeBranch") },
+    { id: "task", label: t("review.scopeTask", { base: base ?? "" }) },
+  ]
 
   return (
-    // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
-    <div className="group/preview flex min-w-0 flex-1 flex-col outline-none" tabIndex={0} ref={host} onKeyDown={onKey}>
+    <div
+      className="group/preview flex min-h-0 min-w-0 flex-1 flex-col outline-none"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
+      tabIndex={0}
+      ref={host}
+      onKeyDown={onKey}
+    >
+      {isDiff && (base !== null || files.length > 1) && (
+        <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 px-2 pt-1.5 font-mono text-meta">
+          {base !== null && (
+            <Tabs
+              className="flex-wrap"
+              tabs={scopes}
+              value={view.scope}
+              onChange={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
+            />
+          )}
+          {files.length > 1 && (
+            <Button hit="tight" className="ml-auto" onClick={() => setFolded(allFolded ? new Set() : new Set(files))}>
+              {allFolded ? t("review.unfoldAll") : t("review.foldAll")}
+            </Button>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
         {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
         {loaded?.kind === "text" && (
           <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "text-error" : ""}`}>{loaded.text}</p>
         )}
-        {rows.map((row, i) => {
-          const noted = notes.some((n) => covers(n, row))
+        {shown.map((i) => {
+          const row = rows[i] as DiffRow
+          const inCursor = i >= lo && i <= hi
+          if (row.kind === "file") {
+            const closed = row.path !== null && folded.has(row.path)
+            const stat = stats.get(i)
+            return (
+              <Button
+                key={rowIds[i]}
+                variant="row"
+                data-row={i}
+                aria-expanded={!closed}
+                aria-label={t(closed ? "review.unfold" : "review.fold", { path: row.text })}
+                className={`${diffRowClass("file", { cursor: inCursor, noted: false })} w-full text-left`}
+                onClick={() => {
+                  setCursor(i)
+                  setAnchor(null)
+                  setPicked(false)
+                  if (row.path) toggleFold(row.path)
+                }}
+              >
+                <span />
+                <span />
+                <span className="grid place-items-center text-subtle">
+                  <Chevron right={closed} />
+                </span>
+                <span className={DIFF_FILE_NAME}>
+                  <span className="min-w-0 truncate">{row.text}</span>
+                  {stat?.added ? <Chip tone="added">+{stat.added}</Chip> : null}
+                  {stat?.removed ? <Chip tone="removed">−{stat.removed}</Chip> : null}
+                </span>
+              </Button>
+            )
+          }
+          const noted = covered.has(i)
           return (
-            // biome-ignore lint/a11y/useKeyWithClickEvents: the view's keys (j/k) move the cursor
-            <div
-              key={rowIds[i]}
-              data-row={i}
-              className={diffRowClass(row.kind, { cursor: i >= lo && i <= hi, noted })}
-              onClick={(e) => {
-                if (window.getSelection()?.isCollapsed === false) return
-                // Shift+click extends a selection from the cursor, as `v` then j/k does.
-                if (e.shiftKey) setAnchor((a) => a ?? cursor)
-                else setAnchor(null)
-                setCursor(i)
-              }}
-            >
-              <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
-              <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
-              <span className={diffSignClass(row.kind, noted)}>
-                {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}
-              </span>
-              <span className={diffCodeClass(row.kind)}>{row.text}</span>
-              {anchor !== null && i === hi && (
+            <div key={rowIds[i]}>
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: the view's keys (j/k) move the cursor */}
+              <div
+                data-row={i}
+                className={diffRowClass(row.kind, { cursor: inCursor, noted })}
+                onClick={(e) => {
+                  if (window.getSelection()?.isCollapsed === false) return
+                  // Shift+click extends a selection from the cursor, as `v` then j/k does; on a phone a tap
+                  // extends it once "range" started one.
+                  if (e.shiftKey) setAnchor((a) => a ?? cursor)
+                  else if (!touch || anchor === null) setAnchor(null)
+                  setCursor(i)
+                  setPicked(true)
+                }}
+              >
+                <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
+                <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
+                <span className={diffSignClass(row.kind, noted)}>
+                  {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}
+                </span>
+                <span className={diffCodeClass(row.kind)}>{row.text}</span>
+                {picked && target && i === hi && (
+                  <div className="absolute top-full right-3 z-1 flex gap-1.5">
+                    <Button
+                      variant="floating"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        addNote()
+                      }}
+                    >
+                      {t("review.comment")}
+                    </Button>
+                    {touch && anchor === null && (
+                      <Button
+                        variant="floating"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setAnchor(cursor)
+                        }}
+                      >
+                        {t("review.range")}
+                      </Button>
+                    )}
+                    {anchor !== null && (
+                      <Button
+                        variant="floating"
+                        title={t("preview.askInChatHint")}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          askInChat()
+                        }}
+                      >
+                        {t("preview.askInChat")}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+              {endingAt.get(i)?.map((note) => (
                 <Button
-                  variant="floating"
-                  className="absolute top-full right-3 z-1"
-                  title={t("preview.askInChatHint")}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    askInChat()
-                  }}
+                  key={note.id}
+                  variant="row"
+                  className={`${diffRowClass("note", { cursor: false, noted: false })} w-full text-left`}
+                  onClick={() => editNote(note)}
                 >
-                  {t("preview.askInChat")}
+                  <span />
+                  <span />
+                  <span className="text-accent">●</span>
+                  <span className={DIFF_NOTE_TEXT}>{note.body}</span>
                 </Button>
-              )}
+              ))}
             </div>
           )
         })}
       </div>
+      <ReviewTray
+        notes={unsent}
+        states={states}
+        sending={sending}
+        onShow={showNote}
+        onEdit={editNote}
+        onDrop={dropNote}
+        onSend={send}
+      />
     </div>
   )
 }

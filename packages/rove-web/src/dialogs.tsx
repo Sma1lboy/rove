@@ -8,7 +8,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { closeDialog } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
-import { CHOICES } from "./ui/form.ts"
+import { CHOICES, TEXTAREA } from "./ui/form.ts"
 import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { ACTIONS, INPUT, LINK } from "./ui/text.ts"
@@ -78,6 +78,8 @@ export function TextDialog(props: {
   submitLabel: string
   /** A blank value is a valid answer (a rename that clears back to the default name). */
   allowEmpty?: boolean
+  /** A text area: Enter adds a line, Ctrl/Cmd+Enter or the button submits. */
+  multiline?: boolean
   onSubmit: (value: string) => Promise<void>
 }) {
   const [value, setValue] = useState(props.initial ?? "")
@@ -91,16 +93,35 @@ export function TextDialog(props: {
           if (value.trim() || props.allowEmpty) void submit(() => props.onSubmit(value.trim()))
         }}
       >
-        <input
-          className={INPUT}
-          aria-label={props.title}
-          // biome-ignore lint/a11y/noAutofocus: a dialog's only field
-          autoFocus
-          spellCheck={false}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={(e) => e.currentTarget.select()}
-        />
+        {props.multiline ? (
+          <textarea
+            className={`${INPUT} ${TEXTAREA}`}
+            aria-label={props.title}
+            // biome-ignore lint/a11y/noAutofocus: a dialog's only field
+            autoFocus
+            rows={4}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault()
+                e.currentTarget.form?.requestSubmit()
+              }
+            }}
+            onFocus={(e) => e.currentTarget.setSelectionRange(value.length, value.length)}
+          />
+        ) : (
+          <input
+            className={INPUT}
+            aria-label={props.title}
+            // biome-ignore lint/a11y/noAutofocus: a dialog's only field
+            autoFocus
+            spellCheck={false}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        )}
         {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={props.submitLabel} />
       </form>

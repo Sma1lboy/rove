@@ -90,3 +90,44 @@ export function noteRange(
     ? { path: at.path, line: end }
     : { path: at.path, startLine: Math.min(start, end), line: Math.max(start, end) }
 }
+
+/** A note's range plus the row indexes it spans (`first..last`), the rows its quoted code comes from. */
+export function noteTarget(
+  rows: readonly DiffRow[],
+  cursor: number,
+  anchor: number | null,
+): { path: string; line: number; startLine?: number; first: number; last: number } | null {
+  const range = noteRange(rows, cursor, anchor)
+  if (!range) return null
+  const spans = range.startLine !== undefined && anchor !== null
+  return { ...range, first: spans ? Math.min(anchor, cursor) : cursor, last: spans ? Math.max(anchor, cursor) : cursor }
+}
+
+/** Indexes of the rows shown when the files in `folded` show only their header row. */
+export function visibleIndexes(rows: readonly DiffRow[], folded: ReadonlySet<string>): number[] {
+  const shown: number[] = []
+  let hiding = false
+  rows.forEach((row, i) => {
+    if (row.kind === "file") hiding = row.path !== null && folded.has(row.path)
+    if (!hiding || row.kind === "file") shown.push(i)
+  })
+  return shown
+}
+
+/** Added and removed line counts per file, keyed by the file's header row. */
+export function fileStats(rows: readonly DiffRow[]): Map<number, { added: number; removed: number }> {
+  const stats = new Map<number, { added: number; removed: number }>()
+  let at = -1
+  rows.forEach((row, i) => {
+    if (row.kind === "file") {
+      at = i
+      stats.set(i, { added: 0, removed: 0 })
+      return
+    }
+    const stat = stats.get(at)
+    if (!stat) return
+    if (row.kind === "add") stat.added++
+    else if (row.kind === "del") stat.removed++
+  })
+  return stats
+}

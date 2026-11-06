@@ -48,7 +48,7 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     name: "worktree-diff-file",
     group: "read",
     summary:
-      "One changed file's preview in a task's worktree: its uncommitted diff (`--scope working`) or its whole branch diff against the base (`--scope branch`). Returns the Files pane's preview data (diff hunks, or the file for a code/binary view).",
+      "One changed file's preview in a task's worktree: its uncommitted diff (`--scope working`), its committed diff against the base (`--scope branch`) or everything since the base, uncommitted and untracked work included (`--scope task`). Returns the Files pane's preview data (diff hunks, or the file for a code/binary view).",
     flags: [
       F.taskId(),
       {
@@ -61,14 +61,16 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
       {
         name: "scope",
         type: "enum",
-        values: ["branch", "working"],
+        values: ["branch", "working", "task"],
         required: true,
-        description: "`working` = uncommitted changes; `branch` = everything since the base.",
+        description:
+          "`working` = uncommitted changes; `branch` = commits since the base; `task` = commits and uncommitted work since the base.",
       },
     ],
     handler: async (ctx) => {
       const wt = await taskWorktree(ctx)
-      const scope = ctx.args.require("scope") === "branch" ? "branch" : "working"
+      const asked = ctx.args.require("scope")
+      const scope = asked === "branch" || asked === "task" ? asked : "working"
       return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef)
     },
   },

@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from "react"
+import type { DiffScope } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 
 export interface MenuItem {
@@ -73,7 +74,7 @@ export const toasts = createStore<readonly Toast[]>([])
 export interface Preview {
   readonly taskId: string
   readonly path: string
-  readonly scope: "working" | "branch"
+  readonly scope: DiffScope
 }
 
 export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "compare"

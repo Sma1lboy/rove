@@ -120,10 +120,11 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `term.ack` | `stream`, `chars` | `{}`: for a stream attached with `acks: true`, the base64 chars of `term.data` / `term.reset` the client has parsed. Past ~1 MB unacked the bridge stops sending that stream's output; once all of it is acked it pushes `term.reset {stream, replay}` (reset the terminal, write the replay). Keeps Ctrl+C on a flood instant; without `acks` output flows as before. |
 | `term.revive` | `taskId`, `tabId` | `{revived, resumed}`: `tab-revive` for the tab `term.attach` would open (a viewport tab revives the session it shows); a running tab answers `revived: false`. Attach again afterwards. |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
-| `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
+| `diff.file` | `taskId`, `path`, `scope` (`working`, `branch` or `task`: commits and uncommitted work since the base) | `{kind, text?, message?}` |
 | `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
 | `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
-| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `body` | `{note}` |
+| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `code?`, `body` | `{note}`; `code` is the diff rows the note covers (sign + text per line), quoted in the prompt and compared later to flag a note whose code moved |
+| `review.edit` | `taskId`, `id`, `body` | `{note}`: rewrites one note's text in place; `NOT_FOUND` for an unknown id |
 | `review.remove` | `taskId`, `id` | `{removed}` (destructive) |
 | `review.send` | `taskId`, `tabId?` | `{sent, delivered, reason?}`; notes are marked sent only when delivery is confirmed |
 | `worktrees.list` | `network?` | `{projects: [{repo, worktrees: [{path, branch, dirty, branchOnRemote, verdict, verdictReason, taskId?, taskKind?, …}]}]}` |

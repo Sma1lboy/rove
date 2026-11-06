@@ -95,6 +95,20 @@ describe("review notes", () => {
     expect(notes.data.get("t1")).toHaveLength(2)
   })
 
+  test("edit rewrites one note's text in place and keeps its code, id and place in line", async () => {
+    const { run, notes } = setup()
+    const { api } = fakeApi({})
+    await run("review.add", { taskId: "t1", filePath: "a", line: 1, code: "+x", body: "one" }, api)
+    await run("review.add", { taskId: "t1", filePath: "a", line: 2, body: "two" }, api)
+    await run("review.edit", { taskId: "t1", id: "n1", body: "one, reworded" }, api)
+    expect(notes.data.get("t1")).toEqual([
+      { id: "n1", filePath: "a", line: 1, body: "one, reworded", code: "+x", createdAt: 1000 },
+      { id: "n2", filePath: "a", line: 2, body: "two", createdAt: 1000 },
+    ])
+    await expect(run("review.edit", { taskId: "t1", id: "nope", body: "x" }, api)).rejects.toThrow("no such note")
+    await expect(run("review.edit", { taskId: "t1", id: "n1", body: "  " }, api)).rejects.toThrow()
+  })
+
   test("remove is destructive and drops exactly one note", async () => {
     const { run, notes, ops } = setup()
     const { api } = fakeApi({})
@@ -175,6 +189,27 @@ describe("review notes", () => {
       ["n1", 1000],
       ["late", undefined],
     ])
+  })
+
+  test("a second send for the same task while one is pending is refused, and the notes go out once", async () => {
+    const { run, notes } = setup()
+    await run("review.add", { taskId: "t1", filePath: "a", line: 1, body: "first" }, fakeApi({}).api)
+    const started = Promise.withResolvers<void>()
+    const delivered = Promise.withResolvers<{ delivered: boolean }>()
+    const slow = fakeApi({
+      ...task,
+      send: () => {
+        started.resolve()
+        return delivered.promise
+      },
+    })
+    const first = run("review.send", { taskId: "t1" }, slow.api)
+    await started.promise
+    await expect(run("review.send", { taskId: "t1" }, slow.api)).rejects.toThrow("already being sent")
+    delivered.resolve({ delivered: true })
+    expect(await first).toEqual({ sent: 1, delivered: true })
+    expect(slow.calls.filter((c) => c.name === "send")).toHaveLength(1)
+    expect(notes.data.get("t1")?.[0]?.sentAt).toBe(1000)
   })
 })
 

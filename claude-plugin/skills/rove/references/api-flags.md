@@ -87,7 +87,7 @@ viewers             --task-id
 review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
 worktree-diff       --task-id(REQ)
-worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
+worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working|task}(REQ)
 deliveries          --task-id(REQ) --limit
 should-run          --task-id(REQ) --tab
 gates               --repo --task-id --status{open|answered|withdrawn|all}(open)
