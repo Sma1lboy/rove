@@ -77,9 +77,13 @@ export function dropMove(
   return "pin" in pin || steps !== 0 ? { ...pin, steps } : null
 }
 
-/** A row's nesting level: a project 0, its tasks 1, a child task or a pane one deeper than its parent. */
+/** A row's nesting level: a project 0, its tasks 1, a child task, round header or pane one deeper than its parent. */
 const depthOf = (row: NavRow | undefined): number =>
-  row === undefined || row.kind === "project" ? 0 : row.kind === "task" || row.kind === "pane" ? row.depth : 1
+  row === undefined || row.kind === "project"
+    ? 0
+    : row.kind === "task" || row.kind === "pane" || row.kind === "round"
+      ? row.depth
+      : 1
 
 /** Where the block starting at `i` (the row and every row nested under it) ends. */
 export function blockEnd(rows: readonly NavRow[], i: number): number {
@@ -100,6 +104,8 @@ export function opensProject(rows: readonly NavRow[], fromId: string, toId: stri
     const row = rest[i]
     if (!row || row.kind === "project") return true
     if (row.kind === "task" && row.depth === 1 && row.task.kind !== "main") return false
+    // A round's attempts are tasks of the project too.
+    if (row.kind === "round" && row.depth === 1) return false
   }
   return false
 }

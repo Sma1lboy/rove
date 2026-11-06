@@ -8,7 +8,7 @@ import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
-import { enterWorkspace, openPage } from "./layout.ts"
+import { enterWorkspace, openCompare, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { offeredEngines } from "./new-session.ts"
@@ -175,6 +175,7 @@ export function useRailKeys(
   const open = (row: Stop | undefined) => {
     if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
+    if (row?.kind === "round") openCompare(row.groupId)
     if (row?.kind === "pane") openPane(model, row)
     if (row && row.kind !== "archived") enterWorkspace()
   }
