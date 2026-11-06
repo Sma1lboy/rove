@@ -228,7 +228,7 @@ export function PanelTabRow({
               onClick={() => editPanel(taskId, (p) => activate(p, tab.id))}
             >
               <Icon>{ICONS[tab.kind]}</Icon>
-              <span className={`${PTAB_LABEL} ${compact && tab.id !== active ? "hidden" : ""}`}>{label(tab)}</span>
+              <span className={PTAB_LABEL}>{label(tab)}</span>
             </button>
             <button
               type="button"

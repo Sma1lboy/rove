@@ -34,12 +34,12 @@ export const sideHeadClass = (narrow: boolean): string =>
 
 export const PTABS = "scrollbar-none flex min-w-0 flex-1 gap-0.5 overflow-x-auto"
 
-/** Tabs shrink as a browser's do; once they no longer fit (`compact`), only the shown one keeps its name. */
+/** Tabs shrink as a browser's do; once they no longer fit (`compact`), the others keep a short name (bare icons read as the top bar's launchers) and the row scrolls. */
 export const ptabClass = (o: { active: boolean; compact: boolean }): string =>
-  `group/ptab relative flex max-w-40 items-center hover:text-ink data-[drop=after]:shadow-[inset_-2px_0_0_var(--accent)] data-[drop=before]:shadow-[inset_2px_0_0_var(--accent)] ${o.active ? "is-active text-ink" : "text-muted"} ${o.compact && !o.active ? "min-w-0 flex-none" : "min-w-18 flex-initial"}`
+  `group/ptab relative flex max-w-40 items-center hover:text-ink data-[drop=after]:shadow-[inset_-2px_0_0_var(--accent)] data-[drop=before]:shadow-[inset_2px_0_0_var(--accent)] ${o.active ? "is-active text-ink" : "text-muted"} ${o.compact && !o.active ? "min-w-0 max-w-24 flex-none" : "min-w-18 flex-initial"}`
 
-export const ptabMainClass = (iconOnly: boolean): string =>
-  `flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent text-inherit [font:inherit] ${iconOnly ? "px-1.75 py-1" : "py-1 pr-0.5 pl-2"}`
+export const ptabMainClass = (short: boolean): string =>
+  `flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent text-inherit [font:inherit] ${short ? "py-1 pr-1.75 pl-2" : "py-1 pr-0.5 pl-2"}`
 
 export const PTAB_LABEL = "truncate"
 
