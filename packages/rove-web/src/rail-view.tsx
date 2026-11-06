@@ -245,7 +245,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 row.machine === undefined &&
                 (row.kind === "project"
                   ? !row.noProject && projectInfo(row.repo).mainTaskId === keys.cursor
-                  : row.id === keys.cursor && row.kind === "task" && row.task.kind !== "main")
+                  : row.id === keys.cursor && !(row.kind === "task" && row.task.kind === "main"))
               }
               prTasks={
                 row.kind === "task"

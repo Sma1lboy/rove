@@ -5,7 +5,9 @@ import type { TaskRow } from "rove-bridge/protocol"
 /** The ` #i/N` a round's attempts add to the shared title (`planRound`). */
 const ORDINAL = /\s+#\d+\/\d+$/
 
-const created = (task: TaskRow): string => task.createdAt ?? ""
+/** Creation order, as the Compare page lists a round (`attemptsOf`): `#i/N` follows it. */
+const byCreated = (a: TaskRow, b: TaskRow): number =>
+  (a.createdAt ?? "").localeCompare(b.createdAt ?? "") || a.id.localeCompare(b.id)
 
 /** A round's key: its `groupId` on its machine; null for a task outside any round (a main row never joins one). */
 export const roundKey = (task: TaskRow): string | null =>
@@ -24,25 +26,26 @@ export function roundsAmong(siblings: readonly TaskRow[]): Map<string, TaskRow[]
     if (members) members.push(task)
     else rounds.set(key, [task])
   }
-  for (const [key, members] of rounds) if (members.length < 2) rounds.delete(key)
+  for (const [key, members] of rounds) {
+    if (members.length < 2) rounds.delete(key)
+    else members.sort(byCreated)
+  }
   return rounds
 }
 
-/** The round's title: the shared prompt's title, as the first attempt carries it without its ordinal. */
+/** The round's title: the shared prompt's title, as the first attempt (members in creation order) carries it without its ordinal. */
 export function roundTitle(members: readonly TaskRow[]): string {
-  const first = [...members].sort((a, b) => created(a).localeCompare(created(b)) || a.id.localeCompare(b.id))[0]
-  return (first?.label ?? "").replace(ORDINAL, "")
+  return (members[0]?.label ?? "").replace(ORDINAL, "")
 }
 
 /** Each attempt's rail label: its engine's name, numbered only where several attempts share an engine (`Codex #2`). */
 export function attemptLabels(members: readonly TaskRow[]): Map<string, string> {
-  const ordered = [...members].sort((a, b) => created(a).localeCompare(created(b)) || a.id.localeCompare(b.id))
   const name = (task: TaskRow): string => task.engine?.name ?? task.label
   const total = new Map<string, number>()
-  for (const task of ordered) total.set(name(task), (total.get(name(task)) ?? 0) + 1)
+  for (const task of members) total.set(name(task), (total.get(name(task)) ?? 0) + 1)
   const seen = new Map<string, number>()
   return new Map(
-    ordered.map((task) => {
+    members.map((task) => {
       const base = name(task)
       const nth = (seen.get(base) ?? 0) + 1
       seen.set(base, nth)

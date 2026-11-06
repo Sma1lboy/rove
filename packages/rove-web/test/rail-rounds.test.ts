@@ -53,7 +53,7 @@ describe("a parallel round in the rail", () => {
       ],
       "recent",
     )
-    expect(rows.map((row) => row[0])).toEqual(["round", "a2", "a1", "mid"])
+    expect(rows.map((row) => row[0])).toEqual(["round", "a1", "a2", "mid"])
   })
 
   test("one live attempt left (the others archived) is a plain row", () => {
