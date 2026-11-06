@@ -13,12 +13,13 @@ import * as prompts from "./prompts.ts"
 import * as rail from "./rail.ts"
 import * as runLog from "./run-log.ts"
 import * as settings from "./settings.ts"
+import * as transcript from "./transcript.ts"
 import * as usage from "./usage.ts"
 import * as workspace from "./workspace.ts"
 
 export type Locale = "en" | "zh"
 
-const parts = [rail, workspace, dialogs, panel, settings, compare, prompts, runLog, usage]
+const parts = [rail, workspace, dialogs, panel, settings, compare, prompts, runLog, usage, transcript]
 
 /** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
 export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof rail.en &
@@ -29,7 +30,8 @@ export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof r
   typeof compare.en &
   typeof prompts.en &
   typeof runLog.en &
-  typeof usage.en
+  typeof usage.en &
+  typeof transcript.en
 export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }

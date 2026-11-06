@@ -20,6 +20,7 @@ import { HitEntry, Note, SectionHead, TaskEntry, useConversationHits } from "./p
 import { repoLabel } from "./rail-labels.ts"
 import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
+import { openTranscriptAt } from "./transcript-focus.ts"
 import { type PageId, closeDialog, dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
@@ -142,6 +143,8 @@ function PaletteDialog({
     if (entry.kind === "task") model.select(entry.task.id)
     else model.select(entry.hit.taskId, entry.hit.tabId ?? null)
     enterWorkspace()
+    // After the selection: picking a task resets a phone's panel view, and the hit then opens Chat on its message.
+    if (entry.kind === "hit") openTranscriptAt(entry.hit.taskId, entry.hit)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {

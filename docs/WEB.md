@@ -67,12 +67,19 @@ already paired with `rove-bridge` keeps working: the two share one token.
   on a phone), with its terminal and diff one click away. `[ keep this one ]`
   marks it kept (`update --kept`) and offers to archive the others behind the
   usual confirm. Not available in place, ungrouped, or on another machine.
+- The Chat tab (first of the panel's buttons) reads the task's conversation from
+  the engine's own history (`output.read`, claude and codex alike): user and
+  assistant turns as Markdown, each tool call folded to one line, `[ copy ]` per
+  message, a find box, `[ export .md ]` for the whole thread, and new messages
+  as the engine writes them. A palette conversation hit opens it scrolled to
+  that message. An engine with no readable history shows its labelled terminal
+  tail. It never takes input: the composer stays in the terminal.
 - The side panel holds several tabs per task (Files, a diff per file, a
   Browser per page), optionally in two stacked groups, and its views answer to
-  agents. It starts closed: the Files, Diff and Browser buttons at the
+  agents. It starts closed: the Chat, Files, Diff and Browser buttons at the
   workspace's top right open it on that view (the shown kind is tinted;
   pressing it again closes the panel), and its top row has an expand button
-  and a close ×. A phone keeps its Terminal / Files / Diff / Browser switch
+  and a close ×. A phone keeps its Terminal / Chat / Files / Diff / Browser switch
   and shows no buttons. A page
   reports whether it has a panel, whether it is open, and its width, so
   `rove api viewers` tells an agent what you can see (and whether the page is

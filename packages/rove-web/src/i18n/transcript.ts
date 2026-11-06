@@ -1,0 +1,48 @@
+/** `transcript` messages: the side panel's Chat tab. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
+export const en = {
+  transcript: {
+    you: "You",
+    agent: "Agent",
+    system: "System",
+    copy: "[ copy ]",
+    copied: "Copied",
+    export: "[ export .md ]",
+    findPlaceholder: "Find in this conversation",
+    findCount: "{at} / {total}",
+    findNone: "no match",
+    prev: "[ prev ]",
+    next: "[ next ]",
+    older: "[ load earlier ]",
+    loading: "Reading the conversation…",
+    empty: "Nothing said yet.",
+    failed: "failed",
+    error: "Could not read the conversation: {error}",
+    retry: "[ retry ]",
+    noHistory: "This engine keeps no history Rove can read. Showing its terminal tail.",
+    tail: "Terminal tail",
+  },
+}
+
+export const zh: typeof en = {
+  transcript: {
+    you: "你",
+    agent: "智能体",
+    system: "系统",
+    copy: "[ 复制 ]",
+    copied: "已复制",
+    export: "[ 导出 .md ]",
+    findPlaceholder: "在这段对话中查找",
+    findCount: "{at} / {total}",
+    findNone: "没有匹配",
+    prev: "[ 上一个 ]",
+    next: "[ 下一个 ]",
+    older: "[ 加载更早 ]",
+    loading: "正在读取对话…",
+    empty: "还没有对话内容。",
+    failed: "失败",
+    error: "读不到这段对话：{error}",
+    retry: "[ 重试 ]",
+    noHistory: "这个引擎没有 Rove 能读取的历史记录，显示的是它的终端末尾。",
+    tail: "终端末尾",
+  },
+}
