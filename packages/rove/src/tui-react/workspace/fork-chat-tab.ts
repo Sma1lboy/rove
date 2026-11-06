@@ -12,7 +12,7 @@ import {
   withPinnedSessionId,
 } from "@/engine/engine-presets"
 import { engineDisplayName } from "@/engine/interactive-command"
-import { buildHandoffPrompt } from "@/engine/session-handoff"
+import { buildHandoffPrompt, handoffContext } from "@/engine/session-handoff"
 import type { VendorId } from "@/types/vendor"
 import {
   type EngineTab,
@@ -51,23 +51,21 @@ export function liveSourceProtocol(active: TerminalTab, tabVendor: VendorId): Ve
 /**
  * "Continue this chat in `target`": same engine that can branch → native
  * fork; else a HANDOFF, a fresh session briefed with the source transcript's
- * path (`session-handoff.ts`). Transcripts are never converted.
+ * path and a bounded excerpt of it (`session-handoff.ts`). Transcripts are
+ * never converted.
  */
 export async function planChatContinuation(
   active: TerminalTab,
   source: VendorId,
   target: VendorId,
   worktree: string,
+  taskTitle?: string,
 ): Promise<ChatForkPlan> {
-  const sessionId = await forkSourceSessionId(active, source, worktree)
-  if (!sessionId) return { kind: "no-session" }
-  if (target === source && engineCanFork(source)) return { kind: "fork", sessionId }
-  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
-  if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
-  return {
-    kind: "handoff",
-    prompt: buildHandoffPrompt({ fromEngine: engineDisplayName(source), transcriptPath, worktree }),
+  if (target === source && engineCanFork(source)) {
+    const sessionId = await forkSourceSessionId(active, source, worktree)
+    return sessionId ? { kind: "fork", sessionId } : { kind: "no-session" }
   }
+  return planWorktreeHandoff(active, source, worktree, taskTitle)
 }
 
 /** Continue into a child task: native forks are keyed to the source cwd, so
@@ -76,14 +74,33 @@ export async function planWorktreeHandoff(
   active: TerminalTab,
   source: VendorId,
   worktree: string,
+  taskTitle?: string,
 ): Promise<ChatForkPlan> {
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
-  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
+  return handoffPlan(source, sessionId, worktree, taskTitle)
+}
+
+async function handoffPlan(
+  source: VendorId,
+  sessionId: string,
+  worktree: string,
+  taskTitle: string | undefined,
+): Promise<ChatForkPlan> {
+  const { history } = protocolEntry(source)
+  const transcriptPath = await history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
+  // Best effort: a reader that throws leaves the path-only brief.
+  const context = handoffContext(await history.readHistory(sessionId).catch(() => []))
   return {
     kind: "handoff",
-    prompt: buildHandoffPrompt({ fromEngine: engineDisplayName(source), transcriptPath, worktree }),
+    prompt: buildHandoffPrompt({
+      fromEngine: engineDisplayName(source),
+      transcriptPath,
+      worktree,
+      ...(taskTitle ? { taskTitle } : {}),
+      ...context,
+    }),
   }
 }
 

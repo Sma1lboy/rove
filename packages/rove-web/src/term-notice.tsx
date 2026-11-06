@@ -10,6 +10,7 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import type { Notice } from "./term-mount.ts"
 import { dialog } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { termNotice } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
 
@@ -41,13 +42,15 @@ export function TermNotice(props: {
   readonly model: AppModel
   readonly taskId: string
   readonly revive: { readonly busy: boolean; readonly error: string | null }
+  /** The dead tab: its conversation is what "continue in another engine" carries over. */
+  readonly tabId?: string
   /** Reopen the tab's own session; `true` also replaces a running one whose engine has exited. Absent for a split pane. */
   readonly onReopen?: (restartExited: boolean) => void
   /** Attach again after a failed attach. */
   readonly onRetryAttach?: () => void
 }) {
   useLocale()
-  const { notice, engineExit, model, taskId, revive } = props
+  const { notice, engineExit, model, taskId, tabId, revive } = props
   const lostEngine = notice.kind === "none" ? engineExit : null
   if (notice.kind === "none" && !lostEngine) return null
 
@@ -93,6 +96,15 @@ export function TermNotice(props: {
           >
             {t("menu.newChatPick")}
           </button>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
         </>
       )}
     </div>

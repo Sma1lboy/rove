@@ -270,6 +270,7 @@ export function TerminalView(props: TerminalViewProps) {
           engineExit={answeredExit ? null : (props.engineExit ?? null)}
           model={props.model}
           taskId={taskId}
+          tabId={tabId}
           revive={revive}
           onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
           onRetryAttach={handle ? () => void handle.reattach() : undefined}

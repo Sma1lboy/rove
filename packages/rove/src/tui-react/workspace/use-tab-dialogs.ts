@@ -78,6 +78,8 @@ export function useTabDialogs(deps: {
   /** Passed to plugin panes as `ROVE_PLUGIN_TASK_ID`. */
   taskId: string
   worktree: string
+  /** The task's title, carried into a handoff brief. */
+  taskTitle?: string
   liveTitles: ReadonlyMap<string, string>
   update: (next: TabsState) => void
   pinSession: (s: TabsState, vendor: VendorId | undefined) => TabsState
@@ -161,7 +163,7 @@ export function useTabDialogs(deps: {
     const vendor = choice.pick as VendorId
     if (choice.context === "continue") {
       const target = vendor === tabVendor ? source : vendor
-      const plan = await planChatContinuation(active, source, target, deps.worktree)
+      const plan = await planChatContinuation(active, source, target, deps.worktree, deps.taskTitle)
       if (plan.kind === "fork") {
         if (deps.onSpawnChild) {
           deps.onSpawnChild({ parentTaskId: deps.taskId, vendor, tabs: forkFirstTab(vendor, target, plan.sessionId) })
@@ -196,7 +198,7 @@ export function useTabDialogs(deps: {
     }
     let contextPrompt: string | undefined
     if (choice.context === "continue") {
-      const plan = await planWorktreeHandoff(active, source, deps.worktree)
+      const plan = await planWorktreeHandoff(active, source, deps.worktree, deps.taskTitle)
       if (plan.kind !== "handoff") {
         notifyRefusal(plan)
         return

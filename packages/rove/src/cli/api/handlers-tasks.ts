@@ -21,6 +21,7 @@ import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
 import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
+import { handoffBrief } from "./handoff-brief.ts"
 import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
@@ -163,8 +164,17 @@ export async function send(ctx: VerbContext): Promise<unknown> {
 
 async function sendNow(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const prompt = requirePromptText(ctx, "send")
+  const handoffFrom = ctx.args.str("handoff-from")
   let tab = ctx.args.str("tab")
+  if (handoffFrom && tab !== "new") {
+    throw new ApiError(
+      `--handoff-from starts a new conversation; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
+      "BAD_FLAG",
+      helpStep("send"),
+    )
+  }
+  // With a handoff the prompt is optional: the brief already asks the engine to say where the work stood.
+  let prompt = handoffFrom ? (ctx.args.promptText() ?? "") : requirePromptText(ctx, "send")
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
   }
@@ -193,6 +203,7 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
   let taskId = sendTo.taskId
   tab = sendTo.tab
   let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  if (handoffFrom) prompt = [await handoffBrief(ctx, res.task, handoffFrom), prompt].filter(Boolean).join("\n\n")
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)

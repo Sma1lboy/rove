@@ -54,7 +54,7 @@ export interface TerminalOpDeps {
   writeFile(path: string, bytes: Uint8Array): void
   /** The persisted tab (carries `sessionId`), if the snapshot has it. */
   readTab(taskId: string, tabId: string): TerminalTab | undefined
-  planHandoff(active: TerminalTab, source: VendorId, worktree: string): Promise<ChatForkPlan>
+  planHandoff(active: TerminalTab, source: VendorId, worktree: string, taskTitle?: string): Promise<ChatForkPlan>
   prPrompt(worktree: string): Promise<string>
 }
 
@@ -219,7 +219,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         // A snapshot-less tab still has a conversation: the planner falls back to the engine's newest session here.
         const active = deps.readTab(id, tab) ?? (initialTabs().tabs[0] as TerminalTab)
         const tabVendor = ((active.kind === "engine" ? active.vendor : undefined) ?? task.vendor) as VendorId
-        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree)
+        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree, task.title)
         return plan.kind === "handoff"
           ? { kind: "handoff", prompt: plan.prompt }
           : plan.kind === "no-transcript"

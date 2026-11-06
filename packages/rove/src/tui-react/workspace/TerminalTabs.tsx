@@ -328,6 +328,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     active,
     vendor: props.vendor,
     taskId: props.taskId,
+    taskTitle: props.taskTitle,
     worktree: props.worktree,
     liveTitles,
     update,
@@ -346,7 +347,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     tab: active,
     hook: props.hookTabStates?.get(active.id),
     retry: tabClose.retryActive,
-    anotherEngine: () => requestNewChat(),
+    requestNewChat,
     onOpenSettings: props.onOpenSettings,
   })
 
@@ -363,6 +364,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   }
   const openNewConversationRef = useLatest(openNewConversation)
   const openNewShellRef = useLatest(newShell)
+  const continueInEngineRef = useLatest(() => requestNewChat({ context: "continue" }))
 
   // Cross-component tab requests. Declared AFTER the dialogs hook so the
   // conversation opener exists to hand over.
@@ -374,6 +376,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     activeLeafSizeRef,
     openNewConversationRef,
     openNewShellRef,
+    continueInEngineRef,
   })
 
   useBindings(() => ({
@@ -419,6 +422,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     activeId: state.activeId,
     select: (tabId) => update(selectTab(stateRef.current, tabId)),
     rename: requestRename,
+    continueEngine: () => requestNewChat({ context: "continue" }),
     closeActive: () => tabClose.closeActive(),
   })
 

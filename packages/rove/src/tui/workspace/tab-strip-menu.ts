@@ -7,7 +7,7 @@
 
 import type { TerminalTab } from "./terminal-tab-shapes"
 
-export type TabStripMenuAction = "rename" | "copyAddress" | "closeOthers" | "close"
+export type TabStripMenuAction = "rename" | "continueEngine" | "copyAddress" | "closeOthers" | "close"
 
 export interface TabStripMenuItem {
   readonly action: TabStripMenuAction
@@ -22,6 +22,14 @@ export function tabStripMenuItems(tab: TerminalTab, tabCount: number): TabStripM
   const items: TabStripMenuItem[] = [
     { action: "rename", labelKey: "terminal.tab.menu.rename", bindingId: "chat.tab.rename" },
   ]
+  // A conversation can move to another engine; shell, editor and preview tabs hold none.
+  if (tab.kind === "engine") {
+    items.push({
+      action: "continueEngine",
+      labelKey: "terminal.tab.menu.continueEngine",
+      bindingId: "chat.tab.fork",
+    })
+  }
   // A preview/diff tab runs no process, so `rove api send --tab` has nothing to reach.
   if (tab.kind !== "content") items.push({ action: "copyAddress", labelKey: "terminal.tab.menu.copyAddress" })
   // Ends every sibling's session: danger-toned, and the host confirms first.

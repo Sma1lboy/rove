@@ -188,6 +188,13 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     section: "open",
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />),
   })
+  // Moves the conversation (tab-scoped from a tab's menu) to another engine in this directory.
+  items.push({
+    label: t("menu.continueEngine"),
+    section: "open",
+    ...bound("chat.tab.fork"),
+    run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} context="continue" sourceTabId={tab?.id} />),
+  })
   items.push({
     label: t("menu.newShell"),
     section: "open",

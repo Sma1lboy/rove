@@ -67,7 +67,7 @@ export function HostSidebar(props: HostSidebarProps) {
   // No background path: the picker is a dialog and a shell tab needs its PTY
   // where tabs render, so ENTER the task; its workspace claims the request.
   const newTab = useCallback(
-    (taskId: string, kind: "chat" | "shell"): void => {
+    (taskId: string, kind: "chat" | "shell" | "continue"): void => {
       props.onActivate(taskId)
       requestNewTab(taskId, kind)
     },
