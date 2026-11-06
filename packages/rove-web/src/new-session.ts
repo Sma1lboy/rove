@@ -71,6 +71,18 @@ export function engineChipLabel(names: readonly string[]): string {
   return rest.length > 0 ? `${first} + ${second} +${rest.length}` : `${first} + ${second}`
 }
 
+/**
+ * The round a compare Start left behind when some attempt failed to start (`PARTIAL_FANOUT`): its tasks exist, so
+ * the page opens Compare on them rather than stranding them. Undefined for any other failure.
+ */
+export function partialRoundId(err: unknown): string | undefined {
+  if (!(err instanceof Error) || !("code" in err) || err.code !== "PARTIAL_FANOUT") return undefined
+  const detail = "detail" in err && err.detail && typeof err.detail === "object" ? err.detail : undefined
+  return detail && "groupId" in detail && typeof detail.groupId === "string" && detail.groupId
+    ? detail.groupId
+    : undefined
+}
+
 /** A task spans at most this many repos (the daemon's `MULTI_REPO_CAP`). */
 export const REPO_CAP = 8
 

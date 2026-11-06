@@ -31,21 +31,28 @@ export function openCompare(groupId: string): void {
   openPage("compare")
 }
 
-const narrowQuery = window.matchMedia(NARROW_QUERY)
-export const isNarrow = (): boolean => narrowQuery.matches
+let narrowQuery: MediaQueryList | undefined
+// Read on first use, not at import: a module that only opens a page (a row menu) must load without a browser's `matchMedia`.
+const narrowMedia = (): MediaQueryList => {
+  narrowQuery ??= window.matchMedia(NARROW_QUERY)
+  return narrowQuery
+}
+export const isNarrow = (): boolean => narrowMedia().matches
 /** Runs when the viewport crosses the narrow breakpoint. */
 export const onNarrowChange = (listener: () => void): (() => void) => {
-  narrowQuery.addEventListener("change", listener)
-  return () => narrowQuery.removeEventListener("change", listener)
+  const query = narrowMedia()
+  query.addEventListener("change", listener)
+  return () => query.removeEventListener("change", listener)
 }
 
 export function useNarrow(): boolean {
   return useSyncExternalStore(
     (notify) => {
-      narrowQuery.addEventListener("change", notify)
-      return () => narrowQuery.removeEventListener("change", notify)
+      const query = narrowMedia()
+      query.addEventListener("change", notify)
+      return () => query.removeEventListener("change", notify)
     },
-    () => narrowQuery.matches,
+    () => narrowMedia().matches,
   )
 }
 

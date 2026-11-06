@@ -8,6 +8,7 @@ import {
   modelChipLabel,
   modelChoices,
   offeredEngines,
+  partialRoundId,
   repoChipLabel,
   spawnArgs,
   startInCheckout,
@@ -217,6 +218,15 @@ describe("New session composer", () => {
     expect(engineChipLabel(["Claude"])).toBe("Claude")
     expect(engineChipLabel(["Claude", "Codex"])).toBe("Claude + Codex")
     expect(engineChipLabel(["Claude", "Codex", "Pi", "Omp"])).toBe("Claude + Codex +2")
+  })
+
+  test("a partial fan-out leaves its round to open; any other failure leaves nothing", () => {
+    const refusal = (code: string, detail?: Record<string, unknown>) =>
+      Object.assign(new Error("add delivered 1/2"), { code, detail })
+    expect(partialRoundId(refusal("PARTIAL_FANOUT", { groupId: "g1", count: 1 }))).toBe("g1")
+    expect(partialRoundId(refusal("PARTIAL_FANOUT", { count: 1 }))).toBeUndefined()
+    expect(partialRoundId(refusal("UNKNOWN_ENGINE", { groupId: "g1" }))).toBeUndefined()
+    expect(partialRoundId("PARTIAL_FANOUT")).toBeUndefined()
   })
 })
 

@@ -31,6 +31,7 @@ import {
   effortChoices,
   modelChipLabel,
   modelChoices,
+  partialRoundId,
   repoChipLabel,
   spawnArgs,
   startInCheckout,
@@ -42,7 +43,7 @@ import { CLONE_PARENT_KEY, expandTilde, filterText, splitRepoRow, stripTrailingS
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
-import { type NewSessionStart, dialog, newSession, openNewSession } from "./ui.ts"
+import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
 
@@ -288,7 +289,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       if (compared) openCompare(compared)
       else if (created) model.selectWhenListed(created)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const round = partialRoundId(err)
+      if (round) {
+        // Some attempts did start: show them, with the failure, instead of leaving them unseen in the rail.
+        promptDraft = ""
+        clear()
+        newSession.set(null)
+        toast(err instanceof Error ? err.message : String(err), "error")
+        openCompare(round)
+      } else setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
     }
