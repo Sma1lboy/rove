@@ -74,6 +74,42 @@ export function glideStep(pending: number, dtMs: number): number {
   return Math.abs(pending - part) < 0.02 ? pending : part
 }
 
+/** A wheel stream so far: its direction, the delta it last rose to, and how long it has been falling. */
+export interface CoastState {
+  readonly sign: number
+  readonly at: number
+  readonly peak: number
+  readonly last: number
+  readonly falling: number
+  readonly coasting: boolean
+}
+
+/** Silence that ends a gesture, and how the OS's momentum looks in a stream with no phase information. */
+const COAST_GAP_MS = 120
+const COAST_FALLING_EVENTS = 4
+const COAST_PEAK_RATIO = 3
+/** Below this a momentum event is the crawl after the flick: a pixel or two per frame for up to a second. */
+const COAST_FLOOR_PX = 3
+/** Momentum's deltas are whole pixels, so its decay dithers (3, 2, 3, 2): a rise this small is not a new push. */
+const COAST_DITHER_PX = 1
+
+/**
+ * Whether a touchpad delta is the tail of the OS's momentum, not a finger: small, after a run of falling deltas
+ * that started well above it. A pause, a change of direction or a real rise starts over.
+ */
+export function coastStep(prev: CoastState | null, deltaPx: number, at: number): CoastState {
+  const abs = Math.abs(deltaPx)
+  const sign = Math.sign(deltaPx)
+  if (!prev || at - prev.at > COAST_GAP_MS || sign !== prev.sign) {
+    return { sign, at, peak: abs, last: abs, falling: 0, coasting: false }
+  }
+  const rising = abs > prev.last + COAST_DITHER_PX
+  const falling = rising ? 0 : prev.falling + 1
+  const peak = rising ? abs : prev.peak
+  const coasting = abs < COAST_FLOOR_PX && falling >= COAST_FALLING_EVENTS && peak >= abs * COAST_PEAK_RATIO
+  return { sign, at, peak, last: abs, falling, coasting }
+}
+
 /** Lines above the live screen the viewport sits (0 = following the bottom). */
 export function linesFromBottom(buffer: { readonly baseY: number; readonly viewportY: number }): number {
   return Math.max(0, buffer.baseY - buffer.viewportY)
