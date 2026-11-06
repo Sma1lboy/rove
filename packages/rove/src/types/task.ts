@@ -14,18 +14,20 @@ export const toTaskId = (id: string): TaskId => id as TaskId
 export type { VendorId } from "./vendor.ts"
 import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type {
-  TaskDeletionState,
   TaskDispatcher,
   TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskPtyAlias,
-  TaskQuotaResumeState,
-  TaskScheduledStart,
   TaskSessionPr,
   TaskStatus,
-  TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type {
+  TaskDeletionState,
+  TaskQuotaResumeState,
+  TaskScheduledStart,
+  TaskWorkerReport,
+} from "@sma1lboy/rove-daemon/daemon/task-state-contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
 import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
 import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"

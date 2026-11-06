@@ -21,7 +21,7 @@
  */
 
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import { PR_VIEW_TIMEOUT_MS, spawnGh } from "./pr-status-collector.ts"
+import { PR_VIEW_TIMEOUT_MS, spawnGh } from "./pr-gh-runner.ts"
 
 /** At most this many failing jobs are reported — the rest are counted, not read. */
 export const MAX_FAILING_JOBS = 3

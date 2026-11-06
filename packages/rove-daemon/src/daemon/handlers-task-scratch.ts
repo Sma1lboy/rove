@@ -2,7 +2,7 @@
 
 import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
-import { serializeTask } from "./protocol.ts"
+import { serializeTask } from "./serialize-task.ts"
 
 export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
   {

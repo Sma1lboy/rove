@@ -10,8 +10,8 @@ import type { ChannelName } from "./channels.ts"
 import { objectPayload, optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import { senderOf } from "./handlers-dispatch.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
-import { displayTaskTitle } from "./protocol.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
+import { displayTaskTitle } from "./serialize-task.ts"
 
 /** `ui.prompt` timeout bounds — a plugin must not hang the CLI forever. */
 const PROMPT_DEFAULT_TIMEOUT_MS = 120_000

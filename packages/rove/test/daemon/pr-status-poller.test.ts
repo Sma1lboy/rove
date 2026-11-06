@@ -8,6 +8,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { pickPr } from "@sma1lboy/rove-daemon/daemon/pr-gh-runner"
 import {
   DEFAULT_PR_STATUS_POLL_MS,
   NO_PR_BACKOFF_MS,
@@ -19,7 +20,6 @@ import {
   type PrViewRunner,
   SETTLED_BACKOFF_MS,
   isPrPollable,
-  pickPr,
   runPrStatusPass as runPrStatusPassRaw,
   startPrStatusPoller,
 } from "@sma1lboy/rove-daemon/daemon/pr-status-collector"
