@@ -49,7 +49,7 @@
     },
     "packages/rove": {
       "name": "@sma1lboy/rove",
-      "version": "0.9.276",
+      "version": "0.9.277",
       "bin": {
         "rove": "dist/cli/rove.js",
       },
@@ -74,8 +74,8 @@
         "@vitest/coverage-v8": "2.1.9",
         "knip": "^6.14.2",
         "react-devtools-core": "^7.0.1",
-        "rove-bridge": "0.0.37",
-        "rove-weixin": "0.0.37",
+        "rove-bridge": "0.0.38",
+        "rove-weixin": "0.0.38",
         "typescript": "5.8.2",
         "vitest": "2.1.9",
       },
@@ -85,7 +85,7 @@
     },
     "packages/rove-bridge": {
       "name": "rove-bridge",
-      "version": "0.0.37",
+      "version": "0.0.38",
       "dependencies": {
         "@hsinsekai-nanami/agent": "0.2.4",
         "@hsinsekai-nanami/core": "0.2.2",
@@ -215,7 +215,7 @@
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.0",
         "@vitejs/plugin-react": "^6.0.4",
-        "rove-bridge": "0.0.37",
+        "rove-bridge": "0.0.38",
         "tailwindcss": "^4.3.3",
         "typescript": "5.8.2",
         "vite": "^8.2.2",
@@ -223,7 +223,7 @@
     },
     "packages/rove-weixin": {
       "name": "rove-weixin",
-      "version": "0.0.37",
+      "version": "0.0.38",
       "dependencies": {
         "@sma1lboy/rove": "workspace:*",
         "@sma1lboy/rove-daemon": "workspace:*",
