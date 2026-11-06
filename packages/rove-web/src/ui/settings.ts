@@ -80,8 +80,8 @@ const ENG_GRID = "grid grid-cols-[minmax(0,1fr)_104px_72px] items-center gap-3"
 export const ENG_LIST = "flex flex-col"
 export const ENG_LIST_HEAD = `${ENG_GRID} pb-1.5 pl-7.5 font-sans text-meta font-medium normal-nums text-subtle [&>span:not(:first-child)]:text-center`
 export const ENG_ITEM = "border-b-hairline border-b-line first:border-t-hairline first:border-t-line"
-/** `group/eng`: the make-default button shows while its row is hovered or focused. */
-export const ENG_ROW = `${ENG_GRID} group/eng rounded-sm py-1.5 pr-1 pl-0 hover:bg-hover`
+/** `group/eng`: the make-default button shows while its row is hovered or focused. No hover wash: it stacked on the open details' fill as two greys. */
+export const ENG_ROW = `${ENG_GRID} group/eng rounded-sm py-1.5 pr-1 pl-0`
 const FOCUS = "focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus"
 export const ENG_SUMMARY = `flex min-w-0 items-center gap-2 rounded-sm py-1.5 pr-0 pl-1.5 text-left ${FOCUS}`
 export const engChevronClass = (open: boolean): string => `mx-0.5 ${open ? "text-muted" : "text-subtle"}`
@@ -107,7 +107,8 @@ export const ENG_PILL =
 export const ENG_MAKE_DEFAULT =
   "rounded-full border-hairline border-line px-2.5 py-0.5 text-meta leading-[inherit] whitespace-nowrap text-muted opacity-0 transition-opacity duration-120 ease-[ease] group-hover/eng:opacity-100 group-focus-within/eng:opacity-100 hover:border-line-active hover:text-ink motion-reduce:transition-none touch:opacity-100"
 
-export const ENG_DETAIL_AREA = "mt-0 mr-1 mb-2.5 ml-7 flex flex-col gap-2.5 rounded-sm bg-inset px-3 py-2.5"
+/** Open details: indented under the name, no fill of their own; the row's hairlines frame them. */
+export const ENG_DETAIL_AREA = "mt-0 mr-1 mb-3 ml-7 flex flex-col gap-2.5 px-1.5 py-1"
 export const ENG_FACTS = "m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 text-meta leading-[1.5]"
 export const ENG_FACT_TERM = "text-subtle"
 export const engFactClass = (warn: boolean): string => `m-0 wrap-anywhere ${warn ? "text-warning" : "text-ink"}`
