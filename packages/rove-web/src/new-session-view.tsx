@@ -123,7 +123,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [error, setError] = useState<string | null>(null)
   const { attachments, attach, remove, clear } = useAttachments(model, setError)
   const area = useRef<HTMLTextAreaElement>(null)
-  const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area })
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
@@ -304,6 +303,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     }
   }
 
+  const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
+
   const branchRows = filterText(probe?.branches ?? [], branchQuery).map((name) => ({
     key: name,
     text: name,
@@ -341,14 +342,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             placeholder={t("newSession.placeholder")}
             value={prompt}
             disabled={busy}
-            onChange={snippets.change}
-            onSelect={snippets.select}
             onPaste={targets?.onPaste}
-            onKeyDown={(e) => {
-              if (snippets.key(e) || e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
-              e.preventDefault()
-              void start()
-            }}
+            {...snippets.field}
           />
           {snippets.list}
           <div className={C.CARD_ACTIONS}>

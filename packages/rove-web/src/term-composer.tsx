@@ -97,9 +97,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       composerKey={key}
       fieldRef={field}
       suggest={snippets.list}
-      onSelect={snippets.select}
-      onKeyDown={(e) => void snippets.key(e)}
-      onChange={snippets.change}
+      {...snippets.field}
       onPaste={fileTargets(onFiles).onPaste}
       onSend={() => void send()}
     />

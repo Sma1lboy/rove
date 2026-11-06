@@ -4,15 +4,9 @@
  * text, Esc closes. With the list closed every key reaches the field as before, so Enter still sends.
  */
 
-import {
-  type ChangeEvent,
-  type KeyboardEvent,
-  type RefObject,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react"
+import { type ChangeEvent, type KeyboardEvent, type RefObject, useLayoutEffect, useRef, useState } from "react"
 import { type Snippet, expandSnippet, matchSnippets, snippetToken, useSnippets } from "./snippets.ts"
+import { Button } from "./ui/button.tsx"
 import { SUGGEST_LIST, suggestRowClass } from "./ui/text.ts"
 
 const firstLine = (text: string): string => text.split("\n", 1)[0] ?? ""
@@ -27,8 +21,8 @@ function SnippetList(props: {
     <ul className={`${SUGGEST_LIST} ${props.className}`}>
       {props.items.map((item, i) => (
         <li key={item.name}>
-          <button
-            type="button"
+          <Button
+            variant="row"
             tabIndex={-1}
             aria-pressed={i === props.at}
             className={suggestRowClass({ cursor: i === props.at, accent: false })}
@@ -39,7 +33,7 @@ function SnippetList(props: {
           >
             <span className="text-accent">@{item.name}</span>
             <span className="text-muted"> {firstLine(item.text)}</span>
-          </button>
+          </Button>
         </li>
       ))}
     </ul>
@@ -52,6 +46,8 @@ export function useSnippetSuggest(o: {
   area: RefObject<HTMLTextAreaElement | null>
   /** Classes placing the list: under the field by default, or floated over a fixed-height bar. */
   listClassName?: string
+  /** A bare Enter with no suggestion open. */
+  onEnter?: () => void
 }) {
   const all = useSnippets()
   const [caret, setCaret] = useState(0)
@@ -82,29 +78,36 @@ export function useSnippetSuggest(o: {
     o.onChange(next.text)
   }
 
+  const key = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (!shown || e.nativeEvent.isComposing) return false
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      setCursor(Math.max(0, Math.min(items.length - 1, at + (e.key === "ArrowDown" ? 1 : -1))))
+    } else if ((e.key === "Tab" && !e.shiftKey) || (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
+      pick(at)
+    } else if (e.key === "Escape") {
+      setClosed(token?.start ?? null)
+      e.stopPropagation()
+    } else return false
+    e.preventDefault()
+    return true
+  }
+
   return {
     list: shown ? <SnippetList items={items} at={at} className={o.listClassName ?? ""} onPick={pick} /> : null,
-    /** The field's `onChange`. */
-    change: (e: ChangeEvent<HTMLTextAreaElement>) => {
-      setCaret(e.target.selectionStart)
-      setCursor(0)
-      o.onChange(e.target.value)
-    },
-    /** The field's `onSelect`: the caret moved without the text changing. */
-    select: (e: { currentTarget: HTMLTextAreaElement }) => setCaret(e.currentTarget.selectionStart),
-    /** The field's `onKeyDown`, before its own handling; true = the list took the key. */
-    key: (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-      if (!shown || e.nativeEvent.isComposing) return false
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        setCursor(Math.max(0, Math.min(items.length - 1, at + (e.key === "ArrowDown" ? 1 : -1))))
-      } else if ((e.key === "Tab" && !e.shiftKey) || (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
-        pick(at)
-      } else if (e.key === "Escape") {
-        setClosed(token?.start ?? null)
-        e.stopPropagation()
-      } else return false
-      e.preventDefault()
-      return true
+    /** Spread onto the textarea. A key the list doesn't take falls to `onEnter` (a bare Enter) or the field. */
+    field: {
+      onChange: (e: ChangeEvent<HTMLTextAreaElement>) => {
+        setCaret(e.target.selectionStart)
+        setCursor(0)
+        o.onChange(e.target.value)
+      },
+      // The caret moved without the text changing.
+      onSelect: (e: { currentTarget: HTMLTextAreaElement }) => setCaret(e.currentTarget.selectionStart),
+      onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (key(e) || !o.onEnter || e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
+        e.preventDefault()
+        o.onEnter()
+      },
     },
   }
 }
