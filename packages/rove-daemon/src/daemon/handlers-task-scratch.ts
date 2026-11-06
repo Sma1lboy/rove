@@ -1,6 +1,6 @@
-/** Directory tasks with no project: open one (`rove .`, Scratch) or adopt it into the repo its shell landed in. */
+/** Directory tasks: open one (`rove .`, Scratch, a session in a project's own checkout) or adopt a scratch one into the repo its shell landed in. */
 
-import { optionalBoolean, optionalVendor, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
 
@@ -13,6 +13,7 @@ export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
         dir,
         vendor: optionalVendor(payload, "vendor"),
         scratch: optionalBoolean(payload, "scratch"),
+        title: optionalString(payload, "title"),
       })
       return { taskId: task.id, task: serializeTask(task) }
     },

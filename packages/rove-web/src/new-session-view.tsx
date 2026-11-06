@@ -2,12 +2,11 @@
  * New session, claude.ai/code's way: the workspace shows an empty "New session" with the composer at
  * the bottom. Machine, project, worktree, branch and model/effort are chips under the prompt card; Start spawns
  * the task with that prompt, so the engine boots in the task's own tab-1 and no empty task exists in
- * between. With Worktree off the session runs in the project's own checkout, as a child of its main task.
+ * between. With Worktree off the session runs in the project's own checkout, as its own row in the project.
  * Another machine's chip swaps the project list for that machine's, clones a repo it lacks there, and
  * starts the task through that machine's own daemon and credentials.
  */
 
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
@@ -32,6 +31,7 @@ import {
   modelChoices,
   repoChipLabel,
   spawnArgs,
+  startInCheckout,
   startUngrouped,
   toggleRepo,
 } from "./new-session.ts"
@@ -250,22 +250,16 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       let created: string | undefined
       if (ungrouped)
         created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
-      else if (inPlace) {
-        // The kanban "project" placement: a child of the main task, sharing the checkout as it is.
-        const main = await model.client.request<{ taskId: string }>("task.openMain", {
-          repo: fresh[0]?.repo ?? primary,
-        })
-        const res = await model.client.request<{ taskId?: string }>("tab.new", {
-          taskId: main.taskId,
-          kind: "engine",
-          ...(choice.engine ? { engine: choice.engine } : {}),
-          ...(begin ? { prompt: first } : {}),
-        })
-        created = res.taskId ?? main.taskId
-        // A session that starts is titled from its first message; one that doesn't takes the prompt now.
-        const title = !begin && res.taskId ? deriveTitleFromPrompt(prompt) : ""
-        if (title) await model.client.request("task.rename", { taskId: res.taskId, title })
-      } else {
+      else if (inPlace)
+        created = await startInCheckout(
+          model.client.request.bind(model.client),
+          fresh[0]?.repo ?? primary,
+          choice.engine,
+          prompt,
+          begin,
+          first,
+        )
+      else {
         const res = await model.client.request<{ taskIds: string[] }>(
           "task.spawn",
           spawnArgs({
