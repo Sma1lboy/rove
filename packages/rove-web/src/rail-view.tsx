@@ -14,7 +14,6 @@ import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain } from "./move-mode.ts"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
-import { focusActiveTerminal } from "./pane-focus.ts"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
 import { withArchived } from "./rail-archived.ts"
@@ -25,7 +24,7 @@ import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
 import { dropIdleMains } from "./rail-idle.ts"
-import { useRailFilters, useRailKeys } from "./rail-keys.ts"
+import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
@@ -273,14 +272,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
-                if (row.kind === "task") {
-                  const open = model.selection.get().taskId === row.task.id
-                  model.select(row.task.id)
-                  enterWorkspace()
-                  // Another task's terminal takes the keyboard as it mounts; the open one is already
-                  // mounted, and the click left focus on this row, where Escape reaches no engine.
-                  if (open) focusActiveTerminal()
-                }
+                if (row.kind === "task") openTaskRow(model, row.task.id)
               }}
               onMenu={(e) => {
                 // Another machine's project has no checkout here, so its header has no menu; its

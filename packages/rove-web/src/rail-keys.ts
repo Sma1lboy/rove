@@ -140,6 +140,14 @@ function railAction(candidates: readonly string[]): { id: RailId; slot: number }
   return null
 }
 
+/** A click on a task row. Another task's terminal takes the keyboard as it mounts; the open one is already mounted and the click left focus on the row, where Esc reaches no engine. */
+export function openTaskRow(model: AppModel, taskId: string): void {
+  const open = model.selection.get().taskId === taskId
+  model.select(taskId)
+  enterWorkspace()
+  if (open) focusActiveTerminal()
+}
+
 export function useRailKeys(
   model: AppModel,
   allRows: readonly NavRow[],
