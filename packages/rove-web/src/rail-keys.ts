@@ -222,7 +222,7 @@ export function useRailKeys(
       const movable = row?.kind === "task" && row.machine === undefined
       if (hit?.id === "sidebar.nav") {
         if (movable) void moveRow(model, row, hit.slot % 2 === 0 ? 1 : -1)
-      } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") moveMode.set(false)
+      } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") setMoveMode(false)
       else return
       e.preventDefault()
       return

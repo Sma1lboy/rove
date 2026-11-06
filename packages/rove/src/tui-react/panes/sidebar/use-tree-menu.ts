@@ -119,13 +119,18 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         tree.mainTaskIdOfProject(candidate.id) !== null
       const mainId = movable(row) ? tree.mainTaskIdOfProject(projectId) : null
       // The header has no cursor slot; its main row stands in, so "Reorder
-      // project" starts move mode where j/k drag the project.
+      // project" starts move mode where j/k drag the project. A main row
+      // with nothing to show is not listed: the Reorder entry brings it back
+      // for the move (`SidebarTree` holds it), so the entries follow the main
+      // task, not its row.
       const mainIndex = mainId === null ? -1 : tree.flatIds.indexOf(mainId)
       if (mainIndex >= 0) setCursorIndex(mainIndex)
       const firstMovable = tree.rows.find(movable)
-      openAt(row, { projectMovable: mainIndex >= 0, projectFirst: firstMovable?.id === projectId }, x, y)
+      // A search that dropped the main row leaves nothing to hold open for the move.
+      const projectMovable = mainId !== null && (mainIndex >= 0 || !tree.searching)
+      openAt(row, { projectMovable, projectFirst: firstMovable?.id === projectId }, x, y)
     },
-    [tree.rows, tree.flatIds, tree.mainTaskIdOfProject, openAt, setCursorIndex],
+    [tree.rows, tree.flatIds, tree.searching, tree.mainTaskIdOfProject, openAt, setCursorIndex],
   )
 
   const close = useCallback((): void => setMenu(null), [])

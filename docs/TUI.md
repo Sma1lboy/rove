@@ -199,7 +199,10 @@ row or one of its tab rows:
   reorders the row under the cursor at its own level: a tab moves within its
   Task, a Task moves within its repo group, and a project-main row moves the
   whole project. Moves stop at the edges (no wrap-around), and the new order
-  persists across restarts.
+  persists across restarts. A project-main row with no tab open, not selected
+  and with no child Tasks is not listed (the header stands for it): the
+  header's **Reorder project** and **Move to top** still work, and Reorder lists
+  the row while the project moves.
 - `d` is kind-aware: on a project-main row it ends the conversation (kills the
   sessions, closes the tabs; the project stays saved, the repo and worktrees stay
   on disk, and the project leaves the rail until it has a session again), removes only the Rove record for a directory Task, or removes a

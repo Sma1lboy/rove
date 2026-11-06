@@ -2,7 +2,7 @@
 
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import type { MouseEvent } from "react"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
@@ -10,7 +10,7 @@ import { InboxDialog } from "./inbox-view.tsx"
 import { enterWorkspace } from "./layout.ts"
 import { CloudMark, rowCloud, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, reorderingMain } from "./move-mode.ts"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
@@ -21,7 +21,7 @@ import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
-import { dropIdleProjects } from "./rail-idle.ts"
+import { dropIdleMains } from "./rail-idle.ts"
 import { useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
@@ -81,6 +81,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
 
   const filters = useRailFilters()
   const moving = useStore(moveMode)
+  const reordering = useStore(reorderingMain)
   const build = (query: string) =>
     railRows({
       tasks,
@@ -98,7 +99,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     ? built.rows
     : withArchived(
         foldProjects(
-          withPanes(dropIdleProjects(built.rows, tabs, selection.taskId, tabsSettled), tabs),
+          withPanes(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering), tabs),
           filters.collapsed,
         ),
         payload?.archived ?? [],
@@ -122,6 +123,12 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     onNewTask: startNewTask,
     onSettings: openSettings,
   })
+  // Header Reorder lists the main it moves; the cursor goes to it so j/k drag its project.
+  const reorderShown = reordering !== null && rows.some((row) => row.id === reordering)
+  const setCursor = keys.setCursor
+  useEffect(() => {
+    if (reorderShown && reordering !== null) setCursor(reordering)
+  }, [reorderShown, reordering, setCursor])
   const total = stops(build("").rows).length
   const rail = useRef<HTMLElement>(null)
   // Folded, the rail stays mounted and slides off to the left; inert so nothing in it takes focus or clicks,
@@ -268,7 +275,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 // The menu's target is the cursor, as the TUI's (a project header stands in with its main row).
                 if (row.kind === "project") {
                   const info = projectInfo(row.repo)
-                  if (info.mainTaskId) keys.setCursor(info.mainTaskId)
+                  if (info.mainTaskId && rows.some((r) => r.id === info.mainTaskId)) keys.setCursor(info.mainTaskId)
                   openMenu(e, projectMenu(model, row.repo, info))
                   return
                 }

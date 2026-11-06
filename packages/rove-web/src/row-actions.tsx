@@ -11,7 +11,7 @@ import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode, setMoveMode } from "./move-mode.ts"
+import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { splitMenu } from "./split-actions.tsx"
@@ -86,7 +86,7 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
       label: tc("tasks", "menu.reorderProject"),
       section: "edit",
       ...bound("sidebar.localMerge"),
-      run: () => enterMoveMode(),
+      run: () => enterMoveMode(main),
     })
   }
   items.push({
@@ -117,9 +117,14 @@ export function ungroupedMenu(model: AppModel): MenuItem[] {
   ]
 }
 
-/** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */
-function enterMoveMode(): void {
-  setMoveMode(!moveMode.get())
+/**
+ * Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus.
+ * From a project header, `main` is held as a row for the move, so a main with no tab still has one to drag.
+ */
+function enterMoveMode(main?: string): void {
+  const on = !moveMode.get()
+  if (on && main !== undefined) reorderingMain.set(main)
+  setMoveMode(on)
   document.querySelector<HTMLElement>(".rail")?.focus()
 }
 
