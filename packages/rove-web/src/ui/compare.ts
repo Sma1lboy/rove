@@ -15,3 +15,7 @@ export const CMP_REPLY = "m-0 line-clamp-6 whitespace-pre-wrap wrap-anywhere"
 export const CMP_FILES = "flex min-w-0 flex-col"
 export const CMP_FILE = "flex min-w-0 items-baseline gap-2 py-px font-mono text-meta"
 export const CMP_ACTIONS = "flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-meta"
+
+/** The attempts strip over a round attempt's terminal: one line, scrolling sideways (no bar) when a phone cannot fit it. */
+export const ATTEMPTS_STRIP =
+  "flex min-w-0 items-center gap-3.5 overflow-x-auto px-2.5 py-1 font-mono text-meta scrollbar-none"

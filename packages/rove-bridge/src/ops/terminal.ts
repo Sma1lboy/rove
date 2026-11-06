@@ -175,7 +175,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         const prompt = text(a, "prompt", PROMPT_MAX)
         const engine = engineId(a)
         const title = optText(a, "title", 200)
-        type Added = { taskId?: string; tasks?: ReadonlyArray<{ taskId: string }> }
+        type Added = { taskId?: string; groupId?: string; tasks?: ReadonlyArray<{ taskId: string }> }
         const tail = [flag("prompt", prompt), ...(engine ? [flag("command", engine)] : [])]
         // A clone of the source task carries its uncommitted work; a fan-out of attempts cannot share one clone.
         const forkFrom =
@@ -204,7 +204,12 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         const taskIds = res.tasks ? res.tasks.map((t) => t.taskId) : res.taskId ? [res.taskId] : []
         if (taskIds.length === 0) throw new BridgeError("ADD_FAILED", "no task was created")
         if (engine) taskOpDeps.rememberEngine(repo, engine)
-        return { taskIds, ...(forkRefused ? { forkRefused } : {}) }
+        // Attempts share the round's id, so the page can open its Compare view.
+        return {
+          taskIds,
+          ...(count > 1 && res.groupId ? { groupId: res.groupId } : {}),
+          ...(forkRefused ? { forkRefused } : {}),
+        }
       },
     },
 
