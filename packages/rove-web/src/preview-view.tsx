@@ -8,8 +8,9 @@
  */
 
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
-import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
+import { DiffBasePicker } from "./diff-base-picker.tsx"
+import { useDiffBase } from "./diff-base.ts"
 import { DiffFileRow } from "./diff-file-row.tsx"
 import { DiffNoteLine, DiffRowActions } from "./diff-row-actions.tsx"
 import { DiffToolbar } from "./diff-toolbar.tsx"
@@ -23,21 +24,13 @@ import {
   viewedFiles,
   withMark,
 } from "./diff-viewed.ts"
-import {
-  type DiffRow,
-  chatReference,
-  codeRows,
-  fileStats,
-  noteRange,
-  noteTarget,
-  parseUnifiedDiff,
-  visibleIndexes,
-} from "./diff.ts"
+import { type DiffRow, chatReference, fileStats, noteRange, noteTarget, visibleIndexes } from "./diff.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import type { DiffScope } from "./panel-model.ts"
 import { openDiff } from "./panel-state.ts"
+import { type Loaded, bridgeError, load } from "./preview-load.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type Note, type NoteState, locate, noteLabel, noteState, quoteRows } from "./review-notes.ts"
 import { ReviewTray } from "./review-tray.tsx"
@@ -47,40 +40,7 @@ import { type Preview, activeStream, dialog, toast } from "./ui.ts"
 import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
-type Loaded =
-  | { readonly kind: "rows"; readonly rows: DiffRow[]; readonly diff: boolean }
-  | { readonly kind: "text"; readonly text: string; readonly error?: boolean }
-
 const NO_ROWS: DiffRow[] = []
-
-/** `diff.file` result (`PreviewData`, `tui/ops/preview-core.ts`) → what this view draws. */
-function load(data: unknown, path: string): Loaded {
-  if (!data || typeof data !== "object" || !("kind" in data)) return { kind: "text", text: t("preview.unknown") }
-  const text = "text" in data && typeof data.text === "string" ? data.text : ""
-  switch (data.kind) {
-    case "diff":
-      return { kind: "rows", rows: parseUnifiedDiff(text, path === "." ? null : path), diff: true }
-    case "code":
-      return { kind: "rows", rows: codeRows(text, path), diff: false }
-    case "binary":
-      return { kind: "text", text: t("preview.binary") }
-    case "empty":
-      return { kind: "text", text: t("preview.empty") }
-    case "error":
-      return { kind: "text", text: "message" in data ? String(data.message) : t("preview.unknown"), error: true }
-    default:
-      return { kind: "text", text: t("preview.noHunks", { kind: String(data.kind) }) }
-  }
-}
-
-/** A bridge older than the page has no `review.edit`: say so rather than print `unknown op`. */
-function bridgeError(err: unknown): Error {
-  return err instanceof BridgeRequestError && err.code === "UNKNOWN_OP"
-    ? new Error(t("review.notSupported"))
-    : err instanceof Error
-      ? err
-      : new Error(String(err))
-}
 
 export function PreviewView({
   model,
@@ -93,11 +53,21 @@ export function PreviewView({
   const touch = isTouch()
   const [ws, setWs] = useState(loadIgnoreWs)
   const [marks, setMarks] = useState(loadMarks)
-  const params = { taskId: view.taskId, path: view.path, scope: view.scope, ...(ws ? { ignoreWhitespace: true } : {}) }
+  const [picked_, pickBase] = useDiffBase(view)
+  // A base chosen by hand only means something to the whole-task scope.
+  const custom = view.scope === "task" ? picked_ : null
+  const foreign = custom !== null
+  const params = {
+    taskId: view.taskId,
+    path: view.path,
+    scope: view.scope,
+    ...(ws ? { ignoreWhitespace: true } : {}),
+    ...(custom ? { base: custom } : {}),
+  }
   // The diff as last read shows at once; a refresh keeps the rows on screen until the reread lands.
   const [loaded, setLoaded] = useState<Loaded | null>(() => {
     const last = lastReply<unknown>(model, "diff.file", params)
-    return last === undefined ? null : load(last, view.path)
+    return last === undefined ? null : load(last, view.path, foreign)
   })
   const [notes, setNotes] = useState<readonly Note[]>(
     () => lastReply<{ notes: Note[] }>(model, "review.list", { taskId: view.taskId })?.notes ?? [],
@@ -119,13 +89,13 @@ export function PreviewView({
   useEffect(() => {
     let live = true
     requestRemembered<unknown>(c, "diff.file", params).then(
-      (data) => live && setLoaded(load(data, view.path)),
+      (data) => live && setLoaded(load(data, view.path, foreign)),
       (err) => live && setLoaded({ kind: "text", text: err instanceof Error ? err.message : String(err), error: true }),
     )
     return () => {
       live = false
     }
-  }, [c, view.taskId, view.path, view.scope, ws, nonce])
+  }, [c, view.taskId, view.path, view.scope, ws, custom, nonce])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
@@ -380,7 +350,7 @@ export function PreviewView({
   const scopes: { id: DiffScope; label: string }[] = [
     { id: "working", label: t("review.scopeWorking") },
     { id: "branch", label: t("review.scopeBranch") },
-    { id: "task", label: t("review.scopeTask", { base: base ?? "" }) },
+    { id: "task", label: t("review.scopeTask", { base: picked_ ?? base ?? "" }) },
   ]
 
   return (
@@ -396,6 +366,11 @@ export function PreviewView({
           scopes={base !== null ? scopes : null}
           scope={view.scope}
           onScope={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
+          picker={
+            base !== null && (
+              <DiffBasePicker taskId={view.taskId} model={model} base={base} custom={picked_} onPick={pickBase} />
+            )
+          }
           ignoreWs={ws}
           onToggleWs={toggleWs}
           files={files.length}

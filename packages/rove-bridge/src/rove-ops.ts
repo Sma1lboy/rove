@@ -24,7 +24,14 @@ import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
-import { type PreviewScope, type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
+import {
+  type DiffRefs,
+  type PreviewScope,
+  type WorktreeDiff,
+  checkRef,
+  worktreeDiff,
+  worktreeRefs,
+} from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
@@ -84,7 +91,14 @@ export interface RoveOps {
   /** The registered machine a task lives on; undefined = this machine. */
   machineOf?(taskId: string): string | undefined
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
-  diffFile(taskId: string, path: string, scope: PreviewScope, ignoreWhitespace?: boolean): Promise<unknown>
+  diffFile(
+    taskId: string,
+    path: string,
+    scope: PreviewScope,
+    ignoreWhitespace?: boolean,
+    base?: string,
+  ): Promise<unknown>
+  diffRefs(taskId: string): Promise<DiffRefs>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
@@ -397,17 +411,26 @@ export function createRoveOps(
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
     },
 
-    async diffFile(taskId, path, scope, ignoreWhitespace) {
+    async diffRefs(taskId) {
+      if (api.machineOf?.(taskId)) return api.verb<DiffRefs>("worktree-refs", [flag("task-id", taskId)])
+      const task = await getTask(taskId)
+      if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
+      return worktreeRefs(task.worktreePath)
+    },
+    async diffFile(taskId, path, scope, ignoreWhitespace, ref) {
       // git scopes the diff to the worktree, but a `code` preview reads the
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
         throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
       }
+      if (ref !== undefined && scope !== "task")
+        throw new BridgeError("BAD_ARGS", "base only applies to the task scope")
       if (api.machineOf?.(taskId)) {
         return api.verb<unknown>("worktree-diff-file", [
           flag("task-id", taskId),
           flag("path", path),
           flag("scope", scope),
+          ...(ref !== undefined ? [flag("base", ref)] : []),
           ...(ignoreWhitespace ? ["--ignore-whitespace"] : []),
         ])
       }
@@ -415,7 +438,11 @@ export function createRoveOps(
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
       const opts = { ignoreWhitespace: ignoreWhitespace === true }
       if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)
-      const base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
+      let base: string | null
+      if (ref !== undefined) {
+        base = await checkRef(task.worktreePath, ref)
+        if (!base) throw new BridgeError("BAD_REF", `${ref} is not a commit in this repository`)
+      } else base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
       if (!base) throw new BridgeError("NO_BASE", "could not resolve a base branch for this task")
       return loadPreviewData(task.worktreePath, path, scope === "task" ? { base, working: true } : { base }, opts)
     },

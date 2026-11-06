@@ -43,6 +43,7 @@ function start(extra: Partial<BridgeDeps> = {}): { http: string; ws: string; lin
     viewedSession: () => null,
     diffFiles: unused,
     diffFile: unused,
+    diffRefs: unused,
     dismissAttention: unused,
   }
   const pty: PtyHostClient = { request: unused, on: () => () => {}, close: () => {} }

@@ -736,8 +736,15 @@ edits (`set-vendor`, `rename`,
   commits since the base, `task` both together with untracked files (the whole
   task against its base; with `--path .`, one diff of everything).
   `--ignore-whitespace` runs the diff as `git diff -w`, so whitespace-only
-  changes drop out. `PATH` is worktree-relative; absolute or `..` paths are
-  refused.
+  changes drop out. `--base REF` (with `--scope task` only) compares against
+  that branch, tag or commit instead of the task's base; a ref that is not a
+  commit in the repository is refused as `BAD_REF`. `PATH` is
+  worktree-relative; absolute or `..` paths are refused.
+- `worktree-refs --task-id ID`: what a diff can be compared against: the
+  repository's local branches, remote branches and tags, and the worktree
+  branch's recent commits. Returns `{ branches, remotes, tags, commits[{ sha,
+  subject }] }`. Runs where the worktree lives, so it reads a task on another
+  registered machine too.
 - `review-comments --task-id ID`: the unresolved review threads on the task's
   PR, so an agent can address review feedback by file and line. Returns
   `{ taskId, prNumber, threads, totalUnresolved }`; each thread is

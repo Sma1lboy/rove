@@ -64,6 +64,7 @@ export function fakeOps(): RoveOps {
     viewedSession: () => null,
     diffFiles: reject,
     diffFile: reject,
+    diffRefs: reject,
     dismissAttention: reject,
   }
 }
