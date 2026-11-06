@@ -14,6 +14,8 @@ export function DiffToolbar<S extends string>(props: {
   ignoreWs: boolean
   onToggleWs: () => void
   files: number
+  /** `effort 3/5 · 2 tests`: the rule-based shape of the change. */
+  shape: string
   added: number
   removed: number
   viewed: number
@@ -38,6 +40,7 @@ export function DiffToolbar<S extends string>(props: {
       </Button>
       <span className="flex items-center gap-1.5 text-muted">
         {t("review.totals", { files: props.files, added: props.added, removed: props.removed })}
+        {props.shape && <span>· {props.shape}</span>}
         {props.files > 0 && <span>· {t("review.viewedCount", { done: props.viewed, files: props.files })}</span>}
       </span>
       <span className="ml-auto flex items-center gap-x-3">

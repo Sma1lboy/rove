@@ -34,6 +34,7 @@ import { openDiff } from "./panel-state.ts"
 import { type Loaded, bridgeError, load } from "./preview-load.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { type Note, type NoteState, locate, noteLabel, noteState, quoteRows } from "./review-notes.ts"
+import { foldedByDefault, shapeLine } from "./review-shape.ts"
 import { ReviewTray } from "./review-tray.tsx"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
@@ -138,6 +139,14 @@ export function PreviewView({
   const stats = useMemo(() => fileStats(rows), [rows])
   const hashes = useMemo(() => fileHashes(rows), [rows])
   const viewed = useMemo(() => viewedFiles(marks, view.taskId, hashes), [marks, view.taskId, hashes])
+  // Generated files and lockfiles open folded; a reviewer's unfold sticks (each path is folded only once).
+  const autoFolded = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const fresh = [...hashes.keys()].filter((p) => foldedByDefault(p) && !autoFolded.current.has(p))
+    if (fresh.length === 0) return
+    for (const p of fresh) autoFolded.current.add(p)
+    setFolded((cur) => new Set([...cur, ...fresh]))
+  }, [hashes])
   // A file marked viewed folds; one that stops being viewed (unmarked, or its diff changed) opens again.
   const wasViewed = useRef<ReadonlySet<string>>(new Set())
   useEffect(() => {
@@ -189,6 +198,7 @@ export function PreviewView({
       return next
     })
   const files = [...stats.keys()].flatMap((i) => (rows[i]?.path ? [rows[i]?.path as string] : []))
+  const shape = useMemo(() => shapeLine(stats, rows), [stats, rows])
   const allFolded = files.length > 0 && files.every((path) => folded.has(path))
   const total = [...stats.values()].reduce(
     (sum, s) => ({ added: sum.added + s.added, removed: sum.removed + s.removed }),
@@ -384,6 +394,7 @@ export function PreviewView({
           ignoreWs={ws}
           onToggleWs={toggleWs}
           files={files.length}
+          shape={shape}
           added={total.added}
           removed={total.removed}
           viewed={viewed.size}

@@ -3,6 +3,7 @@
 import { BridgeRequestError } from "./bridge.ts"
 import { type DiffRow, codeRows, parseUnifiedDiff } from "./diff.ts"
 import { t } from "./i18n/index.ts"
+import { orderByGroup } from "./review-shape.ts"
 
 export type Loaded =
   | { readonly kind: "rows"; readonly rows: DiffRow[]; readonly diff: boolean }
@@ -13,8 +14,10 @@ export function load(data: unknown, path: string, foreignBase: boolean): Loaded 
   if (!data || typeof data !== "object" || !("kind" in data)) return { kind: "text", text: t("preview.unknown") }
   const text = "text" in data && typeof data.text === "string" ? data.text : ""
   switch (data.kind) {
-    case "diff":
-      return { kind: "rows", rows: parseUnifiedDiff(text, path === "." ? null : path, foreignBase), diff: true }
+    case "diff": {
+      const parsed = parseUnifiedDiff(text, path === "." ? null : path, foreignBase)
+      return { kind: "rows", rows: path === "." ? orderByGroup(parsed) : parsed, diff: true }
+    }
     case "code":
       return { kind: "rows", rows: codeRows(text, path), diff: false }
     case "binary":
