@@ -5,6 +5,7 @@
  */
 
 import { execFile } from "node:child_process"
+import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
@@ -52,6 +53,10 @@ export const taskOpDeps = {
   findAvailableFolderName,
   deriveFolderName,
   gh: runGh,
+  /** `github.com/owner/name` for a checkout, from its `origin`; undefined when it has none. */
+  repoId: (path: string): string | undefined => repoIdOf(path),
+  /** Fetches one pull request's head into `refs/rove/pr/<number>` of `repo`: the commit a review worktree starts from. */
+  fetchPullHead,
 }
 
 const GIT_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/
@@ -175,6 +180,26 @@ function runGh(args: readonly string[], timeoutMs: number): Promise<GhResult> {
       const signedOut = /gh auth login|not logged in|authentication/i.test(stderr)
       resolve({ ok: false, reason: signedOut ? "unauthenticated" : "failed" })
     },
+  )
+  return promise
+}
+
+/**
+ * `git fetch` of GitHub's `refs/pull/<n>/head` (the same for a branch of this repo and for a fork) into a ref of ours.
+ * Fixed argv, a validated integer, never a shell. Resolves to the ref, or the git error text.
+ */
+function fetchPullHead(
+  repo: string,
+  number: number,
+): Promise<{ ok: true; ref: string } | { ok: false; error: string }> {
+  const { promise, resolve } = Promise.withResolvers<{ ok: true; ref: string } | { ok: false; error: string }>()
+  const ref = `refs/rove/pr/${number}`
+  execFile(
+    "git",
+    ["-C", repo, "fetch", "--no-tags", "--quiet", "origin", `+refs/pull/${number}/head:${ref}`],
+    { timeout: 60_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
+    (err, _stdout, stderr) =>
+      resolve(err ? { ok: false, error: stderr.trim() || String(err.message) } : { ok: true, ref }),
   )
   return promise
 }

@@ -67,6 +67,16 @@ already paired with `rove-bridge` keeps working: the two share one token.
   on a phone), with its terminal and diff one click away. `[ keep this one ]`
   marks it kept (`update --kept`) and offers to archive the others behind the
   usual confirm. Not available in place, ungrouped, or on another machine.
+- The Issues page has a second source, `[ PRs waiting on me ]` (also the palette's
+  **Review queue**): open PRs that ask for your review, in the projects Rove
+  knows, read through this Mac's own `gh` (one read-only search, cached for a
+  minute; `r` rereads). Each row shows the PR, author, draft / fork / checks,
+  `+/-` and age. `[ review ]` (or Enter) fetches the PR's head into a local ref
+  (`refs/rove/pr/<n>`, the same for a branch and a fork) and opens New session
+  on that project, starting from it, with a review prompt as an editable draft:
+  nothing starts until you press Start, so you pick the engine and the agent
+  never begins on someone else's code from a click in a list. Nothing is written
+  to GitHub.
 - The Chat tab (first of the panel's buttons) reads the task's conversation from
   the engine's own history (`output.read`, claude and codex alike): user and
   assistant turns as Markdown, each tool call folded to one line, `[ copy ]` per

@@ -20,6 +20,9 @@ import {
   useTaskRepos,
 } from "./pages-kit.ts"
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { ReviewQueueView } from "./review-queue-view.tsx"
+import { issuesSource } from "./review-queue.ts"
+import { SourceSwitch } from "./source-switch.tsx"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
 import {
@@ -64,7 +67,7 @@ function useErrorHint() {
   }
 }
 
-export function IssuesView({ model }: { model: AppModel }) {
+function IssueList({ model }: { model: AppModel }) {
   const { items: copy, common } = useCopy()
   const hint = useErrorHint()
   const c = model.client
@@ -215,6 +218,7 @@ export function IssuesView({ model }: { model: AppModel }) {
     <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
         <h1 className={PAGE_TITLE}>{copy.title}</h1>
+        <SourceSwitch />
         <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
@@ -261,4 +265,10 @@ export function IssuesView({ model }: { model: AppModel }) {
       {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
+}
+
+/** Issues, or the PRs waiting on the signed-in user; the palette's "Review queue" lands on the second. */
+export function IssuesView({ model }: { model: AppModel }) {
+  const source = useStore(issuesSource)
+  return source === "reviews" ? <ReviewQueueView model={model} /> : <IssueList model={model} />
 }

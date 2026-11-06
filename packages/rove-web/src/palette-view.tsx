@@ -20,6 +20,7 @@ import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { HitEntry, Note, SectionHead, TaskEntry, useConversationHits } from "./palette-search.tsx"
 import { repoLabel } from "./rail-labels.ts"
+import { type IssuesSource, issuesSource } from "./review-queue.ts"
 import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
 import { openTranscriptAt } from "./transcript-focus.ts"
@@ -40,7 +41,7 @@ interface PaletteRow {
 
 type Entry =
   | { readonly kind: "command"; readonly row: PaletteRow }
-  | { readonly kind: "page"; readonly id: PageId; readonly name: string }
+  | { readonly kind: "page"; readonly id: PageId; readonly name: string; readonly source?: IssuesSource }
   | { readonly kind: "task"; readonly task: TaskRow }
   | { readonly kind: "hit"; readonly hit: Hit }
   | { readonly kind: "machines"; readonly name: string }
@@ -115,9 +116,11 @@ function PaletteDialog({
           )
           .slice(0, MAX_TASKS)
   // Pages with no chord of their own: named, so the palette is the way in beside their own entry points.
-  const pages = [{ id: "usage" as const, name: t("usage.title") }].filter(
-    (entry) => q === "" || fuzzyMatch(q, entry.name),
-  )
+  const issuesOn = useStore(model.installedMods).has("issues")
+  const pages: { id: PageId; name: string; source?: IssuesSource }[] = [
+    { id: "usage" as const, name: t("usage.title") },
+    ...(issuesOn ? [{ id: "issues" as const, name: t("review.palette"), source: "reviews" as const }] : []),
+  ].filter((entry) => q === "" || fuzzyMatch(q, entry.name))
   const said = useConversationHits(model, query)
   const hits = said.kind === "done" ? said.reply.matches : []
   const entries: readonly Entry[] = [
@@ -151,6 +154,7 @@ function PaletteDialog({
       return
     }
     if (entry.kind === "page") {
+      if (entry.source) issuesSource.set(entry.source)
       openPage(entry.id)
       return
     }
