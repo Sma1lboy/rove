@@ -61,6 +61,7 @@ Yoga flexbox: panes share width by ratio (`flexGrow`), not pixels. Fixed `width=
 ### Web UI: Tailwind in the TSX, controls from `packages/rove-web/src/ui/`
 Style with Tailwind token classes on the element; no CSS outside `src/tailwind.css`. A control used twice is a `src/ui/` component (add a variant, never a className override). Rules: the `rove-ui` skill §0.
 Any other UI in the repo (e.g. `promo-kit`) uses the Rove design system: [`packages/branding/design-system/`](./packages/branding/design-system/) `tokens.css` plus its README rules, never raw hex or invented sizes.
+All UI (rove-web included): avoid unnecessary secondary labels and descriptions; let the layout do the explaining.
 
 ### Engine-owned UI data
 The engine adapter owns agent/product identity, capabilities, history, and telemetry. Neutral layers (TUI, web, orchestrator) never hard-code Claude/Codex strings or derive vendor metrics. A new pane needing engine-specific data → extend the engine contract first. Specifics: [`docs/agents/dev-loop.md`](./docs/agents/dev-loop.md).
