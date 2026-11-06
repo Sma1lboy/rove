@@ -274,6 +274,8 @@ export interface DaemonTask {
   readonly baseRef?: string
   /** `add --worktree-name`; absent = drawn from the animal pool. */
   readonly worktreeName?: string
+  /** Repo the worktree was cut from after a project move (`update --project`); absent = `repo`. */
+  readonly gitRepo?: string
   /** Secondary repos of a multi-repo task, in pick order (the primary is `repo`). */
   readonly extraRepos?: readonly TaskExtraRepo[]
   /** Backend that materialised the directory; absent = derived from `kind` (`workspaceBackendId`). */
@@ -342,9 +344,10 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     modelEffort?: string
     routine?: TaskRoutineLink
   }): Promise<DaemonTask>
-  /** Migrate a scratch task into `repo` and clear the scratch flag. `keepDirectory` regroups it
-   *  without repointing its worktree, so a session started elsewhere still resumes. */
-  adoptScratchRepo(id: string, repo: string, opts?: { keepDirectory?: boolean }): Promise<void>
+  /** Migrate a scratch task into `repo` and clear the scratch flag. */
+  adoptScratchRepo(id: string, repo: string): Promise<void>
+  /** Regroup a top-level task and its children under the project at `repo`; the checkouts and sessions stay where they are. */
+  moveTaskToProject(id: string, repo: string): Promise<{ repo: string; moved: readonly string[] }>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>

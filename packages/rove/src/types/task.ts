@@ -229,6 +229,13 @@ export interface Task {
    */
   readonly worktreeName?: string
   /**
+   * The repo this row's worktree and branch were cut from, set only after the
+   * row was moved to another project (`update --project`). `repo` then names the
+   * project it shows under; git work (delete, land, forks) still runs here.
+   * Absent = `repo` is both. Read through `gitRepoOf`.
+   */
+  readonly gitRepo?: string
+  /**
    * Secondary repos of a multi-repo task, in pick order. The primary stays in
    * `repo`/`branch`/`worktreePath`/`baseRef`; `taskRepos` is the derived view
    * of all of them. Only on a `kind: "task"` row that owns its worktree.

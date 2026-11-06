@@ -431,6 +431,8 @@ export interface SerializedTask {
   readonly baseRef?: DaemonTask["baseRef"]
   /** Caller-chosen worktree directory name (`add --worktree-name`). */
   readonly worktreeName?: DaemonTask["worktreeName"]
+  /** Origin repo of a moved task's worktree; omitted when it still lives under `repo`. */
+  readonly gitRepo?: DaemonTask["gitRepo"]
   /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
   readonly extraRepos?: DaemonTask["extraRepos"]
   /** Workspace backend when it is not the one `kind` implies; omitted otherwise. */
@@ -499,6 +501,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     prompt: task.prompt,
     baseRef: task.baseRef,
     worktreeName: task.worktreeName,
+    ...(task.gitRepo ? { gitRepo: task.gitRepo } : {}),
     report: task.report,
     ...(repoId ? { repoId } : {}),
     createdAt: task.createdAt,

@@ -64,6 +64,13 @@ describe("treeMenuItems", () => {
     ])
   })
 
+  test("only a top-level local task is offered Move to project", () => {
+    expect(actions(worktreeRow({ parentTaskId: "p1" as never }))).not.toContain("moveToProject")
+    expect(actions(worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" }))).not.toContain(
+      "moveToProject",
+    )
+  })
+
   test("a worktree row opens, adds a session, then the task verbs", () => {
     expect(actions(worktreeRow())).toEqual([
       "open",
@@ -73,6 +80,7 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",
@@ -194,6 +202,7 @@ describe("treeMenuItems", () => {
       "reorder",
       "runAgain",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",

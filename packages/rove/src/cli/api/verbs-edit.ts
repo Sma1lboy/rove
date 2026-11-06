@@ -240,8 +240,9 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
       ...(replyTab ? { replyTab } : {}),
     })
   }
-  // A project move only regroups (NOT_UNGROUPED refuses before it writes), so it too precedes the git rename.
-  if (project !== undefined) await step(["project"], "task.moveToProject", { repo: project })
+  // A project move only regroups (its refusals come before it writes), so it too precedes the git rename.
+  let regrouped: { repo: string; moved: readonly string[] } | undefined
+  if (project !== undefined) regrouped = await step(["project"], "task.moveToProject", { repo: project })
   if (branch !== undefined) await step(["branch"], "task.setBranch", { branch })
 
   if (command) await step(["command"], "task.setCommand", { command, vendor: protocol })
@@ -263,6 +264,15 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
     taskId,
     updated: applied,
     ...(reparented ? { parent: reparented } : {}),
+    ...(regrouped
+      ? {
+          project: {
+            repo: regrouped.repo,
+            moved: regrouped.moved,
+            note: "regrouped only — the PTYs, cwd, worktree and branch stay where they were",
+          },
+        }
+      : {}),
     ...(command ? { command, protocol, ...(protocol === GENERIC_PROTOCOL ? { generic: true } : {}) } : {}),
     ...(engine ? { engine } : {}),
   }
@@ -306,7 +316,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "PATH",
         description:
-          "Move an Ungrouped session (a Scratch task) under the project at PATH (relative paths resolve against $PWD; any directory inside the repo names its main checkout), which becomes a project if it was not one. Run it once after cloning or `git init`-ing the repo the session works in. Only the grouping changes: the session keeps running in its own directory. Refusals: NOT_A_GIT_REPO, NOT_UNGROUPED (the task already belongs to a project; `--parent` moves it under another task instead).",
+          "Move a top-level task (and its children) under the project at PATH (relative paths resolve against $PWD; any directory inside the repo names its main checkout), which becomes a project if it was not one. Only the grouping changes: the live session, tabs, cwd, worktree and branch stay exactly where they are, so a running engine keeps its conversation. Moving a worktree task back to the repo that cut it clears the link. Refusals: NOT_A_GIT_REPO, SAME_PROJECT, TASK_NOT_MOVABLE (a project's main task, a routine session or a multi-repo task), CHILD_NOT_MOVABLE (move its parent; children follow), REMOTE_MOVE_UNSUPPORTED.",
       },
       {
         name: "group",

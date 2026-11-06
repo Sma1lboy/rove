@@ -9,6 +9,7 @@ import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
@@ -83,9 +84,12 @@ async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | nu
   const subject =
     deleteBranch || deleteRemote
       ? (
-          await daemon.request<{ task: { repo: string; branch?: string; worktreePath?: string } }>("task.get", {
-            taskId,
-          })
+          await daemon.request<{ task: { repo: string; gitRepo?: string; branch?: string; worktreePath?: string } }>(
+            "task.get",
+            {
+              taskId,
+            },
+          )
         ).task
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
@@ -123,7 +127,7 @@ async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | nu
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"
-      ? reportBranchDeletion(subject.repo, subject.branch ?? "", {
+      ? reportBranchDeletion(gitRepoOf(subject), subject.branch ?? "", {
           deleteBranch,
           force,
           deleteRemote,
@@ -136,7 +140,7 @@ async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | nu
 /** Title of a row outside `gone` that still holds the deleted task's branch or directory. */
 async function branchHolder(
   daemon: DaemonRpc,
-  subject: { repo: string; branch?: string; worktreePath?: string },
+  subject: { repo: string; gitRepo?: string; branch?: string; worktreePath?: string },
   gone: readonly string[],
 ): Promise<string | undefined> {
   const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
@@ -146,7 +150,7 @@ async function branchHolder(
       ((subject.worktreePath && t.worktreePath && samePath(t.worktreePath, subject.worktreePath)) ||
         (subject.branch &&
           t.branch === subject.branch &&
-          t.repo === subject.repo &&
+          gitRepoOf(t) === gitRepoOf(subject) &&
           workspaceCapabilities(t).ownsBranch)),
   )
   return holder?.title
@@ -327,7 +331,7 @@ export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
     })
   }
   const wt = canonicalize(worktreePath)
-  if (samePath(wt, canonicalize(task.repo))) {
+  if (samePath(wt, canonicalize(gitRepoOf(task)))) {
     throw new ApiError(
       `refusing to remove ${worktreePath} — it is the project's own checkout, not a Rove worktree`,
       "BASE_CHECKOUT",

@@ -8,7 +8,7 @@ import {
   WorktreeRemoveFailedError,
 } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
-import { subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
+import { gitRepoOf, subtreeIds, taskRepos, taskWorktreePaths } from "./task-tree.ts"
 import {
   type WorkspaceBackend,
   type WorkspaceRegistry,
@@ -182,7 +182,7 @@ export class TaskDeletionCoordinator {
           if (extras.length > 0) removing = taskRepos(task)[0]?.name
           await this.removeWorktree(backend, task, deletion, {
             path: task.worktreePath,
-            repo: task.repo,
+            repo: gitRepoOf(task),
             branch: task.branch,
           })
         } else if (ownsDirectory && deletion.deleteBranch) await this.handBranchDeleteOn(task, key)
@@ -234,7 +234,7 @@ export class TaskDeletionCoordinator {
   /** Best-effort: a stray ref is cheap, a failed deletion is not. */
   private async dropCheckpoints(task: Task): Promise<void> {
     try {
-      await this.worktrees.deleteTaskCheckpoints(task.repo, String(task.id))
+      await this.worktrees.deleteTaskCheckpoints(gitRepoOf(task), String(task.id))
     } catch {
       // refs are tiny and the repo owns them; nothing to retry
     }
@@ -326,7 +326,7 @@ export class TaskDeletionCoordinator {
     const owner = this.store.get(fromId)
     if (owner?.kind !== "task") return
     try {
-      await this.worktrees.moveTaskCheckpoints(owner.repo, fromId, toId)
+      await this.worktrees.moveTaskCheckpoints(gitRepoOf(owner), fromId, toId)
     } catch {
       // history stays under the old id and is dropped with it; the files are unaffected
     }

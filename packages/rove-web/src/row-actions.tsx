@@ -7,7 +7,7 @@
 
 import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
-import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
+import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
@@ -128,6 +128,31 @@ function enterMoveMode(main?: string): void {
   document.querySelector<HTMLElement>(".rail")?.focus()
 }
 
+/** The saved projects a task can regroup into: this machine's, other than its own. Moving only regroups; the checkout stays. */
+function moveToProjectDialog(model: AppModel, task: TaskRow) {
+  const repos = (model.tasks.get()?.tasks ?? [])
+    .filter((row) => row.kind === "main" && !row.machine && row.repo !== task.repo)
+    .map((row) => row.repo)
+  const choices = repos.map((repo) => {
+    const name = repo.slice(repo.lastIndexOf("/") + 1)
+    return { value: repo, label: repos.filter((other) => other.endsWith(`/${name}`)).length > 1 ? repo : name }
+  })
+  if (choices.length === 0) {
+    toast(tc("tasks", "moveToProject.empty"), "error")
+    return null
+  }
+  return (
+    <ChoiceDialog
+      title={tc("tasks", "moveToProject.title")}
+      choices={choices}
+      onPick={async (repo) => {
+        await model.client.request("task.moveToProject", { taskId: task.id, repo })
+        toast(tc("tasks", "toast.movedToProject", { project: choices.find((c) => c.value === repo)?.label ?? repo }))
+      }}
+    />
+  )
+}
+
 export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): MenuItem[] {
   const c = model.client
   const items: MenuItem[] = []
@@ -231,6 +256,17 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       }),
     ),
   })
+  // Top-level, local, single-repo rows only; the daemon refuses the rest (`update --project`).
+  if (local && task.kind !== "main" && !task.routine && !task.parentTaskId && !task.extraRepoCount) {
+    items.push({
+      label: tc("tasks", "menu.moveToProject"),
+      section: "edit",
+      run: () => {
+        const picker = moveToProjectDialog(model, task)
+        if (picker) dialog.set(picker)
+      },
+    })
+  }
   if (local) {
     items.push({
       label: t("menu.changeEngine"),

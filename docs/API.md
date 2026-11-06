@@ -268,7 +268,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
 | `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
 | `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
-| `NOT_UNGROUPED` | `update --project` on a task that already belongs to a project (only an Ungrouped session moves; `--parent` re-parents any task). |
+| `SAME_PROJECT` | `update --project` names the project the task already belongs to. |
+| `CHILD_NOT_MOVABLE` | `update --project` on a child task: move its parent instead (children follow), or `update --parent none` first. |
+| `REMOTE_MOVE_UNSUPPORTED` | `update --project` where the task or the target project lives on another machine. |
 | `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
 | `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
 | `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
@@ -1566,16 +1568,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
     task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
     `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
-  - `--project PATH`: move an Ungrouped session (a Scratch task, which runs in
-    the home directory) under the project at `PATH`, after the session cloned
-    or `git init`-ed it. `PATH` may be any directory inside the repo; it names
-    the repo's main checkout, which becomes a project (its main row is created)
-    if it was not one. Only the grouping changes: the session keeps its
-    directory, so its engine keeps running and resumes where it started.
-    Refusals, before anything is written: `NOT_A_GIT_REPO`, and
-    `NOT_UNGROUPED` when the task already belongs to a project (`--parent`
-    moves it under another task instead; the web rail's drag stays within a
-    project).
+  - `--project PATH`: move a top-level task (and its children) under the
+    project at `PATH`: an Ungrouped session after it cloned or `git init`-ed
+    its repo, or a task created in the wrong project. `PATH` may be any
+    directory inside the repo; it names the repo's main checkout, which
+    becomes a project (its main row is created) if it was not one. Only the
+    grouping changes: the PTYs, cwd, worktree and branch stay where they are,
+    so a running engine keeps its conversation. The result's `.project` is
+    `{ repo, moved, note }`, `moved` listing every row regrouped. A worktree
+    task keeps a `gitRepo` link to the repo that cut its checkout, so delete,
+    land and forks still run there; moving it back clears the link. Refusals,
+    before anything is written: `NOT_A_GIT_REPO`, `SAME_PROJECT`,
+    `TASK_NOT_MOVABLE` (a project's main task, a routine session, or a
+    multi-repo task), `CHILD_NOT_MOVABLE` (move the parent instead),
+    `REMOTE_MOVE_UNSUPPORTED`. The TUI and web row menus offer the same move
+    as "Move to project…".
   - `--group GROUPID` (with `--parent` only): move every task of one fan-out
     round (the `groupId` that `add --count` returns). A member's refusal is
     recorded in `.results[]` (`status: "failed"`, `code`) instead of stopping

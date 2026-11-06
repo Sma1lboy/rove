@@ -327,6 +327,7 @@ export function deserializeTask(s: SerializedTask): Task {
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,
+    ...(s.gitRepo ? { gitRepo: s.gitRepo } : {}),
     report: s.report,
     ...(s.repoId ? { repoId: s.repoId } : {}),
     createdAt: s.createdAt,

@@ -64,6 +64,8 @@ export const en = {
     /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
      *  status has no key yet, so the menu is its only route. */
     setStatus: "Set status",
+    /** Regroup the task under another project; nothing on disk moves. Menu-only. */
+    moveToProject: "Move to project…",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
     copyId: "Copy task ID",
     copyBranch: "Copy branch name",
@@ -104,6 +106,12 @@ export const en = {
     /** Marks the task's current value in the list. */
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
+  },
+  moveToProject: {
+    title: "Move to project",
+    /** Shown when there is no other project to move to. */
+    empty: "No other project yet — add one first, or run `rove api update --project PATH`",
+    footer: "↑↓ choose · enter move · esc cancel",
   },
   /** "Sync with base" outcomes. The conflict and dirty cases are attention,
    *  not error: nothing broke, a human is needed next. */
@@ -325,6 +333,7 @@ export const zh: typeof en = {
     reorderProject: "调整项目顺序",
     runAgain: "重新运行",
     setStatus: "设置状态",
+    moveToProject: "移到其他项目…",
     copyId: "复制任务 ID",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
@@ -352,6 +361,11 @@ export const zh: typeof en = {
     title: "设置状态",
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
+  },
+  moveToProject: {
+    title: "移到其他项目",
+    empty: "还没有其他项目——先添加一个，或运行 `rove api update --project PATH`",
+    footer: "↑↓ 选择 · enter 移动 · esc 取消",
   },
   sync: {
     done: "已把 {base} 合并进该工作树",

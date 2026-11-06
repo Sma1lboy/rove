@@ -70,6 +70,19 @@ export async function adoptScratchRepoOp(client: RoveDaemonClient, id: TaskId | 
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
 }
 
+/** Regroup a top-level task under another project; sessions and checkouts stay where they are. */
+export async function moveTaskToProjectOp(
+  client: RoveDaemonClient,
+  id: TaskId | string,
+  repo: string,
+): Promise<{ repo: string; moved: readonly string[] }> {
+  const res = await client.request<{ repo: string; moved: readonly string[] }>("task.moveToProject", {
+    taskId: String(id),
+    repo,
+  })
+  return { repo: res.repo, moved: res.moved }
+}
+
 export async function ensureWorktreeOp(client: RoveDaemonClient, id: TaskId | string): Promise<string> {
   const res = await client.request<{ worktreePath: string }>("task.ensureWorktree", { taskId: String(id) })
   return res.worktreePath

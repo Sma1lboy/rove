@@ -51,6 +51,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onPinRequest: NOOP,
     onArchiveRequest: NOOP,
     onSetStatusRequest: NOOP,
+    onMoveToProjectRequest: NOOP,
     onCopyRequest: NOOP,
     onOpenEditorRequest: NOOP,
     onRenameBranchRequest: NOOP,

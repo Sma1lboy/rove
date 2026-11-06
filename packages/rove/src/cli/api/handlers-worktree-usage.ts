@@ -7,6 +7,7 @@
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import { F } from "./flags.ts"
@@ -34,7 +35,7 @@ export function ownedCheckouts(task: SerializedTask): string[] {
   if ((task.kind ?? "task") !== "task" || task.sharesWorkspaceOf) return []
   const primary = (task.worktreePath ?? "").trim()
   const extras = (task.extraRepos ?? []).map((r) => (r.worktreePath ?? "").trim())
-  const repo = canonicalize(task.repo)
+  const repo = canonicalize(gitRepoOf(task))
   return [primary, ...extras].filter((p) => p.length > 0 && !samePath(canonicalize(p), repo))
 }
 

@@ -33,6 +33,8 @@ export type SidebarTaskCallbacks = {
   onPinRequest?: (taskId: string) => void
   /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
+  /** Regroup the task under another project via a picker. Menu-only, no chord. */
+  onMoveToProjectRequest?: (taskId: string) => void
   /** Copy task id, tab address, branch name or worktree path to the clipboard. Menu-only. */
   onCopyRequest?: (taskId: string, field: TaskCopyField, tabId?: string) => void
   /** Re-fire `task.prompt` as a new task. Menu-only; hidden with no stored brief. */

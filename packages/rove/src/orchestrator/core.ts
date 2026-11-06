@@ -24,11 +24,12 @@ import { landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, assertOwnsBranch, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { createMigratedChildRow, setPtyAliasRow } from "./migrated-child.ts"
+import { moveTaskToProjectRow } from "./move-project.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
 import { type SpawnChildInput, type SpawnChildResult, spawnChildTaskRow } from "./spawn-child.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
-import { pickRepos } from "./task-tree.ts"
+import { gitRepoOf, pickRepos } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import {
   type WorkspaceRegistry,
@@ -229,8 +230,12 @@ export class Orchestrator {
     openDirectoryTaskRow({ store: this.store }, input)
 
   /** Migrate a scratch task into a repo (adoption) — see `core-create.ts`. */
-  adoptScratchRepo = (id: TaskId | string, repo: string, opts?: { keepDirectory?: boolean }): Promise<void> =>
-    adoptScratchRepoRow({ store: this.store }, id, repo, opts)
+  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
+    adoptScratchRepoRow({ store: this.store }, id, repo)
+
+  /** Regroup a top-level task (and its children) under another project; nothing on disk moves — see `move-project.ts`. */
+  moveTaskToProject = (id: TaskId | string, repo: string): Promise<{ repo: string; moved: readonly string[] }> =>
+    moveTaskToProjectRow({ store: this.store, ensureMainTask: (target) => this.ensureMainTask(target) }, id, repo)
 
   /** Spawn a child task of `input.parentTaskId` — rules and body in `spawn-child.ts`. */
   spawnChildTask = (input: SpawnChildInput): Promise<SpawnChildResult> =>
@@ -292,7 +297,7 @@ export class Orchestrator {
         return task.extraRepos?.length ? this.worktreeCoordinator.ensure(task, opts?.onProgress) : task.worktreePath
       }
       // Prune first, else `worktree add` on the same path errors.
-      await this.worktrees.pruneWorktrees(task.repo)
+      await this.worktrees.pruneWorktrees(gitRepoOf(task))
       await this.store.update(task.id, { worktreePath: "" })
       return this.worktreeCoordinator.ensure({ ...task, worktreePath: "" }, opts?.onProgress)
     }

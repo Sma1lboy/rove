@@ -12,6 +12,7 @@ import { errorMessage } from "@/lib/error-message"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 
 export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void
@@ -73,6 +74,8 @@ export interface TaskActionContext {
   readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
   /** Engine picker behind {@link pickVendorFlow}; absent → no-op. Host uses `EnginePickerDialog.show`. */
   readonly pickEngine?: (opts: EnginePickOpts) => Promise<EnginePick | undefined>
+  /** Project picker behind {@link moveToProjectFlow}: the other projects to choose from; `undefined` = cancel. Absent → no-op. */
+  readonly pickProject?: (projects: readonly string[]) => Promise<string | undefined>
   /** Clipboard writer behind {@link copyTaskFieldFlow}; only the workspace host has a renderer for OSC52. Absent → no-op. */
   readonly copyText?: (text: string) => Promise<boolean>
   readonly logger: TaskActionLogger
@@ -282,4 +285,33 @@ export async function copyTaskFieldFlow(
     return
   }
   ctx.notifyInfo?.(t(COPIED_TOAST[field], { text }))
+}
+
+/**
+ * Regroup the task (and its children) under another saved project. Only the rows move: the
+ * PTYs, cwd, worktree and branch stay, so a running engine keeps its conversation.
+ */
+export async function moveToProjectFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+  const task = ctx.tasks().find((candidate) => candidate.id === taskId)
+  if (!task || !ctx.orch || !ctx.pickProject) return
+  const projects = ctx
+    .tasks()
+    .filter((candidate) => candidate.kind === "main" && (candidate.origin?.machineId ?? "local") === "local")
+    .map((candidate) => candidate.repo)
+    .filter((repo) => !samePath(repo, task.repo))
+  if (projects.length === 0) {
+    ctx.notifyInfo?.(t("tasks.moveToProject.empty"))
+    return
+  }
+  const repo = await ctx.pickProject(projects)
+  if (!repo) return
+  try {
+    await ctx.orch.moveTaskToProject(taskId, repo)
+  } catch (err) {
+    ctx.logger.error(`${ctx.logPrefix} task.moveToProject failed:`, err)
+    ctx.notifyError?.(t("tasks.toast.moveToProjectFailed", { error: errorMessage(err) }))
+    return
+  }
+  ctx.notifyInfo?.(t("tasks.toast.movedToProject", { project: repo }))
+  await ctx.reload?.()
 }

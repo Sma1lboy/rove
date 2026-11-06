@@ -13,6 +13,7 @@
 
 import { basename } from "node:path"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
@@ -89,7 +90,7 @@ export class WorktreeCoordinator {
         .list()
         .filter((t) => t.kind !== "main")
         .flatMap((t) => [
-          ...(samePath(t.repo, repo) ? [t.worktreePath] : []),
+          ...(samePath(gitRepoOf(t), repo) ? [t.worktreePath] : []),
           ...(t.extraRepos ?? []).filter((x) => samePath(x.repo, repo)).map((x) => x.worktreePath),
         ])
         .map((path) => path.match(/([^/\\]+)[/\\]*$/)?.[1] ?? "")
@@ -156,9 +157,9 @@ export class WorktreeCoordinator {
       if (!primary) return
       await rollbackWorktree(this.workspaces.get(workspaceBackendId(task)), {
         path: primary.path,
-        ...(primary.fresh ? { fresh: { repo: task.repo, branch } } : {}),
+        ...(primary.fresh ? { fresh: { repo: gitRepoOf(task), branch } } : {}),
       })
-      this.slugs.cancel(task.repo, primary.slug)
+      this.slugs.cancel(gitRepoOf(task), primary.slug)
     }
     let extras: MaterialisedExtras | undefined
     try {
@@ -191,7 +192,7 @@ export class WorktreeCoordinator {
       await undoPrimary()
       throw err
     }
-    if (primary) this.slugs.commit(task.repo, primary.slug)
+    if (primary) this.slugs.commit(gitRepoOf(task), primary.slug)
     for (const { repo, slug } of extras?.slugs ?? []) this.slugs.commit(repo, slug)
     return primary?.path ?? task.worktreePath
   }
@@ -204,20 +205,20 @@ export class WorktreeCoordinator {
   ): Promise<{ path: string; branch: string; slug: string; fresh: boolean }> {
     // Already claimed at create time; re-claiming would refuse its own
     // pending reservation.
-    const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
+    const slug = task.worktreeName || (await this.slugs.allocate(gitRepoOf(task)))
     const branch = task.branch || (await this.deriveAutoBranch(task))
     // `add --base-branch`, persisted at create so it survives a daemon restart
     // before materialise. Absent on older records → git default.
     const baseRef = task.baseRef
     try {
       // Read before the add: a branch that exists now was not cut by this call, so a rollback must keep it.
-      const fresh = !(await this.worktrees.listBranchNames(task.repo)).includes(branch)
+      const fresh = !(await this.worktrees.listBranchNames(gitRepoOf(task))).includes(branch)
       const handle = await this.workspaces
         .get(workspaceBackendId(task))
-        .materialize({ repo: task.repo, slug, branch, baseRef, onProgress, forkFrom })
+        .materialize({ repo: gitRepoOf(task), slug, branch, baseRef, onProgress, forkFrom })
       return { path: handle.path, branch, slug, fresh }
     } catch (err) {
-      this.slugs.cancel(task.repo, slug)
+      this.slugs.cancel(gitRepoOf(task), slug)
       throw err
     } finally {
       this.reservedBranches.delete(branch)
@@ -230,7 +231,7 @@ export class WorktreeCoordinator {
    * rove/rove brand token; unreadable/empty repo → bare kebab slug.
    */
   private async deriveAutoBranch(task: Task): Promise<string> {
-    const names = await this.worktrees.listBranchNames(task.repo)
+    const names = await this.worktrees.listBranchNames(gitRepoOf(task))
     const base = deriveConventionBranch(task.title, inferBranchStyle(names), task.id)
     const taken = new Set([...names, ...this.reservedBranches])
     const branch = uniqueBranchName(base, taken, task.id)

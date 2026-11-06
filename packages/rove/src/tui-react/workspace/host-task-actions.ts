@@ -17,6 +17,7 @@ import {
   cycleVendorFlow,
   deleteTaskFlow,
   forgetProjectFlow,
+  moveToProjectFlow,
   pickVendorFlow,
   renameTaskFlow,
   setStatusFlow,
@@ -26,6 +27,7 @@ import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { FieldNotesDialog } from "../component/field-notes-dialog"
+import { ProjectPickerDialog } from "../component/project-picker-dialog"
 import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
@@ -76,6 +78,8 @@ export type WorkspaceTaskActions = {
   moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
+  /** Tree-menu "Move to project…": a picker over the other saved projects; regroups only. */
+  moveToProject: (id: string) => Promise<void>
   /** Tree-menu "Copy task ID" / "Copy tab address" / "Copy branch name" / "Copy path" — system clipboard + toast. */
   copyTaskField: (id: string, field: TaskCopyField, tabId?: string) => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
@@ -112,6 +116,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     }),
     // Pickers are adapters so the flows stay opentui-free.
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
+    pickProject: (projects) => ProjectPickerDialog.show(dialog, { projects }),
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
     startWithPrompt: deps.startWithPrompt,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
@@ -251,6 +256,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     moveTask,
     moveTaskToTop,
     setStatus: (id) => setStatusFlow(taskActions, id),
+    moveToProject: (id) => moveToProjectFlow(taskActions, id),
     copyTaskField: (id, field, tabId) => {
       void copyTaskFieldFlow(taskActions, id, field, tabId)
     },

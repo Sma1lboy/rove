@@ -116,6 +116,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  gitRepo: "/work/origin",
   workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
   extraRepos: [
     {
