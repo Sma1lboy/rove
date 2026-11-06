@@ -258,6 +258,8 @@ update         --task-id --title --tab --branch --parent --project --group --com
                --model --effort --pinned --kept --require-report{on|off}
                --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
                --report-pr --report-summary
+todo           --task-id --add --check --uncheck --edit --text --remove --notes
+               --clear-notes
 land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
                --remove-worktree(true) --repo
 sync           --task-id(REQ) --repo

@@ -1660,6 +1660,17 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   a task keeps its 20 newest PRs. Returns `{ taskId, url }`. `publish`
   attaches the PR it opens or finds, so it needs no second call.
 
+- `todo [--task-id ID] [--add TEXT] [--check ID] [--uncheck ID] [--edit ID --text T] [--remove ID]
+  [--notes TEXT | --clear-notes]`: read or change a task's notes and checklist, the owner's own
+  review list. With no flag it lists them. Flags combine in one call and apply together in the
+  order add, check, uncheck, edit, remove; a refused op changes nothing. Todo ids are `t<N>`;
+  text is one line up to 500 characters, 100 todos per task, notes up to 20000 characters.
+  Refusals: `TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`, `NOTES_TOO_LONG`.
+  Defaults to the calling session's own task. Returns
+  `{ ok, taskId, notes, todos: [{ id, text, done }], done, total }`. Daemon RPC: `task.notes`.
+  The web Files panel's Notes tab edits the same copy, shows `done/total` on the task row, and
+  warns (never blocks) in the land confirm while todos are unchecked.
+
 ## issues
 
 The daemon-owned issue store (backlog; see

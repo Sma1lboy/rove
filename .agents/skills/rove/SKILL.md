@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 102 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 103 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -504,6 +504,7 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 |---|---|
 | `update [--task-id ID] [--title T] [--branch B] [--parent ID\|none] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied parent → branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). Without `--task-id` it changes your own task. `--parent ID` moves the task under another without touching its engine, tabs, worktree or branch, and points its reply address at ID (its bare `send` reaches ID); `--parent none` makes it top level; `--group G --parent ID` moves a whole `add --count` round. Archiving the new parent (or `delete --cascade`) then takes the moved task along. Refusals: `PARENT_NOT_FOUND` (parent must be on the task's machine), `PARENT_IS_SELF`, `PARENT_CYCLE`, `TASK_NOT_MOVABLE`. `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab (needs `--task-id`). `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
 | `update --project PATH [--task-id ID]` | Move a top-level task (and its children) under the project at PATH — an Ungrouped session after you clone or `git init` its repo, or a task created in the wrong project. Only the grouping changes: the session, cwd, worktree and branch stay put, so the engine keeps its conversation. Refusals: `NOT_A_GIT_REPO`, `SAME_PROJECT`, `TASK_NOT_MOVABLE`, `CHILD_NOT_MOVABLE` (move the parent), `REMOTE_MOVE_UNSUPPORTED` |
+| `todo [--task-id ID] [--add TEXT] [--check ID] [--uncheck ID] [--edit ID --text T] [--remove ID] [--notes TEXT\|--clear-notes]` | Read or change the task's notes and checklist (the owner's review list; shown in the web Files panel's Notes tab and as `done/total` on the row). No flag lists them. Flags apply together as one call; a refused op (`TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`) changes nothing. Defaults to your own task |
 | `pr-attach --url URL\|N [--task-id ID]` | Show a PR on your task's row (live state). Run once after opening a PR from any directory; idempotent; `publish` does it for you |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
