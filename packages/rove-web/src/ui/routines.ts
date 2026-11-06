@@ -22,23 +22,26 @@ export const RT_HEAD = "flex flex-wrap items-baseline justify-between gap-3"
 export const RT_NAME = "font-sans text-display font-bold normal-nums wrap-anywhere"
 export const RT_META =
   "mx-0 mt-1 mb-0 grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3.5 gap-y-1 [&_dd]:m-0 [&_dd]:wrap-anywhere [&_dd_.mono]:whitespace-pre"
-export const RT_PROMPT =
-  "max-h-[12lh] overflow-y-auto rounded-sm bg-inset px-2.5 py-2 whitespace-pre-wrap wrap-anywhere"
+export const RT_PROMPT = "m-0 min-w-0 whitespace-pre-wrap wrap-anywhere"
+export const RT_PROMPT_CLAMP = "line-clamp-6"
 
 /** Recent runs and responses. */
 export const RT_RUN = "min-w-0 text-meta leading-[inherit]"
-const RUN_LINE = "flex w-full min-w-0 gap-2 text-inherit"
-export const RT_RUN_LINE = RUN_LINE
+/** A run's header: tone dot, number and status on the left, time pushed right. */
+export const RT_RUN_LINE = "flex w-full min-w-0 items-center gap-2 text-inherit"
 /** A run that made a session opens it: a bare button, underlined on hover. */
-export const RT_RUN_OPEN = `${RUN_LINE} cursor-pointer border-none bg-transparent p-0 text-left font-[inherit] [&:hover]:underline`
+export const RT_RUN_OPEN = `${RT_RUN_LINE} cursor-pointer border-none bg-transparent p-0 text-left font-[inherit] [&:hover]:underline`
 export const RT_GROW = "min-w-0 flex-1 truncate"
+export const RT_DOT = "size-1.5 flex-none rounded-full bg-current"
+export const RT_RUN_TIME = "flex-none whitespace-nowrap text-right text-muted"
 export const RT_RUN_ERROR =
-  "pl-[calc(2ch+16px)] [&_summary]:cursor-pointer [&_summary]:list-none [&_summary]:truncate [&_summary::-webkit-details-marker]:hidden [&[open]_summary]:whitespace-normal [&_pre]:mx-0 [&_pre]:mt-1 [&_pre]:mb-1.5 [&_pre]:max-h-[16lh] [&_pre]:overflow-auto [&_pre]:rounded-sm [&_pre]:bg-inset [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:whitespace-pre-wrap [&_pre]:wrap-anywhere [&_pre]:text-muted"
-export const RT_RESPONSE = "[&+&]:mt-1.5"
+  "pl-3.5 text-muted [&_summary]:cursor-pointer [&_summary]:list-none [&_summary]:truncate [&_summary::-webkit-details-marker]:hidden [&[open]_summary]:whitespace-normal [&_pre]:mx-0 [&_pre]:mt-1 [&_pre]:mb-1.5 [&_pre]:max-h-[16lh] [&_pre]:overflow-auto [&_pre]:rounded-sm [&_pre]:bg-inset [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:font-mono [&_pre]:whitespace-pre-wrap [&_pre]:wrap-anywhere"
+/** Each response sits under its own hairline, its run header above the text. */
+export const RT_RESPONSE = "mt-2 flex min-w-0 flex-col gap-1 pt-2 [border-top:var(--hairline)_solid_var(--line)]"
 /** A response's text; beside `.mono` (a `font:` shorthand) its line height stays normal. */
 export const rtResponseClass = (mono: boolean): string =>
-  `whitespace-pre-wrap wrap-anywhere text-meta ${mono ? "" : "leading-[inherit]"}`
-export const RT_RUN_HEAD = "text-meta"
+  `m-0 whitespace-pre-wrap wrap-anywhere ${mono ? "text-meta" : "text-body leading-[inherit]"}`
+export const RT_RUN_HEAD = "m-0 flex min-w-0 items-center gap-2 text-meta"
 
 /** The composer's schedule cells (padding from the SelectorField frame), and the steppers a soft keyboard (no arrows) gets instead. */
 export const RT_CRON = "flex gap-4.5"

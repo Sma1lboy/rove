@@ -4,9 +4,11 @@
  */
 
 import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import { t } from "./i18n/index.ts"
 import { fill, useCopy } from "./pages-kit.ts"
 import { responseText, runErrorText } from "./routine-run-text.ts"
 import {
+  RT_DOT,
   RT_GROW,
   RT_RESPONSE,
   RT_RUN,
@@ -14,6 +16,7 @@ import {
   RT_RUN_HEAD,
   RT_RUN_LINE,
   RT_RUN_OPEN,
+  RT_RUN_TIME,
   rtResponseClass,
 } from "./ui/routines.ts"
 import { KICKER } from "./ui/text.ts"
@@ -55,7 +58,7 @@ export function RoutineRuns(props: {
   const responded = runs.filter((run) => run.response)
   return (
     <>
-      <h2 className={`${KICKER} text-muted`}>{auto.recentRuns}</h2>
+      <h2 className={`${KICKER} text-muted`}>{t("pages.routineRecentRuns")}</h2>
       {runs.length === 0 ? (
         <p className="text-muted">{auto.noRuns}</p>
       ) : (
@@ -67,10 +70,11 @@ export function RoutineRuns(props: {
           const tone = state === "missing" ? "text-warning" : TONE_CLASS[runTone(run.status)]
           const line = (
             <>
-              <span>{run.trigger === "manual" ? "▸" : "·"}</span>
-              <span>{`#${run.runNumber}`}</span>
-              <span className={RT_GROW}>{`${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
-              <span className="text-muted">{when(run.at)}</span>
+              <span className={RT_DOT} aria-hidden="true" />
+              <span className={RT_GROW}>
+                {`${run.trigger === "manual" ? "▸ " : ""}#${run.runNumber} ${statusText(run.status)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}
+              </span>
+              <span className={RT_RUN_TIME}>{when(run.at)}</span>
             </>
           )
           const error = run.error ? runErrorText(run.error) : null
@@ -79,15 +83,15 @@ export function RoutineRuns(props: {
           return (
             <div key={run.id} className={`${RT_RUN} ${tone}`}>
               {taskId ? (
-                <button type="button" className={`mono ${RT_RUN_OPEN}`} onClick={() => props.openRun(taskId)}>
+                <button type="button" className={RT_RUN_OPEN} onClick={() => props.openRun(taskId)}>
                   {line}
                 </button>
               ) : (
-                <span className={`mono ${RT_RUN_LINE}`}>{line}</span>
+                <span className={RT_RUN_LINE}>{line}</span>
               )}
               {error && (
-                <details className={`mono ${RT_RUN_ERROR}`}>
-                  <summary>{error.summary}</summary>
+                <details className={RT_RUN_ERROR}>
+                  <summary title={error.full}>{error.summary}</summary>
                   <pre>{error.full}</pre>
                 </details>
               )}
@@ -97,14 +101,16 @@ export function RoutineRuns(props: {
       )}
       {runs[0]?.precheckResult && <PrecheckDetail run={runs[0]} />}
 
-      <h2 className={`${KICKER} text-muted`}>{auto.responses}</h2>
+      <h2 className={`${KICKER} text-muted`}>{t("pages.routineResponses")}</h2>
       {responded.length === 0 ? (
         <p className="text-muted">{auto.noResponses}</p>
       ) : (
         responded.map((run) => (
           <div key={run.id} className={RT_RESPONSE}>
-            <p className={`mono ${RT_RUN_HEAD} ${TONE_CLASS[runTone(run.status)]}`}>
-              {`#${run.runNumber} ${statusText(run.status)}, ${when(run.response?.at)}`}
+            <p className={`${RT_RUN_HEAD} ${TONE_CLASS[runTone(run.status)]}`}>
+              <span className={RT_DOT} aria-hidden="true" />
+              <span className={RT_GROW}>{`#${run.runNumber} ${statusText(run.status)}`}</span>
+              <span className={RT_RUN_TIME}>{when(run.response?.at)}</span>
             </p>
             <p className={rtResponseClass(false)}>{responseText(run.response?.text ?? "")}</p>
           </div>
@@ -129,7 +135,7 @@ function PrecheckDetail({ run }: { run: AutomationRun }) {
   return (
     <div>
       <h2 className={`${KICKER} text-muted`}>
-        {fill(auto.precheckDetail, { exit, duration: String(result.durationMs) })}
+        {fill(t("pages.routineWhySkipped"), { exit, duration: String(result.durationMs) })}
       </h2>
       {streams.length === 0 ? (
         <p className="text-muted">{auto.precheckNoOutput}</p>

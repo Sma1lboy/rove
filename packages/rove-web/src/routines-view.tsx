@@ -33,10 +33,13 @@ import {
 } from "./pages-kit.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
+import { RoutinePrompt } from "./routine-prompt.tsx"
+import { runErrorText } from "./routine-run-text.ts"
 import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
-import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
+import { Button } from "./ui/button.tsx"
+import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
 import {
   RT_BODY,
   RT_DETAIL,
@@ -46,14 +49,13 @@ import {
   RT_META,
   RT_NAME,
   RT_PAGE,
-  RT_PROMPT,
   RT_ROW_LINE,
   RT_ROW_SUB,
   RT_WHEN,
   rtNameClass,
   rtRowClass,
 } from "./ui/routines.ts"
-import { KICKER, LINK } from "./ui/text.ts"
+import { KICKER } from "./ui/text.ts"
 
 const POLL_MS = 5_000
 
@@ -337,7 +339,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
       <div className={PG_TOP}>
-        <h1 className={PAGE_TITLE}>{auto.title}</h1>
+        <h1 className={PAGE_TITLE}>{t("pages.routinesTitle")}</h1>
         <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
             <span className="text-error">
@@ -348,9 +350,9 @@ export function RoutinesView({ model }: { model: AppModel }) {
             {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
           </span>
           {/* Every page key has a click target too: a phone has no n/e/d. */}
-          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
-            {t("pages.new")}
-          </button>
+          <Button variant="filled" onClick={() => void createRoutine()}>
+            {t("pages.routineNew")}
+          </Button>
         </span>
       </div>
 
@@ -398,10 +400,13 @@ export function RoutinesView({ model }: { model: AppModel }) {
                           {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
                         </span>
                         {lastFailure[routine.id] ? (
-                          <span className={`mono text-warning ${RT_ROW_SUB}`} title={lastFailure[routine.id]?.reason}>
+                          <span
+                            className={`text-warning ${RT_ROW_SUB}`}
+                            title={runErrorText(lastFailure[routine.id]?.reason ?? "").full}
+                          >
                             {fill(auto.lastFailed, {
                               when: when(lastFailure[routine.id]?.at),
-                              reason: lastFailure[routine.id]?.reason ?? "",
+                              reason: runErrorText(lastFailure[routine.id]?.reason ?? "").summary,
                             })}
                           </span>
                         ) : null}
@@ -419,31 +424,16 @@ export function RoutinesView({ model }: { model: AppModel }) {
               <>
                 <div className={RT_HEAD}>
                   <h2 className={RT_NAME}>{selected.name}</h2>
-                  <span className={`mono ${PG_ACTIONS}`}>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={() => void runNow()}
-                    >
-                      {auto.runNow}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={() => void toggleEnabled()}
-                    >
+                  <span className={PG_ACTIONS}>
+                    <Button variant="filled" disabled={busy === selected.id} onClick={() => void runNow()}>
+                      {t("pages.routineRunNow")}
+                    </Button>
+                    <Button variant="action" disabled={busy === selected.id} onClick={() => void toggleEnabled()}>
                       {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={requestDelete}
-                    >
-                      {t("pages.delete")}
-                    </button>
+                    </Button>
+                    <Button variant="danger" disabled={busy === selected.id} onClick={requestDelete}>
+                      {t("pages.routineDelete")}
+                    </Button>
                   </span>
                 </div>
                 <dl className={RT_META}>
@@ -485,17 +475,14 @@ export function RoutinesView({ model }: { model: AppModel }) {
                 {selected.precheck && (
                   <p className="mono text-muted">{fill(auto.precheck, { command: selected.precheck.command })}</p>
                 )}
-                {selected.script ? (
-                  <>
-                    <h2 className={`${KICKER} text-muted`}>{t("pages.routineScript")}</h2>
-                    <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className={`${KICKER} text-muted`}>{t("pages.routinePrompt")}</h2>
-                    <p className={RT_PROMPT}>{selected.prompt}</p>
-                  </>
-                )}
+                <h2 className={`${KICKER} text-muted`}>
+                  {t(selected.script ? "pages.routineScript" : "pages.routinePrompt")}
+                </h2>
+                <RoutinePrompt
+                  key={selected.id}
+                  text={selected.script ? selected.script.command : selected.prompt}
+                  mono={!!selected.script}
+                />
 
                 <RoutineRuns runs={runs} now={now} when={when} openRun={openRun} />
               </>
