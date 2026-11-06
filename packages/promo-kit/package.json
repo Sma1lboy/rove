@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "kit": "bun kit.ts",
-    "dev": "bunx wrangler dev",
-    "deploy": "bunx wrangler deploy",
+    "tokens": "cp ../branding/design-system/tokens.css site/rove-tokens.css",
+    "dev": "bun run tokens && bunx wrangler dev",
+    "deploy": "bun run tokens && bunx wrangler deploy",
     "test": "bun test test"
   }
 }
