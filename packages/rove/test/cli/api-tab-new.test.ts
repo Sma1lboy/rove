@@ -89,6 +89,18 @@ it("a shell tab is a command row with the login shell and no title, opened throu
   expect(typed).toEqual(["t::tab-2", "t::tab-3"])
 })
 
+it("a shell's --type text is typed once, after the identity export, with Enter", async () => {
+  seed({})
+  const daemon = tabsDaemon({ seed: { t: oneEngineTab() } })
+
+  await defaultApiRuntime.openTab(daemon.client, target(), "shell", { type: "env PORT=4100 sh .rove/run.sh" })
+
+  const writes = host.calls.filter((c) => c.name === "pty.write").map((c) => c.payload.data)
+  expect(writes).toHaveLength(2)
+  expect(String(writes[0])).toContain("ROVE_TASK_ID=t")
+  expect(writes[1]).toBe("env PORT=4100 sh .rove/run.sh\r")
+})
+
 it("a home shell on a fresh task is its tab-1, never an engine tab-1 with a shell behind it", async () => {
   seed({})
   const daemon = tabsDaemon({ seed: {} })

@@ -1411,7 +1411,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
-- `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
+- `tab-new --task-id ID --kind shell|engine [--command CMD | --latest] [--type TEXT]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
   picker's Enter on an empty message. `shell` opens a shared child task of
   `--task-id` (same directory, titled `shell`, so the rail and the TUI tree list it) whose
@@ -1419,7 +1419,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `ROVE_TASK_ID` / `ROVE_TAB_ID` export into it. A fresh Ungrouped (scratch) task with no
   tabs is the exception: its shell is its own `tab-1`. When the shell exits the row stays
   with no tabs (`reopenAs: command`), and ⏎ in the TUI or Start in the web starts a fresh
-  shell; nothing deletes the task. `engine` starts a new conversation. A task with no
+  shell; nothing deletes the task. `--type TEXT` (shell only) types TEXT into the new shell
+  once it is up and presses Enter, after the `ROVE_*` export; the tab stays a normal shell,
+  so Ctrl+C stops what it started. `engine` starts a new conversation. A task with no
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, as `add --no-worktree`) whose

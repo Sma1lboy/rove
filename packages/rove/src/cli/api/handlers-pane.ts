@@ -207,7 +207,7 @@ async function launchKind(ctx: VerbContext, daemon: DaemonRpc, task: SerializedT
  * A new shell is its own row: a shared child of `task` (same directory) whose `tab-1` is the login
  * shell. A fresh Ungrouped task is the exception, since its shell already IS the task.
  */
-async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask) {
+async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: SerializedTask, type?: string) {
   const taskId = task.id
   const own = task.scratch === true && ((await readDaemonTabs(daemon, taskId))?.tabs.length ?? 0) === 0
   const row = own ? task : await spawnSharedChild(daemon, taskId, undefined, SHELL_TASK_TITLE)
@@ -224,7 +224,7 @@ async function openShellTab(ctx: VerbContext, daemon: DaemonRpc, task: Serialize
         ...(task.extraRepos?.length ? { multiRepo: true } : {}),
       },
       "shell",
-      { home: true },
+      { home: true, ...(type === undefined ? {} : { type }) },
     )
     const shell = { ok: true, taskId, tabId: opened.tab.id, session: opened.session, kind: "shell" }
     if (!own) return { ...shell, childTaskId: row.id }
@@ -296,6 +296,13 @@ export const TAB_NEW_VERB: VerbSpec = {
       placeholder: "ID",
       description: "Viewport tabs only: the task (same project) whose first engine session the tab shows.",
     },
+    {
+      name: "type",
+      type: "string",
+      placeholder: "TEXT",
+      description:
+        "Shell tabs only: type TEXT into the new shell once it is up, then press Enter (e.g. a dev server's command). The tab stays a normal shell: Ctrl+C stops what it started.",
+    },
   ],
   handler: async (ctx) => {
     const daemon = daemonOf(ctx)
@@ -311,6 +318,10 @@ export const TAB_NEW_VERB: VerbSpec = {
         "BAD_FLAG",
         helpStep("tab-new"),
       )
+    }
+    const type = ctx.args.str("type")
+    if (type !== undefined && kind !== "shell") {
+      throw new ApiError("--type only applies to a shell tab; pass --kind shell", "BAD_FLAG", helpStep("tab-new"))
     }
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
     // The project's last engine; the task's own when it is the same, so its model and effort carry over.
@@ -354,7 +365,7 @@ export const TAB_NEW_VERB: VerbSpec = {
         }
       })
     }
-    return openShellTab(ctx, daemon, task)
+    return openShellTab(ctx, daemon, task, type)
   },
 }
 

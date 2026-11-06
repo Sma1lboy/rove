@@ -10,6 +10,11 @@ export const en = {
     stripNoEngine: "No engine session open in this task — nowhere to put the prompt.",
     stripUnavailable: "couldn't read the PR's checks: {detail}",
     stripNothing: "nothing to ask the agent about right now",
+    run: {
+      run: "[ run ]",
+      stop: "[ stop ]",
+      open: "[ open :{port} ]",
+    },
     checks: {
       title: "checks",
       summary: "{pass}/{total} passed",
@@ -192,6 +197,11 @@ export const zh: typeof en = {
     stripNoEngine: "这个任务没有打开的引擎会话，提示词无处可放。",
     stripUnavailable: "读不到 PR 的检查结果：{detail}",
     stripNothing: "现在没有需要让代理处理的事",
+    run: {
+      run: "[ 运行 ]",
+      stop: "[ 停止 ]",
+      open: "[ 打开 :{port} ]",
+    },
     checks: {
       title: "检查",
       summary: "{pass}/{total} 通过",

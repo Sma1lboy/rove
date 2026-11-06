@@ -61,6 +61,7 @@ async function openShell(
   cwd: string,
   multiRepo: boolean,
   home: boolean,
+  type?: string,
 ) {
   const shell = resolveSessionShell()
   // A shell task's first tab IS its shell: seeded as `tab-1`, never behind an engine tab-1 nobody asked for.
@@ -87,6 +88,7 @@ async function openShell(
     // The TUI types this once, on the spawn it creates; a mounted tab attaching later sees `created: false`.
     const repos = multiRepo ? await launchReposOf(client, taskId) : undefined
     await rpc.request("pty.write", { key, data: shellIdentityInput(taskId, tab.id, repos && repoEnv(repos)) })
+    if (type !== undefined) await rpc.request("pty.write", { key, data: `${type}\r` })
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})
   }
@@ -152,7 +154,7 @@ export async function openNewTab(
   target: PromptTarget,
   worktree: string,
   kind: NewTabKind,
-  opts: { readonly home?: boolean } = {},
+  opts: { readonly home?: boolean; readonly type?: string } = {},
 ): Promise<OpenedTab> {
   const host = await ensureHostFor(
     target.id,
@@ -161,7 +163,15 @@ export async function openNewTab(
   try {
     const opened =
       kind === "shell"
-        ? await openShell(client, host.rpc, target.id, worktree, target.multiRepo === true, opts.home === true)
+        ? await openShell(
+            client,
+            host.rpc,
+            target.id,
+            worktree,
+            target.multiRepo === true,
+            opts.home === true,
+            opts.type,
+          )
         : await openEngine(client, host.rpc, target, worktree)
     return { tab: opened.tab, session: opened.key }
   } catch (error) {

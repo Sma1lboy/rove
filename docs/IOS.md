@@ -281,6 +281,9 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
 | `pr.checks` | `taskId`, `fresh?` | `gh pr view <n> --json statusCheckRollup,mergeable,mergeStateStatus,reviewDecision,isDraft` in the task's worktree, cached 30 s: `{outcome: "ok", total, checks[{name, state: fail\|pending\|pass\|skipped, durationMs, url, runId}] (failures first, at most 60), mergeable, mergeState, review, draft}`, `none` (no PR yet) or `unavailable` + `detail` | — |
 | `pr.checkLog` | `taskId`, `runId` (digits), `job` | `gh run view <runId> --log-failed`, cached 60 s per run: `{outcome: "ok", tail}` (last 40 lines / 4000 chars of that job), `none` or `unavailable` | — |
+| `run.status` | `taskId` | `get-task` + `pty-list` + `ports --all`: `{script, running, port, listening, url}`. `script` = the worktree has a non-empty `.rove/run.sh`; `running` = the run tab's session is alive; `listening` = something listens on the task's port | — |
+| `run.start` | `taskId` | `tab-new --kind shell --type "env PORT=<port> ROVE_PORT=<port> sh .rove/run.sh"` (the repo's own file; the client sends no command). The port is the task's own from `run.portBase`/`run.portCount` in `state.json`, held in `run.tasks`; `NO_RUN_SCRIPT`, `NO_PORT` refusals. Same answer as `run.status` | — |
+| `run.stop` | `taskId` | `tab-close` on the run tab (ends the script); the task keeps its port. Same answer as `run.status` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |

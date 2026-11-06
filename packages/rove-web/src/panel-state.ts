@@ -14,6 +14,7 @@ import {
   loadPanels,
   newPanel,
   remember,
+  showBrowser,
   showDiff,
   showKind,
 } from "./panel-model.ts"
@@ -76,6 +77,14 @@ export function openDiff(view: Preview): void {
   // Zen hides the panel, and showing the diff is what was asked for (as `launchPanel` and a panel push do).
   if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("diff")
+}
+
+/** An address opens in a Browser tab beside the terminal (the one already on it, else a blank one, else a new one). */
+export function openBrowser(taskId: string, url: string): void {
+  editPanel(taskId, (panel) => showBrowser(panel, url))
+  panelOpen.set(true)
+  if (zen.get()) zen.set(false)
+  if (isNarrow()) narrowView.set("browser")
 }
 
 /** Closes a tab; the phone's panel always shows something, so it falls back to Files when its kind runs out. */
