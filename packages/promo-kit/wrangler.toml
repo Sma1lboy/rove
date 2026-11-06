@@ -17,7 +17,7 @@ run_worker_first = true
 binding = "BUCKET"
 bucket_name = "promo-kit"
 
-# Fill both once the Access app exists; while empty, every browser request gets a 403.
+# Access app "promo-kit" on team sma1lboy. Emptying either var makes every browser request 403.
 [vars]
-ACCESS_TEAM = ""
-ACCESS_AUD = ""
+ACCESS_TEAM = "sma1lboy"
+ACCESS_AUD = "eb26eb5e7abebc5966d8febbc16a6d5a10c481e6aaf32fbfb1ccdf83b4fa4be9"
