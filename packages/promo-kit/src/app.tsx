@@ -24,7 +24,10 @@ export function App() {
   useEffect(() => {
     reload()
   }, [reload])
-  useEffect(() => scrollTo(0, 0), [route])
+  // Braces matter: newer Chrome's scrollTo returns a Promise, which React would call as the cleanup and crash.
+  useEffect(() => {
+    scrollTo(0, 0)
+  }, [route])
 
   const item = data?.items.find((x) => x.id === route)
   let body: React.ReactNode = null
