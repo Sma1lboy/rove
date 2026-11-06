@@ -41,6 +41,7 @@ import {
 import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
 import { offerArchiveOriginal } from "./retry.tsx"
 import { formatStartsAt, scheduleCreated } from "./schedule-start.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -78,8 +79,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
   const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
   const [repos, setRepos] = useState<readonly string[]>(() => {
-    const start = startOf(lastSaved)
-    return start ? [start] : []
+    return seededRepos(startOf(lastSaved), seed)
   })
   // Each picked repo's branches: the last probe at once, reread when it is picked.
   const [probes, setProbes] = useState<Readonly<Record<string, ProbeResult>>>(() =>
@@ -98,10 +98,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setRepos([])
   }
   // The ref each repo's worktree branches from ("" = its current branch), and the one branch name they share.
-  const [bases, setBases] = useState<Readonly<Record<string, string>>>(() => {
-    const start = startOf(lastSaved)
-    return start && seed.baseBranch ? { [start]: seed.baseBranch } : {}
-  })
+  const [bases, setBases] = useState<Readonly<Record<string, string>>>(() => seededBases(startOf(lastSaved), seed))
   const [branchName, setBranchName] = useState("")
   const [repoQuery, setRepoQuery] = useState("")
   // A link's `?prompt=` lands here as a draft to read and edit; nothing starts until Start is pressed.
@@ -148,9 +145,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         setHome(fs.home)
         // A project the opener named on another machine is a path there, not a project here.
         const start = startOf(list.repos)
-        setRepos((now) => (now.length > 0 || !start ? now : [start]))
+        setRepos((now) => (now.length > 0 || !start ? now : seededRepos(start, seed)))
         // The branch the opener chose applies to the project it chose.
-        if (start && seed.baseBranch) setBases((now) => ({ ...now, [start]: seed.baseBranch ?? "" }))
+        setBases((now) => ({ ...now, ...seededBases(start, seed) }))
       })
       .catch(() => {})
   }, [model, initialRepo])
@@ -276,6 +273,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
             branch: branchName.trim(),
             engine: choice.engine,
+            commandFrom: retryCommandFrom(seed, choice.engine),
             engines: begin ? picks.ids : [],
             prompt: first,
             begin,

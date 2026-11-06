@@ -102,6 +102,8 @@ export interface NewSessionStart {
   readonly engine?: string
   /** Worktree on or off, ahead of the remembered choice (Retry: as the task it retries was made). */
   readonly worktree?: boolean
+  /** A multi-repo task's other repos (Retry), picked after `repo` with the ref each branches from. */
+  readonly extras?: readonly { readonly repo: string; readonly baseRef?: string }[]
   /** The task being retried: once the new one starts, the composer offers to archive this one. */
   readonly retryOf?: { readonly id: string; readonly label: string }
 }

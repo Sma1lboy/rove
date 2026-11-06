@@ -9,31 +9,18 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { type RetryBrief, retrySeed } from "./retry-seed.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, openNewSessionFrom, toast } from "./ui.ts"
 
-interface Brief {
-  readonly prompt?: string
-  readonly repo: string
-  readonly engine?: string
-  readonly baseRef?: string
-}
-
 export async function openRetry(model: AppModel, task: TaskRow): Promise<void> {
   try {
-    const { task: brief } = await model.client.request<{ task: Brief }>("task.get", { taskId: task.id })
+    const { task: brief } = await model.client.request<{ task: Omit<RetryBrief, "prompt"> & { prompt?: string } }>(
+      "task.get",
+      { taskId: task.id },
+    )
     if (!brief.prompt) return void toast(t("menu.retryNoPrompt"), "error")
-    const ungrouped = task.scratch || task.noProject
-    openNewSessionFrom({
-      ...(ungrouped ? { ungrouped: true as const } : { repo: brief.repo }),
-      ...(brief.baseRef ? { baseBranch: brief.baseRef } : {}),
-      ...(task.machine ? { machine: task.machine.id } : {}),
-      prompt: brief.prompt,
-      ...(brief.engine ? { engine: brief.engine } : {}),
-      // A project's own checkout (main, or a directory task) retries in place; a managed task in a worktree.
-      worktree: task.kind === "task",
-      retryOf: { id: task.id, label: task.label },
-    })
+    openNewSessionFrom(retrySeed(task, { ...brief, prompt: brief.prompt }))
   } catch (err) {
     toast(errorText(err), "error")
   }

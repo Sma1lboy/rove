@@ -122,6 +122,8 @@ export interface StartInput {
   /** The branch name every repo's worktree gets; "" = derived. */
   readonly branch: string
   readonly engine: string
+  /** The task whose launch command this one keeps (Retry). */
+  readonly commandFrom?: string
   /** Two or more engines run the prompt as that many sibling attempts of one round; fewer use `engine`. */
   readonly engines?: readonly string[]
   readonly prompt: string
@@ -154,6 +156,7 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
     ...(title ? { title } : {}),
     ...(compare ? { agents: (input.engines ?? []).map((id) => `${id}:1`).join(",") } : {}),
     ...(!compare && input.engine ? { engine: input.engine } : {}),
+    ...(!compare && input.engine && input.commandFrom ? { commandFrom: input.commandFrom } : {}),
     ...(!compare && input.model ? { model: input.model } : {}),
     ...(!compare && input.effort ? { effort: input.effort } : {}),
   }
