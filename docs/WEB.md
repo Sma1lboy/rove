@@ -72,9 +72,13 @@ already paired with `rove-bridge` keeps working: the two share one token.
   loads it.
 - Dispatch (rail): every prompt one session hands another — `rove api send`,
   `api dispatch`, `api add` from an agent, a routine firing — while it is in
-  flight and for a while after. A small ASCII courier runs from sender to
-  target, then knocks (delivered, the engine has not started on it), works,
-  asks (`?`, the engine waits on you) or lies down (failed). The daemon keeps
+  flight and for a while after. A prompt in flight is one small dot riding
+  its wire from sender to target; once it lands, the target node shows its
+  state: `→ delivered` (the engine has not started on it), `● working`,
+  `? needs you` (amber outline: the engine waits on you), `✓ done` or
+  `✗ failed`. A prompt that failed before it arrived leaves a `✗` where it
+  stopped. Nothing animates once no prompt is travelling, and reduced motion
+  turns the travel off. The daemon keeps
   this state, so a page opened mid-flight shows what is still on its way; a
   `rove daemon restart` clears it. A prompt sent from here to a task on
   another [machine](./MACHINES.md) is drawn into that machine's box and moves

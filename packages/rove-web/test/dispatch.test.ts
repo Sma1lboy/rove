@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { DispatchRow } from "rove-bridge/protocol"
 import { graphOf, pointOn } from "../src/dispatch-graph.ts"
-import { TRAVEL_MS, moving, onMap, runnerOf } from "../src/dispatch.ts"
+import { TRAVEL_MS, flightOf, moving, statusByTarget, stoppedAt } from "../src/dispatch.ts"
 
 const row = (over: Partial<DispatchRow> = {}): DispatchRow => ({
   id: "x-1",
@@ -15,21 +15,35 @@ const row = (over: Partial<DispatchRow> = {}): DispatchRow => ({
   ...over,
 })
 
-describe("dispatch courier", () => {
-  test("runs its wire after the paste, knocks until the target's engine starts, then works there", () => {
-    const halfway = runnerOf(row(), 1_000 + TRAVEL_MS / 2, 0)
-    expect(halfway.pose).toBe("run")
-    expect(halfway.x).toBeCloseTo(0.5)
-    expect(runnerOf(row(), 1_000 + TRAVEL_MS * 3, 0)).toMatchObject({ pose: "knock", x: 1 })
-    expect(runnerOf(row({ status: "working" }), 1_001, 0)).toMatchObject({ pose: "work", x: 1 })
+describe("dispatch prompts", () => {
+  test("a prompt rides its wire after the paste and is gone from it on arrival", () => {
+    expect(flightOf(row(), 1_000 + TRAVEL_MS / 2)).toBeCloseTo(0.5)
+    expect(flightOf(row(), 1_000 + TRAVEL_MS * 3)).toBeNull()
+    expect(flightOf(row({ status: "working" }), 1_001)).toBeNull()
+    expect(moving([row()], 1_000 + TRAVEL_MS * 3)).toBe(false)
   })
 
-  test("a failed courier falls where the failure caught it, and leaves the map after a while", () => {
-    const failed = row({ status: "failed" })
-    expect(runnerOf(failed, 9_999, 0)).toMatchObject({ pose: "failed", x: 0 })
-    expect(onMap(failed, 5_000)).toBe(true)
-    expect(onMap(failed, 60_000)).toBe(false)
-    expect(moving([failed], 60_000)).toBe(false)
+  test("a prompt that failed before it arrived stops where the failure caught it; one that failed at the target does not", () => {
+    expect(stoppedAt(row({ status: "failed" }))).toBe(0)
+    expect(stoppedAt(row({ status: "failed", statusAt: 1_000 + TRAVEL_MS / 2 }))).toBeCloseTo(0.5)
+    expect(stoppedAt(row({ status: "failed", statusAt: 1_000 + TRAVEL_MS * 3 }))).toBeNull()
+    expect(stoppedAt(row())).toBeNull()
+  })
+
+  test("a target shows a question waiting for you over anything newer, and work under way over a stale delivery", () => {
+    const key = (r: DispatchRow) => r.to.taskId
+    expect(statusByTarget([row({ id: "a", status: "asking" }), row({ id: "b", status: "done" })], key).get("w")).toBe(
+      "asking",
+    )
+    expect(
+      statusByTarget([row({ id: "a", status: "working" }), row({ id: "b", status: "delivered" })], key).get("w"),
+    ).toBe("working")
+    expect(
+      statusByTarget([row({ id: "a", status: "delivered" }), row({ id: "b", status: "done" })], key).get("w"),
+    ).toBe("done")
+    expect(
+      statusByTarget([row({ id: "a", status: "failed" }), row({ id: "b", status: "working" })], key).get("w"),
+    ).toBe("working")
   })
 })
 
@@ -45,7 +59,7 @@ describe("dispatch network", () => {
     expect(graph.targets.map((n) => n.key)).toEqual(["w::tab-1", "w::tab-2"])
   })
 
-  test("a courier at the halfway point stands at the hub", () => {
+  test("a prompt at the halfway point is at the hub", () => {
     const wire = { from: { x: 0, y: 0 }, hubIn: { x: 90, y: 50 }, hubOut: { x: 110, y: 50 }, to: { x: 200, y: 100 } }
     expect(pointOn(wire, 0)).toEqual({ x: 0, y: 0 })
     expect(pointOn(wire, 0.5)).toEqual({ x: 110, y: 50 })

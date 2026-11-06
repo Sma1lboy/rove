@@ -1,83 +1,61 @@
 /**
- * The Dispatch page's courier: where on its wire it stands and which ASCII frame it shows, from
- * the daemon's row alone (status, `at`, `statusAt`) and a clock.
+ * The Dispatch page's prompts, read from the daemon's row alone (status, `at`, `statusAt`) and a
+ * clock: where a prompt still travelling its wire is, where a failed one stopped, and which
+ * status each target node shows.
  */
 
 import type { DispatchRow } from "rove-bridge/protocol"
 import { ease } from "./dispatch-graph.ts"
 
-/** How long the courier takes to run sender → hub → target after a paste lands. */
+/** How long a prompt takes to run sender → hub → target after a paste lands. */
 export const TRAVEL_MS = 1_800
-/** Frame period of the courier's own animation (legs, arms). */
-export const FRAME_MS = 160
-/** How long a settled courier stays on the map: a cheer, or where it fell. */
-const LINGER_MS: Readonly<Record<string, number>> = { done: 4_000, failed: 10_000 }
-
-// ponytail: placeholder courier until the owner picks Rove's character; every frame is 3 rows × 3 cols.
-const SPRITES = {
-  run: [
-    [" o ", "/|>", "/ \\"],
-    [" o ", "<|\\", " >\\"],
-  ],
-  knock: [
-    [" o ", " |)", "/ \\"],
-    [" o ", " |>", "/ \\"],
-  ],
-  work: [
-    [" o_", " |=", "/ \\"],
-    ["_o ", "=| ", "/ \\"],
-  ],
-  ask: [[" o?", "/|\\", "/ \\"]],
-  done: [["\\o/", " | ", "/ \\"]],
-  failed: [["   ", "   ", "o_/"]],
-} as const
-
-export type Pose = keyof typeof SPRITES
-
-export interface Runner {
-  /** 0 = at the sender, 1 = at the target. */
-  readonly x: number
-  readonly pose: Pose
-  readonly sprite: readonly string[]
-}
 
 export function settled(row: DispatchRow): boolean {
   return row.status === "done" || row.status === "failed"
 }
 
-/** In flight, or settled recently enough that its courier is still on the map. */
-export function onMap(row: DispatchRow, now: number): boolean {
-  return !settled(row) || now - row.statusAt < (LINGER_MS[row.status] ?? 0)
+/** 0 = at the sender, 1 = at the target, for a row that has not arrived yet; null once it has. */
+export function flightOf(row: DispatchRow, now: number): number | null {
+  if (row.status !== "delivered") return null
+  const ran = (now - row.at) / TRAVEL_MS
+  return ran >= 1 ? null : ease(ran)
 }
 
-export function runnerOf(row: DispatchRow, now: number, frame: number): Runner {
-  const ran = Math.min(1, Math.max(0, (now - row.at) / TRAVEL_MS))
-  const pose: Pose =
-    row.status === "failed"
-      ? "failed"
-      : row.status === "done"
-        ? "done"
-        : row.status === "asking"
-          ? "ask"
-          : row.status === "working"
-            ? "work"
-            : ran < 1
-              ? "run"
-              : "knock"
-  // A failed courier falls where the failure caught it; one that never left falls at the start.
-  const x =
-    pose === "failed"
-      ? ease(Math.min(1, Math.max(0, (row.statusAt - row.at) / TRAVEL_MS)))
-      : pose === "run"
-        ? ease(ran)
-        : 1
-  const frames = SPRITES[pose]
-  return { x, pose, sprite: frames[frame % frames.length] ?? frames[0] }
+/** Where on its wire a failed row stopped, when it never reached the target; null when it did. */
+export function stoppedAt(row: DispatchRow): number | null {
+  if (row.status !== "failed") return null
+  const ran = (row.statusAt - row.at) / TRAVEL_MS
+  return ran >= 1 ? null : ease(ran)
 }
 
-/** True while some courier still has a frame to change. */
+/** True while some prompt is still on its way, i.e. while the clock has to run every frame. */
 export function moving(rows: readonly DispatchRow[], now: number): boolean {
-  return rows.some((row) => onMap(row, now) && row.status !== "asking")
+  return rows.some((row) => flightOf(row, now) !== null)
+}
+
+/** What outranks the newest prompt on a target node: a question waiting for you, then work under way. */
+const URGENT: Readonly<Record<string, number>> = { asking: 2, working: 1 }
+
+/**
+ * The status each target node (by key) shows: a prompt asking for you, else one being worked, else
+ * its newest prompt. So a newer ✓ never hides a question, and an old prompt stuck on "delivered" never hides a newer one.
+ */
+export function statusByTarget(
+  rows: readonly DispatchRow[],
+  keyOf: (row: DispatchRow) => string,
+): Map<string, DispatchRow["status"]> {
+  const out = new Map<string, DispatchRow["status"]>()
+  const rank = new Map<string, number>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    const mine = URGENT[row.status] ?? 0
+    // Rows come oldest first: an equal rank is newer, so it wins.
+    if (mine >= (rank.get(key) ?? 0)) {
+      rank.set(key, mine)
+      out.set(key, row.status)
+    }
+  }
+  return out
 }
 
 /** The newest settled rows, newest first, for the history under the map. */

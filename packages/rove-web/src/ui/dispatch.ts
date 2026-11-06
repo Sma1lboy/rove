@@ -4,44 +4,49 @@
 const SIZE_META = "text-meta leading-[inherit]"
 
 export const DP_PAGE = "flex flex-col gap-4.5"
-/** The map takes whatever height the history leaves; nodes, hub and couriers are placed from its measured size. */
+/** The map takes whatever height the history leaves; nodes, hub and markers are placed from its measured size. */
 export const DP_STAGE = "relative min-w-0 flex-[1_0_auto] overflow-hidden"
 export const DP_WIRES = "absolute inset-0 overflow-visible"
 
+/** `live`: a prompt is travelling it; `failed`: one stopped on it; `idle`: just who talks to whom. */
 const WIRE = {
-  live: "stroke-accent [stroke-dasharray:4_5] animate-dp-flow motion-reduce:animate-none",
-  failed: "stroke-error [stroke-dasharray:2_4]",
-  idle: "stroke-line",
+  live: "stroke-accent [stroke-width:1.5] [stroke-dasharray:4_5] animate-dp-flow motion-reduce:animate-none",
+  failed: "stroke-error [stroke-width:1.5] [stroke-dasharray:2_4]",
+  idle: "stroke-line [stroke-width:1]",
 } as const
-export const wireClass = (tone: keyof typeof WIRE): string => `fill-none [stroke-width:1.5] ${WIRE[tone]}`
+export const wireClass = (tone: keyof typeof WIRE): string => `fill-none ${WIRE[tone]}`
+/** A wire's ends are marked with a dot in its own colour. */
+const PORT = { live: "fill-accent", failed: "fill-error", idle: "fill-line" } as const
+export const portClass = (tone: keyof typeof PORT): string => PORT[tone]
 
-export const nodeClass = (o: { readonly plain: boolean }): string =>
-  `absolute flex h-10.5 min-w-0 flex-col justify-center gap-px rounded-sm border-hairline border-line bg-paper px-2.5 text-left text-ink [font:inherit] ${o.plain ? "cursor-default" : "cursor-pointer hover:bg-hover"}`
+/** No box: the node is its text, flush to the end of its wire; a wash on hover, an amber outline when it needs you. */
+export const nodeClass = (o: {
+  readonly plain: boolean
+  readonly side: "sender" | "target"
+  readonly asking: boolean
+}): string =>
+  `absolute flex h-10.5 min-w-0 flex-col justify-center gap-px rounded-sm border-hairline bg-transparent px-2.5 text-ink [font:inherit] ${o.side === "sender" ? "items-end text-right" : "items-stretch text-left"} ${o.asking ? "border-warning" : "border-transparent"} ${o.plain ? "cursor-default" : "cursor-pointer hover:bg-hover"}`
 export const nodeTitleClass = (stale: boolean): string =>
-  `min-w-0 truncate text-body leading-[inherit] ${stale ? "text-subtle" : ""}`
-export const NODE_SUB = `min-w-0 truncate ${SIZE_META} text-subtle`
+  `min-w-0 max-w-full truncate text-body leading-[inherit] ${stale ? "text-subtle" : ""}`
+export const NODE_SUB = `flex min-w-0 max-w-full items-baseline justify-between gap-2 ${SIZE_META} text-subtle`
+export const NODE_SUB_LABEL = "min-w-0 truncate"
 
-export const hubClass = (live: boolean): string =>
-  `absolute flex flex-col items-center justify-center rounded-md border-hairline bg-paper ${live ? "border-accent" : "border-line-active"}`
+export const hubClass = "absolute flex flex-col items-center justify-center"
 export const HUB_MARK = "text-title leading-[inherit] font-bold text-ink [&_b]:text-accent"
 export const HUB_HOST = `max-w-[calc(100%-16px)] truncate ${SIZE_META} text-muted`
-export const HUB_SUB = `${SIZE_META} text-subtle`
+export const hubSubClass = (live: boolean): string => `${SIZE_META} ${live ? "text-accent" : "text-subtle"}`
 
 /** Another registered machine: its sessions sit inside, its name and state on top. */
 export const DP_MACHINE = "absolute rounded-md"
 export const machineHeadClass = (stale: boolean): string =>
   `h-7.5 truncate px-2.5 text-meta leading-[30px] ${stale ? "text-subtle" : "text-muted"}`
 
-const POSE: Record<string, string> = {
-  knock: "text-warning",
-  ask: "text-warning",
-  done: "text-success",
-  failed: "text-error",
-}
-/** JetBrains Mono joins `<|` and `|>` into arrows; the courier's limbs are separate strokes. */
-export const courierClass = (pose: string): string =>
-  `pointer-events-none absolute top-0 left-0 w-6 font-mono text-meta leading-[14px] whitespace-pre [font-variant-ligatures:none] will-change-transform ${POSE[pose] ?? "text-accent"}`
-export const DP_EMPTY = `absolute right-0 bottom-2.5 left-0 m-0 text-center ${SIZE_META}`
+const MARK = "pointer-events-none absolute top-0 left-0 w-3 text-center font-mono text-meta leading-3"
+/** One small glyph that rides a wire while a prompt is on its way. */
+export const FLIGHT = `${MARK} text-accent will-change-transform`
+/** Where a failed prompt that never arrived stopped. */
+export const STOPPED = `${MARK} text-error`
+export const DP_EMPTY = `absolute right-0 left-0 m-0 text-center ${SIZE_META}`
 
 export const DP_SECTION = "flex flex-col gap-0.5"
 export const DP_KICKER = "m-0 mb-1"
