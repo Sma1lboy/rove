@@ -17,6 +17,7 @@ import { longPressOpensMenus } from "./long-press.ts"
 import { AppModel } from "./model.ts"
 import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
+import { revealScrollbarsOnScroll } from "./scroll-reveal.ts"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
 // The one stylesheet: tokens, reset and the Tailwind theme.
@@ -25,6 +26,7 @@ import "./tailwind.css"
 const root = createRoot(document.getElementById("root") as HTMLElement)
 followVisualViewport()
 longPressOpensMenus()
+revealScrollbarsOnScroll()
 watchLeaving()
 trapDialogFocus()
 const token = storedToken()

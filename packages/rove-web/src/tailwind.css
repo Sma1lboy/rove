@@ -135,14 +135,12 @@ button:focus-visible {
 }
 
 /*
- * Scrollbars, as claude.ai's: thin, transparent track, no arrows, a faint pill that brightens on
- * hover and while dragged. Not hidden until the list is hovered, as Claude's sidebar does it:
- * Chromium doesn't repaint a webkit thumb on its parent's `:hover`, so it would stick shown or
- * hidden. A container that doesn't overflow shows nothing: every scroller is `overflow: auto` and
- * none reserves a `scrollbar-gutter`, which would leave an empty lane beside short lists.
- * Tokens only, so the theme's light and dark halves both follow. Chromium and Safari
- * paint `::-webkit-scrollbar` (the standard properties, once set, would switch those off), so
- * the standard pair is only for Firefox.
+ * Scrollbars: invisible until the element scrolls. scroll-reveal.ts sets `data-scrolling` on the
+ * element that scrolled for a moment after each scroll; only then does its thumb paint (thin,
+ * transparent track, no arrows). Hovering or dragging the thumb itself keeps it shown. Nested
+ * scrollers (a scrolling box inside a scrolling pane) never show two bars at once at rest.
+ * Chromium and Safari paint `::-webkit-scrollbar` (the standard properties, once set, would
+ * switch those off), so the standard pair is only for Firefox.
  */
 :root {
   --scroll-thumb: color-mix(in srgb, var(--subtle) 45%, transparent);
@@ -153,11 +151,11 @@ button:focus-visible {
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--scroll-thumb) transparent;
+    scrollbar-color: transparent transparent;
   }
 
-  *:hover {
-    scrollbar-color: var(--scroll-thumb-hover) transparent;
+  *[data-scrolling] {
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
 }
 
@@ -181,7 +179,11 @@ button:focus-visible {
     min-width: 32px;
     border: 3px solid transparent;
     border-radius: 999px;
-    background: var(--scroll-thumb) padding-box;
+    background: transparent padding-box;
+  }
+
+  *[data-scrolling]::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb);
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -204,12 +206,22 @@ button:focus-visible {
   background-clip: padding-box;
 }
 
+/* Hidden unless the user is scrolling the terminal (scroll-reveal.ts) or dragging the slider. */
 .term-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
   background-color: var(--scroll-thumb);
+  opacity: 0;
+  transition: opacity 300ms linear;
+}
+
+.term-host[data-scrolling] .xterm .xterm-scrollable-element > .scrollbar > .slider,
+.term-host .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
+  opacity: 1;
+  transition: none;
 }
 
 .term-host .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
   background-color: var(--scroll-thumb-hover);
+  opacity: 1;
 }
 
 .term-host .xterm .xterm-scrollable-element > .scrollbar > .slider.active {
