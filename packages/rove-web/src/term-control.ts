@@ -16,7 +16,6 @@ export interface TermControl {
   hasSelection(): boolean
   /** Copy the selection and drop it; false = there was none. */
   copySelection(): boolean
-  openSearch(): void
   /** F5: confirm, then kill the shell and spawn a fresh one. */
   reset(): void
   size(): { cols: number; rows: number }
@@ -58,13 +57,5 @@ registerCommands(() => [
     prefix: false,
     surface: "terminal",
     run: () => focusedTerm.get()?.reset(),
-  },
-  {
-    id: "terminal.search",
-    chords: ["/"],
-    prefix: true,
-    surface: "terminal",
-    live: () => focusedTerm.get() !== null,
-    run: () => focusedTerm.get()?.openSearch(),
   },
 ])

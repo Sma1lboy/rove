@@ -22,7 +22,6 @@ import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
 import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
-import { TermSearchBar } from "./term-search.tsx"
 import { dialog, toast } from "./ui.ts"
 import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_SCROLLED } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
@@ -110,7 +109,6 @@ export function TerminalView(props: TerminalViewProps) {
   const [notice, setNotice] = useState<Notice>({ kind: "none" })
   const [handle, setHandle] = useState<TermHandle | null>(null)
   const [scrolled, setScrolled] = useState(0)
-  const [searching, setSearching] = useState(false)
   const [revive, setRevive] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null })
   // Callbacks change every render; the mount (which runs once per session) reads the latest.
   const latest = useRef(props)
@@ -158,7 +156,6 @@ export function TerminalView(props: TerminalViewProps) {
     return () => {
       cancelled = true
       setHandle(null)
-      setSearching(false)
       leased?.release()
     }
   }, [client, taskId, tabId, leafId])
@@ -179,7 +176,6 @@ export function TerminalView(props: TerminalViewProps) {
         term.clearSelection()
         return true
       },
-      openSearch: () => setSearching(true),
       reset: () => {
         // Snapshot at the keypress: a tab switch while the confirm is open must not reset the wrong shell.
         const size = { cols: term.cols, rows: term.rows }
@@ -278,7 +274,7 @@ export function TerminalView(props: TerminalViewProps) {
           onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
           onRetryAttach={handle ? () => void handle.reattach() : undefined}
         />
-        {scrolled > 0 && !searching && handle && (
+        {scrolled > 0 && handle && (
           <div className={`mono ${TERM_SCROLLED}`}>
             <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
             <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
@@ -288,15 +284,6 @@ export function TerminalView(props: TerminalViewProps) {
               {terminalText("scrollLatest")}
             </button>
           </div>
-        )}
-        {searching && handle && (
-          <TermSearchBar
-            handle={handle}
-            onClose={() => {
-              setSearching(false)
-              handle.term.focus()
-            }}
-          />
         )}
       </div>
       {props.composer && <TermComposer model={props.model} taskId={taskId} tabId={tabId} />}

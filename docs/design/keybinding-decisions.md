@@ -626,27 +626,20 @@ loses a key. Its handler is wrapped in `prefixAction` for the same reason the
 split row's is: the prefix HUD's clickable option resolves through `action`,
 not `cmd`.
 
-## `ctrl+a` `/` — search the terminal scrollback (PROPOSED, awaiting sign-off)
+## REMOVED: `ctrl+a` `/` — terminal scrollback search (2026-11-06, owner's call)
 
-Prefix-only, and it has to be. The terminal pane forwards a bare `/` to the
-shell and must keep doing so, while the prefix's first stroke never passes
-through — so `/` as the SECOND stroke costs the shell nothing. `TRAPPED_KEYS`
-is unchanged. The letter mirrors the sidebar's bare `/`: one search key across
-the app, chosen for that rather than for being free.
+The terminal scope once proposed a prefix-only `/` that opened a scrollback
+search row. The owner removed it ("这个 search 不要，干扰了全局 search") rather
+than approving it: in a terminal, the most-local scope won, so `ctrl+a` `/`
+opened the scrollback row instead of the command palette and the palette was
+unreachable from the surface where the prefix is used most. `ctrl+a` `/` now
+always opens the palette (see "Command palette and help filter" below).
 
-What it may shadow: nothing today. `ctrl+a` `/` resolved to no binding before
-this row, and the dispatcher consumed the miss.
+The feature is deleted in both the TUI and the web: the `terminal.search*`
+rows, the query row, the match scanner and the web's xterm search addon. Nothing
+else used them, and no chord is orphaned. A future terminal search needs a
+different chord and a fresh sign-off.
 
-The walk keys are `return`/`up` (older) and `down` (newer), registered only
-while the query row is open — at which point the pane's passthrough is off, so
-the arrows are not being taken from the shell.
-
-`shift+return` was specified for "previous" and had to be dropped: without the
-kitty keyboard protocol a terminal sends the same CR byte for enter and
-shift+enter, so `matchKey` sees a plain `return` and the chord is a silently
-dead key. Rove keeps kitty's `allKeysAsEscapes` off deliberately (it crashes
-iTerm2's Chinese input — see `host-render-options.ts`), so this is not a
-temporary limitation. A render test pins the direction of every walk key.
 ## PROPOSED (not decided): `ctrl+a k` — Fix failing checks
 
 Status: **proposed, awaiting owner sign-off.** Wired in the registry as

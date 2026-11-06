@@ -100,10 +100,6 @@ export const en = {
     "terminal.scroll-up": "Scroll scrollback up",
     "terminal.scroll-down": "Scroll scrollback down",
     "terminal.reset": "Reset terminal — kill the current shell and respawn",
-    "terminal.search": "Search the scrollback",
-    "terminal.search.older": "Scrollback search: walk to the older match",
-    "terminal.search.newer": "Scrollback search: walk to the newer match",
-    "terminal.search.cancel": "Close scrollback search (restore prior scroll position)",
   },
 }
 
@@ -204,9 +200,5 @@ export const zh: typeof en = {
     "terminal.scroll-up": "向上滚动回滚",
     "terminal.scroll-down": "向下滚动回滚",
     "terminal.reset": "重置终端——关闭当前 shell 并重新启动",
-    "terminal.search": "搜索回滚缓冲区",
-    "terminal.search.older": "回滚搜索：跳到更早的匹配",
-    "terminal.search.newer": "回滚搜索：跳到更晚的匹配",
-    "terminal.search.cancel": "关闭回滚搜索（恢复原来的滚动位置）",
   },
 }

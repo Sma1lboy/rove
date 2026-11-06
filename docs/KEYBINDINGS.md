@@ -311,31 +311,6 @@ requires a terminal that speaks the kitty keyboard protocol — without it a
 terminal sends `ctrl+shift+c` and `ctrl+c` as the same byte, and the
 selection-aware `ctrl+c` above is what answers.
 
-### Searching it
-
-`ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
-and each new query parks on the newest occurrence — a scrollback is read
-backwards, so the hit you want is nearly always the last one.
-
-Pasting while the query row is focused adds to the query; it does not send
-input to the terminal child. Line breaks in pasted queries become spaces.
-Switching terminal sessions clears the query, selection and local scroll
-position. The session's process and buffered output stay available when you
-return. Resizing the same session keeps its query open.
-
-| Key | Action |
-|---|---|
-| `ctrl+a` `/` | Open the query row |
-| `return` or `up` | Walk to the older match (wraps at the top) |
-| `down` | Walk to the newer match |
-| `escape` | Close the row and return to the scroll position you opened it at |
-
-Every hit on screen is highlighted; the one you are parked on is painted in
-the accent colour. The search covers Rove's own scrollback only — while a
-full-screen app (an engine, `vim`, `less`) is on the alternate screen it owns
-its buffer, and the row says so instead of searching one screen of somebody
-else's redraw.
-
 ## Inbox
 
 `ctrl+a` `i` opens it. What the sections mean and how items clear:

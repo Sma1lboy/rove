@@ -95,8 +95,6 @@ export const splitName = (rule: boolean, active: boolean): string =>
 /** Overlays on the terminal, anchored to `TERM_BODY` so the key row and composer under it never cover them. */
 export const TERM_SCROLLED =
   "absolute right-2.5 bottom-2.5 z-4 flex gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1 text-meta"
-export const TERM_SEARCH = `absolute inset-x-2 bottom-2 z-5 flex items-center gap-2.5 rounded-sm border-hairline border-line bg-surface px-2.5 py-1 font-mono text-meta ${FONT_RESET} touch:text-display`
-export const TERM_SEARCH_INPUT = "min-w-0 flex-1 border-none bg-transparent text-ink [font:inherit] outline-none"
 
 /** What a soft keyboard lacks; touch screens only. A narrower column keeps each label whole, then scrolls the row. */
 export const TERM_KEY_ROW =

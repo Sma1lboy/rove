@@ -312,42 +312,6 @@ export const RoveKeymap: readonly RoveBinding[] = [
     hint: { keys: "f5" },
     presentation: "onePress",
   },
-  {
-    // PROPOSED, pending owner sign-off. Prefix-only: bare `/` must keep reaching
-    // the shell. Mirrors the sidebar's `/`. Adds nothing to TRAPPED_KEYS.
-    id: "terminal.search",
-    scope: "terminal",
-    keys: [],
-    prefixKeys: ["/"],
-    category: "Terminal",
-    description: "Search the scrollback",
-  },
-  {
-    // Registered only while the query row is open. Named by direction because a
-    // new query parks on the newest hit, so `return` walks back through history.
-    // NOT `shift+return`: without the kitty protocol (off, see
-    // host-render-options.ts) enter and shift+enter send the same CR.
-    id: "terminal.search.older",
-    scope: "terminal",
-    keys: ["up", "return"],
-    category: "Terminal",
-    description: "Scrollback search: walk to the older match",
-  },
-  {
-    id: "terminal.search.newer",
-    scope: "terminal",
-    keys: ["down"],
-    category: "Terminal",
-    description: "Scrollback search: walk to the newer match",
-  },
-  {
-    // Only while searching; otherwise esc passes through to the shell (vim).
-    id: "terminal.search.cancel",
-    scope: "terminal",
-    keys: ["escape"],
-    category: "Terminal",
-    description: "Close scrollback search (restore prior scroll position)",
-  },
   // The terminal's bare-key PTY passthrough is intentionally not here: it
   // forwards whatever is typed, it isn't a configurable shortcut.
 

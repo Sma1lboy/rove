@@ -25,17 +25,7 @@ async function frame(handle: RenderHandle): Promise<string> {
   return text
 }
 
-async function search(handle: RenderHandle, query: string): Promise<void> {
-  await act(async () => {
-    handle.mockInput.pressKey("a", { ctrl: true })
-    handle.mockInput.pressKey("/")
-    await settle()
-    await handle.mockInput.typeText(query)
-    await settle()
-  })
-}
-
-test("switching sessions releases the old search and listeners while retaining registry PTYs", async () => {
+test("switching sessions releases the old listeners while retaining registry PTYs", async () => {
   const fixture = createScriptedPtyRegistry()
   const exits: string[] = []
   let select: ((id: string) => void) | undefined
@@ -51,13 +41,10 @@ test("switching sessions releases the old search and listeners while retaining r
       alpha.feed(Array.from({ length: 80 }, (_, i) => `ALPHA history ${i}`).join("\r\n"))
       await handle.frame()
     })
-    await search(handle, "ALPHA history 12")
-    expect(await frame(handle)).toContain("/ALPHA history 12")
     await act(async () => {
       handle.resize(80, 20)
       await handle.frame()
     })
-    expect(await frame(handle)).toContain("/ALPHA history 12")
     expect(fixture.ptys).toHaveLength(1)
     await act(async () => {
       select?.("bravo::tab-1")
@@ -70,7 +57,6 @@ test("switching sessions releases the old search and listeners while retaining r
       await handle.mockInput.typeText("bravo-only")
       await settle()
     })
-    expect(await frame(handle)).not.toContain("/ALPHA")
     expect(bravo.writeLog.join("")).toBe("bravo-only")
     expect(alpha.writeLog).toEqual([])
     expect(alpha.killed).toBe(false)
@@ -82,7 +68,6 @@ test("switching sessions releases the old search and listeners while retaining r
     })
     expect(fixture.ptys).toHaveLength(2)
     expect(await frame(handle)).toContain("ALPHA while hidden")
-    expect(await frame(handle)).not.toContain("/ALPHA")
     await act(async () => {
       bravo.kill()
       await handle.mockInput.typeText("alpha-only")
@@ -102,42 +87,7 @@ test("switching sessions releases the old search and listeners while retaining r
   }
 })
 
-test("search owns bracketed paste until Escape restores terminal paste", async () => {
-  const fixture = createScriptedPtyRegistry()
-  const handle = await mount(<Terminal cwd="/fixture" taskId="paste" focused registry={fixture.registry} />)
-  try {
-    const pty = fixture.last()
-    await act(async () => {
-      pty.feed("needle one two\r\nlast row")
-      await handle.frame()
-    })
-    await search(handle, "needle ")
-    await act(async () => {
-      handle.mockInput.pressKey("\x1b[200~one\r\ntwo\x1b[201~")
-      await settle()
-    })
-    expect(await frame(handle)).toContain("/needle one two")
-    expect(await frame(handle)).toContain("1/1")
-    expect(pty.pastes).toEqual([])
-    expect(pty.writeLog).toEqual([])
-
-    await act(async () => {
-      handle.mockInput.pressEscape()
-      await settle()
-      handle.mockInput.pressKey("\x1b[200~one\r\ntwo\x1b[201~")
-      await settle()
-    })
-    expect(pty.pastes).toEqual(["one\r\ntwo"])
-    expect(pty.writeLog).toEqual([])
-    expect(await frame(handle)).not.toContain("/needle")
-  } finally {
-    act(() => handle.destroy())
-    fixture.registry.releaseAll()
-    resetPrefixState()
-  }
-})
-
-test("split focus and modal ownership gate search and terminal paste", async () => {
+test("split focus and modal ownership gate terminal paste", async () => {
   const fixture = createScriptedPtyRegistry()
   let focus: ((id: string) => void) | undefined
   let confirm: (() => void) | undefined
@@ -172,7 +122,6 @@ test("split focus and modal ownership gate search and terminal paste", async () 
   try {
     const [alpha, bravo] = fixture.ptys
     expect(fixture.ptys).toHaveLength(2)
-    await search(handle, "query")
     await act(async () => {
       focus?.("bravo")
       await settle()
@@ -180,13 +129,12 @@ test("split focus and modal ownership gate search and terminal paste", async () 
     await paste("bravo paste")
     expect(bravo.pastes).toEqual(["bravo paste"])
     expect(alpha.pastes).toEqual([])
-    expect(await frame(handle)).toContain("/query")
     await act(async () => {
       focus?.("alpha")
       await settle()
     })
     await paste(" text")
-    expect(await frame(handle)).toContain("/query text")
+    expect(alpha.pastes).toEqual([" text"])
     await act(async () => {
       confirm?.()
       await settle()
@@ -197,16 +145,15 @@ test("split focus and modal ownership gate search and terminal paste", async () 
       handle.mockInput.pressEscape()
       await settle()
     })
-    expect(await frame(handle)).toContain("/query text")
     expect(await frame(handle)).not.toContain("blocked")
-    expect(alpha.pastes).toEqual([])
+    expect(alpha.pastes).toEqual([" text"])
     expect(bravo.pastes).toEqual(["bravo paste"])
     await act(async () => {
       handle.mockInput.pressEscape()
       await settle()
     })
     await paste("alpha paste")
-    expect(alpha.pastes).toEqual(["alpha paste"])
+    expect(alpha.pastes).toEqual([" text", "alpha paste"])
     expect(bravo.pastes).toEqual(["bravo paste"])
   } finally {
     act(() => handle.destroy())

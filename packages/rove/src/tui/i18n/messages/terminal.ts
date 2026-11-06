@@ -68,15 +68,6 @@ export const en = {
   scrolledBack: "↑ scrolled {lines}L",
   scrollFirst: "[first]",
   scrollLatest: "[latest]",
-  search: {
-    placeholder: "search scrollback — enter/↑ older, ↓ newer, esc close",
-    position: "{index}/{total}",
-    noMatches: "no matches",
-    // The alternate screen belongs to the app: Rove's ring holds the one
-    // screen already on display, so there is nothing here a search could find
-    // that reading the pane would not.
-    unavailable: "this app owns its own scrollback — nothing local to search (esc)",
-  },
   unavailable: {
     // The PTY host resolves its shell from `$SHELL` alone (`resolveSessionShell`
     // in rove-daemon) — there is no Settings row for it, so `$SHELL` is the
@@ -151,12 +142,6 @@ export const zh: typeof en = {
   scrolledBack: "↑ 已回滚 {lines} 行",
   scrollFirst: "[最早]",
   scrollLatest: "[最新]",
-  search: {
-    placeholder: "搜索回滚缓冲区 —— enter/↑ 更早，↓ 更晚，esc 关闭",
-    position: "{index}/{total}",
-    noMatches: "没有匹配",
-    unavailable: "这个程序自己管理回滚缓冲区 —— 本地没有可搜索的内容（esc）",
-  },
   unavailable: {
     shellMissing:
       "终端不可用 —— $SHELL 指向的 shell 在这台机器上不存在。请把 $SHELL 指向一个真实存在的 shell，或取消设置以回退到系统默认。",
