@@ -23,7 +23,7 @@ import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, dialog, toast } from "./ui.ts"
 import { DIALOG_BODY } from "./ui/overlay.ts"
-import { PALETTE_LIST, paletteRow } from "./ui/shell.ts"
+import { PALETTE_CHORD, PALETTE_LIST, PALETTE_NAME, paletteRow } from "./ui/shell.ts"
 import { INPUT } from "./ui/text.ts"
 import { prefixCap, prefixKey, userKeys } from "./user-keys.ts"
 
@@ -176,8 +176,8 @@ function PaletteDialog({
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => open({ kind: "command", row })}
               >
-                <span>{`${i === index ? "› " : "  "}${row.name}`}</span>
-                <span className="keys-only mono text-accent">{row.chord}</span>
+                <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${row.name}`}</span>
+                <span className={`keys-only mono text-accent ${PALETTE_CHORD}`}>{row.chord}</span>
               </button>
             )
           })}
