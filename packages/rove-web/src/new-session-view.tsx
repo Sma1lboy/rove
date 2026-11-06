@@ -16,6 +16,7 @@ import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { ClipIcon, FolderIcon } from "./new-session-icons.tsx"
+import { LaterControl } from "./new-session-later.tsx"
 import {
   MachineChip,
   remoteEmpty,
@@ -41,6 +42,7 @@ import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { offerArchiveOriginal } from "./retry.tsx"
+import { formatStartsAt, scheduleCreated } from "./schedule-start.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
@@ -241,11 +243,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }
 
   // `begin` false creates the task without running its engine: no prompt needed.
-  const start = async (begin = true) => {
+  // `at` holds the first message until then: the task is created unstarted and the daemon starts it.
+  const start = async (begin = true, at?: Date) => {
     setError(null)
     if (remote) return startRemote(begin)
     if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
-    if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
+    if ((begin || at) && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     const first = withRefs(prompt.trim(), attachments)
     try {
@@ -282,6 +285,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         )
         created = res.taskIds[0]
         compared = res.groupId
+      }
+      if (at && created) {
+        await scheduleCreated(model.client, created, at, first)
+          .then(() => toast(t("newSession.laterSet", { time: formatStartsAt(at) })))
+          .catch((err) => toast(startError(err), "error"))
       }
       promptDraft = ""
       clear()
@@ -333,6 +341,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           />
           {snippets.list}
           <div className={C.CARD_ACTIONS}>
+            {!remote && !ungrouped && !picks.comparing && (
+              <LaterControl disabled={busy} onSchedule={(at) => void start(false, at)} onInvalid={setError} />
+            )}
             <button
               type="button"
               className={C.chipClass()}

@@ -22,6 +22,7 @@ import type {
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskRoutineLink,
+  TaskScheduledStart,
   TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
@@ -63,6 +64,7 @@ export function coerceTask(value: unknown): Task | null {
     kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
+  const scheduledStart = coerceScheduledStart(v.scheduledStart)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
   const lineage = coerceLineage(v, kind)
@@ -103,6 +105,7 @@ export function coerceTask(value: unknown): Task | null {
     ...(deletion ? { deletion } : {}),
     // A pending quota resume's durability rests on this timestamp being on disk.
     ...(quotaResume ? { quotaResume } : {}),
+    ...(scheduledStart ? { scheduledStart } : {}),
     ...(linkedWorkItem ? { linkedWorkItem } : {}),
     // Sub-task's route home in the collaboration loop; older records → undefined.
     ...(dispatcher ? { dispatcher } : {}),
@@ -254,6 +257,14 @@ function coerceQuotaResume(value: unknown): TaskQuotaResumeState | undefined {
   if (typeof v.resumeAt !== "string" || v.resumeAt.length === 0) return undefined
   if (typeof v.requestedAt !== "string" || v.requestedAt.length === 0) return undefined
   return { resumeAt: v.resumeAt, requestedAt: v.requestedAt }
+}
+
+function coerceScheduledStart(value: unknown): TaskScheduledStart | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.at !== "string" || v.at.length === 0) return undefined
+  if (typeof v.prompt !== "string" || v.prompt.length === 0) return undefined
+  return { at: v.at, prompt: v.prompt }
 }
 
 function coerceLinkedWorkItem(value: unknown): TaskLinkedWorkItem | undefined {

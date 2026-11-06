@@ -116,6 +116,14 @@ export interface EngineQuotaUsage {
   readonly capturedAt: number
 }
 
+/** A one-shot delayed start of an unstarted task (mirrors rove/types/task.ts). */
+export interface TaskScheduledStart {
+  /** ISO-8601 time the engine starts. */
+  readonly at: string
+  /** The first message the engine starts with; an unstarted task stores none of its own. */
+  readonly prompt: string
+}
+
 /** Durable rate-limit auto-resume schedule (mirrors rove/types/task.ts). */
 export interface TaskQuotaResumeState {
   /** ISO-8601 time the provider's exhausted quota window resets. */
@@ -256,6 +264,7 @@ export interface DaemonTask {
   readonly groupId?: string
   readonly deletion?: TaskDeletionState
   readonly quotaResume?: TaskQuotaResumeState
+  readonly scheduledStart?: TaskScheduledStart
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
@@ -393,6 +402,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
+  /** Arm (or clear, with `null`) the one-shot delayed start. */
+  setScheduledStart(id: string, state: TaskScheduledStart | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
   deleteTask(id: string, options?: TaskDeleteOptions): Promise<void>

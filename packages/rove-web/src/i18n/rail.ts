@@ -10,6 +10,7 @@ export const en = {
     state: { needs: "needs you", working: "working", ready: "ready", idle: "idle" },
     extraRepos: "{count} more repos in this task",
     todos: "{done} of {total} todos done",
+    startsAt: "Starts {time}",
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
       many: "{count} PRs in this task and its children",
@@ -60,6 +61,7 @@ export const zh: typeof en = {
     state: { needs: "等你处理", working: "进行中", ready: "待收尾", idle: "空闲" },
     extraRepos: "这个任务还含 {count} 个仓库",
     todos: "{done}/{total} 条待办已完成",
+    startsAt: "{time} 启动",
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
       many: "这个任务及子任务共 {count} 个 PR",

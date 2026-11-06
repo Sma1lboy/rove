@@ -99,6 +99,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
     resumeAt: "2026-08-27T06:00:00.000Z",
     requestedAt: "2026-08-27T00:00:00.000Z",
   },
+  scheduledStart: { at: "2026-07-01T03:00:00.000Z", prompt: "run the nightly migration" },
   linkedWorkItem: {
     provider: "github",
     type: "issue",

@@ -16,6 +16,7 @@ import type {
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
+  TaskScheduledStart,
   TaskStatus,
   TaskWorkerReport,
   VendorId,
@@ -429,6 +430,13 @@ export class TaskEditor {
     const task = this.requireTask(id)
     if ((task.quotaResume?.resumeAt ?? null) === (state?.resumeAt ?? null)) return
     await this.store.update(task.id, { quotaResume: state ?? undefined })
+  }
+
+  /** One-shot delayed start; `null` clears. */
+  async setScheduledStart(id: TaskId | string, state: TaskScheduledStart | null): Promise<void> {
+    const task = this.requireTask(id)
+    if (!task.scheduledStart && !state) return
+    await this.store.update(task.id, { scheduledStart: state ?? undefined })
   }
 
   /** Stamp the external tracker item this task was started from. Write-once in

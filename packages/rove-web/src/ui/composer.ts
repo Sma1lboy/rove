@@ -9,7 +9,7 @@ export const HERO = "flex flex-1 flex-col items-center justify-center gap-1.5 te
 export const COMPOSER = "mx-auto flex w-full max-w-[104ch] flex-col gap-2"
 export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
-export const CARD_ACTIONS = "flex items-center justify-end gap-1.5"
+export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
 export const GROW = "flex-1"

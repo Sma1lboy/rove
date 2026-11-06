@@ -202,6 +202,24 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     section: "open",
     run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
   })
+  if (task.startsAt) {
+    items.push({
+      label: t("menu.startNow"),
+      section: "open",
+      run: () =>
+        void model.client
+          .request("task.startScheduledNow", { taskId: task.id })
+          .catch((e) => toast(String(e), "error")),
+    })
+    items.push({
+      label: t("menu.cancelStart"),
+      section: "open",
+      run: () =>
+        void model.client
+          .request("task.cancelScheduledStart", { taskId: task.id })
+          .catch((e) => toast(String(e), "error")),
+    })
+  }
   if (task.hasPrompt) {
     items.push({
       label: tc("tasks", "menu.runAgain"),

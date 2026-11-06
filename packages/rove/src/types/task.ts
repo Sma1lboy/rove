@@ -20,6 +20,7 @@ import type {
   TaskPRStatus,
   TaskPtyAlias,
   TaskQuotaResumeState,
+  TaskScheduledStart,
   TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
@@ -36,6 +37,7 @@ export type {
   TaskPRStatus,
   TaskPtyAlias,
   TaskQuotaResumeState,
+  TaskScheduledStart,
   TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
@@ -178,6 +180,8 @@ export interface Task {
   readonly deletion?: TaskDeletionState
   /** Present while a rate-limited engine waits for its quota window to reset. */
   readonly quotaResume?: TaskQuotaResumeState
+  /** Present while an unstarted task waits for its one-shot delayed start. */
+  readonly scheduledStart?: TaskScheduledStart
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */

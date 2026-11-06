@@ -31,6 +31,7 @@ import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
 import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {
@@ -56,6 +57,7 @@ export interface DaemonCollectorOptions {
   readonly transcriptActivityTickMs?: number
   readonly contextUsageTickMs?: number
   readonly quotaResumeTickMs?: number
+  readonly scheduledStartTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
@@ -312,6 +314,14 @@ export function startDaemonCollectors(
     automations?.runnability,
   )
 
+  // Ungated, and it needs the self link only a full daemon has (the same one routines start sessions through).
+  const stopScheduledStartRunner = automations
+    ? startScheduledStartRunner(
+        { orch, runtime, link: automations.link },
+        options.scheduledStartTickMs ?? DEFAULT_SCHEDULED_START_TICK_MS,
+      )
+    : async () => {}
+
   // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
     ? startAutomationRunner(
@@ -364,6 +374,7 @@ export function startDaemonCollectors(
         stopAutoTitlePoller,
         stopPrStatusPoller,
         stopQuotaResumeRunner,
+        stopScheduledStartRunner,
         stopAutomationRunner,
         stopDeliverySweep,
         stopQuotaUsagePoller,
