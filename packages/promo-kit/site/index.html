@@ -31,6 +31,8 @@ body {
 header { padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 2; }
 header a { color: inherit; text-decoration: none; font-weight: 600; }
 header span { color: var(--muted); font-size: 14px; margin-left: 8px; }
+header a.tok { float: right; font-weight: 400; font-size: 14px; color: var(--muted); }
+textarea.prompt { min-height: 280px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 main { max-width: 1040px; margin: 0 auto; padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); }
 h1 { font-size: 20px; line-height: 1.3; margin: 8px 0 12px; }
 .muted { color: var(--muted); font-size: 14px; }
@@ -68,7 +70,7 @@ button:disabled { opacity: .55; cursor: progress; }
 </style>
 </head>
 <body>
-<header><a href="#/">宣发素材</a><span>用你自己的 X 账号发</span></header>
+<header><a href="#/">宣发素材</a><span>用你自己的 X 账号发</span><a class="tok" href="#/token">上传令牌</a></header>
 <main id="app"><p class="muted">加载中…</p></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module">
@@ -229,6 +231,51 @@ function renderDetail(it) {
   }
 }
 
+const setupPrompt = (token) => `帮我配置 promo-kit（团队 X 宣发素材库 ${location.origin}）的上传令牌：
+
+1. 把下面这一行写进 ~/.env。已经有 PROMO_KIT_TOKEN 的话只替换那一行，没有就追加到文件末尾。别的行不要动，不要把令牌打印出来，也不要提交进任何仓库。
+PROMO_KIT_TOKEN=${token}
+
+2. 验证：用 ~/.env 里的值跑
+curl -s -o /dev/null -w '%{http_code}\\n' -H "Authorization: Bearer $PROMO_KIT_TOKEN" ${location.origin}/api/items
+返回 200 就配好了。
+
+3. 以后推素材，在 rove 仓库的 packages/promo-kit 目录里跑：
+bun run kit push 视频.mp4 --title "标题" --copy copy.md
+copy.md 里一条推文一段，段之间用单独一行 --- 隔开。改文案：bun run kit copy <id> --copy copy.md；下架：bun run kit rm <id>；列表：bun run kit ls。`
+
+function renderToken() {
+  document.title = "上传令牌 · 宣发素材"
+  app.innerHTML = `
+    <a class="back" href="#/">← 全部素材</a>
+    <h1>上传令牌</h1>
+    <p class="muted">想自己往素材库推视频，先生成一个令牌，再把下面的 prompt 交给你的 Claude Code / Codex，它会把令牌写进你本机的 ~/.env。令牌只显示这一次；重新生成后旧令牌立刻作废。</p>
+    <div class="row"><button class="primary" id="mint" style="flex:0 1 auto">生成我的令牌</button></div>
+    <div id="out"></div>`
+  const btn = app.querySelector("#mint")
+  btn.addEventListener("click", async () => {
+    btn.disabled = true
+    try {
+      const r = await fetch("/api/token", { method: "POST" })
+      if (!r.ok) throw new Error(r.status + " " + (await r.text()))
+      const text = setupPrompt((await r.json()).token)
+      app.querySelector("#out").innerHTML = `
+        <div class="post" style="margin-top:16px">
+          <div class="head"><span>复制给你的 agent</span></div>
+          <textarea class="prompt" readonly aria-label="配置 prompt">${esc(text)}</textarea>
+          <div class="row"><button class="primary" id="cp">复制 prompt</button></div>
+        </div>`
+      app.querySelector("#cp").addEventListener("click", async () =>
+        toast((await copy(text)) ? "已复制，粘贴给你的 agent 即可" : "复制失败，手动全选文本框复制"))
+      btn.textContent = "重新生成（旧令牌会作废）"
+    } catch (e) {
+      toast("生成失败：" + e.message, 6000)
+    } finally {
+      btn.disabled = false
+    }
+  })
+}
+
 async function route() {
   try {
     if (!items) await load()
@@ -237,6 +284,7 @@ async function route() {
     return
   }
   const id = location.hash.replace(/^#\/?/, "")
+  if (id === "token") { renderToken(); scrollTo(0, 0); return }
   const it = id && items.find((x) => x.id === id)
   if (id && !it) app.innerHTML = `<p class="muted">素材不存在或已下架。<a href="#/">回到列表</a></p>`
   else if (it) renderDetail(it)

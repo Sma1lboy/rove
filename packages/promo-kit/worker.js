@@ -1,11 +1,16 @@
 // promo-kit: team X promo library. Static page + R2 videos + a tiny JSON index.
-// Reads are gated on a verified Cloudflare Access JWT; writes need the
-// UPLOAD_TOKEN bearer. The site never talks to X.
+// Reads need a verified Cloudflare Access JWT (header, or the CF_Authorization
+// cookie on /api/*, which Access bypasses at the edge) or an upload token.
+// Writes need an upload token: the UPLOAD_TOKEN secret, or a per-user token a
+// logged-in member mints at POST /api/token. The site never talks to X.
 //
 // Gate: with ACCESS_TEAM / ACCESS_AUD unset every browser request is denied,
 // so the domain stays closed until the Access app exists.
 
 const INDEX = "index.json"
+// ':' can't appear in item ids or upload keys, so writers can never reach these.
+const TOK = "auth:tok/"
+const USER = "auth:user/"
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), {
@@ -16,10 +21,16 @@ const json = (obj, status = 200) =>
 const b64u = (s) =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))
 
-async function accessOk(req, env) {
-  if (env.DEV_NO_ACCESS === "1") return true
-  const jwt = req.headers.get("cf-access-jwt-assertion")
-  if (!jwt || !env.ACCESS_TEAM || !env.ACCESS_AUD) return false
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("")
+const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))
+
+// Returns the Access identity (email, or "(service)" for service tokens) or null.
+async function accessUser(req, env) {
+  if (env.DEV_NO_ACCESS === "1") return "dev@local"
+  const jwt =
+    req.headers.get("cf-access-jwt-assertion") ||
+    req.headers.get("cookie")?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1]
+  if (!jwt || !env.ACCESS_TEAM || !env.ACCESS_AUD) return null
   try {
     const [h, p, s] = jwt.split(".")
     const head = JSON.parse(new TextDecoder().decode(b64u(h)))
@@ -28,18 +39,36 @@ async function accessOk(req, env) {
       cf: { cacheTtl: 3600 },
     }).then((r) => r.json())
     const jwk = certs.keys.find((k) => k.kid === head.kid)
-    if (!jwk) return false
+    if (!jwk) return null
     const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"])
     const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64u(s), new TextEncoder().encode(`${h}.${p}`))
     const aud = [].concat(body.aud)
-    return valid && aud.includes(env.ACCESS_AUD) && body.exp * 1000 > Date.now()
+    const ok = valid && aud.includes(env.ACCESS_AUD) && body.exp * 1000 > Date.now()
+    return ok ? body.email || "(service)" : null
   } catch {
-    return false
+    return null
   }
 }
 
-const isWriter = (req, env) =>
-  !!env.UPLOAD_TOKEN && req.headers.get("authorization") === `Bearer ${env.UPLOAD_TOKEN}`
+// Returns who owns the bearer upload token, or null.
+async function tokenUser(req, env) {
+  const t = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1]
+  if (!t) return null
+  if (env.UPLOAD_TOKEN && t === env.UPLOAD_TOKEN) return "owner"
+  const o = await env.BUCKET.get(TOK + (await sha256(t)))
+  return o ? (await o.json()).email : null
+}
+
+// One token per email: minting again revokes the previous one.
+async function mintToken(env, email) {
+  const token = "pk_" + hex(crypto.getRandomValues(new Uint8Array(32)))
+  const hash = await sha256(token)
+  const old = await env.BUCKET.get(USER + email)
+  if (old) await env.BUCKET.delete(TOK + (await old.json()).hash)
+  await env.BUCKET.put(TOK + hash, JSON.stringify({ email, created: new Date().toISOString() }))
+  await env.BUCKET.put(USER + email, JSON.stringify({ hash }))
+  return token
+}
 
 async function readIndex(env) {
   const o = await env.BUCKET.get(INDEX)
@@ -72,13 +101,19 @@ async function serveObject(req, env, key, url) {
   return new Response(obj.body, { headers: h })
 }
 
-async function api(req, env, url) {
+async function api(req, env, url, writer, viewer) {
   const path = url.pathname
   const m = path.match(/^\/api\/items\/([\w-]+)$/)
 
   if (path === "/api/items" && req.method === "GET") return json(await readIndex(env))
 
-  if (!isWriter(req, env)) return json({ error: "upload token required" }, 401)
+  if (path === "/api/token" && req.method === "POST") {
+    if (!viewer?.includes("@") || req.headers.get("sec-fetch-site") === "cross-site")
+      return json({ error: "log in through Access in a browser first" }, 403)
+    return json({ token: await mintToken(env, viewer) })
+  }
+
+  if (!writer) return json({ error: "upload token required" }, 401)
 
   if (m && req.method === "PUT") {
     const item = await req.json()
@@ -137,10 +172,11 @@ async function api(req, env, url) {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url)
-    const writer = url.pathname.startsWith("/api/") && isWriter(req, env)
-    if (!writer && !(await accessOk(req, env)))
-      return new Response("需要通过 Cloudflare Access 登录。", { status: 403 })
-    if (url.pathname.startsWith("/api/")) return api(req, env, url)
+    const isApi = url.pathname.startsWith("/api/")
+    const writer = isApi ? await tokenUser(req, env) : null
+    const viewer = writer ? null : await accessUser(req, env)
+    if (!writer && !viewer) return new Response("需要通过 Cloudflare Access 登录。", { status: 403 })
+    if (isApi) return api(req, env, url, writer, viewer)
     if (url.pathname.startsWith("/v/")) {
       const key = decodeURIComponent(url.pathname.slice(3))
       return validKey(key) ? serveObject(req, env, key, url) : new Response("bad key", { status: 400 })
