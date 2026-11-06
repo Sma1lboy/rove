@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { probe } from "../kit.ts"
-import { xLength } from "../site/xcount.js"
+import { xLength } from "../src/xcount.ts"
 
 test("xLength follows X weighting: CJK 2, URL 23, emoji 2", () => {
   expect(xLength("hello")).toBe(5)

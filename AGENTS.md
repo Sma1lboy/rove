@@ -60,7 +60,7 @@ Yoga flexbox: panes share width by ratio (`flexGrow`), not pixels. Fixed `width=
 
 ### Web UI: Tailwind in the TSX, controls from `packages/rove-web/src/ui/`
 Style with Tailwind token classes on the element; no CSS outside `src/tailwind.css`. A control used twice is a `src/ui/` component (add a variant, never a className override). Rules: the `rove-ui` skill §0.
-Any other UI in the repo (e.g. `promo-kit`) uses the Rove design system: [`packages/branding/design-system/`](./packages/branding/design-system/) `tokens.css` plus its README rules, never raw hex or invented sizes.
+Any other package UI (e.g. `promo-kit`) starts from rove-web's stack (Vite + React + TypeScript + Tailwind v4), with Tailwind's theme mapped to [`packages/branding/design-system/`](./packages/branding/design-system/) `tokens.css` and its README rules: no hand-written HTML pages, raw hex or invented sizes.
 All UI (rove-web included): avoid unnecessary secondary labels and descriptions; let the layout do the explaining.
 
 ### Engine-owned UI data

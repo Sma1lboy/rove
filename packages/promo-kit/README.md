@@ -1,6 +1,6 @@
 # promo-kit
 
-团队的 X 宣发素材库：https://kit.sma1lboy.me。每条素材是一个视频加上调好的文案，团队成员用自己的 X 账号发。站点不接 X API，不存任何人的 X 登录。
+Rove 宣发包（团队的 X 宣发素材库）：https://kit.sma1lboy.me。每条素材是一个视频加上调好的文案，团队成员用自己的 X 账号发。站点不接 X API，不存任何人的 X 登录。
 
 ## 团队成员怎么用
 
@@ -25,10 +25,12 @@ bun run kit ls
 ## 部署
 
 ```sh
-bunx wrangler deploy                    # 走 wrangler OAuth 登录；环境里的 CLOUDFLARE_API_TOKEN 没有 R2 权限，部署前先 unset
+bun run deploy                          # vite build 后 wrangler deploy；走 wrangler OAuth 登录；环境里的 CLOUDFLARE_API_TOKEN 没有 R2 权限，部署前先 unset
 bunx wrangler secret put UPLOAD_TOKEN   # 值和 ~/.env 里的 PROMO_KIT_TOKEN 相同
 ```
 
 Worker 会校验 Cloudflare Access 发的 JWT。`wrangler.toml` 里的 `ACCESS_TEAM`（团队域名的前缀）和 `ACCESS_AUD`（Access 应用的 AUD tag）为空时，所有浏览器请求都返回 403。`/api/*` 在 Access 里单独配了 bypass 应用（`kit.sma1lboy.me/api`），Worker 自己校验：要么带上传令牌，要么带浏览器的 `CF_Authorization` cookie。所以 CLI 只需要 `PROMO_KIT_TOKEN`。
 
-本地开发：在 `.dev.vars` 里写 `DEV_NO_ACCESS=1` 和 `UPLOAD_TOKEN=devtoken`，跑 `bun run dev`，再用 `KIT_URL=http://localhost:8787 PROMO_KIT_TOKEN=devtoken bun run kit push ...` 推一条测试素材。
+本地开发：在 `.dev.vars` 里写 `DEV_NO_ACCESS=1` 和 `UPLOAD_TOKEN=devtoken`，跑 `bun run dev`（先 vite build 再 wrangler dev，端口 8787；要 HMR 再开一个 `bun run dev:ui`，它把 /api 和 /v 代理到 8787），再用 `KIT_URL=http://localhost:8787 PROMO_KIT_TOKEN=devtoken bun run kit push ...` 推一条测试素材。
+
+页面是 Vite + React + TypeScript + Tailwind v4（和 rove-web 同一套），Tailwind 主题只映射 `packages/branding/design-system/tokens.css` 里的 token。
