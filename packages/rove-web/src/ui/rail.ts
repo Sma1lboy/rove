@@ -23,7 +23,7 @@ export const FOLD_TOGGLE =
 export const PR_CHIP = "inline-flex items-center gap-1"
 export const PR_CHIP_COUNT = "font-sans"
 export const prListClass = (closing: boolean): string =>
-  `fixed z-35 flex max-h-[60vh] w-110 max-w-[calc(100vw-24px)] animate-pr-list-in flex-col overflow-y-auto rounded-md border-hairline border-line bg-surface p-1.5 shadow-popover transition-[opacity,translate] duration-120 ease-in motion-reduce:animate-none motion-reduce:transition-none ${closing ? "-translate-x-1 opacity-0" : ""}`
+  `fixed z-35 flex max-h-[min(380px,60vh)] w-85 max-w-[calc(100vw-24px)] animate-pr-list-in flex-col overflow-y-auto overscroll-contain rounded-md border-hairline border-line bg-surface p-1.5 shadow-popover transition-[opacity,translate] duration-120 ease-in motion-reduce:animate-none motion-reduce:transition-none ${closing ? "-translate-x-1 opacity-0" : ""}`
 export const PR_LIST_ITEM =
   "flex flex-col gap-1 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left font-sans enabled:hover:bg-hover"
 export const PR_LIST_TITLE = "truncate font-semibold text-ink"
