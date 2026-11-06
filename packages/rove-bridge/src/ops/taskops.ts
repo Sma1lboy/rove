@@ -24,6 +24,7 @@ import {
   type CIFailingChecksRead,
   buildCIPromptForWorktree,
 } from "@sma1lboy/rove/src/tui/ops/ci-prompt.ts"
+import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import { openExternally } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
@@ -39,6 +40,8 @@ const PATH_MAX = 1000
 export interface TaskOpsDeps {
   homeDir(): string
   buildCIPrompt: typeof buildCIPromptForWorktree
+  /** The create-PR instruction for a worktree (the repo's template when it has one). */
+  prPrompt(worktree: string): Promise<string>
   /** Swap a tab with its neighbour in the daemon's strip order; false at an edge or for an unknown tab. */
   reorderTab(taskId: string, tabId: string, delta: -1 | 1, api: BridgeApi): Promise<boolean>
   /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
@@ -102,6 +105,7 @@ const realDeps: TaskOpsDeps = {
   runnable,
   homeDir: homedir,
   buildCIPrompt: buildCIPromptForWorktree,
+  prPrompt: buildPRPrompt,
   reorderTab: reorderDaemonTab,
 }
 
@@ -127,11 +131,22 @@ function clearable(args: Args, name: string, check: (a: Args, n: string) => stri
 
 async function worktreeAndBranch(ctx: OpContext, id: string) {
   const res = await ctx.api.verb<{
-    task: { worktreePath?: string; branch?: string; prStatus?: { number?: number } }
+    task: { worktreePath?: string; branch?: string; prStatus?: { number?: number; baseRef?: string } }
   }>("get-task", [flag("task-id", id)])
   const { worktreePath, branch, prStatus } = res.task
   if (!worktreePath) throw new BridgeError("NO_WORKTREE", `task ${id} has no worktree yet`)
-  return { worktree: worktreePath, branch: branch ?? "", prNumber: prStatus?.number }
+  return { worktree: worktreePath, branch: branch ?? "", prNumber: prStatus?.number, baseRef: prStatus?.baseRef }
+}
+
+const PR_PROMPT_KINDS = ["createPR", "fixCI", "conflicts", "comments"] as const
+
+/** One line each: the page types them into an engine's input, where a newline would send. */
+function conflictsPrompt(pr: string, base: string): string {
+  return `${pr} has merge conflicts with ${base}. Fetch, merge ${base} into this branch, resolve every conflict keeping the intent of both sides, run the project's checks, then commit the merge and push.`
+}
+
+function commentsPrompt(pr: string): string {
+  return `${pr} has review feedback to address. Read it with \`gh pr view --comments\` and \`gh api repos/{owner}/{repo}/pulls/<number>/comments\`, make a change for each point (reply only where you disagree and say why), run the project's checks, then commit and push.`
 }
 
 export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
@@ -187,6 +202,37 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
         if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
         await ctx.api.verb("send", argv)
         return { outcome: "sent" }
+      },
+    },
+
+    "task.prompt": {
+      kind: "read",
+      destructive: false,
+      wraps:
+        "buildPRPrompt | rpc pr.failingChecks + buildCIPromptForWorktree | fixed text; returns the prompt, sends nothing",
+      async run(a, ctx) {
+        const id = taskId(a)
+        const kind = oneOf(a, "kind", PR_PROMPT_KINDS)
+        const { worktree, branch, prNumber, baseRef } = await worktreeAndBranch(ctx, id)
+        const pr = prNumber === undefined ? "This task's PR" : `PR #${prNumber}`
+        if (kind === "createPR") return { outcome: "ok", prompt: await deps.prPrompt(worktree) }
+        if (kind === "conflicts") return { outcome: "ok", prompt: conflictsPrompt(pr, baseRef || "its base branch") }
+        if (kind === "comments") return { outcome: "ok", prompt: commentsPrompt(pr) }
+        const read = await ctx.api.rpc<{
+          checks?: readonly CIFailingCheck[]
+          totalFailing?: number
+          unavailable?: { reason: string; detail: string }
+        }>("pr.failingChecks", { taskId: id })
+        const checks = read.checks ?? []
+        if (read.unavailable) return { outcome: "unavailable", detail: read.unavailable.detail }
+        if (checks.length === 0) return { outcome: "none" }
+        const prompt = await deps.buildCIPrompt(worktree, {
+          branch: branch || "HEAD",
+          ...(prNumber === undefined ? {} : { prNumber }),
+          checks,
+          totalFailing: read.totalFailing ?? checks.length,
+        })
+        return { outcome: "ok", prompt }
       },
     },
 

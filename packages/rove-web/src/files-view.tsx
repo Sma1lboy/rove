@@ -14,6 +14,7 @@ import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
+import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
@@ -141,11 +142,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
           .request("file.openExternal", { taskId: task.id, path })
           .then(() => toast(t("taskops.openedExternal")))
           .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
-  const requestPR = () =>
-    void model.client
-      .request("tab.requestPR", model.engineTarget(task.id))
-      .then(() => toast(t("files.prRequested")))
-      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
 
   const onKey = (e: KeyboardEvent) => {
     const key = e.key
@@ -175,9 +171,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       ref={pane}
       onKeyDown={onKey}
     >
-      <div className="flex justify-end gap-3.5 px-2 pb-2 font-mono text-meta">
-        <Button onClick={requestPR}>{t("files.createPR")}</Button>
-      </div>
+      <PrStrip model={model} task={task} />
       <Tabs
         className="px-1 pb-1.5"
         tabs={[

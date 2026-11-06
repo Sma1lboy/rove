@@ -1,7 +1,15 @@
 /** `files`, `preview`, `panel`, `browser` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   files: {
-    createPR: "Ask agent to create PR",
+    stripCreate: "[ create PR ]",
+    stripFixCi: "[ fix CI ]",
+    stripConflicts: "[ resolve conflicts ]",
+    stripComments: "[ address comments ]",
+    stripArchive: "[ archive ]",
+    stripFilled: "prompt is in the input; edit it and press Enter",
+    stripNoEngine: "No engine session open in this task — nowhere to put the prompt.",
+    stripUnavailable: "couldn't read the PR's checks: {detail}",
+    stripNothing: "nothing to ask the agent about right now",
     prRequested: "asked the agent to create the PR",
     remoteNoExternal: "this file is on {host}; open it there",
     mentionNoEngine: "No engine session open in this task — nothing to mention into.",
@@ -95,7 +103,15 @@ export const en = {
 
 export const zh: typeof en = {
   files: {
-    createPR: "让代理创建 PR",
+    stripCreate: "[ 创建 PR ]",
+    stripFixCi: "[ 修复 CI ]",
+    stripConflicts: "[ 解决冲突 ]",
+    stripComments: "[ 处理评论 ]",
+    stripArchive: "[ 归档 ]",
+    stripFilled: "提示词已放进输入框，修改后按 Enter 发送",
+    stripNoEngine: "这个任务没有打开的引擎会话，提示词无处可放。",
+    stripUnavailable: "读不到 PR 的检查结果：{detail}",
+    stripNothing: "现在没有需要让代理处理的事",
     prRequested: "已让代理去创建 PR",
     remoteNoExternal: "这个文件在 {host} 上，请到那台机器上打开",
     mentionNoEngine: "这个任务没有打开的引擎会话——没有地方可以提及。",

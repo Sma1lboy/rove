@@ -11,6 +11,7 @@ isolateTaskOpDeps()
 const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   homeDir: () => "/home/me",
   buildCIPrompt: async (wt, s) => `fix ${s.branch} in ${wt}: ${s.checks.map((c) => c.jobName).join(",")}`,
+  prPrompt: async (wt) => `open a PR from ${wt}`,
   reorderTab: async () => true,
   openExternal: () => {},
   detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
@@ -97,6 +98,54 @@ describe("task.fixChecks", () => {
     await expect(run("task.fixChecks", { taskId: T }, { "get-task": { task: {} } })).rejects.toMatchObject({
       code: "NO_WORKTREE",
     })
+  })
+})
+
+describe("task.prompt", () => {
+  const task = (pr: object) => ({ task: { worktreePath: "/wt", branch: "feat", prStatus: pr } })
+  const sent = (calls: readonly object[]) => calls.some((c) => "verb" in c && c.verb === "send")
+
+  test("returns each kind's text and never sends it", async () => {
+    const info = task({ number: 7, baseRef: "develop" })
+    const [create, conflicts, comments] = await Promise.all(
+      (["createPR", "conflicts", "comments"] as const).map((kind) =>
+        run("task.prompt", { taskId: T, kind }, { "get-task": info }),
+      ),
+    )
+    const prompt = (r: { result: unknown } | undefined) => (r?.result as { prompt: string }).prompt
+    expect(prompt(create)).toBe("open a PR from /wt")
+    expect(prompt(conflicts)).toContain("PR #7 has merge conflicts with develop")
+    expect(prompt(comments)).toContain("PR #7 has review feedback")
+    expect([create, conflicts, comments].map(prompt).some((p) => p.includes("\n"))).toBe(false)
+    expect([create, conflicts, comments].some((r) => sent(r?.calls ?? []))).toBe(false)
+  })
+
+  test("a PR without a known base still names a base to merge", async () => {
+    const { result } = await run("task.prompt", { taskId: T, kind: "conflicts" }, { "get-task": task({}) })
+    expect((result as { prompt: string }).prompt).toContain("This task's PR has merge conflicts with its base branch")
+  })
+
+  test("fixCI renders the failing checks; no red check or no `gh` is not a prompt", async () => {
+    const failing = { checks: [{ jobName: "lint", conclusion: "failure", url: "u", tail: "t" }], totalFailing: 1 }
+    const info = task({ number: 7 })
+    const ok = await run("task.prompt", { taskId: T, kind: "fixCI" }, { "get-task": info, "pr.failingChecks": failing })
+    expect(ok.result).toEqual({ outcome: "ok", prompt: "fix feat in /wt: lint" })
+    const none = await run(
+      "task.prompt",
+      { taskId: T, kind: "fixCI" },
+      { "get-task": info, "pr.failingChecks": { checks: [] } },
+    )
+    expect(none.result).toEqual({ outcome: "none" })
+    const down = await run(
+      "task.prompt",
+      { taskId: T, kind: "fixCI" },
+      { "get-task": info, "pr.failingChecks": { unavailable: { reason: "gh", detail: "gh: down" } } },
+    )
+    expect(down.result).toEqual({ outcome: "unavailable", detail: "gh: down" })
+  })
+
+  test("an unknown kind is refused", async () => {
+    await expect(run("task.prompt", { taskId: T, kind: "merge" })).rejects.toMatchObject({ code: "BAD_ARGS" })
   })
 })
 
