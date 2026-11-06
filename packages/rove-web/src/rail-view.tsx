@@ -4,6 +4,7 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { AwayRecap } from "./away-recap-view.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -126,11 +127,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default", projectInfo)
   const place = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
-  const keys = useRailKeys(model, rows, filters, {
-    selectedId,
-    onNewTask: startNewTask,
-    onSettings: openSettings,
-  })
+  const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
   // Header Reorder lists the main it moves; the cursor goes to it so j/k drag its project.
   const reorderShown = reordering !== null && rows.some((row) => row.id === reordering)
   const setCursor = keys.setCursor
@@ -191,6 +188,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           onChange={(query) => filters.setSearch((s) => ({ ...s, query }))}
         />
       )}
+      <AwayRecap model={model} />
       <PageNav model={model} />
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
