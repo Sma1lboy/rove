@@ -11,6 +11,10 @@ const INDEX = "index.json"
 // ':' can't appear in item ids or upload keys, so writers can never reach these.
 const TOK = "auth:tok/"
 const USER = "auth:user/"
+// Per-item history: copy versions [{posts, by, at}] and member actions [{action, post?, by, at}].
+const VERSIONS = "meta:versions/"
+const EVENTS = "meta:events/"
+const ACTIONS = new Set(["send", "download", "copy"])
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), {
@@ -78,6 +82,32 @@ async function readIndex(env) {
 const writeIndex = (env, idx) =>
   env.BUCKET.put(INDEX, JSON.stringify(idx), { httpMetadata: { contentType: "application/json" } })
 
+const readList = async (env, key) => {
+  const o = await env.BUCKET.get(key)
+  return o ? o.json() : []
+}
+// ponytail: read-modify-write per item; two saves in the same instant can drop one. Use a Durable Object if that bites.
+async function append(env, key, entry) {
+  const list = await readList(env, key)
+  list.push({ ...entry, at: new Date().toISOString() })
+  await env.BUCKET.put(key, JSON.stringify(list))
+  return list
+}
+// Items pushed before history existed get their current copy as version 1.
+async function versionsOf(env, item) {
+  const list = await readList(env, VERSIONS + item.id)
+  return list.length ? list : [{ posts: item.posts, by: "上传", at: item.updated }]
+}
+async function saveVersion(env, item, posts, by) {
+  const list = await versionsOf(env, item)
+  if (JSON.stringify(list[list.length - 1].posts) === JSON.stringify(posts)) return list
+  list.push({ posts, by, at: new Date().toISOString() })
+  await env.BUCKET.put(VERSIONS + item.id, JSON.stringify(list))
+  item.posts = posts
+  return list
+}
+const validPosts = (p) => Array.isArray(p) && p.length > 0 && p.every((x) => typeof x === "string")
+
 const validKey = (k) => k && /^[\w-]+\/[\w.-]+$/.test(k)
 
 async function serveObject(req, env, key, url) {
@@ -105,7 +135,40 @@ async function api(req, env, url, writer, viewer) {
   const path = url.pathname
   const m = path.match(/^\/api\/items\/([\w-]+)$/)
 
-  if (path === "/api/items" && req.method === "GET") return json(await readIndex(env))
+  const who = writer || viewer
+  if (path === "/api/items" && req.method === "GET") {
+    const idx = await readIndex(env)
+    // ponytail: one R2 read per item for the "who sent it" badge; fine for dozens of items.
+    const sends = await Promise.all(
+      idx.items.map(async (it) => (await readList(env, EVENTS + it.id)).filter((e) => e.action === "send")),
+    )
+    return json({ me: who, items: idx.items.map((it, i) => ({ ...it, sends: sends[i] })) })
+  }
+
+  // Member routes: any logged-in browser or token holder, same-origin only.
+  const hm = path.match(/^\/api\/items\/([\w-]+)\/(history|versions|events)$/)
+  if (hm) {
+    if (req.headers.get("sec-fetch-site") === "cross-site") return json({ error: "cross-site" }, 403)
+    const idx = await readIndex(env)
+    const item = idx.items.find((x) => x.id === hm[1])
+    if (!item) return json({ error: "no such item" }, 404)
+    if (hm[2] === "history" && req.method === "GET")
+      return json({ versions: await versionsOf(env, item), events: await readList(env, EVENTS + item.id) })
+    if (hm[2] === "versions" && req.method === "POST") {
+      const { posts } = await req.json()
+      if (!validPosts(posts)) return json({ error: "need posts[]" }, 400)
+      const versions = await saveVersion(env, item, posts, who)
+      item.updated = new Date().toISOString()
+      await writeIndex(env, idx)
+      return json({ versions })
+    }
+    if (hm[2] === "events" && req.method === "POST") {
+      const { action, post } = await req.json()
+      if (!ACTIONS.has(action)) return json({ error: "bad action" }, 400)
+      return json({ events: await append(env, EVENTS + item.id, { action, post: Number(post) || 0, by: who }) })
+    }
+    return json({ error: "not found" }, 404)
+  }
 
   if (path === "/api/token" && req.method === "POST") {
     if (!viewer?.includes("@") || req.headers.get("sec-fetch-site") === "cross-site")
@@ -123,8 +186,12 @@ async function api(req, env, url, writer, viewer) {
     item.updated = new Date().toISOString()
     const idx = await readIndex(env)
     const i = idx.items.findIndex((x) => x.id === item.id)
-    if (i >= 0) idx.items[i] = { ...idx.items[i], ...item }
-    else idx.items.unshift(item)
+    if (i >= 0) {
+      const posts = item.posts
+      item.posts = idx.items[i].posts
+      idx.items[i] = { ...idx.items[i], ...item }
+      await saveVersion(env, idx.items[i], posts, writer)
+    } else idx.items.unshift(item)
     await writeIndex(env, idx)
     return json(item)
   }
@@ -134,7 +201,7 @@ async function api(req, env, url, writer, viewer) {
     if (!item) return json({ error: "no such item" }, 404)
     const { title, posts } = await req.json()
     if (title) item.title = title
-    if (Array.isArray(posts)) item.posts = posts
+    if (validPosts(posts)) await saveVersion(env, item, posts, writer)
     item.updated = new Date().toISOString()
     await writeIndex(env, idx)
     return json(item)
@@ -144,7 +211,7 @@ async function api(req, env, url, writer, viewer) {
     idx.items = idx.items.filter((x) => x.id !== m[1])
     await writeIndex(env, idx)
     const objs = await env.BUCKET.list({ prefix: `${m[1]}/` })
-    if (objs.objects.length) await env.BUCKET.delete(objs.objects.map((o) => o.key))
+    await env.BUCKET.delete([...objs.objects.map((o) => o.key), VERSIONS + m[1], EVENTS + m[1]])
     return json({ ok: true })
   }
 
