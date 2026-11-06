@@ -9,7 +9,7 @@
 import { homedir } from "node:os"
 import { basename, extname } from "node:path"
 import { parseArgs } from "node:util"
-import { xLength, X_MAX } from "./site/xcount.js"
+import { xLength, X_MAX } from "./src/xcount.ts"
 
 for (const line of (await Bun.file(`${homedir()}/.env`).text().catch(() => "")).split("\n")) {
   const m = line.match(/^\s*(?:export\s+)?([A-Z_]+)=(.*)$/)

@@ -1,14 +1,30 @@
 {
   "name": "promo-kit",
   "version": "0.0.0",
-  "description": "Team X promo library at kit.sma1lboy.me: Cloudflare Worker + R2, behind Cloudflare Access.",
+  "description": "Rove 宣发包 at kit.sma1lboy.me: Vite + React + Tailwind page on a Cloudflare Worker + R2, behind Cloudflare Access.",
   "private": true,
   "type": "module",
   "scripts": {
     "kit": "bun kit.ts",
-    "tokens": "cp ../branding/design-system/tokens.css site/rove-tokens.css",
-    "dev": "bun run tokens && bunx wrangler dev",
-    "deploy": "bun run tokens && bunx wrangler deploy",
+    "build": "vite build",
+    "dev": "vite build && bunx wrangler dev",
+    "dev:ui": "vite",
+    "deploy": "vite build && bunx wrangler deploy",
+    "typecheck": "tsc --noEmit",
     "test": "bun test test"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/bun": "1.3.14",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.8.2",
+    "vite": "^8.2.2"
   }
 }

@@ -1,0 +1,55 @@
+/* Tailwind on the Rove design system: only the tokens from packages/branding/design-system exist as utilities. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+/* Unlayered, so its :root values beat the theme layer's same-named variables. */
+@import "../../branding/design-system/tokens.css";
+
+@theme inline {
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-menu: var(--menu);
+  --color-line: var(--line);
+  --color-line-active: var(--line-active);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-hover: var(--hover);
+  --color-focus: var(--focus);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+
+  --font-*: initial;
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-sans);
+
+  --text-*: initial;
+  --text-meta: var(--fs-meta);
+  --text-body: var(--fs-body);
+  --text-title: var(--fs-title);
+  --text-display: var(--fs-display);
+
+  --radius-*: initial;
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-full: var(--radius-full);
+}
+
+@custom-variant touch (@media (hover: none) and (pointer: coarse));
+
+@layer base {
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: var(--fs-body) / 1.5 var(--font-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible { outline: var(--hairline) solid var(--focus); outline-offset: 1px; }
+}
