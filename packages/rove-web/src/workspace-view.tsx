@@ -2,6 +2,7 @@ import type { CSSProperties } from "react"
 import { useEffect } from "react"
 import { AttemptsStrip } from "./attempts-strip.tsx"
 import { t } from "./i18n/index.ts"
+import { openMachines } from "./machines-dialog.tsx"
 import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
 import { trackNav } from "./nav-history.ts"
@@ -109,7 +110,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
         )}
         {remoteTask?.machine && (
           <div className={PLACEHOLDER_BOX}>
-            <RemoteNotice host={remoteTask.machine.label} />
+            <RemoteNotice host={remoteTask.machine.label} onMachines={() => openMachines(model)} />
           </div>
         )}
         {task && tabsKnown && tabs.length === 0 && !panelOn && (

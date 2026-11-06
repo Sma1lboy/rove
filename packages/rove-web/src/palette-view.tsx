@@ -15,6 +15,8 @@ import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { actionDesc, helpText } from "./keymap-text.ts"
 import { enterWorkspace, openPage } from "./layout.ts"
+import { openMachines } from "./machines-dialog.tsx"
+import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { HitEntry, Note, SectionHead, TaskEntry, useConversationHits } from "./palette-search.tsx"
 import { repoLabel } from "./rail-labels.ts"
@@ -41,6 +43,7 @@ type Entry =
   | { readonly kind: "page"; readonly id: PageId; readonly name: string }
   | { readonly kind: "task"; readonly task: TaskRow }
   | { readonly kind: "hit"; readonly hit: Hit }
+  | { readonly kind: "machines"; readonly name: string }
 
 /** One row per id, most local first (the TUI walks its binding stack top-down); a direct chord beats the prefix form of the same id. */
 export function paletteRows(model: AppModel, surface: Surface | null): PaletteRow[] {
@@ -91,6 +94,11 @@ function PaletteDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the user's chords moving re-labels the rows
   const rows = useMemo(() => paletteRows(model, surface), [model, surface, keys])
   const shown = rows.filter((row) => matchesHelpAction(query, row.name, row.raw))
+  // The Machines overview has no chord of its own: only worth listing once another machine is registered.
+  const machines = useMachines(model)
+  const machineEntries = (machines.length > 0 ? [{ name: t("machines.title") }] : []).filter((entry) =>
+    matchesHelpAction(query, entry.name, ""),
+  )
   const q = query.trim()
   // The rail's own filter: title, branch or project; a routine's run stays on the Routines page.
   const tasks =
@@ -115,6 +123,7 @@ function PaletteDialog({
   const entries: readonly Entry[] = [
     ...shown.map((row): Entry => ({ kind: "command", row })),
     ...pages.map((entry): Entry => ({ kind: "page", ...entry })),
+    ...machineEntries.map((entry): Entry => ({ kind: "machines", ...entry })),
     ...tasks.map((task): Entry => ({ kind: "task", task })),
     ...hits.map((hit): Entry => ({ kind: "hit", hit })),
   ]
@@ -128,6 +137,11 @@ function PaletteDialog({
   }, [index])
 
   const open = (entry: Entry) => {
+    if (entry.kind === "machines") {
+      // Replaces the palette with the overview, so there is nothing to close.
+      openMachines(model)
+      return
+    }
     closeDialog()
     origin?.focus()
     if (entry.kind === "command") {
@@ -203,6 +217,21 @@ function PaletteDialog({
                 title={entry.name}
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => open({ kind: "page", ...entry })}
+              >
+                <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${entry.name}`}</span>
+              </Button>
+            )
+          })}
+          {machineEntries.map((entry) => {
+            const i = next()
+            return (
+              <Button
+                variant="row"
+                key="machines"
+                className={paletteRow(i === index)}
+                title={entry.name}
+                onMouseEnter={() => setSelected(i)}
+                onClick={() => open({ kind: "machines", ...entry })}
               >
                 <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${entry.name}`}</span>
               </Button>

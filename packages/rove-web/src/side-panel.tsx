@@ -10,6 +10,7 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { BrowserView } from "./browser-view.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { openMachines } from "./machines-dialog.tsx"
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { type PanelKind, clampPanelWidth, narrowView, panelExpanded, panelOpen, panelWidth } from "./panel-layout.ts"
@@ -285,7 +286,7 @@ export function SidePanel({
   if (!remoteHost) return null
   return (
     <aside className={sidePanelClass(false)}>
-      <RemoteNotice host={remoteHost} />
+      <RemoteNotice host={remoteHost} onMachines={() => openMachines(model)} />
     </aside>
   )
 }

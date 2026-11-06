@@ -6,12 +6,13 @@
 
 import type { en as tasksEn } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import type { NavRow } from "./rail.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
+import { Button } from "./ui/button.tsx"
 import { CLOUD_MARK } from "./ui/rail.ts"
 import { REMOTE_NOTICE } from "./ui/shell.ts"
 
@@ -92,12 +93,17 @@ export function CloudMark({ label }: { label: string }) {
 }
 
 /** What the TUI's Files pane says for a task whose worktree is on another machine (`host-files-pane.tsx`). */
-export function RemoteNotice({ host }: { host: string }) {
+export function RemoteNotice({ host, onMachines }: { host: string; onMachines: () => void }) {
   useLocale()
   return (
     <div className={REMOTE_NOTICE}>
       <p className="text-muted">{tc("tasks", "machine.filesElsewhere", { host })}</p>
       <p className="text-muted">{tc("tasks", "machine.filesHint", { host })}</p>
+      <div>
+        <Button hit="tight" onClick={onMachines}>
+          {t("machines.open")}
+        </Button>
+      </div>
     </div>
   )
 }
