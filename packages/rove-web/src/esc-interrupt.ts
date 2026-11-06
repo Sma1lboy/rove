@@ -9,7 +9,7 @@
 import { useEffect } from "react"
 import { shownTerminalInput } from "./pane-focus.ts"
 import { termFor } from "./term-control.ts"
-import { dialog, menu, page } from "./ui.ts"
+import { dialog, menu, newSession, page } from "./ui.ts"
 
 /** What holds focus, as far as Escape cares. */
 export type FocusOwner =
@@ -75,7 +75,7 @@ export function useEscapeInterrupt(): void {
       const input = shownTerminalInput()
       const el = document.activeElement
       const owner = focusOwner(el instanceof HTMLElement ? el : null)
-      const overlay = dialog.get() !== null || menu.get() !== null || page.get() !== null
+      const overlay = dialog.get() !== null || menu.get() !== null || page.get() !== null || newSession.get() !== null
       if (!escapeGoesToTerminal(e, owner, { overlay, terminal: input !== null })) return
       const stream = input?.closest<HTMLElement>("[data-stream]")?.dataset.stream
       const control = stream ? termFor(stream) : undefined
