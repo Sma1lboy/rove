@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { parseUnifiedDiff } from "../src/diff.ts"
 import { fileHashes, nextAfter, viewedFiles, withMark } from "../src/diff-viewed.ts"
+import { parseUnifiedDiff } from "../src/diff.ts"
 
 const patch = (a: string, b: string) =>
   [

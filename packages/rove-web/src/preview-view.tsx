@@ -11,6 +11,7 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
 import { DiffFileRow } from "./diff-file-row.tsx"
+import { DiffNoteLine, DiffRowActions } from "./diff-row-actions.tsx"
 import { DiffToolbar } from "./diff-toolbar.tsx"
 import {
   fileHashes,
@@ -43,14 +44,7 @@ import { ReviewTray } from "./review-tray.tsx"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { type Preview, activeStream, dialog, toast } from "./ui.ts"
-import { Button } from "./ui/button.tsx"
-import {
-  DIFF_GUTTER,
-  DIFF_NOTE_TEXT,
-  diffCodeClass,
-  diffRowClass,
-  diffSignClass,
-} from "./ui/diff-row.ts"
+import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 type Loaded =
@@ -470,56 +464,17 @@ export function PreviewView({
                 </span>
                 <span className={diffCodeClass(row.kind)}>{row.text}</span>
                 {picked && target && i === hi && (
-                  <div className="absolute top-full right-3 z-1 flex gap-1.5">
-                    <Button
-                      variant="floating"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        addNote()
-                      }}
-                    >
-                      {t("review.comment")}
-                    </Button>
-                    {touch && anchor === null && (
-                      <Button
-                        variant="floating"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setAnchor(cursor)
-                        }}
-                      >
-                        {t("review.range")}
-                      </Button>
-                    )}
-                    {anchor !== null && (
-                      <Button
-                        variant="floating"
-                        title={t("preview.askInChatHint")}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          askInChat()
-                        }}
-                      >
-                        {t("preview.askInChat")}
-                      </Button>
-                    )}
-                  </div>
+                  <DiffRowActions
+                    showRange={touch && anchor === null}
+                    ranged={anchor !== null}
+                    onComment={addNote}
+                    onRange={() => setAnchor(cursor)}
+                    onAsk={askInChat}
+                  />
                 )}
               </div>
               {endingAt.get(i)?.map((note) => (
-                <Button
-                  key={note.id}
-                  variant="row"
-                  className={`${diffRowClass("note", { cursor: false, noted: false })} w-full text-left`}
-                  onClick={() => editNote(note)}
-                >
-                  <span />
-                  <span />
-                  <span className="text-accent">●</span>
-                  <span className={DIFF_NOTE_TEXT}>{note.body}</span>
-                </Button>
+                <DiffNoteLine key={note.id} note={note} onEdit={() => editNote(note)} />
               ))}
             </div>
           )
