@@ -38,7 +38,8 @@
   /* Elevation, one scale for every floating surface: the surface's own border plus ONE soft shadow.
      A ring or a second offset shadow on top of the border reads as stacked edges. */
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 40%);
-  --shadow-dialog: 0 16px 48px rgb(0 0 0 / 50%);
+  /* Tight: a wide blur over the scrim darkens the text around a dialog into a second box. */
+  --shadow-dialog: 0 4px 12px rgb(0 0 0 / 30%);
   --scrim: rgb(10 10 9 / 62%);
   /* A merged PR, as GitHub and Claude draw it. */
   --merged: #9b87f5;
