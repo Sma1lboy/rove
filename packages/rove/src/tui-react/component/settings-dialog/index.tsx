@@ -15,7 +15,6 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
-import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -40,7 +39,6 @@ import { installSkillNow } from "../../workspace/skill-status"
 import {
   confirmResetState,
   confirmRestartDaemon,
-  confirmTryChannel,
   hasRestartableDaemon,
   installEngineHooks,
   reloadSettingsStatus,
@@ -58,6 +56,7 @@ import { useClassifierSettings } from "./use-classifier-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
+import { useUpdateCheck } from "./use-update-check"
 
 export type SettingsDialogProps = {
   kv: KVContext
@@ -96,6 +95,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const prefs = useSettingsPrefs(props.kv, dialog)
+  const updateCheck = useUpdateCheck(prefs.updateChannel(), props.onCheckUpdate)
   const appearance = useAppearanceSettings(props.kv, dialog, prefs)
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
   // A local orchestrator has no daemon quota channel and uses the empty cell.
@@ -245,9 +245,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
-    updateChannel: () => prefs.toggleUpdateChannel(),
-    updateTry: () => void confirmTryChannel(dialog, renderer, tryOutChannel()),
-    updateCheck: () => props.onCheckUpdate?.(),
+    updateChannel: () => prefs.cycleUpdateChannel(),
+    updateNotify: () => prefs.toggleUpdateNotify(),
+    updateCheck: () => updateCheck.press(),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),
@@ -390,7 +390,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               appearance={appearance}
               currentLocale={currentLang()}
               selectLanguage={selectLanguage}
-              onCheckUpdate={props.onCheckUpdate}
+              updateCheck={updateCheck}
               usage={usage}
             />
           ) : null}

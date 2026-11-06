@@ -49,11 +49,15 @@ been reviewed as a set, so expect rough edges in exchange for changes landing
 days (nightly) or minutes (next) earlier.
 
 The channel you pick is remembered in `~/.config/rove/state.json`
-(`update.channel`) once its install succeeds, so a bare `rove update` and the
-update check keep following it. Settings → General → Updates shows the same
-choice, with a button that installs the other channel's newest build. Until you
-pick, Rove follows the channel of the build you are running. A pinned version
-never changes the setting.
+(`update.channel`), so a bare `rove update` and the update check keep following
+it. `rove update --next` and friends remember it once their install succeeds;
+Settings → General → Updates (and Settings → About on the web) sets it the
+moment you pick stable / next / nightly, with a "notify me about new versions"
+checkbox (`update.notify`) and a `[ check for updates ]` button that asks npm
+about the chosen channel right away. Picking a channel installs nothing: run
+`rove update`, or open the Update page the check offers. Until you pick, Rove
+follows the channel of the build you are running. A pinned version never changes
+the setting.
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:

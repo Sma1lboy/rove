@@ -6,9 +6,12 @@
  * remote client triggering that is an owner decision, not a page feature.
  */
 
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { normalizeReleaseChannel, preferredReleaseChannel } from "@sma1lboy/rove/src/state/update-channel.ts"
 import {
   CURRENT_VERSION,
   type NotesLocale,
+  type ReleaseChannel,
   type ReleaseNotesRangeItem,
   type UpdateInfo,
   checkLatestVersion,
@@ -24,7 +27,8 @@ const LOCALES = ["en", "zh"] as const
 
 export interface UpdateDeps {
   readonly current: string
-  readonly check: (force: boolean) => Promise<UpdateInfo | null>
+  /** `channel` is the dist-tag to ask; unset = the stored `update.channel` preference. */
+  readonly check: (force: boolean, channel: ReleaseChannel | null) => Promise<UpdateInfo | null>
   readonly notesRange: (
     current: string,
     latest: string,
@@ -35,7 +39,9 @@ export interface UpdateDeps {
 
 const realDeps: UpdateDeps = {
   current: CURRENT_VERSION,
-  check: (force) => checkLatestVersion({ force }),
+  // The preference is read per call, so a channel picked a moment ago applies to this check.
+  check: (force, channel) =>
+    checkLatestVersion({ force, channel: channel ?? preferredReleaseChannel(loadStateFile()) }),
   notesRange: (current, latest, locale) => fetchReleaseNotesRange({ current, latest, locale }),
   notes: fetchReleaseNotes,
 }
@@ -47,7 +53,7 @@ export function createUpdateOps(deps: UpdateDeps = realDeps): OpTable {
       destructive: false,
       wraps: "checkLatestVersion + fetchReleaseNotesRange (npm registry, GitHub releases)",
       async run(args) {
-        const info = await deps.check(optBool(args, "force") === true)
+        const info = await deps.check(optBool(args, "force") === true, normalizeReleaseChannel(args.channel))
         const locale = optOneOf(args, "locale", LOCALES) ?? "en"
         // `info: null` = could not look (offline, dev build), never "up to date".
         const notes = info?.hasUpdate ? await deps.notesRange(info.current, info.latest, locale) : []

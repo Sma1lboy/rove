@@ -58,7 +58,7 @@ export type SettingsRow =
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "update-channel"; kind: "updateChannel" }
-  | { id: "update-try"; kind: "updateTry" }
+  | { id: "update-notify"; kind: "updateNotify" }
   | { id: "update-check"; kind: "updateCheck" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
@@ -155,7 +155,7 @@ export function generalRows(): SettingsRow[] {
     { id: "key-hints", kind: "keyHints" },
     { id: "zen-default-on", kind: "zenDefaultOn" },
     { id: "update-channel", kind: "updateChannel" },
-    { id: "update-try", kind: "updateTry" },
+    { id: "update-notify", kind: "updateNotify" },
     { id: "update-check", kind: "updateCheck" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },

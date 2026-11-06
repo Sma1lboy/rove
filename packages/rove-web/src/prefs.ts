@@ -38,6 +38,8 @@ export interface Prefs {
   readonly remoteProjects: boolean
   readonly autoStatus: boolean
   readonly dispatcher: boolean
+  readonly updateChannel: "latest" | "next" | "nightly"
+  readonly updateNotify: boolean
 }
 
 export type PrefKey = keyof Prefs
@@ -119,13 +121,17 @@ const DEFAULTS: Prefs = {
   remoteProjects: false,
   autoStatus: false,
   dispatcher: false,
+  updateChannel: "latest",
+  updateNotify: true,
 }
 
 function cached(): PrefsState {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null")
     if (raw && typeof raw === "object" && "prefs" in raw && "themes" in raw) {
-      return { ...(raw as PrefsState), loaded: true }
+      const cache = raw as PrefsState
+      // A cache from before a key existed still reads every key.
+      return { ...cache, prefs: { ...DEFAULTS, ...cache.prefs }, loaded: true }
     }
   } catch {
     // A corrupt cache is just no cache.
