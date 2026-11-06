@@ -37,6 +37,8 @@ export interface TerminalViewProps {
   readonly leafId?: string
   /** The tab's engine ended inside a still-running shell: the strip offers the way forward. */
   readonly engineExit?: EngineExit | null
+  /** The tab's engine reports a usage limit (its activity is `rate_limited`, since this stamp): the strip offers the way forward. */
+  readonly usageLimit?: { readonly since: number } | null
   /** Take keyboard focus now (a new split, F3); the first mount of a tab takes it too. */
   readonly focused?: boolean
   /** The terminal took focus: the owner of the split marks this pane active. */
@@ -236,6 +238,9 @@ export function TerminalView(props: TerminalViewProps) {
   // The exit a successful retry answered stays hidden until the daemon marks a new one.
   const [answered, setAnswered] = useState<number | null>(null)
   const answeredExit = props.engineExit?.since === answered
+  // A dismissed limit stays hidden until the engine reports a new one.
+  const [dismissedLimit, setDismissedLimit] = useState<number | null>(null)
+  const usageLimit = props.usageLimit && props.usageLimit.since !== dismissedLimit ? props.usageLimit : null
   const reopening = useRef(false)
   const reopen = async (mounted: TermHandle, restartExited: boolean): Promise<void> => {
     // A second click before the first settles would run two reattaches over one stream.
@@ -288,6 +293,8 @@ export function TerminalView(props: TerminalViewProps) {
           revive={revive}
           onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
           onRetryAttach={handle ? () => void handle.reattach() : undefined}
+          usageLimit={usageLimit !== null}
+          onDismissLimit={usageLimit ? () => setDismissedLimit(usageLimit.since) : undefined}
         />
         {selected && props.composer && handle && (
           <Button

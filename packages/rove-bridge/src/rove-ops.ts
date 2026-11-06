@@ -96,6 +96,12 @@ export interface NewTabRequest {
   readonly engine?: string
   /** No engine named: the one this project used last (the TUI's ctrl+t), not the task's own. */
   readonly latest?: boolean
+  /**
+   * A DEAD engine tab whose slot the new engine takes (`send --handoff-from <tab> --replace`): same task,
+   * same tab id, the handoff brief built from that tab's conversation. `prompt` is then only the user's
+   * own message (may be empty); the brief is not sent from the page.
+   */
+  readonly replaceTab?: string
 }
 
 /** A prompt starts the engine on it (`send`); without one there is nothing to send, so `tab-new` opens the tab empty. */
@@ -105,6 +111,20 @@ export function newTabInvocation(
 ): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
   const command = tab.engine ? [flag("command", tab.engine)] : []
   if (tab.prompt === undefined && !tab.engine && tab.latest) command.push("--latest")
+  if (tab.replaceTab !== undefined) {
+    return {
+      verb: "send",
+      argv: [
+        flag("task-id", taskId),
+        "--tab=new",
+        "--plain",
+        flag("handoff-from", tab.replaceTab),
+        "--replace",
+        ...(tab.prompt ? [flag("prompt", tab.prompt)] : []),
+        ...command,
+      ],
+    }
+  }
   if (tab.prompt !== undefined) {
     return {
       verb: "send",

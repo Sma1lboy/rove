@@ -254,6 +254,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
 | `NO_CONVERSATION` | `send --handoff-from tab-N` where that tab holds no conversation to hand over yet. |
+| `TAB_ALIVE` | `send --handoff-from tab-N --replace` where that tab's engine is still running; only a dead or exited one is replaced. |
 | `NO_TRANSCRIPT` | `send --handoff-from tab-N` where the tab's engine keeps no transcript Rove can name (a custom engine). |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
 | `AWAITING_PERMISSION` | `send` to a tab whose engine shows an approval or question menu (the tab's row reads `?`); a paste would land in the menu and Enter would confirm its highlighted option. Answer it with keys, then send. `tabIds` names the tabs. |
@@ -1043,7 +1044,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--handoff-from TAB] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
+  [--command CMD] [--handoff-from TAB [--replace]] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -1094,6 +1095,14 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   branch; the source tab is only read. `NO_CONVERSATION` = that tab has no
   conversation yet, `NO_TRANSCRIPT` = its engine keeps no transcript Rove can
   name, `BAD_FLAG` = not an engine tab, or no `--tab new`.
+  `--replace` (needs `--handoff-from`) puts the new engine in that tab's own slot
+  instead of a shared child task, for a source whose engine is dead or exited
+  (`get-task` `.tabs[]`: `alive: false`, or `engineAlive: false` = only the
+  fallback shell is left): same task, same tab id, same worktree, a fresh
+  conversation on the brief; the reply adds `replacedTab`. A running engine is
+  refused with `TAB_ALIVE` and keeps the child-task path. A replacement that
+  fails to start or to receive the brief puts the tab back as it was, so the
+  same call can be retried.
   Delivery needs a live engine in that tab: one that exited into the
   keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
   instead of pasting into a shell. When the `ps` probe behind that check fails

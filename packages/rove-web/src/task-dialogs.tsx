@@ -107,11 +107,13 @@ export function newChatHere(model: AppModel, taskId: string): Promise<void> {
 /**
  * Open a tab and select it. No prompt = an empty engine or a shell, as the TUI picker. An engine
  * is a child task of `taskId` (the bridge replies with its id), so that is what gets selected.
+ * `replaceTab` names a dead engine tab whose slot the engine takes instead: same task, same tab,
+ * no child, with the handoff brief built from that tab's conversation.
  */
 export async function openTab(
   model: AppModel,
   taskId: string,
-  args: { kind: "engine" | "shell"; engine?: string; prompt?: string; latest?: boolean },
+  args: { kind: "engine" | "shell"; engine?: string; prompt?: string; latest?: boolean; replaceTab?: string },
 ): Promise<void> {
   const { tabId, taskId: child } = await model.client.request<{ tabId: string; taskId?: string }>("tab.new", {
     taskId,
@@ -119,6 +121,7 @@ export async function openTab(
     ...(args.engine ? { engine: args.engine } : {}),
     ...(args.prompt ? { prompt: args.prompt } : {}),
     ...(args.latest ? { latest: true } : {}),
+    ...(args.replaceTab ? { replaceTab: args.replaceTab } : {}),
   })
   if (child) {
     model.selectWhenListed(child)

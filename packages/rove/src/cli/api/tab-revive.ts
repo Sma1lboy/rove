@@ -10,6 +10,7 @@ import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
+import { awaitEngineProcess } from "../../engine/hosted-session-readiness.ts"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
 import { RemoteEngineLaunchError, buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
@@ -18,6 +19,7 @@ import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-color
 import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { CommandTab, EngineTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
+import { ENGINE_START_POLL_MS, ENGINE_START_PROBE_MS } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { createdFresh } from "./tab-new.ts"
 import { tabEngineBase } from "./tab-respawn.ts"
@@ -125,8 +127,8 @@ export async function reviveTab(
   target: PromptTarget,
   tabId: string,
   worktree: string,
-  /** `replaceExited`: the caller saw the engine gone from a running session (keepAlive's fallback shell); close it and relaunch. */
-  opts: { readonly replaceExited?: boolean } = {},
+  /** `replaceExited`: the caller saw the engine gone from a running session (keepAlive's fallback shell); close it and relaunch. `awaitEngine`: return only once the relaunched engine is running. */
+  opts: { readonly replaceExited?: boolean; readonly awaitEngine?: boolean } = {},
 ): Promise<RevivedTab> {
   const host = await ensureHostFor(
     target.id,
@@ -159,9 +161,18 @@ export async function reviveTab(
     }
     // A freeze-restored corpse is respawned in place by `pty.open`; an ordinary dead one is view-only there, so clear it first.
     if (listed && listed.restored !== true) await host.rpc.request("pty.kill", { key, wait: true })
-    return row.kind === "engine"
-      ? await openEngineTab(client, host.rpc, target, row, worktree)
-      : await openCommandTab(host.rpc, target, row, worktree)
+    if (row.kind !== "engine") return await openCommandTab(host.rpc, target, row, worktree)
+    const revived = await openEngineTab(client, host.rpc, target, row, worktree)
+    if (opts.awaitEngine) {
+      const up = await awaitEngineProcess(host.rpc, key, tabEngineBase(target, row)[0], {
+        timeoutMs: ENGINE_START_PROBE_MS,
+        intervalMs: ENGINE_START_POLL_MS,
+      })
+      if (up === null) {
+        throw sessionFailed(target.id, `the engine did not start in tab ${tabId}`, "check the engine's launch command")
+      }
+    }
+    return revived
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (error instanceof RemoteEngineLaunchError) {

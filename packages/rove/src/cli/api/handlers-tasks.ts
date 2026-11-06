@@ -22,6 +22,7 @@ import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.
 import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
 import { handoffBrief } from "./handoff-brief.ts"
+import { replaceDeadTab } from "./handoff-replace.ts"
 import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
@@ -155,20 +156,39 @@ async function resolveSendTask(
   return { taskId: active, tab }
 }
 
-export async function send(ctx: VerbContext): Promise<unknown> {
-  if (ctx.args.str("tab") !== "new") return sendNow(ctx)
-  // Whichever way the task is found, two new conversations on it are serialized.
-  const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
-  return withFirstConversationLock(taskId, () => sendNow(ctx))
+/** Taking back a dead-tab replacement whose handoff did not complete (`handoff-replace.ts`). */
+interface ReplaceRollback {
+  undo?: () => Promise<void>
 }
 
-async function sendNow(ctx: VerbContext): Promise<unknown> {
+export async function send(ctx: VerbContext): Promise<unknown> {
+  const rollback: ReplaceRollback = {}
+  try {
+    if (ctx.args.str("tab") !== "new") return await sendNow(ctx, rollback)
+    // Whichever way the task is found, two new conversations on it are serialized.
+    const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
+    return await withFirstConversationLock(taskId, () => sendNow(ctx, rollback))
+  } catch (err) {
+    await rollback.undo?.().catch(() => {})
+    throw err
+  }
+}
+
+async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const handoffFrom = ctx.args.str("handoff-from")
   let tab = ctx.args.str("tab")
   if (handoffFrom && tab !== "new") {
     throw new ApiError(
       `--handoff-from starts a new conversation; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
+      "BAD_FLAG",
+      helpStep("send"),
+    )
+  }
+  const replace = ctx.args.bool("replace") === true
+  if (replace && !handoffFrom) {
+    throw new ApiError(
+      "--replace takes over a tab for a handoff; pass --handoff-from tab-N",
       "BAD_FLAG",
       helpStep("send"),
     )
@@ -212,7 +232,13 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
   // else a shared child whose own engine gets the prompt.
   let childTaskId: string | undefined
   let freshConversation = false
-  if (tab === "new") {
+  let replacedTab: string | undefined
+  if (tab === "new" && replace && handoffFrom) {
+    // A dead source's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
+    rollback.undo = await replaceDeadTab({ runtime: ctx.runtime, daemon }, res.task, handoffFrom, tabCommand)
+    replacedTab = handoffFrom
+    tab = handoffFrom
+  } else if (tab === "new") {
     const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
     res = { task: home.task }
     freshConversation = true
@@ -332,6 +358,8 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
   if (!delivered.delivered) {
     // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
     const mayLand = promptMayHaveLanded(delivered)
+    // A paste that may have landed is the new engine's now; only a clean miss gives the tab back.
+    if (mayLand) rollback.undo = undefined
     await settle(mayLand, mayLand ? delivered.session : undefined)
     throw new ApiError(
       `prompt was not confirmed in ${taskId}'s engine (paste did not land)`,
@@ -352,6 +380,7 @@ async function sendNow(ctx: VerbContext): Promise<unknown> {
     ok: true,
     taskId: requestedTaskId,
     ...(childTaskId ? { childTaskId } : {}),
+    ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,

@@ -360,13 +360,13 @@ export interface ApiRuntime {
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
-  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). */
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). `awaitEngine` returns only once the relaunched engine is a running process, failing when it never shows up. */
   reviveTab(
     client: DaemonRpc,
     target: PromptTarget,
     tabId: string,
     worktree: string,
-    opts?: { readonly replaceExited?: boolean },
+    opts?: { readonly replaceExited?: boolean; readonly awaitEngine?: boolean },
   ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>

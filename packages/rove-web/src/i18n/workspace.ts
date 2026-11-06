@@ -15,6 +15,8 @@ export const en = {
     engineExited: "engine exited (code {code})",
     retry: "Retry",
     engineSettings: "Settings → Engines",
+    usageLimit: "usage limit reached",
+    dismiss: "Dismiss",
   },
   tab: {
     shell: "shell",
@@ -115,6 +117,8 @@ export const zh: typeof en = {
     engineExited: "引擎已退出（退出码 {code}）",
     retry: "重试",
     engineSettings: "设置 → 引擎",
+    usageLimit: "已达到用量上限",
+    dismiss: "忽略",
   },
   tab: {
     shell: "终端",

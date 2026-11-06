@@ -72,11 +72,19 @@ export function NewChatDialog(props: {
     setContext(nextDest === "scratch" ? "fresh" : ctx)
   }
 
-  const handoff = async (): Promise<string> => {
+  // The conversation "continue" carries over: the named tab, else the open one of this task, else its first.
+  const sourceTab = (): string => {
     const open = model.selection.get()
+    return props.sourceTabId ?? (open.taskId === taskId ? open.tabId : null) ?? "tab-1"
+  }
+  // A source whose engine is gone is replaced in its own slot (same task, same tab); a live one opens a child task.
+  const sourceDead = (): boolean =>
+    model.tasks.get()?.tasks.find((row) => row.id === taskId)?.tabStatus?.[sourceTab()]?.reason === "dead"
+
+  const handoff = async (): Promise<string> => {
     const res = await model.client.request<{ kind: string; prompt?: string; engine?: string }>("tab.handoff", {
       taskId,
-      tabId: props.sourceTabId ?? (open.taskId === taskId ? open.tabId : null) ?? "tab-1",
+      tabId: sourceTab(),
     })
     if (res.kind === "handoff" && res.prompt) return res.prompt
     throw new Error(
@@ -88,7 +96,9 @@ export function NewChatDialog(props: {
 
   const create = () =>
     submit(async () => {
-      const lead = context === "continue" ? await handoff() : ""
+      const replaceTab = context === "continue" && destination === "tab" && !shell && !pane && sourceDead()
+      // A replacement's brief is built by the same `send --handoff-from` the CLI runs; only the message goes up here.
+      const lead = context === "continue" && !replaceTab ? await handoff() : ""
       const message = withRefs(prompt.trim(), attachments)
       const first = [lead, message].filter(Boolean).join("\n\n")
       if (destination === "scratch") {
@@ -134,7 +144,13 @@ export function NewChatDialog(props: {
         })
         await model.refreshTabsNow()
         model.select(taskId, opened.tabId)
-      } else await openTab(model, taskId, { kind: "engine", engine: pick, prompt: first })
+      } else
+        await openTab(model, taskId, {
+          kind: "engine",
+          engine: pick,
+          prompt: first,
+          ...(replaceTab ? { replaceTab: sourceTab() } : {}),
+        })
     })
 
   return (

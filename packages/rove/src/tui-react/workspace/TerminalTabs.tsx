@@ -79,6 +79,7 @@ import { useTabHydration, useTabNaming } from "./use-tab-lifecycle"
 import { useTabRequests } from "./use-tab-requests"
 import { useTabStripMenu } from "./use-tab-strip-menu"
 import { useTabTurnState } from "./use-tab-turn-state"
+import { useUsageLimit } from "./use-usage-limit"
 
 export interface TerminalTabsProps {
   taskId: string
@@ -321,6 +322,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)
 
+  // The dead-engine strip is derived after the dialogs it opens; a handoff reads whether it shows through this ref.
+  const engineDeadRef = useRef(false)
   const { requestRename, requestNewChat, newConversation, newShell } = useTabDialogs({
     dialog,
     t,
@@ -340,6 +343,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     onQuickFork: props.onQuickFork,
     onOpenScratch: props.onOpenScratch,
     notifyError: (title) => notif.notify({ kind: "error", taskId: props.taskId, tabId: active.id, title }),
+    sourceDead: () => engineDeadRef.current,
+    restartActive: tabClose.retryActive,
   })
 
   const engineExit = useEngineExit({
@@ -349,6 +354,14 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     retry: tabClose.retryActive,
     requestNewChat,
     onOpenSettings: props.onOpenSettings,
+  })
+  engineDeadRef.current = engineExit !== undefined
+
+  const usageLimit = useUsageLimit({
+    taskId: props.taskId,
+    tab: active,
+    suppressed: engineExit !== undefined,
+    requestNewChat,
   })
 
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
@@ -479,6 +492,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           onUserInput={active.kind === "engine" ? (data) => noteAnswerInput(data, props.taskId, active.id) : undefined}
           splitTree={active.splitTree ?? null}
           engineExit={engineExit}
+          usageLimit={usageLimit}
           onSplitChange={(next) => update(setTabSplit(state, active.id, next))}
           onExit={tabClose.handleActiveExit}
           resetToken={resetToken}
