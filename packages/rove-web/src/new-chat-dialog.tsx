@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react"
-import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachmentThumbs, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
@@ -280,7 +280,7 @@ export function NewChatDialog(props: {
             />
           </label>
         )}
-        <AttachmentChips attachments={attachments} onRemove={remove} />
+        <AttachmentThumbs attachments={attachments} onRemove={remove} />
         {isTouch() ? (
           <p className="text-muted">{t("pages.attachHintTouch")}</p>
         ) : (
