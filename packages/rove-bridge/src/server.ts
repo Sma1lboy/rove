@@ -304,7 +304,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       if (scope !== "branch" && scope !== "working" && scope !== "task") {
         throw new BridgeError("BAD_ARGS", "scope is branch|working|task")
       }
-      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope)
+      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, optBool(a, "ignoreWhitespace"))
     }
     case "attention.dismiss": {
       const taskId = str(a, "taskId")

@@ -733,8 +733,10 @@ edits (`set-vendor`, `rename`,
   changed file's preview, the Files pane's data (diff hunks, or the file for a
   code or binary view). `working` is the uncommitted diff, `branch` the
   commits since the base, `task` both together with untracked files (the whole
-  task against its base; with `--path .`, one diff of everything). `PATH` is
-  worktree-relative; absolute or `..` paths are refused.
+  task against its base; with `--path .`, one diff of everything).
+  `--ignore-whitespace` runs the diff as `git diff -w`, so whitespace-only
+  changes drop out. `PATH` is worktree-relative; absolute or `..` paths are
+  refused.
 - `review-comments --task-id ID`: the unresolved review threads on the task's
   PR, so an agent can address review feedback by file and line. Returns
   `{ taskId, prNumber, threads, totalUnresolved }`; each thread is
