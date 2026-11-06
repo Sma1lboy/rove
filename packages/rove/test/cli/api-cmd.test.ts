@@ -160,6 +160,7 @@ describe("API surface (full CRUD)", () => {
       "viewers",
       "review-comments",
       "worktree-files",
+      "worktree-file",
       "worktree-diff",
       "worktree-diff-file",
       "worktree-refs",

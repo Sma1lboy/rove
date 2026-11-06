@@ -6,6 +6,7 @@
  */
 
 import { createStore, useStore } from "../store.ts"
+import * as artifact from "./artifact.ts"
 import * as compare from "./compare.ts"
 import * as dialogs from "./dialogs.ts"
 import * as machines from "./machines.ts"
@@ -20,7 +21,20 @@ import * as workspace from "./workspace.ts"
 
 export type Locale = "en" | "zh"
 
-const parts = [rail, workspace, dialogs, panel, settings, compare, prompts, runLog, usage, transcript, machines]
+const parts = [
+  rail,
+  workspace,
+  dialogs,
+  panel,
+  settings,
+  compare,
+  prompts,
+  runLog,
+  usage,
+  transcript,
+  machines,
+  artifact,
+]
 
 /** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
 export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof rail.en &
@@ -33,7 +47,8 @@ export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof r
   typeof runLog.en &
   typeof usage.en &
   typeof transcript.en &
-  typeof machines.en
+  typeof machines.en &
+  typeof artifact.en
 export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }

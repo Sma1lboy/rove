@@ -56,6 +56,21 @@ function setup(listed: string[] = ["a.ts"]) {
 
 const task = { "get-task": () => ({ task: { worktreePath: "/wt/t1" } }) }
 
+describe("file.read", () => {
+  test("asks the verb for the file; a path that climbs out or a flag-like id never reaches it", async () => {
+    const { run } = setup()
+    const reply = { path: "docs/a.md", mime: "text/markdown", size: 1, base64: "IQ==" }
+    const { api, calls } = fakeApi({ "worktree-file": () => reply })
+    expect(await run("file.read", { taskId: "t1", path: "docs/a.md" }, api)).toEqual(reply)
+    expect(calls).toEqual([{ kind: "verb", name: "worktree-file", payload: ["--task-id=t1", "--path=docs/a.md"] }])
+    for (const path of ["../a.md", "/etc/a.md", "a/../../b.md"]) {
+      await expect(run("file.read", { taskId: "t1", path }, api)).rejects.toThrow("relative")
+    }
+    await expect(run("file.read", { taskId: "--force", path: "a.md" }, api)).rejects.toThrow("not a task id")
+    expect(calls).toHaveLength(1)
+  })
+})
+
 describe("files.list", () => {
   test("lists the task's worktree and flags truncation", async () => {
     const { run } = setup(["a", "b"])

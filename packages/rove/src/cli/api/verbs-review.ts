@@ -7,6 +7,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { readPreviewFile } from "../../worktree/file-read.ts"
 import { worktreeDiff, worktreeDiffFile, worktreeFiles, worktreeRefs } from "../../worktree/review-read.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -32,6 +33,23 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
       "List a task's worktree files: tracked plus untracked-not-ignored, worktree-relative. Returns { files }. Runs where the worktree lives, so it reads a task on another registered machine too.",
     flags: [F.taskId()],
     handler: async (ctx) => ({ files: await worktreeFiles((await taskWorktree(ctx)).path) }),
+  },
+  {
+    name: "worktree-file",
+    group: "read",
+    summary:
+      "Read one previewable file of a task's worktree for a client to render: markdown, HTML, SVG, PNG/JPEG/GIF/WebP or PDF, at most 5 MB. Returns { path, mime, size, base64 }. Confined: a worktree-relative path whose real path (symlinks resolved) stays inside the worktree, else BAD_ARGS; any other type is NOT_PREVIEWABLE, a larger file TOO_LARGE. Runs where the worktree lives, so it reads a task on another registered machine too.",
+    flags: [
+      F.taskId(),
+      {
+        name: "path",
+        type: "string",
+        required: true,
+        placeholder: "PATH",
+        description: "Worktree-relative file path; absolute or `..` paths are refused.",
+      },
+    ],
+    handler: async (ctx) => readPreviewFile((await taskWorktree(ctx)).path, ctx.args.require("path")),
   },
   {
     name: "worktree-diff",
