@@ -14,8 +14,6 @@ Run: `scripts/voice/asr_server.py` (uv resolves the environment from the block a
 Binds 127.0.0.1 only; the bridge is the one public surface.
 
   POST /transcribe {wav: hex, conversation?, context?, language?} -> {text, raw, language, ...}
-  POST /vocab {term, spoken?}           keep a term, and how it was misheard
-  POST /vocab/remove {term, spoken?}    undo
   GET  /health
 """
 
@@ -86,7 +84,12 @@ def dictate(
     stored mishearings first, then whatever lands close to a term the recognizer was given."""
     stored = vocab.load()["terms"]
     terms = vocab.rank(conversation, draft, stored, backend.max_terms)
-    raw, detected = backend.transcribe(pcm, terms, language)
+    # Measured on large-v3: the conversation's terms in the prompt cost a term when they were not said
+    # (68 -> 67) and gain less (70) than using them only to correct (72, and 68 when not said). Cloud
+    # recognizers take the prompt without that cost, so they get it by default.
+    in_prompt = config.get("promptContext", not isinstance(backend, engine.LocalWhisper))
+    hinted = terms if in_prompt else vocab.rank(None, draft, stored, backend.max_terms)
+    raw, detected = backend.transcribe(pcm, hinted, language)
     text = engine.simplified(raw) if config.get("simplified", True) else raw
     text = vocab.correct(vocab.apply_spoken(text, stored), terms, fuzzy=config.get("fuzzy", True))
     return {"text": text, "raw": raw, "language": detected, "terms": len(terms)}
@@ -147,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib signature
-        routes = {"/transcribe": self.transcribe, "/vocab": self.vocab_add, "/vocab/remove": self.vocab_remove}
+        routes = {"/transcribe": self.transcribe}
         route = routes.get(self.path)
         if route is None:
             self.reply(404, {"error": "not_found"})
@@ -155,19 +158,6 @@ class Handler(BaseHTTPRequestHandler):
         request = self.body()
         if request is not None:
             route(request)
-
-    def vocab_add(self, request: dict[str, Any]) -> None:
-        term = str(request.get("term") or "").strip()
-        if not term:
-            self.reply(400, {"error": "term is required"})
-            return
-        spoken = str(request.get("spoken") or "").strip() or None
-        self.reply(200, {"entry": vocab.add(term, spoken, str(request.get("source") or "manual"))})
-
-    def vocab_remove(self, request: dict[str, Any]) -> None:
-        term = str(request.get("term") or "").strip()
-        spoken = str(request.get("spoken") or "").strip() or None
-        self.reply(200, {"removed": vocab.remove(term, spoken)})
 
     def transcribe(self, request: dict[str, Any]) -> None:
         try:

@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
 import { BridgeError } from "../protocol.ts"
-import { flag, optText, tabId, taskId } from "./args.ts"
+import { flag, tabId, taskId } from "./args.ts"
 import type { Args, BridgeApi, OpTable } from "./types.ts"
 
 /** 16-bit 16 kHz mono: one second is 32 KB, ~64 KB as hex. A minute is under the socket's cap. */
@@ -20,7 +20,6 @@ const HEX = /^[0-9a-f]+$/
 const CONVERSATION_CHARS = 20_000
 /** Reading the transcript must not hold the dictation up: past this, recognize without it. */
 const CONVERSATION_MS = 1500
-const TERM_MAX = 80
 
 /** Where the sidecar keeps its secret and dictionary: `<ROVE_HOME>/voice`, same as `asr_server.py`. */
 export function voiceDir(): string {
@@ -112,12 +111,18 @@ async function conversation(a: Args, api: BridgeApi): Promise<string | undefined
   if (a.taskId === undefined) return undefined
   const argv = [flag("task-id", taskId(a)), flag("limit", 30)]
   if (a.tabId !== undefined) argv.push(flag("tab", tabId(a)))
-  const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), CONVERSATION_MS))
+  let giveUp: (value: null) => void = () => {}
+  const late = new Promise<null>((resolve) => {
+    giveUp = resolve
+  })
+  const timer = setTimeout(() => giveUp(null), CONVERSATION_MS)
   try {
     const reply = await Promise.race([api.verb<OutputReply>("read-output", argv), late])
     return reply ? conversationText(reply) : undefined
   } catch {
     return undefined
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -157,26 +162,6 @@ export const voiceOps: OpTable = {
         ms: Number(body.ms ?? 0),
         ...(body.reason ? { reason: body.reason } : {}),
       } satisfies VoiceTranscript
-    },
-  },
-  "voice.learn": {
-    kind: "write",
-    destructive: false,
-    wraps: "POST :8791/vocab of scripts/voice/asr_server.py (keep a term and how it was misheard)",
-    async run(a: Args) {
-      const term = optText(a, "term", TERM_MAX)
-      if (!term) throw new BridgeError("BAD_ARGS", "term is required")
-      return post("/vocab", { term, spoken: optText(a, "spoken", TERM_MAX), source: "learned" })
-    },
-  },
-  "voice.forget": {
-    kind: "write",
-    destructive: false,
-    wraps: "POST :8791/vocab/remove of scripts/voice/asr_server.py (undo voice.learn)",
-    async run(a: Args) {
-      const term = optText(a, "term", TERM_MAX)
-      if (!term) throw new BridgeError("BAD_ARGS", "term is required")
-      return post("/vocab/remove", { term, spoken: optText(a, "spoken", TERM_MAX) })
     },
   },
 }

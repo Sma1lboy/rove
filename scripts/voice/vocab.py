@@ -16,7 +16,6 @@ import difflib
 import json
 import os
 import re
-import time
 from collections import Counter
 from functools import cache
 from pathlib import Path
@@ -105,38 +104,6 @@ def save(data: dict[str, Any]) -> None:
     tmp = store_path().with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     tmp.replace(store_path())
-
-
-def add(term: str, spoken: str | None, source: str) -> dict[str, Any]:
-    """Keep a term (and one way it was misheard); an existing term only gains the spoken form."""
-    data = load()
-    for entry in data["terms"]:
-        if entry["term"] == term:
-            if spoken and spoken not in entry["spoken"]:
-                entry["spoken"].append(spoken)
-            break
-    else:
-        entry = {"term": term, "spoken": [spoken] if spoken else [], "source": source, "at": int(time.time())}
-        data["terms"].append(entry)
-    save(data)
-    return entry
-
-
-def remove(term: str, spoken: str | None) -> bool:
-    """Undo for `add`: drop the spoken form, or the whole term when none is named."""
-    data = load()
-    for entry in data["terms"]:
-        if entry["term"] != term:
-            continue
-        if spoken:
-            if spoken not in entry["spoken"]:
-                return False
-            entry["spoken"].remove(spoken)
-        else:
-            data["terms"].remove(entry)
-        save(data)
-        return True
-    return False
 
 
 def rank(conversation: str | None, draft: str | None, stored: list[dict[str, Any]], limit: int) -> list[str]:

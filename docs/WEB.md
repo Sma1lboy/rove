@@ -139,25 +139,30 @@ While it is not running the mic is disabled and says so. It listens on loopback 
 shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it.
 
 - **Recognizer.** Local `mlx-community/whisper-large-v3-mlx` by default. `~/.rove/voice/config.json`
-  picks another: `{"model": "mlx-community/whisper-large-v3-turbo"}` for speed, or any
-  OpenAI-compatible `/audio/transcriptions` endpoint, for example
+  (read when the sidecar starts; restart it after a change) picks another:
+  `{"model": "mlx-community/whisper-large-v3-turbo"}` for speed, or any OpenAI-compatible
+  `/audio/transcriptions` endpoint, for example
   `{"backend": "cloud", "baseURL": "https://api.openai.com/v1", "model": "gpt-4o-mini-transcribe", "apiKeyEnv": "OPENAI_API_KEY"}`.
-  OpenRouter gets its JSON body so the vocabulary lands in the field each provider reads
-  (`azure.phraseList` for `microsoft/mai-transcribe-2`); elsewhere it is the `prompt`. The key stays
-  on this Mac. Chinese comes back in Simplified script unless `"simplified": false`.
+  For OpenRouter the vocabulary goes in the field each provider reads (`azure.phraseList` for
+  `microsoft/mai-transcribe-2`); that body follows yap's measured one but has not been run from
+  here yet. Elsewhere it is the `prompt`. The key stays on this Mac. Chinese comes back in
+  Simplified script unless `"simplified": false`.
 - **Vocabulary.** The bridge reads the last 30 messages of the task's conversation (text and tool
   inputs, or the terminal tail; at most 1.5 s, else the take goes without). Its term-like words
   (`GraphQL`, `rove-web`, `useEffect`, not words the system dictionary knows) join the terms kept in
-  `~/.rove/voice/vocab.json` (created from the old `dictionary.json`). They go to the recognizer, and
-  afterwards English the recognizer split or misspelled is snapped back onto them: "Graph, Q, L" →
-  GraphQL, "Decorfile" → Dockerfile. A real English word is never rewritten.
-- **Measured** (`bench.py`, synthetic `say` voices, M-series Mac; real recordings can be scored with
-  `--recordings`):
+  `~/.rove/voice/vocab.json` (created from the old `dictionary.json`). English the recognizer split
+  or misspelled is snapped back onto them: "Graph, Q, L" → GraphQL, "Decorfile" → Dockerfile; a
+  real English word is never rewritten. A local recognizer gets only the stored terms in its prompt
+  (conversation terms there cost a term whenever they were not said); a cloud one gets all of them
+  (`"promptContext"` overrides either).
+- **Measured** (`bench.py`; clips are synthesized with macOS `say` on first run and cached, so the
+  voices are synthetic; real recordings are scored with `--recordings`). "Has the terms" puts each
+  clip's own sentence in the conversation, an upper bound; "only other terms" is all distractors:
 
   | Recognizer | no context | context has the terms | context has only other terms | p50 |
   | --- | --- | --- | --- | --- |
-  | large-v3 (default) | 68/82 | 70 | 67 | 1.8 s |
-  | large-v3-turbo | 63 | 69 | 61 | 1.0 s |
+  | large-v3 (default) | 68/82 | 72 | 68 | 1.8 s |
+  | large-v3-turbo | 63 | 65 (69 with `promptContext`) | 63 (61) | 1.0 s |
   | gpt-4o-mini-transcribe (cloud) | 75 | 78 | 77 | 0.9 s |
 
 - **Privacy.** With the local recognizer, audio, model and vocabulary stay on this machine and no

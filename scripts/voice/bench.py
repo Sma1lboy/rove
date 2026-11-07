@@ -108,6 +108,7 @@ def main() -> None:
     parser.add_argument("--context", choices=["none", "all", "others"], default="none")
     parser.add_argument("--common", action="store_true", help="boost plain English words too")
     parser.add_argument("--no-fuzzy", action="store_true", help="exact term snapping only")
+    parser.add_argument("--prompt-context", choices=["on", "off"], help="conversation terms in the prompt too")
     parser.add_argument("--language")
     parser.add_argument("--recordings", type=Path)
     parser.add_argument("--out", type=Path, help="append one JSON line per clip")
@@ -122,6 +123,8 @@ def main() -> None:
         config["apiKeyEnv"] = args.api_key_env
     if args.no_fuzzy:
         config["fuzzy"] = False
+    if args.prompt_context:
+        config["promptContext"] = args.prompt_context == "on"
     if args.common:
         vocab.common_words = lambda: frozenset()  # type: ignore[assignment]
     backend = engine.backend(config)
@@ -131,6 +134,7 @@ def main() -> None:
     if isinstance(backend, engine.LocalWhisper):
         backend.transcribe(np.zeros(engine.SAMPLE_RATE, dtype=np.float32), [], "en")
     flags = (" common" if args.common else "") + (" exact" if args.no_fuzzy else "")
+    flags += f" prompt-context={args.prompt_context}" if args.prompt_context else ""
     label = f"{backend.name} context={args.context}{flags}"
     got = total = before = 0
     latency: list[float] = []
