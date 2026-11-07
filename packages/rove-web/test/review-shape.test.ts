@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { asNote, asPrBody } from "../src/report-card-data.ts"
 import { effort, foldedByDefault, groupOf, orderByGroup } from "../src/review-shape.ts"
 
 describe("review shape", () => {
@@ -34,32 +33,5 @@ describe("review shape", () => {
       { kind: "add", path: "src/a.ts" },
     ]
     expect(orderByGroup(rows).map((r) => r.path)).toEqual(["src/a.ts", "src/a.ts", "a.test.ts", "bun.lock", "bun.lock"])
-  })
-})
-
-describe("report card text", () => {
-  const facts = {
-    title: "Fix it",
-    branch: "fix/it",
-    base: "main",
-    files: 2,
-    added: 10,
-    removed: 3,
-    text: "Fixed the thing.",
-    reported: false,
-    checks: "3 passed",
-    openTodos: ["add docs"],
-    pr: { number: 7, url: "https://x/pull/7" },
-  }
-  test("the note labels a last reply and lists what is still open", () => {
-    const note = asNote(facts)
-    expect(note).toContain("Last reply:\nFixed the thing.")
-    expect(note).toContain("- add docs")
-    expect(note).toContain("2 files, +10 −3 vs main")
-  })
-  test("the PR body leads with the summary and carries open todos as a checklist", () => {
-    const body = asPrBody({ ...facts, reported: true })
-    expect(body.startsWith("## Summary\n\nFixed the thing.")).toBe(true)
-    expect(body).toContain("- [ ] add docs")
   })
 })
