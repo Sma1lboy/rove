@@ -7,6 +7,7 @@
  */
 
 import type { VendorId } from "@/types/vendor"
+import { sniffProtocolFromTitle } from "../../engine/protocol-sniff"
 import {
   engineEntry,
   engineStatusPrefixes,
@@ -163,13 +164,17 @@ export function tabTitleStable(
   // step prevents a flash: clicking writes `lastTitle` at once but the probe is
   // a ~2s ps walk, and without it the raw engine status line ("⠐ Refactoring…")
   // shows for one render.
-  const vendor =
-    liveVendor ?? tab.liveVendor ?? (tab.kind === "engine" ? (tab.vendor ?? taskVendor) : undefined) ?? undefined
   // Cleaning is NOT gated on `ownsStatus`: the resolved vendor is often a user
   // wrapper (`claudecpa`, a zsh function running real claude) that declares
   // nothing, and gating left those tabs wearing `⠂ …`. `ownsStatus` only picks
   // the fallback below. Live beats recorded; falling back keeps the flash guard.
   const source = liveTitle?.trim() || tab.lastTitle
+  const vendor =
+    liveVendor ??
+    tab.liveVendor ??
+    sniffProtocolFromTitle(source) ??
+    (tab.kind === "engine" ? (tab.vendor ?? taskVendor) : undefined) ??
+    undefined
   const named = vendor ? stableRecordedTitle(source, vendor) : (source ?? null)
   if (!vendor || engineEntry(vendor).terminalTitle?.ownsStatus !== true) {
     // The resolved vendor still names the tab: an engine writing no title (a
@@ -201,8 +206,9 @@ export function tabTitleStable(
 export function conversationTitle(tab: TerminalTab, taskVendor: VendorId, liveTitle?: string | null): string | null {
   const renamed = tab.title?.trim()
   if (renamed) return renamed
-  const vendor = titleVendor(tab, taskVendor)
-  const named = stableRecordedTitle(liveTitle?.trim() || tab.lastTitle, vendor)
+  const source = liveTitle?.trim() || tab.lastTitle
+  const vendor = titleVendor(tab, taskVendor, source)
+  const named = stableRecordedTitle(source, vendor)
   if (!named) return null
   const entry = engineEntry(vendor)
   const generic = [entry.displayName, entry.defaultCommand[0]].map((name) => name?.toLowerCase())
@@ -212,12 +218,15 @@ export function conversationTitle(tab: TerminalTab, taskVendor: VendorId, liveTi
 }
 
 /**
- * Whose title rules judge this tab's name: running now, else launched as, else
- * the task's engine. A confirmed-dead engine still falls back to the pin —
- * "is this a name" is about the SHAPE the engine writes.
+ * Whose title rules judge this tab's name: running now, else whoever wrote the
+ * title's status glyph (an engine started by hand in an exited engine's shell),
+ * else launched as, else the task's engine. A confirmed-dead engine still falls
+ * back to the pin — "is this a name" is about the SHAPE the engine writes.
  */
-function titleVendor(tab: TerminalTab, taskVendor: VendorId): VendorId {
-  return tab.liveVendor ?? (tab.kind === "engine" ? tab.vendor : undefined) ?? taskVendor
+function titleVendor(tab: TerminalTab, taskVendor: VendorId, title?: string | null): VendorId {
+  return (
+    tab.liveVendor ?? sniffProtocolFromTitle(title) ?? (tab.kind === "engine" ? tab.vendor : undefined) ?? taskVendor
+  )
 }
 
 /**
@@ -238,7 +247,7 @@ export function tabTitle(tab: TerminalTab, taskVendor: VendorId, liveName?: stri
   // Vendor comes from the tab, not the task's CURRENT engine: that would
   // relabel every inherit-mode tab when a new tab switches the task engine. A
   // placeholder live title (codex's thread id) falls through.
-  const vendor = titleVendor(tab, taskVendor)
+  const vendor = titleVendor(tab, taskVendor, liveName || tab.lastTitle)
   if (liveName && !isEnginePlaceholderTitle(liveName, vendor)) return `${liveName} ${tab.ordinal}`
   // No live title (a surface not hosting the tab, e.g. the Inbox): use the last
   // recorded one, else a long-moved-on tab reads as its opening question.

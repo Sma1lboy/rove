@@ -192,4 +192,11 @@ describe("conversationTitle", () => {
   it("does not take the engine's own product name for a conversation name", () => {
     expect(conversationTitle(engineTab({ liveVendor: "claude" }), "claude", "✳ Claude Code")).toBeNull()
   })
+
+  it("strips the status of the engine that wrote the title, not the one the tab was launched as", () => {
+    // A claude tab whose engine exited, with omp started by hand in the shell left behind.
+    const tab = engineTab({ vendor: "claude" })
+    expect(conversationTitle(tab, "claude", "π ⠸ Resume Claude Session")).toBe("Resume Claude Session")
+    expect(conversationTitle(tab, "claude", "π > Resume Claude Session")).toBe("Resume Claude Session")
+  })
 })
