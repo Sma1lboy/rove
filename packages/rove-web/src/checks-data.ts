@@ -1,6 +1,7 @@
 /** The `pr.checks` reply and the words the Files pane's checks section builds from it. */
 
 import type { TaskRow } from "rove-bridge/protocol"
+import { compactAge } from "./inbox.ts"
 
 export type CheckState = "fail" | "pending" | "pass" | "skipped"
 
@@ -8,6 +9,9 @@ export interface CheckRow {
   readonly name: string
   readonly state: CheckState
   readonly durationMs: number | null
+  /** Epoch ms; absent from an older bridge, null when the check never reported it. */
+  readonly startedAt?: number | null
+  readonly completedAt?: number | null
   readonly url: string
   /** The Actions run whose log can be read; null for a check from another provider. */
   readonly runId: string | null
@@ -52,6 +56,22 @@ export function duration(ms: number): string {
   const m = Math.floor(s / 60)
   if (m < 60) return `${m}m${String(s % 60).padStart(2, "0")}s`
   return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}m`
+}
+
+/** A check's timing line: how long a finished one took and how long ago it finished, or how long a running one has run. */
+export function checkTiming(
+  check: CheckRow,
+  now: number,
+): { readonly key: string; readonly vars: Record<string, string> } | null {
+  const { startedAt, completedAt, durationMs } = check
+  if (check.state === "pending") {
+    return startedAt ? { key: "files.checks.runningFor", vars: { elapsed: duration(now - startedAt) } } : null
+  }
+  if (durationMs === null) {
+    return completedAt ? { key: "files.checks.finishedAgo", vars: { age: compactAge(now - completedAt) } } : null
+  }
+  if (!completedAt) return { key: "files.checks.took", vars: { duration: duration(durationMs) } }
+  return { key: "files.checks.tookAgo", vars: { duration: duration(durationMs), age: compactAge(now - completedAt) } }
 }
 
 export type MergeTone = "success" | "warning" | "attention"
