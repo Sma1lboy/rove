@@ -70,8 +70,8 @@ function tooltip(tab: PanelItem): string {
 
 /** The row's font is 12px mono: one column per ASCII character, two for wide ones (CJK). */
 const COLUMN_PX = 7.3
-/** Padding, icon, gap and the × slot around a tab's label; and the cap from `.ptab`'s max-width. */
-const TAB_CHROME_PX = 51
+/** Padding and the × slot around a tab's label; and the cap from `.ptab`'s max-width. */
+const TAB_CHROME_PX = 31
 const TAB_MAX_PX = 160
 
 /** Whether every tab fits at its full label; past that, the row goes compact (only the shown tab keeps its name). */
@@ -232,7 +232,6 @@ export function PanelTabRow({
               title={tooltip(tab)}
               onClick={() => editPanel(taskId, (p) => activate(p, tab.id))}
             >
-              <Icon>{ICONS[tab.kind]}</Icon>
               <span className={PTAB_LABEL}>{label(tab)}</span>
             </button>
             <button
