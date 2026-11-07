@@ -30,7 +30,15 @@ export const INBOX_BINDINGS: readonly RoveBinding[] = [
     scope: "inbox",
     keys: ["d"],
     category: "Inbox",
-    description: "Remove the selected Inbox item",
+    description: "Ack the selected Inbox item",
     hint: { keys: "d" },
+  },
+  {
+    id: "inbox.deleteAll",
+    scope: "inbox",
+    keys: ["shift+d"],
+    category: "Inbox",
+    description: "Ack every ATTENTION item",
+    hint: { keys: "D" },
   },
 ]

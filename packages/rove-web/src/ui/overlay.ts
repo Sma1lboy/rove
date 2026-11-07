@@ -60,8 +60,8 @@ export const INBOX_BADGE = "flex-none font-mono text-meta font-normal normal-num
 /** Fixed to `99d`'s width so a shorter age never shifts the badge beside it. */
 export const INBOX_AGE = `${INBOX_BADGE} min-w-[3ch] text-right text-subtle`
 export const INBOX_SUB = "truncate font-mono text-meta font-normal normal-nums text-muted"
-/** A card's row: the card, then its reply toggle at the right edge. */
-export const INBOX_CARD = "flex items-center gap-1"
+/** A card's row: the card, then its reply toggle on the card's first line, the baseline its state and age sit on. */
+export const INBOX_CARD = "flex items-baseline gap-1"
 export const INBOX_CARD_MAIN = "min-w-0 flex-1"
 /** Wide enough for `[ reply ]` in either locale, and drawn empty on rows without one, so every row's age ends on one edge. */
 export const INBOX_PEEK_TOGGLE =

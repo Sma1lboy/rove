@@ -8,6 +8,17 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## PROPOSED: `D` acks every ATTENTION item in the Inbox
+
+**2026-11-07 — PROPOSED, owner sign-off pending.** In the Inbox (TUI dialog and
+web dialog), `D` (shift+d) acks every ATTENTION row at once, as `d` does one.
+The owner asked for an "ack all" with web and TUI behaving alike; the web also
+has a `[ ack all ]` button.
+
+**Why `D`.** It is `d`'s plural, as `D` (diff everything) sits next to `d` (one
+file) in the Files pane. Inbox scope only: nothing global is added or moved.
+Open decisions are skipped, as `d` skips them.
+
 ## PROPOSED: digits `1`-`9` pick a model in the web composer's open model menu
 
 **2026-10-24 — PROPOSED, owner sign-off pending.** In the web New session

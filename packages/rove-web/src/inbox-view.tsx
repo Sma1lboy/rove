@@ -108,6 +108,8 @@ export function InboxDialog({ model }: { model: AppModel }) {
       closeDialog()
     }
   }
+  const ackAll = () =>
+    void Promise.all(attention.map((card) => card.attention && dismissEpisode(model, card.attention, true)))
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -117,6 +119,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
       else if (e.key === "ArrowUp" || e.key === "k") setIndex((i) => Math.max(0, i - 1))
       else if (e.key === "Enter" && current) open(current)
       else if (e.key === "d" && current?.attention) void dismissEpisode(model, current.attention, true)
+      else if (e.key === "D") ackAll()
       else return
       e.preventDefault()
     }
@@ -197,12 +200,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
             <Legend text={t("inbox.hints")} />
           </p>
           {attention.length > 0 && (
-            <Button
-              className={INBOX_PEEK_TOGGLE}
-              onClick={() =>
-                void Promise.all(attention.map((card) => card.attention && dismissEpisode(model, card.attention, true)))
-              }
-            >
+            <Button className={INBOX_PEEK_TOGGLE} onClick={ackAll}>
               {t("inbox.ackAll")}
             </Button>
           )}
