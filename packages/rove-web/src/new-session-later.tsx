@@ -1,7 +1,8 @@
-/** New session's `[ later… ]`: the time field that starts the session by itself at that time instead of now. */
+/** New session's Later chip: the time field that starts the session by itself at that time instead of now. */
 
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
+import { ClockIcon } from "./new-session-icons.tsx"
 import { parseStartAt } from "./schedule-start.ts"
 import { Button } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
@@ -53,6 +54,7 @@ export function LaterControl(props: {
         disabled={props.disabled}
         onClick={() => (open && text.trim() ? submit() : setOpen(!open))}
       >
+        <ClockIcon />
         {t(open && text.trim() ? "newSession.laterConfirm" : "newSession.later")}
       </Button>
     </>
