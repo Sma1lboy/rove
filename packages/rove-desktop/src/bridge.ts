@@ -45,6 +45,8 @@ export interface Started {
   readonly url: string
   /** The bare origin, for navigation locks and "open in browser". */
   readonly origin: string
+  /** The child the app spawned (on Windows a `.cmd` shim's shell); none for an attached URL. */
+  readonly pid?: number
   stop(): void
   /** Called once if the bridge exits (crash, killed, or `stop()`); never for an attached URL. */
   onExit(fn: () => void): void
@@ -154,6 +156,7 @@ export async function start(opts: { bin: string; attempts?: number; port?: numbe
       return {
         url,
         origin: new URL(url).origin,
+        pid: child.pid,
         stop: () => stop(child),
         onExit: (fn) => {
           if (child.exitCode !== null || child.signalCode !== null) fn()

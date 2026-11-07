@@ -11,14 +11,20 @@ import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { BrowserWindow, Menu, type MenuItemConstructorOptions, app, dialog, screen, session, shell } from "electron"
 import { type Started, findRove, redact, rememberRove, start } from "./bridge"
+import { openLog, watchMemory, writeLog } from "./memory-log"
 
 const APP_NAME = "Rove"
 /** The page's own paper colour, so the first frame is not a white flash. */
 const PAPER = "#141413"
 const DOCS_URL = "https://docs.rove.run"
 
-/** Boot-time breadcrumbs on stderr: a Finder launch has no terminal, so this is for `bun run start` and bug reports. */
-const log = (message: string): void => console.error(`[rove-desktop] ${message}`)
+/** Breadcrumbs on stderr (for `bun run start`) and in the app's log file (for a Finder launch and bug reports). */
+const log = (message: string): void => {
+  const line = redact(message)
+  console.error(`[rove-desktop] ${line}`)
+  writeLog(line)
+}
+const logFile = () => join(app.getPath("logs"), "desktop.log")
 
 let bridge: Started | null = null
 let win: BrowserWindow | null = null
@@ -351,6 +357,7 @@ function buildMenu(): void {
           label: "Open in the browser",
           click: () => bridge && void shell.openExternal(bridge.url.split("#")[0] ?? bridge.origin),
         },
+        { label: "Show log file", click: () => shell.showItemInFolder(logFile()) },
         ...(isMac ? [] : [{ type: "separator" as const }, { role: "about" as const }]),
       ],
     },
@@ -376,6 +383,9 @@ if (!app.requestSingleInstanceLock()) {
   app.setName(APP_NAME)
   app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion() })
   app.whenReady().then(() => {
+    openLog(logFile())
+    log(`start ${app.getVersion()} (electron ${process.versions.electron}, ${process.platform}-${process.arch})`)
+    watchMemory(() => bridge?.pid)
     buildMenu()
     void boot()
   })
