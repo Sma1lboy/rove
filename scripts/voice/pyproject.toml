@@ -1,0 +1,25 @@
+# The dictation sidecar and its bench. Not a package: run the scripts through uv, which builds the
+# environment from this file and uv.lock (`uv run --project scripts/voice scripts/voice/asr_server.py`).
+[project]
+name = "rove-voice"
+version = "0"
+requires-python = ">=3.11"
+dependencies = [
+  "jellyfish",
+  "mlx-whisper; sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "numpy",
+  "opencc-python-reimplemented",
+  "pypinyin",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["asr_server", "engine", "phonetic", "vocab"]

@@ -128,11 +128,12 @@ on a phone, hold-to-talk). The page records 16 kHz mono PCM and the op `voice.tr
 a sidecar on this machine together with the conversation it is dictated into; the transcript is
 inserted at the caret and sent only when you slide up to send.
 
-The sidecar is opt-in — nothing in Rove bundles a model. All of it lives in `scripts/voice/`:
+The sidecar is opt-in — nothing in Rove bundles a model. All of it lives in `scripts/voice/`, one
+environment described by its `pyproject.toml` and `uv.lock`:
 
 ```bash
-scripts/voice/asr_server.py          # uv resolves the environment; 127.0.0.1:8791
-scripts/voice/bench.py               # key-term bench: 11 zh/en clips, 82 terms
+uv run --project scripts/voice scripts/voice/asr_server.py   # 127.0.0.1:8791
+uv run --project scripts/voice scripts/voice/bench.py        # key-term bench: 11 zh/en clips, 82 terms
 ```
 
 While it is not running the mic is disabled and says so. It listens on loopback and takes the
@@ -155,13 +156,18 @@ shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public p
   real English word is never rewritten. A local recognizer gets only the stored terms in its prompt
   (conversation terms there cost a term whenever they were not said); a cloud one gets all of them
   (`"promptContext"` overrides either).
+- **Sound-alikes.** After the spelling fix, a word the recognizer *heard* wrong is matched by
+  pronunciation (Metaphone; a Chinese run is read as pinyin first): "Jithub" → GitHub, "Cavin" →
+  Kevin. Only a run that is not all dictionary words and keys within a close length of a term is
+  touched. On the bench it lifts large-v3 from 72 to 74 when the conversation holds the terms and
+  changes nothing otherwise; `"phonetic": false` turns it off.
 - **Measured** (`bench.py`; clips are synthesized with macOS `say` on first run and cached, so the
   voices are synthetic; real recordings are scored with `--recordings`). "Has the terms" puts each
   clip's own sentence in the conversation, an upper bound; "only other terms" is all distractors:
 
   | Recognizer | no context | context has the terms | context has only other terms | p50 |
   | --- | --- | --- | --- | --- |
-  | large-v3 (default) | 68/82 | 72 | 68 | 1.8 s |
+  | large-v3 (default) | 68/82 | 74 | 68 | 1.6–2.5 s |
   | large-v3-turbo | 63 | 65 (69 with `promptContext`) | 63 (61) | 1.0 s |
   | gpt-4o-mini-transcribe (cloud) | 75 | 78 | 77 | 0.9 s |
 

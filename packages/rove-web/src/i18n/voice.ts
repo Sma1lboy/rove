@@ -9,7 +9,7 @@ export const en = {
     tipSend: "Let go to send",
     hold: "Hold to talk",
     type: "Type instead",
-    offline: "Voice is off: run scripts/voice/asr_server.py on this host",
+    offline: "Voice is off: start the sidecar on this host (docs/WEB.md, Dictation)",
   },
 }
 
@@ -24,6 +24,6 @@ export const zh: typeof en = {
     tipSend: "松手发送",
     hold: "按住说话",
     type: "打字",
-    offline: "语音未启动：在这台机器上运行 scripts/voice/asr_server.py",
+    offline: "语音未启动：在这台机器上启动语音服务（见 docs/WEB.md 的 Dictation 一节）",
   },
 }
