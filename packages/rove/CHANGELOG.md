@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.279
+
+### Patch Changes
+
+- [#1767](https://github.com/Sma1lboy/rove/pull/1767) [`30471eb`](https://github.com/Sma1lboy/rove/commit/30471ebfec462b9a3525f3cd2611731a33ff6f29) Internal: two terminal render tests wait for the pane to attach to its PTY before sending keys, so the release render track stops failing on loaded runners. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1766](https://github.com/Sma1lboy/rove/pull/1766) [`f0fac51`](https://github.com/Sma1lboy/rove/commit/f0fac51c974018307fc0296f9cf2a09abcfeed46) A web terminal that blanked after pasted images filled its glyph atlas now rebuilds the atlas on the next frame and repaints. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.278
 
 ### Patch Changes
