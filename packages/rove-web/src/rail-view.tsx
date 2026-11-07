@@ -4,7 +4,6 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
-import { AwayRecap } from "./away-recap-view.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -188,7 +187,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           onChange={(query) => filters.setSearch((s) => ({ ...s, query }))}
         />
       )}
-      <AwayRecap model={model} />
       <PageNav model={model} />
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
