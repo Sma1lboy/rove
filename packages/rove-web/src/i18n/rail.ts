@@ -11,14 +11,6 @@ export const en = {
     extraRepos: "{count} more repos in this task",
     todos: "{done} of {total} todos done",
     startsAt: "Starts {time}",
-    recap: {
-      since: "since {time}",
-      finished: "{count} finished",
-      needs: "{count} needs you",
-      failed: "{count} failed",
-      merged: "{count} merged",
-      dismiss: "Dismiss",
-    },
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
       many: "{count} PRs in this task and its children",
@@ -70,14 +62,6 @@ export const zh: typeof en = {
     extraRepos: "这个任务还含 {count} 个仓库",
     todos: "{done}/{total} 条待办已完成",
     startsAt: "{time} 启动",
-    recap: {
-      since: "自 {time}",
-      finished: "{count} 个已完成",
-      needs: "{count} 个等你处理",
-      failed: "{count} 个失败",
-      merged: "{count} 个已合并",
-      dismiss: "关闭",
-    },
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
       many: "这个任务及子任务共 {count} 个 PR",

@@ -1,18 +1,15 @@
 /**
- * The Files pane (TUI `panes/filetree`): All = the worktree tree, Changes =
- * changed files with their status letter, scoped to the working tree or the
- * branch vs its base. Keys are the TUI pane's own, live only while the pane
- * has focus: j/k move, h/l fold, [ ] switch tab, b scope, r refresh,
+ * The Files pane (TUI `panes/filetree`): the worktree tree; what changed is the Diff tab's. Keys are the TUI
+ * pane's own, live only while the pane has focus: j/k move, h/l fold, r refresh,
  * Enter, d or a click previews the file in a tab on the right (web only: the TUI opens its editor tab), Shift+D the
  * whole diff, a mention `@path`, o opens media in the Mac's app.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
+import type { TaskRow } from "rove-bridge/protocol"
 import { ChecksSection } from "./checks-section.tsx"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { openDiff } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
@@ -20,25 +17,9 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
-import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
-import { Chip } from "./ui/chip.tsx"
-import { Legend } from "./ui/legend.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { Tabs } from "./ui/tabs.tsx"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
-
-type Tab = "all" | "changes"
-const TAB_ORDER: readonly Tab[] = ["all", "changes"]
-
-/** A changed file's status letter in its tone (`?` = untracked). */
-const STATUS_TONE: Partial<Record<string, string>> = {
-  M: "text-warning",
-  A: "text-success",
-  "?": "text-success",
-  D: "text-error",
-  R: "text-accent",
-}
 
 interface Row {
   readonly path: string
@@ -46,28 +27,13 @@ interface Row {
   readonly depth: number
   readonly dir: boolean
   readonly open: boolean
-  readonly status?: string
-  readonly added?: number | null
-  readonly deleted?: number | null
-}
-
-interface DiffReply {
-  readonly base: string | null
-  readonly files: readonly DiffFileRow[]
 }
 
 /** `narrow`: the phone's full-panel list. */
 export function FilesView({ model, task, narrow = false }: { model: AppModel; task: TaskRow; narrow?: boolean }) {
-  const touch = isTouch()
   useLocale()
-  const [tab, setTab] = useState<Tab>("all")
-  const [scope, setScope] = useState<"working" | "branch">("working")
-  // The tree and the changes load apart: the tree is one `git ls-files`, the changes several git calls.
   const [files, setFiles] = useState<readonly string[] | null>(
     () => lastReply<{ files: string[] }>(model, "files.list", { taskId: task.id })?.files ?? null,
-  )
-  const [diff, setDiff] = useState<DiffReply | null>(
-    () => lastReply<DiffReply>(model, "diff.files", { taskId: task.id }) ?? null,
   )
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
@@ -75,7 +41,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const [nonce, setNonce] = useState(0)
   const pane = useRef<HTMLDivElement>(null)
   const stream = useStore(activeStream)
-  // The feed's change counts move whenever the worktree does: refetch then, like the TUI's watcher.
+  // The feed's change counts move whenever the worktree does (files come and go): refetch then, like the TUI's watcher.
   const changeKey = JSON.stringify(task.changes ?? null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: changeKey and nonce are refetch triggers.
@@ -87,37 +53,20 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       setFiles(r.files)
       setError(null)
     }, failed)
-    requestRemembered<DiffReply>(model, "diff.files", { taskId: task.id }).then((r) => live && setDiff(r), failed)
     return () => {
       live = false
     }
   }, [model, task.id, changeKey, nonce])
 
-  // The panel remounts per task, so `files` and `diff` are always this task's.
-  const base = diff?.base ?? null
-  const loaded = tab === "all" ? files !== null : diff !== null
-  const branchScope = scope === "branch" && base != null
-  const rows: Row[] =
-    tab === "all"
-      ? visibleTree(files ?? [], expanded).map((r) => ({
-          path: r.path,
-          label: r.name,
-          depth: r.depth,
-          dir: r.dir,
-          open: r.open,
-        }))
-      : (diff?.files ?? [])
-          .filter((f) => f.scope === (branchScope ? "branch" : "working"))
-          .map((f) => ({
-            path: f.path,
-            label: f.path,
-            depth: 0,
-            dir: false,
-            open: false,
-            status: f.status,
-            added: f.added,
-            deleted: f.deleted,
-          }))
+  // The panel remounts per task, so `files` is always this task's.
+  const loaded = files !== null
+  const rows: Row[] = visibleTree(files ?? [], expanded).map((r) => ({
+    path: r.path,
+    label: r.name,
+    depth: r.depth,
+    dir: r.dir,
+    open: r.open,
+  }))
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
   const row = rows[at]
 
@@ -128,9 +77,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  // A preview tab on the right: the file (its uncommitted diff when it has one). The branch scope is the Changes tab's alone.
-  const open = (path: string) =>
-    openDiff({ taskId: task.id, path, scope: tab === "changes" && branchScope ? "branch" : "working" })
+  // A preview tab on the right: the file (its uncommitted diff when it has one).
+  const open = (path: string) => openDiff({ taskId: task.id, path, scope: "working" })
   const mention = (path: string) => {
     if (!stream?.startsWith(`${task.id}::`)) {
       toast(t("files.mentionNoEngine"), "error")
@@ -152,9 +100,6 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     else if (key === "k" || key === "ArrowUp") setCursor(Math.max(0, at - 1))
     else if ((key === "l" || key === "ArrowRight") && row?.dir) toggle(row.path, true)
     else if ((key === "h" || key === "ArrowLeft") && row?.dir) toggle(row.path, false)
-    else if (key === "[" || key === "]")
-      setTab(TAB_ORDER[(TAB_ORDER.indexOf(tab) + (key === "]" ? 1 : TAB_ORDER.length - 1)) % TAB_ORDER.length] ?? "all")
-    else if (key === "b" && tab === "changes" && base != null) setScope(scope === "working" ? "branch" : "working")
     else if (key === "r") setNonce((n) => n + 1)
     else if (key === "D" && e.shiftKey) open(".")
     else if (key === "d" && row) open(row.path)
@@ -178,39 +123,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       <PrStrip model={model} task={task} />
       <ChecksSection model={model} task={task} />
       <RunStrip model={model} task={task} />
-      <Tabs
-        className="px-1 pb-1.5"
-        tabs={[
-          { id: "all", label: t("files.all") },
-          { id: "changes", label: t("files.changes") },
-        ]}
-        value={tab}
-        onChange={(id) => {
-          setTab(id)
-          setCursor(0)
-        }}
-      />
-      {tab === "changes" && (
-        <div className="flex flex-wrap gap-x-2.5 gap-y-1 px-2 pb-2 font-mono text-meta text-muted">
-          <span>{branchScope ? t("files.scopeBranch", { base: base ?? "" }) : t("files.scopeWorking")}</span>
-          {base != null ? (
-            <Button hit="tight" onClick={() => setScope(scope === "working" ? "branch" : "working")}>
-              {t(touch ? "files.toggleScopeTouch" : "files.toggleScope")}
-            </Button>
-          ) : (
-            diff && <span>{t("files.noBase")}</span>
-          )}
-          <Legend text={t("files.legend")} />
-          <Button hit="tight" onClick={() => open(".")}>
-            {t(touch ? "files.diffAllTouch" : "files.diffAll")}
-          </Button>
-        </div>
-      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {error && <p className="mono text-error">{error}</p>}
-        {!error && loaded && rows.length === 0 && (
-          <p className={PLACEHOLDER_LINE}>{tab === "all" ? t("files.emptyAll") : t("files.emptyChanges")}</p>
-        )}
+        {!error && loaded && rows.length === 0 && <p className={PLACEHOLDER_LINE}>{t("files.emptyAll")}</p>}
         {rows.map((r, i) => (
           <button
             type="button"
@@ -225,16 +140,10 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               else open(r.path)
             }}
           >
-            {r.status ? (
-              <span className={`${GLYPH} ${STATUS_TONE[r.status] ?? ""}`}>{r.status}</span>
-            ) : (
-              <span className={`${GLYPH} grid place-items-center text-subtle`}>
-                {r.dir ? <Chevron right={!r.open} /> : null}
-              </span>
-            )}
+            <span className={`${GLYPH} grid place-items-center text-subtle`}>
+              {r.dir ? <Chevron right={!r.open} /> : null}
+            </span>
             <span className={ROW_TITLE}>{r.label}</span>
-            {r.added ? <Chip tone="added">+{r.added}</Chip> : null}
-            {r.deleted ? <Chip tone="removed">−{r.deleted}</Chip> : null}
           </button>
         ))}
       </div>
