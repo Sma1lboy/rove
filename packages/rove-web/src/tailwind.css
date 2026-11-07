@@ -99,6 +99,24 @@ html[data-keyboard] #root {
   padding-bottom: 0;
 }
 
+/* The desktop app on macOS draws no title bar (`rove-desktop` sets the attribute): its traffic lights sit over the
+   page's top-left corner, so the top-left bar steps right of them, and the empty strip above the panes moves the
+   window. Controls in that strip stay clickable. */
+html[data-shell="mac-inset"] {
+  --shell-inset-left: 72px;
+}
+html[data-shell="mac-inset"] .app::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 34px;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+html[data-shell="mac-inset"] :is(button, a, input, select, textarea, [role="button"], [contenteditable]) {
+  -webkit-app-region: no-drag;
+}
+
 body {
   background: var(--paper);
   color: var(--ink);

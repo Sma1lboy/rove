@@ -16,8 +16,9 @@ export const iconButton = (o: { tool?: boolean; small?: boolean; on?: boolean } 
 /** Folded: a hidden task needs you. */
 export const ICON_BUTTON_DOT = "absolute top-0.75 right-0.75 size-1.5 rounded-full bg-accent"
 
-/** Top left of the page, folded or not: out of the grid's flow, so it stays put while the rail column opens and shuts. */
-export const RAIL_BAR = "absolute top-2 left-2 z-7 flex items-center gap-0.5"
+/** Top left of the page, folded or not: out of the grid's flow, so it stays put while the rail column opens and shuts. Past a desktop shell's traffic lights (`--shell-inset-left`). */
+export const RAIL_BAR =
+  "absolute top-2 left-[calc(--spacing(2)+var(--shell-inset-left,0px))] z-7 flex items-center gap-0.5"
 
 /** A frame under the pointer would swallow a resize drag. */
 const RESIZING = "[&.is-resizing_iframe]:pointer-events-none"

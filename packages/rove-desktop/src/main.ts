@@ -115,9 +115,12 @@ function createWindow(started: Started): void {
     title: APP_NAME,
     backgroundColor: PAPER,
     show: false,
-    // The page draws its own chrome edge to edge; keep the system title bar for a native feel and a
-    // drag handle above the rail.
-    autoHideMenuBar: false,
+    // macOS: no title bar. The traffic lights float over the page's top-left corner, centred on the
+    // page's top bar; the page steps its bar right of them and makes the strip above the panes a drag
+    // handle once told it is in this shell (`data-shell` below).
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 14, y: 13 } }
+      : { autoHideMenuBar: false }),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
   })
   if (bounds.maximized) win.maximize()
@@ -128,6 +131,12 @@ function createWindow(started: Started): void {
   const fallback = setTimeout(() => win?.show(), 5_000)
   win.once("closed", () => clearTimeout(fallback))
   win.webContents.on("did-fail-load", (_event, code, description) => log(`page failed to load: ${code} ${description}`))
+  // Set on every load (a reload or a reconnect re-runs it); a page from an older rove ignores it.
+  if (process.platform === "darwin") {
+    win.webContents.on("dom-ready", () => {
+      void win?.webContents.executeJavaScript(`document.documentElement.dataset.shell = "mac-inset"`)
+    })
+  }
   if (process.env.ROVE_DESKTOP_DEBUG) {
     win.webContents.on("console-message", (event) => log(`page: ${event.message}`))
   }
