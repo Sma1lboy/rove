@@ -19,10 +19,15 @@ export function DictationButton(props: {
   readonly context: () => string
   readonly onText: (text: string) => void
   readonly disabled?: boolean
+  /** The box, by recording state; defaults to a composer-bar chip. */
+  readonly look?: (recording: boolean) => string
 }) {
   useLocale()
+  // The recorder outlives renders; it must read the context as it is at stop, not at mount.
+  const context = useRef(props.context)
+  context.current = props.context
   const dictation = useRef<Dictation | null>(null)
-  if (dictation.current === null) dictation.current = new Dictation(props.client, props.context)
+  if (dictation.current === null) dictation.current = new Dictation(props.client, () => context.current())
   const view = useStore(dictation.current.view)
   const [hosted, setHosted] = useState<boolean | null>(null)
 
@@ -46,7 +51,7 @@ export function DictationButton(props: {
   return (
     <button
       type="button"
-      className={`${C.chipClass(view.phase === "recording")} min-w-[9ch] justify-center disabled:cursor-default disabled:opacity-60`}
+      className={(props.look ?? C.dictateChip)(view.phase === "recording")}
       disabled={props.disabled || hosted === false || view.phase === "transcribing"}
       title={view.error ?? (hosted === false ? t("voice.offline") : t("voice.hint"))}
       onClick={() => {
