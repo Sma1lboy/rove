@@ -218,6 +218,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
       ...(snapshot.cache_creation_input_tokens === undefined
         ? {}
         : { cacheCreationTokens: snapshot.cache_creation_input_tokens }),
+      ...(snapshot.context_parts ? { parts: snapshot.context_parts } : {}),
     }
   },
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
