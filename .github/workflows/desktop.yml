@@ -6,7 +6,7 @@ name: Desktop
 
 on:
   push:
-    branches: [main, desktop/ci-builds]
+    branches: [main]
     paths:
       - "packages/rove-desktop/**"
       - ".github/workflows/desktop.yml"
