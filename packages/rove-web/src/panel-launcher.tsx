@@ -1,4 +1,4 @@
-/** The workspace's top-right buttons that open the side panel on Files, a Diff, a Browser or Context; the one on screen is tinted, and pressing it again closes the panel. Chat opens from the panel's + menu. */
+/** The workspace's top-right buttons that open the side panel on Files, a Browser or Context; the one on screen is tinted, and pressing it again closes the panel. Chat and Diff open from the panel's + menu. */
 
 import { t, useLocale } from "./i18n/index.ts"
 import { PANEL_KINDS, panelOpen } from "./panel-layout.ts"
@@ -9,7 +9,7 @@ import { useStore } from "./store.ts"
 import { zen } from "./ui.ts"
 import { PANEL_LAUNCH, iconButton } from "./ui/panel.ts"
 
-const LAUNCHED = PANEL_KINDS.filter((kind) => kind !== "chat")
+const LAUNCHED = PANEL_KINDS.filter((kind) => kind !== "chat" && kind !== "diff")
 
 export function PanelLauncher({ taskId }: { taskId: string }) {
   useLocale()
