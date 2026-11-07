@@ -194,7 +194,8 @@ class Handler(BaseHTTPRequestHandler):
         ms = round((time.monotonic() - started) * 1000)
         # Counts only, never the words: enough to see the conversation arrived and what a take cost.
         heard = len(request.get("conversation") or "")
-        sys.stderr.write(f"voice: {seconds}s audio, {heard} chars of conversation, {out['terms']} terms, {ms} ms\n")
+        terms = out["terms"]
+        sys.stderr.write(f"voice: {seconds}s audio, {heard} chars of conversation, {terms} terms, {ms} ms\n")
         self.reply(200, {**out, "seconds": seconds, "ms": ms})
 
 
