@@ -7,8 +7,8 @@
  * and `toWav` resamples whatever came back.
  */
 
-import type { BridgeClient } from "./bridge.ts"
-import { type Store, createStore } from "./store.ts"
+import type { BridgeClient } from "../bridge.ts"
+import { type Store, createStore } from "../store.ts"
 
 // Served from `public/` as a plain file: the page's CSP is `script-src 'self'`, so a blob:/data: worklet
 // is refused, and a bundler-emitted asset breaks the bun test runner that imports this module.
@@ -34,6 +34,13 @@ export interface DictationResult {
   readonly seconds: number
   readonly ms: number
   readonly reason?: string
+}
+
+/** What the take is dictated into: the draft so far, and the conversation the bridge reads for vocabulary. */
+export interface DictationScope {
+  readonly draft: string
+  readonly taskId?: string
+  readonly tabId?: string
 }
 
 /** Linear resample to 16 kHz: the model's rate, and a third of the bytes on the wire. */
@@ -106,8 +113,8 @@ export class Dictation {
 
   constructor(
     private readonly client: BridgeClient,
-    /** What the shell is looking at, handed to the model as biasing context. */
-    private readonly contextText: () => string,
+    /** Read at stop: the draft and the conversation as they are when the take ends. */
+    private readonly scope: () => DictationScope,
   ) {}
 
   get recording(): boolean {
@@ -183,9 +190,12 @@ export class Dictation {
       return { text: "", seconds, ms: 0, reason: "silent" }
     }
     try {
+      const scope = this.scope()
       const result = await this.client.request<DictationResult>("voice.transcribe", {
         wav: toHex(wav),
-        context: this.contextText(),
+        context: scope.draft,
+        taskId: scope.taskId,
+        tabId: scope.tabId,
       })
       this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
       return result

@@ -6,7 +6,7 @@ import {
   type RefObject,
   useRef,
 } from "react"
-import type { DictationFace } from "../dictation-button.tsx"
+import type { DictationFace } from "../voice/dictation-button.tsx"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, a wide

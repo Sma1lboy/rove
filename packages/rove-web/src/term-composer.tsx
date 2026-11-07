@@ -9,7 +9,7 @@ import { useRef, useState, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
-import { DictationButton, useVoiceHosted } from "./dictation-button.tsx"
+import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -105,7 +105,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const onFiles = (files: File[]) => void attach(files)
   const talk = {
     client: model.client,
-    context: () => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · "),
+    context: () => ({ draft: text, taskId, tabId }),
     onText: (spoken: string) => void insertDictated(spoken),
     disabled: busy,
   }

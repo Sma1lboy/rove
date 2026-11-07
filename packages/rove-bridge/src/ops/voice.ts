@@ -1,21 +1,26 @@
 /**
  * Dictation from the web client. The browser records 16 kHz mono PCM; this op hands those bytes to
- * the local ASR sidecar (`scripts/voice/asr_server.py`) and returns its transcript. The model never
- * leaves this machine, and the sidecar binds loopback only — this op is the one public path to it.
- *
- * No daemon RPC: the bridge and the sidecar are the same host, and nothing here touches task state.
+ * the ASR sidecar (`scripts/voice/asr_server.py`) together with the text of the conversation being
+ * dictated into, whose identifiers and file names become the recognizer's vocabulary. The sidecar
+ * binds loopback only — these ops are the one public path to it.
  */
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
 import { BridgeError } from "../protocol.ts"
-import type { Args, OpTable } from "./types.ts"
+import { flag, optText, tabId, taskId } from "./args.ts"
+import type { Args, BridgeApi, OpTable } from "./types.ts"
 
 /** 16-bit 16 kHz mono: one second is 32 KB, ~64 KB as hex. A minute is under the socket's cap. */
 const MAX_WAV_HEX = 5 * 1024 * 1024
 const TIMEOUT_MS = 120_000
 const HEX = /^[0-9a-f]+$/
+/** The newest part of the conversation is the part being talked about; the sidecar caps it too. */
+const CONVERSATION_CHARS = 20_000
+/** Reading the transcript must not hold the dictation up: past this, recognize without it. */
+const CONVERSATION_MS = 1500
+const TERM_MAX = 80
 
 /** Where the sidecar keeps its secret and dictionary: `<ROVE_HOME>/voice`, same as `asr_server.py`. */
 export function voiceDir(): string {
@@ -85,6 +90,37 @@ async function post(path: string, payload: unknown): Promise<unknown> {
   return body
 }
 
+interface OutputReply {
+  readonly history?: { readonly messages?: readonly { readonly blocks?: readonly Record<string, unknown>[] }[] }
+  readonly terminal?: { readonly tail?: readonly string[] }
+}
+
+/** An `output.read` reply as plain text: message text and tool inputs (commands, paths), or the terminal tail. */
+export function conversationText(reply: OutputReply): string {
+  const lines: string[] = []
+  for (const message of reply.history?.messages ?? []) {
+    for (const block of message.blocks ?? []) {
+      if (typeof block.text === "string") lines.push(block.text)
+      else if (block.input !== undefined) lines.push(JSON.stringify(block.input).slice(0, 1000))
+    }
+  }
+  lines.push(...(reply.terminal?.tail ?? []))
+  return lines.join("\n").slice(-CONVERSATION_CHARS)
+}
+
+async function conversation(a: Args, api: BridgeApi): Promise<string | undefined> {
+  if (a.taskId === undefined) return undefined
+  const argv = [flag("task-id", taskId(a)), flag("limit", 30)]
+  if (a.tabId !== undefined) argv.push(flag("tab", tabId(a)))
+  const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), CONVERSATION_MS))
+  try {
+    const reply = await Promise.race([api.verb<OutputReply>("read-output", argv), late])
+    return reply ? conversationText(reply) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const voiceOps: OpTable = {
   "voice.status": {
     kind: "read",
@@ -97,8 +133,8 @@ export const voiceOps: OpTable = {
   "voice.transcribe": {
     kind: "read",
     destructive: false,
-    wraps: "POST :8791/transcribe of scripts/voice/asr_server.py (local Whisper on this host)",
-    async run(a: Args) {
+    wraps: "rove api read-output (vocabulary) + POST :8791/transcribe of scripts/voice/asr_server.py",
+    async run(a: Args, { api }) {
       const wav = a.wav
       if (typeof wav !== "string" || wav.length === 0) throw new BridgeError("BAD_ARGS", "wav is empty")
       if (wav.length > MAX_WAV_HEX) throw new BridgeError("BAD_ARGS", "wav is longer than a dictation")
@@ -109,7 +145,8 @@ export const voiceOps: OpTable = {
       const language = a.language === "zh" || a.language === "en" ? a.language : undefined
       const body = (await post("/transcribe", {
         wav,
-        context: typeof context === "string" ? context.slice(0, 400) : undefined,
+        context: typeof context === "string" ? context.slice(-400) : undefined,
+        conversation: await conversation(a, api),
         language,
       })) as Partial<VoiceTranscript>
       return {
@@ -120,6 +157,26 @@ export const voiceOps: OpTable = {
         ms: Number(body.ms ?? 0),
         ...(body.reason ? { reason: body.reason } : {}),
       } satisfies VoiceTranscript
+    },
+  },
+  "voice.learn": {
+    kind: "write",
+    destructive: false,
+    wraps: "POST :8791/vocab of scripts/voice/asr_server.py (keep a term and how it was misheard)",
+    async run(a: Args) {
+      const term = optText(a, "term", TERM_MAX)
+      if (!term) throw new BridgeError("BAD_ARGS", "term is required")
+      return post("/vocab", { term, spoken: optText(a, "spoken", TERM_MAX), source: "learned" })
+    },
+  },
+  "voice.forget": {
+    kind: "write",
+    destructive: false,
+    wraps: "POST :8791/vocab/remove of scripts/voice/asr_server.py (undo voice.learn)",
+    async run(a: Args) {
+      const term = optText(a, "term", TERM_MAX)
+      if (!term) throw new BridgeError("BAD_ARGS", "term is required")
+      return post("/vocab/remove", { term, spoken: optText(a, "spoken", TERM_MAX) })
     },
   },
 }

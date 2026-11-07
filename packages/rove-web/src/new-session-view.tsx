@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
-import { DictationButton } from "./dictation-button.tsx"
+import { DictationButton } from "./voice/dictation-button.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
@@ -461,7 +461,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
           <DictationButton
             client={model.client}
-            context={() => [primary, branchName, remotePick?.ref ?? "", prompt.slice(-120)].filter(Boolean).join(" · ")}
+            context={() => ({
+              draft: [prompt.slice(-300), primary, branchName, remotePick?.ref ?? ""].filter(Boolean).join("\n"),
+            })}
             onText={insertDictated}
             disabled={busy}
           />
