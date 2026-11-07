@@ -8,6 +8,7 @@
 import { type PointerEvent, type RefObject, useEffect, useRef } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import { BrowserView } from "./browser-view.tsx"
+import { ContextView } from "./context-view.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openMachines } from "./machines-dialog.tsx"
@@ -29,7 +30,6 @@ import {
 import { closePanelTab, editPanel, useTaskPanel } from "./panel-state.ts"
 import { PanelTabRow } from "./panel-tabs.tsx"
 import { PreviewHost } from "./preview-host.tsx"
-import { QuotaView } from "./quota-view.tsx"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
 import { TranscriptView } from "./transcript-view.tsx"
@@ -156,7 +156,7 @@ function TabView({
 }: { model: AppModel; task: TaskRow; tab: PanelItem; narrow: boolean; active: boolean; restored: boolean }) {
   if (tab.kind === "files") return <FilesView model={model} task={task} narrow={narrow} />
   if (tab.kind === "chat") return <TranscriptView model={model} task={task} active={active} />
-  if (tab.kind === "quota") return <QuotaView model={model} task={task} active={active} />
+  if (tab.kind === "quota") return <ContextView model={model} task={task} active={active} />
   if (tab.kind === "diff") {
     return (
       <PreviewHost

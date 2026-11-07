@@ -130,6 +130,8 @@ export interface ContextUsage {
   readonly outputTokens?: number
   readonly cacheReadTokens?: number
   readonly cacheCreationTokens?: number
+  /** What `contextTokens` is made of, when the engine records it. */
+  readonly parts?: readonly { readonly key: string; readonly tokens: number }[]
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
@@ -148,6 +150,12 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
     const v = value as Record<string, unknown> | undefined
     if (typeof v?.contextTokens !== "number") return null
     if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    const parts = v.parts
+    if (
+      parts !== undefined &&
+      (!Array.isArray(parts) || !parts.every((p) => typeof p?.key === "string" && typeof p?.tokens === "number"))
+    )
+      return null
     const totals: Record<string, number> = {}
     for (const field of TOKEN_TOTAL_FIELDS) {
       const raw = v[field]
@@ -160,6 +168,9 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
       ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
       ...(v.approximate === true ? { approximate: true } : {}),
       ...totals,
+      ...(Array.isArray(parts)
+        ? { parts: parts.map((p) => ({ key: p.key as string, tokens: p.tokens as number })) }
+        : {}),
     })
   }
   return map
@@ -175,7 +186,8 @@ export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boo
       other.contextTokens !== value.contextTokens ||
       other.contextWindowTokens !== value.contextWindowTokens ||
       other.approximate !== value.approximate ||
-      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field])
+      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field]) ||
+      JSON.stringify(other.parts) !== JSON.stringify(value.parts)
     )
       return false
   }
