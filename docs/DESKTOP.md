@@ -73,6 +73,22 @@ The app loads the page, writes what it drew to that PNG, prints a one-line
 summary (title, rail rows, terminal canvases), and quits. Which desktop space a
 screen capture lands on is not something a script can count on.
 
+## The log file
+
+**Help › Show log file** opens `desktop.log` (macOS `~/Library/Logs/Rove/`, Linux and
+Windows the app's user-data folder). It keeps the app's start, the `rove` it found,
+bridge starts, exits and restarts, and once a minute the memory each of its
+processes is charged with, in MB (`tab` is the page's renderer):
+
+```
+2026-11-07T21:56:11.482Z mem total=496MB main(92397)=39 gpu(92434)=260 utility(92435)=9 tab(92470)=119 bridge(92465)=69
+```
+
+On macOS that is the footprint (what Activity Monitor and the out-of-memory dialog
+count, swapped and compressed pages included), on Linux resident plus swap, on
+Windows Electron's working set without the bridge. A process past 2 GB gets its own
+`WARN` line. The file rolls to `desktop.log.1` at 5 MB. Bridge tokens never reach it.
+
 ## Security posture
 
 The renderer is an ordinary page: no preload, no IPC channel, `contextIsolation`
