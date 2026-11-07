@@ -13,11 +13,18 @@ export type ViewedMarks = Readonly<Record<string, string>>
 
 const markKey = (taskId: string, path: string): string => `${taskId}\0${path}`
 
-/** FNV-1a over `kind` + text of each row: cheap, and a change to any line changes it. */
+/** Past this a line hashes by its ends and length: walking a minified or binary-ish line of megabytes took seconds. */
+const LONG_LINE = 4096
+
+/** FNV-1a over `kind` + text + `\n` of each row: cheap, and a change to any line changes it (bar the middle of a huge one). */
 function hashRows(rows: readonly DiffRow[]): string {
   let h = 0x811c9dc5
   for (const row of rows) {
-    const s = `${row.kind}${row.text}\n`
+    const text =
+      row.text.length > LONG_LINE
+        ? `${row.text.slice(0, LONG_LINE / 2)}${row.text.length}${row.text.slice(-LONG_LINE / 2)}`
+        : row.text
+    const s = `${row.kind}${text}\n`
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193)
   }
   return (h >>> 0).toString(16)

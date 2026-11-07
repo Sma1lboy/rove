@@ -7,13 +7,14 @@
  * Notes wait in the tray under the diff until one send delivers them all.
  */
 
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
+import { type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
 import { DiffScopeMenu } from "./diff-base-picker.tsx"
 import { useDiffBase } from "./diff-base.ts"
 import { DiffFileRow } from "./diff-file-row.tsx"
-import { DiffNoteLine, DiffRowActions } from "./diff-row-actions.tsx"
+import { DiffLine } from "./diff-line.tsx"
+import { DiffRowActions } from "./diff-row-actions.tsx"
 import { DiffToolbar } from "./diff-toolbar.tsx"
 import {
   fileHashes,
@@ -38,7 +39,6 @@ import { ReviewTray } from "./review-tray.tsx"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
 import { type Preview, activeStream, dialog, toast } from "./ui.ts"
-import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 const NO_ROWS: DiffRow[] = []
@@ -80,7 +80,8 @@ export function PreviewView({
   const [anchor, setAnchor] = useState<number | null>(null)
   // A line was clicked or tapped: the cursor row that opens with the view is not an offer to comment.
   const [picked, setPicked] = useState(false)
-  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set())
+  // A fold the reviewer chose, over the default (generated files, lockfiles and viewed files start folded).
+  const [foldChoice, setFoldChoice] = useState<ReadonlyMap<string, boolean>>(new Map())
   const [sending, setSending] = useState(false)
   const [nonce, setNonce] = useState(0)
   const host = useRef<HTMLDivElement>(null)
@@ -134,28 +135,25 @@ export function PreviewView({
   const isDiff = loaded?.kind === "rows" && loaded.diff
   // Row order is fixed per load (the view remounts per file), so position is identity.
   const rowIds = useMemo(() => rows.map((_, n) => `row-${n}`), [rows])
-  const shown = useMemo(() => visibleIndexes(rows, folded), [rows, folded])
   const stats = useMemo(() => fileStats(rows), [rows])
   const hashes = useMemo(() => fileHashes(rows), [rows])
   const viewed = useMemo(() => viewedFiles(marks, view.taskId, hashes), [marks, view.taskId, hashes])
-  // Generated files and lockfiles open folded; a reviewer's unfold sticks (each path is folded only once).
-  const autoFolded = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    const fresh = [...hashes.keys()].filter((p) => foldedByDefault(p) && !autoFolded.current.has(p))
-    if (fresh.length === 0) return
-    for (const p of fresh) autoFolded.current.add(p)
-    setFolded((cur) => new Set([...cur, ...fresh]))
-  }, [hashes])
-  // A file marked viewed folds; one that stops being viewed (unmarked, or its diff changed) opens again.
-  const wasViewed = useRef<ReadonlySet<string>>(new Set())
-  useEffect(() => {
-    const before = wasViewed.current
-    wasViewed.current = viewed
-    const added = [...viewed].filter((p) => !before.has(p))
-    const removed = [...before].filter((p) => !viewed.has(p))
-    if (added.length === 0 && removed.length === 0) return
-    setFolded((cur) => new Set([...[...cur].filter((p) => !removed.includes(p)), ...added]))
-  }, [viewed])
+  // Derived, not set by an effect: the first render already leaves folded files out (a big diff is mostly
+  // generated files, and rendering their rows once to fold them after froze the page).
+  const folded = useMemo(() => {
+    const out = new Set<string>()
+    for (const path of hashes.keys()) {
+      if (foldChoice.get(path) ?? (foldedByDefault(path) || viewed.has(path))) out.add(path)
+    }
+    return out
+  }, [hashes, viewed, foldChoice])
+  const setFold = (paths: Iterable<string>, closed: boolean) =>
+    setFoldChoice((cur) => {
+      const next = new Map(cur)
+      for (const path of paths) next.set(path, closed)
+      return next
+    })
+  const shown = useMemo(() => visibleIndexes(rows, folded), [rows, folded])
   // Notes handed to the engine are done with; the rest wait in the tray.
   const unsent = useMemo(() => notes.filter((n) => n.sentAt === undefined), [notes])
   const placed = useMemo(() => unsent.map((note) => ({ note, at: locate(note, rows) })), [unsent, rows])
@@ -185,17 +183,18 @@ export function PreviewView({
     setCursor(i)
     setAnchor(null)
   }, [shown, cursor, rows])
+  // Not on mount: the first row is in view already, and asking would lay out the whole diff at once.
+  const scrolled = useRef(false)
   useEffect(() => {
+    if (!scrolled.current) {
+      scrolled.current = true
+      return
+    }
     host.current?.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" })
   }, [cursor])
 
   const target = noteTarget(rows, cursor, anchor)
-  const toggleFold = (path: string) =>
-    setFolded((cur) => {
-      const next = new Set(cur)
-      if (!next.delete(path)) next.add(path)
-      return next
-    })
+  const toggleFold = (path: string) => setFold([path], !folded.has(path))
   const files = [...stats.keys()].flatMap((i) => (rows[i]?.path ? [rows[i]?.path as string] : []))
   const shape = useMemo(() => shapeLine(stats, rows), [stats, rows])
   const allFolded = files.length > 0 && files.every((path) => folded.has(path))
@@ -207,6 +206,12 @@ export function PreviewView({
     const next = withMark(marks, view.taskId, path, viewed.has(path) ? undefined : hashes.get(path))
     setMarks(next)
     saveMarks(next)
+    // Marking folds the file and unmarking opens it again: drop any hand fold so the mark decides.
+    setFoldChoice((cur) => {
+      const choice = new Map(cur)
+      choice.delete(path)
+      return choice
+    })
   }
   const toggleWs = () => {
     saveIgnoreWs(!ws)
@@ -281,7 +286,7 @@ export function PreviewView({
     const at = locate(note, rows)
     const header = rows.findIndex((row) => row.kind === "file" && row.path === note.filePath)
     if (at) {
-      setFolded((cur) => new Set([...cur].filter((path) => path !== note.filePath)))
+      setFold([note.filePath], false)
       setCursor(at.first)
     } else if (view.path === "." && header >= 0) setCursor(header)
     else if (view.path !== note.filePath && view.path !== ".")
@@ -318,7 +323,7 @@ export function PreviewView({
     )
     if (next === null) return
     const path = rows[next]?.path
-    if (path) setFolded((cur) => new Set([...cur].filter((p) => p !== path)))
+    if (path) setFold([path], false)
     setCursor(next)
     setAnchor(null)
     setPicked(false)
@@ -364,6 +369,37 @@ export function PreviewView({
     setPicked(true)
   }
 
+  // The rows' handlers read this render's state through a ref, so the memoised rows keep one identity.
+  const handlers = {
+    rowClick: (i: number, e: MouseEvent) => {
+      if (window.getSelection()?.isCollapsed === false) return
+      // Shift+click extends a selection from the cursor, as `v` then j/k does; on a phone a tap
+      // extends it once "range" started one.
+      if (e.shiftKey) setAnchor((a) => a ?? cursor)
+      else if (!touch || anchor === null) setAnchor(null)
+      setCursor(i)
+      setPicked(true)
+    },
+    fileClick: (i: number, path: string | null) => {
+      setCursor(i)
+      setAnchor(null)
+      setPicked(false)
+      if (path) toggleFold(path)
+    },
+    viewedClick: toggleViewed,
+    editNote,
+  }
+  const latest = useRef(handlers)
+  latest.current = handlers
+  const stable = useMemo(
+    () => ({
+      rowClick: (i: number, e: MouseEvent) => latest.current.rowClick(i, e),
+      fileClick: (i: number, path: string | null) => latest.current.fileClick(i, path),
+      viewedClick: (path: string) => latest.current.viewedClick(path),
+      editNote: (note: Note) => latest.current.editNote(note),
+    }),
+    [],
+  )
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
 
@@ -398,7 +434,7 @@ export function PreviewView({
           removed={total.removed}
           viewed={viewed.size}
           allFolded={allFolded}
-          onFoldAll={() => setFolded(allFolded ? new Set() : new Set(files))}
+          onFoldAll={() => setFold(files, !allFolded)}
           onNextFile={jumpFile}
           onNextComment={placed.some(({ at }) => at) ? jumpComment : null}
         />
@@ -425,40 +461,22 @@ export function PreviewView({
                 cursor={inCursor}
                 added={stat?.added ?? 0}
                 removed={stat?.removed ?? 0}
-                onToggleFold={() => {
-                  setCursor(i)
-                  setAnchor(null)
-                  setPicked(false)
-                  if (path) toggleFold(path)
-                }}
-                onToggleViewed={() => path && toggleViewed(path)}
+                onToggleFold={stable.fileClick}
+                onToggleViewed={stable.viewedClick}
               />
             )
           }
-          const noted = covered.has(i)
           return (
-            <div key={rowIds[i]}>
-              {/* biome-ignore lint/a11y/useKeyWithClickEvents: the view's keys (j/k) move the cursor */}
-              <div
-                data-row={i}
-                className={diffRowClass(row.kind, { cursor: inCursor, noted })}
-                onClick={(e) => {
-                  if (window.getSelection()?.isCollapsed === false) return
-                  // Shift+click extends a selection from the cursor, as `v` then j/k does; on a phone a tap
-                  // extends it once "range" started one.
-                  if (e.shiftKey) setAnchor((a) => a ?? cursor)
-                  else if (!touch || anchor === null) setAnchor(null)
-                  setCursor(i)
-                  setPicked(true)
-                }}
-              >
-                <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
-                <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
-                <span className={diffSignClass(row.kind, noted)}>
-                  {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}
-                </span>
-                <span className={diffCodeClass(row.kind)}>{row.text}</span>
-                {picked && target && i === hi && (
+            <DiffLine
+              key={rowIds[i]}
+              index={i}
+              row={row}
+              cursor={inCursor}
+              noted={covered.has(i)}
+              actions={
+                picked &&
+                target &&
+                i === hi && (
                   <DiffRowActions
                     showRange={touch && anchor === null}
                     ranged={anchor !== null}
@@ -466,12 +484,12 @@ export function PreviewView({
                     onRange={() => setAnchor(cursor)}
                     onAsk={askInChat}
                   />
-                )}
-              </div>
-              {endingAt.get(i)?.map((note) => (
-                <DiffNoteLine key={note.id} note={note} onEdit={() => editNote(note)} />
-              ))}
-            </div>
+                )
+              }
+              notes={endingAt.get(i)}
+              onClick={stable.rowClick}
+              onEditNote={stable.editNote}
+            />
           )
         })}
       </div>
