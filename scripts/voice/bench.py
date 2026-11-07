@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["mlx-whisper", "numpy", "opencc-python-reimplemented"]
-# ///
 """Key-term bench for the sidecar's own pipeline: 11 Chinese-English code-switched clips, 82 terms.
 
 Clips come from `bench/clips.json` (`[term|other spelling]` marks a key term), spoken by macOS
@@ -10,10 +5,13 @@ Clips come from `bench/clips.json` (`[term|other spelling]` marks a key term), s
 real recordings go in a directory of `<id>.wav` (16 kHz mono) + `<id>.txt` (same markup) passed
 with --recordings, and are scored the same way.
 
-  scripts/voice/bench.py                                  # default local model, no context
-  scripts/voice/bench.py --model mlx-community/whisper-large-v3-mlx
-  scripts/voice/bench.py --context all                    # conversation holds every clip's text
-  scripts/voice/bench.py --backend cloud --model microsoft/mai-transcribe-2
+Run each through `uv run --project scripts/voice scripts/voice/bench.py …`:
+
+  bench.py                                  # default local model, no context
+  bench.py --model mlx-community/whisper-large-v3-turbo
+  bench.py --context all                    # conversation holds every clip's text
+  bench.py --phonetic off                   # without the sound-alike step
+  bench.py --backend cloud --model microsoft/mai-transcribe-2
 
 `--context all` is the case the vocabulary exists for: the user dictates terms the conversation
 already shows. `--context others` leaves the clip's own sentence out, so every boosted term is a
@@ -109,6 +107,7 @@ def main() -> None:
     parser.add_argument("--common", action="store_true", help="boost plain English words too")
     parser.add_argument("--no-fuzzy", action="store_true", help="exact term snapping only")
     parser.add_argument("--prompt-context", choices=["on", "off"], help="conversation terms in the prompt too")
+    parser.add_argument("--phonetic", choices=["on", "off"], help="sound-alike correction (phonetic.py)")
     parser.add_argument("--language")
     parser.add_argument("--recordings", type=Path)
     parser.add_argument("--out", type=Path, help="append one JSON line per clip")
@@ -125,6 +124,8 @@ def main() -> None:
         config["fuzzy"] = False
     if args.prompt_context:
         config["promptContext"] = args.prompt_context == "on"
+    if args.phonetic:
+        config["phonetic"] = args.phonetic == "on"
     if args.common:
         vocab.common_words = lambda: frozenset()  # type: ignore[assignment]
     backend = engine.backend(config)
@@ -135,6 +136,7 @@ def main() -> None:
         backend.transcribe(np.zeros(engine.SAMPLE_RATE, dtype=np.float32), [], "en")
     flags = (" common" if args.common else "") + (" exact" if args.no_fuzzy else "")
     flags += f" prompt-context={args.prompt_context}" if args.prompt_context else ""
+    flags += f" phonetic={args.phonetic}" if args.phonetic else ""
     label = f"{backend.name} context={args.context}{flags}"
     got = total = before = 0
     latency: list[float] = []

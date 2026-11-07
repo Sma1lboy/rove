@@ -1,16 +1,12 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["mlx-whisper", "numpy", "opencc-python-reimplemented"]
-# ///
 """Dictation endpoint for rove's web client.
 
 The phone records 16 kHz mono PCM, rove-bridge POSTs the WAV here with the text of the
 conversation being dictated into, and this process returns the transcript. The recognizer is
 local Whisper unless `~/.rove/voice/config.json` names a cloud endpoint (`engine.py`); the
-vocabulary is `vocab.py`. Everything this process keeps lives under `~/.rove/voice`.
+vocabulary is `vocab.py`, sound-alike fixes `phonetic.py`. Everything this process keeps lives
+under `~/.rove/voice`.
 
-Run: `scripts/voice/asr_server.py` (uv resolves the environment from the block above).
+Run: `uv run --project scripts/voice scripts/voice/asr_server.py` (environment from pyproject.toml).
 Binds 127.0.0.1 only; the bridge is the one public surface.
 
   POST /transcribe {wav: hex, conversation?, context?, language?} -> {text, raw, language, ...}
@@ -33,6 +29,7 @@ from typing import Any
 import numpy as np
 
 import engine
+import phonetic
 import vocab
 
 PORT = int(os.environ.get("ROVE_VOICE_PORT", "8791"))
@@ -92,6 +89,9 @@ def dictate(
     raw, detected = backend.transcribe(pcm, hinted, language)
     text = engine.simplified(raw) if config.get("simplified", True) else raw
     text = vocab.correct(vocab.apply_spoken(text, stored), terms, fuzzy=config.get("fuzzy", True))
+    # Bench: +1 to +3 terms when the conversation holds them, no change otherwise (phonetic.py).
+    if config.get("phonetic", True):
+        text = phonetic.correct(text, terms)
     return {"text": text, "raw": raw, "language": detected, "terms": len(terms)}
 
 

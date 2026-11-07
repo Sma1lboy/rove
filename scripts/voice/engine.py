@@ -26,7 +26,7 @@ import numpy as np
 
 HOME = Path(os.environ.get("ROVE_VOICE_HOME") or Path.home() / ".rove" / "voice")
 SAMPLE_RATE = 16_000
-# Code-switch bench (bench.py, 82 terms): large-v3 68, 72 with the conversation's terms, p50 1.8 s;
+# Code-switch bench (bench.py, 82 terms): large-v3 68, 74 with the conversation's terms, p50 1.8 s;
 # turbo 63, 69 at best, p50 1.0 s. Turbo is the faster pick in config.json; it loses most when context is thin.
 LOCAL_MODEL = "mlx-community/whisper-large-v3-mlx"
 # Without this hint large-v3 often answers Mandarin in Traditional script; English is unaffected.
