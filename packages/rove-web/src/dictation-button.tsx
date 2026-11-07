@@ -28,6 +28,34 @@ interface Press {
   started: Promise<unknown> | null
 }
 
+/** One `voice.status` per bridge: the bar and every button ask the same question. */
+const hostedBy = new WeakMap<BridgeClient, Promise<boolean>>()
+/** Whether this host runs the voice sidecar; null while asking. */
+export function useVoiceHosted(client: BridgeClient): boolean | null {
+  const [hosted, setHosted] = useState<boolean | null>(null)
+  useEffect(() => {
+    let ask = hostedBy.get(client)
+    if (!ask) {
+      ask = client
+        .request<{ ready: boolean; model: string | null }>("voice.status")
+        .then((status) => status.ready || status.model !== null)
+        .catch(() => false)
+        // A sidecar started later is found by the next mount; a yes holds for the page.
+        .then((value) => {
+          if (!value) hostedBy.delete(client)
+          return value
+        })
+      hostedBy.set(client, ask)
+    }
+    let live = true
+    void ask.then((value) => live && setHosted(value))
+    return () => {
+      live = false
+    }
+  }, [client])
+  return hosted
+}
+
 export function DictationButton(props: {
   readonly client: BridgeClient
   /** Read at stop, not at mount: what the shell is looking at is the useful bias. */
@@ -38,6 +66,8 @@ export function DictationButton(props: {
   readonly disabled?: boolean
   /** The box, by recording state; defaults to a composer-bar chip. */
   readonly look?: (recording: boolean) => string
+  /** The idle label; defaults to `Say`. */
+  readonly idle?: string
 }) {
   useLocale()
   // The recorder outlives renders; it must read the context and callbacks as they are at stop, not at mount.
@@ -46,16 +76,9 @@ export function DictationButton(props: {
   const dictation = useRef<Dictation | null>(null)
   if (dictation.current === null) dictation.current = new Dictation(props.client, () => latest.current.context())
   const view = useStore(dictation.current.view)
-  const [hosted, setHosted] = useState<boolean | null>(null)
+  const hosted = useVoiceHosted(props.client)
   const press = useRef<Press | null>(null)
   const [hold, setHold] = useState<{ armed: boolean } | null>(null)
-
-  useEffect(() => {
-    props.client
-      .request<{ ready: boolean; model: string | null }>("voice.status")
-      .then((status) => setHosted(status.ready || status.model !== null))
-      .catch(() => setHosted(false))
-  }, [props.client])
 
   // A button that can only fail is worse than no button: the sidecar is opt-in, on the host.
   useEffect(
@@ -124,7 +147,7 @@ export function DictationButton(props: {
       ? t(hold ? "voice.release" : "voice.stop", { time: clock(view.seconds) })
       : view.phase === "transcribing"
         ? t("voice.working")
-        : t("voice.say")
+        : (props.idle ?? t("voice.say"))
 
   return (
     <button
