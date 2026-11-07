@@ -68,6 +68,11 @@ export function taskCwd(task: Pick<TreeTask, "worktreePath" | "cwdSubpath">): st
   return pathSyntax(root).join(root, task.cwdSubpath)
 }
 
+/** The repo git work (worktree, branch, land, delete) runs in: the origin of a task moved to another project, else its `repo`. */
+export function gitRepoOf(task: { readonly repo: string; readonly gitRepo?: string }): string {
+  return task.gitRepo || task.repo
+}
+
 /** Most repos one task may span, primary included. */
 export const MULTI_REPO_CAP = 8
 
@@ -77,6 +82,7 @@ export const REPO_NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/
 /** The slice of a task row the multi-repo helpers read. */
 export interface RepoTask extends TreeTask {
   readonly repo: string
+  readonly gitRepo?: string
   readonly branch: string
   readonly baseRef?: string
   readonly prStatus?: TaskPRStatus
@@ -116,11 +122,12 @@ export function uniqueRepoName(name: string, taken: ReadonlySet<string>): string
 export function taskRepos(task: RepoTask, tasks?: readonly RepoTask[]): TaskRepoView[] {
   const holder = (task.sharesWorkspaceOf && tasks?.find((t) => t.id === task.sharesWorkspaceOf)) || task
   const extras = holder.extraRepos ?? []
-  const primaryName = uniqueRepoName(repoNameOf(task.repo), new Set(extras.map((e) => e.name)))
+  const primaryRepo = gitRepoOf(task)
+  const primaryName = uniqueRepoName(repoNameOf(primaryRepo), new Set(extras.map((e) => e.name)))
   return [
     {
       name: primaryName,
-      repo: task.repo,
+      repo: primaryRepo,
       branch: task.branch,
       worktreePath: task.worktreePath ?? "",
       ...(task.baseRef ? { baseRef: task.baseRef } : {}),

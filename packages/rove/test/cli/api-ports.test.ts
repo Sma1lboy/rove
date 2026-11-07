@@ -21,6 +21,7 @@ const SOCKETS: ListeningSocket[] = [
   { port: 8080, host: "10.0.0.5", pid: 13, command: "python3", cwd: "/repo/x/tools" },
   { port: 9229, host: "::1", pid: 14, command: "node", cwd: "/wt/t10" },
   { port: 6379, host: "*", pid: 15, command: "redis-server", cwd: null },
+  { port: 4000, host: "::ffff:127.0.0.1", pid: 16, command: "java", cwd: null },
 ]
 
 const T1 = taskFixture({
@@ -64,6 +65,7 @@ describe("ports", () => {
       [8080, "nested", "http://10.0.0.5:8080"],
       [9229, "t10", "http://localhost:9229"],
       [6379, null, "http://localhost:6379"],
+      [4000, null, "http://localhost:4000"],
     ])
   })
 
@@ -138,6 +140,22 @@ describe("listener parsing", () => {
     ].join("\n")
     expect([...parseProcNetTcp(tcp)]).toEqual([["4242", { host: "127.0.0.1", port: 3000 }]])
     expect([...parseProcNetTcp(tcp6)]).toEqual([["5151", { host: "::", port: 8080 }]])
+  })
+
+  it("prints tcp6 addresses the way lsof does: dotted IPv4-mapped, zero runs compressed", () => {
+    const row = (inode: number, addr: string) =>
+      `   0: ${addr}:0BB8 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 ${inode} 1 0000000000000000 100 0 0 10 0`
+    const tcp6 = [
+      "  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode",
+      row(1, "0000000000000000FFFF00000100007F"),
+      row(2, "000080FE000000000000000001000000"),
+      row(3, "B80D0120000000000000010001000000"),
+    ].join("\n")
+    expect([...parseProcNetTcp(tcp6)].map(([, r]) => r.host)).toEqual([
+      "::ffff:127.0.0.1",
+      "fe80::1",
+      "2001:db8::1:0:0:1",
+    ])
   })
 
   it("reads lsof field output, one row per socket", () => {

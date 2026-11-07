@@ -117,10 +117,28 @@ function usageFromMessage(message: Record<string, unknown>): EngineUsageSnapshot
   if (input === undefined && output === undefined) return undefined
   const cacheRead = u.cacheRead ?? u.cache_read_input_tokens
   const cacheWrite = u.cacheWrite ?? u.cache_creation_input_tokens
+  // omp records what the prompt it sent held: `promptTokens` in all, `nonMessageTokens` of it system prompt + tools.
+  const snap = message.contextSnapshot as Record<string, unknown> | undefined
+  const prompt = typeof snap?.promptTokens === "number" && snap.promptTokens > 0 ? snap.promptTokens : undefined
+  const fixed = typeof snap?.nonMessageTokens === "number" ? Math.min(snap.nonMessageTokens, prompt ?? 0) : undefined
   return {
     input_tokens: num(input),
     output_tokens: num(output),
     ...(typeof cacheRead === "number" ? { cache_read_input_tokens: cacheRead } : {}),
     ...(typeof cacheWrite === "number" ? { cache_creation_input_tokens: cacheWrite } : {}),
+    // pi records no snapshot: the last turn's whole prompt is the context, as Claude's reader derives it.
+    ...(prompt !== undefined
+      ? { context_tokens: prompt }
+      : num(input) + num(cacheRead) + num(cacheWrite) > 0
+        ? { context_tokens: num(input) + num(cacheRead) + num(cacheWrite), context_tokens_approximate: true }
+        : {}),
+    ...(prompt !== undefined && fixed !== undefined
+      ? {
+          context_parts: [
+            { key: "system", tokens: fixed },
+            { key: "messages", tokens: prompt - fixed },
+          ],
+        }
+      : {}),
   }
 }

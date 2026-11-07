@@ -6,7 +6,7 @@
 
 import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
 import { pickRepos, subtreeIds } from "../task-tree.ts"
-import type { DaemonTask } from "./contracts.ts"
+import type { DaemonTask, TaskDispatcher } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import {
   objectPayload,
@@ -18,8 +18,8 @@ import {
 } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
-import { serializeTask } from "./protocol.ts"
 import { teardownScope } from "./pty-alias.ts"
+import { serializeTask } from "./serialize-task.ts"
 import { syncRepos } from "./sync-repos.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
@@ -82,6 +82,25 @@ function optionalExtraRepos(payload: Record<string, unknown>): { repo: string; b
   })
 }
 
+/** The CLI's verified `$ROVE_TASK_ID`/`$ROVE_TAB_ID` as the dispatcher (the daemon has no caller env); the tab defaults to tab-1. */
+function payloadDispatcher(payload: Record<string, unknown>): TaskDispatcher | undefined {
+  const taskId = optionalString(payload, "dispatcherTaskId")
+  return taskId ? { taskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" } : undefined
+}
+
+/** A task created from a rove session lands in the dispatch ledger; the first prompt rides the session launch, after this reply. */
+function recordAddDispatch(ctx: DaemonHandlerContext, dispatcher: TaskDispatcher | undefined, task: DaemonTask): void {
+  if (!dispatcher) return
+  ctx.dispatches?.record({
+    kind: "add",
+    from: dispatcher,
+    to: { taskId: task.id, tabId: "tab-1" },
+    // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
+    promptHead: task.title,
+    delivered: true,
+  })
+}
+
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
@@ -108,12 +127,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.create",
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // The CLI sends its $ROVE_TASK_ID/$ROVE_TAB_ID (the daemon has no caller
-      // env). Recorded only with a task id; tab defaults to tab-1.
-      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
-      const dispatcher = dispatcherTaskId
-        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
-        : undefined
+      const dispatcher = payloadDispatcher(payload)
       const task = await ctx.orch.createTask({
         repo,
         title: optionalString(payload, "title"),
@@ -127,19 +141,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         model: optionalString(payload, "model"),
         tier: optionalString(payload, "tier"),
         groupId: optionalString(payload, "groupId"),
+        forkFrom: optionalString(payload, "forkFrom"),
+        parentTaskId: optionalString(payload, "parentTaskId"),
+        ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
         dispatcher,
       })
-      if (dispatcher) {
-        // The first prompt rides the session launch, after this reply; the engine's first turn settles it.
-        ctx.dispatches?.record({
-          kind: "add",
-          from: dispatcher,
-          to: { taskId: task.id, tabId: "tab-1" },
-          // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
-          promptHead: task.title,
-          delivered: true,
-        })
-      }
+      recordAddDispatch(ctx, dispatcher, task)
       return { taskId: task.id, task: serializeTask(task) }
     },
   },
@@ -149,11 +156,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     blocking: true,
     async handle(payload, ctx) {
       const parentTaskId = requireString(payload, "parentTaskId")
-      // The CLI sends its verified $ROVE_TASK_ID/$ROVE_TAB_ID; tab defaults to tab-1.
-      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
-      const dispatcher = dispatcherTaskId
-        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
-        : undefined
+      const dispatcher = payloadDispatcher(payload)
       const result = await ctx.orch.spawnChildTask({
         parentTaskId,
         // A child gets its own worktree unless the caller says to share.
@@ -164,8 +167,16 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         prompt: optionalString(payload, "prompt"),
+        modelEffort: optionalString(payload, "effort"),
+        model: optionalString(payload, "model"),
+        tier: optionalString(payload, "tier"),
+        groupId: optionalString(payload, "groupId"),
+        branch: optionalString(payload, "branch"),
+        worktreeName: optionalString(payload, "worktreeName"),
+        lazy: optionalBoolean(payload, "lazy"),
         dispatcher,
       })
+      recordAddDispatch(ctx, dispatcher, result.task)
       return {
         taskId: result.task.id,
         task: serializeTask(result.task),
@@ -335,11 +346,22 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.pin",
+    name: "task.setParent",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
-      return {}
+      // `parentTaskId: null` = top level; absent is a malformed call, not a silent promote.
+      const parentTaskId = payload.parentTaskId === null ? null : requireString(payload, "parentTaskId")
+      return await ctx.orch.setParent(taskId, parentTaskId, optionalString(payload, "replyTab"))
+    },
+  },
+  {
+    // `update --project`: regroup only, so the session's directory stays and its engine resumes where it was.
+    name: "task.moveToProject",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const { repo, moved } = await ctx.orch.moveTaskToProject(taskId, requireString(payload, "repo"))
+      return { taskId, repo, moved }
     },
   },
   {
@@ -387,27 +409,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
           logDaemonError("issue-done-mirror", err)
         }
       }
-      return {}
-    },
-  },
-  {
-    name: "task.openDir",
-    async handle(payload, ctx) {
-      const dir = requireString(payload, "dir")
-      const task = await ctx.orch.openDirectoryTask({
-        dir,
-        vendor: optionalVendor(payload, "vendor"),
-        scratch: optionalBoolean(payload, "scratch"),
-      })
-      return { taskId: task.id, task: serializeTask(task) }
-    },
-  },
-  {
-    // No-op on non-scratch rows.
-    name: "task.adoptScratchRepo",
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
       return {}
     },
   },

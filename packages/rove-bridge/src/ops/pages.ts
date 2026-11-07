@@ -174,10 +174,12 @@ export const pagesOps: OpTable = {
     kind: "write",
     destructive: false,
     wraps:
-      "rove api routine-create (name, repo, prompt, schedule, optional existing conversation targetTask+targetTab; never a precheck)",
+      "rove api routine-create (name, optional repo — absent = no project, prompt, schedule, optional existing conversation targetTask+targetTab; never a precheck)",
     run: (args, { api }) => {
+      // No repo = a routine with no project; the CLI wants that said, not implied.
+      const repo = optStr(args, "repo") === undefined ? "--no-repo" : flag("repo", absPath(args, "repo"))
       const argv = [
-        flag("repo", absPath(args, "repo")),
+        repo,
         flag("name", text(args, "name", NAME_MAX).trim()),
         flag("prompt", text(args, "prompt", PROMPT_MAX)),
         flag("schedule", cron(args, "schedule")),

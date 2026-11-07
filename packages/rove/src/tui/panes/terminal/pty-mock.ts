@@ -31,8 +31,6 @@ export class MockTaskPty implements TaskPtyLike {
   readonly clicks: { kind: MouseTransition; button: number; col: number; row: number }[] = []
   /** Flip to make the mock claim the app owns the mouse (mouse tracking on). */
   appOwnsMouse = false
-  /** Flip to make the mock claim the child is on the alternate screen. */
-  onAlternateScreen = false
   private _cols: number
   private _rows: number
   private _cursor: CursorPos | null = null
@@ -49,6 +47,11 @@ export class MockTaskPty implements TaskPtyLike {
 
   get killed(): boolean {
     return this._killed
+  }
+
+  /** A pane is subscribed: it has committed this pty, so its input reaches it (acquire alone runs a render earlier). */
+  get attached(): boolean {
+    return this.listeners.size > 0
   }
 
   get writeLog(): readonly string[] {

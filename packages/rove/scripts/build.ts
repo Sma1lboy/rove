@@ -15,13 +15,8 @@
  * `rove daemon ...`, so there is no separate `roved` binary to build.
  *
  * The canonical Rove SKILL.md is copied from its compatibility source path
- * into the tarball. `npx skills add Sma1lboy/rove --skill rove` does a `git clone
- * --depth 1`, which for this repo means 198MB of working tree — unusable
- * on a slow connection for a file this size. Since the user already has
- * Rove installed, `rove skill install` points the agent-skills CLI at the
- * bundled copy instead (a local path, no network). The CLI still owns
- * agent detection, target dirs, and symlinking — rove never reimplements
- * that registry.
+ * into the tarball (from Sma1lboy/rove's `.agents/skills/rove`);
+ * `rove skill install` copies that bundled dir into each engine's skills dir.
  *
  * The published artifact carries the `rove-harness` capture page alongside
  * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs; and

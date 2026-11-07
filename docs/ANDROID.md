@@ -2,7 +2,7 @@
 
 Rove for Android is a Kotlin and Jetpack Compose client in `packages/rove-android`. It speaks bridge protocol version 1, shared with [iOS](IOS.md), and makes no daemon, bridge, or iOS changes. The Mac owns tasks and PTYs; Android holds pairing credentials and transient screen state.
 
-This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues and worktrees. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
+This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues, worktrees and conversation search. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
 
 ## Build
 
@@ -70,8 +70,21 @@ Push: `{"event":"tasks","data":{...}}`.
 | `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |
 | `term.data`, `term.exit` pushes | Decode bytes in xterm; stop input after exit |
 | `term.input`, `term.resize`, `term.detach` | Send text, resize within bridge bounds, detach on screen exit |
+| `tasks` push, `tabStatus` | A tab the daemon reads as `needs-input` puts 1-4 first in the key row, sent as keys rather than pasted |
+| `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
 | `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete |
+| `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
+| `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
+| `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
+| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss |
+| `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
+| `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
+| `update.check` | Settings → About: check for updates through the Mac. The app names `rove update` and opens the release; it never installs |
+| `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
+| `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
+| `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
+| `tab.send`, `queue.list`, `queue.cancel` | Composer on an engine tab sends with `queue: true`, so a busy tab holds the message; held messages show as chips with a cancel. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
 
 The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 
@@ -84,6 +97,8 @@ The demo resolver consumes the iOS fixture directly. Reconnects never replay use
 CI runs the same script in `.github/workflows/android.yml` on pushes to `main` and others' PRs that touch the package, then builds an unsigned release bundle. Running the script locally or on allen is still the check before pushing.
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
+
+The search baseline is external to keep its implementation diff free of binaries. Gradle restores it from a commit-pinned URL and verifies SHA-256 before tests run, including direct Paparazzi invocations. After recording and inspecting an intentional search change, publish the new baseline and update the URL and checksum in `prepareSearchSnapshot` in `app/build.gradle.kts`. The downloaded file is gitignored.
 
 ### Emulator screenshots on allen
 

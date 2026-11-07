@@ -70,7 +70,7 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list                --repo --status <S1,S2> --activity <A1,A2> --archived
+list                --repo --status <S1,S2> --activity <A1,A2> --archived --fields <F1,F2>
 get-task            --task-id(REQ)
 pty-list            (none)
 collect             --task-ids <a,b,c> --group --repo
@@ -79,15 +79,22 @@ digest              --repo(REQ) --since-days(7)
 agent-turns         --task-id --repo --since-days(7) --limit(200)
 inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
+queue-list          --task-id
+search              --query(REQ) --repo --limit(20)
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
 ports               --task-id --all
+viewers             --task-id
 review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
+worktree-file       --task-id(REQ) --path(REQ)
 worktree-diff       --task-id(REQ)
-worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
+worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working|task}(REQ) --base
+                    --ignore-whitespace
+worktree-refs       --task-id(REQ)
 deliveries          --task-id(REQ) --limit
 should-run          --task-id(REQ) --tab
 gates               --repo --task-id --status{open|answered|withdrawn|all}(open)
+github-status       (none)
 ```
 <!-- generated:end -->
 
@@ -128,10 +135,13 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-                   --allow-empty --expect-report --if-runnable
+send               --task-id --prompt|--prompt-file --tab --command --handoff-from
+                   --replace --respawn --plain --allow-empty --expect-report --if-runnable
+                   --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-interrupt          --task-id(REQ) --tab
+interrupt          --task-id --group --all --tab
+queue-edit         --id(REQ) --prompt|--prompt-file(REQ)
+queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
 note-list          --repo(REQ)
 note-delete        --repo(REQ) --id(REQ)
@@ -141,10 +151,11 @@ pane-close         --task-id --title(REQ) --tab
 pane-graphics      --task-id --tab(REQ) --image-id
 tab-close          --task-id(REQ) --tab(REQ)
 tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
-                   --latest --file --line --pane --tab --view-task
+                   --latest --file --line --pane --tab --view-task --type
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
 tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
+panel-show         --task-id --view{browser|files|diff}(REQ) --url --path
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -236,24 +247,33 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-publish    --task-id(REQ) --remote
-add        --repo(REQ) --clone --allow-fork --title --branch --base-branch --base-for
-           --worktree-name --command --effort --tier{swift|standard|deep|auto} --model
-           --count --agents <claude:2,codex:1>
-           --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-           --require-report --expect-report --activate(false) --prompt|--prompt-file
-spawn      --parent --worktree(true) --no-worktree --base-branch --isolate-in --title
-           --command --prompt|--prompt-file
-update     --task-id(REQ) --title --tab --branch --command --model --effort --pinned
-           --require-report{on|off}
-           --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
-           --report-pr --report-summary
-land       --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-           --remove-worktree(true) --repo
-sync       --task-id(REQ) --repo
-delete     --task-id --group --cascade --force --delete-branch --delete-remote --wait
-archive    --task-id(REQ) --force
-unarchive  --task-id(REQ)
+publish        --task-id(REQ) --remote
+pr-attach      --url(REQ) --task-id
+add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --parent
+               --no-parent --no-worktree --isolate-in --title --branch --base-branch
+               --base-for --worktree-name --command --effort
+               --tier{swift|standard|deep|auto} --model --count
+               --agents <claude:2,codex:1>
+               --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+               --require-report --expect-report --activate(false) --start
+               --prompt|--prompt-file
+update         --task-id --title --tab --branch --parent --project --group --command
+               --model --effort --pinned --kept --require-report{on|off}
+               --auto-fix-ci{on|off}
+               --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
+               --report-pr --report-summary
+todo           --task-id --add --check --uncheck --edit --text --remove --notes
+               --clear-notes
+land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+               --remove-worktree(true) --repo
+sync           --task-id(REQ) --repo
+delete         --task-id --group --cascade --force --delete-branch --delete-remote --wait
+archive        --task-id(REQ) --force
+unarchive      --task-id(REQ)
+github-login   --cancel
+github-logout  (none)
+github-sync    --to(REQ)
+github-apply   --token(REQ)
 ```
 <!-- generated:end -->
 
@@ -283,6 +303,11 @@ returns before the worktree is gone.
 ```text
 ensure-worktree     --task-id(REQ)
 remove-worktree     --task-id(REQ) --force
+checkpoint-list     --task-id(REQ)
+checkpoint          --task-id(REQ)
+rewind              --task-id(REQ) --to(REQ) --force
+export-branch       --task-id(REQ)
+worktree-usage      --task-id
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```
@@ -324,7 +349,7 @@ link back to the issue. Note it takes `--vendor` (an engine enum), not
 
 ## routines (scheduled prompts)
 
-A cron rule + a prompt + a repo, owned by the daemon. By default each firing
+A cron rule + a prompt + a repo (or none, `--no-repo`), owned by the daemon. By default each firing
 creates a FRESH task — worktree, engine, delivered prompt. With
 `--persistent-session` every firing lands in ONE standing task as the next
 turn of the same conversation (a Claude Code-style routine: one window, one
@@ -334,7 +359,7 @@ it fires with no TUI attached.
 <!-- generated:begin routine -->
 ```text
 routine-list     (none)
-routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file --schedule(REQ)
+routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(REQ)
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
                  --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
@@ -356,6 +381,14 @@ the engine starts — non-zero exit skips the run without spawning an agent,
 which is the cheap way to not burn a turn on "nothing to do". `--grace` is how
 late a missed occurrence may still run after the daemon was down; only the
 most recent missed occurrence ever runs.
+
+`routine-create` takes exactly one of `--repo PATH` or `--no-repo` (neither is
+an error, so a forgotten `--repo` never silently becomes a repo-less routine).
+`--no-repo` is for a prompt that belongs to no project: each run works in its
+own directory, `<home>/.rove/routines/<id>/`, as a plain directory session (no
+worktree, no branch) that shows in the sidebar's "Ungrouped" group. It takes
+no `--base-branch`, and a routine can't switch between a repo and no project
+after it is saved.
 
 Pick the mode by what the prompt DOES. A routine that EDITS code wants the
 default: each run is its own branch you can review and land; a week of runs

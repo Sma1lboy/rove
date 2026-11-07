@@ -7,10 +7,15 @@ import { unquoteGitPath } from "@/lib/git-parsers"
 import { readWorktreeFile, runWorktreeGit, worktreeFileSize } from "@/worktree/content"
 import { t } from "../i18n"
 
-/** Map a file extension to an opentui tree-sitter grammar name. */
-export function filetypeOf(relPath: string): string | undefined {
-  const ext = relPath.slice(relPath.lastIndexOf(".") + 1).toLowerCase()
-  switch (ext) {
+/**
+ * Map a file to an opentui tree-sitter grammar name: by extension, else (an
+ * extensionless script) by the interpreter its `firstLine` shebang names.
+ */
+export function filetypeOf(relPath: string, firstLine?: string): string | undefined {
+  const leaf = relPath.slice(relPath.lastIndexOf("/") + 1)
+  const dot = leaf.lastIndexOf(".")
+  if (dot <= 0) return firstLine === undefined ? undefined : shebangFiletype(firstLine)
+  switch (leaf.slice(dot + 1).toLowerCase()) {
     case "ts":
     case "tsx":
     case "mts":
@@ -24,9 +29,64 @@ export function filetypeOf(relPath: string): string | undefined {
     case "md":
     case "markdown":
       return "markdown"
+    case "zig":
+      return "zig"
     default:
       return undefined
   }
+}
+
+const SHEBANG_INTERPRETERS: ReadonlyMap<string, string> = new Map([
+  ["node", "javascript"],
+  ["nodejs", "javascript"],
+  ["bun", "typescript"],
+  ["deno", "typescript"],
+  ["tsx", "typescript"],
+  ["ts-node", "typescript"],
+])
+
+/** `#!/usr/bin/env -S bun run` → the grammar for `bun`; `env`'s own flags are skipped. */
+function shebangFiletype(line: string): string | undefined {
+  if (!line.startsWith("#!")) return undefined
+  const words = line.slice(2).trim().split(/\s+/)
+  const first = words[0] ?? ""
+  let program = first.slice(first.lastIndexOf("/") + 1)
+  if (program === "env") {
+    let i = 1
+    for (; i < words.length; i++) {
+      const word = words[i] ?? ""
+      if (word === "--") {
+        i++
+        break
+      }
+      if (["-u", "--unset", "-C", "--chdir", "-P", "-a", "--argv0"].includes(word)) {
+        i++
+        continue
+      }
+      if (!word.startsWith("-") && !word.includes("=")) break
+    }
+    const command = words[i] ?? ""
+    program = command.slice(command.lastIndexOf("/") + 1)
+  }
+  return SHEBANG_INTERPRETERS.get(program)
+}
+
+/**
+ * A file's first line as one patch shows it, or undefined when no hunk starts
+ * at line 1 — a shebang only counts on line 1.
+ */
+export function patchFirstLine(patch: string): string | undefined {
+  const lines = patch.split("\n")
+  const at = lines.findIndex((l) => /^@@ -\d+(?:,\d+)? \+1(?:,\d+)? @@/.test(l))
+  if (at < 0) return undefined
+  const body = lines.slice(at + 1).find((l) => l.startsWith(" ") || l.startsWith("+"))
+  return body?.slice(1)
+}
+
+/** First line of a file's own content. */
+export function contentFirstLine(text: string): string {
+  const nl = text.indexOf("\n")
+  return nl < 0 ? text : text.slice(0, nl)
 }
 
 /**
@@ -214,14 +274,45 @@ async function pairRename(
   return null
 }
 
+/** Past this many untracked files the combined diff stops adding them (one git spawn each). */
+const UNTRACKED_DIFF_LIMIT = 200
+
+/**
+ * Untracked, not-ignored files under `relPath` as new-file patches: `git diff HEAD` never lists
+ * them, while the Changes list does (`? path`), so "diff everything" would disagree with it.
+ */
+async function untrackedAdditions(worktree: string, relPath: string): Promise<string> {
+  const listed = await runWorktreeGit(worktree, [
+    "--literal-pathspecs",
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+    "-z",
+    "--",
+    relPath,
+  ])
+  if (listed.status !== 0) return ""
+  const files = listed.stdout.split("\0").filter(Boolean).slice(0, UNTRACKED_DIFF_LIMIT)
+  let out = ""
+  for (const file of files) {
+    // `--no-index` exits 1 when the files differ, which they always do here.
+    const added = await runWorktreeGit(worktree, ["diff", "--no-index", "--", "/dev/null", file])
+    if (added.status === 0 || added.status === 1) out += added.stdout
+  }
+  return out
+}
+
 /**
  * Diff for `relPath`, otherwise its full content. `range` omitted →
  * uncommitted work (`git diff HEAD`); `{ base }` → `git diff <base>...HEAD`
- * (merge-base, the Changes tab's Branch scope). An empty diff falls back to
+ * (merge-base, the Changes tab's Branch scope); `{ base, working: true }` →
+ * everything since the merge-base, uncommitted and untracked work included
+ * (the whole task against its base). An empty diff falls back to
  * the file's content.
  *
  * Images (by extension) and null-byte content come back as a `binary` card.
  * A COMBINED pathspec ({@link isCombinedPathspec}) yields one multi-file diff,
+ * untracked files under it included as additions when diffing uncommitted work,
  * and `empty` instead of the content fallback. A git refusal of the base
  * (pruned remote, renamed branch) is an `error`, never presented as content
  * or "no changes".
@@ -229,13 +320,31 @@ async function pairRename(
 export async function loadPreviewData(
   worktree: string,
   relPath: string,
-  range?: { base: string },
+  range?: { base: string; working?: boolean },
+  /** `ignoreWhitespace`: `git diff -w`, so a whitespace-only change drops out of the diff. */
+  opts: { ignoreWhitespace?: boolean } = {},
 ): Promise<PreviewData> {
   if (isImagePath(relPath)) {
     return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
   }
-  const spec = range ? `${range.base}...HEAD` : "HEAD"
-  const res = await runWorktreeGit(worktree, ["--literal-pathspecs", "diff", spec, "--", relPath])
+  let spec = range ? `${range.base}...HEAD` : "HEAD"
+  if (range?.working) {
+    const mergeBase = await runWorktreeGit(worktree, ["merge-base", range.base, "HEAD"])
+    const sha = mergeBase.status === 0 ? mergeBase.stdout.trim() : ""
+    if (!sha) {
+      const stderr = (mergeBase.stderr ?? "").trim()
+      return { kind: "error", message: stderr || `no merge-base between ${range.base} and HEAD` }
+    }
+    spec = sha
+  }
+  const res = await runWorktreeGit(worktree, [
+    "--literal-pathspecs",
+    "diff",
+    ...(opts.ignoreWhitespace ? ["-w"] : []),
+    spec,
+    "--",
+    relPath,
+  ])
   // A standalone file may have no repository or no HEAD yet: fall back to
   // its content. Combined/base comparisons have no such fallback.
   if (res.status !== 0 && (range || isCombinedPathspec(relPath))) {
@@ -243,6 +352,7 @@ export async function loadPreviewData(
     return { kind: "error", message: stderr || `git diff ${spec} exited with code ${res.status ?? -1}` }
   }
   let diff = res.status === 0 ? res.stdout : ""
+  if ((!range || range.working) && isCombinedPathspec(relPath)) diff += await untrackedAdditions(worktree, relPath)
   let origPath: string | undefined
   if (diff.trim().length > 0) {
     if (!isCombinedPathspec(relPath)) {

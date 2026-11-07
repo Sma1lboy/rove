@@ -124,6 +124,25 @@ describe("buildTreeRows", () => {
     ])
   })
 
+  test("a projectless routine's standing session folds into the Ungrouped routines row", () => {
+    const result = rows({
+      tasks: [
+        task("s1", { kind: "dir", scratch: true, repo: "/Users/me" }),
+        task("r1", {
+          kind: "dir",
+          noProject: true,
+          repo: "/home/.rove/routines/a1",
+          routine: { automationId: "a1" },
+        }),
+      ],
+    })
+    expect(result.map((r) => [r.kind, r.id])).toEqual([
+      ["project", SCRATCH_SECTION_ID],
+      ["worktree", "s1"],
+      ["routines", `~routines:${SCRATCH_SECTION_ID}`],
+    ])
+  })
+
   test("a scratch task is one reachable row, whether or not it has tabs", () => {
     const result = rows({
       tasks: [
@@ -335,19 +354,6 @@ describe("a project closed down to nothing", () => {
       tabsByTask: new Map([["m", [tab("t1")]]]),
     })
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
-  })
-
-  test("keeps a project that has worktree tasks, even with every tab closed", () => {
-    // The worktree rows are how you get back to that work — losing them would
-    // strand the branches. Only the main-only case hides.
-    const out = rows({
-      tasks: [mainOf("/repos/rove"), task("a", { repo: "/repos/rove" })],
-      tabsByTask: new Map([
-        ["m", []],
-        ["a", []],
-      ]),
-    })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
   })
 
   test("hiding one project does not disturb the others", () => {

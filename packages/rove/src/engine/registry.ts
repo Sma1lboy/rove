@@ -119,6 +119,13 @@ export interface EngineRegistryEntry {
    * variadic, so a spaced `--add-dir <dir>` would swallow the positional prompt.
    */
   readonly addDirArgv?: (base: readonly string[], dirs: readonly string[]) => readonly string[]
+  /**
+   * Rewrites every hosted interactive launch's full argv so the engine opens
+   * straight to its composer: a blocking startup screen of its own (an update
+   * offer) would take the first prompt Rove delivers and stall an unattended
+   * task. Must leave a value the user's command override already sets alone.
+   */
+  readonly hostedStartArgv?: (argv: readonly string[]) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**
@@ -130,6 +137,12 @@ export interface EngineRegistryEntry {
   readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
+  /**
+   * The user-level dir this engine loads agent skills from, where Rove's skill
+   * installer writes `rove/`. Null when the engine isn't set up on this machine
+   * or ships the skill another way (Claude's plugin). Absent = no known dir.
+   */
+  readonly skillsDir?: () => string | null
   /** Turn-completion detector (`turn-detector.ts`); copilot/custom get {@link UnknownTurnDetector}. */
   readonly createTurnDetector: () => EngineTurnDetector
   /** Undefined for engines that declare none (copilot, custom). */

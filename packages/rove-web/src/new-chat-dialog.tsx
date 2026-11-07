@@ -6,15 +6,24 @@
  */
 
 import { useState } from "react"
-import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachmentThumbs, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
+import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { ATTEMPTS } from "./quick-start-dialog.tsx"
+import { partialRoundId } from "./new-session.ts"
 import { cycleStop } from "./tab-stops.ts"
 import { EnginePicker, SHELL, isPane, openTab, paneIdOf, useEngineChoice, usePanes } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
+import { toast } from "./ui.ts"
+import { FIELD, TEXTAREA } from "./ui/form.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
+import { HINT, INPUT, KICKER } from "./ui/text.ts"
+
+/** The attempts a prompt can fan out to; the TUI stops at 5 (`ORCHESTRATION.md`: 3-4 is the sweet spot). */
+const ATTEMPTS = ["1", "2", "3", "4", "5"] as const
 
 export type NewChatDestination = "tab" | "fork" | "scratch"
 export type NewChatContext = "fresh" | "continue"
@@ -32,15 +41,17 @@ export function NewChatDialog(props: {
   taskId: string
   destination?: NewChatDestination
   context?: NewChatContext
+  /** The conversation "continue" carries over; default the open tab of this task, else its first. */
+  sourceTabId?: string
 }) {
   useLocale()
   const { model, taskId } = props
-  const choice = useEngineChoice(model)
+  const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
+  const choice = useEngineChoice(model, task?.repo)
   const [destination, setDestination] = useState<NewChatDestination>(props.destination ?? "tab")
   const [context, setContext] = useState<NewChatContext>(props.context ?? "fresh")
   const [prompt, setPrompt] = useState("")
   const [attempts, setAttempts] = useState("1")
-  const task = model.tasks.get()?.tasks.find((row) => row.id === taskId)
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
   const { busy, error, setError, submit } = useSubmit()
   const { attachments, attach, remove } = useAttachments(model, setError)
@@ -61,10 +72,19 @@ export function NewChatDialog(props: {
     setContext(nextDest === "scratch" ? "fresh" : ctx)
   }
 
+  // The conversation "continue" carries over: the named tab, else the open one of this task, else its first.
+  const sourceTab = (): string => {
+    const open = model.selection.get()
+    return props.sourceTabId ?? (open.taskId === taskId ? open.tabId : null) ?? "tab-1"
+  }
+  // A source whose engine is gone is replaced in its own slot (same task, same tab); a live one opens a child task.
+  const sourceDead = (): boolean =>
+    model.tasks.get()?.tasks.find((row) => row.id === taskId)?.tabStatus?.[sourceTab()]?.reason === "dead"
+
   const handoff = async (): Promise<string> => {
     const res = await model.client.request<{ kind: string; prompt?: string; engine?: string }>("tab.handoff", {
       taskId,
-      tabId: model.selection.get().tabId ?? undefined,
+      tabId: sourceTab(),
     })
     if (res.kind === "handoff" && res.prompt) return res.prompt
     throw new Error(
@@ -76,7 +96,9 @@ export function NewChatDialog(props: {
 
   const create = () =>
     submit(async () => {
-      const lead = context === "continue" ? await handoff() : ""
+      const replaceTab = context === "continue" && destination === "tab" && !shell && !pane && sourceDead()
+      // A replacement's brief is built by the same `send --handoff-from` the CLI runs; only the message goes up here.
+      const lead = context === "continue" && !replaceTab ? await handoff() : ""
       const message = withRefs(prompt.trim(), attachments)
       const first = [lead, message].filter(Boolean).join("\n\n")
       if (destination === "scratch") {
@@ -86,15 +108,31 @@ export function NewChatDialog(props: {
       } else if (fork) {
         if (!task) throw new Error(tc("terminal", "tab.tabGone"))
         if (!prompt.trim()) throw new Error(t("taskops.forkNeedsMessage"))
-        const res = await model.client.request<{ taskIds: string[] }>("tab.forkTask", {
-          repo: task.repo,
-          baseBranch: baseRef.trim() || task.branch,
-          prompt: first,
-          ...(pick ? { engine: pick } : {}),
-          ...(Number(attempts) > 1 ? { count: Number(attempts) } : {}),
-        })
+        const base = baseRef.trim() || task.branch
+        let res: { taskIds: string[]; groupId?: string; forkRefused?: string }
+        try {
+          res = await model.client.request("tab.forkTask", {
+            repo: task.repo,
+            baseBranch: base,
+            prompt: first,
+            ...(pick ? { engine: pick } : {}),
+            ...(Number(attempts) > 1 ? { count: Number(attempts) } : {}),
+            // Continuing from the task's own branch (not another base) can clone its worktree, uncommitted work included.
+            ...(base === task.branch ? { forkFrom: taskId } : {}),
+          })
+        } catch (err) {
+          // Some attempts did start: show the round instead of leaving them unseen in the rail.
+          const round = partialRoundId(err)
+          if (!round) throw err
+          toast(err instanceof Error ? err.message : String(err), "error")
+          openCompare(round)
+          return
+        }
+        if (res.forkRefused) toast(t("taskops.forkLeftBehind", { reason: res.forkRefused }))
         const created = res.taskIds[0]
-        if (created) model.selectWhenListed(created)
+        // A round of attempts opens its Compare page; one fork opens the task.
+        if (res.groupId) openCompare(res.groupId)
+        else if (created) model.selectWhenListed(created)
       } else if (shell) await openTab(model, taskId, { kind: "shell" })
       else if (pane) {
         const { selection } = model
@@ -106,13 +144,19 @@ export function NewChatDialog(props: {
         })
         await model.refreshTabsNow()
         model.select(taskId, opened.tabId)
-      } else await openTab(model, taskId, { kind: "engine", engine: pick, prompt: first })
+      } else
+        await openTab(model, taskId, {
+          kind: "engine",
+          engine: pick,
+          prompt: first,
+          ...(replaceTab ? { replaceTab: sourceTab() } : {}),
+        })
     })
 
   return (
     <DialogShell title={tc("terminal", "tab.newChat.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={(e) => {
           if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && (fork || !e.shiftKey)) {
             // Fork: the composer's field cycle. Otherwise the picker's: next destination (Shift+Tab stays the browser's).
@@ -150,8 +194,8 @@ export function NewChatDialog(props: {
           void attach(Array.from(e.dataTransfer.files))
         }}
       >
-        <div className="field">
-          <span className="kicker">{tc("terminal", "tab.newChat.engine")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.engine")}</span>
           <EnginePicker
             engines={choice.engines}
             value={pick}
@@ -160,8 +204,8 @@ export function NewChatDialog(props: {
             panes={paneOk ? panes : []}
           />
         </div>
-        <div className="field">
-          <span className="kicker">{tc("terminal", "tab.newChat.destLabel")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("terminal", "tab.newChat.destLabel")}</span>
           <ChipRow
             label={tc("terminal", "tab.newChat.destLabel")}
             field="destination"
@@ -173,8 +217,10 @@ export function NewChatDialog(props: {
             }))}
           />
         </div>
-        <div className="field">
-          <span className="kicker">{tc("terminal", "tab.newChat.ctxLabel")} · ctrl+f</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>
+            {tc("terminal", "tab.newChat.ctxLabel")} <span className="keys-only">ctrl+f</span>
+          </span>
           <ChipRow
             label={tc("terminal", "tab.newChat.ctxLabel")}
             field="context"
@@ -188,8 +234,8 @@ export function NewChatDialog(props: {
         </div>
         {fork && (
           <>
-            <div className="field">
-              <span className="kicker">{tc("quickTask", "attemptsLabel")}</span>
+            <div className={FIELD}>
+              <span className={`${KICKER} text-muted`}>{tc("quickTask", "attemptsLabel")}</span>
               <ChipRow
                 label={tc("quickTask", "attemptsLabel")}
                 field="attempts"
@@ -198,10 +244,10 @@ export function NewChatDialog(props: {
                 choices={ATTEMPTS.map((n) => ({ id: n, label: n }))}
               />
             </div>
-            <label className="field">
-              <span className="kicker">{t("taskops.forkBranch")}</span>
+            <label className={FIELD}>
+              <span className={`${KICKER} text-muted`}>{t("taskops.forkBranch")}</span>
               <input
-                className="input"
+                className={INPUT}
                 data-field="fork-base"
                 spellCheck={false}
                 value={baseRef}
@@ -211,10 +257,10 @@ export function NewChatDialog(props: {
           </>
         )}
         {!shell && !pane && destination !== "scratch" && (
-          <label className="field">
-            <span className="kicker">{t("newChat.prompt")}</span>
+          <label className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{t("newChat.prompt")}</span>
             <textarea
-              className="input textarea"
+              className={`${INPUT} ${TEXTAREA}`}
               data-field="message"
               // biome-ignore lint/a11y/noAutofocus: the dialog's main field
               autoFocus
@@ -234,9 +280,13 @@ export function NewChatDialog(props: {
             />
           </label>
         )}
-        <AttachmentChips attachments={attachments} onRemove={remove} />
-        <p className="muted newtask-legend">{tc("quickTask", "legend")}</p>
-        {error && <p className="error">{error}</p>}
+        <AttachmentThumbs attachments={attachments} onRemove={remove} />
+        {isTouch() ? (
+          <p className="text-muted">{t("pages.attachHintTouch")}</p>
+        ) : (
+          <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>{tc("quickTask", "legend")}</p>
+        )}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={t("newChat.start")} />
       </form>
     </DialogShell>

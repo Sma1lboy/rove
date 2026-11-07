@@ -39,7 +39,7 @@ interface GetTaskResult {
     readonly createdAt: string
     readonly updatedAt: string
     readonly prStatus?: TaskPRStatus
-    readonly extraRepos?: readonly Pick<TaskExtraRepo, "prStatus">[]
+    readonly extraRepos?: readonly Pick<TaskExtraRepo, "repo" | "baseRef" | "prStatus">[]
     readonly report?: { readonly summary?: string; readonly at: string }
   }
 }
@@ -66,6 +66,10 @@ async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
       ...(t.prompt ? { prompt: t.prompt } : {}),
       ...(t.baseRef ? { baseRef: t.baseRef } : {}),
       ...(t.groupId ? { groupId: t.groupId } : {}),
+      // The other repos of a multi-repo task, in pick order, each with the ref it was cut from.
+      ...(t.extraRepos?.length
+        ? { extraRepos: t.extraRepos.map((r) => ({ repo: r.repo, ...(r.baseRef ? { baseRef: r.baseRef } : {}) })) }
+        : {}),
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
       ...(pr

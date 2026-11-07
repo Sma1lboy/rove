@@ -215,6 +215,16 @@ task worktree stops at its trust prompt and you have to answer it once in the
 pane. The rest are unmeasured; if a task sits on a dialog at launch, that is
 what you are looking at.
 
+### Engine update prompts
+
+Codex offers to update itself in a menu before its composer opens. That menu
+drops typed input and treats Enter as "update now", which installs and exits,
+so the first prompt of a task, a fan-out sibling, or a routine run would never
+start a turn. Rove launches Codex with `-c check_for_update_on_startup=false`;
+update it with the installer you used (`npm i -g @openai/codex`, `brew upgrade
+codex`). If your launch-command override sets `check_for_update_on_startup`
+itself, Rove leaves it alone.
+
 ### Custom launch commands
 
 Override any engine's launch command in Settings → Engines, or by hand in
@@ -232,8 +242,10 @@ your override already pins the conversation (`--session-id`, `--resume`,
 If an engine exits non-zero, the terminal stays open with a banner pointing
 at Settings → Engines, and drops you into a shell. The web and the TUI add
 actions beside it: **Retry** (relaunch the engine in this tab, resuming its
-conversation when it recorded one), **Settings → Engines**, and a new
-conversation with another engine.
+conversation when it recorded one), **Settings → Engines**, a new
+conversation with another engine, or **Continue in another engine** (the
+same directory, with the old conversation's context in the new engine's first
+prompt). The same action sits on the tab menu and the task row menu.
 
 The launch command runs through your interactive login shell (`-ilc`), so a
 command that is a shell function or alias, such as `claudecpa`, works the
@@ -363,6 +375,16 @@ Other user settings and commands in a shared hook group survive cleanup.
 Cleanup recognizes literal `rove`/`rove` invocations, including absolute
 executables and Bun/Node source or bundle entry paths. Commands behind shell
 wrappers or compound shell commands are left for manual review.
+
+### Agent skill directory
+
+An entry (built-in or contrib) may declare `skillsDir`: the user-level dir the
+engine loads agent skills from, returning null when the engine's home dir is
+absent. Settings → Engines (TUI and web) and `rove skill install` copy the
+bundled Rove skill into every non-null dir; the per-engine state rides
+`engineIntegrations` (`skillState`), and the daemon refreshes outdated copies on
+boot. Dirs follow the
+agent-skills CLI's per-agent table.
 
 ### Adding a hook to another engine
 

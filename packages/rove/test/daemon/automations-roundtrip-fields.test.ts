@@ -156,4 +156,18 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("modelEffort")
     expect(loaded).not.toHaveProperty("webhook")
   })
+
+  it("a projectless routine (no repo) survives a daemon restart", async () => {
+    const path = tempPath()
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const { repo: _repo, baseRef: _baseRef, ...projectless } = FULL
+    const created = await store.create(projectless)
+    expect(created).not.toHaveProperty("repo")
+
+    const reborn = new AutomationsStore(path, () => NOW)
+    await reborn.init()
+    expect(reborn.get(created.id)).toEqual(created)
+    expect(reborn.get(created.id)).not.toHaveProperty("repo")
+  })
 })

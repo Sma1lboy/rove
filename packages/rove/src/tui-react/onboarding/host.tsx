@@ -5,8 +5,9 @@
  *
  * Engine readiness comes first; optional installs follow.
  *
- * Accepted installs are queued until the TUI exits and releases the terminal
- * (`cli/welcome.ts`).
+ * The skill installs the moment it is accepted, and the result shows in the
+ * dialog. Completions are queued until the TUI exits and releases the
+ * terminal (`cli/welcome.ts`).
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -15,6 +16,7 @@ import { useEffect, useRef, useState } from "react"
 import type { ShellKind } from "../../cli/completion-scripts.ts"
 import { trackWelcomeWrite } from "../../cli/launch-tui.ts"
 import type { WelcomeRequest } from "../../cli/welcome.ts"
+import { installSkillErrors, skillTargets } from "../../lib/skill-install.ts"
 import { wizardKeyLines } from "../../tui/lib/keyboard-hints"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { useTheme } from "../context/theme"
@@ -27,7 +29,6 @@ import { EngineWelcomePage } from "./engine-page"
 /** Confirmed choices survive dismissal; unanswered questions default to No. */
 export interface OnboardingChoices {
   readonly completions: boolean
-  readonly skill: boolean
 }
 
 type StepId = "completions" | "skill"
@@ -42,13 +43,17 @@ export function WelcomeDialogView(props: {
   probe?: () => Promise<WelcomeEnv>
   onDone: (choices: OnboardingChoices) => void
   onAnswers?: (choices: OnboardingChoices) => void
+  /** Installs the skill and returns the line to show; injected by the render track. */
+  installSkill?: () => string
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
+  const [skillLine, setSkillLine] = useState<string | null>(null)
   // No shell detected → no completions question.
   const steps: readonly StepId[] = props.shell === null ? ["skill"] : ["completions", "skill"]
   const [stepIndex, setStepIndex] = useState(0)
-  const [yes, setYes] = useState(props.shell !== null)
+  // Both questions default to Yes; the skill is what lets agents drive Rove.
+  const [yes, setYes] = useState(true)
   const [answers, setAnswers] = useState<Partial<Record<StepId, boolean>>>({})
   const [page, setPage] = useState<WelcomePageKind>("engine")
   const [env, setEnv] = useState<WelcomeEnv | null>(null)
@@ -64,9 +69,10 @@ export function WelcomeDialogView(props: {
   }, [probe])
 
   const step = steps[stepIndex] as StepId
+  const answeredSteps = steps.slice(0, page === "questions" ? stepIndex : steps.length)
 
   function finish(finalAnswers: Partial<Record<StepId, boolean>>): void {
-    props.onDone({ completions: finalAnswers.completions ?? false, skill: finalAnswers.skill ?? false })
+    props.onDone({ completions: finalAnswers.completions ?? false })
   }
 
   // `choice` defaults to the keyboard cursor; mouse passes its own option
@@ -82,13 +88,14 @@ export function WelcomeDialogView(props: {
     }
     const next = { ...answers, [step]: choice }
     setAnswers(next)
-    props.onAnswers?.({ completions: next.completions ?? false, skill: next.skill ?? false })
+    if (step === "skill" && choice) setSkillLine((props.installSkill ?? (() => installSkillLine(t)))())
+    props.onAnswers?.({ completions: next.completions ?? false })
     if (stepIndex + 1 >= steps.length) {
       setPage("keys")
       return
     }
     setStepIndex(stepIndex + 1)
-    setYes(steps[stepIndex + 1] !== "skill")
+    setYes(true)
   }
 
   useBindings(() => ({
@@ -101,10 +108,10 @@ export function WelcomeDialogView(props: {
     ],
   }))
 
-  function questionFor(s: StepId): string {
+  function labelFor(s: StepId): string {
     return s === "completions"
-      ? t("onboarding.completionsQuestion", { shell: props.shell ?? "" })
-      : t("onboarding.skillQuestion")
+      ? t("onboarding.completionsLabel", { shell: props.shell ?? "" })
+      : t("onboarding.skillLabel")
   }
   const explain = step === "completions" ? t("onboarding.completionsExplain") : t("onboarding.skillExplain")
 
@@ -116,24 +123,29 @@ export function WelcomeDialogView(props: {
         <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
           {t("onboarding.title")}
         </text>
-        <text fg={theme.accent} wrapMode="word">
+        <text fg={theme.textMuted} wrapMode="word">
           {t("onboarding.subtitle")}
         </text>
       </box>
       <box flexDirection="column" flexShrink={1}>
-        {steps.slice(0, page === "engine" ? 0 : page === "questions" ? stepIndex : steps.length).map((answered) => (
-          <box key={answered} flexDirection="row" gap={1}>
-            <text fg={theme.textMuted} wrapMode="none">
-              ·
-            </text>
-            <text fg={theme.textMuted} wrapMode="none">
-              {questionFor(answered)}
-            </text>
-            <text fg={theme.text} wrapMode="none">
-              {answers[answered] ? t("onboarding.queued") : t("onboarding.skipped")}
-            </text>
+        {page !== "engine" && answeredSteps.length > 0 ? (
+          // One quiet line per answered step, a blank line before the active one.
+          <box flexDirection="column" paddingBottom={1}>
+            {answeredSteps.map((answered) => (
+              <box key={answered} flexDirection="row" gap={1}>
+                <text fg={answers[answered] ? theme.success : theme.textMuted} wrapMode="none">
+                  {answers[answered] ? "✓" : "–"}
+                </text>
+                <text fg={theme.text} wrapMode="none">
+                  {labelFor(answered)}
+                </text>
+                <text fg={theme.textMuted} wrapMode="none">
+                  {`· ${!answers[answered] ? t("onboarding.skipped") : answered === "skill" ? skillLine : t("onboarding.queued")}`}
+                </text>
+              </box>
+            ))}
           </box>
-        ))}
+        ) : null}
         {page === "engine" ? (
           <EngineWelcomePage env={env} onContinue={() => confirm()} />
         ) : page === "keys" ? (
@@ -156,26 +168,40 @@ export function WelcomeDialogView(props: {
           </box>
         ) : (
           <>
-            <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="word">
-              {questionFor(step)}
-            </text>
-            <text fg={theme.textMuted} wrapMode="word">
-              {explain}
-            </text>
+            <box flexDirection="row">
+              <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none" flexGrow={1}>
+                {labelFor(step)}
+              </text>
+              <text fg={theme.textMuted} wrapMode="none">
+                {t("onboarding.stepCounter", { n: String(stepIndex + 1), total: String(steps.length) })}
+              </text>
+            </box>
+            <box paddingBottom={1}>
+              <text fg={theme.textMuted} wrapMode="word">
+                {explain}
+              </text>
+            </box>
+            {/* Options as list rows: the selected one is a filled row, as in Settings. */}
             {[true, false].map((option) => {
               const active = yes === option
               return (
-                <box key={String(option)} flexDirection="row" gap={1} paddingLeft={1} onMouseUp={() => confirm(option)}>
-                  <text fg={active ? theme.primary : theme.textMuted} wrapMode="none">
-                    {active ? "❯" : " "}
-                  </text>
-                  <text
-                    fg={active ? theme.primary : theme.textMuted}
-                    attributes={active ? TextAttributes.BOLD : undefined}
-                    wrapMode="none"
-                  >
+                <box
+                  key={String(option)}
+                  flexDirection="row"
+                  gap={2}
+                  paddingLeft={1}
+                  paddingRight={1}
+                  backgroundColor={active ? theme.primary : undefined}
+                  onMouseUp={() => confirm(option)}
+                >
+                  <text fg={active ? theme.selectedListItemText : theme.text} wrapMode="none">
                     {option ? t("onboarding.optionYes") : t("onboarding.optionNo")}
                   </text>
+                  {option && step === "skill" ? (
+                    <text fg={active ? theme.selectedListItemText : theme.textMuted} wrapMode="none">
+                      {t("onboarding.recommended")}
+                    </text>
+                  ) : null}
                 </box>
               )
             })}
@@ -197,12 +223,22 @@ export function WelcomeDialogView(props: {
   )
 }
 
+/** Copy the skill into every engine set up here; the line says where, or why not. */
+function installSkillLine(t: ReturnType<typeof useT>): string {
+  const engines = skillTargets().map((target) => target.displayName)
+  if (engines.length === 0) return t("onboarding.skillNoEngines")
+  const error = installSkillErrors()
+  return error
+    ? t("onboarding.skillFailed", { reason: error })
+    : t("onboarding.skillInstalled", { engines: engines.join(", ") })
+}
+
 /** `replace`, not `push`: it arrives on boot with nothing underneath to return to. */
 function show(dialog: DialogContext, opts: { shell: ShellKind | null; onDone: (c: OnboardingChoices) => void }): void {
   // `dialog.clear()` runs this entry's onClose, so without the guard an
   // accepted answer is followed by a "declined everything" one that wins.
   let settled = false
-  let confirmed: OnboardingChoices = { completions: false, skill: false }
+  let confirmed: OnboardingChoices = { completions: false }
   const once = (choices: OnboardingChoices): void => {
     if (settled) return
     settled = true

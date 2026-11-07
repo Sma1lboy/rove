@@ -75,6 +75,61 @@ describe("send handler", () => {
     expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
   })
 
+  // A send is a paste plus Enter. At a permission menu the paste waited in the engine's input and
+  // Enter took the highlighted "Yes": answering "4" (No) from the web composer ran the command.
+  it("refuses a tab showing a menu, and sends once a client has answered it", async () => {
+    const tabs = (kind: string) => ({ "tab-1": { kind, since: 1, alive: true, restored: false, tracked: true } })
+    const at = (kind: string) =>
+      new FakeClient({
+        "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
+        "status.list": () => ({ tasks: { abc: { task: { kind, since: 1 }, tabs: tabs(kind) } }, rev: 1 }),
+      })
+    const refused = recordingDelivery()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--plain", "--prompt", "4"], {
+          client: at("needs-input"),
+          runtime: stubRuntime({ deliverPrompt: refused.deliver }),
+        }),
+      "AWAITING_PERMISSION",
+    )
+    expect(refused.calls).toHaveLength(0)
+
+    const other = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "abc", "--tab", "tab-2", "--plain", "--prompt", "hi"], {
+      client: at("needs-input"),
+      runtime: stubRuntime({ deliverPrompt: other.deliver }),
+    })
+    expect(other.calls).toHaveLength(1)
+
+    const answered = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "abc", "--plain", "--prompt", "hi"], {
+      client: at("idle"),
+      runtime: stubRuntime({ deliverPrompt: answered.deliver }),
+    })
+    expect(answered.calls).toHaveLength(1)
+  })
+
+  // A menu event can trail the Stop that ended a turn: a tab that only just came to rest is read again before the paste.
+  it("reads a freshly rested tab again after the settle window, and refuses if a menu showed up meanwhile", async () => {
+    let reads = 0
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
+      "send.check": () => (++reads === 1 ? { awaiting: [], settleMs: 20 } : { awaiting: ["tab-1"], settleMs: 0 }),
+    })
+    const delivery = recordingDelivery()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--plain", "--prompt", "4"], {
+          client,
+          runtime: stubRuntime({ deliverPrompt: delivery.deliver }),
+        }),
+      "AWAITING_PERMISSION",
+    )
+    expect(reads).toBe(2)
+    expect(delivery.calls).toHaveLength(0)
+  })
+
   it("requires an explicit or active target", async () => {
     await expectApiError(
       () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),

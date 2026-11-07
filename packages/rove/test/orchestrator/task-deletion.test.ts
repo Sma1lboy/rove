@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { DirtyWorktreeError, TaskDeletingError, WorktreeRemoveFailedError } from "../../src/orchestrator/errors.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -35,6 +35,7 @@ let worktrees: {
   dirtyPaths: ReturnType<typeof vi.fn>
   ignoredWork: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
+  deleteTaskCheckpoints: Mock
 }
 
 beforeEach(async () => {
@@ -45,6 +46,7 @@ beforeEach(async () => {
     dirtyPaths: vi.fn(async () => []),
     ignoredWork: vi.fn(async () => []),
     remove: vi.fn(async () => {}),
+    deleteTaskCheckpoints: vi.fn(async () => 0),
   }
   orch = new Orchestrator({ store, worktrees: worktrees as unknown as GitWorktreeManager })
 })
@@ -91,6 +93,21 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
       "/wt/opt-in",
       expect.objectContaining({ force: false, deleteBranch: true }),
     )
+  })
+
+  it("drops the task's checkpoint refs after removing its worktree, and a failing cleanup never fails the deletion", async () => {
+    const task = await makeTask("/wt/checkpointed")
+    worktrees.deleteTaskCheckpoints.mockRejectedValueOnce(new Error("repo gone"))
+
+    await orch.prepareTaskDeletion(task.id)
+    await orch.beginTaskDeletion(task.id)
+    await orch.finishTaskDeletion(task.id)
+
+    expect(worktrees.deleteTaskCheckpoints).toHaveBeenCalledWith("/repo", String(task.id))
+    expect(worktrees.remove.mock.invocationCallOrder[0]).toBeLessThan(
+      worktrees.deleteTaskCheckpoints.mock.invocationCallOrder[0] ?? 0,
+    )
+    expect(orch.getTask(task.id)).toBeUndefined()
   })
 
   it("a forced delete reports the salvage ref so the loss is recoverable", async () => {

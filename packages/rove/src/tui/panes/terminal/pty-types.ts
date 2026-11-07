@@ -155,11 +155,12 @@ export interface TaskPtyLike {
    */
   readonly shellPid?: number | null
   /**
-   * Wheel like a real terminal: mouse tracking on → forward an SGR wheel event
-   * at (col,row) (1-based, pane-local); alternate screen without tracking → 3×
-   * arrow keys. False when neither — the CALLER scrolls its local scrollback.
+   * Wheel like a real terminal: an app on the alternate screen with mouse
+   * tracking gets an SGR wheel event at (col,row) (1-based, pane-local), one
+   * without tracking 3× arrow keys. On the normal screen only a `shift` wheel
+   * reaches a tracking app. False otherwise — the CALLER scrolls its local scrollback.
    */
-  wheel(direction: "up" | "down", col: number, row: number): boolean
+  wheel(direction: "up" | "down", col: number, row: number, shift?: boolean): boolean
   /**
    * Mouse tracking on → forward an SGR press/release/drag/hover and return
    * true (the app owns the gesture). False → the caller keeps it for local
@@ -179,12 +180,6 @@ export interface TaskPtyLike {
    * clear. Emulator-less backends (`PipeTaskPty`) omit it; the pane keeps the mouse.
    */
   readonly appOwnsMouse?: boolean
-  /**
-   * On the ALTERNATE screen (vim, less, engine TUI): the app owns scrollback and
-   * our ring holds one screen, so scrollback search refuses. Emulator-less
-   * backends omit it and count as normal.
-   */
-  readonly onAlternateScreen?: boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a

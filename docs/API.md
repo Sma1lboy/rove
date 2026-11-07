@@ -253,7 +253,11 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
+| `NO_CONVERSATION` | `send --handoff-from tab-N` where that tab holds no conversation to hand over yet. |
+| `TAB_ALIVE` | `send --handoff-from tab-N --replace` where that tab's engine is still running; only a dead or exited one is replaced. |
+| `NO_TRANSCRIPT` | `send --handoff-from tab-N` where the tab's engine keeps no transcript Rove can name (a custom engine). |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
+| `AWAITING_PERMISSION` | `send` to a tab whose engine shows an approval or question menu (the tab's row reads `?`); a paste would land in the menu and Enter would confirm its highlighted option. Answer it with keys, then send. `tabIds` names the tabs. |
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
 | `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
@@ -264,16 +268,33 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `ENGINE_ADMISSION_BUSY` | The session inventory kept changing during admission; nothing was started, so retry the returned command. |
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
-| `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. |
-| `NOT_A_GIT_REPO` | `spawn` (worktree) from a `dir` task that is not inside a git repository. |
-| `NOT_A_LINKED_REPO` | `spawn --isolate-in` names something that is not a top-level symlink to another git checkout. |
-| `REMOTE_PARENT_UNSUPPORTED` | `spawn` under a task that lives on another machine's project. |
+| `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
+| `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
+| `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
+| `SAME_PROJECT` | `update --project` names the project the task already belongs to. |
+| `CHILD_NOT_MOVABLE` | `update --project` on a child task: move its parent instead (children follow), or `update --parent none` first. |
+| `REMOTE_MOVE_UNSUPPORTED` | `update --project` where the task or the target project lives on another machine. |
+| `NOT_A_LINKED_REPO` | `add --isolate-in` names something that is not a top-level symlink to another git checkout. |
+| `REMOTE_PARENT_UNSUPPORTED` | `add` under a task that lives on another machine's project, or `update --parent` with either task on one. |
+| `PARENT_NOT_FOUND` | `update --parent` or `add --parent` names no task on the task's own machine. |
+| `MISSING_TARGET` | `add --no-worktree` or `--isolate-in` with no `--parent` and no verified calling session. |
+| `PARENT_IS_SELF` | `update --parent` names the task itself. |
+| `PARENT_CYCLE` | `update --parent` names one of the task's own descendants. |
+| `PARENT_IN_GROUP` | `update --group G --parent ID` where `ID` is itself a task of round `G`. |
+| `TASK_NOT_MOVABLE` | `update --parent` on a project's main task or a routine session. |
 | `TIER_UNAVAILABLE` | Auto routing is not configured, or the tier's target cannot start (engine not listed, not logged in, model/effort its engine cannot carry). |
 | `PARTIAL_FANOUT` | A parallel round with at least one failure (exit 3). |
 | `SKIPPED` | `should-run` or `send --if-runnable` refused the tick (exit 3). The verdict is the stdout payload, not an error envelope. |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted. |
 | `WATCH_TIMEOUT` | `watch` reached `--timeout` before any `--until` state; nothing has happened YET. |
 | `DAEMON_GONE` | The daemon died mid-`watch`; the verb never reconnects silently. |
+| `GITHUB_SIGNED_OUT` | `github-sync` or `github-logout` on a machine whose `gh` has no github.com login. |
+| `GITHUB_GH_MISSING` | A `github-*` verb on a machine without `gh`. |
+| `GITHUB_LOGIN_FAILED` | The device flow printed no code, `gh` exited without signing in, or `gh` refused the token `github-apply` was given. |
+| `GITHUB_LOGIN_CANCELLED` | A pending `github-login` was cancelled before its code appeared. |
+| `GITHUB_LOGOUT_FAILED` | `gh auth logout` failed. |
+| `GITHUB_SYNC_FORWARDED` | `github-sync` sent by another machine's hub: an account is only shared from the machine that owns it. |
+| `GITHUB_APPLY_FORWARDED_ONLY` | `github-apply` called directly. Only another machine's `github-sync` may send it. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -361,11 +382,20 @@ edits (`set-vendor`, `rename`,
     An unknown status or state is refused with `BAD_FLAG`.
   - Archived tasks (`archive`) are left out; `--archived` lists only them,
     and combines with the other flags the same way.
+  - `--fields F1,F2` keeps only those keys on each task row, so a large
+    fleet reads short: `rove api list --fields id,title,status,branch`.
+    Any task key is accepted, plus `repoCount` and `activity`; a key a task
+    does not carry stays absent. Filters run first, so
+    `--activity running --fields id,activity` works. `activeTaskId` and
+    `unresolvableRepos` are untouched. A misspelled key is refused with
+    `BAD_FLAG`, and the message lists the valid ones.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
-  `autoTitle`/`sessionId` + per-tab `alive`/`engineAlive`): the discovery read for
-  `send --tab tab-N`. `sessionId` is the conversation the tab pinned — the
+  `autoTitle`/`sessionId` + per-tab `alive`/`engineAlive`/`liveTitle`): the discovery read for
+  `send --tab tab-N`. `liveTitle` is the live session's own window title (the
+  engine's name for the conversation), null when it is dead or set none;
+  `lastTitle` is only recorded while a TUI has the tab open. `sessionId` is the conversation the tab pinned — the
   exact id `claude --resume <id>` (or the engine's own resume verb) reopens,
   and the one `send --tab tab-N --respawn` brings back. Present on engine
   tabs that recorded one, dead tabs included; absent for engines that mint
@@ -607,6 +637,18 @@ edits (`set-vendor`, `rename`,
   Repeat the last two steps (each response's `cursor` is the next poll point).
   The CLI never attaches to the session; this is how an agent follows one
   without taking it over.
+- `search --query TEXT [--repo PATH] [--limit N]`: find TEXT, case-insensitively,
+  in what the user and the agents wrote in every task's engine
+  conversations, newest session first. Tool calls and their output are not
+  searched. Returns `{query, matches:[{taskId, title, tabId?, role, at,
+  snippet}], skipped:[{taskId, reason}], truncated}`. `reason` is
+  `other-machine` (the conversation lives there) or `engine-unsupported` (no
+  history reader, e.g. kimi or a custom engine). At most 3 matches per session,
+  `--limit` (default 20, max 100) in all. Transcript files are prefiltered with
+  `rg` when it is on `PATH` (an in-process scan otherwise), then only matching
+  sessions are parsed; past about 1.5 s of parsing it stops and sets
+  `truncated: true`. A session is credited to the task whose tab pinned it; an
+  unpinned one only when no other task works in that directory.
 - `watch (--task-ids a,b,c | --group GROUPID) --until STATE[,STATE]
   [--timeout MS]`: block until a watched task's engine reaches one of
   `--until`'s states, streaming every transition on the way. This is the
@@ -671,18 +713,46 @@ edits (`set-vendor`, `rename`,
   loopback bind. `--all` lists every listener, each with its owning `taskId`
   (`null` = no task). `ports: null` means the scan could not run (Linux reads
   `/proc`, macOS runs `lsof`), never that nothing is listening.
+- `viewers [--task-id ID]`: every UI attached and showing a task right now,
+  so an agent knows what the human can see before it drives anything.
+  Returns `{ viewers: [{ viewer, surface, taskId, tabId?, panel, panelOpen?,
+  narrow?, local }] }`. `surface` is `tui`, `web` (a browser page) or `phone`;
+  `panel` is true only for a web page with a side panel (desktop width);
+  `panelOpen` and `narrow` are what the page reported; `local` is true when
+  the screen is on the daemon's machine (a TUI always; a page the bridge saw
+  arrive over a tunnel is not). An empty list means nobody is looking.
+  `--task-id` keeps one task's viewers. A screen that shows no task, or has
+  disconnected, is not listed.
 - `worktree-files --task-id ID`: the task's worktree files, tracked plus
   untracked-not-ignored, worktree-relative. Returns `{ files }`. Runs where the
   worktree lives, so it reads a task on another registered machine too.
+- `worktree-file --task-id ID --path PATH`: one previewable file of the task's
+  worktree for a client to render: markdown, HTML, SVG, PNG/JPEG/GIF/WebP or
+  PDF, at most 5 MB. Returns `{ path, mime, size, base64 }`. `PATH` is
+  worktree-relative and its real path (symlinks resolved) must stay inside the
+  worktree (`BAD_ARGS` otherwise); another file type is `NOT_PREVIEWABLE`, a
+  larger file `TOO_LARGE`. Runs where the worktree lives, so it reads a task on
+  another registered machine too.
 - `worktree-diff --task-id ID`: the task's changed files, committed on its
   branch against the base (`scope: branch`, the PR base first) and then
   uncommitted (`scope: working`). Returns `{ base, files[{ path, status,
   added, deleted, scope }] }`; `base` is `null` when none resolves.
-- `worktree-diff-file --task-id ID --path PATH --scope branch|working`: one
+- `worktree-diff-file --task-id ID --path PATH --scope branch|working|task`: one
   changed file's preview, the Files pane's data (diff hunks, or the file for a
-  code or binary view). `working` is the uncommitted diff, `branch` is
-  everything since the base. `PATH` is worktree-relative; absolute or `..`
-  paths are refused.
+  code or binary view). `working` is the uncommitted diff, `branch` the
+  commits since the base, `task` both together with untracked files (the whole
+  task against its base; with `--path .`, one diff of everything).
+  `--ignore-whitespace` runs the diff as `git diff -w`, so whitespace-only
+  changes drop out. `--base REF` (with `--scope task` only) compares against
+  that branch, tag or commit instead of the task's base (still measured from
+  the merge-base with it, as a PR is); a ref that is not a
+  commit in the repository is refused as `BAD_REF`. `PATH` is
+  worktree-relative; absolute or `..` paths are refused.
+- `worktree-refs --task-id ID`: what a diff can be compared against: the
+  repository's local branches, remote branches and tags, and the worktree
+  branch's recent commits. Returns `{ branches, remotes, tags, commits[{ sha,
+  subject }] }`. Runs where the worktree lives, so it reads a task on another
+  registered machine too.
 - `review-comments --task-id ID`: the unresolved review threads on the task's
   PR, so an agent can address review feedback by file and line. Returns
   `{ taskId, prNumber, threads, totalUnresolved }`; each thread is
@@ -709,7 +779,8 @@ edits (`set-vendor`, `rename`,
   `interrupted` (the turn was interrupted), `session-end` (the engine
   session ended), `engine-dead` (`note` is the last line of the tab's
   output), `rate-limited` (the engine hit its quota; quota-resume
-  continues the turn and a late report still lands), or `stalled` (awaiting
+  continues the turn and a late report still lands), `transient-failure`
+  (the connection dropped or the provider 5xx'd; `note` is the error), or `stalled` (awaiting
   for over 10 minutes while the tab was neither running nor at a permission
   prompt; `note` is `tab state: <state>`). A permission prompt does not mark
   a delivery missing.
@@ -733,10 +804,11 @@ edits (`set-vendor`, `rename`,
   `task-missing`; `awaiting-owner` (an open gate; `gateIds`); `report-missing`
   (the tab's newest delivery ended unreported and its Inbox row is neither
   dismissed nor answered by a late `report`; skipped ticks and a delivery the
-  rate limit ended do not count);
+  rate limit or a `transient-failure` ended do not count: the next tick is the retry);
   `quota` (`rate_limited`; `until` is the reset time, from the armed
   quota-resume or else the usage cache, and the block ends there; with no known
-  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included);
+  reset the quota is not a reason to skip); `engine-error` (a sticky `error`, billing and auth included; a
+  `transient` failure is not one);
   `engine-dead` (an exact `--tab` whose engine exited); `awaiting-permission`;
   `busy` (a turn is running, the newest delivery still awaits its report, or
   a `send --if-runnable` is mid-paste). A task whose only gate is answered
@@ -752,13 +824,19 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--title T] [--branch B] [--base-branch B]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--parent ID | --no-parent]
+  [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
+  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
-  starts the engine, and delivers the prompt. Does not steal focus unless
+  starts the engine, and delivers the prompt. With `--start` and no prompt the
+  engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
+  `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
+  `taskId`. A bare `add` is only the row (`started: false`, status `backlog`),
+  and `--start` beside `--prompt`, `--count` or `--agents` is
+  `CONFLICTING_FLAGS`. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
   (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
   what the task actually launches after the flags and the repo's default
@@ -777,6 +855,30 @@ edits (`set-vendor`, `rename`,
   An explicit `--branch` is checked against `git check-ref-format --branch`
   BEFORE the task is created; a name git would refuse is `INVALID_BRANCH`
   and nothing is written.
+
+  `--fork TASK_ID` makes the new task a sibling in that task's repo whose
+  worktree is a copy-on-write clone of the original's, so it starts with the
+  original's uncommitted edits, staged changes, untracked files and gitignored
+  dirs, on a new branch rooted at the original's HEAD (`.task.baseRef`;
+  `.task.workspace` is `{"backend":"cow-clone","ref":"<original id>"}`). The
+  clone is made during the call and the original is never modified. It
+  replaces `--repo`, and `--repo`, `--base-branch`, `--base-for`, `--count`
+  and `--agents` conflict with it (`CONFLICTING_FLAGS`). The title defaults to
+  `<original title> (fork)`, not the prompt's first line. Refused with
+  `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
+  multi-repo or remote task, or a worktree on a volume that cannot clone files;
+  see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
+
+  `--workspace layerfs` (experimental, Linux only) puts the task's files in a
+  LayerFS Workspace inside a Docker sandbox of its own instead of a git
+  worktree (`.task.workspace` is `{"backend":"layerfs"}`); see
+  [LayerFS tasks](./WORKTREES.md#layerfs-tasks-experimental). Refused before
+  any task is written with `LAYERFS_UNAVAILABLE` (not Linux, or
+  `experimental.layerfs` unset or incomplete) or `LAYERFS_NEEDS_ROOT`
+  (`sudo -n` cannot run). `--fork`, `--count`, `--agents`, `--no-worktree`,
+  `--isolate-in` and a second `--repo` conflict with it (`CONFLICTING_FLAGS`).
+  Inside a session it still nests under the caller (`task.create` with
+  `parentTaskId`), never a worktree cut from the parent's tip.
 
   `--repo` is resolved to the repository root, so a path pointing at a
   SUBDIRECTORY is accepted and climbs. When it does, the result carries
@@ -911,53 +1013,53 @@ only facts about its own worktree; the standing worker instructions, naming its
 branch included, live in the Rove agent skill. Prompts into existing sessions
 (`send`, `send --tab new`, `dispatch`) are never modified.
 
-- `spawn [--parent ID] [--worktree | --no-worktree] [--base-branch B]
-  [--isolate-in LINK] [--title T] [--command CMD] [--prompt TEXT |
-  --prompt-file PATH]`: start a **child task** of the calling session (or
-  `--parent`): a second conversation that shows under its parent. A Task is
-  one engine conversation; `add` makes a top-level task and `spawn` makes a
-  child. `--parent` defaults to the caller's verified `$ROVE_TASK_ID` /
-  `$ROVE_TAB_ID` (an unverifiable env is `MISSING_TARGET`, never a guess).
-  Children never nest: spawned from a child, the new task hangs under that
-  child's parent, while its directory and `dispatcher` still come from the
-  child that spawned it, so a bare `send` from it reports back to that child.
-  The child runs on the parent's machine, on the parent's engine unless
-  `--command` says otherwise.
+  **Nesting (`add` makes children).** A Task is one engine conversation; a
+  task nested under another shows under it in the sidebar. Called from a
+  verified rove session (`$ROVE_TASK_ID` / `$ROVE_TAB_ID`, verified as
+  described above), `add` hangs the new task under the **caller's top-level
+  task** (children never nest: added from a child, it becomes that child's
+  sibling), while `dispatcher` still records the exact calling task and tab, so
+  a bare `send` from it reports back to that session. An unverifiable env, a
+  call from a plain shell, `--machine`, and tasks the daemon creates on its own
+  (routines) stay top level, never an error. Only a task the sidebar would show
+  in the repo you asked for is nested automatically: a call whose `--repo` is not
+  the caller's tree's repo, or whose tree is a routine session, stays top level.
+  `--parent ID` nests under that task whatever its repo (the rules of `update
+  --parent`; `PARENT_NOT_FOUND`, `REMOTE_PARENT_UNSUPPORTED`), and `--no-parent`
+  opts out; the two conflict (`CONFLICTING_FLAGS`). With `--count` / `--agents`
+  every sibling gets the parent; with `--fork X` the parent is the caller, not X.
 
-  **Where the child works.** By default the child gets its own worktree, on a
-  branch cut from the parent's *current* branch tip (`--base-branch` overrides
-  the cut point). A main checkout cuts from its HEAD; a `dir` task inside a git
-  repo gets a worktree at the repo root and runs in the same relative
-  subdirectory; a `dir` task outside any repo fails `NOT_A_GIT_REPO`.
-  `--no-worktree` (or `--worktree=false`) shares the parent's directory
-  instead. That suits parallel reading and review; two engines writing one
-  tree collide.
+  **Where the child works.** A nested task in the parent's own repo is cut from
+  the parent's *current* branch tip instead of the repo's default base, unless
+  `--base-branch`, `--fork` or several `--repo` name the fork point. A main
+  checkout cuts from its HEAD; a `dir` task inside a git repo gets a worktree at
+  the repo root and runs in the same relative subdirectory; a `dir` task outside
+  any repo fails `NOT_A_GIT_REPO`. The branch tip is read when `add` runs, even
+  though the checkout itself waits for the first prompt. `--no-worktree` shares
+  the parent's directory instead, which suits parallel reading and review; two
+  engines writing one tree collide. A shared child and `--isolate-in` need a
+  parent (the caller or `--parent`, else `MISSING_TARGET`) and take its repo, so
+  `--repo`, `--fork`, `--base-for`, and (for `--no-worktree`) `--base-branch`,
+  `--branch`, `--worktree-name`, `--count` and `--agents` conflict with them.
 
   **Uncommitted changes are never copied** into a new worktree: `parentDirty:
   true` in the reply says the parent had some. Top-level entries of the parent
   directory that are symlinks to a git checkout outside it are not isolated by
   a worktree of the root, because git copies the link; they come back as
   `sharedLinks`. `--isolate-in LINK` cuts the worktree in that linked repo
-  instead (`NOT_A_LINKED_REPO` for a name that is not one).
+  instead (`NOT_A_LINKED_REPO` for a name that is not one). Both reply fields
+  appear only for a child cut from its parent's tip or sharing its directory.
 
-  **Reply.** `{taskId, task, engine, parentDirty, sharedLinks, started}`. With
-  `--prompt` the child's engine starts and the text is pasted, prefixed with who
-  spawned it; the reply then also carries the delivery facts `send` reports
-  (`session`, `delivered`, `engineReady`, ...). A prompt that did not land is
-  `NOT_DELIVERED`, and the error still carries the child's `taskId`. A parent on
-  another machine's project is `REMOTE_PARENT_UNSUPPORTED`: spawn from that
-  machine's rove.
-
-  The TUI's and the web's "new conversation" gestures do the same with
-  `--no-worktree`: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab
-  new` and `tab-new --kind engine` start a task's first conversation in its own
-  `tab-1` and, once it holds one, each create a shared child, never a second
-  engine tab. Deleting the parent promotes its children; see `delete --cascade`.
+  The TUI's and the web's "new conversation" gestures make shared children the
+  same way: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab new` and
+  `tab-new --kind engine` start a task's first conversation in its own `tab-1`
+  and, once it holds one, each create a shared child, never a second engine
+  tab. Deleting the parent promotes its children; see `delete --cascade`.
 
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
+  [--command CMD] [--handoff-from TAB [--replace]] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -977,7 +1079,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
   failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
   placeholder title becomes the prompt's), else a shared child task of the target
-  (same directory, as `spawn --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
+  (same directory, as `add --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
   (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
@@ -997,12 +1099,42 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it runs
   that new child on that engine without changing the target's own. Using it with an
   existing tab is a `BAD_FLAG` error rather than a silent switch.
+  `--handoff-from tab-N` (valid only with `--tab new`) continues that tab's
+  conversation in the new one, e.g. hand stuck work from Claude to Codex:
+  `send --tab new --command codex --handoff-from tab-1`. The first prompt
+  becomes a handoff brief — the task title, the source engine's transcript path,
+  the user's last request and a bounded excerpt (about 8 KB, oldest turns
+  dropped first) of the latest turns, all marked as untrusted history — and
+  `--prompt`, when given, follows it; without one the brief alone is sent, so
+  `--prompt` is optional here. The new engine starts in the same directory and
+  branch; the source tab is only read. `NO_CONVERSATION` = that tab has no
+  conversation yet, `NO_TRANSCRIPT` = its engine keeps no transcript Rove can
+  name, `BAD_FLAG` = not an engine tab, or no `--tab new`.
+  `--replace` (needs `--handoff-from`) puts the new engine in that tab's own slot
+  instead of a shared child task, for a source whose engine is dead or exited
+  (`get-task` `.tabs[]`: `alive: false`, or `engineAlive: false` = only the
+  fallback shell is left): same task, same tab id, same worktree, a fresh
+  conversation on the brief; the reply adds `replacedTab`. A running engine is
+  refused with `TAB_ALIVE` and keeps the child-task path. A replacement that
+  fails to start or to receive the brief puts the tab back as it was, so the
+  same call can be retried.
   Delivery needs a live engine in that tab: one that exited into the
   keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
   instead of pasting into a shell. When the `ps` probe behind that check fails
   or blows its deadline the refusal is `ENGINE_PROBE_FAILED` instead — the tab
   was never looked at, so nothing is claimed about its engine. Any registered
-  engine passes, so a tab may run a different vendor than its task. Without `--tab`, the canonical target
+  engine passes, so a tab may run a different vendor than its task.
+  A tab showing an approval or question menu (its row reads `?`) refuses with
+  `AWAITING_PERMISSION`: a paste is not a menu answer, and the Enter after it
+  confirms whichever option is highlighted. Without `--tab`, any of the task's
+  tabs at a menu refuses. Answer it with keys in the terminal; once a client
+  has answered it, or the engine reports again, `send` goes through. A tab that
+  came to rest straight from a menu (a stray turn-complete with no running turn
+  between) counts as still at the menu until a turn runs or a client answers, the
+  same rule `--queue` pastes under, and a tab that only just came to rest is
+  read again ~1.5 s later, right before the paste. A tab mid-turn is not refused
+  (the text joins the running turn; `--queue` waits for its end). Engines
+  that report no permission prompts (no hook) are never refused. Without `--tab`, the canonical target
   is a live engine tab (`tab-1` first, then any surviving engine tab); when
   live tabs exist but none resolves as an engine, `send` refuses with
   `NO_ENGINE_TAB` rather than silently spawning a duplicate engine. Only a
@@ -1033,6 +1165,33 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `dispatch` is an agent-to-agent reply into a live session, and a fan-out
   creates fresh tasks, which have no prior state to judge. `send --tab new`
   is judged on task-level state only (gates, unreported deliveries).
+
+  **`--queue` waits for a running turn instead of landing in it.** A prompt
+  pasted mid-turn is not held by every engine: Codex drops the work in flight
+  and answers the new prompt, and Claude Code folds it into the running turn
+  when the turn uses tools. With `--queue`, a tab that is idle takes the prompt
+  now, exactly as without the flag. A tab that is working, waiting on a
+  permission menu or rate-limited has it held by the daemon, and the reply is
+  `{ ok, taskId, tabId, queued: true, queueId: "q-<n>", position }`. Held
+  prompts are pasted one per finished turn, in order: a hand-over happens only
+  when the tab's state moves from `running` to `turn_complete` or `idle`. A
+  turn end that comes straight from a permission menu hands nothing over (a
+  real approval reports `running` before its Stop; a Stop with the menu still
+  drawn would have Enter confirm the highlighted option). About 1.5 s after
+  the turn ends, the tab is checked again with the same signal plain `send`
+  refuses on (`status.list` needs-input, a `permission_needed` reading) and
+  for a new running turn; either keeps the prompt held, with `lastError`
+  (`awaiting-permission`, `busy`), until the next working turn ends. A report
+  asked for with `--expect-report` (or a `requireReport` task) is armed when
+  the prompt is pasted, not when it is held. A hand-over that does not land
+  (the engine exited) also stays at the head with `lastError`; a dead engine
+  reports no more turns, so take it back with `queue-cancel`
+  (or fix its text with `queue-edit`). A tab whose
+  engine reports no turn events never hands over. Held prompts live in the
+  daemon's memory: `rove daemon
+  restart` drops them. `--queue` does not combine with `--tab new`,
+  `--if-runnable` or `--respawn`, and gate answers owed to the tab stay owed
+  until a prompt is actually pasted.
 
   **`engine.maxLiveSessions` caps new sessions.** When that setting is a
   positive number, a call that would START an engine session (`add` with a
@@ -1086,7 +1245,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   - `reason` — why nothing was confirmed. Present only with
     `engineReady: false`.
 
-  Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports.
+  Every engine receives Enter, including while it is mid-turn. Codex first receives End, which flushes its pending paste without changing the text. On Windows, Enter alone can join an unfinished paste burst as a newline and leave the message in the input box. Delivery does not read the engine's footer to choose a submit key. How an engine handles a mid-turn submission remains the engine's own behavior, not something this result reports; `--queue` (above) waits for the turn to end instead.
 
   Deliveries into one tab are serialized against each other. The paste and the submit key are one act, and two sends racing on the same tab used to interleave their halves — both messages landing in one composer, submitted together as a single turn by the first Enter while the second Enter hit an empty composer. That is what made several workers reporting into one coordinator tab look like their replies were piling up unsent. A send now waits for any delivery already in flight on that tab; one that waits too long delivers anyway rather than refusing, so a contended tab can still merge in the worst case, but a report is never dropped to avoid it.
 
@@ -1103,7 +1262,17 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   stays `true` (the prompt is still riding an argv that has not run yet) and
   `reason` says so, rather than holding `add` open for the length of an
   install.
-- `interrupt --task-id ID [--tab TAB]`: stop the turn a task's engine is
+- `queue-list [--task-id ID]`: prompts `send --queue` is holding, oldest
+  first: `{ items: [{ id, taskId, tabId, text, expectReport, at, lastError? }] }`.
+  A deleted task's held prompts go with it.
+- `queue-edit --id q-N (--prompt TEXT | --prompt-file PATH)`: rewrite a held
+  prompt before it is pasted, keeping its id and its place in line;
+  `{ edited: true, item }`, or `{ edited: false, reason }` with `reason`
+  `not-found` (already pasted or cancelled) or `pasting` (its turn came and
+  the old text is going in now).
+- `queue-cancel --id q-N`: take a held prompt back before it is pasted;
+  `{ cancelled: true|false }`.
+- `interrupt (--task-id ID [--tab TAB] | --group GROUPID | --all)`: stop the turn a task's engine is
   currently running — the headless twin of pressing the engine's own
   interrupt key. The session, its conversation and its worktree all survive,
   which is what separates this from `tab-close` and `delete`.
@@ -1126,6 +1295,18 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   reports the WRITE, not the effect — an engine acknowledges an interrupt on
   its own screen and its own schedule, so read `collect`'s `.activity.state`
   for what actually happened.
+
+  `interrupt --group GROUPID` stops a whole fan-out round, `interrupt --all`
+  every task on this machine. Only tabs whose own activity is `running` are
+  written to. Idle tabs and tabs with unknown activity are left alone, even
+  if another tab makes the task's activity `running`. Aliased PTYs belong to
+  their alias owner. Returns `{ groupId?, count, interrupted, failures, results }`:
+  `count` counts members, while `interrupted` and `failures` count tabs.
+  Each attempted tab gets a result with `taskId`, `tabId`, and
+  `status: "interrupted"` (the single-task reply) or `"failed"` with
+  `.error`/`.code`. A member with no known running tabs gets one `"skipped"`
+  result with its task `.state`. One tab's refusal never aborts the rest.
+  `--tab` goes only with `--task-id`.
 
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see
@@ -1237,14 +1418,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
-- `tab-new --task-id ID --kind shell|engine [--command CMD | --latest]`: open a new
+- `tab-new --task-id ID --kind shell|engine [--command CMD | --latest] [--type TEXT]`: open a new
   Terminal Tab with no first message — the TUI's sidebar "New shell" and its
-  picker's Enter on an empty message. `shell` runs the login shell
-  (`$SHELL`) in the task's worktree and types the `ROVE_TASK_ID` /
-  `ROVE_TAB_ID` export into it. `engine` starts a new conversation. A task with no
+  picker's Enter on an empty message. `shell` opens a shared child task of
+  `--task-id` (same directory, titled `shell`, so the rail and the TUI tree list it) whose
+  own `tab-1` runs the login shell (`$SHELL`) in the task's worktree and types the
+  `ROVE_TASK_ID` / `ROVE_TAB_ID` export into it. A fresh Ungrouped (scratch) task with no
+  tabs is the exception: its shell is its own `tab-1`. When the shell exits the row stays
+  with no tabs (`reopenAs: command`), and ⏎ in the TUI or Start in the web starts a fresh
+  shell; nothing deletes the task. `--type TEXT` (shell only) types TEXT into the new shell
+  once it is up and presses Enter, after the `ROVE_*` export; the tab stays a normal shell,
+  so Ctrl+C stops what it started. `engine` starts a new conversation. A task with no
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
-  child task of `--task-id` (same directory, see `spawn --no-worktree`) whose
+  child task of `--task-id` (same directory, as `add --no-worktree`) whose
   engine, the task's own or `--command`'s as `send --tab new --command` pins it,
   starts idle in the child's own `tab-1`, ready for a first message. A task
   holds one engine conversation, so this never adds a second engine tab to it.
@@ -1255,8 +1442,10 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   The daemon's tab store mints the tab id and adds the row (one `tabs.apply`,
   `docs/design/daemon-owned-tabs.md`), so it never collides with a tab another
   client opens at the same moment, then the session spawns; every attached
-  client sees the row through `tabs.changed`. A shell returns `{ok, taskId, tabId, session, kind, clients}`
-  (`clients` = attached connections told; `0` = none); an engine on a task with no conversation returns
+  client sees the row through `tabs.changed`. A shell returns
+  `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the child (an
+  Ungrouped task's own shell returns `{ok, taskId, tabId, session, kind, clients}`; `clients` =
+  attached connections told, `0` = none); an engine on a task with no conversation returns
   `{ok, taskId, tabId, session, kind, clients}` with `tabId` `tab-1` of the task;
   an engine on a task that holds one returns
   `{ok, taskId, childTaskId, tabId, session, kind}` with `tabId` `tab-1` of the
@@ -1315,6 +1504,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   reopens it); a preview or viewport tab is `TAB_NOT_REVIVABLE`. A task on
   another registered machine runs there, like every verb. Returns
   `{ok, taskId, tabId, revived, alive?, resumed, sessionId?}`.
+- `panel-show --view browser|files|diff [--url URL] [--path FILE]
+  [--task-id ID]`: bring up the web side panel (Files / Diff / Browser) on a
+  task. `--url` (browser view; `http`/`https` only) loads a page; `--path`
+  (files and diff views) is a file relative to the task's worktree, with no
+  `..`. Broadcast over the daemon's `panel.show` channel and pushed to every
+  browser: each web page remembers the view for that task, and one currently
+  on the task with a side panel opens it, without stealing focus or switching
+  task. A TUI has no panel. Task defaults to `$ROVE_TASK_ID`, then the active
+  task, as `pane-open` does. Returns `{ shown, remembered, viewers, url? }`:
+  `shown` is the web pages on the task with a panel (the ones that open it
+  now), `remembered` every web page attached and viewing a task (they keep
+  the view for later), `viewers` the task's `viewers` rows. For `--url`,
+  `url` is `{ reachable, frameable, reason? }`. `reachable: false` is a
+  localhost URL while a viewing page is remote (behind a tunnel, so its
+  `localhost` is not yours), or a host the probe could not reach.
+  `frameable: false` means the page cannot sit in the panel: it sends
+  `X-Frame-Options: DENY`/`SAMEORIGIN` or a CSP `frame-ancestors` that does
+  not allow `*`, or plain `http` outside localhost, or the probe refused it. Tell
+  the human the link instead. The probe is one `HEAD` over HTTPS to a
+  public address (a private, loopback, link-local or unique-local address is
+  refused, after resolving the name), follows no redirect, and gives up after
+  3 seconds. `localhost` URLs are not probed.
 - `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
   [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
   second, muted line under the title — context, not a second message.
@@ -1365,21 +1576,61 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
 ## edit
 
-- `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M]
-  [--effort LEVEL] [--pinned true|false] [--require-report on|off] [--status S] [--report-branch B]
-  [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
-  fields in one call. Every field is validated before anything is written,
-  then applied in a fixed order: branch → command → model/effort → title →
-  pinned → status. The call is not atomic: if a step fails midway, the error
-  reports the fields already `applied`. The result is `{ ok, taskId, updated,
-  command?, protocol?, generic?, engine? }`, where `updated` lists the fields
-  written, in order.
+- `update [--task-id ID] [--title T] [--branch B] [--parent ID|none] [--project PATH] [--command CMD]
+  [--model M] [--effort LEVEL] [--pinned true|false] [--kept true|false] [--require-report on|off] [--auto-fix-ci on|off]
+  [--status S] [--report-branch B] [--report-pr N] [--report-summary TEXT]`: change any combination of a task's
+  fields in one call. The flags are checked before anything is written,
+  then applied in a fixed order: parent → project → branch → command → model/effort →
+  title → pinned → status. The call is not atomic: if a step fails midway, the
+  error reports the fields already `applied`. The result is `{ ok, taskId,
+  updated, parent?, command?, protocol?, generic?, engine? }`, where `updated`
+  lists the fields written, in order. Without `--task-id` it targets the
+  caller's own task (the verified `$ROVE_TASK_ID` session), so an agent can
+  retitle the task it runs in; outside a verified session that is
+  `MISSING_TARGET`.
   - `--title T`: the task's title. With `--tab TAB` it names one Terminal Tab
     instead (the API twin of the TUI's f2) and `--title` is the only other flag
     allowed. `TAB_NOT_FOUND` when the task's snapshot names no such tab —
     `get-task` lists the addressable ids in `.tabs[].id`.
   - `--branch B`: rename the task's branch (`git branch -m` if materialized,
     else recorded).
+  - `--parent ID|none`: move the task under another task (`none`: to top
+    level) without touching its engine, tabs, worktree or branch. Two things
+    move together: the tree link, and the reply address a bare `send` from the
+    task follows. After `update --task-id A --parent B`, A's bare `send`
+    reaches B — the caller's own tab when `update` runs from inside B, else
+    B's live engine tab, else `tab-1`. The stored parent is B's top-level
+    ancestor (children never nest, as with `add` from a child), and A's own
+    children follow it there. Tree actions on that stored parent reach A as
+    well: archiving it, or `delete --cascade` on it, takes A along. `.parent` in the result is
+    `{ parentTaskId, dispatcher, moved }`. `none` also drops a reply address
+    that pointed into the old tree. A parent must live on the same machine as
+    the task: a `--task-id` on another machine runs there, so a parent that is
+    not on that machine is `PARENT_NOT_FOUND`. Other refusals leave every row
+    as it was: `PARENT_IS_SELF`, `PARENT_CYCLE` (the parent descends from the
+    task), `TASK_NOT_MOVABLE` (a project's main task, or a routine session),
+    `REMOTE_PARENT_UNSUPPORTED` (either task lives on a remote project).
+  - `--project PATH`: move a top-level task (and its children) under the
+    project at `PATH`: an Ungrouped session after it cloned or `git init`-ed
+    its repo, or a task created in the wrong project. `PATH` may be any
+    directory inside the repo; it names the repo's main checkout, which
+    becomes a project (its main row is created) if it was not one. Only the
+    grouping changes: the PTYs, cwd, worktree and branch stay where they are,
+    so a running engine keeps its conversation. The result's `.project` is
+    `{ repo, moved, note }`, `moved` listing every row regrouped. A worktree
+    task keeps a `gitRepo` link to the repo that cut its checkout, so delete,
+    land and forks still run there; moving it back clears the link. Refusals,
+    before anything is written: `NOT_A_GIT_REPO`, `SAME_PROJECT`,
+    `TASK_NOT_MOVABLE` (a project's main task, a routine session, or a
+    multi-repo task), `CHILD_NOT_MOVABLE` (move the parent instead),
+    `REMOTE_MOVE_UNSUPPORTED`. The TUI and web row menus offer the same move
+    as "Move to project…".
+  - `--group GROUPID` (with `--parent` only): move every task of one fan-out
+    round (the `groupId` that `add --count` returns). A member's refusal is
+    recorded in `.results[]` (`status: "failed"`, `code`) instead of stopping
+    the rest; the result is `{ ok, groupId, count, failures, results }`. A
+    parent that is itself in the round is refused up front as
+    `PARENT_IN_GROUP`.
   - `--command CMD`: the engine launch command (takes effect on next session
     rebuild). The protocol Rove speaks to it is derived from the command; the
     result reports which one, and `generic: true` when the command names no
@@ -1396,8 +1647,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     A `--command` that changes the task's engine clears its model and effort
     pins; pass `--model` / `--effort` in the same call to re-pin them.
   - `--pinned true|false`: pin/unpin the task to the top of the sidebar.
+  - `--kept true|false`: mark the task as the attempt kept from its parallel round
+    (`add --count` / `--agents`, same `groupId`), or clear the mark. A flag only:
+    it archives nothing and leaves the round's other attempts alone. `list` and
+    `get-task` report it as `kept`.
   - `--require-report on|off`: `on` makes every later `send` to the task arm
     a delivery, as `add --require-report` does; `off` restores plain sends.
+  - `--auto-fix-ci on|off`: `on` lets the daemon fix failing CI unattended. When
+    the task's open PR goes red on a head commit not yet tried and its engine is
+    at rest (`idle` / `turn_complete`, never mid-turn), the daemon types the fix-CI
+    prompt, with the failing job logs, into the engine session: at most once per
+    head commit and 3 times in all, then it stops and raises an Inbox row. Green
+    checks start the count over. A busy engine only delays it; a prompt nothing
+    took (no live engine, `gh` not answering) spends no attempt. `.autoFixCi`
+    on `list` / `get-task` is `{ attempts, lastSha?, stopped? }`, absent when off.
+    `off` stops it and forgets the count. Daemon RPC: `task.autoFixCi`.
   - `--status S`: lifecycle status: `backlog`, `in_progress`, `in_review`,
     `done`, `canceled`, `error`.
   - `--report-branch` / `--report-pr` / `--report-summary` (require
@@ -1419,6 +1683,28 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 
   The old per-field verbs are gone (no aliases): calling one returns
   `UNKNOWN_VERB` with the `update` form in `nextCommandArgs`.
+
+- `pr-attach --url URL|N [--task-id ID]`: show a pull request on a task's row.
+  The daemon's PR poller only follows a task's own branch, so a PR its session
+  opened from another directory (a `main` coordinator's hand-made worktree) is
+  invisible until attached. Run it once after `gh pr create`, from any
+  directory. `--url` takes a GitHub PR URL (a trailing `/files` or `#fragment`
+  is dropped) or a bare number, which `gh pr view` resolves in the current
+  directory's repo. Without `--task-id` it targets your own task
+  (`MISSING_TARGET` when the caller is not a verified session). Idempotent;
+  a task keeps its 20 newest PRs. Returns `{ taskId, url }`. `publish`
+  attaches the PR it opens or finds, so it needs no second call.
+
+- `todo [--task-id ID] [--add TEXT] [--check ID] [--uncheck ID] [--edit ID --text T] [--remove ID]
+  [--notes TEXT | --clear-notes]`: read or change a task's notes and checklist, the owner's own
+  review list. With no flag it lists them. Flags combine in one call and apply together in the
+  order add, check, uncheck, edit, remove; a refused op changes nothing. Todo ids are `t<N>`;
+  text is one line up to 500 characters, 100 todos per task, notes up to 20000 characters.
+  Refusals: `TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`, `NOTES_TOO_LONG`.
+  Defaults to the calling session's own task. Returns
+  `{ ok, taskId, notes, todos: [{ id, text, done }], done, total }`. Daemon RPC: `task.notes`.
+  The web shows `done/total` on the task row and warns (never blocks) in the land confirm while
+  todos are unchecked.
 
 ## issues
 
@@ -1469,7 +1755,7 @@ missing (`gh-missing` / `auth` / `no-remote`) rather than a generic error.
 
 ## routine
 
-Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. By default
+Scheduled agent tasks (Routines): a cron rule + a prompt + a repo (or no repo). By default
 every firing creates a **fresh task** (worktree + branch + engine session) with
 the prompt as its first message; `--persistent-session` instead re-delivers into
 ONE standing task. `--target-task ID --target-tab tab-N` instead binds an existing
@@ -1479,16 +1765,26 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
 
 - `routine-list`: every routine with its next run time.
-- `routine-create --repo PATH --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
+- `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]`: schedule a prompt. `--schedule` is five-field
+  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]
+  [--notify]`: schedule a prompt (or, with `--script`, a shell command
+  with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
+  response to the bound chat agent). Script routines cannot set `--vendor`, `--model`, `--effort`,
+  `--base-branch`, `--persistent-session`, `--target-task`, or `--target-tab`. Pass exactly one
+  of `--repo` and `--no-repo` (neither is `MISSING_FLAG`, both is `CONFLICTING_FLAGS`). `--no-repo` makes a
+  routine with no project: every run works in `<home>/.rove/routines/<id>/` as a directory session, and it takes
+  no `--base-branch`. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`). `--model` / `--effort`
   pin every run's engine, validated at save time with the same `BAD_MODEL` /
   `BAD_EFFORT` as `add` against `--vendor`, else the repo's default engine, else
   the built-in default; a pinned routine stores that vendor, so runs launch the
   engine the pins were checked against. Without pins or `--vendor`, runs launch
   the built-in default. The daemon refuses model/effort without a vendor.
-- `routine-update --id ID [...]`: change any field; `--enabled true|false` pauses / resumes. A new `--schedule`
+- `routine-update --id ID [...]`: change any field (including `--script`, `--script-timeout`, `--notify`).
+  To turn a script routine back into a prompt routine, pass `--script ''` and `--prompt TEXT` in the same update.
+  Changing `--script-timeout` requires repeating `--script CMD`, even for an existing script routine.
+  `--enabled true|false` pauses / resumes. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
   and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
@@ -1520,9 +1816,9 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   succeeds with `{ "deleted": false }`.
 
 **`--persistent-session`** keeps ONE task per routine and delivers each firing
-into it, so a daily check can build on yesterday. Its task is folded behind the
-sidebar's `N routine sessions` count row (still findable by search, still
-Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
+into it, so a daily check can build on yesterday. Every routine task, standing or
+one fresh run's, is folded behind the sidebar's `N routine sessions` count row
+(still findable by search, still Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
 one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
 files carried over, the conversation did not).
@@ -1551,6 +1847,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 `dispatch_failed` (needs a human).
 
 ## lifecycle
+
+- `publish --task-id ID [--remote NAME]`: push the task's branch (to `origin` unless `--remote`) and open its
+  pull request with `gh`, or return the one already open; `land` for a task on another machine. Returns
+  `{ branch, pushed, pr: { url } | null, prError? }`: `prError` says why there is no PR (`gh` missing or signed
+  out, a non-GitHub remote, no commits ahead) and the push still happened. Refuses a task with no worktree or
+  branch. The PR it opens or finds is attached to the task.
 
 - `land --task-id ID [--dry-run] [--repo NAME] [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
@@ -1700,7 +2002,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   leave the caller unable to tell which of N were already removed. Mutually
   exclusive with `--task-id`.
 
-  **A task with children** (`spawn`) is not orphaned. By default its children
+  **A task with children** (nested by `add`) is not orphaned. By default its children
   are promoted to the deleted task's own parent, or to top level, and keep
   running; `--cascade` deletes the whole subtree instead, and the reply lists
   every removed id as `deleted`. A directory goes only once no remaining task
@@ -1712,7 +2014,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   session stay as they are, and every verb that takes `--task-id` (`send`,
   `read-output`, `get-task`, `context`, `collect`, `digest`, `delete`) keeps
   working on the task by id. `list --archived` lists only archived tasks.
-  Both verbs act on the task and every descendant (`spawn` children,
+  Both verbs act on the task and every descendant (child tasks,
   recursively) together, and return `{ taskId, archived, ids }`, where `ids`
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
@@ -1744,6 +2046,64 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   when the task never materialized one. `residue` means git deregistered the
   worktree but could not delete the directory — the removal is as complete as
   git can make it, and this is the only time that leftover path is named.
+- `checkpoint-list --task-id ID`: the task's checkpoints, oldest first — file-only
+  undo points of its worktree. The daemon takes one when an engine turn
+  completes (skipped if the files did not change since the last one); the
+  newest 100 per workspace are kept. Returns `{ taskId, workspaceTaskId,
+  checkpoints: [{ n, ref, commit, tree, at, tabId? }] }`; each `ref` is
+  `refs/rove/checkpoints/<workspaceTaskId>/<n>` in the owning repo, so
+  `git diff <ref>` and `git restore --source=<ref>` work without Rove. Managed
+  tasks only: a project's main checkout and a directory task are your own
+  checkout, so they get `NOT_CHECKPOINTABLE`.
+
+  Checkpoints belong to the workspace owner. A child that shares its parent's
+  directory (`add --no-worktree`) has no history of its own: its turns are
+  recorded under the owner's id, and all three verbs, given the child's
+  `--task-id`, act on the owner's checkpoints. `workspaceTaskId` in each reply
+  names that task (it equals `taskId` for an owner). When the owner is deleted
+  while a child remains, the heir takes over the directory and its history.
+- `checkpoint --task-id ID`: take one now. Captures tracked edits and untracked
+  files, minus gitignored ones, and never touches the branch, HEAD or index.
+  Returns `{ taskId, workspaceTaskId, created, checkpoint, uncaptured? }`;
+  `created: false` means the tree equals the latest checkpoint, which is
+  returned instead. `uncaptured` names nested repos and submodules, whose
+  contents a checkpoint cannot hold.
+- `rewind --task-id ID --to N [--force]`: restore the worktree files to
+  checkpoint `N`. Files only: the branch, HEAD and the engine's conversation
+  are not rewound, and the index is reset to HEAD. Files created after `N` are
+  deleted, files deleted since are restored, gitignored files are left alone.
+  The current state is checkpointed first, so a rewind is undoable:
+  `undo.n` in the reply is the number to `rewind --to` to get back. Returns
+  `{ taskId, workspaceTaskId, target, undo, uncaptured }`. Refused with
+  `TASK_BUSY` while an engine of ANY task sharing the workspace (the owner or a
+  child) is `running` or `permission_needed`, because it would rewrite files
+  under the agent; the error names the busy tasks, and `--force` rewinds
+  anyway. `CHECKPOINT_NOT_FOUND` for an `N` that was never taken or has been
+  pruned. A layerfs task rewinds its whole tree, `.git` included, and refuses
+  with `WORKSPACE_BUSY` while any terminal is open in it.
+- `export-branch --task-id ID`: copy a layerfs task's git branch out of its
+  sandbox into the host repo under the same name: a `git bundle` of the
+  commits past the task's starting point, fetched without force (a host branch
+  that has moved elsewhere refuses). Only commits travel, so commit inside the
+  task first. Land, push or open a PR from the host repo afterwards. Returns
+  `{ taskId, workspaceTaskId, branch, commit }`; `EXPORT_UNSUPPORTED` for any
+  other task, whose branch is already in the repo.
+- `worktree-usage [--task-id ID]`: the disk each task's own worktrees take,
+  largest first, archived tasks included — which ones `remove-worktree` would
+  free most. Read-only. Only checkouts a task owns count (its worktree and each
+  extra repo's): a project's own checkout, a directory task and a shared child
+  are never listed, and a task whose worktree is not on disk is left out.
+  Returns `{ tasks, bytes, ignoredBytes }`, each row `{ taskId, title, branch,
+  archived, status, updatedAt, bytes, ignoredBytes, checkouts: [{ path,
+  exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row, or
+  `NO_WORKTREE` for a task that owns none. `ignoredBytes` is the gitignored
+  part, including dependencies, build output, user notes and local configuration.
+  It is not a measure of disposable content. `exists: null` means the checkout
+  could not be reached or its presence could not be confirmed; it stays in totals
+  as unknown. A `null` size means it could not be measured, never zero; such a
+  row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
+  cloned into the worktree counts in full even while it still shares blocks
+  with the main checkout's copy.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
   tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
   repository's own primary checkout is never offered — not even when `PATH`
@@ -1762,3 +2122,45 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 - `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
   GitHub Discussion in the Rove repository's Feedback category via `gh`.
+
+## github
+
+GitHub sign-in per machine. Rove keeps no token: a machine's sign-in is its own
+`gh` login (its keychain), and "Rove's account" is the hub's. These verbs run in
+the daemon, so the device-flow child and its pending state live in one place;
+any `--machine` runs them in that machine's daemon.
+
+- `github-status` *(group `read`)*: can this machine use GitHub? Returns
+  `{ git, gh, account, host, protocol, scopes, gitUsesGh, ssh, login }`: `git`
+  and `gh` are versions or `null`; `account` is the signed-in `gh` login or
+  `null` (`authDetail` says why when `gh` has a login it cannot use);
+  `protocol` is `gh`'s `git_protocol`; `gitUsesGh` is whether git's credential
+  helper for `https://github.com` runs `gh auth git-credential`; `ssh` is
+  `{ ok, user?, detail? }` from `ssh -T git@github.com` with
+  `StrictHostKeyChecking=yes`, so an unknown host key is reported, never
+  accepted; `login` is the pending device flow
+  (`{ state: "pending" | "syncing" | "failed", code?, url?, error? }`) or
+  `null`. A missing tool is a value, never an error. Every probe is bounded.
+- `github-login [--cancel]` *(group `edit`, inbound class `credentials`)*:
+  start the `gh auth login --web` device flow on this machine. Returns
+  `{ state: "pending", code, url }`; type the code at the URL and poll
+  `github-status` (`.login`, then `.account`). One flow per machine: a second
+  call returns the pending one. `--cancel` stops it (`{ cancelled }`). The
+  flow is a child of the daemon and ends with it. When it completes, `gh auth
+  setup-git` runs and, if the flow was started on this machine, every
+  registered machine that is online, has `gh` and is signed out receives the
+  same account. A machine already signed in as someone else is left alone.
+- `github-logout` *(group `edit`, class `credentials`)*: `gh auth logout` for
+  the active github.com account on this machine. It signs `gh` out for every
+  tool, not only Rove. Returns the new `github-status`.
+- `github-sync --to ALIAS` *(group `edit`, class `credentials`)*: give a
+  registered machine this machine's account. The daemon reads its own `gh`
+  token in memory and sends it to `ALIAS` as a parameter of `github-apply`;
+  nothing prints or stores it. Returns that machine's new `github-status`.
+  Named `--to` because `--machine` would run the verb there. Refused
+  (`GITHUB_SYNC_FORWARDED`) when another machine's hub sends it.
+- `github-apply --token TOKEN` *(internal; class `credentials`)*: what
+  `github-sync` sends. Refused unless forwarded from another machine. The token
+  goes to `gh auth login --with-token` on stdin, never argv; the machine's
+  `git_protocol` is kept (unset reads as https), then `gh auth setup-git`
+  runs. Not for direct use.

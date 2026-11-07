@@ -42,7 +42,7 @@ export function SidebarTreeBody(props: {
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
           if (row.kind === "project") {
-            // Scratch is a fixed section, not a repo: no context menu.
+            // Scratch is a fixed section, not a repo: its menu offers only the two ways to start with no folder.
             const isScratch = row.id === SCRATCH_SECTION_ID
             return (
               <SectionHeader
@@ -52,9 +52,7 @@ export function SidebarTreeBody(props: {
                 topPad={i > 0}
                 depth={row.depth}
                 onContextMenu={
-                  props.onProjectContextMenu && !isScratch
-                    ? (x, y) => props.onProjectContextMenu?.(row.id, x, y)
-                    : undefined
+                  props.onProjectContextMenu ? (x, y) => props.onProjectContextMenu?.(row.id, x, y) : undefined
                 }
               />
             )

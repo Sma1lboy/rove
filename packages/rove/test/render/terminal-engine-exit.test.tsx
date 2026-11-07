@@ -6,15 +6,22 @@
  */
 import { expect, test } from "bun:test"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
-import type { EngineExit } from "../../src/tui-react/panes/terminal/engine-exit-banner"
+import type { EngineExit, UsageLimit } from "../../src/tui-react/panes/terminal/engine-exit-banner"
 import { MockTaskPty } from "../../src/tui/panes/terminal/pty-mock"
 import { PtyRegistry } from "../../src/tui/panes/terminal/registry"
 import { act, renderComponent, settle } from "./harness"
 
-function mount(engineExit?: EngineExit) {
+function mount(engineExit?: EngineExit, usageLimit?: UsageLimit) {
   const registry = new PtyRegistry((opts) => new MockTaskPty(opts))
   return renderComponent(
-    <Terminal cwd="/fixture" taskId="engine-exit" focused registry={registry} engineExit={engineExit} />,
+    <Terminal
+      cwd="/fixture"
+      taskId="engine-exit"
+      focused
+      registry={registry}
+      engineExit={engineExit}
+      usageLimit={usageLimit}
+    />,
     { width: 110, height: 16, providers: { dialog: true, kv: true, notifications: true } },
   )
 }
@@ -25,6 +32,7 @@ const exitProps = (code: number | null): EngineExit => ({
   onRetry: () => calls.push("retry"),
   onSettings: () => calls.push("settings"),
   onAnotherEngine: () => calls.push("another"),
+  onContinueInEngine: () => calls.push("continue"),
 })
 
 test("a healthy engine draws no exit strip", async () => {
@@ -45,6 +53,7 @@ test("the exit strip names the code and each action fires on click", async () =>
     ["[Retry]", "retry"],
     ["[Settings → Engines]", "settings"],
     ["[Another engine]", "another"],
+    ["[Continue in another engine]", "continue"],
   ] as const) {
     const rows = (await frame()).split("\n")
     const y = rows.findIndex((row) => row.includes(label))
@@ -54,7 +63,7 @@ test("the exit strip names the code and each action fires on click", async () =>
     })
     expect(calls.at(-1)).toBe(expected)
   }
-  expect(calls).toEqual(["retry", "settings", "another"])
+  expect(calls).toEqual(["retry", "settings", "another", "continue"])
 })
 
 test("an unrecorded code still states that the engine exited", async () => {
@@ -73,4 +82,33 @@ test("F5 is Retry while the strip is up, with no kill-the-shell confirm", async 
   await settle(300)
   expect(calls).toEqual(["retry"])
   expect(await frame()).not.toContain("kill")
+})
+
+test("a usage limit offers continue and dismiss by click, and the dead-engine strip outranks it", async () => {
+  calls.length = 0
+  const limit: UsageLimit = {
+    onContinueInEngine: () => calls.push("limit-continue"),
+    onDismiss: () => calls.push("limit-dismiss"),
+  }
+  const { frame, mockMouse } = await mount(undefined, limit)
+  await settle(200)
+  expect(await frame()).toContain("Usage limit reached")
+  for (const [label, expected] of [
+    ["[Continue in another engine]", "limit-continue"],
+    ["[Dismiss]", "limit-dismiss"],
+  ] as const) {
+    const rows = (await frame()).split("\n")
+    const y = rows.findIndex((row) => row.includes(label))
+    expect(y).toBeGreaterThanOrEqual(0)
+    await act(async () => {
+      await mockMouse.click((rows[y] ?? "").indexOf(label) + 1, y)
+    })
+    expect(calls.at(-1)).toBe(expected)
+  }
+
+  const both = await mount(exitProps(1), limit)
+  await settle(200)
+  const output = await both.frame()
+  expect(output).toContain("Engine exited")
+  expect(output).not.toContain("Usage limit reached")
 })

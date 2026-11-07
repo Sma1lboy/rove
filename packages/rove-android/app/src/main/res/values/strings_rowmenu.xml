@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rowmenu_new_conversation">new conversation</string>
+    <string name="rowmenu_new_shell">new shell</string>
+    <string name="rowmenu_rename">rename</string>
+    <string name="rowmenu_pin">pin</string>
+    <string name="rowmenu_unpin">unpin</string>
+    <string name="rowmenu_set_status">set status</string>
+    <string name="rowmenu_sync_base">sync with base</string>
+    <string name="rowmenu_sync_done">Merged %1$s into this worktree</string>
+    <string name="rowmenu_sync_current">Already up to date with %1$s</string>
+    <string name="rowmenu_sync_conflict">Merge conflict. Resolve then commit: %1$s</string>
+    <string name="rowmenu_sync_dirty">Commit the worktree\'s changes first, then sync: %1$s</string>
+    <string name="rowmenu_sync_failed">Sync failed: %1$s</string>
+    <string name="rowmenu_fix_checks">fix failing checks</string>
+    <string name="rowmenu_fix_sent">Asked the agent to fix the failing checks</string>
+    <string name="rowmenu_fix_none">No failing check logs to read. The run may have expired, or the checks are no longer red.</string>
+    <string name="rowmenu_fix_unavailable">gh could not read this PR\'s checks: %1$s. Run `gh auth status` on the Mac, then retry.</string>
+    <string name="rowmenu_rename_branch">rename branch</string>
+    <string name="rowmenu_archive">archive</string>
+    <string name="rowmenu_unarchive">unarchive</string>
+    <string name="rowmenu_save">save</string>
+    <string name="rowmenu_cancel">cancel</string>
+    <string name="rowmenu_status_backlog">backlog</string>
+    <string name="rowmenu_status_in_progress">in progress</string>
+    <string name="rowmenu_status_in_review">in review</string>
+    <string name="rowmenu_status_done">done</string>
+    <string name="rowmenu_status_canceled">canceled</string>
+    <string name="rowmenu_status_error">error</string>
+    <string name="rowmenu_archive_busy_title">Archive while it\'s working?</string>
+    <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving hides the row without stopping it.</string>
+    <string name="rowmenu_archive_busy_confirm">archive anyway</string>
+    <string name="rowmenu_archived_fold">archived · %1$d</string>
+</resources>

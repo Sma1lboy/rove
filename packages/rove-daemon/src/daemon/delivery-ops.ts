@@ -24,7 +24,7 @@ import {
 
 export interface DeliveryDeps {
   readonly deliveries: DeliveriesStore
-  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode" | "recordRoutineResponse">
+  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode">
   readonly orch: Pick<DaemonOrchestrator, "getTask" | "setWorkerReport">
   readonly automations: Pick<AutomationsStore, "get" | "getRun">
   readonly now?: () => number
@@ -46,6 +46,35 @@ export function withDeliveryReport(run: AutomationRun, deliveries: Pick<Deliveri
     deliveryStatus: delivery.status,
     ...(delivery.report ? { response: { text: delivery.report.summary, at: delivery.report.at } } : {}),
   }
+}
+
+/** What a routine row says about its most recent failure, so a stall or a self-healed outage is visible. */
+export interface RoutineFailure {
+  /** ISO-8601: when the run was refused or its engine stopped. */
+  readonly at: string
+  readonly reason: string
+}
+
+/** Run outcomes that are failures. A precheck exiting non-zero, a missed or cancelled tick, or a
+ *  busy/quota skip is the routine working as configured, not something to flag. */
+const FAILED_RUN: ReadonlySet<string> = new Set(["dispatch_failed", "script_failed", "skipped_unavailable"])
+
+/**
+ * The newest of `runs` (newest first) that went wrong: a dispatch or script error, a firing held on
+ * an unreported tick, or a delivery its engine ended with no report (`transient-failure: Unable to
+ * connect`). Undefined when none did.
+ */
+export function lastRoutineFailure(
+  runs: readonly AutomationRun[],
+  deliveries: Pick<DeliveriesStore, "get">,
+): RoutineFailure | undefined {
+  for (const run of runs) {
+    const held = run.status === "skipped_blocked" && run.blocked?.reason === "report-missing"
+    if (run.error && (FAILED_RUN.has(run.status) || held)) return { at: run.at, reason: run.error }
+    const missing = run.deliveryId ? deliveries.get(run.deliveryId)?.missing : undefined
+    if (missing) return { at: missing.at, reason: `${missing.cause}${missing.note ? `: ${missing.note}` : ""}` }
+  }
+  return undefined
 }
 
 /** Throws on a malformed report; the verb refuses rather than truncating. */
@@ -105,24 +134,7 @@ export async function reportDelivery(
       .setWorkerReport(delivery.taskId, { summary: cardSummary(report.summary) })
       .catch((err: unknown) => logDaemonError("delivery-report-card", err))
   }
-  await recordRoutineResponse(deps, delivery)
   return delivery
-}
-
-/** A routine run's report is its response: surface it as the Routines episode. */
-async function recordRoutineResponse(deps: DeliveryDeps, delivery: Delivery): Promise<void> {
-  if (delivery.source !== "routine" || !delivery.automationRunId) return
-  const run = deps.automations.getRun(delivery.automationRunId)
-  const automation = run ? deps.automations.get(run.automationId) : undefined
-  if (!run || !automation) return
-  await deps.inbox
-    .recordRoutineResponse(
-      { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
-      run.taskId ?? delivery.taskId,
-      (deps.now ?? Date.now)(),
-    )
-    // The report is already stored; an Inbox write must not fail the verb.
-    .catch((err: unknown) => logDaemonError("delivery-report-routine-inbox", err))
 }
 
 /**
@@ -177,7 +189,12 @@ export async function trackDeliveryTurn(
     await markDeliveryMissing(deps, {
       taskId,
       tabId,
-      cause: detail?.failure === "rate_limit" ? "rate-limited" : "turn-failed",
+      cause:
+        detail?.failure === "rate_limit"
+          ? "rate-limited"
+          : detail?.failure === "transient"
+            ? "transient-failure"
+            : "turn-failed",
       scope: "started-or-oldest",
       ...(note ? { note } : {}),
     })

@@ -20,6 +20,8 @@ class RoveRepository(val bridge: BridgeClient) {
             .id("taskId")
     suspend fun newTab(taskId: String, engine: String, prompt: String): String =
         bridge.request("tab.new", args("taskId" to taskId, "engine" to engine, "prompt" to prompt)).id("tabId")
+    suspend fun landPreflight(taskId: String): LandPreflight =
+        wireJson.decodeFromJsonElement(bridge.request("task.landPreflight", args("taskId" to taskId)))
     suspend fun land(taskId: String) { bridge.request("task.land", args("taskId" to taskId)) }
     // Never sends force: the bridge refuses dirty work and the phone keeps that guard.
     suspend fun delete(taskId: String) { bridge.request("task.delete", args("taskId" to taskId)) }

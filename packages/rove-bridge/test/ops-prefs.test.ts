@@ -30,7 +30,7 @@ function prefs(initial: State = {}) {
   const s = store(initial)
   const deps: PrefsDeps = {
     load: s.load,
-    patch: s.patch,
+    update: (compute: (fresh: State) => State) => s.patch(compute(s.state)),
     themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
   }
   return { s, ops: createPrefsOps(deps) }
@@ -150,6 +150,26 @@ describe("prefs.set", () => {
     expect(r.info.worktreeCustomPath).toBe("/srv/trees")
   })
 
+  test("leaving a custom worktree base remembers the path on disk now, not the one read before another client changed it", async () => {
+    const s = store({ "worktree.basePath": "/srv/old", "worktree.basePath.custom": "/srv/old" })
+    // Another client changes the base after this op's first read of state, before its write.
+    let raced = false
+    const deps: PrefsDeps = {
+      load: () => ({ ...s.state }),
+      update: (compute) => {
+        if (!raced) {
+          raced = true
+          s.state["worktree.basePath"] = "/srv/new"
+          s.state["worktree.basePath.custom"] = "/srv/new"
+        }
+        s.patch(compute(s.state))
+      },
+      themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
+    }
+    await call(createPrefsOps(deps), "prefs.set", { key: "worktreeBase", value: "default" })
+    expect(s.state).toMatchObject({ "worktree.basePath": "", "worktree.basePath.custom": "/srv/new" })
+  })
+
   test("the custom editor command is only reported as set, never read back or written", async () => {
     const { ops, s } = prefs({ "editor.customCommand": "code -w {file}" })
     await call(ops, "prefs.set", { key: "editorKind", value: "custom" })
@@ -180,11 +200,15 @@ describe("theme.taskColors", () => {
   })
 })
 
-function routing(initial: State = {}) {
+/** `beforeWrite` runs inside the locked update, as another client's write landing after the op's first read. */
+function routing(initial: State = {}, beforeWrite: (state: State) => void = () => {}) {
   const s = store(initial)
   const deps = {
     load: s.load,
-    patch: s.patch,
+    update: (compute: (fresh: State) => State) => {
+      beforeWrite(s.state)
+      s.patch(compute({ ...s.state }))
+    },
     installed: async () => [],
     statuses: async () => [{ vendor: "claude", account: { kind: "none" } }],
     integrations: () => [],
@@ -246,6 +270,23 @@ describe("autoRouting", () => {
     expect(s.state).toMatchObject({
       "autoRouting.classifier": "off",
       "autoRouting.classifierEndpoint": "https://tiers.internal/pick",
+    })
+  })
+
+  test("leaving custom remembers the endpoint on disk now, not one another client replaced after the op began", async () => {
+    const { ops, s } = routing(
+      {
+        "autoRouting.classifier": "https://old.internal/pick",
+        "autoRouting.classifierEndpoint": "https://old.internal/pick",
+      },
+      (state) => {
+        state["autoRouting.classifier"] = "https://new.internal/pick"
+      },
+    )
+    await call(ops, "autoRouting.setClassifier", { mode: "off" })
+    expect(s.state).toMatchObject({
+      "autoRouting.classifier": "off",
+      "autoRouting.classifierEndpoint": "https://new.internal/pick",
     })
   })
 })

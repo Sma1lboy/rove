@@ -6,6 +6,7 @@
  */
 
 import type { ReactNode } from "react"
+import { RELEASE_MD } from "./ui/update.ts"
 
 type Block = { kind: "heading" | "item" | "para"; text: string; id: number }
 
@@ -87,5 +88,5 @@ export function ReleaseNotes({ body }: { body: string }) {
     )
   }
   flush()
-  return <div className="release-md">{out}</div>
+  return <div className={RELEASE_MD}>{out}</div>
 }

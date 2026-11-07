@@ -10,6 +10,7 @@ import type { DaemonRpcClient } from "../client/rpc.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
+import { DEFAULT_AUTO_FIX_TICK_MS, needsPrPoll, startAutoFixRunner } from "./auto-fix-ci.ts"
 import { type ConversationOf, DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
@@ -31,6 +32,7 @@ import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
 import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {
@@ -56,6 +58,8 @@ export interface DaemonCollectorOptions {
   readonly transcriptActivityTickMs?: number
   readonly contextUsageTickMs?: number
   readonly quotaResumeTickMs?: number
+  readonly scheduledStartTickMs?: number
+  readonly autoFixTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
   /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
@@ -299,7 +303,8 @@ export function startDaemonCollectors(
     // prStatus rides the task push too.
     () => hasSubscribersFor("task.snapshot"),
     undefined,
-    activity ? () => activity.workingTaskIds().length > 0 : undefined,
+    // An opted-in task with an open PR is watched too: CI turning red overnight is what it waits for.
+    () => needsPrPoll(orch.listTasks()) || (activity?.workingTaskIds().length ?? 0) > 0,
   )
 
   // Ungated: its job is resuming rate-limited engines while nobody is attached.
@@ -311,6 +316,19 @@ export function startDaemonCollectors(
     automations?.plugins,
     automations?.runnability,
   )
+
+  // Ungated, and it needs the self link only a full daemon has (the same one routines start sessions through).
+  const stopScheduledStartRunner = automations
+    ? startScheduledStartRunner(
+        { orch, runtime, link: automations.link },
+        options.scheduledStartTickMs ?? DEFAULT_SCHEDULED_START_TICK_MS,
+      )
+    : async () => {}
+  // Ungated: an opted-in task is fixed while nobody watches.
+  const stopAutoFixRunner =
+    activity && options.autoFixTickMs !== 0
+      ? startAutoFixRunner({ orch, runtime, activity, inbox }, options.autoFixTickMs ?? DEFAULT_AUTO_FIX_TICK_MS)
+      : () => {}
 
   // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
@@ -364,6 +382,8 @@ export function startDaemonCollectors(
         stopAutoTitlePoller,
         stopPrStatusPoller,
         stopQuotaResumeRunner,
+        stopScheduledStartRunner,
+        stopAutoFixRunner,
         stopAutomationRunner,
         stopDeliverySweep,
         stopQuotaUsagePoller,

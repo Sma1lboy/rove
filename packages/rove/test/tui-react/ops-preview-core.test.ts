@@ -17,6 +17,7 @@ import {
   isCombinedPathspec,
   isImagePath,
   loadPreviewData,
+  patchFirstLine,
   unifiedDiffFiles,
 } from "../../src/tui/ops/preview-core.ts"
 
@@ -28,6 +29,46 @@ describe("filetypeOf", () => {
     expect(filetypeOf("README.markdown")).toBe("markdown")
     expect(filetypeOf("Makefile")).toBeUndefined()
     expect(filetypeOf("img.png")).toBeUndefined()
+    expect(filetypeOf("build.zig")).toBe("zig")
+  })
+
+  test.each([
+    ["-S -u NODE_OPTIONS node", "javascript"],
+    ["-S -u node /bin/echo", undefined],
+    ["-S /usr/bin/node", "javascript"],
+    ["-S --unset NODE_OPTIONS /usr/bin/node", "javascript"],
+    ["-S --unset=node /bin/echo", undefined],
+    ["-S -unode /bin/echo", undefined],
+    ["-S -C node /bin/echo", undefined],
+    ["-S --chdir node /usr/bin/bun", "typescript"],
+    ["-S -P node /bin/echo", undefined],
+    ["-S -i NODE_OPTIONS= -- /usr/bin/node", "javascript"],
+    ["-S -u node", undefined],
+  ])("selects the command after env options: %s", (args, expected) => {
+    expect(filetypeOf("bin/cli", `#!/usr/bin/env ${args}`)).toBe(expected)
+  })
+
+  test("an extensionless script takes its grammar from the shebang's interpreter", () => {
+    expect(filetypeOf("bin/cli", "#!/usr/bin/env node")).toBe("javascript")
+    expect(filetypeOf("bin/cli", "#!/usr/bin/env -S bun run --silent")).toBe("typescript")
+    expect(filetypeOf("scripts/dev", "#!/usr/local/bin/deno run -A")).toBe("typescript")
+    expect(filetypeOf("bin/cli", "#!/bin/sh")).toBeUndefined()
+    expect(filetypeOf("bin/cli", "// node")).toBeUndefined()
+    // A bare name that happens to be an extension is not one.
+    expect(filetypeOf("bin/ts")).toBeUndefined()
+    // An extension wins over the shebang.
+    expect(filetypeOf("notes.md", "#!/usr/bin/env node")).toBe("markdown")
+  })
+})
+
+describe("patchFirstLine", () => {
+  test("reads line 1 only from a hunk that starts there", () => {
+    const added =
+      "diff --git a/cli b/cli\nnew file mode 100755\n--- /dev/null\n+++ b/cli\n@@ -0,0 +1,2 @@\n+#!/usr/bin/env node\n+run()\n"
+    expect(patchFirstLine(added)).toBe("#!/usr/bin/env node")
+    const replaced = "@@ -1,2 +1,2 @@\n-#!/bin/sh\n+#!/usr/bin/env bun\n x\n"
+    expect(patchFirstLine(replaced)).toBe("#!/usr/bin/env bun")
+    expect(patchFirstLine("@@ -40,3 +40,4 @@\n a\n+#!/usr/bin/env node\n b\n")).toBeUndefined()
   })
 })
 
@@ -48,6 +89,21 @@ describe("loadPreviewData", () => {
     if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
     expect(data.text).toContain("-export const a = 1")
     expect(data.text).toContain("+export const a = 2")
+  })
+
+  test("ignoreWhitespace drops a whitespace-only file from the combined diff and keeps real edits", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "b.ts"), "if (x) {\n  y()\n}\n")
+    execFileSync("git", ["add", "b.ts"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "b"], { cwd: repo })
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    writeFileSync(join(repo, "b.ts"), "if (x) {\n    y()\n}\n")
+    const all = await loadPreviewData(repo, ".")
+    const quiet = await loadPreviewData(repo, ".", undefined, { ignoreWhitespace: true })
+    if (all.kind !== "diff" || quiet.kind !== "diff") throw new Error("expected diffs")
+    expect(all.text).toContain("diff --git a/b.ts b/b.ts")
+    expect(quiet.text).not.toContain("b.ts")
+    expect(quiet.text).toContain("+export const a = 2")
   })
 
   test("a clean file previews as its content", async () => {
@@ -98,6 +154,21 @@ describe("loadPreviewData", () => {
     const repo = makeRepo()
     expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
     expect(await loadPreviewData(repo, ".")).toEqual({ kind: "empty" })
+  })
+
+  // The Changes list shows `? NOTES.md`; "diff everything" said "no changes" for the same task.
+  test("a combined diff of uncommitted work includes untracked files, not ignored ones", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, ".gitignore"), "build.log\n")
+    writeFileSync(join(repo, "NOTES.md"), "restart path audit\n")
+    writeFileSync(join(repo, "build.log"), "noise\n")
+    const data = await loadPreviewData(repo, ".")
+    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    expect(data.text).toContain("+++ b/NOTES.md")
+    expect(data.text).toContain("+restart path audit")
+    expect(data.text).toContain("+++ b/.gitignore")
+    expect(data.text).not.toContain("build.log\n+noise")
+    expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
   })
 })
 
@@ -370,6 +441,22 @@ describe("loadPreviewData — failures and hunk-less patches are never 'no chang
     const data = await loadPreviewData(repo, ".", { base: "origin/gone" })
     if (data.kind !== "error") throw new Error(`expected error, got ${data.kind}`)
     expect(data.message).toMatch(/origin\/gone/)
+  })
+
+  test("the whole task against its base holds commits, uncommitted edits and untracked files", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "committed.ts"), "export const committed = 1\n")
+    commit(repo, "work")
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    writeFileSync(join(repo, "untracked.ts"), "export const untracked = 1\n")
+
+    const task = await loadPreviewData(repo, ".", { base: "HEAD~1", working: true })
+    if (task.kind !== "diff") throw new Error(`expected diff, got ${task.kind}`)
+    expect(unifiedDiffFiles(task.text).map((f) => f.path)).toEqual(["a.ts", "committed.ts", "untracked.ts"])
+    // The committed-only range stays what it was: nothing uncommitted or untracked in it.
+    const branch = await loadPreviewData(repo, ".", { base: "HEAD~1" })
+    if (branch.kind !== "diff") throw new Error(`expected diff, got ${branch.kind}`)
+    expect(unifiedDiffFiles(branch.text).map((f) => f.path)).toEqual(["committed.ts"])
   })
 })
 

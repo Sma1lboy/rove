@@ -74,7 +74,7 @@
 | S14 | 回看搜索（`ctrl+a /`，上下走匹配） | 已有 | `⋯` → Find in scrollback，`‹ ›` 走匹配并显示 n/总数；全屏应用（alternate screen）占着缓冲区时只能搜到当前屏，界面会写明 |
 | S15 | 重置终端（`F5`） | 已有 | `⋯` → Reset terminal…，确认后清本地屏和回看，再错一列 resize 让应用重画 |
 | S16 | 打字直达终端、Esc/Tab/方向键/Ctrl/Enter | 已有 | 键盘 + 按键条 |
-| S17 | 整行发送（bracketed paste，多行不提前提交） | 已有 | composer 多行（`↵` 换行）整段 bracketed paste，150ms 后 Enter |
+| S17 | 整行发送（多行不提前提交；引擎忙时排到 turn 结束） | 已有 | 引擎 tab：composer 走 `tab.send`（`queue: true`），排队的消息显示在输入框上方，`×` 撤回（`queue.list` / `queue.cancel`）；shell tab：整段 bracketed paste，150ms 后 Enter |
 | S18 | 附件：图片/PDF 以路径粘进引擎输入框（不提交） | 已有 | composer 左侧 `+`：相册或文件 → `attachment.put` → 粘 `images[0]: /path`（png/jpeg/gif/webp/pdf，≤5 MB，HEIC 转 JPEG） |
 | S19 | Fit / Watch 尺寸模式 | 已有 | 详情页 `fit · watch` |
 | S20 | 中断当前 turn（`rove api interrupt`） | 已有 | 按键条 `interrupt`；`…` → Interrupt turn |

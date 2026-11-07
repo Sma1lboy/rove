@@ -15,7 +15,7 @@ import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
-import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
@@ -24,12 +24,21 @@ import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { DEFAULT_TASK_VENDOR } from "@sma1lboy/rove/src/types/task.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
-import { type WorktreeDiff, worktreeDiff } from "@sma1lboy/rove/src/worktree/review-read.ts"
+import {
+  type DiffRefs,
+  type PreviewScope,
+  type WorktreeDiff,
+  checkRef,
+  worktreeDiff,
+  worktreeRefs,
+} from "@sma1lboy/rove/src/worktree/review-read.ts"
 import { gateRows } from "./gates.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { flag } from "./ops/args.ts"
+import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi } from "./ops/types.ts"
 import { BridgeError, type DiffFileRow, type TabRow, type TaskRow, type TasksPayload } from "./protocol.ts"
+import { type RowTitleSources, rowLabels } from "./row-labels.ts"
 import type { RowStatuses } from "./row-status.ts"
 import { attentionRows, remoteRowStatus, taskRows } from "./task-rows.ts"
 
@@ -39,6 +48,11 @@ export interface EngineRow {
   readonly command: string
   readonly protocol: string
   readonly builtin: boolean
+  /**
+   * Not switched off in Settings → Engines (`disabledEngineIds`). A disabled engine stays in the list, because
+   * existing tasks on it are still named from it; a client must not OFFER it for a new session or task.
+   */
+  readonly enabled: boolean
   /** engine-list `models`: suggestions in the engine's own spelling; `null` = unknown. */
   readonly models?: ReadonlyArray<{ readonly id: string; readonly label?: string }> | null
   /** Reasoning levels the engine declares; `[]` = takes none. */
@@ -55,7 +69,8 @@ export interface RoveOps {
   engines(): Promise<readonly EngineRow[]>
   repos(): Promise<readonly string[]>
   createTask(input: { repo: string; engine?: string; prompt?: string; title?: string }): Promise<{ taskId: string }>
-  deleteTask(taskId: string, force: boolean): Promise<{ status: string }>
+  /** `cascade` also removes every descendant; absent, the task's children are promoted. */
+  deleteTask(taskId: string, force: boolean, cascade?: boolean): Promise<{ status: string }>
   landTask(
     taskId: string,
     strategy: "merge" | "squash",
@@ -76,7 +91,14 @@ export interface RoveOps {
   /** The registered machine a task lives on; undefined = this machine. */
   machineOf?(taskId: string): string | undefined
   diffFiles(taskId: string): Promise<{ base: string | null; files: readonly DiffFileRow[] }>
-  diffFile(taskId: string, path: string, scope: "branch" | "working"): Promise<unknown>
+  diffFile(
+    taskId: string,
+    path: string,
+    scope: PreviewScope,
+    ignoreWhitespace?: boolean,
+    base?: string,
+  ): Promise<unknown>
+  diffRefs(taskId: string): Promise<DiffRefs>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
 }
 
@@ -88,6 +110,12 @@ export interface NewTabRequest {
   readonly engine?: string
   /** No engine named: the one this project used last (the TUI's ctrl+t), not the task's own. */
   readonly latest?: boolean
+  /**
+   * A DEAD engine tab whose slot the new engine takes (`send --handoff-from <tab> --replace`): same task,
+   * same tab id, the handoff brief built from that tab's conversation. `prompt` is then only the user's
+   * own message (may be empty); the brief is not sent from the page.
+   */
+  readonly replaceTab?: string
 }
 
 /** A prompt starts the engine on it (`send`); without one there is nothing to send, so `tab-new` opens the tab empty. */
@@ -97,6 +125,20 @@ export function newTabInvocation(
 ): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
   const command = tab.engine ? [flag("command", tab.engine)] : []
   if (tab.prompt === undefined && !tab.engine && tab.latest) command.push("--latest")
+  if (tab.replaceTab !== undefined) {
+    return {
+      verb: "send",
+      argv: [
+        flag("task-id", taskId),
+        "--tab=new",
+        "--plain",
+        flag("handoff-from", tab.replaceTab),
+        "--replace",
+        ...(tab.prompt ? [flag("prompt", tab.prompt)] : []),
+        ...command,
+      ],
+    }
+  }
   if (tab.prompt !== undefined) {
     return {
       verb: "send",
@@ -128,6 +170,8 @@ export function tabRows(rows: readonly TaskTabRow[], statuses?: RowStatuses[stri
               liveVendor: (t.liveVendor ?? undefined) as VendorId | undefined,
             } as unknown as TerminalTab,
             (t.liveVendor ?? t.vendor ?? DEFAULT_TASK_VENDOR) as VendorId,
+            // The session's own title: `lastTitle` is only recorded while a TUI has the tab open.
+            t.liveTitle,
           )
         : null,
     alive: t.alive,
@@ -158,6 +202,8 @@ export interface LiveRowSignals {
   gates(): readonly ActiveGate[]
   /** The daemon's `row.status` (`RowStatusFeed`): every row's status and its tabs'; null before the first answer. */
   rowStatus?(): RowStatuses | null
+  /** What the row names are read from (`rowLabels`); absent or null = every row reads its stored title / branch. */
+  titleSources?(): Promise<RowTitleSources | null>
   /** Tasks of the other registered machines (`MachineFeed`, from the daemon's hub), each stamped with its `origin`. */
   remote?(): readonly SerializedTask[]
   /** What those machines' daemons push about their tasks (`MachineFeed.liveSignal`). */
@@ -177,20 +223,26 @@ export function createRoveOps(
   signals?: LiveRowSignals,
   api: BridgeApi = createBridgeApi(client),
 ): RoveOps {
-  let engineCache: { at: number; engines: readonly EngineRow[] } | null = null
+  let engineCache: { at: number; engines: readonly Omit<EngineRow, "enabled">[] } | null = null
   // One cold load at a time: every `task.tabs` needs the list, and a client fans those out per task.
-  let engineLoad: Promise<readonly EngineRow[]> | null = null
+  let engineLoad: Promise<readonly Omit<EngineRow, "enabled">[]> | null = null
 
-  const engines = (): Promise<readonly EngineRow[]> => {
-    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) return Promise.resolve(engineCache.engines)
-    engineLoad ??= loadEngines().finally(() => {
-      engineLoad = null
-    })
-    return engineLoad
+  // `enabled` is read per call, not cached with the PATH scan: a switch flipped in the TUI shows at once.
+  const engines = async (): Promise<readonly EngineRow[]> => {
+    let rows: readonly Omit<EngineRow, "enabled">[]
+    if (engineCache && Date.now() - engineCache.at < ENGINE_CACHE_MS) rows = engineCache.engines
+    else {
+      engineLoad ??= loadEngines().finally(() => {
+        engineLoad = null
+      })
+      rows = await engineLoad
+    }
+    const off = getDisabledEngineIds()
+    return rows.map((row) => ({ ...row, enabled: !off.includes(row.id) }))
   }
 
-  const loadEngines = async (): Promise<readonly EngineRow[]> => {
-    const res = await api.verb<{ engines: ReadonlyArray<EngineRow> }>("engine-list", [])
+  const loadEngines = async (): Promise<readonly Omit<EngineRow, "enabled">[]> => {
+    const res = await api.verb<{ engines: ReadonlyArray<Omit<EngineRow, "enabled">> }>("engine-list", [])
     const rows = await Promise.all(
       res.engines.map(async ({ id, name, command, protocol, builtin, models }) => {
         // `engine-status.ts`: binary found AND (where Rove can read the login) an account exists.
@@ -226,20 +278,22 @@ export function createRoveOps(
   return {
     async tasks() {
       const { tasks } = await client.request<{ tasks: SerializedTask[] }>("task.list")
-      const [inbox, engineRows] = await Promise.all([
+      const [inbox, engineRows, titleSources] = await Promise.all([
         tryRead(() => client.request<{ items: AttentionInboxItem[] }>("attention.list")),
         tryRead(engines),
+        tryRead(async () => (await signals?.titleSources?.()) ?? null),
       ])
       const now = Date.now()
       const statuses = signals?.rowStatus?.() ?? null
       const localStatus = statuses ? { tasks: statuses, liveness: true } : null
-      const localExtras = signals ? { changes: signals.changes(), tokens: signals.tokens() } : undefined
+      const remoteTasks = signals?.remote?.() ?? []
+      const labels = rowLabels([...tasks, ...remoteTasks], titleSources)
+      const localExtras = signals ? { changes: signals.changes(), tokens: signals.tokens(), labels } : undefined
       // Other machines' rows: engine state, changes and tokens as their daemons push them through the hub.
       // Liveness (which tabs run) lives in their pty hosts, so that stays unknown here.
       const pushed = signals?.remoteLive?.()
       const remoteStatus = pushed ? remoteRowStatus(pushed.activity) : null
-      const remoteExtras = pushed ? { changes: pushed.changes, tokens: pushed.tokens } : undefined
-      const remoteTasks = signals?.remote?.() ?? []
+      const remoteExtras = pushed ? { changes: pushed.changes, tokens: pushed.tokens, labels } : undefined
       // Archived rows are grouped on their own, so a hidden task never ranks or folds the visible ones.
       const rowsOf = (archived: boolean): TaskRow[] => {
         const pick = (list: readonly SerializedTask[]) => list.filter((t) => (t.archived === true) === archived)
@@ -275,9 +329,10 @@ export function createRoveOps(
       return { taskId: res.taskId }
     },
 
-    async deleteTask(taskId, force) {
+    async deleteTask(taskId, force, cascade) {
       const argv = [flag("task-id", taskId), "--wait"]
       if (force) argv.push("--force")
+      if (cascade) argv.push("--cascade")
       const res = await api.verb<{ status?: string; queued?: boolean }>("delete", argv)
       return { status: res.status ?? (res.queued ? "queued" : "removed") }
     },
@@ -309,6 +364,11 @@ export function createRoveOps(
       const res = await api.verb<{ tabId?: string; session?: string; childTaskId?: string }>(call.verb, call.argv)
       const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
+      // A picked engine becomes the project's next "New conversation" default, as a TUI pick does.
+      if (tab.engine && api.machineOf?.(taskId) === undefined) {
+        const task = await tryRead(() => getTask(taskId))
+        if (task) taskOpDeps.rememberEngine(task.repo, tab.engine)
+      }
       return { tabId, ...(res.childTaskId ? { taskId: res.childTaskId } : {}) }
     },
 
@@ -351,25 +411,40 @@ export function createRoveOps(
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
     },
 
-    async diffFile(taskId, path, scope) {
+    async diffRefs(taskId) {
+      if (api.machineOf?.(taskId)) return api.verb<DiffRefs>("worktree-refs", [flag("task-id", taskId)])
+      const task = await getTask(taskId)
+      if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
+      return worktreeRefs(task.worktreePath)
+    },
+    async diffFile(taskId, path, scope, ignoreWhitespace, ref) {
       // git scopes the diff to the worktree, but a `code` preview reads the
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
         throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
       }
+      if (ref !== undefined && scope !== "task")
+        throw new BridgeError("BAD_ARGS", "base only applies to the task scope")
       if (api.machineOf?.(taskId)) {
         return api.verb<unknown>("worktree-diff-file", [
           flag("task-id", taskId),
           flag("path", path),
           flag("scope", scope),
+          ...(ref !== undefined ? [flag("base", ref)] : []),
+          ...(ignoreWhitespace ? ["--ignore-whitespace"] : []),
         ])
       }
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
-      if (scope === "working") return loadPreviewData(task.worktreePath, path)
-      const base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
+      const opts = { ignoreWhitespace: ignoreWhitespace === true }
+      if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)
+      let base: string | null
+      if (ref !== undefined) {
+        base = await checkRef(task.worktreePath, ref)
+        if (!base) throw new BridgeError("BAD_REF", `${ref} is not a commit in this repository`)
+      } else base = await resolveBase(task.worktreePath, task.prStatus?.baseRef)
       if (!base) throw new BridgeError("NO_BASE", "could not resolve a base branch for this task")
-      return loadPreviewData(task.worktreePath, path, { base })
+      return loadPreviewData(task.worktreePath, path, scope === "task" ? { base, working: true } : { base }, opts)
     },
 
     async dismissAttention(taskId, tabId, deliveryId) {

@@ -4,13 +4,15 @@ import { useEffect, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import type { ComposerEngine } from "./new-session.ts"
+import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
+import { termFor } from "./term-control.ts"
+import { streamKey } from "./term-mount.ts"
 import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */
 export interface EngineRow extends ComposerEngine {
   readonly name: string
-  readonly ready?: boolean
 }
 
 export interface EngineChoice {
@@ -19,16 +21,24 @@ export interface EngineChoice {
   readonly setEngine: (id: string) => void
 }
 
-/** The engine list, with the first ready engine preselected (the TUI's picker default). */
-export function useEngineChoice(model: AppModel): EngineChoice {
-  const [engines, setEngines] = useState<readonly EngineRow[]>([])
-  const [engine, setEngine] = useState("")
+/** The engines Settings → Engines has on, preselecting the one `repo` was last started on (the TUI's picker default). */
+export function useEngineChoice(model: AppModel, repo?: string, wanted?: string): EngineChoice {
+  type Reply = { engines: EngineRow[]; preferred?: string }
+  const params = repo ? { repo } : {}
+  const [seed] = useState(() => {
+    const last = lastReply<Reply>(model, "engines.list", params)
+    const offered = last ? offeredEngines(last.engines) : []
+    return { offered, engine: last ? defaultEngineId(offered, wanted ?? last.preferred) : "" }
+  })
+  const [engines, setEngines] = useState<readonly EngineRow[]>(seed.offered)
+  const [engine, setEngine] = useState(seed.engine)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: preselected once per dialog; a later repo change keeps the user's pick
   useEffect(() => {
-    void model.client
-      .request<{ engines: EngineRow[] }>("engines.list")
+    void requestRemembered<Reply>(model, "engines.list", params)
       .then((res) => {
-        setEngines(res.engines)
-        setEngine((res.engines.find((e) => e.ready !== false) ?? res.engines[0])?.id ?? "")
+        const offered = offeredEngines(res.engines)
+        setEngines(offered)
+        setEngine(defaultEngineId(offered, wanted ?? res.preferred))
       })
       .catch(() => setEngines([]))
   }, [model])
@@ -52,10 +62,11 @@ export interface PaneRow {
 
 /** The registered plugin panes, offered beside the engines as the TUI picker does. */
 export function usePanes(model: AppModel): readonly PaneRow[] {
-  const [panes, setPanes] = useState<readonly PaneRow[]>([])
+  const [panes, setPanes] = useState<readonly PaneRow[]>(
+    () => lastReply<{ panes: PaneRow[] }>(model, "plugin.panes")?.panes ?? [],
+  )
   useEffect(() => {
-    void model.client
-      .request<{ panes: PaneRow[] }>("plugin.panes")
+    void requestRemembered<{ panes: PaneRow[] }>(model, "plugin.panes")
       .then((res) => setPanes(res.panes))
       .catch(() => setPanes([]))
   }, [model])
@@ -98,11 +109,13 @@ export function newChatHere(model: AppModel, taskId: string): Promise<void> {
 /**
  * Open a tab and select it. No prompt = an empty engine or a shell, as the TUI picker. An engine
  * is a child task of `taskId` (the bridge replies with its id), so that is what gets selected.
+ * `replaceTab` names a dead engine tab whose slot the engine takes instead: same task, same tab,
+ * no child, with the handoff brief built from that tab's conversation.
  */
 export async function openTab(
   model: AppModel,
   taskId: string,
-  args: { kind: "engine" | "shell"; engine?: string; prompt?: string; latest?: boolean },
+  args: { kind: "engine" | "shell"; engine?: string; prompt?: string; latest?: boolean; replaceTab?: string },
 ): Promise<void> {
   const { tabId, taskId: child } = await model.client.request<{ tabId: string; taskId?: string }>("tab.new", {
     taskId,
@@ -110,11 +123,20 @@ export async function openTab(
     ...(args.engine ? { engine: args.engine } : {}),
     ...(args.prompt ? { prompt: args.prompt } : {}),
     ...(args.latest ? { latest: true } : {}),
+    ...(args.replaceTab ? { replaceTab: args.replaceTab } : {}),
   })
   if (child) {
     model.selectWhenListed(child)
     return
   }
   await model.refreshTabsNow()
+  // A replaced tab keeps its id, so its pane still shows the killed session: attach to the new one.
+  if (args.replaceTab) await termFor(streamKey(taskId, tabId))?.reattach()
   model.select(taskId, tabId)
+}
+
+/** "New shell" under Ungrouped: a Scratch shell task, which is its own row, then selected. */
+export async function openScratchShell(model: AppModel): Promise<void> {
+  const made = await model.client.request<{ taskId: string }>("task.openScratch", {})
+  await openTab(model, made.taskId, { kind: "shell" })
 }

@@ -7,6 +7,7 @@
 
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
@@ -15,6 +16,8 @@ import {
   copyTaskFieldFlow,
   cycleVendorFlow,
   deleteTaskFlow,
+  forgetProjectFlow,
+  moveToProjectFlow,
   pickVendorFlow,
   renameTaskFlow,
   setStatusFlow,
@@ -24,6 +27,7 @@ import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { FieldNotesDialog } from "../component/field-notes-dialog"
+import { ProjectPickerDialog } from "../component/project-picker-dialog"
 import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
@@ -50,6 +54,8 @@ export type WorkspaceTaskActionDeps = {
   activateTask: (id: string) => Promise<void>
   /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
+  /** Close every tab of a task whose row stays (a project main's ended conversation). */
+  closeTaskTabs?: (taskId: string) => void
   /** New-task dialog with a first message: create the task and run its engine on it. */
   startWithPrompt?: CreateTaskContext["startWithPrompt"]
 }
@@ -57,6 +63,8 @@ export type WorkspaceTaskActionDeps = {
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  /** Project-header menu "Remove project": un-save the repo; the main row's own delete ends its conversation instead. */
+  forgetProject: (id: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
@@ -70,6 +78,8 @@ export type WorkspaceTaskActions = {
   moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
+  /** Tree-menu "Move to project…": a picker over the other saved projects; regroups only. */
+  moveToProject: (id: string) => Promise<void>
   /** Tree-menu "Copy task ID" / "Copy tab address" / "Copy branch name" / "Copy path" — system clipboard + toast. */
   copyTaskField: (id: string, field: TaskCopyField, tabId?: string) => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
@@ -106,6 +116,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     }),
     // Pickers are adapters so the flows stay opentui-free.
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
+    pickProject: (projects) => ProjectPickerDialog.show(dialog, { projects }),
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
     startWithPrompt: deps.startWithPrompt,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
@@ -122,6 +133,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
         moveSelection(taskId, nextTask)
       }
     })(),
+    onConversationEnded: (taskId) => deps.closeTaskTabs?.(taskId),
   }
 
   async function togglePin(id: string): Promise<void> {
@@ -148,7 +160,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   // before opening a picker that could only end in an error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
-    if (!task || task.kind === "main" || task.kind === "dir") return
+    if (!task || !workspaceCapabilities(task).ownsBranch) return
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {
@@ -231,6 +243,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     rerunChecks,
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
+    forgetProject: (id) => forgetProjectFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
@@ -243,6 +256,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     moveTask,
     moveTaskToTop,
     setStatus: (id) => setStatusFlow(taskActions, id),
+    moveToProject: (id) => moveToProjectFlow(taskActions, id),
     copyTaskField: (id, field, tabId) => {
       void copyTaskFieldFlow(taskActions, id, field, tabId)
     },

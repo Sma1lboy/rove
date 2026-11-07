@@ -47,7 +47,6 @@ import {
   selectTab,
   setTabSessionId,
   setTabSplit,
-  splitLeafPtyKey,
   tabCwdFor,
   tabPtyKeyFor,
 } from "../../tui/workspace/terminal-tabs-core"
@@ -64,19 +63,21 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit } from "./TerminalSplit"
-import type { ChildSpawnRequest } from "./quick-fork"
+import { activeLeafCells } from "./active-leaf-size"
+import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
 import { noteAnswerInput } from "./row-status-sync"
 import { showSharedFilesHint } from "./shared-files-hint"
 import { TabStrip } from "./tab-strip"
 import { ensureTabReservation, releaseTabReservation, tabsLoaded, taskTabsView } from "./tabs-sync"
 import { terminalTabsKey } from "./terminal-tabs-persist"
 import { engineScratchTasks, reportTabsDelta, setTaskTabs, tabsByTask, tabsRevision } from "./terminal-tabs-shared"
-import { useEngineExit } from "./use-engine-exit"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
 import { useTabHydration, useTabNaming } from "./use-tab-lifecycle"
+import { useTabNotices } from "./use-tab-notices"
 import { useTabRequests } from "./use-tab-requests"
+import { useTabStripMenu } from "./use-tab-strip-menu"
 import { useTabTurnState } from "./use-tab-turn-state"
 
 export interface TerminalTabsProps {
@@ -114,7 +115,7 @@ export interface TerminalTabsProps {
   /** A second conversation here (ctrl+t, the picker, the sidebar): the host spawns a child sharing this directory. */
   onSpawnChild?: (request: ChildSpawnRequest) => void
   /** Quick-fork submitted: parent creates the child in `repo` (the source's main repo root). */
-  onQuickFork?: (repo: string, result: QuickTaskResult) => void
+  onQuickFork?: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   /** Prompt for the first engine tab, riding its FIRST spawn's argv only. */
   initialPrompt?: string
   /** Daemon per-tab `engine-state`; wins over the quiescence poll. */
@@ -199,15 +200,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const updateRef = useLatest(update)
 
-  /** Focused-leaf emulator cells for split-core's size gate; null → depth-cap fallback. */
-  const activeLeafSize = (): { cols: number; rows: number } | null => {
-    const s = stateRef.current
-    const tab = s.tabs.find((x) => x.id === s.activeId)
-    if (!tab) return null
-    const leafId = tab.splitTree?.activeLeafId ?? "leaf-1"
-    const key = splitLeafPtyKey(tabPtyKeyFor(propsRef.current.taskId, tab), leafId)
-    return getDefaultPtyRegistry().get(key)?.size ?? null
-  }
+  const activeLeafSize = () => activeLeafCells(stateRef.current, propsRef.current.taskId)
   const activeLeafSizeRef = useLatest(activeLeafSize)
 
   /** Supplies IO reads to the pure `engineTabSpawnFor`. */
@@ -320,13 +313,16 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // The mount-only pending-close listener reads the CURRENT hook via ref.
   const tabCloseRef = useLatest(tabClose)
 
-  const { requestRename, requestNewChat, newConversation } = useTabDialogs({
+  // The dead-engine strip is derived after the dialogs it opens; a handoff reads whether it shows through this ref.
+  const engineDeadRef = useRef(false)
+  const { requestRename, requestNewChat, newConversation, newShell } = useTabDialogs({
     dialog,
     t,
     state,
     active,
     vendor: props.vendor,
     taskId: props.taskId,
+    taskTitle: props.taskTitle,
     worktree: props.worktree,
     liveTitles,
     update,
@@ -338,16 +334,19 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     onQuickFork: props.onQuickFork,
     onOpenScratch: props.onOpenScratch,
     notifyError: (title) => notif.notify({ kind: "error", taskId: props.taskId, tabId: active.id, title }),
+    sourceDead: () => engineDeadRef.current,
+    restartActive: tabClose.retryActive,
   })
 
-  const engineExit = useEngineExit({
+  const { engineExit, usageLimit } = useTabNotices({
     taskId: props.taskId,
     tab: active,
     hook: props.hookTabStates?.get(active.id),
     retry: tabClose.retryActive,
-    anotherEngine: () => requestNewChat(),
+    requestNewChat,
     onOpenSettings: props.onOpenSettings,
   })
+  engineDeadRef.current = engineExit !== undefined
 
   /** What ctrl+t and the sidebar's "New conversation" run. Always CONCRETE: an
    *  "inherit" mode would let a later task-vendor switch re-target every earlier conversation. */
@@ -361,6 +360,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     return newConversation(vendor)
   }
   const openNewConversationRef = useLatest(openNewConversation)
+  const openNewShellRef = useLatest(newShell)
+  const continueInEngineRef = useLatest(() => requestNewChat({ context: "continue" }))
 
   // Cross-component tab requests. Declared AFTER the dialogs hook so the
   // conversation opener exists to hand over.
@@ -371,6 +372,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     tabCloseRef,
     activeLeafSizeRef,
     openNewConversationRef,
+    openNewShellRef,
+    continueInEngineRef,
   })
 
   useBindings(() => ({
@@ -410,8 +413,18 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     }),
   }))
 
+  const tabMenu = useTabStripMenu({
+    taskId: props.taskId,
+    tabs: state.tabs,
+    activeId: state.activeId,
+    select: (tabId) => update(selectTab(stateRef.current, tabId)),
+    rename: requestRename,
+    continueEngine: () => requestNewChat({ context: "continue" }),
+    closeActive: () => tabClose.closeActive(),
+  })
+
   return (
-    <box flexDirection="column" flexGrow={1}>
+    <box ref={tabMenu.anchorRef} flexDirection="column" flexGrow={1}>
       {/* Tab strip — flush to the pane edge, dense; hides itself for a lone
           tab only when the Settings → Terminal toggle asks it to. */}
       <TabStrip
@@ -419,6 +432,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         tabs={state.tabs}
         activeId={state.activeId}
         onSelect={(tabId) => update(selectTab(state, tabId))}
+        onContextMenu={tabMenu.openForTab}
         vendor={props.vendor}
         liveTitles={liveTitles}
         turnVendors={turnVendors}
@@ -462,6 +476,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           onUserInput={active.kind === "engine" ? (data) => noteAnswerInput(data, props.taskId, active.id) : undefined}
           splitTree={active.splitTree ?? null}
           engineExit={engineExit}
+          usageLimit={usageLimit}
           onSplitChange={(next) => update(setTabSplit(state, active.id, next))}
           onExit={tabClose.handleActiveExit}
           resetToken={resetToken}
@@ -471,6 +486,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           engineTitle={active.title ?? active.autoTitle ?? null}
         />
       )}
+      {tabMenu.overlay}
     </box>
   )
 }

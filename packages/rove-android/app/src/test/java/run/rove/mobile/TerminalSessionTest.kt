@@ -74,4 +74,9 @@ class TerminalSessionTest {
             }
         } }
     }
+    @Test fun arrowKeysFollowApplicationCursorMode() {
+        assertEquals(true, run.rove.mobile.ui.CursorKeys.isArrow("\u001b[A"))
+        assertEquals(false, run.rove.mobile.ui.CursorKeys.isArrow("\u001b[Z"))
+        assertEquals("\u001bOD", run.rove.mobile.ui.CursorKeys.applicationMode("\u001b[D"))
+    }
 }

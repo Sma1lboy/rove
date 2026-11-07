@@ -1,6 +1,6 @@
 # Routines
 
-Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
+Work that runs without you. A **Routine** is a cron rule + a prompt + a repo (or no repo),
 owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
 with its own worktree, its own branch, and its own engine session, carrying the
 prompt as that session's first message. A routine that needs to remember what it
@@ -85,6 +85,29 @@ fires: a path that is not a git repository, or a base ref that does not resolve
 in it, is refused with a message naming the value. The check is not a guarantee
 — a repo deleted after the routine was saved still fails at 03:00 — it just
 catches the typo while you are still at the keyboard.
+
+### A routine with no project
+
+Not every scheduled prompt belongs to a repo ("summarize my inbox", "check the
+weather"). `--no-repo` (instead of `--repo`) makes a routine with no project:
+
+```bash
+rove api routine-create --no-repo --name "Morning brief" \
+  --schedule "0 9 * * *" --prompt "Summarize what I should look at today."
+```
+
+Exactly one of `--repo` and `--no-repo` is required, so a forgotten `--repo` is
+an error, not a quiet repo-less routine. Every run works in the routine's own
+directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
+before a run if it went missing), and its session is a directory task: no
+worktree, no branch, nothing to land. Those sessions sit in the sidebar's
+**Ungrouped** group, next to your Scratch shells, and fold behind that group's
+routines row like a project's. The precheck and `--script`
+run in the same directory. There is no `--base-branch`, there is no
+switching a routine between a repo and no project after it is saved (create
+a replacement), and `--target-task` still works: it only needs the task to
+exist. The default engine skips the per-repo layer: `--vendor`, else the
+built-in default.
 
 `--model` and `--effort` pin what every run's engine launches on, the same
 values `rove api add` takes. They are checked when the routine is saved, so an
@@ -222,11 +245,13 @@ into a prompt routine (pass `--prompt` in the same call).
 
 ## Tell me on WeChat
 
-`--notify` (on create or update) pushes every run's response, and every run
-that needs a human, to the bound chat channel. For a script routine that is
-its stdout; for an engine routine, the summary the agent reports. Bind the
+`--notify` (on create or update) hands every run's response, and every run
+that needs a human, to your WeChat agent, headed `[Routine <name> #<run>]`.
+For a script routine that is its stdout; for an engine routine, the summary
+the agent reports. Rove does not post it to WeChat itself: the WeChat agent
+decides whether it is worth telling you and writes the message. Bind the
 channel first with `rove weixin login` ([WeChat](WEIXIN.md)). Only runs that
-finish after the daemon starts are pushed.
+finish after the daemon starts are handed over.
 
 ## What each run did
 
@@ -265,6 +290,13 @@ creates a fresh task has no prior state; it is skipped only when the
 engine's cached quota snapshot already says the window is exhausted (the
 daemon never fetches vendor usage for this), and the check is skipped
 when the quota is unknown. `run now` bypasses the check, like the precheck.
+
+An engine turn that fails because the connection dropped or the provider
+returned a 5xx (`Unable to connect`, `503`) does not stop the routine: the
+next scheduled firing goes ahead and is the retry. Any other failure still
+holds the next firing until you look (dismiss the Inbox row or `run now`).
+Either way the Routines page shows the newest failure under the routine
+(`last failed 3h ago: …`), so an outage that healed itself is still visible.
 
 `dispatched` means the engine PROCESS was seen running — not that the terminal
 opened. An engine whose launch command points at something that is not there
@@ -411,11 +443,13 @@ one branch is a branch nobody can merge.
 
 ### Where its output goes
 
-The standing task does not sit in your sidebar as another row. It rests behind a
+A routine's tasks do not sit in your sidebar as more rows: the standing task, and
+every fresh run's task. They rest behind a
 **`N routine sessions`** count row under its project — press `enter` on that row
 to open it and see them, `enter` again to close. Seven daily routines would
 otherwise be forty-nine rows a week competing with the handful of tasks you
-opened yourself.
+opened yourself. The web rail leaves them out entirely; open a run from its
+Routines page, where a click on a recent run opens its session.
 
 Hidden at rest is not hidden: the task is still found by `/` search, still opens
 from the Routines page (`enter` on the routine), and still raises an **Inbox**

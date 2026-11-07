@@ -14,11 +14,19 @@ import { attachableFiles, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
+import { useStore } from "./store.ts"
+import { TermComposer } from "./term-composer.tsx"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
-import { type Notice, SCROLL_PAGE_LINES, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
+import { TermKeyRow } from "./term-key-row.tsx"
+import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
+import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
-import { TermSearchBar } from "./term-search.tsx"
+import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
+import { quoteSelection } from "./term-quote.ts"
 import { dialog, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_QUOTE, TERM_SCROLLED } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 
 export interface TerminalViewProps {
   readonly client: BridgeClient
@@ -29,12 +37,16 @@ export interface TerminalViewProps {
   readonly leafId?: string
   /** The tab's engine ended inside a still-running shell: the strip offers the way forward. */
   readonly engineExit?: EngineExit | null
+  /** The tab's engine reports a usage limit (its activity is `rate_limited`, since this stamp): the strip offers the way forward. */
+  readonly usageLimit?: { readonly since: number } | null
   /** Take keyboard focus now (a new split, F3); the first mount of a tab takes it too. */
   readonly focused?: boolean
   /** The terminal took focus: the owner of the split marks this pane active. */
   readonly onActivate?: () => void
   /** The pane's process ended. */
   readonly onExit?: () => void
+  /** An engine's own session: a touch screen gets a message composer under it. */
+  readonly composer?: boolean
 }
 
 /** A dropped image or PDF is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
@@ -93,12 +105,14 @@ async function copyText(text: string): Promise<boolean> {
 
 export function TerminalView(props: TerminalViewProps) {
   const { client, taskId, tabId, leafId } = props
+  // The daemon's own `?` for this tab: its engine waits at a menu the key row answers.
+  const atMenu =
+    useStore(props.model.tasks)?.tasks.find((t) => t.id === taskId)?.tabStatus?.[tabId]?.kind === "needs-input"
   useLocale()
   const host = useRef<HTMLDivElement>(null)
   const [notice, setNotice] = useState<Notice>({ kind: "none" })
   const [handle, setHandle] = useState<TermHandle | null>(null)
   const [scrolled, setScrolled] = useState(0)
-  const [searching, setSearching] = useState(false)
   const [revive, setRevive] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null })
   // Callbacks change every render; the mount (which runs once per session) reads the latest.
   const latest = useRef(props)
@@ -107,45 +121,60 @@ export function TerminalView(props: TerminalViewProps) {
   useEffect(() => {
     const el = host.current
     if (!el) return
-    let mounted: TermHandle | null = null
+    let leased: Leased | null = null
     let cancelled = false
-    // The WebGL glyph atlas is cut from whatever font is resolved when the renderer loads;
-    // before JetBrains Mono arrives that atlas paints nothing.
-    void Promise.allSettled([document.fonts.load('13px "JetBrains Mono"'), document.fonts.ready]).then(() => {
+    // The WebGL glyph atlas is cut from the font resolved when the renderer loads: before JetBrains
+    // Mono arrives it paints nothing. The 1.2 MB symbols face is not awaited; term-mount redraws when it lands.
+    const fonts = [document.fonts.load('13px "JetBrains Mono"'), document.fonts.load('bold 13px "JetBrains Mono"')]
+    // Canvas text never asks for a unicode-range face, so start it here: a powerline glyph, not a space.
+    void document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)).catch(() => {})
+    const mount = () => {
       if (cancelled) return
-      mounted = mountTerminal({
-        client,
-        el,
-        taskId,
-        tabId,
-        leafId,
-        setNotice,
-        onScrolled: setScrolled,
-        onFocusChange: (focused) => {
-          if (!mounted) return
-          if (focused) {
-            latest.current.onActivate?.()
-            focusedTerm.set(termFor(mounted.stream) ?? null)
-          } else if (focusedTerm.get()?.stream === mounted.stream) focusedTerm.set(null)
+      leased = leaseTerminal(
+        { client, host: el, taskId, tabId, leafId, focusOnMount: latest.current.focused !== false },
+        {
+          setNotice,
+          onScrolled: setScrolled,
+          onFocusChange: (focused) => {
+            if (!leased) return
+            const { stream } = leased.handle
+            if (focused) {
+              latest.current.onActivate?.()
+              focusedTerm.set(termFor(stream) ?? null)
+            } else if (focusedTerm.get()?.stream === stream) focusedTerm.set(null)
+          },
+          onExit: () => {
+            if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
+          },
+          copyText,
+          pasteImage: async () => {
+            if (leased) await pasteClipboardImage(client, leased.handle)
+          },
         },
-        onExit: () => {
-          if (!exitIsReset(streamKey(taskId, tabId, leafId))) latest.current.onExit?.()
-        },
-        copyText,
-        pasteImage: async () => {
-          if (mounted) await pasteClipboardImage(client, mounted)
-        },
-        focusOnMount: latest.current.focused !== false,
-      })
-      setHandle(mounted)
-    })
+      )
+      setHandle(leased.handle)
+    }
+    // A parked terminal already has its fonts and atlas: show it in this frame.
+    if (hasParked(client, taskId, tabId, leafId)) mount()
+    else void Promise.allSettled(fonts).then(mount)
     return () => {
       cancelled = true
       setHandle(null)
-      setSearching(false)
-      mounted?.dispose()
+      leased?.release()
     }
   }, [client, taskId, tabId, leafId])
+
+  // The quote action shows while something is selected.
+  const [selected, setSelected] = useState(false)
+  useEffect(() => {
+    if (!handle) return
+    setSelected(handle.term.hasSelection())
+    const sub = handle.term.onSelectionChange(() => setSelected(handle.term.hasSelection()))
+    return () => {
+      sub.dispose()
+      setSelected(false)
+    }
+  }, [handle])
 
   // The control other parts of the page drive: palette, F1 keys, split commands.
   useEffect(() => {
@@ -154,6 +183,8 @@ export function TerminalView(props: TerminalViewProps) {
     const control = {
       stream,
       focus: () => term.focus(),
+      input: (data: string) => term.input(data, true),
+      reattach: () => handle.reattach(),
       scrollPages: (direction: 1 | -1) => handle.scrollLines(direction * SCROLL_PAGE_LINES),
       hasSelection: () => term.hasSelection(),
       copySelection: () => {
@@ -163,7 +194,6 @@ export function TerminalView(props: TerminalViewProps) {
         term.clearSelection()
         return true
       },
-      openSearch: () => setSearching(true),
       reset: () => {
         // Snapshot at the keypress: a tab switch while the confirm is open must not reset the wrong shell.
         const size = { cols: term.cols, rows: term.rows }
@@ -210,6 +240,9 @@ export function TerminalView(props: TerminalViewProps) {
   // The exit a successful retry answered stays hidden until the daemon marks a new one.
   const [answered, setAnswered] = useState<number | null>(null)
   const answeredExit = props.engineExit?.since === answered
+  // A dismissed limit stays hidden until the engine reports a new one.
+  const [dismissedLimit, setDismissedLimit] = useState<number | null>(null)
+  const usageLimit = props.usageLimit && props.usageLimit.since !== dismissedLimit ? props.usageLimit : null
   const reopening = useRef(false)
   const reopen = async (mounted: TermHandle, restartExited: boolean): Promise<void> => {
     // A second click before the first settles would run two reattaches over one stream.
@@ -231,7 +264,7 @@ export function TerminalView(props: TerminalViewProps) {
 
   return (
     <div
-      className="term-pane"
+      className={TERM_PANE}
       data-stream={streamKey(taskId, tabId, leafId)}
       onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
       onDrop={(e) => {
@@ -251,36 +284,44 @@ export function TerminalView(props: TerminalViewProps) {
         void (files.length > 0 ? dropFiles(client, handle, files) : pasteClipboardImage(client, handle))
       }}
     >
-      <div className="term-host" ref={host} />
-      <TermNotice
-        notice={notice}
-        engineExit={answeredExit ? null : (props.engineExit ?? null)}
-        model={props.model}
-        taskId={taskId}
-        revive={revive}
-        onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
-        onRetryAttach={handle ? () => void handle.reattach() : undefined}
-      />
-      {scrolled > 0 && !searching && handle && (
-        <div className="term-scrolled mono">
-          <span className="tone-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
-          <button type="button" className="link tone-info" onClick={() => handle.scrollToTop()}>
-            {terminalText("scrollFirst")}
-          </button>
-          <button type="button" className="link tone-info" onClick={() => handle.scrollToBottom()}>
-            {terminalText("scrollLatest")}
-          </button>
-        </div>
-      )}
-      {searching && handle && (
-        <TermSearchBar
-          handle={handle}
-          onClose={() => {
-            setSearching(false)
-            handle.term.focus()
-          }}
+      <div className={TERM_BODY}>
+        <div className={TERM_HOST} ref={host} />
+        <TermNotice
+          notice={notice}
+          engineExit={answeredExit ? null : (props.engineExit ?? null)}
+          model={props.model}
+          taskId={taskId}
+          tabId={tabId}
+          revive={revive}
+          onReopen={ownSession && handle ? (restartExited) => void reopen(handle, restartExited) : undefined}
+          onRetryAttach={handle ? () => void handle.reattach() : undefined}
+          usageLimit={usageLimit !== null}
+          onDismissLimit={usageLimit ? () => setDismissedLimit(usageLimit.since) : undefined}
         />
-      )}
+        {selected && props.composer && handle && (
+          <Button
+            variant="floating"
+            className={TERM_QUOTE}
+            title={t("quote.title")}
+            onClick={() => quoteSelection(handle, taskId, tabId, atMenu)}
+          >
+            {t("quote.action")}
+          </Button>
+        )}
+        {scrolled > 0 && handle && (
+          <div className={`mono ${TERM_SCROLLED}`}>
+            <span className="text-warning">{terminalText("scrolledBack", { lines: scrolled })}</span>
+            <button type="button" className={LINK} onClick={() => handle.scrollToTop()}>
+              {terminalText("scrollFirst")}
+            </button>
+            <button type="button" className={LINK} onClick={() => handle.scrollToBottom()}>
+              {terminalText("scrollLatest")}
+            </button>
+          </div>
+        )}
+      </div>
+      {props.composer && <TermComposer model={props.model} taskId={taskId} tabId={tabId} />}
+      {handle && <TermKeyRow handle={handle} atMenu={atMenu} />}
     </div>
   )
 }

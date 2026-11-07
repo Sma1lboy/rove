@@ -6,7 +6,7 @@
  */
 
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
-import type { DispatchSnapshot, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
@@ -64,16 +64,34 @@ export function selectedRow(payload: TasksPayload | null, taskId: string | null)
   return payload?.tasks.find((row) => row.id === taskId) ?? payload?.archived?.find((row) => row.id === taskId)
 }
 
+/**
+ * Where the selection goes once the open task stops being live (archived, being deleted, gone),
+ * as the TUI moves off a deleting task: the latest visit that is still live, else no task.
+ * Null = stay put. Only the change counts, so an archived task opened from the fold stays open.
+ */
+export function selectionAfterLeave(
+  before: readonly TaskRow[],
+  after: readonly TaskRow[],
+  selected: Selection,
+  visits: readonly Visit[],
+): Selection | null {
+  const live = (rows: readonly TaskRow[], id: string) => rows.some((task) => task.id === id && !task.deleting)
+  const id = selected.taskId
+  if (id === null || !live(before, id) || live(after, id)) return null
+  const back = visits.find((visit) => visit.taskId !== id && live(after, visit.taskId))
+  return back ? { taskId: back.taskId, tabId: back.tabId } : { taskId: null, tabId: null }
+}
+
 export class AppModel {
   /** This Mac's rows only: every action and page reads these, so nothing aims a verb at another machine's task. */
   readonly tasks: Store<TasksPayload | null> = createStore<TasksPayload | null>(null)
   /** Other registered machines' rows (`machine` set): listed under their header, read-only, as the TUI. */
   readonly remote: Store<readonly TaskRow[]> = createStore<readonly TaskRow[]>([])
   readonly tabs: Store<Readonly<Record<string, readonly TabRow[]>>> = createStore({})
+  /** The first tab sweep has answered (or failed) for every task: an absent entry now means a failed read, not one still on its way. */
+  readonly tabsSettled: Store<boolean> = createStore(false)
   /** Every open mod pane, re-validated from the `mods` push (the bridge sends it on connect). */
   readonly mods: Store<readonly ModPaneView[]> = createStore<readonly ModPaneView[]>([])
-  /** The daemon's dispatch ledger, as the bridge last pushed it; null until it does (or the daemon has none). */
-  readonly dispatches: Store<DispatchSnapshot | null> = createStore<DispatchSnapshot | null>(null)
   /** First-party mods (Kanban, Issues) installed on this machine; none until `builtinMods.list` answers. */
   readonly installedMods: Store<ReadonlySet<string>> = createStore<ReadonlySet<string>>(new Set())
   readonly selection: Store<Selection> = createStore(loadSelection())
@@ -91,6 +109,9 @@ export class AppModel {
   private readonly provisioning = new Map<string, { intent: number; tabId: string | null }>()
   /** What this socket last reported as shown (`ui.viewing`); a fresh socket has reported nothing. */
   private viewingSent = NOTHING_SHOWN
+  private taskShown = true
+  /** The page's side-panel layout, sent beside the task in every report (`panel-report.ts` fills it in). */
+  viewingExtras: () => Readonly<Record<string, boolean>> = () => ({})
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
@@ -117,11 +138,6 @@ export class AppModel {
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
     client.on("tabs", () => this.scheduleTabRefresh())
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
-    client.on("dispatch", (data) => {
-      if (data && typeof data === "object" && "rows" in data && Array.isArray(data.rows)) {
-        this.dispatches.set(data as DispatchSnapshot)
-      }
-    })
   }
 
   async refreshMods(): Promise<void> {
@@ -133,7 +149,18 @@ export class AppModel {
     }
   }
 
+  /** Called on every explicit pick (not a closed tab's fallback): a phone turns from its list to the task. */
+  onSelect: () => void = () => {}
+
+  /** False while the task panel is out of sight (a phone on its list): nothing counts as looked at. */
+  setTaskShown(shown: boolean): void {
+    if (this.taskShown === shown) return
+    this.taskShown = shown
+    this.reportViewing()
+  }
+
   select(taskId: string, tabId: string | null = null): void {
+    this.onSelect()
     const intent = ++this.selectIntent
     // As the TUI's `activateWorkspaceTask`: a task with no worktree yet is materialized first,
     // and selected only once that worked.
@@ -163,12 +190,14 @@ export class AppModel {
 
   /**
    * Tell the daemon what this page shows (`ui.viewing`): the selected task and tab while the page
-   * is visible, nothing once it is hidden or leaving. A tab being looked at never shows unseen.
+   * is visible, nothing once it is hidden or leaving, plus how its side panel is laid out
+   * (`viewingExtras`). A tab being looked at never shows unseen. A change of the layout alone reports again.
    */
-  private reportViewing(leaving = false): void {
+  reportViewing(leaving = false): void {
     const { taskId, tabId } = this.selection.get()
     const hidden = leaving || (typeof document !== "undefined" && document.visibilityState === "hidden")
-    const shown = hidden || !taskId ? null : { taskId, ...(tabId ? { tabId } : {}) }
+    const shown =
+      hidden || !taskId || !this.taskShown ? null : { taskId, ...(tabId ? { tabId } : {}), ...this.viewingExtras() }
     const key = JSON.stringify(shown)
     if (key === this.viewingSent) return
     this.viewingSent = key
@@ -233,8 +262,16 @@ export class AppModel {
   }
 
   private acceptTasks(payload: TasksPayload): void {
+    const before = [...(this.tasks.get()?.tasks ?? []), ...this.remote.get()]
     this.remote.set(payload.tasks.filter((task) => task.machine))
     this.tasks.set({ ...payload, tasks: payload.tasks.filter((task) => !task.machine) })
+    const left = selectionAfterLeave(before, payload.tasks, this.selection.get(), this.visits.get())
+    if (left?.taskId) this.commitSelection(left.taskId, left.tabId)
+    else if (left) {
+      this.selection.set(left)
+      localStorage.setItem(SELECTION_KEY, JSON.stringify(left))
+      this.reportViewing()
+    }
     if (this.pendingSelect && payload.tasks.some((task) => task.id === this.pendingSelect)) {
       this.select(this.pendingSelect)
       this.pendingSelect = null
@@ -271,6 +308,7 @@ export class AppModel {
       }),
     )
     if (sweep !== this.tabSweep) return
+    if (!this.tabsSettled.get()) this.tabsSettled.set(true)
     const kept = new Set(live.map((task) => task.id))
     this.tabs.set(Object.fromEntries(Object.entries(this.tabs.get()).filter(([id]) => kept.has(id))))
   }
@@ -285,6 +323,6 @@ export class AppModel {
 }
 
 /** The tab a bare task click opens: the first live one, else the first. */
-function preferredTab(tabs: readonly TabRow[]): TabRow | undefined {
+export function preferredTab(tabs: readonly TabRow[]): TabRow | undefined {
   return tabs.find((tab) => tab.alive !== false) ?? tabs[0]
 }

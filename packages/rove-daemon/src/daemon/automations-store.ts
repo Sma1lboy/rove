@@ -61,7 +61,7 @@ function normalizeAutomation(value: unknown): Automation | null {
   const schedule = str(raw.schedule)
   const nextRunAt = str(raw.nextRunAt)
   const script = readTimedCommand(raw.script)
-  if (!id || !name || !repo || !(prompt || script) || !schedule || !nextRunAt) return null
+  if (!id || !name || !(prompt || script) || !schedule || !nextRunAt) return null
   if (!Number.isFinite(Date.parse(nextRunAt))) return null
 
   let target: Automation["target"]
@@ -79,7 +79,7 @@ function normalizeAutomation(value: unknown): Automation | null {
   return {
     id,
     name,
-    repo,
+    ...(repo ? { repo } : {}),
     prompt: prompt ?? "",
     schedule,
     nextRunAt,

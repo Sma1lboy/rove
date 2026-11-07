@@ -9,12 +9,14 @@
 
 import { hostname } from "node:os"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import {
   type ApiEnvelope,
   type ApiParams,
   ROVE_API_VERSION,
   type SerializedTask,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { recordSend } from "../cli/api/dispatcher.ts"
 import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
 import { getSavedRepos } from "../state/repos.ts"
@@ -237,12 +239,14 @@ export async function forwardVerb(
       })
       if (published.ok || published.error.code !== "UNKNOWN_VERB") return published
     }
-    return await client.request<ApiEnvelope>("api.invoke", {
+    const envelope = await client.request<ApiEnvelope>("api.invoke", {
       verb,
       params: repo.params,
       forwarded: true,
       from: hostname(),
     })
+    await recordHere(verb, params, envelope)
+    return envelope
   } catch (err) {
     const message = errorMessage(err)
     if (/unknown daemon request:/i.test(message)) return tooOld(entry.alias)
@@ -252,6 +256,41 @@ export async function forwardVerb(
     })
   } finally {
     client.close()
+  }
+}
+
+/**
+ * A prompt handed to another machine's task lands in THAT daemon's dispatch ledger; record it in
+ * this one's too, so this machine's Dispatch view draws the wire into the machine it went to.
+ */
+async function recordHere(verb: string, params: ApiParams, envelope: ApiEnvelope): Promise<void> {
+  if ((verb !== "send" && verb !== "dispatch") || !envelope.ok || typeof params.prompt !== "string") return
+  const sent = envelope.result as {
+    taskId?: unknown
+    childTaskId?: unknown
+    session?: unknown
+    tabId?: unknown
+    delivered?: unknown
+  }
+  const taskId = typeof sent.childTaskId === "string" ? sent.childTaskId : sent.taskId
+  if (typeof taskId !== "string") return
+  const tabId =
+    typeof sent.tabId === "string"
+      ? sent.tabId
+      : typeof sent.session === "string"
+        ? sent.session.split("::")[1]
+        : undefined
+  const local = await connectIfRunning().catch(() => null)
+  if (!local) return
+  try {
+    await recordSend(local, {
+      taskId,
+      ...(tabId ? { tabId } : {}),
+      prompt: params.prompt,
+      delivered: sent.delivered === true,
+    })
+  } finally {
+    local.close()
   }
 }
 

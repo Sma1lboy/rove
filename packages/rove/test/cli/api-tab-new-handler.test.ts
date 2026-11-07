@@ -1,4 +1,4 @@
-/** `tab-new --kind engine`: a task's first conversation is its own tab-1, a later one a shared child; a shell stays a tab. */
+/** `tab-new`: an engine takes the first conversation's own tab-1 or becomes a shared child; a shell is always its own child row (an Ungrouped task's shell is the task). */
 
 import { describe, expect, it } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
@@ -166,27 +166,78 @@ describe("tab-new handler", () => {
     expect(client.requests.find((r) => r.name === "task.delete")?.payload).toEqual({ taskId: "kid" })
   })
 
-  it("--kind shell still opens a tab on the task itself", async () => {
+  it("--kind shell opens a shared child task whose own tab-1 is the shell", async () => {
+    const child = taskFixture({ id: "kid", parentTaskId: "abc", sharesWorkspaceOf: "abc", worktreePath: "/wt/abc" })
     const client = new FakeClient({
-      "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
-      "terminalTab.add": () => ({ clients: 1 }),
+      "task.get": () => ({ task: taskFixture({ id: "abc", worktreePath: "/wt/abc" }) }),
+      "task.spawn": () => ({ taskId: "kid", task: child, parentDirty: false, sharedLinks: [] }),
     })
-    const targets: string[] = []
+    const calls: Array<{ id: string; kind: string; home?: boolean }> = []
     const result = await invokeVerb("tab-new", ["--task-id", "abc", "--kind", "shell"], {
       client,
       runtime: stubRuntime({
-        openTab: async (_client, target) => {
-          targets.push(target.id)
+        openTab: async (_client, target, kind, opts) => {
+          calls.push({ id: target.id, kind, home: opts?.home })
           return {
-            tab: { kind: "command", id: "tab-2", title: null, ordinal: 2, command: ["sh"] },
-            session: "abc::tab-2",
+            tab: { kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["sh"] },
+            session: `${target.id}::tab-1`,
           }
         },
       }),
     })
 
-    expect(targets).toEqual(["abc"])
+    expect(client.requests.find((r) => r.name === "task.spawn")?.payload).toMatchObject({
+      parentTaskId: "abc",
+      worktree: false,
+      title: "shell",
+    })
+    expect(calls).toEqual([{ id: "kid", kind: "shell", home: true }])
+    expect(result).toMatchObject({ ok: true, taskId: "abc", childTaskId: "kid", tabId: "tab-1", session: "kid::tab-1" })
+    expect(client.requestNames).not.toContain("terminalTab.add")
+  })
+
+  it("--kind shell on a fresh Ungrouped task is that task's own tab-1, no child", async () => {
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc", scratch: true }) }),
+      "tabs.get": () => ({ state: null, rev: 0 }),
+      "terminalTab.add": () => ({ clients: 1 }),
+    })
+    const calls: Array<{ id: string; home?: boolean }> = []
+    const result = await invokeVerb("tab-new", ["--task-id", "abc", "--kind", "shell"], {
+      client,
+      runtime: stubRuntime({
+        openTab: async (_client, target, _kind, opts) => {
+          calls.push({ id: target.id, home: opts?.home })
+          return {
+            tab: { kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["sh"] },
+            session: "abc::tab-1",
+          }
+        },
+      }),
+    })
+
+    expect(calls).toEqual([{ id: "abc", home: true }])
     expect(client.requestNames).not.toContain("task.spawn")
-    expect(result).toMatchObject({ ok: true, taskId: "abc", tabId: "tab-2" })
+    expect(result).toMatchObject({ ok: true, taskId: "abc", tabId: "tab-1", clients: 1 })
+    expect(result).not.toHaveProperty("childTaskId")
+  })
+
+  it("--kind shell that fails to start keeps the child it created and names it", async () => {
+    const child = taskFixture({ id: "kid", parentTaskId: "abc", sharesWorkspaceOf: "abc", worktreePath: "/wt/abc" })
+    const client = new FakeClient({
+      "task.get": () => ({ task: taskFixture({ id: "abc", worktreePath: "/wt/abc" }) }),
+      "task.spawn": () => ({ taskId: "kid", task: child, parentDirty: false, sharedLinks: [] }),
+    })
+    const err = await invokeVerb("tab-new", ["--task-id", "abc", "--kind", "shell"], {
+      client,
+      runtime: stubRuntime({
+        openTab: async () => {
+          throw new ApiError("pty host unreachable", "SESSION_FAILED")
+        },
+      }),
+    }).catch((e: unknown) => e)
+
+    expect(err).toMatchObject({ code: "SESSION_FAILED", data: { childTaskId: "kid" } })
+    expect(client.requestNames).not.toContain("task.delete")
   })
 })

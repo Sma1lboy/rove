@@ -20,7 +20,7 @@ class ContractTest {
     }
     @Test fun navigationStackSurvivesRotation() {
         val stack = listOf(run.rove.mobile.ui.Route.Settings, run.rove.mobile.ui.Route.Task("T1", "tab-2"),
-            run.rove.mobile.ui.Route.Task("T2"), run.rove.mobile.ui.Route.Board)
+            run.rove.mobile.ui.Route.Task("T2"), run.rove.mobile.ui.Route.Board, run.rove.mobile.ui.Route.Search)
         val saver = run.rove.mobile.ui.RouteStackSaver
         val flat = with(saver) { androidx.compose.runtime.saveable.SaverScope { true }.save(stack) }!!
         assertEquals(stack, saver.restore(flat))
@@ -79,6 +79,12 @@ class ContractTest {
         val file = files.files.first()
         val content = wireJson.decodeFromJsonElement<DiffContent>(fixture.answer("diff.file", args("taskId" to "T-WAIT", "path" to file.path, "scope" to file.scope)))
         assertTrue(content.text!!.contains("diff --git"))
+    }
+    @Test fun rowLabelNamesTheRowAndAnOlderBridgeFallsBack() {
+        val rows = """{"tasks":[{"id":"a","title":"first words","label":"Fix the login redirect"},{"id":"b","title":"first words"},{"id":"c","branch":"feat/x","label":""}]}"""
+        val tasks = wireJson.decodeFromString<Tasks>(rows).tasks
+        assertEquals(listOf("Fix the login redirect", "first words", "feat/x"), tasks.map { it.displayTitle })
+        assertEquals("first words", tasks[0].title)
     }
     @Test fun equalDemoAgesTieSoBoardOrderMatchesIos() {
         var clock = java.time.Instant.parse("2026-10-09T12:00:00.100Z")

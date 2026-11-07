@@ -74,7 +74,9 @@ describe("send --if-runnable", () => {
   }
   /** Only the claim/delivery traffic; `send` also reads the task, gates and activity. */
   const names = (client: FakeClient) =>
-    client.requests.map((r) => r.name).filter((n) => n.startsWith("send.") || n.startsWith("delivery."))
+    client.requests
+      .map((r) => r.name)
+      .filter((n) => n !== "send.check" && (n.startsWith("send.") || n.startsWith("delivery.")))
 
   it("a refused tick pastes nothing and exits through the skip payload", async () => {
     const client = sendClient(() => ({ skipped: BUSY }))

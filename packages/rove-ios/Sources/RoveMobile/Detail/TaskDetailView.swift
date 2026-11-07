@@ -45,7 +45,9 @@ struct TaskDetailView: View {
                     .padding(.horizontal, 20).padding(.vertical, 6)
             }
             if let session {
-                TerminalPane(session: session, engineName: selectedTab?.engineName)
+                TerminalPane(session: session, engineName: selectedTab?.engineName,
+                             atMenu: selectedTab.map { tabStates.glyph(taskId: taskId, tab: $0) == .needsInput } ?? false,
+                             isEngine: selectedTab?.kind == "engine")
                     .id(session.tabId)
             } else {
                 noTabState

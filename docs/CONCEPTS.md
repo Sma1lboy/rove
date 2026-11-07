@@ -24,13 +24,18 @@ the same directory. Only managed tasks get Rove-created branch/worktree
 isolation; project-main and directory tasks deliberately reuse directories you
 already own.
 
+A **New shell** from a Task row is not a Scratch shell: it is a child Task sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+
 **Scratch shells** are directory Tasks with an unsettled home: press `tab` in
 the `ctrl+e` new-conversation dialog until the destination reads "new scratch
 task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 `$HOME` with that engine already running. It
-lives in the sidebar's Scratch section above every project, and follows a
+lives in the sidebar's **Ungrouped** group above every project, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
-confirm; nothing on disk is touched). A scratch row earns a permanent place
+confirm; nothing on disk is touched). Routines created with **Ungrouped**
+run in their own directory under `.rove/routines/` and their sessions land in
+the same group, in its routines row; they are not scratch shells and are never
+auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's
 settled directory and quietly migrates the row into that repository's project
@@ -102,15 +107,15 @@ dropping SSH, restarting the daemon: none of them touch it.
 > **One thing to watch:** a child that shares its parent's directory shares its
 > worktree, and Rove does not coordinate their writes. Two conversations editing
 > the same file at once will conflict. If you need real isolation, open a new
-> task or `spawn` a child with its own worktree.
+> task or `add --parent <this task>` a child with its own worktree.
 
 ## Terminal Tabs and engine sessions
 
 A Task is one engine conversation: its `tab-1`. A second conversation is a
 **child task**, shown under its parent in the sidebar. A child either shares
 the parent's directory (`ctrl+t`, `ctrl+e`, `send --tab new`,
-`spawn --no-worktree`) or gets its own worktree cut from the parent's branch tip
-(`spawn`). Deleting a parent promotes its children; `delete --cascade` removes
+`add --no-worktree`) or gets its own worktree cut from the parent's branch tip
+(`add` from a task's own session). Deleting a parent promotes its children; `delete --cascade` removes
 the subtree.
 
 A Task owns its Terminal Tabs. The engine tab runs an engine inside an
@@ -125,10 +130,13 @@ only when that wrapping shell exits or Rove explicitly closes it.
 
 **Closing the last tab is "done for now", not "forget".** Close every tab of a
 managed Task and its row stays in the sidebar; entering it again opens a fresh
-tab in the same worktree. Close every tab of a project whose only row is its
-main checkout (or of a directory Task) and the whole project leaves the
-sidebar, header and row together. Nothing is deleted: the main Task record and
-the saved repository both stay on disk. To bring it back, open New task
+tab in the same worktree. A project's main checkout row is listed only while it
+has a tab open, is selected, or has child Tasks under it: a tabless main row is
+not a row, and a project whose only row it was (or a directory Task with no tab)
+leaves the sidebar, header and row together. The project header and its other
+Tasks stay. Nothing is deleted: the main Task record and the saved repository
+both stay on disk, and `rove api send` to the main Task still works (its first
+tab brings the row back). To bring it back, open New task
 (`n`), pick the same repository, and choose "the project itself" instead of a
 new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
 (`d` on its row) is the separate, un-saving gesture.

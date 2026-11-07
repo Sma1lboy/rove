@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   CURRENT_VERSION,
   PACKAGE_NAME,
+  ZH_NOTES_ASSET,
   breakingVersionsCrossed,
   channelOf,
   checkLatestVersion,
@@ -59,6 +60,59 @@ describe("checkLatestVersion", () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("checkLatestVersion — update delay", () => {
+  beforeEach(clearDevEnv)
+
+  afterEach(() => {
+    restoreDevEnv()
+    vi.unstubAllGlobals()
+  })
+
+  const PUBLISHED = Date.parse("2026-11-01T12:00:00Z")
+
+  function stubRegistry(packument: Response | (() => never)): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/latest")) return new Response(JSON.stringify({ version: "999.0.0" }), { status: 200 })
+      return typeof packument === "function" ? packument() : packument
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    return fetchMock
+  }
+
+  const packument = () =>
+    new Response(JSON.stringify({ time: { "999.0.0": new Date(PUBLISHED).toISOString() } }), { status: 200 })
+
+  it("holds the update until the newest release has been out minAgeHours", async () => {
+    stubRegistry(packument())
+    const young = await checkLatestVersion({
+      channel: "latest",
+      minAgeHours: 24,
+      now: () => PUBLISHED + 23 * 3_600_000,
+    })
+    expect(young).toMatchObject({ latest: "999.0.0", hasUpdate: false })
+
+    stubRegistry(packument())
+    const aged = await checkLatestVersion({ channel: "latest", minAgeHours: 24, now: () => PUBLISHED + 24 * 3_600_000 })
+    expect(aged).toMatchObject({ latest: "999.0.0", hasUpdate: true })
+  })
+
+  it("still reports the update when the publish time can't be read", async () => {
+    stubRegistry(new Response("nope", { status: 500 }))
+    await expect(checkLatestVersion({ channel: "latest", minAgeHours: 24 })).resolves.toMatchObject({ hasUpdate: true })
+
+    stubRegistry(() => {
+      throw new Error("offline")
+    })
+    await expect(checkLatestVersion({ channel: "latest", minAgeHours: 24 })).resolves.toMatchObject({ hasUpdate: true })
+  })
+
+  it("skips the large metadata fetch when no delay is set", async () => {
+    const fetchMock = stubRegistry(packument())
+    await checkLatestVersion({ channel: "latest" })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -146,6 +200,9 @@ describe("semver helpers", () => {
   // every nightly user silently stays on the build they first installed.
   it("orders two nightlies of the same core by their date tail", () => {
     expect(isNewerSemver("0.9.13-nightly.20260831", "0.9.13-nightly.20260830")).toBe(true)
+    // next.N is numeric: run 10 outranks run 9, and both sit below the release.
+    expect(isNewerSemver("0.9.13-next.10", "0.9.13-next.9")).toBe(true)
+    expect(isNewerSemver("0.9.13", "0.9.13-next.10")).toBe(true)
     expect(isNewerSemver("0.9.13-nightly.20260830", "0.9.13-nightly.20260831")).toBe(false)
   })
 
@@ -169,6 +226,7 @@ describe("release channels", () => {
   it("derives the channel from the running build, with no stored setting to drift", () => {
     expect(channelOf("0.9.13")).toBe("latest")
     expect(channelOf("0.9.13-nightly.20260831")).toBe("nightly")
+    expect(channelOf("0.9.13-next.7")).toBe("next")
     // An unrelated prerelease line is not the nightly channel.
     expect(channelOf("0.9.13-experimental.0")).toBe("latest")
   })
@@ -326,5 +384,28 @@ describe("fetchReleaseNotesRange", () => {
       { version: "0.7.12", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.12", body: "latest" },
       { version: "0.7.11", url: "https://github.com/Sma1lboy/rove/releases/tag/v0.7.11", body: "middle" },
     ])
+  })
+
+  it("reads the Chinese asset in zh, and the English body where a release has none or it fails", async () => {
+    const asset = (url: string) => [{ name: ZH_NOTES_ASSET, browser_download_url: url }]
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://dl/ok.md") return new Response("中文说明", { status: 200 })
+        if (url === "https://dl/gone.md") return new Response("nope", { status: 404 })
+        return new Response(
+          JSON.stringify([
+            { tag_name: "v0.7.13", html_url: "u13", body: "thirteen", assets: asset("https://dl/gone.md") },
+            { tag_name: "v0.7.12", html_url: "u12", body: "twelve", assets: asset("https://dl/ok.md") },
+            { tag_name: "v0.7.11", html_url: "u11", body: "eleven", assets: [] },
+          ]),
+          { status: 200 },
+        )
+      }),
+    )
+    const bodies = async (locale: "en" | "zh") =>
+      (await fetchReleaseNotesRange({ current: "0.7.10", latest: "0.7.13", locale })).map((n) => n.body)
+    await expect(bodies("zh")).resolves.toEqual(["thirteen", "中文说明", "eleven"])
+    await expect(bodies("en")).resolves.toEqual(["thirteen", "twelve", "eleven"])
   })
 })

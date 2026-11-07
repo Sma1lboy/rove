@@ -13,6 +13,8 @@ import { t, useLocale } from "./i18n/index.ts"
 import { createStore, useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
+import { DAEMON_BANNER } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface DaemonHealth {
@@ -84,10 +86,10 @@ export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
     keys: prefixHint("app.refresh"),
   })
   return (
-    <div className="daemon-banner mono" role="alert">
+    <div className={`mono ${DAEMON_BANNER}`} role="alert">
       <b>{tc("update", "skew.title")}</b>
       <span>{hint}</span>
-      <button type="button" className="link" onClick={onRefresh}>
+      <button type="button" className={LINK} onClick={onRefresh}>
         {tc("update", "refresh.confirmLabel")}
       </button>
     </div>

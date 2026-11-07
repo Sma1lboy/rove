@@ -13,6 +13,11 @@ export const en = {
     retry: "Retry",
     settings: "Settings → Engines",
     another: "Another engine",
+    continueIn: "Continue in another engine",
+  },
+  usageLimit: {
+    title: "Usage limit reached",
+    dismiss: "Dismiss",
   },
   restoring: "restoring session…",
   recovery: {
@@ -49,6 +54,14 @@ export const en = {
     closeOthersBody: "Closing {count} · their sessions end, this tab stays open.",
     closeOthersConfirm: "close tabs",
     closeOthersCancel: "cancel",
+    // Right-click on a tab in the strip.
+    menu: {
+      rename: "Rename tab",
+      copyAddress: "Copy tab address",
+      continueEngine: "Continue in another engine…",
+      closeOthers: "Close other tabs",
+      close: "Close tab",
+    },
     nothingToFork: "No conversation in this tab to fork yet",
     noTranscriptToHandOff: "{engine} keeps no readable transcript to hand over",
   },
@@ -61,15 +74,6 @@ export const en = {
   scrolledBack: "↑ scrolled {lines}L",
   scrollFirst: "[first]",
   scrollLatest: "[latest]",
-  search: {
-    placeholder: "search scrollback — enter/↑ older, ↓ newer, esc close",
-    position: "{index}/{total}",
-    noMatches: "no matches",
-    // The alternate screen belongs to the app: Rove's ring holds the one
-    // screen already on display, so there is nothing here a search could find
-    // that reading the pane would not.
-    unavailable: "this app owns its own scrollback — nothing local to search (esc)",
-  },
   unavailable: {
     // The PTY host resolves its shell from `$SHELL` alone (`resolveSessionShell`
     // in rove-daemon) — there is no Settings row for it, so `$SHELL` is the
@@ -103,6 +107,11 @@ export const zh: typeof en = {
     retry: "重试",
     settings: "设置 → 引擎",
     another: "换个引擎",
+    continueIn: "换个引擎继续",
+  },
+  usageLimit: {
+    title: "已达到用量上限",
+    dismiss: "忽略",
   },
   restoring: "正在恢复会话…",
   tab: {
@@ -128,6 +137,13 @@ export const zh: typeof en = {
     closeOthersBody: "将关闭 {count} 个，它们的会话会结束，只保留这个标签页。",
     closeOthersConfirm: "关闭标签页",
     closeOthersCancel: "取消",
+    menu: {
+      rename: "重命名标签页",
+      copyAddress: "复制标签页地址",
+      continueEngine: "换个引擎继续…",
+      closeOthers: "关闭其他标签页",
+      close: "关闭标签页",
+    },
     nothingToFork: "这个标签页还没有可派生的对话",
     noTranscriptToHandOff: "{engine} 没有可读的对话记录，无法交接",
   },
@@ -138,12 +154,6 @@ export const zh: typeof en = {
   scrolledBack: "↑ 已回滚 {lines} 行",
   scrollFirst: "[最早]",
   scrollLatest: "[最新]",
-  search: {
-    placeholder: "搜索回滚缓冲区 —— enter/↑ 更早，↓ 更晚，esc 关闭",
-    position: "{index}/{total}",
-    noMatches: "没有匹配",
-    unavailable: "这个程序自己管理回滚缓冲区 —— 本地没有可搜索的内容（esc）",
-  },
   unavailable: {
     shellMissing:
       "终端不可用 —— $SHELL 指向的 shell 在这台机器上不存在。请把 $SHELL 指向一个真实存在的 shell，或取消设置以回退到系统默认。",

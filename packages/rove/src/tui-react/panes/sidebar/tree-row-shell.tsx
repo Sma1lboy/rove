@@ -5,7 +5,7 @@
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import { type BoxRenderable, MouseButton, type RGBA } from "@opentui/core"
+import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
@@ -14,10 +14,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
-const INDENT_CELLS = 1
-/** The task-colour mark; it takes the indent's FIRST cell, so it stays one column while children indent past it. */
-const TASK_MARK = "▎"
+/** Indent cells at `depth`: one, then two per level past the first, so a child's glyph sits under its parent's title. */
+const indentOf = (depth: number): string => (depth > 0 ? " ".repeat(1 + (depth - 1) * 2) : "")
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -87,8 +85,6 @@ export function RowShell(props: {
   readonly flatIndex: number
   readonly depth: number
   readonly shared: TreeRowShared
-  /** The row's task colour (`useTaskColor`); absent keeps a plain indent. */
-  readonly mark?: RGBA
   readonly children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -124,15 +120,11 @@ export function RowShell(props: {
       <text fg={selection.markerColor} wrapMode="none">
         {selection.marker}
       </text>
-      {props.mark && props.depth > 0 ? (
-        <text fg={props.mark} wrapMode="none" flexShrink={0}>
-          {`${TASK_MARK}${" ".repeat(props.depth * INDENT_CELLS - 1)}`}
-        </text>
-      ) : (
+      {props.depth > 0 ? (
         <text wrapMode="none" flexShrink={0}>
-          {" ".repeat(props.depth * INDENT_CELLS)}
+          {indentOf(props.depth)}
         </text>
-      )}
+      ) : null}
       {props.children}
     </box>
   )

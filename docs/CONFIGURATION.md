@@ -18,11 +18,30 @@ configured using Git-style forward slashes without creating a second entry.
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
 | `<repo>/.rove/clone-dirs` | Per-repo list of ignored directories to clone into new worktrees | You (committed to the repo) |
+| `<repo>/.rove/run.sh` | Per-repo dev server for the web `[ run ]` action (gets `$PORT`) | You (committed to the repo) |
 
 Setting `ROVE_HOME_DIR` changes the home beneath all these paths. Only `ROVE_*`
 environment variables are read. New runtime files use canonical names; a live
 pre-rename PTY host can still be attached until it exits or `rove reset` runs.
 See [runtime state](./CLI.md#where-state-lives).
+
+### What an agent may edit
+
+Ask your coding agent to change Rove the way you would ask it to change code.
+These files are plain text, Rove rereads them without a restart, and a bad
+entry is ignored with a warning instead of breaking anything:
+
+| File | Format | How the agent checks its work |
+|---|---|---|
+| `~/.rove/themes/<name>.json` | [Themes](./themes.md#json-shape) | `rove theme list` shows it; it appears in Settings → General → Theme |
+| `~/.rove/settings/keybindings.yaml` | [Customizing keybindings](./KEYBINDINGS.md#customizing) | the YAML parses; Settings → Keybindings lists every applied override and warning |
+
+The web client's Settings starts such a session for you: **Make one with an
+agent** under Theme and **Change them with an agent** under Keybindings open a
+Scratch session whose agent is told the file, the format and the check.
+Settings rereads the file when you open it again. `state.json` is edited
+through Settings or `rove config`, not by an agent: a wrong value there can
+change how every task runs.
 
 ### Runtime path overrides
 
@@ -126,7 +145,7 @@ files; it does not show your sessions.
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` \| `rail` \| `rule` | `line` | `line` draws one divider between splits (tmux-style), lit when the focused split touches it; `box` frames each split; `rail` marks each split with a left accent bar; `rule` draws a top rule over each split with its name at the right end. The focused split's edge takes the focus accent |
 | `appearance.workingBorder` | `flow` \| `still` | `flow` | While the selected task's engine is running, `flow` runs a colour gradient around the workspace pane's border (derived from the theme accent) and names the task on its top edge; `still` keeps the plain focus border |
-| `appearance.taskColors` | `on` \| `off` | `on` | `on` gives every task its own hue, picked from the task id so it stays the same across restarts: the flowing working border runs in the selected task's hue, and each task's sidebar rows carry a one-cell mark in it. The hue takes its lightness and strength from the theme accent and keeps away from the success, warning and error hues. `off` uses the theme accent everywhere |
+| `appearance.taskColors` | `on` \| `off` | `on` | `on` gives every task its own hue, picked from the task id so it stays the same across restarts: the flowing working border runs in the selected task's hue. The hue takes its lightness and strength from the theme accent and keeps away from the success, warning and error hues. `off` uses the theme accent everywhere |
 | `appearance.glyphSet` | `braille` \| `starburst` \| `ascii` | `braille` | The marks the task rail, tab strip, Inbox and PR chip draw: `braille` spins `⠋⠙⠹…` beside `○ ● ? !`; `starburst` spins `✻✼❉❊✺✹✸✶` beside `✧ ✦ ? ❢` and needs a font with the Dingbats block (without one, macOS falls back to glyphs of different widths and the rows jitter); `ascii` uses `\| / - \` beside `o * ? !` for terminals and fonts without Unicode symbols |
 | `appearance.colorblind` | `off` \| `on` | `off` | `on` turns the theme's added colour 60° around the hue wheel toward blue, at lower chroma, so added and removed stop being a red/green pair. Applies to the diff view, the Files pane's `A`/`D` letters and `+N`/`-M` counts, and the sidebar's `+N −M` chips; removed keeps the theme colour |
 | `appearance.runningTitle` | `shimmer` \| `still` | `shimmer` | While a tab's engine is running, `shimmer` sweeps a light band (theme muted text toward the primary colour) across its title in the sidebar at a fixed 30 cells per second; `still` keeps the plain muted title |
@@ -320,9 +339,15 @@ once a task has more than one tab. (An older
 Scrollback changes apply to terminals started *after* the change; live ones
 keep the buffer they were born with.
 
+### Prompt snippets
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `prompt.snippets` | `[{name, text}]` | `[]` | Saved prompts the web composers expand from `@name` (Settings → Snippets on web). Name: letters, digits, `-`, `_`, up to 32; text up to 8,000 characters; at most 100. Entries that don't fit are ignored. The TUI does not read them |
+
 ### Notifications
 
-All three default to on.
+All default to on.
 
 | Key | Type | What it does |
 |---|---|---|
@@ -330,6 +355,7 @@ All three default to on.
 | `notifications.sound.enabled` | boolean | Chime when a background tab finishes |
 | `notifications.sound.volume` | number | Chime level, 0-1 (default 0.4) |
 | `notifications.crossTask.enabled` | boolean | Toasts for tasks you aren't looking at |
+| `notifications.finished.enabled` | boolean | Alerts for finished turns; off, only approvals and errors toast or ring |
 
 Error toasts always show, even with toasts off. See
 [Notifications](#notifications-and-sound) for how they're delivered.
@@ -350,12 +376,14 @@ Rove is ignored; nothing reads or writes it any more.
 ### Update channel
 
 Which release line `rove update` and the update check follow. Set it with
-`rove update --nightly` / `--stable` or Settings → General → Updates, whose
+`rove update --next` / `--nightly` / `--stable` or Settings → General → Updates, whose
 button also installs the other channel's newest build right away.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
+| `update.channel` | `latest` \| `next` \| `nightly` | the running build's channel | `latest` is stable releases; `next` is every merge to `main` (fast checks only); `nightly` is the daily preview built from `main`. Set by Settings the moment you pick one, and by `rove update --next` / `--nightly` / `--stable` after the install succeeds. The update check, the Update page and a bare `rove update` follow it |
+| `update.notify` | boolean | `true` | Whether the update chip (TUI brand row, web rail) shows when the chosen channel has a newer build. Off hides the chip only; Settings' `[ check for updates ]`, the Update page and `rove update` still report |
+| `update.delayHours` | number | `0` | Hours a release must have been out before the update chip offers it. The check runs at daemon start and every six hours, and while the newest release is younger the chip stays hidden. If npm can't say when it was published, the chip shows. The Update page and `rove update` ignore it. Hand-edit only |
 
 ### Worktree location
 
@@ -478,6 +506,7 @@ Off by default. These can change without notice.
 | `experimental.remoteProjects` | Lets `rove add --remote` register a NEW project over SSH. Gates that one command only: remote projects already registered keep working — worktree routing and engine launch never read the flag — so turning it off does not disable them |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
+| `experimental.layerfs` | Path to a LayerFS env file. Set, it lets `rove api add --workspace layerfs` create tasks whose files live in a LayerFS sandbox (Linux only, see [LayerFS tasks](./WORKTREES.md#layerfs-tasks-experimental)). No Settings toggle: edit state.json |
 
 ## Themes
 
@@ -517,7 +546,10 @@ Full vocabulary: [Keybindings](./KEYBINDINGS.md). The configuration surface:
 ## Notifications and sound
 
 Three kinds: `done` (green), `needs_input` (yellow), `error` (red). Yellow and
-red outrank green when both fire for the same tab. Three delivery channels:
+red outrank green when both fire for the same tab. With **Settings → General →
+Finished turns** off (`notifications.finished.enabled`), a finished turn only
+lights its unread dot, so the toast and chime are left for an agent waiting on
+you or one that failed. Three delivery channels:
 
 - **Toasts.** In-TUI, 4.5 seconds. Error toasts always show, even with
   toasts disabled: a failure shouldn't vanish because you turned off
@@ -652,3 +684,24 @@ The PR action also reads `.rove/pr-instructions.md` as its prompt template;
 `{{branch}}`, `{{targetBranch}}`, `{{dirtyCountSentence}}`, and
 `{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
 The file must be non-empty.
+
+## Per-repo run script
+
+A repo can ship **`.rove/run.sh`**, its dev server or preview. In a task of that repo the web
+Files pane shows `[ run ]`: it opens a shell tab titled `run :PORT` in the task's worktree and
+types `env PORT=<port> ROVE_PORT=<port> sh .rove/run.sh` into it. `[ stop ]` closes the tab, which
+ends the script. Once something listens on the port, `[ open :PORT ]` shows it in the Browser
+panel (a page opened over a tunnel cannot reach the Mac's loopback; the panel says so).
+
+The script must listen on `$PORT`. Each task gets its own port from a range, so parallel
+worktrees never collide: the lowest port no other task holds and nothing listens on, kept for
+that task from then on. The range lives in `state.json`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `run.portBase` | `4100` | First port of the range (1024–65535) |
+| `run.portCount` | `900` | How many ports the range holds |
+
+`run.sh` comes from the repo and runs without asking, with your account's privileges, like
+`init.sh`: read it before running it in a repository you did not write. The file must be
+non-empty; tasks on another machine and tasks with no worktree yet show no run action.

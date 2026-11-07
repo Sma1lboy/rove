@@ -10,6 +10,7 @@
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useMemo, useRef, useState } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
+import { glyphLegendSections } from "../../tui/lib/glyph-legend"
 import {
   type HelpGrammarSection,
   type HelpSurface,
@@ -23,6 +24,7 @@ import { RoveKeymap, useKeymapVersion } from "../context/keybindings"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { currentBindingReachability, useBindings } from "../lib/keymap"
+import { useGlyphs } from "../lib/use-glyphs"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
 
 function displayCap(cap: string): string {
@@ -61,6 +63,14 @@ export function HelpDialog(props: {
     .map((section) => ({
       ...section,
       rows: section.rows.filter((row) => matchesHelpAction(query, tKeys("desc", row.binding.id), row.primary)),
+    }))
+    .filter((section) => section.rows.length > 0)
+  // The marks the sidebar draws, in the user's glyph preset; filtered like the actions.
+  const glyphs = useGlyphs()
+  const legendSections = glyphLegendSections(glyphs)
+    .map((section) => ({
+      ...section,
+      rows: section.rows.filter((row) => matchesHelpAction(query, t(`help.mark.${row.mark}`), row.glyph)),
     }))
     .filter((section) => section.rows.length > 0)
   // Standalone full-window page (`rove help-page`) passes its own exit;
@@ -143,7 +153,9 @@ export function HelpDialog(props: {
       ) : (
         <text fg={theme.textMuted}>{t("help.filter")}</text>
       )}
-      {filteredSections.length === 0 ? <text fg={theme.textMuted}>{t("help.noResults")}</text> : null}
+      {filteredSections.length === 0 && legendSections.length === 0 ? (
+        <text fg={theme.textMuted}>{t("help.noResults")}</text>
+      ) : null}
       {/* Long-content dialogs handle their own overflow: flexShrink={1}
           fits the dialog's maxHeight, the scrollbox owns the scrolling. */}
       <scrollbox
@@ -180,6 +192,23 @@ export function HelpDialog(props: {
                   </box>
                 )
               })}
+            </box>
+          ))}
+          {legendSections.map((section) => (
+            <box key={`marks-${section.group}`} gap={0}>
+              <text fg={theme.accent} attributes={TextAttributes.BOLD}>
+                {t(`help.marks.${section.group}`)}
+              </text>
+              {section.rows.map((row) => (
+                <box key={`mark-${row.mark}`} flexDirection="row" gap={2} paddingLeft={1}>
+                  <box width={18}>
+                    <text fg={theme[row.tone]}>{row.glyph}</text>
+                  </box>
+                  <box flexGrow={1}>
+                    <text fg={theme.text}>{t(`help.mark.${row.mark}`)}</text>
+                  </box>
+                </box>
+              ))}
             </box>
           ))}
         </box>

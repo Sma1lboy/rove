@@ -1,8 +1,19 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
+import type { AutoFixState } from "../auto-fix-ci.ts"
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskTodo, TodoOp } from "../task-notes.ts"
+import type { TaskWorkspace } from "../workspace.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
+import type { CheckpointOrchestrator } from "./checkpoint-contracts.ts"
 import type { MigratedChildInput, SpawnChildInput, SpawnChildResult, TaskDeleteOptions } from "./child-contracts.ts"
+import type { LandPreflightResult, LandResult } from "./land-contracts.ts"
+import type {
+  TaskDeletionState,
+  TaskQuotaResumeState,
+  TaskScheduledStart,
+  TaskWorkerReport,
+} from "./task-state-contracts.ts"
 
 // Re-exported so importers keep naming them through `contracts.ts`.
 export type {
@@ -67,6 +78,16 @@ export type {
   GateStatus,
   GatesPayload,
 } from "./gate-contracts.ts"
+// Land and sync results, likewise.
+export type {
+  LandPreflightResult,
+  LandRepoPreflight,
+  LandRepoResult,
+  LandRepoStatus,
+  LandResult,
+  SyncRepoResult,
+  SyncReposResult,
+} from "./land-contracts.ts"
 
 /** Engine id (rove `VendorId`), opaque to the daemon. Plain `string`: a
  *  literal union with `(string & {})` drifts from rove's list and hides the
@@ -75,16 +96,6 @@ export type {
  *  `RESERVED_ENGINE_IDS`, locked to rove's by a rove-side test. */
 export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
-
-export interface TaskDeletionState {
-  readonly phase: "queued" | "running" | "error"
-  readonly force: boolean
-  /** Opt-in: also delete the task's git branch. Default (absent/false) keeps
-   *  the branch — git history is the durable record, the task row is not. */
-  readonly deleteBranch?: boolean
-  readonly requestedAt: string
-  readonly error?: string
-}
 
 /** One engine-neutral quota window (mirrors rove/types/engine.ts). */
 export interface EngineQuotaWindow {
@@ -102,29 +113,6 @@ export interface EngineQuotaUsage {
   readonly capturedAt: number
 }
 
-/** Durable rate-limit auto-resume schedule (mirrors rove/types/task.ts). */
-export interface TaskQuotaResumeState {
-  /** ISO-8601 time the provider's exhausted quota window resets. */
-  readonly resumeAt: string
-  /** ISO-8601 time the rate limit was observed and this schedule written. */
-  readonly requestedAt: string
-}
-
-/**
- * A worker's own outcome claim (mirrors rove/types/task.ts).
- *
- * Kept apart from {@link TaskPRStatus} on purpose: this is what the worker
- * SAID, that is what the daemon OBSERVED by polling the forge. A dispatcher
- * deciding whether to land needs to know which of the two it is holding.
- */
-export interface TaskWorkerReport {
-  readonly branch?: string
-  readonly pr?: number
-  readonly summary?: string
-  /** ISO-8601 time the report was written. */
-  readonly at: string
-}
-
 export interface TaskPRStatus {
   readonly provider: "github" | "gitlab" | "bitbucket" | "unknown"
   readonly lifecycle: "creating" | "open" | "ready_to_merge" | "merged" | "closed" | "unknown"
@@ -132,9 +120,14 @@ export interface TaskPRStatus {
   readonly number?: number
   readonly url?: string
   readonly title?: string
+  /** Lines the PR adds and removes, as the forge counts them. */
+  readonly additions?: number
+  readonly deletions?: number
   readonly baseRef?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
+  /** The PR's head commit; a push changes it, which is what makes a red check a new failure. */
+  readonly headSha?: string
   readonly lastCheckedAt?: string
   readonly lastError?: string
 }
@@ -165,6 +158,16 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** What `setParent` left on the task row (and the siblings it carried along). */
+export interface ReparentResult {
+  /** The stored parent: the requested one's top-level ancestor (children never nest); `null` = top level. */
+  readonly parentTaskId: string | null
+  /** The reply address a bare `send` from the task now follows; `null` = none. */
+  readonly dispatcher: TaskDispatcher | null
+  /** Former children of the moved task, re-pointed to follow it under the new parent. */
+  readonly moved: readonly string[]
+}
+
 /** A migrated child whose conversation is still the live hosted PTY keyed
  *  `<taskId>::<tabId>` under its parent (mirrors rove/types/task.ts). */
 export interface TaskPtyAlias {
@@ -182,6 +185,18 @@ export interface TaskLinkedWorkItem {
   readonly url: string
 }
 
+/**
+ * A PR the task's session opened, wherever its branch lives (`rove api pr-attach`).
+ * Keyed by `url`; `status` is what the daemon last polled from the forge (`gh pr view <url>`).
+ */
+export interface TaskSessionPr {
+  /** Canonical `https://github.com/<owner>/<repo>/pull/<n>`. */
+  readonly url: string
+  /** ISO-8601 time it was attached. */
+  readonly addedAt: string
+  readonly status?: TaskPRStatus
+}
+
 export interface DaemonTask {
   readonly id: string
   readonly title: string
@@ -191,11 +206,16 @@ export interface DaemonTask {
   readonly kind?: "main" | "task" | "dir"
   /** Dir task with no settled cwd (sidebar Scratch section); cleared when named or adopted. */
   readonly scratch?: boolean
+  /** Dir task a projectless routine made; sorts into the Ungrouped group with Scratch. */
+  readonly noProject?: boolean
   /** The one task a `persistentSession` automation re-delivers into; folded
    *  behind a count row in the sidebar. */
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   readonly pinned?: boolean
+  readonly kept?: boolean
+  readonly notes?: string
+  readonly todos?: readonly TaskTodo[]
   readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
@@ -212,6 +232,8 @@ export interface DaemonTask {
   readonly groupId?: string
   readonly deletion?: TaskDeletionState
   readonly quotaResume?: TaskQuotaResumeState
+  readonly scheduledStart?: TaskScheduledStart
+  readonly autoFixCi?: AutoFixState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
@@ -234,123 +256,19 @@ export interface DaemonTask {
   readonly baseRef?: string
   /** `add --worktree-name`; absent = drawn from the animal pool. */
   readonly worktreeName?: string
+  /** Repo the worktree was cut from after a project move (`update --project`); absent = `repo`. */
+  readonly gitRepo?: string
   /** Secondary repos of a multi-repo task, in pick order (the primary is `repo`). */
   readonly extraRepos?: readonly TaskExtraRepo[]
+  /** Backend that materialised the directory; absent = derived from `kind` (`workspaceBackendId`). */
+  readonly workspace?: TaskWorkspace
   /** The WORKER's own account of what it delivered (`update --report-*`).
    *  A claim, unlike `prStatus`, which the daemon observed from the forge. */
   readonly report?: TaskWorkerReport
+  /** PRs the task's session opened anywhere (`rove api pr-attach`), newest last. */
+  readonly sessionPrs?: readonly TaskSessionPr[]
   readonly createdAt: string
   readonly updatedAt: string
-}
-
-/**
- * Result of a `task.landPreflight` — the read-only "may this land, and into
- * what" probe. Mirrors the orchestrator's `LandPreflight`. `refusal` set means
- * the land would be refused for that reason; absent means it may proceed.
- */
-export interface LandPreflightResult {
-  readonly branch: string
-  /** The merge destination: the base checkout's current branch. Empty only
-   *  under the detached-HEAD refusal, where there is no branch to name. */
-  readonly landedOn: string
-  /** Commits on `branch` the destination does not have. Absent — never a
-   *  fabricated zero — when git could not count them. */
-  readonly ahead?: number
-  readonly baseDirty?: boolean
-  readonly refusal?:
-    | "DETACHED_HEAD"
-    | "UNREADABLE_BASE"
-    | "UNBORN_BASE"
-    | "SAME_BRANCH"
-    | "MAIN_CHECKOUT_DIRTY"
-    | "MISSING_REF"
-    | "EMPTY_BRANCH"
-    | "EMPTY_BRANCH_DIRTY_WORKTREE"
-  /** Uncommitted paths in the task's worktree — only with `EMPTY_BRANCH_DIRTY_WORKTREE`. */
-  readonly dirtyFiles?: readonly string[]
-  readonly baseDir: string
-  /** Multi-repo tasks only: each repo's own probe, in picked order. The top-level fields above are the head repo's. */
-  readonly repos?: readonly LandRepoPreflight[]
-}
-
-/** Result of a `task.land` — mirrors the orchestrator's `LandResult`. */
-export interface LandResult {
-  readonly branch: string
-  readonly strategy: "merge" | "squash"
-  readonly landedOn: string
-  readonly commit: string
-  /** The post-land worktree cleanup outcome. Present unless removal was
-   *  explicitly declined (`removeWorktree: false`). `reason` is not
-   *  failure-only: it also rides with `removed: true` when the directory went
-   *  but clearing the task's worktree path did not. */
-  readonly worktree?: {
-    readonly removed: boolean
-    readonly reason?: string
-    /** Set when git deregistered the worktree but could not delete its
-     *  directory — the land and its cleanup both succeeded; a directory is
-     *  left on disk that Rove will never list again. */
-    readonly residue?: { readonly path: string; readonly reason: string }
-  }
-  /** Ref anchoring a deleted branch's tip when nothing else reached it (the
-   *  squash-land case). Absent on a `--no-ff` merge and when no branch was
-   *  deleted. */
-  readonly branchAnchor?: { readonly ref: string; readonly commit: string }
-  /** Set when `--delete-branch` was asked for and the branch was kept anyway,
-   *  because its worktree is still on disk with the branch checked out — git
-   *  would refuse the delete. `reason` is why the worktree stayed. */
-  readonly branchKept?: { readonly reason: string }
-  /** Multi-repo tasks only: every repo's outcome in picked order. The top-level fields above are the primary's. */
-  readonly repos?: readonly LandRepoResult[]
-  /** Multi-repo tasks only: set when the run stopped before every repo landed; re-running resumes. */
-  readonly stopped?: { readonly repo: string; readonly code: string; readonly message: string }
-}
-
-/** What one repo of a multi-repo land did (or, from a probe, would do). */
-export type LandRepoStatus = "landed" | "skipped" | "conflict" | "refused" | "failed" | "pending"
-
-/** One repo's row of a multi-repo `task.land`. */
-export interface LandRepoResult {
-  readonly name: string
-  readonly status: LandRepoStatus
-  readonly branch?: string
-  readonly landedOn?: string
-  readonly ahead?: number
-  readonly commit?: string
-  /** Why the repo was skipped, refused or failed, or its conflicted files. */
-  readonly error?: string
-  /** Refusal or error code (`LAND_CONFLICT`, `MAIN_CHECKOUT_DIRTY`, …). */
-  readonly code?: string
-  readonly worktree?: LandResult["worktree"]
-  readonly branchAnchor?: LandResult["branchAnchor"]
-  readonly branchKept?: LandResult["branchKept"]
-}
-
-/** One repo's row of a multi-repo `task.landPreflight`. `ready` repos have commits to land and no refusal. */
-export interface LandRepoPreflight extends LandPreflightResult {
-  readonly name: string
-  readonly status: "ready" | "skipped" | "refused"
-  readonly message?: string
-}
-
-/** One repo's row of a multi-repo `task.syncBase`. */
-export interface SyncRepoResult {
-  readonly name: string
-  readonly ok: boolean
-  readonly baseRef?: string
-  readonly alreadyCurrent?: boolean
-  /** The failure's message, `SYNC_CONFLICT: …` / `SYNC_WORKTREE_DIRTY: …` markers included. */
-  readonly error?: string
-  /** The marker at the head of `error`, when it has one. */
-  readonly code?: string
-}
-
-/** Result of `task.syncBase` on a multi-repo task. */
-export interface SyncReposResult {
-  /** The first synced repo's base. */
-  readonly baseRef: string
-  /** True only when every repo was already current. */
-  readonly alreadyCurrent: boolean
-  readonly repos: readonly SyncRepoResult[]
 }
 
 export interface AdoptableWorktree {
@@ -365,7 +283,7 @@ export interface AdoptableWorktree {
   readonly lastActivityMs: number
 }
 
-export interface DaemonOrchestrator {
+export interface DaemonOrchestrator extends CheckpointOrchestrator {
   activeTaskSignal?(): (() => string | null) | undefined
   subscribeTasks(listener: (tasks: readonly DaemonTask[]) => void): () => void
   listTasks(): DaemonTask[]
@@ -388,14 +306,30 @@ export interface DaemonOrchestrator {
     routine?: TaskRoutineLink
     /** Secondary repos in pick order; `baseRef` is that repo's own fork point. */
     extraRepos?: readonly { readonly repo: string; readonly baseRef?: string }[]
+    /** Task whose worktree this one clones, uncommitted work included. */
+    forkFrom?: string
+    parentTaskId?: string // nest under this task, stored as its top-level ancestor
+    workspace?: TaskWorkspace
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
    *  `scratch` marks it a temp shell task for the sidebar's Scratch section. */
-  openDirectoryTask(input: { dir: string; vendor?: VendorId; scratch?: boolean }): Promise<DaemonTask>
-  /** Migrate a scratch task into `repo`: repoint the
-   *  task at the repo root and clear the scratch flag. */
+  openDirectoryTask(input: {
+    dir: string
+    vendor?: VendorId
+    scratch?: boolean
+    /** Projectless routine session: sorts into the Ungrouped group, never promoted to a project. */
+    noProject?: boolean
+    /** Explicit title; absent mints `<dir>-<suffix>` (scratch: empty). */
+    title?: string
+    model?: string
+    modelEffort?: string
+    routine?: TaskRoutineLink
+  }): Promise<DaemonTask>
+  /** Migrate a scratch task into `repo` and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>
+  /** Regroup a top-level task and its children under the project at `repo`; the checkouts and sessions stay where they are. */
+  moveTaskToProject(id: string, repo: string): Promise<{ repo: string; moved: readonly string[] }>
   ensureWorktree(id: string, opts?: { onProgress?: (percent: number) => void }): Promise<string>
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string, opts?: { keepScratch?: boolean }): Promise<void>
@@ -407,6 +341,17 @@ export interface DaemonOrchestrator {
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
+  setKept(id: string, kept: boolean): Promise<void>
+  /** Notes (replace) and checklist ops, applied together; returns the task's notes and todos after. */
+  updateNotes(
+    id: string,
+    edit: { notes?: string; ops?: readonly TodoOp[] },
+  ): Promise<{ notes?: string; todos: readonly TaskTodo[] }>
+  /**
+   * Re-parent a task (`parentId` null = top level) without touching its engine, PTYs, worktree or branch. Points
+   * the task's reply address at the parent too; `replyTab` picks the parent tab it lands on (default `tab-1`).
+   */
+  setParent(id: string, parentId: string | null, replyTab?: string): Promise<ReparentResult>
   /** Archive or restore ONE task row; the cascade over its descendants is the caller's. */
   setArchived(id: string, archived: boolean): Promise<void>
   setRequireReport(id: string, required: boolean): Promise<void>
@@ -418,10 +363,18 @@ export interface DaemonOrchestrator {
    *  ordinary, and `setStatus` returns early when the status is unchanged. */
   setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null, repoName?: string): Promise<void>
+  /** Attach a PR the session opened (dedup by `url`, newest last, oldest dropped past a cap). */
+  addSessionPr(id: string, url: string): Promise<void>
+  /** Record the polled forge status of one attached PR; a URL no longer attached is a no-op. */
+  setSessionPrStatus(id: string, url: string, status: TaskPRStatus): Promise<void>
   /** Stamp the external tracker item a task was started from. */
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
+  /** Arm (or clear, with `null`) the one-shot delayed start. */
+  setScheduledStart(id: string, state: TaskScheduledStart | null): Promise<void>
+  /** Turn auto-fix CI on (fresh count) or off, or record the loop's progress; `null` = off. */
+  setAutoFixCi(id: string, state: AutoFixState | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
   deleteTask(id: string, options?: TaskDeleteOptions): Promise<void>
@@ -525,6 +478,8 @@ export interface EngineContextUsage {
   readonly cacheReadTokens?: number
   /** Cache-write tokens across the whole session, when the vendor reports them. */
   readonly cacheCreationTokens?: number
+  /** What `contextTokens` is made of (`system`, `messages`), when the engine records it; parts sum to it. */
+  readonly parts?: readonly { readonly key: string; readonly tokens: number }[]
 }
 
 export interface WorktreeChanges {

@@ -1,14 +1,14 @@
 /**
  * The TUI's new-task dialog (`tui-react/component/new-task-dialog`): three modes (Existing,
  * New Repo, Adopt Worktree) in one frame, Ctrl+[ / Ctrl+] switch the mode, Ctrl+E cycles the
- * engine. Copy comes from the TUI's own `newTask` catalog.
+ * engine. Copy comes from the TUI's own `newTask` catalog. This machine's disk only: another
+ * machine's task starts from the composer.
  */
 
 import { useEffect, useRef, useState } from "react"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import {
   filterText,
@@ -19,12 +19,15 @@ import {
   resolveRepo,
   splitRepoRow,
 } from "./new-task-paths.ts"
-import { RemoteTab } from "./new-task-remote.tsx"
 import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
 import { openNewSession } from "./ui.ts"
+import { FIELD } from "./ui/form.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
+import { HINT, KICKER } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]
@@ -68,17 +71,21 @@ interface Browse {
 }
 
 function useRepoField(model: AppModel, initial: string | undefined): RepoField {
-  const [saved, setSaved] = useState<readonly string[]>([])
-  const [home, setHome] = useState("")
-  const [text, setTextState] = useState("")
+  const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
+  const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
+  const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
+  const [text, setTextState] = useState(() => {
+    const start = initial ?? lastSaved?.[0]
+    return start ? nameOrPath(start, lastSaved ?? []) : ""
+  })
   const [picked, setPicked] = useState(false)
   const [browse, setBrowse] = useState<Browse | null>(null)
   const [probe, setProbe] = useState<ProbeResult | null>(null)
 
   useEffect(() => {
     void Promise.all([
-      model.client.request<{ repos: string[] }>("repos.list"),
-      model.client.request<{ home: string }>("fs.subdirs", { path: "~/" }),
+      requestRemembered<{ repos: string[] }>(model, "repos.list"),
+      requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
     ])
       .then(([repos, fs]) => {
         setSaved(repos.repos)
@@ -250,14 +257,14 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
 
   return (
     <form
-      className="dialog-body"
+      className={DIALOG_BODY}
       onSubmit={(e) => {
         e.preventDefault()
         void create()
       }}
     >
-      <div className="field">
-        <span className="kicker">{tc("newTask", "field.repo")}</span>
+      <div className={FIELD}>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.repo")}</span>
         <SuggestField
           field="repo"
           value={repo.text}
@@ -270,8 +277,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         />
       </div>
       {canOpenProject && (
-        <div className="field">
-          <span className="kicker">{tc("newTask", "field.opens")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.opens")}</span>
           <ChipRow
             label={tc("newTask", "field.opens")}
             field="intent"
@@ -285,8 +292,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         </div>
       )}
       {!(intent === "project" && canOpenProject) && (
-        <div className="field">
-          <span className="kicker">{tc("newTask", "field.fromBranch")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.fromBranch")}</span>
           <SuggestField
             field="branch"
             value={baseRef}
@@ -310,32 +317,25 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
             onEnter={() => void create()}
           />
           {filtered.length === 0 && props.error == null && (
-            <span className="muted">
+            <span className="text-muted">
               {tc("newTask", branches.length === 0 ? "hint.noBranchesFound" : "hint.noMatchBranch")}
             </span>
           )}
         </div>
       )}
-      {props.error && <p className="error">※ {props.error}</p>}
+      {props.error && <p className="text-error">※ {props.error}</p>}
       <DialogActions busy={props.busy} submitLabel={tc("newTask", "button.create")} />
     </form>
   )
 }
 
-export function NewTaskDialog({
-  model,
-  repo: initialRepo,
-  machine: initialMachine,
-}: { model: AppModel; repo?: string; machine?: string }) {
+export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; repo?: string }) {
   useLocale()
-  const choice = useEngineChoice(model)
-  const machines = useMachines(model)
-  const [machine, setMachine] = useState<string>(initialMachine ?? "local")
-  const remoteHost = machines.find((m) => m.alias === machine)
   const [tab, setTab] = useState<NewTaskTab>("existing")
   const { busy, error, setError, submit } = useSubmit()
   const selected = model.selection.get().taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
+  const choice = useEngineChoice(model, initialRepo ?? fallback)
   const repo = useRepoField(model, initialRepo ?? fallback)
   const root = useRef<HTMLDivElement>(null)
   const first = useRef(true)
@@ -376,58 +376,34 @@ export function NewTaskDialog({
           e.stopPropagation()
         }}
       >
-        <div className="dialog-body">
-          {machines.length > 0 && (
-            <div className="field">
-              <span className="kicker">{t("newTask.machine")}</span>
-              <ChipRow
-                label={t("newTask.machine")}
-                field="machine"
-                value={machine}
-                onChange={(id) => setMachine(id)}
-                choices={[
-                  { id: "local", label: t("newTask.thisMachine") },
-                  ...machines.map((m) => ({ id: m.alias, label: m.hostLabel || m.alias })),
-                ]}
-              />
-            </div>
-          )}
-          {machine === "local" && (
-            <div className="field">
-              <span className="kicker">{tc("newTask", "field.mode")}</span>
-              <ChipRow
-                label={tc("newTask", "field.mode")}
-                field="mode"
-                value={tab}
-                onChange={(id) => setTab(id as NewTaskTab)}
-                choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
-              />
-            </div>
-          )}
-          <div className="field">
-            <span className="kicker">{tc("newTask", "field.engine")}</span>
+        <div className={DIALOG_BODY}>
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.mode")}</span>
+            <ChipRow
+              label={tc("newTask", "field.mode")}
+              field="mode"
+              value={tab}
+              onChange={(id) => setTab(id as NewTaskTab)}
+              choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
+            />
+          </div>
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.engine")}</span>
             <EnginePicker engines={choice.engines} value={choice.engine} onChange={choice.setEngine} />
           </div>
         </div>
-        {machine !== "local" && (
-          <RemoteTab
-            key={machine}
-            {...common}
-            machine={machine}
-            host={remoteHost?.hostLabel || machine}
-            initialRepo={initialMachine === machine ? initialRepo : undefined}
-          />
-        )}
-        <div hidden={machine !== "local" || tab !== "existing"}>
+        <div hidden={tab !== "existing"}>
           <ExistingTab {...common} repo={repo} />
         </div>
-        <div hidden={machine !== "local" || tab !== "clone"}>
+        <div hidden={tab !== "clone"}>
           <CloneTab {...common} />
         </div>
-        <div hidden={machine !== "local" || tab !== "adopt"}>
-          <AdoptTab {...common} repo={repo} active={machine === "local" && tab === "adopt"} />
+        <div hidden={tab !== "adopt"}>
+          <AdoptTab {...common} repo={repo} active={tab === "adopt"} />
         </div>
-        <p className="muted newtask-legend">{tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}</p>
+        <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>
+          {tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}
+        </p>
       </div>
     </DialogShell>
   )

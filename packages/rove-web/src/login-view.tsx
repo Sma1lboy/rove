@@ -3,6 +3,9 @@
 import { useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import { type LoginOutcome, submitPassword } from "./login.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { BRACKET, CONNECT, CONNECT_CARD, WORDMARK } from "./ui/shell.ts"
+import { ACTIONS, INPUT, KICKER } from "./ui/text.ts"
 
 function message(outcome: LoginOutcome | null): string | null {
   if (!outcome) return null
@@ -27,9 +30,9 @@ export function LoginScreen() {
   const [outcome, setOutcome] = useState<LoginOutcome | null>(null)
   const error = message(outcome)
   return (
-    <div className="connect">
+    <div className={CONNECT}>
       <form
-        className="connect-card"
+        className={CONNECT_CARD}
         onSubmit={async (e) => {
           e.preventDefault()
           if (busy || !password) return
@@ -44,13 +47,13 @@ export function LoginScreen() {
           setBusy(false)
         }}
       >
-        <span className="wordmark">
-          <span className="bracket">[</span> rove <span className="bracket">]</span>
+        <span className={WORDMARK}>
+          <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
         </span>
-        <h1 className="kicker">{t("login.title")}</h1>
-        <p className="muted">{t("login.body")}</p>
+        <h1 className={`${KICKER} text-muted`}>{t("login.title")}</h1>
+        <p className="text-muted">{t("login.body")}</p>
         <input
-          className="input"
+          className={INPUT}
           type="password"
           autoComplete="current-password"
           aria-label={t("login.field")}
@@ -65,12 +68,12 @@ export function LoginScreen() {
           }}
         />
         {error && (
-          <p className="error" role="alert">
+          <p className="text-error" role="alert">
             {error}
           </p>
         )}
-        <div className="actions">
-          <button type="submit" className="button" disabled={busy || !password}>
+        <div className={ACTIONS}>
+          <button type="submit" className={buttonClass()} disabled={busy || !password}>
             {busy ? t("login.checking") : t("login.submit")}
           </button>
         </div>

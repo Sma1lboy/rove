@@ -1,16 +1,22 @@
 /**
- * Drag to reorder: a project header among projects, a task among its project's tasks (same pin),
- * as the TUI's move mode does with keys. While dragging, the rows slide to where the drop would leave
- * them; there is no insertion line. They slide by transform, not by reordering the DOM: Chrome
- * cancels a drag whose source node moves. Only in the default sort, which shows that order.
+ * Drag to reorder: a project header among projects, a task among its project's tasks, as the TUI's
+ * move mode does with keys. A task let go at the top of its project or among its pinned tasks is
+ * pinned; a pinned one let go among the rest is unpinned. While dragging, the rows slide to where
+ * the drop would leave them; there is no insertion line. They slide by transform, not by reordering
+ * the DOM: Chrome cancels a drag whose source node moves. Any sort drags; a drop outside manual
+ * order lands in manual order and the rail switches to it, the only sort that shows where the row went.
  */
 
 import type { CSSProperties, DragEvent, HTMLAttributes } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
-import { moveTaskBy } from "./move-mode.ts"
-import { type DropSide, type NavRow, blockEnd, dragSteps, dropSteps, previewDrop } from "./rail.ts"
+import { dropTask } from "./move-mode.ts"
+import { type DropSide, blockEnd, dropMove, dropsOn, opensProject, previewDrop } from "./rail-blocks.ts"
+import { setRailSort } from "./rail-sort.ts"
+import type { NavRow } from "./rail.ts"
+import { tc } from "./tui-copy.ts"
+import { toast } from "./ui.ts"
 
 export type DragProps = Pick<HTMLAttributes<HTMLElement>, "draggable" | "onDragStart" | "onDragEnd">
 
@@ -31,6 +37,8 @@ export function useRowDrag(
   model: AppModel,
   tasks: readonly TaskRow[],
   enabled: boolean,
+  /** The rail shows manual order (the `default` sort). */
+  manual: boolean,
   mainTaskOf: (repo: string) => { mainTaskId: string | null },
 ) {
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -38,16 +46,44 @@ export function useRowDrag(
   latest.current = tasks
   // After a drop: the task list on screen when the last move returned. The preview holds until a newer one arrives.
   const [landing, setLanding] = useState<readonly TaskRow[] | null>(null)
+  // What ends the preview once the move has landed: clearing it, or switching to manual order.
+  const land = useRef<() => void>(() => setDrag(null))
   useEffect(() => {
     if (!landing) return
     const done = () => {
       setLanding(null)
-      setDrag(null)
+      land.current()
     }
     if (tasks !== landing) return done()
     const timer = window.setTimeout(done, 3000)
     return () => window.clearTimeout(timer)
   }, [tasks, landing])
+  const railBody = useRef<Element | null>(null)
+  // Where each row was drawn just before a sort switch, so it can slide to its new place.
+  const flip = useRef<Map<string, number> | null>(null)
+  const rowEls = () => [...(railBody.current?.querySelectorAll<HTMLElement>("[data-row]") ?? [])]
+  useLayoutEffect(() => {
+    const from = flip.current
+    if (!from) return
+    flip.current = null
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const moved = rowEls().flatMap((el) => {
+      const was = from.get(el.dataset.row ?? "")
+      const dy = was === undefined ? 0 : was - el.getBoundingClientRect().top
+      return dy ? [{ el, dy }] : []
+    })
+    for (const { el, dy } of moved) {
+      el.style.transition = "none"
+      el.style.transform = `translateY(${dy}px)`
+    }
+    // One reflow pins every row at its old place before they all slide at once.
+    railBody.current?.getBoundingClientRect()
+    for (const { el } of moved) {
+      el.style.transition = "transform 150ms ease-out"
+      el.style.transform = ""
+      el.addEventListener("transitionend", () => el.style.removeProperty("transition"), { once: true })
+    }
+  })
   // The first dragover can arrive before the dragstart's render, so the handlers read refs.
   const live = useRef<Drag | null>(null)
   const shown = useRef<readonly NavRow[]>([])
@@ -74,7 +110,8 @@ export function useRowDrag(
       onDragStart: (e: DragEvent) => {
         e.dataTransfer.effectAllowed = "move"
         e.dataTransfer.setData("text/plain", task.id)
-        measure(e.currentTarget.closest(".rail-body"))
+        railBody.current = e.currentTarget.closest("[data-rail-body]")
+        measure(railBody.current)
         const rows = shown.current
         const from = rows.findIndex((r) => r.id === row.id)
         blockHeight.current = rows
@@ -97,7 +134,7 @@ export function useRowDrag(
     if (now.from.kind === "main") while (at > 0 && rows[at]?.kind !== "project") at--
     const row = rows[at]
     const task = row && taskOf(row)
-    if (!row || !task || dragSteps(tasks, now.from, task) === null) return null
+    if (!row || !task || !dropsOn(now.from, task)) return null
     return { row: row.id, task }
   }
   // Letting go anywhere in the rail lands the row where the preview shows it.
@@ -129,11 +166,21 @@ export function useRowDrag(
       const now = live.current
       if (!now) return
       e.preventDefault()
-      const steps = dropSteps(tasks, now.from, now.to, now.side)
+      const move = dropMove(tasks, now.from, now.to, now.side, opensProject(shown.current, now.fromRow, now.toRow))
       live.current = null
+      if (!manual) {
+        // Manual order is the only sort that shows where the row went: switch to it once the move has
+        // landed, sliding every row from where the preview drew it.
+        land.current = () => {
+          flip.current = new Map(rowEls().map((el) => [el.dataset.row ?? "", el.getBoundingClientRect().top]))
+          setDrag(null)
+          setRailSort("default")
+          toast(tc("tasks", "sort.label", { mode: tc("tasks", "sort.modes.default") }))
+        }
+      } else land.current = () => setDrag(null)
       // The preview stays until the daemon's new order has arrived, so the row doesn't jump back first.
-      if (steps) void moveTaskBy(model, now.from.id, steps).finally(() => setLanding(latest.current))
-      else setDrag(null)
+      if (move) void dropTask(model, now.from.id, move).finally(() => setLanding(latest.current))
+      else land.current()
     },
   }
   const measure = (body: Element | null) => {

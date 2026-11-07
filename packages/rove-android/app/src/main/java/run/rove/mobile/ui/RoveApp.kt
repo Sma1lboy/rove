@@ -56,6 +56,7 @@ import run.rove.mobile.R
                 Route.Routines -> RoutinesScreen(model, pop, open)
                 Route.Issues -> IssuesScreen(model, pop, open)
                 Route.Worktrees -> WorktreesScreen(model, pop, open)
+                Route.Search -> SearchScreen(model, pop, open)
                 Route.Settings -> SettingsScreen(model, pop, open)
             }
         }

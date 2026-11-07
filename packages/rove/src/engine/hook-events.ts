@@ -55,8 +55,8 @@ export function affectsActivityState(kind: string): boolean {
 
 /** Optional normalized detail an adapter can attach (read from the hook's stdin payload). */
 export interface EngineActivityDetail {
-  /** For `turn-failed`: a normalized failure class. */
-  readonly failure?: "rate_limit" | "billing" | "other"
+  /** For `turn-failed`: a normalized failure class. `transient` = the connection dropped or the provider 5xx'd. */
+  readonly failure?: "rate_limit" | "billing" | "transient" | "other"
   /** For `awaiting-input`: why the engine is blocked. */
   readonly waiting?: "permission" | "input"
   /** For `tool-*`: normalized tool identity (vendor field spellings die here). */

@@ -5,13 +5,26 @@
  * a destination and a secret the Mac would use.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts, tt } from "./settings-copy.ts"
-import { Group, ReadOnlyRow } from "./settings-rows.tsx"
+import { Choice, Group, ReadOnlyRow, Row } from "./settings-rows.tsx"
 import { toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { Segmented } from "./ui/segmented.tsx"
+import {
+  SETTINGS_ACTIONS,
+  SETTINGS_INPUT,
+  SETTINGS_NAME,
+  SETTINGS_NOTE,
+  SETTINGS_STATUS,
+  TIER_EDITOR,
+  TIER_HEAD,
+  TIER_ROW,
+} from "./ui/settings.ts"
 
 interface Tier {
   readonly tier: "swift" | "standard" | "deep"
@@ -55,7 +68,7 @@ function TierEditor(props: {
   const picked = props.engines.find((e) => e.id === engine)
   return (
     <form
-      className="tier-editor"
+      className={TIER_EDITOR}
       onSubmit={(e) => {
         e.preventDefault()
         props.onSave(engine, picked?.takesModel ? model.trim() : "", effort)
@@ -67,41 +80,31 @@ function TierEditor(props: {
         }
       }}
     >
-      <div className="chips-row">
-        {props.engines.map((e) => (
-          <button
-            type="button"
-            key={e.id}
-            aria-pressed={e.id === engine}
-            className={`chip-button ${e.id === engine ? "is-active" : ""}`}
-            onClick={() => {
-              setEngine(e.id)
-              if (!e.effortLevels.includes(effort)) setEffort("")
-              if (!e.takesModel) setModel("")
-            }}
-          >
-            {e.name}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label={ts("sections.engines")}
+        value={engine}
+        picks={props.engines.map((e) => ({ value: e.id, label: e.name }))}
+        onPick={(id) => {
+          const next = props.engines.find((e) => e.id === id)
+          setEngine(id)
+          if (next && !next.effortLevels.includes(effort)) setEffort("")
+          if (next && !next.takesModel) setModel("")
+        }}
+      />
       {picked && picked.effortLevels.length > 0 && (
-        <div className="chips-row">
-          {["", ...picked.effortLevels].map((level) => (
-            <button
-              type="button"
-              key={level || "default"}
-              aria-pressed={level === effort}
-              className={`chip-button ${level === effort ? "is-active" : ""}`}
-              onClick={() => setEffort(level)}
-            >
-              {level || ts("autoRouting.engineDefault")}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label={t("prefs.tierEffort")}
+          value={effort}
+          picks={["", ...picked.effortLevels].map((level) => ({
+            value: level,
+            label: level || ts("autoRouting.engineDefault"),
+          }))}
+          onPick={setEffort}
+        />
       )}
       {picked?.takesModel && (
         <input
-          className="input"
+          className={SETTINGS_INPUT}
           value={model}
           spellCheck={false}
           placeholder={ts("autoRouting.engineDefault")}
@@ -109,48 +112,41 @@ function TierEditor(props: {
           onChange={(e) => setModel(e.target.value)}
         />
       )}
-      <div className="actions">
-        <button type="button" className="link" onClick={props.onCancel}>
-          {t("dialog.cancel")}
-        </button>
-        <button type="submit" className="button">
+      <div className={SETTINGS_ACTIONS}>
+        <Button onClick={props.onCancel}>{t("dialog.cancel")}</Button>
+        <Button variant="filled" type="submit">
           {ts("action.save")}
-        </button>
+        </Button>
       </div>
     </form>
   )
 }
 
-/** The classifier's own cycle, as the TUI's: off → jev → custom (only when remembered) → off. */
-function nextMode(c: Classifier): Classifier["mode"] {
-  return c.mode === "off" ? "jev" : c.mode === "jev" && c.canCustom ? "custom" : "off"
-}
-
 export function RoutingSection({ client }: { client: BridgeClient }) {
-  const [routing, setRouting] = useState<Routing | null>(null)
+  const [routing, setRouting] = useState<Routing | null>(() => lastReply<Routing>(client, "autoRouting.get") ?? null)
   const [editing, setEditing] = useState<Tier["tier"] | null>(null)
   const load = useCallback(
-    () => client.request<Routing>("autoRouting.get").then(setRouting, (e) => toast(errorText(e), "error")),
+    () => requestRemembered<Routing>(client, "autoRouting.get").then(setRouting, (e) => toast(errorText(e), "error")),
     [client],
   )
   useEffect(() => {
     void load()
   }, [load])
-  // The mode the next press advances from: the last one requested, not the last one rendered.
-  const mode = useRef<{ next: Classifier["mode"]; inFlight: number } | null>(null)
   const write = (op: string, args: Record<string, unknown>) =>
     client
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!routing) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!routing) return <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
   const c = routing.classifier
-  const modeLabel =
-    c.mode === "off"
-      ? ts("autoRouting.classifierOff")
-      : c.mode === "jev"
-        ? "jev"
-        : ts("autoRouting.classifierCustomLabel")
+  const modes: { value: Classifier["mode"]; label: string }[] = [
+    { value: "off", label: ts("autoRouting.classifierOff") },
+    { value: "jev", label: "jev" },
+    // `custom` is offered once an endpoint is remembered, as the TUI's cycle skips it until then.
+    ...(c.canCustom || c.mode === "custom"
+      ? [{ value: "custom" as const, label: ts("autoRouting.classifierCustomLabel") }]
+      : []),
+  ]
   const modeHint =
     c.mode === "off"
       ? ts("autoRouting.classifierOffHint")
@@ -167,75 +163,61 @@ export function RoutingSection({ client }: { client: BridgeClient }) {
           : ts("autoRouting.keyCustomUnused")
   return (
     <>
-      <Group title={ts("autoRouting.title")} hint={ts("autoRouting.hint")}>
-        {!routing.configured && <p className="tone-warning">{ts("autoRouting.unconfigured")}</p>}
-        <div className="settings-rows">
-          {routing.tiers.map((row) => (
-            <div key={row.tier} className="tier-row">
-              <div className="tier-head">
-                <span className="engine-name">{tt(`tier.${row.tier}`)}</span>
-                <span className="mono muted">
-                  {[
-                    row.engineName,
-                    row.model ?? ts("autoRouting.engineDefault"),
-                    row.effort ?? ts("autoRouting.engineDefault"),
-                  ].join(" · ")}
-                </span>
-                <button
-                  type="button"
-                  className="link"
-                  onClick={() => setEditing(editing === row.tier ? null : row.tier)}
-                >
-                  {t("prefs.tierEdit")}
-                </button>
-              </div>
-              <span className="muted engine-detail">{tt(`tierDesc.${row.tier}`)}</span>
-              <span className={`engine-detail ${row.block ? "tone-warning" : "tone-success"}`}>
-                {row.block ? ts("autoRouting.unavailable", { reason: row.block }) : ts("autoRouting.ready")}
+      <Group hint={ts("autoRouting.hint")}>
+        {!routing.configured && <Row label={<span className="text-warning">{ts("autoRouting.unconfigured")}</span>} />}
+        {routing.tiers.map((row) => (
+          <div key={row.tier} className={TIER_ROW}>
+            <div className={TIER_HEAD}>
+              <span className={SETTINGS_NAME}>{tt(`tier.${row.tier}`)}</span>
+              <span className={`${SETTINGS_NOTE} min-w-0 truncate`}>
+                {[
+                  row.engineName,
+                  row.model ?? ts("autoRouting.engineDefault"),
+                  row.effort ?? ts("autoRouting.engineDefault"),
+                ].join(" · ")}
               </span>
-              {editing === row.tier && (
-                <TierEditor
-                  tier={row}
-                  engines={routing.engines}
-                  onCancel={() => setEditing(null)}
-                  onSave={(engine, model, effort) => {
-                    setEditing(null)
-                    void write("autoRouting.setTier", { tier: row.tier, engine, model, effort })
-                  }}
-                />
-              )}
+              <Button className="ml-auto" onClick={() => setEditing(editing === row.tier ? null : row.tier)}>
+                {t("prefs.tierEdit")}
+              </Button>
             </div>
-          ))}
-        </div>
+            <span className={SETTINGS_NOTE}>{tt(`tierDesc.${row.tier}`)}</span>
+            <span className={`text-meta ${row.block ? "text-warning" : "text-success"}`}>
+              {row.block ? ts("autoRouting.unavailable", { reason: row.block }) : ts("autoRouting.ready")}
+            </span>
+            {editing === row.tier && (
+              <TierEditor
+                tier={row}
+                engines={routing.engines}
+                onCancel={() => setEditing(null)}
+                onSave={(engine, model, effort) => {
+                  setEditing(null)
+                  void write("autoRouting.setTier", { tier: row.tier, engine, model, effort })
+                }}
+              />
+            )}
+          </div>
+        ))}
       </Group>
       <Group title={ts("autoRouting.classifierTitle")} hint={ts("autoRouting.classifierHint")}>
-        <p className={c.mode === "off" ? "muted" : "tone-warning"}>{ts("autoRouting.classifierDataFlow")}</p>
-        <button
-          type="button"
-          className="pref-cycle"
-          onClick={() => {
-            const next = nextMode({ ...c, mode: mode.current?.next ?? c.mode })
-            const pending = { next, inFlight: (mode.current?.inFlight ?? 0) + 1 }
-            mode.current = pending
-            void write("autoRouting.setClassifier", { mode: next }).then(() => {
-              if (mode.current && --mode.current.inFlight === 0) mode.current = null
-            })
-          }}
-        >
-          <span className="pref-label">
-            {ts("autoRouting.classifierLabel")}: {modeLabel}
-          </span>
-          <span className="pref-hint muted">{modeHint}</span>
-        </button>
-        <ReadOnlyRow
-          label={`${ts("autoRouting.endpointLabel")}: ${c.endpointHost || t("prefs.unset")}`}
-          note={t("prefs.editInTui")}
+        <Row
+          label={
+            <span className={c.mode === "off" ? "text-muted" : "text-warning"}>
+              {ts("autoRouting.classifierDataFlow")}
+            </span>
+          }
         />
-        <ReadOnlyRow
-          label={`${ts("autoRouting.thresholdLabel")}: ${c.threshold.toFixed(2)}`}
-          note={t("prefs.editInTui")}
+        <Choice
+          label={ts("autoRouting.classifierLabel")}
+          hint={modeHint.replace(/^[—\s]+/, "")}
+          value={c.mode}
+          picks={modes}
+          onPick={(mode) => void write("autoRouting.setClassifier", { mode })}
         />
-        <ReadOnlyRow label={`${ts("autoRouting.keyLabel")}: ${keyLine}`} note={t("prefs.editInTui")} />
+      </Group>
+      <Group title={t("prefs.classifierConnection")} hint={t("prefs.editInTui")}>
+        <ReadOnlyRow label={ts("autoRouting.endpointLabel")} value={c.endpointHost || t("prefs.unset")} />
+        <ReadOnlyRow label={ts("autoRouting.thresholdLabel")} value={c.threshold.toFixed(2)} />
+        <Row label={ts("autoRouting.keyLabel")} hint={keyLine} />
       </Group>
     </>
   )

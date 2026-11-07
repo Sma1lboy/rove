@@ -61,6 +61,7 @@ function stubRuntime(): ApiRuntime {
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
     listeningPorts: async () => [],
+    measureCheckout: async () => ({ exists: false, bytes: null, ignoredBytes: null }),
   }
 }
 
@@ -114,6 +115,7 @@ describe("schema drill-ins", () => {
 
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
+      ["spawn", ["api", "add", "--help"], /--no-worktree/],
       ["set-vendor", ["api", "update", "--help"], /update --command/],
       ["set-status", ["api", "update", "--help"], /--status/],
       ["issue-set-status", ["api", "issue-update", "--help"], /--status/],
@@ -150,15 +152,21 @@ describe("schema drill-ins", () => {
       "agent-turns",
       "inspect",
       "read-output",
+      "queue-list",
+      "search",
       "watch",
       "ports",
+      "viewers",
       "review-comments",
       "worktree-files",
+      "worktree-file",
       "worktree-diff",
       "worktree-diff-file",
+      "worktree-refs",
       "deliveries",
       "should-run",
       "gates",
+      "github-status",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })

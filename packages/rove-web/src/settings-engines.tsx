@@ -1,7 +1,8 @@
 /**
  * Settings → Engines: one row per engine (name, a plain-language status, whether it is the
  * default, whether it is offered), the detection facts and rename/reset in a detail area that
- * opens under its row, and one section for Rove's engine integrations (the activity hooks).
+ * opens under its row, one section for Rove's engine integrations (the activity hooks) and one
+ * for the Rove agent skill.
  * Launch commands stay a Mac-side edit.
  */
 
@@ -10,8 +11,40 @@ import { useCallback, useEffect, useId, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { ts } from "./settings-copy.ts"
+import { Group, Row } from "./settings-rows.tsx"
+import { installSkill } from "./skill-status.ts"
 import { toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { Chevron } from "./ui/chevron.tsx"
+import {
+  ENG_ACTIONS,
+  ENG_DEFAULT,
+  ENG_DETAIL_AREA,
+  ENG_FACTS,
+  ENG_FACT_TERM,
+  ENG_ITEM,
+  ENG_LIST,
+  ENG_LIST_HEAD,
+  ENG_MAKE_DEFAULT,
+  ENG_PILL,
+  ENG_RENAME_INPUT,
+  ENG_ROW,
+  ENG_SUB,
+  ENG_SUMMARY,
+  ENG_TITLE,
+  ENG_UPTODATE,
+  type EngTone,
+  engChevronClass,
+  engDotClass,
+  engFactClass,
+  engNameClass,
+  engStatusClass,
+} from "./ui/settings.ts"
+import { SETTINGS_ACTIONS, SETTINGS_GROUP_HINT, SETTINGS_STATUS } from "./ui/settings.ts"
+import { Switch } from "./ui/switch.tsx"
+import { INPUT_FRAME } from "./ui/text.ts"
 
 /** `engines.settings` row, trimmed to what the page shows. */
 interface EngineSetting {
@@ -33,6 +66,8 @@ interface EngineSetting {
   readonly markers: boolean
   readonly screen: boolean
   readonly configIssue?: string
+  /** The Rove agent skill copy; "unsupported" when the engine isn't set up here or takes none. */
+  readonly skill: "installed" | "outdated" | "not-installed" | "unsupported"
 }
 
 type Run = (op: string, args?: Record<string, unknown>) => void
@@ -47,20 +82,22 @@ function health(e: EngineSetting) {
   })
 }
 
-const TONE_CLASS: Record<EngineHealthTone, string> = {
-  ready: "is-ready",
-  attention: "is-attention",
-  error: "is-error",
-  absent: "is-absent",
-  unknown: "is-absent",
+const TONE: Record<EngineHealthTone, EngTone> = {
+  ready: "ready",
+  attention: "attention",
+  error: "error",
+  absent: "absent",
+  unknown: "absent",
 }
 
 export function EnginesSection({ client }: { client: BridgeClient }) {
-  const [engines, setEngines] = useState<readonly EngineSetting[] | null>(null)
+  const [engines, setEngines] = useState<readonly EngineSetting[] | null>(
+    () => lastReply<{ engines: EngineSetting[] }>(client, "engines.settings")?.engines ?? null,
+  )
   const [open, setOpen] = useState<string | null>(null)
   const load = useCallback(
     () =>
-      client.request<{ engines: EngineSetting[] }>("engines.settings").then(
+      requestRemembered<{ engines: EngineSetting[] }>(client, "engines.settings").then(
         (r) => setEngines(r.engines),
         (e) => toast(errorText(e), "error"),
       ),
@@ -74,28 +111,31 @@ export function EnginesSection({ client }: { client: BridgeClient }) {
       .request(op, args)
       .then(load)
       .catch((e) => toast(errorText(e), "error"))
-  if (!engines) return <p className="placeholder-line">{t("preview.loading")}</p>
+  if (!engines) return <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
   return (
-    <section className="settings-group engines">
-      <p className="muted">{ts("engines.hint")}</p>
-      <div className="eng-list">
-        <div className="eng-list-head" aria-hidden="true">
-          <span>{ts("sections.engines")}</span>
-          <span>{ts("engines.defaultMark")}</span>
-          <span>{ts("engines.available")}</span>
+    <>
+      <section>
+        <p className={SETTINGS_GROUP_HINT}>{ts("engines.hint")}</p>
+        <div className={ENG_LIST}>
+          <div className={ENG_LIST_HEAD} aria-hidden="true">
+            <span />
+            <span>{ts("engines.defaultMark")}</span>
+            <span>{ts("engines.available")}</span>
+          </div>
+          {engines.map((e) => (
+            <EngineItem
+              key={e.id}
+              engine={e}
+              open={open === e.id}
+              onToggleOpen={() => setOpen(open === e.id ? null : e.id)}
+              run={run}
+            />
+          ))}
         </div>
-        {engines.map((e) => (
-          <EngineItem
-            key={e.id}
-            engine={e}
-            open={open === e.id}
-            onToggleOpen={() => setOpen(open === e.id ? null : e.id)}
-            run={run}
-          />
-        ))}
-      </div>
+      </section>
       <Integrations engines={engines} run={run} />
-    </section>
+      <SkillSection engines={engines} client={client} reload={load} />
+    </>
   )
 }
 
@@ -104,37 +144,35 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
   const detailId = useId()
   const status = health(e)
   return (
-    <div className={`eng-item ${props.open ? "is-open" : ""} ${e.enabled ? "" : "is-off"}`}>
-      <div className="eng-row">
+    <div className={ENG_ITEM}>
+      <div className={ENG_ROW}>
         <button
           type="button"
-          className="eng-summary"
+          className={ENG_SUMMARY}
           aria-expanded={props.open}
           aria-controls={detailId}
           onClick={props.onToggleOpen}
         >
-          <svg className="eng-chevron" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-          <span className="eng-title">
-            <span className="eng-name">
+          <Chevron right={!props.open} className={engChevronClass(props.open)} />
+          <span className={ENG_TITLE}>
+            <span className={engNameClass(!e.enabled)}>
               {e.name}
-              {e.renamedFrom ? <span className="eng-sub">{e.renamedFrom}</span> : null}
-              {e.custom && !e.renamedFrom ? <span className="eng-sub">{ts("engines.customTag")}</span> : null}
+              {e.renamedFrom ? <span className={ENG_SUB}>{e.renamedFrom}</span> : null}
+              {e.custom && !e.renamedFrom ? <span className={ENG_SUB}>{ts("engines.customTag")}</span> : null}
             </span>
-            <span className={`eng-status ${TONE_CLASS[status.tone]}`}>
-              <span className="eng-dot" aria-hidden="true" />
+            <span className={engStatusClass(TONE[status.tone])}>
+              <span className={engDotClass(TONE[status.tone])} aria-hidden="true" />
               {ts(status.key.slice("settings.".length))}
             </span>
           </span>
         </button>
-        <div className="eng-default">
+        <div className={ENG_DEFAULT}>
           {e.isDefault ? (
-            <span className="eng-pill">{ts("engines.defaultMark")}</span>
+            <span className={ENG_PILL}>{ts("engines.defaultMark")}</span>
           ) : e.canBeDefault ? (
             <button
               type="button"
-              className="eng-make-default"
+              className={ENG_MAKE_DEFAULT}
               aria-label={t("settings.engines.default", { name: e.name })}
               onClick={() => run("engine.setDefault", { id: e.id })}
             >
@@ -142,16 +180,11 @@ function EngineItem(props: { engine: EngineSetting; open: boolean; onToggleOpen:
             </button>
           ) : null}
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={e.enabled}
+        <Switch
+          on={e.enabled}
           aria-label={t("settings.engines.enabled", { name: e.name })}
-          className="switch"
           onClick={() => run("engine.setEnabled", { id: e.id, enabled: !e.enabled })}
-        >
-          <span className="switch-knob" />
-        </button>
+        />
       </div>
       {props.open ? <EngineDetail id={detailId} engine={e} run={run} /> : null}
     </div>
@@ -199,22 +232,38 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
     ),
   ]
   return (
-    <div id={props.id} className="eng-detail-area">
-      <dl className="eng-facts">
-        <dt>{ts("engines.detail.program")}</dt>
-        <dd className={e.binaryFound === false ? "tone-warning" : ""}>{program}</dd>
-        <dt>{ts("engines.detail.signIn")}</dt>
-        <dd className={e.login === "no" ? "tone-warning" : ""}>{signIn}</dd>
-        <dt>{ts("engines.detail.reporting")}</dt>
-        <dd>
+    <div id={props.id} className={ENG_DETAIL_AREA}>
+      <dl className={ENG_FACTS}>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.program")}</dt>
+        <dd className={engFactClass(e.binaryFound === false)}>{program}</dd>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.signIn")}</dt>
+        <dd className={engFactClass(e.login === "no")}>{signIn}</dd>
+        <dt className={ENG_FACT_TERM}>{ts("engines.detail.reporting")}</dt>
+        <dd className={engFactClass(false)}>
           {reporting.map((line) => (
-            <span key={line}>{line}</span>
+            <span key={line} className="block">
+              {line}
+            </span>
           ))}
         </dd>
+        {e.skill !== "unsupported" ? (
+          <>
+            <dt className={ENG_FACT_TERM}>{ts("engines.detail.skill")}</dt>
+            <dd className={engFactClass(e.skill !== "installed")}>
+              {ts(
+                e.skill === "installed"
+                  ? "engines.detail.skillInstalledHere"
+                  : e.skill === "outdated"
+                    ? "engines.detail.skillOutdated"
+                    : "engines.detail.skillMissing",
+              )}
+            </dd>
+          </>
+        ) : null}
         {e.custom ? (
           <>
-            <dt>{ts("engines.detail.adapter")}</dt>
-            <dd>
+            <dt className={ENG_FACT_TERM}>{ts("engines.detail.adapter")}</dt>
+            <dd className={engFactClass(false)}>
               {e.protocol
                 ? ts("engines.detail.adapterDeclared", { protocol: e.protocol })
                 : ts("engines.detail.adapterGeneric")}
@@ -224,7 +273,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
       </dl>
       {renaming !== null ? (
         <form
-          className="eng-rename"
+          className={ENG_ACTIONS}
           onSubmit={(ev) => {
             ev.preventDefault()
             run("engine.rename", { id: e.id, name: renaming })
@@ -232,7 +281,7 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
           }}
         >
           <input
-            className="input"
+            className={`${INPUT_FRAME} w-full ${ENG_RENAME_INPUT}`}
             // biome-ignore lint/a11y/noAutofocus: the rename field just opened
             autoFocus
             value={renaming}
@@ -246,22 +295,22 @@ function EngineDetail(props: { id: string; engine: EngineSetting; run: Run }) {
               }
             }}
           />
-          <button type="submit" className="button">
+          <Button variant="filled" type="submit">
             {t("settings.engines.save")}
-          </button>
-          <button type="button" className="eng-action" onClick={() => setRenaming(null)}>
+          </Button>
+          <Button variant="action" onClick={() => setRenaming(null)}>
             {t("settings.engines.cancel")}
-          </button>
+          </Button>
         </form>
       ) : (
-        <div className="eng-actions">
-          <button type="button" className="eng-action" onClick={() => setRenaming(e.name)}>
+        <div className={ENG_ACTIONS}>
+          <Button variant="action" onClick={() => setRenaming(e.name)}>
             {t("settings.engines.rename")}
-          </button>
+          </Button>
           {e.custom || e.customized ? (
-            <button type="button" className="eng-action" onClick={() => run("engine.reset", { id: e.id })}>
+            <Button variant="action" onClick={() => run("engine.reset", { id: e.id })}>
               {e.custom ? t("settings.engines.remove") : t("settings.engines.reset")}
-            </button>
+            </Button>
           ) : null}
         </div>
       )}
@@ -278,28 +327,50 @@ function Integrations({ engines, run }: { engines: readonly EngineSetting[]; run
   const onDisk = hooked.filter((e) => e.hooks !== "not-installed").length
   if (hooked.length === 0) return null
   return (
-    <div className="eng-integrations">
-      <div className="eng-integrations-head">
-        <h3>{ts("engines.integrations.title")}</h3>
-        <span className="muted">
-          {ts("engines.integrations.summary", { installed: current, total: hookable.length })}
-        </span>
-      </div>
-      <p className="muted">{ts("engines.integrations.hint")}</p>
-      <div className="eng-integrations-actions">
+    <Group title={ts("engines.integrations.title")} hint={ts("engines.integrations.hint")}>
+      <Row label={ts("engines.integrations.summary", { installed: current, total: hookable.length })}>
+        <div className={SETTINGS_ACTIONS}>
+          {needInstall > 0 ? (
+            <Button variant="filled" onClick={() => run("engines.hooks.install")}>
+              {ts("engines.integrations.install", { count: needInstall })}
+            </Button>
+          ) : (
+            <span className={ENG_UPTODATE}>{ts("engines.integrations.upToDate")}</span>
+          )}
+          {onDisk > 0 ? (
+            <Button variant="action" onClick={() => run("engines.hooks.uninstall")}>
+              {ts("engines.integrations.remove", { count: onDisk })}
+            </Button>
+          ) : null}
+        </div>
+      </Row>
+    </Group>
+  )
+}
+
+function SkillSection(props: { engines: readonly EngineSetting[]; client: BridgeClient; reload: () => unknown }) {
+  const skillable = props.engines.filter((e) => e.skill !== "unsupported")
+  const current = skillable.filter((e) => e.skill === "installed").length
+  const needInstall = skillable.length - current
+  // Shared with the banner, so installing here clears it too.
+  const install = () => void installSkill(props.client).then(props.reload)
+  return (
+    <Group title={ts("engines.skill.title")} hint={ts("engines.skill.hint")}>
+      <Row
+        label={
+          skillable.length > 0
+            ? ts("engines.integrations.summary", { installed: current, total: skillable.length })
+            : ts("engines.skill.noEngines")
+        }
+      >
         {needInstall > 0 ? (
-          <button type="button" className="button" onClick={() => run("engines.hooks.install")}>
-            {ts("engines.integrations.install", { count: needInstall })}
-          </button>
-        ) : (
-          <span className="eng-uptodate">{ts("engines.integrations.upToDate")}</span>
-        )}
-        {onDisk > 0 ? (
-          <button type="button" className="eng-action" onClick={() => run("engines.hooks.uninstall")}>
-            {ts("engines.integrations.remove", { count: onDisk })}
-          </button>
+          <Button variant="filled" onClick={install}>
+            {ts("engines.skill.install", { count: needInstall })}
+          </Button>
+        ) : skillable.length > 0 ? (
+          <span className={ENG_UPTODATE}>{ts("engines.integrations.upToDate")}</span>
         ) : null}
-      </div>
-    </div>
+      </Row>
+    </Group>
   )
 }

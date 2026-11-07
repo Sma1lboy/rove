@@ -5,18 +5,35 @@
  * field, not this file, decides where it lists; specs spread into {@link VERBS}.
  */
 
+import path from "node:path"
+import { errorMessage } from "@/lib/error-message"
+import type { ReparentResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { ownSession, replyTabOf } from "./dispatcher.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { assertEngineAcceptsEffort, assertEngineAcceptsModel, taskEngine, vendorToRecord } from "./handlers-engines.ts"
 import { renameTabsSnapshot } from "./tab-snapshot.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
-import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep, splitDaemonCode } from "./types.ts"
 
-const TASK_FIELDS = ["title", "branch", "command", "model", "effort", "pinned", "require-report", "status"] as const
+const TASK_FIELDS = [
+  "title",
+  "branch",
+  "parent",
+  "project",
+  "command",
+  "model",
+  "effort",
+  "pinned",
+  "kept",
+  "require-report",
+  "auto-fix-ci",
+  "status",
+] as const
 const REPORT_FLAGS = ["report-branch", "report-pr", "report-summary"] as const
 
 /**
@@ -44,23 +61,122 @@ async function renameTab(ctx: VerbContext, taskId: string, tabId: string): Promi
   return { ok: true, taskId, tabId, title, renamed: true, clients: reply.clients ?? 0 }
 }
 
+/** `--task-id`, else the caller's own verified session (so an agent can act on the task it runs in). */
+export async function resolveTarget(ctx: VerbContext, verb = "update"): Promise<string> {
+  const explicit = ctx.args.str("task-id")
+  if (explicit) return explicit
+  const self = await ownSession(daemonOf(ctx))
+  if (!self) {
+    throw new ApiError(
+      "no --task-id given and the caller is not a verified rove session — pass --task-id ID",
+      "MISSING_TARGET",
+      helpStep(verb),
+    )
+  }
+  return self.taskId
+}
+
+/** `--project`'s repo: the main checkout of the git repo PATH sits in, checked before anything is written. */
+async function projectRoot(ctx: VerbContext): Promise<string | undefined> {
+  const raw = ctx.args.str("project")?.trim()
+  if (raw === undefined) return undefined
+  if (raw === "") throw new ApiError("--project cannot be empty — pass the repo's path", "BAD_FLAG")
+  const root = await ctx.runtime.resolveRepoRoot(path.resolve(ctx.caller.cwd ?? process.cwd(), raw))
+  if (!(await ctx.runtime.isUsableRepo(root))) {
+    throw new ApiError(`--project ${raw} is not inside a git repository`, "NOT_A_GIT_REPO", {
+      hint: "clone or `git init` the project first, then pass its path",
+    })
+  }
+  return root
+}
+
+/** `--parent none`: promote to top level. */
+const NO_PARENT = "none"
+
 /**
- * Validate every field, then apply them one RPC at a time: the git-side
- * branch rename (the step most likely to refuse) first, then the engine, then
- * plain metadata. Not atomic — a refusal mid-way names what already applied.
+ * `--group G --parent Y`: every task of one fan-out round moves under Y. A member's refusal is RECORDED, not
+ * thrown (as `delete --group`): aborting would hide which of N already moved.
+ */
+async function reparentGroup(ctx: VerbContext, groupId: string): Promise<unknown> {
+  const parent = ctx.args.str("parent")
+  const stray = ["task-id", "tab", ...TASK_FIELDS.filter((f) => f !== "parent"), ...REPORT_FLAGS].filter(
+    (f) => ctx.args.str(f) !== undefined,
+  )
+  if (parent === undefined || parent === "" || stray.length > 0) {
+    throw new ApiError(
+      `--group moves a whole fan-out round and takes only --parent ID (or \`none\`)${stray.length > 0 ? ` — drop ${stray.map((f) => `--${f}`).join(", ")}` : ""}`,
+      "BAD_FLAG",
+      helpStep("update"),
+    )
+  }
+  const daemon = daemonOf(ctx)
+  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const members = tasks.filter((t) => t.groupId === groupId)
+  if (members.length === 0) {
+    throw new ApiError(`no tasks in group ${groupId}`, "TASK_NOT_FOUND", {
+      hint: "the groupId is the one `add --count` returned; any surviving sibling's `.groupId` in `list` recovers it",
+      nextCommandArgs: ["api", "list"],
+    })
+  }
+  if (members.some((t) => t.id === parent)) {
+    throw new ApiError(
+      `${parent} is itself a member of group ${groupId} — a round cannot move under one of its own`,
+      "PARENT_IN_GROUP",
+      {
+        hint: "pick a parent outside the round, or move the members one by one with --task-id",
+      },
+    )
+  }
+  const parentTaskId = parent === NO_PARENT ? null : parent
+  const replyTab = parentTaskId === null ? undefined : await replyTabOf(ctx.runtime, daemon, parentTaskId)
+  const results: unknown[] = []
+  let failures = 0
+  for (const task of members) {
+    try {
+      const moved = await simpleRpc<ReparentResult>(ctx, "task.setParent", {
+        taskId: task.id,
+        parentTaskId,
+        ...(replyTab ? { replyTab } : {}),
+      })
+      results.push({ taskId: task.id, status: "moved", ...moved })
+    } catch (err) {
+      failures++
+      const message = errorMessage(err)
+      const coded = err instanceof ApiError ? { code: err.code, rest: message } : splitDaemonCode(message)
+      results.push({
+        taskId: task.id,
+        status: "failed",
+        error: coded?.rest ?? message,
+        ...(coded ? { code: coded.code } : {}),
+      })
+    }
+  }
+  return { ok: failures === 0, groupId, count: members.length, failures, results }
+}
+
+/**
+ * Validate every field, then apply them one RPC at a time: the parent move first (the daemon's tree rules
+ * refuse before anything is written), then the git-side branch rename, the engine, and plain metadata.
+ * Not atomic — a refusal mid-way names what already applied.
  */
 async function updateTask(ctx: VerbContext): Promise<unknown> {
-  const taskId = ctx.args.require("task-id")
+  const group = ctx.args.str("group")
+  if (group !== undefined) return reparentGroup(ctx, group)
   const tabId = ctx.args.str("tab")
+  // A tab lives in the snapshot of the task that owns its PTY, which a migrated child's own id does not name.
+  const taskId = tabId !== undefined ? ctx.args.require("task-id") : await resolveTarget(ctx)
   if (tabId !== undefined) return renameTab(ctx, taskId, tabId)
 
   const title = ctx.args.str("title")
   const branch = ctx.args.str("branch")
+  const parent = ctx.args.str("parent")
   const command = ctx.args.str("command")?.trim()
   const model = ctx.args.str("model")?.trim()
   const effort = ctx.args.str("effort")?.trim()
   const pinned = ctx.args.bool("pinned")
+  const kept = ctx.args.bool("kept")
   const requireReport = ctx.args.enumOf<"on" | "off">("require-report")
+  const autoFixCi = ctx.args.enumOf<"on" | "off">("auto-fix-ci")
   const status = ctx.args.enumOf<TaskStatus>("status")
   const report = {
     reportBranch: ctx.args.str("report-branch"),
@@ -83,9 +199,12 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
     })
   }
   if (command === "") throw new ApiError("--command cannot be empty", "BAD_FLAG")
+  if (parent === "")
+    throw new ApiError("--parent cannot be empty — pass a task id, or `none` for top level", "BAD_FLAG")
 
   const daemon = daemonOf(ctx)
   const protocol = command ? resolveCommandProtocol(command) : undefined
+  const project = await projectRoot(ctx)
   let task: SerializedTask | undefined
   let engine: VendorId | undefined
   if (model !== undefined || effort !== undefined) {
@@ -98,9 +217,10 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   }
 
   const applied: string[] = []
-  const step = async (fields: readonly string[], method: string, payload: Record<string, unknown>) => {
+  const step = async <T>(fields: readonly string[], method: string, payload: Record<string, unknown>): Promise<T> => {
+    let reply: T
     try {
-      await simpleRpc(ctx, method, { taskId, ...payload })
+      reply = await simpleRpc<T>(ctx, method, { taskId, ...payload })
     } catch (err) {
       if (applied.length === 0) throw err
       const message = err instanceof Error ? err.message : String(err)
@@ -111,9 +231,24 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
       })
     }
     applied.push(...fields)
+    return reply
   }
 
+  let reparented: ReparentResult | undefined
+  // The git rename can't be undone, so a tree refusal (cycle, missing parent) must come before it.
+  if (parent !== undefined) {
+    const parentTaskId = parent === NO_PARENT ? null : parent
+    const replyTab = parentTaskId === null ? undefined : await replyTabOf(ctx.runtime, daemon, parentTaskId)
+    reparented = await step<ReparentResult>(["parent"], "task.setParent", {
+      parentTaskId,
+      ...(replyTab ? { replyTab } : {}),
+    })
+  }
+  // A project move only regroups (its refusals come before it writes), so it too precedes the git rename.
+  let regrouped: { repo: string; moved: readonly string[] } | undefined
+  if (project !== undefined) regrouped = await step(["project"], "task.moveToProject", { repo: project })
   if (branch !== undefined) await step(["branch"], "task.setBranch", { branch })
+
   if (command) await step(["command"], "task.setCommand", { command, vendor: protocol })
   if (task && engine) {
     // A command change just recorded `protocol` as the vendor; build on that.
@@ -123,15 +258,27 @@ async function updateTask(ctx: VerbContext): Promise<unknown> {
   }
   if (title !== undefined) await step(["title"], "task.rename", { title })
   if (pinned !== undefined) await step(["pinned"], "task.pin", { pinned })
+  if (kept !== undefined) await step(["kept"], "task.keep", { kept })
   if (requireReport !== undefined) {
     await step(["require-report"], "task.requireReport", { required: requireReport === "on" })
   }
+  if (autoFixCi !== undefined) await step(["auto-fix-ci"], "task.autoFixCi", { enabled: autoFixCi === "on" })
   if (status !== undefined) await step(["status"], "task.status", { status, ...report })
 
   return {
     ok: true,
     taskId,
     updated: applied,
+    ...(reparented ? { parent: reparented } : {}),
+    ...(regrouped
+      ? {
+          project: {
+            repo: regrouped.repo,
+            moved: regrouped.moved,
+            note: "regrouped only — the PTYs, cwd, worktree and branch stay where they were",
+          },
+        }
+      : {}),
     ...(command ? { command, protocol, ...(protocol === GENERIC_PROTOCOL ? { generic: true } : {}) } : {}),
     ...(engine ? { engine } : {}),
   }
@@ -142,9 +289,13 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
     name: "update",
     group: "edit",
     summary:
-      "Change a task's metadata — any combination of title, branch (git branch -m if materialized, else recorded), engine --command / --model / --effort (take effect on the next session rebuild), pin, and status + worker report — in one call. Every field is validated before anything is written; then they apply in order branch → engine → title/pin/status, and a refusal mid-way names what already applied (`applied`). With --tab, renames that Terminal Tab instead (the API twin of the TUI's f2) and takes only --title. The status is a cosmetic LABEL: `--status canceled` closes, stops and cleans up nothing — `delete` ends a task. The --report-* fields record what the WORKER CLAIMS it delivered (`.report` on `get-task` / `collect`), deliberately apart from `.prStatus`, which the daemon polled from the forge; they merge onto any previous report and need --status. Returns { updated } — the fields written, in order.",
+      "Change a task's metadata — any combination of title, branch (git branch -m if materialized, else recorded), parent, engine --command / --model / --effort (take effect on the next session rebuild), pin, and status + worker report — in one call. The flags are checked before anything is written; then they apply in order parent → branch → engine → title/pin/status, and a refusal mid-way names what already applied (`applied`). --parent ID re-parents the task without touching its engine, tabs, worktree or branch: the stored parent is ID's top-level ancestor (children never nest, as with `add` from a child; the task's own children come along, listed in `.parent.moved`) and the task's reply address becomes ID itself, so its bare `send` reaches ID (the caller's own tab when run from inside ID, else ID's live engine tab, else tab-1). `--parent none` makes the task top level and drops a reply address that pointed into its old tree. A parent must live on the same machine as the task. Archiving the stored parent, or `delete --cascade` on it, takes the task along. --group G --parent ID moves a whole fan-out round instead and takes nothing else. With --tab, renames that Terminal Tab instead (the API twin of the TUI's f2) and takes only --title. The status is a cosmetic LABEL: `--status canceled` closes, stops and cleans up nothing — `delete` ends a task. The --report-* fields record what the WORKER CLAIMS it delivered (`.report` on `get-task` / `collect`), deliberately apart from `.prStatus`, which the daemon polled from the forge; they merge onto any previous report and need --status. Returns { updated } — the fields written, in order.",
     flags: [
-      F.taskId(),
+      {
+        ...F.taskId(false),
+        description:
+          "Target task id (from `list` / `add`). Default: the calling session's own task, from the verified $ROVE_TASK_ID (an unverifiable env is MISSING_TARGET, never a guess).",
+      },
       {
         name: "title",
         type: "string",
@@ -156,9 +307,30 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "TAB",
         description:
-          "Rename this Terminal Tab (id from `get-task` .tabs[].id, e.g. tab-2) instead of the task; only --title may accompany it. TAB_NOT_FOUND when the task's snapshot names no such tab.",
+          "Rename this Terminal Tab (id from `get-task` .tabs[].id, e.g. tab-2) instead of the task; needs --task-id, and only --title may accompany it. TAB_NOT_FOUND when the task's snapshot names no such tab.",
       },
       { name: "branch", type: "string", placeholder: "B", description: "New branch name." },
+      {
+        name: "parent",
+        type: "string",
+        placeholder: "ID|none",
+        description:
+          "Move the task under this task (its engine, tabs, worktree and branch stay as they are), or `none` to make it top level. Refusals: PARENT_NOT_FOUND, PARENT_IS_SELF, PARENT_CYCLE, TASK_NOT_MOVABLE, REMOTE_PARENT_UNSUPPORTED.",
+      },
+      {
+        name: "project",
+        type: "string",
+        placeholder: "PATH",
+        description:
+          "Move a top-level task (and its children) under the project at PATH (relative paths resolve against $PWD; any directory inside the repo names its main checkout), which becomes a project if it was not one. Only the grouping changes: the live session, tabs, cwd, worktree and branch stay exactly where they are, so a running engine keeps its conversation. Moving a worktree task back to the repo that cut it clears the link. Refusals: NOT_A_GIT_REPO, SAME_PROJECT, TASK_NOT_MOVABLE (a project's main task, a routine session or a multi-repo task), CHILD_NOT_MOVABLE (move its parent; children follow), REMOTE_MOVE_UNSUPPORTED.",
+      },
+      {
+        name: "group",
+        type: "string",
+        placeholder: "GROUPID",
+        description:
+          "With --parent: move every task of one fan-out round (the `groupId` that `add --count` returns). Takes nothing but --parent; a member's refusal is recorded in `results`, and a parent inside the round is PARENT_IN_GROUP.",
+      },
       {
         ...F.command(),
         description:
@@ -177,7 +349,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         type: "string",
         placeholder: "LEVEL",
         description:
-          "Reasoning effort level the task's engine declares (codex: none/low/medium/high/xhigh/max; pi, omp: off/minimal/low/medium/high/xhigh/max; claude: none). BAD_EFFORT names the accepted levels.",
+          "Reasoning effort level the task's engine declares (codex: none/low/medium/high/xhigh/max; pi, omp: off/minimal/low/medium/high/xhigh/max; claude: low/medium/high/xhigh/max). BAD_EFFORT names the accepted levels.",
       },
       {
         name: "pinned",
@@ -186,11 +358,25 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
         description: "true pins the task to the top of the sidebar, false unpins.",
       },
       {
+        name: "kept",
+        type: "bool",
+        placeholder: "BOOL",
+        description:
+          "true marks the task as the attempt kept from a parallel round (`add --count` / `--agents`); false clears the mark. A flag only: it archives nothing, and other attempts of the round are untouched.",
+      },
+      {
         name: "require-report",
         type: "enum",
         values: ["on", "off"],
         description:
           "on: every later `send` to this task arms a delivery the agent must close with `report --delivery <id>` (a turn that ends without one raises a `report_missing` Inbox row); off: back to plain sends.",
+      },
+      {
+        name: "auto-fix-ci",
+        type: "enum",
+        values: ["on", "off"],
+        description:
+          "on: when this task's PR checks go red on a new head sha and its engine is at rest, the daemon types the fix-CI prompt (with the failing logs) into the engine, at most once per sha and 3 times in all, then stops and raises an Inbox row; the count starts over when the checks pass. Never interrupts a running turn. off: stop and forget the count.",
       },
       {
         name: "status",

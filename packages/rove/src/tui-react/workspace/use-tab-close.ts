@@ -141,6 +141,12 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
       deps.onScratchExit()
       return
     }
+    // A shell's last tab ending leaves the row open and empty (⏎ starts a fresh shell) rather than
+    // conjuring an engine nobody asked for; the task is never deleted here.
+    if (active.kind === "command") {
+      closeById(active.id)
+      return
+    }
     // Last tab exited: recycle in place as a fresh engine tab (new session)
     // instead of freezing on the exit banner; `recycleTabs` keeps the title.
     getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))

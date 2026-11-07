@@ -60,4 +60,8 @@ class InboxTest {
         assertEquals(true, InboxLogic.clearsOnVisit(item("a", "turn_complete", 1.0)))
         assertEquals(true, InboxLogic.clearsOnVisit(item("a", "error", 1.0)))
     }
+    @Test fun aFailedRoutineClearsByItsSchedule() {
+        assertEquals("auto-1", InboxLogic.routineEpisode(Attention(state = "routine_failed", automationId = "auto-1")))
+        assertNull(InboxLogic.routineEpisode(Attention(taskId = "t", state = "routine_responded", automationId = "auto-1")))
+    }
 }

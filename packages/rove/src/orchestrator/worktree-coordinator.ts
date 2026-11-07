@@ -13,11 +13,12 @@
 
 import { basename } from "node:path"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
 import type { Task, TaskId, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
-import { InvalidWorktreeNameError } from "./errors.ts"
+import { ForkUnsupportedError, InvalidWorktreeNameError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import {
   type MaterialisedExtras,
@@ -28,6 +29,7 @@ import {
 } from "./multi-repo.ts"
 import { taskWorktreePaths } from "./task-tree.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
+import { type WorkspaceRegistry, workspaceBackendId } from "./workspace/index.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import { SlugAllocator } from "./worktree/slug-allocator.ts"
 
@@ -53,12 +55,13 @@ export interface AdoptWorktreeInput {
 export class WorktreeCoordinator {
   private readonly store: TaskIndexStore
   private readonly worktrees: GitWorktreeManager
+  private readonly workspaces: WorkspaceRegistry
   private readonly canonPath: CanonPath
   private readonly ensureProject: EnsureProject
   private readonly slugs: SlugAllocator
   /** Resolves to the created path so waiters needn't re-fetch the task (which
    *  throws {@link TaskNotFoundError} if a delete landed meanwhile). */
-  private readonly worktreeLocks = new Map<TaskId, Promise<string>>()
+  private readonly worktreeLocks = new Map<TaskId, { readonly work: Promise<string>; readonly forked: boolean }>()
   /** Keyed by canonical worktree path. */
   private readonly adoptLocks = new Map<string, Promise<Task>>()
   /**
@@ -72,11 +75,13 @@ export class WorktreeCoordinator {
   constructor(
     store: TaskIndexStore,
     worktrees: GitWorktreeManager,
+    workspaces: WorkspaceRegistry,
     canonPath: CanonPath,
     ensureProject: EnsureProject,
   ) {
     this.store = store
     this.worktrees = worktrees
+    this.workspaces = workspaces
     this.canonPath = canonPath
     this.ensureProject = ensureProject
     // A task's extras occupy slugs in THEIR repo's worktree root, not the primary's.
@@ -85,7 +90,7 @@ export class WorktreeCoordinator {
         .list()
         .filter((t) => t.kind !== "main")
         .flatMap((t) => [
-          ...(samePath(t.repo, repo) ? [t.worktreePath] : []),
+          ...(samePath(gitRepoOf(t), repo) ? [t.worktreePath] : []),
           ...(t.extraRepos ?? []).filter((x) => samePath(x.repo, repo)).map((x) => x.worktreePath),
         ])
         .map((path) => path.match(/([^/\\]+)[/\\]*$/)?.[1] ?? "")
@@ -108,12 +113,21 @@ export class WorktreeCoordinator {
   }
 
   /** `task` is already known unmaterialised (the Orchestrator short-circuits
-   *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. */
-  async ensure(task: Task, onProgress?: (percent: number) => void): Promise<string> {
+   *  the rest). Idempotent + delete-safe via {@link worktreeLocks}. `forkFrom`: the
+   *  parent worktree a `cow-clone` task clones, passed by the one caller forking it
+   *  right now; any later materialisation gets none and cuts a plain worktree. */
+  async ensure(task: Task, onProgress?: (percent: number) => void, forkFrom?: string): Promise<string> {
     const inflight = this.worktreeLocks.get(task.id)
-    if (inflight) return inflight
-    const work = this.createWorktree(task, onProgress)
-    this.worktreeLocks.set(task.id, work)
+    if (inflight) {
+      // A plain enter got there first: handing its worktree to a fork would silently drop the clone.
+      if (forkFrom && !inflight.forked) {
+        await inflight.work.catch(() => {})
+        throw new ForkUnsupportedError("the task was entered before its clone was made")
+      }
+      return inflight.work
+    }
+    const work = this.createWorktree(task, onProgress, forkFrom)
+    this.worktreeLocks.set(task.id, { work, forked: forkFrom !== undefined })
     try {
       return await work
     } finally {
@@ -131,25 +145,28 @@ export class WorktreeCoordinator {
    * Returns the path directly so a delete right after creation can't turn
    * success into a spurious {@link TaskNotFoundError}.
    */
-  private async createWorktree(task: Task, onProgress?: (percent: number) => void): Promise<string> {
+  private async createWorktree(task: Task, onProgress?: (percent: number) => void, forkFrom?: string): Promise<string> {
     const extrasMissing = await extrasToMaterialise(this.worktrees, task.extraRepos)
     if (task.worktreePath && extrasMissing.length === 0) return task.worktreePath
     const total = (task.worktreePath ? 0 : 1) + extrasMissing.length
-    const primary = task.worktreePath ? undefined : await this.createPrimary(task, scaleProgress(onProgress, 0, total))
+    const primary = task.worktreePath
+      ? undefined
+      : await this.createPrimary(task, scaleProgress(onProgress, 0, total), forkFrom)
     const branch = primary?.branch ?? task.branch
     const undoPrimary = async (): Promise<void> => {
       if (!primary) return
-      await rollbackWorktree(this.worktrees, {
+      await rollbackWorktree(this.workspaces.get(workspaceBackendId(task)), {
         path: primary.path,
-        ...(primary.fresh ? { fresh: { repo: task.repo, branch } } : {}),
+        ...(primary.fresh ? { fresh: { repo: gitRepoOf(task), branch } } : {}),
       })
-      this.slugs.cancel(task.repo, primary.slug)
+      this.slugs.cancel(gitRepoOf(task), primary.slug)
     }
     let extras: MaterialisedExtras | undefined
     try {
       if (extrasMissing.length > 0) {
         extras = await materialiseExtras({
           worktrees: this.worktrees,
+          backend: this.workspaces.get("git-worktree"),
           slugs: this.slugs,
           task,
           branch,
@@ -168,12 +185,14 @@ export class WorktreeCoordinator {
         ...(extras ? { extraRepos: extras.extraRepos } : {}),
       })
     } catch (err) {
-      for (const wt of [...(extras?.created ?? [])].reverse()) await rollbackWorktree(this.worktrees, wt)
+      for (const wt of [...(extras?.created ?? [])].reverse()) {
+        await rollbackWorktree(this.workspaces.get("git-worktree"), wt)
+      }
       for (const { repo, slug } of extras?.slugs ?? []) this.slugs.cancel(repo, slug)
       await undoPrimary()
       throw err
     }
-    if (primary) this.slugs.commit(task.repo, primary.slug)
+    if (primary) this.slugs.commit(gitRepoOf(task), primary.slug)
     for (const { repo, slug } of extras?.slugs ?? []) this.slugs.commit(repo, slug)
     return primary?.path ?? task.worktreePath
   }
@@ -182,21 +201,24 @@ export class WorktreeCoordinator {
   private async createPrimary(
     task: Task,
     onProgress?: (percent: number) => void,
+    forkFrom?: string,
   ): Promise<{ path: string; branch: string; slug: string; fresh: boolean }> {
     // Already claimed at create time; re-claiming would refuse its own
     // pending reservation.
-    const slug = task.worktreeName || (await this.slugs.allocate(task.repo))
+    const slug = task.worktreeName || (await this.slugs.allocate(gitRepoOf(task)))
     const branch = task.branch || (await this.deriveAutoBranch(task))
     // `add --base-branch`, persisted at create so it survives a daemon restart
     // before materialise. Absent on older records → git default.
     const baseRef = task.baseRef
     try {
       // Read before the add: a branch that exists now was not cut by this call, so a rollback must keep it.
-      const fresh = !(await this.worktrees.listBranchNames(task.repo)).includes(branch)
-      const info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef, onProgress })
-      return { path: info.path, branch, slug, fresh }
+      const fresh = !(await this.worktrees.listBranchNames(gitRepoOf(task))).includes(branch)
+      const handle = await this.workspaces
+        .get(workspaceBackendId(task))
+        .materialize({ repo: gitRepoOf(task), slug, branch, baseRef, onProgress, forkFrom })
+      return { path: handle.path, branch, slug, fresh }
     } catch (err) {
-      this.slugs.cancel(task.repo, slug)
+      this.slugs.cancel(gitRepoOf(task), slug)
       throw err
     } finally {
       this.reservedBranches.delete(branch)
@@ -209,7 +231,7 @@ export class WorktreeCoordinator {
    * rove/rove brand token; unreadable/empty repo → bare kebab slug.
    */
   private async deriveAutoBranch(task: Task): Promise<string> {
-    const names = await this.worktrees.listBranchNames(task.repo)
+    const names = await this.worktrees.listBranchNames(gitRepoOf(task))
     const base = deriveConventionBranch(task.title, inferBranchStyle(names), task.id)
     const taken = new Set([...names, ...this.reservedBranches])
     const branch = uniqueBranchName(base, taken, task.id)

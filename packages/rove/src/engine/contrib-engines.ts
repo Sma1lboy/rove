@@ -10,6 +10,8 @@
  * users without these CLIs nothing. Blocked rules go before working rules.
  */
 
+import { homedir } from "node:os"
+import { join } from "node:path"
 import type { EngineIdentity } from "@/types/engine"
 import {
   AMP,
@@ -31,14 +33,15 @@ import {
 import { CursorHookAdapter } from "./cursor-local/hook-adapter.ts"
 import { DevinHookAdapter } from "./devin-local/hook-adapter.ts"
 import { DroidHookAdapter } from "./droid-local/hook-adapter.ts"
-import { GrokHookAdapter } from "./grok-local/hook-adapter.ts"
-import { HermesHookAdapter } from "./hermes-local/hook-adapter.ts"
+import { GrokHookAdapter, grokConfigDir } from "./grok-local/hook-adapter.ts"
+import { HermesHookAdapter, hermesConfigDir } from "./hermes-local/hook-adapter.ts"
 import type { EngineHookAdapter } from "./hook-adapter.ts"
 import { MastracodeHookAdapter } from "./mastracode-local/hook-adapter.ts"
 import { OpencodeFamilyHookAdapter } from "./opencode-local/hook-adapter.ts"
 import { QodercliHookAdapter } from "./qodercli-local/hook-adapter.ts"
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
+import { skillsDirUnder, xdgConfigHome } from "./vendor-home.ts"
 
 export interface ContribEngineSpec {
   readonly displayName: string
@@ -60,6 +63,8 @@ export interface ContribEngineSpec {
    * identity, the manifest keeps reporting state.
    */
   readonly createHookAdapter?: () => EngineHookAdapter
+  /** See `EngineRegistryEntry.skillsDir`. */
+  readonly skillsDir?: () => string | null
 }
 
 /**
@@ -86,7 +91,12 @@ export function pluginEngineIds(): readonly string[] {
 
 /** The shipped catalog. Key = the engine's VendorId. */
 export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
-  gemini: { displayName: "Gemini CLI", defaultCommand: ["gemini"], screenManifest: GEMINI },
+  gemini: {
+    displayName: "Gemini CLI",
+    defaultCommand: ["gemini"],
+    screenManifest: GEMINI,
+    skillsDir: () => skillsDirUnder(join(homedir(), ".gemini")),
+  },
   // opencode's positional is a project DIRECTORY: an argv first message exits
   // `Failed to change directory to <cwd>/<prompt>` (opencode 0.6.3). Other
   // entries keep "argv" with positional semantics UNVERIFIED.
@@ -96,24 +106,28 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: OPENCODE,
     firstMessageDelivery: "paste",
     createHookAdapter: () => new OpencodeFamilyHookAdapter("opencode"),
+    skillsDir: () => skillsDirUnder(join(xdgConfigHome(), "opencode")),
   },
   cursor: {
     displayName: "Cursor Agent",
     defaultCommand: ["cursor-agent"],
     screenManifest: CURSOR,
     createHookAdapter: () => new CursorHookAdapter(),
+    skillsDir: () => skillsDirUnder(join(homedir(), ".cursor")),
   },
   grok: {
     displayName: "Grok CLI",
     defaultCommand: ["grok"],
     screenManifest: GROK,
     createHookAdapter: () => new GrokHookAdapter(),
+    skillsDir: () => skillsDirUnder(grokConfigDir()),
   },
   droid: {
     displayName: "Droid",
     defaultCommand: ["droid"],
     screenManifest: DROID,
     createHookAdapter: () => new DroidHookAdapter(),
+    skillsDir: () => skillsDirUnder(join(homedir(), ".factory")),
   },
   amp: { displayName: "Amp", defaultCommand: ["amp"], screenManifest: AMP },
   // The hook's `SessionStart` reports the live session; the manifest owns
@@ -125,6 +139,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     processNames: ["devin-cli"],
     screenManifest: DEVIN,
     createHookAdapter: () => new DevinHookAdapter(),
+    skillsDir: () => skillsDirUnder(join(xdgConfigHome(), "devin")),
   },
   qodercli: {
     displayName: "Qoder CLI",
@@ -132,18 +147,26 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     processNames: ["qoder", "qoderclicn", "qodercn"],
     screenManifest: QODERCLI,
     createHookAdapter: () => new QodercliHookAdapter(),
+    skillsDir: () => skillsDirUnder(join(homedir(), ".qoder")),
   },
   // Commands are each CLI's executable, not the manifest id (kiro → `kiro-cli`).
   // `processNames` maps other process spellings back (`foreground.ts`). Screen
   // strings are uncaptured and "argv" delivery is UNVERIFIED for these four.
   cline: { displayName: "Cline", defaultCommand: ["cline"], screenManifest: CLINE },
-  kiro: { displayName: "Kiro CLI", defaultCommand: ["kiro-cli"], processNames: ["kiro"], screenManifest: KIRO },
+  kiro: {
+    displayName: "Kiro CLI",
+    defaultCommand: ["kiro-cli"],
+    processNames: ["kiro"],
+    screenManifest: KIRO,
+    skillsDir: () => skillsDirUnder(join(homedir(), ".kiro")),
+  },
   maki: { displayName: "Maki", defaultCommand: ["maki"], screenManifest: MAKI },
   antigravity: {
     displayName: "Antigravity",
     defaultCommand: ["agy"],
     processNames: ["antigravity", "antigravity-cli"],
     screenManifest: ANTIGRAVITY,
+    skillsDir: () => skillsDirUnder(join(homedir(), ".gemini", "antigravity")),
   },
   // Hook schemas and screen strings below are documentation-derived, not captured.
   hermes: {
@@ -152,6 +175,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     processNames: ["hermes-agent"],
     screenManifest: HERMES,
     createHookAdapter: () => new HermesHookAdapter(),
+    skillsDir: () => skillsDirUnder(hermesConfigDir()),
   },
   // Like OpenCode, Kilo takes a project directory as its positional argument.
   kilo: {
@@ -161,6 +185,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
     screenManifest: KILO,
     firstMessageDelivery: "paste",
     createHookAdapter: () => new OpencodeFamilyHookAdapter("kilo"),
+    skillsDir: () => skillsDirUnder(join(homedir(), ".kilo")),
   },
   mastracode: {
     displayName: "MastraCode",
@@ -193,5 +218,6 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     ...(spec.identity ? { identity: spec.identity } : {}),
     ...(spec.firstMessageDelivery ? { firstMessageDelivery: spec.firstMessageDelivery } : {}),
     ...(spec.createHookAdapter ? { createHookAdapter: spec.createHookAdapter } : {}),
+    ...(spec.skillsDir ? { skillsDir: spec.skillsDir } : {}),
   }
 }

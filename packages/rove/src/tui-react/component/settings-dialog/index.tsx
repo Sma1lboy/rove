@@ -15,7 +15,6 @@ import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../e
 import { createStateCell } from "../../../lib/external-store"
 import { failureHint } from "../../../lib/failure-hint"
 import { submitFeedback } from "../../../lib/feedback"
-import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -36,10 +35,10 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { useDialog, useDialogPaddingX } from "../../ui/dialog"
+import { installSkillNow } from "../../workspace/skill-status"
 import {
   confirmResetState,
   confirmRestartDaemon,
-  confirmTryChannel,
   hasRestartableDaemon,
   installEngineHooks,
   reloadSettingsStatus,
@@ -57,6 +56,7 @@ import { useClassifierSettings } from "./use-classifier-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
+import { useUpdateCheck } from "./use-update-check"
 
 export type SettingsDialogProps = {
   kv: KVContext
@@ -64,6 +64,8 @@ export type SettingsDialogProps = {
   orchestrator?: RoveOrchestrator
   /** Section to open on; absent = the first. */
   initialSection?: SectionId
+  /** Leaves Settings for the Update page, which asks the registry on open. */
+  onCheckUpdate?: () => void
   onClose: () => void
 }
 
@@ -93,6 +95,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const prefs = useSettingsPrefs(props.kv, dialog)
+  const updateCheck = useUpdateCheck(prefs.updateChannel(), props.onCheckUpdate)
   const appearance = useAppearanceSettings(props.kv, dialog, prefs)
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
   // A local orchestrator has no daemon quota channel and uses the empty cell.
@@ -111,6 +114,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
   async function runHookUninstall(): Promise<void> {
     await uninstallEngineHooks()
+    integrations.reprobe()
+  }
+  const [skillError, setSkillError] = useState<string | null>(null)
+  function runSkillInstall(): void {
+    setSkillError(installSkillNow())
     integrations.reprobe()
   }
   // The tier targets, gated against the same account probe the cards read.
@@ -233,11 +241,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
     sound: () => prefs.toggleSound(),
     soundVolume: () => prefs.cycleSoundVolume(),
     crossTask: () => prefs.toggleCrossTask(),
+    finishedAlerts: () => prefs.toggleFinishedAlerts(),
     keyHints: () => toggleKeyHints(props.kv),
     prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
-    updateChannel: () => prefs.toggleUpdateChannel(),
-    updateTry: () => void confirmTryChannel(dialog, renderer, tryOutChannel()),
+    updateChannel: () => prefs.cycleUpdateChannel(),
+    updateNotify: () => prefs.toggleUpdateNotify(),
+    updateCheck: () => updateCheck.press(),
     editorKind: () => prefs.cycleEditorKind(),
     editorCustom: () => void prefs.editEditorCustom(),
     worktreeBase: () => prefs.cycleWorktreeBase(),
@@ -248,6 +258,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     engineAdd: () => void engines.addEngineFlow(),
     engineHooksInstall: () => void runHookInstall(),
     engineHooksUninstall: () => void runHookUninstall(),
+    engineSkillInstall: () => runSkillInstall(),
     autoRoutingTier: (row) => void autoRouting.edit(row.tier),
     autoRoutingClassifier: () => classifier.cycle(),
     autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
@@ -379,6 +390,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               appearance={appearance}
               currentLocale={currentLang()}
               selectLanguage={selectLanguage}
+              updateCheck={updateCheck}
               usage={usage}
             />
           ) : null}
@@ -404,6 +416,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               hooksInstalled={hooksInstalled}
               onInstallHooks={() => void runHookInstall()}
               onUninstallHooks={() => void runHookUninstall()}
+              skillError={skillError}
+              onInstallSkill={runSkillInstall}
             />
           ) : null}
           {section === "autoRouting" ? (

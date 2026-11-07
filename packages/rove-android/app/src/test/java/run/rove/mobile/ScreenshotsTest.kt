@@ -19,4 +19,13 @@ class ScreenshotsTest {
         val data = wireJson.decodeFromJsonElement<Tasks>(DemoFixture(raw).answer("tasks.subscribe"))
         paparazzi.snapshot { RoveTheme(dark = false) { Surface(color = MaterialTheme.colorScheme.background) { TaskListContent(data, "demo-mac", Connection.Connected(1), emptyList(), ListControls(), emptyMap(), ListActions()) } } }
     }
+    @Test fun searchHits() {
+        val reply = SearchReply(listOf(
+            SearchHit("T1", "Fix retry backoff", "tab-1", "assistant", "2026-11-03T10:00:00Z", "The retry loop now backs off exponentially and caps at 30 seconds."),
+            SearchHit("T2", "Audit login flow", "tab-1", "user", "2026-11-03T08:00:00Z", "does the login call retry on a 401, or give up?")),
+            listOf(SearchSkip("T3", "engine-unsupported")), truncated = true)
+        paparazzi.snapshot { RoveTheme(dark = false) { Surface(color = MaterialTheme.colorScheme.background) {
+            SearchContent("retry", {}, SearchState.Done("retry", reply), {}, nowMs = 1793750400000L, autofocus = false) {}
+        } } }
+    }
 }

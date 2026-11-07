@@ -10,10 +10,12 @@ import type { ContentBlock } from "@/types/engine"
 /**
  * OUTER record is an injected meta row. The flags live on the record, not
  * `record.message`: `isMeta` (local-command caveat, most envelopes),
- * `isCompactSummary` (post-compaction summary).
+ * `isCompactSummary` (post-compaction summary). An `api-request-blob` row is a
+ * snapshot of what was sent to the API (context reminders plus the prompt
+ * again), not a turn of the conversation.
  */
 export function isSyntheticClaudeRecord(record: Record<string, unknown>): boolean {
-  return record.isMeta === true || record.isCompactSummary === true
+  return record.isMeta === true || record.isCompactSummary === true || record.type === "api-request-blob"
 }
 
 /**
@@ -30,4 +32,11 @@ export function isClaudeCommandBreadcrumb(blocks: readonly ContentBlock[]): bool
     }
   }
   return true
+}
+
+/** A text block that is wholly a `<system-reminder>` Claude Code wrote into a user turn. */
+export function isClaudeSystemReminder(block: ContentBlock): boolean {
+  if (block.type !== "text") return false
+  const t = block.text.trim()
+  return t.startsWith("<system-reminder>") && t.endsWith("</system-reminder>")
 }

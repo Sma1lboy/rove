@@ -84,6 +84,8 @@ export class DispatchLedger {
   private seq = 1
   private rev = 0
   private expiry: ReturnType<typeof setTimeout> | null = null
+  /** Other machines' tasks the hub's last relay had a reading for. */
+  private relayed: ReadonlySet<string> = new Set()
   private readonly off: () => void
   private readonly now: () => number
 
@@ -94,6 +96,8 @@ export class DispatchLedger {
     this.now = now ?? Date.now
     this.off = bus.onPublish((event) => {
       if (event.channel === "engine-state") this.take(event.payload)
+      // Another machine's task, sent to from here: its readings arrive as the hub's relay.
+      else if (event.channel === "machines") this.takeRelayed(event.payload)
     })
   }
 
@@ -147,6 +151,20 @@ export class DispatchLedger {
       }
     })
     if (changed) this.publish()
+  }
+
+  private takeRelayed(payload: unknown): void {
+    const activity = (payload as { live?: { activity?: unknown } } | null)?.live?.activity
+    if (!activity || typeof activity !== "object") return
+    const seen = new Set<string>()
+    for (const [taskId, reading] of Object.entries(activity)) {
+      if (!reading || typeof reading !== "object") continue
+      seen.add(taskId)
+      this.take({ ...reading, taskId })
+    }
+    // The relay holds no idle readings: a task that drops out of it has gone idle.
+    for (const taskId of this.relayed) if (!seen.has(taskId)) this.take({ taskId, state: "idle", at: this.now() })
+    this.relayed = seen
   }
 
   private publish(): void {

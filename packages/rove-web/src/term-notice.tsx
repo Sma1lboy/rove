@@ -10,6 +10,9 @@ import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import type { Notice } from "./term-mount.ts"
 import { dialog } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { termNotice } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 
 /** The tab's engine ended while its fallback shell kept the session up (the daemon marked the tab dead). */
 export interface EngineExit {
@@ -39,15 +42,22 @@ export function TermNotice(props: {
   readonly model: AppModel
   readonly taskId: string
   readonly revive: { readonly busy: boolean; readonly error: string | null }
+  /** The dead tab: its conversation is what "continue in another engine" carries over. */
+  readonly tabId?: string
   /** Reopen the tab's own session; `true` also replaces a running one whose engine has exited. Absent for a split pane. */
   readonly onReopen?: (restartExited: boolean) => void
   /** Attach again after a failed attach. */
   readonly onRetryAttach?: () => void
+  /** The engine's usage limit is reached: a strip offers the move to another engine. Dead/restored/failed notices win. */
+  readonly usageLimit?: boolean
+  /** Hide the usage-limit strip for this limit episode. */
+  readonly onDismissLimit?: () => void
 }) {
   useLocale()
-  const { notice, engineExit, model, taskId, revive } = props
+  const { notice, engineExit, model, taskId, tabId, revive } = props
   const lostEngine = notice.kind === "none" ? engineExit : null
-  if (notice.kind === "none" && !lostEngine) return null
+  const limited = notice.kind === "none" && !lostEngine && props.usageLimit === true && !revive.error
+  if (notice.kind === "none" && !lostEngine && !limited) return null
 
   const reopenable = notice.kind === "notLive" || notice.kind === "restored" || notice.kind === "exited"
   const gone = notice.kind === "exited" || lostEngine !== null
@@ -55,15 +65,17 @@ export function TermNotice(props: {
     ? t("workspace.reopenFailed", { message: revive.error })
     : lostEngine
       ? t("workspace.engineExited", { code: lostEngine.code ?? "?" })
-      : noticeText(notice)
+      : limited
+        ? t("workspace.usageLimit")
+        : noticeText(notice)
 
   return (
-    <div className={`term-notice ${notice.kind === "failed" || revive.error ? "is-error" : ""}`}>
+    <div className={termNotice(notice.kind === "failed" || !!revive.error)}>
       <span>{text}</span>
       {props.onReopen && (reopenable || lostEngine) && (
         <button
           type="button"
-          className="link tone-info"
+          className={LINK}
           disabled={revive.busy}
           onClick={() => props.onReopen?.(lostEngine !== null)}
         >
@@ -71,26 +83,51 @@ export function TermNotice(props: {
         </button>
       )}
       {notice.kind === "failed" && props.onRetryAttach && (
-        <button type="button" className="link tone-info" onClick={props.onRetryAttach}>
+        <button type="button" className={LINK} onClick={props.onRetryAttach}>
           {t("workspace.retry")}
         </button>
+      )}
+      {limited && (
+        <>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
+          <Button variant="link" hit="tight" onClick={props.onDismissLimit}>
+            {t("workspace.dismiss")}
+          </Button>
+        </>
       )}
       {gone && (
         <>
           <button
             type="button"
-            className="link tone-info"
+            className={LINK}
             onClick={() => dialog.set(<SettingsDialog model={model} section="engines" />)}
           >
             {t("workspace.engineSettings")}
           </button>
           <button
             type="button"
-            className="link tone-info"
+            className={LINK}
             onClick={() => dialog.set(<NewChatDialog model={model} taskId={taskId} />)}
           >
             {t("menu.newChatPick")}
           </button>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
         </>
       )}
     </div>

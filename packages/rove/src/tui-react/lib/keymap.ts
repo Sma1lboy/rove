@@ -142,6 +142,14 @@ function bindingReachabilitySignature(config: BindingsConfig): string {
   return `${config.enabled === false ? "off" : "on"};${config.modal === true ? "modal" : "plain"};${bindings}`
 }
 
+/** Listen for registration/reachability changes without re-rendering. */
+export function subscribeBindingStack(listener: () => void): () => void {
+  stackListeners.add(listener)
+  return () => {
+    stackListeners.delete(listener)
+  }
+}
+
 /** Re-render when registrations or their current reachability change. */
 export function useBindingStackVersion(): number {
   return useSyncExternalStore(

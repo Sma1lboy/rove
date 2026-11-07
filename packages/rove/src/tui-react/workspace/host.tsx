@@ -35,7 +35,7 @@ import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane, useFilesPaneActions } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { type BootDialogs, useHostPagesRender, useHostPagesState } from "./host-pages"
+import { type BootDialogs, openTaskOnTab, useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { NarrowBackBar } from "./narrow-back-bar"
@@ -48,6 +48,7 @@ import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
 import { SidebarResizeGrip } from "./sidebar-resize-grip"
 import { useTabsSync } from "./tabs-sync"
+import { closeAllTaskTabs } from "./terminal-tabs-close"
 import { activeTabIdFor, forgetTaskTabs, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
@@ -178,6 +179,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedTask: () => selectedTask,
     activateTask,
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
+    closeTaskTabs: (id) => closeAllTaskTabs(kv, id),
     // `quickFork` is declared below; the dialog only calls this after the first render.
     startWithPrompt: (repo, start) => quickFork.onQuickFork(repo, { ...start, attachments: [], attempts: 1 }),
   })
@@ -225,7 +227,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   useTabsSync(orch.tabs, orch.connectionStateSignal())
   useRowStatusSync(orch.rowStatus, orch.connectionStateSignal())
 
-  const pages = useHostPagesState(focus, { whatsNewFrom: props.whatsNewFrom ?? null, welcome: props.welcome ?? null })
+  const pages = useHostPagesState(focus, props)
   // Modals, opened here because the dialog stack lives here.
   useWhatsNewDialog(pages.whatsNewFrom, pages.closeWhatsNew)
   useWelcomeDialog(pages.welcome, pages.closeWelcome)
@@ -298,6 +300,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
+    paletteSearch: { orchestrator: orch, tasks, openTask: openTaskOnTab(pages.closePage, activateTask) },
     createPR: () => void editor.onCreatePR(),
     // Park, then enter the row so its workspace mounts and claims the request.
     createPRFor: (id) => {
@@ -377,6 +380,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               onFixChecks={editor.onFixChecks}
               onResolveConflicts={editor.onResolveConflicts}
               runAgain={quickFork.runAgain}
+              openScratch={scratch.openScratchShell}
               activePane={activePane}
               zen={zen}
               toggleZen={toggleZen}

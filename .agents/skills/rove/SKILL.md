@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 81 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 108 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -94,14 +94,22 @@ A Task is ONE engine conversation. Another conversation is a **child task**
 shown under it. Isolation drops at every level down:
 
 ```text
-new Task            → own worktree + own branch     (parallel work can't collide)
-child, own worktree → `spawn`: worktree cut from the parent's branch tip
-child, shared dir   → `send --tab new`: own engine session, SAME files (a helper in the same checkout)
+new Task            → `add`: own worktree + own branch   (parallel work can't collide)
+child, shared dir   → `send --tab new` / `add --no-worktree`: own engine session, SAME files (a helper in the same checkout)
 new Split           → same session's screen, one tab divided (a monitor beside the work)
 ```
 
+Inside a Rove session `add` makes a **child of yours**: it shows under your
+top-level task and its worktree is cut from your CURRENT branch tip, so it
+builds on what you committed (uncommitted edits do not come along —
+`parentDirty: true` in the reply says you had some; commit first if the child
+needs them). It nests only in your own repo; another `--repo` stays a
+top-level task. `--no-parent` is the unrelated top-level task cut from the repo
+default, `--parent ID` nests under another task, and a bare `send` from the
+child reports back to you.
+
 The distinction that decides every routing call: **a shared child uses the
-parent's worktree and branch; only a new task (or `spawn`) gets its own.**
+parent's worktree and branch; only a new task (`add`) gets its own.**
 Two conversations in one directory edit the same files, so they can collide —
 that is a feature when the user wants a helper in the same checkout, and a
 bug when they wanted parallel attempts. A split isolates nothing at all: it
@@ -124,6 +132,7 @@ the first row that fits:
 |---|---|---|
 | "you do it", "just fix it", "change X to Y" | you, right here | no Rove verb — edit the files yourself |
 | "try it N ways", "compare approaches" | N new tasks | `rove api add --repo "$PWD" --count N --prompt "…"` |
+| "branch off this and keep my uncommitted changes", "fork this task" | a sibling task cloned from THIS worktree, edits and untracked files included | `rove api add --fork "$ROVE_TASK_ID" --prompt "…"` (refused with `FORK_UNSUPPORTED` where the volume cannot clone; then plain `add --repo` starts from the last commit) |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
 | a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api send --task-id "$ROVE_TASK_ID" --tab new --prompt "…"` |
@@ -155,6 +164,8 @@ branch, and which sibling tabs exist" — `.tabs[]` carries each tab's `id`, `ki
 `vendor`, `liveVendor`, `lastTitle` and `alive`, which is exactly the target list for
 `send --tab`. A tab flagged `unregistered: true` is a live session the tab
 snapshot lost; it is addressable like any other.
+
+Once you know what the conversation is about, retitle your own task so the user can tell it from its siblings: `rove api update --title "short, specific title"` (no `--task-id` needed — it defaults to your task).
 
 ### Coordinating others? Start every turn with `context`
 
@@ -325,10 +336,12 @@ rove api add --repo "$PWD" --title "focused title" --command claude \
 # Parallel attempts of the same prompt (hard cap 10; prefer 3-4).
 rove api add --repo "$PWD" --count 3 --prompt "<prompt>"
 rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
-# A child of THIS task (a second conversation, shown under its parent): its own
-# worktree from the parent's current tip by default; --no-worktree shares the directory.
-rove api spawn --prompt "<prompt>"
-rove api spawn --no-worktree --command codex --prompt "<prompt>"
+# From inside a Rove session `add` nests the new task under yours (shown under your
+# top-level task) and cuts its worktree from YOUR current branch tip, not the repo
+# default. --no-parent makes an unrelated top-level task from the repo default instead.
+rove api add --repo "$PWD" --no-parent --prompt "<prompt>"
+# A child that SHARES this task's directory (same files; read-only parallel work):
+rove api add --no-worktree --command codex --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
@@ -440,6 +453,40 @@ below the minimum usable size (20×6 cells) falls back to a tab.
 Panes land in the USER'S live workspace — open them when asked (monitors,
 logs, dashboards), don't scatter panes for work `add` should own.
 
+## What the human sees, and the web side panel
+
+Before you show something, ask where the human is. `viewers` lists every UI
+attached and showing a task; `panel-show` puts a file, a diff or a web page
+in the web side panel:
+
+```bash
+rove api viewers --task-id <id>
+# {"viewers":[{"viewer":"bridge-1","surface":"web","taskId":"…","panel":true,
+#   "panelOpen":false,"narrow":false,"local":true}]}
+
+rove api panel-show --view files --path src/server.ts
+rove api panel-show --view diff
+rove api panel-show --view browser --url http://localhost:5173
+```
+
+- `surface` is `tui`, `web` or `phone`; `panel: true` only on a web page with
+  a side panel (desktop width). `panel-show` reaches only those. A TUI or a
+  phone has no panel; `shown: 0` means nobody saw it, so say it in your
+  report instead of assuming it was shown.
+- `local: false` means the page is behind a tunnel: its `localhost` is NOT
+  your machine, so a `localhost` URL comes back `url.reachable: false`. Give
+  such a viewer a public URL, or tell them the port.
+- `url.frameable: false` means the site forbids framing (GitHub does, for
+  example) or was refused; it will not load in the panel. Tell the human the
+  link instead. The check is one `HEAD` to a public HTTPS address; private
+  addresses are refused and redirects are not followed.
+- `--path` is relative to the task's worktree with no `..`; `--url` is
+  `http(s)` only, and only `localhost` is framed over plain `http`.
+- The task defaults to your own (`$ROVE_TASK_ID`, then the active task). The
+  panel opens on the page that is looking at that task, without taking focus
+  or switching task; every other page remembers the view for later. Open it
+  when it helps what the human is doing, not for every file you touch.
+
 ## Asking the owner (decision gates)
 
 A question only the owner can answer goes through a gate, not a MEMO line or the tail of a long report. Raise it, then stop and wait; the answer is pasted back into your tab as `[ROVE GATE g-N answered] …`.
@@ -455,9 +502,15 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 
 | Verb | Purpose |
 |---|---|
-| `update --task-id ID [--title T] [--branch B] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab. `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` |
+| `update [--task-id ID] [--title T] [--branch B] [--parent ID\|none] [--command CMD] [--model M] [--effort L] [--pinned true\|false] [--auto-fix-ci on\|off] [--status S] [--report-branch B --report-pr N --report-summary TEXT]` | Change any combination of fields in one call: validated first, applied parent → branch → command → model/effort → title → pinned → status; not atomic (a mid-way failure reports `applied`). Without `--task-id` it changes your own task. `--parent ID` moves the task under another without touching its engine, tabs, worktree or branch, and points its reply address at ID (its bare `send` reaches ID); `--parent none` makes it top level; `--group G --parent ID` moves a whole `add --count` round. Archiving the new parent (or `delete --cascade`) then takes the moved task along. Refusals: `PARENT_NOT_FOUND` (parent must be on the task's machine), `PARENT_IS_SELF`, `PARENT_CYCLE`, `TASK_NOT_MOVABLE`. `--command` takes effect on the next launch; `--tab tab-N` with `--title` renames that tab (needs `--task-id`). `--status` sets the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`) — cosmetic: the row, its Worktree, its branch and its engine all stay, and `canceled` does NOT close or clean up anything. `--report-*` (need `--status`) record what you delivered: `update --task-id "$ROVE_TASK_ID" --status in_review --report-pr N` `--auto-fix-ci on` lets the daemon type the fix-CI prompt into the engine when the task's PR goes red on a new head commit and the engine is at rest (once per commit, 3 in all, then an Inbox row; green resets) |
+| `update --project PATH [--task-id ID]` | Move a top-level task (and its children) under the project at PATH — an Ungrouped session after you clone or `git init` its repo, or a task created in the wrong project. Only the grouping changes: the session, cwd, worktree and branch stay put, so the engine keeps its conversation. Refusals: `NOT_A_GIT_REPO`, `SAME_PROJECT`, `TASK_NOT_MOVABLE`, `CHILD_NOT_MOVABLE` (move the parent), `REMOTE_MOVE_UNSUPPORTED` |
+| `todo [--task-id ID] [--add TEXT] [--check ID] [--uncheck ID] [--edit ID --text T] [--remove ID] [--notes TEXT\|--clear-notes]` | Read or change the task's notes and checklist (the owner's review list; shown in the web Files panel's Notes tab and as `done/total` on the row). No flag lists them. Flags apply together as one call; a refused op (`TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`) changes nothing. Defaults to your own task |
+| `pr-attach --url URL\|N [--task-id ID]` | Show a PR on your task's row (live state). Run once after opening a PR from any directory; idempotent; `publish` does it for you |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
+| `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |
+| `checkpoint-list --task-id ID` / `checkpoint --task-id ID` | File-only undo points of a task's worktree (`refs/rove/checkpoints/<owner>/<n>`): the daemon takes one when an engine turn completes (skipped if unchanged, newest 100 kept); `checkpoint` takes one now. Tracked + untracked files, minus gitignored; branch/HEAD/index untouched. They belong to the directory's owner: a child sharing its directory (`add --no-worktree`) acts on its owner's, named in `.workspaceTaskId` |
+| `rewind --task-id ID --to N [--force]` | Restore the worktree files to checkpoint N (files only: branch and conversation stay). Checkpoints the current state first and returns it as `undo.n`, so `rewind --to <undo.n>` goes back. `TASK_BUSY` while any engine sharing the directory (owner or child) is running/awaiting unless `--force` |
 | `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |
 | `sync --task-id ID [--repo NAME]` | Merge the base branch INTO the task's Worktree (a multi-repo task: each repo against its own base, `.repos[]`) |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
@@ -640,6 +693,10 @@ rove api get-task --task-id "$ROVE_TASK_ID"   # .task.prStatus.checkState
 `none` (no PR yet) / `pending` (still running) / `passing` / `failing` /
 `unknown`. Anything but `passing` is not green. Report what the field says,
 not what your local run implied.
+
+Opened a PR from any directory (`gh pr create`, a worktree Rove does not know)?
+Run `rove api pr-attach --url <url>` once so it shows on your task's row with
+live state. Idempotent; `rove api publish` already does it.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
 turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message

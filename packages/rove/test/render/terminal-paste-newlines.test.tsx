@@ -25,8 +25,9 @@ test("a multi-line paste is delivered as one paste, never as Enter", async () =>
     { width: 60, height: 12, providers: { dialog: true } },
   )
   await frame()
-  // A paste that lands before the pane holds its PTY has nowhere to go.
-  await until(() => harness.ptys.length > 0)
+  // A paste that lands before the pane holds its PTY has nowhere to go: the acquire runs a render before the
+  // pane holds it, and its data subscription comes after.
+  await until(() => harness.ptys.at(-1)?.attached === true)
 
   // Exactly what a terminal sends for a two-line paste with the mode on.
   act(() => mockInput.pressKey("\x1b[200~first line\rsecond line\x1b[201~"))

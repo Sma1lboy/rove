@@ -12,13 +12,14 @@ import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tab
 import type { HookTabState } from "../../tui/workspace/turn-state-merge"
 import type { EngineExit } from "../panes/terminal/engine-exit-banner"
 import { useTabRowStatus } from "./row-status-sync"
+import type { NewChatPreset } from "./use-tab-dialogs"
 
 export function useEngineExit(io: {
   readonly taskId: string
   readonly tab: TerminalTab
   readonly hook: HookTabState | undefined
   readonly retry: () => void
-  readonly anotherEngine: () => void
+  readonly requestNewChat: (preset?: NewChatPreset) => void
   readonly onOpenSettings?: (section: SectionId) => void
 }): EngineExit | undefined {
   const status = useTabRowStatus(io.taskId, io.tab.id)
@@ -46,6 +47,7 @@ export function useEngineExit(io: {
       io.retry()
     },
     onSettings: io.onOpenSettings ? () => io.onOpenSettings?.("engines") : undefined,
-    onAnotherEngine: io.anotherEngine,
+    onAnotherEngine: () => io.requestNewChat(),
+    onContinueInEngine: () => io.requestNewChat({ context: "continue" }),
   }
 }

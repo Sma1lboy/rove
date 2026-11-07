@@ -2,6 +2,7 @@ import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import type { AttentionInboxStore } from "@sma1lboy/rove-daemon/daemon/attention-inbox"
 import type { AutomationsStore } from "@sma1lboy/rove-daemon/daemon/automations-store"
+import { CheckpointQueue } from "@sma1lboy/rove-daemon/daemon/checkpoint-queue"
 import type { DeliveriesStore } from "@sma1lboy/rove-daemon/daemon/deliveries-store"
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { GatesStore } from "@sma1lboy/rove-daemon/daemon/gates-store"
@@ -72,7 +73,13 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     // `getTask` is on the real DaemonOrchestrator contract; defaulted here so
     // every handler test inherits it (the deletion audit reads the task before
     // the index drops it). A test that cares supplies its own.
-    orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
+    orch: {
+      listTasks: () => [],
+      getTask: () => undefined,
+      // Checkpoint behavior has its own suite (daemon-checkpoint.test.ts); other tests never snapshot.
+      canCheckpoint: () => false,
+      ...orch,
+    } as unknown as Orchestrator,
     bus: {
       publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
       // `debug.inspect` reads the bus's last-value cache; the fake keeps the
@@ -120,6 +127,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     deletions: {
       enqueue: (taskId: string) => rec.deletions.push(taskId),
     },
+    checkpoints: new CheckpointQueue(),
     // A cache that never fetches: handler tests exercise the RPC surface,
     // not the probe cadence (quota-usage-cache has its own suite).
     quotaUsage: {

@@ -44,6 +44,15 @@ describe("formatDiffComment", () => {
     const out = formatDiffComments([comment({ line: 1 }), comment({ line: 2 })])
     expect(out.split("\n\n")).toHaveLength(2)
   })
+
+  it("quotes the code the note covers, in a fence the code cannot close", () => {
+    const out = formatDiffComment(comment({ line: 3, code: "-old\n+const s = ```x```" }))
+    expect(out).toBe(
+      ["File: a.ts", "Line: 3", "Code:", "````diff", "-old", "+const s = ```x```", "````", 'User comment: "note"'].join(
+        "\n",
+      ),
+    )
+  })
 })
 
 const SAMPLE_DIFF = [

@@ -280,7 +280,7 @@ export class InvalidWorktreeNameError extends Error {
 
 export const NOT_A_GIT_REPO_CODE = "NOT_A_GIT_REPO"
 
-/** `spawn --worktree` from a directory in no git repo: never a silent fallback to a shared directory. */
+/** A child worktree requested from a directory in no git repo: never a silent fallback to a shared directory. */
 export class NotAGitRepoError extends Error {
   constructor(public readonly dir: string) {
     super(
@@ -292,7 +292,7 @@ export class NotAGitRepoError extends Error {
 
 export const NOT_A_LINKED_REPO_CODE = "NOT_A_LINKED_REPO"
 
-/** `spawn --isolate-in` names something other than a top-level symlink to an outside git checkout. */
+/** `add --isolate-in` names something other than a top-level symlink to an outside git checkout. */
 export class NotALinkedRepoError extends Error {
   constructor(
     public readonly link: string,
@@ -311,9 +311,42 @@ export const REMOTE_PARENT_UNSUPPORTED_CODE = "REMOTE_PARENT_UNSUPPORTED"
 export class RemoteParentUnsupportedError extends Error {
   constructor(public readonly taskId: string) {
     super(
-      `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — spawn from that machine's rove`,
+      `${REMOTE_PARENT_UNSUPPORTED_CODE}: task ${taskId} lives on a remote project — add the child from that machine's rove`,
     )
     this.name = "RemoteParentUnsupportedError"
+  }
+}
+
+/** Wire codes of a refused `update --parent`; the CLI lifts them off the message as typed `error.code`. */
+export type ReparentRefusal =
+  | "PARENT_NOT_FOUND"
+  | "PARENT_IS_SELF"
+  | "PARENT_CYCLE"
+  | "TASK_NOT_MOVABLE"
+  | typeof REMOTE_PARENT_UNSUPPORTED_CODE
+
+/** A re-parent that would break the task tree. Never worded `task not found`: the wire mapper types that as `TASK_NOT_FOUND`. */
+export class ReparentRefusedError extends Error {
+  constructor(
+    public readonly code: ReparentRefusal,
+    detail: string,
+  ) {
+    super(`${code}: ${detail}`)
+    this.name = "ReparentRefusedError"
+  }
+}
+
+/** Wire codes of a refused `update --project`; the CLI lifts them off the message as typed `error.code`. */
+export type MoveRefusal = "TASK_NOT_MOVABLE" | "CHILD_NOT_MOVABLE" | "SAME_PROJECT" | "REMOTE_MOVE_UNSUPPORTED"
+
+/** A project move that would orphan a worktree, split a task tree or cross machines. */
+export class MoveRefusedError extends Error {
+  constructor(
+    public readonly code: MoveRefusal,
+    detail: string,
+  ) {
+    super(`${code}: ${detail}`)
+    this.name = "MoveRefusedError"
   }
 }
 
@@ -357,5 +390,18 @@ export class ExtraRepoNotGitError extends Error {
       `${NOT_A_GIT_REPO_CODE}: ${repo} is not a git repository — every repo of a task needs one to cut its worktree and branch from`,
     )
     this.name = "ExtraRepoNotGitError"
+  }
+}
+
+export const FORK_UNSUPPORTED_CODE = "FORK_UNSUPPORTED"
+
+/**
+ * A fork that clones the parent's worktree cannot run here (no clone-capable volume, a main/dir/multi-repo/remote
+ * parent). Nothing is left behind when it is thrown, so callers can fall back to a plain new task.
+ */
+export class ForkUnsupportedError extends Error {
+  constructor(reason: string) {
+    super(`${FORK_UNSUPPORTED_CODE}: ${reason}`)
+    this.name = "ForkUnsupportedError"
   }
 }

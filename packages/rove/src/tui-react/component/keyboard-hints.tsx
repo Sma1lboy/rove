@@ -13,7 +13,7 @@
  * through the live keymap; `useKeymapVersion()` tracks YAML rebinds.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import {
   type HintPane,
@@ -35,11 +35,14 @@ import {
   armPrefixFromCurrentStack,
   currentBindingReachability,
   modalActive,
-  useBindingStackVersion,
+  subscribeBindingStack,
 } from "../lib/keymap"
 import { useOptionalDialog } from "../ui/dialog"
 import { HelpDialog } from "./help-dialog"
 import { ShortcutRevealBadge } from "./shortcut-reveal"
+
+type HintSnapshot = { readonly tokens: readonly StatusHintToken[]; readonly modal: boolean }
+const EMPTY_HINT_SNAPSHOT: HintSnapshot = { tokens: [], modal: false }
 
 export type StatusKeyHintItem = {
   text: string
@@ -60,49 +63,65 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   const focus = useOptionalFocus()
   const dialog = useOptionalDialog()
   const keymapVersion = useKeymapVersion()
-  const stackVersion = useBindingStackVersion()
   // Read as a plain boolean: `kv` itself must not be an effect dependency
   // (see the note below).
   const hintsEnabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
-  const [snapshot, setSnapshot] = useState<{ tokens: readonly StatusHintToken[]; modal: boolean }>({
-    tokens: [],
-    modal: false,
-  })
+  const [snapshot, setSnapshot] = useState<HintSnapshot>(EMPTY_HINT_SNAPSHOT)
+  const shownRef = useRef(snapshot)
+  const enabledRef = useRef(hintsEnabled)
+  const dialogDepthRef = useRef(dialog?.stack.length ?? 0)
+  enabledRef.current = hintsEnabled
+  dialogDepthRef.current = dialog?.stack.length ?? 0
   // Snapshot AFTER commit, never during render: `enabled` gates read refs
   // refreshed in CHILD renders, and this hook lives in a parent (the footer),
   // so a render-time read sees the previous cycle. Effects run children-first.
-  // The compare-and-set keeps the no-change case from looping.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the version/focus deps are INVALIDATION KEYS, not values this body reads — it reads live module state (currentBindingReachability, modalActive, currentPrefixConfiguration) whose changes are observable ONLY through them. Dropping them restores the no-dependency-array loop described below.
-  useEffect(() => {
-    const enabled = hintsEnabled
+  // setState only on a real change: the footer wraps the pane tree, so even a
+  // no-op update costs a root commit, and a looping one is React #185.
+  const refresh = useCallback(() => {
+    const enabled = enabledRef.current
     // Modal = barrier OR non-empty dialog stack. The stack fills a render
     // EARLIER; checking only the barrier leaves one frame with empty
     // reachability and no modal, and the footer blanks out for good.
-    const nextModal = modalActive() || (dialog?.stack.length ?? 0) > 0
+    const nextModal = modalActive() || dialogDepthRef.current > 0
     const fresh =
       enabled && !nextModal ? statusHintTokens(currentBindingReachability(), currentPrefixConfiguration().key) : null
-    setSnapshot((prev) => {
-      // Under a modal the reachability walk is empty, so freeze the last
-      // non-modal tokens; the segments go inert below.
-      const nextTokens = fresh ?? (enabled ? prev.tokens : [])
-      return prev.modal === nextModal &&
-        prev.tokens.length === nextTokens.length &&
-        prev.tokens.every((tok, i) => tok.chord === nextTokens[i]?.chord && tok.msg === nextTokens[i]?.msg)
-        ? prev
-        : { tokens: nextTokens, modal: nextModal }
+    const prev = shownRef.current
+    // Under a modal the reachability walk is empty, so freeze the last
+    // non-modal tokens; the segments go inert below.
+    const nextTokens = fresh ?? (enabled ? prev.tokens : [])
+    if (
+      prev.modal === nextModal &&
+      prev.tokens.length === nextTokens.length &&
+      prev.tokens.every((tok, i) => tok.chord === nextTokens[i]?.chord && tok.msg === nextTokens[i]?.msg)
+    )
+      return
+    const next = { tokens: nextTokens, modal: nextModal }
+    shownRef.current = next
+    setSnapshot(next)
+  }, [])
+  // Registrations land in mount/unmount effects, a dozen per task switch.
+  // Re-read once after the effect flush instead of re-rendering per bump.
+  useEffect(() => {
+    let queued = false
+    let live = true
+    const unsubscribe = subscribeBindingStack(() => {
+      if (queued) return
+      queued = true
+      queueMicrotask(() => {
+        queued = false
+        if (live) refresh()
+      })
     })
-    // A dependency array is required (React #185): the footer wraps the pane
-    // tree, so setSnapshot re-renders every sidebar row, whose `useBindings`
-    // bumps `stackVersion`, which re-renders the footer. Without deps only the
-    // compare-and-set stood between that and "Maximum update depth exceeded"
-    // (burst task deletes got past it).
-    //
-    // The version counters cover keymap/registration changes; focus + dialog
-    // stack cover the rest of what reachability reads.
-    //
-    // NOT `kv`: KVProvider rebuilds its value on every `kv.set` anywhere, so
-    // it would re-run on every render again. Depend on the boolean instead.
-  }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, hintsEnabled])
+    return () => {
+      live = false
+      unsubscribe()
+    }
+  }, [refresh])
+  // The keymap version covers rebinds; focus + dialog stack cover the rest of
+  // what reachability reads. NOT `kv`: KVProvider rebuilds its value on every
+  // `kv.set` anywhere. Depend on the boolean instead.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are INVALIDATION KEYS for live module state `refresh` reads.
+  useEffect(refresh, [keymapVersion, focus?.focused, dialog?.stack.length, hintsEnabled])
   // Click = the advertised key's action; arming goes through the REAL
   // dispatcher, so the which-key guide accepts a keyboard second stroke.
   // Inert under a modal: no prefix / second dialog under the open one.

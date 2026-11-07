@@ -23,6 +23,9 @@ object InboxLogic {
     /** Opening or visiting clears an episode, except a decision (answered) and an unreported tick (only a late report or the explicit dismiss clears it). */
     fun clearsOnVisit(item: Attention) = item.gateId == null && item.state != "report_missing"
 
+    /** Keyed on its schedule, so it clears by automation id. A task-level `attention.dismiss` leaves it there. */
+    fun routineEpisode(item: Attention) = item.automationId?.takeIf { item.state == "routine_failed" }
+
     /** One episode per tab, the fresh one replacing the stale; a delivery episode is keyed by its delivery, a decision by its gate. */
     fun key(item: Attention): String {
         if (item.gateId != null) return "gate\u0000${item.gateId}"

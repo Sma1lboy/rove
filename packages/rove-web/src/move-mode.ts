@@ -5,6 +5,8 @@
  */
 
 import type { AppModel } from "./model.ts"
+import type { DropMove } from "./rail-blocks.ts"
+import { railGroup, setRailGroup } from "./rail-group.ts"
 import { railSort, setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { createStore } from "./store.ts"
@@ -13,12 +15,17 @@ import { toast } from "./ui.ts"
 
 export const moveMode = createStore(false)
 
+/** The main whose header Reorder is on: its row stays listed while it moves, though it has no tab. */
+export const reorderingMain = createStore<string | null>(null)
+
 /** Reorder edits the stored manual order, so any other sort switches to manual first (with a toast). */
 export function setMoveMode(on: boolean): void {
-  if (on && railSort.get() !== "default") {
+  if (on && (railSort.get() !== "default" || railGroup.get() === "state")) {
     setRailSort("default")
+    setRailGroup("project")
     toast(tc("tasks", "sort.reorderSwitched"))
   }
+  if (!on) reorderingMain.set(null)
   moveMode.set(on)
 }
 
@@ -43,4 +50,17 @@ export async function moveTaskBy(model: AppModel, taskId: string, steps: number)
   } catch (err) {
     toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
   }
+}
+
+/** A drop that changes the task's pin pins first: the daemon moves a task only among tasks with its pin. */
+export async function dropTask(model: AppModel, taskId: string, move: DropMove): Promise<void> {
+  if (move.pin !== undefined) {
+    try {
+      await model.client.request("task.pin", { taskId, pinned: move.pin })
+    } catch (err) {
+      toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
+      return
+    }
+  }
+  await moveTaskBy(model, taskId, move.steps)
 }

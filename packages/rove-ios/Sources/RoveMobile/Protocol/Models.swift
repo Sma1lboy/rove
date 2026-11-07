@@ -45,6 +45,8 @@ struct TaskReport: Codable, Hashable {
 struct TaskRow: Codable, Hashable, Identifiable {
     var id: String
     var title: String
+    /// The name every client shows (`displayTitle`); `title` stays the stored one a rename edits. Absent from older bridges.
+    var label: String?
     var branch: String
     var repo: String
     var kind: String
@@ -67,23 +69,28 @@ struct TaskRow: Codable, Hashable, Identifiable {
     /// `conflict` / `failing` / `passing` (row-chips.ts `prChip`), nil when the row draws no PR chip.
     var prChip: String?
     var prChipStale: Bool
+    /// A routine's firing made this task: it lives on the Routines page, not in the list.
+    var routine: Bool
 
     init(id: String, title: String, branch: String = "", repo: String = "", kind: String = "task",
          status: String = "", group: TaskGroup, rank: Double = 0, activity: TaskActivity? = nil,
          engine: TaskEngine? = nil, pr: TaskPR? = nil, report: TaskReport? = nil, deleting: Bool = false,
          pinned: Bool = false, order: Int? = nil, createdAt: String? = nil, updatedAt: String? = nil,
-         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false) {
-        self.id = id; self.title = title; self.branch = branch; self.repo = repo; self.kind = kind
+         changes: TaskChanges? = nil, rowTokens: [RowTokenChip] = [], prChip: String? = nil, prChipStale: Bool = false, routine: Bool = false,
+         label: String? = nil) {
+        self.id = id; self.title = title; self.label = label; self.branch = branch; self.repo = repo; self.kind = kind
         self.status = status; self.group = group; self.rank = rank; self.activity = activity
         self.engine = engine; self.pr = pr; self.report = report; self.deleting = deleting
         self.pinned = pinned; self.order = order; self.createdAt = createdAt; self.updatedAt = updatedAt
         self.changes = changes; self.rowTokens = rowTokens; self.prChip = prChip; self.prChipStale = prChipStale
+        self.routine = routine
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        label = try c.decodeIfPresent(String.self, forKey: .label)
         branch = try c.decodeIfPresent(String.self, forKey: .branch) ?? ""
         repo = try c.decodeIfPresent(String.self, forKey: .repo) ?? ""
         kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "task"
@@ -103,10 +110,15 @@ struct TaskRow: Codable, Hashable, Identifiable {
         rowTokens = try c.decodeIfPresent([RowTokenChip].self, forKey: .rowTokens) ?? []
         prChip = try c.decodeIfPresent(String.self, forKey: .prChip)
         prChipStale = try c.decodeIfPresent(Bool.self, forKey: .prChipStale) ?? false
+        routine = try c.decodeIfPresent(Bool.self, forKey: .routine) ?? false
     }
 
     var repoName: String { URL(fileURLWithPath: repo).lastPathComponent }
-    var displayTitle: String { title.isEmpty ? (branch.isEmpty ? id : branch) : title }
+    /// The bridge's row name (engine conversation title, else stored title / branch / path); an older bridge sends none.
+    var displayTitle: String {
+        if let label, !label.isEmpty { return label }
+        return title.isEmpty ? (branch.isEmpty ? id : branch) : title
+    }
 }
 
 struct AttentionItem: Codable, Hashable {
@@ -219,14 +231,17 @@ struct TasksPayload: Codable, Equatable {
     var attention: [AttentionItem]
     /// Open decisions, and answered ones the engine has not received. Absent from older bridges.
     var gates: [GateRow]
-    init(tasks: [TaskRow], attention: [AttentionItem], gates: [GateRow] = []) {
-        self.tasks = tasks; self.attention = attention; self.gates = gates
+    /// Tasks hidden with `task.archive`; never in `tasks`. Absent from older bridges.
+    var archived: [TaskRow]
+    init(tasks: [TaskRow], attention: [AttentionItem], gates: [GateRow] = [], archived: [TaskRow] = []) {
+        self.tasks = tasks; self.attention = attention; self.gates = gates; self.archived = archived
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         tasks = try c.decodeIfPresent([TaskRow].self, forKey: .tasks) ?? []
         attention = try c.decodeIfPresent([AttentionItem].self, forKey: .attention) ?? []
         gates = try c.decodeIfPresent([GateRow].self, forKey: .gates) ?? []
+        archived = try c.decodeIfPresent([TaskRow].self, forKey: .archived) ?? []
     }
 }
 /// `gate.answer`: whether the engine took the answer now (false = it rides the task's next message).

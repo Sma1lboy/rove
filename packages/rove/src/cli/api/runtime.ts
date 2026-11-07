@@ -359,7 +359,8 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
-  openTab: async (client, target, kind) => openNewTab(client, target, await ensureWorktree(client, target), kind),
+  openTab: async (client, target, kind, opts) =>
+    openNewTab(client, target, await ensureWorktree(client, target), kind, opts),
   launchTab: (client, spec) =>
     launchTab(client, spec, (taskId, tabId, worktree, pane) =>
       splitTab(client, taskId, tabId, worktree, {
@@ -398,4 +399,9 @@ export const defaultApiRuntime: ApiRuntime = {
     }
   },
   listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
+  measureCheckout: async (path) => {
+    const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
+    const { execHostForWorktreePath } = await import("../../exec/resolve.ts")
+    return measureCheckout(execHostForWorktreePath(path), path)
+  },
 }

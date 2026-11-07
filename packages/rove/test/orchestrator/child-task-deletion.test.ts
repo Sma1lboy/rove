@@ -43,7 +43,7 @@ afterEach(async () => {
 /** A managed worktree task row, optionally a child of / sharer of another. */
 async function row(
   title: string,
-  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"] } = {},
+  extra: { parent?: Task; shares?: Task; path?: string; kind?: Task["kind"]; scratch?: true } = {},
 ): Promise<Task> {
   const owner = extra.shares
   return store.create({
@@ -56,6 +56,7 @@ async function row(
     vendor: "claude",
     ...(extra.parent ? { parentTaskId: extra.parent.id } : {}),
     ...(owner ? { sharesWorkspaceOf: owner.id } : {}),
+    ...(extra.scratch ? { scratch: true } : {}),
   })
 }
 
@@ -125,6 +126,16 @@ describe("deleting a task that has children", { timeout: DURABLE_WRITE_TIMEOUT_M
     await orch.deleteTask(top.id)
 
     expect(store.get(leaf.id)?.parentTaskId).toBeUndefined()
+  })
+
+  it("keeps children of an Ungrouped scratch parent Ungrouped once it is gone", async () => {
+    const scratch = await row("scratch", { kind: "dir", scratch: true })
+    const child = await row("child", { kind: "dir", parent: scratch, shares: scratch })
+
+    await orch.deleteTask(scratch.id)
+
+    expect(store.get(child.id)?.parentTaskId).toBeUndefined()
+    expect(store.get(child.id)?.noProject).toBe(true)
   })
 
   it("deletes the whole subtree with cascade", async () => {

@@ -1,21 +1,36 @@
 /** In-place task-field setters for the {@link Orchestrator}: each a small
  *  guard around one `store` mutation (branch renames also touch git). */
 
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
+import type { ReparentResult, TaskDispatcher } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { SESSION_PR_CAP } from "@sma1lboy/rove-daemon/daemon/session-prs"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { detectLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import { type TaskTodo, type TodoOp, applyTodoOps, checkNotes } from "@sma1lboy/rove-daemon/task-notes"
+import { childrenOf, lineageRootId, subtreeIds } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { samePrStatus } from "../monitor/pr-status.ts"
+import { isRemoteRepoKey } from "../state/repos.ts"
 import type {
   Task,
   TaskId,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
+  TaskScheduledStart,
   TaskStatus,
   TaskWorkerReport,
   VendorId,
 } from "../types/task.ts"
+import { toTaskId } from "../types/task.ts"
 import { deriveConventionBranch, inferBranchStyle, uniqueBranchName } from "./branch-style.ts"
-import { IllegalTransitionError, TaskNotFoundError } from "./errors.ts"
+import {
+  IllegalTransitionError,
+  REMOTE_PARENT_UNSUPPORTED_CODE,
+  ReparentRefusedError,
+  TaskDeletingError,
+  TaskNotFoundError,
+} from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -62,7 +77,7 @@ export class TaskEditor {
    *   - a local collision gets a `-2`, `-3`… suffix.
    */
   private async followBranchToTitle(taskBefore: Task, newTitle: string): Promise<void> {
-    if (taskBefore.kind === "main" || !taskBefore.worktreePath) return
+    if (!workspaceCapabilities(taskBefore).ownsBranch || !taskBefore.worktreePath) return
     if (!isPlaceholderDerivedBranch(taskBefore.branch, taskBefore.id)) return
     try {
       const names = await this.worktrees.listBranchNames(taskBefore.repo)
@@ -87,11 +102,12 @@ export class TaskEditor {
     const trimmed = branch.trim()
     if (!trimmed) throw new Error("setBranch: branch is required (empty or whitespace-only rejected)")
     const task = this.requireTask(id)
-    if (task.kind === "main") {
-      throw new Error("setBranch: a main task tracks the repo's own branch; rename it with git directly")
-    }
-    if (task.kind === "dir") {
-      throw new Error("setBranch: a directory task tracks its own checkout; rename branches with git directly")
+    if (!workspaceCapabilities(task).ownsBranch) {
+      throw new Error(
+        task.kind === "main"
+          ? "setBranch: a main task tracks the repo's own branch; rename it with git directly"
+          : "setBranch: a directory task tracks its own checkout; rename branches with git directly",
+      )
     }
     if (task.branch === trimmed) return
     // Every repo of a multi-repo task still on the shared name renames with it, or none does.
@@ -192,6 +208,105 @@ export class TaskEditor {
     await this.store.update(task.id, { pinned: next })
   }
 
+  /** Mark (or unmark) the attempt kept from a parallel round; an unmark stores no flag. */
+  async setKept(id: TaskId | string, kept: boolean): Promise<void> {
+    const task = this.requireTask(id)
+    if ((task.kept ?? false) === kept) return
+    await this.store.update(task.id, { kept: kept ? true : undefined })
+  }
+
+  /**
+   * The owner's notes (replaced when given) and checklist (ops applied in order). All or nothing: a refused
+   * op leaves both as they were. Empty notes and an empty list store nothing.
+   */
+  async updateNotes(
+    id: TaskId | string,
+    edit: { notes?: string; ops?: readonly TodoOp[] },
+  ): Promise<{ notes?: string; todos: readonly TaskTodo[] }> {
+    const task = this.requireTask(id)
+    const todos = edit.ops && edit.ops.length > 0 ? applyTodoOps(task.todos ?? [], edit.ops) : (task.todos ?? [])
+    const notes = edit.notes === undefined ? task.notes : checkNotes(edit.notes)
+    // A read, or a write that changes nothing, leaves `updatedAt` alone.
+    if (todos !== (task.todos ?? []) || notes !== task.notes) {
+      await this.store.update(task.id, {
+        notes: notes && notes.length > 0 ? notes : undefined,
+        todos: todos.length > 0 ? todos : undefined,
+      })
+    }
+    return { ...(notes ? { notes } : {}), todos }
+  }
+
+  /**
+   * Move a task under `parentId` (null = top level). Tree and reply address only: the engine, PTYs, worktree and
+   * branch are untouched. Like a spawn, the stored parent is the target's top-level ancestor (children never
+   * nest), and the task's own children follow it there. The reply address is the target itself, so a bare `send`
+   * from the task reaches it; going top level drops a reply address that pointed into the old tree.
+   */
+  async setParent(id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> {
+    const task = this.requireTask(id)
+    if (task.deletion) throw new TaskDeletingError(String(task.id))
+    if (task.kind === "main") {
+      throw new ReparentRefusedError("TASK_NOT_MOVABLE", `${task.id} is a project's main task — it is the project`)
+    }
+    if (task.routine) {
+      throw new ReparentRefusedError(
+        "TASK_NOT_MOVABLE",
+        `${task.id} is a routine session; the sidebar keeps those in the routine fold`,
+      )
+    }
+    if (isRemoteRepoKey(task.repo)) {
+      throw new ReparentRefusedError(
+        REMOTE_PARENT_UNSUPPORTED_CODE,
+        `task ${task.id} lives on a remote project — re-parent it from that machine's rove`,
+      )
+    }
+    const tasks = this.store.list()
+
+    if (parentId === null) {
+      const oldParent = task.parentTaskId
+      const dispatchedFromOldTree =
+        oldParent !== undefined &&
+        task.dispatcher !== undefined &&
+        subtreeIds(tasks, oldParent).includes(task.dispatcher.taskId)
+      await this.store.update(task.id, {
+        parentTaskId: undefined,
+        ...(dispatchedFromOldTree ? { dispatcher: undefined } : {}),
+      })
+      const dispatcher = dispatchedFromOldTree ? undefined : task.dispatcher
+      return { parentTaskId: null, dispatcher: dispatcher ?? null, moved: [] }
+    }
+
+    if (parentId === task.id) throw new ReparentRefusedError("PARENT_IS_SELF", `${task.id} cannot be its own parent`)
+    const parent = this.store.get(parentId)
+    if (!parent) {
+      throw new ReparentRefusedError(
+        "PARENT_NOT_FOUND",
+        `no task ${parentId} on this machine — a parent must live beside its child`,
+      )
+    }
+    if (parent.deletion) throw new TaskDeletingError(String(parent.id))
+    if (isRemoteRepoKey(parent.repo)) {
+      throw new ReparentRefusedError(
+        REMOTE_PARENT_UNSUPPORTED_CODE,
+        `task ${parent.id} lives on a remote project — re-parent under it from that machine's rove`,
+      )
+    }
+    if (subtreeIds(tasks, task.id).includes(parent.id)) {
+      throw new ReparentRefusedError("PARENT_CYCLE", `${parent.id} is already a descendant of ${task.id}`)
+    }
+
+    const root = lineageRootId(tasks, parent.id)
+    // Same target, no explicit tab: keep the tab the task already replies to.
+    const keepReply = task.dispatcher?.taskId === parent.id && replyTab === undefined
+    const dispatcher: TaskDispatcher = keepReply
+      ? (task.dispatcher as TaskDispatcher)
+      : { taskId: parent.id, tabId: replyTab ?? "tab-1" }
+    await this.store.update(task.id, { parentTaskId: toTaskId(root), dispatcher })
+    const moved = childrenOf(tasks, task.id).map((child) => child.id)
+    for (const child of moved) await this.store.update(child, { parentTaskId: toTaskId(root) })
+    return { parentTaskId: root, dispatcher, moved }
+  }
+
   /** A project's `main` checkout is the project itself: never archived. */
   async setArchived(id: TaskId | string, archived: boolean): Promise<void> {
     const task = this.requireTask(id)
@@ -285,12 +400,54 @@ export class TaskEditor {
     })
   }
 
+  /**
+   * Attach a PR the session opened. Keyed by `url` (the caller passes the
+   * canonical form) ignoring case, as GitHub owner and repo names do;
+   * re-attaching keeps the original `addedAt`, position and spelling.
+   * Past {@link SESSION_PR_CAP} the oldest entries go.
+   */
+  async addSessionPr(id: TaskId | string, url: string): Promise<void> {
+    const task = this.requireTask(id)
+    const current = task.sessionPrs ?? []
+    if (current.some((p) => p.url.toLowerCase() === url.toLowerCase())) return
+    const next = [...current, { url, addedAt: new Date().toISOString() }].slice(-SESSION_PR_CAP)
+    await this.store.update(task.id, { sessionPrs: next })
+  }
+
+  /** From `pr-status-collector`. No-op when the task or the attached `url` is gone, or nothing rendered changed. */
+  async setSessionPrStatus(id: TaskId | string, url: string, status: TaskPRStatus): Promise<void> {
+    const task = this.store.get(id)
+    const entry = task?.sessionPrs?.find((p) => p.url === url)
+    if (!task || !entry) return
+    if ((entry.status?.lastError ?? null) === (status.lastError ?? null) && samePrStatus(entry.status, status)) return
+    await this.store.update(task.id, {
+      sessionPrs: (task.sessionPrs ?? []).map((p) => (p.url === url ? { ...p, status } : p)),
+    })
+  }
+
   /** Rate-limit auto-resume schedule; `null` clears. No-op when unchanged: the
    *  sweep and the hook path may both write. */
   async setQuotaResume(id: TaskId | string, state: TaskQuotaResumeState | null): Promise<void> {
     const task = this.requireTask(id)
     if ((task.quotaResume?.resumeAt ?? null) === (state?.resumeAt ?? null)) return
     await this.store.update(task.id, { quotaResume: state ?? undefined })
+  }
+
+  /** One-shot delayed start; `null` clears. */
+  async setScheduledStart(id: TaskId | string, state: TaskScheduledStart | null): Promise<void> {
+    const task = this.requireTask(id)
+    if (!task.scheduledStart && !state) return
+    await this.store.update(task.id, { scheduledStart: state ?? undefined })
+  }
+
+  /** Auto-fix CI progress; `null` = off. No-op when unchanged, as the sweep and a toggle may both write. */
+  async setAutoFixCi(id: TaskId | string, state: AutoFixState | null): Promise<void> {
+    const task = this.requireTask(id)
+    const was = task.autoFixCi
+    if (was?.attempts === state?.attempts && was?.lastSha === state?.lastSha && was?.stopped === state?.stopped) {
+      if (Boolean(was) === Boolean(state)) return
+    }
+    await this.store.update(task.id, { autoFixCi: state ?? undefined })
   }
 
   /** Stamp the external tracker item this task was started from. Write-once in

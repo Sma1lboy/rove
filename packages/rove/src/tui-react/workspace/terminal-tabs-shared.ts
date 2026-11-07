@@ -140,7 +140,7 @@ const openBox = requestBox<{
   placement?: "split" | "tab"
   direction?: "right" | "down"
 }>()
-const newTabBox = requestBox<"chat" | "shell">()
+const newTabBox = requestBox<"chat" | "shell" | "continue">()
 const paneCloseBox = requestBox<{ title: string; tabId?: string }>()
 const tabCloseBox = requestBox<string>()
 const adoptBox = requestBox<readonly string[]>()

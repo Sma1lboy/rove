@@ -98,6 +98,35 @@ describe("ensureMainTask", () => {
     expect(orch.listTasks().filter((t) => t.kind === "dir")).toHaveLength(0)
   })
 
+  test("a session opened in the checkout after the project row stays its own top-level row", async () => {
+    // New session with Worktree off: the project row is ensured first, then a dir task takes the root.
+    // Neither the startup sweep nor a later ensure may promote it, nest it, or retitle it.
+    const main = await orch.ensureMainTask(repo)
+    const session = await orch.openDirectoryTask({ dir: main.repo, title: "fix the flaky login test" })
+
+    await orch.init()
+    await orch.ensureMainTask(repo)
+
+    expect(orch.listTasks().filter((t) => t.kind === "main")).toEqual([expect.objectContaining({ id: main.id })])
+    const kept = orch.getTask(session.id)
+    expect(kept).toMatchObject({
+      kind: "dir",
+      repo: main.repo,
+      worktreePath: main.repo,
+      title: "fix the flaky login test",
+    })
+    expect(kept?.parentTaskId).toBeUndefined()
+    expect(kept?.sharesWorkspaceOf).toBeUndefined()
+    expect(orch.listTasks().some((t) => t.parentTaskId === main.id)).toBe(false)
+  })
+
+  test("never adopts a no-project routine dir as the project row", async () => {
+    const routineDir = await orch.openDirectoryTask({ dir: repo, noProject: true, title: "nightly" })
+    await orch.createTask({ repo, title: "t" })
+    expect(orch.getTask(routineDir.id)).toMatchObject({ kind: "dir", noProject: true, title: "nightly" })
+    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
+  })
+
   test("never promotes a scratch row — it belongs to the Scratch bench", async () => {
     const scratch = await orch.openDirectoryTask({ dir: repo, scratch: true })
     await orch.createTask({ repo, title: "t" })

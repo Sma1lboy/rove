@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import {
   findAdoptableWorktree,
@@ -31,6 +31,15 @@ describe("matchTaskByCwd", () => {
   const sub = { id: "sub", worktreePath: "/repo/.claude/worktrees/snipe" }
   const other = { id: "other", worktreePath: "/elsewhere/proj" }
   const tasks = [main, sub, other]
+
+  it("limits home cwd attribution to the exact directory and allows explicit descendants", () => {
+    const home = { id: "home", worktreePath: homedir() }
+    const scratch = { id: "scratch", worktreePath: path.join(homedir(), "tmp") }
+    expect(matchTaskByCwd([home], home.worktreePath)).toBe("home")
+    expect(matchTaskByCwd([home], scratch.worktreePath)).toBeUndefined()
+    expect(matchTaskByCwd([home, scratch], path.join(scratch.worktreePath, "notes"))).toBe("scratch")
+    expect(resolvePtyOwner([home], "home", "tab-1")).toBe("home")
+  })
 
   it("matches a cwd inside a worktree", () => {
     expect(matchTaskByCwd(tasks, "/elsewhere/proj/src/deep")).toBe("other")

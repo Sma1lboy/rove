@@ -207,14 +207,11 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
   const state: Record<string, unknown> = { ...initial }
   const deps: EngineDeps = {
     load: () => ({ ...state }),
-    patch: (patch) => {
-      for (const [key, value] of Object.entries(patch)) {
+    update: (compute) => {
+      for (const [key, value] of Object.entries(compute({ ...state }))) {
         if (value === undefined) delete state[key]
         else state[key] = value
       }
-    },
-    update: (compute) => {
-      deps.patch(compute({ ...state }))
     },
     installed: async () => installed,
     statuses: async (ids) =>
@@ -229,6 +226,8 @@ function engineHarness(initial: Record<string, unknown> = {}, installed: string[
     integrations: () => [],
     engineName: (id) => id,
     defaultCommand: (id) => [id, "--sandbox=none"],
+    installSkill: () => null,
+    skillMissing: async () => [],
   }
   return { state, ops: createEngineOps(deps) }
 }
@@ -370,7 +369,8 @@ describe("engine switches keep the section's invariants", () => {
 
   test("every engine write is destructive and there is no way to author a launch command", () => {
     const { ops } = engineHarness()
-    for (const [name, spec] of Object.entries(ops)) expect(spec.destructive).toBe(name !== "engines.settings")
+    const harmless = ["engines.settings", "skill.missing"]
+    for (const [name, spec] of Object.entries(ops)) expect(spec.destructive).toBe(!harmless.includes(name))
     expect(Object.keys(ops).some((name) => /command/i.test(name))).toBe(false)
   })
 })
@@ -408,6 +408,8 @@ describe("insight ops", () => {
     expect(digest.calls[0]).toEqual({ kind: "verb", name: "digest", payload: ["--repo=/r", "--since-days=14"] })
     const turns = await run(insightOps, "turns.list", { repo: "/r", limit: 50 })
     expect(turns.calls[0]).toEqual({ kind: "verb", name: "agent-turns", payload: ["--repo=/r", "--limit=50"] })
+    // The reply names the engines that have a turn reader, so a client can tell "no reader" from "no work".
+    expect(turns.result).toMatchObject({ readers: expect.arrayContaining(["claude"]) })
     const all = await run(insightOps, "turns.list", {})
     expect(all.calls[0]?.payload).toEqual([])
     await expect(run(insightOps, "repo.digest", { repo: "r" })).rejects.toThrow("absolute path")

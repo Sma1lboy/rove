@@ -179,7 +179,13 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
   }
   for (const f of verb.flags) {
     // --prompt-file stands in for a required --prompt; `promptText` rejects both at once.
-    const satisfied = flags.get(f.name) || (f.name === "prompt" && flags.get("prompt-file"))
+    const satisfied =
+      flags.get(f.name) ||
+      (f.name === "prompt" && flags.get("prompt-file")) ||
+      // A fork takes its repo from the parent; a shared-directory or linked-repo child from its own.
+      (verb.name === "add" &&
+        f.name === "repo" &&
+        (flags.get("fork") || flags.get("no-worktree") || flags.get("isolate-in")))
     if (f.required && !satisfied)
       throw new ApiError(`--${f.name} is required for "${verb.name}"`, "MISSING_FLAG", helpStep(verb.name))
     if (f.type === "enum" && f.values) {

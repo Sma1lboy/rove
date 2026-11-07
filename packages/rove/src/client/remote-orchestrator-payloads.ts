@@ -130,6 +130,8 @@ export interface ContextUsage {
   readonly outputTokens?: number
   readonly cacheReadTokens?: number
   readonly cacheCreationTokens?: number
+  /** What `contextTokens` is made of, when the engine records it. */
+  readonly parts?: readonly { readonly key: string; readonly tokens: number }[]
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
@@ -148,6 +150,12 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
     const v = value as Record<string, unknown> | undefined
     if (typeof v?.contextTokens !== "number") return null
     if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    const parts = v.parts
+    if (
+      parts !== undefined &&
+      (!Array.isArray(parts) || !parts.every((p) => typeof p?.key === "string" && typeof p?.tokens === "number"))
+    )
+      return null
     const totals: Record<string, number> = {}
     for (const field of TOKEN_TOTAL_FIELDS) {
       const raw = v[field]
@@ -160,6 +168,9 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
       ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
       ...(v.approximate === true ? { approximate: true } : {}),
       ...totals,
+      ...(Array.isArray(parts)
+        ? { parts: parts.map((p) => ({ key: p.key as string, tokens: p.tokens as number })) }
+        : {}),
     })
   }
   return map
@@ -175,7 +186,8 @@ export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boo
       other.contextTokens !== value.contextTokens ||
       other.contextWindowTokens !== value.contextWindowTokens ||
       other.approximate !== value.approximate ||
-      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field])
+      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field]) ||
+      JSON.stringify(other.parts) !== JSON.stringify(value.parts)
     )
       return false
   }
@@ -299,9 +311,13 @@ export function deserializeTask(s: SerializedTask): Task {
     worktreePath: s.worktreePath,
     kind: s.kind,
     ...(s.scratch ? { scratch: true } : {}),
+    ...(s.noProject ? { noProject: true } : {}),
     ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,
     pinned: s.pinned,
+    ...(s.kept ? { kept: true } : {}),
+    ...(s.notes ? { notes: s.notes } : {}),
+    ...(s.todos ? { todos: s.todos } : {}),
     ...(s.archived ? { archived: true } : {}),
     vendor: s.vendor,
     command: s.command,
@@ -313,6 +329,8 @@ export function deserializeTask(s: SerializedTask): Task {
     observedLanguage: s.observedLanguage,
     deletion: s.deletion,
     quotaResume: s.quotaResume,
+    scheduledStart: s.scheduledStart,
+    ...(s.autoFixCi ? { autoFixCi: s.autoFixCi } : {}),
     linkedWorkItem: s.linkedWorkItem,
     dispatcher: s.dispatcher,
     ...(s.parentTaskId ? { parentTaskId: toTaskId(s.parentTaskId) } : {}),
@@ -320,10 +338,13 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.cwdSubpath ? { cwdSubpath: s.cwdSubpath } : {}),
     ...(s.ptyAlias ? { ptyAlias: s.ptyAlias } : {}),
     ...(s.extraRepos?.length ? { extraRepos: s.extraRepos } : {}),
+    ...(s.workspace ? { workspace: s.workspace } : {}),
+    ...(s.sessionPrs?.length ? { sessionPrs: s.sessionPrs } : {}),
     requireReport: s.requireReport,
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,
+    ...(s.gitRepo ? { gitRepo: s.gitRepo } : {}),
     report: s.report,
     ...(s.repoId ? { repoId: s.repoId } : {}),
     createdAt: s.createdAt,

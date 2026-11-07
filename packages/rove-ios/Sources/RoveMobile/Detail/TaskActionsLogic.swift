@@ -221,6 +221,7 @@ enum TaskActionLogic {
     struct MenuPlan: Equatable {
         var branch: Bool
         var move: Bool
+        var syncBase: Bool
         var copyBranch: Bool
         var copyPath: Bool
         var runAgain: RunAgain
@@ -233,6 +234,18 @@ enum TaskActionLogic {
         var showsWorktreeGroup: Bool { createWorktree || removeWorktree }
     }
 
+    /// The line a failed `task.syncBase` shows: the daemon's error text leads with its code.
+    static func syncFailure(_ message: String) -> String {
+        func files(after code: String) -> String? {
+            guard let at = message.range(of: code) else { return nil }
+            let rest = message[at.upperBound...].drop { $0 == ":" || $0 == " " }
+            return rest.isEmpty ? "?" : String(rest)
+        }
+        if let f = files(after: "SYNC_CONFLICT") { return String(localized: "merge conflict · resolve then commit: \(f)") }
+        if let f = files(after: "SYNC_WORKTREE_DIRTY") { return String(localized: "commit the worktree's changes first, then sync: \(f)") }
+        return String(localized: "sync failed: \(message)")
+    }
+
     /// Which items the menu shows. `detail` is the cached `task.get` (nil until fetched).
     static func menu(kind: String, pinned: Bool, branch: String, detail: TaskDetail?) -> MenuPlan {
         let managed = kind != "main" && kind != "dir"
@@ -242,6 +255,7 @@ enum TaskActionLogic {
         return MenuPlan(
             branch: managed,
             move: kind != "main",
+            syncBase: kind == "task" && !(detail?.branch ?? branch).isEmpty,
             copyBranch: !(detail?.branch ?? branch).isEmpty,
             copyPath: hasWorktree ?? true,
             runAgain: runAgain(kind: kind, detail: detail),

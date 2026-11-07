@@ -1,5 +1,7 @@
 # v0.6 — tmux 接管模型
 
+> **Historical: superseded by the PTY-host-only architecture.** tmux was removed as a runtime in July 2026 ([removal design](../superpowers/specs/2026-07-12-puretui-only-tmux-removal-design.md)); the current model is in [ARCHITECTURE.md](../ARCHITECTURE.md). Kept as the 2026-05 decision record.
+
 > Status: 拍板, 待实现. 2026-05-22.  
 > Audience: 接手 0.6 重构的 agent / 之后翻这份历史的人.  
 > See also: `KOB-208` (spike), `KOB-225` (tmux 持久 session 起步), 本 design doc 是这两个 issue 自然延伸出来的产品形态.

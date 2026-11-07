@@ -66,6 +66,56 @@ final class PagesFixtureTests: XCTestCase {
         return url
     }
 
+    /// A tab at a menu (T-WAIT's reads `permission_needed`) answers with 1–4 from the key row; a working one has no such keys.
+    func testMenuKeysLeadTheKeyRowOnlyAtAMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(text("Verify refund webhook signatures"), "waiting task").tap()
+        let option = waitFor(element("key-option-2"), "option key")
+        checkpoint("fx-menu-keys")
+        option.tap()
+        let sent = NSPredicate { _, _ in log.input().hasSuffix("2") }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: sent, evaluatedWith: nil)], timeout: 5), .completed, log.input())
+        element("backButton").tap()
+        waitFor(text("Add pagination to invoices"), "working task").tap()
+        waitFor(element("key-Esc"), "key row")
+        XCTAssertFalse(element("key-option-1").exists)
+    }
+
+    /// A routine's run lives on the Routines page: no row, no project section, no project filter entry.
+    func testARoutineRunStaysOffTheTaskList() throws {
+        pair(try fixture())
+        waitFor(text("Fix layout shift on the pricing page"), "an ordinary task")
+        checkpoint("fx-routine-off-list")
+        XCTAssertFalse(text("Nightly dependency sweep").exists)
+        XCTAssertFalse(text("NIGHTLY-RUNS").exists)
+    }
+
+    /// Archiving hides a row under a closing fold; the fold opens, and an archived row offers Unarchive.
+    func testArchiveFromTheRowMenuAndTheFold() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        let fold = waitFor(element("archivedFold"), "archived fold")
+        XCTAssertFalse(text("Spike a ledger rewrite").exists)
+        element("task-T-IDLE").press(forDuration: 1.2)
+        waitFor(element("actionArchive"), "archive item").tap()
+        let sent = NSPredicate { _, _ in
+            log.entries().contains { $0.op == "task.archive" && $0.args["taskId"] as? String == "T-IDLE" && $0.args["archived"] as? Bool == true }
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: sent, evaluatedWith: nil)], timeout: 5), .completed)
+        fold.tap()
+        waitFor(text("Spike a ledger rewrite"), "archived row")
+        checkpoint("fx-archived-fold")
+        element("task-T-OLD").press(forDuration: 1.2)
+        waitFor(button("Unarchive"), "unarchive item").tap()
+        let back = NSPredicate { _, _ in
+            log.entries().contains { $0.op == "task.archive" && $0.args["taskId"] as? String == "T-OLD" && $0.args["archived"] as? Bool == false }
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: back, evaluatedWith: nil)], timeout: 5), .completed)
+    }
+
     func testFixtureBoard() throws {
         pair(try fixture())
         openPage("board")
@@ -88,6 +138,19 @@ final class PagesFixtureTests: XCTestCase {
         waitFor(element("drawerEvents"), "events", timeout: 20)
         Thread.sleep(forTimeInterval: 1)
         checkpoint("fx-board-5-linked-drawer")
+    }
+
+    /// The row menu merges the task's base in and says what happened.
+    func testSyncWithBaseFromTheRowMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").press(forDuration: 1.2)
+        let item = waitFor(element("actionSyncBase"), "sync item")
+        checkpoint("fx-sync-base")
+        item.tap()
+        waitFor(element("actionBanner"), "sync result", timeout: 5)
+        XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
     }
 
     func testFixtureRoutinesAndIssues() throws {
@@ -114,6 +177,25 @@ final class PagesFixtureTests: XCTestCase {
         element("issueRow-214").tap()
         waitFor(element("startIssueTask"), "start sheet")
         checkpoint("fx-issues-2-start")
+    }
+
+    /// A word finds what was said in any task; a hit opens that task; a miss says so.
+    func testSearchFindsAConversationAndOpensIt() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        openPage("search conversations")
+        let field = waitFor(element("conversationSearchField"), "search field")
+        field.typeText("nothing")
+        waitFor(text("nothing said matches “nothing”."), "no-hit line")
+        field.clearAndType("refund")
+        let hit = waitFor(element("searchHit-T-WAIT"), "hit")
+        checkpoint("fx-search-hits")
+        XCTAssertEqual(log.entries().last { $0.op == "sessions.search" }?.args["query"] as? String, "refund")
+        hideKeyboard()
+        hit.tap()
+        waitFor(element("composerField"), "the hit's task")
+        XCTAssertTrue(text("Verify refund webhook signatures").exists)
     }
 
     func testFixtureSettings() throws {
@@ -144,6 +226,41 @@ final class PagesFixtureTests: XCTestCase {
         element("pluginToggle-notes").tap()
         waitFor(element("confirmAction"), "plugin confirm")
         checkpoint("fx-settings-6-plugin-confirm")
+    }
+
+    /// A busy engine tab holds the message and shows it above the field; a shell tab still takes keystrokes.
+    func testComposerQueuesForABusyEngine() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(text("Add pagination to invoices"), "working task").tap()
+        let field = waitFor(element("composerField"), "composer")
+        waitFor(element("heldCancel-q-1"), "held message")
+        log.clear()
+        field.tap()
+        field.typeText("ship it")
+        element("sendButton").tap()
+        waitFor(element("terminalFlash"), "queued line", timeout: 5)
+        checkpoint("fx-composer-queue")
+        let sent = log.entries().first { $0.op == "tab.send" }
+        XCTAssertEqual(sent?.args["prompt"] as? String, "ship it")
+        XCTAssertEqual(sent?.args["queue"] as? Bool, true)
+        XCTAssertEqual(log.input(), "", "a queued message must not reach the terminal mid-turn")
+        hideKeyboard()
+        element("heldCancel-q-1").tap()
+        let cancelled = NSPredicate { _, _ in log.entries().contains { $0.op == "queue.cancel" && $0.args["id"] as? String == "q-1" } }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: cancelled, evaluatedWith: nil)], timeout: 5), .completed)
+        element("backButton").tap()
+        waitFor(text("Verify refund webhook signatures"), "waiting task").tap()
+        waitFor(element("tab-tab-2"), "shell tab").tap()
+        let shell = waitFor(element("composerField"), "shell composer")
+        log.clear()
+        shell.tap()
+        shell.typeText("ls")
+        element("sendButton").tap()
+        let typed = NSPredicate { _, _ in log.input().contains("ls") }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: typed, evaluatedWith: nil)], timeout: 5), .completed, log.input())
+        XCTAssertFalse(log.entries().contains { $0.op == "tab.send" })
     }
 
     /// The engine-history sheet of a real task (the sandbox's codex task with a structured transcript).

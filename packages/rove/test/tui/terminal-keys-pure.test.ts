@@ -8,6 +8,7 @@ import {
   RESERVED_GLOBAL_CHORDS,
   TRAPPED_KEYS,
   encodeMouseButton,
+  encodeWheel,
   keyEventToShellBytes,
 } from "../../src/tui/panes/terminal/keys-pure"
 
@@ -331,5 +332,25 @@ describe("encodeMouseButton", () => {
   it("reports hover (no button) only under any-event tracking", () => {
     expect(encodeMouseButton({ mouseTracking: "drag" }, "move", 0, 2, 2)).toBeNull()
     expect(encodeMouseButton({ mouseTracking: "any" }, "move", 0, 4, 9)).toBe("\x1b[<35;4;9M")
+  })
+})
+
+describe("encodeWheel", () => {
+  const modes = (alternateScreen: boolean, mouseTracking: boolean) => ({
+    alternateScreen,
+    mouseTracking,
+    applicationCursorKeys: false,
+  })
+
+  it("keeps the normal screen's wheel local under mouse tracking; shift forwards it", () => {
+    // An inline app with 1003 on (omp) cannot scroll the scrollback itself.
+    expect(encodeWheel(modes(false, true), "up", 3, 4)).toBeNull()
+    expect(encodeWheel(modes(false, true), "up", 3, 4, true)).toBe("\x1b[<64;3;4M")
+    expect(encodeWheel(modes(false, false), "up", 3, 4, true)).toBeNull()
+  })
+
+  it("hands the alternate screen's wheel to the app: a mouse report, else arrow keys", () => {
+    expect(encodeWheel(modes(true, true), "down", 3, 4)).toBe("\x1b[<65;3;4M")
+    expect(encodeWheel(modes(true, false), "up", 3, 4)).toBe("\x1b[A\x1b[A\x1b[A")
   })
 })

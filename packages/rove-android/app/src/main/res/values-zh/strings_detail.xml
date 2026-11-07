@@ -7,6 +7,9 @@
     <string name="detail_menu_refresh">刷新标签页</string>
     <string name="detail_fit">适配</string>
     <string name="detail_watch">观看</string>
+    <string name="detail_tab_close">关闭标签</string>
+    <string name="detail_tab_close_title">关闭「%1$s」？</string>
+    <string name="detail_tab_close_body">停止这个标签里的会话。任务和它的 worktree 会保留。</string>
     <string name="detail_diff">diff</string>
     <string name="detail_land">合入</string>
     <string name="detail_tabs_error">无法加载终端标签页</string>
@@ -14,6 +17,8 @@
     <string name="detail_pick_tab">选择一个标签页</string>
     <string name="detail_no_tabs_hint">打开一个引擎标签页，给此任务发下一条消息</string>
     <string name="detail_reopen">重新打开会话</string>
+    <string name="detail_reopening">正在重新打开…</string>
+    <string name="detail_reopen_failed">重新打开失败：%1$s</string>
 
     <string name="detail_key_interrupt">中断</string>
     <string name="detail_key_done">完成</string>
@@ -40,4 +45,12 @@
     <string name="detail_land_confirm">确认合入</string>
     <string name="detail_cancel">取消</string>
     <string name="detail_working">处理中…</string>
+    <string name="detail_land_body_one">把 \"%1$s\" 合入 %2$s（1 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。</string>
+    <string name="detail_land_body_many">把 \"%1$s\" 合入 %2$s（%3$s 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。</string>
+    <string name="detail_land_dirty_base">基础检出有未提交改动。先在 Mac 上提交，再合入。</string>
+    <string name="detail_composer_not_sent">没发出去：%1$s</string>
+    <string name="detail_composer_at_menu">agent 正在等你选择。用按键行回答；你的消息已保留。</string>
+    <string name="detail_composer_queued">agent 正在干活：这一轮结束后发出（排第 %1$d）。</string>
+    <string name="detail_queued_chip">排队中</string>
+    <string name="detail_queue_cancel">撤回这条消息</string>
 </resources>

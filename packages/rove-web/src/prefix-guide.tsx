@@ -13,7 +13,7 @@ import {
   directGuideOptions,
   shortcutCaption,
 } from "@sma1lboy/rove/src/tui/lib/shortcut-reveal.ts"
-import { useEffect, useState } from "react"
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { strokeText } from "./chord.ts"
 import { allCommands, appliesOn, currentSurface, reachability, specificity } from "./commands.ts"
 import { useLocale } from "./i18n/index.ts"
@@ -23,6 +23,18 @@ import { GUIDE_DELAY_MS, HUD_TTL_MS, hud } from "./prefix-state.ts"
 import { runPrefixStroke } from "./prefix.tsx"
 import { usePrefs } from "./prefs.ts"
 import { useStore } from "./store.ts"
+import { LEAVE_MS } from "./ui.ts"
+import {
+  PREFIX_GUIDE,
+  PREFIX_GUIDE_BODY,
+  PREFIX_GUIDE_GROUP,
+  PREFIX_GUIDE_HEAD,
+  PREFIX_GUIDE_ROW,
+  PREFIX_HUD,
+  PREFIX_KEY,
+  prefixHudLine,
+  shortcutBadge,
+} from "./ui/shell.ts"
 import { prefixKey, userKeys } from "./user-keys.ts"
 
 interface GuideOption {
@@ -100,29 +112,29 @@ export function PrefixHud({ model }: { model: AppModel }) {
       : prefixOptions(model)
     return (
       <output
-        className="prefix-guide mono"
+        className={`mono ${PREFIX_GUIDE}`}
         // The guide must not take focus from the pane the stroke is meant for.
         onMouseDown={(e) => e.preventDefault()}
       >
-        <div className="prefix-guide-head">
-          <span className="tone-accent">
+        <div className={PREFIX_GUIDE_HEAD}>
+          <span className="text-accent">
             {direct ? helpText("directLayer") : helpText("commandLayer", { prefix: prefixKey() ?? "" })}
           </span>
-          <span className="muted">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
+          <span className="keys-only text-muted">{direct ? helpText("releaseCtrl") : helpText("escCancel")}</span>
         </div>
-        <div className="prefix-guide-body">
+        <div className={PREFIX_GUIDE_BODY}>
           {groupOptions(options).map((group) => (
-            <div key={group.category} className="prefix-guide-group">
-              <div className="tone-accent">{categoryName(group.category)}</div>
+            <div key={group.category} className={PREFIX_GUIDE_GROUP}>
+              <div className="text-accent">{categoryName(group.category)}</div>
               {group.actions.map(({ action, strokes }) => (
                 <button
                   type="button"
                   key={action}
-                  className="prefix-guide-row"
+                  className={PREFIX_GUIDE_ROW}
                   disabled={direct}
                   onClick={() => strokes[0] && runPrefixStroke(model, strokes[0])}
                 >
-                  <span className="prefix-hud-key">{strokes.map(strokeText).join("/")}</span>
+                  <span className={PREFIX_KEY}>{strokes.map(strokeText).join("/")}</span>
                   <span>{labelOf(action)}</span>
                 </button>
               ))}
@@ -134,24 +146,42 @@ export function PrefixHud({ model }: { model: AppModel }) {
   }
 
   return (
-    <output className="prefix-hud mono">
+    <output className={PREFIX_HUD}>
       {fresh.map((entry) => (
-        <div key={entry.id} className="prefix-hud-head">
-          <span className="tone-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
-          {entry.action ? labelOf(entry.action) : <span className="muted">∅</span>}
-        </div>
+        <HudLine key={entry.id} at={entry.at}>
+          <span className="text-accent">{prefixKey()}</span> + {entry.stroke} →{" "}
+          {entry.action ? labelOf(entry.action) : <span className="text-muted">∅</span>}
+        </HudLine>
       ))}
       {armedAt !== null && (
-        <div className="prefix-hud-head">
-          <span className="tone-accent">{prefixKey()}</span> ⋯
+        <div className={prefixHudLine(false)}>
+          <span className="text-accent">{prefixKey()}</span> ⋯
         </div>
       )}
     </output>
   )
 }
 
+/** Fades out as it expires, timed from the stroke, not the mount: the guide unmounts lines and brings them back late. */
+function HudLine({ at, children }: { at: number; children: ReactNode }) {
+  const [mountedAt] = useState(Date.now)
+  const late = mountedAt - at > LEAVE_MS
+  // Negative once inside the last LEAVE_MS: the fade starts part-way and still ends at HUD_TTL_MS.
+  const out = { "--hud-out": `${at + HUD_TTL_MS - LEAVE_MS - mountedAt}ms` } as CSSProperties
+  return (
+    <div className={prefixHudLine(late)} style={out}>
+      {children}
+    </div>
+  )
+}
+
 /** A keycap over a control that already names a binding, shown only while the prefix is armed (`local` mode); a click runs the binding's stroke. */
-export function ShortcutBadge({ model, bindingId }: { model: AppModel; bindingId: string }) {
+/** `head`: under the rail head, where the badge hangs below its chip. */
+export function ShortcutBadge({
+  model,
+  bindingId,
+  head = false,
+}: { model: AppModel; bindingId: string; head?: boolean }) {
   const state = useStore(hud)
   useStore(userKeys)
   const mode = usePrefs().prefs.prefixTap
@@ -166,7 +196,7 @@ export function ShortcutBadge({ model, bindingId }: { model: AppModel; bindingId
   return (
     <button
       type="button"
-      className="shortcut-badge mono"
+      className={`mono ${shortcutBadge(head)}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation()

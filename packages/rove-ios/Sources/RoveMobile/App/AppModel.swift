@@ -89,6 +89,7 @@ enum Route: Hashable {
     case inbox
     case board
     case routines
+    case search
     case issues
     case worktrees
     case settings
@@ -132,6 +133,7 @@ struct RootView: View {
                             case .inbox: InboxView()
                             case .board: BoardView()
                             case .routines: RoutinesView()
+                            case .search: SearchView()
                             case .issues: IssuesView()
                             case .worktrees: WorktreesView()
                             case .settings: SettingsView()

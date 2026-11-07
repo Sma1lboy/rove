@@ -10,6 +10,7 @@ import {
   builtinModMissingMessage,
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
+import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
@@ -100,6 +101,15 @@ export interface ApiCaller {
   readonly cli: boolean
   /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
   readonly cwd?: string
+  /** Running inside the daemon process: the one place state that outlives a call (a login child) may live. */
+  readonly daemon?: true
+  /** The call arrived from another machine's hub (`api.invoke` with `forwarded: true`). */
+  readonly forwarded?: true
+}
+
+/** The daemon running a verb for a socket or bridge caller, or for another machine's hub. */
+export function daemonCaller(forwarded: boolean): ApiCaller {
+  return { cli: false, daemon: true, ...(forwarded ? { forwarded: true as const } : {}) }
 }
 
 /** The CLI process itself, read at call time (tests chdir). */
@@ -338,19 +348,26 @@ export interface ApiRuntime {
   /**
    * Open a tab with no first message (`tab-new`): a login shell or an empty
    * engine. Persists the row, spawns the session, and returns the row as saved.
+   * `home` makes a shell the task's own `tab-1` (a fresh shell task) rather than a later tab.
+   * `type` is typed into a new shell once it is up, Enter included.
    */
-  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  openTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    kind: NewTabKind,
+    opts?: { readonly home?: boolean; readonly type?: string },
+  ): Promise<OpenedTab>
   /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
-  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). */
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). `awaitEngine` returns only once the relaunched engine is a running process, failing when it never shows up. */
   reviveTab(
     client: DaemonRpc,
     target: PromptTarget,
     tabId: string,
     worktree: string,
-    opts?: { readonly replaceExited?: boolean },
+    opts?: { readonly replaceExited?: boolean; readonly awaitEngine?: boolean },
   ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
@@ -385,4 +402,6 @@ export interface ApiRuntime {
   tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
   /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
   listeningPorts(): Promise<readonly ListeningSocket[] | null>
+  /** Disk a checkout takes, local or remote (`worktree-usage`). */
+  measureCheckout(path: string): Promise<CheckoutUsage>
 }

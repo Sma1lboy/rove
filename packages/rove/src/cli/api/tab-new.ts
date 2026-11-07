@@ -21,7 +21,14 @@ import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
-import { type TabsRpc, allocateTab, closeTabsSnapshot, markCliTabSession, seedCanonicalTab } from "./tab-snapshot.ts"
+import {
+  type TabsRpc,
+  allocateTab,
+  closeTabsSnapshot,
+  markCliTabSession,
+  seedCanonicalTab,
+  seedShellHome,
+} from "./tab-snapshot.ts"
 import { ApiError, type PromptTarget } from "./types.ts"
 
 export type NewTabKind = "shell" | "engine"
@@ -47,9 +54,20 @@ export function collision(taskId: string, key: string, retryArgs: readonly strin
 
 export const createdFresh = (open: PtyOpenResult): boolean => open.created ?? open.replay.length === 0
 
-async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string, cwd: string, multiRepo: boolean) {
+async function openShell(
+  client: TabsRpc,
+  rpc: HostedSessionRpc,
+  taskId: string,
+  cwd: string,
+  multiRepo: boolean,
+  home: boolean,
+  type?: string,
+) {
   const shell = resolveSessionShell()
-  const tab = await allocateTab(client, taskId, { kind: "command", title: null, command: [shell] })
+  // A shell task's first tab IS its shell: seeded as `tab-1`, never behind an engine tab-1 nobody asked for.
+  const tab = home
+    ? await seedShellHome(client, taskId, shell)
+    : await allocateTab(client, taskId, { kind: "command", title: null, command: [shell] })
   const key = `${taskId}::${tab.id}`
   try {
     let open: PtyOpenResult
@@ -61,13 +79,16 @@ async function openShell(client: TabsRpc, rpc: HostedSessionRpc, taskId: string,
         defaultColors: readPersistedTerminalDefaultColors(),
       })
     } catch (error) {
-      await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
+      if (!home) await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
       throw error
     }
-    if (!createdFresh(open)) throw collision(taskId, key, ["api", "tab-new", "--task-id", taskId, "--kind", "shell"])
+    if (!createdFresh(open)) {
+      throw collision(taskId, key, ["api", "tab-new", "--task-id", taskId, "--kind", "shell"])
+    }
     // The TUI types this once, on the spawn it creates; a mounted tab attaching later sees `created: false`.
     const repos = multiRepo ? await launchReposOf(client, taskId) : undefined
     await rpc.request("pty.write", { key, data: shellIdentityInput(taskId, tab.id, repos && repoEnv(repos)) })
+    if (type !== undefined) await rpc.request("pty.write", { key, data: `${type}\r` })
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})
   }
@@ -133,6 +154,7 @@ export async function openNewTab(
   target: PromptTarget,
   worktree: string,
   kind: NewTabKind,
+  opts: { readonly home?: boolean; readonly type?: string } = {},
 ): Promise<OpenedTab> {
   const host = await ensureHostFor(
     target.id,
@@ -141,7 +163,15 @@ export async function openNewTab(
   try {
     const opened =
       kind === "shell"
-        ? await openShell(client, host.rpc, target.id, worktree, target.multiRepo === true)
+        ? await openShell(
+            client,
+            host.rpc,
+            target.id,
+            worktree,
+            target.multiRepo === true,
+            opts.home === true,
+            opts.type,
+          )
         : await openEngine(client, host.rpc, target, worktree)
     return { tab: opened.tab, session: opened.key }
   } catch (error) {

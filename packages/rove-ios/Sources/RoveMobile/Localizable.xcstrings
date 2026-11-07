@@ -306,6 +306,16 @@
         }
       }
     },
+    "%lld task(s) not searched: another machine's, or an engine rove cannot read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 个任务没搜：在别的机器上，或 Rove 读不了它的引擎记录。"
+          }
+        }
+      }
+    },
     "%lld unreadable record skipped, the board may be incomplete" : {
       "localizations" : {
         "zh-Hans" : {
@@ -498,12 +508,32 @@
         }
       }
     },
+    "already up to date with %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经和 %@ 同步"
+          }
+        }
+      }
+    },
     "Also discard uncommitted changes" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "同时丢弃未提交的改动"
+          }
+        }
+      }
+    },
+    "an engine in %@ is still working or waiting on you. archiving hides the row without stopping it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。"
           }
         }
       }
@@ -524,6 +554,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已回答 · 引擎未运行"
+          }
+        }
+      }
+    },
+    "Archive" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档"
+          }
+        }
+      }
+    },
+    "archive anyway" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍要归档"
+          }
+        }
+      }
+    },
+    "archive while it's working?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它还在工作，仍要归档？"
+          }
+        }
+      }
+    },
+    "archived %@ · worktree, branch and sessions untouched" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档 %@。工作树、分支和会话都保持原样"
+          }
+        }
+      }
+    },
+    "archived · %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档 · %lld"
           }
         }
       }
@@ -698,6 +778,16 @@
         }
       }
     },
+    "commit the worktree's changes first, then sync: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先提交工作树里的改动，再同步：%@"
+          }
+        }
+      }
+    },
     "Connected" : {
       "localizations" : {
         "zh-Hans" : {
@@ -774,6 +864,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法发送回答。"
+          }
+        }
+      }
+    },
+    "couldn't archive: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档失败：%@"
+          }
+        }
+      }
+    },
+    "couldn't restore: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复失败：%@"
           }
         }
       }
@@ -964,6 +1074,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在滚动历史中查找"
+          }
+        }
+      }
+    },
+    "find something said in any task" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在所有任务的对话里找"
           }
         }
       }
@@ -1218,6 +1338,26 @@
         }
       }
     },
+    "merge conflict · resolve then commit: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并冲突——解决后提交：%@"
+          }
+        }
+      }
+    },
+    "merged %@ into this worktree" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已把 %@ 合并进该工作树"
+          }
+        }
+      }
+    },
     "Model & effort…" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1388,12 +1528,42 @@
         }
       }
     },
+    "nothing said matches “%@”." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有说过「%@」。"
+          }
+        }
+      }
+    },
+    "not sent: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未发送:%@"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "Option %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选项 %lld"
           }
         }
       }
@@ -1544,6 +1714,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "项目操作"
+          }
+        }
+      }
+    },
+    "queued · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已排队 · %@"
+          }
+        }
+      }
+    },
+    "queued · position %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已排队 · 第 %lld 位"
           }
         }
       }
@@ -1828,6 +2018,16 @@
         }
       }
     },
+    "restored %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已恢复 %@"
+          }
+        }
+      }
+    },
     "Rove stops listing it. The repo and its tasks stay on disk." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1874,6 +2074,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "搜索"
+          }
+        }
+      }
+    },
+    "search conversations" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索会话"
+          }
+        }
+      }
+    },
+    "searches what you and the agents wrote, newest first; tool output is left out. a hit opens its task." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜你和 agent 写过的话，新的在前；不含工具输出。点结果打开那个任务。"
+          }
+        }
+      }
+    },
+    "searching…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索中…"
           }
         }
       }
@@ -2008,6 +2238,16 @@
         }
       }
     },
+    "stopped early to stay fast; add a word to narrow it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了快提前停了；多加一个词缩小范围。"
+          }
+        }
+      }
+    },
     "Stories start in the backlog. Start a session from one when it is time." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2068,12 +2308,42 @@
         }
       }
     },
+    "sync failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步失败：%@"
+          }
+        }
+      }
+    },
+    "Sync with base" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步基础分支"
+          }
+        }
+      }
+    },
     "Tabs share the worktree but keep their own process, scrollback and conversation." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "标签页共用 worktree，但各自保留进程、回滚内容和对话。"
+          }
+        }
+      }
+    },
+    "Take back" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回"
           }
         }
       }
@@ -2134,6 +2404,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "子任务从 %@ 分出：已提交的工作会带过去，未提交的改动留在原处。"
+          }
+        }
+      }
+    },
+    "The engine is at a menu: answer it with the keys above." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引擎停在菜单上:请用上方的按键回答。"
           }
         }
       }
@@ -2224,6 +2504,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入你的回答"
+          }
+        }
+      }
+    },
+    "Unarchive" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消归档"
           }
         }
       }

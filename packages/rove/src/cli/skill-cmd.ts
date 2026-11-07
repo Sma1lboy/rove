@@ -1,23 +1,17 @@
 /**
- * `rove skill install | status | command | print`.
- *
- * Install shells out to the agent-skills CLI, pointed at the bundled SKILL.md
- * (a repo clone only when none is bundled; `lib/skill-install.ts`). With no
- * `--agent` that CLI detects installed agents and prompts, so rove carries no
- * agent list. Installs are GLOBAL by default — the skill drives a machine-wide
- * daemon; `--project` opts into a per-project install.
+ * `rove skill install | status | print` — presentation over
+ * `lib/skill-install.ts`, which owns detection and the copy.
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import {
-  NPX_MISSING_EXIT,
+  type SkillTarget,
   bundledSkillDir,
+  installSkill,
   installedSkillDiffersFromBundled,
-  npxSkillsCommand,
-  roveSkillPaths,
-  roveSkillState,
-  runNpxSkillsInstall,
+  skillOverview,
+  skillTargets,
 } from "../lib/skill-install.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
@@ -31,57 +25,51 @@ function skillUsage(): string {
     `usage: ${CLI_NAME} skill <verb>`,
     "",
     "verbs:",
-    "  install [--global|-g | --project|-p] [--agent NAME]…  Install the Rove agent skill (wraps `npx skills add`)",
-    "  status                                                Show whether the skill is installed",
-    "  command [--global|-g | --project|-p] [--agent NAME]…  Print the underlying npx command without running it",
-    `  print                                                 Print the bundled SKILL.md (also: \`${CLI_NAME} --skill\`)`,
+    "  install [--agent ENGINE]…  Copy the Rove agent skill into every engine set up on this machine",
+    "  status                     Show which engines have the skill, and whether it is current",
+    `  print                      Print the bundled SKILL.md (also: \`${CLI_NAME} --skill\`)`,
     "",
     `The skill teaches a coding agent how to drive \`${CLI_NAME} api\`. Installs are`,
-    "global (user-level) by default; --global/-g says so explicitly, --project/-p",
-    "installs into the current project instead. With no --agent, the agent-skills",
-    "CLI detects your installed agents and asks; repeat --agent to name them",
-    "(e.g. --agent claude-code --agent codex).",
+    "user-level. --agent takes a Rove engine id (claude, codex, …) and may repeat.",
+    "Installed copies refresh themselves when Rove upgrades.",
   ].join("\n")
 }
 
-/** Empty `agents` = let the agent-skills CLI ask. Scope defaults to global. */
-function parseInstallFlags(rest: readonly string[]): { agents: string[]; global: boolean } {
-  let global = true
+function fail(message: string): never {
+  process.stderr.write(`${CLI_NAME} skill: ${message}\n`)
+  process.exit(2)
+}
+
+function parseAgents(rest: readonly string[]): string[] {
   const agents: string[] = []
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]
-    if (arg === "--project" || arg === "-p") {
-      global = false
-    } else if (arg === "--global" || arg === "-g") {
-      global = true
-    } else if (arg === "--agent") {
+    if (arg === "--agent") {
       const v = rest[i + 1]
-      if (!v || v.startsWith("--")) {
-        process.stderr.write(`${CLI_NAME} skill: --agent requires a value\n`)
-        process.exit(2)
-      }
+      if (!v || v.startsWith("--")) fail("--agent requires a value")
       agents.push(v)
       i++
     } else if (arg.startsWith("--agent=")) {
       agents.push(arg.slice("--agent=".length))
     } else {
-      process.stderr.write(`${CLI_NAME} skill: unknown flag "${arg}"\n\n${skillUsage()}\n`)
-      process.exit(2)
+      fail(`unknown flag "${arg}"\n\n${skillUsage()}`)
     }
   }
-  // The agent-skills CLI rejects a comma-joined list; say so up front.
-  const joined = agents.find((a) => a.includes(","))
-  if (joined) {
-    process.stderr.write(
-      `${CLI_NAME} skill: --agent takes one name; repeat the flag instead of "${joined}"\n` +
-        `  e.g. ${joined
-          .split(",")
-          .map((a) => `--agent ${a.trim()}`)
-          .join(" ")}\n`,
-    )
-    process.exit(2)
-  }
-  return { agents, global }
+  return agents
+}
+
+function describe(target: SkillTarget): string {
+  const state =
+    target.state === "installed"
+      ? `✓ v${target.version}`
+      : target.state === "outdated"
+        ? `⚠ ${target.version === null ? "unstamped" : `v${target.version}`}, out of date`
+        : "✗ not installed"
+  return `  ${target.displayName.padEnd(14)} ${state.padEnd(24)} ${target.dir}`
+}
+
+function noTargetsMessage(): string {
+  return `no supported coding agent found on this machine.\nFor another agent, save the skill yourself: ${CLI_NAME} --skill > <skills dir>/rove/SKILL.md`
 }
 
 export async function runSkillSubcommand(argv: readonly string[]): Promise<void> {
@@ -91,86 +79,62 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     if (!verb) process.exitCode = 2
     return
   }
-  if (!SKILL_VERBS.includes(verb)) {
-    process.stderr.write(`${CLI_NAME} skill: unknown verb "${verb}"\n\n${skillUsage()}\n`)
-    process.exit(2)
-  }
+  if (!SKILL_VERBS.includes(verb)) fail(`unknown verb "${verb}"\n\n${skillUsage()}`)
 
   if (verb === "print") {
-    // The bundled copy always matches this binary; an installed copy is the
-    // fallback so `rove --skill` still answers on an unbuilt environment.
     const bundled = bundledSkillDir()
-    const path = bundled ? join(bundled, "SKILL.md") : roveSkillPaths().find((p) => existsSync(p))
-    if (!path) {
-      process.stderr.write(
-        `${CLI_NAME} skill: no SKILL.md found (not bundled, not installed) — run \`${CLI_NAME} skill install\`\n`,
-      )
+    if (!bundled) {
+      process.stderr.write(`${CLI_NAME} skill: this build ships no SKILL.md\n`)
       process.exit(1)
     }
-    process.stdout.write(readFileSync(path, "utf8"))
+    process.stdout.write(readFileSync(join(bundled, "SKILL.md"), "utf8"))
     return
   }
 
   if (verb === "status") {
-    const { isRovePluginEnabled } = await import("../engine/claude-code-local/plugin-migration.ts")
-    const state = roveSkillState()
-    const paths = roveSkillPaths()
-    const pluginNote = isRovePluginEnabled()
-      ? "  note: the Rove Claude Code plugin is enabled — for Claude Code the skill ships\n        inside the plugin and versions with it (staleness prompts are suppressed).\n"
-      : ""
-    const head = !state.installed
-      ? "✗ not installed"
-      : state.stale
-        ? `⚠ out of date (installed ${state.installedVersion === null ? "unstamped" : `v${state.installedVersion}`}, this Rove wants v${state.currentVersion})`
-        : `✓ installed (v${state.installedVersion})`
-    // `stale` compares versions only, so an edit without a bump reads ✓.
-    // Diagnostic only: the startup prompt stays version-based.
-    const contentDrift = state.installed && !state.stale && !!state.path && installedSkillDiffersFromBundled(state.path)
+    const overview = skillOverview()
+    if (overview.targets.length === 0) {
+      process.stdout.write(`${CLI_NAME} skill: ${noTargetsMessage()}\n`)
+      return
+    }
+    const drifted = overview.targets.filter((t) => t.state === "installed" && installedSkillDiffersFromBundled(t.dir))
+    const needsInstall = overview.targets.some((t) => t.state !== "installed")
     process.stdout.write(
       [
-        `${CLI_NAME} skill: ${head}`,
-        ...(contentDrift
-          ? [
-              "  ⚠ content differs from the copy bundled with this Rove at the same version —",
-              `    run \`${CLI_NAME} --skill > ${state.path}\` to refresh it`,
-            ]
-          : []),
-        `  looked in: ${paths.join("\n             ")}`,
-        state.installed && !state.stale ? "" : `  → run \`${CLI_NAME} skill install\` to install / refresh`,
+        `${CLI_NAME} skill:`,
+        ...overview.targets.map(describe),
+        ...drifted.map((t) => `  ⚠ ${t.displayName}: content differs from this build at the same version`),
+        ...(needsInstall || drifted.length > 0 ? [`  → run \`${CLI_NAME} skill install\``] : []),
         "",
-      ].join("\n") + pluginNote,
+      ].join("\n"),
     )
     return
   }
 
-  if (verb === "command") {
-    const flags = parseInstallFlags(rest)
-    process.stdout.write(`${npxSkillsCommand({ agent: flags.agents, global: flags.global })}\n`)
-    return
+  const agents = parseAgents(rest)
+  const all = skillTargets()
+  if (all.length === 0) {
+    process.stderr.write(`${CLI_NAME} skill: ${noTargetsMessage()}\n`)
+    process.exit(1)
   }
-
-  // stdio is inherited, so with no --agent the CLI's picker runs interactively.
-  const { agents, global } = parseInstallFlags(rest)
-  const bundled = bundledSkillDir()
-  process.stdout.write(
-    `${CLI_NAME} skill: running \`${npxSkillsCommand({ agent: agents, global })}\`\n${
-      bundled ? "" : `${CLI_NAME} skill: no bundled skill found — falling back to a repo clone (large download).\n`
-    }`,
-  )
-  const code = await runNpxSkillsInstall(agents, global)
-  if (code !== 0) {
-    // NPX_MISSING_EXIT: already explained; "run it yourself" needs the same missing npx.
-    if (code !== NPX_MISSING_EXIT) {
-      process.stderr.write(
-        `\n${CLI_NAME} skill install failed (npx exited ${code}).\n` +
-          `You can run it yourself: ${npxSkillsCommand({ agent: agents, global })}\n`,
-      )
-    }
-    process.exit(code || 1)
+  const unknown = agents.filter((a) => !all.some((t) => t.vendor === a))
+  if (unknown.length > 0) {
+    fail(
+      `not set up on this machine (or no skills dir): ${unknown.join(", ")}\n  available: ${all.map((t) => t.vendor).join(", ")}`,
+    )
   }
-  if (global) {
-    const { settleWelcomeInstall } = await import("./onboarding.ts")
-    settleWelcomeInstall("skill")
+  const targets = agents.length === 0 ? all : all.filter((t) => agents.includes(t.vendor))
+  let results: ReturnType<typeof installSkill>
+  try {
+    results = installSkill(targets)
+  } catch (error) {
+    process.stderr.write(`${CLI_NAME} skill: ${error instanceof Error ? error.message : String(error)}\n`)
+    process.exit(1)
   }
+  for (const { target, error } of results) {
+    if (error) process.stderr.write(`  ✗ ${target.displayName}: ${error}\n`)
+    else process.stdout.write(`  ✓ ${target.displayName.padEnd(14)} ${target.dir}\n`)
+  }
+  if (results.some((r) => r.error)) process.exit(1)
   process.stdout.write(`${CLI_NAME} skill: installed.\n`)
 }

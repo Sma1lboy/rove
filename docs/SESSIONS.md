@@ -294,8 +294,23 @@ process, including a reboot.
   same as **Reopen session** on a tab that shows "no running session" or a
   restored screen, and as **Retry** when the engine exited into its fallback
   shell (`Engine exited (code N)`; `--restart-exited`). That notice also offers
-  **Settings → Engines** and **New conversation with…** for another engine;
-  nothing reopens on view.
+  **Settings → Engines**, **New conversation with…** for another engine, and
+  **Continue in another engine** (the conversation's context carried into the
+  new engine's first prompt, same directory); nothing reopens on view.
+
+Where a continuation lands depends on whether the source engine is alive. A
+**live** source opens the new engine as a child task sharing the directory, so
+the two conversations run side by side. A **dead** source (the engine exited
+into its fallback shell) is replaced in place: the same task and the same tab
+slot, the same worktree, a fresh conversation of the new engine that opens on
+the handoff brief, so the task keeps one conversation per tab and no child
+appears. The old transcript stays on disk untouched. Headlessly this is `rove
+api send --tab new --handoff-from tab-N --replace` (refused with `TAB_ALIVE`
+while that engine runs, and rolled back if the new engine cannot start); the
+web and TUI pick it by themselves from the tab's dead state. When an engine
+hits a usage limit (its activity state is `rate_limited`), the pane shows a
+one-line strip offering **Continue in another engine** or **Dismiss**; it goes
+away when the state leaves `rate_limited`.
 
 ## Not supported
 

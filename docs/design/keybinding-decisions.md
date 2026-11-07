@@ -626,27 +626,20 @@ loses a key. Its handler is wrapped in `prefixAction` for the same reason the
 split row's is: the prefix HUD's clickable option resolves through `action`,
 not `cmd`.
 
-## `ctrl+a` `/` — search the terminal scrollback (PROPOSED, awaiting sign-off)
+## REMOVED: `ctrl+a` `/` — terminal scrollback search (2026-11-06, owner's call)
 
-Prefix-only, and it has to be. The terminal pane forwards a bare `/` to the
-shell and must keep doing so, while the prefix's first stroke never passes
-through — so `/` as the SECOND stroke costs the shell nothing. `TRAPPED_KEYS`
-is unchanged. The letter mirrors the sidebar's bare `/`: one search key across
-the app, chosen for that rather than for being free.
+The terminal scope once proposed a prefix-only `/` that opened a scrollback
+search row. The owner removed it ("这个 search 不要，干扰了全局 search") rather
+than approving it: in a terminal, the most-local scope won, so `ctrl+a` `/`
+opened the scrollback row instead of the command palette and the palette was
+unreachable from the surface where the prefix is used most. `ctrl+a` `/` now
+always opens the palette (see "Command palette and help filter" below).
 
-What it may shadow: nothing today. `ctrl+a` `/` resolved to no binding before
-this row, and the dispatcher consumed the miss.
+The feature is deleted in both the TUI and the web: the `terminal.search*`
+rows, the query row, the match scanner and the web's xterm search addon. Nothing
+else used them, and no chord is orphaned. A future terminal search needs a
+different chord and a fresh sign-off.
 
-The walk keys are `return`/`up` (older) and `down` (newer), registered only
-while the query row is open — at which point the pane's passthrough is off, so
-the arrows are not being taken from the shell.
-
-`shift+return` was specified for "previous" and had to be dropped: without the
-kitty keyboard protocol a terminal sends the same CR byte for enter and
-shift+enter, so `matchKey` sees a plain `return` and the chord is a silently
-dead key. Rove keeps kitty's `allKeysAsEscapes` off deliberately (it crashes
-iTerm2's Chinese input — see `host-render-options.ts`), so this is not a
-temporary limitation. A render test pins the direction of every walk key.
 ## PROPOSED (not decided): `ctrl+a k` — Fix failing checks
 
 Status: **proposed, awaiting owner sign-off.** Wired in the registry as
@@ -900,6 +893,11 @@ terminal without claiming a typing key. Prefix `/` was unused; sidebar `/`
 remains scoped task search. Help and palette share the action names and matcher.
 The palette invokes typed live commands, preserving scope and confirmation gates.
 
+Scope widened (2026-11-05, owner's call, no chord change): the web palette also
+lists tasks by title and conversation hits (`sessions.search`) under the commands.
+The TUI palette follows the same day (no chord change): its standalone Search
+rail page is gone. That page had no chord, so no binding is orphaned.
+
 ## Second conversations open a child task (2026-10-22, approved)
 
 The owner approved keeping `ctrl+t`, `ctrl+e` and `ctrl+a c` on their keys
@@ -908,3 +906,19 @@ these opens a shared child task under the current one instead of a second
 engine tab (see [`child-sessions.md`](./child-sessions.md)). Keys stay put so
 muscle memory survives the model change. The child-task fold has no chord: it
 is reached through the row menu, like other row actions.
+
+## `d` on a project's main row ends its conversation (2026-10-25, owner directive)
+
+`d` keeps its key and its "destructive action on this row" meaning, but on a
+project's main row it no longer removes the project from the list. It ends the
+row's conversation and closes its tabs; the project, repo, branches and
+worktrees stay. A main with child tasks asks whether to keep or delete them
+too, like any task. Remove project is menu-only, on the project header
+(`forgetProject` carries no chord).
+
+## DECLINED: `a` in the web preview asks in chat (2026-10-31)
+
+The web preview's "ask in chat" types the selected lines into the task's engine
+prompt as `@path (lines a-b) `. `a` was proposed for it; the owner declined a
+chord. It is a bubble that appears beside a selection (`v`, Shift+click or a
+mouse drag) and nothing else.

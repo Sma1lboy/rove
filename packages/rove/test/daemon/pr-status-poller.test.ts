@@ -8,6 +8,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { pickPr } from "@sma1lboy/rove-daemon/daemon/pr-gh-runner"
 import {
   DEFAULT_PR_STATUS_POLL_MS,
   NO_PR_BACKOFF_MS,
@@ -19,7 +20,6 @@ import {
   type PrViewRunner,
   SETTLED_BACKOFF_MS,
   isPrPollable,
-  pickPr,
   runPrStatusPass as runPrStatusPassRaw,
   startPrStatusPoller,
 } from "@sma1lboy/rove-daemon/daemon/pr-status-collector"
@@ -116,6 +116,18 @@ describe("runPrStatusPass", () => {
     expect(changed).toEqual([id])
     expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
     expect(orch.getTask(id)?.prStatus?.lifecycle).toBe("open")
+  })
+
+  test("a found PR keeps updating after the branch stops matching it", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "IN_PROGRESS"), now: 0, at: "T0", schedule, rand: noJitter })
+    schedule.clear()
+    // The branch now lists nothing; only the PR the task already holds answers.
+    const passing = prRunner("OPEN", "SUCCESS")
+    const run: PrViewRunner = async (wt, branch, pin) => (pin === 7 ? passing(wt, branch) : { kind: "empty" })
+    await runPrStatusPass(orch, { run, now: 1, at: "T1", schedule, rand: noJitter })
+    expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
   })
 
   test("backoff: a task is not re-polled until its scheduled time", async () => {

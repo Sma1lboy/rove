@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
+import { treeGuides } from "../src/rail-blocks.ts"
 import { mostUrgentStatus } from "../src/rail-glyphs.ts"
-import { AUTO_FOLD_CHILDREN, childMarkerOf, groupByProject, navRows } from "../src/rail.ts"
+import { AUTO_FOLD_CHILDREN, groupByProject, navRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo: "/r/app", kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const rows = (tasks: TaskRow[]) => navRows(groupByProject(tasks))
 const shape = (tasks: TaskRow[]) =>
   rows(tasks).flatMap((row) => (row.kind === "task" ? [[row.id, row.depth, row.level]] : []))
@@ -28,6 +29,26 @@ describe("child tasks in the rail", () => {
     ])
   })
 
+  test("guides run down past siblings still to come and hook into the last one", () => {
+    const nav = rows([
+      task("p"),
+      task("c1", { parentTaskId: "p" }),
+      task("g1", { parentTaskId: "c1" }),
+      task("c2", { parentTaskId: "p" }),
+      task("g2", { parentTaskId: "c2" }),
+      task("other"),
+    ])
+    const guides = nav.flatMap((row, i) => (row.kind === "task" ? [[row.id, treeGuides(nav, i)]] : []))
+    expect(guides).toEqual([
+      ["p", []],
+      ["c1", ["tee"]],
+      ["g1", ["pipe", "elbow"]],
+      ["c2", ["elbow"]],
+      ["g2", ["blank", "elbow"]],
+      ["other", []],
+    ])
+  })
+
   test("the indent stops at three levels; a deeper row wears its real level", () => {
     const chain = [task("a"), task("b", { parentTaskId: "a" }), task("c", { parentTaskId: "b" })]
     chain.push(task("d", { parentTaskId: "c" }), task("e", { parentTaskId: "d" }))
@@ -48,28 +69,18 @@ describe("child tasks in the rail", () => {
     ])
   })
 
-  test("a child nests under a parent in another project; a routine session never nests", () => {
-    const elsewhere = task("parent", { repo: "/r/other" })
-    const ids = rows([
-      task("kid", { parentTaskId: "parent" }),
-      elsewhere,
-      task("sched", { routine: true, parentTaskId: "parent" }),
-    ]).map((row) => row.id)
-    // The child's own project has nothing else to draw but the routine fold; the child sits under its parent.
-    expect(ids).toEqual(["project:/r/app", "~routines:/r/app", "project:/r/other", "parent", "kid"])
-  })
-
-  test("the marker says where a child runs: shared directory or its own worktree", () => {
-    expect(childMarkerOf(task("p"))).toBeNull()
-    expect(childMarkerOf(task("s", { parentTaskId: "p", sharesWorkspaceOf: "p" }))).toBe("shared")
-    expect(childMarkerOf(task("w", { parentTaskId: "p" }))).toBe("worktree")
+  test("a child nests under a parent in another project", () => {
+    const ids = rows([task("kid", { parentTaskId: "parent" }), task("parent", { repo: "/r/other" })]).map(
+      (row) => row.id,
+    )
+    expect(ids).toEqual(["project:/r/app", "project:/r/other", "parent", "kid"])
   })
 
   test("a folded parent hides its whole subtree and counts every descendant, not just direct children", () => {
     const family = [task("p"), task("c", { parentTaskId: "p" }), task("g", { parentTaskId: "c" }), task("other")]
     const view = (folded: string[], query = "") =>
-      navRows(groupByProject(family), query, new Set(), { folded: new Set(folded), opened: new Set() }).flatMap(
-        (row) => (row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : []),
+      navRows(groupByProject(family), query, { folded: new Set(folded), opened: new Set() }).flatMap((row) =>
+        row.kind === "task" ? [[row.id, row.fold?.collapsed, row.fold?.count]] : [],
       )
     expect(view([])).toEqual([
       ["p", false, 2],
@@ -105,7 +116,7 @@ describe("child tasks in the rail", () => {
       task("other"),
     ]
     const view = (tasks: TaskRow[], fold: { folded?: string[]; opened?: string[]; selectedId?: string } = {}) =>
-      navRows(groupByProject(tasks), "", new Set(), {
+      navRows(groupByProject(tasks), "", {
         folded: new Set(fold.folded),
         opened: new Set(fold.opened),
         selectedId: fold.selectedId,
@@ -114,7 +125,7 @@ describe("child tasks in the rail", () => {
     test("more than the threshold folds, at the threshold stays open, and the badge counts the children", () => {
       expect(view(family(AUTO_FOLD_CHILDREN))).toHaveLength(AUTO_FOLD_CHILDREN + 2)
       expect(view(family(AUTO_FOLD_CHILDREN + 1))).toEqual(["p", "other"])
-      const fold = navRows(groupByProject(family(8)), "", new Set()).find((row) => row.id === "p")
+      const fold = navRows(groupByProject(family(8))).find((row) => row.id === "p")
       expect(fold?.kind === "task" && fold.fold).toMatchObject({ collapsed: true, count: 8 })
     })
 

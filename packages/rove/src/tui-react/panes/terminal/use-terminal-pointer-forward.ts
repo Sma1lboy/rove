@@ -27,18 +27,19 @@ export function useTerminalPointerForward(opts: {
 
   /**
    * Emulator order for ANY scroll (wheel, or a selection drag past an edge):
-   * an app with mouse tracking or on the alternate screen gets wheel events;
-   * otherwise rove's local viewport moves. Engines on the ALTERNATE screen
+   * an app on the alternate screen gets wheel events; on the normal screen
+   * the wheel moves rove's local viewport, unless `shift` hands it to an app
+   * that tracks the mouse (`encodeWheel`). Engines on the ALTERNATE screen
    * have no local scrollback, so an edge drag must ask the app. Coords are
    * absolute. True = forwarded; the selection hook then tracks the shift.
    */
-  const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
+  const scrollFromPointer = (lines: number, screenX: number, screenY: number, shift = false): boolean => {
     if (lines === 0) return false
     const direction = lines < 0 ? "up" : "down"
     if (pty && !pty.killed && bodyEl) {
       const { col, row } = paneCell(screenX, screenY, bodyEl)
-      if (pty.wheel(direction, col, row)) {
-        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
+      if (pty.wheel(direction, col, row, shift)) {
+        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row, shift)
         return true
       }
     }

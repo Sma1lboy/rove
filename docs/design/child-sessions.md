@@ -15,7 +15,7 @@ The code keeps the name *Task*. Renaming it to *Session* is a separate change.
 | A Task holds N engine tabs in one directory | A Task holds one engine conversation. Other conversations are child Tasks |
 | `ctrl+t`, `ctrl+e`, `send --tab new`, `tab-new --kind engine`, and the web `+` add an engine tab | The same entry points create a **shared child Task** (in the TUI once the task's own engine tab has a live PTY or a transcript; before that the pick is the task's own first conversation) |
 | Sidebar: project → task → tab rows | Sidebar: project → task → child tasks |
-| `rove api add` from inside a task makes a flat sibling | `rove api spawn` makes a child. `add` still makes top-level tasks |
+| `rove api add` from inside a task makes a flat sibling | `rove api add` from inside a task nests under it; `--no-parent` makes a top-level task |
 
 Top-level tasks in a git repo still get their own worktree by default.
 
@@ -52,22 +52,29 @@ classDiagram
 - `ptyAlias` exists only on children created by migration (§5): the child's
   conversation is still the hosted PTY `<parentId>::<tabId>`.
 
-## 3. Spawning a child
+## 3. Adding a child
 
-`rove api spawn` from inside a task, or the TUI and web entry points:
+`rove api add` from inside a task nests the new task under the caller (the old
+`rove api spawn` is gone), and so do the TUI and web entry points:
 
 | Call | Directory |
 |---|---|
-| `spawn` (default, `--worktree`) | new worktree, branch cut from the **parent's current branch tip** |
-| `spawn --no-worktree` | shares the parent's directory |
+| `add` (default) | new worktree, branch cut from the **parent's current branch tip** |
+| `add --no-worktree` | shares the parent's directory |
 
-- `--parent` defaults to the caller, verified the same way as `dispatcher`.
-  `dispatcher` is stamped, so the child reports back with bare `send`.
-- `--base-branch` overrides the cut point. A child always runs on the parent's
-  machine.
+- The parent is the caller's top-level task, from the verified
+  `$ROVE_TASK_ID` / `$ROVE_TAB_ID` (the same check as `dispatcher`), when the
+  new task's repo is that task's own repo and it is not a routine session.
+  Another repo stays top level: both sidebars nest a child under its parent
+  even across projects, which would hide the task from the project it was
+  asked for. `--parent ID` nests anywhere (as `update --parent` does),
+  `--no-parent` opts out. `dispatcher` is stamped, so the child reports back
+  with bare `send`.
+- `--base-branch`, `--fork` or several `--repo` replace the cut point with the
+  repo's default handling. A child always runs on the parent's machine.
 - Uncommitted changes are never copied. The reply carries `parentDirty`.
 
-| Parent directory | `--no-worktree` | `--worktree` |
+| Parent directory | `--no-worktree` | default |
 |---|---|---|
 | Rove worktree | same dir | worktree from the parent's branch tip |
 | Main checkout | same dir | worktree from the checkout's HEAD |

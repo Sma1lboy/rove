@@ -36,6 +36,28 @@ export const en = {
   direct: "ONE PRESS — Rove shortcuts",
   afterPrefix: "AFTER PREFIX — more Rove commands",
   otherPane: "OTHER PANE — {surface}",
+  /** Legend section titles, below the keybinding sections. */
+  marks: {
+    rows: "MARKS — task and tab rows",
+    inbox: "MARKS — tab strip and Inbox",
+    pr: "MARKS — pull request chip",
+  },
+  mark: {
+    spinner: "working: an engine turn or a task job is running",
+    needsInput: "waiting on your answer: a permission prompt or a question",
+    attention: "needs you: an error, a rate limit, an exited engine or a failed deletion",
+    unseen: "a turn finished and you have not looked yet",
+    idle: "quiet",
+    subagent: "running subagents, in front of the branch",
+    remote: "the task lives on another machine",
+    done: "the turn finished",
+    rateLimited: "rate limited; it resumes on its own",
+    dead: "the engine process exited",
+    routineFailed: "a routine run failed",
+    conflict: "merge conflicts",
+    checksFailing: "checks failing",
+    checksPassing: "checks passing",
+  },
 }
 
 export const zh: typeof en = {
@@ -62,4 +84,25 @@ export const zh: typeof en = {
   direct: "一次按下 — Rove 快捷键",
   afterPrefix: "按下 Prefix 后 — 更多 Rove 命令",
   otherPane: "其他区域 — {surface}",
+  marks: {
+    rows: "标记 — 任务行和标签行",
+    inbox: "标记 — 标签栏和收件箱",
+    pr: "标记 — PR 标记",
+  },
+  mark: {
+    spinner: "运行中：引擎正在执行一轮，或任务作业正在运行",
+    needsInput: "等你回答：权限确认或提问",
+    attention: "需要你处理：出错、限流、引擎已退出或删除失败",
+    unseen: "一轮已结束，你还没看过",
+    idle: "空闲",
+    subagent: "正在运行的子代理，显示在分支名前",
+    remote: "任务在另一台机器上",
+    done: "这一轮已结束",
+    rateLimited: "被限流，会自动恢复",
+    dead: "引擎进程已退出",
+    routineFailed: "例行任务运行失败",
+    conflict: "存在合并冲突",
+    checksFailing: "检查未通过",
+    checksPassing: "检查已通过",
+  },
 }

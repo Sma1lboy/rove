@@ -22,7 +22,8 @@
  * carries it.
  */
 
-import { type SerializedTask, serializeTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { describe, expect, it } from "vitest"
 import type { Task } from "../../src/types/task.ts"
 
@@ -48,9 +49,14 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   worktreePath: "/repo/.worktrees/wire",
   kind: "task",
   scratch: true,
+  noProject: true,
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
+  kept: true,
+  notes: "check the migration",
+  todos: [{ id: "t1", text: "run the migration", done: true }],
+  autoFixCi: { attempts: 1, lastSha: "abc123", stopped: true },
   archived: true,
   vendor: "claude",
   command: "claude --continue",
@@ -66,9 +72,12 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
     number: 42,
     url: "https://github.com/o/r/pull/42",
     title: "fix: wire",
+    additions: 79,
+    deletions: 16,
     baseRef: "main",
     reviewDecision: "APPROVED",
     mergeable: "MERGEABLE",
+    headSha: "abc123",
     lastCheckedAt: "2026-08-30T00:00:00.000Z",
     lastError: "none",
   },
@@ -83,6 +92,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
     resumeAt: "2026-08-30T01:00:00.000Z",
     requestedAt: "2026-08-30T00:00:00.000Z",
   },
+  scheduledStart: { at: "2026-07-01T03:00:00.000Z", prompt: "run the nightly migration" },
   linkedWorkItem: {
     provider: "github",
     type: "issue",
@@ -99,6 +109,8 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  gitRepo: "/work/origin",
+  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
   extraRepos: [
     {
       name: "api",
@@ -113,9 +125,34 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
         number: 43,
         url: "https://github.com/o/api/pull/43",
         title: "fix: api side",
+        additions: 79,
+        deletions: 16,
         baseRef: "release/1.x",
         reviewDecision: "APPROVED",
         mergeable: "MERGEABLE",
+        headSha: "abc123",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
+  sessionPrs: [
+    {
+      url: "https://github.com/o/other/pull/44",
+      addedAt: "2026-08-27T00:00:00.000Z",
+      status: {
+        provider: "github",
+        lifecycle: "merged",
+        checkState: "passing",
+        number: 44,
+        url: "https://github.com/o/other/pull/44",
+        title: "feat: session side",
+        additions: 5,
+        deletions: 2,
+        baseRef: "main",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        headSha: "abc123",
         lastCheckedAt: "2026-08-27T00:00:00.000Z",
         lastError: "transient fetch error",
       },

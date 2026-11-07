@@ -221,6 +221,32 @@ describe("PtyHost freeze/restore", () => {
     expect(h.children.length).toBe(1) // no new child
   })
 
+  it("a child that exited on its own thaws as an ordinary corpse: never restored, never respawned", async () => {
+    const h = harness()
+    h.host.open("t1::tab-1", SPEC, TOKEN, SINK)
+    h.children[0].write("done")
+    h.children[0].exit(0)
+    await vi.waitFor(() => expect(h.saved.get("t1::tab-1")?.exit).toMatchObject({ code: 0 }))
+
+    const h2 = harness()
+    h2.host.restoreFrozen([freezeOf(h.saved, "t1::tab-1")])
+    expect(h2.host.list()[0]).toMatchObject({ alive: false, restored: undefined })
+    const res = h2.host.open("t1::tab-1", SPEC, {}, () => {})
+    expect(res).toMatchObject({ alive: false, respawned: false })
+    expect(h2.children.length).toBe(0)
+  })
+
+  it("a host shutdown leaves its sessions restorable: the children it ends are not recorded as exits", async () => {
+    const h = harness()
+    h.host.open("t1::tab-1", SPEC, TOKEN, SINK)
+    h.children[0].write("work")
+    await h.host.shutdown()
+
+    const h2 = harness()
+    h2.host.restoreFrozen([freezeOf(h.saved, "t1::tab-1")])
+    expect(h2.host.list()[0]).toMatchObject({ alive: false, restored: true })
+  })
+
   it("exit freezes the final state (exit record included); kill DROPS the record", async () => {
     const h = harness()
     h.host.open("t1::tab-1", SPEC, TOKEN, SINK)

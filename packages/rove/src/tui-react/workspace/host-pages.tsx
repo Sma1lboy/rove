@@ -20,6 +20,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import { type PageEntry, usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
+import { requestTabActivation } from "./terminal-tabs-shared"
 
 interface HostPageState {
   readonly worktreesOpen: boolean
@@ -139,6 +140,15 @@ export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
   return null
 }
 
+/** Leave any page, enter the task, and land on `tabId` when given. */
+export function openTaskOnTab(closePage: () => void, activateTask: (taskId: string) => unknown) {
+  return (taskId: string, tabId?: string): void => {
+    closePage()
+    void activateTask(taskId)
+    if (tabId) requestTabActivation(taskId, tabId)
+  }
+}
+
 /** CONTENT-PANE pages the rail swaps; the task list stays beside them. Null for `terminal` or an unregistered id. */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   const Page = deps.pages.find((page) => page.id === deps.nav)?.component
@@ -148,10 +158,7 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
       orchestrator={deps.orchestrator}
       focused={deps.contentFocused}
       onClose={deps.closePage}
-      onOpenTask={(taskId) => {
-        deps.closePage()
-        deps.activateTask(taskId)
-      }}
+      onOpenTask={openTaskOnTab(deps.closePage, deps.activateTask)}
       selectedTask={deps.selectedTask}
       engineStates={deps.engineStates}
     />
@@ -237,6 +244,10 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
         kv={kv}
         orchestrator={orchestrator}
         initialSection={pages.settingsSection}
+        onCheckUpdate={() => {
+          pages.closeSettings()
+          pages.openUpdate()
+        }}
         onClose={pages.closeSettings}
       />
     </box>

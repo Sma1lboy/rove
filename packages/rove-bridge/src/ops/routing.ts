@@ -128,11 +128,11 @@ export function createRoutingOps(deps: RoutingDeps): OpTable {
           throw new BridgeError("BAD_ARGS", `effort must be one of ${engine.effortLevels.join("|") || "(none)"}`)
         }
         // `""` clears a field, so a shipped default cannot leak back under an engine that never declared it.
-        deps.patch({
+        deps.update(() => ({
           [autoRoutingKey(tier, "engine")]: engine.id,
           [autoRoutingKey(tier, "model")]: model,
           [autoRoutingKey(tier, "effort")]: effort,
-        })
+        }))
         return { tier, engine: engine.id, model: model || null, effort: effort || null }
       },
     },
@@ -142,17 +142,19 @@ export function createRoutingOps(deps: RoutingDeps): OpTable {
       wraps: "state.json autoRouting.classifier: off | jev | the endpoint the TUI remembered (never a client-sent URL)",
       async run(args) {
         const mode = oneOf(args, "mode", CLASSIFIER_MODES)
-        const state = deps.load()
-        const view = classifierView(deps, state)
-        // Leaving custom keeps its URL for the next pass through, as the TUI's cycle does.
-        const live = str(state[MODE_KEY])
-        const remember = view.mode === "custom" && live ? { [ENDPOINT_KEY]: live } : {}
-        if (mode === "custom") {
-          if (!view.canCustom) throw new BridgeError("BAD_ARGS", "no custom endpoint is remembered; set one in the TUI")
-          deps.patch({ [MODE_KEY]: str(state[ENDPOINT_KEY]) })
-        } else {
-          deps.patch({ ...remember, [MODE_KEY]: mode })
-        }
+        // Decided from the locked read: a mode or endpoint another client just wrote is what gets kept.
+        deps.update((fresh) => {
+          if (mode === "custom") {
+            if (!classifierView(deps, fresh).canCustom) {
+              throw new BridgeError("BAD_ARGS", "no custom endpoint is remembered; set one in the TUI")
+            }
+            return { [MODE_KEY]: str(fresh[ENDPOINT_KEY]) }
+          }
+          // Leaving custom keeps its URL for the next pass through, as the TUI's cycle does.
+          const live = str(fresh[MODE_KEY])
+          const remember = classifierView(deps, fresh).mode === "custom" && live ? { [ENDPOINT_KEY]: live } : {}
+          return { ...remember, [MODE_KEY]: mode }
+        })
         return { mode }
       },
     },

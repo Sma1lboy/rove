@@ -30,7 +30,7 @@ function under(cwd: string, root: string): boolean {
 
 /** A wildcard or loopback bind is reached as localhost. */
 function urlOf(host: string, port: number): string {
-  const local = ["*", "0.0.0.0", "::", "127.0.0.1", "::1", "localhost"].includes(host)
+  const local = ["*", "0.0.0.0", "::", "127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"].includes(host)
   if (local) return `http://localhost:${port}`
   return host.includes(":") ? `http://[${host}]:${port}` : `http://${host}:${port}`
 }

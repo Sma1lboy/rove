@@ -233,7 +233,7 @@ jobs:
     # the one part of this suite that has deadlocked CI, and they keep their
     # own process and deadlock ceiling (PTY_TIMEOUT_MS in render-track.mjs).
     if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - name: Checkout

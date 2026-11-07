@@ -27,8 +27,9 @@ export interface AutomationPrecheck {
 export interface Automation {
   readonly id: string
   readonly name: string
-  /** Absolute repo root; resolved once at create time. */
-  readonly repo: string
+  /** Absolute repo root; resolved once at create time. Absent = projectless:
+   *  runs execute in `routineDir(id)` and their tasks are `noProject` dir tasks. */
+  readonly repo?: string
   /** Delivered as the engine's launch-time first message. */
   readonly prompt: string
   readonly vendor?: VendorId
@@ -42,7 +43,7 @@ export interface Automation {
   /** Script routine: run this command instead of an engine. `prompt` is empty,
    *  and non-empty stdout becomes the run's response. */
   readonly script?: AutomationPrecheck
-  /** Push each run's response, and runs that need a human, to bound chat channels (WeChat). */
+  /** Hand each run's response, and runs that need a human, to a bound chat channel's agent (WeChat). */
   readonly notify?: boolean
   readonly baseRef?: string
   /**

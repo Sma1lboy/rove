@@ -1,5 +1,5 @@
 /**
- * Settings → Plugins: the first-party mods (Kanban, Issues) with Install / Uninstall, then the
+ * Settings → Plugins: the first-party mods (Kanban, Issues) with an install switch each, then the
  * registry with an on/off switch each. Manifest settings and the marketplace stay Mac-side.
  */
 
@@ -7,8 +7,12 @@ import { useCallback, useEffect, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
+import { Group, Row } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page, toast } from "./ui.ts"
+import { SETTINGS_STATUS } from "./ui/settings.ts"
+import { Switch } from "./ui/switch.tsx"
 
 interface PluginRow {
   readonly id: string
@@ -29,9 +33,11 @@ const MOD_PAGE: Readonly<Record<string, PageId>> = { kanban: "kanban", issues: "
 
 function BuiltinMods({ model }: { model: AppModel }) {
   const installed = useStore(model.installedMods)
-  const [mods, setMods] = useState<readonly ModRow[] | null>(null)
+  const [mods, setMods] = useState<readonly ModRow[] | null>(
+    () => lastReply<{ mods: ModRow[] }>(model, "builtinMods.list")?.mods ?? null,
+  )
   useEffect(() => {
-    void model.client.request<{ mods: ModRow[] }>("builtinMods.list").then(
+    void requestRemembered<{ mods: ModRow[] }>(model, "builtinMods.list").then(
       (r) => setMods(r.mods),
       () => setMods([]),
     )
@@ -49,33 +55,28 @@ function BuiltinMods({ model }: { model: AppModel }) {
       .catch((e) => toast(errorText(e), "error"))
   }
   return (
-    <div className="settings-rows">
-      {mods.map((mod) => {
-        const on = installed.has(mod.id)
-        return (
-          <div key={mod.id} className="engine-row">
-            <div className="engine-main">
-              <span className="engine-name">{mod.name}</span>
-              <span className="muted engine-detail">
-                {`${t(on ? "settings.plugins.modInstalled" : "settings.plugins.modAvailable")} · ${mod.description}`}
-              </span>
-            </div>
-            <button type="button" onClick={() => flip(mod)}>
-              {t(on ? "settings.plugins.uninstall" : "settings.plugins.install")}
-            </button>
-          </div>
-        )
-      })}
-    </div>
+    <Group title={t("settings.plugins.builtIn")} hint={t("settings.plugins.builtInHint")}>
+      {mods.map((mod) => (
+        <Row key={mod.id} label={mod.name} hint={mod.description} inline>
+          <Switch
+            on={installed.has(mod.id)}
+            aria-label={t("settings.plugins.turnOn", { name: mod.name })}
+            onClick={() => flip(mod)}
+          />
+        </Row>
+      ))}
+    </Group>
   )
 }
 
 export function PluginsSection({ model }: { model: AppModel }) {
   const { client } = model
-  const [plugins, setPlugins] = useState<readonly PluginRow[] | null>(null)
+  const [plugins, setPlugins] = useState<readonly PluginRow[] | null>(
+    () => lastReply<{ plugins: PluginRow[] }>(client, "plugins.list")?.plugins ?? null,
+  )
   const load = useCallback(
     () =>
-      client.request<{ plugins: PluginRow[] }>("plugins.list").then(
+      requestRemembered<{ plugins: PluginRow[] }>(client, "plugins.list").then(
         (r) => setPlugins(r.plugins),
         (e) => toast(errorText(e), "error"),
       ),
@@ -87,36 +88,39 @@ export function PluginsSection({ model }: { model: AppModel }) {
   return (
     <>
       <BuiltinMods model={model} />
-      {!plugins ? (
-        <p className="placeholder-line">{t("preview.loading")}</p>
-      ) : plugins.length === 0 ? (
-        <p className="placeholder-line">{t("settings.plugins.empty")}</p>
-      ) : (
-        <div className="settings-rows">
-          {plugins.map((p) => (
-            <label key={p.id} className="engine-row">
-              <input
-                type="checkbox"
-                checked={p.enabled}
-                onChange={() =>
+      <Group title={t("settings.plugins.registered")}>
+        {!plugins ? (
+          <p className={SETTINGS_STATUS}>{t("preview.loading")}</p>
+        ) : plugins.length === 0 ? (
+          <p className={SETTINGS_STATUS}>{t("settings.plugins.empty")}</p>
+        ) : (
+          plugins.map((p) => (
+            <Row
+              key={p.id}
+              label={p.id}
+              hint={[
+                p.version,
+                p.linked ? t("settings.plugins.linked") : null,
+                p.platformOk === false ? t("settings.plugins.unsupportedPlatform") : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              inline
+            >
+              <Switch
+                on={p.enabled}
+                aria-label={p.id}
+                onClick={() =>
                   void client
                     .request("plugin.setEnabled", { id: p.id, enabled: !p.enabled })
                     .then(load)
                     .catch((e) => toast(errorText(e), "error"))
                 }
               />
-              <div className="engine-main">
-                <span className="engine-name">{p.id}</span>
-                <span className="muted engine-detail mono">
-                  {[p.version, p.linked ? "linked" : null, p.platformOk === false ? "unsupported platform" : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </div>
-            </label>
-          ))}
-        </div>
-      )}
+            </Row>
+          ))
+        )}
+      </Group>
     </>
   )
 }

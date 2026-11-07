@@ -15,16 +15,9 @@ bun run dev          # serves on http://localhost:4321
 
 ## Share card
 
-`assets/og-card.jpg` (1200×630) is drawn from `og.html`: render that page at
-1200×630, then use the render as the reference image for a cyanotype redraw —
-
-```bash
-gpt-image -i og-render.png --size 2400x1264 --quality high -f og.png \
-  -p "Redraw this exact card as a hand-inked cyanotype blueprint plate … same text exactly as written"
-```
-
-and downscale to 1200×630. Check every label against `og.html` before shipping;
-the card carries no version number so it does not go stale on release.
+`assets/og-card.jpg` (1200×630) is a screenshot of `og.html`: open that page at
+1200×630 and save the render as a JPEG. The card carries no version number, so
+it does not go stale on release.
 
 ## Deploy
 

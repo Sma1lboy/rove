@@ -20,18 +20,22 @@ export interface EngineExit {
   /** Absent = the host cannot open Settings from here; the action is not offered. */
   readonly onSettings?: () => void
   readonly onAnotherEngine: () => void
+  /** Move this conversation to another engine, carrying its context. */
+  readonly onContinueInEngine: () => void
 }
 
-function Action(props: { label: string; bindingId: string; onPress: () => void; onRequestFocus?: () => void }) {
+function Action(props: { label: string; bindingId?: string; onPress: () => void; onRequestFocus?: () => void }) {
   const { theme } = useTheme()
   // Reachability changes with focus and rebinds, not with props.
   useKeymapVersion()
   useBindingStackVersion()
-  const caption = shortcutCaption({
-    bindingId: props.bindingId,
-    reachability: currentBindingReachability(),
-    prefixKey: currentPrefixConfiguration().key,
-  })
+  const caption = props.bindingId
+    ? shortcutCaption({
+        bindingId: props.bindingId,
+        reachability: currentBindingReachability(),
+        prefixKey: currentPrefixConfiguration().key,
+      })
+    : null
   return (
     <box flexDirection="row" flexShrink={0} columnGap={1}>
       <text
@@ -88,6 +92,51 @@ export function EngineExitBanner(props: EngineExit & { onRequestFocus?: () => vo
         label={t("terminal.engineExit.another")}
         bindingId="chat.tab.chooseEngine"
         onPress={props.onAnotherEngine}
+      />
+      <Action
+        label={t("terminal.engineExit.continueIn")}
+        bindingId="chat.tab.fork"
+        onPress={props.onContinueInEngine}
+      />
+    </box>
+  )
+}
+
+/** The tab's engine hit a usage limit: a one-line strip offering the move to another engine. Hidden by the host once the state leaves `rate_limited`. */
+export interface UsageLimit {
+  /** Move this conversation to another engine, carrying its context. */
+  readonly onContinueInEngine: () => void
+  /** Hide the strip for this limit episode. */
+  readonly onDismiss: () => void
+}
+
+export function UsageLimitBanner(props: UsageLimit & { onRequestFocus?: () => void }) {
+  const { theme } = useTheme()
+  const t = useT()
+  return (
+    <box
+      flexDirection="row"
+      flexWrap="wrap"
+      flexShrink={0}
+      columnGap={2}
+      paddingLeft={1}
+      paddingRight={1}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseUp={(event) => event.stopPropagation()}
+    >
+      <text fg={theme.warning} wrapMode="none">
+        {t("terminal.usageLimit.title")}
+      </text>
+      <Action
+        label={t("terminal.engineExit.continueIn")}
+        bindingId="chat.tab.fork"
+        onPress={props.onContinueInEngine}
+        onRequestFocus={props.onRequestFocus}
+      />
+      <Action
+        label={t("terminal.usageLimit.dismiss")}
+        onPress={props.onDismiss}
+        onRequestFocus={props.onRequestFocus}
       />
     </box>
   )

@@ -1,8 +1,29 @@
 /** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
 
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
+import { Chevron } from "./ui/chevron.tsx"
+import {
+  BRANCHES,
+  CHECK,
+  CHIP_WRAP,
+  CLIP,
+  DIM,
+  EMPTY_NOTE,
+  FIELD,
+  GROUP,
+  HEADING,
+  MENU,
+  NAME,
+  POP,
+  ROWS,
+  SUBMENU_DIM,
+  SUBMENU_ROW,
+  chipClass,
+  rowClass,
+} from "./ui/composer.ts"
+import { INPUT, KICKER } from "./ui/text.ts"
 
 /** A chip that opens a popover above itself; Esc, a click outside, or `close()` shuts it and returns focus to the chip. */
 export function ChipPopover(props: {
@@ -15,6 +36,16 @@ export function ChipPopover(props: {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLSpanElement>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  // Anchored to its chip's edge, a popover from a chip mid-row on a phone runs off the screen; slide it back in.
+  useLayoutEffect(() => {
+    const el = pop.current
+    if (!open || !el) return
+    const box = el.getBoundingClientRect()
+    const shift =
+      box.right > window.innerWidth - 8 ? window.innerWidth - 8 - box.right : box.left < 8 ? 8 - box.left : 0
+    if (shift) el.style.transform = `translateX(${Math.round(shift)}px)`
+  }, [open])
   const close = () => {
     setOpen(false)
     button.current?.focus()
@@ -31,7 +62,7 @@ export function ChipPopover(props: {
     // Escape is caught here from the popover's own fields.
     <span
       ref={root}
-      className="composer-chip-wrap"
+      className={CHIP_WRAP}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || !open) return
         e.preventDefault()
@@ -42,7 +73,7 @@ export function ChipPopover(props: {
       <button
         ref={button}
         type="button"
-        className="composer-chip"
+        className={chipClass()}
         data-field={props.field}
         title={props.title}
         aria-haspopup="menu"
@@ -51,11 +82,12 @@ export function ChipPopover(props: {
         onClick={() => setOpen((now) => !now)}
       >
         {props.label}
-        <span className="composer-caret" aria-hidden="true">
-          ▾
-        </span>
       </button>
-      {open && <div className="composer-pop">{props.children(close)}</div>}
+      {open && (
+        <div ref={pop} className={POP}>
+          {props.children(close)}
+        </div>
+      )}
     </span>
   )
 }
@@ -65,10 +97,12 @@ export interface PickRow {
   readonly text: string
   /** Muted tail (a project's directory). */
   readonly dim?: string
+  /** Full text of a long `dim`; the row stays one line and shows it on hover. */
+  readonly title?: string
   readonly checked?: boolean
 }
 
-/** A searchable single-choice list. `extra` offers the typed text itself as a row (a path no saved project names). */
+/** A searchable single-choice list. `extra` offers the typed text itself as a row (a path no saved project names); `more` is a second group below `rows`. */
 export function SearchList(props: {
   placeholder: string
   empty: string
@@ -76,10 +110,12 @@ export function SearchList(props: {
   query: string
   onQuery: (value: string) => void
   extra?: PickRow | null
+  more?: readonly PickRow[]
+  moreLabel?: string
   onPick: (key: string) => void
 }) {
   const [cursor, setCursor] = useState(0)
-  const all = props.extra ? [props.extra, ...props.rows] : props.rows
+  const all = [...(props.extra ? [props.extra] : []), ...props.rows, ...(props.more ?? [])]
   const at = Math.min(cursor, Math.max(0, all.length - 1))
   const active = useRef<HTMLButtonElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when the cursor or the list moves
@@ -87,9 +123,9 @@ export function SearchList(props: {
     active.current?.scrollIntoView({ block: "nearest" })
   }, [at, props.rows])
   return (
-    <div className="composer-list">
+    <div className={MENU}>
       <input
-        className="input"
+        className={INPUT}
         // biome-ignore lint/a11y/noAutofocus: the popover's only field
         autoFocus
         spellCheck={false}
@@ -111,35 +147,43 @@ export function SearchList(props: {
           }
         }}
       />
-      <div className="composer-rows">
-        {all.length === 0 && <p className="muted composer-empty">{props.empty}</p>}
+      <div className={ROWS}>
+        {all.length === 0 && <p className={`${EMPTY_NOTE} text-muted`}>{props.empty}</p>}
         {all.map((row, i) => (
-          <button
-            type="button"
-            aria-current={row.checked === true}
-            ref={i === at ? active : undefined}
-            key={row.key}
-            tabIndex={-1}
-            className={`composer-row ${i === at ? "is-cursor" : ""}`}
-            onMouseMove={() => setCursor(i)}
-            onClick={() => props.onPick(row.key)}
-          >
-            <span className="composer-check">{row.checked ? "✓" : ""}</span>
-            <span>{row.text}</span>
-            {row.dim && <span className="muted composer-dim">{row.dim}</span>}
-          </button>
+          <Fragment key={row.key}>
+            {props.moreLabel && row === props.more?.[0] && <p className={`${GROUP} text-muted`}>{props.moreLabel}</p>}
+            <button
+              type="button"
+              aria-current={row.checked === true}
+              ref={i === at ? active : undefined}
+              tabIndex={-1}
+              title={row.title}
+              className={rowClass({ cursor: i === at })}
+              onMouseMove={() => setCursor(i)}
+              onClick={() => props.onPick(row.key)}
+            >
+              <span className={CHECK}>{row.checked ? "✓" : ""}</span>
+              <span className={NAME}>{row.text}</span>
+              {row.dim && <span className={`${DIM} text-muted ${row.title ? CLIP : ""}`}>{row.dim}</span>}
+            </button>
+          </Fragment>
         ))}
       </div>
     </div>
   )
 }
 
-type Option = Choice & { readonly dim?: boolean }
+type Option = Choice & {
+  readonly dim?: boolean
+  /** Shown but not pickable; its label says why. */
+  readonly disabled?: boolean
+}
 
-/** A radio row: check on the picked one, the row's digit (when it has one) on the others. */
+/** A radio row: check on the picked one, the row's digit (when it has one) on the others. `multi`: a check-list row. */
 function OptionRow(props: {
   option: Option
   checked: boolean
+  multi: boolean
   cursor: boolean
   digit?: number
   onHover: () => void
@@ -148,17 +192,19 @@ function OptionRow(props: {
   return (
     <button
       type="button"
-      role="menuitemradio"
+      role={props.multi ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={props.checked}
       tabIndex={-1}
-      className={`composer-row ${props.cursor ? "is-cursor" : ""}`}
+      disabled={props.option.disabled}
+      className={rowClass({ cursor: props.cursor, dim: props.option.dim })}
       onMouseMove={props.onHover}
       onClick={props.onPick}
     >
-      <span className="composer-check">{props.checked ? "✓" : ""}</span>
+      <span className={CHECK}>{props.checked ? "✓" : ""}</span>
       <span>{props.option.label}</span>
-      {props.option.dim && <span className="muted"> ·</span>}
-      {!props.checked && props.digit !== undefined && <span className="muted composer-dim">{props.digit}</span>}
+      {!props.checked && props.digit !== undefined && !props.option.disabled && (
+        <span className={`${DIM} text-muted`}>{props.digit}</span>
+      )}
     </button>
   )
 }
@@ -166,14 +212,17 @@ function OptionRow(props: {
 /**
  * A single-choice menu under a heading. Arrows move, Enter picks, `1`-`9` pick that row when `digits`;
  * with `onBack`, Esc and Left return to the menu it came from instead of closing everything.
+ * `values` makes it a check-list (every id in it is checked, a pick toggles for the caller); `footer` sits under the rows.
  */
 export function ChoiceMenu(props: {
   heading: string
   options: readonly Option[]
   value: string
+  values?: readonly string[]
   onPick: (id: string) => void
   digits?: boolean
   onBack?: () => void
+  footer?: ReactNode
 }) {
   const [cursor, setCursor] = useState(() =>
     Math.max(
@@ -188,7 +237,7 @@ export function ChoiceMenu(props: {
       ref={root}
       role="menu"
       tabIndex={-1}
-      className="composer-menu"
+      className={MENU}
       onKeyDown={(e) => {
         if (e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -197,7 +246,7 @@ export function ChoiceMenu(props: {
         } else if (e.key === "Enter") {
           e.preventDefault()
           const option = props.options[cursor]
-          if (option) props.onPick(option.id)
+          if (option && !option.disabled) props.onPick(option.id)
         } else if (props.onBack && (e.key === "Escape" || e.key === "ArrowLeft")) {
           e.preventDefault()
           e.stopPropagation()
@@ -205,30 +254,32 @@ export function ChoiceMenu(props: {
         } else {
           const digit = props.digits ? digitRow(e.key, props.options.length) : null
           const option = digit === null ? undefined : props.options[digit]
-          if (!option) return
+          if (!option || option.disabled) return
           e.preventDefault()
           props.onPick(option.id)
         }
       }}
     >
       {props.onBack ? (
-        <button type="button" className="composer-heading kicker composer-back" tabIndex={-1} onClick={props.onBack}>
+        <button type="button" className={`${HEADING} ${KICKER} text-muted`} tabIndex={-1} onClick={props.onBack}>
           ‹ {props.heading}
         </button>
       ) : (
-        <p className="composer-heading kicker">{props.heading}</p>
+        <p className={`${HEADING} ${KICKER} text-muted`}>{props.heading}</p>
       )}
       {props.options.map((option, i) => (
         <OptionRow
           key={option.id}
           option={option}
-          checked={option.id === props.value}
+          checked={props.values ? props.values.includes(option.id) : option.id === props.value}
+          multi={props.values !== undefined}
           cursor={i === cursor}
           digit={props.digits && i < 9 ? i + 1 : undefined}
           onHover={() => setCursor(i)}
           onPick={() => props.onPick(option.id)}
         />
       ))}
+      {props.footer}
     </div>
   )
 }
@@ -282,7 +333,7 @@ export function ModelMenu(props: {
       ref={root}
       role="menu"
       tabIndex={-1}
-      className="composer-menu"
+      className={MENU}
       onKeyDown={(e) => {
         if (e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -302,12 +353,13 @@ export function ModelMenu(props: {
         }
       }}
     >
-      <p className="composer-heading kicker">{t("newSession.modelHeading")}</p>
+      <p className={`${HEADING} ${KICKER} text-muted`}>{t("newSession.modelHeading")}</p>
       {props.models.map((option, i) => (
         <OptionRow
           key={option.id}
           option={option}
           checked={option.id === props.model}
+          multi={false}
           cursor={i === cursor}
           digit={i < 9 ? i + 1 : undefined}
           onHover={() => setCursor(i)}
@@ -319,13 +371,16 @@ export function ModelMenu(props: {
           type="button"
           role="menuitem"
           tabIndex={-1}
-          className={`composer-row composer-submenu ${cursor === props.models.length ? "is-cursor" : ""}`}
+          className={`${rowClass({ cursor: cursor === props.models.length })} ${SUBMENU_ROW}`}
           onMouseMove={() => setCursor(props.models.length)}
           onClick={() => setView("effort")}
         >
-          <span className="composer-check" />
+          <span className={CHECK} />
           <span>{t("newSession.effort")}</span>
-          <span className="muted composer-dim">{effortLabel} ›</span>
+          <span className={`${SUBMENU_DIM} text-muted`}>
+            {effortLabel}
+            <Chevron right />
+          </span>
         </button>
       )}
     </div>
@@ -355,12 +410,12 @@ export function BranchesMenu(props: {
   onBase: (path: string, ref: string) => void
 }) {
   return (
-    <div className="composer-menu composer-branches">
-      <p className="composer-heading kicker">{t("newSession.branches")}</p>
-      <label className="composer-field">
-        <span className="muted">{t("newSession.branchName")}</span>
+    <div className={`${MENU} ${BRANCHES}`}>
+      <p className={`${HEADING} ${KICKER} text-muted`}>{t("newSession.branches")}</p>
+      <label className={FIELD}>
+        <span className="text-muted">{t("newSession.branchName")}</span>
         <input
-          className="input"
+          className={INPUT}
           // biome-ignore lint/a11y/noAutofocus: the menu's first field
           autoFocus
           spellCheck={false}
@@ -370,13 +425,13 @@ export function BranchesMenu(props: {
         />
       </label>
       {props.repos.map((repo) => (
-        <label key={repo.path} className="composer-field">
+        <label key={repo.path} className={FIELD}>
           <span>
             {repo.name}
-            {repo.primary && <span className="muted"> · {t("newSession.primary")}</span>}
+            {repo.primary && <span className="text-muted"> {t("newSession.primary")}</span>}
           </span>
           <select
-            className="input"
+            className={INPUT}
             aria-label={repo.name}
             value={repo.base || repo.current}
             onChange={(e) => props.onBase(repo.path, e.target.value)}

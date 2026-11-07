@@ -17,7 +17,8 @@ import {
   engineDisplayName,
   engineRenamedFrom,
 } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { type StateSnapshot, loadStateFile, patchStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove/src/lib/skill-install.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { bool, text } from "./args.ts"
@@ -27,8 +28,6 @@ const NAME_MAX = 60
 
 export interface EngineDeps {
   readonly load: () => StateSnapshot
-  /** `undefined` values delete their key (patchStateFile's contract). */
-  readonly patch: (patch: StateSnapshot) => void
   /**
    * Locked fresh read, then the patch `compute` derives from it (`undefined` deletes a key).
    * A write built from an earlier `load` would erase what another client just switched.
@@ -40,13 +39,14 @@ export interface EngineDeps {
   readonly integrations: (ids: readonly string[]) => readonly EngineIntegration[]
   readonly engineName: (id: string) => string
   readonly defaultCommand: (id: string) => readonly string[]
+  /** Copy the Rove skill where it is missing; the failure line, or null. */
+  readonly installSkill: () => string | null
+  /** Display names of engines Rove can run here with no skill copy. */
+  readonly skillMissing: () => Promise<readonly string[]>
 }
 
 export const realDeps: EngineDeps = {
   load: loadStateFile,
-  patch: (patch) => {
-    patchStateFile(patch)
-  },
   update: (compute) => {
     updateStateFile((state) => {
       for (const [key, value] of Object.entries(compute(state))) {
@@ -61,6 +61,8 @@ export const realDeps: EngineDeps = {
   integrations: engineIntegrations,
   engineName: engineDisplayName,
   defaultCommand: defaultEngineCommand,
+  installSkill: () => installSkillErrors(),
+  skillMissing: async () => missingSkillNames(await installedEngineIds()),
 }
 
 function strings(state: StateSnapshot, key: string): string[] {
@@ -161,9 +163,28 @@ export function createEngineOps(deps: EngineDeps): OpTable {
               markers: integration?.markers ?? false,
               screen: integration?.screen ?? false,
               ...(integration?.configIssue ? { configIssue: integration.configIssue } : {}),
+              // "unsupported": not set up here, or the engine takes no skill.
+              skill: integration?.skillDir ? integration.skillState : "unsupported",
             }
           }),
         }
+      },
+    },
+    "skill.install": {
+      kind: "write",
+      // Writes into each engine's own config dir, like the hooks install.
+      destructive: true,
+      wraps: "installSkillErrors (lib/skill-install.ts), as Settings → Engines Rove agent skill",
+      async run() {
+        return { error: deps.installSkill() }
+      },
+    },
+    "skill.missing": {
+      kind: "read",
+      destructive: false,
+      wraps: "missingSkillNames (lib/skill-install.ts): runnable engines with no skill copy, for the persistent banner",
+      async run() {
+        return { engines: await deps.skillMissing() }
       },
     },
     "engine.setEnabled": {

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { displayLine, noteRange, parseUnifiedDiff } from "../src/diff.ts"
+import { dotLevels, dotsMove } from "../src/dot-levels.ts"
 import { visibleTree } from "../src/file-tree.ts"
-import { en } from "../src/i18n/en.ts"
-import { zh } from "../src/i18n/zh.ts"
+import { en, zh } from "../src/i18n/index.ts"
 import { compactAge, inboxBadge, isRoutineState, nextAttention } from "../src/inbox.ts"
-import { anySpinning, needsPerson, statusGlyph, taskRowGlyph } from "../src/rail-glyphs.ts"
+import { prEntries, prRepo } from "../src/pr-chip.tsx"
+import { leadPrMark, needsPerson, prMark, sessionPrMark, statusMark } from "../src/rail-glyphs.ts"
 import { groupByProject, navRows } from "../src/rail.ts"
 import { tokenFromInput } from "../src/token-input.ts"
 
@@ -46,6 +47,7 @@ function row(id: string, repo: string, order: number): TaskRow {
   return {
     id,
     title: id,
+    label: id,
     branch: "",
     repo,
     kind: "managed",
@@ -74,8 +76,8 @@ describe("rail", () => {
     const main = { ...row("m", "/w/a", 3), kind: "main", title: "zzz" }
     const tasks = [
       main,
-      { ...row("x", "/w/a", 0), title: "beta", rank: 1 },
-      { ...row("y", "/w/a", 1), title: "alpha", rank: 0 },
+      { ...row("x", "/w/a", 0), title: "beta", label: "beta", rank: 1 },
+      { ...row("y", "/w/a", 1), title: "alpha", label: "alpha", rank: 0 },
     ]
     expect(groupByProject(tasks, "name")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
     expect(groupByProject(tasks, "attention")[0].tasks.map((t) => t.id)).toEqual(["m", "y", "x"])
@@ -84,24 +86,15 @@ describe("rail", () => {
 
   test("`/` keeps a hit's ancestors: a task hit keeps its children, a child hit keeps its parent", () => {
     const groups = groupByProject([
-      { ...row("t1", "/w/a", 0), title: "Fix retry" },
-      { ...row("c1", "/w/a", 1), title: "claude", parentTaskId: "t1" },
-      { ...row("t2", "/w/a", 2), title: "Audit" },
-      { ...row("c2", "/w/a", 3), title: "vitest", parentTaskId: "t2" },
+      { ...row("t1", "/w/a", 0), title: "Fix retry", label: "Fix retry" },
+      { ...row("c1", "/w/a", 1), title: "claude", label: "claude", parentTaskId: "t1" },
+      { ...row("t2", "/w/a", 2), title: "Audit", label: "Audit" },
+      { ...row("c2", "/w/a", 3), title: "vitest", label: "vitest", parentTaskId: "t2" },
     ])
     const ids = (q: string) => navRows(groups, q).map((r) => r.id)
     expect(ids("retry")).toEqual(["project:/w/a", "t1", "c1"])
     expect(ids("vitest")).toEqual(["project:/w/a", "t2", "c2"])
     expect(ids("nomatch")).toEqual([])
-  })
-
-  test("uses the TUI's glyphs: ? waits on you, ! needs you, ● unseen turn, ○ quiet", () => {
-    expect(statusGlyph(st("needs-input"), 0).glyph).toBe("?")
-    for (const reason of ["rate_limited", "error", "dead", "restored"] as const)
-      expect(statusGlyph(st("attention", reason), 0).glyph).toBe("!")
-    expect(statusGlyph(st("unseen"), 0).glyph).toBe("●")
-    expect(statusGlyph(undefined, 0).glyph).toBe("○")
-    expect(statusGlyph(st("running"), 0).glyph).not.toBe(statusGlyph(st("running"), 1).glyph)
   })
 })
 
@@ -114,27 +107,68 @@ const st = (kind: RowStatus["kind"], reason?: RowStatus["reason"]): RowStatus =>
 describe("row status marks (the daemon's, through row-status-glyph)", () => {
   const rowWith = (rollup: RowStatus | undefined) => ({ id: "t", rowStatus: rollup }) as unknown as TaskRow
 
-  test("a task row draws the rollup of its one conversation, in the tone of its kind", () => {
-    const mark = (status: RowStatus | undefined) => taskRowGlyph(rowWith(status), 0)
-    expect(mark(st("running"))).toMatchObject({ tone: "accent", spinning: true })
-    expect(mark(st("needs-input"))).toEqual({ glyph: "?", tone: "warning", spinning: false })
-    // A rate limit clears itself: amber. An error stays until you act: red.
-    expect(mark(st("attention", "rate_limited"))).toEqual({ glyph: "!", tone: "warning", spinning: false })
-    expect(mark(st("attention", "error"))).toEqual({ glyph: "!", tone: "attention", spinning: false })
-    expect(mark(st("attention", "dead"))).toEqual({ glyph: "!", tone: "attention", spinning: false })
-    expect(mark(st("unseen"))).toEqual({ glyph: "●", tone: "accent", spinning: false })
-    expect(mark(st("idle"))).toEqual({ glyph: "○", tone: "muted", spinning: false })
+  test("each status draws its dot look in the colour ELYTerminal gives it", () => {
+    expect(statusMark(st("running"))).toEqual({ look: "working", tone: "info" })
+    expect(statusMark({ kind: "busy", reason: "deleting", since: 1 })).toEqual({ look: "working", tone: "info" })
+    expect(statusMark(st("needs-input"))).toEqual({ look: "waiting", tone: "warning" })
+    // A rate limit clears itself: an amber wait. An error stays until you act: a red X.
+    expect(statusMark(st("attention", "rate_limited"))).toEqual({ look: "waiting", tone: "warning" })
+    expect(statusMark(st("attention", "error"))).toEqual({ look: "error", tone: "attention" })
+    expect(statusMark(st("attention", "dead"))).toEqual({ look: "error", tone: "attention" })
+    expect(statusMark(st("unseen"))).toEqual({ look: "done", tone: "success" })
+    expect(statusMark(st("idle"))).toEqual({ look: "idle", tone: "muted" })
     // No reading yet is a quiet row.
-    expect(mark(undefined)).toEqual({ glyph: "○", tone: "muted", spinning: false })
-    expect(mark({ kind: "busy", reason: "deleting", since: 1 })).toMatchObject({ tone: "accent", spinning: true })
+    expect(statusMark(undefined)).toEqual({ look: "idle", tone: "muted" })
   })
 
-  test("the spinner ticks for a running or busy row; a fold counts rows that need a person", () => {
-    expect(anySpinning([rowWith(st("running"))])).toBe(true)
-    expect(anySpinning([rowWith({ kind: "busy", reason: "job", since: 1 })])).toBe(true)
-    expect(anySpinning([rowWith(st("unseen"))])).toBe(false)
+  test("a fold counts rows that need a person", () => {
     const rows = [st("needs-input"), st("attention", "rate_limited"), st("unseen"), st("running"), undefined]
     expect(rows.map((s) => needsPerson(rowWith(s)))).toEqual([true, true, false, false, false])
+  })
+})
+
+describe("status dots (ELYTerminal's orb)", () => {
+  const peak = (dot: number) => {
+    const steps = Array.from({ length: 15 }, (_, step) => step)
+    return steps.reduce((best, step) =>
+      dotLevels("working", step, 0)[dot] > dotLevels("working", best, 0)[dot] ? step : best,
+    )
+  }
+
+  test("work ripples from the centre to the edges, then the corners, once per 15 steps", () => {
+    expect(peak(4)).toBe(0)
+    expect(peak(4)).toBeLessThan(peak(1))
+    expect(peak(1)).toBeLessThan(peak(0))
+    expect([3, 5, 7].map(peak)).toEqual([peak(1), peak(1), peak(1)])
+    expect([2, 6, 8].map(peak)).toEqual([peak(0), peak(0), peak(0)])
+    dotLevels("working", 0, 0).forEach((level, dot) => expect(dotLevels("working", 15, 0)[dot]).toBeCloseTo(level, 6))
+  })
+
+  test("a slowed ripple still moves", () => {
+    expect(dotLevels("working", 0, 0, 3)).not.toEqual(dotLevels("working", 5, 0, 3))
+  })
+
+  test("waiting stays lit and dips on steps 0, 1, 4 and 5 of 20", () => {
+    const dips = Array.from({ length: 20 }, (_, step) => step).filter((step) => dotLevels("waiting", step, 0)[0] < 1)
+    expect(dips).toEqual([0, 1, 4, 5])
+    expect(dotLevels("waiting", 2, 0)).toEqual(new Array(9).fill(1))
+    expect(dotLevels("waiting", 0, 0)).toEqual(new Array(9).fill(0.25))
+  })
+
+  test("a settled look draws its shape dot by dot, then holds", () => {
+    expect(dotLevels("done", 0, 0)).toEqual(new Array(9).fill(0.12))
+    const one = dotLevels("done", 0, 1)
+    expect(one[3]).toBeGreaterThan(0.12)
+    expect(one[2]).toBe(0.12)
+    const drawn = dotLevels("done", 0, 5)
+    expect([3, 7, 5, 2].map((dot) => drawn[dot])).toEqual([1, 1, 1, 1])
+    expect(dotLevels("done", 0, 500)).toEqual(drawn)
+    expect(dotsMove("done", 4)).toBe(true)
+    expect(dotsMove("done", 5)).toBe(false)
+    const idle = dotLevels("idle", 0, 9)
+    expect(idle[4]).toBe(0.12)
+    expect([1, 2, 5, 8, 7, 6, 3, 0].map((dot) => idle[dot])).toEqual(new Array(8).fill(0.6))
+    expect(dotsMove("working", 1_000_000) && dotsMove("waiting", 1_000_000)).toBe(true)
   })
 })
 
@@ -218,7 +252,94 @@ describe("F7 next attention", () => {
     const routine = { taskId: null, tabId: null, state: "routine_failed", unread: true, at: 3, automationId: "r-1" }
     const next = nextAttention([routine], order, { taskId: null, tabId: null })
     expect(next?.automationId).toBe("r-1")
-    expect(isRoutineState("routine_failed") && isRoutineState("routine_responded")).toBe(true)
+    expect(isRoutineState("routine_failed")).toBe(true)
     expect(isRoutineState("error") || isRoutineState("turn_complete")).toBe(false)
+  })
+})
+
+describe("a task's PR mark", () => {
+  const withPr = (lifecycle: string, prChip: TaskRow["prChip"] = null, extra: Partial<TaskRow> = {}) =>
+    ({ pr: { number: 7, lifecycle, checkState: "none" }, prChip, ...extra }) as unknown as TaskRow
+
+  test("merged and closed PRs keep their own icon instead of disappearing", () => {
+    expect(prMark(withPr("merged"))).toMatchObject({ state: "merged", tone: "text-merged" })
+    expect(prMark(withPr("closed"))).toMatchObject({ state: "closed", tone: "text-muted" })
+    expect(prMark(withPr("merged"))?.glyph).not.toBe(prMark(withPr("open"))?.glyph)
+  })
+
+  test("an open PR is red while it can't land, green when checks pass, grey when the forge was unreachable", () => {
+    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "text-error", checks: "conflict" })
+    expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "text-error", checks: "failing" })
+    expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "text-success", checks: "passing" })
+    expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("text-muted")
+  })
+
+  test("no PR, or one still being created, draws nothing", () => {
+    expect(prMark({ pr: null } as unknown as TaskRow)).toBeNull()
+    expect(prMark(withPr("creating"))).toBeNull()
+  })
+
+  test("a row with several PRs leads with the one that needs you, then open, merged, closed", () => {
+    const marks = (...rows: TaskRow[]) => rows.flatMap((row) => prMark(row) ?? [])
+    const merged = withPr("merged", null, { prChipStale: true })
+    expect(leadPrMark(marks(withPr("closed"), merged, withPr("open", "passing")))?.state).toBe("open")
+    expect(leadPrMark(marks(withPr("open", "passing"), withPr("open", "conflict")))?.checks).toBe("conflict")
+    expect(leadPrMark(marks(withPr("closed"), merged))?.state).toBe("merged")
+    expect(leadPrMark([])).toBeUndefined()
+  })
+
+  test("the hover list names a PR's repo from its URL", () => {
+    expect(prRepo("https://github.com/Sma1lboy/rove/pull/1431")).toBe("Sma1lboy/rove")
+    expect(prRepo("https://example.com/not/a/pr")).toBeUndefined()
+    expect(prRepo(undefined)).toBeUndefined()
+  })
+
+  test("a child on its parent's branch adds no second copy of the same PR", () => {
+    const pr = (number: number) => ({
+      number,
+      lifecycle: "merged",
+      checkState: "none",
+      url: `https://github.com/o/r/pull/${number}`,
+    })
+    const parent = { id: "p", repo: "/r", pr: pr(1437) } as unknown as TaskRow
+    const shared = { id: "s", repo: "/r", pr: pr(1437) } as unknown as TaskRow
+    const own = { id: "c", repo: "/r", pr: pr(1436) } as unknown as TaskRow
+    expect(prEntries([parent, shared, own]).map((entry) => entry.task.id)).toEqual(["p", "c"])
+  })
+
+  test("a duplicated PR keeps the copy whose checks need you", () => {
+    const pr = { number: 9, lifecycle: "open", checkState: "none", url: "https://github.com/o/r/pull/9" }
+    const parent = { id: "p", repo: "/r", pr, prChip: "passing" } as unknown as TaskRow
+    const child = { id: "c", repo: "/r", pr, prChip: "failing" } as unknown as TaskRow
+    expect(prEntries([parent, child]).map((entry) => [entry.task.id, entry.mark.checks])).toEqual([["c", "failing"]])
+  })
+
+  test("a main task's session PRs list beside a child's, one entry per URL", () => {
+    const url = (n: number) => `https://github.com/o/r/pull/${n}`
+    const main = {
+      id: "m",
+      repo: "/r",
+      pr: null,
+      sessionPrs: [
+        { number: 1, url: url(1), lifecycle: "merged", checkState: "none" },
+        { number: 2, url: url(2), lifecycle: "unknown", checkState: "unknown" },
+      ],
+    } as unknown as TaskRow
+    const child = {
+      id: "c",
+      repo: "/r",
+      pr: { number: 2, url: url(2), lifecycle: "open", checkState: "passing" },
+      prChip: "passing",
+    } as unknown as TaskRow
+    const entries = prEntries([main, child])
+    expect(entries.map((entry) => entry.pr.url)).toEqual([url(1), url(2)])
+    expect(entries.map((entry) => entry.mark.state)).toEqual(["merged", "open"])
+    expect(entries[1]?.mark.checks).toBe("passing")
+  })
+
+  test("an unpolled session PR draws as an open one with no check state", () => {
+    const mark = sessionPrMark({ lifecycle: "unknown", checkState: "unknown", url: "https://github.com/o/r/pull/5" })
+    expect(mark).toMatchObject({ state: "open", tone: "text-muted" })
+    expect(mark?.checks).toBeUndefined()
   })
 })

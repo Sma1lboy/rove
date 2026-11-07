@@ -10,12 +10,12 @@
 | Issues                       |
 |                              |
 | rove ─────────────────────── |
-| ▎○ alpha                     |
-| ▎○ charlie                 ☁ |
-|▌▎○ delta  ☁ on vps · offline |
+|  ○ alpha                     |
+|  ○ charlie                 ☁ |
+|▌ ○ delta  ☁ on vps · offline |
 |                              |
 | api ──────────────────────── |
-| ▎○ echo                      |
+|  ○ echo                      |
 |                              |
 |                              |
 |                              |

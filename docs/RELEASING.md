@@ -41,7 +41,7 @@ Worth the two seconds: a bad package name is only caught downstream, by `package
 
 This used to fire on every push to `main`, which meant ~10 published versions on a busy day: no two users were on the same build, and no released combination of changes had been exercised as a whole before shipping. Batching is the point — the accumulated set is what you decide to release.
 
-Between releases, `main` still ships continuously on the **nightly channel** (below), so anyone who wants the unbatched stream can opt into it.
+Between releases, `main` still ships continuously on the **`next` and nightly channels** (below), so anyone who wants the unbatched stream can opt into it.
 
 ### 2b. Cutting a release from your machine
 
@@ -51,10 +51,11 @@ scripts/release.sh
 
 Same pipeline, interactive confirm — this is the usual path when you're at a terminal anyway. Don't run it while the workflow's `tag` job is mid-flight on the same version (both would race to push the same tag; harmless when identical, noisy when not).
 
-> **PR-only exception.** Development lands on `main` exclusively via pull
-> requests (AGENTS.md "PR-only mainline"); the `chore: release — X.Y.Z`
-> commit + tag that `release.sh` pushes is the ONE sanctioned direct push —
-> it only consumes changesets that already passed PR CI.
+> **The one standing direct push.** Development lands on `main` via pull
+> requests (AGENTS.md "How work lands on `main`"; skipping one needs the owner's
+> word that turn); the `chore: release — X.Y.Z` commit + tag that `release.sh`
+> pushes is the one sanctioned direct push — it only consumes changesets that
+> already passed their PR's gate (the owner's local `pre-pr`, others' cloud CI).
 
 This first runs the release gate — lint, typecheck, unit tests, build, and the **behavior** suite — and aborts before touching anything if it fails. The gate deliberately mirrors everything `release.yml` makes `publish` wait on: a check that only ran in CI would be discovered by the *tag*, and a tag that fails to publish burns its version number for good (v0.8.58 did exactly this — green locally, then the pipeline's behavior job failed). If a gate is added to `release.yml`, add it here too. The local gate is a fast-fail, **not the verdict**: it runs on the operator's macOS while CI publishes from ubuntu, and a platform-dependent red (v0.8.66 — a darwin-only code path's test) only shows up on CI. That's why tagging is two-phase (below).
 
@@ -69,6 +70,8 @@ With a green gate, it consumes every pending `.changeset/*.md`:
 If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt, a CI run cancelled by a newer main push, and any failure of the tag step itself (v0.9.61 hit `fatal: no tag message?` on a machine with `tag.gpgSign = true`, since a signed tag must be annotated — the script now tags with `-a -m`).
 
 The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml` runs on main, publishes `@sma1lboy/rove`, and extracts the new `CHANGELOG.md` section as the GitHub release body. The CLI publish is idempotent. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/rove/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
+
+The same job translates that section into Simplified Chinese (`scripts/translate-release-notes.mjs`, `claude -p` on the repo's `CLAUDE_CODE_OAUTH_TOKEN`) and attaches it to the release as `release-notes.zh.md`. The update page, What's New and the versions page read that asset when Rove's language is Chinese and fall back to the English body without it. The script rejects a translation that drops a PR reference or a backtick span, and the step is `continue-on-error`, so a failed translation never blocks a release. To add or redo one by hand: `node scripts/translate-release-notes.mjs en.md release-notes.zh.md && gh release upload vX.Y.Z release-notes.zh.md --clobber`.
 
 ## Style rule — no soft wraps inside bullets or paragraphs
 
@@ -85,6 +88,32 @@ What the list drives:
 
 Worktrees are never part of a reset — the gate's cost to the user is daemon/session teardown (plus the task index only if they choose `--hard`).
 
+## Release channels
+
+Three npm dist-tags of `@sma1lboy/rove`:
+
+| Channel | dist-tag | Published | Version | Gate before publish |
+|---|---|---|---|---|
+| **stable** | `latest` | by hand only: `changesets.yml` / `scripts/release.sh` | `X.Y.Z` (tagged, `chore: release` commit) | the FULL `ci.yml` suite (behavior, render, visual, cross-OS), then `release.yml` re-runs its gates from the tag |
+| **next** | `next` | automatically on every push to `main` ([`next.yml`](../.github/workflows/next.yml)) | `X.Y.(Z+1)-next.<run number>` | the fast tier only: lint, typecheck, unit tests, build (what `bun run pre-pr` runs) |
+| **nightly** | `nightly` | 09:00 UTC daily, if `main` moved ([`nightly.yml`](../.github/workflows/nightly.yml)) | `X.Y.(Z+1)-nightly.<date>` | behavior + render + visual, then lint/typecheck/unit/build |
+
+```mermaid
+flowchart LR
+  PR[PR merged to main] --> N[next.yml: fast checks] --> NT[(next)]
+  PR --> C[banked changeset]
+  CRON[09:00 UTC] --> NI[nightly.yml: full gates] --> NG[(nightly)]
+  C --> M[owner: changesets.yml / release.sh] --> CI[full ci.yml] --> R[release.yml] --> L[(latest)]
+```
+
+`next` and nightly overlap — both publish `main` as an unreviewed prerelease; they differ in latency (minutes vs. a day) and rigor (fast tier vs. the full gates). Nightly was kept deliberately for the users who want the slower, fuller-gated stream.
+
+### The `next` channel
+
+[`next.yml`](../.github/workflows/next.yml) runs on every push to `main`, runs the fast tier, stamps the version into the checkout (`scripts/next-version.mjs`: the highest pending changeset bump of `@sma1lboy/rove`, else the current version +patch, plus `-next.<run number>`) and publishes to `next`. Concurrency is cancel-in-progress per ref, and a run whose commit is no longer `main`'s HEAD publishes nothing, so a burst of merges yields the newest build and `next` never moves backwards. The `chore: release` commit pushed with `GITHUB_TOKEN` fires no `next` run. Like the nightly it leaves no tag or commit, never moves `latest`, and publishes only `@sma1lboy/rove`.
+
+Dry-run the version locally: `node scripts/next-version.mjs 42`.
+
 ## The nightly channel
 
 [`nightly.yml`](../.github/workflows/nightly.yml) publishes today's `main` to the npm `nightly` dist-tag every morning (09:00 UTC), behind the same behavior + render + visual gates a release passes. It is less baked by virtue of *what it contains* — unbatched, unreviewed-as-a-set changes — not by skipping verification.
@@ -92,15 +121,16 @@ Worktrees are never part of a reset — the gate's cost to the user is daemon/se
 Users opt in and out with the CLI or Settings → General → Updates:
 
 ```bash
+rove update --next      # every merge to main, fast checks only
 rove update --nightly   # install the nightly and follow it
 rove update --stable    # go back to stable
 rove update             # newest build on the channel you follow
-curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine
+curl -fsSL https://rove.run/install.sh | sh -s -- --nightly   # fresh machine (also --next)
 ```
 
-The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written only after an install of a picked channel succeeds. Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail, so `channelOf()` reports `nightly`. The update check, the Update page and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
+The channel an install follows is state.json `update.channel` (`src/state/update-channel.ts`), written when Settings picks a channel and after an install of a picked channel succeeds (`rove update --next`). Unset, it falls back to the running build: a nightly carries a `-nightly.<date>` tail and a next build a `-next.<N>` tail, so `channelOf()` reports `nightly` / `next`. The update check, the Update page, Settings' check button and a bare `rove update` all resolve against that one value, so none of them can offer one channel and install another.
 
-**Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. The nightly is the only automatic publish.
+**Stable releases need the owner.** A stable release is cut only when the owner asks for one in that conversation (`changesets.yml` or `release.sh`); nothing in CI cuts one on its own. `next` and the nightly are the only automatic publishes.
 
 Three properties worth knowing before changing any of this:
 

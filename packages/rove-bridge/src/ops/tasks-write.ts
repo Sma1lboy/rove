@@ -7,10 +7,11 @@
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
+import { commandFromTask } from "./tasks-command-from.ts"
 import {
   checkAgentEngines,
   cloneFolder,
-  cloneUrl,
+  cloneSource,
   effortLevel,
   engineId,
   gitRef,
@@ -19,6 +20,7 @@ import {
   optGitRef,
   optModel,
   parseAgents,
+  remoteRepoRef,
   taskOpDeps,
 } from "./tasks-shared.ts"
 import type { Args, OpContext, OpSpec, OpTable } from "./types.ts"
@@ -54,7 +56,9 @@ async function done(call: Promise<unknown>): Promise<Record<string, never>> {
 }
 
 async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
-  const repo = absPath(args, "repo")
+  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
+  const machine = optText(args, "machine", 64)
+  const repo = machine ? remoteRepoRef(args, "repo") : absPath(args, "repo")
   const title = optText(args, "title", 200)
   const prompt = optText(args, "prompt", PROMPT_MAX)
   const branch = optGitRef(args, "branch")
@@ -67,9 +71,11 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const status = optOneOf(args, "status", STATUSES)
   const pin = optBool(args, "pin")
   const engineGiven = args.engine !== undefined && args.engine !== null && args.engine !== ""
-  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
-  const machine = optText(args, "machine", 64)
   const extras = extraRepos(args)
+  // `--clone` has the machine fetch a repo id it has no checkout of; a path there is already a checkout.
+  const clone = optBool(args, "clone")
+  if (clone && !machine) throw new BridgeError("BAD_ARGS", "clone needs a machine")
+  if (clone && repo.startsWith("/")) throw new BridgeError("BAD_ARGS", "clone needs a repo id, not a path")
   if (extras.length > 0 && machine)
     throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 
@@ -83,14 +89,18 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   // This machine's engine list says nothing about another's; that machine's `add` validates it.
   const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
+  // Retry: the source task's own launch command in place of the bare engine id.
+  const carried = await commandFromTask(args, ctx, { engine, machine, parallel })
+
   const argv = [flag("repo", repo)]
+  if (clone) argv.push(flag("clone", "true"))
   // Further `--repo`s are the extras; `--base-for REPO=REF` (REPO as a path) is each one's base.
   for (const extra of extras) argv.push(flag("repo", extra.repo))
   for (const extra of extras) if (extra.baseRef) argv.push(flag("base-for", `${extra.repo}=${extra.baseRef}`))
   if (title) argv.push(flag("title", title))
   if (branch) argv.push(flag("branch", branch))
   if (baseBranch) argv.push(flag("base-branch", baseBranch))
-  if (engine) argv.push(flag("command", engine))
+  if (engine) argv.push(flag("command", carried ?? engine))
   if (effort) argv.push(flag("effort", effort))
   if (mdl) argv.push(flag("model", mdl))
   if (count !== undefined) argv.push(flag("count", count))
@@ -118,7 +128,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
 const PROGRESS_GAP_MS = 150
 
 async function clone(args: Args, ctx: OpContext): Promise<unknown> {
-  const url = cloneUrl(args)
+  const url = await cloneSource(args)
   const parentDir = absPath(args, "parentDir")
   const urlProblem = taskOpDeps.validateGitUrl(url)
   if (urlProblem) throw new BridgeError("BAD_ARGS", urlProblem)
@@ -181,6 +191,9 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.setBranch": write("verb update --task-id --branch", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("branch", gitRef(a, "branch"))])),
   ),
+  "task.moveToProject": write("verb update --task-id --project", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("project", absPath(a, "repo"))])),
+  ),
   "task.setCommand": write("verb update --task-id --command=<engine id>", async (a, c) => {
     const id = taskId(a)
     const engine = await engineId(a, "engine", c)
@@ -198,6 +211,36 @@ export const TASK_WRITE_OPS: OpTable = {
   ),
   "task.pin": write("verb update --task-id --pinned", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("pinned", String(bool(a, "pinned")))])),
+  ),
+  "task.keep": write("verb update --task-id --kept", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("kept", String(bool(a, "kept")))])),
+  ),
+  // The checklist's ops are the daemon's to validate (ids, caps, empty text): it refuses the whole call.
+  "task.notes": write("rpc task.notes (notes replace + todo ops, applied together)", (a, c) => {
+    const notes = optText(a, "notes", 20_000)
+    const ops = a.ops
+    if (ops !== undefined && (!Array.isArray(ops) || ops.length > 50)) {
+      throw new BridgeError("BAD_ARGS", "ops must be a list of at most 50")
+    }
+    return c.api.rpc("task.notes", {
+      taskId: taskId(a),
+      ...(notes !== undefined ? { notes } : {}),
+      ...(ops ? { ops } : {}),
+    })
+  }),
+  "task.scheduleStart": write("rpc task.scheduleStart", async (a, c) => {
+    const at = text(a, "at", 40)
+    if (!Number.isFinite(Date.parse(at))) throw new BridgeError("BAD_ARGS", "at must be an ISO-8601 time")
+    return c.api.rpc("task.scheduleStart", { taskId: taskId(a), at, prompt: text(a, "prompt", PROMPT_MAX) })
+  }),
+  "task.cancelScheduledStart": write("rpc task.cancelScheduledStart", (a, c) =>
+    done(c.api.rpc("task.cancelScheduledStart", { taskId: taskId(a) })),
+  ),
+  "task.startScheduledNow": write("rpc task.startScheduledNow", (a, c) =>
+    c.api.rpc("task.startScheduledNow", { taskId: taskId(a) }),
+  ),
+  "task.autoFixCi": write("verb update --task-id --auto-fix-ci", (a, c) =>
+    done(c.api.verb("update", [flag("task-id", taskId(a)), flag("auto-fix-ci", bool(a, "enabled") ? "on" : "off")])),
   ),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
@@ -228,6 +271,25 @@ export const TASK_WRITE_OPS: OpTable = {
     if (problem) throw new BridgeError("BAD_ARGS", problem)
     const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
     return { taskId: res.task.id }
+  }),
+  // A session in the project's own checkout (New session, Worktree off). Its own top-level row, not a
+  // conversation of the main task: `tab.new` on a main that already runs one makes a child nested under it.
+  "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
+    const repo = absPath(a, "repo")
+    const problem = taskOpDeps.validateRepoPath(repo)
+    if (problem) throw new BridgeError("BAD_ARGS", problem)
+    const title = optText(a, "title", 200)
+    const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
+    const engine = engineGiven ? await engineId(a, "engine", c) : undefined
+    // The project row first: a dir task alone on a repo root is what a missing project row adopts.
+    const main = await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })
+    const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
+      dir: main.task.repo,
+      vendor: engine ?? taskOpDeps.preferredEngine(main.task.repo),
+      ...(title ? { title } : {}),
+    })
+    if (engine) taskOpDeps.rememberEngine(main.task.repo, engine)
+    return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
   "repo.clone": write("helper cloneRepo (git clone, fixed argv)", clone),

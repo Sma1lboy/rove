@@ -22,6 +22,11 @@ export class TaskFeed {
     private readonly now: () => number = Date.now,
   ) {}
 
+  /** Is anyone listening? A poll for upstream changes is only worth running when so. */
+  get active(): boolean {
+    return this.listeners.size > 0
+  }
+
   /** Something changed upstream; refresh soon. */
   poke(): void {
     if (this.listeners.size === 0 || this.timer) return

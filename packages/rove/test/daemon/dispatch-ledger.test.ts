@@ -57,6 +57,22 @@ describe("dispatch ledger", () => {
     ])
   })
 
+  it("a send to another machine's task moves on the hub's relayed readings of it", () => {
+    const bus = new DaemonEventBus()
+    const ledger = new DispatchLedger(bus, () => 1_000)
+    const relay = (activity: Record<string, { state: string; at: number }>) =>
+      bus.publish("machines", { machines: [], tasks: [], live: { activity } } as never)
+    ledger.record({ ...send, to: { taskId: "far", tabId: "tab-1" }, delivered: true })
+    // The relay republishes the last reading on every push; one from before the send moves nothing.
+    relay({ far: { state: "turn_complete", at: 999 } })
+    expect(ledger.list().rows[0]?.status).toBe("delivered")
+    relay({ far: { state: "running", at: 1_001 } })
+    expect(ledger.list().rows[0]?.status).toBe("working")
+    // An idle task is dropped from the relay rather than reported idle.
+    relay({})
+    expect(ledger.list().rows[0]?.status).toBe("done")
+  })
+
   describe("an in-flight row nothing moves", () => {
     afterEach(() => {
       vi.useRealTimers()

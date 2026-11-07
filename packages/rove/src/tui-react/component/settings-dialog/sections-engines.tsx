@@ -61,6 +61,10 @@ export function EngineSettingsSection(
     onInstallHooks: () => void
     /** Remove Rove's hooks from every engine config that has them. */
     onUninstallHooks: () => void
+    /** Copy the Rove agent skill into every engine that lacks a current one. */
+    onInstallSkill: () => void
+    /** What the last skill install could not write; null when it worked. */
+    skillError: string | null
   },
 ) {
   const { theme } = useTheme()
@@ -126,6 +130,10 @@ export function EngineSettingsSection(
   const hookable = (props.integrations ?? []).filter((row) => row.hooksSupported && present(row.vendor))
   const hookTotal = hookable.length
   const hookCurrent = hookable.filter((row) => row.hookState === "installed").length
+  // `skillDir` is set only for an engine set up on this machine.
+  const skillable = (props.integrations ?? []).filter((row) => row.skillDir)
+  const skillCurrent = skillable.filter((row) => row.skillState === "installed").length
+  const skillNeeded = skillable.length - skillCurrent
 
   return (
     <box flexDirection="column" gap={1}>
@@ -298,6 +306,52 @@ export function EngineSettingsSection(
             }}
           />
         </box>
+      </box>
+      <box flexDirection="column" gap={0}>
+        <box flexDirection="row" gap={2} paddingLeft={1}>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("settings.engines.skill.title")}
+          </text>
+          {props.integrations ? (
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("settings.engines.integrations.summary", {
+                installed: String(skillCurrent),
+                total: String(skillable.length),
+              })}
+            </text>
+          ) : null}
+        </box>
+        <box paddingLeft={1} paddingRight={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("settings.engines.skill.hint")}
+          </text>
+        </box>
+        <box flexDirection="row" paddingLeft={1} paddingRight={1}>
+          <IntegrationButton
+            rowRef={props.rowRef(addRowIndex + 3)}
+            cursor={isBodyCursor(addRowIndex + 3)}
+            live={skillNeeded > 0}
+            label={
+              skillNeeded > 0
+                ? t("settings.engines.skill.install", { count: String(skillNeeded) })
+                : skillable.length > 0
+                  ? t("settings.engines.integrations.upToDate")
+                  : t("settings.engines.skill.noEngines")
+            }
+            onPress={() => {
+              props.setLevel("body")
+              props.setBodyRow(addRowIndex + 3)
+              props.onInstallSkill()
+            }}
+          />
+        </box>
+        {props.skillError ? (
+          <box paddingLeft={1} paddingRight={1}>
+            <text fg={theme.error} wrapMode="word">
+              {t("settings.engines.skill.failed", { reason: props.skillError })}
+            </text>
+          </box>
+        ) : null}
       </box>
       <box paddingLeft={1}>
         <text fg={theme.textMuted} wrapMode="word">

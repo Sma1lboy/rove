@@ -8,15 +8,15 @@
  * The order is by URGENCY, not recency:
  *   - any candidate `running` ⇒ running (newest such `at`). Work in ANY tab
  *     is work in the task; a completion elsewhere must not dim it.
- *   - else the newest STICKY state (`turn_complete` / `permission_needed` /
- *     `error` / `rate_limited` / `dead`) — "a human should look", which must
- *     survive a quiet sibling tab.
- *   - else idle (or `undefined` when no source has ever reported: unknown).
+ *   - else `permission_needed`, then attention (`error` / `rate_limited` /
+ *     `dead`), then `turn_complete`, then idle.
+ * Newest `at` breaks ties within a tier; no sources means unknown.
  */
 
 import type { EffectiveActivity } from "./activity-arbitrate.ts"
-import { type EngineSessionInfo, STICKY_STATES } from "./activity-reduce.ts"
+import type { EngineSessionInfo } from "./activity-reduce.ts"
 import type { EngineActivityDetail, TaskActivityState } from "./contracts.ts"
+import { activityPriority } from "./status-priority.ts"
 
 /** One source's current claim about a task. Tab entries contribute their
  *  arbitrated `effective`; a tab-less hook entry contributes itself. */
@@ -30,19 +30,13 @@ export interface RollupCandidate {
   readonly lapse?: unknown
 }
 
-/** Urgency tiers: running outranks every attention state, which outrank idle. */
-function urgency(state: TaskActivityState): number {
-  if (state === "running") return 2
-  return STICKY_STATES.has(state) ? 1 : 0
-}
-
 /** Highest urgency wins; newest `at` breaks ties. `undefined` when there are no candidates. */
 export function deriveTaskActivity(candidates: Iterable<RollupCandidate>): RollupCandidate | undefined {
   let best: RollupCandidate | undefined
-  let bestRank = -1
+  let bestRank = Number.POSITIVE_INFINITY
   for (const candidate of candidates) {
-    const rank = urgency(candidate.state)
-    if (rank > bestRank || (rank === bestRank && best !== undefined && candidate.at > best.at)) {
+    const rank = activityPriority(candidate.state)
+    if (rank < bestRank || (rank === bestRank && best !== undefined && candidate.at > best.at)) {
       best = candidate
       bestRank = rank
     }

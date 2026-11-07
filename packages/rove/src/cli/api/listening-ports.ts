@@ -41,23 +41,32 @@ export function parseLsofListeners(output: string): RawListener[] {
   return rows
 }
 
-/** `0100007F` (little-endian) → `127.0.0.1`; 32 hex chars → compressed IPv6. */
+/** `/proc` stores each 32-bit word little-endian: `0100007F` → bytes 127,0,0,1. */
+function procBytes(hex: string): number[] {
+  const bytes: number[] = []
+  for (let w = 0; w < hex.length; w += 8) {
+    for (const i of [6, 4, 2, 0]) bytes.push(Number.parseInt(hex.slice(w + i, w + i + 2), 16))
+  }
+  return bytes
+}
+
+/** An address as `lsof` prints it: dotted IPv4, IPv4-mapped IPv6 as `::ffff:a.b.c.d`, other IPv6 RFC 5952-compressed. */
 function procAddress(hex: string): string {
-  if (hex.length === 8) {
-    return [6, 4, 2, 0].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(".")
+  const bytes = procBytes(hex)
+  if (bytes.length === 4) return bytes.join(".")
+  const groups = Array.from({ length: 8 }, (_, g) => ((bytes[g * 2] ?? 0) << 8) | (bytes[g * 2 + 1] ?? 0))
+  if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) return `::ffff:${bytes.slice(12).join(".")}`
+  // The longest run of two or more zero groups collapses to `::`; the first run wins a tie.
+  let best = { at: -1, len: 1 }
+  for (let i = 0; i < 8; ) {
+    let j = i
+    while (j < 8 && groups[j] === 0) j++
+    if (j - i > best.len) best = { at: i, len: j - i }
+    i = j === i ? i + 1 : j
   }
-  const words: string[] = []
-  for (let w = 0; w < 4; w++) {
-    const word = hex.slice(w * 8, w * 8 + 8)
-    const bytes = [6, 4, 2, 0].map((i) => word.slice(i, i + 2)).join("")
-    words.push(bytes.slice(0, 4), bytes.slice(4))
-  }
-  const groups = words.map((g) => Number.parseInt(g, 16).toString(16))
-  const joined = groups.join(":")
-  if (joined === "0:0:0:0:0:0:0:0") return "::"
-  if (joined === "0:0:0:0:0:0:0:1") return "::1"
-  if (joined.startsWith("0:0:0:0:0:ffff:")) return `::ffff:${groups.slice(6).join(":")}`
-  return joined
+  const hexOf = (gs: number[]) => gs.map((g) => g.toString(16)).join(":")
+  if (best.at < 0) return hexOf(groups)
+  return `${hexOf(groups.slice(0, best.at))}::${hexOf(groups.slice(best.at + best.len))}`
 }
 
 /** Listening rows of a `/proc/net/tcp{,6}` table, keyed by socket inode. */

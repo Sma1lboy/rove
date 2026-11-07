@@ -86,4 +86,12 @@
     <string name="settings_about_mac_side">重启 daemon、重置 UI 状态和安装插件都在 Mac 端操作——手机通过 bridge 与 daemon 通信，daemon 一旦停止，手机无法恢复它</string>
     <string name="settings_privacy">隐私政策</string>
     <string name="settings_licenses">许可证</string>
+    <string name="settings_updates">更新</string>
+    <string name="settings_update_check">检查更新</string>
+    <string name="settings_update_checking">检查中…</string>
+    <string name="settings_update_available">v%1$s 可用</string>
+    <string name="settings_update_current">没有更新的版本，无需安装。</string>
+    <string name="settings_update_unknown">Mac 连不上 registry。请检查它的网络后重试。</string>
+    <string name="settings_update_command">在 Mac 上运行 `rove update` 来安装。</string>
+    <string name="settings_update_open_release">打开发布页</string>
 </resources>

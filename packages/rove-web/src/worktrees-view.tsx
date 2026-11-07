@@ -11,8 +11,13 @@ import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { useLocale } from "./i18n/index.ts"
 import { compactAge } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { landFlow } from "./task-flows.tsx"
 import { dialog, page, toast } from "./ui.ts"
+import { Legend } from "./ui/legend.tsx"
+import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
+import { LINK } from "./ui/text.ts"
+import { WT_BRANCH, WT_GROUP, WT_HINTS, WT_LINE, WT_LINE_META, WT_PATH, wtRowClass } from "./ui/update.ts"
 
 interface WorktreeRow {
   readonly path: string
@@ -39,7 +44,13 @@ export function WorktreesView({ model }: { model: AppModel }) {
   const lang = useLocale()
   const w = lang === "zh" ? wtZh : wtEn
   const c = model.client
-  const [projects, setProjects] = useState<readonly Project[] | null>(null)
+  // The list as last read shows at once (the full pass if one landed), and both passes reread it.
+  const [projects, setProjects] = useState<readonly Project[] | null>(() => {
+    const last =
+      lastReply<{ projects: Project[] }>(c, "worktrees.list", { network: true }) ??
+      lastReply<{ projects: Project[] }>(c, "worktrees.list", { network: false })
+    return last?.projects ?? null
+  })
   const [removing, setRemoving] = useState<readonly string[]>([])
   const [cursor, setCursor] = useState(0)
   const [tick, setTick] = useState(0)
@@ -51,8 +62,7 @@ export function WorktreesView({ model }: { model: AppModel }) {
     let live = true
     let full = false
     const load = (network: boolean) =>
-      c
-        .request<{ projects: Project[] }>("worktrees.list", { network })
+      requestRemembered<{ projects: Project[] }>(c, "worktrees.list", { network })
         .then((r) => {
           if (!live || (!network && full)) return
           if (network) full = true
@@ -149,40 +159,35 @@ export function WorktreesView({ model }: { model: AppModel }) {
   let base = 0
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={host} onKeyDown={onKey}>
-      <h1 className="page-title">{w.title}</h1>
+    <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
+      <h1 className={PAGE_TITLE}>{w.title}</h1>
       {projects === null ? (
-        <p className="muted">{w.loading}</p>
+        <p className="text-muted">{w.loading}</p>
       ) : visible.length === 0 ? (
-        <p className="muted">{w.noProjects}</p>
+        <p className="text-muted">{w.noProjects}</p>
       ) : (
         visible.map((project) => {
           const start = base
           base += project.worktrees.length
           return (
-            <section key={project.repo} className="page-group">
-              <h2 className="project-head">
+            <section key={project.repo} className={WT_GROUP}>
+              <h2 className="mt-1.5 mr-2 mb-1 ml-0 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle">
                 <span>{project.repo}</span>
                 <span className="rule" />
               </h2>
-              {project.worktrees.length === 0 && <p className="muted mono">{w.noWorktrees}</p>}
+              {project.worktrees.length === 0 && <p className="mono text-muted">{w.noWorktrees}</p>}
               {project.worktrees.map((row, i) => {
                 const n = start + i
                 return (
                   // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (j/k) move the cursor
-                  <div
-                    key={row.path}
-                    data-row={n}
-                    className={`wt-row ${n === at ? "is-cursor" : ""}`}
-                    onClick={() => setCursor(n)}
-                  >
-                    <div className="wt-line">
-                      <span className="wt-branch">{row.branch || w.row.detached}</span>
-                      {row.roveManaged && <span className="chip muted">{w.badge.roveManaged}</span>}
-                      {row.dirty === true && <span className="chip tone-warning">{w.badge.dirty}</span>}
-                      {row.dirty === null && <span className="chip muted">{w.badge.dirtyUnknown}</span>}
+                  <div key={row.path} data-row={n} className={wtRowClass(n === at)} onClick={() => setCursor(n)}>
+                    <div className={WT_LINE}>
+                      <span className={WT_BRANCH}>{row.branch || w.row.detached}</span>
+                      {row.roveManaged && <span className="chip text-muted">{w.badge.roveManaged}</span>}
+                      {row.dirty === true && <span className="chip text-warning">{w.badge.dirty}</span>}
+                      {row.dirty === null && <span className="chip text-muted">{w.badge.dirtyUnknown}</span>}
                       <span
-                        className={`chip ${row.branchOnRemote === true ? "tone-success" : row.branchOnRemote === false ? "tone-warning" : "muted"}`}
+                        className={`chip ${row.branchOnRemote === true ? "text-success" : row.branchOnRemote === false ? "text-warning" : "text-muted"}`}
                       >
                         {row.branchOnRemote === true
                           ? w.badge.remoteOn
@@ -192,18 +197,30 @@ export function WorktreesView({ model }: { model: AppModel }) {
                       </span>
                       {row.verdictReason !== "dirty" && row.verdictReason !== "fresh" && (
                         <span
-                          className={`chip ${row.verdict === "merged" ? "tone-success" : row.verdict === "stale" ? "tone-warning" : "tone-accent"}`}
+                          className={`chip ${row.verdict === "merged" ? "text-success" : row.verdict === "stale" ? "text-warning" : "text-accent"}`}
                         >
                           {(w.verdict as Record<string, string>)[row.verdictReason] ?? row.verdictReason}
                         </span>
                       )}
                     </div>
-                    <div className="wt-line muted mono">
-                      <span className="wt-path">{row.path}</span>
+                    <div className={`${WT_LINE_META} mono text-muted`}>
+                      <span className={WT_PATH}>{row.path}</span>
                       {row.createdAtMs > 0 && (
                         <span>{fill(w.row.created, { age: compactAge(Date.now() - row.createdAtMs) })}</span>
                       )}
                     </div>
+                    {n === at && (
+                      <div className={WT_LINE}>
+                        <button type="button" className={LINK} onClick={() => requestDelete(row)}>
+                          {w.delete.button}
+                        </button>
+                        {row.taskId && (
+                          <button type="button" className={LINK} onClick={() => requestLand(row)}>
+                            {w.land.button}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -211,8 +228,8 @@ export function WorktreesView({ model }: { model: AppModel }) {
           )
         })
       )}
-      <p className="page-hints mono muted">
-        j/k · d {w.delete.button} · l {w.land.button} · q/esc
+      <p className={`${WT_HINTS} mono keys-only text-muted`}>
+        <Legend text={`j/k · d ${w.delete.button} · l ${w.land.button} · q/esc`} />
       </p>
     </div>
   )

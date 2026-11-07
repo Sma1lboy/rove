@@ -9,10 +9,29 @@ import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
+import { InboxPeek, type PeekMode } from "./inbox-peek.tsx"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
 import { closeDialog, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { Legend } from "./ui/legend.tsx"
+import {
+  DIALOG_BODY,
+  INBOX_AGE,
+  INBOX_BADGE,
+  INBOX_CARD,
+  INBOX_CARDS,
+  INBOX_CARD_MAIN,
+  INBOX_HINTS,
+  INBOX_KICKER,
+  INBOX_LINE,
+  INBOX_PEEK_TOGGLE,
+  INBOX_SUB,
+} from "./ui/overlay.ts"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
+import { KICKER } from "./ui/text.ts"
+import { TONE_CLASS } from "./ui/tone.ts"
 
 interface Card {
   readonly key: string
@@ -30,7 +49,7 @@ const RECENT_MAX = 6
 function identityOf(task: TaskRow | undefined, fallback: string): string {
   if (!task) return fallback
   const project = task.repo.split("/").filter(Boolean).pop() ?? task.repo
-  return `${project} › ${task.title}`
+  return `${project} › ${task.label}`
 }
 
 export function InboxDialog({ model }: { model: AppModel }) {
@@ -39,6 +58,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const visits = useStore(model.visits)
   const tabs = useStore(model.tabs)
   const [index, setIndex] = useState(0)
+  const [peeked, setPeeked] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000)
@@ -81,7 +101,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
 
   const dismiss = async (card: Card) => {
     if (card.attention && isRoutineState(card.attention.state)) return dismissRoutineEpisode(model, card.attention)
-    if (!card.attention?.taskId) return
+    if (!card.attention?.taskId || card.attention.gateId) return
     await model.client
       .request("attention.dismiss", { taskId: card.attention.taskId, ...(card.tabId ? { tabId: card.tabId } : {}) })
       .catch((err) => toast(String(err), "error"))
@@ -97,6 +117,8 @@ export function InboxDialog({ model }: { model: AppModel }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A reply field takes its own keys: typing j or d there moves or clears nothing.
+      if (e.target instanceof HTMLElement && e.target.closest("input, textarea")) return
       if (e.key === "ArrowDown" || e.key === "j") setIndex((i) => Math.min(cards.length - 1, i + 1))
       else if (e.key === "ArrowUp" || e.key === "k") setIndex((i) => Math.max(0, i - 1))
       else if (e.key === "Enter" && current) open(current)
@@ -111,43 +133,81 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const renderCard = (card: Card) => {
     const badge = card.attention ? inboxBadge(card.attention.state) : null
     const active = card === current
+    const row = card.attention
+    const task = card.taskId ? tasks.get(card.taskId) : undefined
+    // Another machine's rows are read-only here, as in the terminal composer.
+    const gate = row?.gateId ? payload?.gates?.find((g) => g.id === row.gateId && g.status === "open") : undefined
+    const peekTab = card.tabId ?? gate?.tabId ?? null
+    const peekable =
+      !!row && !!task && !task.machine && !isRoutineState(row.state) && (!row.gateId || !!gate) && (!!peekTab || !!gate)
+    const atMenu =
+      row?.state === "permission_needed" || (!!peekTab && task?.tabStatus?.[peekTab]?.kind === "needs-input")
+    const mode: PeekMode = gate ? "gate" : row?.state === "dead" ? "readonly" : atMenu ? "menu" : "reply"
+    const peekId = `${card.taskId}:${card.tabId}:${row?.gateId ?? ""}`
+    const peeking = peekable && peeked === peekId
     return (
       <li key={card.key}>
-        <button
-          type="button"
-          className={`inbox-card row ${active ? "is-selected" : ""}`}
-          onMouseEnter={() => setIndex(cards.indexOf(card))}
-          onClick={() => open(card)}
-        >
-          <span className="inbox-line">
-            <span className="row-title">{card.identity}</span>
-            {badge && (
-              <span className={`inbox-badge tone-${badge.tone}`}>
-                {badge.glyph} {t(badge.stateKey)}
-              </span>
-            )}
-            <span className="inbox-age">{compactAge(now - card.at)}</span>
-          </span>
-          {card.subtitle && <span className="inbox-sub">{card.subtitle}</span>}
-        </button>
+        <div className={INBOX_CARD}>
+          <button
+            type="button"
+            className={`${rowClass({ selected: active, stack: true })} ${INBOX_CARD_MAIN}`}
+            onMouseEnter={() => setIndex(cards.indexOf(card))}
+            onClick={() => open(card)}
+          >
+            <span className={INBOX_LINE}>
+              <span className={ROW_TITLE}>{card.identity}</span>
+              {badge && (
+                <span className={`${INBOX_BADGE} ${TONE_CLASS[badge.tone]}`}>
+                  {badge.glyph} {t(badge.stateKey)}
+                </span>
+              )}
+              <span className={INBOX_AGE}>{compactAge(now - card.at)}</span>
+            </span>
+            {card.subtitle && <span className={INBOX_SUB}>{card.subtitle}</span>}
+          </button>
+          {peekable && (
+            <Button
+              className={INBOX_PEEK_TOGGLE}
+              aria-expanded={peeking}
+              onClick={() => {
+                setIndex(cards.indexOf(card))
+                setPeeked(peeking ? null : peekId)
+              }}
+            >
+              {peeking ? t("inbox.hide") : t("inbox.reply")}
+            </Button>
+          )}
+        </div>
+        {peeking && card.taskId && (
+          <InboxPeek
+            model={model}
+            taskId={card.taskId}
+            tabId={peekTab}
+            mode={mode}
+            gate={gate}
+            onOpenTab={() => open(card)}
+          />
+        )}
       </li>
     )
   }
 
   return (
     <DialogShell title={t("inbox.title")} wide>
-      <div className="dialog-body inbox">
-        <p className="kicker inbox-hints">{t("inbox.hints")}</p>
-        <h2 className="kicker">{t("inbox.attention")}</h2>
+      <div className={DIALOG_BODY}>
+        <p className={`${KICKER} text-muted ${INBOX_HINTS} touch:hidden!`}>
+          <Legend text={t("inbox.hints")} />
+        </p>
+        <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
-          <p className="muted mono">{t("inbox.empty")}</p>
+          <p className="mono text-muted">{t("inbox.empty")}</p>
         ) : (
-          <ul className="cards">{attention.map(renderCard)}</ul>
+          <ul className={INBOX_CARDS}>{attention.map(renderCard)}</ul>
         )}
         {recent.length > 0 && (
           <>
-            <h2 className="kicker">{t("inbox.recent")}</h2>
-            <ul className="cards">{recent.map(renderCard)}</ul>
+            <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.recent")}</h2>
+            <ul className={INBOX_CARDS}>{recent.map(renderCard)}</ul>
           </>
         )}
       </div>

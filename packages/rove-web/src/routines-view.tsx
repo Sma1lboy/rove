@@ -1,20 +1,17 @@
 /**
- * The Routines page (TUI `automations-page.tsx`): the daemon's scheduled routines as a list with the
- * selected one's prompt, recent runs and the agent's responses beneath. j/k or arrows move, `n`
- * composes a routine, and on the cursor row `e` pauses or resumes, `s` (or the Run now button) runs
- * it now, `d` deletes after a confirm, Enter opens the latest run's task, `r` refetches, q/Esc close.
- * Prechecks, grace windows and standing-session mode stay CLI-only (`rove api routine-update`).
+ * The Routines page (TUI `automations-page.tsx`): the daemon's scheduled routines grouped as needs
+ * you / active / paused, beside the selected one's schedule, prompt, recent runs and responses (stacked
+ * on a narrow page). j/k or arrows move, `n` composes a routine, and on the cursor row `e` pauses or
+ * resumes, `s` (or the Run now button) runs it now, `d` deletes after a confirm, Enter opens the latest
+ * run's task, `r` refetches, q/Esc close. Prechecks, grace windows and standing-session mode stay
+ * CLI-only (`rove api routine-update`).
  */
 
-import {
-  type Automation,
-  type AutomationRun,
-  type AutomationRunStatus,
-  automationRunNeedsAttention,
-  routineRunResponseState,
-} from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import { type Automation, automationRunNeedsAttention } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
+import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
+import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -22,47 +19,40 @@ import {
   mergeRepos,
   projectLabel,
   useCopy,
+  useCronTranslate,
   usePageFocus,
   usePageKeys,
   useReload,
   useSelectedRepo,
   useTaskRepos,
 } from "./pages-kit.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
+import { RunLog, useRoutineRuns } from "./routine-run-log.tsx"
+import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
+import type { RoutinesReply } from "./routines-data.ts"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
+import { PAGE, PAGE_TITLE, PG_ACTIONS, PG_ACTION_LINK, PG_LIST, PG_NOTICE, PG_TOP } from "./ui/page.ts"
+import {
+  RT_BODY,
+  RT_DETAIL,
+  RT_GROUP,
+  RT_HEAD,
+  RT_LIST,
+  RT_META,
+  RT_NAME,
+  RT_PAGE,
+  RT_PROMPT,
+  RT_ROW_LINE,
+  RT_ROW_SUB,
+  RT_WHEN,
+  rtNameClass,
+  rtRowClass,
+} from "./ui/routines.ts"
+import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
-/** How many runs the history lists (the TUI's `runs.slice(0, 5)`). */
-const RUNS_SHOWN = 5
-
-interface RoutinesReply {
-  readonly automations: readonly Automation[]
-  readonly keepsDaemonAlive: boolean
-  readonly lastRunStatus?: Readonly<Record<string, AutomationRunStatus>>
-}
-
-/** Run-status → glance tone. `skipped_precheck` is healthy, `dispatch_failed` wants a human. */
-const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
-  dispatched: "success",
-  revived: "success",
-  skipped_precheck: "muted",
-  skipped_cancelled: "muted",
-  skipped_missed: "warning",
-  skipped_unavailable: "warning",
-  dispatch_failed: "error",
-  ran: "success",
-  script_failed: "error",
-}
-const TONE_CLASS = {
-  success: "tone-success",
-  muted: "muted",
-  warning: "tone-warning",
-  error: "tone-attention",
-} as const
-const TONE_GLYPH = { success: "✓", error: "†", warning: "!", muted: "·" } as const
-
-const runTone = (status: string) => RUN_TONE[status] ?? "muted"
 
 export function RoutinesView({ model }: { model: AppModel }) {
   const { auto, common } = useCopy()
@@ -71,17 +61,20 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const payload = useStore(model.tasks)
   const taskRepos = useTaskRepos(model)
   const focusRepo = useSelectedRepo(model)
-  const [reply, setReply] = useState<RoutinesReply | null>(null)
-  const [runs, setRuns] = useState<readonly AutomationRun[]>([])
-  const [cursor, setCursor] = useState(0)
+  const [reply, setReply] = useState<RoutinesReply | null>(() => lastReply<RoutinesReply>(c, "routine.list") ?? null)
+  // The cursor follows the routine, not its row: pausing one moves it to another group.
+  const [cursorId, setCursorId] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const root = usePageFocus()
+  const cronT = useCronTranslate()
+  const intl = useLocale() === "zh" ? "zh-CN" : "en-US"
+  const detail = useRef<HTMLDivElement>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
   useEffect(() => {
     let live = true
-    c.request<RoutinesReply>("routine.list")
+    requestRemembered<RoutinesReply>(c, "routine.list")
       .then((res) => live && setReply(res))
       // Stale rows beat none until the next poll succeeds.
       .catch(() => live && setReply((prev) => prev ?? { automations: [], keepsDaemonAlive: false }))
@@ -90,47 +83,58 @@ export function RoutinesView({ model }: { model: AppModel }) {
     }
   }, [c, tick])
 
+  const listed = reply?.automations ?? []
+  const lastRunStatus = reply?.lastRunStatus ?? {}
+  const lastFailure = reply?.lastFailure ?? {}
+  const needsYou = (routine: Automation) => {
+    const status = lastRunStatus[routine.id]
+    return status !== undefined && automationRunNeedsAttention(status)
+  }
+  // What wants a human first, then what runs, then what is paused; daemon order within each.
+  const sections = [
+    { key: "pages.routinesNeedYou", rows: listed.filter(needsYou) },
+    { key: "pages.routinesActive", rows: listed.filter((routine) => routine.enabled && !needsYou(routine)) },
+    { key: "pages.routinesPaused", rows: listed.filter((routine) => !routine.enabled && !needsYou(routine)) },
+  ]
+  const rows = sections.flatMap((section) => section.rows)
+  const at = Math.max(
+    0,
+    rows.findIndex((routine) => routine.id === cursorId),
+  )
+  const selected = rows[at]
+  const setCursor = (index: number) => setCursorId(rows[index]?.id ?? null)
+  const needAttention = sections[0]?.rows.length ?? 0
+
   // An Inbox row for a failed routine lands the cursor on that routine, once.
   const wanted = useStore(routineFocus)
   useEffect(() => {
     if (wanted === null || !reply) return
-    const index = reply.automations.findIndex((routine) => routine.id === wanted)
-    if (index >= 0) setCursor(index)
+    if (reply.automations.some((routine) => routine.id === wanted)) setCursorId(wanted)
     routineFocus.set(null)
   }, [wanted, reply])
 
-  const rows = reply?.automations ?? []
-  const lastRunStatus = reply?.lastRunStatus ?? {}
-  const at = Math.min(cursor, Math.max(0, rows.length - 1))
-  const selected = rows[at]
-  const needAttention = rows.filter((a) => {
-    const status = lastRunStatus[a.id]
-    return status !== undefined && automationRunNeedsAttention(status)
-  }).length
-
-  // Run history follows the cursor.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger
-  useEffect(() => {
-    let live = true
-    if (!selected) {
-      setRuns([])
-      return
-    }
-    c.request<{ runs: AutomationRun[] }>("routine.runs", { id: selected.id })
-      .then((res) => live && setRuns(res.runs))
-      .catch(() => live && setRuns([]))
-    return () => {
-      live = false
-    }
-  }, [c, selected?.id, tick])
+  // The selected routine's runs feed its Enter key, precheck and responses; the log reads its own.
+  const selectedRuns = useRoutineRuns(c, selected ? [selected.id] : [], tick)
+  const runs = selected ? (selectedRuns[selected.id] ?? []) : []
 
   // A notice names ONE routine: clear it when the selection moves.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the id is the trigger
   useEffect(() => setNotice(null), [selected?.id])
   const list = useRef<HTMLDivElement>(null)
+  // A tap asks for the detail; keys keep the cursor row in view. One effect, so neither scroll cancels the other.
+  const [reveal, setReveal] = useState(0)
+  const revealed = useRef(0)
   useEffect(() => {
+    const panel = detail.current
+    const tapped = reveal !== revealed.current
+    revealed.current = reveal
+    // Stacked (narrow) only: the detail sits under the list instead of beside it.
+    if (tapped && panel && list.current && panel.offsetTop > list.current.offsetTop) {
+      panel.scrollIntoView({ block: "start", behavior: "smooth" })
+      return
+    }
     list.current?.querySelector(`[data-row="${at}"]`)?.scrollIntoView({ block: "nearest" })
-  }, [at])
+  }, [at, reveal])
 
   const now = Date.now()
   const when = (iso: string | undefined) => {
@@ -145,8 +149,11 @@ export function RoutinesView({ model }: { model: AppModel }) {
     if (hours < 24) return fill(ahead ? auto.when.inHours : auto.when.hoursAgo, { n: hours })
     return new Date(time).toLocaleDateString()
   }
-  const statusText = (status: string) => (auto.runStatus as Record<string, string>)[status] ?? status
-  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
+  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? taskId
+  const openRun = (taskId: string) => {
+    page.set(null)
+    model.select(taskId)
+  }
 
   const fail = (template: string, name: string, err: unknown) =>
     toast(fill(template, { name, error: errorMessage(err) }), "error")
@@ -188,23 +195,19 @@ export function RoutinesView({ model }: { model: AppModel }) {
       .then((res) => res.repos)
       .catch((): string[] => [])
     const repos = mergeRepos(saved, taskRepos)
-    if (repos.length === 0) {
-      setNotice(auto.needRepo)
-      return
-    }
     dialog.set(
       <RoutineComposer
         repos={repos}
         tasks={(payload?.tasks ?? [])
           .filter((task) => !task.deleting)
-          .map((task) => ({ id: task.id, title: task.title, repo: task.repo }))}
+          .map((task) => ({ id: task.id, title: task.label, repo: task.repo }))}
         defaultRepo={focusRepo}
         onSubmit={(draft) => {
           void (async () => {
             setBusy("new")
             try {
               await c.request("routine.create", {
-                repo: draft.repo,
+                ...(draft.repo === null ? {} : { repo: draft.repo }),
                 name: draft.name,
                 prompt: draft.prompt,
                 schedule: draft.schedule,
@@ -284,10 +287,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
         // Newest first. Never fall through to an older run's task when the latest made none:
         // that would open a different run than the one shown first.
         const taskId = runs[0]?.taskId
-        if (taskId) {
-          page.set(null)
-          model.select(taskId)
-        } else if (runs.length > 0) setNotice(auto.latestRunNoTask)
+        if (taskId) openRun(taskId)
+        else if (runs.length > 0) setNotice(auto.latestRunNoTask)
         return true
       }
       default:
@@ -296,156 +297,195 @@ export function RoutinesView({ model }: { model: AppModel }) {
   })
 
   const target = selected?.target
+  const described = selected ? describeCronWith(selected.schedule, cronT) : null
+  const repoName = (repo: string | undefined) =>
+    repo === undefined
+      ? t("rail.noProject")
+      : projectLabel(
+          repo,
+          listed.flatMap((r) => r.repo ?? []),
+        )
+  const nextAt = selected?.nextRunAt ? Date.parse(selected.nextRunAt) : Number.NaN
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={root}>
-      <div className="pg-top">
-        <h1 className="page-title">{auto.title}</h1>
-        <span className="pg-actions mono">
+    <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
+      <div className={PG_TOP}>
+        <h1 className={PAGE_TITLE}>{auto.title}</h1>
+        <span className={`mono ${PG_ACTIONS}`}>
           {needAttention > 0 && (
-            <span className="tone-attention">
+            <span className="text-error">
               {fill(auto.needAttention, { count: String(needAttention), total: String(rows.length) })}
             </span>
           )}
-          <span className={reply?.keepsDaemonAlive ? "tone-success" : "muted"}>
-            {reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}
-          </span>
+          <span className="text-muted">{reply?.keepsDaemonAlive ? auto.holdingDaemon : auto.notHolding}</span>
+          {/* Every page key has a click target too: a phone has no n/e/d. */}
+          <button type="button" className={`${LINK} ${PG_ACTION_LINK.header}`} onClick={() => void createRoutine()}>
+            {t("pages.new")}
+          </button>
         </span>
       </div>
 
       {reply === null ? (
-        <p className="muted">{common.loading}</p>
+        <p className="text-muted">{common.loading}</p>
       ) : rows.length === 0 ? (
-        <div className="pg-list">
-          <p className="muted">{auto.empty}</p>
-          <p>{auto.emptyHint}</p>
+        <div className={PG_LIST}>
+          <p className="text-muted">{auto.empty}</p>
+          <p className="keys-only">{auto.emptyHint}</p>
         </div>
       ) : (
-        <div className="pg-list" ref={list}>
-          {rows.map((routine, index) => {
-            const last = lastRunStatus[routine.id]
-            const tone = last ? runTone(last) : null
-            return (
-              // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (j/k) move the cursor
-              <div
-                key={routine.id}
-                data-row={index}
-                className={`pg-row ${index === at ? "is-cursor" : ""} ${routine.enabled ? "" : "is-off"}`}
-                onClick={() => setCursor(index)}
-              >
-                <span className="pg-name">{routine.name}</span>
-                <span className="pg-grow muted mono">{`${projectLabel(
-                  routine.repo,
-                  rows.map((r) => r.repo),
-                )} · ${routine.schedule}`}</span>
-                {!routine.enabled && <span className="tone-warning mono">{auto.paused} ·</span>}
-                <span className="muted mono">{when(routine.nextRunAt)}</span>
-                <span className={`mono ${tone ? TONE_CLASS[tone] : "muted"}`} style={{ width: "1ch" }}>
-                  {tone ? TONE_GLYPH[tone] : " "}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+        <div className={RT_BODY}>
+          <div className={RT_LIST} ref={list}>
+            {sections.map((section) =>
+              section.rows.length === 0 ? null : (
+                <section key={section.key}>
+                  <h2 className={`${KICKER} ${RT_GROUP} ${section === sections[0] ? "text-error" : "text-muted"}`}>
+                    {t(section.key)} <span className="mono">{section.rows.length}</span>
+                  </h2>
+                  {section.rows.map((routine) => {
+                    const index = rows.indexOf(routine)
+                    const last = lastRunStatus[routine.id]
+                    const tone = last ? runTone(last) : null
+                    return (
+                      // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (j/k) move the cursor
+                      <div
+                        key={routine.id}
+                        data-row={index}
+                        className={rtRowClass(index === at)}
+                        onClick={() => {
+                          setCursor(index)
+                          setReveal((n) => n + 1)
+                        }}
+                      >
+                        <span className={RT_ROW_LINE}>
+                          <span className={rtNameClass(!routine.enabled)}>{routine.name}</span>
+                          <span className={`mono text-muted ${RT_WHEN}`}>
+                            {routine.enabled ? when(routine.nextRunAt) : auto.paused}
+                          </span>
+                          <span className={`mono ${tone ? TONE_CLASS[tone] : "text-muted"}`} style={{ width: "1ch" }}>
+                            {tone ? TONE_GLYPH[tone] : " "}
+                          </span>
+                        </span>
+                        <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
+                          {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
+                        </span>
+                        {lastFailure[routine.id] ? (
+                          <span className={`mono text-warning ${RT_ROW_SUB}`} title={lastFailure[routine.id]?.reason}>
+                            {fill(auto.lastFailed, {
+                              when: when(lastFailure[routine.id]?.at),
+                              reason: lastFailure[routine.id]?.reason ?? "",
+                            })}
+                          </span>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </section>
+              ),
+            )}
+          </div>
 
-      {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
-      <div className="pg-detail">
-        {selected ? (
-          <>
-            <div>
-              <div className="pg-actions">
-                <span className="pg-prompt pg-grow">{selected.prompt}</span>
-                <button type="button" className="link" disabled={busy === selected.id} onClick={() => void runNow()}>
-                  {auto.runNow}
-                </button>
-              </div>
-              <p className="muted">
-                {target
-                  ? fill(auto.targetExisting, { task: titleOf(target.taskId), tab: target.tabId })
-                  : selected.persistentSession
-                    ? auto.targetStanding
-                    : auto.targetFresh}
-              </p>
-              {selected.precheck && (
-                <p className="muted mono">{fill(auto.precheck, { command: selected.precheck.command })}</p>
-              )}
-              <h2 className="kicker">{auto.recentRuns}</h2>
-              {runs.length === 0 ? (
-                <p className="muted">{auto.noRuns}</p>
-              ) : (
-                runs.slice(0, RUNS_SHOWN).map((run) => {
-                  // A delivered run still owing its response reads as such; a missing one is a warning.
-                  const state = routineRunResponseState(run, now)
-                  const note =
-                    state === "awaiting"
-                      ? ` · ${auto.responseAwaiting}`
-                      : state === "missing"
-                        ? ` · ${auto.responseMissing}`
-                        : ""
-                  return (
-                    <p
-                      key={run.id}
-                      className={`pg-run mono ${state === "missing" ? "tone-warning" : TONE_CLASS[runTone(run.status)]}`}
+          {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
+          <div className={RT_DETAIL} ref={detail}>
+            {selected ? (
+              <>
+                <div className={RT_HEAD}>
+                  <h2 className={RT_NAME}>{selected.name}</h2>
+                  <span className={`mono ${PG_ACTIONS}`}>
+                    <button
+                      type="button"
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
+                      disabled={busy === selected.id}
+                      onClick={() => void runNow()}
                     >
-                      {`${run.trigger === "manual" ? "▸" : "·"} #${run.runNumber} ${statusText(run.status)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` — ${run.error}` : ""}${note}  ${when(run.at)}`}
-                    </p>
-                  )
-                })
-              )}
-              {runs[0]?.precheckResult && <PrecheckDetail run={runs[0]} />}
-            </div>
-            <div>
-              <h2 className="kicker">{auto.responses}</h2>
-              {runs.filter((run) => run.response).length === 0 ? (
-                <p className="muted">{auto.noResponses}</p>
-              ) : (
-                runs
-                  .filter((run) => run.response)
-                  .map((run) => (
-                    <div key={run.id}>
-                      <p className={`pg-run mono ${TONE_CLASS[runTone(run.status)]}`}>
-                        {`#${run.runNumber} ${statusText(run.status)} · ${when(run.response?.at)}`}
-                      </p>
-                      <p className="pg-response">{run.response?.text}</p>
-                    </div>
-                  ))
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="muted">{auto.noSelection}</p>
-        )}
-      </div>
-      {notice && <p className="muted pg-notice">{notice}</p>}
-    </div>
-  )
-}
+                      {auto.runNow}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
+                      disabled={busy === selected.id}
+                      onClick={() => void toggleEnabled()}
+                    >
+                      {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${LINK} ${PG_ACTION_LINK.row}`}
+                      disabled={busy === selected.id}
+                      onClick={requestDelete}
+                    >
+                      {t("pages.delete")}
+                    </button>
+                  </span>
+                </div>
+                <dl className={RT_META}>
+                  <dt className="text-muted">{t("pages.routineSchedule")}</dt>
+                  <dd>
+                    {described ?? <span className="mono">{selected.schedule}</span>}
+                    {described && <span className="mono text-muted">{`  ${selected.schedule}`}</span>}
+                  </dd>
+                  <dt className="text-muted">{t("pages.routineNext")}</dt>
+                  <dd className={selected.enabled ? "" : "text-warning"}>
+                    {selected.enabled
+                      ? Number.isFinite(nextAt)
+                        ? `${when(selected.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : "—"
+                      : auto.paused}
+                  </dd>
+                  <dt className="text-muted">{t("pages.routineProject")}</dt>
+                  <dd>{repoName(selected.repo)}</dd>
+                  {/* A script routine runs a command, not an engine: nothing is delivered anywhere. */}
+                  {!selected.script && (
+                    <>
+                      <dt className="text-muted">{t("pages.routineDelivers")}</dt>
+                      <dd>
+                        {target
+                          ? fill(auto.targetExisting, { task: titleOf(target.taskId), tab: target.tabId })
+                          : selected.persistentSession
+                            ? auto.targetStanding
+                            : auto.targetFresh}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                {selected.precheck && (
+                  <p className="mono text-muted">{fill(auto.precheck, { command: selected.precheck.command })}</p>
+                )}
+                {selected.script ? (
+                  <>
+                    <h2 className={`${KICKER} text-muted`}>{t("pages.routineScript")}</h2>
+                    <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className={`${KICKER} text-muted`}>{t("pages.routinePrompt")}</h2>
+                    <p className={RT_PROMPT}>{selected.prompt}</p>
+                  </>
+                )}
 
-/** Why the latest run did not run: the precheck's exit, duration and captured output (read-only). */
-function PrecheckDetail({ run }: { run: AutomationRun }) {
-  const { auto } = useCopy()
-  const result = run.precheckResult
-  if (!result) return null
-  const exit = result.timedOut
-    ? auto.precheckTimedOut
-    : fill(auto.precheckExited, { code: String(result.exitCode ?? "?") })
-  const streams = [
-    { label: auto.precheckStdout, text: result.stdout },
-    { label: auto.precheckStderr, text: result.stderr },
-  ].filter((stream) => stream.text.trim().length > 0)
-  return (
-    <div>
-      <h2 className="kicker">{fill(auto.precheckDetail, { exit, duration: String(result.durationMs) })}</h2>
-      {streams.length === 0 ? (
-        <p className="muted">{auto.precheckNoOutput}</p>
-      ) : (
-        streams.map((stream) => (
-          <p key={stream.label} className="pg-response mono">
-            {`${stream.label}: ${stream.text.replace(/\s+$/, "").split("\n").slice(-10).join("\n")}`}
-          </p>
-        ))
+                <RunLog
+                  c={c}
+                  tick={tick}
+                  routines={listed}
+                  followId={selected.id}
+                  now={now}
+                  when={when}
+                  openRun={openRun}
+                />
+                <RoutineRuns runs={runs} when={when} />
+              </>
+            ) : (
+              <p className="text-muted">{auto.noSelection}</p>
+            )}
+          </div>
+        </div>
       )}
+      {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
 }

@@ -7,14 +7,14 @@
  * Errors are one line on stderr + exit 1, no stack: they're user errors.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { BUNDLED_THEME_JSONS } from "../tui/context/theme/bundled"
+import { ThemeInstallError, isThemeName, parseTheme, writeUserTheme } from "../tui/context/theme/install"
 import { userThemesDir } from "../tui/context/theme/loader"
-import { validateTheme } from "../tui/context/theme/schema"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
@@ -144,40 +144,18 @@ function parseAddArgs(args: string[]): { source: string; opts: AddOpts } {
 async function addTheme(args: string[]): Promise<void> {
   const { source, opts } = parseAddArgs(args)
   const { text, defaultName } = await readSource(source)
-
-  let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    const dest = writeUserTheme(opts.name ?? defaultName, parseTheme(text), opts.force)
+    process.stdout.write(`installed theme "${opts.name ?? defaultName}" -> ${dest}\n`)
   } catch (err) {
-    fail(`source is not valid JSON: ${errorMessage(err)}`)
+    if (err instanceof ThemeInstallError) fail(err.message)
+    throw err
   }
-  const result = validateTheme(parsed)
-  if (!result.ok) {
-    fail(`source is not a valid Rove theme: ${result.reason}`)
-  }
-
-  const name = requireThemeName(opts.name ?? defaultName)
-
-  const dir = userThemesDir()
-  mkdirSync(dir, { recursive: true })
-  const dest = join(dir, `${name}.json`)
-  if (existsSync(dest) && !opts.force) {
-    fail(`${dest} already exists (pass --force to overwrite)`)
-  }
-  // Re-serialise the validated theme: strips BOM/odd whitespace, keeps key order.
-  writeFileSync(dest, `${JSON.stringify(result.theme, null, 2)}\n`, "utf8")
-  process.stdout.write(`installed theme "${name}" -> ${dest}\n`)
 }
 
-/**
- * A name safe to turn into `<userThemesDir()>/<name>.json`, or exit. `join()`
- * resolves `..`, so without this `remove '../../x/notes'` would unlink a file
- * outside the themes dir. Shared by both verbs so they can't drift.
- */
+/** A name safe to join under the themes dir, or exit. Shared by both verbs so they can't drift. */
 function requireThemeName(name: string | undefined): string {
-  if (!name || !/^[a-zA-Z0-9._-]+$/.test(name) || name === "." || name === "..") {
-    fail(`invalid theme name "${name}" (use letters, digits, '.', '_', '-')`)
-  }
+  if (!isThemeName(name)) fail(`invalid theme name "${name}" (use letters, digits, '.', '_', '-')`)
   return name
 }
 

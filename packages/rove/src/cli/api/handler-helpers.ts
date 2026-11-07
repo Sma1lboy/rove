@@ -4,6 +4,7 @@
  * handler group.
  */
 
+import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ApiError, type VerbContext } from "./types.ts"
@@ -58,10 +59,15 @@ export async function repoFilter(
   }
 }
 
-/** Fire one daemon RPC and return its raw payload (the generic CRUD shape). */
-export async function simpleRpc(ctx: VerbContext, name: string, payload: Record<string, unknown>): Promise<unknown> {
-  // biome-ignore lint/suspicious/noExplicitAny: the protocol's request name is a finite union; this is the one generic call site.
-  return daemonOf(ctx).request(name as any, payload)
+/** Fire one daemon RPC and return its raw payload (the generic CRUD shape); `T` is the caller's claim about the reply. */
+export async function simpleRpc<T = unknown>(
+  ctx: VerbContext,
+  name: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  // The verb layer names RPCs by string; the protocol's request name is a finite union.
+  const request = name as DaemonRequestName
+  return daemonOf(ctx).request<T>(request, payload)
 }
 
 /**

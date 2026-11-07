@@ -6,10 +6,56 @@
  */
 
 import { createStore, useStore } from "../store.ts"
-import { en } from "./en.ts"
-import { zh } from "./zh.ts"
+import * as artifact from "./artifact.ts"
+import * as compare from "./compare.ts"
+import * as context from "./context.ts"
+import * as dialogs from "./dialogs.ts"
+import * as machines from "./machines.ts"
+import * as panel from "./panel.ts"
+import * as prompts from "./prompts.ts"
+import * as rail from "./rail.ts"
+import * as review from "./review.ts"
+import * as runLog from "./run-log.ts"
+import * as settings from "./settings.ts"
+import * as transcript from "./transcript.ts"
+import * as usage from "./usage.ts"
+import * as workspace from "./workspace.ts"
 
 export type Locale = "en" | "zh"
+
+const parts = [
+  rail,
+  workspace,
+  dialogs,
+  panel,
+  settings,
+  compare,
+  prompts,
+  runLog,
+  usage,
+  transcript,
+  machines,
+  artifact,
+  review,
+  context,
+]
+
+/** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
+export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof rail.en &
+  typeof workspace.en &
+  typeof dialogs.en &
+  typeof panel.en &
+  typeof settings.en &
+  typeof compare.en &
+  typeof prompts.en &
+  typeof runLog.en &
+  typeof usage.en &
+  typeof transcript.en &
+  typeof machines.en &
+  typeof artifact.en &
+  typeof review.en &
+  typeof context.en
+export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }
 
@@ -25,10 +71,18 @@ function lastKnownLocale(): Locale {
   } catch {
     // No cache: the browser's language.
   }
-  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en"
+  return globalThis.navigator?.language?.toLowerCase().startsWith("zh") ? "zh" : "en"
 }
 
 export const locale = createStore<Locale>(lastKnownLocale())
+
+/** `<html lang>` follows the UI language: screen readers pick their voice and the browser its Han glyph shapes from it. */
+function syncDocumentLang(): void {
+  const root = typeof document === "undefined" ? undefined : document.documentElement
+  if (root) root.lang = locale.get() === "zh" ? "zh-CN" : "en"
+}
+syncDocumentLang()
+locale.subscribe(syncDocumentLang)
 
 function lookup(tree: unknown, key: string): string | undefined {
   let node = tree

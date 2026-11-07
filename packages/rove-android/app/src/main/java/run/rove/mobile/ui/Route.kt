@@ -11,6 +11,7 @@ sealed interface Route {
     data object Routines : Route
     data object Issues : Route
     data object Worktrees : Route
+    data object Search : Route
     data object Settings : Route
 }
 
@@ -25,7 +26,7 @@ fun ModGate.allows(route: Route): Boolean = when (route) {
 val RouteStackSaver: Saver<List<Route>, ArrayList<String>> = Saver(
     save = { stack -> stack.flatMapTo(ArrayList()) { r -> if (r is Route.Task) listOf("task", r.id, r.tab.orEmpty()) else listOf(r.toString()) } },
     restore = { flat ->
-        val pages = listOf(Route.Inbox, Route.Board, Route.Routines, Route.Issues, Route.Worktrees, Route.Settings).associateBy { it.toString() }
+        val pages = listOf(Route.Inbox, Route.Board, Route.Routines, Route.Issues, Route.Worktrees, Route.Search, Route.Settings).associateBy { it.toString() }
         val out = mutableListOf<Route>()
         var i = 0
         while (i < flat.size) {

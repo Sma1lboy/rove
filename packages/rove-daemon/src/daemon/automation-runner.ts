@@ -35,6 +35,7 @@ import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DispatchLedger } from "./dispatch-ledger.ts"
 import type { GateLedger } from "./gate-handoff.ts"
+import { ensureRoutineCwd } from "./routine-dir.ts"
 import type { SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -78,7 +79,7 @@ export function resolveDueOccurrence(
 
 /** The slice of the orchestrator this runner needs. `getTask` resolves a
  *  standing session's task before re-delivering into it. */
-export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask"> &
+export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "openDirectoryTask" | "getTask"> &
   Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type AutomationRuntime = Pick<
@@ -163,7 +164,7 @@ function emitRunEvent(
     detail: {
       automationId: automation.id,
       name: automation.name,
-      repo: automation.repo,
+      ...(automation.repo ? { repo: automation.repo } : {}),
       status,
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
@@ -254,7 +255,7 @@ export function withRoutineRunHeader(
 }
 
 /**
- * A script routine's whole run: the command in the repo, no engine. Non-empty
+ * A script routine's whole run: the command in the repo (projectless: the routine's directory), no engine. Non-empty
  * stdout is the response; a failure carries its stderr as the error. Shares
  * the precheck's shell, output cap and timeout ceiling, and like the precheck
  * it runs inside the serial sweep, so a slow script delays later routines.
@@ -269,7 +270,7 @@ async function runScript(
   now: () => number,
   env?: Readonly<Record<string, string>>,
 ): Promise<AutomationRunStatus> {
-  const result = await runAutomationPrecheck(script, automation.repo, undefined, env)
+  const result = await runAutomationPrecheck(script, await ensureRoutineCwd(automation), undefined, env)
   const stdout = result.stdout.trim()
   const response = stdout ? { response: { text: stdout, at: new Date(now()).toISOString() } } : {}
   if (precheckPassed(result)) return await record("ran", response)
@@ -332,7 +333,7 @@ export async function runAutomationOnce(
     })
 
   if (args.trigger !== "manual" && automation.precheck) {
-    const result = await runAutomationPrecheck(automation.precheck, automation.repo, undefined, env)
+    const result = await runAutomationPrecheck(automation.precheck, await ensureRoutineCwd(automation), undefined, env)
     if (!precheckPassed(result)) {
       logDaemonInfo("automation", `skip ${automation.name}: ${formatPrecheckSkip(result)}`)
       return await record("skipped_precheck", { precheckResult: result, error: formatPrecheckSkip(result) })

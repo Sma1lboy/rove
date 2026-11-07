@@ -2,6 +2,8 @@ package run.rove.mobile.ui
 
 import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -46,7 +48,7 @@ import java.util.Locale
     val connection by model.bridge.state.collectAsStateWithLifecycle()
     val connected = connection is Connection.Connected
     val taskSnapshot by model.tasks.collectAsStateWithLifecycle()
-    val task = taskSnapshot.tasks.firstOrNull { it.id == taskId }
+    val task = taskSnapshot.tasks.firstOrNull { it.id == taskId } ?: taskSnapshot.archived.firstOrNull { it.id == taskId }
     var tabs by remember(taskId) { mutableStateOf<List<TabRow>?>(null) }
     var tabStates by remember(taskId) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var diffStat by remember(taskId) { mutableStateOf<DiffStat?>(null) }
@@ -56,6 +58,7 @@ import java.util.Locale
     var revision by remember { mutableIntStateOf(0) }
     var diff by remember(taskId) { mutableStateOf(false) }
     var history by remember { mutableStateOf(false) }
+    var tabAction by remember { mutableStateOf<Pair<TabRow, TabAction>?>(null) }
     val context = LocalContext.current
     // iOS `select(tab)`: showing a tab records a visit and clears its pending attention (a decision stays until answered).
     LaunchedEffect(taskId, selected) {
@@ -68,6 +71,20 @@ import java.util.Locale
     var confirmation by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     val tabsError = stringResource(R.string.detail_tabs_error)
+    var preflight by remember(taskId) { mutableStateOf<LandPreflight?>(null) }
+    val dirtyBase = stringResource(R.string.detail_land_dirty_base)
+    // A refusal replaces the dialog instead of following a confirm. A bridge without the op, or a task on another machine, keeps the plain dialog.
+    val startLand: () -> Unit = {
+        model.action {
+            val probe = if (task?.machine != null) null else try { model.repository.landPreflight(taskId) }
+            catch (e: BridgeFailure) { if (e.code == "UNKNOWN_OP") null else throw e }
+            when {
+                probe?.refusal == LandLogic.DIRTY_BASE -> model.error.value = dirtyBase
+                probe?.refusal != null -> model.error.value = probe.message ?: probe.refusal
+                else -> { preflight = probe; action = "land"; confirmation = 1 }
+            }
+        }
+    }
     LaunchedEffect(taskId, connection, revision) {
         if (!connected) return@LaunchedEffect
         try {
@@ -109,16 +126,34 @@ import java.util.Locale
                 }
             }
             MetaStrip(task, showMode = selected != null, fit = fit, onFit = { fit = it })
-            TabStrip(tabs.orEmpty(), selected, tabStates, diffStat, connected, onSelect = { selected = it },
-                onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = { action = "land"; confirmation = 1 })
+            TabStrip(tabs.orEmpty(), selected, tabStates, diffStat, connected, onSelect = { selected = it }, onTabMenu = { tab, a -> tabAction = tab to a },
+                onNewTab = { newTab = true }, onDiff = { diff = true }, onLand = startLand)
         }
         val current = tabs?.firstOrNull { it.id == selected }
-        if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit) }
+        if (current != null) key(taskId, current.id) { TerminalView(model, taskId, current.id, current.engineName, fit, task?.atMenu(current.id) == true) }
         else if (tabs != null) NoTabState(tabs.orEmpty().isEmpty()) { newTab = true }
     }
     if (newTab) CreateSheet(model, taskId, { newTab = false }, { newTab = false; selected = it; revision++ })
     if (history) TaskHistorySheet(model, taskId) { history = false }
-    if (action != null) ConfirmDialog(action!!, confirmation, busy, task, onDismiss = { if (!busy) action = null }) {
+    tabAction?.let { (tab, kind) ->
+        val close = { tabAction = null }
+        when (kind) {
+            TabAction.Rename -> TextPrompt(stringResource(R.string.rowmenu_rename), tab.displayTitle, close) { title ->
+                model.action { model.repository.renameTab(taskId, tab.id, title); revision++ }
+            }
+            TabAction.Close -> AlertDialog(onDismissRequest = close, containerColor = Rove.c.paper,
+                title = { Text(stringResource(R.string.detail_tab_close_title, tab.displayTitle), color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
+                text = { Text(stringResource(R.string.detail_tab_close_body), color = Rove.c.muted, style = Rove.mono(13)) },
+                confirmButton = {
+                    TileLabel(stringResource(R.string.detail_tab_close), tint = Rove.c.error, onClick = {
+                        close()
+                        model.action { model.repository.closeTab(taskId, tab.id); revision++ }
+                    })
+                },
+                dismissButton = { TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close) })
+        }
+    }
+    if (action != null) ConfirmDialog(action!!, confirmation, busy, task, preflight, onDismiss = { if (!busy) action = null }) {
         if (confirmation == 1) confirmation = 2
         else if (!busy) {
             busy = true
@@ -132,6 +167,8 @@ import java.util.Locale
         }
     }
 }
+
+private enum class TabAction { Rename, Close }
 
 private data class DiffStat(val files: Int, val added: Int, val deleted: Int)
 
@@ -216,14 +253,23 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
 
 /** Terminal tabs in the TUI's bracket grammar (`[ ? codex ]`), then diff and land. */
 @Composable private fun TabStrip(tabs: List<TabRow>, selected: String?, states: Map<String, String>, diff: DiffStat?, connected: Boolean,
-                                 onSelect: (String) -> Unit, onNewTab: () -> Unit, onDiff: () -> Unit, onLand: () -> Unit) {
+                                 onSelect: (String) -> Unit, onTabMenu: (TabRow, TabAction) -> Unit, onNewTab: () -> Unit, onDiff: () -> Unit, onLand: () -> Unit) {
     val line = Rove.c.line
     Row(Modifier.fillMaxWidth().drawBehind {
         drawLine(line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
     }.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(start = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            tabs.forEach { tab -> TabLabel(tab, tab.id == selected, glyphOf(tab, states[tab.id])) { onSelect(tab.id) } }
+            tabs.forEach { tab ->
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    TabLabel(tab, tab.id == selected, glyphOf(tab, states[tab.id]), onLongClick = { if (connected) menu = true }) { onSelect(tab.id) }
+                    RoveMenu(menu, { menu = false }) {
+                        RoveMenuItem(stringResource(R.string.rowmenu_rename)) { menu = false; onTabMenu(tab, TabAction.Rename) }
+                        RoveMenuItem(stringResource(R.string.detail_tab_close)) { menu = false; onTabMenu(tab, TabAction.Close) }
+                    }
+                }
+            }
             Box(Modifier.height(32.dp).pressable(enabled = connected, onClick = onNewTab).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.detail_tab_new), color = Rove.c.muted, style = Rove.mono(13), maxLines = 1, softWrap = false)
             }
@@ -244,9 +290,10 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
     }
 }
 
-@Composable private fun TabLabel(tab: TabRow, selected: Boolean, glyph: Glyph, onClick: () -> Unit) {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable private fun TabLabel(tab: TabRow, selected: Boolean, glyph: Glyph, onLongClick: () -> Unit, onClick: () -> Unit) {
     val style = Rove.mono(13, if (selected) FontWeight.Bold else FontWeight.Normal)
-    Row(Modifier.height(32.dp).pressable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.height(32.dp).combinedClickable(onLongClick = onLongClick, onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
         Text(if (selected) "[ " else "  ", color = Rove.c.accent, style = style, softWrap = false)
         Box(Modifier.widthIn(min = 12.dp), contentAlignment = Alignment.Center) {
             if (glyph == Glyph.Working) BrailleSpinner(12)
@@ -269,7 +316,7 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
 }
 
 /** Two-step confirmation for the destructive actions: what it does, then the explicit confirm. */
-@Composable private fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, onDismiss: () -> Unit, onContinue: () -> Unit) {
+@Composable private fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, preflight: LandPreflight?, onDismiss: () -> Unit, onContinue: () -> Unit) {
     val delete = action == "delete"
     AlertDialog(onDismissRequest = onDismiss, containerColor = Rove.c.paper,
         title = {
@@ -283,8 +330,12 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
                     Text(task?.displayTitle.orEmpty(), color = Rove.c.ink, style = Rove.face(15, FontWeight.Medium))
                     if (!task?.branch.isNullOrEmpty()) Text(task!!.branch, color = Rove.c.muted, style = Rove.mono(12))
                 }
-                Text(stringResource(if (delete) R.string.detail_delete_body else R.string.detail_land_body),
-                    color = Rove.c.muted, style = Rove.face(14))
+                Text(when {
+                    delete -> stringResource(R.string.detail_delete_body)
+                    preflight == null -> stringResource(R.string.detail_land_body)
+                    preflight.ahead == 1 -> stringResource(R.string.detail_land_body_one, task?.branch.orEmpty(), preflight.landedOn)
+                    else -> stringResource(R.string.detail_land_body_many, task?.branch.orEmpty(), preflight.landedOn, LandLogic.commits(preflight))
+                }, color = Rove.c.muted, style = Rove.face(14))
             }
         },
         dismissButton = { TileLabel(stringResource(R.string.detail_cancel), onClick = onDismiss) },

@@ -3,17 +3,14 @@
  * The sidebar menu's "New conversation" / "New shell" as the TASK's workspace
  * sees it: `requestNewTab` → the mounted `useTabRequests` listener.
  *
- * The risky halves are the two the sidebar can't see — that a request aimed at
- * a task whose tabs are NOT mounted survives until they are (the sidebar
- * activates the task, so the tabs always mount a beat later), and that "shell"
- * mints the same bare command tab the ctrl+e picker's shell pick does rather
- * than an engine tab.
+ * The risky half is the one the sidebar can't see: a request aimed at a task
+ * whose tabs are NOT mounted survives until they are (the sidebar activates
+ * the task, so the tabs always mount a beat later).
  */
 
 import { expect, test } from "bun:test"
 import { requestNewTab } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { useTabRequests } from "../../src/tui-react/workspace/use-tab-requests"
-import { defaultShell } from "../../src/tui/panes/terminal/pty-types"
 import { type TabsState, initialTabs } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent, settle } from "./harness"
 
@@ -24,6 +21,8 @@ import { act, renderComponent, settle } from "./harness"
 function harnessFor(taskId: string) {
   const writes: TabsState[] = []
   const chats: number[] = []
+  const shells: number[] = []
+  const continues: number[] = []
   const stateRef = { current: initialTabs() }
   const io = {
     stateRef,
@@ -37,12 +36,14 @@ function harnessFor(taskId: string) {
     tabCloseRef: { current: { closeById: () => {} } },
     activeLeafSizeRef: { current: () => null },
     openNewConversationRef: { current: () => chats.push(1) },
+    openNewShellRef: { current: () => shells.push(1) },
+    continueInEngineRef: { current: () => continues.push(1) },
   }
   const Probe = () => {
     useTabRequests(io)
     return <text>probe</text>
   }
-  return { Probe, writes, chats, stateRef }
+  return { Probe, writes, chats, shells, continues, stateRef }
 }
 
 test("'new conversation' runs the task's ctrl+t new-conversation action", async () => {
@@ -59,8 +60,8 @@ test("'new conversation' runs the task's ctrl+t new-conversation action", async 
   expect(writes.length).toBe(0)
 })
 
-test("'new shell' mints a bare command tab, not an engine one", async () => {
-  const { Probe, writes, chats } = harnessFor("newtab-shell")
+test("'new shell' runs the task's new-shell action and leaves its own tabs alone", async () => {
+  const { Probe, writes, chats, shells } = harnessFor("newtab-shell")
   await renderComponent(<Probe />, { width: 20, height: 4 })
   await settle()
 
@@ -69,13 +70,22 @@ test("'new shell' mints a bare command tab, not an engine one", async () => {
   })
 
   expect(chats.length).toBe(0)
-  const next = writes.at(-1)
-  expect(next?.tabs.length).toBe(2)
-  const added = next?.tabs.find((tab) => tab.id === next.activeId)
-  expect(added?.kind).toBe("command")
-  // Null title: the tab is named by its live foreground process.
-  expect(added?.title).toBe(null)
-  expect(added?.kind === "command" ? added.command : []).toEqual([defaultShell()])
+  // The action owns what lands (a child task whose tab-1 is the shell); this task gains no tab.
+  expect(shells.length).toBe(1)
+  expect(writes.length).toBe(0)
+})
+
+test("'continue in another engine' opens the continue picker, not a fresh conversation", async () => {
+  const { Probe, chats, continues } = harnessFor("newtab-continue")
+  await renderComponent(<Probe />, { width: 20, height: 4 })
+  await settle()
+
+  await act(async () => {
+    requestNewTab("newtab-continue", "continue")
+  })
+
+  expect(continues.length).toBe(1)
+  expect(chats.length).toBe(0)
 })
 
 test("a request for a task whose tabs aren't mounted waits for that mount", async () => {

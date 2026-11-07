@@ -16,6 +16,7 @@ import type {
 } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { BridgeError, pushEvent } from "./protocol.ts"
+import { TermFlow } from "./terminal-flow.ts"
 
 /** The slice of `RoveDaemonClient` the forwarder uses (faked in tests). */
 export interface PtyHostClient {
@@ -39,16 +40,22 @@ export interface AttachResult {
 export class TerminalForwarder {
   private readonly attached = new Set<string>()
   private readonly offs: Array<() => void>
+  private readonly flow: TermFlow
 
   constructor(
     private readonly pty: PtyHostClient,
     private readonly send: (frame: string) => void,
   ) {
+    this.flow = new TermFlow({
+      forward: (stream, data) => this.send(pushEvent("term.data", { stream, data })),
+      reset: (stream, replay) => this.send(pushEvent("term.reset", { stream, replay })),
+      peek: (stream) => this.pty.request<PtyPeekResult>("pty.peek", { key: stream, preamble: true }),
+    })
     this.offs = [
       pty.on("pty.data", (frame) => {
         // Host-pushed frame; pty-protocol.ts owns its shape.
-        const { key, data } = frame.payload as PtyDataEventPayload
-        if (this.attached.has(key)) this.send(pushEvent("term.data", { stream: key, data }))
+        const { key, data, offset } = frame.payload as PtyDataEventPayload
+        if (this.attached.has(key)) this.flow.data(key, data, offset)
       }),
       pty.on("pty.exit", (frame) => {
         const { key, code } = frame.payload as PtyExitEventPayload
@@ -57,13 +64,17 @@ export class TerminalForwarder {
     ]
   }
 
-  /** `leafId` = a split pane of the tab: its session is `<taskId>::<tabId>::<leafId>`. */
+  /**
+   * `leafId` = a split pane of the tab: its session is `<taskId>::<tabId>::<leafId>`.
+   * `acks`: the page sends `term.ack` for what it parsed, so the stream is flow-controlled (terminal-flow.ts).
+   */
   async attach(
     taskId: string,
     tabId: string,
     cwd: string,
     size?: { cols: number; rows: number },
     leafId?: string,
+    acks = false,
   ): Promise<AttachResult> {
     const stream = leafId ? `${taskId}::${tabId}::${leafId}` : `${taskId}::${tabId}`
     // No PTY host process holds no sessions: the tab is not live, and reviving it starts the host.
@@ -84,6 +95,7 @@ export class TerminalForwarder {
     // The sink is registered before the replay is cut (synchronously, host
     // side), so live `pty.data` after this response never overlaps the replay.
     this.attached.add(stream)
+    if (acks) this.flow.watch(stream)
     try {
       const open = await this.pty.request<PtyOpenResult>("pty.open", {
         key: stream,
@@ -93,6 +105,7 @@ export class TerminalForwarder {
       return { stream, alive: open.alive, replay: open.replay }
     } catch (err) {
       this.attached.delete(stream)
+      this.flow.forget(stream)
       throw err
     }
   }
@@ -107,13 +120,20 @@ export class TerminalForwarder {
     await this.pty.request("pty.resize", { key: stream, cols, rows })
   }
 
+  /** The page parsed `chars` more base64 chars of this stream's output. */
+  ack(stream: string, chars: number): void {
+    this.flow.ack(stream, chars)
+  }
+
   async detach(stream: string): Promise<void> {
     if (!this.attached.delete(stream)) return
+    this.flow.forget(stream)
     await this.pty.request("pty.detach", { key: stream })
   }
 
   dispose(): void {
     for (const off of this.offs) off()
+    for (const stream of this.attached) this.flow.forget(stream)
     this.attached.clear()
     // Closing the socket detaches every key this connection held.
     this.pty.close()

@@ -32,8 +32,8 @@ describe("releaseNotesMarkdown", () => {
       // page prints a raw URL — the wall of addresses this transform exists
       // to remove.
       expect(rendered, `v${version}`).not.toContain("](")
-      expect(rendered, `v${version}`).not.toContain("/pull/")
-      expect(rendered, `v${version}`).not.toContain("/commit/")
+      // A link's address, not prose that quotes a PR path (`github.com/acme/app/pull/7`).
+      expect(rendered, `v${version}`).not.toMatch(/https?:\/\/\S+\/(pull|commit)\//)
     }
   })
 

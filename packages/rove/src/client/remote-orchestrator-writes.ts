@@ -38,6 +38,8 @@ export async function createTaskOp(
     model?: string
     tier?: string
     groupId?: string
+    /** Clone this task's worktree, uncommitted work included (`add --fork`). */
+    forkFrom?: string
   },
 ): Promise<Task> {
   // The wire spells `modelEffort` as `effort`.
@@ -66,6 +68,19 @@ export async function openDirectoryTaskOp(
 /** Scratch → project migration: repoint + clear the flag. */
 export async function adoptScratchRepoOp(client: RoveDaemonClient, id: TaskId | string, repo: string): Promise<void> {
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
+}
+
+/** Regroup a top-level task under another project; sessions and checkouts stay where they are. */
+export async function moveTaskToProjectOp(
+  client: RoveDaemonClient,
+  id: TaskId | string,
+  repo: string,
+): Promise<{ repo: string; moved: readonly string[] }> {
+  const res = await client.request<{ repo: string; moved: readonly string[] }>("task.moveToProject", {
+    taskId: String(id),
+    repo,
+  })
+  return { repo: res.repo, moved: res.moved }
 }
 
 export async function ensureWorktreeOp(client: RoveDaemonClient, id: TaskId | string): Promise<string> {
@@ -405,20 +420,22 @@ export async function mutateIssueOp(client: RoveDaemonClient, repoRoot: string, 
 }
 
 /** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
- *  for a never-run routine (row health without a request per row). */
+ *  for a never-run routine (row health without a request per row); `lastFailure`
+ *  = the newest failure among recent runs, absent when none failed. */
 export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
   automations: Automation[]
   keepsDaemonAlive: boolean
   lastRunStatus?: Record<string, AutomationRunStatus>
+  lastFailure?: Record<string, { readonly at: string; readonly reason: string }>
 }> {
   return client.request("automation.list", {})
 }
 
-/** Create a schedule (`automation.create`). The daemon validates the cron and
- *  rejects an expression that parses but never fires. */
+/** Create a schedule (`automation.create`); no `repo` = a projectless routine. The daemon validates
+ *  the cron and rejects an expression that parses but never fires. */
 export async function createAutomationOp(
   client: RoveDaemonClient,
-  input: { repo: string; name: string; prompt: string; schedule: string },
+  input: { repo?: string; name: string; prompt: string; schedule: string },
 ): Promise<{ automation: Automation }> {
   return client.request("automation.create", input)
 }

@@ -117,6 +117,7 @@ export function useAttention(args: {
         // A dispatched sub-task's completion lands in the Inbox without a
         // chime: it is fleet work, not the task you are on.
         silent: task?.dispatcher !== undefined,
+        turnEnd: true,
       })
     }
   }, [engineState, engineTabState, selectedId, tasks, kv, notif])

@@ -22,6 +22,7 @@ import type { DeliveryDeps } from "./delivery-ops.ts"
 import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import { GraphicsImageIds } from "./graphics-ids.ts"
+import { pasteQueued } from "./handlers-queue.ts"
 import {
   type DaemonHandlerContext,
   createDaemonHandlerRegistry,
@@ -36,16 +37,19 @@ import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
-import { type DaemonFrame, type DaemonStopReason, type DaemonStoppingPayload, serializeTask } from "./protocol.ts"
+import { PromptQueue } from "./prompt-queue.ts"
+import type { DaemonFrame } from "./protocol.ts"
 import { aliasedKeys } from "./pty-alias.ts"
 import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
 import { RowStatusStore } from "./row-status-store.ts"
 import { createDispatchRunnability } from "./runnability.ts"
+import { serializeTask } from "./serialize-task.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { DaemonResources } from "./server-resources.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
+import type { DaemonStopReason, DaemonStoppingPayload } from "./stop-reason.ts"
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
@@ -165,6 +169,7 @@ async function startOwnedServer(
   resources.defer(() => rowStatus.close())
   resources.defer(() => stores.dispatches.close())
   resources.defer(() => deletions.drain())
+  resources.defer(() => stores.checkpoints.drain())
   resources.defer(async () => {
     await Promise.allSettled(requests)
   })
@@ -362,6 +367,7 @@ async function startOwnedServer(
       ...stores,
       rowStatus,
       selfLink,
+      promptQueue,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
       tabCloses,
@@ -390,6 +396,13 @@ async function startOwnedServer(
   // In-process RPC client; unconditional because automations launch engine
   // sessions whether or not anyone is attached.
   const selfLink = createDirectLink({ ctx: handlerContext })
+  // Reads the context lazily: a hand-over only happens on a turn event, after construction settles.
+  const promptQueue = new PromptQueue(
+    bus,
+    (taskId, tabId) => activity.stateOf(taskId, tabId),
+    (item) => pasteQueued(handlerContext(0), item),
+  )
+  resources.defer(() => promptQueue.close())
 
   // BIND LAST: dispatch starts the instant this resolves and reads the
   // `handlers`/`selfLink` consts, so reaching them early is a ReferenceError

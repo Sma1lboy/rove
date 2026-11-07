@@ -13,13 +13,27 @@ test("replies xterm makes while it parses the replayed ring never reach the app"
     parsed = done
   })
 
-  // Old `ESC[c`, `ESC[6n` and `ESC[?2004$p` from the previous process, answered as xterm parses them.
+  // Old `ESC[c`, `ESC[6n`, `ESC[?2004$p`, OSC 11 and XTVERSION from the previous process, answered as xterm parses them.
   g.forward("\x1b[?1;2c")
   g.forward("\x1b[12;1R")
   g.forward("\x1b[?2004;2$y")
+  g.forward("\x1b]11;rgb:1414/1414/1313\x1b\\")
+  g.forward("\x1bP>|xterm.js(6.0.0)\x1b\\")
   parsed()
 
   expect(g.sent).toEqual([])
+})
+
+test("keys typed while a replay parses still reach the app", () => {
+  const g = gate()
+  g.replay(() => {})
+
+  // Ctrl+C on a flood lands mid-repaint; arrows and text too.
+  g.forward("\x03")
+  g.forward("\x1b[A")
+  g.forward("q")
+
+  expect(g.sent).toEqual(["\x03", "\x1b[A", "q"])
 })
 
 test("keys and cursor-position replies go through once the replay is parsed", () => {

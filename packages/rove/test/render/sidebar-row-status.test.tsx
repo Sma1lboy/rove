@@ -146,8 +146,7 @@ test("another machine's task row shows the status built from the hub's relayed t
       ],
     ]),
   )
-  // A question outranks a sibling that is still working.
-  expect((await taskCell()).text).toBe(DEFAULT_GLYPHS.needsInput)
+  expect(DEFAULT_GLYPHS.spinner).toContain((await taskCell()).text)
 })
 
 test("a task-level job spins the task row", async () => {

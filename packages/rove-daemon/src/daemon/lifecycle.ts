@@ -8,8 +8,9 @@
 
 import { unlink } from "node:fs/promises"
 import { RoveDaemonClient } from "../client/index.ts"
-import { type DaemonStopReason, PTY_STOP_REFUSED } from "./protocol.ts"
+import { PTY_STOP_REFUSED } from "./protocol.ts"
 import { isProcessAlive, readPidFile } from "./socket-guard.ts"
+import type { DaemonStopReason } from "./stop-reason.ts"
 
 /**
  * The strongest signal {@link stopDaemonProcess} needed. `"absent"`: no live

@@ -1,23 +1,34 @@
 // First import: takes the token out of the address bar before anything else runs.
 import { storedToken } from "./auth.ts"
 import "@fontsource/jetbrains-mono/400.css"
+import "@fontsource/jetbrains-mono/500.css"
+import "@fontsource/jetbrains-mono/600.css"
 import "@fontsource/jetbrains-mono/700.css"
-import "./styles.css"
-import "./overlays.css"
-import "./files.css"
-import "./settings.css"
-import "./workspace.css"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { App, ConnectScreen } from "./app.tsx"
+import { App } from "./app.tsx"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
+import { ConnectScreen } from "./connect-view.tsx"
+import { trapDialogFocus } from "./focus-trap.ts"
+import { watchLeaving } from "./leave.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
+import { longPressOpensMenus } from "./long-press.ts"
 import { AppModel } from "./model.ts"
+import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
+import { revealScrollbarsOnScroll } from "./scroll-reveal.ts"
 import { watchBridgeVersion } from "./version-reload.ts"
+import { followVisualViewport } from "./viewport.ts"
+// The one stylesheet: tokens, reset and the Tailwind theme.
+import "./tailwind.css"
 
 const root = createRoot(document.getElementById("root") as HTMLElement)
+followVisualViewport()
+longPressOpensMenus()
+revealScrollbarsOnScroll()
+watchLeaving()
+trapDialogFocus()
 const token = storedToken()
 if (!token) {
   // With a password set on the host, a page without a token signs in instead of asking for the link.
@@ -31,6 +42,8 @@ if (!token) {
   client.on("prompt", (data) => {
     if (isPromptPush(data)) openPrompt(client, data)
   })
+  // The side panel's layout goes to the daemon, and `rove api panel-show` reaches the panel.
+  watchPanel(model, client)
   // An upgrade restarts the bridge under the open page: reload once into the new client.
   watchBridgeVersion(client)
   client.start()

@@ -1,0 +1,23 @@
+# kit.sma1lboy.me: team X promo library. Deploy: bunx wrangler deploy
+# Secret: bunx wrangler secret put UPLOAD_TOKEN   (same value as PROMO_KIT_TOKEN in ~/.env)
+name = "promo-kit"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+workers_dev = false
+preview_urls = false
+
+routes = [{ pattern = "kit.sma1lboy.me", custom_domain = true }]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "promo-kit"
+
+# Access app "promo-kit" on team sma1lboy. Emptying either var makes every browser request 403.
+[vars]
+ACCESS_TEAM = "sma1lboy"
+ACCESS_AUD = "eb26eb5e7abebc5966d8febbc16a6d5a10c481e6aaf32fbfb1ccdf83b4fa4be9"

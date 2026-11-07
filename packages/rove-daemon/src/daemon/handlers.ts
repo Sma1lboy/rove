@@ -23,6 +23,7 @@ import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
+import type { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -32,17 +33,24 @@ import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
 import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { DISPATCH_HANDLERS } from "./handlers-dispatch.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
+import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { QUEUE_HANDLERS } from "./handlers-queue.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
 import { ARCHIVE_HANDLERS } from "./handlers-task-archive.ts"
+import { FIELD_HANDLERS } from "./handlers-task-fields.ts"
+import { SCHEDULE_HANDLERS } from "./handlers-task-schedule.ts"
+import { SCRATCH_HANDLERS } from "./handlers-task-scratch.ts"
+import { SESSION_PR_HANDLERS } from "./handlers-task-session-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -50,20 +58,20 @@ import { WORKTREE_HANDLERS } from "./handlers-worktree.ts"
 import type { IssuesStore } from "./issues-store.ts"
 import type { NotesStore } from "./notes-store.ts"
 import { defaultPtyHostSocketPath } from "./paths.ts"
+import type { PromptQueue } from "./prompt-queue.ts"
 import {
   CHANNEL_NAMES,
   DAEMON_PROTOCOL_VERSION,
   type DaemonError,
   type DaemonRequestName,
-  type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   ROVE_API_VERSION,
   isProtocolCompatible,
-  parseDaemonStopReason,
-  serializeTask,
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { serializeTask } from "./serialize-task.ts"
+import { type DaemonStopReason, parseDaemonStopReason } from "./stop-reason.ts"
 import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
 import type { WorkItemCache } from "./work-items.ts"
@@ -101,8 +109,12 @@ export interface DaemonHandlerContext {
   readonly rowStatus?: import("./row-status-store.ts").RowStatusStore
   /** Prompts sessions handed each other and how far each got (absent in older test doubles). */
   readonly dispatches?: import("./dispatch-ledger.ts").DispatchLedger
+  /** Prompts held for a busy tab until its turn ends (`send --queue`; absent in older test doubles). */
+  readonly promptQueue?: PromptQueue
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
+  /** Per-task serializer for checkpoint snapshots and rewinds. */
+  readonly checkpoints: CheckpointQueue
   /** Daemon-owned issue tracker store, keyed by git common-dir. */
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
@@ -307,12 +319,18 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
+    ...SCHEDULE_HANDLERS,
+    ...FIELD_HANDLERS,
+    ...CHECKPOINT_HANDLERS,
+    ...SESSION_PR_HANDLERS,
+    ...SCRATCH_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...GATE_HANDLERS,
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
     ...DISPATCH_HANDLERS,
+    ...QUEUE_HANDLERS,
     ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
@@ -321,6 +339,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...ISSUE_HANDLERS,
     ...TAB_HANDLERS,
     ...ROW_STATUS_HANDLERS,
+    ...PANEL_HANDLERS,
     ...PR_HANDLERS,
     {
       // `rove api inspect`: raw transient state, read-only. Wire payloads hide

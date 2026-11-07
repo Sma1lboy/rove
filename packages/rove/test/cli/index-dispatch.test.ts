@@ -49,7 +49,8 @@ let errorSpy: MockInstance
 async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/rove/src/cli/index.ts", ...args]
   vi.resetModules()
-  await import("../../src/cli/index.ts")
+  const { cliDone } = await import("../../src/cli/index.ts")
+  await cliDone.catch(() => {})
   // Bare launch performs sequential dynamic imports (terminal-title, the
   // TUI, then the deferred welcome installs). Drain enough turns for that
   // fire-and-forget main() chain to settle before assertions run.

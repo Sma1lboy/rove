@@ -267,4 +267,12 @@ final class TaskActionsTests: XCTestCase {
         XCTAssertEqual(n[3].text, "")
         XCTAssertTrue(try decode(#"{"notes":[]}"#, as: NotesResult.self).notes.isEmpty)
     }
+
+    func testSyncFailureNamesTheFilesToResolve() {
+        XCTAssertTrue(L.syncFailure("SYNC_CONFLICT: a.ts b.ts").contains("a.ts b.ts"))
+        XCTAssertTrue(L.syncFailure("SYNC_WORKTREE_DIRTY: c.ts").contains("c.ts"))
+        XCTAssertTrue(L.syncFailure("boom").contains("boom"))
+        XCTAssertFalse(L.menu(kind: "main", pinned: false, branch: "main", detail: nil).syncBase)
+        XCTAssertTrue(L.menu(kind: "task", pinned: false, branch: "b", detail: nil).syncBase)
+    }
 }

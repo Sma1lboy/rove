@@ -22,27 +22,23 @@ import {
   stepSegment,
 } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import { useLocale } from "./i18n/index.ts"
-import { fill, projectLabel, repoKey, useCopy } from "./pages-kit.ts"
+import { t, useLocale } from "./i18n/index.ts"
+import { deviceHint } from "./key-hints.ts"
+import { projectLabel, repoKey, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { SelectorField } from "./selector-field.tsx"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { FIELD } from "./ui/form.ts"
+import { KB_DRAWER, KB_HINT, KB_LABEL, KB_LEGEND, KB_PLACES, kbPlaceClass } from "./ui/kanban.ts"
+import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { RT_CRON, RT_CRON_STEP, RT_CRON_STEP_BUTTON, rtCronCellClass } from "./ui/routines.ts"
+import { ACTIONS, INPUT, KICKER, LINK } from "./ui/text.ts"
 
 export interface TargetTask {
   readonly id: string
   readonly title: string
   readonly repo: string
-}
-
-/** The TUI's `t("automations.x")` over the web copy: `cron-core` asks for keys by their TUI path. */
-function useCronTranslate() {
-  const { auto } = useCopy()
-  return (key: string, params?: Record<string, string | number>): string => {
-    let node: unknown = auto
-    for (const part of key.replace(/^automations\./, "").split(".")) {
-      node = node && typeof node === "object" ? Reflect.get(node, part) : undefined
-    }
-    return typeof node === "string" ? (params ? fill(node, params) : node) : key
-  }
 }
 
 export function RoutineComposer(props: {
@@ -59,7 +55,7 @@ export function RoutineComposer(props: {
     repo:
       props.repos.find((repo) => props.defaultRepo && repoKey(repo) === repoKey(props.defaultRepo)) ??
       props.repos[0] ??
-      "",
+      null,
   }))
   const [cell, setCell] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +86,7 @@ export function RoutineComposer(props: {
       closeDialog()
       props.onSubmit({
         name: draft.name.trim(),
-        repo: draft.repo.trim(),
+        repo: draft.repo === null ? null : draft.repo.trim(),
         prompt: draft.prompt.trim(),
         schedule: draft.schedule.trim(),
         ...(draft.target ? { target: draft.target } : {}),
@@ -105,17 +101,19 @@ export function RoutineComposer(props: {
     }
   }
 
-  const targets = props.tasks.filter((task) => repoKey(task.repo) === repoKey(draft.repo))
+  const targets =
+    draft.repo === null ? [] : props.tasks.filter((task) => repoKey(task.repo) === repoKey(draft.repo ?? ""))
   const targetIndex = draft.target ? targets.findIndex((task) => task.id === draft.target?.taskId) + 1 : 0
   const pickTarget = (delta: number) => {
     const index = (targetIndex + delta + targets.length + 1) % (targets.length + 1)
     const task = targets[index - 1]
     patch({ target: task ? { kind: "existing-tab", taskId: task.id, tabId: "tab-1" } : undefined })
   }
+  const places: readonly (string | null)[] = [null, ...props.repos]
   const pickRepo = (delta: number) => {
-    const index = Math.min(Math.max(props.repos.indexOf(draft.repo) + delta, 0), props.repos.length - 1)
-    const repo = props.repos[index]
-    if (repo) patch({ repo, target: undefined })
+    const index = Math.min(Math.max(places.indexOf(draft.repo) + delta, 0), places.length - 1)
+    const next = places[index]
+    if (next !== undefined) patch({ repo: next, target: undefined })
   }
   const lists = (step: (delta: number) => void) => (e: KeyboardEvent) => {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
@@ -128,30 +126,32 @@ export function RoutineComposer(props: {
     refs.current[next]?.focus()
   }
   const segments = splitCron(draft.schedule)
+  const stepCell = (delta: 1 | -1) => {
+    const segment = CRON_SEGMENTS[cell]
+    if (segment)
+      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
+  }
   const scheduleKeys = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    const segment = CRON_SEGMENTS[cell]
     if (e.key === "ArrowLeft" || e.key === "h") setCell(moveSegmentCursor(cell, -1))
     else if (e.key === "ArrowRight" || e.key === "l") setCell(moveSegmentCursor(cell, 1))
-    else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && segment) {
-      const delta = e.key === "ArrowUp" ? 1 : -1
-      patch({ schedule: setSegment(draft.schedule, cell, stepSegment(segment, segments[cell] ?? "*", delta)) })
-    } else return
+    else if (e.key === "ArrowUp" || e.key === "ArrowDown") stepCell(e.key === "ArrowUp" ? 1 : -1)
+    else return
     e.preventDefault()
   }
   const preview = previewScheduleWith(draft.schedule, Date.now(), tr, intl)
   const described = describeCronWith(draft.schedule, tr)
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog open className="dialog is-wide kb-drawer" aria-label={auto.newTitle}>
-        <h1 className="kicker">{auto.newTitle}</h1>
-        <div className="dialog-body">
-          <label className="field">
-            <span className="kicker">{auto.fieldName}</span>
+    <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
+      <dialog open className={`${dialogClass(true)} ${KB_DRAWER}`} aria-label={auto.newTitle}>
+        <h1 className={`${KICKER} text-muted`}>{auto.newTitle}</h1>
+        <div className={DIALOG_BODY}>
+          <label className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{auto.fieldName}</span>
             <input
               ref={at("name")}
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.namePlaceholder}
               value={draft.name}
@@ -159,44 +159,40 @@ export function RoutineComposer(props: {
               onKeyDown={nextOnEnter("repo")}
             />
           </label>
-          <div className="field">
-            <span className="kicker kb-label">
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldRepo}
-              {props.repos.length > 0 && <span className="muted kb-hint">↑/↓</span>}
+              <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
             </span>
-            {props.repos.length === 0 ? (
-              <p className="muted">{auto.needRepo}</p>
-            ) : (
-              <SelectorField
-                fieldRef={at("repo")}
-                kind="list"
-                label={auto.fieldRepo}
-                className="kb-places"
-                onKeyDown={lists(pickRepo)}
-              >
-                {props.repos.map((repo) => (
-                  <button
-                    type="button"
-                    key={repo}
-                    tabIndex={-1}
-                    aria-selected={repo === draft.repo}
-                    className={`kb-place ${repo === draft.repo ? "is-active" : ""}`}
-                    onClick={() => {
-                      patch({ repo, target: undefined })
-                      refs.current.repo?.focus()
-                    }}
-                  >
-                    {repo === draft.repo ? "▸ " : "  "}
-                    {projectLabel(repo, props.repos)}
-                  </button>
-                ))}
-              </SelectorField>
-            )}
+            <SelectorField
+              fieldRef={at("repo")}
+              kind="list"
+              label={auto.fieldRepo}
+              className={KB_PLACES}
+              onKeyDown={lists(pickRepo)}
+            >
+              {places.map((repo) => (
+                <button
+                  type="button"
+                  key={repo ?? ""}
+                  tabIndex={-1}
+                  aria-selected={repo === draft.repo}
+                  className={`touch:py-1.5 ${kbPlaceClass(repo === draft.repo)}`}
+                  onClick={() => {
+                    patch({ repo, target: undefined })
+                    refs.current.repo?.focus()
+                  }}
+                >
+                  {repo === draft.repo ? "▸ " : "  "}
+                  {repo === null ? t("rail.noProject") : projectLabel(repo, props.repos)}
+                </button>
+              ))}
+            </SelectorField>
           </div>
-          <div className="field">
-            <span className="kicker kb-label">
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldTarget}
-              <span className="muted kb-hint">↑/↓</span>
+              <span className={`keys-only text-muted ${KB_HINT}`}>↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("target")}
@@ -209,11 +205,11 @@ export function RoutineComposer(props: {
             </SelectorField>
           </div>
           {draft.target && (
-            <label className="field">
-              <span className="kicker">{auto.fieldTargetTab}</span>
+            <label className={FIELD}>
+              <span className={`${KICKER} text-muted`}>{auto.fieldTargetTab}</span>
               <input
                 ref={at("targetTab")}
-                className="input"
+                className={INPUT}
                 spellCheck={false}
                 value={draft.target.tabId}
                 onChange={(e) => draft.target && patch({ target: { ...draft.target, tabId: e.target.value } })}
@@ -221,11 +217,11 @@ export function RoutineComposer(props: {
               />
             </label>
           )}
-          <label className="field">
-            <span className="kicker">{auto.fieldPrompt}</span>
+          <label className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{auto.fieldPrompt}</span>
             <input
               ref={at("prompt")}
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={auto.promptPlaceholder}
               value={draft.prompt}
@@ -233,16 +229,16 @@ export function RoutineComposer(props: {
               onKeyDown={nextOnEnter("schedule")}
             />
           </label>
-          <div className="field">
-            <span className="kicker kb-label">
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted ${KB_LABEL}`}>
               {auto.fieldSchedule}
-              <span className="muted kb-hint">←/→ ↑/↓</span>
+              <span className={`keys-only text-muted ${KB_HINT}`}>←/→ ↑/↓</span>
             </span>
             <SelectorField
               fieldRef={at("schedule")}
               kind="cells"
               label={auto.fieldSchedule}
-              className="pg-cron"
+              className={RT_CRON}
               onKeyDown={scheduleKeys}
             >
               {CRON_SEGMENTS.map((segment, index) => (
@@ -250,7 +246,7 @@ export function RoutineComposer(props: {
                   type="button"
                   key={segment}
                   tabIndex={-1}
-                  className={index === cell ? "is-active" : ""}
+                  className={rtCronCellClass(index === cell)}
                   onClick={() => {
                     setCell(index)
                     refs.current.schedule?.focus()
@@ -261,22 +257,45 @@ export function RoutineComposer(props: {
                 </button>
               ))}
             </SelectorField>
+            {/* A soft keyboard has no arrows: on touch the picked field steps with these instead. */}
+            <div className={RT_CRON_STEP}>
+              {([-1, 1] as const).map((delta) => {
+                const field = auto.cronField[CRON_SEGMENTS[cell] ?? "minute"] ?? ""
+                return (
+                  <button
+                    type="button"
+                    key={delta}
+                    tabIndex={-1}
+                    className={RT_CRON_STEP_BUTTON}
+                    aria-label={t(delta < 0 ? "pages.cronDown" : "pages.cronUp", { field })}
+                    onClick={() => {
+                      stepCell(delta)
+                      refs.current.schedule?.focus()
+                    }}
+                  >
+                    {delta < 0 ? "−" : "+"}
+                  </button>
+                )
+              })}
+            </div>
             {preview.kind === "ok" ? (
-              <p className="tone-success mono">
-                {described ? `${described} · ` : ""}
-                {preview.relative} · {preview.absolute}
+              <p className="mono text-success">
+                {described ? `${described}, ` : ""}
+                {preview.relative}, {preview.absolute}
               </p>
             ) : (
-              <p className="error mono">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
+              <p className="mono text-error">{preview.kind === "never" ? auto.cronNever : auto.cronInvalid}</p>
             )}
           </div>
-          {error && <p className="error">※ {error}</p>}
-          <p className="muted kb-legend">{auto.composerLegend}</p>
-          <div className="actions">
-            <button type="button" className="link" onClick={closeDialog}>
+          {error && <p className="text-error">※ {error}</p>}
+          <p className={`touch:empty:hidden! text-muted ${KB_LEGEND}`}>
+            <Legend text={deviceHint(auto.composerLegend)} />
+          </p>
+          <div className={ACTIONS}>
+            <button type="button" className={LINK} onClick={closeDialog}>
               {common.cancel}
             </button>
-            <button ref={at("confirm")} type="button" className="button" onClick={commit}>
+            <button ref={at("confirm")} type="button" className={buttonClass()} onClick={commit}>
               {common.create}
             </button>
           </div>
