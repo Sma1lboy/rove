@@ -9,6 +9,7 @@
 import { useRef, useState, useSyncExternalStore } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
+import { DictationButton } from "./dictation-button.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -16,7 +17,7 @@ import { useStore } from "./store.ts"
 import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
 import { QueuedChips } from "./term-queue.tsx"
 import { toast } from "./ui.ts"
-import { COMPOSER_ATTACH, ClipGlyph, TermComposerBar } from "./ui/term-composer.tsx"
+import { COMPOSER_ATTACH, ClipGlyph, TermComposerBar, composerDictate } from "./ui/term-composer.tsx"
 
 interface SendReply {
   readonly delivered: boolean
@@ -27,7 +28,8 @@ interface SendReply {
 
 export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId: string; tabId: string }) {
   // Another machine's rows are read-only here, as in the TUI: nothing is sent to them.
-  const local = useStore(model.tasks)?.tasks.some((task) => task.id === taskId) ?? false
+  const task = useStore(model.tasks)?.tasks.find((row) => row.id === taskId)
+  const local = task !== undefined
   const key = draftKey(taskId, tabId)
   const text = useSyncExternalStore(subscribeDrafts, () => getDraft(key))
   const [busy, setBusy] = useState(false)
@@ -40,6 +42,16 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     area: field,
     listClassName: "m-0",
   })
+  // Lands at the caret of the draft and never sends: on a phone you read it before it goes to the engine.
+  const insertDictated = (spoken: string) => {
+    const el = field.current
+    const at = el?.selectionStart ?? text.length
+    const end = el?.selectionEnd ?? text.length
+    const glue = at > 0 && !/\s$/.test(text.slice(0, at)) ? " " : ""
+    setDraft(key, `${text.slice(0, at)}${glue}${spoken}${text.slice(end)}`)
+    const caret = at + glue.length + spoken.length
+    requestAnimationFrame(() => el?.setSelectionRange(caret, caret))
+  }
   const send = async () => {
     const prompt = withRefs(text.trim(), attachments).trim()
     if (!prompt) return
@@ -93,6 +105,15 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
           <span className="sr-only">{t("layout.composerAttach")}</span>
           <ClipGlyph />
         </AttachPicker>
+      }
+      dictate={
+        <DictationButton
+          client={model.client}
+          context={() => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · ")}
+          onText={insertDictated}
+          disabled={busy}
+          look={composerDictate}
+        />
       }
       composerKey={key}
       fieldRef={field}

@@ -25,6 +25,9 @@ export const chipClass = (on = false): string =>
   }`
 /** Only the toggle dims when disabled. */
 export const TOGGLE_DISABLED = "disabled:cursor-default disabled:opacity-60"
+/** The dictate chip: wide enough that `Stop 0:12` does not resize it while recording. */
+export const dictateChip = (recording: boolean): string =>
+  `${chipClass(recording)} min-w-[9ch] justify-center ${TOGGLE_DISABLED}`
 
 /** `group/chip`: the bar's last popover opens leftward from its chip's right edge. */
 export const CHIP_WRAP = "group/chip relative inline-flex"

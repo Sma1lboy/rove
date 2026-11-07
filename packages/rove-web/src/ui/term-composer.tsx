@@ -19,6 +19,12 @@ const SEND =
 export const COMPOSER_ATTACH =
   "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60"
 
+/** The dictate control's box: the attach box's height and border, wide enough for `Stop 0:12`. */
+export const composerDictate = (recording: boolean): string =>
+  `flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border-hairline bg-inset px-2.5 font-sans text-meta touch-manipulation disabled:opacity-60 ${
+    recording ? "border-accent text-accent" : "border-line text-muted"
+  }`
+
 export function ClipGlyph() {
   return (
     <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current stroke-[1.4]" aria-hidden="true">
@@ -38,6 +44,8 @@ export function TermComposerBar(props: {
   attached?: ReactNode
   /** The file picker, boxed in `COMPOSER_ATTACH`. */
   attach: ReactNode
+  /** Dictation, boxed in `composerDictate`; it fills the field and never sends. */
+  dictate?: ReactNode
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
   onPaste: (e: ClipboardEvent) => void
   onSelect?: (e: { currentTarget: HTMLTextAreaElement }) => void
@@ -62,6 +70,7 @@ export function TermComposerBar(props: {
       {props.suggest && <div className={SUGGEST}>{props.suggest}</div>}
       <div className={ROW}>
         {props.attach}
+        {props.dictate}
         <textarea
           ref={props.fieldRef}
           className={FIELD}
