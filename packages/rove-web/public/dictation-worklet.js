@@ -9,7 +9,7 @@ class RoveCapture extends AudioWorkletProcessor {
   }
 
   process(inputs) {
-    const channel = inputs[0] && inputs[0][0]
+    const channel = inputs[0]?.[0]
     if (channel) {
       if (this.n + channel.length > this.buf.length) {
         const grown = new Float32Array(this.buf.length * 2)
