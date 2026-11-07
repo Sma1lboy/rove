@@ -87,8 +87,9 @@ function lockDown(origin: string): void {
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback, details) => {
     callback(allowed.has(permission) && ours(details.requestingUrl))
   })
+  // `requestingOrigin` arrives as a URL (`http://127.0.0.1:port/`), not a bare origin: compare parsed.
   session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
-    return allowed.has(permission) && requestingOrigin === origin
+    return allowed.has(permission) && ours(requestingOrigin)
   })
   app.on("web-contents-created", (_event, contents) => {
     contents.on("will-attach-webview", (event) => event.preventDefault())
