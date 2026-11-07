@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { DictationButton } from "./dictation-button.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
@@ -122,6 +123,20 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [error, setError] = useState<string | null>(null)
   const { attachments, attach, remove, clear } = useAttachments(model, setError)
   const area = useRef<HTMLTextAreaElement>(null)
+
+  // Dictation lands at the caret and never submits: you read it before it goes anywhere.
+  const insertDictated = (text: string) => {
+    const el = area.current
+    const at = el?.selectionStart ?? prompt.length
+    const end = el?.selectionEnd ?? prompt.length
+    const glue = at > 0 && !/\s$/.test(prompt.slice(0, at)) ? " " : ""
+    setPrompt(`${prompt.slice(0, at)}${glue}${text}${prompt.slice(end)}`)
+    const caret = at + glue.length + text.length
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(caret, caret)
+    })
+  }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
@@ -444,6 +459,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           {!remote && !ungrouped && !picks.comparing && (
             <LaterControl disabled={busy} onSchedule={(at) => void start(false, at)} onInvalid={setError} />
           )}
+          <DictationButton
+            client={model.client}
+            context={() => [primary, branchName, remotePick?.ref ?? "", prompt.slice(-120)].filter(Boolean).join(" · ")}
+            onText={insertDictated}
+            disabled={busy}
+          />
           <span className={C.GROW} />
           <EngineChip choice={choice} picks={picks} available={compareAvailable} />
           {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
