@@ -1,11 +1,33 @@
 /** One code row of the diff view, memoised: a cursor move re-renders the rows it touches, not the whole diff. */
 
-import { type MouseEvent, type ReactNode, memo } from "react"
+import { type MouseEvent, type ReactNode, memo, useMemo, useRef } from "react"
 import { DiffNoteLine } from "./diff-row-actions.tsx"
 import type { DiffRow } from "./diff.ts"
 import { t } from "./i18n/index.ts"
 import type { Note } from "./review-notes.ts"
 import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+
+export interface RowHandlers {
+  rowClick: (index: number, e: MouseEvent) => void
+  fileClick: (index: number, path: string | null) => void
+  viewedClick: (path: string) => void
+  editNote: (note: Note) => void
+}
+
+/** This render's handlers behind identities that never change, so the memoised rows skip re-rendering. */
+export function useRowHandlers(handlers: RowHandlers): RowHandlers {
+  const latest = useRef(handlers)
+  latest.current = handlers
+  return useMemo(
+    () => ({
+      rowClick: (i, e) => latest.current.rowClick(i, e),
+      fileClick: (i, path) => latest.current.fileClick(i, path),
+      viewedClick: (path) => latest.current.viewedClick(path),
+      editNote: (note) => latest.current.editNote(note),
+    }),
+    [],
+  )
+}
 
 /** A line past this draws clipped: one minified or binary-ish line of megabytes took the browser seconds to lay out. */
 const MAX_DRAWN = 2000
