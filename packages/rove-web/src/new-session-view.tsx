@@ -461,9 +461,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
           <DictationButton
             client={model.client}
-            context={() => ({
-              draft: [prompt.slice(-300), primary, branchName, remotePick?.ref ?? ""].filter(Boolean).join("\n"),
-            })}
+            context={() => ({ draft: [prompt.slice(-300), primary, branchName].join("\n") })}
             onText={insertDictated}
             disabled={busy}
           />
