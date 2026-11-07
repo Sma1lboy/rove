@@ -28,6 +28,8 @@ export function inboxBadge(state: string): InboxBadge {
       return { glyph: "?", tone: "warning", stateKey: "inbox.state.decision" }
     case "routine_failed":
       return { glyph: "↻", tone: "attention", stateKey: "inbox.state.routineFailed" }
+    case "report_missing":
+      return { glyph: "!", tone: "warning", stateKey: "inbox.state.reportMissing" }
     default:
       return { glyph: "!", tone: "attention", stateKey: "inbox.state.error" }
   }

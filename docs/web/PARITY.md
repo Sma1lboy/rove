@@ -170,12 +170,12 @@ Score: 199 / 217 rows at ✅ (2 🟡, 3 🚫, 13 ❌). Regenerate from the table
 | 118 | Open Inbox | prefix i, sidebar status click | ✅ | `tasks.subscribe` | r2: rail inbox chip. r7: `ctrl+a i` opens the same dialog from the terminal. |
 | 119 | Navigate ATTENTION / RECENT rows | j/k, click | ✅ | local | me: in the Inbox `j`/`k` move the selected card and back (ATTENTION and RECENT share one list, as the TUI). Click selects-and-opens. |
 | 120 | Open selected tab/task and clear episode | Enter, click | ✅ | `attention.dismiss`, `task.tabs` | r2: Enter on the first card opened that task (tab-strip title matched) and the ATTENTION count dropped by one. |
-| 121 | Dismiss pending ATTENTION without opening | d | ✅ | `attention.dismiss` | r2: `d` dropped one pending card; rail count followed. |
+| 121 | Dismiss pending ATTENTION without opening | d | ✅ | `attention.dismiss` | r2: `d` dropped one pending card; rail count followed. The web Inbox also has `[ ack all ]` (web-only), which acks every pending row but decisions. |
 | 122 | Open RECENT target | Enter, click | ✅ | `task.get` | me: Enter on a RECENT card opened that task (tab-strip title matched) and closed the Inbox. |
 | 123 | Jump / cycle pending across projects | F7 | ✅ | `attention.dismiss` | me: F7 (global, fires from the terminal too) opened the oldest pending episode (Audit tab-2), cleared it (`tasks.list` attention −1), F7 again opened the next (Fix retry backoff tab-11), then toasted `no pending attention`. Order is the TUI's `sortAttentionInbox` (blocked first, oldest first; unit-tested); the Inbox lists in the same order. |
 | 124 | Open failed-routine attention target | Enter, click | ✅ | `attention.dismissRoutine` | w2-machines: Failed routine (repo gone -> `skipped_unavailable`) raised a task-less `routine_failed` row. Enter and F7 cleared it and opened Routines with the cursor on that routine (2nd row). Click shares the handler (not separately exercised). Shots pages-w2m-01-inbox, 02-routines. |
 | 125 | Dismiss toast | toast click / timeout | ✅ | local | workspace: Clicking a toast dismisses it at once (timeout kept; newest 3 shown, as TUI). |
-| — | Open a `report_missing` row (long-run controls, #1247→#1249) | Enter, click | ❌ | `attention.dismiss` (`deliveryId`) | Not built on the web yet: the TUI, the bridge and the phone apps draw these Inbox rows, the web Inbox does not. |
+| — | Open a `report_missing` row (long-run controls, #1247→#1249) | Enter, click, d | ✅ | `attention.dismiss` (`deliveryId`) | The web Inbox draws it as `! report missing`; opening leaves it, `d` / `[ ack all ]` clears it by its delivery id, as the TUI. |
 | — | Answer a `decision_needed` row (same controls) | Enter | ❌ | `gate.answer` | Not built on the web yet: the TUI, the bridge and the phone apps draw these Inbox rows, the web Inbox does not. |
 
 ## Kanban and local issue store
