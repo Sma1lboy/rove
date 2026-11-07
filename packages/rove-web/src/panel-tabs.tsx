@@ -51,7 +51,7 @@ export const ICONS: Record<PanelKind, ReactNode> = {
   files: <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />,
   diff: <path d="M3.5 2.5h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM8 5v4M6 7h4M6 11h4" />,
   browser: <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.2 2 2.2 10 0 12M8 2c-2.2 2-2.2 10 0 12" />,
-  quota: <path d="M2.5 11.5a5.5 5.5 0 1 1 11 0M8 11.5l2.5-3.5M4.5 13.5h7" />,
+  quota: <path d="M2 10a6 6 0 1 1 12 0M8 10l2.5-3.5M4 13h8" />,
 }
 
 function label(tab: PanelItem): string {
