@@ -15,12 +15,11 @@ import { UsageChips } from "./usage-view.tsx"
  */
 export function RailFoot({ model, narrow, onSettings }: { model: AppModel; narrow: boolean; onSettings: () => void }) {
   useLocale()
-  const selection = useStore(model.selection)
   const gap = useStore(skillMissing)
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
   return (
     <div className={RAIL_FOOT}>
-      {!narrow && <UsageChips client={model.client} taskId={selection.taskId} tabId={selection.tabId} />}
+      {!narrow && <UsageChips client={model.client} />}
       <div className={RAIL_FOOT_ROW}>
         <button type="button" className={`rail-nav-row ${railNavRowClass(false)}`} onClick={onSettings}>
           {/* Lucide `settings` (ISC). */}
