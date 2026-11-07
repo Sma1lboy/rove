@@ -56,7 +56,7 @@ export function UsageChips({
   client: BridgeClient
   taskId: string | null
   tabId: string | null
-  /** The rail's 14px side padding; Settings' sheet already has its own, so it passes false. */
+  /** In the rail's foot: the Settings row's own side padding, so both share a left edge. Settings' sheet passes false. */
   inset?: boolean
 }) {
   const conn = useStore(client.conn)
@@ -89,7 +89,7 @@ export function UsageChips({
   })
   if (!ctx && !tok && quota.length === 0) return null
   return (
-    <div className={`${USAGE_QUIET} ${inset ? "px-3.5" : ""}`}>
+    <div className={`${USAGE_QUIET} ${inset ? "px-2" : ""}`}>
       {ctx && (
         <span className={USAGE_CHIP}>
           <span>{ctx.label}</span>
@@ -118,6 +118,8 @@ export function UsageChips({
           }}
         >
           <span>{name}</span>
+          {/* Which window the figure is (`7d`, `5h`): a bare `100%` does not say. */}
+          <span>{chip.label}</span>
           <span className={USAGE_TONE[chip.tone]}>{chip.percentText}</span>
         </Button>
       ))}
