@@ -46,8 +46,12 @@ export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focu
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
-/** The "while you were away" strip: wraps rather than clipping, so every count stays reachable in a narrow rail. */
-export const AWAY_RECAP = "flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-3.5 pb-2 font-mono text-meta"
+/** The "while you were away" strip: "since" and × on top, the counts below, wrapping rather than clipping in a narrow rail. */
+export const AWAY_RECAP = "flex flex-col gap-0.5 px-3.5 pb-2 font-mono text-meta"
+export const AWAY_RECAP_HEAD = "flex items-center justify-between gap-2.5 text-muted"
+export const AWAY_RECAP_COUNTS = "flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+/** A count reads as text until hovered; only what needs you keeps the accent. */
+export const awayRecapCount = (urgent: boolean): string => `${urgent ? "text-accent" : "text-ink"} hover:underline`
 export const RAIL_SEARCH_FIELD =
   "min-w-0 flex-1 border-none bg-transparent p-0 text-ink [font:inherit] outline-none placeholder:text-subtle"
 /** The rail's note while no task exists; the workspace beside it carries the way forward. On the task rows' left edge. */
