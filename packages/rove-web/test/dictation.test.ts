@@ -6,13 +6,16 @@ import { Dictation } from "../src/dictation.ts"
 let grant: (() => void) | null = null
 let liveTracks = 0
 let openContexts = 0
+let loadWorklet = async () => {}
+let contextsCreated = 0
 
 class FakeAudioContext {
   readonly sampleRate = 48_000
   readonly destination = {}
-  readonly audioWorklet = { addModule: async () => {} }
+  readonly audioWorklet = { addModule: () => loadWorklet() }
   constructor() {
     openContexts++
+    contextsCreated++
   }
   createMediaStreamSource() {
     return { connect() {} }
@@ -41,7 +44,8 @@ beforeEach(() => {
   grant = null
   liveTracks = 0
   openContexts = 0
-  const track = { stop: () => liveTracks-- }
+  contextsCreated = 0
+  loadWorklet = async () => {}
   Object.assign(globalThis, {
     window: globalThis,
     AudioContext: FakeAudioContext,
@@ -55,6 +59,13 @@ beforeEach(() => {
           new Promise((resolve) => {
             grant = () => {
               liveTracks++
+              let live = true
+              const track = {
+                stop: () => {
+                  if (live) liveTracks--
+                  live = false
+                },
+              }
               resolve({ getTracks: () => [track] })
             }
           }),
@@ -101,3 +112,60 @@ test("a stop while the microphone prompt is open ends idle with the microphone r
   expect(liveTracks).toBe(0)
   expect(openContexts).toBe(0)
 })
+
+for (const action of ["stop", "cancel"] as const) {
+  test(`${action} releases the microphone before the worklet settles`, async () => {
+    const worklet = Promise.withResolvers<void>()
+    loadWorklet = () => worklet.promise
+    const dictation = new Dictation(client, () => "")
+    const starting = dictation.start()
+    grant?.()
+    await Promise.resolve()
+    expect(liveTracks).toBe(1)
+    expect(openContexts).toBe(1)
+
+    await dictation[action]()
+    expect(dictation.view.get().phase).toBe("idle")
+    expect(liveTracks).toBe(0)
+    expect(openContexts).toBe(0)
+
+    worklet.resolve()
+    await starting
+    expect(dictation.view.get().phase).toBe("idle")
+    expect(liveTracks).toBe(0)
+    expect(openContexts).toBe(0)
+  })
+}
+
+for (const boundary of ["permission", "worklet resolve", "worklet reject"] as const) {
+  test(`an old ${boundary} completion leaves a newer recording intact`, async () => {
+    const worklet = Promise.withResolvers<void>()
+    loadWorklet = () => worklet.promise
+    const dictation = new Dictation(client, () => "")
+    const oldStart = dictation.start()
+    const oldGrant = grant
+    if (boundary !== "permission") {
+      oldGrant?.()
+      await Promise.resolve()
+    }
+    dictation.cancel()
+    loadWorklet = async () => {}
+    const newStart = dictation.start()
+    grant?.()
+    await newStart
+    const createdBefore = contextsCreated
+
+    if (boundary === "permission") oldGrant?.()
+    else if (boundary === "worklet resolve") worklet.resolve()
+    else worklet.reject(new Error("worklet fetch failed"))
+    await oldStart
+    expect(contextsCreated).toBe(createdBefore)
+    expect(dictation.view.get().phase).toBe("recording")
+    expect(liveTracks).toBe(1)
+    expect(openContexts).toBe(1)
+
+    dictation.cancel()
+    expect(liveTracks).toBe(0)
+    expect(openContexts).toBe(0)
+  })
+}

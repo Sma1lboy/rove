@@ -72,10 +72,9 @@ function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
   return out
 }
 
-/** Closes what a start acquired before it handed it to the instance. */
-function drop(stream: MediaStream | null, context: AudioContext | null): null {
-  for (const track of stream?.getTracks() ?? []) track.stop()
-  void context?.close().catch(() => {})
+/** Closes a microphone granted after its start was cancelled. */
+function drop(stream: MediaStream): null {
+  for (const track of stream.getTracks()) track.stop()
   return null
 }
 
@@ -122,18 +121,17 @@ export class Dictation {
     if (this.view.get().phase !== "idle" && this.view.get().phase !== "error") return null
     const session = ++this.session
     this.view.set({ phase: "recording", seconds: 0, level: 0, error: null })
-    let stream: MediaStream | null = null
-    let context: AudioContext | null = null
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       })
-      context = new AudioContext()
-      await context.audioWorklet.addModule(WORKLET_URL)
-      // Stopped or cancelled while the permission prompt or the worklet fetch was pending.
-      if (session !== this.session) return drop(stream, context)
+      if (session !== this.session) return drop(stream)
       this.stream = stream
+      const context = new AudioContext()
       this.context = context
+      await context.audioWorklet.addModule(WORKLET_URL)
+      // release() already closed this start's resources if the worklet outlived it.
+      if (session !== this.session) return null
       const source = context.createMediaStreamSource(stream)
       this.node = new AudioWorkletNode(context, "rove-capture")
       this.chunks = []
@@ -158,7 +156,6 @@ export class Dictation {
       this.capTimer = window.setTimeout(() => void this.stop(), MAX_SECONDS * 1000)
       return null
     } catch (err) {
-      drop(stream, context)
       if (session !== this.session) return null
       this.release()
       this.fail(err)
