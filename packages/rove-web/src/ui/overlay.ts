@@ -43,7 +43,9 @@ export const MENU_CHECK = `${MENU_META} text-accent`
 /** Full-bleed hairline between sections, as claude.ai's separators run to the menu's border. */
 export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 
-export const TOASTS = "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5"
+/** Phone: top right under the `‹ Tasks` bar, clear of the message bar and the keyboard. */
+export const TOASTS =
+  "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5 narrow:pointer-events-none narrow:top-12 narrow:bottom-auto narrow:left-3.5 narrow:items-end narrow:*:pointer-events-auto"
 export const toastClass = (error: boolean): string =>
   `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.5 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
