@@ -154,6 +154,8 @@ export function PanelTabRow({
     if (!mine()) return
     e.preventDefault()
     e.stopPropagation()
+    // Over the dragged tab itself a drop moves nothing, so no marker.
+    if (dragging?.id === id) return setOver(null)
     const box = e.currentTarget.getBoundingClientRect()
     setOver({ id, after: e.clientX > box.left + box.width / 2 })
   }
