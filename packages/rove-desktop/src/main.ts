@@ -125,6 +125,10 @@ function createWindow(started: Started): void {
   if (process.env.ROVE_DESKTOP_DEBUG) {
     win.webContents.on("console-message", (event) => log(`page: ${event.message}`))
   }
+  // The page leads its title with the inbox count (`(33) task - rove`); the Dock shows the same number.
+  win.on("page-title-updated", (_event, title) => {
+    app.setBadgeCount(Number(/^\((\d+)\)/.exec(title)?.[1] ?? 0))
+  })
   smokeTest(win)
   // Close means quit: the bridge is this app's child, and a hidden window with a live bridge is a
   // process the owner cannot see. (The daemon itself is shared with the TUI and outlives us.)
@@ -173,7 +177,7 @@ function createWindow(started: Started): void {
           .then(async (facts: string) => {
             const image = await window.webContents.capturePage()
             writeFileSync(target, image.toPNG())
-            log(`smoke: ${facts}`)
+            log(`smoke: ${facts} badge=${app.getBadgeCount()}`)
             log(`smoke: wrote ${target}`)
           })
           .catch((err: unknown) => log(`smoke failed: ${redact(err instanceof Error ? err.message : String(err))}`))
