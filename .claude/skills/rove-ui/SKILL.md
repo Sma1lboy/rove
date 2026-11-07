@@ -58,6 +58,10 @@ under 0.5px. Report numbers as before → after.
   puts an arbitrary value outside it. A line that must break the last two carries `ui-ok: <reason>`.
 - **No class merging.** A `className` passed to a `ui/` component may add placement but must not
   set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
+- **Other package UIs** (e.g. `promo-kit`) start from rove-web's stack (Vite + React + TypeScript +
+  Tailwind v4), Tailwind's theme mapped to `packages/branding/design-system/` `tokens.css` and its
+  README rules: no hand-written HTML pages, raw hex or invented sizes.
+- **All UI:** no secondary labels or descriptions the layout already explains.
 
 ## 1. Layout and alignment
 
@@ -321,9 +325,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 - **Unknown is not empty:** nothing says "no sessions" before the first tab list arrives.
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.
 - Hover is a neutral wash; the accent is for selection and focus.
-- **Web ↔ TUI parity** is part of done. **Preview-install locally** (`scripts/preview-install.sh`
-  in a clone, restart the daemon and web, hard-reload) before calling anything shipped; never
-  cut a release just so the owner can look.
+- **Web ↔ TUI parity** is part of done. A working rove-web change goes onto the owner's live web
+  (the 7890 bridge from `rove-local-test`) at once, merged or not, then the owner refreshes:
+  `docs/agents/dev-loop.md` § Live web preview. Never cut a release just so the owner can look.
 
 **Running a check.**
 
@@ -332,9 +336,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 2. Drive it with the rove browser tools only (`mcp__rove__chrome_navigate`, `_screenshot`,
    `_javascript`, `_read_page`, `_computer`). Don't use the built-in browser pane, and don't pop
    windows that steal focus while the owner works.
-3. **Never touch the owner's global rove:** no restart, upgrade or preview-install over the
-   daemon, and no use of `rove --web` on `127.0.0.1:7878` from a routine. Read it if you must;
-   don't change it.
+3. **The owner's live web on 7890 is the test build:** install there per dev-loop § Live web
+   preview. Leave the `7878` bridge and the installed npm release alone, and never run
+   `scripts/preview-install.sh` over the global install from a routine.
 4. Unit tests: `bun run test` in `packages/rove-web`. Before a PR, from the repo root: `bun run pre-pr -- --body-file <file>`.
 
 ## Workflow
@@ -398,7 +402,6 @@ All read on 2026-10-21. Paraphrased and condensed; no passages copied.
   (no numbering or eyebrows without meaning), spend boldness in one place, the quality floor
   (focus, reduced motion, responsive), and the copy rules (name by user task, one name per
   action, errors give direction).
-- Local: `~/.claude/skills/owner-align/SKILL.md` (the owner's corrections),
-  `.claude/routines/ui-polish-sweep.md`, `packages/rove-web/src/{styles,overlays,taskops}.css`,
-  `rail-view.tsx`, `app.tsx`, `layout.ts`, `prefs-theme.ts`,
-  `packages/rove/src/lib/row-status-glyph.ts`, and `docs/web/PARITY.md`.
+- Local: `packages/rove-web/src/tailwind.css`, `src/ui/`, `rail-view.tsx`, `app.tsx`,
+  `layout.ts`, `prefs-theme.ts`, `packages/rove/src/lib/row-status-glyph.ts`, and
+  `docs/web/PARITY.md`.

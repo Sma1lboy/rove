@@ -51,10 +51,11 @@ scripts/release.sh
 
 Same pipeline, interactive confirm — this is the usual path when you're at a terminal anyway. Don't run it while the workflow's `tag` job is mid-flight on the same version (both would race to push the same tag; harmless when identical, noisy when not).
 
-> **PR-only exception.** Development lands on `main` exclusively via pull
-> requests (AGENTS.md "PR-only mainline"); the `chore: release — X.Y.Z`
-> commit + tag that `release.sh` pushes is the ONE sanctioned direct push —
-> it only consumes changesets that already passed PR CI.
+> **The one standing direct push.** Development lands on `main` via pull
+> requests (AGENTS.md "How work lands on `main`"; skipping one needs the owner's
+> word that turn); the `chore: release — X.Y.Z` commit + tag that `release.sh`
+> pushes is the one sanctioned direct push — it only consumes changesets that
+> already passed their PR's gate (the owner's local `pre-pr`, others' cloud CI).
 
 This first runs the release gate — lint, typecheck, unit tests, build, and the **behavior** suite — and aborts before touching anything if it fails. The gate deliberately mirrors everything `release.yml` makes `publish` wait on: a check that only ran in CI would be discovered by the *tag*, and a tag that fails to publish burns its version number for good (v0.8.58 did exactly this — green locally, then the pipeline's behavior job failed). If a gate is added to `release.yml`, add it here too. The local gate is a fast-fail, **not the verdict**: it runs on the operator's macOS while CI publishes from ubuntu, and a platform-dependent red (v0.8.66 — a darwin-only code path's test) only shows up on CI. That's why tagging is two-phase (below).
 
