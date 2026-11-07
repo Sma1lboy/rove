@@ -1,10 +1,12 @@
-/** `[ base: main ▾ ]`: compare the task against any branch, tag or recent commit; a typed ref works too. */
+/** `main → All changes ▾`: one menu for what the diff shows, and against which branch, tag or commit (a typed ref works too). */
 
 import { useEffect, useState } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import type { DiffScope } from "./panel-model.ts"
 import { requestRemembered } from "./remembered.ts"
 import { SuggestField, type Suggestion } from "./suggest-field.tsx"
+import { menu } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 
 interface Refs {
@@ -37,9 +39,11 @@ function choices(refs: Refs | null, base: string, typed: string): Choice[] {
   return hits.sort((a, b) => exact(a) - exact(b)).slice(0, 40)
 }
 
-export function DiffBasePicker(props: {
+export function DiffScopeMenu(props: {
   taskId: string
   model: AppModel
+  scope: DiffScope
+  onScope: (scope: DiffScope) => void
   /** The task's own base. */
   base: string
   /** The ref picked by hand; null = the task's base. */
@@ -67,6 +71,13 @@ export function DiffBasePicker(props: {
     setOpen(false)
     setTyped("")
   }
+  const against = props.custom ?? props.base
+  const scopes: { id: DiffScope; label: string }[] = [
+    { id: "task", label: t("review.scopeTask") },
+    { id: "working", label: t("review.scopeWorking") },
+    { id: "branch", label: t("review.scopeBranch") },
+  ]
+  const shown = scopes.find((s) => s.id === props.scope)?.label ?? ""
   return (
     <span
       className="relative"
@@ -81,11 +92,26 @@ export function DiffBasePicker(props: {
       <Button
         hit="tight"
         aria-expanded={open}
-        title={t("review.baseHint")}
-        className={props.custom ? "" : "opacity-60 aria-expanded:opacity-100"}
-        onClick={() => setOpen(!open)}
+        aria-haspopup="menu"
+        onClick={(e) => {
+          const box = e.currentTarget.getBoundingClientRect()
+          menu.set({
+            x: box.left,
+            y: box.bottom + 2,
+            target: e.currentTarget,
+            items: [
+              ...scopes.map((s) => ({
+                label: s.label,
+                section: "scope",
+                checked: s.id === props.scope,
+                run: () => props.onScope(s.id),
+              })),
+              { label: t("review.compareAgainst", { base: against }), section: "base", run: () => setOpen(true) },
+            ],
+          })
+        }}
       >
-        {t("review.basePicker", { base: props.custom ?? props.base })}
+        {t("review.scopeMenu", { base: against, scope: shown })}
       </Button>
       {open && (
         <div className="absolute top-full left-0 z-3 mt-1 w-64 max-w-full rounded-sm border-hairline border-line-active bg-surface p-1 shadow-popover">
