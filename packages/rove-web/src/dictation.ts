@@ -72,6 +72,13 @@ function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
   return out
 }
 
+/** Closes what a start acquired before it handed it to the instance. */
+function drop(stream: MediaStream | null, context: AudioContext | null): null {
+  for (const track of stream?.getTracks() ?? []) track.stop()
+  void context?.close().catch(() => {})
+  return null
+}
+
 function toHex(bytes: Uint8Array): string {
   const parts = new Array<string>(bytes.length)
   for (let i = 0; i < bytes.length; i++) parts[i] = bytes[i].toString(16).padStart(2, "0")
@@ -93,6 +100,8 @@ export class Dictation {
   private timer: number | null = null
   private capTimer: number | null = null
   private peak = 0
+  /** Bumped by every release: a start whose awaits outlive a stop or cancel sees it moved and backs out. */
+  private session = 0
 
   constructor(
     private readonly client: BridgeClient,
@@ -111,15 +120,22 @@ export class Dictation {
 
   async start(): Promise<null> {
     if (this.view.get().phase !== "idle" && this.view.get().phase !== "error") return null
+    const session = ++this.session
     this.view.set({ phase: "recording", seconds: 0, level: 0, error: null })
+    let stream: MediaStream | null = null
+    let context: AudioContext | null = null
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       })
-      this.context = new AudioContext()
-      await this.context.audioWorklet.addModule(WORKLET_URL)
-      const source = this.context.createMediaStreamSource(this.stream)
-      this.node = new AudioWorkletNode(this.context, "rove-capture")
+      context = new AudioContext()
+      await context.audioWorklet.addModule(WORKLET_URL)
+      // Stopped or cancelled while the permission prompt or the worklet fetch was pending.
+      if (session !== this.session) return drop(stream, context)
+      this.stream = stream
+      this.context = context
+      const source = context.createMediaStreamSource(stream)
+      this.node = new AudioWorkletNode(context, "rove-capture")
       this.chunks = []
       this.peak = 0
       this.node.port.onmessage = (event: MessageEvent<Float32Array>) => {
@@ -131,10 +147,10 @@ export class Dictation {
       }
       source.connect(this.node)
       // A worklet with no sink may not be pulled on every engine; a muted gain keeps it running.
-      const mute = this.context.createGain()
+      const mute = context.createGain()
       mute.gain.value = 0
       this.node.connect(mute)
-      mute.connect(this.context.destination)
+      mute.connect(context.destination)
       const started = Date.now()
       this.timer = window.setInterval(() => {
         this.view.set({ ...this.view.get(), seconds: (Date.now() - started) / 1000, level: this.peak })
@@ -142,6 +158,8 @@ export class Dictation {
       this.capTimer = window.setTimeout(() => void this.stop(), MAX_SECONDS * 1000)
       return null
     } catch (err) {
+      drop(stream, context)
+      if (session !== this.session) return null
       this.release()
       this.fail(err)
       return null
@@ -191,6 +209,7 @@ export class Dictation {
   }
 
   private release(): void {
+    this.session++
     if (this.timer !== null) window.clearInterval(this.timer)
     if (this.capTimer !== null) window.clearTimeout(this.capTimer)
     this.timer = null
