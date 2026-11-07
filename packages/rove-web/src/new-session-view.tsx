@@ -340,9 +340,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           />
           {snippets.list}
           <div className={C.CARD_ACTIONS}>
-            {!remote && !ungrouped && !picks.comparing && (
-              <LaterControl disabled={busy} onSchedule={(at) => void start(false, at)} onInvalid={setError} />
-            )}
             <button
               type="button"
               className={C.chipClass()}
@@ -443,6 +440,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               <ClipIcon />
               {t("newSession.attach")}
             </AttachPicker>
+          )}
+          {!remote && !ungrouped && !picks.comparing && (
+            <LaterControl disabled={busy} onSchedule={(at) => void start(false, at)} onInvalid={setError} />
           )}
           <span className={C.GROW} />
           <EngineChip choice={choice} picks={picks} available={compareAvailable} />

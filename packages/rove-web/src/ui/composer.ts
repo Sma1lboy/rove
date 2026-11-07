@@ -56,3 +56,5 @@ export const MORE =
 
 export const FIELD = "flex flex-col gap-0.5 px-1.5 py-0.5"
 export const BRANCHES = "min-w-[36ch]"
+/** The Later popover: the time field and its confirm on one line. */
+export const LATER = "flex items-center gap-1.5 p-1.5"
