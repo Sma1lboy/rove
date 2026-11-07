@@ -14,11 +14,11 @@ matters.
 - `bun run test` — the package's required fast + socket aggregate.
 
 The render track is a required macOS CI/release gate. It uses Bun's native
-OpenTUI renderer and carries the same 50% per-touched-file floor as Vitest for
-`.tsx` components and React-owning hooks. The separate required visual gate
+OpenTUI renderer to mount `.tsx` components and React-owning hooks and assert on
+real frames; it enforces no line-coverage floor. The separate required visual gate
 runs the committed browser journey on Linux, which compiles node-pty and can
-create a real PTY in the hosted environment. The Ubuntu V8 coverage job remains
-the fast/unit track; it does not pretend Node can execute OpenTUI components.
+create a real PTY in the hosted environment. Vitest remains the fast/unit
+track; it does not pretend Node can execute OpenTUI components.
 
 ## Harness terminal lifetime
 
@@ -527,48 +527,20 @@ for post-failure inspection and never points at production state.
 - daemon/orchestrator/engine edits are verified after replacing stale daemon
   processes in the chosen sandbox.
 
-## Coverage gate
+## Coverage
 
-`render-track` (bun-test render lcov) holds every file a PR touches to a 50%
-line floor. Only touched files are gated, so a legacy file with thin coverage
-stays green until someone edits it. The vitest-side `coverage-cap` job was
-removed — the render track is now the only coverage gate.
-
-### The escape hatch, and when it is honest
-
-A `coverage-exemption: <path> — <reason>` line in the PR body waives one file.
-It is a paper trail, not a mute button: the next person reads it as "someone
-evaluated this and concluded the floor does not apply". Three situations come up,
-and only two of them justify one.
-
-- **Structurally untestable** — the render track cannot mount it at all.
-  `tui-react/workspace/host.tsx` and `workspace/TerminalTabs.tsx` are integration
-  layers needing a live daemon + PTY; their behaviour is covered by the behavior
-  track and the visual-ground-truth harness instead. Exemption is correct, and the
-  reason should name the covering track.
-- **Genuinely untested** — the file is ordinary code that vitest reaches fine, and
-  the number is low because nobody wrote the test. **Write the test.** An exemption
-  here turns the gate into a rubber stamp. (Two CLI modules sat at 28% and 41% and
-  went to 100% once someone actually tested them.)
-- **Pre-existing gap, unrelated change** — the file is partly testable, its gap
-  predates the PR, and the diff is something like a constant rename. Exemption is
-  reasonable, but say *that*: "pre-existing gap, not introduced by this PR". Do not
-  dress it up as untestable — the coverage number itself contradicts you.
+No CI job enforces a line-coverage floor: `render-track` dropped its 50%
+per-touched-file floor and the `coverage-exemption:` lines it read. Line
+coverage says a line ran, not that anything checked it; write tests by the
+"pin behavior" rule in `AGENTS.md` instead.
 
 ### Editing the PR body does not re-run CI
 
-The gate reads the body **during a workflow run**, so an exemption added after the
-failing run is invisible until a new run starts:
-
-```bash
-gh pr edit <n> --body-file <file>          # 1. add the exemption
-git commit --allow-empty -m "chore: re-trigger CI"   # 2. THEN force a fresh run
-git push
-```
-
-`gh run rerun` does **not** work here — it replays the frozen event payload, which
-carries the body as it was before the edit. Three PRs hit this in one night; each
-had a correct exemption sitting in the body that no run ever read.
+`pr-gates.yml` reads the PR body **during a workflow run**, so a fix to the body
+(UI evidence, an exemption line) after a failing run is invisible until a new run
+starts: `gh pr edit <n> --body-file <file>`, then push a commit
+(`git commit --allow-empty -m "chore: re-trigger CI"`). `gh run rerun` replays the
+frozen event payload, which carries the old body.
 
 ## Required pre-PR command
 
