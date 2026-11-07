@@ -101,3 +101,26 @@ test("members save copy versions and log sends; the list shows who sent it", asy
   expect((await call("/api/items/a/versions", {}, { posts: ["x"] })).status).toBe(403)
   expect((await call("/api/items/a/events", { ...bob, "sec-fetch-site": "cross-site" }, { action: "send" })).status).toBe(403)
 })
+
+test("an item keeps its created stamp across re-pushes; older items get it from their first version", async () => {
+  const env = baseEnv()
+  const writer = { authorization: "Bearer w", "content-type": "application/json" }
+  await env.BUCKET.put("index.json", JSON.stringify({ items: [{ id: "old", title: "O", posts: ["p"], updated: "2026-11-06T00:00:00.000Z" }] }))
+  await env.BUCKET.put("meta:versions/old", JSON.stringify([{ posts: ["p"], by: "上传", at: "2026-11-01T00:00:00.000Z" }]))
+  const put = (body: object) =>
+    worker.fetch(new Request("https://kit/api/items/new", { method: "PUT", headers: writer, body: JSON.stringify(body) }), env)
+  const item = { title: "N", video: { key: "new/a.mp4", size: 1 }, posts: ["x"] }
+
+  const first = await (await put(item)).json()
+  expect(first.created).toBe(first.updated)
+  // A client-sent `created` is ignored, and a re-push only moves `updated`.
+  const again = await (await put({ ...item, created: "1999-01-01T00:00:00.000Z", posts: ["y"] })).json()
+  expect(again.created).toBe(first.created)
+  expect(again.updated >= first.updated).toBe(true)
+
+  const list = await (await worker.fetch(new Request("https://kit/api/items", { headers: writer }), env)).json()
+  expect(Object.fromEntries(list.items.map((it: { id: string; created: string }) => [it.id, it.created]))).toEqual({
+    new: first.created,
+    old: "2026-11-01T00:00:00.000Z",
+  })
+})

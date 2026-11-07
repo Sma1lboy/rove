@@ -106,6 +106,13 @@ async function saveVersion(env, item, posts, by) {
   item.posts = posts
   return list
 }
+// Items pushed before `created` existed: their first copy version is when they arrived.
+async function backfillCreated(env, idx) {
+  const missing = idx.items.filter((it) => !it.created)
+  if (!missing.length) return
+  for (const it of missing) it.created = (await readList(env, VERSIONS + it.id))[0]?.at || it.updated
+  await writeIndex(env, idx)
+}
 const validPosts = (p) => Array.isArray(p) && p.length > 0 && p.every((x) => typeof x === "string")
 
 const validKey = (k) => k && /^[\w-]+\/[\w.-]+$/.test(k)
@@ -138,6 +145,7 @@ async function api(req, env, url, writer, viewer) {
   const who = writer || viewer
   if (path === "/api/items" && req.method === "GET") {
     const idx = await readIndex(env)
+    await backfillCreated(env, idx)
     // ponytail: one R2 read per item for the "who sent it" badge; fine for dozens of items.
     const sends = await Promise.all(
       idx.items.map(async (it) => (await readList(env, EVENTS + it.id)).filter((e) => e.action === "send")),
@@ -183,7 +191,9 @@ async function api(req, env, url, writer, viewer) {
     if (!item.title || !validKey(item.video?.key) || !Array.isArray(item.posts))
       return json({ error: "need title, video.key, posts[]" }, 400)
     item.id = m[1]
-    item.updated = new Date().toISOString()
+    const now = new Date().toISOString()
+    item.updated = now
+    delete item.created
     const idx = await readIndex(env)
     const i = idx.items.findIndex((x) => x.id === item.id)
     if (i >= 0) {
@@ -191,9 +201,9 @@ async function api(req, env, url, writer, viewer) {
       item.posts = idx.items[i].posts
       idx.items[i] = { ...idx.items[i], ...item }
       await saveVersion(env, idx.items[i], posts, writer)
-    } else idx.items.unshift(item)
+    } else idx.items.unshift({ ...item, created: now })
     await writeIndex(env, idx)
-    return json(item)
+    return json(idx.items[Math.max(i, 0)])
   }
   if (m && req.method === "PATCH") {
     const idx = await readIndex(env)
