@@ -87,8 +87,16 @@ body {
   overscroll-behavior: none;
 }
 
+/* Edge to edge (`viewport-fit=cover`): a Home Screen app runs under the status bar and the home indicator, so
+   the page keeps clear of them. An open keyboard already covers the indicator's strip. */
 #root {
+  box-sizing: border-box;
   height: var(--vvh, 100%);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+html[data-keyboard] #root {
+  padding-bottom: 0;
 }
 
 body {

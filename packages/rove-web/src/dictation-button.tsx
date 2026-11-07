@@ -5,9 +5,9 @@
  * hands it to `onSend` instead, and only where the caller passes one.
  */
 
-import { type PointerEvent, useEffect, useRef, useState } from "react"
+import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
-import { Dictation, type DictationResult } from "./dictation.ts"
+import { Dictation, type DictationPhase, type DictationResult } from "./dictation.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { useStore } from "./store.ts"
 import * as C from "./ui/composer.ts"
@@ -26,6 +26,19 @@ interface Press {
   held: boolean
   armed: boolean
   started: Promise<unknown> | null
+}
+
+export interface DictationFace {
+  readonly phase: DictationPhase
+  /** `0:03` */
+  readonly time: string
+  readonly seconds: number
+  /** Loudness of the last tick, 0–1. */
+  readonly level: number
+  /** Recording because the button is held, not tapped: letting go stops it. */
+  readonly held: boolean
+  /** Held and slid up: letting go sends. */
+  readonly armed: boolean
 }
 
 /** One `voice.status` per bridge: the bar and every button ask the same question. */
@@ -64,10 +77,12 @@ export function DictationButton(props: {
   /** Where a hold slid up sends the transcript; without it the slide does nothing. */
   readonly onSend?: (text: string) => void
   readonly disabled?: boolean
-  /** The box, by recording state; defaults to a composer-bar chip. */
-  readonly look?: (recording: boolean) => string
-  /** The idle label; defaults to `Say`. */
+  /** The box, by recording state and whether a hold is slid up to send; defaults to a composer-bar chip. */
+  readonly look?: (recording: boolean, armed: boolean) => string
+  /** The idle label (the accessible name when `face` draws the inside); defaults to `Say`. */
   readonly idle?: string
+  /** Draws the inside instead of the text label: a waveform, an icon. */
+  readonly face?: (state: DictationFace) => ReactNode
 }) {
   useLocale()
   // The recorder outlives renders; it must read the context and callbacks as they are at stop, not at mount.
@@ -148,13 +163,16 @@ export function DictationButton(props: {
       : view.phase === "transcribing"
         ? t("voice.working")
         : (props.idle ?? t("voice.say"))
+  const recording = view.phase === "recording"
+  const armed = hold?.armed ?? false
 
   return (
     <button
       type="button"
-      className={`${(props.look ?? C.dictateChip)(view.phase === "recording")} ${C.DICTATE_PRESS}`}
+      className={`${(props.look ?? C.dictateChip)(recording, armed)} ${C.DICTATE_PRESS}`}
       disabled={props.disabled || hosted === false || view.phase === "transcribing"}
       title={view.error ?? (hosted === false ? t("voice.offline") : t("voice.hint"))}
+      aria-label={props.face ? label : undefined}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={() => void up()}
@@ -163,20 +181,28 @@ export function DictationButton(props: {
       // Pointer presses are handled above; a click with no pointer behind it is Enter or Space.
       onClick={(e) => e.detail === 0 && toggle()}
     >
-      {label}
-      {view.phase === "recording" && (
-        <span className="inline-flex items-center" aria-hidden="true">
-          {/* Opacity carries the level: the dot never resizes and never pushes the label around. */}
-          <span
-            className="size-1.5 rounded-full bg-current"
-            style={{ opacity: 0.25 + Math.min(1, view.level * 12) * 0.75 }}
-          />
-        </span>
-      )}
-      {hold && props.onSend && (
-        <span className={C.dictateTipClass(hold.armed)} aria-hidden="true">
-          {hold.armed ? t("voice.tipSend") : t("voice.tipInsert")}
-        </span>
+      {props.face ? (
+        props.face({
+          phase: view.phase,
+          time: clock(view.seconds),
+          seconds: view.seconds,
+          level: view.level,
+          held: hold !== null,
+          armed,
+        })
+      ) : (
+        <>
+          {label}
+          {recording && (
+            <span className="inline-flex items-center" aria-hidden="true">
+              {/* Opacity carries the level: the dot never resizes and never pushes the label around. */}
+              <span
+                className="size-1.5 rounded-full bg-current"
+                style={{ opacity: 0.25 + Math.min(1, view.level * 12) * 0.75 }}
+              />
+            </span>
+          )}
+        </>
       )}
     </button>
   )

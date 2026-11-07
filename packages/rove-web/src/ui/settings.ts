@@ -8,7 +8,7 @@ import { OVERLAY } from "./overlay.ts"
 export const SETTINGS_OVERLAY = `${OVERLAY} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
-  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 short:h-[calc(100dvh-24px)]"
+  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
 export const SETTINGS_CLOSE =
   "absolute top-3 right-3 z-1 grid size-7 place-items-center rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:size-10"
 /** A phone's way from an open section back to the list. */

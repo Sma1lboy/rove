@@ -1,52 +1,145 @@
-import type { ChangeEvent, ClipboardEvent, KeyboardEvent, ReactNode, RefObject } from "react"
+import {
+  type ChangeEvent,
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useRef,
+} from "react"
+import type { DictationFace } from "../dictation-button.tsx"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, a wide
- * hold-to-talk control and a keyboard key; a draft, or the keyboard key, turns it into attach, Say, a message
- * field and Send. Its height never changes (a long message scrolls inside the field; attachment chips float
- * above it, over the terminal's last rows), so the terminal is fitted once and never reflows while you compose.
- * 16px text: iOS zooms the page into any smaller field it focuses.
+ * hold-to-talk control and a keyboard key; a draft, or the keyboard key, turns it into attach, a message field, a
+ * mic and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
+ * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
+ * rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS zooms the page into
+ * any smaller field it focuses.
  */
-const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1.5 touch:flex"
-const CHIPS = "absolute inset-x-1.5 bottom-full z-5 mb-1"
-const SUGGEST = "absolute inset-x-1.5 bottom-full z-6 mb-1"
-const ROW = "flex min-w-0 flex-1 items-stretch gap-1.5"
+const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 pt-2.5 pb-3.5 touch:flex"
+const CHIPS = "absolute inset-x-3 bottom-full z-5 mb-1"
+const SUGGEST = "absolute inset-x-3 bottom-full z-6 mb-1"
+const ROW = "flex min-w-0 flex-1 items-center gap-2.5"
+/** One line as tall as the box: a longer draft scrolls a whole line at a time, so no half line peeks in below. */
 const FIELD =
-  "h-10 min-w-0 flex-1 resize-none rounded-sm border-hairline border-line bg-inset px-2 py-2 font-sans text-display leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
+  "h-11 min-w-0 flex-1 resize-none rounded-[12px] border-hairline border-line bg-inset px-3.5 py-0 font-sans text-display leading-[42px] text-ink outline-none focus:border-focus disabled:opacity-60"
 /** A pressed control gives a little under the finger; no motion when the system asks for none. */
 const PRESS =
   "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
-const SEND = `h-10 shrink-0 rounded-sm bg-accent px-3.5 font-sans text-meta font-semibold text-paper touch-manipulation disabled:opacity-50 ${PRESS}`
+/** The hold control stays pressed for the whole take: it gives less, or the row would look shrunk. */
+const PRESS_WIDE =
+  "transition-transform duration-100 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
+const SEND = `flex size-11 shrink-0 items-center justify-center rounded-[12px] border-hairline border-accent text-accent touch-manipulation disabled:border-line disabled:text-muted disabled:opacity-60 ${PRESS}`
+const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] touch-manipulation active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
+const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
-/** The attach control's box, for the caller's file picker. */
-export const COMPOSER_ATTACH = `flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60 ${PRESS}`
+/** A side key: attach, the keyboard switch, the mic beside the field. */
+export const COMPOSER_ATTACH = `${KEY} text-muted`
+export const composerMic = (recording: boolean): string => `${KEY} ${recording ? "text-accent" : "text-muted"}`
 
-/** The dictate control's box: the attach box's height and border, wide enough for `Stop 0:12`. */
-export const composerDictate = (recording: boolean): string =>
-  `flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border-hairline bg-inset px-2.5 font-sans text-meta disabled:opacity-60 ${PRESS} ${
-    recording ? "border-accent text-accent" : "border-line text-muted"
+/** The voice row's hold-to-talk control: the only filled box in the row, lit while recording, tinted once slid up to send. */
+export const composerHold = (recording: boolean, armed: boolean): string =>
+  `flex h-11 min-w-0 flex-1 items-center gap-2.5 overflow-hidden rounded-[12px] border-hairline px-3.5 font-sans touch-manipulation disabled:opacity-60 ${PRESS_WIDE} ${
+    armed
+      ? "border-accent bg-accent-soft text-accent"
+      : recording
+        ? "border-accent bg-paper text-accent"
+        : "border-line bg-inset text-ink"
   }`
-/** The voice row's hold-to-talk control: the dictate box, as wide as the row allows. */
-export const composerHold = (recording: boolean): string => `${composerDictate(recording)} flex-1`
 
-/** The voice row's switch to typing, in the attach box. */
+function Glyph({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className={GLYPH} aria-hidden="true">
+      <path d={d} />
+    </svg>
+  )
+}
+
+const MIC = "M8 2a2 2 0 0 1 2 2v4a2 2 0 0 1-4 0V4a2 2 0 0 1 2-2zM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5"
+const UP = "M8 13V3M3.5 7.5 8 3l4.5 4.5"
+
+export function ClipGlyph() {
+  return <Glyph d="M10.5 4.5 5.8 9.2a1.4 1.4 0 0 0 2 2l5-5a2.8 2.8 0 0 0-4-4l-5.2 5.2a4.2 4.2 0 0 0 6 6L13 9" />
+}
+
+/** The voice row's switch to typing. */
 export function KeysButton(props: { label: string; onClick: () => void }) {
   return (
     <button type="button" className={COMPOSER_ATTACH} title={props.label} onClick={props.onClick}>
       <span className="sr-only">{props.label}</span>
-      <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current stroke-[1.4]" aria-hidden="true">
-        <path d="M2.5 4h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 6.5h1M7 6.5h1M10 6.5h2M5 9.5h6" />
-      </svg>
+      <Glyph d="M2.5 4h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 6.5h1M7 6.5h1M10 6.5h2M5 9.5h6" />
     </button>
   )
 }
 
-export function ClipGlyph() {
+/** Bars of the last few seconds' loudness, newest at the right; one bar per recorder tick. */
+const BARS = 40
+function Wave({ level, seconds }: { level: number; seconds: number }) {
+  const bars = useRef<number[]>(Array(BARS).fill(0))
+  const seen = useRef(-1)
+  // Each recorder tick moves `seconds`; any other render keeps the bars where they are.
+  if (seconds !== seen.current) {
+    seen.current = seconds
+    bars.current = [...bars.current.slice(1), level]
+  }
   return (
-    <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current stroke-[1.4]" aria-hidden="true">
-      <path d="M10.5 4.5 5.8 9.2a1.4 1.4 0 0 0 2 2l5-5a2.8 2.8 0 0 0-4-4l-5.2 5.2a4.2 4.2 0 0 0 6 6L13 9" />
-    </svg>
+    <span className="flex h-5.5 min-w-0 flex-1 items-center justify-end gap-[2.5px] overflow-hidden" aria-hidden="true">
+      {bars.current.map((value, i) => (
+        <i
+          // biome-ignore lint/suspicious/noArrayIndexKey: a bar is its position in the strip
+          key={i}
+          className="block w-[2.5px] flex-none rounded-full bg-current"
+          style={{ height: `${Math.max(3, Math.round(Math.min(1, value * 10) * 22))}px` }}
+        />
+      ))}
+    </span>
   )
+}
+
+/** Inside the hold control: the label at rest; while recording a level dot, the time, the waveform and (held) where to slide. */
+export function HoldFace(props: {
+  state: DictationFace
+  idle: string
+  working: string
+  slide: string
+  release: string
+}) {
+  const { state } = props
+  if (state.phase === "transcribing") return <span className="flex-1 text-center text-meta">{props.working}</span>
+  if (state.phase !== "recording") {
+    return (
+      <span className="flex flex-1 items-center justify-center gap-2 text-display font-medium">
+        <Glyph d={MIC} />
+        {props.idle}
+      </span>
+    )
+  }
+  return (
+    <>
+      {/* Opacity carries the level: the dot never resizes and never pushes the time around. */}
+      <span
+        className="size-1.75 flex-none rounded-full bg-current"
+        style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
+      />
+      <span className="flex-none font-mono text-meta normal-nums">{state.time}</span>
+      <Wave level={state.level} seconds={state.seconds} />
+      {state.held && (
+        <span className={`flex flex-none items-center gap-1 text-meta ${state.armed ? "font-semibold" : "text-muted"}`}>
+          <svg viewBox="0 0 16 16" className="size-3.5 fill-none stroke-current stroke-[1.5]" aria-hidden="true">
+            <path d={UP} />
+          </svg>
+          {state.armed ? props.release : props.slide}
+        </span>
+      )}
+    </>
+  )
+}
+
+/** Inside the mic beside the field: the glyph, or the take's time while it records. */
+export function MicFace({ state }: { state: DictationFace }) {
+  if (state.phase === "recording") return <span className="font-mono text-meta normal-nums">{state.time}</span>
+  if (state.phase === "transcribing") return <span className="font-mono text-meta">…</span>
+  return <Glyph d={MIC} />
 }
 
 export function TermComposerBar(props: {
@@ -60,9 +153,9 @@ export function TermComposerBar(props: {
   attached?: ReactNode
   /** The file picker, boxed in `COMPOSER_ATTACH`. */
   attach: ReactNode
-  /** Dictation, boxed in `composerDictate`; it fills the field and never sends. */
+  /** The mic beside the field, boxed in `composerMic`; it fills the field and never sends. */
   dictate?: ReactNode
-  /** The voice row (hold-to-talk and the keyboard key); while set it stands in for Say, the field and Send. */
+  /** The voice row (hold-to-talk and the keyboard key); while set it stands in for the field, the mic and Send. */
   voice?: ReactNode
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
   onPaste: (e: ClipboardEvent) => void
@@ -90,7 +183,6 @@ export function TermComposerBar(props: {
         {props.attach}
         {props.voice ?? (
           <>
-            {props.dictate}
             <textarea
               ref={props.fieldRef}
               className={FIELD}
@@ -104,8 +196,10 @@ export function TermComposerBar(props: {
               onKeyDown={props.onKeyDown}
               onPaste={props.onPaste}
             />
-            <button type="submit" className={SEND} disabled={props.busy || !props.ready}>
-              {props.sendLabel}
+            {props.dictate}
+            <button type="submit" className={SEND} title={props.sendLabel} disabled={props.busy || !props.ready}>
+              <span className="sr-only">{props.sendLabel}</span>
+              <Glyph d={UP} />
             </button>
           </>
         )}

@@ -24,7 +24,7 @@ export type DictationPhase = "idle" | "recording" | "transcribing" | "error"
 export interface DictationView {
   readonly phase: DictationPhase
   readonly seconds: number
-  /** Peak of the last block, 0–1, for a "we can hear you" dot. */
+  /** Loudest block of the last tick, 0–1: what a level meter or waveform draws. */
   readonly level: number
   readonly error: string | null
 }
@@ -98,7 +98,9 @@ export class Dictation {
   private chunks: Float32Array[] = []
   private timer: number | null = null
   private capTimer: number | null = null
+  /** Loudest block of the whole take: a take that never rose above silence is dropped. */
   private peak = 0
+  private recent = 0
   /** Bumped by every release: a start whose awaits outlive a stop or cancel sees it moved and backs out. */
   private session = 0
 
@@ -136,12 +138,15 @@ export class Dictation {
       this.node = new AudioWorkletNode(context, "rove-capture")
       this.chunks = []
       this.peak = 0
+      this.recent = 0
       this.node.port.onmessage = (event: MessageEvent<Float32Array>) => {
         const block = event.data
         this.chunks.push(block)
         let sum = 0
         for (let i = 0; i < block.length; i++) sum += block[i] * block[i]
-        this.peak = Math.max(this.peak, Math.sqrt(sum / Math.max(1, block.length)))
+        const rms = Math.sqrt(sum / Math.max(1, block.length))
+        this.peak = Math.max(this.peak, rms)
+        this.recent = Math.max(this.recent, rms)
       }
       source.connect(this.node)
       // A worklet with no sink may not be pulled on every engine; a muted gain keeps it running.
@@ -151,7 +156,8 @@ export class Dictation {
       mute.connect(context.destination)
       const started = Date.now()
       this.timer = window.setInterval(() => {
-        this.view.set({ ...this.view.get(), seconds: (Date.now() - started) / 1000, level: this.peak })
+        this.view.set({ ...this.view.get(), seconds: (Date.now() - started) / 1000, level: this.recent })
+        this.recent = 0
       }, 100)
       this.capTimer = window.setTimeout(() => void this.stop(), MAX_SECONDS * 1000)
       return null
