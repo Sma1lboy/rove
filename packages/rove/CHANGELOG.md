@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.9.278
+
+### Patch Changes
+
+- [#1749](https://github.com/Sma1lboy/rove/pull/1749) [`e7452dc`](https://github.com/Sma1lboy/rove/commit/e7452dcebbb1897ae550ae46b648c8f40dad9808) A task whose engine exited and was replaced by another one started by hand (omp in a Claude tab) no longer shows that engine's status prefix (`π ⠸`) in its sidebar name. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1750](https://github.com/Sma1lboy/rove/pull/1750) [`0c6c355`](https://github.com/Sma1lboy/rove/commit/0c6c3554e5604e986e5791d34502971bdc6ea9b6) The web rail's "since …" recap reads in two lines: the time and × on top, the counts below with only "needs you" in the accent colour, and no stray separator dot at a line's end. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1757](https://github.com/Sma1lboy/rove/pull/1757) [`2c235f8`](https://github.com/Sma1lboy/rove/commit/2c235f8f403156043dcae58edffecea40583927f) The web Context launcher button no longer looks shorter than its neighbours: its gauge icon is centred at the same height. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1756](https://github.com/Sma1lboy/rove/pull/1756) [`8b3fd3a`](https://github.com/Sma1lboy/rove/commit/8b3fd3a38d1226da6ecc577d7ffd77dc9d00ee5f) The web side panel's Usage tab becomes a Context tab: this conversation's context window as one card, split into system prompt & tools and messages for omp sessions, from what the session file records. pi sessions now report their context too. Engine quota stays in the rail foot and the Usage page; the E2B spend estimate is removed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1765](https://github.com/Sma1lboy/rove/pull/1765) [`4c78551`](https://github.com/Sma1lboy/rove/commit/4c785516bb767eeb20ab933671ad4bff37913cb0) Internal: the web diff view's row handlers move beside the row component; no visible change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1764](https://github.com/Sma1lboy/rove/pull/1764) [`a966850`](https://github.com/Sma1lboy/rove/commit/a966850c27a1d952dc0915265e02d1d652aac8c4) The web Diff tab opens a large diff without freezing the page: generated files fold before the first render, rows re-render only when they change, a line over 2000 characters draws clipped, and the viewed-file hash no longer walks megabyte lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1762](https://github.com/Sma1lboy/rove/pull/1762) [`b19d96f`](https://github.com/Sma1lboy/rove/commit/b19d96f4fce98bea3cb6e168974707e002f9fa3f) The web Diff panel picks its scope from one menu, `main → All changes ▾`: all, uncommitted or committed changes, and Compare against… for another branch, tag or commit. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1759](https://github.com/Sma1lboy/rove/pull/1759) [`7b519a6`](https://github.com/Sma1lboy/rove/commit/7b519a676c94b2bc53895bbfddd6a0bbea71aaab) The web workspace top bar drops its Chat button (Chat still opens from the side panel + menu), and dragging a panel tab no longer draws a drop marker on the tab being dragged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1760](https://github.com/Sma1lboy/rove/pull/1760) [`514628b`](https://github.com/Sma1lboy/rove/commit/514628bd5931aa4748cb6adb03336c202e01b439) The web workspace top bar drops its Diff button; Diff opens from the side panel + menu. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1763](https://github.com/Sma1lboy/rove/pull/1763) [`ec9dfd8`](https://github.com/Sma1lboy/rove/commit/ec9dfd805b81f8c49334172ff476fd2d0fccea6a) The web rail drops its away recap strip (since 12:14 · 1 finished · 1 needs you), and the Files tab shows only the worktree tree; changed files live in the Diff tab. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1755](https://github.com/Sma1lboy/rove/pull/1755) [`9fc41ce`](https://github.com/Sma1lboy/rove/commit/9fc41cedf14a0c9f5963d7c17e2515534c5cd67c) The web Files panel drops its report card (last reply, copy as note / PR body) and the Activity and Notes tabs; it is the file tree with All and Changes. Todos stay editable with `rove api todo`, and the task row still shows their count. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1751](https://github.com/Sma1lboy/rove/pull/1751) [`28c651b`](https://github.com/Sma1lboy/rove/commit/28c651b37a42a1553f2a23d2216d2cfb27f2bab9) The web New session's Later button drops its brackets and carries a clock icon, matching Attach and the other chips. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1752](https://github.com/Sma1lboy/rove/pull/1752) [`e9177dc`](https://github.com/Sma1lboy/rove/commit/e9177dc0ca4411954f697957417e646b232c2598) The web New session's Later chip sits in the bottom bar beside Attach and opens its time field in a popover, instead of growing a field inside the prompt card. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1748](https://github.com/Sma1lboy/rove/pull/1748) [`ce6c9b6`](https://github.com/Sma1lboy/rove/commit/ce6c9b6037e6a5772fb5f3c4045bd4ae87602677) The web side panel has a Usage tab: one card each for the current conversation's context, every engine's quota windows, and E2B sandbox spend (estimated from sandboxes Rove has seen running, with the credit's expiry date). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1754](https://github.com/Sma1lboy/rove/pull/1754) [`ac26ed9`](https://github.com/Sma1lboy/rove/commit/ac26ed9ac588c75bec0e271abb961249e8a62528) The web rail's engine usage now sits with Settings under a hairline, apart from the task list, and names its window (`Claude 7d 100%`). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1758](https://github.com/Sma1lboy/rove/pull/1758) [`e422869`](https://github.com/Sma1lboy/rove/commit/e422869c10f57590891371f7cdf8786edc15de94) The web rail foot shows each engine quota on its own line with a thin fill bar, green while healthy; the session token total and context leave the rail for the Context tab. Side panel tabs sit further apart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1761](https://github.com/Sma1lboy/rove/pull/1761) [`75bce3e`](https://github.com/Sma1lboy/rove/commit/75bce3e8f7b1bee4724812d17e263ff34be3539c) The web top bar gets its Diff button back, and side panel tabs show their name without the small icon in front. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.277
 
 ### Patch Changes
