@@ -19,10 +19,12 @@ import { toast } from "./ui.ts"
 import {
   COMPOSER_ATTACH,
   ClipGlyph,
+  HoldFace,
   KeysButton,
+  MicFace,
   TermComposerBar,
-  composerDictate,
   composerHold,
+  composerMic,
 } from "./ui/term-composer.tsx"
 
 interface SendReply {
@@ -98,7 +100,6 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     client: model.client,
     context: () => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · "),
     onText: (spoken: string) => void insertDictated(spoken),
-    onSend: sendDictated,
     disabled: busy,
   }
   const voiceFirst = hosted === true && !typing && text === "" && attachments.length === 0
@@ -121,11 +122,25 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
           <ClipGlyph />
         </AttachPicker>
       }
-      dictate={<DictationButton {...talk} look={composerDictate} />}
+      dictate={<DictationButton {...talk} look={composerMic} face={(state) => <MicFace state={state} />} />}
       voice={
         voiceFirst ? (
           <>
-            <DictationButton {...talk} look={composerHold} idle={t("voice.hold")} />
+            <DictationButton
+              {...talk}
+              onSend={sendDictated}
+              look={composerHold}
+              idle={t("voice.hold")}
+              face={(state) => (
+                <HoldFace
+                  state={state}
+                  idle={t("voice.hold")}
+                  working={t("voice.working")}
+                  slide={t("voice.slideToSend")}
+                  release={t("voice.tipSend")}
+                />
+              )}
+            />
             <KeysButton label={t("voice.type")} onClick={toKeys} />
           </>
         ) : undefined
