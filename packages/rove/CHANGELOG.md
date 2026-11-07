@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.280
+
+### Patch Changes
+
+- [#1768](https://github.com/Sma1lboy/rove/pull/1768) [`9bc2efb`](https://github.com/Sma1lboy/rove/commit/9bc2efb34ebd716b5c6db7e95c4dcdfc4ecea4a6) Internal: the kanban card menu render test waits for the board to load before right-clicking. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.279
 
 ### Patch Changes
