@@ -49,6 +49,11 @@ export class MockTaskPty implements TaskPtyLike {
     return this._killed
   }
 
+  /** A pane is subscribed: it has committed this pty, so its input reaches it (acquire alone runs a render earlier). */
+  get attached(): boolean {
+    return this.listeners.size > 0
+  }
+
   get writeLog(): readonly string[] {
     return this.writes
   }
