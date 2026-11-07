@@ -320,4 +320,11 @@ export const en = {
     effortDefault: "Default",
     moreWays: "Clone, adopt a worktree, or use another machine…",
   },
+  voice: {
+    say: "Say",
+    stop: "Stop {time}",
+    working: "Hearing…",
+    hint: "Dictate: tap to talk, tap again to finish",
+    offline: "Voice is off: run scripts/voice/asr_server.py on this host",
+  },
 }

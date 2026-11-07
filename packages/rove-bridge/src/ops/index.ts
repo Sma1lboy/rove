@@ -20,6 +20,7 @@ import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
+import { voiceOps } from "./voice.ts"
 import { welcomeOps } from "./welcome.ts"
 import { WORKSPACE_OPS } from "./workspace.ts"
 
@@ -56,4 +57,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   launchOps,
   modsOps,
   promptOps,
+  voiceOps,
 )

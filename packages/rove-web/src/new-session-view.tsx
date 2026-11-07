@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
+import { DictationButton } from "./dictation-button.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { BranchesMenu, ChipPopover, ChoiceMenu, ModelMenu, SearchList } from "./new-session-menus.tsx"
@@ -51,6 +52,20 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const area = useRef<HTMLTextAreaElement>(null)
+
+  // Dictation lands at the caret and never submits: the owner reads it before it goes anywhere.
+  const insertDictated = (text: string) => {
+    const el = area.current
+    const at = el?.selectionStart ?? prompt.length
+    const end = el?.selectionEnd ?? prompt.length
+    const glue = at > 0 && !/\s$/.test(prompt.slice(0, at)) ? " " : ""
+    setPrompt(`${prompt.slice(0, at)}${glue}${text}${prompt.slice(end)}`)
+    const caret = at + glue.length + text.length
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(caret, caret)
+    })
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
@@ -264,6 +279,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             </ChipPopover>
           )}
+          <DictationButton
+            client={model.client}
+            context={() => [primary, branchName, prompt.slice(-120)].filter(Boolean).join(" · ")}
+            onText={insertDictated}
+            disabled={busy}
+          />
           <button type="button" className="composer-chip" disabled={busy} onClick={() => void start(false)}>
             {t("newSession.createOnly")}
           </button>

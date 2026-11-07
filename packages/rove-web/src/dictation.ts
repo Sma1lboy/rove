@@ -1,0 +1,205 @@
+/**
+ * Push-to-talk for the web client. The browser already has a microphone and the Mac already has the
+ * model, so this records 16 kHz mono PCM, hands it to the bridge op `voice.transcribe` and returns
+ * text. No streaming SDK, no second server: `scripts/voice/asr_server.py` is the only backend.
+ *
+ * Capture is an AudioWorklet because iOS ignores a requested sample rate — the hardware rate decides,
+ * and `toWav` resamples whatever came back.
+ */
+
+import type { BridgeClient } from "./bridge.ts"
+import { type Store, createStore } from "./store.ts"
+
+// Served from `public/` as a plain file: the page's CSP is `script-src 'self'`, so a blob:/data: worklet
+// is refused, and a bundler-emitted asset breaks the bun test runner that imports this module.
+const WORKLET_URL = "/dictation-worklet.js"
+
+/** Past this a dictation is a monologue; the socket frame and the model's patience both run out. */
+const MAX_SECONDS = 60
+const TARGET_RATE = 16_000
+const SILENCE_LEVEL = 0.004
+
+export type DictationPhase = "idle" | "recording" | "transcribing" | "error"
+
+export interface DictationView {
+  readonly phase: DictationPhase
+  readonly seconds: number
+  /** Peak of the last block, 0–1, for a "we can hear you" dot. */
+  readonly level: number
+  readonly error: string | null
+}
+
+export interface DictationResult {
+  readonly text: string
+  readonly seconds: number
+  readonly ms: number
+  readonly reason?: string
+}
+
+/** Linear resample to 16 kHz: the model's rate, and a third of the bytes on the wire. */
+function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
+  const total = chunks.reduce((n, c) => n + c.length, 0)
+  const flat = new Float32Array(total)
+  let at = 0
+  for (const chunk of chunks) {
+    flat.set(chunk, at)
+    at += chunk.length
+  }
+  const frames = Math.max(1, Math.floor((total * TARGET_RATE) / from))
+  const out = new Uint8Array(44 + frames * 2)
+  const view = new DataView(out.buffer)
+  const ascii = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i))
+  }
+  ascii(0, "RIFF")
+  view.setUint32(4, 36 + frames * 2, true)
+  ascii(8, "WAVEfmt ")
+  view.setUint32(16, 16, true) // PCM header size
+  view.setUint16(20, 1, true) // PCM
+  view.setUint16(22, 1, true) // mono
+  view.setUint32(24, TARGET_RATE, true)
+  view.setUint32(28, TARGET_RATE * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  ascii(36, "data")
+  view.setUint32(40, frames * 2, true)
+  const step = from / TARGET_RATE
+  for (let i = 0; i < frames; i++) {
+    const pos = Math.min(total - 1, Math.floor(i * step))
+    const sample = Math.max(-1, Math.min(1, flat[pos] ?? 0))
+    view.setInt16(44 + i * 2, Math.round(sample * 32767), true)
+  }
+  return out
+}
+
+function toHex(bytes: Uint8Array): string {
+  const parts = new Array<string>(bytes.length)
+  for (let i = 0; i < bytes.length; i++) parts[i] = bytes[i].toString(16).padStart(2, "0")
+  return parts.join("")
+}
+
+export class Dictation {
+  readonly view: Store<DictationView> = createStore<DictationView>({
+    phase: "idle",
+    seconds: 0,
+    level: 0,
+    error: null,
+  })
+
+  private stream: MediaStream | null = null
+  private context: AudioContext | null = null
+  private node: AudioWorkletNode | null = null
+  private chunks: Float32Array[] = []
+  private timer: number | null = null
+  private capTimer: number | null = null
+  private peak = 0
+
+  constructor(
+    private readonly client: BridgeClient,
+    /** What the shell is looking at, handed to the model as biasing context. */
+    private readonly contextText: () => string,
+  ) {}
+
+  get recording(): boolean {
+    return this.view.get().phase === "recording"
+  }
+
+  /** Starts or stops: one button, tap to talk, tap again to finish. */
+  async toggle(): Promise<DictationResult | null> {
+    return this.recording ? this.stop() : this.start()
+  }
+
+  async start(): Promise<null> {
+    if (this.view.get().phase !== "idle" && this.view.get().phase !== "error") return null
+    this.view.set({ phase: "recording", seconds: 0, level: 0, error: null })
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      })
+      this.context = new AudioContext()
+      await this.context.audioWorklet.addModule(WORKLET_URL)
+      const source = this.context.createMediaStreamSource(this.stream)
+      this.node = new AudioWorkletNode(this.context, "rove-capture")
+      this.chunks = []
+      this.peak = 0
+      this.node.port.onmessage = (event: MessageEvent<Float32Array>) => {
+        const block = event.data
+        this.chunks.push(block)
+        let sum = 0
+        for (let i = 0; i < block.length; i++) sum += block[i] * block[i]
+        this.peak = Math.max(this.peak, Math.sqrt(sum / Math.max(1, block.length)))
+      }
+      source.connect(this.node)
+      // A worklet with no sink may not be pulled on every engine; a muted gain keeps it running.
+      const mute = this.context.createGain()
+      mute.gain.value = 0
+      this.node.connect(mute)
+      mute.connect(this.context.destination)
+      const started = Date.now()
+      this.timer = window.setInterval(() => {
+        this.view.set({ ...this.view.get(), seconds: (Date.now() - started) / 1000, level: this.peak })
+      }, 100)
+      this.capTimer = window.setTimeout(() => void this.stop(), MAX_SECONDS * 1000)
+      return null
+    } catch (err) {
+      this.release()
+      this.fail(err)
+      return null
+    }
+  }
+
+  async stop(): Promise<DictationResult | null> {
+    if (this.view.get().phase !== "recording") return null
+    const rate = this.context?.sampleRate ?? TARGET_RATE
+    const chunks = this.chunks
+    // Stop the clock before the await: the UI must not keep counting while we wait on the model.
+    this.view.set({ ...this.view.get(), phase: "transcribing", level: 0 })
+    this.release()
+    const wav = toWav(chunks, rate)
+    const seconds = (wav.length - 44) / 2 / TARGET_RATE
+    if (seconds < 0.3 || this.peak < SILENCE_LEVEL) {
+      this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+      return { text: "", seconds, ms: 0, reason: "silent" }
+    }
+    try {
+      const result = await this.client.request<DictationResult>("voice.transcribe", {
+        wav: toHex(wav),
+        context: this.contextText(),
+      })
+      this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+      return result
+    } catch (err) {
+      this.fail(err)
+      return null
+    }
+  }
+
+  private fail(err: unknown): void {
+    this.view.set({
+      phase: "error",
+      seconds: 0,
+      level: 0,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
+
+  /** Cancels without spending a model call (a stray tap, a swipe away). */
+  cancel(): void {
+    if (this.view.get().phase !== "recording") return
+    this.release()
+    this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+  }
+
+  private release(): void {
+    if (this.timer !== null) window.clearInterval(this.timer)
+    if (this.capTimer !== null) window.clearTimeout(this.capTimer)
+    this.timer = null
+    this.capTimer = null
+    this.node?.port.close()
+    this.node = null
+    for (const track of this.stream?.getTracks() ?? []) track.stop()
+    this.stream = null
+    void this.context?.close().catch(() => {})
+    this.context = null
+  }
+}

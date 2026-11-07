@@ -319,4 +319,11 @@ export const zh: typeof en = {
     effortDefault: "默认",
     moreWays: "克隆、接管 worktree，或使用其他机器…",
   },
+  voice: {
+    say: "说",
+    stop: "停 {time}",
+    working: "在听…",
+    hint: "口述：点一下说话，再点一下结束",
+    offline: "语音未启动：在这台机器上运行 scripts/voice/asr_server.py",
+  },
 }

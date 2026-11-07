@@ -62,6 +62,41 @@ Ctrl+E instead of Ctrl+T, and there is no Ctrl+Q (a page cannot quit itself).
 [web/PARITY.md](web/PARITY.md) lists every TUI action and whether the web
 has it yet.
 
+## Dictation (optional, local)
+
+Typing on a phone is the worst part of driving a session from one, so the new-session composer has a
+`[ Say ]` button. The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to a
+sidecar on this machine; the transcript is inserted at the caret and never submitted.
+
+The sidecar is opt-in — nothing in Rove bundles a model:
+
+```bash
+scripts/voice/asr_server.py          # uv resolves the environment; 127.0.0.1:8791
+scripts/voice/dictionary.py seed     # your repos, branches and daily terms
+scripts/voice/dictionary.py learn    # how the model actually hears each term
+```
+
+While it is not running the button is disabled and says so. It listens on loopback and takes the
+shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it, so the
+microphone never depends on a port you have to expose.
+
+- **Model.** `mlx-community/whisper-large-v3-mlx`, on this Mac's GPU. Large-v3 over turbo because
+  code-switched speech is the case that matters: "把 rove-web 的 composer 改成 voice first" decodes
+  verbatim on large-v3 and as "Barov with the composer" on turbo. Measured here: 15 s of speech in
+  1.7 s, ~1.2 s round trip for one sentence.
+- **Dictionary.** `~/.rove/voice/dictionary.json`. Terms ride in the decode prompt for spelling and
+  casing (without them a clip gives "Roveweb", "Demon", "Vlog"), and `learn` mines the spoken forms
+  the decode still gets wrong, which are rewritten afterwards. `learn` synthesizes each term with
+  macOS `say` inside a carrier sentence, transcribes it, and keeps the mishearing only when it looks
+  like one — the round-trip trick the Wispr Flow reverse-engineering uses, with a carrier added
+  because a bare word round-trips clean.
+- **Context.** The composer sends its project, branch and what is already typed. That ranks terms, so
+  the ones you are looking at survive the prompt budget. Shell text is deliberately kept out of the
+  decode prompt: it bled into transcripts ("da composer", "da log").
+- **Privacy.** Audio, model and dictionary stay on this machine. Nothing leaves it, and no audio is
+  written to disk.
+
+
 ## Security
 
 - It listens on `127.0.0.1` only unless you pick a bridge preset
