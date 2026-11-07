@@ -1,15 +1,11 @@
-/** The diff view's strip above the rows: scope, hide-whitespace, totals, and the jump/fold buttons. */
+/** The diff view's strip above the rows: the scope menu, hide-whitespace, totals, and the jump/fold buttons. */
 
 import type { ReactNode } from "react"
 import { t } from "./i18n/index.ts"
 import { Button } from "./ui/button.tsx"
-import { Tabs } from "./ui/tabs.tsx"
 
-export function DiffToolbar<S extends string>(props: {
-  scopes: { id: S; label: string }[] | null
-  scope: S
-  onScope: (scope: S) => void
-  /** The `[ base ▾ ]` picker, when the task has a base. */
+export function DiffToolbar(props: {
+  /** `main → All changes ▾`, when the task has a base. */
   picker: ReactNode
   ignoreWs: boolean
   onToggleWs: () => void
@@ -27,7 +23,6 @@ export function DiffToolbar<S extends string>(props: {
 }) {
   return (
     <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 px-2 pt-1.5 font-mono text-meta">
-      {props.scopes && <Tabs className="flex-wrap" tabs={props.scopes} value={props.scope} onChange={props.onScope} />}
       {props.picker}
       <Button
         hit="tight"

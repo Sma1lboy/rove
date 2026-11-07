@@ -10,7 +10,7 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { TextDialog } from "./dialogs.tsx"
-import { DiffBasePicker } from "./diff-base-picker.tsx"
+import { DiffScopeMenu } from "./diff-base-picker.tsx"
 import { useDiffBase } from "./diff-base.ts"
 import { DiffFileRow } from "./diff-file-row.tsx"
 import { DiffNoteLine, DiffRowActions } from "./diff-row-actions.tsx"
@@ -29,7 +29,6 @@ import { type DiffRow, chatReference, fileStats, noteRange, noteTarget, visibleI
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
-import type { DiffScope } from "./panel-model.ts"
 import { openDiff } from "./panel-state.ts"
 import { type Loaded, bridgeError, load } from "./preview-load.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -367,11 +366,6 @@ export function PreviewView({
 
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
-  const scopes: { id: DiffScope; label: string }[] = [
-    { id: "working", label: t("review.scopeWorking") },
-    { id: "branch", label: t("review.scopeBranch") },
-    { id: "task", label: t("review.scopeTask", { base: picked_ ?? base ?? "" }) },
-  ]
 
   return (
     <div
@@ -383,12 +377,17 @@ export function PreviewView({
     >
       {isDiff && (
         <DiffToolbar
-          scopes={base !== null ? scopes : null}
-          scope={view.scope}
-          onScope={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
           picker={
             base !== null && (
-              <DiffBasePicker taskId={view.taskId} model={model} base={base} custom={picked_} onPick={pickBase} />
+              <DiffScopeMenu
+                taskId={view.taskId}
+                model={model}
+                scope={view.scope}
+                onScope={(scope) => openDiff({ taskId: view.taskId, path: view.path, scope })}
+                base={base}
+                custom={picked_}
+                onPick={pickBase}
+              />
             )
           }
           ignoreWs={ws}
