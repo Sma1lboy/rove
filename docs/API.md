@@ -1703,8 +1703,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   Refusals: `TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`, `NOTES_TOO_LONG`.
   Defaults to the calling session's own task. Returns
   `{ ok, taskId, notes, todos: [{ id, text, done }], done, total }`. Daemon RPC: `task.notes`.
-  The web Files panel's Notes tab edits the same copy, shows `done/total` on the task row, and
-  warns (never blocks) in the land confirm while todos are unchecked.
+  The web shows `done/total` on the task row and warns (never blocks) in the land confirm while
+  todos are unchecked.
 
 ## issues
 

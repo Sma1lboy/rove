@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { openTodos, todoCount, todoPrompt } from "../src/task-todos.ts"
+import { openTodos, todoCount } from "../src/task-todos.ts"
 
 const todos = [
   { id: "t1", text: "check the migration", done: true },
@@ -14,12 +14,7 @@ describe("task todos", () => {
     expect(todoCount({ todos: [] })).toBeNull()
   })
 
-  test("the prompt lists only what is unchecked, and there is none when all is done", () => {
+  test("open todos are only the unchecked ones", () => {
     expect(openTodos({ todos }).map((t) => t.id)).toEqual(["t2", "t3"])
-    const prompt = todoPrompt({ todos })
-    expect(prompt).toContain("- update the docs\n- ask about rollback")
-    expect(prompt).not.toContain("migration")
-    expect(todoPrompt({ todos: todos.map((t) => ({ ...t, done: true })) })).toBeNull()
-    expect(todoPrompt({})).toBeNull()
   })
 })
