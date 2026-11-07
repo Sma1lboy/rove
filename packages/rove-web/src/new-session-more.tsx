@@ -24,8 +24,6 @@ export function ComposerMore(props: {
   onInvalid: (message: string) => void
   /** Absent while it cannot run (a compare round needs its prompt sent). */
   onCreateOnly?: () => void
-  /** Clone or adopt a worktree; absent on another machine. */
-  onMoreWays?: () => void
 }) {
   const words = (useLocale() === "zh" ? tasksZh : tasksEn).machine
   const [view, setView] = useState<"root" | "machine" | "later">("root")
@@ -94,7 +92,6 @@ export function ComposerMore(props: {
             {props.onCreateOnly && (
               <Row label={t("newSession.createOnly")} disabled={props.busy} onClick={act(props.onCreateOnly)} />
             )}
-            {props.onMoreWays && <Row label={t("newSession.moreWays")} onClick={act(props.onMoreWays)} />}
           </div>
         )
       }}

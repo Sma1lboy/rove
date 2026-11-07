@@ -6,7 +6,9 @@ export const NEW_SESSION =
 export const HERO = "flex flex-1 flex-col items-center justify-center gap-1.5 text-center"
 
 /** The prompt card on top; the toolbar of picks sits under it, outside the card. */
-export const COMPOSER = "mx-auto flex w-full max-w-[104ch] flex-col gap-2"
+export const COMPOSER = "relative mx-auto flex w-full max-w-[104ch] flex-col gap-2"
+/** Errors and clone progress float above the card: in flow they would push the bottom-pinned composer up. */
+export const NOTE = "pointer-events-none absolute bottom-full left-0 mb-2 flex flex-col gap-1"
 export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"

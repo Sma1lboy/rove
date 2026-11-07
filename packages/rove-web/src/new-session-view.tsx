@@ -39,7 +39,7 @@ import {
   startUngrouped,
   toggleRepo,
 } from "./new-session.ts"
-import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
+import type { ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
@@ -48,7 +48,7 @@ import { formatStartsAt, scheduleCreated } from "./schedule-start.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
-import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
+import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
 import { ClipGlyph, MicFace } from "./ui/term-composer.tsx"
@@ -478,17 +478,18 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(false, at) : undefined}
             onInvalid={setError}
             onCreateOnly={picks.comparing ? undefined : () => void start(false)}
-            onMoreWays={
-              remote ? undefined : () => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)
-            }
           />
         </div>
-        {busy && progress && (
-          <p className="text-muted" data-field="clone-progress">
-            {progress}
-          </p>
+        {((busy && progress) || error) && (
+          <div className={C.NOTE}>
+            {busy && progress && (
+              <p className="m-0 text-muted" data-field="clone-progress">
+                {progress}
+              </p>
+            )}
+            {error && <p className="m-0 text-error">※ {error}</p>}
+          </div>
         )}
-        {error && <p className="text-error">※ {error}</p>}
       </form>
     </div>
   )
