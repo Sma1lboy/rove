@@ -9,11 +9,36 @@ type RenderServiceInternals = {
   _renderRows?(start: number, end: number): void
 }
 
+let fontsTrimmed = false
+
+/**
+ * Electron 45's Chromium rejects a canvas font with leading whitespace and keeps `10px sans-serif`; addon-webgl
+ * 0.19 writes ` normal 26px …` for every upright glyph, so its atlas draws them tiny. Trim where the parser does.
+ */
+function trimCanvasFonts(): void {
+  if (fontsTrimmed) return
+  fontsTrimmed = true
+  const probe = document.createElement("canvas").getContext("2d")
+  if (!probe) return
+  probe.font = " 12px monospace"
+  if (probe.font.startsWith("12px")) return
+  const font = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, "font")
+  const { get, set } = font ?? {}
+  if (!font || !get || !set) return
+  Object.defineProperty(CanvasRenderingContext2D.prototype, "font", {
+    ...font,
+    set(value: string) {
+      set.call(this, typeof value === "string" ? value.trim() : value)
+    },
+  })
+}
+
 /** Load the WebGL renderer on an opened terminal; without WebGL the DOM renderer stays. Dispose after `term.dispose()`. */
 export function loadWebgl(term: Terminal): { dispose(): void } {
   let webgl: WebglAddon | null = null
   let glCanvas: HTMLCanvasElement | null = null
   try {
+    trimCanvasFonts()
     const before = new Set(term.element?.querySelectorAll("canvas"))
     const addon = new WebglAddon()
     addon.onContextLoss(() => {

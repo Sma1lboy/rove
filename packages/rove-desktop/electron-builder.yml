@@ -1,5 +1,5 @@
 # The desktop shell: the rove-web client in one window, driving the Rove already installed here.
-# Unsigned tonight — a build from a person's own machine opens; a download needs
+# Ad-hoc signed (no Developer ID yet): a build from a person's own machine opens; a download needs
 # `xattr -d com.apple.quarantine /Applications/Rove.app` or right-click › Open.
 appId: run.rove.desktop
 productName: Rove
@@ -14,7 +14,9 @@ asar: true
 npmRebuild: false
 mac:
   category: public.app-category.developer-tools
-  identity: null
+  # Ad-hoc, not none: skipping signing leaves Electron's own signature, which no longer matches the bundle
+  # (`codesign --verify` fails), and macOS keys notification permission to a bundle's signature.
+  identity: "-"
   hardenedRuntime: false
   target:
     - target: dmg
@@ -36,4 +38,6 @@ win:
 linux:
   target:
     - AppImage
+  # The default comes from the scoped package name (`@sma1lboy/rove-desktop`), which is no file name.
+  executableName: rove-desktop
   category: Development

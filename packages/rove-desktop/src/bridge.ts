@@ -39,6 +39,8 @@ export interface Started {
   /** The bare origin, for navigation locks and "open in browser". */
   readonly origin: string
   stop(): void
+  /** Called once if the bridge exits (crash, killed, or `stop()`); never for an attached URL. */
+  onExit(fn: () => void): void
 }
 
 function isExecutable(path: string): boolean {
@@ -119,20 +121,28 @@ export function redact(text: string): string {
  * Start the bridge. `env.ROVE_DESKTOP_URL` skips this entirely (previewing against a bridge that
  * already runs, e.g. the rove-web tunnel on 7890).
  */
-export async function start(opts: { bin: string; attempts?: number }): Promise<Started> {
+export async function start(opts: { bin: string; attempts?: number; port?: number }): Promise<Started> {
   const fixed = process.env.ROVE_DESKTOP_URL?.trim()
-  if (fixed) return { url: fixed, origin: new URL(fixed).origin, stop: () => {} }
+  if (fixed) return { url: fixed, origin: new URL(fixed).origin, stop: () => {}, onExit: () => {} }
 
   let lastError = ""
   for (let attempt = 0; attempt < (opts.attempts ?? 3); attempt++) {
-    const port = await freePort()
+    const port = opts.port ?? (await freePort())
     const child = spawn(opts.bin, ["--web", "--no-qr", "--port", String(port)], {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
     })
     try {
       const url = await openLine(child, port)
-      return { url, origin: new URL(url).origin, stop: () => stop(child) }
+      return {
+        url,
+        origin: new URL(url).origin,
+        stop: () => stop(child),
+        onExit: (fn) => {
+          if (child.exitCode !== null || child.signalCode !== null) fn()
+          else child.once("exit", () => fn())
+        },
+      }
     } catch (err) {
       stop(child)
       lastError = err instanceof Error ? err.message : String(err)

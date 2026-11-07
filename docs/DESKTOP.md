@@ -32,12 +32,16 @@ bun run dist       # macOS .app + dmg under release/
 `bun install` at the repo root downloads the Electron runtime
 (`scripts/setup-electron.mjs`; Bun does not run Electron's own postinstall).
 
-The first packaged build is unsigned: macOS quarantines it, so either right-click
-the app and choose **Open**, or
+The packaged build is ad-hoc signed, not notarized: macOS quarantines a downloaded
+copy, so either right-click the app and choose **Open**, or
 
 ```sh
 xattr -d com.apple.quarantine /Applications/Rove.app
 ```
+
+macOS is the only platform run so far. `electron-builder --linux` and `--win` also
+produce an AppImage and an installer, but neither has been opened on its system, and
+on Windows the app does not yet look for `rove.cmd`/`rove.exe`.
 
 ## Finding Rove
 

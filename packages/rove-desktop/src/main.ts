@@ -87,8 +87,9 @@ function lockDown(origin: string): void {
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback, details) => {
     callback(allowed.has(permission) && ours(details.requestingUrl))
   })
+  // `requestingOrigin` arrives as a URL (`http://127.0.0.1:port/`), not a bare origin: compare parsed.
   session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
-    return allowed.has(permission) && requestingOrigin === origin
+    return allowed.has(permission) && ours(requestingOrigin)
   })
   app.on("web-contents-created", (_event, contents) => {
     contents.on("will-attach-webview", (event) => event.preventDefault())
@@ -124,6 +125,10 @@ function createWindow(started: Started): void {
   if (process.env.ROVE_DESKTOP_DEBUG) {
     win.webContents.on("console-message", (event) => log(`page: ${event.message}`))
   }
+  // The page leads its title with the inbox count (`(33) task - rove`); the Dock shows the same number.
+  win.on("page-title-updated", (_event, title) => {
+    app.setBadgeCount(Number(/^\((\d+)\)/.exec(title)?.[1] ?? 0))
+  })
   smokeTest(win)
   // Close means quit: the bridge is this app's child, and a hidden window with a live bridge is a
   // process the owner cannot see. (The daemon itself is shared with the TUI and outlives us.)
@@ -134,28 +139,45 @@ function createWindow(started: Started): void {
 
   /**
    * `ROVE_DESKTOP_SMOKE=<png>`: load the page, save what it drew, print the facts a person would check,
-   * and quit. The honest test of this shell — real window, real page, real daemon — without a screen
-   * capture that depends on which space happens to be in front.
+   * and quit. `ROVE_DESKTOP_SMOKE_TASK=<n>` opens the nth rail row first, so the capture shows a real
+   * terminal painting rather than the empty workspace. The honest test of this shell — real window,
+   * real page, real daemon — without a screen capture that depends on which space is in front.
    */
   function smokeTest(window: BrowserWindow): void {
     const target = process.env.ROVE_DESKTOP_SMOKE
     if (!target) return
+    const task = Number(process.env.ROVE_DESKTOP_SMOKE_TASK ?? "")
     window.webContents.once("did-finish-load", () => {
       setTimeout(() => {
+        const open = Number.isInteger(task) && task > 0
         void window.webContents
           .executeJavaScript(
-            `JSON.stringify({
+            open
+              ? `(() => {
+                  const rows = [...document.querySelectorAll("[data-rail-body] button")];
+                  rows[${task - 1}]?.click();
+                  return "clicked ${task}";
+                })()`
+              : `"no task"`,
+          )
+          .then(() => new Promise((resolve) => setTimeout(resolve, open ? 9_000 : 0)))
+          .then(() =>
+            window.webContents.executeJavaScript(
+              `JSON.stringify({
             title: document.title,
             rail: document.querySelectorAll("[data-rail-body] button").length,
             terminals: document.querySelectorAll(".xterm").length,
             canvases: document.querySelectorAll(".xterm canvas").length,
+            rows: document.querySelectorAll(".xterm-rows div").length,
+            dpr: window.devicePixelRatio,
             text: (document.body.innerText || "").slice(0, 160),
           })`,
+            ),
           )
           .then(async (facts: string) => {
             const image = await window.webContents.capturePage()
             writeFileSync(target, image.toPNG())
-            log(`smoke: ${facts}`)
+            log(`smoke: ${facts} badge=${app.getBadgeCount()}`)
             log(`smoke: wrote ${target}`)
           })
           .catch((err: unknown) => log(`smoke failed: ${redact(err instanceof Error ? err.message : String(err))}`))
@@ -174,11 +196,11 @@ function createWindow(started: Started): void {
 }
 
 /** Shown instead of a blank window when the app cannot reach Rove at all. */
-function explain(text: string, buttons: string[]): Promise<number> {
+function explain(text: string, buttons: string[], message = "Rove could not start."): Promise<number> {
   const options = {
     type: "warning" as const,
     title: APP_NAME,
-    message: "Rove could not start.",
+    message,
     detail: text,
     buttons,
     defaultId: 0,
@@ -229,8 +251,36 @@ async function boot(): Promise<void> {
     }
     return app.quit()
   }
+  keepUp(bin, bridge)
   createWindow(bridge)
   log("window created")
+}
+
+/**
+ * A bridge that dies under an open window comes back on the same port, so the page's own reconnect
+ * finds it and nothing reloads. Five tries with backoff, then the owner decides.
+ */
+function keepUp(bin: string, running: Started): void {
+  running.onExit(async () => {
+    if (quitting) return
+    const port = Number(new URL(running.origin).port)
+    log(`bridge exited; restarting on ${port}`)
+    let lastError = ""
+    for (const wait of [500, 1_000, 2_000, 4_000, 8_000]) {
+      await new Promise((resolve) => setTimeout(resolve, wait))
+      if (quitting) return
+      try {
+        bridge = await start({ bin, port, attempts: 1 })
+        log(`bridge back on ${bridge.origin}`)
+        return keepUp(bin, bridge)
+      } catch (err) {
+        lastError = redact(err instanceof Error ? err.message : String(err))
+      }
+    }
+    const choice = await explain(lastError, ["Restart", "Quit"], "The Rove bridge stopped and did not come back.")
+    if (choice === 0) relaunch()
+    else app.quit()
+  })
 }
 
 function buildMenu(): void {
