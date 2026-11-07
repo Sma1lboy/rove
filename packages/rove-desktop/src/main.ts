@@ -192,11 +192,11 @@ function createWindow(started: Started): void {
 }
 
 /** Shown instead of a blank window when the app cannot reach Rove at all. */
-function explain(text: string, buttons: string[]): Promise<number> {
+function explain(text: string, buttons: string[], message = "Rove could not start."): Promise<number> {
   const options = {
     type: "warning" as const,
     title: APP_NAME,
-    message: "Rove could not start.",
+    message,
     detail: text,
     buttons,
     defaultId: 0,
@@ -247,8 +247,36 @@ async function boot(): Promise<void> {
     }
     return app.quit()
   }
+  keepUp(bin, bridge)
   createWindow(bridge)
   log("window created")
+}
+
+/**
+ * A bridge that dies under an open window comes back on the same port, so the page's own reconnect
+ * finds it and nothing reloads. Five tries with backoff, then the owner decides.
+ */
+function keepUp(bin: string, running: Started): void {
+  running.onExit(async () => {
+    if (quitting) return
+    const port = Number(new URL(running.origin).port)
+    log(`bridge exited; restarting on ${port}`)
+    let lastError = ""
+    for (const wait of [500, 1_000, 2_000, 4_000, 8_000]) {
+      await new Promise((resolve) => setTimeout(resolve, wait))
+      if (quitting) return
+      try {
+        bridge = await start({ bin, port, attempts: 1 })
+        log(`bridge back on ${bridge.origin}`)
+        return keepUp(bin, bridge)
+      } catch (err) {
+        lastError = redact(err instanceof Error ? err.message : String(err))
+      }
+    }
+    const choice = await explain(lastError, ["Restart", "Quit"], "The Rove bridge stopped and did not come back.")
+    if (choice === 0) relaunch()
+    else app.quit()
+  })
 }
 
 function buildMenu(): void {
