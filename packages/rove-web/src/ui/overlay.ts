@@ -51,15 +51,20 @@ export const toastClass = (error: boolean): string =>
 
 /** Inbox: one card's line, badge, age and subtitle. */
 export const INBOX_HINTS = "text-subtle"
+/** Key legend on the left, `[ ack all ]` on the reply column's right edge. */
+export const INBOX_HINTS_ROW = "flex items-baseline justify-between gap-3"
 export const INBOX_KICKER = "mt-1"
 export const INBOX_CARDS = "m-0 flex list-none flex-col gap-0.5 p-0"
 export const INBOX_LINE = "flex min-w-0 items-baseline gap-2.5"
 export const INBOX_BADGE = "flex-none font-mono text-meta font-normal normal-nums"
-export const INBOX_AGE = `${INBOX_BADGE} text-subtle`
+/** Fixed to `99d`'s width so a shorter age never shifts the badge beside it. */
+export const INBOX_AGE = `${INBOX_BADGE} min-w-[3ch] text-right text-subtle`
 export const INBOX_SUB = "truncate font-mono text-meta font-normal normal-nums text-muted"
 /** A card's row: the card, then its reply toggle at the right edge. */
 export const INBOX_CARD = "flex items-center gap-1"
 export const INBOX_CARD_MAIN = "min-w-0 flex-1"
-export const INBOX_PEEK_TOGGLE = "flex-none whitespace-nowrap pr-2 font-mono text-meta"
+/** Wide enough for `[ reply ]` in either locale, and drawn empty on rows without one, so every row's age ends on one edge. */
+export const INBOX_PEEK_TOGGLE =
+  "flex-none min-w-[calc(9ch+0.5rem)] whitespace-nowrap pr-2 text-right font-mono text-meta"
 /** The rail's unread count; `:hover` ungated, as the sheet had. */
 export const INBOX_CHIP = "font-mono [&:hover]:text-accent"

@@ -1,19 +1,19 @@
 /**
  * The Inbox dialog (TUI `AttentionInboxPane`): ATTENTION = pending episodes
  * from the daemon, RECENT = sessions this browser opened. ↑/↓ or j/k move,
- * Enter or click opens (and clears the episode), `d` clears without opening.
+ * Enter or click opens (and acks the episode), `d` acks without opening, `[ ack all ]` acks every one.
  */
 
 import { useEffect, useState } from "react"
 import type { AttentionRow, TaskRow } from "rove-bridge/protocol"
 import { DialogShell } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { dismissRoutineEpisode, openRoutineEpisode } from "./inbox-open.ts"
+import { dismissEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { InboxPeek, type PeekMode } from "./inbox-peek.tsx"
 import { compactAge, inboxBadge, isRoutineState, sortAttention } from "./inbox.ts"
 import type { AppModel, Visit } from "./model.ts"
 import { useStore } from "./store.ts"
-import { closeDialog, toast } from "./ui.ts"
+import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Legend } from "./ui/legend.tsx"
 import {
@@ -24,6 +24,7 @@ import {
   INBOX_CARDS,
   INBOX_CARD_MAIN,
   INBOX_HINTS,
+  INBOX_HINTS_ROW,
   INBOX_KICKER,
   INBOX_LINE,
   INBOX_PEEK_TOGGLE,
@@ -99,16 +100,9 @@ export function InboxDialog({ model }: { model: AppModel }) {
   const cards = [...attention, ...recent]
   const current = cards[Math.min(index, cards.length - 1)]
 
-  const dismiss = async (card: Card) => {
-    if (card.attention && isRoutineState(card.attention.state)) return dismissRoutineEpisode(model, card.attention)
-    if (!card.attention?.taskId || card.attention.gateId) return
-    await model.client
-      .request("attention.dismiss", { taskId: card.attention.taskId, ...(card.tabId ? { tabId: card.tabId } : {}) })
-      .catch((err) => toast(String(err), "error"))
-  }
   const open = (card: Card) => {
     if (card.attention && isRoutineState(card.attention.state)) return openRoutineEpisode(model, card.attention)
-    if (card.attention) void dismiss(card)
+    if (card.attention) void dismissEpisode(model, card.attention)
     if (card.taskId && tasks.has(card.taskId)) {
       model.select(card.taskId, card.tabId)
       closeDialog()
@@ -122,7 +116,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
       if (e.key === "ArrowDown" || e.key === "j") setIndex((i) => Math.min(cards.length - 1, i + 1))
       else if (e.key === "ArrowUp" || e.key === "k") setIndex((i) => Math.max(0, i - 1))
       else if (e.key === "Enter" && current) open(current)
-      else if (e.key === "d" && current?.attention) void dismiss(current)
+      else if (e.key === "d" && current?.attention) void dismissEpisode(model, current.attention, true)
       else return
       e.preventDefault()
     }
@@ -165,7 +159,7 @@ export function InboxDialog({ model }: { model: AppModel }) {
             </span>
             {card.subtitle && <span className={INBOX_SUB}>{card.subtitle}</span>}
           </button>
-          {peekable && (
+          {peekable ? (
             <Button
               className={INBOX_PEEK_TOGGLE}
               aria-expanded={peeking}
@@ -176,6 +170,9 @@ export function InboxDialog({ model }: { model: AppModel }) {
             >
               {peeking ? t("inbox.hide") : t("inbox.reply")}
             </Button>
+          ) : (
+            // Holds the reply column so every row's badge and age share one right edge.
+            <span aria-hidden className={INBOX_PEEK_TOGGLE} />
           )}
         </div>
         {peeking && card.taskId && (
@@ -195,9 +192,21 @@ export function InboxDialog({ model }: { model: AppModel }) {
   return (
     <DialogShell title={t("inbox.title")} wide>
       <div className={DIALOG_BODY}>
-        <p className={`${KICKER} text-muted ${INBOX_HINTS} touch:hidden!`}>
-          <Legend text={t("inbox.hints")} />
-        </p>
+        <div className={INBOX_HINTS_ROW}>
+          <p className={`${KICKER} text-muted ${INBOX_HINTS} touch:hidden!`}>
+            <Legend text={t("inbox.hints")} />
+          </p>
+          {attention.length > 0 && (
+            <Button
+              className={INBOX_PEEK_TOGGLE}
+              onClick={() =>
+                void Promise.all(attention.map((card) => card.attention && dismissEpisode(model, card.attention, true)))
+              }
+            >
+              {t("inbox.ackAll")}
+            </Button>
+          )}
+        </div>
         <h2 className={`${KICKER} text-muted ${INBOX_KICKER}`}>{t("inbox.attention")}</h2>
         {attention.length === 0 ? (
           <p className="mono text-muted">{t("inbox.empty")}</p>

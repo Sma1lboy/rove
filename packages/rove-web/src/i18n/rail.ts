@@ -27,7 +27,8 @@ export const en = {
   },
   inbox: {
     title: "inbox",
-    hints: "↑↓ move · enter open · d clear · esc close",
+    hints: "↑↓ move · enter open · d ack · esc close",
+    ackAll: "[ ack all ]",
     attention: "attention",
     recent: "recent",
     empty: "no pending attention",
@@ -46,6 +47,7 @@ export const en = {
       dead: "engine exited",
       routineFailed: "routine needs you",
       decision: "needs a decision",
+      reportMissing: "report missing",
     },
   },
 }
@@ -73,7 +75,8 @@ export const zh: typeof en = {
   },
   inbox: {
     title: "收件箱",
-    hints: "↑↓ 移动 · enter 打开 · d 清除 · esc 关闭",
+    hints: "↑↓ 移动 · enter 打开 · d 已阅 · esc 关闭",
+    ackAll: "[ 全部已阅 ]",
     attention: "待处理",
     recent: "最近使用",
     empty: "暂无待处理",
@@ -92,6 +95,7 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
       decision: "等你决定",
+      reportMissing: "未回报",
     },
   },
 }
