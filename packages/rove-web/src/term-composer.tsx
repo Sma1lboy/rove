@@ -7,9 +7,10 @@
  */
 
 import { useRef, useState, useSyncExternalStore } from "react"
+import { flushSync } from "react-dom"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
-import { DictationButton } from "./dictation-button.tsx"
+import { DictationButton, useVoiceHosted } from "./dictation-button.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -17,7 +18,14 @@ import { useStore } from "./store.ts"
 import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
 import { QueuedChips } from "./term-queue.tsx"
 import { toast } from "./ui.ts"
-import { COMPOSER_ATTACH, ClipGlyph, TermComposerBar, composerDictate } from "./ui/term-composer.tsx"
+import {
+  COMPOSER_ATTACH,
+  ClipGlyph,
+  KeysButton,
+  TermComposerBar,
+  composerDictate,
+  composerHold,
+} from "./ui/term-composer.tsx"
 
 interface SendReply {
   readonly delivered: boolean
@@ -36,6 +44,9 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const [revision, setRevision] = useState(0)
   const { attachments, attach, remove, clear } = useAttachments(model, (message) => toast(message, "error"))
   const field = useRef<HTMLTextAreaElement>(null)
+  // Talking comes first on a phone: the field shows only for a draft, an attachment, or the keyboard key.
+  const hosted = useVoiceHosted(model.client)
+  const [typing, setTyping] = useState(false)
   const snippets = useSnippetSuggest({
     value: text,
     onChange: (next) => setDraft(key, next),
@@ -72,6 +83,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       }
       setDraft(key, "")
       clear()
+      setTyping(false)
     } catch (err) {
       // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.
       const code = err instanceof BridgeRequestError ? err.code : undefined
@@ -91,6 +103,19 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   }
   if (!local) return null
   const onFiles = (files: File[]) => void attach(files)
+  const talk = {
+    client: model.client,
+    context: () => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · "),
+    onText: (spoken: string) => void insertDictated(spoken),
+    onSend: sendDictated,
+    disabled: busy,
+  }
+  const voiceFirst = hosted === true && !typing && text === "" && attachments.length === 0
+  const toKeys = () => {
+    // Synchronously, inside the tap: iOS raises the keyboard only for a focus the gesture itself made.
+    flushSync(() => setTyping(true))
+    field.current?.focus()
+  }
   return (
     <TermComposerBar
       value={text}
@@ -110,15 +135,14 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
           <ClipGlyph />
         </AttachPicker>
       }
-      dictate={
-        <DictationButton
-          client={model.client}
-          context={() => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · ")}
-          onText={(spoken) => void insertDictated(spoken)}
-          onSend={sendDictated}
-          disabled={busy}
-          look={composerDictate}
-        />
+      dictate={<DictationButton {...talk} look={composerDictate} />}
+      voice={
+        voiceFirst ? (
+          <>
+            <DictationButton {...talk} look={composerHold} idle={t("voice.hold")} />
+            <KeysButton label={t("voice.type")} onClick={toKeys} />
+          </>
+        ) : undefined
       }
       composerKey={key}
       fieldRef={field}
