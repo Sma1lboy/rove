@@ -58,7 +58,7 @@ export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3
 export const NARROW_BAR = "flex items-center gap-2"
 export const NARROW_BACK = `px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
 export const NARROW_SWITCH = "ml-auto flex gap-0.5"
-export const NARROW_TAB = `rounded-sm px-2.5 py-1 font-mono text-meta font-semibold normal-nums text-muted aria-selected:bg-inset aria-selected:text-ink ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
+export const NARROW_TAB = `flex items-center rounded-sm px-2.5 py-1.5 text-muted aria-selected:bg-inset aria-selected:text-ink [&_svg]:size-4 ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
 
 export const HINT_BAR =
   "inline-flex shrink-0 items-baseline gap-3 whitespace-nowrap text-meta text-muted *:relative [&_.link:disabled]:cursor-default [&_.link:disabled]:opacity-50"
