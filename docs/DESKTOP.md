@@ -39,6 +39,10 @@ copy, so either right-click the app and choose **Open**, or
 xattr -d com.apple.quarantine /Applications/Rove.app
 ```
 
+macOS is the only platform run so far. `electron-builder --linux` and `--win` also
+produce an AppImage and an installer, but neither has been opened on its system, and
+on Windows the app does not yet look for `rove.cmd`/`rove.exe`.
+
 ## Finding Rove
 
 A macOS app launched from Finder starts with `/usr/bin:/bin`, not your shell's

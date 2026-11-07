@@ -38,4 +38,6 @@ win:
 linux:
   target:
     - AppImage
+  # The default comes from the scoped package name (`@sma1lboy/rove-desktop`), which is no file name.
+  executableName: rove-desktop
   category: Development
