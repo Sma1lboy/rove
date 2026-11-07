@@ -95,10 +95,6 @@ export const en = {
     termKeyInterrupt: "Ctrl+C, interrupt",
     termKeyEnter: "Enter",
     narrowTerminal: "Terminal",
-    narrowFiles: "Files",
-    narrowDiff: "Diff",
-    narrowBrowser: "Browser",
-    narrowQuota: "Context",
   },
 }
 
@@ -198,9 +194,5 @@ export const zh: typeof en = {
     termKeyInterrupt: "Ctrl+C 中断",
     termKeyEnter: "回车",
     narrowTerminal: "终端",
-    narrowFiles: "文件",
-    narrowDiff: "差异",
-    narrowBrowser: "浏览器",
-    narrowQuota: "上下文",
   },
 }

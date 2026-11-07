@@ -1,15 +1,13 @@
 /** The workspace's top-right buttons that open the side panel on Files, a Diff, a Browser or Context; the one on screen is tinted, and pressing it again closes the panel. Chat opens from the panel's + menu. */
 
 import { t, useLocale } from "./i18n/index.ts"
-import { PANEL_KINDS, panelOpen } from "./panel-layout.ts"
+import { LAUNCHED_KINDS, panelOpen } from "./panel-layout.ts"
 import { shownKind } from "./panel-model.ts"
 import { launchPanel, useTaskPanel } from "./panel-state.ts"
 import { ICONS, Icon } from "./panel-tabs.tsx"
 import { useStore } from "./store.ts"
 import { zen } from "./ui.ts"
 import { PANEL_LAUNCH, iconButton } from "./ui/panel.ts"
-
-const LAUNCHED = PANEL_KINDS.filter((kind) => kind !== "chat")
 
 export function PanelLauncher({ taskId }: { taskId: string }) {
   useLocale()
@@ -19,7 +17,7 @@ export function PanelLauncher({ taskId }: { taskId: string }) {
   const on = shown && !zenOn ? shownKind(panel) : null
   return (
     <div className={PANEL_LAUNCH}>
-      {LAUNCHED.map((kind) => (
+      {LAUNCHED_KINDS.map((kind) => (
         <button
           type="button"
           key={kind}

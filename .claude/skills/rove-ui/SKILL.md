@@ -293,6 +293,12 @@ only last.
 - **A change on one client is not done** until the other matches or the gap is named in the PR
   and in `docs/web/PARITY.md`. The same goes for light ↔ dark, wide ↔ narrow ↔ phone, local ↔
   remote machine, and `en` ↔ `zh`.
+- **One definition, every layout.** What the wide and narrow layouts both offer (which panel kinds
+  the top bar opens, their names, their icons, which actions a menu has) is defined once and both
+  read it: `LAUNCHED_KINDS` in `panel-layout.ts`, names from `panel.*`, icons from `ICONS`. A
+  narrow-only list or label set is the bug even when it matches today: dropping Chat from the
+  desktop launcher once left it on the phone's switch for exactly that reason. Only the drawing
+  (size, icons vs text, placement) may differ per layout.
 
 ## Rove-specific
 
