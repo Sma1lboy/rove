@@ -13,7 +13,7 @@ import { TextDialog } from "./dialogs.tsx"
 import { DiffScopeMenu } from "./diff-base-picker.tsx"
 import { useDiffBase } from "./diff-base.ts"
 import { DiffFileRow } from "./diff-file-row.tsx"
-import { DiffLine } from "./diff-line.tsx"
+import { DiffLine, useRowHandlers } from "./diff-line.tsx"
 import { DiffRowActions } from "./diff-row-actions.tsx"
 import { DiffToolbar } from "./diff-toolbar.tsx"
 import {
@@ -389,17 +389,7 @@ export function PreviewView({
     viewedClick: toggleViewed,
     editNote,
   }
-  const latest = useRef(handlers)
-  latest.current = handlers
-  const stable = useMemo(
-    () => ({
-      rowClick: (i: number, e: MouseEvent) => latest.current.rowClick(i, e),
-      fileClick: (i: number, path: string | null) => latest.current.fileClick(i, path),
-      viewedClick: (path: string) => latest.current.viewedClick(path),
-      editNote: (note: Note) => latest.current.editNote(note),
-    }),
-    [],
-  )
+  const stable = useRowHandlers(handlers)
   const lo = anchor === null ? cursor : Math.min(anchor, cursor)
   const hi = anchor === null ? cursor : Math.max(anchor, cursor)
 
