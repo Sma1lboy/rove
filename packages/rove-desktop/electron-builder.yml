@@ -1,0 +1,39 @@
+# The desktop shell: the rove-web client in one window, driving the Rove already installed here.
+# Unsigned tonight — a build from a person's own machine opens; a download needs
+# `xattr -d com.apple.quarantine /Applications/Rove.app` or right-click › Open.
+appId: run.rove.desktop
+productName: Rove
+copyright: Rove
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - package.json
+asar: true
+npmRebuild: false
+mac:
+  category: public.app-category.developer-tools
+  identity: null
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+dmg:
+  title: Rove
+  contents:
+    - x: 140
+      y: 180
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications
+win:
+  target:
+    - nsis
+linux:
+  target:
+    - AppImage
+  category: Development
