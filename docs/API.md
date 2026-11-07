@@ -433,8 +433,10 @@ edits (`set-vendor`, `rename`,
   (`lifecycle`, `number`, `url`, `lastCheckedAt`) — including
   `.prStatus.checkState`: `none` (no PR) / `pending` / `passing` / `failing` /
   `unknown`. This is Rove's CI truth for the branch, and `passing` is what
-  "CI is green" means; a local test run is a different claim. Absent until
-  the poller has seen a PR for the branch.
+  "CI is green" means; a local test run is a different claim. A cancelled
+  run counts as neither: the other checks decide, and a PR whose only runs
+  were cancelled reads `none`. Absent until the poller has seen a PR for the
+  branch.
   `runnability` is the `should-run` verdict for the whole task, so a
   dashboard shows the answer a scheduler would act on.
 - `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only

@@ -48,11 +48,12 @@ describe("failingCheckTargets", () => {
     expect(targets).toEqual([{ jobName: "Vercel", conclusion: "FAILURE", url: "https://vercel.com/x", runId: null }])
   })
 
-  it("treats SKIPPED and NEUTRAL as passing, not failing", () => {
+  it("treats SKIPPED, NEUTRAL and CANCELLED as nothing to fix", () => {
     expect(
       failingCheckTargets([
         { name: "a", status: "COMPLETED", conclusion: "SKIPPED" },
         { name: "b", status: "COMPLETED", conclusion: "NEUTRAL" },
+        { name: "c", status: "COMPLETED", conclusion: "CANCELLED" },
       ]),
     ).toEqual([])
   })

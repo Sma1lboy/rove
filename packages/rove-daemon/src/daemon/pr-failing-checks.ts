@@ -33,7 +33,7 @@ export const RUN_LOG_TIMEOUT_MS = 30_000
 /** One failing check, with the tail of its job log. */
 export interface PrFailingCheck {
   readonly jobName: string
-  /** `gh`'s own conclusion word (FAILURE / TIMED_OUT / CANCELLED / …). */
+  /** `gh`'s own conclusion word (FAILURE / TIMED_OUT / …). */
   readonly conclusion: string
   /** The check's `detailsUrl` — where a human would open it. */
   readonly url: string
@@ -81,7 +81,8 @@ export function runIdFromDetailsUrl(url: string): string | null {
 /**
  * FAILING rollup entries, in `gh`'s order. Narrower than
  * `checkStateFromRollup`: a still-running check is skipped even with a stale
- * conclusion; a legacy `StatusContext` is read from its `state`.
+ * conclusion, a cancelled run has no log worth fixing, and a legacy
+ * `StatusContext` is read from its `state`.
  */
 export function failingCheckTargets(rollup: readonly unknown[]): FailingCheckTarget[] {
   const targets: FailingCheckTarget[] = []
@@ -92,7 +93,8 @@ export function failingCheckTargets(rollup: readonly unknown[]): FailingCheckTar
     let failedAs: string | null = null
     if (status && status !== "COMPLETED") failedAs = null
     else if (conclusion) {
-      failedAs = conclusion === "SUCCESS" || conclusion === "NEUTRAL" || conclusion === "SKIPPED" ? null : conclusion
+      const noFault = ["SUCCESS", "NEUTRAL", "SKIPPED", "CANCELLED"].includes(conclusion)
+      failedAs = noFault ? null : conclusion
     } else if (contextState === "FAILURE" || contextState === "ERROR") failedAs = contextState
     if (failedAs === null) continue
     const url = stringField(entry, "detailsUrl") || stringField(entry, "targetUrl")

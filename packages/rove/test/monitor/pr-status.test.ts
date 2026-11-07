@@ -54,6 +54,13 @@ describe("checkStateFromRollup", () => {
       ]),
     ).toBe("passing")
   })
+  test("a cancelled run is not a failure: the rest decide, and only-cancelled has no verdict", () => {
+    const cancelled = { __typename: "CheckRun", status: "COMPLETED", conclusion: "CANCELLED" }
+    expect(checkStateFromRollup([cancelled, { status: "COMPLETED", conclusion: "SUCCESS" }])).toBe("passing")
+    expect(checkStateFromRollup([cancelled, { status: "IN_PROGRESS" }])).toBe("pending")
+    expect(checkStateFromRollup([cancelled, { status: "COMPLETED", conclusion: "TIMED_OUT" }])).toBe("failing")
+    expect(checkStateFromRollup([cancelled, cancelled])).toBe("none")
+  })
   test("legacy StatusContext entries are read via state", () => {
     expect(checkStateFromRollup([{ __typename: "StatusContext", state: "SUCCESS" }])).toBe("passing")
     expect(checkStateFromRollup([{ __typename: "StatusContext", state: "PENDING" }])).toBe("pending")
