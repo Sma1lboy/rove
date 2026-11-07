@@ -59,12 +59,21 @@ export async function disablePush(client: BridgeClient): Promise<PushState> {
 export async function showTaskNotice(taskId: string, kind: string, title: string, body: string): Promise<void> {
   const options = { body, tag: `task:${taskId}:${kind}`, icon: "icon-192.png", data: { taskId } }
   const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined
-  if (reg) await reg.showNotification(`Rove — ${title}`, options)
-  else new Notification(`Rove — ${title}`, options)
+  if (reg) return reg.showNotification(`Rove — ${title}`, options)
+  // No worker to route the click (the desktop app, a page that never enabled push): the page takes it.
+  const notice = new Notification(`Rove — ${title}`, options)
+  notice.onclick = () => {
+    window.focus()
+    openTask?.(taskId)
+    notice.close()
+  }
 }
+
+let openTask: ((taskId: string) => void) | null = null
 
 /** A notification click selects its task: from the worker on an open page, or `?task=` on a fresh one. */
 export function followTaskLinks(model: AppModel): () => void {
+  openTask = (taskId) => model.selectWhenListed(taskId)
   const params = new URLSearchParams(window.location.search)
   const fromUrl = params.get("task")
   if (fromUrl) {
@@ -73,7 +82,10 @@ export function followTaskLinks(model: AppModel): () => void {
     history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`)
     model.selectWhenListed(fromUrl)
   }
-  if (!("serviceWorker" in navigator)) return () => {}
+  const forget = () => {
+    openTask = null
+  }
+  if (!("serviceWorker" in navigator)) return forget
   const onMessage = (event: MessageEvent) => {
     const data = event.data as { type?: unknown; taskId?: unknown } | null
     if (data?.type === "rove.openTask" && typeof data.taskId === "string" && data.taskId) {
@@ -81,7 +93,10 @@ export function followTaskLinks(model: AppModel): () => void {
     }
   }
   navigator.serviceWorker.addEventListener("message", onMessage)
-  return () => navigator.serviceWorker.removeEventListener("message", onMessage)
+  return () => {
+    forget()
+    navigator.serviceWorker.removeEventListener("message", onMessage)
+  }
 }
 
 function fromB64url(text: string): Uint8Array {
