@@ -12,16 +12,17 @@ const SUGGEST = "absolute inset-x-1.5 bottom-full z-6 mb-1"
 const ROW = "flex min-w-0 flex-1 items-stretch gap-1.5"
 const FIELD =
   "h-10 min-w-0 flex-1 resize-none rounded-sm border-hairline border-line bg-inset px-2 py-2 font-sans text-display leading-[1.35] text-ink outline-none focus:border-focus disabled:opacity-60"
-const SEND =
-  "h-10 shrink-0 rounded-sm bg-accent px-3.5 font-sans text-meta font-semibold text-paper touch-manipulation active:scale-97 motion-reduce:active:scale-none disabled:opacity-50"
+/** A pressed control gives a little under the finger; no motion when the system asks for none. */
+const PRESS =
+  "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
+const SEND = `h-10 shrink-0 rounded-sm bg-accent px-3.5 font-sans text-meta font-semibold text-paper touch-manipulation disabled:opacity-50 ${PRESS}`
 
 /** The attach control's box, for the caller's file picker. */
-export const COMPOSER_ATTACH =
-  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60"
+export const COMPOSER_ATTACH = `flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm border-hairline border-line bg-inset text-muted touch-manipulation has-[:disabled]:opacity-60 ${PRESS}`
 
 /** The dictate control's box: the attach box's height and border, wide enough for `Stop 0:12`. */
 export const composerDictate = (recording: boolean): string =>
-  `flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border-hairline bg-inset px-2.5 font-sans text-meta touch-manipulation disabled:opacity-60 ${
+  `flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-sm border-hairline bg-inset px-2.5 font-sans text-meta disabled:opacity-60 ${PRESS} ${
     recording ? "border-accent text-accent" : "border-line text-muted"
   }`
 
