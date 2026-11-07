@@ -6,11 +6,11 @@
  */
 
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import type { BridgeClient } from "./bridge.ts"
-import { Dictation, type DictationPhase, type DictationResult } from "./dictation.ts"
-import { t, useLocale } from "./i18n/index.ts"
-import { useStore } from "./store.ts"
-import * as C from "./ui/composer.ts"
+import type { BridgeClient } from "../bridge.ts"
+import { t, useLocale } from "../i18n/index.ts"
+import { useStore } from "../store.ts"
+import * as C from "../ui/composer.ts"
+import { Dictation, type DictationPhase, type DictationResult, type DictationScope } from "./dictation.ts"
 
 const clock = (seconds: number) => `0:${String(Math.floor(seconds)).padStart(2, "0")}`
 /** A press held this long is a hold, not a tap. */
@@ -71,8 +71,8 @@ export function useVoiceHosted(client: BridgeClient): boolean | null {
 
 export function DictationButton(props: {
   readonly client: BridgeClient
-  /** Read at stop, not at mount: what the shell is looking at is the useful bias. */
-  readonly context: () => string
+  /** Read at stop, not at mount: the draft and the conversation as they are when the take ends. */
+  readonly context: () => DictationScope
   readonly onText: (text: string) => void
   /** Where a hold slid up sends the transcript; without it the slide does nothing. */
   readonly onSend?: (text: string) => void
