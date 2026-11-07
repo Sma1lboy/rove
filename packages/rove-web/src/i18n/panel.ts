@@ -117,6 +117,7 @@ export const en = {
     scopeWorking: "Uncommitted changes",
     scopeBranch: "Committed changes",
     scopeTask: "All changes",
+    lineClipped: "… {count} more characters",
     notSupported: "This bridge is older than the page and can't do that; restart it.",
   },
   panel: {
@@ -279,6 +280,7 @@ export const zh: typeof en = {
     scopeWorking: "未提交的改动",
     scopeBranch: "已提交的改动",
     scopeTask: "全部改动",
+    lineClipped: "…还有 {count} 个字符",
     notSupported: "这个 bridge 比页面旧，做不了这个；请重启它。",
   },
   panel: {

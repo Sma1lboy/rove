@@ -3,8 +3,12 @@
 import { type MouseEvent, type ReactNode, memo } from "react"
 import { DiffNoteLine } from "./diff-row-actions.tsx"
 import type { DiffRow } from "./diff.ts"
+import { t } from "./i18n/index.ts"
 import type { Note } from "./review-notes.ts"
 import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+
+/** A line past this draws clipped: one minified or binary-ish line of megabytes took the browser seconds to lay out. */
+const MAX_DRAWN = 2000
 
 export const DiffLine = memo(function DiffLine(props: {
   index: number
@@ -33,7 +37,15 @@ export const DiffLine = memo(function DiffLine(props: {
         <span className={diffSignClass(row.kind, noted)}>
           {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}
         </span>
-        <span className={diffCodeClass(row.kind)}>{row.text}</span>
+        <span className={diffCodeClass(row.kind)}>
+          {row.text.length > MAX_DRAWN ? row.text.slice(0, MAX_DRAWN) : row.text}
+          {row.text.length > MAX_DRAWN && (
+            <span className="text-subtle">
+              {" "}
+              {t("review.lineClipped", { count: (row.text.length - MAX_DRAWN).toLocaleString() })}
+            </span>
+          )}
+        </span>
         {props.actions}
       </div>
       {props.notes?.map((note) => (
