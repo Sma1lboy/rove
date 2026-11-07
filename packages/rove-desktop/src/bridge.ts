@@ -10,16 +10,23 @@ import { createServer } from "node:net"
 import { homedir } from "node:os"
 import { delimiter, join } from "node:path"
 
+const WINDOWS = process.platform === "win32"
+
+/** npm and Bun install `rove.cmd`/`rove.exe` on Windows; elsewhere the file is `rove`. */
+const NAMES = WINDOWS ? ["rove.exe", "rove.cmd"] : ["rove"]
+
 /** Where an installer, Homebrew, Bun or a node version manager would have put `rove`. */
-const KNOWN_DIRS = [
-  "/opt/homebrew/bin",
-  "/usr/local/bin",
-  join(homedir(), ".bun", "bin"),
-  join(homedir(), ".local", "bin"),
-  join(homedir(), ".npm-global", "bin"),
-  join(homedir(), ".volta", "bin"),
-  join(homedir(), ".asdf", "shims"),
-]
+const KNOWN_DIRS = WINDOWS
+  ? [join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "npm"), join(homedir(), ".bun", "bin")]
+  : [
+      "/opt/homebrew/bin",
+      "/usr/local/bin",
+      join(homedir(), ".bun", "bin"),
+      join(homedir(), ".local", "bin"),
+      join(homedir(), ".npm-global", "bin"),
+      join(homedir(), ".volta", "bin"),
+      join(homedir(), ".asdf", "shims"),
+    ]
 
 /** `~/.nvm/versions/node/*\/bin` and friends: a global npm install lands inside a version's bin. */
 function versionManagerDirs(): string[] {
@@ -66,10 +73,12 @@ export function findRove(savedPathFile: string): string | null {
   if (fromEnv && isExecutable(fromEnv)) return fromEnv
   const dirs = [...(process.env.PATH ?? "").split(delimiter).filter(Boolean), ...KNOWN_DIRS, ...versionManagerDirs()]
   for (const dir of new Set(dirs)) {
-    const candidate = join(dir, "rove")
-    if (isExecutable(candidate)) return candidate
+    for (const name of NAMES) {
+      const candidate = join(dir, name)
+      if (isExecutable(candidate)) return candidate
+    }
   }
-  return fromLoginShell()
+  return WINDOWS ? null : fromLoginShell()
 }
 
 /** `zsh -lc 'command -v rove'`: the PATH a person actually has, for an app launched from Finder. */
@@ -82,6 +91,13 @@ function fromLoginShell(): string | null {
   } catch {
     return null
   }
+}
+
+/** Node refuses to run a `.cmd`/`.bat` without a shell; the quoted path survives spaces in it. */
+function launch(bin: string, args: string[], env: NodeJS.ProcessEnv): ChildProcess {
+  const stdio: ["ignore", "pipe", "pipe"] = ["ignore", "pipe", "pipe"]
+  if (WINDOWS && /\.(cmd|bat)$/i.test(bin)) return spawn(`"${bin}"`, args, { stdio, env, shell: true })
+  return spawn(bin, args, { stdio, env })
 }
 
 export function rememberRove(savedPathFile: string, path: string): void {
@@ -128,9 +144,10 @@ export async function start(opts: { bin: string; attempts?: number; port?: numbe
   let lastError = ""
   for (let attempt = 0; attempt < (opts.attempts ?? 3); attempt++) {
     const port = opts.port ?? (await freePort())
-    const child = spawn(opts.bin, ["--web", "--no-qr", "--port", String(port)], {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+    const child = launch(opts.bin, ["--web", "--no-qr", "--port", String(port)], {
+      ...process.env,
+      FORCE_COLOR: "0",
+      NO_COLOR: "1",
     })
     try {
       const url = await openLine(child, port)
@@ -193,6 +210,11 @@ function openLine(child: ChildProcess, port: number): Promise<string> {
 
 function stop(child: ChildProcess): void {
   if (child.exitCode !== null || child.signalCode !== null) return
+  // Windows has no signals, and the bridge may sit under a cmd shim: end the whole tree.
+  if (WINDOWS && child.pid) {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" })
+    return
+  }
   child.kill("SIGTERM")
   // A wedged child would hold the port and keep the app's quit from finishing.
   setTimeout(() => {

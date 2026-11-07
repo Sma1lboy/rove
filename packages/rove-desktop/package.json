@@ -10,6 +10,8 @@
     "start": "bun run build && electron .",
     "pack": "bun run build && electron-builder --mac --dir",
     "dist": "bun run build && electron-builder --mac",
+    "dist:linux": "bun run build && electron-builder --linux --x64 --publish never",
+    "dist:win": "bun run build && electron-builder --win --x64 --publish never",
     "postinstall": "node scripts/setup-electron.mjs"
   },
   "devDependencies": {
