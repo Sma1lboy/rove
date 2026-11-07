@@ -10,7 +10,7 @@ import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
 import { dialog, menu } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { AWAY_RECAP } from "./ui/rail.ts"
+import { AWAY_RECAP, AWAY_RECAP_COUNTS, AWAY_RECAP_HEAD, awayRecapCount } from "./ui/rail.ts"
 
 const clock = (at: number): string => new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -50,26 +50,31 @@ export function AwayRecap({ model }: { model: AppModel }) {
   ] as const
   return (
     <div className={AWAY_RECAP}>
-      <span className="text-muted">{t("rail.recap.since", { time: clock(found.since) })} ·</span>
-      {parts
-        .filter((part) => part.rows.length > 0)
-        .map((part, i, shown) => (
-          <span key={part.key} className="inline-flex gap-2.5">
-            <Button hit="tight" onClick={part.open}>
-              {t(`rail.recap.${part.key}`, { count: part.rows.length })}
-            </Button>
-            {i < shown.length - 1 && <span className="text-muted">·</span>}
-          </span>
-        ))}
-      <Button
-        hit="tight"
-        className="ml-auto"
-        aria-label={t("rail.recap.dismiss")}
-        title={t("rail.recap.dismiss")}
-        onClick={() => recap.set(null)}
-      >
-        ×
-      </Button>
+      <div className={AWAY_RECAP_HEAD}>
+        <span>{t("rail.recap.since", { time: clock(found.since) })}</span>
+        <Button
+          variant="row"
+          hit="tight"
+          className="text-muted hover:text-ink"
+          aria-label={t("rail.recap.dismiss")}
+          title={t("rail.recap.dismiss")}
+          onClick={() => recap.set(null)}
+        >
+          ×
+        </Button>
+      </div>
+      <div className={AWAY_RECAP_COUNTS}>
+        {parts
+          .filter((part) => part.rows.length > 0)
+          .map((part, i) => (
+            <span key={part.key} className="inline-flex gap-1.5">
+              {i > 0 && <span className="text-subtle">·</span>}
+              <Button variant="row" hit="tight" className={awayRecapCount(part.key === "needs")} onClick={part.open}>
+                {t(`rail.recap.${part.key}`, { count: part.rows.length })}
+              </Button>
+            </span>
+          ))}
+      </div>
     </div>
   )
 }
