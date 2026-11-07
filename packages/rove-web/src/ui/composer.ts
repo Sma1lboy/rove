@@ -28,6 +28,11 @@ export const TOGGLE_DISABLED = "disabled:cursor-default disabled:opacity-60"
 /** The dictate chip: wide enough that `Stop 0:12` does not resize it while recording. */
 export const dictateChip = (recording: boolean): string =>
   `${chipClass(recording)} min-w-[9ch] justify-center ${TOGGLE_DISABLED}`
+/** Holding to talk: no scroll, text selection or iOS callout steals the press; the tip anchors to it. */
+export const DICTATE_PRESS = "relative touch-none select-none [-webkit-touch-callout:none]"
+/** Above a held dictate control: release inserts, or (lit) release sends. */
+export const dictateTipClass = (armed: boolean): string =>
+  `pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-sm border-hairline bg-surface px-2 py-1 font-sans text-meta normal-nums ${armed ? "border-accent text-accent" : "border-line text-muted"}`
 
 /** `group/chip`: the bar's last popover opens leftward from its chip's right edge. */
 export const CHIP_WRAP = "group/chip relative inline-flex"

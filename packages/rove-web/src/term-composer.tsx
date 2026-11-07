@@ -42,18 +42,22 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     area: field,
     listClassName: "m-0",
   })
-  // Lands at the caret of the draft and never sends: on a phone you read it before it goes to the engine.
-  const insertDictated = (spoken: string) => {
+  // Lands at the caret of the draft. A tap or a plain hold stops there, to be read before it goes to the engine.
+  const insertDictated = (spoken: string): string => {
     const el = field.current
     const at = el?.selectionStart ?? text.length
     const end = el?.selectionEnd ?? text.length
     const glue = at > 0 && !/\s$/.test(text.slice(0, at)) ? " " : ""
-    setDraft(key, `${text.slice(0, at)}${glue}${spoken}${text.slice(end)}`)
+    const next = `${text.slice(0, at)}${glue}${spoken}${text.slice(end)}`
+    setDraft(key, next)
     const caret = at + glue.length + spoken.length
     requestAnimationFrame(() => el?.setSelectionRange(caret, caret))
+    return next
   }
-  const send = async () => {
-    const prompt = withRefs(text.trim(), attachments).trim()
+  // A hold slid up: the same insert, then the whole draft goes. A failed send leaves it in the field.
+  const sendDictated = (spoken: string) => void send(insertDictated(spoken))
+  const send = async (draft = text) => {
+    const prompt = withRefs(draft.trim(), attachments).trim()
     if (!prompt) return
     setBusy(true)
     try {
@@ -110,7 +114,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
         <DictationButton
           client={model.client}
           context={() => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · ")}
-          onText={insertDictated}
+          onText={(spoken) => void insertDictated(spoken)}
+          onSend={sendDictated}
           disabled={busy}
           look={composerDictate}
         />
