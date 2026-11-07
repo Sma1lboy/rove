@@ -2,7 +2,47 @@ export type Video = { key: string; size: number; duration?: number; codec?: stri
 export type Action = "send" | "download" | "copy"
 export type Event = { action: Action; post: number; by: string; at: string }
 export type Version = { posts: string[]; by: string; at?: string }
-export type Item = { id: string; title: string; video: Video; cover?: string; posts: string[]; sends: Event[]; kind?: string; lang?: "zh" | "en" }
+export type Item = {
+  id: string
+  title: string
+  video: Video
+  cover?: string
+  posts: string[]
+  sends: Event[]
+  kind?: string
+  lang?: "zh" | "en"
+  created?: string
+  updated?: string
+}
+
+// The list's order and filters. Kept per browser; newest-created first by default.
+export type Sort = "created-desc" | "created-asc" | "updated-desc" | "updated-asc"
+export const SORTS: Record<Sort, string> = {
+  "created-desc": "最新创建",
+  "created-asc": "最早创建",
+  "updated-desc": "最近更新",
+  "updated-asc": "最久没更新",
+}
+export type View = { sort: Sort; kind: string; lang: "" | "zh" | "en" }
+export const VIEW_KEY = "kit.view"
+export function loadView(): View {
+  const v = { sort: "created-desc", kind: "", lang: "", ...JSON.parse(localStorage.getItem(VIEW_KEY) || "{}") }
+  return v.sort in SORTS ? v : { ...v, sort: "created-desc" }
+}
+
+export function applyView(items: Item[], v: View): Item[] {
+  const field = v.sort.startsWith("created") ? "created" : "updated"
+  const dir = v.sort.endsWith("desc") ? -1 : 1
+  // ISO strings sort as dates; a missing stamp sorts as oldest.
+  return items
+    .filter((it) => (!v.kind || it.kind === v.kind) && (!v.lang || it.lang === v.lang))
+    .sort((a, b) => dir * (a[field] ?? "").localeCompare(b[field] ?? ""))
+}
+
+export function fmtDay(at?: string) {
+  const d = at ? new Date(at) : null
+  return d && !Number.isNaN(d.getTime()) ? `${d.getMonth() + 1}/${d.getDate()}` : ""
+}
 
 export function fmtTime(at?: string) {
   const d = at ? new Date(at) : null

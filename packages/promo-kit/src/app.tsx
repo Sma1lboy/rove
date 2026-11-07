@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
 import { Detail } from "./detail.tsx"
-import { type Item, fmtDur, videoWarnings, vurl } from "./lib.ts"
+import { type Item, SORTS, type Sort, VIEW_KEY, type View, applyView, fmtDay, fmtDur, loadView, videoWarnings, vurl } from "./lib.ts"
 import { TokenPage } from "./token.tsx"
 
 const subscribe = (cb: () => void) => {
@@ -13,6 +13,13 @@ export function App() {
   const route = useRoute()
   const [data, setData] = useState<{ me: string; items: Item[] } | null>(null)
   const [error, setError] = useState("")
+  const [view, setView] = useState(loadView)
+  useEffect(() => {
+    localStorage.setItem(VIEW_KEY, JSON.stringify(view))
+  }, [view])
+  const all = data?.items ?? []
+  const shown = applyView(all, view)
+  const kinds = [...new Set(all.flatMap((it) => (it.kind ? [it.kind] : [])))]
 
   const reload = useCallback(
     () =>
@@ -44,14 +51,18 @@ export function App() {
         </a>
       </p>
     )
-  else body = <Home items={data.items} />
+  else body = <Home items={shown} />
 
   // Below md one pane at a time: the sidebar is the home screen, a detail gets a back link.
   const home = route === ""
   return (
     <div className="md:grid md:min-h-dvh md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
       <Sidebar
-        items={data?.items ?? []}
+        items={shown}
+        total={all.length}
+        kinds={kinds}
+        view={view}
+        setView={setView}
         me={data?.me ?? ""}
         route={route}
         className={home ? "flex" : "hidden md:flex"}
@@ -70,7 +81,28 @@ export function App() {
 // Two characters so the left column stays one width.
 const shortKind = (k?: string) => (k ? k.slice(0, 2) : "—")
 
-function Sidebar({ items, me, route, className }: { items: Item[]; me: string; route: string; className: string }) {
+const select = "min-w-0 cursor-pointer rounded-xs bg-transparent py-0.5 font-mono text-meta text-subtle hover:text-ink"
+
+function Sidebar({
+  items,
+  total,
+  kinds,
+  view,
+  setView,
+  me,
+  route,
+  className,
+}: {
+  items: Item[]
+  total: number
+  kinds: string[]
+  view: View
+  setView: (v: View) => void
+  me: string
+  route: string
+  className: string
+}) {
+  const field = view.sort.startsWith("created") ? "created" : "updated"
   return (
     <aside className={`${className} min-h-dvh flex-col border-line bg-paper md:sticky md:top-0 md:h-dvh md:border-r`}>
       <a href="#/" className="flex h-12 flex-none items-center gap-2 px-4 hover:no-underline">
@@ -80,7 +112,28 @@ function Sidebar({ items, me, route, className }: { items: Item[]; me: string; r
         <span className="text-meta text-subtle">宣发包</span>
       </a>
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        <div className="px-2 pt-2 pb-1 font-mono text-meta font-semibold text-subtle">素材</div>
+        <div className="flex items-center justify-between gap-1 px-2 pt-2 pb-1">
+          <select aria-label="排序" className={select} value={view.sort} onChange={(e) => setView({ ...view, sort: e.target.value as Sort })}>
+            {Object.entries(SORTS).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select aria-label="类型" className={select} value={view.kind} onChange={(e) => setView({ ...view, kind: e.target.value })}>
+            <option value="">全部类型</option>
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+          <select aria-label="语言" className={select} value={view.lang} onChange={(e) => setView({ ...view, lang: e.target.value as View["lang"] })}>
+            <option value="">全部语言</option>
+            <option value="zh">中</option>
+            <option value="en">EN</option>
+          </select>
+        </div>
         {items.map((it) => {
           const mine = it.sends.some((e) => e.by === me)
           const people = new Set(it.sends.map((e) => e.by)).size
@@ -98,6 +151,7 @@ function Sidebar({ items, me, route, className }: { items: Item[]; me: string; r
               <div className="min-w-0 flex-1">
                 <div className="truncate text-title text-ink">{it.title}</div>
                 <div className="mt-0.5 flex gap-2 font-mono text-meta text-subtle">
+                  <span>{fmtDay(it[field])}</span>
                   <span>{fmtDur(it.video.duration)}</span>
                   {it.posts.length > 1 && <span>{it.posts.length} 条</span>}
                   {mine ? <span className="text-success">✓ 你已发</span> : people > 0 && <span>{people} 人已发</span>}
@@ -107,7 +161,7 @@ function Sidebar({ items, me, route, className }: { items: Item[]; me: string; r
             </a>
           )
         })}
-        {items.length === 0 && <p className="px-2 text-meta text-subtle">还没有素材</p>}
+        {items.length === 0 && <p className="px-2 text-meta text-subtle">{total ? "没有符合筛选的素材" : "还没有素材"}</p>}
       </nav>
       <div className="flex flex-none items-center gap-3 border-t border-line px-4 py-3 text-meta">
         <span className="min-w-0 flex-1 truncate text-subtle">{me}</span>
