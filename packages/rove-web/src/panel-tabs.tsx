@@ -6,7 +6,7 @@
 
 import { type DragEvent, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
-import type { PanelKind } from "./panel-layout.ts"
+import { PANEL_KINDS, type PanelKind } from "./panel-layout.ts"
 import {
   type GroupName,
   type PanelItem,
@@ -109,14 +109,28 @@ function tabMenu(taskId: string, panel: TaskPanel, tab: PanelItem, group: GroupN
   return items
 }
 
+/** One entry per kind, so a new kind cannot be missing from the + menu. */
+const NEW_TAB: Record<PanelKind, (p: TaskPanel, group: GroupName) => TaskPanel> = {
+  chat: (p) => showKind(p, "chat"),
+  files: (p, group) => newFiles(p, group),
+  diff: (p) => showDiff(p, ".", "working"),
+  browser: (p, group) => newBrowser(p, group),
+  quota: (p) => showKind(p, "quota"),
+}
+
+const NEW_LABEL = {
+  chat: "panel.newChat",
+  files: "panel.newFiles",
+  diff: "panel.newDiff",
+  browser: "panel.newBrowser",
+  quota: "panel.newQuota",
+} as const satisfies Record<PanelKind, string>
+
 function newMenu(taskId: string, group: GroupName): MenuItem[] {
-  return [
-    { label: t("panel.newChat"), run: () => editPanel(taskId, (p) => showKind(p, "chat")) },
-    { label: t("panel.newFiles"), run: () => editPanel(taskId, (p) => newFiles(p, group)) },
-    { label: t("panel.newDiff"), run: () => editPanel(taskId, (p) => showDiff(p, ".", "working")) },
-    { label: t("panel.newBrowser"), run: () => editPanel(taskId, (p) => newBrowser(p, group)) },
-    { label: t("panel.newQuota"), run: () => editPanel(taskId, (p) => showKind(p, "quota")) },
-  ]
+  return PANEL_KINDS.map((kind) => ({
+    label: t(NEW_LABEL[kind]),
+    run: () => editPanel(taskId, (p) => NEW_TAB[kind](p, group)),
+  }))
 }
 
 export function PanelTabRow({

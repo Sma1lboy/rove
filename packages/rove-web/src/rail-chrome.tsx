@@ -13,7 +13,7 @@ import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
-import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
+import { LAUNCHED_KINDS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
 import { ICONS, Icon } from "./panel-tabs.tsx"
 import { usePrefs } from "./prefs.ts"
@@ -141,17 +141,6 @@ export function RailBar({ model }: { model: AppModel }) {
   )
 }
 
-// Chat opens from the side panel's + menu, as on desktop; the phone strip has no room for it.
-const NARROW_VIEWS = ["terminal", ...PANEL_KINDS.filter((kind) => kind !== "chat")] as const
-
-const NARROW_LABEL = {
-  terminal: "layout.narrowTerminal",
-  files: "layout.narrowFiles",
-  diff: "layout.narrowDiff",
-  browser: "layout.narrowBrowser",
-  quota: "layout.narrowQuota",
-} as const
-
 const TERMINAL_ICON = (
   <path d="M3 3.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM4.5 6.5 6.5 8l-2 1.5M8 10h3" />
 )
@@ -170,20 +159,23 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
       </button>
       {taskId && (
         <span className={`mono ${NARROW_SWITCH}`} role="tablist">
-          {NARROW_VIEWS.map((id) => (
-            <button
-              type="button"
-              role="tab"
-              key={id}
-              aria-selected={view === id}
-              aria-label={t(NARROW_LABEL[id])}
-              title={t(NARROW_LABEL[id])}
-              className={NARROW_TAB}
-              onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
-            >
-              <Icon>{id === "terminal" ? TERMINAL_ICON : ICONS[id]}</Icon>
-            </button>
-          ))}
+          {(["terminal", ...LAUNCHED_KINDS] as const).map((id) => {
+            const name = id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`)
+            return (
+              <button
+                type="button"
+                role="tab"
+                key={id}
+                aria-selected={view === id}
+                aria-label={name}
+                title={name}
+                className={NARROW_TAB}
+                onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
+              >
+                <Icon>{id === "terminal" ? TERMINAL_ICON : ICONS[id]}</Icon>
+              </button>
+            )
+          })}
         </span>
       )}
     </div>
