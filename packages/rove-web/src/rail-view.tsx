@@ -406,7 +406,6 @@ function RailRow(props: {
       {...props.place}
       {...props.drag}
     >
-      {tip.tip}
       {props.guides && (
         <span className={CHILD_INDENT} aria-hidden="true">
           {props.guides.map((guide, i) => (
