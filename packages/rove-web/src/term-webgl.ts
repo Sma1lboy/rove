@@ -21,8 +21,17 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
       webgl = null
     })
     // A full atlas merges its pages, and rows drawn from a dropped page are never redrawn: blank or garbled until
-    // they change. Kitty image placeholders (a distinct glyph per cell) fill it in one paste.
-    addon.onRemoveTextureAtlasCanvas(() => term.refresh(0, term.rows - 1))
+    // they change. Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The event fires mid-merge,
+    // so a refresh then can still draw from the stale page: rebuild the atlas on the next frame instead.
+    let rebuild = 0
+    addon.onRemoveTextureAtlasCanvas(() => {
+      if (rebuild) return
+      rebuild = requestAnimationFrame(() => {
+        rebuild = 0
+        webgl?.clearTextureAtlas()
+        term.refresh(0, term.rows - 1)
+      })
+    })
     term.loadAddon(addon)
     webgl = addon
     glCanvas =
