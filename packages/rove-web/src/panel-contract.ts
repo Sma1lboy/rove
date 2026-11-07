@@ -46,7 +46,7 @@ export function panelFields(layout: { narrow: boolean; panelOpen: boolean; zen: 
 
 /** What to do with a `panel` push on this page. */
 export interface PanelPlan {
-  /** The kind of view this task's panel will show (a file's diff is a Diff tab: the web has no file viewer). */
+  /** The kind of view this task's panel will show (a file's diff is the Diff column: the web has no file viewer). */
   readonly tab: PanelKind
   /** The Browser's address for the task. */
   readonly url?: string
@@ -70,7 +70,7 @@ export function planPanelPush(push: PanelPush, here: { taskId: string | null; na
   }
 }
 
-/** The panel after a push: an address or a file's diff finds or opens its tab, a kind alone shows the latest of it. */
+/** The panel after a push: an address finds or opens its Browser tab, a file's diff retargets the Diff column, a kind alone opens its column. */
 export function applyPlan(panel: TaskPanel, plan: PanelPlan): TaskPanel {
   if (plan.url) return showBrowser(panel, plan.url)
   if (plan.diff) return showDiff(panel, plan.diff, "working")
