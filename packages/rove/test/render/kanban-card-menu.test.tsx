@@ -13,7 +13,7 @@
 
 import { expect, test } from "bun:test"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const REPO = "/repos/rove"
 // Short enough to stay on ONE line inside the card: the title wraps at the
@@ -67,7 +67,8 @@ function columnOf(text: string, needle: string): number {
 
 async function openMenu() {
   const handle = await mount()
-  const before = await handle.frame()
+  // The board loads its cards asynchronously; one settle is not enough on a loaded runner.
+  const before = await waitForFrameText(handle.frame, STORY.title, { timeoutMs: 2_000 })
   const row = lineOf(before, STORY.title)
   await act(async () => {
     await handle.mockMouse.click(columnOf(before, STORY.title), row, RIGHT)
@@ -78,7 +79,7 @@ async function openMenu() {
 
 test("right-clicking a card offers every status except the one it is already in", async () => {
   const { frame } = await openMenu()
-  const shown = await frame()
+  const shown = await waitForFrameText(frame, "status → doing", { timeoutMs: 2_000 })
   // `open` is the card's CURRENT status, so picking it would write nothing —
   // its absence is also what tells you which one you are on.
   expect(shown).toContain("status → doing")
