@@ -32,7 +32,7 @@ export const SIDE_BODY = `grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] [--divid
 export const sideHeadClass = (narrow: boolean): string =>
   `side-head flex min-h-6.5 min-w-0 items-center gap-0.5 pb-1.5 font-mono text-meta normal-nums ${narrow ? "px-2 pt-0" : "narrow:px-2 narrow:pt-0"}`
 
-export const PTABS = "scrollbar-none flex min-w-0 flex-1 gap-0.5 overflow-x-auto"
+export const PTABS = "scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto"
 
 /** Tabs shrink as a browser's do; once they no longer fit (`compact`), the others keep a short name (bare icons read as the top bar's launchers) and the row scrolls. */
 export const ptabClass = (o: { active: boolean; compact: boolean }): string =>

@@ -80,7 +80,7 @@ export function tabsFit(labels: readonly string[], width: number): boolean {
   for (const text of labels) {
     let columns = 0
     for (const ch of text) columns += (ch.codePointAt(0) ?? 0) > 0x2e7f ? 2 : 1
-    total += Math.min(TAB_MAX_PX, TAB_CHROME_PX + columns * COLUMN_PX) + 2
+    total += Math.min(TAB_MAX_PX, TAB_CHROME_PX + columns * COLUMN_PX) + 8
   }
   return total <= width
 }

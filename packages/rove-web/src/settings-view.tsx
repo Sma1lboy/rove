@@ -163,7 +163,7 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
           />
         )}
         {/* The rail's foot has no room for them on a phone: the quota readings sit under the section list, and open Usage. */}
-        {narrow && showList && <UsageChips client={model.client} taskId={null} tabId={null} inset={false} />}
+        {narrow && showList && <UsageChips client={model.client} inset={false} />}
         {showSection && (
           <div key={view.section} className={SETTINGS_SCROLL}>
             <div className={SETTINGS_COLUMN}>

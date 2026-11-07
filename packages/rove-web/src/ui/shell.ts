@@ -175,20 +175,20 @@ export const termNotice = (error: boolean): string =>
 export const STATUS_BAR = `col-span-full touch:[&_.link]:after:inset-[-2px_-6px_-4px] flex min-w-0 items-center gap-2 [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 py-1 font-mono text-meta ${FONT_RESET} whitespace-nowrap text-muted`
 export const connDot = (retrying: boolean): string => `size-1.5 rounded-full ${retrying ? "bg-warning" : "bg-subtle"}`
 
-/** Usage in the rail's foot and at the top of Settings on a phone: quiet text that wraps, no strip behind it. */
-export const USAGE_QUIET =
-  "flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 pt-1.5 pb-0.5 font-sans whitespace-nowrap text-meta text-subtle normal-nums"
-/** One reading: its name, then the figure. */
-export const USAGE_CHIP = "inline-flex items-baseline gap-1.5"
+/** Usage in the rail's foot and at the top of Settings on a phone: a line per engine, the bars in one column. */
+export const USAGE_LINES =
+  "grid min-w-0 grid-cols-[auto_minmax(2rem,1fr)_auto] gap-x-2.5 gap-y-1 pt-2 pb-1 font-sans whitespace-nowrap text-meta text-subtle normal-nums"
+export const USAGE_LINE = "col-span-3 grid cursor-pointer grid-cols-subgrid items-center text-left hover:text-ink"
 /** Tone sits on the figure only, and only when it asks for attention: a healthy reading stays as quiet as its name. */
 export const USAGE_TONE: Readonly<Record<string, string>> = {
   ok: "text-muted",
   warn: "text-warning",
   crit: "text-error",
 }
-/** A window's fill beside its percent, in the percent's tone; the track is the same tone, faint. */
+const BAR_TONE: Readonly<Record<string, string>> = { ok: "text-success", warn: "text-warning", crit: "text-error" }
+/** The window's fill as a thin line: green while healthy, the figure's tone once it asks for attention; the track is the same colour, faint. */
 export const usageBar = (tone: string): string =>
-  `relative mx-1.25 mt-0 mb-px inline-block h-1 w-7 overflow-hidden rounded-[2px] bg-[color-mix(in_srgb,currentColor_20%,transparent)] align-middle after:absolute after:inset-y-0 after:left-0 after:w-(--fill) after:bg-current after:content-[''] ${USAGE_TONE[tone] ?? ""}`
+  `relative h-0.75 overflow-hidden rounded-full bg-[color-mix(in_srgb,currentColor_18%,transparent)] after:absolute after:inset-y-0 after:left-0 after:w-(--fill) after:rounded-full after:bg-current after:content-[''] ${BAR_TONE[tone] ?? BAR_TONE.ok}`
 
 export const WORDMARK = "font-mono text-title font-bold normal-nums tracking-[0.02em] whitespace-nowrap"
 export const BRACKET = "text-accent"
