@@ -40,7 +40,7 @@ import { StartsChip } from "./starts-chip.tsx"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, menu } from "./ui.ts"
+import { type MenuItem, dialog, menu, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
@@ -293,11 +293,14 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 openMenu(
                   e,
-                  withSplitEntries(
-                    withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
-                      filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                  tuckRare(
+                    withSplitEntries(
+                      withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                        filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                      ),
+                      taskSplitItems(model, row.task.id),
                     ),
-                    taskSplitItems(model, row.task.id),
+                    t("menu.more"),
                   ),
                 )
               }}
@@ -480,6 +483,7 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
   const entry: MenuItem = {
     label: tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren"),
     section: "open",
+    rare: true,
     run: toggle,
   }
   const at = items.map((item) => item.section).lastIndexOf("open")
@@ -489,5 +493,5 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
 /** Split right / down on the task's tab sit right after what opens the task: the tab strip is hidden by default, so this is the mouse route. */
 function withSplitEntries(items: MenuItem[], entries: readonly MenuItem[]): MenuItem[] {
   const at = items.map((item) => item.section).lastIndexOf("open")
-  return [...items.slice(0, at + 1), ...entries, ...items.slice(at + 1)]
+  return [...items.slice(0, at + 1), ...entries.map((entry) => ({ ...entry, rare: true })), ...items.slice(at + 1)]
 }

@@ -188,12 +188,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({
     label: t("menu.newChatPick"),
     section: "open",
+    rare: true,
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />),
   })
   // Moves the conversation (tab-scoped from a tab's menu) to another engine in this directory.
   items.push({
     label: t("menu.continueEngine"),
     section: "open",
+    rare: true,
     ...bound("chat.tab.fork"),
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} context="continue" sourceTabId={tab?.id} />),
   })
@@ -229,6 +231,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.retryEdit"),
       section: "open",
+      rare: true,
       run: () => void openRetry(model, task),
     })
   }
@@ -278,6 +281,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.reorder"),
       section: "edit",
+      rare: true,
       ...bound("sidebar.localMerge"),
       run: () => enterMoveMode(),
     })
@@ -299,6 +303,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.moveToProject"),
       section: "edit",
+      rare: true,
       run: () => {
         const picker = moveToProjectDialog(model, task)
         if (picker) dialog.set(picker)
@@ -309,6 +314,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.changeEngine"),
       section: "edit",
+      rare: true,
       // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
       ...bound("tasks.cycleEngine"),
       run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
@@ -329,6 +335,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.syncBase"),
       section: "git",
+      rare: true,
       key: prefixHint("files.syncBase"),
       run: () => void syncBaseFlow(model, task.id),
     })
@@ -337,6 +344,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.renameBranch"),
       section: "git",
+      rare: true,
       ...bound("tasks.renameBranch"),
       run: () =>
         dialog.set(

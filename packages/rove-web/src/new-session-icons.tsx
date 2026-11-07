@@ -21,14 +21,6 @@ export function BranchIcon() {
   )
 }
 
-export function ClipIcon() {
-  return (
-    <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M10.5 4.5 5.8 9.2a1.4 1.4 0 0 0 2 2l5-5a2.8 2.8 0 0 0-4-4l-5.2 5.2a4.2 4.2 0 0 0 6 6L13 9" />
-    </svg>
-  )
-}
-
 export function ClockIcon() {
   return (
     <svg className={C.ICON} viewBox="0 0 16 16" aria-hidden="true">

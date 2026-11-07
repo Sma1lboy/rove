@@ -19,7 +19,19 @@ export interface MenuItem {
   readonly children?: readonly MenuItem[]
   /** The current pick in a choice list: drawn with a check. */
   readonly checked?: boolean
+  /** Seldom used: `tuckRare` moves it into the menu's `More ›` instead of the top level. */
+  readonly rare?: boolean
   readonly run?: () => void
+}
+
+/** The rare entries, in their order, as one `More ›` ahead of the danger section; only a level deep, so an entry with its own `children` stays put. */
+export function tuckRare(items: readonly MenuItem[], label: string): MenuItem[] {
+  const rare = items.filter((item) => item.rare && !item.children)
+  if (rare.length === 0) return [...items]
+  const rest = items.filter((item) => !rare.includes(item))
+  const more: MenuItem = { label, section: "more", children: rare.map(({ section: _, ...item }) => item) }
+  const at = rest.findIndex((item) => item.section === "danger")
+  return at < 0 ? [...rest, more] : [...rest.slice(0, at), more, ...rest.slice(at)]
 }
 
 /** The entry a rail key runs, wherever it sits in the menu tree. */

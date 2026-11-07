@@ -13,6 +13,9 @@ export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
 export const GROW = "flex-1"
+/** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. */
+export const cardIcon = (on = false): string =>
+  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
 
@@ -54,10 +57,6 @@ export const CLIP = "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
 export const NAME = "flex-none whitespace-nowrap"
 export const EMPTY_NOTE = "mx-2 my-1"
 export const GROUP = "mx-2 mt-2 mb-0.5"
-
-/** Same text position on touch, taller tap target. */
-export const MORE =
-  "mt-2 self-center px-1.5 py-0.5 text-subtle focus-visible:text-ink touch:mt-0.5 touch:py-2 [&:hover]:text-ink"
 
 export const FIELD = "flex flex-col gap-0.5 px-1.5 py-0.5"
 export const BRANCHES = "min-w-[36ch]"
