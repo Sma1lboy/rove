@@ -18,6 +18,7 @@ import { AppModel } from "./model.ts"
 import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { revealScrollbarsOnScroll } from "./scroll-reveal.ts"
+import { installTooltips } from "./tooltip.ts"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
 // The one stylesheet: tokens, reset and the Tailwind theme.
@@ -29,6 +30,7 @@ longPressOpensMenus()
 revealScrollbarsOnScroll()
 watchLeaving()
 trapDialogFocus()
+installTooltips()
 const token = storedToken()
 if (!token) {
   // With a password set on the host, a page without a token signs in instead of asking for the link.

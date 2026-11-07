@@ -55,7 +55,8 @@ function Glyph({ d }: { d: string }) {
   )
 }
 
-const MIC = "M8 2a2 2 0 0 1 2 2v4a2 2 0 0 1-4 0V4a2 2 0 0 1 2-2zM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5"
+/** Fills the box as the paperclip does (x 3–13, y 1.5–14.5), so the two read as one size side by side. */
+const MIC = "M8 1.5a2.5 2.5 0 0 1 2.5 2.5v4.5a2.5 2.5 0 0 1-5 0V4A2.5 2.5 0 0 1 8 1.5zM3 8a5 5 0 0 0 10 0M8 13v1.5"
 const UP = "M8 13V3M3.5 7.5 8 3l4.5 4.5"
 
 export function ClipGlyph() {
