@@ -134,23 +134,40 @@ function createWindow(started: Started): void {
 
   /**
    * `ROVE_DESKTOP_SMOKE=<png>`: load the page, save what it drew, print the facts a person would check,
-   * and quit. The honest test of this shell — real window, real page, real daemon — without a screen
-   * capture that depends on which space happens to be in front.
+   * and quit. `ROVE_DESKTOP_SMOKE_TASK=<n>` opens the nth rail row first, so the capture shows a real
+   * terminal painting rather than the empty workspace. The honest test of this shell — real window,
+   * real page, real daemon — without a screen capture that depends on which space is in front.
    */
   function smokeTest(window: BrowserWindow): void {
     const target = process.env.ROVE_DESKTOP_SMOKE
     if (!target) return
+    const task = Number(process.env.ROVE_DESKTOP_SMOKE_TASK ?? "")
     window.webContents.once("did-finish-load", () => {
       setTimeout(() => {
+        const open = Number.isInteger(task) && task > 0
         void window.webContents
           .executeJavaScript(
-            `JSON.stringify({
+            open
+              ? `(() => {
+                  const rows = [...document.querySelectorAll("[data-rail-body] button")];
+                  rows[${task - 1}]?.click();
+                  return "clicked ${task}";
+                })()`
+              : `"no task"`,
+          )
+          .then(() => new Promise((resolve) => setTimeout(resolve, open ? 9_000 : 0)))
+          .then(() =>
+            window.webContents.executeJavaScript(
+              `JSON.stringify({
             title: document.title,
             rail: document.querySelectorAll("[data-rail-body] button").length,
             terminals: document.querySelectorAll(".xterm").length,
             canvases: document.querySelectorAll(".xterm canvas").length,
+            rows: document.querySelectorAll(".xterm-rows div").length,
+            dpr: window.devicePixelRatio,
             text: (document.body.innerText || "").slice(0, 160),
           })`,
+            ),
           )
           .then(async (facts: string) => {
             const image = await window.webContents.capturePage()
