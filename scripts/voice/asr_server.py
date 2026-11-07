@@ -191,7 +191,11 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as err:  # noqa: BLE001 - report, never take the server down
             self.reply(500, {"error": f"transcribe: {err}"})
             return
-        self.reply(200, {**out, "seconds": seconds, "ms": round((time.monotonic() - started) * 1000)})
+        ms = round((time.monotonic() - started) * 1000)
+        # Counts only, never the words: enough to see the conversation arrived and what a take cost.
+        heard = len(request.get("conversation") or "")
+        sys.stderr.write(f"voice: {seconds}s audio, {heard} chars of conversation, {out['terms']} terms, {ms} ms\n")
+        self.reply(200, {**out, "seconds": seconds, "ms": ms})
 
 
 def main() -> None:
