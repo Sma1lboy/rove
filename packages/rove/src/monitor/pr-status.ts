@@ -67,8 +67,11 @@ export function lifecycleFromState(state: string | undefined, reviewDecision: st
   }
 }
 
-/** Reduce a check entry to one of the four headline states. */
-function entryCheckState(entry: GhCheckEntry): PRCheckState {
+/**
+ * Reduce a check entry to a headline state, or `cancelled`: a run someone (or a
+ * newer run) stopped has no verdict, so it never turns a PR red.
+ */
+function entryCheckState(entry: GhCheckEntry): PRCheckState | "cancelled" {
   // CheckRun: prefer conclusion once COMPLETED, else it's still running.
   const status = (entry.status ?? "").toUpperCase()
   const conclusion = (entry.conclusion ?? "").toUpperCase()
@@ -77,7 +80,8 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
   if (status && status !== "COMPLETED") return "pending" // QUEUED / IN_PROGRESS / WAITING / PENDING
   if (conclusion) {
     if (conclusion === "SUCCESS" || conclusion === "NEUTRAL" || conclusion === "SKIPPED") return "passing"
-    return "failing" // FAILURE | CANCELLED | TIMED_OUT | ACTION_REQUIRED | STARTUP_FAILURE | STALE
+    if (conclusion === "CANCELLED") return "cancelled"
+    return "failing" // FAILURE | TIMED_OUT | ACTION_REQUIRED | STARTUP_FAILURE | STALE
   }
   // StatusContext path.
   if (contextState === "SUCCESS") return "passing"
@@ -91,6 +95,7 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
  * **any** failing → failing; else any pending → pending; else `passing` ONLY
  * when every entry passed; an empty rollup is `none`; any `unknown` entry makes
  * the headline `unknown`, so an unclassifiable check never hides under green.
+ * Cancelled entries are left out; a rollup of only cancelled runs is `none`.
  * Well-formed `gh` output never yields `unknown` ({@link entryCheckState}
  * covers every state); this guards malformed / partial payloads.
  */
@@ -98,15 +103,18 @@ export function checkStateFromRollup(rollup: readonly GhCheckEntry[] | undefined
   if (!rollup || rollup.length === 0) return "none"
   let sawPending = false
   let sawUnknown = false
+  let sawVerdict = false
   for (const entry of rollup) {
     const s = entryCheckState(entry)
     if (s === "failing") return "failing"
+    if (s === "cancelled") continue
+    sawVerdict = true
     if (s === "pending") sawPending = true
     else if (s === "unknown") sawUnknown = true
   }
   if (sawPending) return "pending"
   if (sawUnknown) return "unknown"
-  return "passing"
+  return sawVerdict ? "passing" : "none"
 }
 
 /**
