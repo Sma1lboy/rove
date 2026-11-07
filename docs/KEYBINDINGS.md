@@ -320,7 +320,8 @@ selection-aware `ctrl+c` above is what answers.
 |---|---|
 | `j` / `k` (or arrows) | Select |
 | `enter` | Open the target task and its exact tab when present, then clear the item |
-| `d` | Clear an ATTENTION item without navigating |
+| `d` | Ack (clear) an ATTENTION item without navigating |
+| `D` | Ack every ATTENTION item (PROPOSED) |
 | `esc` | Close |
 
 ## Diff review

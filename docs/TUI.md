@@ -267,8 +267,8 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
-item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting
+item. `d` acks (clears) the one under the cursor without navigating (ATTENTION rows only;
+RECENT rows have nothing to drop), and `D` acks every ATTENTION row at once. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
