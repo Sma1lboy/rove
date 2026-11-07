@@ -201,9 +201,7 @@ def correct(text: str, terms: list[str], fuzzy: bool = True) -> str:
         done = False
         for n in (4, 3, 2, 1):
             run = tokens[i : i + n]
-            if len(run) < n or any(
-                not SPLIT.fullmatch(text[a.end() : b.start()]) for a, b in zip(run, run[1:])
-            ):
+            if len(run) < n or any(not SPLIT.fullmatch(text[a.end() : b.start()]) for a, b in zip(run, run[1:])):
                 continue
             start, end = run[0].start(), run[-1].end()
             key = _key(text[start:end])

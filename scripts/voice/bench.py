@@ -130,7 +130,8 @@ def main() -> None:
 
     if isinstance(backend, engine.LocalWhisper):
         backend.transcribe(np.zeros(engine.SAMPLE_RATE, dtype=np.float32), [], "en")
-    label = f"{backend.name} context={args.context}{' common' if args.common else ''}{' exact' if args.no_fuzzy else ''}"
+    flags = (" common" if args.common else "") + (" exact" if args.no_fuzzy else "")
+    label = f"{backend.name} context={args.context}{flags}"
     got = total = before = 0
     latency: list[float] = []
     audio = 0.0
@@ -164,14 +165,29 @@ def main() -> None:
             print(f"{'':<10} missed: {', '.join(missed)}")
         if args.out:
             with args.out.open("a") as f:
-                f.write(json.dumps({"label": label, "id": case["id"], "hits": sum(mark), "of": len(mark),
-                                    "secs": round(took, 3), "text": out["text"], "raw": out["raw"]},
-                                   ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "label": label,
+                            "id": case["id"],
+                            "hits": sum(mark),
+                            "of": len(mark),
+                            "secs": round(took, 3),
+                            "text": out["text"],
+                            "raw": out["raw"],
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
     voices = "  ".join(f"{v.split(' ')[0]} {a}/{b}" for v, (a, b) in by_voice.items())
-    print(f"\n{label}: {got}/{total} (recognizer alone {before})  ({voices})  p50 {statistics.median(latency):.2f}s  "
-          f"RTF {sum(latency) / audio:.3f}")
+    print(
+        f"\n{label}: {got}/{total} (recognizer alone {before})  ({voices})  p50 {statistics.median(latency):.2f}s  "
+        f"RTF {sum(latency) / audio:.3f}"
+    )
 
 
 if __name__ == "__main__":
-    assert hits([["GitHub Actions"], ["CI"], ["layer"]], "改 github-actions 的 decision,layers 顺序") == [True, False, True]
+    sample = "改 github-actions 的 decision,layers 顺序"
+    assert hits([["GitHub Actions"], ["CI"], ["layer"]], sample) == [True, False, True]
     main()

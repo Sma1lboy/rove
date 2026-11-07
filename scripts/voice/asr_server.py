@@ -14,7 +14,8 @@ Run: `scripts/voice/asr_server.py` (uv resolves the environment from the block a
 Binds 127.0.0.1 only; the bridge is the one public surface.
 
   POST /transcribe {wav: hex, conversation?, context?, language?} -> {text, raw, language, ...}
-  POST /vocab {term, spoken?} / DELETE-style POST /vocab/remove {term, spoken?}
+  POST /vocab {term, spoken?}           keep a term, and how it was misheard
+  POST /vocab/remove {term, spoken?}    undo
   GET  /health
 """
 

@@ -121,39 +121,47 @@ Ctrl+E instead of Ctrl+T, and there is no Ctrl+Q (a page cannot quit itself).
 [web/PARITY.md](web/PARITY.md) lists every TUI action and whether the web
 has it yet.
 
-## Dictation (optional, local)
+## Dictation (optional)
 
-Typing on a phone is the worst part of driving a session from one, so the new-session composer has a
-`[ Say ]` button. The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to a
-sidecar on this machine; the transcript is inserted at the caret and never submitted.
+Typing on a phone is the worst part of driving a session from one, so the composers have a mic (and,
+on a phone, hold-to-talk). The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to
+a sidecar on this machine together with the conversation it is dictated into; the transcript is
+inserted at the caret and sent only when you slide up to send.
 
-The sidecar is opt-in — nothing in Rove bundles a model:
+The sidecar is opt-in — nothing in Rove bundles a model. All of it lives in `scripts/voice/`:
 
 ```bash
 scripts/voice/asr_server.py          # uv resolves the environment; 127.0.0.1:8791
-scripts/voice/dictionary.py seed     # your repos, branches and daily terms
-scripts/voice/dictionary.py learn    # how the model actually hears each term
+scripts/voice/bench.py               # key-term bench: 11 zh/en clips, 82 terms
 ```
 
-While it is not running the button is disabled and says so. It listens on loopback and takes the
-shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it, so the
-microphone never depends on a port you have to expose.
+While it is not running the mic is disabled and says so. It listens on loopback and takes the
+shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it.
 
-- **Model.** `mlx-community/whisper-large-v3-mlx`, on this Mac's GPU. Large-v3 over turbo because
-  code-switched speech is the case that matters: "把 rove-web 的 composer 改成 voice first" decodes
-  verbatim on large-v3 and as "Barov with the composer" on turbo. Measured here: 15 s of speech in
-  1.7 s, ~1.2 s round trip for one sentence.
-- **Dictionary.** `~/.rove/voice/dictionary.json`. Terms ride in the decode prompt for spelling and
-  casing (without them a clip gives "Roveweb", "Demon", "Vlog"), and `learn` mines the spoken forms
-  the decode still gets wrong, which are rewritten afterwards. `learn` synthesizes each term with
-  macOS `say` inside a carrier sentence, transcribes it, and keeps the mishearing only when it looks
-  like one — the round-trip trick the Wispr Flow reverse-engineering uses, with a carrier added
-  because a bare word round-trips clean.
-- **Context.** The composer sends its project, branch and what is already typed. That ranks terms, so
-  the ones you are looking at survive the prompt budget. Shell text is deliberately kept out of the
-  decode prompt: it bled into transcripts ("da composer", "da log").
-- **Privacy.** Audio, model and dictionary stay on this machine. Nothing leaves it, and no audio is
-  written to disk.
+- **Recognizer.** Local `mlx-community/whisper-large-v3-mlx` by default. `~/.rove/voice/config.json`
+  picks another: `{"model": "mlx-community/whisper-large-v3-turbo"}` for speed, or any
+  OpenAI-compatible `/audio/transcriptions` endpoint, for example
+  `{"backend": "cloud", "baseURL": "https://api.openai.com/v1", "model": "gpt-4o-mini-transcribe", "apiKeyEnv": "OPENAI_API_KEY"}`.
+  OpenRouter gets its JSON body so the vocabulary lands in the field each provider reads
+  (`azure.phraseList` for `microsoft/mai-transcribe-2`); elsewhere it is the `prompt`. The key stays
+  on this Mac. Chinese comes back in Simplified script unless `"simplified": false`.
+- **Vocabulary.** The bridge reads the last 30 messages of the task's conversation (text and tool
+  inputs, or the terminal tail; at most 1.5 s, else the take goes without). Its term-like words
+  (`GraphQL`, `rove-web`, `useEffect`, not words the system dictionary knows) join the terms kept in
+  `~/.rove/voice/vocab.json` (created from the old `dictionary.json`). They go to the recognizer, and
+  afterwards English the recognizer split or misspelled is snapped back onto them: "Graph, Q, L" →
+  GraphQL, "Decorfile" → Dockerfile. A real English word is never rewritten.
+- **Measured** (`bench.py`, synthetic `say` voices, M-series Mac; real recordings can be scored with
+  `--recordings`):
+
+  | Recognizer | no context | context has the terms | context has only other terms | p50 |
+  | --- | --- | --- | --- | --- |
+  | large-v3 (default) | 68/82 | 70 | 67 | 1.8 s |
+  | large-v3-turbo | 63 | 69 | 61 | 1.0 s |
+  | gpt-4o-mini-transcribe (cloud) | 75 | 78 | 77 | 0.9 s |
+
+- **Privacy.** With the local recognizer, audio, model and vocabulary stay on this machine and no
+  audio is written to disk. A cloud backend sends the audio and the term list to the endpoint you set.
 
 
 ## Security

@@ -9,7 +9,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
-import { DictationButton } from "./voice/dictation-button.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
@@ -51,6 +50,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
+import { DictationButton } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {

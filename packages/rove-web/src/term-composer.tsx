@@ -9,7 +9,6 @@ import { useRef, useState, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
-import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -26,6 +25,7 @@ import {
   composerHold,
   composerMic,
 } from "./ui/term-composer.tsx"
+import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 interface SendReply {
   readonly delivered: boolean

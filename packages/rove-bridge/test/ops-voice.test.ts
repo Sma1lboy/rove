@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test"
-import type { Server } from "bun"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { voiceOps } from "../src/ops/voice.ts"
+import type { Server } from "bun"
 import type { BridgeApi } from "../src/ops/types.ts"
+import { voiceOps } from "../src/ops/voice.ts"
 
 /** A stand-in sidecar: answers every transcription and keeps the body the op sent. */
 let sent: Record<string, unknown> | null = null
