@@ -15,7 +15,7 @@ import {
   newTab,
 } from "./browser-tabs.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import type { PanelKind } from "./panel-layout.ts"
+import type { PanelKind } from "./panel-model.ts"
 import { closeBrowserTab, editBrowserColumn } from "./panel-state.ts"
 import { openMenu } from "./rail-view.tsx"
 import type { MenuItem } from "./ui.ts"

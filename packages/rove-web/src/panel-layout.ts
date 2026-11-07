@@ -1,12 +1,10 @@
 /** The side panel's open state, width and views, plus the narrow mode's content view. Kept per browser, in px. */
 
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
+import { PANEL_KINDS, type PanelKind } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 import { slideLayout } from "./ui.ts"
 
-/** The side panel's kinds of view; each is a column of its own. */
-export const PANEL_KINDS = ["chat", "files", "diff", "browser", "quota"] as const
-export type PanelKind = (typeof PANEL_KINDS)[number]
 /**
  * The kinds the top bar opens: desktop's launcher icons and the phone's switch both read this, so a kind
  * added or dropped here changes both. Chat opens from the side panel's + menu instead.

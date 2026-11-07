@@ -72,14 +72,14 @@ describe("migrating tab groups (the shape before columns)", () => {
     ...extra,
   })
 
-  test("every kind present becomes a column, in the order the kinds first appear, top group first", () => {
+  test("every kind present in either group becomes a column, in the fixed order", () => {
     const panel = parsePanel(
       old(
         [tab("t1", "files"), tab("t2", "browser", { urls: ["https://a.test/"], at: 0 })],
         [tab("t3", "quota"), tab("t4", "diff", { path: "a.ts", scope: "task" })],
       ),
     ) as TaskPanel
-    expect(kinds(panel)).toEqual(["files", "browser", "quota", "diff"])
+    expect(kinds(panel)).toEqual(["quota", "files", "diff", "browser"])
     expect(panel.weights).toEqual({})
   })
 

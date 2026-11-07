@@ -12,8 +12,8 @@ import { openMachines } from "./machines-dialog.tsx"
 import { RemoteNotice } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ColumnDivider, ColumnHead, ColumnView } from "./panel-column.tsx"
-import { PANEL_KINDS, type PanelKind, clampPanelWidth, narrowView, panelExpanded, panelWidth } from "./panel-layout.ts"
-import { type Column, columnOf, columnWeights, showKind } from "./panel-model.ts"
+import { clampPanelWidth, narrowView, panelExpanded, panelWidth } from "./panel-layout.ts"
+import { type Column, type PanelKind, columnOf, columnWeights, showKind } from "./panel-model.ts"
 import { editPanel, usePanelShown, useTaskPanel } from "./panel-state.ts"
 import { RAIL_DEFAULT_PX, clampRailWidth, railFolded, railWidth } from "./rail-layout.ts"
 import { useStore } from "./store.ts"
@@ -77,15 +77,12 @@ function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; na
   const tracks = shares.map((share, i) => `${i > 0 ? "var(--divider) " : ""}minmax(0, ${share}fr)`).join(" ")
   // Columns on screen when the panel first drew were restored, not opened: they leave the keyboard alone.
   const restored = useRef(visible.map(viewKey))
-  // The DOM keeps one order whatever the columns' order on screen: `grid-column` places them, so opening
-  // or closing a column never moves another's frame.
-  const stable = [...visible].sort((a, b) => PANEL_KINDS.indexOf(a.kind) - PANEL_KINDS.indexOf(b.kind))
 
   return (
     <aside className={sidePanelClass(narrow)} ref={aside}>
       {!narrow && !expanded && <PanelGrip panel={aside} />}
       <div className={SIDE_BODY} ref={body} style={{ gridTemplateColumns: tracks }}>
-        {stable.map((col) => (
+        {visible.map((col) => (
           <section
             key={col.kind}
             className={SIDE_COLUMN}

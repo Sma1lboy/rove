@@ -25,17 +25,13 @@ describe("opening columns", () => {
     expect(kinds(newPanel())).toEqual(["files"])
   })
 
-  test("a column opens on the right, in the order they were opened, one per kind", () => {
-    let panel = showKind(newPanel(), "quota")
-    panel = showKind(panel, "browser")
-    panel = showKind(panel, "files")
-    panel = showKind(panel, "diff")
-    expect(kinds(panel)).toEqual(["files", "quota", "browser", "diff"])
-  })
-
-  test("closing then reopening a column puts it at the right end", () => {
-    const panel = showKind(showKind(newPanel(), "diff"), "quota")
-    expect(kinds(showKind(closeColumn(panel, "files"), "files"))).toEqual(["diff", "quota", "files"])
+  // A file opened from Files landed right of the Browser, far from the tree it came from.
+  test("columns sit in one fixed order whatever order they were opened in: Context first, Browser last", () => {
+    let panel = showKind(newPanel(), "browser")
+    panel = showDiff(panel, "a.ts", "working")
+    panel = showKind(panel, "quota")
+    expect(kinds(panel)).toEqual(["quota", "files", "diff", "browser"])
+    expect(kinds(showKind(closeColumn(panel, "files"), "files"))).toEqual(["quota", "files", "diff", "browser"])
   })
 
   test("a kind alone opens Diff on the whole worktree and the Browser blank", () => {
@@ -104,7 +100,7 @@ describe("the launcher buttons", () => {
     let state = launch(newPanel(), true, "browser")
     expect(kinds(state.panel)).toEqual(["files", "browser"])
     state = launch(state.panel, true, "diff")
-    expect(kinds(state.panel)).toEqual(["files", "browser", "diff"])
+    expect(kinds(state.panel)).toEqual(["files", "diff", "browser"])
     state = launch(state.panel, true, "browser")
     expect(kinds(state.panel)).toEqual(["files", "diff"])
     expect(state.open).toBe(true)
@@ -131,17 +127,17 @@ describe("sharing the width", () => {
   test("a column opened later takes the mean of the others, not a sliver", () => {
     let panel = setWidths(showKind(newPanel(), "diff"), [300, 100])
     panel = showKind(panel, "quota")
-    const [files, diff, quota] = columnWeights(panel) as [number, number, number]
+    const [quota, files, diff] = columnWeights(panel) as [number, number, number]
     expect(files / diff).toBeCloseTo(3)
-    expect(quota).toBeCloseTo(((files + diff) / 2) * 1, 0)
+    expect(quota).toBeCloseTo((files + diff) / 2, 0)
   })
 
   test("shares are keyed by kind, so closing a middle column leaves the others as they were", () => {
     let panel = setWidths(three(), [100, 300, 100])
-    panel = closeColumn(panel, "diff")
-    expect(kinds(panel)).toEqual(["files", "quota"])
-    const [files, quota] = columnWeights(panel) as [number, number]
-    expect(files).toBeCloseTo(quota)
+    panel = closeColumn(panel, "files")
+    expect(kinds(panel)).toEqual(["quota", "diff"])
+    const [quota, diff] = columnWeights(panel) as [number, number]
+    expect(quota).toBeCloseTo(diff)
   })
 
   test("double-clicking a divider goes back to equal shares", () => {
@@ -190,7 +186,7 @@ describe("rove api panel-show", () => {
   test("a view alone opens its column if closed and never a second one", () => {
     const panel = apply(showDiff(newPanel(), "a.ts", "working"), { view: "files" })
     expect(kinds(panel)).toEqual(["files", "diff"])
-    expect(kinds(apply(closeColumn(panel, "files"), { view: "files" }))).toEqual(["diff", "files"])
+    expect(kinds(apply(closeColumn(panel, "files"), { view: "files" }))).toEqual(["files", "diff"])
     expect(columnOf(apply(panel, { view: "diff" }), "diff")).toMatchObject({ path: "a.ts" })
   })
 })

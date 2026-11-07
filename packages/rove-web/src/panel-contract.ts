@@ -4,7 +4,7 @@
  * on live in `panel-state.ts` and `panel-report.ts`.
  */
 
-import type { PanelKind } from "./panel-layout.ts"
+import type { PanelKind } from "./panel-model.ts"
 import { type TaskPanel, showBrowser, showDiff, showKind } from "./panel-model.ts"
 
 /** The `panel` push the bridge sends for `rove api panel-show`. */

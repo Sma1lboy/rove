@@ -11,8 +11,16 @@ import { ContextView } from "./context-view.tsx"
 import { FilesView } from "./files-view.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { type PanelKind, panelExpanded } from "./panel-layout.ts"
-import { COLUMN_MIN_PX, type Column, diffName, moveDivider, resetWidths, setWidths } from "./panel-model.ts"
+import { panelExpanded } from "./panel-layout.ts"
+import {
+  COLUMN_MIN_PX,
+  type Column,
+  type PanelKind,
+  diffName,
+  moveDivider,
+  resetWidths,
+  setWidths,
+} from "./panel-model.ts"
 import { closePanelColumn, editBrowserColumn, editPanel } from "./panel-state.ts"
 import { BrowserTabStrip } from "./panel-tabs.tsx"
 import { PreviewHost } from "./preview-host.tsx"

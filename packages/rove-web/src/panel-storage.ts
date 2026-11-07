@@ -5,8 +5,8 @@
  */
 
 import { blankBrowser, openUrl, parseBrowser } from "./browser-tabs.ts"
-import type { PanelKind } from "./panel-layout.ts"
-import { type Column, type DiffScope, type TaskPanel, newPanel } from "./panel-model.ts"
+import type { PanelKind } from "./panel-model.ts"
+import { type Column, type DiffScope, type TaskPanel, inKindOrder, newPanel } from "./panel-model.ts"
 
 export const REMEMBERED_TASKS = 50
 
@@ -48,8 +48,8 @@ function oldTabs(r: Record<string, unknown>): { tabs: Record<string, unknown>[];
 }
 
 /**
- * Tab groups into columns: each kind that had a tab becomes a column, in the order the kinds first
- * appear; the Diff column keeps the diff shown last, the Browser all its tabs.
+ * Tab groups into columns: each kind that had a tab becomes a column, in its fixed place; the Diff
+ * column keeps the diff shown last, the Browser all its tabs.
  */
 function fromGroups(r: Record<string, unknown>): TaskPanel | null {
   const old = oldTabs(r)
@@ -74,7 +74,7 @@ function fromGroups(r: Record<string, unknown>): TaskPanel | null {
       if (browser) columns.push(browser)
     }
   }
-  return { columns, weights: {} }
+  return { columns: inKindOrder(columns), weights: {} }
 }
 
 /** A stored panel back into shape; null when nothing usable is in it. */
@@ -87,7 +87,7 @@ export function parsePanel(raw: unknown): TaskPanel | null {
     const col = parseColumn(entry)
     if (col && !columns.some((c) => c.kind === col.kind)) columns.push(col)
   }
-  return { columns, weights: parseWeights(r.weights, columns) }
+  return { columns: inKindOrder(columns), weights: parseWeights(r.weights, columns) }
 }
 
 /** What the panel kept before it had tabs: the view it was on (a diff's file was never kept) and the Browser's last address. */

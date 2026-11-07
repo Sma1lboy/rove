@@ -6,8 +6,9 @@
 import { type BrowserColumn, closeTab } from "./browser-tabs.ts"
 import { isNarrow } from "./layout.ts"
 import { type PanelPush, applyPlan, planPanelPush } from "./panel-contract.ts"
-import { type PanelKind, narrowView, panelOpen } from "./panel-layout.ts"
+import { narrowView, panelOpen } from "./panel-layout.ts"
 import {
+  type PanelKind,
   type TaskPanel,
   closeColumn,
   columnOf,
