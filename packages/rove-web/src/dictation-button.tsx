@@ -1,6 +1,6 @@
 /**
  * The one dictation button. Bracket text like every other composer control, never a floating
- * action: `[ say ]` → `[ stop 0:03 ]` → `[ … ]`. On tapping stop the transcript is handed to
+ * action: `Say` → `Stop 0:03` → `Hearing…`. On tapping stop the transcript is handed to
  * `onText`; this component never submits anything itself.
  */
 
@@ -9,7 +9,7 @@ import type { BridgeClient } from "./bridge.ts"
 import { Dictation } from "./dictation.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { useStore } from "./store.ts"
-import "./dictation.css"
+import * as C from "./ui/composer.ts"
 
 const clock = (seconds: number) => `0:${String(Math.floor(seconds)).padStart(2, "0")}`
 
@@ -46,7 +46,7 @@ export function DictationButton(props: {
   return (
     <button
       type="button"
-      className={`composer-chip dictation dictation-${view.phase}`}
+      className={`${C.chipClass(view.phase === "recording")} min-w-[9ch] justify-center disabled:cursor-default disabled:opacity-60`}
       disabled={props.disabled || hosted === false || view.phase === "transcribing"}
       title={view.error ?? (hosted === false ? t("voice.offline") : t("voice.hint"))}
       onClick={() => {
@@ -57,8 +57,12 @@ export function DictationButton(props: {
     >
       {label}
       {view.phase === "recording" && (
-        <span className="dictation-meter" aria-hidden="true">
-          <span className="dictation-dot" style={{ opacity: 0.25 + Math.min(1, view.level * 12) * 0.75 }} />
+        <span className="inline-flex items-center" aria-hidden="true">
+          {/* Opacity carries the level: the dot never resizes and never pushes the label around. */}
+          <span
+            className="size-1.5 rounded-full bg-current"
+            style={{ opacity: 0.25 + Math.min(1, view.level * 12) * 0.75 }}
+          />
         </span>
       )}
     </button>
