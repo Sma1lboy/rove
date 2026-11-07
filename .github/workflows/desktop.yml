@@ -1,0 +1,97 @@
+# The desktop app (packages/rove-desktop) on Linux and Windows: package it, then open the packaged app
+# against a bridge from this checkout and check the page loaded (`ROVE_DESKTOP_SMOKE`). The installers
+# are uploaded as workflow artifacts; nothing is published. macOS is built and checked locally.
+
+name: Desktop
+
+on:
+  push:
+    branches: [main, desktop/ci-builds]
+    paths:
+      - "packages/rove-desktop/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/rove-desktop/**"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            dist: dist:linux
+            app: release/linux-unpacked/rove-desktop
+            artifact: release/*.AppImage
+          - os: windows-latest
+            dist: dist:win
+            app: release/win-unpacked/Rove.exe
+            artifact: release/*.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun --filter rove-web build
+      - name: Package
+        working-directory: packages/rove-desktop
+        run: bun run ${{ matrix.dist }}
+
+      # The app finds rove through ROVE_DESKTOP_BIN: a shim that runs this checkout's CLI.
+      - name: Rove shim (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          printf '#!/bin/sh\nexec bun --conditions=browser "%s/packages/rove/src/cli/rove.ts" "$@"\n' "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/rove"
+          chmod +x "$RUNNER_TEMP/rove"
+          echo "ROVE_DESKTOP_BIN=$RUNNER_TEMP/rove" >> "$GITHUB_ENV"
+      - name: Rove shim (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $shim = Join-Path $env:RUNNER_TEMP "rove.cmd"
+          "@bun --conditions=browser `"$env:GITHUB_WORKSPACE\packages\rove\src\cli\rove.ts`" %*" | Set-Content -Encoding ascii $shim
+          "ROVE_DESKTOP_BIN=$shim" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Smoke the packaged app
+        working-directory: packages/rove-desktop
+        shell: bash
+        env:
+          ROVE_DESKTOP_SMOKE: ${{ runner.temp }}/desktop-smoke.png
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            # Hosted Ubuntu blocks the unprivileged user namespaces Chromium's sandbox needs.
+            timeout 180 xvfb-run -a "${{ matrix.app }}" --no-sandbox 2>&1 | tee smoke.log || true
+          else
+            timeout 180 "${{ matrix.app }}" 2>&1 | tee smoke.log || true
+          fi
+          grep -q 'bridge up on http://127.0.0.1:' smoke.log
+          grep -E 'smoke: \{"title":"[^"]*rove' smoke.log
+          test -s "$ROVE_DESKTOP_SMOKE"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rove-desktop-${{ runner.os }}
+          path: |
+            packages/rove-desktop/${{ matrix.artifact }}
+            packages/rove-desktop/smoke.log
+            ${{ runner.temp }}/desktop-smoke.png
+          if-no-files-found: warn
