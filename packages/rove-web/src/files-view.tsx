@@ -161,7 +161,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               else open(r.path)
             }}
           >
-            <span className={`${GLYPH} grid place-items-center text-subtle`}>
+            <span className="grid w-[2ch] flex-none place-items-center font-mono text-subtle">
               {r.dir ? <Chevron right={!r.open} /> : null}
             </span>
             <span className={`${ROW_TITLE} ${r.state ? TONE[STATE_TONE[r.state]] : ""}`}>{r.label}</span>
