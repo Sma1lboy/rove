@@ -178,6 +178,16 @@ the only public path to it.
   `"learn": false` turns it off. Bench: `bench.py --edits` 20/20 labelled edits;
   `bench.py --learn` (fix each take, take it again) 68 → 76/82 on large-v3, with the recognizer's
   own score unchanged.
+- **Live text while you hold.** A held take (not a tapped one) streams through `voice.stream`: the
+  page sends what it recorded about once a second, one chunk in flight at a time, and with a local
+  recognizer the sidecar (`live.py`) decodes the take so far whenever at least 0.8 s is new and the
+  GPU is free, so the words show in the hold button as they are said. Letting go sends the rest and
+  the whole take is decoded once more through the same steps as a one-shot take. A cloud recognizer
+  is billed per request, so its takes are buffered and decoded once, at the end. Any streaming error
+  (an older bridge, a lost chunk) falls back to sending the whole take. Bench (`bench.py --live`,
+  large-v3, 1 s chunks): a partial every 1.43 s p50 (1.68 s p90), the text trails speech by 1.43 s
+  p50 (2.66 s p90), the first words show at 2.1 s p50, and the final text equals the one-shot text on
+  11/11 clips.
 - **Sound-alikes.** After the spelling fix, a word the recognizer *heard* wrong is matched by
   pronunciation (Metaphone; a Chinese run is read as pinyin first): "Jithub" → GitHub, "Cavin" →
   Kevin. Only a run that is not all dictionary words and keys within a close length of a term is

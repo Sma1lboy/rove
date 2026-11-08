@@ -88,6 +88,14 @@ const isSpan = (value: unknown): value is [number, number] =>
   value[0] >= 0 &&
   value[0] < value[1]
 
+const isLearned = (value: unknown): value is LearnedTerm =>
+  typeof value === "object" &&
+  value !== null &&
+  "term" in value &&
+  typeof value.term === "string" &&
+  "spoken" in value &&
+  typeof value.spoken === "string"
+
 const DOWN: VoiceHealth = { up: false, ready: false, model: null, warmMs: null, error: null }
 
 /** One probe: a sidecar that is up but still warming reports `ready: false`, not an error. */
@@ -108,7 +116,7 @@ export async function voiceHealth(): Promise<VoiceHealth> {
   }
 }
 
-async function post(path: string, payload: unknown): Promise<unknown> {
+async function post(path: string, payload: unknown): Promise<Record<string, unknown>> {
   const token = voiceToken()
   if (!token) throw new BridgeError("VOICE_DOWN", "the voice sidecar has never run on this host")
   let res: Response
@@ -164,6 +172,24 @@ async function conversation(a: Args, api: BridgeApi): Promise<string | undefined
   }
 }
 
+const SESSION = /^[A-Za-z0-9_-]{1,64}$/
+
+function draftText(value: unknown): string | undefined {
+  if (value !== undefined && typeof value !== "string") throw new BridgeError("BAD_ARGS", "context must be text")
+  return typeof value === "string" ? value.slice(-400) : undefined
+}
+
+function transcript(body: Record<string, unknown>): VoiceTranscript {
+  return {
+    text: String(body.text ?? ""),
+    raw: String(body.raw ?? ""),
+    language: typeof body.language === "string" ? body.language : null,
+    seconds: Number(body.seconds ?? 0),
+    ms: Number(body.ms ?? 0),
+    ...(typeof body.reason === "string" && body.reason ? { reason: body.reason } : {}),
+  }
+}
+
 export const voiceOps: OpTable = {
   "voice.transcribe": {
     kind: "read",
@@ -174,24 +200,48 @@ export const voiceOps: OpTable = {
       if (typeof wav !== "string" || wav.length === 0) throw new BridgeError("BAD_ARGS", "wav is empty")
       if (wav.length > MAX_WAV_HEX) throw new BridgeError("BAD_ARGS", "wav is longer than a dictation")
       if (!HEX.test(wav)) throw new BridgeError("BAD_ARGS", "wav must be lowercase hex")
-      const context = a.context
-      if (context !== undefined && typeof context !== "string")
-        throw new BridgeError("BAD_ARGS", "context must be text")
+      const context = draftText(a.context)
       const language = a.language === "zh" || a.language === "en" ? a.language : undefined
-      const body = (await post("/transcribe", {
+      const body = await post("/transcribe", {
         wav,
-        context: typeof context === "string" ? context.slice(-400) : undefined,
+        context,
         conversation: await conversation(a, api),
         language,
-      })) as Partial<VoiceTranscript>
-      return {
-        text: String(body.text ?? ""),
-        raw: String(body.raw ?? ""),
-        language: body.language ?? null,
-        seconds: Number(body.seconds ?? 0),
-        ms: Number(body.ms ?? 0),
-        ...(body.reason ? { reason: body.reason } : {}),
-      } satisfies VoiceTranscript
+      })
+      return transcript(body)
+    },
+  },
+  "voice.stream": {
+    kind: "read",
+    destructive: false,
+    wraps:
+      "POST :8791/stream of scripts/voice/asr_server.py (live.py): one chunk of a held take; the first reads the vocabulary like voice.transcribe",
+    async run(a: Args, { api }) {
+      const session = a.session
+      if (typeof session !== "string" || !SESSION.test(session))
+        throw new BridgeError("BAD_ARGS", "session is not an id")
+      const seq = a.seq
+      if (!Number.isInteger(seq) || (seq as number) < 0) throw new BridgeError("BAD_ARGS", "seq must count from 0")
+      const pcm = typeof a.pcm === "string" ? a.pcm : ""
+      if (pcm.length > MAX_WAV_HEX) throw new BridgeError("BAD_ARGS", "chunk is longer than a dictation")
+      if (pcm !== "" && !HEX.test(pcm)) throw new BridgeError("BAD_ARGS", "pcm must be lowercase hex")
+      const first = seq === 0
+      const body = await post("/stream", {
+        session,
+        seq,
+        pcm,
+        final: a.final === true,
+        ...(first
+          ? {
+              context: draftText(a.context),
+              conversation: await conversation(a, api),
+              language: a.language === "zh" || a.language === "en" ? a.language : undefined,
+            }
+          : {}),
+      })
+      if (a.final === true) return transcript(body)
+      const partial = body.partial
+      return { partial: typeof partial === "string" ? partial : null }
     },
   },
   "voice.learn": {
@@ -203,8 +253,8 @@ export const voiceOps: OpTable = {
       const sent = text(a.sent, "sent")
       const spans = Array.isArray(a.spans) ? a.spans.filter(isSpan).slice(0, MAX_SPANS) : []
       if (spans.length === 0) throw new BridgeError("BAD_ARGS", "spans must list the dictated [start, end] ranges")
-      const body = (await post("/learn", { base, sent, spans })) as { learned?: unknown }
-      return { learned: Array.isArray(body.learned) ? (body.learned as LearnedTerm[]) : [] }
+      const body = await post("/learn", { base, sent, spans })
+      return { learned: Array.isArray(body.learned) ? body.learned.filter(isLearned) : [] }
     },
   },
   "voice.unlearn": {
@@ -213,7 +263,7 @@ export const voiceOps: OpTable = {
     wraps: "POST :8791/unlearn of scripts/voice/asr_server.py (undoes one voice.learn)",
     async run(a: Args) {
       if (!Array.isArray(a.learned)) throw new BridgeError("BAD_ARGS", "learned must be what voice.learn returned")
-      const body = (await post("/unlearn", { learned: a.learned.slice(0, MAX_SPANS) })) as { undone?: unknown }
+      const body = await post("/unlearn", { learned: a.learned.slice(0, MAX_SPANS) })
       return { undone: Number(body.undone ?? 0) }
     },
   },

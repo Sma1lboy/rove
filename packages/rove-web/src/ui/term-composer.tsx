@@ -123,13 +123,21 @@ export function HoldFace(props: {
         style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
       />
       <span className="flex-none font-mono text-meta normal-nums">{state.time}</span>
-      <Wave level={state.level} seconds={state.seconds} />
+      {state.partial ? (
+        // The newest words at the right edge, where the waveform was; the start of a long take scrolls off left.
+        <span className="flex min-w-0 flex-1 justify-end overflow-hidden whitespace-nowrap text-meta">
+          {state.partial}
+        </span>
+      ) : (
+        <Wave level={state.level} seconds={state.seconds} />
+      )}
       {state.held && (
         <span className={`flex flex-none items-center gap-1 text-meta ${state.armed ? "font-semibold" : "text-muted"}`}>
           <svg viewBox="0 0 16 16" className="size-3.5 fill-none stroke-current stroke-[1.5]" aria-hidden="true">
             <path d={UP} />
           </svg>
-          {state.armed ? props.release : props.slide}
+          {/* Once words show they need the room; the arrow alone still says where to slide. */}
+          {state.armed ? props.release : state.partial ? <span className="sr-only">{props.slide}</span> : props.slide}
         </span>
       )}
     </>

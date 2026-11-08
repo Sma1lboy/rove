@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import type { BridgeClient } from "../src/bridge.ts"
-import { Dictation } from "../src/voice/dictation.ts"
+import { Dictation, Downsampler } from "../src/voice/dictation.ts"
 
 /** A microphone whose permission prompt resolves only when the test says so. */
 let grant: (() => void) | null = null
@@ -169,3 +169,21 @@ for (const boundary of ["permission", "worklet resolve", "worklet reject"] as co
     expect(openContexts).toBe(0)
   })
 }
+
+test("a live take resampled chunk by chunk is the same audio as the whole take resampled at once", () => {
+  const input = Float32Array.from({ length: 4801 }, (_, i) => Math.sin(i / 7) * 0.5)
+  const whole = new Downsampler(44_100 / 16_000).push([input])
+  const live = new Downsampler(44_100 / 16_000)
+  const parts: number[] = []
+  // Uneven cuts, as worklet blocks land between ticks.
+  for (const [from, to] of [
+    [0, 128],
+    [128, 129],
+    [129, 1000],
+    [1000, 1000],
+    [1000, 4801],
+  ] as const) {
+    parts.push(...live.push([input.subarray(from, to)]))
+  }
+  expect(parts).toEqual([...whole])
+})

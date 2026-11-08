@@ -27,7 +27,11 @@ export interface DictationView {
   /** Loudest block of the last tick, 0–1: what a level meter or waveform draws. */
   readonly level: number
   readonly error: string | null
+  /** A live take's text so far (a local recognizer only); empty until the first partial. */
+  readonly partial: string
 }
+
+const IDLE: DictationView = { phase: "idle", seconds: 0, level: 0, error: null, partial: "" }
 
 export interface DictationResult {
   readonly text: string
@@ -43,16 +47,48 @@ export interface DictationScope {
   readonly tabId?: string
 }
 
-/** Linear resample to 16 kHz: the model's rate, and a third of the bytes on the wire. */
-function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
-  const total = chunks.reduce((n, c) => n + c.length, 0)
-  const flat = new Float32Array(total)
-  let at = 0
-  for (const chunk of chunks) {
-    flat.set(chunk, at)
-    at += chunk.length
+/** How often a held take sends what it recorded since the last chunk. */
+const LIVE_MS = 1000
+
+/**
+ * Down to 16 kHz, the model's rate and a third of the bytes on the wire, one batch of blocks at a time:
+ * output sample n is input sample floor(n * step), however the input was split into batches.
+ */
+export class Downsampler {
+  private emitted = 0
+  private consumed = 0
+  constructor(private readonly step: number) {}
+
+  push(chunks: readonly Float32Array[]): Int16Array {
+    const total = chunks.reduce((n, c) => n + c.length, 0)
+    const flat = new Float32Array(total)
+    let at = 0
+    for (const chunk of chunks) {
+      flat.set(chunk, at)
+      at += chunk.length
+    }
+    const end = this.consumed + total
+    const out: number[] = []
+    for (let pos = Math.floor(this.emitted * this.step); pos < end; pos = Math.floor(this.emitted * this.step)) {
+      const sample = Math.max(-1, Math.min(1, flat[pos - this.consumed] ?? 0))
+      out.push(Math.round(sample * 32767))
+      this.emitted++
+    }
+    this.consumed = end
+    return Int16Array.from(out)
   }
-  const frames = Math.max(1, Math.floor((total * TARGET_RATE) / from))
+}
+
+function pcmBytes(samples: Int16Array): Uint8Array {
+  const out = new Uint8Array(samples.length * 2)
+  const view = new DataView(out.buffer)
+  for (let i = 0; i < samples.length; i++) view.setInt16(i * 2, samples[i], true)
+  return out
+}
+
+function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
+  const samples = new Downsampler(from / TARGET_RATE).push(chunks)
+  const frames = Math.max(1, samples.length)
   const out = new Uint8Array(44 + frames * 2)
   const view = new DataView(out.buffer)
   const ascii = (offset: number, text: string) => {
@@ -70,12 +106,7 @@ function toWav(chunks: readonly Float32Array[], from: number): Uint8Array {
   view.setUint16(34, 16, true)
   ascii(36, "data")
   view.setUint32(40, frames * 2, true)
-  const step = from / TARGET_RATE
-  for (let i = 0; i < frames; i++) {
-    const pos = Math.min(total - 1, Math.floor(i * step))
-    const sample = Math.max(-1, Math.min(1, flat[pos] ?? 0))
-    view.setInt16(44 + i * 2, Math.round(sample * 32767), true)
-  }
+  out.set(pcmBytes(samples), 44)
   return out
 }
 
@@ -91,13 +122,26 @@ function toHex(bytes: Uint8Array): string {
   return parts.join("")
 }
 
+/**
+ * A held take streamed as it is recorded (`voice.stream`): one chunk in flight at a time, each answered with
+ * the text so far. Any failure (an older bridge, a chunk lost) marks it dead and the take is sent whole.
+ */
+interface LiveTake {
+  readonly id: string
+  readonly resample: Downsampler
+  /** Blocks of `chunks` already sent. */
+  sent: number
+  seq: number
+  inFlight: Promise<unknown> | null
+  dead: boolean
+}
+
+interface StreamReply {
+  readonly partial?: string | null
+}
+
 export class Dictation {
-  readonly view: Store<DictationView> = createStore<DictationView>({
-    phase: "idle",
-    seconds: 0,
-    level: 0,
-    error: null,
-  })
+  readonly view: Store<DictationView> = createStore<DictationView>(IDLE)
 
   private stream: MediaStream | null = null
   private context: AudioContext | null = null
@@ -110,6 +154,8 @@ export class Dictation {
   private recent = 0
   /** Bumped by every release: a start whose awaits outlive a stop or cancel sees it moved and backs out. */
   private session = 0
+  private live: LiveTake | null = null
+  private liveTimer: number | null = null
 
   constructor(
     private readonly client: BridgeClient,
@@ -126,10 +172,12 @@ export class Dictation {
     return this.recording ? this.stop() : this.start()
   }
 
-  async start(): Promise<null> {
+  /** `live`: stream the take while it records and show the text so far (a held press). */
+  async start(live = false): Promise<null> {
     if (this.view.get().phase !== "idle" && this.view.get().phase !== "error") return null
     const session = ++this.session
-    this.view.set({ phase: "recording", seconds: 0, level: 0, error: null })
+    this.live = null
+    this.view.set({ ...IDLE, phase: "recording" })
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
@@ -167,6 +215,17 @@ export class Dictation {
         this.recent = 0
       }, 100)
       this.capTimer = window.setTimeout(() => void this.stop(), MAX_SECONDS * 1000)
+      if (live) {
+        this.live = {
+          id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`,
+          resample: new Downsampler(context.sampleRate / TARGET_RATE),
+          sent: 0,
+          seq: 0,
+          inFlight: null,
+          dead: false,
+        }
+        this.liveTimer = window.setInterval(() => void this.pump(false), LIVE_MS)
+      }
       return null
     } catch (err) {
       if (session !== this.session) return null
@@ -174,6 +233,39 @@ export class Dictation {
       this.fail(err)
       return null
     }
+  }
+
+  /** Sends what a live take recorded since its last chunk; at `final`, the rest and the transcript back. */
+  private async pump(final: boolean): Promise<DictationResult | null> {
+    const live = this.live
+    if (!live || live.dead || (live.inFlight && !final)) return null
+    if (live.inFlight) await live.inFlight.catch(() => {})
+    if (live.dead) return null
+    const blocks = this.chunks.slice(live.sent)
+    live.sent += blocks.length
+    const seq = live.seq++
+    const scope = seq === 0 ? this.scope() : null
+    const request = this.client.request<StreamReply & DictationResult>("voice.stream", {
+      session: live.id,
+      seq,
+      pcm: toHex(pcmBytes(live.resample.push(blocks))),
+      final,
+      ...(scope ? { context: scope.draft, taskId: scope.taskId, tabId: scope.tabId } : {}),
+    })
+    live.inFlight = request
+    try {
+      const reply = await request
+      if (final) return reply
+      const view = this.view.get()
+      if (this.live === live && view.phase === "recording" && typeof reply.partial === "string") {
+        this.view.set({ ...view, partial: reply.partial })
+      }
+    } catch {
+      live.dead = true
+    } finally {
+      if (live.inFlight === request) live.inFlight = null
+    }
+    return null
   }
 
   async stop(): Promise<DictationResult | null> {
@@ -186,47 +278,54 @@ export class Dictation {
     const wav = toWav(chunks, rate)
     const seconds = (wav.length - 44) / 2 / TARGET_RATE
     if (seconds < 0.3 || this.peak < SILENCE_LEVEL) {
-      this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+      this.live = null
+      this.view.set(IDLE)
       return { text: "", seconds, ms: 0, reason: "silent" }
     }
     try {
-      const scope = this.scope()
-      const result = await this.client.request<DictationResult>("voice.transcribe", {
-        wav: toHex(wav),
-        context: scope.draft,
-        taskId: scope.taskId,
-        tabId: scope.tabId,
-      })
-      this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+      // A live take ends with its last chunk; one whose stream failed is sent whole, as a tapped take is.
+      const streamed = this.live ? await this.pump(true) : null
+      this.live = null
+      const result = streamed ?? (await this.transcribeWhole(wav))
+      this.view.set(IDLE)
       return result
     } catch (err) {
+      this.live = null
       this.fail(err)
       return null
     }
   }
 
-  private fail(err: unknown): void {
-    this.view.set({
-      phase: "error",
-      seconds: 0,
-      level: 0,
-      error: err instanceof Error ? err.message : String(err),
+  private transcribeWhole(wav: Uint8Array): Promise<DictationResult> {
+    const scope = this.scope()
+    return this.client.request<DictationResult>("voice.transcribe", {
+      wav: toHex(wav),
+      context: scope.draft,
+      taskId: scope.taskId,
+      tabId: scope.tabId,
     })
+  }
+
+  private fail(err: unknown): void {
+    this.view.set({ ...IDLE, phase: "error", error: err instanceof Error ? err.message : String(err) })
   }
 
   /** Cancels without spending a model call (a stray tap, a swipe away). */
   cancel(): void {
     if (this.view.get().phase !== "recording") return
     this.release()
-    this.view.set({ phase: "idle", seconds: 0, level: 0, error: null })
+    this.live = null
+    this.view.set(IDLE)
   }
 
   private release(): void {
     this.session++
     if (this.timer !== null) window.clearInterval(this.timer)
     if (this.capTimer !== null) window.clearTimeout(this.capTimer)
+    if (this.liveTimer !== null) window.clearInterval(this.liveTimer)
     this.timer = null
     this.capTimer = null
+    this.liveTimer = null
     this.node?.port.close()
     this.node = null
     for (const track of this.stream?.getTracks() ?? []) track.stop()

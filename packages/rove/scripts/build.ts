@@ -62,6 +62,7 @@ const VOICE_FILES = [
   "engine.py",
   "fetch_model.py",
   "learn.py",
+  "live.py",
   "phonetic.py",
   "vocab.py",
   "pyproject.toml",

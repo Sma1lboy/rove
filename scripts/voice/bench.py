@@ -44,6 +44,7 @@ os.environ["ROVE_VOICE_HOME"] = tempfile.mkdtemp(prefix="rove-voice-bench-")
 import asr_server  # noqa: E402 - after the HOME override
 import engine  # noqa: E402
 import learn  # noqa: E402
+import live  # noqa: E402
 import vocab  # noqa: E402
 
 CACHE = Path.home() / ".cache" / "rove-voice-bench"
@@ -129,6 +130,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, help="append one JSON line per clip")
     parser.add_argument("--learn", action="store_true", help="fix each take to the reference, then take again")
     parser.add_argument("--edits", action="store_true", help="learn.py's gates on bench/edits.json, no audio")
+    parser.add_argument("--live", action="store_true", help="stream each clip in 1 s chunks as a held take does")
     args = parser.parse_args()
     if args.edits:
         return edits()
@@ -205,6 +207,8 @@ def main() -> None:
         )
         return texts
 
+    if args.live:
+        return live_takes(backend, rows, config, args.language)
     texts = take_all("")
     if not args.learn:
         return
@@ -217,6 +221,58 @@ def main() -> None:
             print(f"{case['id']:<10} learned {', '.join(a['spoken'] + ' -> ' + a['term'] for a in added)}")
     print(f"\nlearned {taught} from {len(rows)} fixed takes\n")
     take_all(" after-learning")
+
+
+def live_takes(backend: engine.Backend, rows: list[dict], config: dict, language: str | None) -> None:
+    """Each clip as a held take: a chunk per second of recording, sent only once the last one answered
+    (as the page does), then the final. Partials are what the user watches; the final must match a one-shot take."""
+    step = engine.SAMPLE_RATE
+    waits: list[float] = []
+    lags: list[float] = []
+    firsts: list[float] = []
+    finals: list[float] = []
+    got = same = total = 0
+    for case in rows:
+        samples = pcm(case["wav"])
+        clock = sent = seq = 0.0
+        session = case["id"]
+        first = None
+        while sent < len(samples):
+            clock += 1.0  # the page's next tick
+            upto = min(len(samples), int(clock * step))
+            take = live.append(session, int(seq), samples[int(sent) : upto], {"language": language})
+            seq, sent = seq + 1, upto
+            if not live.due(take, backend):
+                continue
+            started = time.monotonic()
+            take.decoded = take.samples
+            asr_server.dictate(backend, take.pcm(), conversation=None, draft=None, language=language, config=config)
+            took = time.monotonic() - started
+            waits.append(took)
+            clock += took  # nothing more goes out until this answered
+            lags.append(clock - take.samples / step)  # how far the shown text trails what was said
+            first = first if first is not None else clock
+        live.finish(session)
+        started = time.monotonic()
+        out = asr_server.dictate(backend, samples, conversation=None, draft=None, language=language, config=config)
+        finals.append(time.monotonic() - started)
+        one_shot = asr_server.dictate(backend, samples, conversation=None, draft=None, language=language, config=config)
+        firsts.append(first or 0.0)
+        terms = keywords(case["text"])
+        got += sum(hits(terms, out["text"]))
+        total += len(terms)
+        same += out["text"] == one_shot["text"]
+        print(
+            f"{case['id']:<10} {len(samples) / step:4.1f}s audio  first partial {first or 0:4.1f}s  "
+            f"final {finals[-1]:.2f}s"
+        )
+    q = statistics.quantiles
+    print(
+        f"\n{backend.name} live: {len(waits)} partials, decode p50 {statistics.median(waits):.2f}s "
+        f"p90 {q(waits, n=10)[-1]:.2f}s; text trails speech p50 {statistics.median(lags):.2f}s "
+        f"p90 {q(lags, n=10)[-1]:.2f}s; first partial p50 {statistics.median(firsts):.1f}s; "
+        f"final p50 {statistics.median(finals):.2f}s; final = one-shot on {same}/{len(rows)} clips; {got}/{total} terms"
+    )
 
 
 if __name__ == "__main__":
