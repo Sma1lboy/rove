@@ -128,16 +128,28 @@ on a phone, hold-to-talk). The page records 16 kHz mono PCM and the op `voice.tr
 a sidecar on this machine together with the conversation it is dictated into; the transcript is
 inserted at the caret and sent only when you slide up to send.
 
-The sidecar is opt-in — nothing in Rove bundles a model. All of it lives in `scripts/voice/`, one
-environment described by its `pyproject.toml` and `uv.lock`:
+Nothing in Rove bundles a model, and the mic stays hidden until dictation is set up. **Settings →
+Voice** does it from the page:
+
+- **Local model** — shown with an Install button only on an Apple Silicon Mac with
+  [uv](https://docs.astral.sh/uv/) and ~3.5 GB free; otherwise the row says which is missing. Install is
+  a detached job on the Mac (`uv sync --frozen --extra local`, then the model download), so a phone
+  that sleeps or reconnects mid-download does not stop it; the page shows its latest line.
+- **Cloud endpoint** — base URL, model and API key. The key is written to
+  `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+
+Once either is set up, the bridge starts the sidecar whenever it is not answering (`voice.status`) and
+restarts it when the endpoint changes. The sidecar's environment lives in
+`<ROVE_HOME>/.rove/voice/venv`; its code is `scripts/voice/` in a checkout and `dist/voice/` in a
+release, one environment described by `pyproject.toml` and `uv.lock`. By hand:
 
 ```bash
-uv run --project scripts/voice scripts/voice/asr_server.py   # 127.0.0.1:8791
-uv run --project scripts/voice scripts/voice/bench.py        # key-term bench: 11 zh/en clips, 82 terms
+uv run --project scripts/voice --extra local scripts/voice/asr_server.py   # 127.0.0.1:8791
+uv run --project scripts/voice --extra local scripts/voice/bench.py        # key-term bench: 11 zh/en clips, 82 terms
 ```
 
-While it is not running the mic is disabled and says so. It listens on loopback and takes the
-shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it.
+It listens on loopback and takes the shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is
+the only public path to it.
 
 - **Recognizer.** Local `mlx-community/whisper-large-v3-mlx` by default. `~/.rove/voice/config.json`
   (read when the sidecar starts; restart it after a change) picks another:

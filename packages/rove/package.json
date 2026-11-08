@@ -30,6 +30,7 @@
     "dist/web",
     "dist/web-ui",
     "dist/skills",
+    "dist/voice",
     "dist/*.wav",
     "README.md",
     "LICENSE"

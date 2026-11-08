@@ -3,7 +3,7 @@
 /** Section ids in nav order, grouped: everyday preferences, agents and what they use, then the quiet rest. */
 export const SECTION_GROUPS = [
   { id: "preferences", sections: ["general", "appearance", "notifications", "snippets", "keys"] },
-  { id: "agents", sections: ["engines", "autoRouting", "connectors", "plugins"] },
+  { id: "agents", sections: ["engines", "autoRouting", "voice", "connectors", "plugins"] },
   { id: "more", sections: ["about", "feedback", "dev"] },
 ] as const
 

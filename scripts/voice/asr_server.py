@@ -6,7 +6,7 @@ local Whisper unless `~/.rove/voice/config.json` names a cloud endpoint (`engine
 vocabulary is `vocab.py`, sound-alike fixes `phonetic.py`. Everything this process keeps lives
 under `~/.rove/voice`.
 
-Run: `uv run --project scripts/voice scripts/voice/asr_server.py` (environment from pyproject.toml).
+Run: `uv run --project scripts/voice --extra local scripts/voice/asr_server.py` (or Settings → Voice).
 Binds 127.0.0.1 only; the bridge is the one public surface.
 
   POST /transcribe {wav: hex, conversation?, context?, language?} -> {text, raw, language, ...}
@@ -24,6 +24,7 @@ import threading
 import time
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -133,7 +134,9 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(404, {"error": "not_found"})
             return
         name = _backend.name if _backend else None
-        self.reply(200, {"ready": _ready.is_set(), "model": name, "warm_ms": _warm_ms, "error": _error})
+        body = {"ready": _ready.is_set(), "model": name, "warm_ms": _warm_ms, "error": _error}
+        # Which copy answers: two bridges (release and a checkout) may each have started one.
+        self.reply(200, {**body, "pid": os.getpid(), "code": str(Path(__file__).resolve().parent)})
 
     def body(self) -> dict[str, Any] | None:
         if self.headers.get("x-voice-token", "") != self.token:
@@ -201,10 +204,21 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     Handler.token = read_token()
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    except OSError as err:
+        # Another sidecar already answers here; it serves every bridge on this machine.
+        sys.stderr.write(f"voice: port {PORT} is taken ({err}); leaving it to that process\n")
+        raise SystemExit(0) from err
+    pidfile = engine.HOME / "sidecar.pid"
+    pidfile.write_text(str(os.getpid()))
     threading.Thread(target=warm, daemon=True).start()
     sys.stderr.write(f"voice listening on http://127.0.0.1:{PORT}\n")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        if pidfile.exists() and pidfile.read_text().strip() == str(os.getpid()):
+            pidfile.unlink()
 
 
 if __name__ == "__main__":

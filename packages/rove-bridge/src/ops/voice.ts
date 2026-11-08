@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { setTimeout as sleep } from "node:timers/promises"
 import { roveStateDir } from "@sma1lboy/rove/src/env.ts"
 import { BridgeError } from "../protocol.ts"
 import { flag, tabId, taskId } from "./args.ts"
@@ -41,9 +42,13 @@ function voiceToken(): string | null {
 }
 
 export interface VoiceHealth {
+  /** Something answers on the port, warming or not. */
+  readonly up: boolean
   readonly ready: boolean
   readonly model: string | null
   readonly warmMs: number | null
+  /** Why the recognizer could not start (a missing package, a cloud key), from the sidecar itself. */
+  readonly error: string | null
 }
 
 export interface VoiceTranscript {
@@ -56,15 +61,23 @@ export interface VoiceTranscript {
   readonly reason?: string
 }
 
+const DOWN: VoiceHealth = { up: false, ready: false, model: null, warmMs: null, error: null }
+
 /** One probe: a sidecar that is up but still warming reports `ready: false`, not an error. */
 export async function voiceHealth(): Promise<VoiceHealth> {
   try {
     const res = await fetch(`http://127.0.0.1:${voicePort()}/health`, { signal: AbortSignal.timeout(2000) })
-    if (!res.ok) return { ready: false, model: null, warmMs: null }
-    const body = (await res.json()) as { ready?: boolean; model?: string; warm_ms?: number | null }
-    return { ready: body.ready === true, model: body.model ?? null, warmMs: body.warm_ms ?? null }
+    if (!res.ok) return DOWN
+    const body = (await res.json()) as { ready?: boolean; model?: string; warm_ms?: number | null; error?: string }
+    return {
+      up: true,
+      ready: body.ready === true,
+      model: body.model ?? null,
+      warmMs: body.warm_ms ?? null,
+      error: body.error ?? null,
+    }
   } catch {
-    return { ready: false, model: null, warmMs: null }
+    return DOWN
   }
 }
 
@@ -111,30 +124,20 @@ async function conversation(a: Args, api: BridgeApi): Promise<string | undefined
   if (a.taskId === undefined) return undefined
   const argv = [flag("task-id", taskId(a)), flag("limit", 30)]
   if (a.tabId !== undefined) argv.push(flag("tab", tabId(a)))
-  let giveUp: (value: null) => void = () => {}
-  const late = new Promise<null>((resolve) => {
-    giveUp = resolve
-  })
-  const timer = setTimeout(() => giveUp(null), CONVERSATION_MS)
+  // An abortable timer: the race's loser must not hold the event loop for the full wait.
+  const stop = new AbortController()
+  const late = sleep(CONVERSATION_MS, null, { signal: stop.signal }).catch(() => null)
   try {
     const reply = await Promise.race([api.verb<OutputReply>("read-output", argv), late])
     return reply ? conversationText(reply) : undefined
   } catch {
     return undefined
   } finally {
-    clearTimeout(timer)
+    stop.abort()
   }
 }
 
 export const voiceOps: OpTable = {
-  "voice.status": {
-    kind: "read",
-    destructive: false,
-    wraps: "GET :8791/health of scripts/voice/asr_server.py",
-    async run() {
-      return { ...(await voiceHealth()), port: voicePort() }
-    },
-  },
   "voice.transcribe": {
     kind: "read",
     destructive: false,

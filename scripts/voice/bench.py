@@ -5,7 +5,7 @@ Clips come from `bench/clips.json` (`[term|other spelling]` marks a key term), s
 real recordings go in a directory of `<id>.wav` (16 kHz mono) + `<id>.txt` (same markup) passed
 with --recordings, and are scored the same way.
 
-Run each through `uv run --project scripts/voice scripts/voice/bench.py …`:
+Run each through `uv run --project scripts/voice --extra local scripts/voice/bench.py …`:
 
   bench.py                                  # default local model, no context
   bench.py --model mlx-community/whisper-large-v3-turbo
