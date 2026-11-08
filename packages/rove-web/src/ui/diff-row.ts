@@ -33,4 +33,4 @@ export const diffCodeClass = (kind: string): string =>
 export const DIFF_NOTE_TEXT = "min-w-0 whitespace-pre-wrap wrap-anywhere text-accent"
 
 /** A file header's name and counts, in the code column. */
-export const DIFF_FILE_NAME = "flex min-w-0 items-baseline gap-2"
+export const DIFF_FILE_NAME = "col-span-3 flex min-w-0 items-baseline gap-2 overflow-hidden"
