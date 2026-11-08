@@ -11,9 +11,11 @@ export function diffRowClass(kind: string, o: { readonly cursor: boolean; readon
       : kind === "hunk" || kind === "meta"
         ? "text-subtle"
         : ""
-  // Code wraps under its own column (the panel never scrolls sideways); a phone gets narrower columns.
+  // Code wraps under its own column (the panel never scrolls sideways). `minmax(0,1fr)`: a long file name
+  // must not widen the row past the column. Sized by the view's own width, not the window's: a column beside
+  // three others is as narrow as a phone.
   const pointer = kind === "file" || kind === "note" ? "cursor-pointer" : "cursor-default"
-  return `relative grid ${pointer} grid-cols-[4ch_4ch_2ch_1fr] gap-x-2 gap-y-0 whitespace-pre px-3 narrow:grid-cols-[3ch_3ch_1ch_1fr] narrow:gap-x-1 narrow:px-1.5 group-data-file/preview:grid-cols-[4ch_1ch_1fr] narrow:group-data-file/preview:grid-cols-[3ch_1ch_1fr] ${bg} ${look}`
+  return `relative grid ${pointer} grid-cols-[4ch_4ch_2ch_minmax(0,1fr)] gap-x-2 gap-y-0 whitespace-pre px-3 group-data-file/preview:grid-cols-[4ch_1ch_minmax(0,1fr)] @max-md/preview:grid-cols-[3ch_3ch_1ch_minmax(0,1fr)] @max-md/preview:gap-x-1 @max-md/preview:px-1.5 @max-md/preview:group-data-file/preview:grid-cols-[3ch_1ch_minmax(0,1fr)] ${bg} ${look}`
 }
 
 export const DIFF_GUTTER = "text-right text-subtle"

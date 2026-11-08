@@ -383,7 +383,7 @@ export function PreviewView({
 
   return (
     <div
-      className="group/preview flex min-h-0 min-w-0 flex-1 flex-col outline-none"
+      className="group/preview @container/preview flex min-h-0 min-w-0 flex-1 flex-col outline-none"
       // A file read as itself has one line number per row, not a diff's old and new.
       data-file={file && !isDiff ? "" : undefined}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
