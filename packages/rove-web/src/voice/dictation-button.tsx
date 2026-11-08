@@ -8,7 +8,7 @@
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "../bridge.ts"
 import { t, useLocale } from "../i18n/index.ts"
-import { useStore } from "../store.ts"
+import { type Store, createStore, useStore } from "../store.ts"
 import * as C from "../ui/composer.ts"
 import { Dictation, type DictationPhase, type DictationResult, type DictationScope } from "./dictation.ts"
 
@@ -41,32 +41,48 @@ export interface DictationFace {
   readonly armed: boolean
 }
 
-/** One `voice.status` per bridge: the bar and every button ask the same question. */
-const hostedBy = new WeakMap<BridgeClient, Promise<boolean>>()
-/** Whether this host runs the voice sidecar; null while asking. */
+/** One answer per bridge: the bar and every button ask the same question; Settings answers it after a setup. */
+const availableBy = new WeakMap<BridgeClient, Store<boolean | null>>()
+const asked = new WeakSet<BridgeClient>()
+
+function availableStore(client: BridgeClient): Store<boolean | null> {
+  let store = availableBy.get(client)
+  if (!store) {
+    store = createStore<boolean | null>(null)
+    availableBy.set(client, store)
+  }
+  return store
+}
+
+/** Settings → Voice after an install or a saved endpoint: the mic shows (or hides) without a reload. */
+export function setVoiceAvailable(client: BridgeClient, available: boolean): void {
+  availableStore(client).set(available)
+}
+
+/** The slice of a `voice.status` reply that says whether the mic belongs on the page. */
+export interface VoiceStatusReply {
+  readonly available?: boolean
+  readonly ready?: boolean
+  readonly model?: string | null
+}
+
+/** `available` from a bridge that reports setup; an older one only knows whether a sidecar answers. */
+export const isAvailable = (status: VoiceStatusReply): boolean =>
+  status.available ?? (status.ready === true || (status.model ?? null) !== null)
+
+/** Whether dictation is set up on this host (a sidecar answers, or one is set up and starting); null while asking. */
 export function useVoiceHosted(client: BridgeClient): boolean | null {
-  const [hosted, setHosted] = useState<boolean | null>(null)
+  const store = availableStore(client)
+  const available = useStore(store)
   useEffect(() => {
-    let ask = hostedBy.get(client)
-    if (!ask) {
-      ask = client
-        .request<{ ready: boolean; model: string | null }>("voice.status")
-        .then((status) => status.ready || status.model !== null)
-        .catch(() => false)
-        // A sidecar started later is found by the next mount; a yes holds for the page.
-        .then((value) => {
-          if (!value) hostedBy.delete(client)
-          return value
-        })
-      hostedBy.set(client, ask)
-    }
-    let live = true
-    void ask.then((value) => live && setHosted(value))
-    return () => {
-      live = false
-    }
-  }, [client])
-  return hosted
+    if (asked.has(client)) return
+    asked.add(client)
+    client.request<VoiceStatusReply>("voice.status").then(
+      (status) => store.set(isAvailable(status)),
+      () => store.set(false),
+    )
+  }, [client, store])
+  return available
 }
 
 export function DictationButton(props: {
@@ -95,7 +111,6 @@ export function DictationButton(props: {
   const press = useRef<Press | null>(null)
   const [hold, setHold] = useState<{ armed: boolean } | null>(null)
 
-  // A button that can only fail is worse than no button: the sidecar is opt-in, on the host.
   useEffect(
     () => () => {
       if (press.current) window.clearTimeout(press.current.timer)
@@ -166,12 +181,14 @@ export function DictationButton(props: {
   const recording = view.phase === "recording"
   const armed = hold?.armed ?? false
 
+  // No mic until dictation is set up here (Settings → Voice): a button that can only fail is worse than none.
+  if (hosted !== true) return null
   return (
     <button
       type="button"
       className={`${(props.look ?? C.dictateChip)(recording, armed)} ${C.DICTATE_PRESS}`}
-      disabled={props.disabled || hosted === false || view.phase === "transcribing"}
-      title={view.error ?? (hosted === false ? t("voice.offline") : t("voice.hint"))}
+      disabled={props.disabled || view.phase === "transcribing"}
+      title={view.error ?? t("voice.hint")}
       aria-label={props.face ? label : undefined}
       onPointerDown={down}
       onPointerMove={move}

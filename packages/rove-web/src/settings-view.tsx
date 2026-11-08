@@ -45,6 +45,7 @@ import {
   settingsNavItemClass,
 } from "./ui/settings.ts"
 import { UsageChips } from "./usage-view.tsx"
+import { VoiceSection } from "./voice/settings-voice.tsx"
 
 const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   general: (m) => <GeneralSection model={m} />,
@@ -54,6 +55,7 @@ const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   keys: (m) => <KeysSection model={m} />,
   engines: (m) => <EnginesSection client={m.client} />,
   autoRouting: (m) => <RoutingSection client={m.client} />,
+  voice: (m) => <VoiceSection client={m.client} />,
   connectors: (m) => <ConnectorsSection model={m} />,
   plugins: (m) => <PluginsSection model={m} />,
   about: (m) => <AboutSection client={m.client} />,

@@ -29,6 +29,7 @@ import { TERMINAL_OPS } from "./terminal.ts"
 import { hostedThemeOps } from "./theme-hosted.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
+import { voiceSetupOps } from "./voice-setup.ts"
 import { voiceOps } from "./voice.ts"
 import { welcomeOps } from "./welcome.ts"
 import { WORKSPACE_OPS } from "./workspace.ts"
@@ -76,4 +77,5 @@ export const AREA_OPS: OpTable = mergeOpTables(
   RUN_OPS,
   contextOps,
   voiceOps,
+  voiceSetupOps,
 )

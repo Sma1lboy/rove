@@ -9,6 +9,7 @@ export const en = {
       notifications: "Notifications",
       snippets: "Snippets",
       about: "About",
+      voice: "Voice",
     },
     groups: { preferences: "Preferences", agents: "Agents and tools", more: "More" },
     pages: {
@@ -18,6 +19,7 @@ export const en = {
       keys: "Rebind chords in your own file, and how the prefix guide behaves.",
       engines: "The coding agents Rove can start, and how it plugs into them.",
       autoRouting: "What each depth tier starts, and who picks the tier.",
+      voice: "Dictation: the recognizer that turns what you say into prompts.",
       connectors: "Accounts Rove uses, here and on your other machines.",
       plugins: "Built-in pages and registered plugins.",
       about: "Versions, updates, and this browser.",
@@ -199,7 +201,14 @@ export const zh: typeof en = {
   settings: {
     title: "设置",
     open: "设置",
-    sections: { connectors: "连接器", appearance: "外观", notifications: "通知", snippets: "片段", about: "关于" },
+    sections: {
+      connectors: "连接器",
+      appearance: "外观",
+      notifications: "通知",
+      snippets: "片段",
+      about: "关于",
+      voice: "语音",
+    },
     groups: { preferences: "偏好", agents: "智能体与工具", more: "更多" },
     pages: {
       general: "语言、布局，以及 Rove 在哪里打开文件、创建 worktree。",
@@ -208,6 +217,7 @@ export const zh: typeof en = {
       keys: "在你自己的文件里重绑快捷键，以及前缀引导的行为。",
       engines: "Rove 能启动的编码智能体，以及它如何接入它们。",
       autoRouting: "每个深度档位启动什么，以及由谁选择档位。",
+      voice: "口述：把你说的话变成提示词的识别器。",
       connectors: "Rove 使用的账号，本机和你的其他机器。",
       plugins: "内置页面和已注册的插件。",
       about: "版本、更新，以及此浏览器。",

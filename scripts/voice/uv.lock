@@ -641,21 +641,26 @@ version = "0"
 source = { virtual = "." }
 dependencies = [
     { name = "jellyfish" },
-    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "opencc-python-reimplemented" },
     { name = "pypinyin" },
 ]
 
+[package.optional-dependencies]
+local = [
+    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "jellyfish" },
-    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'local'" },
     { name = "numpy" },
     { name = "opencc-python-reimplemented" },
     { name = "pypinyin" },
 ]
+provides-extras = ["local"]
 
 [[package]]
 name = "scipy"
