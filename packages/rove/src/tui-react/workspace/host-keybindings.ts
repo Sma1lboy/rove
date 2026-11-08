@@ -47,6 +47,8 @@ export type WorkspaceKeybindingDeps = {
   toggleZen: () => void
   jumpToNextAttention: () => void
   openInbox: () => void
+  /** Palette-only "Report a problem": a new scratch conversation seeded to file a Rove issue. No chord. */
+  reportProblem?: () => void
   /** The palette's task and conversation sections: the tasks to match and the way into one; commands only when absent. */
   paletteSearch?: PaletteSearch
   /** prefix+m — focus the sidebar and enter move mode on the current selection. */
@@ -115,7 +117,13 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     bindings: [
       ...bindByIds({
         "help.open": prefixAction(() => HelpDialog.show(dialog, focus.focused)),
-        "palette.open": prefixAction(() => CommandPalette.show(dialog, deps.paletteSearch)),
+        "palette.open": prefixAction(() =>
+          CommandPalette.show(dialog, deps.paletteSearch, [
+            ...(deps.reportProblem
+              ? [{ id: "feedback.report", name: t("help.reportProblem"), run: deps.reportProblem }]
+              : []),
+          ]),
+        ),
         "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4: reserved from terminal passthrough.
         "focus.next": prefixAction(() => cyclePane(1)),

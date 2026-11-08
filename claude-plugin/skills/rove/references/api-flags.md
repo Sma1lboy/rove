@@ -433,7 +433,7 @@ schema       --verb --group --all
 engine-list  (none)
 repo-match   --origin --root --allow-fork
 repo-list    (none)
-feedback     --title(REQ) --body(REQ) --category(feedback)
+feedback     --title(REQ) --body(REQ) --kind(bug)
 ```
 <!-- generated:end -->
 
@@ -452,9 +452,12 @@ resolves to (`{ repo, fork?, checkouts, searched }`); `repo-list` lists a
 machine's repos by id (`{ repos: [{ id, primary, checkouts }] }`) — pass
 `--machine <alias>` to ask another machine.
 
-`feedback` opens a GitHub Discussion in the Rove repo through `gh` — Rove's own
-product feedback channel, not a way to file work for another project (that is
-a `send` to their main task; see SKILL.md).
+`feedback` files a GitHub issue on the Rove repo through `gh` (`--kind` picks the
+label: bug, idea → enhancement, question) and appends an environment block.
+It returns `{ filed: true, url, number }`; with no usable `gh` it returns
+`{ filed: false, url, hint }` where `url` is a prefilled new-issue link — hand
+it to the user. Rove's own product feedback channel, not a way to file work
+for another project (that is a `send` to their main task; see SKILL.md).
 
 ## Error codes
 

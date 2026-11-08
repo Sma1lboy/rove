@@ -59,7 +59,7 @@ const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   connectors: (m) => <ConnectorsSection model={m} />,
   plugins: (m) => <PluginsSection model={m} />,
   about: (m) => <AboutSection client={m.client} />,
-  feedback: (m) => <FeedbackSection client={m.client} />,
+  feedback: (m) => <FeedbackSection model={m} />,
   dev: (m) => <DevSection client={m.client} />,
 }
 

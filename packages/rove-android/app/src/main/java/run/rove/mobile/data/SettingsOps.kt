@@ -20,7 +20,7 @@ suspend fun RoveRepository.repoDigest(repo: String, sinceDays: Int): DigestResul
 suspend fun RoveRepository.turnsList(repo: String, sinceDays: Int, limit: Int = 50): TurnsResult =
     wireJson.decodeFromJsonElement(bridge.request("turns.list", args("repo" to repo, "sinceDays" to sinceDays, "limit" to limit)))
 
-/** Posts a public GitHub Discussion; returns its URL when the reply carries one (the reply is otherwise arbitrary JSON). */
+/** Files a public GitHub issue; returns its URL when the reply carries one (the reply is otherwise arbitrary JSON). */
 suspend fun RoveRepository.sendFeedback(title: String, body: String): String? =
     (bridge.request("feedback.send", args("title" to title, "body" to body))["url"] as? JsonPrimitive)?.contentOrNull
 

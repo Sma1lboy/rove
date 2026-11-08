@@ -125,7 +125,7 @@ Commands:
   theme <verb>            Manage user themes (list|add|remove)
   skill <verb>            Install the rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
-  feedback                Send feedback to GitHub Discussions
+  feedback                File a GitHub issue on the Rove repo
   update [version|channel|list]   Self-update rove, switch channel, or list versions
 
 Options:
@@ -489,11 +489,21 @@ messaging. See [WeChat](./WEIXIN.md).
 ## feedback
 
 ```bash
-rove feedback --title <text> (--body <text> | --body-file <path>) [--category <slug>]
+rove feedback --title <text> (--body <text> | --body-file <path>) [--kind bug|idea|question]
 ```
 
-Opens a GitHub Discussion via the `gh` CLI (needs `gh auth login`).
-`--body-file -` reads from stdin. `--category` defaults to `feedback`.
+Files a GitHub issue on the Rove repo via `gh issue create` (needs `gh auth login`)
+and prints its number and URL. `--kind` picks the label: `bug` (default),
+`idea` (`enhancement`) or `question`. Rove appends an environment block to the
+body: its version, OS and architecture, install kind and default engine.
+`--body-file -` reads the body from stdin.
+
+When `gh` is missing, signed out or cannot create the issue, nothing is lost:
+the command prints why and a prefilled new-issue link to open in a browser,
+and the hint to run `gh auth login`.
+
+To have an agent interview you and file it, use **Report a problem** in the
+command palette (TUI and web) or Settings → Feedback in the web UI.
 
 ## Internal subcommands
 

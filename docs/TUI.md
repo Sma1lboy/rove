@@ -532,7 +532,7 @@ left arrow to return to the section list, and `enter` to activate a row.
   GitHub was unreachable (it falls back to the first-party plugins).
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
-- **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
+- **Feedback** files a GitHub issue on the Rove repo through an authenticated `gh` CLI; without one it shows a prefilled new-issue link. The command palette also has **Report a problem** (no chord): it opens a new scratch conversation on the default engine that interviews you, drafts the issue and files it with `rove feedback` once you agree.
 - **Dev** contains reset, a backend-exit action, **Reload settings** and
   experimental switches. Reload settings applies hand edits to `state.json` to
   this window without a restart. Reset

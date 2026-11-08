@@ -190,14 +190,14 @@ describe("plugins and feedback", () => {
     expect(wire).not.toContain("secret")
   })
 
-  test("feedback posts one discussion through the verb; category must be a slug", async () => {
+  test("feedback files one issue through the verb; kind must be bug, idea or question", async () => {
     const ops = createSettingsOps(settingsDeps().deps)
     expect(ops["feedback.send"]?.destructive).toBe(true)
-    const { calls } = await run(ops, "feedback.send", { title: " slow board ", body: "it lags", category: "ideas" })
+    const { calls } = await run(ops, "feedback.send", { title: " slow board ", body: "it lags", kind: "idea" })
     expect(calls).toEqual([
-      { kind: "verb", name: "feedback", payload: ["--title=slow board", "--body=it lags", "--category=ideas"] },
+      { kind: "verb", name: "feedback", payload: ["--title=slow board", "--body=it lags", "--kind=idea"] },
     ])
-    await expect(run(ops, "feedback.send", { title: "t", body: "b", category: "../x" })).rejects.toThrow("category")
+    await expect(run(ops, "feedback.send", { title: "t", body: "b", kind: "../x" })).rejects.toThrow("kind")
     await expect(run(ops, "feedback.send", { title: "", body: "b" })).rejects.toThrow("title")
   })
 })

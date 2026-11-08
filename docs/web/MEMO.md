@@ -175,7 +175,7 @@ Always screenshot headed. Cost one round of three wrong fixes.
     `command`; anything not `engine` is now a shell, as the TUI.
   - Settings is per bridge op on the TUI's state.json keys; language is per
     browser (`rove.locale`) and does not touch the TUI's. Feedback is never
-    sent by a check: it publishes a public Discussion.
+    sent by a check: it files a public issue.
 - **Round 7** (branch `web/round-7`, stacked on round 6): prefix layer
   (`prefix.tsx`). Script: `e2e-r7.ts`.
   - The TUI default prefix is `ctrl+a` (`DEFAULT_PREFIX_CONFIGURATION`), not

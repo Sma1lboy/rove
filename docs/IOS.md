@@ -300,7 +300,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
 | `builtinMods.list` | — | `builtin-mods.json`: `{mods: [{id, name, description, installed}]}` for Kanban and Issues | — |
 | `builtinMod.setInstalled` | `id` (`kanban`/`issues`), `installed` | `setBuiltinModInstalled`; uninstalling keeps the mod's data | — |
-| `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
+| `feedback.send` | `title`, `body`, `kind?` (`bug`/`idea`/`question`) | `feedback` (a public GitHub issue; the reply carries `filed`, `url`, `number?`) | yes |
 | `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
 | `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |
 | `engine.setDefault` | `id` | state.json `defaultVendor` | yes |
