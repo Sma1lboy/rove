@@ -11,6 +11,8 @@ import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { runThemeSubcommand } from "../../src/cli/theme.ts"
 import { BUNDLED_THEME_JSONS } from "../../src/tui/context/theme/bundled.ts"
+import { resolveThemeSlotHex } from "../../src/tui/context/theme/hex.ts"
+import { loadUserThemes } from "../../src/tui/context/theme/loader.ts"
 
 const VALID_THEME = {
   defs: { bg: "#000000", fg: "#ffffff" },
@@ -131,6 +133,64 @@ describe("runThemeSubcommand add (local path)", () => {
     writeFileSync(src, JSON.stringify(VALID_THEME), "utf8")
     await expect(runThemeSubcommand(["add", src, "--name", "bad name!"])).rejects.toThrow("exit 1")
     expect(err()).toContain("invalid theme name")
+  })
+})
+
+describe("runThemeSubcommand add (terminal color scheme)", () => {
+  function installed(name: string) {
+    const found = loadUserThemes().find((t) => t.name === name)
+    if (!found) throw new Error(`theme ${name} did not load`)
+    return (slot: string) => resolveThemeSlotHex(found.theme, slot)
+  }
+
+  it("turns a `key = value` scheme with a palette into a theme the TUI loads", async () => {
+    const src = join(home, "Night Owl.conf")
+    writeFileSync(
+      src,
+      [
+        "# a scheme",
+        "background = #011627",
+        "foreground = d6deeb",
+        "palette = 1=#ef5350",
+        "palette = 2=#22da6e",
+        "palette = 4=#82aaff",
+        "palette = 12=#5ca7e4",
+      ].join("\n"),
+      "utf8",
+    )
+    await runThemeSubcommand(["add", src, "--name", "night"])
+    expect(out()).toContain('installed theme "night" from a terminal color scheme')
+    const slot = installed("night")
+    expect(slot("background")).toBe("#011627")
+    expect(slot("text")).toBe("#d6deeb")
+    expect(slot("error")).toBe("#ef5350")
+    expect(slot("diffAdded")).toBe("#22da6e")
+    expect(slot("primary")).toBe("#82aaff")
+  })
+
+  it("reads `colorN value` lines, names the theme after the file without its extension, and leaves unset hues out", async () => {
+    const src = join(home, "paper.conf")
+    writeFileSync(src, "background #f2eede\nforeground #000000\ncolor1 #cc3e28 # red\n", "utf8")
+    await runThemeSubcommand(["add", src])
+    const slot = installed("paper")
+    expect(slot("error")).toBe("#cc3e28")
+    // No blue in the file: primary is absent and the theme's fallback (text) applies.
+    expect(slot("primary")).toBeNull()
+    expect(slot("backgroundPanel")).not.toBe(slot("background"))
+  })
+
+  it("reads `*.key: value` resource lines", async () => {
+    const src = join(home, "res")
+    writeFileSync(src, "! comment\n*.background: #1d1f21\n*.foreground: #c5c8c6\n*.color4: #81a2be\n", "utf8")
+    await runThemeSubcommand(["add", src])
+    expect(installed("res")("primary")).toBe("#81a2be")
+  })
+
+  it("refuses a file that is neither a theme JSON nor a scheme", async () => {
+    const src = join(home, "notes.txt")
+    writeFileSync(src, "just some notes\nnothing here\n", "utf8")
+    await expect(runThemeSubcommand(["add", src])).rejects.toThrow("exit 1")
+    expect(err()).toContain("neither a Rove theme JSON nor a terminal color scheme")
   })
 })
 
