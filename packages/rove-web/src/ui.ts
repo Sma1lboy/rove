@@ -46,8 +46,15 @@ export interface Toast {
   readonly id: number
   readonly text: string
   readonly tone: "info" | "error"
+  /** A second thing to do about it (undo); the card stays longer and only this button acts. */
+  readonly action?: ToastAction
   /** Fading out; gone after {@link LEAVE_MS}. */
   readonly leaving?: boolean
+}
+
+export interface ToastAction {
+  readonly label: string
+  readonly run: () => void
 }
 
 export const menu = createStore<MenuState | null>(null)
@@ -152,13 +159,15 @@ export function openNewSessionFromLink(): void {
 
 let nextToast = 1
 const TOAST_MS = 4000
+/** Long enough to read the card and reach its button with a thumb. */
+const ACTION_TOAST_MS = 8000
 /** The TUI's overlay shows the newest three. */
 const TOASTS_SHOWN = 3
 
-export function toast(text: string, tone: Toast["tone"] = "info"): void {
+export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction): void {
   const id = nextToast++
-  toasts.set([...toasts.get(), { id, text, tone }].slice(-TOASTS_SHOWN))
-  window.setTimeout(() => dismissToast(id), TOAST_MS)
+  toasts.set([...toasts.get(), { id, text, tone, ...(action ? { action } : {}) }].slice(-TOASTS_SHOWN))
+  window.setTimeout(() => dismissToast(id), action ? ACTION_TOAST_MS : TOAST_MS)
 }
 
 /** How long a disappearing overlay fades. */

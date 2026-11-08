@@ -26,6 +26,7 @@ import {
   composerMic,
 } from "./ui/term-composer.tsx"
 import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
+import { type Heard, afterTake, learnFromSend } from "./voice/learn.ts"
 
 interface SendReply {
   readonly delivered: boolean
@@ -50,6 +51,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     area: field,
     listClassName: "m-0",
   })
+  // What dictation put in the draft, so the send can tell the sidecar which words the user fixed.
+  const heard = useRef<Heard | null>(null)
   // Lands at the caret of the draft. A tap or a plain hold stops there, to be read before it goes to the engine.
   const insertDictated = (spoken: string): void => {
     const el = field.current
@@ -59,6 +62,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     const next = `${text.slice(0, at)}${glue}${spoken}${text.slice(end)}`
     setDraft(key, next)
     const caret = at + glue.length + spoken.length
+    heard.current = afterTake(heard.current, text, next, at, end, [at + glue.length, caret])
     requestAnimationFrame(() => el?.setSelectionRange(caret, caret))
   }
   // A hold slid up goes straight to the engine: the bar never flips to the field on the way. Only a send
@@ -82,6 +86,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       setDraft(key, "")
       clear()
       setTyping(false)
+      if (heard.current) void learnFromSend(model.client, heard.current, draft)
+      heard.current = null
       return true
     } catch (err) {
       // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.

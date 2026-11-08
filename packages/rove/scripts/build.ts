@@ -61,6 +61,7 @@ const VOICE_FILES = [
   "asr_server.py",
   "engine.py",
   "fetch_model.py",
+  "learn.py",
   "phonetic.py",
   "vocab.py",
   "pyproject.toml",

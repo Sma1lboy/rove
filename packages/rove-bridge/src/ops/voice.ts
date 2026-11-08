@@ -61,6 +61,33 @@ export interface VoiceTranscript {
   readonly reason?: string
 }
 
+/** One fix `voice.learn` kept: the term, the form the recognizer wrote, and what undoing it must restore. */
+export interface LearnedTerm {
+  readonly term: string
+  readonly spoken: string
+  readonly created: boolean
+  readonly newForm: boolean
+  readonly renamed?: string
+}
+
+/** A message, not a document: past this an edit is not a dictation fix. */
+const MAX_LEARN_CHARS = 8000
+const MAX_SPANS = 16
+
+function text(value: unknown, name: string): string {
+  if (typeof value !== "string") throw new BridgeError("BAD_ARGS", `${name} must be text`)
+  if (value.length > MAX_LEARN_CHARS) throw new BridgeError("BAD_ARGS", `${name} is longer than a message`)
+  return value
+}
+
+const isSpan = (value: unknown): value is [number, number] =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  Number.isInteger(value[0]) &&
+  Number.isInteger(value[1]) &&
+  value[0] >= 0 &&
+  value[0] < value[1]
+
 const DOWN: VoiceHealth = { up: false, ready: false, model: null, warmMs: null, error: null }
 
 /** One probe: a sidecar that is up but still warming reports `ready: false`, not an error. */
@@ -165,6 +192,29 @@ export const voiceOps: OpTable = {
         ms: Number(body.ms ?? 0),
         ...(body.reason ? { reason: body.reason } : {}),
       } satisfies VoiceTranscript
+    },
+  },
+  "voice.learn": {
+    kind: "write",
+    destructive: false,
+    wraps: "POST :8791/learn of scripts/voice/asr_server.py (learn.py; writes <ROVE_HOME>/voice/vocab.json)",
+    async run(a: Args) {
+      const base = text(a.base, "base")
+      const sent = text(a.sent, "sent")
+      const spans = Array.isArray(a.spans) ? a.spans.filter(isSpan).slice(0, MAX_SPANS) : []
+      if (spans.length === 0) throw new BridgeError("BAD_ARGS", "spans must list the dictated [start, end] ranges")
+      const body = (await post("/learn", { base, sent, spans })) as { learned?: unknown }
+      return { learned: Array.isArray(body.learned) ? (body.learned as LearnedTerm[]) : [] }
+    },
+  },
+  "voice.unlearn": {
+    kind: "write",
+    destructive: false,
+    wraps: "POST :8791/unlearn of scripts/voice/asr_server.py (undoes one voice.learn)",
+    async run(a: Args) {
+      if (!Array.isArray(a.learned)) throw new BridgeError("BAD_ARGS", "learned must be what voice.learn returned")
+      const body = (await post("/unlearn", { learned: a.learned.slice(0, MAX_SPANS) })) as { undone?: unknown }
+      return { undone: Number(body.undone ?? 0) }
     },
   },
 }

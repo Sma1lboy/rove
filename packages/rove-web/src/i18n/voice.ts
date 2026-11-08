@@ -9,6 +9,11 @@ export const en = {
     tipSend: "Let go to send",
     hold: "Hold to talk",
     type: "Type instead",
+    learned: "Learned {pairs}",
+    learnedPair: "{spoken} → {term}",
+    undo: "undo",
+    unlearned: "Forgotten",
+    unlearnFailed: "Couldn't undo: the voice sidecar isn't answering",
     setup: {
       recognizer: "Recognizer",
       ready: "{model} · ready",
@@ -45,6 +50,11 @@ export const zh: typeof en = {
     tipSend: "松手发送",
     hold: "按住说话",
     type: "打字",
+    learned: "记住了 {pairs}",
+    learnedPair: "{spoken} → {term}",
+    undo: "撤销",
+    unlearned: "已撤销",
+    unlearnFailed: "没能撤销：语音服务没有响应",
     setup: {
       recognizer: "识别器",
       ready: "{model} · 就绪",

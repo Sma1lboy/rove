@@ -106,9 +106,11 @@ def save(data: dict[str, Any]) -> None:
     tmp.replace(store_path())
 
 
-def rank(conversation: str | None, draft: str | None, stored: list[dict[str, Any]], limit: int) -> list[str]:
+def rank(
+    conversation: str | None, draft: str | None, stored: list[dict[str, Any]], limit: int, *, rest: bool = True
+) -> list[str]:
     """One list for the recognizer: stored terms the user is looking at, then the conversation's own
-    terms, then the rest of the store, newest first. Case-insensitive duplicates keep the first."""
+    terms, then (with `rest`) the rest of the store, newest first. Case-insensitive duplicates keep the first."""
     haystack = f"{conversation or ''}\n{draft or ''}".lower()
     seen: set[str] = set()
     out: list[str] = []
@@ -124,7 +126,7 @@ def rank(conversation: str | None, draft: str | None, stored: list[dict[str, Any
             push(entry["term"])
     for term in context_terms(f"{conversation or ''}\n{draft or ''}", limit):
         push(term)
-    for entry in newest:
+    for entry in newest if rest else []:
         push(entry["term"])
     return out[:limit]
 
