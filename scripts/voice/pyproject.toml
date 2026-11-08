@@ -25,4 +25,4 @@ line-length = 120
 select = ["E", "F", "W", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["asr_server", "engine", "fetch_model", "learn", "live", "phonetic", "vocab"]
+known-first-party = ["asr_server", "engine", "fetch_model", "learn", "live", "phonetic", "polish", "vocab"]

@@ -193,6 +193,17 @@ the only public path to it.
   Kevin. Only a run that is not all dictionary words and keys within a close length of a term is
   touched. On the bench it lifts large-v3 from 72 to 74 when the conversation holds the terms and
   changes nothing otherwise; `"phonetic": false` turns it off.
+- **Cleanup (off by default).** A `polish` block in `config.json` sends each finished take, with its
+  vocabulary, to an OpenAI-compatible `/chat/completions` model that drops fillers, applies
+  self-corrections ("三次，不对，五次" → 5 次), writes numbers and spacing as text and turns spoken lists
+  and steps into lists: `{"polish": {"model": "gpt-6-luna", "body": {"reasoning_effort": "none"}}}`
+  (key in `OPENAI_API_KEY`; `baseURL`, `apiKey`/`apiKeyEnv` and `body` reach other providers). Live
+  partials are never polished. A failed or late call (8 s) keeps the recognizer's text. The prompt is
+  yap's RecommendedPrompt as written; the conversation's terms fill its `<CUSTOM_VOCABULARY>`.
+  Bench (`polish_bench.py`, yap's 25 cases plus 7 agent prompts, automatic checks): gpt-6-luna
+  281–284 of 288 over 9 rounds, every agent case passing, p50 0.8–0.95 s; gpt-4.1-mini 168/192.
+  Rewording the prompt for agents scored lower (157–160 of 192 on gpt-4.1-mini), so it was not
+  kept. In the phone smoke it added about 0.7 s between letting go and the text.
 - **Measured** (`bench.py`; clips are synthesized with macOS `say` on first run and cached, so the
   voices are synthetic; real recordings are scored with `--recordings`). "Has the terms" puts each
   clip's own sentence in the conversation, an upper bound; "only other terms" is all distractors:
@@ -204,7 +215,8 @@ the only public path to it.
   | gpt-4o-mini-transcribe (cloud) | 75 | 78 | 77 | 0.9 s |
 
 - **Privacy.** With the local recognizer, audio, model and vocabulary stay on this machine and no
-  audio is written to disk. A cloud backend sends the audio and the term list to the endpoint you set.
+  audio is written to disk. A cloud backend sends the audio and the term list to the endpoint you set;
+  cleanup sends the transcript and the term list to its own endpoint, even with a local recognizer.
 
 
 ## Security
