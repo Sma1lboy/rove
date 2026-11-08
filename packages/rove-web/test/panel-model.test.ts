@@ -1,335 +1,178 @@
 import { describe, expect, test } from "bun:test"
+import { type BrowserColumn, browserUrl } from "../src/browser-tabs.ts"
 import { type PanelPush, applyPlan, planPanelPush } from "../src/panel-contract.ts"
 import {
-  MAX_FRAMES,
-  MAX_TABS,
-  type PanelItem,
   type TaskPanel,
-  activate,
-  allTabs,
-  browserUrl,
-  closeOthers,
-  closeTab,
-  findTab,
+  closeColumn,
+  columnOf,
+  columnWeights,
+  editBrowser,
   launch,
-  loadPanels,
-  mountedTabs,
-  moveTab,
-  navigate,
-  newBrowser,
-  newFiles,
+  moveDivider,
   newPanel,
-  parsePanel,
-  setRatio,
+  resetWidths,
+  setWidths,
   showBrowser,
   showDiff,
+  showFile,
   showKind,
-  shownKind,
-  stepBrowser,
 } from "../src/panel-model.ts"
+import { parsePanel } from "../src/panel-storage.ts"
 
-const ids = (panel: TaskPanel, group: "top" | "bottom" = "top") =>
-  (group === "top" ? panel.top : panel.bottom)?.tabs.map((tab) => tab.id) ?? []
-const current = (panel: TaskPanel, group: "top" | "bottom" = "top") =>
-  (group === "top" ? panel.top : panel.bottom)?.active
-const diffs = (panel: TaskPanel) => allTabs(panel).filter((tab) => tab.kind === "diff")
+const kinds = (panel: TaskPanel) => panel.columns.map((col) => col.kind)
+const browser = (panel: TaskPanel) => columnOf(panel, "browser") as BrowserColumn
 
-describe("opening and finding tabs", () => {
-  test("a file's diff has one tab: asking again shows it, with the scope asked for", () => {
-    let panel = showDiff(newPanel(), "src/a.ts", "working")
-    panel = showDiff(activate(panel, "t1"), "src/a.ts", "branch")
-    expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "branch" }])
-    expect(current(panel)).toBe("t2")
+describe("opening columns", () => {
+  test("a task never opened has Files alone", () => {
+    expect(kinds(newPanel())).toEqual(["files"])
   })
-  test("a file opened as itself and its diff share one tab, switched in place and kept across a reload", () => {
-    let panel = showDiff(newPanel(), "src/a.ts", "working", true)
-    expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "working", file: true }])
-    expect(parsePanel(JSON.parse(JSON.stringify(panel)))).toEqual(panel)
+  // A file clicked in Files opened in the Diff column, so reading a file and reading its diff were one view.
+  test("a file opens in its own column beside Files, apart from the Diff column, and survives a reload", () => {
+    let panel = showFile(showKind(newPanel(), "browser"), "src/a.ts")
+    expect(kinds(panel)).toEqual(["files", "file", "browser"])
     panel = showDiff(panel, "src/a.ts", "working")
-    expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "working" }])
-    expect(diffs(showDiff(panel, "src/a.ts", "working", true))).toHaveLength(1)
-  })
-
-  test("a different file opens a second tab; the whole worktree is its own", () => {
-    const panel = showDiff(showDiff(showDiff(newPanel(), "a.ts", "working"), "b.ts", "working"), ".", "working")
-    expect(diffs(panel).map((tab) => tab.kind === "diff" && tab.path)).toEqual(["a.ts", "b.ts", "."])
-  })
-
-  test("an address shows the tab already on it, else fills a blank Browser, else opens one", () => {
-    const first = showBrowser(newPanel(), "https://a.test/")
-    expect(allTabs(first).filter((tab) => tab.kind === "browser")).toHaveLength(1)
-
-    const again = showBrowser(activate(first, "t1"), "https://a.test/")
-    expect(allTabs(again)).toHaveLength(2)
-    expect(current(again)).toBe("t2")
-
-    const blank = newBrowser(newPanel(), "top")
-    const filled = showBrowser(blank, "https://b.test/")
-    expect(allTabs(filled)).toHaveLength(2)
-    expect(browserUrl(findTab(filled, "t2")?.tab as Extract<PanelItem, { kind: "browser" }>)).toBe("https://b.test/")
-
-    const other = showBrowser(first, "https://c.test/")
-    expect(allTabs(other).filter((tab) => tab.kind === "browser")).toHaveLength(2)
-  })
-
-  test("a kind alone shows its latest tab; Diff with none opens the whole worktree", () => {
-    const two = newFiles(newPanel(), "top")
-    expect(current(showKind(activate(two, "t1"), "files"))).toBe("t1")
-    expect(current(showKind(two, "files"))).toBe("t2")
-    const diff = showKind(newPanel(), "diff")
-    expect(diffs(diff)).toEqual([{ id: "t2", kind: "diff", path: ".", scope: "working" }])
-  })
-
-  test("a launcher button opens the panel on its kind's latest tab, creating one when there is none", () => {
-    const files = launch(newPanel(), false, "files")
-    expect(files).toEqual({ panel: newPanel(), open: true })
-    const browser = launch(files.panel, true, "browser")
-    expect(browser.open).toBe(true)
-    expect(shownKind(browser.panel)).toBe("browser")
-    expect(launch(files.panel, false, "diff").panel.top.tabs.at(-1)).toMatchObject({ kind: "diff", path: "." })
-  })
-
-  test("pressing the button of the kind on screen closes the panel and keeps the tabs; another kind switches", () => {
-    const panel = showKind(showKind(newPanel(), "browser"), "files")
-    expect(launch(panel, true, "files")).toEqual({ panel, open: false })
-    const switched = launch(panel, true, "browser")
-    expect(switched.open).toBe(true)
-    expect(shownKind(switched.panel)).toBe("browser")
-  })
-
-  test("with the panel split, the kind shown last is the one that is on", () => {
-    let panel = moveTab(showKind(newPanel(), "browser"), "t2", "bottom")
-    expect(shownKind(panel)).toBe("browser")
-    panel = activate(panel, "t1")
-    expect(shownKind(panel)).toBe("files")
-  })
-
-  test("a new diff joins the group that already holds diffs, not the one last touched", () => {
-    let panel = showDiff(newPanel(), "a.ts", "working")
-    panel = moveTab(panel, "t2", "bottom")
-    panel = activate(panel, "t1")
-    panel = showDiff(panel, "b.ts", "working")
-    expect(ids(panel, "bottom")).toEqual(["t2", "t3"])
-  })
-
-  test("past the tab limit the least recently shown tab that is not on screen closes", () => {
-    let panel = newPanel()
-    for (let n = 0; n < MAX_TABS + 2; n++) panel = showDiff(panel, `f${n}.ts`, "working")
-    const kept = allTabs(panel)
-    expect(kept).toHaveLength(MAX_TABS)
-    expect(kept.some((tab) => tab.kind === "diff" && tab.path === `f${MAX_TABS + 1}.ts`)).toBe(true)
-    expect(kept.some((tab) => tab.kind === "diff" && tab.path === "f0.ts")).toBe(false)
-  })
-})
-
-describe("a Browser tab's own history", () => {
-  test("typing after going back drops the forward entries", () => {
-    let panel = newBrowser(newPanel(), "top")
-    for (const url of ["https://a.test/", "https://b.test/", "https://c.test/"]) panel = navigate(panel, "t2", url)
-    panel = stepBrowser(panel, "t2", 0)
-    panel = navigate(panel, "t2", "https://d.test/")
-    const tab = findTab(panel, "t2")?.tab
-    expect(tab).toMatchObject({ urls: ["https://a.test/", "https://d.test/"], at: 1 })
-  })
-
-  test("stepping outside the history does nothing", () => {
-    const panel = navigate(newBrowser(newPanel(), "top"), "t2", "https://a.test/")
-    expect(stepBrowser(panel, "t2", 1)).toBe(panel)
-    expect(stepBrowser(panel, "t2", -1)).toBe(panel)
-  })
-})
-
-describe("closing", () => {
-  test("the tab shown before the closed one comes back", () => {
-    let panel = newFiles(newPanel(), "top")
-    panel = showDiff(panel, "a.ts", "working")
-    panel = activate(panel, "t1")
-    panel = activate(panel, "t3")
-    expect(current(closeTab(panel, "t3"))).toBe("t1")
-  })
-
-  test("closing the last tab of the bottom group collapses the split", () => {
-    let panel = moveTab(showDiff(newPanel(), "a.ts", "working"), "t2", "bottom")
-    expect(panel.bottom).not.toBeNull()
-    panel = closeTab(panel, "t2")
-    expect(panel.bottom).toBeNull()
-    expect(ids(panel)).toEqual(["t1"])
-  })
-
-  test("closing the last tab of the top group lifts the bottom one into its place", () => {
-    let panel = moveTab(showDiff(newPanel(), "a.ts", "working"), "t2", "bottom")
-    panel = closeTab(panel, "t1")
-    expect(panel.bottom).toBeNull()
-    expect(ids(panel)).toEqual(["t2"])
-    expect(current(panel)).toBe("t2")
-  })
-
-  test("closing the only tab leaves an empty panel that opens again", () => {
-    const empty = closeTab(newPanel(), "t1")
-    expect(allTabs(empty)).toEqual([])
-    expect(allTabs(showKind(empty, "files"))).toHaveLength(1)
-  })
-
-  test("close others keeps the one tab", () => {
-    const panel = closeOthers(showDiff(newFiles(newPanel(), "top"), "a.ts", "working"), "t2")
-    expect(ids(panel)).toEqual(["t2"])
-  })
-})
-
-describe("splitting and moving", () => {
-  const two = () => showDiff(newPanel(), "a.ts", "working")
-
-  test("moving a tab to the bottom splits; it is the bottom group's active tab and the focus", () => {
-    const panel = moveTab(two(), "t2", "bottom")
-    expect(ids(panel)).toEqual(["t1"])
-    expect(ids(panel, "bottom")).toEqual(["t2"])
-    expect(current(panel, "bottom")).toBe("t2")
-    expect(panel.focus).toBe("bottom")
-  })
-
-  test("moving the only tab to the bottom leaves one group, not an empty top", () => {
-    const panel = moveTab(newPanel(), "t1", "bottom")
-    expect(panel.bottom).toBeNull()
-    expect(ids(panel)).toEqual(["t1"])
-  })
-
-  test("a tab dropped before another lands there, in its own group or the other", () => {
-    let panel = newFiles(two(), "top")
-    panel = moveTab(panel, "t3", "top", 0)
-    expect(ids(panel)).toEqual(["t3", "t1", "t2"])
-    panel = moveTab(panel, "t3", "top", 3)
-    expect(ids(panel)).toEqual(["t1", "t2", "t3"])
-    panel = moveTab(panel, "t1", "bottom")
-    panel = moveTab(panel, "t3", "bottom", 0)
-    expect(ids(panel, "bottom")).toEqual(["t3", "t1"])
-    expect(ids(panel)).toEqual(["t2"])
-  })
-
-  test("the source group shows what it showed before when its shown tab leaves", () => {
-    let panel = newFiles(two(), "top")
-    panel = activate(activate(panel, "t1"), "t3")
-    panel = moveTab(panel, "t3", "bottom")
-    expect(current(panel)).toBe("t1")
-  })
-
-  test("the divider keeps each group a fifth of the panel at least", () => {
-    expect(setRatio(newPanel(), 0.01).ratio).toBe(0.2)
-    expect(setRatio(newPanel(), 0.99).ratio).toBe(0.8)
-  })
-
-  test("views render in creation order whatever the tab order", () => {
-    const panel = moveTab(newFiles(two(), "top"), "t3", "top", 0)
-    expect(allTabs(panel).map((tab) => tab.id)).toEqual(["t1", "t2", "t3"])
-  })
-})
-
-describe("which views stay mounted", () => {
-  const browsers = (n: number) => {
-    let panel = newPanel()
-    for (let i = 0; i < n; i++) panel = showBrowser(panel, `https://${i}.test/`)
-    return allTabs(panel)
-  }
-
-  test("past the cap the least recently shown Browser frames go; Files and diffs stay", () => {
-    const tabs = browsers(MAX_FRAMES + 2)
-    let mounted: string[] = []
-    for (const tab of tabs) mounted = mountedTabs(mounted, [tab.id], tabs)
-    expect(mounted.filter((id) => id !== "t1")).toHaveLength(MAX_FRAMES)
-    expect(mounted).not.toContain("t2")
-    expect(mounted).toContain(tabs.at(-1)?.id as string)
-  })
-
-  test("a Browser on screen is never dropped, even when both groups show one", () => {
-    const tabs = browsers(MAX_FRAMES + 3)
-    const mounted = mountedTabs(
-      tabs.slice(1).map((tab) => tab.id),
-      [tabs[1]?.id as string, tabs[2]?.id as string],
-      tabs,
-    )
-    expect(mounted).toContain(tabs[1]?.id as string)
-    expect(mounted).toContain(tabs[2]?.id as string)
-  })
-
-  test("a closed tab is unmounted", () => {
-    const tabs = allTabs(newPanel())
-    expect(mountedTabs(["t1", "t9"], ["t1"], tabs)).toEqual(["t1"])
-  })
-})
-
-describe("what is stored", () => {
-  test("a panel survives a round trip", () => {
-    let panel = moveTab(showDiff(showBrowser(newPanel(), "https://a.test/"), "a.ts", "branch"), "t3", "bottom")
-    panel = setRatio(panel, 0.3)
+    expect(kinds(panel)).toEqual(["files", "file", "diff", "browser"])
+    panel = showFile(panel, "src/b.ts")
+    expect(columnOf(panel, "file")).toEqual({ kind: "file", path: "src/b.ts" })
+    expect(columnOf(panel, "diff")).toMatchObject({ path: "src/a.ts" })
     expect(parsePanel(JSON.parse(JSON.stringify(panel)))).toEqual(panel)
+    expect(showKind(newPanel(), "file")).toEqual(newPanel())
   })
 
-  test("damaged entries are dropped, and ids never repeat after a load", () => {
-    const parsed = parsePanel({
-      top: {
-        tabs: [
-          { id: "t4", kind: "files" },
-          { id: "t4", kind: "files" },
-          { id: "x", kind: "files" },
-          { id: "t5", kind: "pdf" },
-        ],
-        active: "gone",
-      },
-      bottom: { tabs: [] },
-      ratio: "wide",
-      next: 1,
-    })
-    expect(parsed && ids(parsed)).toEqual(["t4"])
-    expect(parsed?.top.active).toBe("t4")
-    expect(parsed?.bottom).toBeNull()
-    expect(parsed?.next).toBeGreaterThan(4)
-    expect(parsePanel("nope")).toBeNull()
-    expect(parsePanel({ top: "x" })).toBeNull()
+  // A file opened from Files landed right of the Browser, far from the tree it came from.
+  test("columns sit in one fixed order whatever order they were opened in: Context first, Browser last", () => {
+    let panel = showKind(newPanel(), "browser")
+    panel = showDiff(panel, "a.ts", "working")
+    panel = showKind(panel, "quota")
+    expect(kinds(panel)).toEqual(["quota", "files", "diff", "browser"])
+    expect(kinds(showKind(closeColumn(panel, "files"), "files"))).toEqual(["quota", "files", "diff", "browser"])
+  })
+
+  test("a kind alone opens Diff on the whole worktree and the Browser blank", () => {
+    const panel = showKind(showKind(newPanel(), "diff"), "browser")
+    expect(columnOf(panel, "diff")).toEqual({ kind: "diff", path: ".", scope: "working" })
+    expect(browserUrl(browser(panel).tabs[0] as never)).toBe("")
   })
 })
 
-describe("migrating what the panel used to remember", () => {
-  const legacy = (tab: Record<string, string>, url: Record<string, string>) => ({
-    tab: JSON.stringify(tab),
-    url: JSON.stringify(url),
+describe("the Diff column", () => {
+  test("another diff retargets the one column: path and scope, same place", () => {
+    let panel = showDiff(showKind(newPanel(), "quota"), "a.ts", "working")
+    const before = kinds(panel)
+    panel = showDiff(panel, "b.ts", "branch")
+    expect(kinds(panel)).toEqual(before)
+    expect(panel.columns.filter((col) => col.kind === "diff")).toEqual([
+      { kind: "diff", path: "b.ts", scope: "branch" },
+    ])
   })
 
-  test("a task's last address becomes a Browser tab, and the old view stays the shown one", () => {
-    const loaded = loadPanels(
-      null,
-      legacy({ T1: "browser", T2: "files" }, { T1: "https://a.test/", T2: "https://b.test/" }),
+  test("asking for what it already shows changes nothing", () => {
+    const panel = showDiff(newPanel(), "a.ts", "task")
+    expect(showDiff(panel, "a.ts", "task")).toBe(panel)
+  })
+
+  test("closing it forgets the file: reopening starts on the whole worktree", () => {
+    const panel = closeColumn(showDiff(newPanel(), "a.ts", "task"), "diff")
+    expect(columnOf(panel, "diff")).toBeUndefined()
+    expect(columnOf(showKind(panel, "diff"), "diff")).toEqual({ kind: "diff", path: ".", scope: "working" })
+  })
+})
+
+describe("the Browser column", () => {
+  test("an address shows the tab already on it, else fills a blank one, else opens a tab", () => {
+    const first = showBrowser(newPanel(), "https://a.test/")
+    expect(browser(first).tabs).toHaveLength(1)
+    expect(kinds(first)).toEqual(["files", "browser"])
+
+    const again = showBrowser(first, "https://a.test/")
+    expect(browser(again).tabs).toHaveLength(1)
+
+    const other = showBrowser(first, "https://b.test/")
+    expect(browser(other).tabs.map(browserUrl)).toEqual(["https://a.test/", "https://b.test/"])
+    expect(browserUrl(browser(other).tabs.find((tab) => tab.id === browser(other).active) as never)).toBe(
+      "https://b.test/",
     )
-    const t1 = loaded.T1 as TaskPanel
-    const t2 = loaded.T2 as TaskPanel
-    expect(allTabs(t1).map((tab) => tab.kind)).toEqual(["files", "browser"])
-    expect(current(t1)).toBe("t2")
-    expect(browserUrl(allTabs(t1)[1] as Extract<PanelItem, { kind: "browser" }>)).toBe("https://a.test/")
-    expect(allTabs(t2).map((tab) => tab.kind)).toEqual(["files", "browser"])
-    expect(current(t2)).toBe("t1")
+
+    const blank = showBrowser(showKind(newPanel(), "browser"), "https://c.test/")
+    expect(browser(blank).tabs.map(browserUrl)).toEqual(["https://c.test/"])
   })
 
-  test("a task that was on Diff comes back on Files: its file was never kept", () => {
-    const loaded = loadPanels(null, legacy({ T1: "diff" }, {}))
-    expect(allTabs(loaded.T1 as TaskPanel).map((tab) => tab.kind)).toEqual(["files"])
+  test("closing the last tab closes the column, and the panel keeps the rest", () => {
+    const panel = showBrowser(newPanel(), "https://a.test/")
+    const closed = editBrowser(panel, () => null)
+    expect(kinds(closed)).toEqual(["files"])
   })
 
-  test("a task on the Browser with no address yet keeps a blank Browser tab", () => {
-    const loaded = loadPanels(null, legacy({ T1: "browser" }, {}))
-    const panel = loaded.T1 as TaskPanel
-    expect(allTabs(panel).map((tab) => tab.kind)).toEqual(["files", "browser"])
-    expect(current(panel)).toBe("t2")
+  test("an edit with no Browser column does nothing", () => {
+    const panel = newPanel()
+    expect(editBrowser(panel, () => null)).toBe(panel)
+  })
+})
+
+describe("the launcher buttons", () => {
+  test("each toggles its own column; the others stay", () => {
+    let state = launch(newPanel(), true, "browser")
+    expect(kinds(state.panel)).toEqual(["files", "browser"])
+    state = launch(state.panel, true, "diff")
+    expect(kinds(state.panel)).toEqual(["files", "diff", "browser"])
+    state = launch(state.panel, true, "browser")
+    expect(kinds(state.panel)).toEqual(["files", "diff"])
+    expect(state.open).toBe(true)
   })
 
-  test("a task already stored in the new form keeps it; nothing is lost from the old keys", () => {
-    const stored = JSON.stringify({ T1: showDiff(newPanel(), "a.ts", "working") })
-    const loaded = loadPanels(stored, legacy({ T1: "browser", T2: "browser" }, { T2: "https://b.test/" }))
-    expect(allTabs(loaded.T1 as TaskPanel).map((tab) => tab.kind)).toEqual(["files", "diff"])
-    expect(Object.keys(loaded).sort()).toEqual(["T1", "T2"])
+  test("closing the last column closes the panel", () => {
+    expect(launch(newPanel(), true, "files")).toEqual({ panel: { columns: [], weights: {} }, open: false })
   })
 
-  test("only the newest 50 tasks are kept, the old ones' tabs older than the stored", () => {
-    const tab = Object.fromEntries(Array.from({ length: 60 }, (_, n) => [`T${n}`, "browser"]))
-    expect(Object.keys(loadPanels(null, legacy(tab, {})))).toHaveLength(50)
-    expect(loadPanels(null, { tab: "not json", url: null })).toEqual({})
+  test("with the panel hidden (closed, or zen) a button opens its column instead of closing it", () => {
+    const panel = newPanel()
+    expect(launch(panel, false, "files")).toEqual({ panel, open: true })
+    expect(kinds(launch(panel, false, "diff").panel)).toEqual(["files", "diff"])
+  })
+})
+
+describe("sharing the width", () => {
+  const three = () => showKind(showKind(newPanel(), "diff"), "quota")
+
+  test("columns share equally until a divider is dragged", () => {
+    expect(columnWeights(three())).toEqual([1000 / 3, 1000 / 3, 1000 / 3])
+  })
+
+  test("a column opened later takes the mean of the others, not a sliver", () => {
+    let panel = setWidths(showKind(newPanel(), "diff"), [300, 100])
+    panel = showKind(panel, "quota")
+    const [quota, files, diff] = columnWeights(panel) as [number, number, number]
+    expect(files / diff).toBeCloseTo(3)
+    expect(quota).toBeCloseTo((files + diff) / 2, 0)
+  })
+
+  test("shares are keyed by kind, so closing a middle column leaves the others as they were", () => {
+    let panel = setWidths(three(), [100, 300, 100])
+    panel = closeColumn(panel, "files")
+    expect(kinds(panel)).toEqual(["quota", "diff"])
+    const [quota, diff] = columnWeights(panel) as [number, number]
+    expect(quota).toBeCloseTo(diff)
+  })
+
+  test("double-clicking a divider goes back to equal shares", () => {
+    const panel = setWidths(three(), [100, 300, 100])
+    expect(columnWeights(resetWidths(panel))[0]).toBeCloseTo(1000 / 3)
+    expect(resetWidths(newPanel())).toEqual(newPanel())
+  })
+
+  test("a divider moves only its two neighbours and leaves each at least the minimum", () => {
+    expect(moveDivider([300, 300, 300], 0, 50, 220)).toEqual([350, 250, 300])
+    expect(moveDivider([300, 300, 300], 0, -500, 220)).toEqual([220, 380, 300])
+    expect(moveDivider([300, 300, 300], 1, 500, 220)).toEqual([300, 380, 220])
+  })
+
+  test("in a panel too narrow for the minimum a divider can still halve what its neighbours have", () => {
+    expect(moveDivider([100, 100], 0, 80, 220)).toEqual([100, 100])
+  })
+
+  test("widths for other columns than the open ones are ignored", () => {
+    const panel = three()
+    expect(setWidths(panel, [1, 2])).toBe(panel)
   })
 })
 
@@ -338,24 +181,27 @@ describe("rove api panel-show", () => {
   const here = { taskId: "T1", narrow: false }
   const apply = (panel: TaskPanel, extra: Partial<PanelPush>) => applyPlan(panel, planPanelPush(push(extra), here))
 
-  test("an address focuses the Browser tab on it, or opens one", () => {
+  test("an address opens the Browser column, or focuses the tab already on it", () => {
     const opened = apply(newPanel(), { url: "https://a.test/" })
-    expect(allTabs(opened)).toHaveLength(2)
-    const refocused = apply(activate(opened, "t1"), { url: "https://a.test/" })
-    expect(allTabs(refocused)).toHaveLength(2)
-    expect(current(refocused)).toBe("t2")
+    expect(kinds(opened)).toEqual(["files", "browser"])
+    const again = apply(opened, { url: "https://a.test/" })
+    expect(browser(again).tabs).toHaveLength(1)
+    expect(browser(apply(again, { url: "https://b.test/" })).tabs).toHaveLength(2)
   })
 
-  test("a file opens or focuses its Diff tab, whether Files or Diff was asked for", () => {
+  test("a path opens the File column with Files asked for, the Diff column with Diff; another path retargets it", () => {
     const opened = apply(newPanel(), { view: "files", path: "src/a.ts" })
-    const again = apply(opened, { view: "diff", path: "src/a.ts" })
-    expect(diffs(again)).toHaveLength(1)
+    expect(columnOf(opened, "file")).toEqual({ kind: "file", path: "src/a.ts" })
+    expect(columnOf(opened, "diff")).toBeUndefined()
+    const next = apply(apply(opened, { view: "diff", path: "src/a.ts" }), { view: "diff", path: "src/b.ts" })
+    expect(next.columns.filter((col) => col.kind === "diff")).toHaveLength(1)
+    expect(columnOf(next, "diff")).toMatchObject({ path: "src/b.ts" })
   })
 
-  test("Files focuses the one that exists, and the view alone never opens a duplicate", () => {
+  test("a view alone opens its column if closed and never a second one", () => {
     const panel = apply(showDiff(newPanel(), "a.ts", "working"), { view: "files" })
-    expect(allTabs(panel)).toHaveLength(2)
-    expect(current(panel)).toBe("t1")
-    expect(allTabs(apply(panel, { view: "diff" }))).toHaveLength(2)
+    expect(kinds(panel)).toEqual(["files", "diff"])
+    expect(kinds(apply(closeColumn(panel, "files"), { view: "files" }))).toEqual(["files", "diff"])
+    expect(columnOf(apply(panel, { view: "diff" }), "diff")).toMatchObject({ path: "a.ts" })
   })
 })

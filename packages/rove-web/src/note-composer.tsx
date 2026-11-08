@@ -7,7 +7,7 @@ import { t } from "./i18n/index.ts"
 import { bridgeError } from "./preview-load.ts"
 import { type Note, locate, noteLabel, quoteRows } from "./review-notes.ts"
 import { Button } from "./ui/button.tsx"
-import { diffRowClass } from "./ui/diff-row.ts"
+import { OLD_GUTTER, diffRowClass } from "./ui/diff-row.ts"
 import { TEXTAREA } from "./ui/form.ts"
 import { INPUT } from "./ui/text.ts"
 
@@ -122,7 +122,7 @@ export function NoteComposer(props: {
       onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <span />
+      <span className={OLD_GUTTER} />
       <span />
       <span className="text-accent">●</span>
       <div className="flex min-w-0 flex-col gap-1.5 whitespace-normal">

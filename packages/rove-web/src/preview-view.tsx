@@ -27,7 +27,7 @@ import {
   withMark,
 } from "./diff-viewed.ts"
 import { type DiffRow, chatReference, fileStats, noteRange, noteTarget, visibleIndexes } from "./diff.ts"
-import { FileModeBar, useChangedLines } from "./file-mode.tsx"
+import { OtherViewLink, useChangedLines } from "./file-mode.tsx"
 import { hasWorkingDiff } from "./file-status.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
@@ -384,12 +384,14 @@ export function PreviewView({
   return (
     <div
       className="group/preview flex min-h-0 min-w-0 flex-1 flex-col outline-none"
+      // A file read as itself has one line number per row, not a diff's old and new.
+      data-file={file && !isDiff ? "" : undefined}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the view owns its keys while focused, as the TUI's preview does
       tabIndex={0}
       ref={host}
       onKeyDown={onKey}
     >
-      {flips && <FileModeBar taskId={view.taskId} path={view.path} file={file && !isDiff} />}
+      {flips && <OtherViewLink taskId={view.taskId} path={view.path} file={file} />}
       {isDiff && (
         <DiffToolbar
           picker={

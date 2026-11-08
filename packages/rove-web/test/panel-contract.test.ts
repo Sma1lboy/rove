@@ -55,11 +55,16 @@ describe("a panel push", () => {
     })
   })
 
-  test("a file opens as its diff: the web has no file viewer", () => {
+  test("a path with Files opens the file itself, with Diff its diff", () => {
     const here = { taskId: "T1", narrow: false }
     expect(planPanelPush(push({ view: "files", path: "src/a.ts" }), here)).toEqual({
+      tab: "file",
+      path: "src/a.ts",
+      show: true,
+    })
+    expect(planPanelPush(push({ view: "diff", path: "src/a.ts" }), here)).toEqual({
       tab: "diff",
-      diff: "src/a.ts",
+      path: "src/a.ts",
       show: true,
     })
     expect(planPanelPush(push({ view: "diff" }), here)).toEqual({ tab: "diff", show: true })

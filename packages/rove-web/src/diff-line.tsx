@@ -5,7 +5,7 @@ import { DiffNoteLine } from "./diff-row-actions.tsx"
 import type { DiffRow } from "./diff.ts"
 import { t } from "./i18n/index.ts"
 import type { Note } from "./review-notes.ts"
-import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+import { DIFF_GUTTER, OLD_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
 
 export interface RowHandlers {
   rowClick: (index: number, e: MouseEvent) => void
@@ -59,7 +59,7 @@ export const DiffLine = memo(function DiffLine(props: {
         className={diffRowClass(row.kind, { cursor: props.cursor, noted })}
         onClick={(e) => props.onClick(index, e)}
       >
-        <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
+        <span className={OLD_GUTTER}>{row.oldNo ?? ""}</span>
         <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
         <span className={diffSignClass(row.kind, noted, props.changed)}>
           {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : props.changed ? "▎" : " "}

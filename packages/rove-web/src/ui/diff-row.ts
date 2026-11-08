@@ -13,10 +13,12 @@ export function diffRowClass(kind: string, o: { readonly cursor: boolean; readon
         : ""
   // A phone has no room to scroll sideways through a line: narrower columns, and the code wraps under its own.
   const pointer = kind === "file" || kind === "note" ? "cursor-pointer" : "cursor-default"
-  return `relative grid ${pointer} grid-cols-[4ch_4ch_2ch_1fr] gap-x-2 gap-y-0 whitespace-pre px-3 narrow:grid-cols-[3ch_3ch_1ch_1fr] narrow:gap-x-1 narrow:px-1.5 ${bg} ${look}`
+  return `relative grid ${pointer} grid-cols-[4ch_4ch_2ch_1fr] gap-x-2 gap-y-0 whitespace-pre px-3 narrow:grid-cols-[3ch_3ch_1ch_1fr] narrow:gap-x-1 narrow:px-1.5 group-data-file/preview:grid-cols-[4ch_1ch_1fr] narrow:group-data-file/preview:grid-cols-[3ch_1ch_1fr] ${bg} ${look}`
 }
 
 export const DIFF_GUTTER = "text-right text-subtle"
+/** The old-side number column (or its blank on a note row): gone in a file view, which has one number per row. */
+export const OLD_GUTTER = `${DIFF_GUTTER} group-data-file/preview:hidden`
 
 /** `changed`: a line of a file view that the working tree changed. */
 export const diffSignClass = (kind: string, noted: boolean, changed = false): string =>

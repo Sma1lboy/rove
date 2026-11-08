@@ -1,29 +1,24 @@
-/** A file opened from the Files tree shows its content; when the working tree changed it, `[ file ] [ diff ]` flips to the diff. */
+/** The File and Diff columns of one changed file point at each other: `[ diff ]` from the file, `[ file ]` from its diff. */
 
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { parseUnifiedDiff } from "./diff.ts"
 import { t } from "./i18n/index.ts"
-import { openDiff } from "./panel-state.ts"
+import { openDiff, openFile } from "./panel-state.ts"
 import { requestRemembered } from "./remembered.ts"
 import { Button } from "./ui/button.tsx"
 
-/** `file`: the file's content is showing, not its diff. Choosing the other reopens this tab that way. */
-export function FileModeBar(props: { taskId: string; path: string; file: boolean }) {
-  const choice = (file: boolean, label: string) => (
-    <Button
-      hit="tight"
-      aria-pressed={props.file === file}
-      className="opacity-60 aria-pressed:underline aria-pressed:opacity-100"
-      onClick={() => openDiff({ taskId: props.taskId, path: props.path, scope: "working", ...(file ? { file } : {}) })}
-    >
-      {label}
-    </Button>
-  )
+/** `file`: this is the File column, so the link opens the diff beside it; otherwise the file. */
+export function OtherViewLink(props: { taskId: string; path: string; file: boolean }) {
+  const open = () =>
+    props.file
+      ? openDiff({ taskId: props.taskId, path: props.path, scope: "working" })
+      : openFile(props.taskId, props.path)
   return (
     <div className="flex flex-none items-center gap-3 px-2 pt-1.5 font-mono text-meta">
-      {choice(true, t("preview.modeFile"))}
-      {choice(false, t("preview.modeDiff"))}
+      <Button hit="tight" onClick={open}>
+        {t(props.file ? "preview.modeDiff" : "preview.modeFile")}
+      </Button>
     </div>
   )
 }

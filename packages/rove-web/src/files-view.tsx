@@ -12,7 +12,7 @@ import { type FileState, STATE_LETTER, STATE_TONE, treeStates } from "./file-sta
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { openDiff } from "./panel-state.ts"
+import { openDiff, openFile } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RunStrip } from "./run-strip.tsx"
@@ -97,8 +97,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  // A preview tab on the right: the file itself (its diff a toggle away when it has uncommitted changes).
-  const open = (path: string) => openDiff({ taskId: task.id, path, scope: "working", file: true })
+  // The file itself in the File column; its diff is `d`, or the File column's `[ diff ]`.
+  const open = (path: string) => openFile(task.id, path)
   const openChanges = (path: string) => openDiff({ taskId: task.id, path, scope: "working" })
   const mention = (path: string) => {
     if (!stream?.startsWith(`${task.id}::`)) {
