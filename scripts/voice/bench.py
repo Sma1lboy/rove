@@ -12,6 +12,8 @@ Run each through `uv run --project scripts/voice --extra local scripts/voice/ben
   bench.py --context all                    # conversation holds every clip's text
   bench.py --phonetic off                   # without the sound-alike step
   bench.py --backend cloud --model microsoft/mai-transcribe-2
+  bench.py --learn                          # take, fix it to the reference, take again
+  bench.py --edits                          # learn.py's gates on bench/edits.json; no audio
 
 `--context all` is the case the vocabulary exists for: the user dictates terms the conversation
 already shows. `--context others` leaves the clip's own sentence out, so every boosted term is a
@@ -41,6 +43,7 @@ os.environ["ROVE_VOICE_HOME"] = tempfile.mkdtemp(prefix="rove-voice-bench-")
 
 import asr_server  # noqa: E402 - after the HOME override
 import engine  # noqa: E402
+import learn  # noqa: E402
 import vocab  # noqa: E402
 
 CACHE = Path.home() / ".cache" / "rove-voice-bench"
@@ -97,6 +100,19 @@ def pcm(path: Path) -> np.ndarray:
         return np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768.0
 
 
+def edits() -> None:
+    """Each labelled edit against what learn.py takes from it: a wrong lesson costs every later take."""
+    right = 0
+    rows = json.loads((HERE / "bench" / "edits.json").read_text())
+    for case in rows:
+        spans = [tuple(s) for s in case.get("spans", [[0, len(case["base"])]])]
+        got = [[f["term"], f["spoken"]] for f in learn.fixes(case["base"], spans, case["sent"])]
+        ok = got == case["learns"]
+        right += ok
+        print(f"{'ok ' if ok else 'BAD'} {case['id']:<16} {got}" + ("" if ok else f"  want {case['learns']}"))
+    print(f"\nedits: {right}/{len(rows)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--backend", choices=["local", "cloud"], default="local")
@@ -111,7 +127,11 @@ def main() -> None:
     parser.add_argument("--language")
     parser.add_argument("--recordings", type=Path)
     parser.add_argument("--out", type=Path, help="append one JSON line per clip")
+    parser.add_argument("--learn", action="store_true", help="fix each take to the reference, then take again")
+    parser.add_argument("--edits", action="store_true", help="learn.py's gates on bench/edits.json, no audio")
     args = parser.parse_args()
+    if args.edits:
+        return edits()
 
     config: dict = {"backend": args.backend}
     if args.model:
@@ -138,59 +158,65 @@ def main() -> None:
     flags += f" prompt-context={args.prompt_context}" if args.prompt_context else ""
     flags += f" phonetic={args.phonetic}" if args.phonetic else ""
     label = f"{backend.name} context={args.context}{flags}"
-    got = total = before = 0
-    latency: list[float] = []
-    audio = 0.0
-    by_voice: dict[str, list[int]] = {}
-    for case in rows:
-        conversation = {
-            "none": None,
-            "all": every,
-            "others": "\n".join(spoken(c["text"]) for c in rows if c is not case),
-        }[args.context]
-        samples = pcm(case["wav"])
-        started = time.monotonic()
-        out = asr_server.dictate(
-            backend, samples, conversation=conversation, draft=None, language=args.language, config=config
+
+    def take_all(tag: str) -> list[str]:
+        got = total = before = 0
+        latency: list[float] = []
+        audio = 0.0
+        texts: list[str] = []
+        by_voice: dict[str, list[int]] = {}
+        for case in rows:
+            conversation = {
+                "none": None,
+                "all": every,
+                "others": "\n".join(spoken(c["text"]) for c in rows if c is not case),
+            }[args.context]
+            samples = pcm(case["wav"])
+            started = time.monotonic()
+            out = asr_server.dictate(
+                backend, samples, conversation=conversation, draft=None, language=args.language, config=config
+            )
+            took = time.monotonic() - started
+            texts.append(out["text"])
+            terms = keywords(case["text"])
+            mark = hits(terms, out["text"])
+            got += sum(mark)
+            # The recognizer's own text in Simplified script: what the vocabulary fixes adds on top.
+            before += sum(hits(terms, engine.simplified(out["raw"])))
+            total += len(mark)
+            voice = by_voice.setdefault(case["voice"], [0, 0])
+            voice[0] += sum(mark)
+            voice[1] += len(mark)
+            latency.append(took)
+            audio += len(samples) / engine.SAMPLE_RATE
+            missed = [kw[0] for kw, ok in zip(terms, mark) if not ok]
+            print(f"{case['id']:<10} {sum(mark):>2}/{len(mark):<2} {took:5.2f}s  {out['text']}")
+            if missed:
+                print(f"{'':<10} missed: {', '.join(missed)}")
+            if args.out:
+                row = {"label": label + tag, "id": case["id"], "hits": sum(mark), "of": len(mark)}
+                row |= {"secs": round(took, 3), "text": out["text"], "raw": out["raw"]}
+                with args.out.open("a") as f:
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        voices = "  ".join(f"{v.split(' ')[0]} {a}/{b}" for v, (a, b) in by_voice.items())
+        print(
+            f"\n{label}{tag}: {got}/{total} (recognizer alone {before})  ({voices})  "
+            f"p50 {statistics.median(latency):.2f}s  RTF {sum(latency) / audio:.3f}\n"
         )
-        took = time.monotonic() - started
-        terms = keywords(case["text"])
-        mark = hits(terms, out["text"])
-        got += sum(mark)
-        # The recognizer's own text in Simplified script: what the vocabulary fixes adds on top.
-        before += sum(hits(terms, engine.simplified(out["raw"])))
-        total += len(mark)
-        voice = by_voice.setdefault(case["voice"], [0, 0])
-        voice[0] += sum(mark)
-        voice[1] += len(mark)
-        latency.append(took)
-        audio += len(samples) / engine.SAMPLE_RATE
-        missed = [kw[0] for kw, ok in zip(terms, mark) if not ok]
-        print(f"{case['id']:<10} {sum(mark):>2}/{len(mark):<2} {took:5.2f}s  {out['text']}")
-        if missed:
-            print(f"{'':<10} missed: {', '.join(missed)}")
-        if args.out:
-            with args.out.open("a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "label": label,
-                            "id": case["id"],
-                            "hits": sum(mark),
-                            "of": len(mark),
-                            "secs": round(took, 3),
-                            "text": out["text"],
-                            "raw": out["raw"],
-                        },
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
-    voices = "  ".join(f"{v.split(' ')[0]} {a}/{b}" for v, (a, b) in by_voice.items())
-    print(
-        f"\n{label}: {got}/{total} (recognizer alone {before})  ({voices})  p50 {statistics.median(latency):.2f}s  "
-        f"RTF {sum(latency) / audio:.3f}"
-    )
+        return texts
+
+    texts = take_all("")
+    if not args.learn:
+        return
+    # The user fixes each take to what they said and sends it; the next take of the same words is the test.
+    taught = 0
+    for case, text in zip(rows, texts):
+        added = learn.remember(learn.fixes(text, [(0, len(text))], spoken(case["text"])))
+        taught += len(added)
+        if added:
+            print(f"{case['id']:<10} learned {', '.join(a['spoken'] + ' -> ' + a['term'] for a in added)}")
+    print(f"\nlearned {taught} from {len(rows)} fixed takes\n")
+    take_all(" after-learning")
 
 
 if __name__ == "__main__":

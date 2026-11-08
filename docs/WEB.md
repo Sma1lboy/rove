@@ -165,9 +165,19 @@ the only public path to it.
   (`GraphQL`, `rove-web`, `useEffect`, not words the system dictionary knows) join the terms kept in
   `~/.rove/voice/vocab.json` (created from the old `dictionary.json`). English the recognizer split
   or misspelled is snapped back onto them: "Graph, Q, L" → GraphQL, "Decorfile" → Dockerfile; a
-  real English word is never rewritten. A local recognizer gets only the stored terms in its prompt
-  (conversation terms there cost a term whenever they were not said); a cloud one gets all of them
-  (`"promptContext"` overrides either).
+  real English word is never rewritten. A local recognizer's prompt gets only the stored terms the
+  draft shows (other terms there cost a term whenever they were not said: 68 → 64 with 15 learned
+  ones); a cloud one gets all of them (`"promptContext"` overrides either).
+- **Learning from your fixes.** On the phone bar, when you fix a word inside a take before sending
+  ("Jithub" → GitHub, "github" → GitHub, "Graph QL" → GraphQL), the bridge op `voice.learn` diffs
+  the draft as dictation left it against what was sent and stores the fix in `vocab.json`; the next
+  take is rewritten before it shows. A toast says what was learned, with `[ undo ]`
+  (`voice.unlearn`). Learning nothing is the default: punctuation, spacing and full-width forms
+  never count, a case-only fix counts only as a term's casing (not "the" → "The"), the new word must
+  be term-like, and a send that rewrote half the take or fixed more than 4 terms teaches nothing.
+  `"learn": false` turns it off. Bench: `bench.py --edits` 20/20 labelled edits;
+  `bench.py --learn` (fix each take, take it again) 68 → 76/82 on large-v3, with the recognizer's
+  own score unchanged.
 - **Sound-alikes.** After the spelling fix, a word the recognizer *heard* wrong is matched by
   pronunciation (Metaphone; a Chinese run is read as pinyin first): "Jithub" → GitHub, "Cavin" →
   Kevin. Only a run that is not all dictionary words and keys within a close length of a term is

@@ -30,6 +30,7 @@ from typing import Any
 import numpy as np
 
 import engine
+import learn
 import phonetic
 import vocab
 
@@ -82,11 +83,11 @@ def dictate(
     stored mishearings first, then whatever lands close to a term the recognizer was given."""
     stored = vocab.load()["terms"]
     terms = vocab.rank(conversation, draft, stored, backend.max_terms)
-    # Measured on large-v3: the conversation's terms in the prompt cost a term when they were not said
-    # (68 -> 67) and gain less (70) than using them only to correct (72, and 68 when not said). Cloud
-    # recognizers take the prompt without that cost, so they get it by default.
+    # Measured on large-v3: terms in the prompt cost a term when they were not said (68 -> 67 with the
+    # conversation's, 68 -> 64 with 15 learned ones) and gain less (70) than using them only to correct
+    # (72, and 68 when not said). Cloud recognizers take the prompt without that cost, so they get it by default.
     in_prompt = config.get("promptContext", not isinstance(backend, engine.LocalWhisper))
-    hinted = terms if in_prompt else vocab.rank(None, draft, stored, backend.max_terms)
+    hinted = terms if in_prompt else vocab.rank(None, draft, stored, backend.max_terms, rest=False)
     raw, detected = backend.transcribe(pcm, hinted, language)
     text = engine.simplified(raw) if config.get("simplified", True) else raw
     text = vocab.correct(vocab.apply_spoken(text, stored), terms, fuzzy=config.get("fuzzy", True))
@@ -153,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib signature
-        routes = {"/transcribe": self.transcribe}
+        routes = {"/transcribe": self.transcribe, "/learn": self.learn_edit, "/unlearn": self.unlearn_edit}
         route = routes.get(self.path)
         if route is None:
             self.reply(404, {"error": "not_found"})
@@ -200,6 +201,27 @@ class Handler(BaseHTTPRequestHandler):
         terms = out["terms"]
         sys.stderr.write(f"voice: {seconds}s audio, {heard} chars of conversation, {terms} terms, {ms} ms\n")
         self.reply(200, {**out, "seconds": seconds, "ms": ms})
+
+    def learn_edit(self, request: dict[str, Any]) -> None:
+        """A sent message against the draft its takes left: the fixes inside them join the vocabulary."""
+        base, sent, spans = request.get("base"), request.get("sent"), request.get("spans")
+        if not isinstance(base, str) or not isinstance(sent, str) or not isinstance(spans, list):
+            self.reply(400, {"error": "bad_args"})
+            return
+        if not _config.get("learn", True):
+            self.reply(200, {"learned": []})
+            return
+        pairs = [(int(s[0]), int(s[1])) for s in spans if isinstance(s, list) and len(s) == 2]
+        added = learn.remember(learn.fixes(base, pairs, sent))
+        sys.stderr.write(f"voice: learned {len(added)} from an edit\n")
+        self.reply(200, {"learned": added})
+
+    def unlearn_edit(self, request: dict[str, Any]) -> None:
+        learned = request.get("learned")
+        if not isinstance(learned, list):
+            self.reply(400, {"error": "bad_args"})
+            return
+        self.reply(200, {"undone": learn.forget([x for x in learned if isinstance(x, dict)])})
 
 
 def main() -> None:
