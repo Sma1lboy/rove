@@ -11,7 +11,7 @@ export function diffRowClass(kind: string, o: { readonly cursor: boolean; readon
       : kind === "hunk" || kind === "meta"
         ? "text-subtle"
         : ""
-  // A phone has no room to scroll sideways through a line: narrower columns, and the code wraps under its own.
+  // Code wraps under its own column (the panel never scrolls sideways); a phone gets narrower columns.
   const pointer = kind === "file" || kind === "note" ? "cursor-pointer" : "cursor-default"
   return `relative grid ${pointer} grid-cols-[4ch_4ch_2ch_1fr] gap-x-2 gap-y-0 whitespace-pre px-3 narrow:grid-cols-[3ch_3ch_1ch_1fr] narrow:gap-x-1 narrow:px-1.5 group-data-file/preview:grid-cols-[4ch_1ch_1fr] narrow:group-data-file/preview:grid-cols-[3ch_1ch_1fr] ${bg} ${look}`
 }
@@ -25,7 +25,7 @@ export const diffSignClass = (kind: string, noted: boolean, changed = false): st
   noted ? "text-accent" : changed ? "text-diff-added" : (KIND_INK[kind] ?? "")
 
 export const diffCodeClass = (kind: string): string =>
-  `min-w-0 narrow:whitespace-pre-wrap narrow:wrap-anywhere ${KIND_INK[kind] ?? ""}`
+  `min-w-0 whitespace-pre-wrap wrap-anywhere ${KIND_INK[kind] ?? ""}`
 
 /** A note's text under the rows it covers. */
 export const DIFF_NOTE_TEXT = "min-w-0 whitespace-pre-wrap wrap-anywhere text-accent"

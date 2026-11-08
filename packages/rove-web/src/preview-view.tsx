@@ -420,7 +420,7 @@ export function PreviewView({
           onNextComment={placed.some(({ at }) => at) ? jumpComment : null}
         />
       )}
-      <div className="min-h-0 flex-1 overflow-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
         {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
         {loaded?.kind === "text" && (
           <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "text-error" : ""}`}>{loaded.text}</p>
