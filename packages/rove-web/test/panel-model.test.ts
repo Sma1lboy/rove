@@ -41,6 +41,14 @@ describe("opening and finding tabs", () => {
     expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "branch" }])
     expect(current(panel)).toBe("t2")
   })
+  test("a file opened as itself and its diff share one tab, switched in place and kept across a reload", () => {
+    let panel = showDiff(newPanel(), "src/a.ts", "working", true)
+    expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "working", file: true }])
+    expect(parsePanel(JSON.parse(JSON.stringify(panel)))).toEqual(panel)
+    panel = showDiff(panel, "src/a.ts", "working")
+    expect(diffs(panel)).toEqual([{ id: "t2", kind: "diff", path: "src/a.ts", scope: "working" }])
+    expect(diffs(showDiff(panel, "src/a.ts", "working", true))).toHaveLength(1)
+  })
 
   test("a different file opens a second tab; the whole worktree is its own", () => {
     const panel = showDiff(showDiff(showDiff(newPanel(), "a.ts", "working"), "b.ts", "working"), ".", "working")

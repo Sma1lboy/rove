@@ -8,8 +8,8 @@
  */
 
 import { type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react"
+import type { DiffFileRow as ChangedFile } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
-import { TextDialog } from "./dialogs.tsx"
 import { DiffScopeMenu } from "./diff-base-picker.tsx"
 import { useDiffBase } from "./diff-base.ts"
 import { DiffFileRow } from "./diff-file-row.tsx"
@@ -27,18 +27,21 @@ import {
   withMark,
 } from "./diff-viewed.ts"
 import { type DiffRow, chatReference, fileStats, noteRange, noteTarget, visibleIndexes } from "./diff.ts"
+import { FileModeBar, useChangedLines } from "./file-mode.tsx"
+import { hasWorkingDiff } from "./file-status.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
+import { useNoteComposer } from "./note-composer.tsx"
 import { openDiff } from "./panel-state.ts"
 import { type Loaded, bridgeError, load } from "./preview-load.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
-import { type Note, type NoteState, locate, noteLabel, noteState, quoteRows } from "./review-notes.ts"
+import { type Note, type NoteState, locate, noteState } from "./review-notes.ts"
 import { foldedByDefault, shapeLine } from "./review-shape.ts"
 import { ReviewTray } from "./review-tray.tsx"
 import { useStore } from "./store.ts"
 import { termFor } from "./term-control.ts"
-import { type Preview, activeStream, dialog, toast } from "./ui.ts"
+import { type Preview, activeStream, toast } from "./ui.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 
 const NO_ROWS: DiffRow[] = []
@@ -58,10 +61,13 @@ export function PreviewView({
   // A base chosen by hand only means something to the whole-task scope.
   const custom = view.scope === "task" ? picked_ : null
   const foreign = custom !== null
+  // A file opened from the Files tree is read as itself; its diff is a toggle away.
+  const file = view.file === true
   const params = {
     taskId: view.taskId,
     path: view.path,
     scope: view.scope,
+    ...(file ? { content: true } : {}),
     ...(ws ? { ignoreWhitespace: true } : {}),
     ...(custom ? { base: custom } : {}),
   }
@@ -73,8 +79,8 @@ export function PreviewView({
   const [notes, setNotes] = useState<readonly Note[]>(
     () => lastReply<{ notes: Note[] }>(model, "review.list", { taskId: view.taskId })?.notes ?? [],
   )
-  const [base, setBase] = useState<string | null>(
-    () => lastReply<{ base: string | null }>(model, "diff.files", { taskId: view.taskId })?.base ?? null,
+  const [changes, setChanges] = useState(() =>
+    lastReply<{ base: string | null; files: ChangedFile[] }>(model, "diff.files", { taskId: view.taskId }),
   )
   const [cursor, setCursor] = useState(0)
   const [anchor, setAnchor] = useState<number | null>(null)
@@ -111,8 +117,8 @@ export function PreviewView({
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
     let live = true
-    requestRemembered<{ base: string | null }>(c, "diff.files", { taskId: view.taskId }).then(
-      (r) => live && setBase(r.base),
+    requestRemembered<{ base: string | null; files: ChangedFile[] }>(c, "diff.files", { taskId: view.taskId }).then(
+      (r) => live && setChanges(r),
       () => {},
     )
     return () => {
@@ -133,6 +139,10 @@ export function PreviewView({
 
   const rows = loaded?.kind === "rows" ? loaded.rows : NO_ROWS
   const isDiff = loaded?.kind === "rows" && loaded.diff
+  const base = changes?.base ?? null
+  // Only a file with uncommitted changes has a diff to flip to; an older bridge answers a file read with the diff, so there is nothing to flip.
+  const flips = view.path !== "." && view.scope === "working" && hasWorkingDiff(changes?.files ?? [], view.path)
+  const changedLines = useChangedLines(c, view.taskId, view.path, file && flips && !isDiff, nonce)
   // Row order is fixed per load (the view remounts per file), so position is identity.
   const rowIds = useMemo(() => rows.map((_, n) => `row-${n}`), [rows])
   const stats = useMemo(() => fileStats(rows), [rows])
@@ -218,47 +228,25 @@ export function PreviewView({
     setWs(!ws)
   }
 
-  const addNote = () => {
-    if (!target) return
-    const location = noteLabel({ filePath: target.path, startLine: target.startLine, line: target.line })
-    dialog.set(
-      <TextDialog
-        multiline
-        title={t("preview.noteTitle", { location })}
-        submitLabel={t("preview.noteSubmit")}
-        onSubmit={async (body) => {
-          await c.request("review.add", {
-            taskId: view.taskId,
-            filePath: target.path,
-            line: target.line,
-            ...(target.startLine ? { startLine: target.startLine } : {}),
-            code: quoteRows(rows, target.first, target.last),
-            body,
-          })
-          setAnchor(null)
-          setPicked(false)
-          refreshNotes()
-          host.current?.focus()
-        }}
-      />,
-    )
+  const composer = useNoteComposer({
+    client: c,
+    taskId: view.taskId,
+    rows,
+    target,
+    onSaved: (added) => {
+      if (added) {
+        setAnchor(null)
+        setPicked(false)
+      }
+      refreshNotes()
+    },
+    focusView: () => host.current?.focus(),
+  })
+  // The note's lines come into view first, so the editor opens where the note sits.
+  const editNote = (note: Note) => {
+    showNote(note)
+    if (view.path === "." || view.path === note.filePath) composer.edit(note)
   }
-  const editNote = (note: Note) =>
-    dialog.set(
-      <TextDialog
-        multiline
-        title={t("review.editTitle", { location: noteLabel(note) })}
-        initial={note.body}
-        submitLabel={t("review.editSubmit")}
-        onSubmit={async (body) => {
-          await c.request("review.edit", { taskId: view.taskId, id: note.id, body }).catch((e) => {
-            throw bridgeError(e)
-          })
-          refreshNotes()
-          host.current?.focus()
-        }}
-      />,
-    )
   const dropNote = (note: Note) =>
     void c
       .request("review.remove", { taskId: view.taskId, id: note.id })
@@ -340,7 +328,7 @@ export function PreviewView({
     else if (k === "v") {
       setAnchor((a) => (a === null ? cursor : null))
       setPicked(true)
-    } else if (k === "c" && !e.ctrlKey) addNote()
+    } else if (k === "c" && !e.ctrlKey) composer.add()
     else if (k === "x") {
       const hit = placed.find(({ at }) => at && cursor >= at.first && cursor <= at.last)
       if (hit) dropNote(hit.note)
@@ -401,6 +389,7 @@ export function PreviewView({
       ref={host}
       onKeyDown={onKey}
     >
+      {flips && <FileModeBar taskId={view.taskId} path={view.path} file={file && !isDiff} />}
       {isDiff && (
         <DiffToolbar
           picker={
@@ -466,22 +455,27 @@ export function PreviewView({
               actions={
                 picked &&
                 target &&
+                !composer.node &&
                 i === hi && (
                   <DiffRowActions
                     showRange={touch && anchor === null}
                     ranged={anchor !== null}
-                    onComment={addNote}
+                    onComment={composer.add}
                     onRange={() => setAnchor(cursor)}
                     onAsk={askInChat}
                   />
                 )
               }
               notes={endingAt.get(i)}
+              changed={row.newNo !== null && changedLines?.has(row.newNo) === true}
+              composer={i === composer.row ? composer.node : undefined}
+              editId={i === composer.row ? composer.editId : undefined}
               onClick={stable.rowClick}
               onEditNote={stable.editNote}
             />
           )
         })}
+        {composer.row === -1 && composer.node}
       </div>
       <ReviewTray
         notes={unsent}

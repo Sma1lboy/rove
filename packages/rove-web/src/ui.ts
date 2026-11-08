@@ -82,6 +82,8 @@ export interface Preview {
   readonly taskId: string
   readonly path: string
   readonly scope: DiffScope
+  /** Show the file itself, its diff a toggle away; absent = the diff. */
+  readonly file?: true
 }
 
 export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "compare" | "usage"

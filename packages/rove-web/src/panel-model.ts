@@ -15,7 +15,14 @@ export type PanelItem =
   | { readonly id: string; readonly kind: "files" }
   | { readonly id: string; readonly kind: "chat" }
   | { readonly id: string; readonly kind: "quota" }
-  | { readonly id: string; readonly kind: "diff"; readonly path: string; readonly scope: DiffScope }
+  | {
+      readonly id: string
+      readonly kind: "diff"
+      readonly path: string
+      readonly scope: DiffScope
+      /** Shows the file itself, with its diff a toggle away; absent = the diff. */
+      readonly file?: true
+    }
   | { readonly id: string; readonly kind: "browser"; readonly urls: readonly string[]; readonly at: number }
 
 export interface PanelGroup {
@@ -178,11 +185,15 @@ export function newBrowser(panel: TaskPanel, to: GroupName): TaskPanel {
   return addTab(panel, to, blankBrowser)
 }
 
-/** A file's diff (`.` = the whole worktree): its tab if it has one, else a new one beside the other diffs. */
-export function showDiff(panel: TaskPanel, path: string, scope: DiffScope): TaskPanel {
+/** A file's diff, or with `file` the file itself (`.` = the whole worktree): its tab if it has one, else a new one beside the other diffs. */
+export function showDiff(panel: TaskPanel, path: string, scope: DiffScope, file = false): TaskPanel {
   const hit = allTabs(panel).find((tab) => tab.kind === "diff" && tab.path === path)
-  if (!hit) return addTab(panel, homeGroup(panel, "diff"), (id) => ({ id, kind: "diff", path, scope }))
-  if (hit.kind === "diff" && hit.scope !== scope) return activate(replaceTab(panel, { ...hit, scope }), hit.id)
+  const look = { scope, ...(file ? { file: true as const } : {}) }
+  if (!hit) return addTab(panel, homeGroup(panel, "diff"), (id) => ({ id, kind: "diff", path, ...look }))
+  if (hit.kind === "diff" && (hit.scope !== scope || (hit.file === true) !== file)) {
+    const { file: _, ...rest } = hit
+    return activate(replaceTab(panel, { ...rest, ...look }), hit.id)
+  }
   return activate(panel, hit.id)
 }
 
@@ -320,7 +331,7 @@ function parseItem(raw: unknown): PanelItem | null {
   if (r.kind === "files" || r.kind === "chat" || r.kind === "quota") return { id: r.id, kind: r.kind }
   if (r.kind === "diff" && typeof r.path === "string" && r.path !== "") {
     const scope = r.scope === "branch" || r.scope === "task" ? r.scope : "working"
-    return { id: r.id, kind: "diff", path: r.path, scope }
+    return { id: r.id, kind: "diff", path: r.path, scope, ...(r.file === true ? { file: true as const } : {}) }
   }
   if (r.kind === "browser" && Array.isArray(r.urls)) {
     const urls = r.urls.filter((u): u is string => typeof u === "string" && u !== "").slice(-BROWSER_HISTORY)

@@ -160,9 +160,9 @@ function TabView({
   if (tab.kind === "diff") {
     return (
       <PreviewHost
-        key={`${task.id}:${tab.path}:${tab.scope}`}
+        key={`${task.id}:${tab.path}:${tab.scope}:${tab.file ? "file" : "diff"}`}
         model={model}
-        view={{ taskId: task.id, path: tab.path, scope: tab.scope }}
+        view={{ taskId: task.id, path: tab.path, scope: tab.scope, ...(tab.file ? { file: true as const } : {}) }}
         active={active}
         restored={restored}
         onClose={() => closePanelTab(task.id, tab.id)}

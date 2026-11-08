@@ -70,9 +70,9 @@ export function launchPanel(taskId: string, kind: PanelKind): void {
   if (next.open && zen.get()) zen.set(false)
 }
 
-/** A file's diff (`.` = the whole worktree) opens in its own tab beside the terminal, not over it. */
+/** A file's diff, or with `file` the file itself (`.` = the whole worktree) opens in its own tab beside the terminal, not over it. */
 export function openDiff(view: Preview): void {
-  editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope))
+  editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope, view.file === true))
   panelOpen.set(true)
   // Zen hides the panel, and showing the diff is what was asked for (as `launchPanel` and a panel push do).
   if (zen.get()) zen.set(false)

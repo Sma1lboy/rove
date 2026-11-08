@@ -18,7 +18,7 @@ import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
-import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
+import { loadFileContent, loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import { resolveBase } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
@@ -97,6 +97,8 @@ export interface RoveOps {
     scope: PreviewScope,
     ignoreWhitespace?: boolean,
     base?: string,
+    /** The file itself, never its diff (`scope` working only; another machine's task still answers with the diff). */
+    content?: boolean,
   ): Promise<unknown>
   diffRefs(taskId: string): Promise<DiffRefs>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
@@ -417,7 +419,7 @@ export function createRoveOps(
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
       return worktreeRefs(task.worktreePath)
     },
-    async diffFile(taskId, path, scope, ignoreWhitespace, ref) {
+    async diffFile(taskId, path, scope, ignoreWhitespace, ref, content) {
       // git scopes the diff to the worktree, but a `code` preview reads the
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
@@ -437,6 +439,7 @@ export function createRoveOps(
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
       const opts = { ignoreWhitespace: ignoreWhitespace === true }
+      if (scope === "working" && content) return loadFileContent(task.worktreePath, path)
       if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)
       let base: string | null
       if (ref !== undefined) {

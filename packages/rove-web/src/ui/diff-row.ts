@@ -18,7 +18,9 @@ export function diffRowClass(kind: string, o: { readonly cursor: boolean; readon
 
 export const DIFF_GUTTER = "text-right text-subtle"
 
-export const diffSignClass = (kind: string, noted: boolean): string => (noted ? "text-accent" : (KIND_INK[kind] ?? ""))
+/** `changed`: a line of a file view that the working tree changed. */
+export const diffSignClass = (kind: string, noted: boolean, changed = false): string =>
+  noted ? "text-accent" : changed ? "text-diff-added" : (KIND_INK[kind] ?? "")
 
 export const diffCodeClass = (kind: string): string =>
   `min-w-0 narrow:whitespace-pre-wrap narrow:wrap-anywhere ${KIND_INK[kind] ?? ""}`
