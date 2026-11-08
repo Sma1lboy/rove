@@ -246,7 +246,9 @@ def live_takes(backend: engine.Backend, rows: list[dict], config: dict, language
                 continue
             started = time.monotonic()
             take.decoded = take.samples
-            asr_server.dictate(backend, take.pcm(), conversation=None, draft=None, language=language, config=config)
+            asr_server.dictate(
+                backend, take.pcm(), conversation=None, draft=None, language=language, config=config, final=False
+            )
             took = time.monotonic() - started
             waits.append(took)
             clock += took  # nothing more goes out until this answered

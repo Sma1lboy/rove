@@ -35,6 +35,7 @@ import engine
 import learn
 import live
 import phonetic
+import polish
 import vocab
 
 PORT = int(os.environ.get("ROVE_VOICE_PORT", "8791"))
@@ -85,9 +86,12 @@ def dictate(
     draft: str | None,
     language: str | None,
     config: dict[str, Any],
+    final: bool = True,
 ) -> dict[str, Any]:
     """One dictation: rank the vocabulary, recognize, normalize the script, then fix the English:
-    stored mishearings first, then whatever lands close to a term the recognizer was given."""
+    stored mishearings first, then whatever lands close to a term the recognizer was given. A final
+    take is then cleaned up by a chat model when config.json asks for it (polish.py); a live take's
+    partials never are."""
     stored = vocab.load()["terms"]
     terms = vocab.rank(conversation, draft, stored, backend.max_terms)
     # Measured on large-v3: terms in the prompt cost a term when they were not said (68 -> 67 with the
@@ -101,7 +105,15 @@ def dictate(
     # Bench: +1 to +3 terms when the conversation holds them, no change otherwise (phonetic.py).
     if config.get("phonetic", True):
         text = phonetic.correct(text, terms)
-    return {"text": text, "raw": raw, "language": detected, "terms": len(terms)}
+    out = {"text": text, "raw": raw, "language": detected, "terms": len(terms)}
+    if final and polish.enabled(config):
+        started = time.monotonic()
+        polished, error = polish.polish(text, terms, config)
+        out |= {"text": polished, "unpolished": text, "polishMs": round((time.monotonic() - started) * 1000)}
+        if error:
+            out["polishError"] = error
+            sys.stderr.write(f"voice: polish failed, kept the recognizer's text: {error}\n")
+    return out
 
 
 def warm() -> None:
@@ -251,6 +263,7 @@ class Handler(BaseHTTPRequestHandler):
                     draft=take.draft,
                     language=take.language,
                     config=_config,
+                    final=False,
                 )["text"]
             )
         except Exception as err:  # noqa: BLE001 - a failed partial only means no partial

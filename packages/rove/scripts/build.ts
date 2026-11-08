@@ -64,6 +64,8 @@ const VOICE_FILES = [
   "learn.py",
   "live.py",
   "phonetic.py",
+  "polish.py",
+  "polish_prompt.md",
   "vocab.py",
   "pyproject.toml",
   "uv.lock",
