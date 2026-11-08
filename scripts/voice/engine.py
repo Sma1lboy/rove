@@ -14,6 +14,7 @@ import base64
 import io
 import json
 import os
+import threading
 import urllib.error
 import urllib.request
 import uuid
@@ -32,6 +33,9 @@ LOCAL_MODEL = "mlx-community/whisper-large-v3-mlx"
 # Without this hint large-v3 often answers Mandarin in Traditional script; English is unaffected.
 ZH_GUARD = "以下是普通话的句子。"
 CLOUD_TIMEOUT_S = 30
+# One decode at a time on the GPU: the server answers on threads, and a live take's partials run
+# beside other requests. Reentrant so a caller can hold it across a whole dictation (live.py).
+GPU = threading.RLock()
 
 
 class Backend(Protocol):
@@ -62,15 +66,16 @@ class LocalWhisper:
         import mlx_whisper
 
         prompt = "\n".join([ZH_GUARD, ", ".join(terms)]) if terms else ZH_GUARD
-        result = mlx_whisper.transcribe(
-            pcm,
-            path_or_hf_repo=self.model,
-            initial_prompt=prompt,
-            language=language or None,
-            word_timestamps=False,
-            condition_on_previous_text=False,
-            verbose=None,
-        )
+        with GPU:
+            result = mlx_whisper.transcribe(
+                pcm,
+                path_or_hf_repo=self.model,
+                initial_prompt=prompt,
+                language=language or None,
+                word_timestamps=False,
+                condition_on_previous_text=False,
+                verbose=None,
+            )
         return str(result.get("text") or "").strip(), result.get("language")
 
 

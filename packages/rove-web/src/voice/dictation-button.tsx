@@ -39,6 +39,8 @@ export interface DictationFace {
   readonly held: boolean
   /** Held and slid up: letting go sends. */
   readonly armed: boolean
+  /** A held take's text so far, from a local recognizer; empty otherwise. */
+  readonly partial: string
 }
 
 /** One answer per bridge: the bar and every button ask the same question; Settings answers it after a setup. */
@@ -135,7 +137,8 @@ export function DictationButton(props: {
     if (view.phase === "idle" || view.phase === "error") {
       p.timer = window.setTimeout(() => {
         p.held = true
-        p.started = dictation.current?.start() ?? null
+        // A held take streams, so the words show while they are said; a tapped one is sent once.
+        p.started = dictation.current?.start(true) ?? null
         setHold({ armed: false })
         tick()
       }, HOLD_MS)
@@ -206,6 +209,7 @@ export function DictationButton(props: {
           level: view.level,
           held: hold !== null,
           armed,
+          partial: view.partial,
         })
       ) : (
         <>

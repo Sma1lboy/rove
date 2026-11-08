@@ -10,6 +10,8 @@ Run: `uv run --project scripts/voice --extra local scripts/voice/asr_server.py` 
 Binds 127.0.0.1 only; the bridge is the one public surface.
 
   POST /transcribe {wav: hex, conversation?, context?, language?} -> {text, raw, language, ...}
+  POST /stream {session, seq, pcm: hex int16, final?, conversation?, context?, language?}
+       -> {partial} per chunk, the /transcribe reply at final (live.py)
   GET  /health
 """
 
@@ -31,6 +33,7 @@ import numpy as np
 
 import engine
 import learn
+import live
 import phonetic
 import vocab
 
@@ -68,6 +71,10 @@ def decode_wav(data: bytes) -> np.ndarray:
     if rate != engine.SAMPLE_RATE:
         raise ValueError(f"expected {engine.SAMPLE_RATE} Hz, got {rate}")
     return np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+
+
+def silent(pcm: np.ndarray) -> bool:
+    return not len(pcm) or float(np.sqrt(np.mean(np.square(pcm)))) < SILENCE_RMS
 
 
 def dictate(
@@ -154,7 +161,12 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib signature
-        routes = {"/transcribe": self.transcribe, "/learn": self.learn_edit, "/unlearn": self.unlearn_edit}
+        routes = {
+            "/transcribe": self.transcribe,
+            "/stream": self.stream,
+            "/learn": self.learn_edit,
+            "/unlearn": self.unlearn_edit,
+        }
         route = routes.get(self.path)
         if route is None:
             self.reply(404, {"error": "not_found"})
@@ -169,6 +181,9 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as err:  # noqa: BLE001 - every failure is the caller's audio
             self.reply(400, {"error": f"bad_audio: {err}"})
             return
+        self.finish_take(pcm, request.get("conversation"), request.get("context"), request.get("language"))
+
+    def finish_take(self, pcm: np.ndarray, conversation: str | None, draft: str | None, language: str | None) -> None:
         seconds = round(len(pcm) / engine.SAMPLE_RATE, 2)
         if seconds < MIN_AUDIO_SEC:
             self.reply(200, {"text": "", "reason": "too_short", "seconds": seconds})
@@ -176,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
         if seconds > MAX_AUDIO_SEC:
             self.reply(200, {"text": "", "reason": "too_long", "seconds": seconds})
             return
-        if float(np.sqrt(np.mean(np.square(pcm)))) < SILENCE_RMS:
+        if silent(pcm):
             self.reply(200, {"text": "", "reason": "silent", "seconds": seconds})
             return
         if _backend is None or not _ready.is_set():
@@ -184,23 +199,66 @@ class Handler(BaseHTTPRequestHandler):
             return
         started = time.monotonic()
         try:
-            out = dictate(
-                _backend,
-                pcm,
-                conversation=request.get("conversation"),
-                draft=request.get("context"),
-                language=request.get("language"),
-                config=_config,
-            )
+            out = dictate(_backend, pcm, conversation=conversation, draft=draft, language=language, config=_config)
         except Exception as err:  # noqa: BLE001 - report, never take the server down
             self.reply(500, {"error": f"transcribe: {err}"})
             return
         ms = round((time.monotonic() - started) * 1000)
         # Counts only, never the words: enough to see the conversation arrived and what a take cost.
-        heard = len(request.get("conversation") or "")
+        heard = len(conversation or "")
         terms = out["terms"]
         sys.stderr.write(f"voice: {seconds}s audio, {heard} chars of conversation, {terms} terms, {ms} ms\n")
         self.reply(200, {**out, "seconds": seconds, "ms": ms})
+
+    def stream(self, request: dict[str, Any]) -> None:
+        """One chunk of a live take (live.py): the text so far while it grows, the transcript at `final`."""
+        session, seq = request.get("session"), request.get("seq")
+        if not isinstance(session, str) or not isinstance(seq, int):
+            self.reply(400, {"error": "bad_args"})
+            return
+        try:
+            raw = bytes.fromhex(request.get("pcm") or "")
+            pcm = np.frombuffer(raw[: len(raw) // 2 * 2], dtype="<i2").astype(np.float32) / 32768.0
+            take = live.append(session, seq, pcm, request)
+        except live.Gap as err:
+            self.reply(409, {"error": f"gap: {err}"})
+            return
+        except ValueError as err:
+            self.reply(400, {"error": f"bad_audio: {err}"})
+            return
+        if request.get("final"):
+            live.finish(session)
+            self.finish_take(take.pcm(), take.conversation, take.draft, take.language)
+            return
+        backend = _backend
+        if backend is None or not _ready.is_set() or not live.due(take, backend):
+            self.reply(200, {"partial": None})
+            return
+        # Never queue behind another decode: the next chunk asks again.
+        if not engine.GPU.acquire(blocking=False):
+            self.reply(200, {"partial": None})
+            return
+        try:
+            take.decoded = take.samples
+            pcm = take.pcm()
+            text = (
+                ""
+                if silent(pcm)
+                else dictate(
+                    backend,
+                    pcm,
+                    conversation=take.conversation,
+                    draft=take.draft,
+                    language=take.language,
+                    config=_config,
+                )["text"]
+            )
+        except Exception as err:  # noqa: BLE001 - a failed partial only means no partial
+            sys.stderr.write(f"voice: partial failed: {err}\n")
+            text = None
+        finally:
+            engine.GPU.release()
+        self.reply(200, {"partial": text})
 
     def learn_edit(self, request: dict[str, Any]) -> None:
         """A sent message against the draft its takes left: the fixes inside them join the vocabulary."""
