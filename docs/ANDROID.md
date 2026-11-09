@@ -73,16 +73,16 @@ Push: `{"event":"tasks","data":{...}}`.
 | `tasks` push, `tabStatus` | A tab the daemon reads as `needs-input` puts 1-4 first in the key row, sent as keys rather than pasted |
 | `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
-| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use task detail's two-step dialogs. Row-menu entries are pending in #1818 |
+| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use two-step dialogs, from task detail or the row menu. The row menu offers land on a task with a branch and remove on any row except a project's main |
 | `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
 | `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
 | `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
-| `task.setEngine`, `task.moveToProject`, `task.get` | Pending in #1818: row-menu actions to change engine, move to another project, and copy id, branch or worktree path. These actions are not yet available in the Android row menu |
-| `prefs.get`, `prefs.set` | Pending in #1819: release channel and update-notice preferences in Settings → About, stored on the Mac. Android currently has neither control |
-| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss. The header currently offers next-pending only. Ack all is pending in #1816 |
+| `task.setEngine`, `task.moveToProject`, `task.get` | Long-press a task row: change engine (local rows), move to another of this Mac's projects (local, top-level, single-repo rows; the checkout stays), and copy the id, branch or worktree path. The path comes from `task.get` |
+| `prefs.get`, `prefs.set` | Settings → About: release channel (`latest`, `next`, `nightly`) and update notice on or off, stored on the Mac as `updateChannel` and `updateNotify`. A failed save reverts the choice. A bridge without `prefs.get` hides both controls |
+| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss. The header offers next-pending; the attention section's ack all dismisses every row except decisions, stopping at the first failure, then refreshes |
 | `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
 | `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
-| `update.check` | Settings → About: check for updates through the Mac without a channel argument. The app names `rove update` and opens the release; it never installs. Channel selection is pending in #1819 |
+| `update.check` | Settings → About: check for updates through the Mac, sending the selected channel when `prefs.get` loaded one; otherwise the Mac checks its own channel. The app names `rove update` and opens the release; it never installs |
 | `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
 | `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
