@@ -255,7 +255,7 @@ export function taskRows(
         ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
         ...(task.scheduledStart ? { startsAt: task.scheduledStart.at } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
-        ...(task.worktreePath ? {} : { noWorktree: true as const }),
+        ...(task.worktreePath ? { workspace: task.worktreePath } : { noWorktree: true as const }),
       },
     ]
   })
