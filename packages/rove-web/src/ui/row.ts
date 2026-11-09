@@ -14,8 +14,8 @@ const SIZE: Readonly<Record<RowSize, string>> = {
   pane: "min-h-5.5 touch:min-h-10",
 }
 
-/** A row or header under the pointer in a drag: a raised card above the rows sliding under it. */
-export const LIFTED = "z-10 bg-surface shadow-popover ring-1 ring-line cursor-grabbing"
+/** A row or header under the pointer in a drag. Drawn inside its own box (inset edge, no shadow or outline), so it never covers the rows sliding past it. */
+export const LIFTED = "bg-hover [box-shadow:inset_0_0_0_1px_var(--line-active)] cursor-grabbing"
 
 export function rowClass(o: {
   readonly selected?: boolean
