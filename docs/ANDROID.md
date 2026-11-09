@@ -84,7 +84,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
 | `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
-| `tab.send`, `queue.list`, `queue.cancel` | Composer on an engine tab sends with `queue: true`, so a busy tab holds the message; held messages show as chips with a cancel. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
+| `tab.send` | Composer on an engine tab sends without `queue: true`. The engine handles input during a turn; Rove holds no messages and shows no cancelable queue chips. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
 
 The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 
