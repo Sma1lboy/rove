@@ -55,7 +55,7 @@ export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_
 
 /** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode washes it; a drag brightens and pops its name. */
 export const projectHead = (o: { moving: boolean; dragging: boolean; grab: boolean }): string =>
-  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums not-first:mt-4.5 ${o.dragging ? "origin-left scale-[1.03] cursor-grabbing text-ink motion-reduce:scale-none" : "text-subtle"} ${o.grab && !o.dragging ? `relative cursor-grab before:-left-[7px] [&>button:first-child]:cursor-grab ${GRIP}` : ""} ${o.moving ? "bg-accent-soft after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
+  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums not-first:mt-4.5 ${o.dragging ? "origin-left scale-[1.03] cursor-grabbing text-ink motion-reduce:scale-none" : "text-subtle"} ${o.grab && !o.dragging ? `relative cursor-grab before:-left-1.5 [&>button:first-child]:cursor-grab ${GRIP}` : ""} ${o.moving ? "bg-accent-soft after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
 export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`

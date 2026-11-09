@@ -16,9 +16,9 @@ const SIZE: Readonly<Record<RowSize, string>> = {
 
 /** A task row under the pointer in a drag: a fill and a slight pop, nothing drawn outside it, so the rows sliding past stay visible. */
 export const LIFTED = "bg-hover cursor-grabbing scale-[1.02] motion-reduce:scale-none"
-/** Six dots in a row's left gutter, shown on hover: what says this row can be dragged. No hover on a touch screen. */
+/** A thin bar at a row's left edge, shown on hover: what says this row can be dragged. The caller places it, 4px clear of the text. No hover on a touch screen. */
 export const GRIP =
-  "before:absolute before:top-1/2 before:h-3 before:w-1.5 before:-translate-y-1/2 before:opacity-0 before:content-[''] before:[background:radial-gradient(circle,var(--subtle)_0.8px,transparent_1.1px)_0_0/3px_4px] hover:before:opacity-100 touch:before:hidden"
+  "before:absolute before:top-1/2 before:h-3 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-subtle before:opacity-0 before:transition-opacity before:duration-150 before:content-[''] hover:before:opacity-70 touch:before:hidden"
 
 export function rowClass(o: {
   readonly selected?: boolean
@@ -41,7 +41,7 @@ export function rowClass(o: {
         ? "bg-menu"
         : "hover:bg-hover data-menu-open:bg-hover"
   const press = o.lifted ? "" : "active:scale-97 motion-reduce:active:scale-none"
-  const grab = o.grab && !o.lifted ? `cursor-grab before:left-px ${GRIP}` : ""
+  const grab = o.grab && !o.lifted ? `cursor-grab before:left-0.5 ${GRIP}` : ""
   return `relative flex w-full rounded-sm text-left ${press} ${grab} ${layout} ${SIZE[o.size ?? "row"]} ${bg}`
 }
 
