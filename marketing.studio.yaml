@@ -1,4 +1,4 @@
-# brand-studio metadata for the rove repo (skill: .claude/skills/brand-studio).
+# brand-studio metadata for the rove repo (skill: .agents/skills/brand-studio submodule).
 # Directory contract: production is scratch under .studio/ (gitignored);
 # user-accepted assets settle into public/assets/ and are recorded in
 # public/assets/accepted.yaml. Brand tokens live in packages/branding/src/colors.ts.

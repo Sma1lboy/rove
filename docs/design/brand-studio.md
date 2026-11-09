@@ -17,8 +17,9 @@ brand-video 的产出**按 project 分目录**——每支片子/每类适配一
 仓库分发:brand-studio 本体是独立 GitHub 仓库,以 submodule 挂在 `.agents/skills/brand-studio`;
 **brand-video 就住在 brand-studio 仓库里**(`skills/brand-studio/producers/brand-video/`,纯
 instruction-grade,Remotion 工具链在宿主 `.studio/out/<name>/` 按项目物化,不违反 studio 的
-no-heavy-toolchain 红线),rove 侧 `.claude/skills/brand-video` 只是指进 submodule 的 symlink——
-**不变量是 `git clone --recursive` 一次拉全**。
+no-heavy-toolchain 红线)——**不变量是 `git clone --recursive` 一次拉全**。视频/品牌类 skill
+不进 rove 的 `.claude/skills/`(它们会进每个 rove 开发会话的启动上下文),做片子的人装到用户级
+`~/.claude/skills/`。
 
 ## 架构:谁管谁
 
@@ -38,7 +39,7 @@ flowchart TB
     gi["gpt-image(image)"]
   end
 
-  subgraph modules["brand-video 的模块与领域知识(vendor 在 .claude/skills/)"]
+  subgraph modules["brand-video 的模块与领域知识(用户级 skill)"]
     rc["references/replay-capture.md<br/>(原 remotion-ref-replay:捕获管线 + 相机权重算法)"]
     rbp["remotion-best-practices<br/>(含 voiceover/TTS 规则)"]
     hf["hyperframes ×3 · motion-graphics 等"]
