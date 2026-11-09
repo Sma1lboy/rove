@@ -42,15 +42,28 @@ struct TerminalPane: View {
                 if !session.exited && session.status == TerminalSession.attachingStatus {
                     BrailleSpinner(size: 12)
                 }
-                Text(session.status.lowercased())
+                Text(session.reviveError.map { String(localized: "could not reopen this session: \($0)") } ?? session.status.lowercased())
                     .font(Theme.mono(12))
-                    .foregroundStyle(session.exited ? Theme.muted : Theme.ink)
+                    .foregroundStyle(session.reviveError != nil ? Theme.error : session.exited ? Theme.muted : Theme.ink)
                     .lineLimit(2)
+                    .accessibilityIdentifier("terminalStatus")
+                if session.exited {
+                    Spacer(minLength: 8)
+                    Button { Task { await session.revive() } } label: {
+                        Text(session.reviving ? String(localized: "reopening…") : String(localized: "reopen session"))
+                            .font(Theme.mono(12, .semibold)).foregroundStyle(Theme.accent).frame(minHeight: 44)
+                    }
+                    .buttonStyle(.pressable)
+                    .disabled(session.reviving)
+                    .padding(.vertical, -10)
+                    .accessibilityIdentifier("reviveTab")
+                }
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
+            // Clear of the terminal tools' `…` in the corner.
+            .padding(.trailing, session.exited ? 44 : 0)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.inset)
-            .accessibilityIdentifier("terminalStatus")
             .transition(.opacity)
         }
     }

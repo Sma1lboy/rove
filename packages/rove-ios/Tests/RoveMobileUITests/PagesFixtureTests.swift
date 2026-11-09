@@ -204,6 +204,24 @@ final class PagesFixtureTests: XCTestCase {
     }
 
     /// A word finds what was said in any task; a hit opens that task; a miss says so.
+    func testAnExitedTabReopens() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").tap()
+        waitFor(element("tab-tab-3"), "dead tab").tap()
+        let reopen = waitFor(element("reviveTab"), "reopen")
+        Thread.sleep(forTimeInterval: 0.6)
+        checkpoint("fx-revive-tab")
+        log.clear()
+        reopen.tap()
+        let deadline = Date().addingTimeInterval(5)
+        func saw(_ op: String) -> Bool { log.entries().contains { $0.op == op && $0.args["tabId"] as? String == "tab-3" } }
+        while !saw("term.attach"), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(saw("term.revive"))
+        XCTAssertTrue(saw("term.attach"), "reopening attaches to the new session")
+    }
+
     func testSearchFindsAConversationAndOpensIt() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))

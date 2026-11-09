@@ -868,6 +868,16 @@
         }
       }
     },
+    "could not reopen this session: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法重新打开这个会话：%@"
+          }
+        }
+      }
+    },
     "Could not send the answer." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2034,6 +2044,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 Mac 和本应用中将 %1$@ 重命名为“%2$@”。启动命令保留。"
+          }
+        }
+      }
+    },
+    "reopening…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新打开…"
           }
         }
       }

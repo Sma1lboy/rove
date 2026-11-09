@@ -399,7 +399,8 @@
           "engineName": "Claude",
           "alive": true,
           "engineAlive": true
-        }
+        },
+        { "id": "tab-3", "kind": "shell", "title": "dev server", "alive": false }
       ]
     },
     "*": {
@@ -854,6 +855,7 @@
         "$b64": "\u001b[38;5;173m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[38;5;173m✻\u001b[0m \u001b[1mWelcome to Claude Code\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m                                        \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2m/help for help\u001b[0m                         \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2mcwd: ~/work/payments-api\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m>\u001b[0m Explain idempotency keys in docs/api.md\r\n\r\n\u001b[38;5;173m●\u001b[0m I'll read the current API docs first.\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mRead\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Read 212 lines\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mUpdate\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Updated docs/api.md with \u001b[0m\u001b[32m10 additions\u001b[0m\r\n     \u001b[2m88\u001b[0m  \u001b[32m+## Idempotency keys\u001b[0m\r\n     \u001b[2m89\u001b[0m  \u001b[32m+\u001b[0m\r\n     \u001b[2m90\u001b[0m \u001b[32m+Send an `Idempotency-Key` header\u001b[0m\r\n     \u001b[2m91\u001b[0m \u001b[32m+on every `POST`.\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m Added an \"Idempotency keys\" section before\r\n  Errors: what the header is, how long we\r\n  keep the response, and what a mismatched\r\n  reuse returns. Examples use a UUID per\r\n  operation.\r\n\r\n\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>\u001b[0m \u001b[2mTry \"write a test for list.ts\"\u001b[0m       \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n  \u001b[2m? for shortcuts\u001b[0m\r\n"
       }
     },
+    "T-IDLE:tab-3": { "stream": "demo-T-IDLE-tab-3", "alive": false, "replay": { "$b64": "$ bun run dev\r\nserver stopped\r\n" } },
     "T-IDLE:tab-1": {
       "stream": "demo-T-IDLE-tab-1",
       "alive": true,
