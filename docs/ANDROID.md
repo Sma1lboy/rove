@@ -73,16 +73,16 @@ Push: `{"event":"tasks","data":{...}}`.
 | `tasks` push, `tabStatus` | A tab the daemon reads as `needs-input` puts 1-4 first in the key row, sent as keys rather than pasted |
 | `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
-| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove also sit on the row menu, with task detail's two-step dialogs |
+| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use task detail's two-step dialogs. Row-menu entries are pending in #1818 |
 | `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
 | `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
 | `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
-| `task.setEngine`, `task.moveToProject`, `task.get` | Long-press a task row: change engine (next session), move to another project on this Mac, copy id, branch or worktree path |
-| `prefs.get`, `prefs.set` | Settings → About: release channel and update notice, stored on the Mac. A bridge without the op leaves the rows out |
-| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open, dismiss or ack all. Ack all also clears every other row `attention.dismiss` can clear; decisions stay |
+| `task.setEngine`, `task.moveToProject`, `task.get` | Pending in #1818: row-menu actions to change engine, move to another project, and copy id, branch or worktree path. These actions are not yet available in the Android row menu |
+| `prefs.get`, `prefs.set` | Pending in #1819: release channel and update-notice preferences in Settings → About, stored on the Mac. Android currently has neither control |
+| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss. The header currently offers next-pending only. Ack all is pending in #1816 |
 | `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
 | `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
-| `update.check` | Settings → About: check for updates through the Mac, on the picked channel. The app names `rove update` and opens the release; it never installs |
+| `update.check` | Settings → About: check for updates through the Mac without a channel argument. The app names `rove update` and opens the release; it never installs. Channel selection is pending in #1819 |
 | `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
 | `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
 | `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
