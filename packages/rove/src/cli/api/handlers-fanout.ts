@@ -4,7 +4,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { submitFeedback } from "../../lib/feedback.ts"
+import { DEFAULT_FEEDBACK_KIND, FEEDBACK_KINDS, isFeedbackKind, submitFeedback } from "../../lib/feedback.ts"
 import { taskRepos } from "../../orchestrator/task-tree.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
 import { daemonOf, repoFilter } from "./handler-helpers.ts"
@@ -112,10 +112,8 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
 }
 
 export async function feedback(ctx: VerbContext): Promise<unknown> {
-  const result = submitFeedback({
-    title: ctx.args.require("title"),
-    body: ctx.args.require("body"),
-    categorySlug: ctx.args.str("category"),
-  })
-  return { ok: true, discussion: result }
+  const kind = ctx.args.str("kind") ?? DEFAULT_FEEDBACK_KIND
+  if (!isFeedbackKind(kind)) throw new ApiError(`--kind must be one of ${FEEDBACK_KINDS.join(", ")}`, "BAD_FLAG")
+  const result = submitFeedback({ title: ctx.args.require("title"), body: ctx.args.require("body"), kind })
+  return { ok: true, ...result }
 }

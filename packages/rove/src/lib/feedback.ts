@@ -1,94 +1,66 @@
 import { spawnSync } from "node:child_process"
-import { CURRENT_VERSION, repoSlug } from "../version.ts"
+import { arch, platform, release } from "node:os"
+import { getGlobalDefaultVendor } from "../state/vendor-prefs.ts"
+import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
+import { CURRENT_VERSION, owningNpmPrefix, repoSlug } from "../version.ts"
 
-export const DEFAULT_FEEDBACK_CATEGORY_SLUG = "feedback"
+/** What the reporter is filing; each maps to one repo label. */
+export const FEEDBACK_KINDS = ["bug", "idea", "question"] as const
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
+export const DEFAULT_FEEDBACK_KIND: FeedbackKind = "bug"
+
+const KIND_LABEL: Record<FeedbackKind, string> = { bug: "bug", idea: "enhancement", question: "question" }
+
+/** GitHub rejects very long prefilled-issue URLs; the body is cut to stay well under that. */
+const MAX_PREFILL_BODY = 4000
 
 type SpawnSync = typeof spawnSync
 
 type FeedbackDeps = {
   spawn: SpawnSync
   repoSlug: () => string | null
+  /** The environment block appended to the body. */
+  env: () => string
 }
 
 export type SubmitFeedbackInput = {
   title: string
   body: string
-  categorySlug?: string
+  kind?: FeedbackKind
 }
 
-export type SubmitFeedbackResult = {
-  number: number
-  url: string
+export type SubmitFeedbackResult =
+  | { filed: true; url: string; number: number }
+  /** `url` is a prefilled new-issue page to open in a browser; `hint` says why `gh` could not file it. */
+  | { filed: false; url: string; hint: string }
+
+export function isFeedbackKind(value: string): value is FeedbackKind {
+  return (FEEDBACK_KINDS as readonly string[]).includes(value)
 }
 
-type GraphqlError = {
-  message?: unknown
+function installKind(): string {
+  if (import.meta.url.includes("/$bunfs/") || import.meta.url.includes("B:\\~BUN")) return "compiled binary"
+  return owningNpmPrefix() ? "npm global" : "source or bun"
 }
 
-type GraphqlEnvelope<T> = {
-  data?: T
-  errors?: GraphqlError[]
-}
-
-type DiscussionCategory = {
-  id: string
-  name: string
-  slug: string
-}
-
-type RepositoryCategoriesData = {
-  repository?: {
-    id?: string
-    discussionCategories?: {
-      nodes?: DiscussionCategory[]
-    }
+function defaultEngineId(): string {
+  try {
+    return getGlobalDefaultVendor() ?? DEFAULT_TASK_VENDOR
+  } catch {
+    return DEFAULT_TASK_VENDOR
   }
 }
 
-type CreateDiscussionData = {
-  createDiscussion?: {
-    discussion?: {
-      number?: number
-      url?: string
-    }
-  }
-}
-
-const DISCUSSION_CATEGORY_QUERY = `
-query($owner: String!, $name: String!) {
-  repository(owner: $owner, name: $name) {
-    id
-    discussionCategories(first: 50) {
-      nodes {
-        id
-        name
-        slug
-      }
-    }
-  }
-}
-`
-
-const CREATE_DISCUSSION_MUTATION = `
-mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-  createDiscussion(input: {
-    repositoryId: $repositoryId,
-    categoryId: $categoryId,
-    title: $title,
-    body: $body
-  }) {
-    discussion {
-      number
-      url
-    }
-  }
-}
-`
-
-function parseRepoSlug(slug: string): { owner: string; name: string } {
-  const [owner, name] = slug.split("/")
-  if (!owner || !name) throw new Error(`invalid GitHub repository slug: ${slug}`)
-  return { owner, name }
+/** The footer every report carries, so the team can reproduce without a follow-up question. */
+export function environmentBlock(): string {
+  return [
+    "---",
+    "Reported from Rove:",
+    `- rove: ${CURRENT_VERSION}`,
+    `- os: ${platform()} ${release()} (${arch()})`,
+    `- install: ${installKind()}`,
+    `- default engine: ${defaultEngineId()}`,
+  ].join("\n")
 }
 
 function normalizeText(value: string, label: string): string {
@@ -97,71 +69,44 @@ function normalizeText(value: string, label: string): string {
   return trimmed
 }
 
-function graphqlErrorMessage(stderr: string, errors: GraphqlError[] | undefined): string {
-  const messages = errors
-    ?.map((err) => (typeof err.message === "string" ? err.message : null))
-    .filter((msg): msg is string => !!msg)
-  if (messages && messages.length > 0) return messages.join("; ")
-  return stderr.trim() || "GitHub CLI returned an empty response"
+/** The exact `gh` argv; the body goes over stdin (`--body-file -`) so size and quoting never matter. */
+export function issueCreateArgv(slug: string, title: string, kind: FeedbackKind): string[] {
+  return ["issue", "create", "-R", slug, "--title", title, "--label", KIND_LABEL[kind], "--body-file", "-"]
 }
 
-function runGhGraphql<T>(query: string, variables: Record<string, string>, deps: Pick<FeedbackDeps, "spawn">): T {
-  const args = ["api", "graphql", "-f", `query=${query}`]
-  for (const [key, value] of Object.entries(variables)) args.push("-f", `${key}=${value}`)
-
-  const result = deps.spawn("gh", args, { encoding: "utf8" })
-  if (result.error) throw new Error(`failed to run gh: ${result.error.message}`)
-
-  const stdout = typeof result.stdout === "string" ? result.stdout : String(result.stdout ?? "")
-  const stderr = typeof result.stderr === "string" ? result.stderr : String(result.stderr ?? "")
-  let parsed: GraphqlEnvelope<T>
-  try {
-    parsed = JSON.parse(stdout) as GraphqlEnvelope<T>
-  } catch {
-    throw new Error(`failed to parse gh response: ${graphqlErrorMessage(stderr, undefined)}`)
-  }
-
-  if ((result.status ?? 0) !== 0 || parsed.errors?.length) {
-    throw new Error(graphqlErrorMessage(stderr, parsed.errors))
-  }
-  if (!parsed.data) throw new Error("GitHub CLI response did not include data")
-  return parsed.data
+export function newIssueUrl(slug: string, title: string, body: string, kind: FeedbackKind): string {
+  const prefilled = body.length > MAX_PREFILL_BODY ? `${body.slice(0, MAX_PREFILL_BODY)}\n\n[truncated]` : body
+  const query = new URLSearchParams({ title, body: prefilled, labels: KIND_LABEL[kind] })
+  return `https://github.com/${slug}/issues/new?${query.toString()}`
 }
 
-function discussionBody(body: string): string {
-  return `${body}\n\n---\nSubmitted from Rove ${CURRENT_VERSION}.`
-}
+const ISSUE_URL = /https:\/\/\S+\/issues\/(\d+)/
 
+/**
+ * File a GitHub issue through the user's `gh`. Any `gh` failure (not installed, not signed in, no
+ * access, offline) returns the prefilled new-issue link instead of throwing: the report is never lost.
+ */
 export function submitFeedback(input: SubmitFeedbackInput, deps: Partial<FeedbackDeps> = {}): SubmitFeedbackResult {
   const title = normalizeText(input.title, "feedback title")
-  const body = discussionBody(normalizeText(input.body, "feedback body"))
+  const kind = input.kind ?? DEFAULT_FEEDBACK_KIND
+  const body = `${normalizeText(input.body, "feedback body")}\n\n${(deps.env ?? environmentBlock)()}`
   const slug = (deps.repoSlug ?? repoSlug)()
   if (!slug) throw new Error("package repository is not a GitHub repository")
 
-  const { owner, name } = parseRepoSlug(slug)
-  const categorySlug = input.categorySlug?.trim() || DEFAULT_FEEDBACK_CATEGORY_SLUG
-  const io = { spawn: deps.spawn ?? spawnSync }
+  const fallback = (why: string): SubmitFeedbackResult => ({
+    filed: false,
+    url: newIssueUrl(slug, title, body, kind),
+    hint: `${why} Run \`gh auth login\` to file from here, or open the link to file it in your browser.`,
+  })
 
-  const categoryData = runGhGraphql<RepositoryCategoriesData>(DISCUSSION_CATEGORY_QUERY, { owner, name }, io)
-  const repository = categoryData.repository
-  const repositoryId = repository?.id
-  if (!repositoryId) throw new Error(`GitHub repository not found: ${slug}`)
-  const category = repository.discussionCategories?.nodes?.find((node) => node.slug === categorySlug)
-  if (!category) throw new Error(`GitHub Discussion category not found: ${categorySlug}`)
-
-  const createData = runGhGraphql<CreateDiscussionData>(
-    CREATE_DISCUSSION_MUTATION,
-    {
-      repositoryId,
-      categoryId: category.id,
-      title,
-      body,
-    },
-    io,
-  )
-  const discussion = createData.createDiscussion?.discussion
-  if (!discussion?.url || typeof discussion.number !== "number") {
-    throw new Error("GitHub did not return the created Discussion")
+  const result = (deps.spawn ?? spawnSync)("gh", issueCreateArgv(slug, title, kind), { encoding: "utf8", input: body })
+  if (result.error) return fallback(`Could not run gh (${result.error.message}).`)
+  const stdout = String(result.stdout ?? "")
+  if ((result.status ?? 0) !== 0) {
+    const detail = String(result.stderr ?? "").trim()
+    return fallback(`gh could not create the issue${detail ? ` (${detail})` : ""}.`)
   }
-  return { number: discussion.number, url: discussion.url }
+  const match = stdout.match(ISSUE_URL)
+  if (!match?.[1]) return fallback("gh did not print the new issue's URL.")
+  return { filed: true, url: match[0], number: Number(match[1]) }
 }

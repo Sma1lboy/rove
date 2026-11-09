@@ -84,7 +84,7 @@ describe("SettingsDialog", () => {
     expect(text).toContain("diff.review.cursor")
     expect(text).toContain("review.send") // the line wraps mid-id at this width
     text = await press("j") // → Feedback
-    expect(text).toContain("GitHub Discussion")
+    expect(text).toContain("GitHub issue")
     text = await press("j") // → Dev
     expect(text).toContain("Reset UI state")
   })

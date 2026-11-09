@@ -2122,8 +2122,13 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## feedback
 
-- `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
-  GitHub Discussion in the Rove repository's Feedback category via `gh`.
+- `feedback --title T --body TEXT [--kind bug|idea|question]` *(offline)*:
+  file a GitHub issue on the Rove repository via `gh issue create`, labelled
+  `bug`, `enhancement` or `question` (default `bug`), with an environment block
+  (version, OS, install kind, default engine) appended to the body. Returns
+  `{ ok, filed: true, url, number }`. When `gh` is missing or signed out it
+  returns `{ ok, filed: false, url, hint }`, where `url` is a prefilled
+  new-issue link to open and `hint` says to run `gh auth login`.
 
 ## github
 
