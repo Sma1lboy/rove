@@ -118,6 +118,15 @@ final class TaskActionHost {
         } catch { fail(error) }
     }
 
+    /// Hands the PR's failing check logs to the task's engine.
+    func fixChecks(_ taskId: String) async {
+        guard let model else { return }
+        do {
+            let line = TaskActionLogic.fixChecksLine(try await model.client.request("task.fixChecks", ["taskId": taskId], as: FixChecksResult.self))
+            show(line.text, isError: line.isError)
+        } catch { fail(error) }
+    }
+
     /// Merges the task's base into its worktree.
     func syncBase(_ taskId: String) async {
         guard let model else { return }
@@ -209,7 +218,8 @@ struct TaskActionItems: View {
     var body: some View {
         let row = host.model?.store.task(id: taskId)
         let plan = TaskActionLogic.menu(kind: row?.kind ?? "task", pinned: row?.pinned ?? false,
-                                        branch: row?.branch ?? "", detail: host.details[taskId])
+                                        branch: row?.branch ?? "", checksFailing: row?.pr?.checkState.lowercased() == "failing",
+                                        detail: host.details[taskId])
         Group {
             Button { host.request = .info(taskId: taskId) } label: { Label("Info", systemImage: "info.circle") }
                 .accessibilityIdentifier("actionInfo")
@@ -218,6 +228,12 @@ struct TaskActionItems: View {
             if plan.branch {
                 Button { host.request = .branch(taskId: taskId) } label: { Label("Branch…", systemImage: "arrow.triangle.branch") }
                     .accessibilityIdentifier("actionBranch")
+            }
+            if plan.fixChecks {
+                Button { Task { await host.fixChecks(taskId) } } label: {
+                    Label("Fix failing checks", systemImage: "wrench.and.screwdriver")
+                }
+                .accessibilityIdentifier("actionFixChecks")
             }
             Divider()
             Button { host.request = .engine(taskId: taskId) } label: { Label("Change engine…", systemImage: "cpu") }

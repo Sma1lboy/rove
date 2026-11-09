@@ -628,6 +628,16 @@
         }
       }
     },
+    "asked the agent to fix the failing checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请 agent 修复失败的检查"
+          }
+        }
+      }
+    },
     "Attach" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1108,6 +1118,16 @@
         }
       }
     },
+    "Fix failing checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修复失败的检查"
+          }
+        }
+      }
+    },
     "Force remove — discard changes" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1178,6 +1198,16 @@
         }
       }
     },
+    "gh could not read this PR's checks: %@. Run `gh auth status`, then retry." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gh 读不到这个 PR 的检查状态：%@。请运行 `gh auth status`，然后重试。"
+          }
+        }
+      }
+    },
     "Info" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1228,6 +1258,16 @@
         }
       }
     },
+    "Land failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合入失败：%@"
+          }
+        }
+      }
+    },
     "Land this branch" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1264,16 +1304,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已合入 %@（%@）"
-          }
-        }
-      }
-    },
-    "Lands %@ into the main branch, then removes its worktree." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "把 %@ 合入主分支，然后移除其 worktree。"
           }
         }
       }
@@ -1334,6 +1364,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "合并"
+          }
+        }
+      }
+    },
+    "Merge \"%@\" into %@ (%@ commits), then remove this worktree? The branch is kept. Conflicts abort with a file list." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 \"%1$@\" 合入 %2$@（%3$@ 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。"
+          }
+        }
+      }
+    },
+    "Merge \"%@\" into %@ (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 \"%1$@\" 合入 %2$@（1 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。"
           }
         }
       }
@@ -1504,6 +1554,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下一个待处理项"
+          }
+        }
+      }
+    },
+    "No failing check logs to read — the run may have expired, or the checks are no longer red" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的"
           }
         }
       }
@@ -2384,6 +2444,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这不是有效的配对 URL。"
+          }
+        }
+      }
+    },
+    "The base checkout has uncommitted changes — commit them, then land. Never `git stash` here: the stash stack lives in the repo's common dir and is shared by every linked worktree, so a stash can entangle other tasks' work." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础检出有未提交改动——请先提交再合入。绝不要在这里 `git stash`：stash 栈存放在仓库的 common dir 中，该仓库所有 linked worktree 共享，一次 stash 可能纠缠其他任务的工作。"
           }
         }
       }

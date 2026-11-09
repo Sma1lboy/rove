@@ -150,6 +150,9 @@ struct AdoptResult: Codable { var taskId: String }
 struct CloneResult: Codable { var path: String }
 struct WorktreePathResult: Codable { var worktreePath: String }
 struct SyncBaseResult: Codable { var baseRef: String; var alreadyCurrent: Bool }
+struct FixChecksResult: Codable { var outcome: String; var detail: String? }
+/// `task.landPreflight`: where the branch would land and how far ahead it is, or why it can't.
+struct LandPreflight: Codable { var landedOn: String; var ahead: Int?; var refusal: String?; var message: String? }
 struct RemoveWorktreeResult: Codable {
     var removed: Bool
     var worktreePath: String?
