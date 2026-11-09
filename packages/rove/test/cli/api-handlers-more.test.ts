@@ -54,6 +54,7 @@ function stubRuntime(): ApiRuntime {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (p) => p,
+    inspectRepo: async (p) => ({ root: p, usable: true }),
     isUsableRepo: async () => true,
     isValidBranchName: async () => true,
     defaultVendor: async () => undefined,

@@ -86,6 +86,7 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
     },
     resolveRepoRoot: async (path) => path,
     isUsableRepo: async () => true,
+    inspectRepo: async (path) => ({ root: path, usable: true }),
     isValidBranchName: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),

@@ -19,6 +19,7 @@ import {
   addSavedRepo,
   getRemoteRepos,
   getSavedRepos,
+  inspectRepo,
   normalizeSavedRepos,
   remoteRepoKey,
   resolveMainRepoRoot,
@@ -95,6 +96,24 @@ describe("resolveMainRepoRoot", () => {
     const plain = tempDir("rove-main-plain-")
     expect(resolveMainRepoRoot(plain)).toBe(plain)
     expect(resolveMainRepoRoot("ssh://jc@box")).toBe("ssh://jc@box")
+  })
+})
+
+describe("inspectRepo", () => {
+  test("answers a linked worktree's primary checkout and that it is usable, in one call", async () => {
+    const repo = tempDir("rove-inspect-repo-")
+    initRepo(repo)
+    const wt = path.join(tempDir("rove-inspect-wt-"), "wt1")
+    const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" }
+    expect(spawnSync("git", ["worktree", "add", wt, "-b", "feature-y"], { cwd: repo, env }).status).toBe(0)
+    const seen = await inspectRepo(wt)
+    expect(seen.usable).toBe(true)
+    expect(fs.realpathSync(seen.root)).toBe(fs.realpathSync(repo))
+  })
+
+  test("reports a directory outside git as unusable and keeps its path", async () => {
+    const plain = tempDir("rove-inspect-plain-")
+    expect(await inspectRepo(plain)).toEqual({ root: plain, usable: false })
   })
 })
 
