@@ -30,6 +30,8 @@ export interface WebLoginOptions {
   readonly now?: () => number
   /** Wait added to every failed attempt; tests pass 0. */
   readonly failureDelayMs?: () => number
+  /** A device's token was just revoked: end the sockets it still holds. */
+  readonly onRevoked?: (device: string) => void
 }
 
 export interface WebLogin {
@@ -160,6 +162,7 @@ export function createWebLogin(opts: WebLoginOptions): WebLogin {
     const device = deviceOf(opts.devicesPath, presentedToken(req))
     if (device && revokeDevice(opts.devicesPath, device)) {
       opts.log(`[rove-bridge] ${stamp()} device ${device} signed out from ${clientIp(req, peer)}`)
+      opts.onRevoked?.(device)
     }
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } })
   }

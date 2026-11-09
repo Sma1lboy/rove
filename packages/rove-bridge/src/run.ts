@@ -41,6 +41,7 @@ import {
 } from "./auth.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
+import { CredentialSockets } from "./credential-sockets.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
 import { NoticeFeed } from "./notices.ts"
@@ -340,9 +341,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
         log: (line) => console.error(line),
       })
     : null
+  const sockets = new CredentialSockets()
   const deps: BridgeDeps = {
     // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
     token: sharedToken,
+    sockets,
     ops,
     feed,
     notices,
@@ -386,6 +389,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
             publicHost: args.publicHost,
             trustForwardedIp: args.preset === "cf" || (args.preset === "none" && args.publicHost !== null),
             log: (line) => console.error(line),
+            // The servers start below; the registry is shared and already live.
+            onRevoked: (device) => {
+              const closed = sockets.closeCredential(device)
+              if (closed > 0) console.error(`[rove-bridge] closed ${closed} socket(s) of signed-out device ${device}`)
+            },
           }),
         }
       : {}),

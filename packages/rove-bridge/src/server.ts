@@ -13,6 +13,7 @@ import type { Server, ServerWebSocket } from "bun"
 import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
 import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
+import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
@@ -52,6 +53,8 @@ export interface BridgeDeps {
   readonly token: string
   /** A per-device token's owner (`auth.ts` devices), or null; absent = only the shared token works. */
   readonly deviceOf?: (presented: string | null) => string | null
+  /** Live sockets per credential, so a sign-out ends the connection it holds. */
+  readonly sockets?: CredentialSockets
   readonly ops: RoveOps
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
@@ -392,6 +395,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
     port: listen.port,
+    // The only HTTP bodies are the routine webhook (1 MiB cap) and password
+    // login (4 KiB): reject anything larger before it is buffered, so a
+    // chunked POST cannot grow the bridge's RSS past the caps it checks later.
+    maxRequestBodySize: 2 * 1024 * 1024,
     async fetch(req, server) {
       const log = deps.log ?? ((line: string) => console.error(line))
       // Behind cloudflared every peer is 127.0.0.1; Cloudflare names the real client.
@@ -454,6 +461,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
     },
     websocket: {
       open(ws) {
+        deps.sockets?.add(ws)
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
         ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
         ws.data.unsubscribePanels = deps.panels?.subscribe((p) => ws.send(pushEvent("panel", p))) ?? null
@@ -475,6 +483,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         void onMessage(deps, ws, typeof message === "string" ? message : message.toString("utf8"))
       },
       close(ws) {
+        deps.sockets?.remove(ws)
         // What this screen showed is no longer looked at.
         deps.rowStatus?.setViewing(ws.data.viewer, null, null)
         deps.push?.setVisible(ws.data.viewer, false)
