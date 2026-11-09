@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
+import type { TermHandle } from "./term-contract.ts"
 import { MENU_KEYS, TERM_KEYS, type TermKey } from "./term-keys.ts"
-import type { TermHandle } from "./term-mount.ts"
 import { TERM_KEY_ROW, termKey } from "./ui/shell.ts"
 
 /** Keys whose cap is a symbol a screen reader can't say. */

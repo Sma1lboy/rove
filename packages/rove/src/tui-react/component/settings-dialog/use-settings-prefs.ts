@@ -6,6 +6,7 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
+import { RELEASE_CHANNELS, type ReleaseChannel } from "../../../release-channels.ts"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
@@ -70,7 +71,7 @@ import {
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
 } from "../../../tui/lib/prefix-tap-presentation"
-import { RELEASE_CHANNELS, type ReleaseChannel, channelOf } from "../../../version"
+import { channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {

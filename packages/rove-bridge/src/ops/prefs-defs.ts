@@ -9,6 +9,7 @@
  * commands, classifier endpoints and secrets.
  */
 
+import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { AUTO_STATUS_KEY } from "@sma1lboy/rove/src/state/auto-status.ts"
 import { COLORBLIND_KEY, DEFAULT_COLORBLIND, normalizeColorblind } from "@sma1lboy/rove/src/state/colorblind.ts"
 import { DISPATCHER_KEY } from "@sma1lboy/rove/src/state/dispatcher.ts"
@@ -82,7 +83,7 @@ import {
   PREFIX_TAP_PRESENTATION_KEY,
   normalizePrefixTapPresentation,
 } from "@sma1lboy/rove/src/tui/lib/prefix-tap-presentation.ts"
-import { RELEASE_CHANNELS, channelOf } from "@sma1lboy/rove/src/version.ts"
+import { channelOf } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
 
 export type Scalar = string | number | boolean

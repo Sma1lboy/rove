@@ -14,6 +14,7 @@
 import { fileURLToPath } from "node:url"
 import pkg from "../package.json" with { type: "json" }
 import { isDev } from "./env.ts"
+import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel, channelFor } from "./release-channels.ts"
 
 /** Current build's version, read from package.json at compile time. */
 export const CURRENT_VERSION: string = pkg.version
@@ -89,23 +90,11 @@ const FETCH_TIMEOUT_MS = 3_000
 const PACKUMENT_TIMEOUT_MS = 15_000
 
 /**
- * npm dist-tag an install follows: `latest` is stable (cut by hand), `next` is
- * every push to `main` (`.github/workflows/next.yml`), `nightly` the daily cut
- * (`.github/workflows/nightly.yml`).
- */
-export type ReleaseChannel = "latest" | "next" | "nightly"
-
-export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["latest", "next", "nightly"]
-
-export const DEFAULT_RELEASE_CHANNEL: ReleaseChannel = "latest"
-
-/**
  * Channel derived from the RUNNING version (`-nightly.*` / `-next.*` tail), so
  * no stored preference can drift. Switching channels IS installing from the other.
  */
 export function channelOf(version: string = CURRENT_VERSION): ReleaseChannel {
-  const tag = prereleaseOf(version)?.split(".")[0]
-  return tag === "nightly" || tag === "next" ? tag : DEFAULT_RELEASE_CHANNEL
+  return channelFor(version)
 }
 
 export type UpdateInfo = {
