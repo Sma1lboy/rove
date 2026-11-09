@@ -198,6 +198,8 @@ export interface TaskRow {
   readonly baseRef?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
   readonly sharesWorkspaceOf?: string
+  /** The directory the task runs in, on its machine; tasks sharing one share its diff. */
+  readonly workspace?: string
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }

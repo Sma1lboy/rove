@@ -34,8 +34,8 @@ import { isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
 import { useNoteComposer } from "./note-composer.tsx"
 import { openDiff } from "./panel-state.ts"
-import { type Loaded, bridgeError, load } from "./preview-load.ts"
-import { lastReply, requestRemembered } from "./remembered.ts"
+import { type Loaded, bridgeError, diffCacheId, load } from "./preview-load.ts"
+import { lastReply, remember, requestRemembered } from "./remembered.ts"
 import { type Note, type NoteState, locate, noteState } from "./review-notes.ts"
 import { foldedByDefault, shapeLine } from "./review-shape.ts"
 import { ReviewTray } from "./review-tray.tsx"
@@ -71,16 +71,18 @@ export function PreviewView({
     ...(ws ? { ignoreWhitespace: true } : {}),
     ...(custom ? { base: custom } : {}),
   }
+  const cacheId = diffCacheId(model, view.taskId)
+  const cached = { ...params, taskId: cacheId }
   // The diff as last read shows at once; a refresh keeps the rows on screen until the reread lands.
   const [loaded, setLoaded] = useState<Loaded | null>(() => {
-    const last = lastReply<unknown>(model, "diff.file", params)
+    const last = lastReply<unknown>(model, "diff.file", cached)
     return last === undefined ? null : load(last, view.path, foreign)
   })
   const [notes, setNotes] = useState<readonly Note[]>(
     () => lastReply<{ notes: Note[] }>(model, "review.list", { taskId: view.taskId })?.notes ?? [],
   )
   const [changes, setChanges] = useState(() =>
-    lastReply<{ base: string | null; files: ChangedFile[] }>(model, "diff.files", { taskId: view.taskId }),
+    lastReply<{ base: string | null; files: ChangedFile[] }>(model, "diff.files", { taskId: cacheId }),
   )
   const [cursor, setCursor] = useState(0)
   const [anchor, setAnchor] = useState<number | null>(null)
@@ -96,8 +98,8 @@ export function PreviewView({
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
     let live = true
-    requestRemembered<unknown>(c, "diff.file", params).then(
-      (data) => live && setLoaded(load(data, view.path, foreign)),
+    c.request<unknown>("diff.file", params).then(
+      (data) => live && setLoaded(load(remember(c, "diff.file", cached, data), view.path, foreign)),
       (err) => {
         if (!live) return
         // A ref the repository refuses must not stay chosen: it would leave this view with nothing to pick from.
@@ -117,8 +119,8 @@ export function PreviewView({
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
     let live = true
-    requestRemembered<{ base: string | null; files: ChangedFile[] }>(c, "diff.files", { taskId: view.taskId }).then(
-      (r) => live && setChanges(r),
+    c.request<{ base: string | null; files: ChangedFile[] }>("diff.files", { taskId: view.taskId }).then(
+      (r) => live && setChanges(remember(c, "diff.files", { taskId: cacheId }, r)),
       () => {},
     )
     return () => {
@@ -420,7 +422,10 @@ export function PreviewView({
           onNextComment={placed.some(({ at }) => at) ? jumpComment : null}
         />
       )}
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto py-1.5 font-mono text-meta/normal" onMouseUp={selectDragged}>
+      <div
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto py-1.5 font-mono text-meta/normal"
+        onMouseUp={selectDragged}
+      >
         {!loaded && <p className={PLACEHOLDER_LINE}>{t("preview.loading")}</p>}
         {loaded?.kind === "text" && (
           <p className={`${PLACEHOLDER_LINE} ${loaded.error ? "text-error" : ""}`}>{loaded.text}</p>

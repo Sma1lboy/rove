@@ -1,6 +1,6 @@
 /**
  * `rove theme list | add <source> | remove <name>` — user color themes under
- * `~/.rove/themes/<name>.json`. `add` refuses to overwrite without `--force`;
+ * `~/.rove/themes/<name>.json`. `add` also converts a terminal color scheme file. `add` refuses to overwrite without `--force`;
  * `remove` refuses bundled (read-only) names.
  *
  * Late-imported from `cli/index.ts` so the TUI startup graph doesn't load.
@@ -13,7 +13,7 @@ import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { BUNDLED_THEME_JSONS } from "../tui/context/theme/bundled"
-import { ThemeInstallError, isThemeName, parseTheme, writeUserTheme } from "../tui/context/theme/install"
+import { ThemeInstallError, isThemeName, parseThemeSource, writeUserTheme } from "../tui/context/theme/install"
 import { userThemesDir } from "../tui/context/theme/loader"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
@@ -145,8 +145,11 @@ async function addTheme(args: string[]): Promise<void> {
   const { source, opts } = parseAddArgs(args)
   const { text, defaultName } = await readSource(source)
   try {
-    const dest = writeUserTheme(opts.name ?? defaultName, parseTheme(text), opts.force)
-    process.stdout.write(`installed theme "${opts.name ?? defaultName}" -> ${dest}\n`)
+    const { theme, fromScheme } = parseThemeSource(text)
+    // A scheme file's extension (`.conf`, `.theme`) is not part of its name.
+    const name = opts.name ?? (fromScheme ? defaultName.replace(/(.)\.[^.]+$/, "$1") : defaultName)
+    const dest = writeUserTheme(name, theme, opts.force)
+    process.stdout.write(`installed theme "${name}"${fromScheme ? " from a terminal color scheme" : ""} -> ${dest}\n`)
   } catch (err) {
     if (err instanceof ThemeInstallError) fail(err.message)
     throw err
@@ -181,7 +184,8 @@ function printUsage(out: NodeJS.WriteStream = process.stderr): void {
       "",
       "Commands:",
       "  list                          List bundled and user-installed themes",
-      "  add <source> [--name <name>]  Install a theme from a URL or local path",
+      "  add <source> [--name <name>]  Install a theme from a URL or local path: a theme JSON,",
+      "                                or a terminal color scheme file (background, foreground, ANSI palette)",
       "                                Pass --force to overwrite an existing user theme",
       "  remove <name>                 Remove a user-installed theme",
       "",
