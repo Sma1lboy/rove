@@ -15,3 +15,10 @@ describe("task.scheduleStart", () => {
     await refused("task.scheduleStart", { taskId: T, at: "2026-11-07T01:30:00Z", prompt: "  " })
   })
 })
+
+describe("task.resumeQuota", () => {
+  test("continues the named task now", async () => {
+    const { calls } = await run("task.resumeQuota", { taskId: T })
+    expect(calls).toEqual([{ rpc: "task.resumeQuota", payload: { taskId: T } }])
+  })
+})

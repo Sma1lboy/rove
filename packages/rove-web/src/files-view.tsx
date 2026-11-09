@@ -15,6 +15,7 @@ import type { AppModel } from "./model.ts"
 import { openDiff, openFile } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { requestErrorText } from "./request-error.ts"
 import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
@@ -47,13 +48,14 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const [nonce, setNonce] = useState(0)
   const pane = useRef<HTMLDivElement>(null)
   const stream = useStore(activeStream)
+  const conn = useStore(model.client.conn)
   // The feed's change counts move whenever the worktree does (files come and go): refetch then, like the TUI's watcher.
   const changeKey = JSON.stringify(task.changes ?? null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: changeKey and nonce are refetch triggers.
   useEffect(() => {
     let live = true
-    const failed = (err: unknown) => live && setError(err instanceof Error ? err.message : String(err))
+    const failed = (err: unknown) => live && setError(requestErrorText(err))
     requestRemembered<{ files: string[] }>(model, "files.list", { taskId: task.id }).then((r) => {
       if (!live) return
       setFiles(r.files)
@@ -62,7 +64,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     return () => {
       live = false
     }
-  }, [model, task.id, changeKey, nonce])
+  }, [model, task.id, changeKey, nonce, conn.state])
 
   // Git status for the colours, on the same triggers; a failed read leaves the tree plain.
   // biome-ignore lint/correctness/useExhaustiveDependencies: changeKey and nonce are refetch triggers.
@@ -75,7 +77,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     return () => {
       live = false
     }
-  }, [model, task.id, changeKey, nonce])
+  }, [model, task.id, changeKey, nonce, conn.state])
 
   // The panel remounts per task, so `files` is always this task's.
   const loaded = files !== null
