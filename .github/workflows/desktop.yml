@@ -49,7 +49,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The only CI job that runs Electron; setup-electron.mjs skips the download everywhere else.
       - run: bun install --frozen-lockfile
+        env:
+          ROVE_DESKTOP_ELECTRON: "1"
       - run: bun --filter rove-web build
       - name: Package
         working-directory: packages/rove-desktop
