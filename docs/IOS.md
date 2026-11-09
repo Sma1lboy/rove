@@ -351,6 +351,15 @@ xcodebuild -scheme RoveMobile -destination 'platform=iOS Simulator,name=iPhone 1
 
 Running on a physical iPhone needs your own signing team in Xcode; the repo ships no signing configuration.
 
+## Pending iOS features
+
+These features are not available in the app yet. The following PRs track their implementation:
+
+- Inbox **ack all** and routine-failure dismissal: [#1811](https://github.com/Sma1lboy/rove/pull/1811).
+- **Fix failing checks** and Land preflight with destination and commit count: [#1812](https://github.com/Sma1lboy/rove/pull/1812).
+- **Reopen session** for a tab whose process has exited: [#1813](https://github.com/Sma1lboy/rove/pull/1813).
+- A **Machines** page with machine status and tasks: [#1814](https://github.com/Sma1lboy/rove/pull/1814).
+
 ## Not done yet
 
 - Push notifications (APNs). Notifications fire only while the app is running.
