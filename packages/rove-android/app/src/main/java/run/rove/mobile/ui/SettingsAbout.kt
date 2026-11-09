@@ -102,10 +102,11 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
 @Composable private fun UpdateSection(model: AppModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var check by remember { mutableStateOf<SettingsLoad<UpdateCheck>?>(null) }
+    val updates = remember { UpdateSettingsState() }
+    val check by updates.check.collectAsState()
     // A bridge without `prefs.get` leaves the rows out and checks its own channel.
-    var prefs by remember { mutableStateOf<UpdatePrefs?>(null) }
-    LaunchedEffect(Unit) { prefs = settingsCatching { model.repository.updatePrefs() }.getOrNull() }
+    val prefs by updates.prefs.collectAsState()
+    LaunchedEffect(Unit) { updates.loadPrefs(settingsCatching { model.repository.updatePrefs() }.getOrNull()) }
     val channelName = mapOf("latest" to stringResource(R.string.settings_channel_latest), "next" to stringResource(R.string.settings_channel_next),
         "nightly" to stringResource(R.string.settings_channel_nightly))
     val on = stringResource(R.string.settings_on)
@@ -116,16 +117,13 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
     prefs?.let { current ->
         FormSection(stringResource(R.string.settings_channel)) {
             ChoiceTiles(channelName.keys.toList(), current.updateChannel, { channelName.getValue(it) }) { picked ->
-                prefs = current.copy(updateChannel = picked)
-                check = null // a result belongs to the channel it was asked of
-                model.action { try { model.repository.setUpdateChannel(picked) } catch (e: Exception) { prefs = current; throw e } }
+                model.action { updates.saveChannel(picked) { model.repository.setUpdateChannel(it) } }
             }
             Hint(stringResource(R.string.settings_channel_hint))
         }
         FormSection(stringResource(R.string.settings_update_notify)) {
             ChoiceTiles(listOf(true, false), current.updateNotify, { if (it) on else off }) { picked ->
-                prefs = current.copy(updateNotify = picked)
-                model.action { try { model.repository.setUpdateNotify(picked) } catch (e: Exception) { prefs = current; throw e } }
+                model.action { updates.saveNotify(picked) { model.repository.setUpdateNotify(it) } }
             }
             Hint(stringResource(R.string.settings_update_notify_hint))
         }
@@ -133,8 +131,9 @@ private const val PrivacyAsset = "docs/PRIVACY.md"
     FormSection(stringResource(R.string.settings_updates)) {
         Column(Modifier.fillMaxWidth().tile()) {
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable(enabled = check != SettingsLoad.Loading) {
-                check = SettingsLoad.Loading
-                scope.launch { check = settingsCatching { model.repository.checkForUpdate(locale, prefs?.updateChannel) }.toLoad() }
+                scope.launch { updates.checkForUpdate { channel ->
+                    settingsCatching { model.repository.checkForUpdate(locale, channel) }.toLoad()
+                } }
             }.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(if (check == SettingsLoad.Loading) R.string.settings_update_checking else R.string.settings_update_check),
                     Modifier.weight(1f), color = Rove.c.ink, style = Rove.mono(14, FontWeight.Medium))
