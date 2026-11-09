@@ -293,6 +293,12 @@
       }
     ]
   },
+  "machines.list": {
+    "machines": [
+      { "alias": "studio", "hostLabel": "studio.lan", "state": "online", "version": "0.9.282", "reason": null },
+      { "alias": "narwhal", "hostLabel": "narwhal", "state": "offline", "version": null, "reason": "refused" }
+    ]
+  },
   "task.syncBase": { "baseRef": "main", "alreadyCurrent": false },
   "task.fixChecks": { "outcome": "sent" },
   "task.landPreflight": { "landedOn": "main", "ahead": 2 },

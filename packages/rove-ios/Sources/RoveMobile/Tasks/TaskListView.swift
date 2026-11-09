@@ -71,6 +71,7 @@ struct TaskListView: View {
                         Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
                     }
                     Button("worktrees") { model.path.append(.worktrees) }.accessibilityIdentifier("page-worktrees")
+                    Button("machines") { model.path.append(.machines) }.accessibilityIdentifier("page-machines")
                 } label: { HeaderIcon(systemName: "square.grid.2x2") }
                     .accessibilityLabel("Pages")
                     .accessibilityIdentifier("pagesMenu")

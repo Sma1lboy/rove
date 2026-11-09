@@ -259,6 +259,16 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(text("Verify refund webhook signatures").exists)
     }
 
+    func testMachinesShowStateAndWhyTheyAreOff() throws {
+        pair(try fixture())
+        openPage("machines")
+        waitFor(element("machine-narwhal"), "machines")
+        XCTAssertTrue(text("studio.lan · v0.9.282").exists)
+        XCTAssertTrue(text("narwhal · offline").exists)
+        XCTAssertTrue(text("ssh was refused (nothing is listening or a firewall is in the way)").exists)
+        checkpoint("fx-machines")
+    }
+
     func testFixtureSettings() throws {
         pair(try fixture())
         waitFor(element("settingsButton"), "gear").tap()
