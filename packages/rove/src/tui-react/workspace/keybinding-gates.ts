@@ -15,23 +15,12 @@ export type WorkspacePageState = {
   updateOpen: boolean
 }
 
-/**
- * Gate for every workspace-level chord group; the one exemption is
- * {@link settingsCloseKeysEnabled}.
- */
+/** Gate for every workspace-level chord group. */
 export function workspacePagesClosed(s: WorkspacePageState): boolean {
   // Only full-window surfaces gate: they cover the sidebar, so a sidebar chord
   // would act on something unseen. Rail pages replace only the content pane,
   // so sidebar chords (the prefix included, to hop between pages) stay live.
   return !s.dialogOpen && !s.settingsOpen && !s.worktreesOpen && !s.updateOpen
-}
-
-/**
- * Settings' own close keys (esc/q/ctrl+c): live because settings is open, but
- * yield to a sub-dialog above it (the engine-command editor needs esc + typing).
- */
-export function settingsCloseKeysEnabled(s: WorkspacePageState): boolean {
-  return s.settingsOpen && !s.dialogOpen
 }
 
 /** Focus cycle order: sidebar ← workspace → files. */
