@@ -60,12 +60,14 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 | Feature | Op | Size |
 | --- | --- | --- |
 | Inbox: reply in place | `tab.send` | S |
+| A task's other PRs on its row | row field `sessionPrs` | S |
 | Files browser, file preview, create PR | `files.list`, `file.read`, `tab.requestPR` | M |
 | Machines page | `machines.list`, `machines.repos` | M |
 | Context panel | `context.usage` | S |
 | Snippets, `@name` in the composer | `snippets.get`, `snippets.save`, `snippets.remove` | S |
 | Install the Rove skill from Engines | `skill.missing`, `skill.install` | S |
 | Change engine: model, effort, hide engines the Mac cannot start | `task.setEngine`, `engines.list` | S |
+| Retry an engine that died inside a live shell | `term.revive` with `restartExited` | S |
 | Retry with an edited prompt | `task.prompt`, `task.spawn` | M |
 | Continue in another engine | `tab.handoff`, `tab.forkTask` | M |
 | Review notes and base picker on a diff | `review.add`, `review.list`, `review.send`, `diff.refs` | M |
