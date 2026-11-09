@@ -20,9 +20,24 @@ describe("task.openCheckout", () => {
     })
   })
 
-  test("needs a usable git repo at an absolute path", async () => {
+  // A friend's folder with no git refused New session outright; it has no worktrees to offer, nothing else is missing.
+  test("a folder git cannot use opens as a directory session, with no project row", async () => {
     taskOpDeps.validateRepoPath = () => "not a git repo"
-    await refused("task.openCheckout", { repo: "/etc" })
+    taskOpDeps.isDirectory = (p) => p === "/home/me/notes"
+    const { result, calls } = await run(
+      "task.openCheckout",
+      { repo: "/home/me/notes", engine: "codex" },
+      { "task.openDir": { taskId: "D1" } },
+    )
+    expect(result).toEqual({ taskId: "D1" })
+    expect(calls.map((c) => ("rpc" in c ? c.rpc : c.verb))).toEqual(["engine-list", "task.openDir"])
+    expect(calls.at(-1)).toEqual({ rpc: "task.openDir", payload: { dir: "/home/me/notes", vendor: "codex" } })
+  })
+
+  test("a path that is no folder, or not absolute, is refused", async () => {
+    taskOpDeps.validateRepoPath = () => "path does not exist"
+    taskOpDeps.isDirectory = () => false
+    await refused("task.openCheckout", { repo: "/nope" })
     await refused("task.openCheckout", { repo: "rel" })
   })
 })

@@ -277,18 +277,19 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
     const repo = absPath(a, "repo")
     const problem = taskOpDeps.validateRepoPath(repo)
-    if (problem) throw new BridgeError("BAD_ARGS", problem)
+    // A folder git cannot use is a standalone directory session (`rove <path>`'s shape): no project row.
+    if (problem && !taskOpDeps.isDirectory(repo)) throw new BridgeError("BAD_ARGS", problem)
     const title = optText(a, "title", 200)
     const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
     // The project row first: a dir task alone on a repo root is what a missing project row adopts.
-    const main = await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })
+    const dir = problem ? repo : (await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })).task.repo
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
-      dir: main.task.repo,
-      vendor: engine ?? taskOpDeps.preferredEngine(main.task.repo),
+      dir,
+      vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
     })
-    if (engine) taskOpDeps.rememberEngine(main.task.repo, engine)
+    if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
