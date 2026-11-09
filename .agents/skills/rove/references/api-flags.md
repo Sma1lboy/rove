@@ -140,6 +140,7 @@ send               --task-id --prompt|--prompt-file --tab --command --handoff-fr
                    --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
+resume-quota       --task-id --all
 queue-edit         --id(REQ) --prompt|--prompt-file(REQ)
 queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
@@ -479,6 +480,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |
+| `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task not waiting on a quota reset | `collect` for its `.activity.state` |
 | `WATCH_TIMEOUT` | `watch` hit --timeout before any --until state | nothing happened yet, not "nothing will" — `collect --task-ids` |
 | `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
 | `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |

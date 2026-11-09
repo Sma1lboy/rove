@@ -219,6 +219,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
+| `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task that is not waiting on a quota reset. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
 | `TAB_NOT_FOUND` | A `--tab tab-N` the task has no live (or restorable) tab for. |
@@ -1309,6 +1310,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `.error`/`.code`. A member with no known running tabs gets one `"skipped"`
   result with its task `.state`. One tab's refusal never aborts the rest.
   `--tab` goes only with `--task-id`.
+
+- `resume-quota (--task-id ID | --all)`: continue a task parked on its
+  engine's usage limit now, instead of at the quota reset — after the limit
+  was raised or the engine signed in to another account. The daemon types the
+  same continue prompt the reset timer would into the live session and clears
+  the armed resume. A task is waiting when it has an armed quota resume or its
+  engine reports `rate_limited`; a billing stop is not, since it needs a person.
+  Each task gets the timer's should-run check minus the quota, so one awaiting
+  its owner, running or at a permission prompt is `declined` with the
+  should-run `.reason`. Returns `{ count, resumed, failures, results }`; each
+  result has `taskId` and `status`: `resumed`, `not-delivered` (no live engine
+  to type into), `declined` or `failed` (`.error`). `--task-id` on a task that
+  is not waiting fails with `NOT_RATE_LIMITED`; `--all` with none waiting
+  returns `count: 0`.
 
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see

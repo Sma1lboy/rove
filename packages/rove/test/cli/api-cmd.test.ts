@@ -174,6 +174,7 @@ describe("API surface (full CRUD)", () => {
       "send",
       "dispatch",
       "interrupt",
+      "resume-quota",
       "queue-edit",
       "queue-cancel",
       "note",

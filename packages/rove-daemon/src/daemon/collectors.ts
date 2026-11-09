@@ -315,6 +315,7 @@ export function startDaemonCollectors(
     undefined,
     automations?.plugins,
     automations?.runnability,
+    automations?.deliveryDeps.deliveries.claims,
   )
 
   // Ungated, and it needs the self link only a full daemon has (the same one routines start sessions through).
