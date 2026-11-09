@@ -19,8 +19,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 任务页 · Terminal | 点行 | 无会话时 Start / New conversation；engine tab 有按住说话的消息栏和 key row；at menu 时 key row 以 1–4 开头；排队 chip；shell tab 没有 composer；退出的 tab 有 Reopen session | 打开过 |
 | 任务页 · Context / Files / Diff / Browser | 顶部图标切换（Terminal 之外四个） | Context：上下文用量；Files：`[ commit ]`、`[ create PR ]`、文件内容预览；Diff：基线菜单、viewed、下一文件；Browser：地址栏 | 打开过；Context 的 op 不在 fixture 里，只看到报错态 |
 | Routines | rail | 列表（NEEDS YOU / ACTIVE）、运行日志和筛选、新建 | 打开过列表 |
-| Dispatch | rail | 谁把 prompt 交给谁的图、空闲态 | 打开过（空闲态） |
-| Search | rail | 空态；有结果、未搜任务；截断 | 打开过；截断只读源码 |
+| Search | 命令面板（`ctrl+a /`） | 空态；有结果、未搜任务；截断 | 第 2 轮打开过；这轮 rail 上已没有入口 |
 | Machines | 命令面板（`ctrl+a /`），注册过 machine 才有 | 状态、版本、未连接原因、任务、`[ new task here ]`、`[ repos ]` | 打开过 |
 | Usage | 命令面板；手机上额度读数在 Settings 顶部 | 按天、模型、任务的 token 条 | Settings 顶部读数打开过，Usage 页只读源码 |
 | Kanban / Issues | rail，装了 mod 才有 | 看板；issue 列表和 `[ PRs waiting on me ]`（review queue） | Issues 打开过，Kanban 只读源码 |
@@ -40,7 +39,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 复活已退出的 tab | `terminal-view.tsx`、`term-notice.tsx` | `term.revive` | **有 PR** [#1813](https://github.com/Sma1lboy/rove/pull/1813)；shell 还活着但引擎退出（`restartExited`）没做 |
 | Machines 总览 | `machines-dialog.tsx` | `machines.list` | **有 PR** [#1814](https://github.com/Sma1lboy/rove/pull/1814)；`[ new task here ]`、`[ repos ]` 没做 |
 | 行上一个任务开的多个 PR | `pr-chip.tsx` | 行字段 `sessionPrs` | **缺** |
-| Inbox 每行直接回复 | `term-replies.ts`、`inbox-view.tsx` | `tab.send` | **缺** |
+| Inbox 每行直接回复 | `inbox-peek.ts`、`inbox-peek.tsx` | `output.read`、`tab.send`、`term.input`、`gate.answer` | **缺** |
 | 定时启动（New session 的 Later、行上的倒计时） | `new-session-later.tsx`、`schedule-start.ts` | `task.scheduleStart`、`task.cancelScheduledStart`、`task.startScheduledNow` | **缺** |
 | CI 检查列表、失败日志、自动修复开关 | `checks-section.tsx`、`auto-fix-line.tsx` | `pr.checks`、`pr.checkLog`、`task.autoFixCi` | **缺** |
 | 任务笔记和 todo | `task-todos.ts`、`note-composer.tsx` | 行字段 `notes`、`todos` | **缺** |
@@ -94,3 +93,4 @@ iOS 领先的地方，不反向对齐：Inbox 的 `decision_needed`、`report_mi
 - 重开 agent-browser 后 `localStorage` 是空的，同路径的 `#token=` 不会重新加载，要 `localStorage.setItem("rove.bridge.token", ...)` 再 `location.reload()`。截图前先确认页面上有目标文字：这轮第一次把 Settings 当成 Inbox 拍了进去。
 - zsh 里 `grep --include=*.swift` 不加引号报 `no matches found`，要写 `--include='*.swift'`。
 - 容器上的 `.accessibilityIdentifier` 会盖掉子按钮的 identifier，UI 测试找不到按钮。identifier 放到叶子节点上。
+- 每轮最后把几个 PR 按顺序试合一次，再在合并结果上跑测试。这轮四个 PR 都把 UI 测试插在同一个函数前，字符串也有相邻 key，单独都绿，合起来冲突。新测试各插到不同的函数前；`Localizable.xcstrings` 按字母序排，相邻的新 key 也会冲突。
