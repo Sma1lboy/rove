@@ -36,6 +36,7 @@ import { useNoteComposer } from "./note-composer.tsx"
 import { openDiff } from "./panel-state.ts"
 import { type Loaded, bridgeError, diffCacheId, load } from "./preview-load.ts"
 import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { requestErrorText } from "./request-error.ts"
 import { type Note, type NoteState, locate, noteState } from "./review-notes.ts"
 import { foldedByDefault, shapeLine } from "./review-shape.ts"
 import { ReviewTray } from "./review-tray.tsx"
@@ -94,6 +95,7 @@ export function PreviewView({
   const [nonce, setNonce] = useState(0)
   const host = useRef<HTMLDivElement>(null)
   const c = model.client
+  const connState = useStore(c.conn).state
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
@@ -108,13 +110,13 @@ export function PreviewView({
           toast(err.message, "error")
           return
         }
-        setLoaded({ kind: "text", text: err instanceof Error ? err.message : String(err), error: true })
+        setLoaded({ kind: "text", text: requestErrorText(err), error: true })
       },
     )
     return () => {
       live = false
     }
-  }, [c, view.taskId, view.path, view.scope, ws, custom, nonce])
+  }, [c, view.taskId, view.path, view.scope, ws, custom, nonce, connState])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce is the reload trigger.
   useEffect(() => {
