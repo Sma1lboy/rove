@@ -153,12 +153,6 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
     }
 
-    func saw(_ op: String) -> Bool { log.entries().contains { $0.op == op && $0.args["tabId"] as? String == "tab-3" } }
-        while !saw("term.attach"), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
-        XCTAssertTrue(saw("term.revive"))
-        XCTAssertTrue(saw("term.attach"), "reopening attaches to the new session")
-    }
-
     func testFixtureRoutinesAndIssues() throws {
         pair(try fixture())
         openPage("routines")
@@ -198,7 +192,13 @@ final class PagesFixtureTests: XCTestCase {
         log.clear()
         reopen.tap()
         let deadline = Date().addingTimeInterval(5)
-        func testSearchFindsAConversationAndOpensIt() throws {
+        func saw(_ op: String) -> Bool { log.entries().contains { $0.op == op && $0.args["tabId"] as? String == "tab-3" } }
+        while !saw("term.attach"), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(saw("term.revive"))
+        XCTAssertTrue(saw("term.attach"), "reopening attaches to the new session")
+    }
+
+    func testSearchFindsAConversationAndOpensIt() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
         pair(url)
