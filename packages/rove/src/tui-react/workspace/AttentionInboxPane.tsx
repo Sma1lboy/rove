@@ -288,6 +288,9 @@ export function AttentionInboxPane(props: {
         const row = selected()
         if (row?.kind === "attention" && isDismissible(row)) props.onDelete(row.item)
       },
+      "inbox.deleteAll": () => {
+        for (const row of rows) if (row.kind === "attention" && isDismissible(row)) props.onDelete(row.item)
+      },
     }),
   }))
 
@@ -412,6 +415,13 @@ export function AttentionInboxPane(props: {
           wrapMode="none"
         >
           {t("workspace.inbox.clearHint")}
+        </text>
+        <text
+          fg={theme.textMuted}
+          attributes={rows.some(isDismissible) ? undefined : TextAttributes.DIM}
+          wrapMode="none"
+        >
+          {t("workspace.inbox.clearAllHint")}
         </text>
       </box>
     </box>

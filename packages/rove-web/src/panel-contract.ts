@@ -4,8 +4,8 @@
  * on live in `panel-state.ts` and `panel-report.ts`.
  */
 
-import type { PanelKind } from "./panel-layout.ts"
-import { type TaskPanel, showBrowser, showDiff, showKind } from "./panel-model.ts"
+import type { PanelKind } from "./panel-model.ts"
+import { type TaskPanel, showBrowser, showDiff, showFile, showKind } from "./panel-model.ts"
 
 /** The `panel` push the bridge sends for `rove api panel-show`. */
 export interface PanelPush {
@@ -46,12 +46,12 @@ export function panelFields(layout: { narrow: boolean; panelOpen: boolean; zen: 
 
 /** What to do with a `panel` push on this page. */
 export interface PanelPlan {
-  /** The kind of view this task's panel will show (a file's diff is a Diff tab: the web has no file viewer). */
+  /** The kind of view this task's panel will show: a path is the File column with `--view files`, else the Diff column. */
   readonly tab: PanelKind
   /** The Browser's address for the task. */
   readonly url?: string
-  /** The file whose diff the Diff view opens. */
-  readonly diff?: string
+  /** The file the File or Diff column opens. */
+  readonly path?: string
   /** Open the panel now: this page is on the task and has a side panel. */
   readonly show: boolean
 }
@@ -61,18 +61,19 @@ export interface PanelPlan {
  * opens it, and it never moves to another task or takes focus.
  */
 export function planPanelPush(push: PanelPush, here: { taskId: string | null; narrow: boolean }): PanelPlan {
-  const tab: PanelKind = push.path ? "diff" : push.view
+  // A path with `--view files` is the file itself; otherwise its diff.
+  const tab: PanelKind = push.path ? (push.view === "files" ? "file" : "diff") : push.view
   return {
     tab,
     ...(push.view === "browser" && push.url ? { url: push.url } : {}),
-    ...(push.view !== "browser" && push.path ? { diff: push.path } : {}),
+    ...(push.view !== "browser" && push.path ? { path: push.path } : {}),
     show: here.taskId === push.taskId && !here.narrow,
   }
 }
 
-/** The panel after a push: an address or a file's diff finds or opens its tab, a kind alone shows the latest of it. */
+/** The panel after a push: an address finds or opens its Browser tab, a path retargets the File or Diff column, a kind alone opens its column. */
 export function applyPlan(panel: TaskPanel, plan: PanelPlan): TaskPanel {
   if (plan.url) return showBrowser(panel, plan.url)
-  if (plan.diff) return showDiff(panel, plan.diff, "working")
+  if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path) : showDiff(panel, plan.path, "working")
   return showKind(panel, plan.tab)
 }

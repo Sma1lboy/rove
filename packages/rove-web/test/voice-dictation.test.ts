@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import type { BridgeClient } from "../src/bridge.ts"
-import { Dictation } from "../src/dictation.ts"
+import { Dictation, Downsampler } from "../src/voice/dictation.ts"
 
 /** A microphone whose permission prompt resolves only when the test says so. */
 let grant: (() => void) | null = null
@@ -86,7 +86,7 @@ afterEach(() => {
 const client = { request: async () => ({ text: "", seconds: 0, ms: 0 }) } as unknown as BridgeClient
 
 test("a cancel while the microphone prompt is open leaves no microphone running once it is granted", async () => {
-  const dictation = new Dictation(client, () => "")
+  const dictation = new Dictation(client, () => ({ draft: "" }))
   const starting = dictation.start()
   dictation.cancel()
   grant?.()
@@ -101,7 +101,7 @@ test("a cancel while the microphone prompt is open leaves no microphone running 
 })
 
 test("a stop while the microphone prompt is open ends idle with the microphone released", async () => {
-  const dictation = new Dictation(client, () => "")
+  const dictation = new Dictation(client, () => ({ draft: "" }))
   const starting = dictation.start()
   const stopped = await dictation.stop()
   grant?.()
@@ -117,7 +117,7 @@ for (const action of ["stop", "cancel"] as const) {
   test(`${action} releases the microphone before the worklet settles`, async () => {
     const worklet = Promise.withResolvers<void>()
     loadWorklet = () => worklet.promise
-    const dictation = new Dictation(client, () => "")
+    const dictation = new Dictation(client, () => ({ draft: "" }))
     const starting = dictation.start()
     grant?.()
     await Promise.resolve()
@@ -141,7 +141,7 @@ for (const boundary of ["permission", "worklet resolve", "worklet reject"] as co
   test(`an old ${boundary} completion leaves a newer recording intact`, async () => {
     const worklet = Promise.withResolvers<void>()
     loadWorklet = () => worklet.promise
-    const dictation = new Dictation(client, () => "")
+    const dictation = new Dictation(client, () => ({ draft: "" }))
     const oldStart = dictation.start()
     const oldGrant = grant
     if (boundary !== "permission") {
@@ -169,3 +169,21 @@ for (const boundary of ["permission", "worklet resolve", "worklet reject"] as co
     expect(openContexts).toBe(0)
   })
 }
+
+test("a live take resampled chunk by chunk is the same audio as the whole take resampled at once", () => {
+  const input = Float32Array.from({ length: 4801 }, (_, i) => Math.sin(i / 7) * 0.5)
+  const whole = new Downsampler(44_100 / 16_000).push([input])
+  const live = new Downsampler(44_100 / 16_000)
+  const parts: number[] = []
+  // Uneven cuts, as worklet blocks land between ticks.
+  for (const [from, to] of [
+    [0, 128],
+    [128, 129],
+    [129, 1000],
+    [1000, 1000],
+    [1000, 4801],
+  ] as const) {
+    parts.push(...live.push([input.subarray(from, to)]))
+  }
+  expect(parts).toEqual([...whole])
+})

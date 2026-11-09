@@ -267,8 +267,8 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
-item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting
+item. `d` acks (clears) the one under the cursor without navigating (ATTENTION rows only;
+RECENT rows have nothing to drop), and `D` acks every ATTENTION row at once. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
@@ -532,7 +532,7 @@ left arrow to return to the section list, and `enter` to activate a row.
   GitHub was unreachable (it falls back to the first-party plugins).
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
-- **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
+- **Feedback** files a GitHub issue on the Rove repo through an authenticated `gh` CLI; without one it shows a prefilled new-issue link. The command palette also has **Report a problem** (no chord): it opens a new scratch conversation on the default engine that interviews you, drafts the issue and files it with `rove feedback` once you agree.
 - **Dev** contains reset, a backend-exit action, **Reload settings** and
   experimental switches. Reload settings applies hand edits to `state.json` to
   this window without a restart. Reset

@@ -1,11 +1,11 @@
 /** One code row of the diff view, memoised: a cursor move re-renders the rows it touches, not the whole diff. */
 
-import { type MouseEvent, type ReactNode, memo, useMemo, useRef } from "react"
+import { Fragment, type MouseEvent, type ReactNode, memo, useMemo, useRef } from "react"
 import { DiffNoteLine } from "./diff-row-actions.tsx"
 import type { DiffRow } from "./diff.ts"
 import { t } from "./i18n/index.ts"
 import type { Note } from "./review-notes.ts"
-import { DIFF_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
+import { DIFF_GUTTER, OLD_GUTTER, diffCodeClass, diffRowClass, diffSignClass } from "./ui/diff-row.ts"
 
 export interface RowHandlers {
   rowClick: (index: number, e: MouseEvent) => void
@@ -41,6 +41,11 @@ export const DiffLine = memo(function DiffLine(props: {
   actions: ReactNode
   /** Notes whose range ends on this row. */
   notes: readonly Note[] | undefined
+  /** A file row the working tree changed (file view): the gutter marks it. */
+  changed: boolean
+  /** The note editor, on the row the note being written ends at: under the notes, or (`editId`) in place of that one. */
+  composer?: ReactNode
+  editId?: string
   /** Stable across renders, so an unchanged row skips re-rendering. */
   onClick: (index: number, e: MouseEvent) => void
   onEditNote: (note: Note) => void
@@ -54,10 +59,10 @@ export const DiffLine = memo(function DiffLine(props: {
         className={diffRowClass(row.kind, { cursor: props.cursor, noted })}
         onClick={(e) => props.onClick(index, e)}
       >
-        <span className={DIFF_GUTTER}>{row.oldNo ?? ""}</span>
+        <span className={OLD_GUTTER}>{row.oldNo ?? ""}</span>
         <span className={DIFF_GUTTER}>{row.newNo ?? ""}</span>
-        <span className={diffSignClass(row.kind, noted)}>
-          {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : " "}
+        <span className={diffSignClass(row.kind, noted, props.changed)}>
+          {row.kind === "add" ? "+" : row.kind === "del" ? "−" : noted ? "●" : props.changed ? "▎" : " "}
         </span>
         <span className={diffCodeClass(row.kind)}>
           {row.text.length > MAX_DRAWN ? row.text.slice(0, MAX_DRAWN) : row.text}
@@ -70,9 +75,14 @@ export const DiffLine = memo(function DiffLine(props: {
         </span>
         {props.actions}
       </div>
-      {props.notes?.map((note) => (
-        <DiffNoteLine key={note.id} note={note} onEdit={() => props.onEditNote(note)} />
-      ))}
+      {props.notes?.map((note) =>
+        note.id === props.editId ? (
+          <Fragment key={note.id}>{props.composer}</Fragment>
+        ) : (
+          <DiffNoteLine key={note.id} note={note} onEdit={() => props.onEditNote(note)} />
+        ),
+      )}
+      {props.editId === undefined && props.composer}
     </div>
   )
 })

@@ -1,39 +1,19 @@
 /**
- * A rail row's full title when the row cuts it off, as Claude's sidebar: a dark card beside the row
- * after a short hover, or after the keyboard cursor rests on it.
+ * A rail row's full title when the row cuts it off, as Claude's sidebar: the page's tooltip card beside
+ * the row after a short hover, or after the keyboard cursor rests on it.
  */
 
-import { type PointerEvent, type ReactNode, type RefCallback, useEffect, useRef, useState } from "react"
-import { createPortal } from "react-dom"
-import { ROW_TIP } from "./ui/rail.ts"
+import { type PointerEvent, type RefCallback, useEffect, useRef } from "react"
+import { hideTip, lastInputWasKey, showTip } from "./tooltip.ts"
 
 const SHOW_AFTER_MS = 450
-
-/** Whether the latest input was a key: a cursor moved by the mouse has a hover tip of its own. */
-let keyed = false
-if (typeof document !== "undefined") {
-  document.addEventListener(
-    "keydown",
-    () => {
-      keyed = true
-    },
-    true,
-  )
-  document.addEventListener(
-    "pointerdown",
-    () => {
-      keyed = false
-    },
-    true,
-  )
-}
 
 const truncated = (row: HTMLElement): boolean => {
   const title = row.querySelector<HTMLElement>(".row-title")
   return !!title && title.scrollWidth > title.clientWidth
 }
 
-/** Handlers and ref for the row, and the card to render inside it (portalled to the body). `cursor`: the row is the rail's j/k cursor. */
+/** Handlers and ref for the row. `cursor`: the row is the rail's j/k cursor. */
 export function useRowTip(
   text: string,
   cursor: boolean,
@@ -43,41 +23,38 @@ export function useRowTip(
   readonly onPointerLeave: () => void
   /** Drop the card and any pending one, for another card opening over the same spot (the PR list). */
   readonly hide: () => void
-  readonly tip: ReactNode
 } {
-  const [at, setAt] = useState<DOMRect | null>(null)
   const timer = useRef<number | null>(null)
   const row = useRef<HTMLElement | null>(null)
+  const latest = useRef(text)
+  latest.current = text
   const clear = () => {
     if (timer.current !== null) window.clearTimeout(timer.current)
     timer.current = null
   }
   const showSoon = (el: HTMLElement) => {
     clear()
-    timer.current = window.setTimeout(() => setAt(el.getBoundingClientRect()), SHOW_AFTER_MS)
+    timer.current = window.setTimeout(() => showTip(el, latest.current, "right"), SHOW_AFTER_MS)
   }
   const dismiss = () => {
     clear()
-    setAt(null)
+    hideTip()
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: the cursor arriving is the trigger; the helpers only touch refs
   useEffect(() => {
     const el = row.current
     const rail = el?.closest<HTMLElement>(".rail")
-    if (!cursor || !el || !rail || !keyed || !rail.contains(document.activeElement) || !truncated(el)) return
-    const hide = () => {
-      clear()
-      setAt(null)
-    }
+    if (!cursor || !el || !rail || !lastInputWasKey() || !rail.contains(document.activeElement) || !truncated(el))
+      return
     // Focus leaving the rail (to the terminal, a dialog) takes the tip with it.
     const away = (e: FocusEvent) => {
-      if (!(e.relatedTarget instanceof Node && rail.contains(e.relatedTarget))) hide()
+      if (!(e.relatedTarget instanceof Node && rail.contains(e.relatedTarget))) dismiss()
     }
     showSoon(el)
     rail.addEventListener("focusout", away)
     return () => {
       rail.removeEventListener("focusout", away)
-      hide()
+      dismiss()
     }
   }, [cursor])
   useEffect(
@@ -98,13 +75,5 @@ export function useRowTip(
     },
     onPointerLeave: dismiss,
     hide: dismiss,
-    tip: at
-      ? createPortal(
-          <div className={ROW_TIP} role="tooltip" style={{ top: at.top + at.height / 2, left: at.right + 8 }}>
-            {text}
-          </div>,
-          document.body,
-        )
-      : null,
   }
 }

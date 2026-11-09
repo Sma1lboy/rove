@@ -34,10 +34,6 @@ export const PR_LIST_GLYPH = "font-mono"
 export const PR_LIST_META = "overflow-hidden text-ellipsis whitespace-pre text-muted"
 export const PR_LIST_STATS = "ml-auto flex gap-1.5 pl-3 tabular-nums"
 
-/** A rail row's cut-off title in full, beside the row (Claude's sidebar tooltip). */
-export const ROW_TIP =
-  "pointer-events-none fixed z-35 max-w-80 -translate-y-1/2 animate-row-tip-in rounded-sm border-hairline border-line bg-inset px-2.5 py-1.5 text-meta leading-[1.4] whitespace-normal wrap-anywhere text-ink shadow-popover motion-reduce:animate-none"
-
 /** A task on another machine: a small cloud at the row's right edge. */
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
 

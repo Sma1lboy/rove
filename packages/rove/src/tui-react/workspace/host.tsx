@@ -206,6 +206,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
     notifyError,
     notifyInfo,
+    seedPrompt: quickFork.seedPrompt,
   })
 
   /* --------- zen mode ---------------------------------------------------- */
@@ -300,6 +301,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
+    reportProblem: scratch.reportProblem,
     paletteSearch: { orchestrator: orch, tasks, openTask: openTaskOnTab(pages.closePage, activateTask) },
     createPR: () => void editor.onCreatePR(),
     // Park, then enter the row so its workspace mounts and claims the request.

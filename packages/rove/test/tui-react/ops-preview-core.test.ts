@@ -16,6 +16,7 @@ import {
   hunklessPatchNote,
   isCombinedPathspec,
   isImagePath,
+  loadFileContent,
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
@@ -89,6 +90,12 @@ describe("loadPreviewData", () => {
     if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
     expect(data.text).toContain("-export const a = 1")
     expect(data.text).toContain("+export const a = 2")
+  })
+
+  test("loadFileContent reads a changed file as itself, not its diff", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    expect(await loadFileContent(repo, "a.ts")).toEqual({ kind: "code", text: "export const a = 2\n" })
   })
 
   test("ignoreWhitespace drops a whitespace-only file from the combined diff and keeps real edits", async () => {
@@ -169,6 +176,19 @@ describe("loadPreviewData", () => {
     expect(data.text).toContain("+++ b/.gitignore")
     expect(data.text).not.toContain("build.log\n+noise")
     expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
+  })
+
+  // A 21 MB recorded JSON made the whole-worktree reply 30 MB; the web panel never left "loading…".
+  test("a combined diff lists a huge untracked file without its contents, and every file past the budget too", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "huge.json"), `${"x".repeat(1024)}\n`.repeat(1024))
+    for (const n of [1, 2, 3]) writeFileSync(join(repo, `part${n}.txt`), `${"y".repeat(1023)}\n`.repeat(400))
+    const data = await loadPreviewData(repo, ".")
+    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    const files = unifiedDiffFiles(data.text)
+    expect(files.map((f) => f.path)).toEqual(["huge.json", "part1.txt", "part2.txt", "part3.txt"])
+    expect(files.map((f) => f.note?.kind ?? "text")).toEqual(["binary", "text", "text", "binary"])
+    expect(data.text.length).toBeLessThan(1024 * 1024)
   })
 })
 

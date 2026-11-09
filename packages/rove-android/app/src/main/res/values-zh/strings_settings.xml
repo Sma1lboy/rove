@@ -73,8 +73,8 @@
     <string name="settings_feedback_hint">将使用 Mac 上的 github 登录，公开发布到 rove 仓库</string>
     <string name="settings_feedback_send">发送反馈</string>
     <string name="settings_feedback_confirm_title">发布这条反馈？</string>
-    <string name="settings_feedback_confirm_prose">以 Mac 上的 gh 登录身份，在 rove 仓库发布一条公开的 GitHub Discussion。发布后无法撤回。</string>
-    <string name="settings_feedback_post">发布 discussion</string>
+    <string name="settings_feedback_confirm_prose">以 Mac 上的 gh 登录身份，在 rove 仓库提交一个公开的 GitHub issue。发布后无法撤回。</string>
+    <string name="settings_feedback_post">提交 issue</string>
     <string name="settings_feedback_sent">已发送</string>
     <string name="settings_feedback_again">再写一条</string>
 

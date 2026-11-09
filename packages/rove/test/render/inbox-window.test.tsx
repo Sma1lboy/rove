@@ -113,7 +113,7 @@ test("the clear hint dims on a RECENT row — only attention rows are dismissibl
   )
 
   const clearHintAttrs = async (): Promise<number> => {
-    const hint = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("d clear"))
+    const hint = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("d ack"))
     if (!hint) throw new Error("clear hint missing from the frame")
     return hint.attributes ?? 0
   }

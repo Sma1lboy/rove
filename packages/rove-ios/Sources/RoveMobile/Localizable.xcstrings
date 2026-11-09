@@ -1678,12 +1678,12 @@
         }
       }
     },
-    "Posts a public GitHub Discussion in the rove repo, from your mac's gh login. It can't be unsent." : {
+    "Files a public GitHub issue on the rove repo, from your mac's gh login. It can't be unsent." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以 Mac 上的 gh 登录身份，在 rove 仓库发布一条公开的 GitHub Discussion。发布后无法撤回。"
+            "value" : "以 Mac 上的 gh 登录身份，在 rove 仓库提交一个公开的 GitHub issue。发布后无法撤回。"
           }
         }
       }
@@ -6250,12 +6250,12 @@
         }
       }
     },
-    "post discussion" : {
+    "file issue" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "发布 discussion"
+            "value" : "提交 issue"
           }
         }
       }

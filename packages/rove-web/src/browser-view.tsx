@@ -6,10 +6,10 @@
  */
 
 import { useEffect, useState } from "react"
+import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
 import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { type PanelItem, browserUrl } from "./panel-model.ts"
 import { useStore } from "./store.ts"
 import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
@@ -31,7 +31,7 @@ export function BrowserView({
   onStep,
 }: {
   model: AppModel
-  tab: Extract<PanelItem, { kind: "browser" }>
+  tab: BrowserTab
   onNavigate: (url: string) => void
   onStep: (at: number) => void
 }) {

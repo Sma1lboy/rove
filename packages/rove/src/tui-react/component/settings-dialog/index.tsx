@@ -6,15 +6,12 @@
  * Enter activates, and the surrounding dialog stack owns Escape.
  */
 
-import { errorMessage } from "@/lib/error-message"
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useState } from "react"
 import { RemoteOrchestrator, type RoveOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { enginesNeedingHookInstall, enginesWithHooksInstalled } from "../../../engine/integration-status"
 import { createStateCell } from "../../../lib/external-store"
-import { failureHint } from "../../../lib/failure-hint"
-import { submitFeedback } from "../../../lib/feedback"
 import {
   type NavLevel,
   SECTIONS,
@@ -54,6 +51,7 @@ import { useAppearanceSettings } from "./use-appearance-settings"
 import { useAutoRoutingSettings } from "./use-auto-routing-settings"
 import { useClassifierSettings } from "./use-classifier-settings"
 import { useEngineSettings } from "./use-engine-settings"
+import { useFeedbackForm } from "./use-feedback-form"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
 import { useUpdateCheck } from "./use-update-check"
@@ -88,9 +86,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     ),
   )
   const [bodyRow, setBodyRow] = useState(0)
-  const [feedbackTitle, setFeedbackTitle] = useState("")
-  const [feedbackBody, setFeedbackBody] = useState("")
-  const [feedbackStatus, setFeedbackStatus] = useState("")
   const [reloadStatus, setReloadStatus] = useState("")
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
@@ -173,22 +168,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return row?.kind === "engine" ? row.vendor : null
   }
 
-  async function sendFeedback(): Promise<void> {
-    setFeedbackStatus("submitting...")
-    try {
-      const result = submitFeedback({ title: feedbackTitle, body: feedbackBody })
-      setFeedbackStatus(`sent: ${result.url}`)
-      setFeedbackTitle("")
-      setFeedbackBody("")
-      setBodyRow(0)
-    } catch (err) {
-      setFeedbackStatus(`error: ${errorMessage(err)}\n${failureHint(err)}`)
-    }
-  }
-
   // The Feedback section is an inline form; while it holds focus we suspend
   // this dialog's own j/k/h/l/t nav and drive the form with a dedicated Tab
   // cycle + a Send-row Enter binding below.
+  const feedback = useFeedbackForm(() => setBodyRow(0))
   const editingFeedback = section === "feedback" && level === "body"
 
   function feedbackFieldStep(delta: 1 | -1): void {
@@ -270,7 +253,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     pluginInstall: (row) => void marketplace.install(row.ref),
     feedbackTitle: () => setBodyRow(0),
     feedbackBody: () => setBodyRow(1),
-    feedbackSend: () => void sendFeedback(),
+    feedbackSend: () => feedback.send(),
     devReset: () => void confirmResetState(dialog, props.kv, renderer),
     devRestartDaemon: () => void confirmRestartDaemon(dialog, props.orchestrator, renderer),
     devReloadSettings: () => setReloadStatus(reloadSettingsStatus(props.kv)),
@@ -357,7 +340,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }))
   useBindings(() => ({
     enabled: editingFeedback && bodyRow === 2,
-    bindings: [{ key: "return", cmd: () => void sendFeedback() }],
+    bindings: [{ key: "return", cmd: () => feedback.send() }],
   }))
 
   // Cursor-follow: rows register by body index so navigation never lands below
@@ -447,19 +430,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
           {section === "feedback" ? (
             <FeedbackSettingsSection
               {...cursorProps}
-              title={feedbackTitle}
-              setTitle={(v) => {
-                setFeedbackTitle(v)
-                setFeedbackStatus("")
-              }}
-              body={feedbackBody}
-              setBody={(v) => {
-                setFeedbackBody(v)
-                setFeedbackStatus("")
-              }}
-              status={feedbackStatus}
+              title={feedback.title}
+              setTitle={feedback.setTitle}
+              body={feedback.body}
+              setBody={feedback.setBody}
+              status={feedback.status}
+              statusWarn={feedback.statusWarn}
               onTitleSubmit={() => setBodyRow(1)}
-              submit={() => void sendFeedback()}
+              submit={() => feedback.send()}
             />
           ) : null}
           {section === "dev" ? (

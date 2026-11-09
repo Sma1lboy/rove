@@ -33,7 +33,14 @@ type Entry =
       readonly snippet: string
     }
 
-export function CommandPalette({ actions, search }: { actions: readonly PaletteAction[]; search?: PaletteSearch }) {
+/** A palette entry with no keybinding: the F1 guide and chord table never list it. */
+export type PaletteExtra = { readonly id: string; readonly name: string; readonly run: () => void }
+
+export function CommandPalette({
+  actions,
+  search,
+  extras = [],
+}: { actions: readonly PaletteAction[]; search?: PaletteSearch; extras?: readonly PaletteExtra[] }) {
   const dialog = useDialog()
   const { theme } = useTheme()
   const t = useT()
@@ -42,8 +49,8 @@ export function CommandPalette({ actions, search }: { actions: readonly PaletteA
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState(0)
   const prefix = currentPrefixConfiguration().key
-  const commands: Entry[] = actions
-    .map((action) => ({
+  const commands: Entry[] = [
+    ...actions.map((action) => ({
       kind: "command" as const,
       key: `c:${action.id}`,
       action,
@@ -51,10 +58,25 @@ export function CommandPalette({ actions, search }: { actions: readonly PaletteA
       chord: action.prefix
         ? `${prefix ? formatChord(prefix) : ""} + ${formatChord(action.key)}`
         : formatChord(action.key),
-    }))
-    .filter((row) =>
-      matchesHelpAction(query, row.name, row.action.prefix ? `${prefix} + ${row.action.key}` : row.action.key),
-    )
+    })),
+    ...extras.map((extra) => ({
+      kind: "command" as const,
+      key: `x:${extra.id}`,
+      action: {
+        id: extra.id,
+        key: "",
+        prefix: false,
+        run: () => {
+          extra.run()
+          return true
+        },
+      },
+      name: extra.name,
+      chord: "",
+    })),
+  ].filter((row) =>
+    matchesHelpAction(query, row.name, row.action.prefix ? `${prefix} + ${row.action.key}` : row.action.key),
+  )
   const tasks: Entry[] = useMatchingTasks(search, query).map((task) => ({
     kind: "task",
     key: `t:${task.id}`,
@@ -185,7 +207,7 @@ export function CommandPalette({ actions, search }: { actions: readonly PaletteA
   )
 }
 
-CommandPalette.show = (dialog: DialogContext, search?: PaletteSearch): void => {
+CommandPalette.show = (dialog: DialogContext, search?: PaletteSearch, extras?: readonly PaletteExtra[]): void => {
   const actions = currentPaletteActions()
-  dialog.replace(() => <CommandPalette actions={actions} {...(search ? { search } : {})} />)
+  dialog.replace(() => <CommandPalette actions={actions} extras={extras} {...(search ? { search } : {})} />)
 }

@@ -87,6 +87,41 @@ it("opens via prefix, learns the chord and executes after the modal closes", asy
   r.destroy()
 })
 
+it("lists a chordless extra command and runs it on enter", async () => {
+  let ran = 0
+  function Driver() {
+    const dialog = useDialog()
+    useBindings(() => ({
+      enabled: dialog.stack.length === 0,
+      bindings: bindByIds({
+        "palette.open": prefixAction(() =>
+          CommandPalette.show(dialog, undefined, [
+            { id: "feedback.report", name: "Report a problem", run: () => ran++ },
+          ]),
+        ),
+      }),
+    }))
+    return <text>Workspace</text>
+  }
+  const r = await renderComponent(<Driver />, { providers: { dialog: true } })
+  await act(async () => {
+    r.mockInput.pressKey("a", { ctrl: true })
+    r.mockInput.pressKey("/")
+    await settle()
+  })
+  await act(async () => {
+    r.mockInput.typeText("report")
+    await settle()
+  })
+  expect(await r.frame()).toContain("Report a problem")
+  await act(async () => {
+    r.mockInput.pressEnter()
+    await settle()
+  })
+  expect(ran).toBe(1)
+  r.destroy()
+})
+
 it("prints both doctor fix kinds without offering an execution control", async () => {
   const r = await renderComponent(
     <DoctorSuggestions

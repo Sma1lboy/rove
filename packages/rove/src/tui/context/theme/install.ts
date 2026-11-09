@@ -9,6 +9,7 @@ import { join } from "node:path"
 import type { ThemeJson } from "../theme-core"
 import { userThemesDir } from "./loader"
 import { validateTheme } from "./schema"
+import { parseTerminalScheme, themeFromTerminalScheme } from "./terminal-scheme"
 
 /** Served from rove.run/themes (sources in `packages/rove-landing/themes/`), not bundled. */
 export const HOSTED_THEMES = [
@@ -39,6 +40,21 @@ export function parseTheme(text: string): ThemeJson {
   const result = validateTheme(parsed)
   if (!result.ok) throw new ThemeInstallError(`source is not a valid Rove theme: ${result.reason}`)
   return result.theme
+}
+
+/**
+ * `rove theme add`'s source: a theme JSON, or a terminal color scheme file converted to one. Anything
+ * that opens with `{` is JSON, so a broken theme still reports its JSON error.
+ */
+export function parseThemeSource(text: string): { theme: ThemeJson; fromScheme: boolean } {
+  if (text.trimStart().startsWith("{")) return { theme: parseTheme(text), fromScheme: false }
+  const scheme = parseTerminalScheme(text)
+  if (!scheme) {
+    throw new ThemeInstallError(
+      "source is neither a Rove theme JSON nor a terminal color scheme (no `background` and `foreground` colors)",
+    )
+  }
+  return { theme: parseTheme(JSON.stringify(themeFromTerminalScheme(scheme))), fromScheme: true }
 }
 
 /**

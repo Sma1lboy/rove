@@ -225,6 +225,8 @@ export interface UseQuickForkResult {
   readonly onSpawnChild: (request: ChildSpawnRequest) => void
   /** Pass to `initialPrompt`; undefined except for the task just forked. */
   readonly initialPromptFor: (taskId: string | undefined) => string | undefined
+  /** Park a first prompt for a task about to be entered (the Report-a-problem scratch), via the same slot. */
+  readonly seedPrompt: (taskId: string, prompt: string) => void
   /** Row menu "Run again", via the same pending slot. */
   readonly runAgain: (task: Task) => void
 }
@@ -307,6 +309,7 @@ export function useQuickFork(
     onQuickFork: (repo, result, source) => void onQuickFork(repo, result, source),
     onSpawnChild: (request) => void onSpawnChild(request),
     initialPromptFor,
+    seedPrompt: (taskId, prompt) => setPending({ taskId, prompt }),
     runAgain: (task) => void onRunAgain(task),
   }
 }

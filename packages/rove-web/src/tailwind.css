@@ -358,11 +358,11 @@ button:focus-visible {
       translate: -4px 0;
     }
   }
-  --animate-row-tip-in: row-tip-in 140ms ease-out;
-  @keyframes row-tip-in {
+  /* Fade only: the card sits on whichever side Floating UI picked, so it must not slide. */
+  --animate-tip-in: tip-in 120ms ease-out;
+  @keyframes tip-in {
     from {
       opacity: 0;
-      translate: -4px -50%;
     }
   }
 

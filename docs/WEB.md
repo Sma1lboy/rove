@@ -121,39 +121,102 @@ Ctrl+E instead of Ctrl+T, and there is no Ctrl+Q (a page cannot quit itself).
 [web/PARITY.md](web/PARITY.md) lists every TUI action and whether the web
 has it yet.
 
-## Dictation (optional, local)
+## Dictation (optional)
 
-Typing on a phone is the worst part of driving a session from one, so the new-session composer has a
-`[ Say ]` button. The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to a
-sidecar on this machine; the transcript is inserted at the caret and never submitted.
+Typing on a phone is the worst part of driving a session from one, so the composers have a mic (and,
+on a phone, hold-to-talk). The page records 16 kHz mono PCM and the op `voice.transcribe` hands it to
+a sidecar on this machine together with the conversation it is dictated into; the transcript is
+inserted at the caret and sent only when you slide up to send.
 
-The sidecar is opt-in — nothing in Rove bundles a model:
+Nothing in Rove bundles a model, and the mic stays hidden until dictation is set up. **Settings →
+Voice** does it from the page:
+
+- **Local model** — shown with an Install button only on an Apple Silicon Mac with
+  [uv](https://docs.astral.sh/uv/) and ~3.5 GB free; otherwise the row says which is missing. Install is
+  a detached job on the Mac (`uv sync --frozen --extra local`, then the model download), so a phone
+  that sleeps or reconnects mid-download does not stop it; the page shows its latest line.
+- **Cloud endpoint** — base URL, model and API key. The key is written to
+  `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+
+Once either is set up, the bridge starts the sidecar whenever it is not answering (`voice.status`) and
+restarts it when the endpoint changes. The sidecar's environment lives in
+`<ROVE_HOME>/.rove/voice/venv`; its code is `scripts/voice/` in a checkout and `dist/voice/` in a
+release, one environment described by `pyproject.toml` and `uv.lock`. By hand:
 
 ```bash
-scripts/voice/asr_server.py          # uv resolves the environment; 127.0.0.1:8791
-scripts/voice/dictionary.py seed     # your repos, branches and daily terms
-scripts/voice/dictionary.py learn    # how the model actually hears each term
+uv run --project scripts/voice --extra local scripts/voice/asr_server.py   # 127.0.0.1:8791
+uv run --project scripts/voice --extra local scripts/voice/bench.py        # key-term bench: 11 zh/en clips, 82 terms
 ```
 
-While it is not running the button is disabled and says so. It listens on loopback and takes the
-shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is the only public path to it, so the
-microphone never depends on a port you have to expose.
+It listens on loopback and takes the shared token in `<ROVE_HOME>/.rove/voice/token`; the bridge is
+the only public path to it.
 
-- **Model.** `mlx-community/whisper-large-v3-mlx`, on this Mac's GPU. Large-v3 over turbo because
-  code-switched speech is the case that matters: "把 rove-web 的 composer 改成 voice first" decodes
-  verbatim on large-v3 and as "Barov with the composer" on turbo. Measured here: 15 s of speech in
-  1.7 s, ~1.2 s round trip for one sentence.
-- **Dictionary.** `~/.rove/voice/dictionary.json`. Terms ride in the decode prompt for spelling and
-  casing (without them a clip gives "Roveweb", "Demon", "Vlog"), and `learn` mines the spoken forms
-  the decode still gets wrong, which are rewritten afterwards. `learn` synthesizes each term with
-  macOS `say` inside a carrier sentence, transcribes it, and keeps the mishearing only when it looks
-  like one — the round-trip trick the Wispr Flow reverse-engineering uses, with a carrier added
-  because a bare word round-trips clean.
-- **Context.** The composer sends its project, branch and what is already typed. That ranks terms, so
-  the ones you are looking at survive the prompt budget. Shell text is deliberately kept out of the
-  decode prompt: it bled into transcripts ("da composer", "da log").
-- **Privacy.** Audio, model and dictionary stay on this machine. Nothing leaves it, and no audio is
-  written to disk.
+- **Recognizer.** Local `mlx-community/whisper-large-v3-mlx` by default. `~/.rove/voice/config.json`
+  (read when the sidecar starts; restart it after a change) picks another:
+  `{"model": "mlx-community/whisper-large-v3-turbo"}` for speed, or any OpenAI-compatible
+  `/audio/transcriptions` endpoint, for example
+  `{"backend": "cloud", "baseURL": "https://api.openai.com/v1", "model": "gpt-4o-mini-transcribe", "apiKeyEnv": "OPENAI_API_KEY"}`.
+  For OpenRouter the vocabulary goes in the field each provider reads (`azure.phraseList` for
+  `microsoft/mai-transcribe-2`); that body follows yap's measured one but has not been run from
+  here yet. Elsewhere it is the `prompt`. The key stays on this Mac. Chinese comes back in
+  Simplified script unless `"simplified": false`.
+- **Vocabulary.** The bridge reads the last 30 messages of the task's conversation (text and tool
+  inputs, or the terminal tail; at most 1.5 s, else the take goes without). Its term-like words
+  (`GraphQL`, `rove-web`, `useEffect`, not words the system dictionary knows) join the terms kept in
+  `~/.rove/voice/vocab.json` (created from the old `dictionary.json`). English the recognizer split
+  or misspelled is snapped back onto them: "Graph, Q, L" → GraphQL, "Decorfile" → Dockerfile; a
+  real English word is never rewritten. A local recognizer's prompt gets only the stored terms the
+  draft shows (other terms there cost a term whenever they were not said: 68 → 64 with 15 learned
+  ones); a cloud one gets all of them (`"promptContext"` overrides either).
+- **Learning from your fixes.** On the phone bar, when you fix a word inside a take before sending
+  ("Jithub" → GitHub, "github" → GitHub, "Graph QL" → GraphQL), the bridge op `voice.learn` diffs
+  the draft as dictation left it against what was sent and stores the fix in `vocab.json`; the next
+  take is rewritten before it shows. A toast says what was learned, with `[ undo ]`
+  (`voice.unlearn`). Learning nothing is the default: punctuation, spacing and full-width forms
+  never count, a case-only fix counts only as a term's casing (not "the" → "The"), the new word must
+  be term-like, and a send that rewrote half the take or fixed more than 4 terms teaches nothing.
+  `"learn": false` turns it off. Bench: `bench.py --edits` 20/20 labelled edits;
+  `bench.py --learn` (fix each take, take it again) 68 → 76/82 on large-v3, with the recognizer's
+  own score unchanged.
+- **Live text while you hold.** A held take (not a tapped one) streams through `voice.stream`: the
+  page sends what it recorded about once a second, one chunk in flight at a time, and with a local
+  recognizer the sidecar (`live.py`) decodes the take so far whenever at least 0.8 s is new and the
+  GPU is free, so the words show in the hold button as they are said. Letting go sends the rest and
+  the whole take is decoded once more through the same steps as a one-shot take. A cloud recognizer
+  is billed per request, so its takes are buffered and decoded once, at the end. Any streaming error
+  (an older bridge, a lost chunk) falls back to sending the whole take. Bench (`bench.py --live`,
+  large-v3, 1 s chunks): a partial every 1.43 s p50 (1.68 s p90), the text trails speech by 1.43 s
+  p50 (2.66 s p90), the first words show at 2.1 s p50, and the final text equals the one-shot text on
+  11/11 clips.
+- **Sound-alikes.** After the spelling fix, a word the recognizer *heard* wrong is matched by
+  pronunciation (Metaphone; a Chinese run is read as pinyin first): "Jithub" → GitHub, "Cavin" →
+  Kevin. Only a run that is not all dictionary words and keys within a close length of a term is
+  touched. On the bench it lifts large-v3 from 72 to 74 when the conversation holds the terms and
+  changes nothing otherwise; `"phonetic": false` turns it off.
+- **Cleanup (off by default).** A `polish` block in `config.json` sends each finished take, with its
+  vocabulary, to an OpenAI-compatible `/chat/completions` model that drops fillers, applies
+  self-corrections ("三次，不对，五次" → 5 次), writes numbers and spacing as text and turns spoken lists
+  and steps into lists: `{"polish": {"model": "gpt-6-luna", "body": {"reasoning_effort": "none"}}}`
+  (key in `OPENAI_API_KEY`; `baseURL`, `apiKey`/`apiKeyEnv` and `body` reach other providers). Live
+  partials are never polished. A failed or late call (8 s) keeps the recognizer's text. The prompt is
+  yap's RecommendedPrompt as written; the conversation's terms fill its `<CUSTOM_VOCABULARY>`.
+  Bench (`polish_bench.py`, yap's 25 cases plus 7 agent prompts, automatic checks): gpt-6-luna
+  281–284 of 288 over 9 rounds, every agent case passing, p50 0.8–0.95 s; gpt-4.1-mini 168/192.
+  Rewording the prompt for agents scored lower (157–160 of 192 on gpt-4.1-mini), so it was not
+  kept. In the phone smoke it added about 0.7 s between letting go and the text.
+- **Measured** (`bench.py`; clips are synthesized with macOS `say` on first run and cached, so the
+  voices are synthetic; real recordings are scored with `--recordings`). "Has the terms" puts each
+  clip's own sentence in the conversation, an upper bound; "only other terms" is all distractors:
+
+  | Recognizer | no context | context has the terms | context has only other terms | p50 |
+  | --- | --- | --- | --- | --- |
+  | large-v3 (default) | 68/82 | 74 | 68 | 1.6–2.5 s |
+  | large-v3-turbo | 63 | 65 (69 with `promptContext`) | 63 (61) | 1.0 s |
+  | gpt-4o-mini-transcribe (cloud) | 75 | 78 | 77 | 0.9 s |
+
+- **Privacy.** With the local recognizer, audio, model and vocabulary stay on this machine and no
+  audio is written to disk. A cloud backend sends the audio and the term list to the endpoint you set;
+  cleanup sends the transcript and the term list to its own endpoint, even with a local recognizer.
 
 
 ## Security

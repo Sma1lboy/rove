@@ -46,6 +46,8 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 /** Phone: top right under the `‹ Tasks` bar, clear of the message bar and the keyboard. */
 export const TOASTS =
   "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5 narrow:pointer-events-none narrow:top-12 narrow:bottom-auto narrow:left-3.5 narrow:items-end narrow:*:pointer-events-auto"
+/** Added to a toast that carries an action: its text, then the bracket button, on one line when they fit. */
+export const TOAST_WITH_ACTION = "flex cursor-default flex-wrap items-baseline justify-between gap-x-3"
 export const toastClass = (error: boolean): string =>
   `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.5 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
@@ -60,8 +62,8 @@ export const INBOX_BADGE = "flex-none font-mono text-meta font-normal normal-num
 /** Fixed to `99d`'s width so a shorter age never shifts the badge beside it. */
 export const INBOX_AGE = `${INBOX_BADGE} min-w-[3ch] text-right text-subtle`
 export const INBOX_SUB = "truncate font-mono text-meta font-normal normal-nums text-muted"
-/** A card's row: the card, then its reply toggle at the right edge. */
-export const INBOX_CARD = "flex items-center gap-1"
+/** A card's row: the card, then its reply toggle on the card's first line, the baseline its state and age sit on. */
+export const INBOX_CARD = "flex items-baseline gap-1"
 export const INBOX_CARD_MAIN = "min-w-0 flex-1"
 /** Wide enough for `[ reply ]` in either locale, and drawn empty on rows without one, so every row's age ends on one edge. */
 export const INBOX_PEEK_TOGGLE =

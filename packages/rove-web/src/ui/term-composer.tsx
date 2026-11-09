@@ -6,7 +6,7 @@ import {
   type RefObject,
   useRef,
 } from "react"
-import type { DictationFace } from "../dictation-button.tsx"
+import type { DictationFace } from "../voice/dictation-button.tsx"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, a wide
@@ -55,7 +55,8 @@ function Glyph({ d }: { d: string }) {
   )
 }
 
-const MIC = "M8 2a2 2 0 0 1 2 2v4a2 2 0 0 1-4 0V4a2 2 0 0 1 2-2zM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5"
+/** Fills the box as the paperclip does (x 3–13, y 1.5–14.5), so the two read as one size side by side. */
+const MIC = "M8 1.5a2.5 2.5 0 0 1 2.5 2.5v4.5a2.5 2.5 0 0 1-5 0V4A2.5 2.5 0 0 1 8 1.5zM3 8a5 5 0 0 0 10 0M8 13v1.5"
 const UP = "M8 13V3M3.5 7.5 8 3l4.5 4.5"
 
 export function ClipGlyph() {
@@ -122,13 +123,21 @@ export function HoldFace(props: {
         style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
       />
       <span className="flex-none font-mono text-meta normal-nums">{state.time}</span>
-      <Wave level={state.level} seconds={state.seconds} />
+      {state.partial ? (
+        // The newest words at the right edge, where the waveform was; the start of a long take scrolls off left.
+        <span className="flex min-w-0 flex-1 justify-end overflow-hidden whitespace-nowrap text-meta">
+          {state.partial}
+        </span>
+      ) : (
+        <Wave level={state.level} seconds={state.seconds} />
+      )}
       {state.held && (
         <span className={`flex flex-none items-center gap-1 text-meta ${state.armed ? "font-semibold" : "text-muted"}`}>
           <svg viewBox="0 0 16 16" className="size-3.5 fill-none stroke-current stroke-[1.5]" aria-hidden="true">
             <path d={UP} />
           </svg>
-          {state.armed ? props.release : props.slide}
+          {/* Once words show they need the room; the arrow alone still says where to slide. */}
+          {state.armed ? props.release : state.partial ? <span className="sr-only">{props.slide}</span> : props.slide}
         </span>
       )}
     </>

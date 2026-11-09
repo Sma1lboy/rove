@@ -73,6 +73,26 @@ overwrite without `--force`. Invalid themes are rejected with a
 one-line reason; the schema rules are the same ones the boot-time
 loader applies.
 
+## From your terminal's color scheme
+
+`rove theme add` also takes a terminal color scheme file, so Rove can wear
+the same colors as the terminal it runs in:
+
+```sh
+rove theme add ~/.config/term/themes/night-owl.conf
+```
+
+It reads the line formats terminal emulators keep their schemes in:
+`background = #011627` with `palette = 4=#82aaff`, `background #011627` with
+`color4 #82aaff`, and `*.background: #011627` resource lines. The file must
+set `background` and `foreground`; the 16 ANSI colors fill the roles
+terminal programs give them (blue for the primary accent, red for errors,
+green and red for diff lines), and panels and borders are stepped from the
+background toward the foreground. A hue the file leaves out falls back to
+the text color. The theme is named after the file without its extension
+(`night-owl`) unless you pass `--name`, and it is written as ordinary theme
+JSON you can then edit.
+
 ## Publishing on GitHub
 
 1. Commit your theme JSON to a public repo (or gist).

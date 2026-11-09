@@ -38,6 +38,8 @@ export const ROW_TITLE_RUNNING =
 
 /** A one-cell mark at a row's start (a status letter, a radio dot). */
 export const GLYPH = "w-[1ch] flex-none text-center font-mono"
+/** A tree row's fold chevron: its svg is wider than one cell. */
+export const CHEVRON_CELL = "grid w-[2ch] flex-none place-items-center font-mono text-subtle"
 
 /** A row's trailing chips. */
 export const CHIPS = "flex flex-none gap-1.5 font-mono text-meta"

@@ -9,7 +9,6 @@ import { useRef, useState, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { BridgeRequestError } from "./bridge.ts"
-import { DictationButton, useVoiceHosted } from "./dictation-button.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
@@ -26,6 +25,8 @@ import {
   composerHold,
   composerMic,
 } from "./ui/term-composer.tsx"
+import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
+import { type Heard, afterTake, learnFromSend } from "./voice/learn.ts"
 
 interface SendReply {
   readonly delivered: boolean
@@ -50,8 +51,10 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     area: field,
     listClassName: "m-0",
   })
+  // What dictation put in the draft, so the send can tell the sidecar which words the user fixed.
+  const heard = useRef<Heard | null>(null)
   // Lands at the caret of the draft. A tap or a plain hold stops there, to be read before it goes to the engine.
-  const insertDictated = (spoken: string): string => {
+  const insertDictated = (spoken: string): void => {
     const el = field.current
     const at = el?.selectionStart ?? text.length
     const end = el?.selectionEnd ?? text.length
@@ -59,24 +62,33 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     const next = `${text.slice(0, at)}${glue}${spoken}${text.slice(end)}`
     setDraft(key, next)
     const caret = at + glue.length + spoken.length
+    heard.current = afterTake(heard.current, text, next, at, end, [at + glue.length, caret])
     requestAnimationFrame(() => el?.setSelectionRange(caret, caret))
-    return next
   }
-  // A hold slid up: the same insert, then the whole draft goes. A failed send leaves it in the field.
-  const sendDictated = (spoken: string) => void send(insertDictated(spoken))
-  const send = async (draft = text) => {
+  // A hold slid up goes straight to the engine: the bar never flips to the field on the way. Only a send
+  // that fails leaves the words in the field, so nothing said is lost.
+  const sendSpoken = async (spoken: string) => {
+    const draft = text.trim() ? `${text.trimEnd()} ${spoken}` : spoken
+    if (!(await send(draft))) setDraft(key, draft)
+  }
+  const sendDictated = (spoken: string) => void sendSpoken(spoken)
+  /** True once the engine has it. */
+  const send = async (draft = text): Promise<boolean> => {
     const prompt = withRefs(draft.trim(), attachments).trim()
-    if (!prompt) return
+    if (!prompt) return false
     setBusy(true)
     try {
       const res = await model.client.request<SendReply>("tab.send", { taskId, tabId, prompt })
       if (!res.delivered) {
         toast(t("layout.composerNotSent", { reason: res.reason ?? "" }), "error")
-        return
+        return false
       }
       setDraft(key, "")
       clear()
       setTyping(false)
+      if (heard.current) void learnFromSend(model.client, heard.current, draft)
+      heard.current = null
+      return true
     } catch (err) {
       // A bridge older than this page has no `tab.send`: say so rather than print `unknown op`.
       const code = err instanceof BridgeRequestError ? err.code : undefined
@@ -90,6 +102,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
               ? err.message
               : String(err)
       toast(message, "error")
+      return false
     } finally {
       setBusy(false)
     }
@@ -98,7 +111,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const onFiles = (files: File[]) => void attach(files)
   const talk = {
     client: model.client,
-    context: () => [task?.repo ?? "", task?.title ?? "", text.slice(-120)].filter(Boolean).join(" · "),
+    context: () => ({ draft: text, taskId, tabId }),
     onText: (spoken: string) => void insertDictated(spoken),
     disabled: busy,
   }

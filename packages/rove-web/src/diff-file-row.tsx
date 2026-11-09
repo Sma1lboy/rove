@@ -30,8 +30,7 @@ export const DiffFileRow = memo(function DiffFileRow(props: {
         className={`${diffRowClass("file", { cursor: props.cursor, noted: false })} min-w-0 flex-1 text-left`}
         onClick={() => props.onToggleFold(props.index, props.path)}
       >
-        <span />
-        <span />
+        {/* The header has no line numbers: the chevron takes the first cell and the name the rest. */}
         <span className="grid place-items-center text-subtle">
           <Chevron right={props.closed} />
         </span>

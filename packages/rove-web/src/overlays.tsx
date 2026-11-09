@@ -3,11 +3,13 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useStore } from "./store.ts"
 import { type MenuItem, dialog, dismissToast, menu, toasts } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import {
   MENU_CHECK,
   MENU_SEP,
   TOASTS,
+  TOAST_WITH_ACTION,
   menuChevronClass,
   menuClass,
   menuItemClass,
@@ -235,16 +237,28 @@ export function Overlays() {
       <ContextMenu />
       {current}
       <div className={TOASTS} aria-live="polite">
-        {list.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            className={`${toastClass(item.tone === "error")} ${item.leaving ? "is-leaving" : ""}`}
-            onClick={() => dismissToast(item.id)}
-          >
-            {item.text}
-          </button>
-        ))}
+        {list.map((item) => {
+          const card = `${toastClass(item.tone === "error")} ${item.leaving ? "is-leaving" : ""}`
+          const action = item.action
+          // A card with its own button is not itself a button: only the action acts.
+          return action ? (
+            <div key={item.id} className={`${card} ${TOAST_WITH_ACTION}`}>
+              <span>{item.text}</span>
+              <Button
+                onClick={() => {
+                  dismissToast(item.id)
+                  action.run()
+                }}
+              >
+                {`[ ${action.label} ]`}
+              </Button>
+            </div>
+          ) : (
+            <button type="button" key={item.id} className={card} onClick={() => dismissToast(item.id)}>
+              {item.text}
+            </button>
+          )
+        })}
       </div>
     </>
   )

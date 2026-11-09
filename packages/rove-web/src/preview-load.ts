@@ -3,6 +3,7 @@
 import { BridgeRequestError } from "./bridge.ts"
 import { type DiffRow, codeRows, parseUnifiedDiff } from "./diff.ts"
 import { t } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { orderByGroup } from "./review-shape.ts"
 
 export type Loaded =
@@ -38,4 +39,13 @@ export function bridgeError(err: unknown): Error {
     : err instanceof Error
       ? err
       : new Error(String(err))
+}
+
+/**
+ * What a diff reply is remembered under in place of the task: its machine and directory, so a second
+ * session in the same checkout opens on the diff the first one already read.
+ */
+export function diffCacheId(model: AppModel, taskId: string): string {
+  const row = model.tasks.get()?.tasks.find((task) => task.id === taskId)
+  return row?.workspace ? `${row.machine?.id ?? ""}:${row.workspace}` : taskId
 }

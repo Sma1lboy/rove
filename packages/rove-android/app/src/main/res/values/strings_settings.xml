@@ -73,8 +73,8 @@
     <string name="settings_feedback_hint">it is posted publicly in the rove repo, using the github login on your mac</string>
     <string name="settings_feedback_send">send feedback</string>
     <string name="settings_feedback_confirm_title">post this feedback?</string>
-    <string name="settings_feedback_confirm_prose">Posts a public GitHub Discussion in the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
-    <string name="settings_feedback_post">post discussion</string>
+    <string name="settings_feedback_confirm_prose">Files a public GitHub issue on the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
+    <string name="settings_feedback_post">file issue</string>
     <string name="settings_feedback_sent">sent</string>
     <string name="settings_feedback_again">write another</string>
 

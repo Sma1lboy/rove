@@ -37,7 +37,7 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     "  theme <verb>            Manage user themes (list|add|remove)",
     `  skill <verb>            Install the ${cliName} agent skill (install|status|command|print)`,
     "  plugin <verb>           Install and run plugins (install|link|list|action|…)",
-    "  feedback                Send feedback to GitHub Discussions",
+    "  feedback                File a GitHub issue on the Rove repo",
     // `channel` has shipped since `update` learned --channel/bare channel
     // names; the subcommand lock-step test only compares the command LIST, so
     // this description drifted past CI for several releases.
