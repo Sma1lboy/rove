@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
+import { everyVisible } from "./every-visible.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { errorMessage } from "./pages-kit.ts"
@@ -57,10 +58,10 @@ export function ContextView({ model, task, active }: { model: AppModel; task: Ta
             live && setLoad((prev) => (prev.kind === "ready" ? prev : { kind: "failed", error: errorMessage(err) })),
         )
     void read()
-    const timer = window.setInterval(read, POLL_MS)
+    const stop = everyVisible(POLL_MS, read)
     return () => {
       live = false
-      window.clearInterval(timer)
+      stop()
     }
   }, [model, active, conn.state, task.id, tabId])
 
