@@ -13,17 +13,12 @@ import type { PaletteSearch } from "../component/palette-search"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
 import { useT } from "../i18n"
-import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useBindings } from "../lib/keymap"
 import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import type { HostPagesState } from "./host-pages"
-import {
-  type WorkspacePageState,
-  nextFocusedPane,
-  settingsCloseKeysEnabled,
-  workspacePagesClosed,
-} from "./keybinding-gates"
+import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "./keybinding-gates"
 import { usePluginKeybindings } from "./use-plugin-keybindings"
 
 // The host's real panes, NOT PANE_ORDER: its "terminal" is never mounted here.
@@ -232,11 +227,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       "tasks.focusEngine": prefixAction(() => focus.setFocused("workspace")),
       "sidebar.sort": prefixAction(() => deps.toggleSortMode()),
     }),
-  }))
-  // Settings page close keys; gated on an empty dialog stack so a sub-dialog keeps esc.
-  useBindings(() => ({
-    enabled: settingsCloseKeysEnabled(pages),
-    bindings: pageCloseBindings(deps.pages.closeSettings),
   }))
   // Registered LAST: workspace-open-worktree-bindings.test indexes registrations.
   usePluginKeybindings(pagesClosed)

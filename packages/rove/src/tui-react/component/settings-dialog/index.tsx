@@ -28,7 +28,7 @@ import type { VendorId } from "../../../types/task"
 import type { KVContext } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
-import { useBindings } from "../../lib/keymap"
+import { pageCloseBindings, useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { useCursorFollow } from "../../lib/use-cursor-follow"
 import { useDialog, useDialogPaddingX } from "../../ui/dialog"
@@ -341,6 +341,12 @@ export function SettingsDialog(props: SettingsDialogProps) {
   useBindings(() => ({
     enabled: editingFeedback && bodyRow === 2,
     bindings: [{ key: "return", cmd: () => feedback.send() }],
+  }))
+  // Close keys live here because only this page knows a text field has focus:
+  // while one does, `q` is a letter, so only escape and ctrl+c close.
+  useBindings(() => ({
+    enabled: dialog.stack.length === 0,
+    bindings: pageCloseBindings(props.onClose).filter((b) => !editingFeedback || b.key !== "q"),
   }))
 
   // Cursor-follow: rows register by body index so navigation never lands below

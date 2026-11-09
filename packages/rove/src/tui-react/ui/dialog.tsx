@@ -301,9 +301,9 @@ export function useOptionalDialog(): DialogContext | null {
 }
 
 /**
- * Open a dialog resolving one value: `body` wires `resolve` to submit/cancel;
- * dismissal via the stack resolves `undefined`. Not for dialogs that also
- * resolve on onClose (e.g. SettingsDialog).
+ * Open a dialog resolving one value: `body` wires `resolve` to submit/cancel,
+ * and resolving closes the dialog; dismissal via the stack resolves
+ * `undefined`. Not for dialogs that also resolve on onClose (e.g. SettingsDialog).
  */
 export function showDialog<T>(
   dialog: DialogContext,
@@ -311,9 +311,22 @@ export function showDialog<T>(
   opts?: { size?: DialogSize },
 ): Promise<T | undefined> {
   return new Promise<T | undefined>((resolve) => {
+    // Set before either path runs the other: the stack's onClose must not
+    // clear a dialog that replaced this one.
+    let settled = false
+    const finish = (value: T | undefined) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+      dialog.clear()
+    }
     dialog.replace(
-      () => body(resolve),
-      () => resolve(undefined),
+      () => body(finish),
+      () => {
+        if (settled) return
+        settled = true
+        resolve(undefined)
+      },
     )
     if (opts?.size) dialog.setSize(opts.size)
   })
