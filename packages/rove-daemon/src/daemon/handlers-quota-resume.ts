@@ -28,7 +28,16 @@ export const QUOTA_RESUME_HANDLERS: readonly DaemonRequestHandler[] = [
       const results: (QuotaResumeOutcome | { taskId: string; status: "failed"; error: string })[] = []
       for (const task of targets) {
         try {
-          results.push(await resumeQuotaTask(ctx.orch, ctx.runtime, task, () => ctx.plugins ?? null, runnability))
+          results.push(
+            await resumeQuotaTask(
+              ctx.orch,
+              ctx.runtime,
+              task,
+              ctx.deliveries.claims,
+              () => ctx.plugins ?? null,
+              runnability,
+            ),
+          )
         } catch (err) {
           results.push({ taskId: task.id, status: "failed", error: err instanceof Error ? err.message : String(err) })
         }

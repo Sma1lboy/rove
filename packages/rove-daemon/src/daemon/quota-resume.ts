@@ -15,6 +15,7 @@ import type { TaskActivityState } from "./attention-contracts.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { InflightClaims } from "./inflight-claims.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -116,7 +117,7 @@ export async function scheduleQuotaResume(
 }
 
 /**
- * Cleared BEFORE delivery so an overlapping tick can't double-type. A failed
+ * Claimed before clearing the schedule so concurrent callers cannot double-type. A failed
  * delivery is logged and dropped; a later limit hit re-arms. A task that
  * should-run refuses for any reason but the quota itself (awaiting the owner,
  * report missing, engine error, already running) is not resumed: the schedule
@@ -126,29 +127,37 @@ export async function resumeQuotaTask(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
   task: DaemonTask,
+  claims: InflightClaims,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
   runnability?: Pick<DispatchRunnability, "check">,
 ): Promise<QuotaResumeOutcome> {
+  if (claims.isClaimed(task.id, null)) return { taskId: task.id, status: "declined", reason: "busy" }
   const verdict = runnability?.check(task.id, null, ["quota"])
   if (verdict && !verdict.run) {
     await orch.setQuotaResume(task.id, null)
     logDaemonInfo("quota-resume", `declined task=${task.id} reason=${verdict.reason}`)
     return { taskId: task.id, status: "declined", reason: verdict.reason }
   }
-  await orch.setQuotaResume(task.id, null)
-  const delivered = await runtime.deliverPromptToLiveEngine(
-    {
-      id: task.id,
-      vendor: task.vendor,
-      command: task.command,
-      worktreePath: task.worktreePath,
-      scope: ptyScopeFor(orch.listTasks(), task.id),
-    },
-    quotaResumeContinuePrompt(task.observedLanguage),
-  )
-  logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
-  plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
-  return { taskId: task.id, status: delivered ? "resumed" : "not-delivered" }
+  const claimId = claims.claim(task.id, null)
+  let delivered = false
+  try {
+    await orch.setQuotaResume(task.id, null)
+    delivered = await runtime.deliverPromptToLiveEngine(
+      {
+        id: task.id,
+        vendor: task.vendor,
+        command: task.command,
+        worktreePath: task.worktreePath,
+        scope: ptyScopeFor(orch.listTasks(), task.id),
+      },
+      quotaResumeContinuePrompt(task.observedLanguage),
+    )
+    logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
+    plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
+    return { taskId: task.id, status: delivered ? "resumed" : "not-delivered" }
+  } finally {
+    claims.release(claimId, delivered)
+  }
 }
 
 /** Stateless per tick, so persisted schedules need no re-arm after restart. */
@@ -159,6 +168,7 @@ export function startQuotaResumeRunner(
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
   runnability?: DispatchRunnability,
+  claims: InflightClaims = new InflightClaims(),
 ): ReturnType<typeof startTicker> {
   // Ungated on purpose. `startTicker` must treat `tickMs <= 0` as disabled:
   // `collectors.ts` passes 0 through `??`, which would be a ~1000 Hz sweep.
@@ -167,7 +177,7 @@ export function startQuotaResumeRunner(
     tickMs,
     run: async () => {
       for (const task of dueQuotaResumes(orch.listTasks(), now())) {
-        await resumeQuotaTask(orch, runtime, task, plugins, runnability).catch((err) =>
+        await resumeQuotaTask(orch, runtime, task, claims, plugins, runnability).catch((err) =>
           logDaemonError("quota-resume", err),
         )
       }
