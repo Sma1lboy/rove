@@ -54,9 +54,13 @@ The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bri
 - **Archive.** A row's menu archives a task: the row moves to the Archived fold at the end of the list, and the worktree, branch and sessions stay as they are. A busy task asks first. Unarchive is in the same menu.
 - **New tab.** An engine tab with a first message is `rove api send --tab new`; without one (an idle engine, or a plain login shell) it is `rove api tab-new`.
 - **Sync with base.** A task row's menu merges the task's base branch into its worktree. A conflict or uncommitted changes show the files to deal with.
+- **Fix failing checks.** A task whose PR is red has this in its menu. It sends the failing check logs to the task's engine.
+- **Reopen a tab.** A tab whose process has exited shows `reopen session` beside its status line, which starts the tab's own session again and attaches to it.
 - **Diff.** Files changed on the branch versus its base (same base rule as the TUI's changes pane) and uncommitted files, each with its unified diff.
-- **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land and delete ask twice; delete keeps the branch, as `rove api delete` does.
+- **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land first asks the bridge whether it can go ahead: a dirty base or empty branch refuses, otherwise the confirmation names the destination and commit count. Delete asks twice and keeps the branch, as `rove api delete` does.
 - **Search.** Pages › search conversations finds what you and the agents wrote in any task, through `rove api search`. A hit opens its task on that tab.
+- **Inbox.** `ack all` clears everything that can be cleared; decisions still need an answer. A routine failure clears from its row's `dismiss` or when opened.
+- **Machines.** Pages › machines lists every registered machine with its state, why it is not online, and the tasks it holds.
 - **Notifications.** While the app is running, a task that moves into `waiting-on-you`, or from `working` to `ready-for-review`/`idle`, posts a local notification.
 - **Demo.** `try a demo` on the first screen runs the whole app against canned data bundled in the app (`Sources/RoveMobile/Demo/demo-fixture.json`, the same file `scripts/fixture-bridge.ts` serves to the UI tests): no Mac, no bridge, no network request. A strip on every screen says `demo · not connected to a mac`; `connect a mac` leaves it. Nothing about the demo is saved, so a cold launch starts on the pairing screen. It exists so App Store beta review can use the app without a Mac (`packages/rove-ios/docs/REVIEW_NOTES.md`).
 
