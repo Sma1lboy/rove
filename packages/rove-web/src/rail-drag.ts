@@ -22,6 +22,8 @@ export type DragProps = Pick<HTMLAttributes<HTMLElement>, "draggable" | "onDragS
 
 export interface RowPlace {
   readonly "data-row": string
+  /** In the block being dragged: the rail dims every other row. */
+  readonly "data-lifted"?: ""
   readonly style?: CSSProperties
 }
 
@@ -249,9 +251,15 @@ export function useRowDrag(
     /** Call once per render with the rows in drawn order; returns each row's place. */
     places: (rows: readonly NavRow[]) => {
       const by = shifts(rows)
+      const from = drag ? rows.findIndex((row) => row.id === drag.fromRow) : -1
+      const lifted = new Set(from < 0 ? [] : rows.slice(from, blockEnd(rows, from)).map((row) => row.id))
       return (row: NavRow): RowPlace => {
         const dy = by.get(row.id)
-        return dy ? { "data-row": row.id, style: { transform: `translateY(${dy}px)` } } : { "data-row": row.id }
+        return {
+          "data-row": row.id,
+          ...(lifted.has(row.id) ? { "data-lifted": "" as const } : {}),
+          ...(dy ? { style: { transform: `translateY(${dy}px)` } } : {}),
+        }
       }
     },
   }

@@ -354,7 +354,7 @@ function RailRow(props: {
   if (row.kind === "project" || row.kind === "state") {
     return (
       <h2
-        className={projectHead({ moving: props.moving, dragging: props.dragging })}
+        className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
         onContextMenu={props.onMenu}
         {...props.place}
         {...props.drag}
@@ -401,7 +401,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging })} ${cursor}`}
+      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging, grab: props.drag !== undefined })} ${cursor}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}

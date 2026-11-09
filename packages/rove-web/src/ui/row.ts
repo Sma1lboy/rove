@@ -14,15 +14,20 @@ const SIZE: Readonly<Record<RowSize, string>> = {
   pane: "min-h-5.5 touch:min-h-10",
 }
 
-/** A task row under the pointer in a drag: a fill and nothing outside it, so the rows sliding past stay visible. */
-export const LIFTED = "bg-hover cursor-grabbing"
+/** A task row under the pointer in a drag: a fill and a slight pop, nothing drawn outside it, so the rows sliding past stay visible. */
+export const LIFTED = "bg-hover cursor-grabbing scale-[1.02] motion-reduce:scale-none"
+/** Six dots in a row's left gutter, shown on hover: what says this row can be dragged. No hover on a touch screen. */
+export const GRIP =
+  "before:absolute before:top-1/2 before:h-3 before:w-1.5 before:-translate-y-1/2 before:opacity-0 before:content-[''] before:[background:radial-gradient(circle,var(--subtle)_0.8px,transparent_1.1px)_0_0/3px_4px] hover:before:opacity-100 touch:before:hidden"
 
 export function rowClass(o: {
   readonly selected?: boolean
   /** Picked up by move mode: the TUI's move wash. */
   readonly moving?: boolean
-  /** Picked up by a drag: raised off the list while the rows around it make room. */
+  /** Picked up by a drag, while the rows around it make room. */
   readonly lifted?: boolean
+  /** Can be dragged: the grab cursor and, on hover, the grip. */
+  readonly grab?: boolean
   readonly size?: RowSize
   /** Lines stacked top to bottom (an inbox card) instead of one line. */
   readonly stack?: boolean
@@ -35,7 +40,9 @@ export function rowClass(o: {
       : o.selected
         ? "bg-menu"
         : "hover:bg-hover data-menu-open:bg-hover"
-  return `relative flex w-full rounded-sm text-left active:scale-97 motion-reduce:active:scale-none ${layout} ${SIZE[o.size ?? "row"]} ${bg}`
+  const press = o.lifted ? "" : "active:scale-97 motion-reduce:active:scale-none"
+  const grab = o.grab && !o.lifted ? `cursor-grab before:left-px ${GRIP}` : ""
+  return `relative flex w-full rounded-sm text-left ${press} ${grab} ${layout} ${SIZE[o.size ?? "row"]} ${bg}`
 }
 
 /** The row's label: takes the room left and ends in an ellipsis. `row-title` is row-tip.tsx's hook. */
