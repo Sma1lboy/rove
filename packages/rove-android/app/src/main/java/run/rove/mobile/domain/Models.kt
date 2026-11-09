@@ -28,6 +28,8 @@ data class TaskRow(
     val prChip: String? = null,
     val prChipStale: Boolean = false,
     val tabStatus: Map<String, TabStatus> = emptyMap(),
+    val parentTaskId: String? = null,
+    val extraRepoCount: Int = 0,
 ) {
     /** The bridge's row name; an older bridge sends none, then the stored title / branch / id. `title` stays the one a rename edits. */
     val displayTitle get() = label?.takeIf { it.isNotEmpty() } ?: title.ifEmpty { branch.ifEmpty { id } }

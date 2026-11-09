@@ -31,4 +31,17 @@
     <string name="rowmenu_archive_busy_body">An engine in %1$s is still working or waiting on you. Archiving hides the row without stopping it.</string>
     <string name="rowmenu_archive_busy_confirm">archive anyway</string>
     <string name="rowmenu_archived_fold">archived · %1$d</string>
+    <string name="rowmenu_more">more</string>
+    <string name="rowmenu_land">land into base branch</string>
+    <string name="rowmenu_copy">copy</string>
+    <string name="rowmenu_copy_id">task id</string>
+    <string name="rowmenu_copy_branch">branch</string>
+    <string name="rowmenu_copy_path">worktree path</string>
+    <string name="rowmenu_copied">Copied %1$s</string>
+    <string name="rowmenu_copy_nothing">This task has nothing to copy there yet</string>
+    <string name="rowmenu_move_to_project">move to project…</string>
+    <string name="rowmenu_move_empty">No other project to move this task to</string>
+    <string name="rowmenu_change_engine">change engine</string>
+    <string name="rowmenu_engine_next_session">Applies to the next session.</string>
+    <string name="rowmenu_remove">remove session</string>
 </resources>
