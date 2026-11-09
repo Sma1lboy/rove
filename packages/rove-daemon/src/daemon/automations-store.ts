@@ -23,6 +23,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { parseSkipVerdict } from "./runnability-contracts.ts"
+import { salvageUnreadable } from "./store-salvage.ts"
 
 /** Per-automation run history cap; every write re-serializes the whole document. */
 export const MAX_RUNS_PER_AUTOMATION = 100
@@ -158,7 +159,8 @@ async function readStore(path: string): Promise<{ automations: Automation[]; run
     return { automations, runs }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return { automations: [], runs: [] }
-    logDaemonError("automations-load", err)
+    // Unreadable is not empty: keep the bytes aside before any later write.
+    salvageUnreadable(path, "automations-load", err)
     return { automations: [], runs: [] }
   }
 }

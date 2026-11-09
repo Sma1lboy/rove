@@ -4,8 +4,12 @@
  * awaiting, then missing.
  */
 
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
+import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
 import {
   type AutomationRun,
   ROUTINE_RESPONSE_WINDOW_MS,
@@ -87,5 +91,19 @@ describe("routineRunResponseState", () => {
     expect(
       routineRunResponseState(run({ status: "skipped_precheck" }), NOW + 10 * ROUTINE_RESPONSE_WINDOW_MS),
     ).toBeNull()
+  })
+})
+
+describe("an unreadable automations.json", () => {
+  it("is kept aside instead of being replaced by an empty store", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-automation-salvage-"))
+    const path = join(dir, "automations.json")
+    writeFileSync(path, "{ this is not json")
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    expect(store.list()).toEqual([])
+    const salvaged = readdirSync(dir).filter((name) => name.includes(".corrupt-"))
+    expect(salvaged).toHaveLength(1)
+    expect(readFileSync(join(dir, salvaged[0]!), "utf8")).toBe("{ this is not json")
   })
 })
