@@ -49,7 +49,15 @@ export interface GhPrView {
   readonly [key: string]: unknown
 }
 
-export type PrViewErrorKind = "missing-binary" | "auth" | "timeout" | "network" | "parse" | "no-remote" | "unknown"
+export type PrViewErrorKind =
+  | "missing-binary"
+  | "worktree-missing"
+  | "auth"
+  | "timeout"
+  | "network"
+  | "parse"
+  | "no-remote"
+  | "unknown"
 
 /** `gh` hits the network; 30s tracks checks without hammering it. */
 export const DEFAULT_PR_STATUS_POLL_MS = 30_000

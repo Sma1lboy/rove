@@ -238,6 +238,7 @@ export interface DaemonRuntimeAdapter {
      * SUCCESS the caller detects first. */
     classify(signals: {
       spawnError?: boolean
+      cwdMissing?: boolean
       timedOut?: boolean
       exitCode?: number | null
       stderr?: string
