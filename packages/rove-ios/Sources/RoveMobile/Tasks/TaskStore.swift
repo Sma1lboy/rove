@@ -142,12 +142,18 @@ final class TaskStore {
     }
 
     func dismissAttention(_ item: AttentionItem) async {
-        // A decision is answered (`answerGate`), never dismissed.
-        guard let taskId = item.taskId, item.gateId == nil else { return }
-        var args: [String: Any] = ["taskId": taskId]
-        if let tab = item.tabId { args["tabId"] = tab }
-        if let delivery = item.deliveryId { args["deliveryId"] = delivery }
-        _ = try? await client.request("attention.dismiss", args, as: EmptyResult.self)
+        await dismissAttention([item])
+    }
+
+    /// Clears every item that can be cleared, then re-reads the feed once.
+    func dismissAttention(_ items: [AttentionItem]) async {
+        let dismissals = items.compactMap(InboxLogic.dismissal)
+        guard !dismissals.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for d in dismissals {
+                group.addTask { @MainActor [client] in _ = try? await client.request(d.op, d.args, as: EmptyResult.self) }
+            }
+        }
         await refresh()
     }
 

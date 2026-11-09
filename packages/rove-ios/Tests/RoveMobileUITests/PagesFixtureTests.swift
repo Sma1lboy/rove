@@ -153,6 +153,21 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
     }
 
+    func testFixtureInboxAcksAll() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("inboxButton"), "inbox").tap()
+        let ackAll = waitFor(element("ackAll"), "ack all")
+        checkpoint("fx-inbox-ack-all")
+        ackAll.tap()
+        let sent = { log.entries().filter { $0.op.hasPrefix("attention.dismiss") } }
+        let deadline = Date().addingTimeInterval(5)
+        while sent().count < 3, Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(sent().contains { $0.op == "attention.dismissRoutine" && $0.args["automationId"] as? String == "r-bad" })
+        XCTAssertEqual(sent().filter { $0.op == "attention.dismiss" }.count, 2)
+    }
+
     func testFixtureRoutinesAndIssues() throws {
         pair(try fixture())
         openPage("routines")
