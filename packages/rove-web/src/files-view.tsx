@@ -19,7 +19,7 @@ import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { CHEVRON_CELL, GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
 import { TONE } from "./ui/tone.ts"
 
@@ -161,9 +161,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               else open(r.path)
             }}
           >
-            <span className="grid w-[2ch] flex-none place-items-center font-mono text-subtle">
-              {r.dir ? <Chevron right={!r.open} /> : null}
-            </span>
+            <span className={CHEVRON_CELL}>{r.dir ? <Chevron right={!r.open} /> : null}</span>
             <span className={`${ROW_TITLE} ${r.state ? TONE[STATE_TONE[r.state]] : ""}`}>{r.label}</span>
             {r.state && (
               <span className={`${GLYPH} ${TONE[STATE_TONE[r.state]]}`} title={t(`files.state.${r.state}`)}>
