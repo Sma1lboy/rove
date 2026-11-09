@@ -7,7 +7,8 @@
  * the explicit "check for updates" always reports.
  */
 
-import { RELEASE_CHANNELS, type ReleaseChannel, channelOf } from "../version.ts"
+import { RELEASE_CHANNELS, type ReleaseChannel } from "../release-channels.ts"
+import { channelOf } from "../version.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile } from "./store.ts"
 
 export const UPDATE_CHANNEL_KEY = "update.channel"

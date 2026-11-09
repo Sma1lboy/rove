@@ -6,7 +6,7 @@
  * link) and the `rove update` command.
  */
 
-import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/version.ts"
+import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"

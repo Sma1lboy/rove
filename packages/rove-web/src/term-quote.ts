@@ -5,8 +5,8 @@
  */
 
 import { t } from "./i18n/index.ts"
+import type { TermHandle } from "./term-contract.ts"
 import { appendQuote, draftKey } from "./term-drafts.ts"
-import type { TermHandle } from "./term-mount.ts"
 import { toast } from "./ui.ts"
 
 /** The selection as a fenced block, or null when it holds no text. The fence outgrows any backticks inside. */

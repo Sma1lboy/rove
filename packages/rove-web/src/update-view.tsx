@@ -4,8 +4,9 @@
  * the installer runs on the computer serving the page, which polls it. Copy is the TUI's `update.*` catalog.
  */
 
+import type { ReleaseChannel } from "@sma1lboy/rove/src/release-channels.ts"
 import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
-import type { ReleaseChannel, ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
+import type { ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
 import { useEffect, useRef, useState } from "react"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"

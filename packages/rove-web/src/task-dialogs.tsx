@@ -6,8 +6,8 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
+import { streamKey } from "./term-contract.ts"
 import { termFor } from "./term-control.ts"
-import { streamKey } from "./term-mount.ts"
 import { toast } from "./ui.ts"
 
 /** `engines.list` row; the bridge's `EngineRow`, trimmed to what the pages read (models and effort levels are the registry's). */

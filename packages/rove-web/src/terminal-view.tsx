@@ -16,10 +16,10 @@ import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
 import { useStore } from "./store.ts"
 import { TermComposer } from "./term-composer.tsx"
+import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-contract.ts"
 import { focusedTerm, registerTerm, termFor } from "./term-control.ts"
 import { TermKeyRow } from "./term-key-row.tsx"
 import { NERD_SYMBOLS_FAMILY } from "./term-look.ts"
-import { type Notice, SCROLL_PAGE_LINES, type TermHandle, streamKey } from "./term-mount.ts"
 import { type EngineExit, TermNotice } from "./term-notice.tsx"
 import { type Leased, hasParked, leaseTerminal } from "./term-pool.ts"
 import { quoteSelection } from "./term-quote.ts"
@@ -130,7 +130,7 @@ export function TerminalView(props: TerminalViewProps) {
     void document.fonts.load(`13px "${NERD_SYMBOLS_FAMILY}"`, String.fromCodePoint(0xe0a0)).catch(() => {})
     const mount = () => {
       if (cancelled) return
-      leased = leaseTerminal(
+      void leaseTerminal(
         { client, host: el, taskId, tabId, leafId, focusOnMount: latest.current.focused !== false },
         {
           setNotice,
@@ -151,8 +151,14 @@ export function TerminalView(props: TerminalViewProps) {
             if (leased) await pasteClipboardImage(client, leased.handle)
           },
         },
-      )
-      setHandle(leased.handle)
+      ).then((taken) => {
+        // A tab switch while xterm loaded: the lease is not this view's to keep.
+        if (cancelled) taken.release()
+        else {
+          leased = taken
+          setHandle(taken.handle)
+        }
+      })
     }
     // A parked terminal already has its fonts and atlas: show it in this frame.
     if (hasParked(client, taskId, tabId, leafId)) mount()

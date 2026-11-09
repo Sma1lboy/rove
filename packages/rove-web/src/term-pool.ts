@@ -7,7 +7,8 @@
  */
 
 import type { BridgeClient } from "./bridge.ts"
-import { type MountOpts, type Notice, type TermHandle, mountTerminal, streamKey } from "./term-mount.ts"
+import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
+import type { MountOpts } from "./term-mount.ts"
 import { TERM_BOX } from "./ui/shell.ts"
 
 /** Parked terminals per connection. Each holds a WebGL context, and a browser keeps only ~16 live. */
@@ -108,10 +109,10 @@ export function hasParked(client: BridgeClient, taskId: string, tabId: string, l
   return poolOf(client).entries.get(streamKey(taskId, tabId, leafId))?.slot.parkedAt != null
 }
 
-export function leaseTerminal(
+export async function leaseTerminal(
   o: Omit<MountOpts, keyof TermBinding | "el" | "snapshot" | "onPainted"> & { readonly host: HTMLElement },
   binding: TermBinding,
-): Leased {
+): Promise<Leased> {
   const pool = poolOf(o.client)
   const key = streamKey(o.taskId, o.tabId, o.leafId)
   const parked = pool.entries.get(key)
@@ -145,6 +146,8 @@ export function leaseTerminal(
   let entry: Entry | null = null
   const snapshot = pooled ? pool.snapshots.get(key) : undefined
   if (snapshot) pool.snapshots.delete(key)
+  // xterm and its addons are ~470 KB: they load with the first terminal, not with the page.
+  const { mountTerminal } = await import("./term-mount.ts")
   const handle = mountTerminal({
     ...o,
     el: box,

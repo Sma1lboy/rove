@@ -10,13 +10,11 @@
 import { spawnSync } from "node:child_process"
 import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, type ReleaseChannel } from "../release-channels.ts"
 import { preferredReleaseChannel, rememberReleaseChannel } from "../state/update-channel.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
-  DEFAULT_RELEASE_CHANNEL,
-  RELEASE_CHANNELS,
-  type ReleaseChannel,
   UPDATE_COMMAND,
   UPDATE_SCRIPT_URL,
   breakingVersionsCrossed,

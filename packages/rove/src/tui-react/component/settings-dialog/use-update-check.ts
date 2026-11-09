@@ -4,7 +4,8 @@
  */
 
 import { useState } from "react"
-import { type ReleaseChannel, type UpdateInfo, checkLatestVersion } from "../../../version"
+import type { ReleaseChannel } from "../../../release-channels.ts"
+import { type UpdateInfo, checkLatestVersion } from "../../../version"
 
 type Checked = { readonly channel: ReleaseChannel; readonly info: UpdateInfo | null }
 
