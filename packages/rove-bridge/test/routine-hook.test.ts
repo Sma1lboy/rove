@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { BridgeApi } from "../src/ops/types.ts"
 import { routineHook } from "../src/routine-hook.ts"
+import { start, stopServers } from "./server-harness.ts"
 
 function fakeApi(verdict: string) {
   const calls: { name: string; payload: unknown }[] = []
@@ -62,4 +63,24 @@ describe("routineHook", () => {
     const down = { rpc: async () => Promise.reject(new Error("ECONNREFUSED")) } as unknown as BridgeApi
     expect((await routineHook(down, post("/hooks/routines/x"), () => {}))?.status).toBe(503)
   })
+})
+
+test("a body past the server's cap is refused before it is buffered", async () => {
+  // The hook route has no bearer token, so the bound is the server's own
+  // maxRequestBodySize — a chunked POST declares no length the route could check.
+  const h = start()
+  try {
+    const http = h.url.replace("ws://", "http://").replace(/\/$/, "")
+    const chunk = new Uint8Array(512 * 1024)
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let i = 0; i < 8; i++) controller.enqueue(chunk)
+        controller.close()
+      },
+    })
+    const res = await fetch(`${http}/hooks/routines/x`, { method: "POST", body, duplex: "half" } as RequestInit)
+    expect(res.status).toBe(413)
+  } finally {
+    stopServers()
+  }
 })

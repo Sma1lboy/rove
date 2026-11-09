@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { browserOriginAllowed, deviceOf, listDevices } from "../src/auth.ts"
+import { CredentialSockets } from "../src/credential-sockets.ts"
 import { type WebLoginOptions, createWebLogin } from "../src/web-login.ts"
 import { hashPassword, webPasswordPaths, writePassword } from "../src/web-password.ts"
 import { connect, start, stopServers } from "./server-harness.ts"
@@ -20,6 +21,7 @@ async function setup(withPassword = true, extra: Partial<WebLoginOptions> = {}) 
   if (withPassword) writePassword(webPasswordPaths(dir).password, await hashPassword(PASSWORD))
   const devicesPath = join(dir, "devices.json")
   const lines: string[] = []
+  const sockets = new CredentialSockets()
   const login = createWebLogin({
     bridgeDir: dir,
     devicesPath,
@@ -27,9 +29,10 @@ async function setup(withPassword = true, extra: Partial<WebLoginOptions> = {}) 
     trustForwardedIp: false,
     log: (line) => lines.push(line),
     failureDelayMs: () => 0,
+    onRevoked: (device) => void sockets.closeCredential(device),
     ...extra,
   })
-  const h = start({ login, publicHost: "rove.example.com", deviceOf: (t) => deviceOf(devicesPath, t) })
+  const h = start({ login, publicHost: "rove.example.com", deviceOf: (t) => deviceOf(devicesPath, t), sockets })
   const http = h.url.replace("ws://", "http://").replace(/\/$/, "")
   const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
     fetch(`${http}${path}`, {
@@ -148,7 +151,12 @@ describe("POST /logout", () => {
     const s = await setup()
     const { token } = (await (await s.post("/login", { password: PASSWORD })).json()) as { token: string }
     const other = (await (await s.post("/login", { password: PASSWORD })).json()) as { token: string }
+    // A socket the device already holds is closed by the sign-out, not left live.
+    const live = await connect(s.h.url, { Authorization: `Bearer ${token}` })
+    expect((await live.call("hello")).ok).toBe(true)
+    const closed = new Promise<number>((resolve) => live.ws.addEventListener("close", (ev) => resolve(ev.code)))
     expect((await s.post("/logout", {}, { Authorization: `Bearer ${token}` })).status).toBe(204)
+    expect(await closed).toBe(4401)
     await expect(connect(s.h.url, { Authorization: `Bearer ${token}` })).rejects.toThrow()
     expect(deviceOf(s.devicesPath, other.token)).not.toBeNull()
   })

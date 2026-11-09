@@ -274,7 +274,9 @@ instead of asking for the link. A right password mints a new device token
 named `web-login-<date>-<time>` (UTC) and the page keeps it as it would a
 `#token=` link. Each login shows in `--list-devices`, and
 `--revoke-device <name>` signs that browser out. **Sign out** in Settings →
-General forgets the token in this browser and revokes it on the host.
+General forgets the token in this browser and revokes it on the host, which also
+closes any socket that device still holds — the page lands back on the sign-in
+screen instead of retrying with a dead token.
 
 Wrong guesses are slowed and counted, and the counts survive a restart:
 
