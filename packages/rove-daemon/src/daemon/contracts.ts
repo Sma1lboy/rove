@@ -357,6 +357,8 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setRequireReport(id: string, required: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>
+  /** A whole project, main or not, right before or after the target project. */
+  moveProject(repo: string, target: string, side: "before" | "after"): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
   /** Record what the worker says it delivered (`update --report-*`).
    *  Separate from `setStatus` because a report on an already-`done` task is

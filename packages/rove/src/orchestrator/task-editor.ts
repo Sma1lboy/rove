@@ -338,6 +338,31 @@ export class TaskEditor {
     await this.store.moveToFront(task.id, this.movePartition(task))
   }
 
+  /**
+   * Every task of `repo` as one block, keeping their order. A project sits where its first task does
+   * (main or not; its tasks may be interleaved with others'), so "before" lands ahead of `target`'s first
+   * task and "after" ahead of the first task of the project that follows `target`, or at the end.
+   * Projectless rows (Scratch, a projectless routine's runs) belong to no project and never move with one.
+   */
+  async moveProject(repo: string, target: string, side: "before" | "after"): Promise<void> {
+    if (samePath(repo, target)) return
+    const projectOf = (t: Task): string | null =>
+      (t.kind ?? "task") === "dir" && (t.scratch === true || t.noProject === true) ? null : t.repo
+    const tasks = this.store.list()
+    const block = tasks.filter((t) => projectOf(t) !== null && samePath(t.repo, repo)).map((t) => String(t.id))
+    if (block.length === 0) throw new Error(`no project at ${repo}`)
+    const rest = tasks.filter((t) => !block.includes(String(t.id)))
+    const head = rest.findIndex((t) => projectOf(t) !== null && samePath(t.repo, target))
+    if (head < 0) throw new Error(`no project at ${target}`)
+    if (side === "before") return await this.store.moveBlock(block, String(rest[head]?.id), "before")
+    // The next project down is the next one whose first task comes after the target's.
+    const seen = rest.slice(0, head + 1).flatMap((t) => projectOf(t) ?? [])
+    const next = rest.slice(head + 1).find((t) => projectOf(t) !== null && !seen.some((p) => samePath(p, t.repo)))
+    const last = rest.at(-1)
+    if (next) await this.store.moveBlock(block, String(next.id), "before")
+    else if (last) await this.store.moveBlock(block, String(last.id), "after")
+  }
+
   private movePartition(task: Task): string[] {
     const isMain = task.kind === "main"
     return this.store

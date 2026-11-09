@@ -1,3 +1,4 @@
+import { LIFTED } from "./row.ts"
 import { RAIL_FRAME } from "./shell.ts"
 
 /** Class recipes for the rail row's extras: the tree guides, the fold count, the PR chip and its card, the title tip. */
@@ -54,7 +55,7 @@ export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_
 
 /** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode and a drag wash it. */
 export const projectHead = (o: { moving: boolean; dragging: boolean }): string =>
-  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.moving || o.dragging ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
+  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.dragging ? `relative rounded-xs outline-6 outline-surface ${LIFTED}` : o.moving ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
 export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`

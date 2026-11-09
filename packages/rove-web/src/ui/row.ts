@@ -14,16 +14,27 @@ const SIZE: Readonly<Record<RowSize, string>> = {
   pane: "min-h-5.5 touch:min-h-10",
 }
 
+/** A row or header under the pointer in a drag: a raised card above the rows sliding under it. */
+export const LIFTED = "z-10 bg-surface shadow-popover ring-1 ring-line cursor-grabbing"
+
 export function rowClass(o: {
   readonly selected?: boolean
-  /** Picked up by move mode or a drag: the TUI's move wash. */
+  /** Picked up by move mode: the TUI's move wash. */
   readonly moving?: boolean
+  /** Picked up by a drag: raised off the list while the rows around it make room. */
+  readonly lifted?: boolean
   readonly size?: RowSize
   /** Lines stacked top to bottom (an inbox card) instead of one line. */
   readonly stack?: boolean
 }): string {
   const layout = o.stack ? "flex-col items-stretch gap-0.5 px-2.5 py-1.5" : "items-center gap-2 px-2 py-0.75"
-  const bg = o.moving ? "bg-accent-soft" : o.selected ? "bg-menu" : "hover:bg-hover data-menu-open:bg-hover"
+  const bg = o.lifted
+    ? LIFTED
+    : o.moving
+      ? "bg-accent-soft"
+      : o.selected
+        ? "bg-menu"
+        : "hover:bg-hover data-menu-open:bg-hover"
   return `relative flex w-full rounded-sm text-left active:scale-97 motion-reduce:active:scale-none ${layout} ${SIZE[o.size ?? "row"]} ${bg}`
 }
 
