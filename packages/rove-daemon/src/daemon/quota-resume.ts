@@ -11,6 +11,7 @@
 
 import type { PluginHost } from "../plugins/runtime.ts"
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskActivityState } from "./attention-contracts.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
@@ -42,6 +43,30 @@ export function dueQuotaResumes(tasks: readonly DaemonTask[], nowMs: number): Da
     return Number.isFinite(at) && at <= nowMs
   })
 }
+
+/**
+ * Tasks parked on a quota wall: an armed schedule, or a rate-limited engine
+ * with no known reset. Billing shares `rate_limited` but needs a human.
+ */
+export function quotaWaitingTasks(
+  tasks: readonly DaemonTask[],
+  entryOf: (
+    taskId: string,
+  ) => { readonly state: TaskActivityState; readonly detail?: { readonly failure?: string } } | undefined,
+): DaemonTask[] {
+  return tasks.filter((task) => {
+    if (!task.worktreePath || task.deletion) return false
+    if (task.quotaResume) return true
+    const entry = entryOf(task.id)
+    return entry?.state === "rate_limited" && entry.detail?.failure !== "billing"
+  })
+}
+
+/** What one resume attempt did; `declined` carries the should-run reason that stopped it. */
+export type QuotaResumeOutcome =
+  | { readonly taskId: string; readonly status: "resumed" }
+  | { readonly taskId: string; readonly status: "not-delivered" }
+  | { readonly taskId: string; readonly status: "declined"; readonly reason: string }
 
 /**
  * Earliest future reset among EXHAUSTED windows, or null. An allowed window's
@@ -97,18 +122,18 @@ export async function scheduleQuotaResume(
  * report missing, engine error, already running) is not resumed: the schedule
  * is dropped, not held, so nothing is typed into it later.
  */
-async function resumeDueTask(
+export async function resumeQuotaTask(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
   task: DaemonTask,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
-  runnability?: DispatchRunnability,
-): Promise<void> {
+  runnability?: Pick<DispatchRunnability, "check">,
+): Promise<QuotaResumeOutcome> {
   const verdict = runnability?.check(task.id, null, ["quota"])
   if (verdict && !verdict.run) {
     await orch.setQuotaResume(task.id, null)
     logDaemonInfo("quota-resume", `declined task=${task.id} reason=${verdict.reason}`)
-    return
+    return { taskId: task.id, status: "declined", reason: verdict.reason }
   }
   await orch.setQuotaResume(task.id, null)
   const delivered = await runtime.deliverPromptToLiveEngine(
@@ -123,6 +148,7 @@ async function resumeDueTask(
   )
   logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
   plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
+  return { taskId: task.id, status: delivered ? "resumed" : "not-delivered" }
 }
 
 /** Stateless per tick, so persisted schedules need no re-arm after restart. */
@@ -141,7 +167,7 @@ export function startQuotaResumeRunner(
     tickMs,
     run: async () => {
       for (const task of dueQuotaResumes(orch.listTasks(), now())) {
-        await resumeDueTask(orch, runtime, task, plugins, runnability).catch((err) =>
+        await resumeQuotaTask(orch, runtime, task, plugins, runnability).catch((err) =>
           logDaemonError("quota-resume", err),
         )
       }

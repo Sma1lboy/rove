@@ -114,6 +114,8 @@ export type DaemonRequestName =
   | "task.scheduleStart"
   | "task.cancelScheduledStart"
   | "task.startScheduledNow"
+  // Continue rate-limited tasks now rather than at their quota reset.
+  | "task.resumeQuota"
   // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
   | "task.checkpointList"
   | "task.checkpoint"
@@ -337,6 +339,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "automation.runNow",
   // Materializes the worktree and starts the engine.
   "task.startScheduledNow",
+  // One serial paste per rate-limited task.
+  "task.resumeQuota",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
   // Serial thread/comment pages each have their own gh subprocess budget.
