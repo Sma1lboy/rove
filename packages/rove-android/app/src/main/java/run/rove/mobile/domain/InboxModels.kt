@@ -26,6 +26,9 @@ object InboxLogic {
     /** Keyed on its schedule, so it clears by automation id. A task-level `attention.dismiss` leaves it there. */
     fun routineEpisode(item: Attention) = item.automationId?.takeIf { item.state == "routine_failed" }
 
+    /** What a dismiss or ack all can clear: a decision is answered, and a routine row needs its schedule's id. */
+    fun clearable(item: Attention) = item.gateId == null && item.state != "decision_needed" && (item.taskId != null || routineEpisode(item) != null)
+
     /** One episode per tab, the fresh one replacing the stale; a delivery episode is keyed by its delivery, a decision by its gate. */
     fun key(item: Attention): String {
         if (item.gateId != null) return "gate\u0000${item.gateId}"

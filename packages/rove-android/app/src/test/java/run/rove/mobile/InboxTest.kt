@@ -64,4 +64,12 @@ class InboxTest {
         assertEquals("auto-1", InboxLogic.routineEpisode(Attention(state = "routine_failed", automationId = "auto-1")))
         assertNull(InboxLogic.routineEpisode(Attention(taskId = "t", state = "routine_responded", automationId = "auto-1")))
     }
+    @Test fun ackAllSkipsDecisionsAndRoutineRowsItCannotKey() {
+        fun row(state: String, taskId: String? = "t", gateId: String? = null, automationId: String? = null) =
+            Attention(taskId = taskId, state = state, at = 0.0, gateId = gateId, automationId = automationId)
+        assertEquals(true, InboxLogic.clearable(row("report_missing")))
+        assertEquals(true, InboxLogic.clearable(row("routine_failed", taskId = null, automationId = "a")))
+        assertEquals(false, InboxLogic.clearable(row("routine_failed", taskId = null)))
+        assertEquals(false, InboxLogic.clearable(row("decision_needed", gateId = "g")))
+    }
 }
