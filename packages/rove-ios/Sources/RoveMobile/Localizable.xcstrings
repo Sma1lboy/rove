@@ -508,16 +508,6 @@
         }
       }
     },
-    "add one with `rove machine add`" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "用 `rove machine add` 添加一台"
-          }
-        }
-      }
-    },
     "already up to date with %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2164,6 +2154,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rove 不再跟踪这个项目。仓库及其任务仍保留在磁盘上，再次添加该文件夹即可恢复。"
+          }
+        }
+      }
+    },
+    "run `rove machine add` to add one" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 `rove machine add` 添加一台"
           }
         }
       }

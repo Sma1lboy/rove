@@ -153,16 +153,6 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
     }
 
-    func testMachinesShowStateAndWhyTheyAreOff() throws {
-        pair(try fixture())
-        openPage("machines")
-        waitFor(element("machine-narwhal"), "machines")
-        XCTAssertTrue(text("studio.lan · v0.9.282").exists)
-        XCTAssertTrue(text("narwhal · offline").exists)
-        XCTAssertTrue(text("ssh was refused (nothing is listening or a firewall is in the way)").exists)
-        checkpoint("fx-machines")
-    }
-
     func testFixtureRoutinesAndIssues() throws {
         pair(try fixture())
         openPage("routines")
@@ -206,6 +196,16 @@ final class PagesFixtureTests: XCTestCase {
         hit.tap()
         waitFor(element("composerField"), "the hit's task")
         XCTAssertTrue(text("Verify refund webhook signatures").exists)
+    }
+
+    func testMachinesShowStateAndWhyTheyAreOff() throws {
+        pair(try fixture())
+        openPage("machines")
+        waitFor(element("machine-narwhal"), "machines")
+        XCTAssertTrue(text("studio.lan · v0.9.282").exists)
+        XCTAssertTrue(text("narwhal · offline").exists)
+        XCTAssertTrue(text("ssh was refused (nothing is listening or a firewall is in the way)").exists)
+        checkpoint("fx-machines")
     }
 
     func testFixtureSettings() throws {
