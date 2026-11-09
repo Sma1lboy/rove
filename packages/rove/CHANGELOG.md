@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.282
+
+### Patch Changes
+
+- [#1805](https://github.com/Sma1lboy/rove/pull/1805) [`9161104`](https://github.com/Sma1lboy/rove/commit/916110410280ff77691b95a6b0d34a64a11363e4) Web New session opens any folder: one git cannot use (no repository, or no commit yet) starts a directory session in place, with Worktree off and no branch. Picking a project replaces the pick instead of adding to it; ⌘/Ctrl-click or ⌘/Ctrl+Enter adds another repo for a multi-repo task. The machine chip is back at the bar's left whenever other machines are registered. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1806](https://github.com/Sma1lboy/rove/pull/1806) [`2195a63`](https://github.com/Sma1lboy/rove/commit/2195a63e040697ce8cb694d921cba0c88526fc16) The web Update page has Update now: it runs the same installer as `rove update` on the computer serving the page and shows its output as it goes. The daemon and the web bridge keep the old build until restarted, and the page says so. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.281
 
 ### Patch Changes
