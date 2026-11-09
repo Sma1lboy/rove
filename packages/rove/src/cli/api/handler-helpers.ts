@@ -38,8 +38,9 @@ export async function repoFilter(
   readonly matches: (repo: string) => boolean
   readonly unresolvableRepos: readonly string[]
 }> {
-  const target = await runtime.resolveRepoRoot(repoFlag)
-  if (!(await runtime.isUsableRepo(target))) {
+  const probe = await runtime.inspectRepo(repoFlag)
+  const target = probe.root
+  if (!probe.usable) {
     throw new ApiError(
       `--repo ${repoFlag} is not a readable git repository (resolved to ${target}) — the project may have moved or been deleted; \`rove api list\` still shows its tasks`,
       "REPO_UNRESOLVABLE",
@@ -47,11 +48,19 @@ export async function repoFilter(
   }
   const resolved = new Map<string, string>()
   const unresolvable = new Set<string>()
-  for (const repo of new Set(repos)) {
-    const root = await runtime.resolveRepoRoot(repo)
-    resolved.set(repo, root)
-    if (!samePath(root, target) && !(await runtime.isUsableRepo(root))) unresolvable.add(repo)
-  }
+  // One probe per distinct repo, overlapped: a serial walk costs a git spawn
+  // per repo, which is seconds at the sizes a repo filter is used on.
+  await Promise.all(
+    [...new Set(repos)].map(async (repo) => {
+      if (samePath(repo, target)) {
+        resolved.set(repo, target)
+        return
+      }
+      const { root, usable } = await runtime.inspectRepo(repo)
+      resolved.set(repo, root)
+      if (!samePath(root, target) && !usable) unresolvable.add(repo)
+    }),
+  )
   return {
     target,
     matches: (repo) => samePath(resolved.get(repo), target),

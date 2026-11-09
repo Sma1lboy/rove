@@ -20,6 +20,7 @@ import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.t
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
+import { inspectRepo, isGitRepo, isRemoteRepoKey, isValidBranchName, resolveMainRepoRoot } from "../../state/repos.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
@@ -372,12 +373,10 @@ export const defaultApiRuntime: ApiRuntime = {
     ),
   splitTab,
   reviveTab,
-  resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
-  isUsableRepo: async (absPath) => {
-    const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
-    return isRemoteRepoKey(absPath) || isGitRepo(absPath)
-  },
-  isValidBranchName: async (branch) => (await import("../../state/repos.ts")).isValidBranchName(branch),
+  resolveRepoRoot: async (absPath) => resolveMainRepoRoot(absPath),
+  inspectRepo: (absPath) => inspectRepo(absPath),
+  isUsableRepo: async (absPath) => isRemoteRepoKey(absPath) || isGitRepo(absPath),
+  isValidBranchName: async (branch) => isValidBranchName(branch),
   defaultVendor: async (repo) => {
     const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
     return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()
