@@ -17,7 +17,7 @@ struct TaskDetailView: View {
     @State private var historySheet = false
     @State private var closing: TabRow?
     @State private var actions = TaskActionHost()
-    @State private var confirmLand = false
+    @State private var landProbe: LandPreflight?
     @State private var landResult: String?
     @State private var keyboardUp = false
     @Environment(\.verticalSizeClass) private var verticalSize
@@ -74,9 +74,12 @@ struct TaskDetailView: View {
                             titleVisibility: .visible) {
             Button("Close tab", role: .destructive) { if let t = closing { Task { await close(t) } } }
         }
-        .confirmationDialog("Land this task", isPresented: $confirmLand, titleVisibility: .visible) {
+        .confirmationDialog("Land this task", isPresented: Binding(get: { landProbe != nil }, set: { if !$0 { landProbe = nil } }),
+                            titleVisibility: .visible, presenting: landProbe) { _ in
             Button("Merge") { Task { await land("merge") } }
             Button("Squash") { Task { await land("squash") } }
+        } message: { probe in
+            Text(TaskActionLogic.landSummary(branch: row?.branch ?? row?.displayTitle ?? "", probe))
         }
         .alert("Landed", isPresented: Binding(get: { landResult != nil }, set: { if !$0 { landResult = nil } })) {
             Button("OK") { landResult = nil }
@@ -186,7 +189,7 @@ struct TaskDetailView: View {
             }
             .buttonStyle(.pressable)
             .accessibilityIdentifier("diffLink")
-            Button { confirmLand = true } label: {
+            Button { Task { await preflightLand() } } label: {
                 Text("land")
                     .font(Theme.mono(12, .semibold))
                     .foregroundStyle(Theme.paper)
@@ -295,6 +298,13 @@ struct TaskDetailView: View {
         closing = nil
         do { _ = try await client.request("tab.close", ["taskId": taskId, "tabId": tab.id], as: EmptyResult.self); await reload() }
         catch { self.error = error.localizedDescription }
+    }
+
+    private func preflightLand() async {
+        do {
+            let probe = try await client.request("task.landPreflight", ["taskId": taskId], as: LandPreflight.self)
+            if let refusal = TaskActionLogic.landRefusal(probe) { error = refusal } else { landProbe = probe }
+        } catch { self.error = error.localizedDescription }
     }
 
     private func land(_ strategy: String) async {

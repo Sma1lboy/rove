@@ -293,6 +293,8 @@
     ]
   },
   "task.syncBase": { "baseRef": "main", "alreadyCurrent": false },
+  "task.fixChecks": { "outcome": "sent" },
+  "task.landPreflight": { "landedOn": "main", "ahead": 2 },
   "tasks.list": {
     "$same_as": "tasks.subscribe"
   },

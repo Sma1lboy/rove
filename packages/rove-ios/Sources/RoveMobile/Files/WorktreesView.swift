@@ -108,7 +108,7 @@ struct WorktreeActionSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var confirmRemove = false
-    @State private var confirmLand = false
+    @State private var landProbe: LandPreflight?
     @State private var dirtyReason: String?
     @State private var busy = false
     @State private var error: String?
@@ -123,7 +123,7 @@ struct WorktreeActionSheet: View {
             }
             VStack(spacing: 0) {
                 if row.canLand, let id = row.taskId {
-                    ActionRow(title: String(localized: "land branch"), detail: String(localized: "merge or squash into main")) { confirmLand = true; _ = id }
+                    ActionRow(title: String(localized: "land branch"), detail: String(localized: "merge or squash into main")) { Task { await preflightLand(id) } }
                         .accessibilityIdentifier("landWorktree")
                 } else {
                     Text("not a tracked task branch — only removal is available")
@@ -138,10 +138,11 @@ struct WorktreeActionSheet: View {
         .confirmationDialog("Remove this worktree?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove worktree", role: .destructive) { Task { await remove(force: false) } }
         } message: { Text("Deletes \(row.path). The branch stays.") }
-        .confirmationDialog("Land this branch", isPresented: $confirmLand, titleVisibility: .visible) {
+        .confirmationDialog("Land this branch", isPresented: Binding(get: { landProbe != nil }, set: { if !$0 { landProbe = nil } }),
+                            titleVisibility: .visible, presenting: landProbe) { _ in
             Button("Merge") { Task { await land("merge") } }
             Button("Squash") { Task { await land("squash") } }
-        } message: { Text("Lands \(row.branch) into the main branch, then removes its worktree.") }
+        } message: { Text(TaskActionLogic.landSummary(branch: row.branch, $0)) }
         .confirmationDialog("Remove despite uncommitted work?", isPresented: Binding(get: { dirtyReason != nil }, set: { if !$0 { dirtyReason = nil } }),
                             titleVisibility: .visible) {
             Button("Force remove — discard changes", role: .destructive) { Task { await remove(force: true) } }
@@ -159,6 +160,14 @@ struct WorktreeActionSheet: View {
             dirtyReason = e.message // second, explicit confirm with git's own reason
         } catch let e as BridgeError {
             error = e.message.isEmpty ? e.code : e.message
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func preflightLand(_ taskId: String) async {
+        busy = true; defer { busy = false }
+        do {
+            let probe = try await model.client.request("task.landPreflight", ["taskId": taskId], as: LandPreflight.self)
+            if let refusal = TaskActionLogic.landRefusal(probe) { error = refusal } else { landProbe = probe }
         } catch { self.error = error.localizedDescription }
     }
 

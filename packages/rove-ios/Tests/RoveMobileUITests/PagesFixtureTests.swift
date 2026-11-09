@@ -153,6 +153,30 @@ final class PagesFixtureTests: XCTestCase {
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
     }
 
+    func testFixFailingChecksFromTheRowMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-FAIL"), "failing row").press(forDuration: 1.2)
+        let item = waitFor(element("actionFixChecks"), "fix item")
+        checkpoint("fx-fix-checks")
+        item.tap()
+        waitFor(element("actionBanner"), "fix result", timeout: 5)
+        XCTAssertTrue(log.entries().contains { $0.op == "task.fixChecks" && $0.args["taskId"] as? String == "T-FAIL" })
+    }
+
+    func testLandAsksTheBridgeBeforeConfirming() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").tap()
+        waitFor(element("landButton"), "land button").tap()
+        let summary = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "(2 commits)")).firstMatch
+        waitFor(summary, "land summary", timeout: 8)
+        checkpoint("fx-land-preflight")
+        XCTAssertTrue(log.entries().contains { $0.op == "task.landPreflight" && $0.args["taskId"] as? String == "T-IDLE" })
+    }
+
     func testFixtureRoutinesAndIssues() throws {
         pair(try fixture())
         openPage("routines")

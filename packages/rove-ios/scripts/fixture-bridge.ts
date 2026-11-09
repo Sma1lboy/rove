@@ -47,7 +47,22 @@ export function answer(op: string, args: Obj = {}, now = Date.now()): Json {
     const key = fields.map((f) => String(args[String(f)] ?? "")).join(":")
     entry = entry[key] ?? entry["*"] ?? {}
   }
-  return resolve(entry, now)
+  const result = resolve(entry, now)
+  return op === "tasks.subscribe" || op === "tasks.list"
+    ? { ...(result as Obj), tasks: [...((result as Obj).tasks as Json[]), failingChecksRow(now)] }
+    : result
+}
+
+/** Served only here: the in-app demo's rows also draw Android's golden images. */
+function failingChecksRow(now: number): Obj {
+  const pr = { number: 240, lifecycle: "open", checkState: "failing", url: "https://example.test/pull/240" }
+  const at = resolve({ $ago_min: 30 }, now)
+  return {
+    id: "T-FAIL", kind: "task", status: "in_review", repo: "/work/marketing-site", deleting: false, pinned: false,
+    pr, report: null, title: "Compress hero images", branch: "chore/hero-images", group: "other", rank: 9, order: 9,
+    activity: null, engine: { id: "claude", name: "Claude" }, changes: { added: 3, deleted: 3, ahead: 1, behind: 0 },
+    createdAt: at, updatedAt: at,
+  }
 }
 
 if (import.meta.main) {
