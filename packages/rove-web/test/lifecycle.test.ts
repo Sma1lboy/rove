@@ -385,3 +385,17 @@ test("a late reply is released even after the newer same-stream view has closed"
   await t.resolve(0)
   expect(t.detached()).toEqual(["task::A", "task::A"])
 })
+
+test("a tabs push naming one task reads only that task's tabs", async () => {
+  const { calls, timers, push } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  for (const call of calls.filter((c) => c.op === "task.tabs")) call.resolve({ tabs: [] })
+  await flush()
+  const before = calls.length
+  push("tabs", { taskIds: ["B"] })
+  timers.shift()?.()
+  const sweep = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(sweep.map((call) => call.args.taskId)).toEqual(["B"])
+})

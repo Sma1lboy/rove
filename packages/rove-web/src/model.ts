@@ -34,6 +34,13 @@ function loadSelection(): Selection {
   return { taskId: null, tabId: null }
 }
 
+/** The `tabs` push names the tasks whose tab list changed. */
+function changedTaskIds(data: unknown): readonly string[] | undefined {
+  if (!data || typeof data !== "object" || !("taskIds" in data)) return undefined
+  const ids = (data as { taskIds?: unknown }).taskIds
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : undefined
+}
+
 function isTasksPayload(data: unknown): data is TasksPayload {
   return !!data && typeof data === "object" && "tasks" in data && Array.isArray(data.tasks)
 }
@@ -99,6 +106,8 @@ export class AppModel {
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
   private tabTimer: number | null = null
   private tabsLoaded = false
+  /** Task ids a `tabs` push named; empty = read every task's tabs. */
+  private tabScope = new Set<string>()
   /** Bumped per sweep; a sweep resolving after a newer one started commits nothing. */
   private tabSweep = 0
   /** A task just created here: select it once the feed lists it. */
@@ -136,7 +145,7 @@ export class AppModel {
       if (isTasksPayload(data)) this.acceptTasks(data)
     })
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
-    client.on("tabs", () => this.scheduleTabRefresh())
+    client.on("tabs", (data) => this.scheduleTabRefresh(changedTaskIds(data)))
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
   }
 
@@ -279,14 +288,21 @@ export class AppModel {
     this.scheduleTabRefresh()
   }
 
-  private scheduleTabRefresh(): void {
+  /** `taskIds` narrows the sweep to the tasks a push named — a rename in one
+   *  task must not cost a `task.tabs` call for every other task on the rail. */
+  private scheduleTabRefresh(taskIds?: readonly string[]): void {
+    if (!taskIds) this.tabScope.clear()
+    else for (const id of taskIds) this.tabScope.add(id)
     if (this.tabTimer !== null) return
     // The first load reads tabs at once; the debounce only batches later pushes.
     const delay = this.tabsLoaded ? TAB_REFRESH_DEBOUNCE_MS : 0
     this.tabsLoaded = true
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
-      void this.refreshTabs(this.tabbedTasks())
+      const scope = this.tabScope
+      this.tabScope = new Set()
+      const all = this.tabbedTasks()
+      void this.refreshTabs(scope.size === 0 ? all : all.filter((task) => scope.has(task.id)))
     }, delay)
   }
 

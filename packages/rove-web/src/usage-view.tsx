@@ -7,6 +7,7 @@
 import { narrowUsageChip } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
 import { type CSSProperties, useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
+import { everyVisible } from "./every-visible.ts"
 import { t } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
 import { useStore } from "./store.ts"
@@ -45,10 +46,10 @@ export function UsageChips({
         })
         .catch(() => {})
     void load()
-    const timer = window.setInterval(load, POLL_MS)
+    const stop = everyVisible(POLL_MS, load)
     return () => {
       live = false
-      window.clearInterval(timer)
+      stop()
     }
   }, [client, conn.state])
 
