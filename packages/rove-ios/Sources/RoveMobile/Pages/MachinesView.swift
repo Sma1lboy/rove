@@ -75,7 +75,7 @@ struct MachinesView: View {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     if let error { ErrorLine(text: error) }
                     if machines?.isEmpty == true {
-                        EmptyState(title: String(localized: "no other machines"), detail: String(localized: "run `rove machine add` to add one"))
+                        EmptyState(title: String(localized: "only this machine"), detail: String(localized: "run `rove machine add` to add one"))
                     }
                     ForEach(machines ?? []) { section($0) }
                 }

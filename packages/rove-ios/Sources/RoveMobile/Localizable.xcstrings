@@ -1578,16 +1578,6 @@
         }
       }
     },
-    "no other machines" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有其他机器"
-          }
-        }
-      }
-    },
     "No pull request for this task yet." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1644,6 +1634,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "only this machine" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只有这台机器"
           }
         }
       }
