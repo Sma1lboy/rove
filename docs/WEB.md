@@ -58,6 +58,11 @@ already paired with `rove-bridge` keeps working: the two share one token.
   message. `/?prompt=<text>&repo=<path>` opens New session with that draft and
   project, for a bookmark or a home-screen shortcut. It only fills the
   composer; nothing starts until you press Start.
+- New session's project chip picks one project: a click (or Enter) replaces the
+  pick and closes the list; ⌘/Ctrl-click (or ⌘/Ctrl+Enter) adds another repo
+  for a multi-repo task. Any folder works, git or not: a folder git cannot use
+  (no repository, or no commit yet) opens in place as a directory session, with
+  Worktree off and no branch to pick, and cannot join a multi-repo task.
 - One prompt, several engines: the New session engine chip's `[ compare engines ]`
   turns it into a check-list (Claude + Codex …), and Start fans the prompt out
   as one attempt per engine (`add --agents`, each in its own worktree, sharing

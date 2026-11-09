@@ -353,6 +353,9 @@ describe("fs.subdirs and repo.probe", () => {
       taskOpDeps.getCurrentBranch = () => "dev"
       const bad = await run("repo.probe", { path: "/nope/" })
       expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
+      // A real folder git cannot use is fine: it opens in place, without worktrees.
+      const plain = await run("repo.probe", { path: `${root}/alpha` })
+      expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
       const ok = await run("repo.probe", { path: "/r/" })
       expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
       const withWt = await run(

@@ -119,7 +119,8 @@ export function SearchList(props: {
   extra?: PickRow | null
   more?: readonly PickRow[]
   moreLabel?: string
-  onPick: (key: string) => void
+  /** `add`: picked with ⌘ / Ctrl held, for a list that can hold several. */
+  onPick: (key: string, add: boolean) => void
 }) {
   const [cursor, setCursor] = useState(0)
   const all = [...(props.extra ? [props.extra] : []), ...props.rows, ...(props.more ?? [])]
@@ -150,7 +151,7 @@ export function SearchList(props: {
           } else if (e.key === "Enter") {
             e.preventDefault()
             const row = all[at]
-            if (row) props.onPick(row.key)
+            if (row) props.onPick(row.key, e.metaKey || e.ctrlKey)
           }
         }}
       />
@@ -167,7 +168,7 @@ export function SearchList(props: {
               title={row.title}
               className={rowClass({ cursor: i === at })}
               onMouseMove={() => setCursor(i)}
-              onClick={() => props.onPick(row.key)}
+              onClick={(e) => props.onPick(row.key, e.metaKey || e.ctrlKey)}
             >
               <span className={CHECK}>{row.checked ? "✓" : ""}</span>
               <span className={NAME}>{row.text}</span>

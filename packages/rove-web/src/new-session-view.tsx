@@ -168,8 +168,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       .catch(() => {})
   }, [model, initialRepo])
 
-  // Several repos always get worktrees: one checkout can't hold a multi-repo task.
-  const inPlace = !remote && !worktree && repos.length === 1
+  // Several repos always get worktrees: one checkout can't hold a multi-repo task. A folder without git has none.
+  const plain = repos.some((path) => probes[path]?.git === false)
+  const inPlace = !remote && (!worktree || plain) && repos.length === 1
   const primary = repos[0] ?? ""
   // Each repo is reread once per open, when first picked.
   useEffect(() => {
@@ -269,11 +270,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
       const bad = fresh.find((res) => !res.ok)
       if (bad) throw new Error(bad.reason ?? bad.repo)
+      const plainNow = fresh.some((res) => res.git === false)
+      if (plainNow && fresh.length > 1) throw new Error(t("newSession.plainMulti"))
       let created: string | undefined
       let compared: string | undefined
       if (ungrouped)
         created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
-      else if (inPlace)
+      else if (inPlace || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
           fresh[0]?.repo ?? primary,
@@ -393,8 +396,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
         </div>
         <div className={C.BAR}>
-          {/* Picked from `⋯`; on the bar only while it is not this machine, so the choice stays in sight. */}
-          {remote && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
+          {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
           <ChipPopover
             field="repo"
             title={
@@ -418,12 +420,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 home={remote ? "" : home}
                 query={repoQuery}
                 onQuery={setRepoQuery}
-                onToggle={(path) => {
+                onToggle={(path, add) => {
                   // "Pick a project first" is answered by this pick.
                   setError(null)
                   if (!remote) {
                     setUngrouped(false)
-                    return setRepos((now) => toggleRepo(now, path))
+                    if (add) return setRepos((now) => toggleRepo(now, path))
+                    setRepos([path])
+                    return close()
                   }
                   setRemotePick({ ref: path, clone: false })
                   close()
@@ -450,6 +454,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             onRemoteBase={setRemoteBase}
             ungrouped={ungrouped}
             inPlace={inPlace}
+            plain={plain}
             onToggleWorktree={() => setWorktree(!worktree)}
             repos={repos}
             probes={probes}
@@ -472,9 +477,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
           <ComposerMore
             busy={busy}
-            machines={machines}
-            machine={machine}
-            onMachine={pickMachine}
             onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(false, at) : undefined}
             onInvalid={setError}
             onCreateOnly={picks.comparing ? undefined : () => void start(false)}

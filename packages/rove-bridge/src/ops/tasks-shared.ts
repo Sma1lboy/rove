@@ -5,6 +5,7 @@
  */
 
 import { execFile } from "node:child_process"
+import { statSync } from "node:fs"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
@@ -46,6 +47,14 @@ export const taskOpDeps = {
   listLocalBranches,
   getCurrentBranch,
   validateRepoPath,
+  /** A folder that is no usable git repo still opens: as a directory session, with no worktree or branch. */
+  isDirectory: (path: string): boolean => {
+    try {
+      return statSync(path).isDirectory()
+    } catch {
+      return false
+    }
+  },
   cloneRepo,
   validateGitUrl,
   validateCloneTarget,

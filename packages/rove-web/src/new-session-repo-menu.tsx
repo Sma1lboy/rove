@@ -33,7 +33,8 @@ export function RepoMenu(props: {
   home: string
   query: string
   onQuery: (value: string) => void
-  onToggle: (path: string) => void
+  /** `add`: keep the other picks (a multi-repo task); otherwise this one replaces them. */
+  onToggle: (path: string, add: boolean) => void
   onClone: (source: string) => void
   close: () => void
   /** Another machine: its name, what an empty list says (still loading, or why it could not be read), and `blocked` when it could not be read: nothing is offered on it, only that reason. */
@@ -99,7 +100,7 @@ export function RepoMenu(props: {
     }))
 
   return (
-    // A check-list: a pick toggles and the list stays open, so several repos go in one visit.
+    // A pick replaces the project and closes; ⌘ / Ctrl + pick toggles it in a multi-repo task and keeps the list open.
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
       empty={remote?.empty ?? t("newSession.repoEmpty")}
@@ -109,12 +110,12 @@ export function RepoMenu(props: {
       extra={remote?.blocked ? null : extra}
       more={remote?.blocked ? [] : more}
       moreLabel={t("newSession.githubGroup")}
-      onPick={(key) => {
+      onPick={(key, add) => {
         if (key === NO_PROJECT_KEY) {
           props.ungrouped?.pick()
           return props.close()
         }
-        if (!key.startsWith(CLONE_PREFIX)) return props.onToggle(key)
+        if (!key.startsWith(CLONE_PREFIX)) return props.onToggle(key, add)
         props.onClone(key.slice(CLONE_PREFIX.length))
         props.close()
       }}

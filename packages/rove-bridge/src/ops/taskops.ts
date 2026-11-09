@@ -359,6 +359,8 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       async run(a, { api }) {
         const repo = stripTrailingSlash(expandHome(typedPath(a, "path")))
         const reason = taskOpDeps.validateRepoPath(repo)
+        // Not a git repo (or no commit yet) but a real folder: it opens in place, without worktrees.
+        if (reason && taskOpDeps.isDirectory(repo)) return { ok: true, repo, git: false, branches: [], current: null }
         if (reason) return { ok: false, repo, reason }
         const out: Record<string, unknown> = {
           ok: true,
