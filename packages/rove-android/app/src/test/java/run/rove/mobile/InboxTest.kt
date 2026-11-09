@@ -72,4 +72,8 @@ class InboxTest {
         assertEquals(false, InboxLogic.clearable(row("routine_failed", taskId = null)))
         assertEquals(false, InboxLogic.clearable(row("decision_needed", gateId = "g")))
     }
+    @Test fun twoFailedRoutinesWithOneNameKeepTheirOwnRows() {
+        fun row(id: String) = Attention(state = "routine_failed", label = "Broken check", automationId = id)
+        assertEquals(2, listOf(row("a"), row("b")).distinctBy(InboxLogic::key).size)
+    }
 }
