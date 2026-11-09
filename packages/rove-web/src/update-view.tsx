@@ -1,14 +1,13 @@
 /**
  * The Update page (TUI `update-page.tsx`) and What's New (`whats-new-dialog.tsx`), over the
- * bridge's read-only `update.check` / `release.notes`. Copy is the TUI's `update.*` catalog.
- * No "Update now": running the updater from a browser replaces the Mac's install, which the
- * bridge does not offer; the page names the command to run instead.
+ * bridge's `update.check` / `release.notes`, and Update now over `update.run` / `update.status`:
+ * the installer runs on the computer serving the page, which polls it. Copy is the TUI's `update.*` catalog.
  */
 
 import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
 import type { ReleaseChannel, ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
 import { useEffect, useRef, useState } from "react"
-import type { BridgeClient } from "./bridge.ts"
+import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { locale, t, useLocale } from "./i18n/index.ts"
 import { isTouch } from "./key-hints.ts"
@@ -28,6 +27,7 @@ import {
   UPDATE_CHIP,
   UPDATE_CHIP_VERSION,
   UPDATE_LABEL,
+  UPDATE_OUTPUT,
   UPDATE_VERSIONS,
   WHATS_NEW_BODY,
   WHATS_NEW_KEYS,
@@ -84,7 +84,44 @@ export function UpdateChip() {
   )
 }
 
-type ActionId = "release" | "close"
+type ActionId = "update" | "release" | "close"
+
+/** The bridge's last `update.run`; `null` = none since it started. */
+interface RunStatus {
+  readonly running: boolean
+  readonly command: string
+  readonly code: number | null
+  readonly output: string
+}
+
+const POLL_MS = 1000
+
+/** Reads `update.status` once now, then every second while the installer runs. */
+function useUpdateRun(client: BridgeClient) {
+  const [run, setRun] = useState<RunStatus | null>(null)
+  const [polling, setPolling] = useState(true)
+  useEffect(() => {
+    if (!polling) return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const tick = () =>
+      client.request<{ status: RunStatus | null }>("update.status", {}).then(
+        (r) => {
+          if (!alive) return
+          setRun(r.status)
+          if (r.status?.running) timer = setTimeout(tick, POLL_MS)
+          else setPolling(false)
+        },
+        () => alive && setPolling(false),
+      )
+    void tick()
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [client, polling])
+  return { run, setRun, poll: () => setPolling(true) }
+}
 
 export function UpdateView({ client }: { client: BridgeClient }) {
   const u = useCatalog()
@@ -92,6 +129,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const [checked, setChecked] = useState(false)
   const [selected, setSelected] = useState<ActionId>("release")
   const [status, setStatus] = useState<string | null>(null)
+  const { run, setRun, poll } = useUpdateRun(client)
   const host = useRef<HTMLDivElement>(null)
   useEffect(() => {
     host.current?.focus()
@@ -107,11 +145,29 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const notes = state?.notes ?? []
   const url = notes[0]?.url ?? (latest ? releaseUrl(latest) : null)
   const actions: readonly { id: ActionId; key: string; label: string; detail: string }[] = [
+    ...(hasUpdate && !run?.running
+      ? [{ id: "update" as const, key: "U", label: u.actions.updateNow, detail: "rove update" }]
+      : []),
     { id: "release", key: "R", label: u.actions.openRelease, detail: url ?? u.releaseUrlUnavailable },
     { id: "close", key: "Q", label: u.actions.close, detail: u.actions.closeDetail },
   ]
   const activate = (id: ActionId) => {
     if (id === "close") return page.set(null)
+    if (id === "update") {
+      if (!hasUpdate || run?.running) return
+      setStatus(null)
+      return void client.request<{ status: RunStatus | null }>("update.run", {}).then(
+        (r) => {
+          setRun(r.status)
+          poll()
+        },
+        (err: unknown) => {
+          // BUSY: another page already started it; follow that run.
+          if (err instanceof BridgeRequestError && err.code === "BUSY") return poll()
+          setStatus(fill(u.webStartFailed, { error: err instanceof Error ? err.message : String(err) }))
+        },
+      )
+    }
     setStatus(url && window.open(url, "_blank", "noopener") !== null ? u.statusReleaseOpened : u.statusReleaseError)
   }
   const onKey = (e: React.KeyboardEvent) => {
@@ -126,6 +182,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     else if (e.key === "k" || e.key === "ArrowUp")
       setSelected(actions[(i - 1 + actions.length) % actions.length]?.id ?? "close")
     else if (e.key === "Enter") activate(selected)
+    else if (e.key === "u") activate("update")
     else if (e.key === "r") activate("release")
     else if (e.key === "q" || e.key === "Escape") activate("close")
     else return
@@ -153,7 +210,6 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       </p>
       {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
       {upToDate && <p className="text-success">{u.upToDate}</p>}
-      {hasUpdate && <p className="mono text-muted">rove update</p>}
       <div className={UPDATE_ACTIONS}>
         {actions.map((a) => (
           <button
@@ -169,6 +225,18 @@ export function UpdateView({ client }: { client: BridgeClient }) {
         ))}
       </div>
       {status && <p className="mono text-accent">{status}</p>}
+      {run && (
+        <>
+          {run.output && <pre className={UPDATE_OUTPUT}>{run.output}</pre>}
+          <p className={`mono ${run.running ? "text-muted" : run.code === 0 ? "text-success" : "text-error"}`}>
+            {run.running
+              ? fill(u.webRunning, { command: run.command })
+              : run.code === 0
+                ? fill(u.webInstalled, { current })
+                : fill(u.updateFailed, { code: String(run.code) })}
+          </p>
+        </>
+      )}
       {hasUpdate && <p className="mono text-muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
       {!checked && <p className="text-muted">{u.loadingNotes}</p>}
       {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
