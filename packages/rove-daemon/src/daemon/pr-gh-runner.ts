@@ -4,6 +4,7 @@
  */
 
 import { execFile, spawn } from "node:child_process"
+import { existsSync } from "node:fs"
 import os from "node:os"
 import { decodeCapturedChunks } from "./poll-scheduling.ts"
 import type { GhPrView, PrUrlRunner, PrViewResult, PrViewRunner } from "./pr-status-collector.ts"
@@ -38,6 +39,8 @@ export interface GhSpawnResult {
   readonly stderr: string
   /** The child failed to spawn (ENOENT etc.) and it was NOT our abort. */
   readonly spawnError: boolean
+  /** That spawn failure was the cwd being gone: posix_spawn reports it as the same ENOENT as a missing `gh`. */
+  readonly cwdMissing: boolean
 }
 
 /** Captures stderr too (the classifier needs it). Never rejects: spawn error or
@@ -50,7 +53,14 @@ export function spawnGh(args: readonly string[], cwd: string, signal: AbortSigna
     const finish = (status: number | null, spawnError: boolean): void => {
       if (settled) return
       settled = true
-      resolve({ status, stdout: decodeCapturedChunks(outChunks), stderr: decodeCapturedChunks(errChunks), spawnError })
+      const cwdMissing = spawnError && !existsSync(cwd)
+      resolve({
+        status,
+        stdout: decodeCapturedChunks(outChunks),
+        stderr: decodeCapturedChunks(errChunks),
+        spawnError,
+        cwdMissing,
+      })
     }
     const child = spawn("gh", args.slice(), {
       cwd,
@@ -95,7 +105,13 @@ async function ghJson(
         return classify({ parseError: true }) as PrViewResult
       }
     }
-    return classify({ spawnError: res.spawnError, timedOut, exitCode: res.status, stderr: res.stderr }) as PrViewResult
+    return classify({
+      spawnError: res.spawnError,
+      cwdMissing: res.cwdMissing,
+      timedOut,
+      exitCode: res.status,
+      stderr: res.stderr,
+    }) as PrViewResult
   } finally {
     clearTimeout(timer)
   }

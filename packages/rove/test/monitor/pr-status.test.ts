@@ -137,6 +137,12 @@ describe("classifyGhFailure", () => {
     expect(classifyGhFailure({ timedOut: true, stderr: "anything" })).toEqual({ kind: "error", error: "timeout" })
     expect(classifyGhFailure({ spawnError: true })).toEqual({ kind: "error", error: "missing-binary" })
   })
+  test("a spawn failure whose cwd is gone is the worktree's fault, not a missing gh", () => {
+    expect(classifyGhFailure({ spawnError: true, cwdMissing: true })).toEqual({
+      kind: "error",
+      error: "worktree-missing",
+    })
+  })
   test("no-remote / auth / network stderr map to their kinds", () => {
     expect(classifyGhFailure({ exitCode: 1, stderr: "none of the git remotes point to a GitHub host" })).toEqual({
       kind: "error",
@@ -205,6 +211,13 @@ describe("nextPrPoll", () => {
 
   test("no-remote is deterministic: settles to the long idle cadence, no streak", () => {
     expect(nextPrPoll({ kind: "error", error: "no-remote" }, 9, 0, cfg, noJitter)).toEqual({
+      nextAllowedAt: 1_800_000,
+      failures: 0,
+    })
+  })
+
+  test("worktree-missing is deterministic like no-remote: long idle cadence, no streak", () => {
+    expect(nextPrPoll({ kind: "error", error: "worktree-missing" }, 7, 0, cfg, noJitter)).toEqual({
       nextAllowedAt: 1_800_000,
       failures: 0,
     })

@@ -179,6 +179,8 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
 export interface GhFailureSignals {
   /** The child failed to spawn (e.g. ENOENT) — and it was NOT our abort. */
   readonly spawnError?: boolean
+  /** The spawn failed because its cwd (the worktree) is gone, not because `gh` is. */
+  readonly cwdMissing?: boolean
   /** Our timeout aborted the run. */
   readonly timedOut?: boolean
   /** Exit code when the process actually ran (null on spawn error / abort). */
@@ -233,6 +235,7 @@ function matchesAny(haystack: string, needles: readonly string[]): boolean {
 export function classifyGhFailure(s: GhFailureSignals): { kind: "error"; error: PrViewErrorKind } {
   if (s.parseError) return { kind: "error", error: "parse" }
   if (s.timedOut) return { kind: "error", error: "timeout" }
+  if (s.cwdMissing) return { kind: "error", error: "worktree-missing" }
   if (s.spawnError) return { kind: "error", error: "missing-binary" }
   const err = (s.stderr ?? "").toLowerCase()
   if (matchesAny(err, NO_REMOTE_PATTERNS)) return { kind: "error", error: "no-remote" }
@@ -277,7 +280,8 @@ export interface PrPollDecision {
  * Decide when a task may next be polled, given the latest outcome and its prior
  * failure streak. Pure (inject `rand` for tests):
  *   - success / empty → reset the streak, jittered base cadence.
- *   - `no-remote` → reset the streak, long idle cadence (never a GitHub PR).
+ *   - `no-remote` / `worktree-missing` → reset the streak, long idle cadence
+ *     (retrying sooner cannot change the answer).
  *   - any other error → grow the streak, exponential backoff capped at
  *     `failureCapMs`.
  * Every delay is jittered so tasks due together (e.g. after a reconnect) don't
@@ -297,7 +301,7 @@ export function nextPrPoll(
   if (outcome.kind === "empty") {
     return { nextAllowedAt: at(cfg.noPrMs), failures: 0 }
   }
-  if (outcome.error === "no-remote") {
+  if (outcome.error === "no-remote" || outcome.error === "worktree-missing") {
     return { nextAllowedAt: at(cfg.noRemoteMs), failures: 0 }
   }
   const failures = prevFailures + 1
