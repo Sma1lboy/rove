@@ -97,6 +97,7 @@ final class PagesFixtureTests: XCTestCase {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
         pair(url)
+        log.clear()
         let fold = waitFor(element("archivedFold"), "archived fold")
         XCTAssertFalse(text("Spike a ledger rewrite").exists)
         element("task-T-IDLE").press(forDuration: 1.2)
@@ -108,6 +109,8 @@ final class PagesFixtureTests: XCTestCase {
         fold.tap()
         waitFor(text("Spike a ledger rewrite"), "archived row")
         checkpoint("fx-archived-fold")
+        // The fold exposes accessibility elements before its context-menu interaction has settled.
+        Thread.sleep(forTimeInterval: 1)
         element("task-T-OLD").press(forDuration: 1.2)
         waitFor(button("Unarchive"), "unarchive item").tap()
         let back = NSPredicate { _, _ in
@@ -157,6 +160,7 @@ final class PagesFixtureTests: XCTestCase {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
         pair(url)
+        log.clear()
         waitFor(element("inboxButton"), "inbox").tap()
         let ackAll = waitFor(element("ackAll"), "ack all")
         checkpoint("fx-inbox-ack-all")
