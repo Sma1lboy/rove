@@ -98,4 +98,11 @@
     <string name="settings_update_unknown">The Mac could not reach the registry. Check its connection, then retry.</string>
     <string name="settings_update_command">Run `rove update` on the Mac to install it.</string>
     <string name="settings_update_open_release">open release</string>
+    <string name="settings_channel">release channel</string>
+    <string name="settings_channel_latest">stable</string>
+    <string name="settings_channel_next">next</string>
+    <string name="settings_channel_nightly">nightly</string>
+    <string name="settings_channel_hint">Stable is the default channel; next previews the coming release; nightly is built from main every day.</string>
+    <string name="settings_update_notify">notify on updates</string>
+    <string name="settings_update_notify_hint">New versions on this channel. Off hides the update chip; checking by hand still reports.</string>
 </resources>

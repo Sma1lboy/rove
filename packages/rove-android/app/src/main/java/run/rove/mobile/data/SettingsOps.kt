@@ -59,5 +59,12 @@ object NotificationPrefs {
 }
 
 /** Asks the registry through the Mac, past the bridge's cache. Read-only: installing stays a command on the Mac. */
-suspend fun RoveRepository.checkForUpdate(locale: String): UpdateCheck =
-    wireJson.decodeFromJsonElement(bridge.request("update.check", args("force" to true, "locale" to locale)))
+suspend fun RoveRepository.checkForUpdate(locale: String, channel: String?): UpdateCheck =
+    wireJson.decodeFromJsonElement(bridge.request("update.check",
+        if (channel != null) args("force" to true, "locale" to locale, "channel" to channel) else args("force" to true, "locale" to locale)))
+
+/** The Mac's own settings, shared with the TUI: `rove update` follows the channel. */
+suspend fun RoveRepository.updatePrefs(): UpdatePrefs =
+    wireJson.decodeFromJsonElement(bridge.request("prefs.get").getValue("prefs"))
+suspend fun RoveRepository.setUpdateChannel(channel: String) { bridge.request("prefs.set", args("key" to "updateChannel", "value" to channel)) }
+suspend fun RoveRepository.setUpdateNotify(notify: Boolean) { bridge.request("prefs.set", args("key" to "updateNotify", "value" to notify)) }
