@@ -13,6 +13,7 @@ extension KeyboardStateTests {
         sweepNewTask()
         openTask()
         sweepDetail()
+        sweepDetailSheets()
         back()
         sweepRoutines()
         sweepBoard()
@@ -98,11 +99,17 @@ extension KeyboardStateTests {
             self.waitFor(self.app.buttons["Find in scrollback"].firstMatch, "find item").tap()
         }, landmarks: lm)
         app.buttons["×"].firstMatch.tap()
+    }
 
+    func sweepDetailSheets() {
         sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
         sheetCheck("branch", menu: "Branch…", field: "branchField", primary: "branchConfirm")
         sheetCheck("model", menu: "Model & effort…", field: "modelField", primary: "modelEffortConfirm")
         sheetCheck("rename-tab", menu: "Rename tab", field: "renameField", primary: "rename")
+        checkNewSession()
+    }
+
+    func checkNewSession() {
         openMenu("New session…", until: el("startSessionButton"))
         check("new-session-prompt", { self.app.textViews.allElementsBoundByIndex.last { $0.isHittable } ?? self.app.textViews.firstMatch },
               landmarks: ["startSessionButton", "sheetClose"], whileUp: { self.assertReachable("startSessionButton") })
@@ -306,7 +313,7 @@ extension KeyboardStateTests {
         waitFor(until, "\(label) sheet")
     }
 
-    private func sheetCheck(_ name: String, menu: String, field: String, primary: String) {
+    func sheetCheck(_ name: String, menu: String, field: String, primary: String) {
         openMenu(menu, until: el(primary))
         check(name, { self.input(field) }, landmarks: [primary, "sheetClose"], whileUp: { self.assertReachable(primary) })
         closeSheet()

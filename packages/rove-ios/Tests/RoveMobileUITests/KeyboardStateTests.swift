@@ -43,6 +43,36 @@ final class KeyboardStateTests: XCTestCase {
         sweepDetail()
     }
 
+    func testRenameTaskInputDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
+    }
+
+    func testBranchInputDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        sheetCheck("branch", menu: "Branch…", field: "branchField", primary: "branchConfirm")
+    }
+
+    func testModelInputDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        sheetCheck("model", menu: "Model & effort…", field: "modelField", primary: "modelEffortConfirm")
+    }
+
+    func testRenameTabInputDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        sheetCheck("rename-tab", menu: "Rename tab", field: "renameField", primary: "rename")
+    }
+
+    func testNewSessionInputDemoLight() throws {
+        try start(.light, fixture: nil)
+        openTask()
+        checkNewSession()
+    }
+
     func testRoutineInputsDemoLight() throws {
         try start(.light, fixture: nil)
         sweepRoutines()
