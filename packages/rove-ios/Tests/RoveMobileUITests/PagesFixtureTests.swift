@@ -97,6 +97,7 @@ final class PagesFixtureTests: XCTestCase {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
         pair(url)
+        log.clear()
         let fold = waitFor(element("archivedFold"), "archived fold")
         XCTAssertFalse(text("Spike a ledger rewrite").exists)
         element("task-T-IDLE").press(forDuration: 1.2)
@@ -108,6 +109,8 @@ final class PagesFixtureTests: XCTestCase {
         fold.tap()
         waitFor(text("Spike a ledger rewrite"), "archived row")
         checkpoint("fx-archived-fold")
+        // The fold exposes accessibility elements before its context-menu interaction has settled.
+        Thread.sleep(forTimeInterval: 1)
         element("task-T-OLD").press(forDuration: 1.2)
         waitFor(button("Unarchive"), "unarchive item").tap()
         let back = NSPredicate { _, _ in
@@ -175,6 +178,22 @@ final class PagesFixtureTests: XCTestCase {
         item.tap()
         waitFor(element("actionBanner"), "sync result", timeout: 5)
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
+    }
+
+    func testFixtureInboxAcksAll() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        log.clear()
+        waitFor(element("inboxButton"), "inbox").tap()
+        let ackAll = waitFor(element("ackAll"), "ack all")
+        checkpoint("fx-inbox-ack-all")
+        ackAll.tap()
+        let sent = { log.entries().filter { $0.op.hasPrefix("attention.dismiss") } }
+        let deadline = Date().addingTimeInterval(5)
+        while sent().count < 3, Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(sent().contains { $0.op == "attention.dismissRoutine" && $0.args["automationId"] as? String == "r-bad" })
+        XCTAssertEqual(sent().filter { $0.op == "attention.dismiss" }.count, 2)
     }
 
     func testFixtureRoutinesAndIssues() throws {

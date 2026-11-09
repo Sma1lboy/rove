@@ -283,6 +283,7 @@
       },
       {
         "state": "routine_failed",
+        "automationId": "r-bad",
         "label": "flaky test hunter",
         "unread": true,
         "at": {

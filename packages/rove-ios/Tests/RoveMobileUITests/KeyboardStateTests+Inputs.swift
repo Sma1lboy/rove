@@ -293,15 +293,16 @@ extension KeyboardStateTests {
         waitFor(until, id)
     }
 
-    /// The detail `…` menu item that opens `until`; the menu or the item tap is dropped while a sheet is still
-    /// closing, so both are retried.
+    /// Retry from a dismissed menu: a dropped item tap leaves the menu covering its own opener.
     private func openMenu(_ label: String, until: XCUIElement) {
         let item = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
         for _ in 0..<3 where !until.exists {
             Thread.sleep(forTimeInterval: 1)
             el("moreMenu").tap()
             if item.waitForExistence(timeout: 3) { item.tap() }
-            _ = until.waitForExistence(timeout: 6)
+            if until.waitForExistence(timeout: 6) { break }
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).tap()
+            XCTAssertTrue(item.waitForNonExistence(timeout: 3), "\(label): menu did not dismiss before retry")
         }
         waitFor(until, "\(label) sheet")
     }

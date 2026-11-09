@@ -135,6 +135,8 @@ struct AttentionItem: Codable, Hashable {
     var deliveryId: String?
     /// `decision_needed` items: the gate id, the key into `TasksPayload.gates`. A decision is answered, never dismissed.
     var gateId: String?
+    /// `routine_failed` items: the routine, the only key that can dismiss one. Absent from older bridges.
+    var automationId: String?
 }
 
 struct GateOption: Codable, Hashable {
