@@ -508,6 +508,16 @@
         }
       }
     },
+    "add one with `rove machine add`" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 `rove machine add` 添加一台"
+          }
+        }
+      }
+    },
     "already up to date with %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -799,6 +809,16 @@
       }
     },
     "Connecting…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接中…"
+          }
+        }
+      }
+    },
+    "connecting…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1218,6 +1238,56 @@
         }
       }
     },
+    "it answered with something rove could not read" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它返回了 rove 读不懂的内容"
+          }
+        }
+      }
+    },
+    "its hostname does not resolve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的主机名解析不了"
+          }
+        }
+      }
+    },
+    "its rove daemon is not running" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的 rove 守护进程没在运行"
+          }
+        }
+      }
+    },
+    "its ssh host key changed; check it, then update known_hosts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的 ssh 主机密钥变了；确认无误后更新 known_hosts"
+          }
+        }
+      }
+    },
+    "its ssh host key is not known yet; connect once by hand to trust it" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还不认识它的 ssh 主机密钥；先手动连一次以信任它"
+          }
+        }
+      }
+    },
     "Keeps the task and its branch." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1284,6 +1354,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "实时"
+          }
+        }
+      }
+    },
+    "machines" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "机器"
           }
         }
       }
@@ -1508,12 +1588,32 @@
         }
       }
     },
+    "no other machines" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有其他机器"
+          }
+        }
+      }
+    },
     "No pull request for this task yet." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "此任务还没有拉取请求。"
+          }
+        }
+      }
+    },
+    "no tasks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有任务"
           }
         }
       }
@@ -1714,6 +1814,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "项目操作"
+          }
+        }
+      }
+    },
+    "protocol mismatch" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "协议不兼容"
           }
         }
       }
@@ -2028,6 +2138,16 @@
         }
       }
     },
+    "rove is not installed there" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "那里没有安装 rove"
+          }
+        }
+      }
+    },
     "Rove stops listing it. The repo and its tasks stay on disk." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2224,6 +2344,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Squash 合并"
+          }
+        }
+      }
+    },
+    "ssh failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 失败"
+          }
+        }
+      }
+    },
+    "ssh forwarding is disabled there" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "那里禁用了 ssh 端口转发"
+          }
+        }
+      }
+    },
+    "ssh refused the login (no key or password accepted)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 拒绝了登录（没有被接受的密钥或密码）"
+          }
+        }
+      }
+    },
+    "ssh timed out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 超时"
+          }
+        }
+      }
+    },
+    "ssh was refused (nothing is listening or a firewall is in the way)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 被拒绝（没有进程在监听，或被防火墙挡住）"
           }
         }
       }
@@ -2428,6 +2598,26 @@
         }
       }
     },
+    "the link came up but the handshake failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路通了但握手失败"
+          }
+        }
+      }
+    },
+    "the link dropped; reconnecting" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路断了；正在重连"
+          }
+        }
+      }
+    },
     "The newest notes are handed to every fresh session on this repo, so retire any that stopped being true." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2544,6 +2734,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "story 中未保存的改动会先保存。"
+          }
+        }
+      }
+    },
+    "unsupported" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持"
           }
         }
       }
