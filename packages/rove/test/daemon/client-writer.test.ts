@@ -99,9 +99,13 @@ describe("ClientWriter backpressure", () => {
   it("disconnects a critical-only slow stream instead of retaining an unbounded queue", () => {
     const sock = new FakeSocket()
     let overflows = 0
+    let reported: { queuedBytes: number; frames: number; frameBytes: number } | undefined
     const writer = new ClientWriter(sock, {
       highWaterMark: 4,
-      onOverflow: () => overflows++,
+      onOverflow: (info) => {
+        overflows++
+        reported = info
+      },
     })
 
     sock.accept = false
@@ -109,6 +113,9 @@ describe("ClientWriter backpressure", () => {
     writer.write("L1!!!", null)
 
     expect(overflows).toBe(1)
+    // The overflow log names what piled up: the queue's size, its frame count,
+    // and the frame that tipped it.
+    expect(reported).toEqual({ queuedBytes: 5, frames: 1, frameBytes: 5 })
     expect(writer.pendingBytes).toBe(0)
     expect(writer.pendingCount).toBe(0)
 
