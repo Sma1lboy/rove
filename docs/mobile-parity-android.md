@@ -25,7 +25,7 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | New session | `New task` | opened | Create sheet | partial: no branch, folder, machine, `Later`, create without starting |
 | Terminal, key row | tap a task | opened | Task detail | has |
 | Message bar: hold to talk, type instead | engine tab | opened | Composer | typing has; voice missing |
-| Queued messages | | gone from the web (#1781) | Queued chips | #1817 removes them |
+| Queued messages | | gone from the web (#1781) | none | gone since #1817; the engine queues input itself |
 | Context panel | panel switch | opened, no reading in the fixture | none | missing |
 | Files panel, create PR, file preview | panel switch | opened | none | missing |
 | Diff panel | panel switch | opened | Diff screen | has, no review notes or base picker |
