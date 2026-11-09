@@ -31,9 +31,16 @@ export function ChipPopover(props: {
   title: string
   field: string
   disabled?: boolean
+  /** Runs whenever the popover shuts, however it shut. */
+  onClose?: () => void
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const onClose = useRef(props.onClose)
+  onClose.current = props.onClose
+  useEffect(() => {
+    if (!open) onClose.current?.()
+  }, [open])
   const root = useRef<HTMLSpanElement>(null)
   const button = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)

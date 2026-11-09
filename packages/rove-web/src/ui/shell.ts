@@ -167,7 +167,7 @@ export const TERM_BOX =
   "relative h-full [&.is-leaving]:pointer-events-none [&.is-leaving]:absolute [&.is-leaving]:inset-0 [&.is-leaving]:z-6"
 /** A reattaching terminal's last screen, in the xterm's own grid metrics. */
 export const TERM_SNAPSHOT =
-  "pointer-events-none absolute inset-0 z-1 overflow-hidden pt-1.5 pr-1 pb-1 pl-2 [&_pre]:m-0 [&_pre>div>div]:overflow-hidden [&_pre>div>div]:[height:var(--row-h,1.15em)] [&_pre>div>div]:[line-height:var(--row-h,1.15em)]"
+  "pointer-events-none absolute inset-0 z-1 overflow-hidden [&_pre]:m-0 [&_pre>div>div]:overflow-hidden [&_pre>div>div]:[height:var(--row-h,1.15em)] [&_pre>div>div]:[line-height:var(--row-h,1.15em)]"
 export const termNotice = (error: boolean): string =>
   `absolute right-2.5 bottom-2.5 z-5 flex items-center gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.25 font-mono text-meta ${FONT_RESET} ${error ? "text-error" : "text-muted"} [&_.link:disabled]:pointer-events-none [&_.link:disabled]:opacity-60`
 
