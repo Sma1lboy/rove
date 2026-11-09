@@ -1,12 +1,10 @@
 /** The side panel's open state, width and views, plus the narrow mode's content view. Kept per browser, in px. */
 
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
+import { PANEL_KINDS, type PanelKind } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 import { slideLayout } from "./ui.ts"
 
-/** The side panel's kinds of view; a tab is one instance of a kind. */
-export const PANEL_KINDS = ["chat", "files", "diff", "browser", "quota"] as const
-export type PanelKind = (typeof PANEL_KINDS)[number]
 /**
  * The kinds the top bar opens: desktop's launcher icons and the phone's switch both read this, so a kind
  * added or dropped here changes both. Chat opens from the side panel's + menu instead.
@@ -35,7 +33,7 @@ panelWidth.subscribe(() => {
 })
 panelWidth.subscribe(slideLayout)
 
-/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close it. Closed until a task first opens it. */
+/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close their columns. Closed until a task first opens it, and closed again with its last column. */
 export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) === "1")
 panelOpen.subscribe(() => localStorage.setItem(PANEL_OPEN_KEY, panelOpen.get() ? "1" : "0"))
 
@@ -49,4 +47,11 @@ panelOpen.subscribe(() => {
 export function clampPanelWidth(px: number, railPx: number, viewport = window.innerWidth): number {
   const max = Math.max(PANEL_MIN_PX, viewport - railPx - MIN_WORKSPACE_WIDTH * CELL_PX)
   return Math.max(PANEL_MIN_PX, Math.min(max, Math.round(px)))
+}
+
+/** The automatic width when columns share the panel: one column's default width each. null = a single column, which the grid's own default sizes. */
+export function autoPanelWidth(columns: number, railPx: number, viewport = window.innerWidth): number | null {
+  if (columns < 2) return null
+  const one = Math.max(300, Math.min(440, viewport * 0.28))
+  return clampPanelWidth(one * columns, railPx, viewport)
 }

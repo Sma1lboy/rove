@@ -1,23 +1,25 @@
 /**
- * What the side panel remembers: per task, its tabs and split (per browser, in localStorage, for the
- * newest `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
+ * What the side panel remembers: per task, its columns (per browser, in localStorage, for the newest
+ * `REMEMBERED_TASKS` tasks), and the ways to bring a view up.
  */
 
+import { type BrowserColumn, closeTab } from "./browser-tabs.ts"
 import { isNarrow } from "./layout.ts"
 import { type PanelPush, applyPlan, planPanelPush } from "./panel-contract.ts"
-import { type PanelKind, narrowView, panelOpen } from "./panel-layout.ts"
+import { narrowView, panelOpen } from "./panel-layout.ts"
 import {
+  type PanelKind,
   type TaskPanel,
-  closeTab,
-  latestOfKind,
+  closeColumn,
+  columnOf,
+  editBrowser,
   launch,
-  loadPanels,
   newPanel,
-  remember,
   showBrowser,
   showDiff,
   showKind,
 } from "./panel-model.ts"
+import { loadPanels, remember } from "./panel-storage.ts"
 import { createStore, useStore } from "./store.ts"
 import { type Preview, zen } from "./ui.ts"
 
@@ -45,6 +47,15 @@ export function useTaskPanel(taskId: string): TaskPanel {
   return useStore(panels)[taskId] ?? FRESH
 }
 
+/**
+ * Whether the panel is on screen for this task (null = no local task, e.g. a remote one): it is open
+ * only while the task has a column, whatever another task left the shared open flag at.
+ */
+export function usePanelShown(taskId: string | null): boolean {
+  const panel = useTaskPanel(taskId ?? "")
+  return useStore(panelOpen) && (taskId === null || panel.columns.length > 0)
+}
+
 /** Apply an edit to a task's panel and keep it; the task becomes the newest remembered. */
 export function editPanel(taskId: string, edit: (panel: TaskPanel) => TaskPanel): void {
   const now = panels.get()[taskId] ?? FRESH
@@ -62,7 +73,7 @@ export function showPanel(taskId: string, kind: PanelKind): void {
   if (isNarrow()) narrowView.set(kind)
 }
 
-/** A launcher button in the workspace's top bar. Zen hides the panel, so from zen it opens rather than closes (and leaves zen). */
+/** A launcher button in the workspace's top bar toggles its column. Zen hides the panel, so from zen it opens rather than closes (and leaves zen). */
 export function launchPanel(taskId: string, kind: PanelKind): void {
   const next = launch(panels.get()[taskId] ?? FRESH, panelOpen.get() && !zen.get(), kind)
   editPanel(taskId, () => next.panel)
@@ -70,7 +81,7 @@ export function launchPanel(taskId: string, kind: PanelKind): void {
   if (next.open && zen.get()) zen.set(false)
 }
 
-/** A file's diff (`.` = the whole worktree) opens in its own tab beside the terminal, not over it. */
+/** A file's diff (`.` = the whole worktree) opens in the Diff column beside the terminal, not over it. */
 export function openDiff(view: Preview): void {
   editPanel(view.taskId, (panel) => showDiff(panel, view.path, view.scope))
   panelOpen.set(true)
@@ -87,12 +98,29 @@ export function openBrowser(taskId: string, url: string): void {
   if (isNarrow()) narrowView.set("browser")
 }
 
-/** Closes a tab; the phone's panel always shows something, so it falls back to Files when its kind runs out. */
-export function closePanelTab(taskId: string, id: string): void {
-  editPanel(taskId, (panel) => closeTab(panel, id))
-  const kind = narrowView.get()
-  if (isNarrow() && kind !== "terminal" && !latestOfKind(panels.get()[taskId] ?? FRESH, kind))
-    showPanel(taskId, "files")
+/**
+ * After a column went: the panel goes with its last one; the phone's panel always shows something,
+ * so it falls back to Files when its kind is gone.
+ */
+function settleClosed(taskId: string, kind: PanelKind): void {
+  const left = panels.get()[taskId] ?? FRESH
+  if (!isNarrow() && left.columns.length === 0) panelOpen.set(false)
+  if (isNarrow() && narrowView.get() === kind && !columnOf(left, kind)) showPanel(taskId, "files")
+}
+
+export function closePanelColumn(taskId: string, kind: PanelKind): void {
+  editPanel(taskId, (panel) => closeColumn(panel, kind))
+  settleClosed(taskId, kind)
+}
+
+/** Edits the task's Browser column; closing its last tab closes the column. */
+export function editBrowserColumn(taskId: string, edit: (col: BrowserColumn) => BrowserColumn | null): void {
+  editPanel(taskId, (panel) => editBrowser(panel, edit))
+  settleClosed(taskId, "browser")
+}
+
+export function closeBrowserTab(taskId: string, id: string): void {
+  editBrowserColumn(taskId, (col) => closeTab(col, id))
 }
 
 /**

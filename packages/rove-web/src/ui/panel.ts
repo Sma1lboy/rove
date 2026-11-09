@@ -1,6 +1,6 @@
 import { SIDE_PANEL_FRAME } from "./shell.ts"
 
-/** Class recipes for the side panel (side-panel.tsx, panel-tabs.tsx, browser-view.tsx) and the quiet icon buttons it shares with the rail bar. */
+/** Class recipes for the side panel (side-panel.tsx, panel-column.tsx, panel-tabs.tsx, browser-view.tsx) and the quiet icon buttons it shares with the rail bar. */
 
 /** A stroked 16-unit icon, as the rail's. */
 export const STROKE_ICON =
@@ -26,40 +26,51 @@ const RESIZING = "[&.is-resizing_iframe]:pointer-events-none"
 export const sidePanelClass = (narrow: boolean): string =>
   `side-panel ${SIDE_PANEL_FRAME} relative row-1 flex min-h-0 min-w-0 flex-col ${RESIZING} ${narrow ? "flex-1 p-0" : "pt-2 pr-1 pb-1 pl-0"}`
 
-/** Tab rows, the divider and the views are cells of one grid: moving a tab changes its cell, so a frame is never re-parented. */
-export const SIDE_BODY = `grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] [--divider:5px] *:col-1 ${RESIZING}`
+/** Columns and the dividers between them are cells of one grid, placed by `grid-column`: opening or closing one never moves another's DOM node, so a frame is never re-parented. */
+export const SIDE_BODY = `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] [--divider:5px] ${RESIZING}`
 
-/** Muted words; the one in view is ink. Many tabs scroll sideways; the + stays beside them. */
+/** One kind's column: a slim header over its view. */
+export const SIDE_COLUMN = "side-col row-1 flex min-h-0 min-w-0 flex-col"
+
+/** Muted words; the one in view is ink. */
 export const sideHeadClass = (narrow: boolean): string =>
   `side-head flex min-h-6.5 min-w-0 items-center gap-0.5 pb-1.5 font-mono text-meta normal-nums ${narrow ? "px-2 pt-0" : "narrow:px-2 narrow:pt-0"}`
 
-export const PTABS = "scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto"
+/** A column's title in its header. */
+export const COLUMN_TITLE = "min-w-0 flex-1 truncate px-2 text-ink"
 
-/** Tabs shrink as a browser's do; once they no longer fit (`compact`), the others keep a short name (bare icons read as the top bar's launchers) and the row scrolls. */
+/** The Browser column's tab strip and its + stay together at the header's left; the buttons keep the right. */
+export const PTABS_BOX = "flex min-w-0 flex-1 items-center gap-0.5"
+
+/** Tabs sit tight, as a browser's do. Many scroll sideways; the + stays beside them. */
+export const PTABS = "scrollbar-none flex min-w-0 gap-0.5 overflow-x-auto"
+
+/** Tabs are as wide as their name and close slot, up to a cap, and shrink once the row is full; once they no longer fit (`compact`), the others keep a short name (bare icons read as the top bar's launchers) and the row scrolls. */
 export const ptabClass = (o: { active: boolean; compact: boolean }): string =>
-  `group/ptab relative flex max-w-40 items-center hover:text-ink data-[drop=after]:shadow-[inset_-2px_0_0_var(--accent)] data-[drop=before]:shadow-[inset_2px_0_0_var(--accent)] ${o.active ? "is-active text-ink" : "text-muted"} ${o.compact && !o.active ? "min-w-0 max-w-24 flex-none" : "min-w-18 flex-initial"}`
+  `group/ptab relative flex min-w-12 max-w-40 items-center hover:text-ink ${o.active ? "is-active text-ink" : "text-muted"} ${o.compact && !o.active ? "max-w-24 flex-none" : "flex-initial"}`
 
-export const ptabMainClass = (short: boolean): string =>
-  `flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent text-inherit [font:inherit] ${short ? "py-1 pr-1.75 pl-2" : "py-1 pr-0.5 pl-2"}`
+/** The shown tab keeps its × in line; another tab's × floats over its label's end on hover, so no tab carries an empty slot and tabs sit tight. */
+export const ptabMainClass = (active: boolean): string =>
+  `flex min-w-0 cursor-pointer items-center gap-1.5 border-none bg-transparent py-1 pl-1.5 text-inherit [font:inherit] ${active ? "pr-0.5" : "pr-1.5"}`
 
 export const PTAB_LABEL = "truncate"
 
-/** Hidden until the tab is hovered or focused; the slot stays so the label never shifts. */
-export const PTAB_CLOSE =
-  "touch:relative size-4 flex-none cursor-pointer rounded-xs border-none bg-transparent p-0 mr-1 font-mono text-title leading-none text-subtle opacity-0 group-hover/ptab:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100 touch:after:absolute touch:after:-inset-1.5 touch:after:-left-1 touch:after:content-['']"
+export const ptabCloseClass = (active: boolean): string =>
+  `touch:relative size-4 flex-none cursor-pointer rounded-xs border-none p-0 font-mono text-title leading-none text-subtle hover:bg-hover hover:text-ink touch:after:absolute touch:after:-inset-1.5 touch:after:-left-1 touch:after:content-[''] ${active ? "mr-0.5 bg-transparent" : "absolute top-1/2 right-0.5 -translate-y-1/2 bg-paper opacity-0 group-hover/ptab:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"}`
 
 /** The top bar's Files / Diff / Browser buttons. */
 export const PANEL_LAUNCH = "ml-auto flex gap-0.5"
 
-/** The line between stacked groups: one hairline, a wider strip to grab. */
+/** The line between side-by-side columns: one hairline, a wider strip to grab. */
 export const SIDE_DIVIDER =
-  "relative row-3 cursor-row-resize touch-none before:absolute before:inset-x-0 before:top-[calc(var(--divider)/2)] before:h-px before:bg-line before:content-[''] hover:before:bg-line-active after:absolute after:inset-x-0 after:-inset-y-0.75 after:content-['']"
+  "relative row-1 cursor-col-resize touch-none before:absolute before:inset-y-0 before:left-[calc(var(--divider)/2)] before:w-px before:bg-line before:content-[''] hover:before:bg-line-active after:absolute after:inset-x-[-3px] after:inset-y-0 after:content-['']"
 
-/** The views share their group's cell; the hidden ones must beat the flex display. */
-export const SIDE_VIEW = "side-view flex min-h-0 min-w-0 flex-col [&[hidden]]:hidden"
+/** A column's view; the hidden ones (a Browser's other tabs) must beat the flex display. */
+export const SIDE_VIEW = "side-view flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden"
 
+/** A column with nothing to show. */
 export const SIDE_EMPTY =
-  "row-2 m-auto flex max-w-[44ch] flex-col items-center gap-2.5 p-4 text-center font-mono text-meta leading-[1.5] text-subtle normal-nums"
+  "m-auto flex max-w-[44ch] flex-col items-center gap-2.5 p-4 text-center font-mono text-meta leading-[1.5] text-subtle normal-nums"
 
 export const BROWSER = "flex min-h-0 flex-1 flex-col gap-1.5"
 export const BROWSER_BAR = "flex items-center gap-0.5 [&_svg]:flex-none"

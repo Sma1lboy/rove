@@ -1,39 +1,33 @@
 /**
- * One group's row of tabs along the panel's top: icon and short name, a × on hover, middle-click to
- * close, right-click for the move / close menu, drag to reorder or move to the other group, and a
- * quiet + that opens a new tab. On a phone the row only lists the tabs of the chosen kind.
+ * The Browser column's tabs, the only tabs the side panel has: icon-less short names sitting tight as in
+ * a browser's tab bar, a × on hover, middle-click to close, right-click for the close menu, and a quiet
+ * + after the last one that opens a blank tab. Also the panel's kind icons, shared with the top bar.
  */
 
-import { type DragEvent, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import { t, useLocale } from "./i18n/index.ts"
-import { PANEL_KINDS, type PanelKind } from "./panel-layout.ts"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import {
-  type GroupName,
-  type PanelItem,
-  type TaskPanel,
-  activate,
+  type BrowserColumn,
+  type BrowserTab,
+  activateTab,
   browserHost,
   browserUrl,
-  closeOthers,
-  diffName,
-  moveTab,
-  newBrowser,
-  newFiles,
-  showDiff,
-  showKind,
-} from "./panel-model.ts"
-import { closePanelTab, editPanel } from "./panel-state.ts"
+  closeOtherTabs,
+  newTab,
+} from "./browser-tabs.ts"
+import { t, useLocale } from "./i18n/index.ts"
+import type { PanelKind } from "./panel-model.ts"
+import { closeBrowserTab, editBrowserColumn } from "./panel-state.ts"
 import { openMenu } from "./rail-view.tsx"
-import { type MenuItem, menu } from "./ui.ts"
+import type { MenuItem } from "./ui.ts"
 import {
   PTABS,
-  PTAB_CLOSE,
+  PTABS_BOX,
   PTAB_LABEL,
   STROKE_ICON,
   iconButton,
   ptabClass,
+  ptabCloseClass,
   ptabMainClass,
-  sideHeadClass,
 } from "./ui/panel.ts"
 
 export function Icon({ children }: { children: ReactNode }) {
@@ -54,25 +48,19 @@ export const ICONS: Record<PanelKind, ReactNode> = {
   quota: <path d="M2 10a6 6 0 1 1 12 0M8 10l2.5-3.5M4 13h8" />,
 }
 
-function label(tab: PanelItem): string {
-  if (tab.kind === "files") return t("panel.files")
-  if (tab.kind === "chat") return t("panel.chat")
-  if (tab.kind === "quota") return t("panel.quota")
-  if (tab.kind === "diff") return tab.path === "." ? t("panel.diff") : diffName(tab.path)
+function label(tab: BrowserTab): string {
   const url = browserUrl(tab)
   return url ? browserHost(url) : t("panel.browser")
-}
-
-function tooltip(tab: PanelItem): string {
-  if (tab.kind === "diff") return tab.path === "." ? t("preview.whole") : tab.path
-  return tab.kind === "browser" ? browserUrl(tab) || label(tab) : label(tab)
 }
 
 /** The row's font is 12px mono: one column per ASCII character, two for wide ones (CJK). */
 const COLUMN_PX = 7.3
 /** Padding and the × slot around a tab's label; and the cap from `.ptab`'s max-width. */
-const TAB_CHROME_PX = 31
+const TAB_CHROME_PX = 22
 const TAB_MAX_PX = 160
+/** The tab row's gap, and the + beside it. */
+const TAB_GAP_PX = 2
+const NEW_TAB_PX = 24
 
 /** Whether every tab fits at its full label; past that, the row goes compact (only the shown tab keeps its name). */
 export function tabsFit(labels: readonly string[], width: number): boolean {
@@ -80,200 +68,97 @@ export function tabsFit(labels: readonly string[], width: number): boolean {
   for (const text of labels) {
     let columns = 0
     for (const ch of text) columns += (ch.codePointAt(0) ?? 0) > 0x2e7f ? 2 : 1
-    total += Math.min(TAB_MAX_PX, TAB_CHROME_PX + columns * COLUMN_PX) + 8
+    total += Math.min(TAB_MAX_PX, TAB_CHROME_PX + columns * COLUMN_PX) + TAB_GAP_PX
   }
   return total <= width
 }
 
-/** The tab being dragged; a drag carries nothing the page can read while it is over a target. */
-let dragging: { taskId: string; id: string } | null = null
-
-function tabMenu(taskId: string, panel: TaskPanel, tab: PanelItem, group: GroupName): MenuItem[] {
-  const move = (to: GroupName, label: string): MenuItem => ({
-    label,
-    section: "move",
-    run: () => editPanel(taskId, (p) => moveTab(p, tab.id, to)),
-  })
-  const items: MenuItem[] = []
-  if (!panel.bottom && panel.top.tabs.length > 1) items.push(move("bottom", t("panel.splitDown")))
-  else if (panel.bottom)
-    items.push(group === "top" ? move("bottom", t("panel.moveBottom")) : move("top", t("panel.moveTop")))
-  items.push({ label: t("panel.close"), section: "close", run: () => closePanelTab(taskId, tab.id) })
-  if (panel.top.tabs.length + (panel.bottom?.tabs.length ?? 0) > 1) {
+function tabMenu(taskId: string, column: BrowserColumn, tab: BrowserTab): MenuItem[] {
+  const items: MenuItem[] = [{ label: t("panel.close"), section: "close", run: () => closeBrowserTab(taskId, tab.id) }]
+  if (column.tabs.length > 1) {
     items.push({
       label: t("panel.closeOthers"),
       section: "close",
-      run: () => editPanel(taskId, (p) => closeOthers(p, tab.id)),
+      run: () => editBrowserColumn(taskId, (col) => closeOtherTabs(col, tab.id)),
     })
   }
   return items
 }
 
-/** One entry per kind, so a new kind cannot be missing from the + menu. */
-const NEW_TAB: Record<PanelKind, (p: TaskPanel, group: GroupName) => TaskPanel> = {
-  chat: (p) => showKind(p, "chat"),
-  files: (p, group) => newFiles(p, group),
-  diff: (p) => showDiff(p, ".", "working"),
-  browser: (p, group) => newBrowser(p, group),
-  quota: (p) => showKind(p, "quota"),
-}
-
-const NEW_LABEL = {
-  chat: "panel.newChat",
-  files: "panel.newFiles",
-  diff: "panel.newDiff",
-  browser: "panel.newBrowser",
-  quota: "panel.newQuota",
-} as const satisfies Record<PanelKind, string>
-
-function newMenu(taskId: string, group: GroupName): MenuItem[] {
-  return PANEL_KINDS.map((kind) => ({
-    label: t(NEW_LABEL[kind]),
-    run: () => editPanel(taskId, (p) => NEW_TAB[kind](p, group)),
-  }))
-}
-
-export function PanelTabRow({
-  taskId,
-  panel,
-  group,
-  tabs,
-  active,
-  narrow,
-  children,
-}: {
-  taskId: string
-  panel: TaskPanel
-  group: GroupName
-  tabs: readonly PanelItem[]
-  active: string | null
-  narrow: boolean
-  /** Buttons after the +. */
-  children?: ReactNode
-}) {
+export function BrowserTabStrip({ taskId, column }: { taskId: string; column: BrowserColumn }) {
   useLocale()
-  const [over, setOver] = useState<{ id: string; after: boolean } | null>(null)
-  const mine = () => dragging?.taskId === taskId
-  const drop = (index?: number) => {
-    const from = dragging
-    dragging = null
-    setOver(null)
-    if (from?.taskId === taskId) editPanel(taskId, (p) => moveTab(p, from.id, group, index))
-  }
-  const openNew = (e: MouseEvent<HTMLButtonElement>) => {
-    const box = e.currentTarget.getBoundingClientRect()
-    menu.set({ x: box.left, y: box.bottom + 2, items: newMenu(taskId, group), target: e.currentTarget })
-  }
-  const dragOver = (e: DragEvent<HTMLElement>, id: string) => {
-    if (!mine()) return
-    e.preventDefault()
-    e.stopPropagation()
-    // Over the dragged tab itself a drop moves nothing, so no marker.
-    if (dragging?.id === id) return setOver(null)
-    const box = e.currentTarget.getBoundingClientRect()
-    setOver({ id, after: e.clientX > box.left + box.width / 2 })
-  }
-
+  const box = useRef<HTMLDivElement>(null)
   const strip = useRef<HTMLDivElement>(null)
-  // The row fills the head, so its width is the room the panel gives it, whatever the tabs take.
+  // The box fills the head up to its buttons, so its width is the room the column gives the tabs.
   const [room, setRoom] = useState(0)
   useEffect(() => {
-    const el = strip.current
+    const el = box.current
     if (!el) return
     const watch = new ResizeObserver(([entry]) => setRoom(entry?.contentRect.width ?? 0))
     watch.observe(el)
     return () => watch.disconnect()
   }, [])
-  const compact = room > 0 && !tabsFit(tabs.map(label), room)
+  const compact = room > 0 && !tabsFit(column.tabs.map(label), room - NEW_TAB_PX)
   // The shown tab stays in view when the row scrolls.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `active`, the tab count and compaction are what move the shown tab
   useEffect(() => {
     strip.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" })
-  }, [active, tabs.length, compact])
+  }, [column.active, column.tabs.length, compact])
 
   return (
-    <div
-      className={sideHeadClass(narrow)}
-      style={{ gridRow: group === "top" ? 1 : 4 }}
-      onDragOver={(e) => {
-        if (!mine()) return
-        e.preventDefault()
-        setOver(null)
-      }}
-      onDrop={(e) => {
-        e.preventDefault()
-        drop()
-      }}
-    >
+    <div className={PTABS_BOX} ref={box}>
       <div className={PTABS} role="tablist" aria-label={t("panel.tabs")} ref={strip}>
-        {tabs.map((tab, i) => (
-          <div
-            key={tab.id}
-            role="presentation"
-            className={ptabClass({ active: tab.id === active, compact })}
-            data-drop={over?.id === tab.id ? (over.after ? "after" : "before") : undefined}
-            draggable={!narrow}
-            onDragStart={() => {
-              dragging = { taskId, id: tab.id }
-            }}
-            onDragEnd={() => {
-              dragging = null
-              setOver(null)
-            }}
-            onDragOver={(e) => dragOver(e, tab.id)}
-            onDrop={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              drop(i + (over?.id === tab.id && over.after ? 1 : 0))
-            }}
-            onMouseDown={(e) => {
-              if (e.button === 1) e.preventDefault()
-            }}
-            onAuxClick={(e) => {
-              if (e.button !== 1) return
-              e.preventDefault()
-              closePanelTab(taskId, tab.id)
-            }}
-            onContextMenu={(e) => {
-              if (!narrow) openMenu(e, tabMenu(taskId, panel, tab, group))
-            }}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab.id === active}
-              className={ptabMainClass(compact && tab.id !== active)}
-              title={tooltip(tab)}
-              onClick={() => editPanel(taskId, (p) => activate(p, tab.id))}
+        {column.tabs.map((tab) => {
+          const active = tab.id === column.active
+          return (
+            <div
+              key={tab.id}
+              role="presentation"
+              className={ptabClass({ active, compact })}
+              onMouseDown={(e) => {
+                if (e.button === 1) e.preventDefault()
+              }}
+              onAuxClick={(e) => {
+                if (e.button !== 1) return
+                e.preventDefault()
+                closeBrowserTab(taskId, tab.id)
+              }}
+              onContextMenu={(e) => openMenu(e, tabMenu(taskId, column, tab))}
             >
-              <span className={PTAB_LABEL}>{label(tab)}</span>
-            </button>
-            <button
-              type="button"
-              className={`${PTAB_CLOSE} ${compact && tab.id !== active ? "hidden" : ""}`}
-              aria-label={t("panel.close")}
-              tabIndex={-1}
-              onClick={() => closePanelTab(taskId, tab.id)}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={ptabMainClass(active)}
+                title={browserUrl(tab) || label(tab)}
+                onClick={() => editBrowserColumn(taskId, (col) => activateTab(col, tab.id))}
+              >
+                <span className={PTAB_LABEL}>{label(tab)}</span>
+              </button>
+              <button
+                type="button"
+                className={ptabCloseClass(active)}
+                aria-label={t("panel.close")}
+                tabIndex={-1}
+                onClick={() => closeBrowserTab(taskId, tab.id)}
+              >
+                ×
+              </button>
+            </div>
+          )
+        })}
       </div>
-      {!narrow && (
-        <button
-          type="button"
-          className={iconButton({ tool: true })}
-          title={t("panel.new")}
-          aria-label={t("panel.new")}
-          onClick={openNew}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 3.5v9M3.5 8h9" />
-          </svg>
-        </button>
-      )}
-      {children}
+      <button
+        type="button"
+        className={iconButton({ tool: true })}
+        title={t("panel.new")}
+        aria-label={t("panel.new")}
+        onClick={() => editBrowserColumn(taskId, newTab)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 3.5v9M3.5 8h9" />
+        </svg>
+      </button>
     </div>
   )
 }
