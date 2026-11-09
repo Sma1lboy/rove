@@ -1,4 +1,3 @@
-import { LIFTED } from "./row.ts"
 import { RAIL_FRAME } from "./shell.ts"
 
 /** Class recipes for the rail row's extras: the tree guides, the fold count, the PR chip and its card, the title tip. */
@@ -49,13 +48,13 @@ export const RAIL_SEARCH_FIELD =
 export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
-  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none" : ""}`
+  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]!" : ""}`
 /** Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
 export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_var(--focus)]"
 
-/** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode and a drag wash it. */
+/** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode washes it; a drag only brightens its name. */
 export const projectHead = (o: { moving: boolean; dragging: boolean }): string =>
-  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.dragging ? `rounded-xs ${LIFTED}` : o.moving ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
+  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums not-first:mt-4.5 ${o.dragging ? "cursor-grabbing text-ink" : "text-subtle"} ${o.moving ? "bg-accent-soft after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
 export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`
