@@ -15,10 +15,11 @@
  * probe, so an off-PATH `engineCommand.claude` isn't reported "not found".
  */
 
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { statSync } from "node:fs"
 import path from "node:path"
 import type { VendorId } from "@/types/vendor"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type {
   BinaryStatus,
   BobAccount,
@@ -45,8 +46,8 @@ export interface EngineStatus {
 }
 
 export interface EngineStatusDeps {
-  /** Resolve a bare command name on PATH; `null` when absent. */
-  which(bin: string): string | null
+  /** Resolve a bare command name as a task's launch would; `null` when absent. */
+  which(bin: string): string | null | Promise<string | null>
   /** The argv a task would launch for this engine (override-aware). */
   command(vendor: VendorId): readonly string[]
   /** Forwarded to the built-in account detectors. */
@@ -67,8 +68,44 @@ function whichOnPath(bin: string): string | null {
   )
 }
 
+const LOGIN_PROBE_MS = 5000
+const MARK = "__rove_which__"
+
+/**
+ * `command -v` in the login shell engines launch through (`-ilc`, as `session-launch.ts`): it sees the
+ * user's rc PATH and shell functions (an engine command can be one), which a daemon or bridge started
+ * outside a terminal does not. The mark fences the answer from whatever the rc files print.
+ */
+function whichInLoginShell(bin: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    let out = ""
+    let child: ReturnType<typeof spawn>
+    try {
+      const quoted = `'${bin.replaceAll("'", `'\\''`)}'`
+      child = spawn(resolveSessionShell(), ["-ilc", `printf '\\n${MARK}%s\\n' "$(command -v ${quoted})"`], {
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+    } catch {
+      return resolve(null)
+    }
+    const timer = setTimeout(() => child.kill("SIGKILL"), LOGIN_PROBE_MS)
+    child.stdout?.on("data", (b: Buffer) => {
+      out += b.toString()
+    })
+    child.on("error", () => {
+      clearTimeout(timer)
+      resolve(null)
+    })
+    child.on("close", () => {
+      clearTimeout(timer)
+      const line = out.split("\n").find((l) => l.startsWith(MARK))
+      resolve(line?.slice(MARK.length).trim() || null)
+    })
+  })
+}
+
 const defaultDeps: EngineStatusDeps = {
-  which: whichOnPath,
+  which: (bin) => whichOnPath(bin) ?? (process.platform === "win32" ? null : whichInLoginShell(bin)),
   command: (vendor) => interactiveEngineCommand(vendor),
 }
 
@@ -77,7 +114,10 @@ const defaultDeps: EngineStatusDeps = {
  * stat'd, a bare name goes through `which`. Never throws — a miss is a
  * `{ found: false }` the Accounts view renders as a warning line.
  */
-export function probeLaunchBinary(argv: readonly string[], which: (bin: string) => string | null): BinaryStatus {
+export async function probeLaunchBinary(
+  argv: readonly string[],
+  which: EngineStatusDeps["which"],
+): Promise<BinaryStatus> {
   const bin = argv[0]?.trim()
   if (!bin) return { found: false, error: "no launch command" }
   if (bin.includes(path.sep) || bin.startsWith(".")) {
@@ -88,7 +128,7 @@ export function probeLaunchBinary(argv: readonly string[], which: (bin: string) 
     }
     return { found: false, error: `not found at ${bin}` }
   }
-  const found = which(bin)
+  const found = await which(bin)
   return found ? { found: true, path: found } : { found: false, error: "not found on PATH" }
 }
 
@@ -99,12 +139,12 @@ export async function detectEngineStatus(
   const deps = { ...defaultDeps, ...over }
   const detector = engineEntry(vendor).detectAccount
   if (!detector) {
-    return { vendor, binary: probeLaunchBinary(deps.command(vendor), deps.which), account: null }
+    return { vendor, binary: await probeLaunchBinary(deps.command(vendor), deps.which), account: null }
   }
   const status = await detector(deps.accountDeps)
   // The dedicated finder knows install dirs `which` doesn't; when it still
   // misses, the user's launch override is the honest second opinion.
-  const binary = status.binary.found ? status.binary : probeLaunchBinary(deps.command(vendor), deps.which)
+  const binary = status.binary.found ? status.binary : await probeLaunchBinary(deps.command(vendor), deps.which)
   return { vendor, binary, account: status.account, accountError: status.accountError }
 }
 

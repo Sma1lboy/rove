@@ -23,9 +23,9 @@ function accountDeps(over: Partial<DetectDeps> = {}): DetectDeps {
 }
 
 describe("probeLaunchBinary", () => {
-  it("stats an explicit path rather than searching PATH", () => {
-    expect(probeLaunchBinary([process.execPath], () => null)).toEqual({ found: true, path: process.execPath })
-    expect(probeLaunchBinary(["/definitely/not/here"], () => "/usr/bin/here")).toEqual({
+  it("stats an explicit path rather than searching PATH", async () => {
+    expect(await probeLaunchBinary([process.execPath], () => null)).toEqual({ found: true, path: process.execPath })
+    expect(await probeLaunchBinary(["/definitely/not/here"], () => "/usr/bin/here")).toEqual({
       found: false,
       error: "not found at /definitely/not/here",
     })
