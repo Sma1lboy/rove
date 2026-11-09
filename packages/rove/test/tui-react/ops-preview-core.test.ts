@@ -16,6 +16,7 @@ import {
   hunklessPatchNote,
   isCombinedPathspec,
   isImagePath,
+  loadFileContent,
   loadPreviewData,
   patchFirstLine,
   unifiedDiffFiles,
@@ -89,6 +90,12 @@ describe("loadPreviewData", () => {
     if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
     expect(data.text).toContain("-export const a = 1")
     expect(data.text).toContain("+export const a = 2")
+  })
+
+  test("loadFileContent reads a changed file as itself, not its diff", async () => {
+    const repo = makeRepo()
+    writeFileSync(join(repo, "a.ts"), "export const a = 2\n")
+    expect(await loadFileContent(repo, "a.ts")).toEqual({ kind: "code", text: "export const a = 2\n" })
   })
 
   test("ignoreWhitespace drops a whitespace-only file from the combined diff and keeps real edits", async () => {

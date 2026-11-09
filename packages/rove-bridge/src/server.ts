@@ -17,7 +17,7 @@ import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
-import { absPath } from "./ops/args.ts"
+import { absPath, oneOf } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
@@ -310,11 +310,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
     case "diff.file": {
-      const scope = str(a, "scope")
-      if (scope !== "branch" && scope !== "working" && scope !== "task") {
-        throw new BridgeError("BAD_ARGS", "scope is branch|working|task")
-      }
-      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, optBool(a, "ignoreWhitespace"), optStr(a, "base"))
+      const scope = oneOf(a, "scope", ["branch", "working", "task"])
+      const flags = [optBool(a, "ignoreWhitespace"), optStr(a, "base"), optBool(a, "content")] as const
+      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, ...flags)
     }
     case "diff.refs":
       return ops.diffRefs(str(a, "taskId"))

@@ -1,25 +1,27 @@
 /**
- * The Files pane (TUI `panes/filetree`): the worktree tree; what changed is the Diff tab's. Keys are the TUI
- * pane's own, live only while the pane has focus: j/k move, h/l fold, r refresh,
- * Enter, d or a click previews the file in a tab on the right (web only: the TUI opens its editor tab), Shift+D the
- * whole diff, a mention `@path`, o opens media in the Mac's app.
+ * The Files pane (TUI `panes/filetree`): the worktree tree, each changed file coloured by its git status (a directory
+ * by the strongest beneath it). Keys are the TUI pane's own, live only while the pane has focus: j/k move, h/l fold, r
+ * refresh, Enter or a click opens the file in a tab on the right (web only: the TUI opens its editor tab), d its
+ * diff, Shift+D the whole diff, a mention `@path`, o opens media in the Mac's app.
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import type { TaskRow } from "rove-bridge/protocol"
+import type { DiffFileRow, TaskRow } from "rove-bridge/protocol"
 import { ChecksSection } from "./checks-section.tsx"
+import { type FileState, STATE_LETTER, STATE_TONE, treeStates } from "./file-status.ts"
 import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { openDiff } from "./panel-state.ts"
+import { openDiff, openFile } from "./panel-state.ts"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
-import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { CHEVRON_CELL, GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
+import { TONE } from "./ui/tone.ts"
 
 interface Row {
   readonly path: string
@@ -27,6 +29,7 @@ interface Row {
   readonly depth: number
   readonly dir: boolean
   readonly open: boolean
+  readonly state: FileState | undefined
 }
 
 /** `narrow`: the phone's full-panel list. */
@@ -34,6 +37,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   useLocale()
   const [files, setFiles] = useState<readonly string[] | null>(
     () => lastReply<{ files: string[] }>(model, "files.list", { taskId: task.id })?.files ?? null,
+  )
+  const [states, setStates] = useState<ReadonlyMap<string, FileState>>(() =>
+    treeStates(lastReply<{ files: DiffFileRow[] }>(model, "diff.files", { taskId: task.id })?.files ?? []),
   )
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
@@ -58,6 +64,19 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     }
   }, [model, task.id, changeKey, nonce])
 
+  // Git status for the colours, on the same triggers; a failed read leaves the tree plain.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: changeKey and nonce are refetch triggers.
+  useEffect(() => {
+    let live = true
+    requestRemembered<{ files: DiffFileRow[] }>(model, "diff.files", { taskId: task.id }).then(
+      (r) => live && setStates(treeStates(r.files)),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [model, task.id, changeKey, nonce])
+
   // The panel remounts per task, so `files` is always this task's.
   const loaded = files !== null
   const rows: Row[] = visibleTree(files ?? [], expanded).map((r) => ({
@@ -66,6 +85,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     depth: r.depth,
     dir: r.dir,
     open: r.open,
+    state: states.get(r.path),
   }))
   const at = Math.min(cursor, Math.max(0, rows.length - 1))
   const row = rows[at]
@@ -77,8 +97,9 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
       else next.delete(path)
       return next
     })
-  // A preview tab on the right: the file (its uncommitted diff when it has one).
-  const open = (path: string) => openDiff({ taskId: task.id, path, scope: "working" })
+  // The file itself in the File column; its diff is `d`, or the File column's `[ diff ]`.
+  const open = (path: string) => openFile(task.id, path)
+  const openChanges = (path: string) => openDiff({ taskId: task.id, path, scope: "working" })
   const mention = (path: string) => {
     if (!stream?.startsWith(`${task.id}::`)) {
       toast(t("files.mentionNoEngine"), "error")
@@ -101,8 +122,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     else if ((key === "l" || key === "ArrowRight") && row?.dir) toggle(row.path, true)
     else if ((key === "h" || key === "ArrowLeft") && row?.dir) toggle(row.path, false)
     else if (key === "r") setNonce((n) => n + 1)
-    else if (key === "D" && e.shiftKey) open(".")
-    else if (key === "d" && row) open(row.path)
+    else if (key === "D" && e.shiftKey) openChanges(".")
+    else if (key === "d" && row) openChanges(row.path)
     else if (key === "Enter" && row) {
       if (row.dir) toggle(row.path)
       else open(row.path)
@@ -140,10 +161,13 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
               else open(r.path)
             }}
           >
-            <span className={`${GLYPH} grid place-items-center text-subtle`}>
-              {r.dir ? <Chevron right={!r.open} /> : null}
-            </span>
-            <span className={ROW_TITLE}>{r.label}</span>
+            <span className={CHEVRON_CELL}>{r.dir ? <Chevron right={!r.open} /> : null}</span>
+            <span className={`${ROW_TITLE} ${r.state ? TONE[STATE_TONE[r.state]] : ""}`}>{r.label}</span>
+            {r.state && (
+              <span className={`${GLYPH} ${TONE[STATE_TONE[r.state]]}`} title={t(`files.state.${r.state}`)}>
+                {r.dir ? "•" : STATE_LETTER[r.state]}
+              </span>
+            )}
           </button>
         ))}
       </div>

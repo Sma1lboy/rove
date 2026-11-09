@@ -18,6 +18,8 @@ function parseColumn(raw: unknown): Column | null {
   if (!raw || typeof raw !== "object") return null
   const r = raw as Record<string, unknown>
   if (r.kind === "files" || r.kind === "chat" || r.kind === "quota") return { kind: r.kind }
+  if (r.kind === "file" && typeof r.path === "string" && r.path !== "" && r.path !== ".")
+    return { kind: "file", path: r.path }
   if (r.kind === "diff" && typeof r.path === "string" && r.path !== "") {
     return { kind: "diff", path: r.path, scope: scopeOf(r.scope) }
   }

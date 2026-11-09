@@ -55,7 +55,8 @@ function PanelGrip({ panel }: { panel: RefObject<HTMLElement | null> }) {
 }
 
 /** What identifies a column's content: a retargeted diff is a different view, not the one restored. */
-const viewKey = (col: Column): string => (col.kind === "diff" ? `diff:${col.path}:${col.scope}` : col.kind)
+const viewKey = (col: Column): string =>
+  col.kind === "diff" ? `diff:${col.path}:${col.scope}` : col.kind === "file" ? `file:${col.path}` : col.kind
 
 function TaskPanel({ model, task, narrow }: { model: AppModel; task: TaskRow; narrow: boolean }) {
   useLocale()

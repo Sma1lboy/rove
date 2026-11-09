@@ -3,7 +3,7 @@
 import { t } from "./i18n/index.ts"
 import type { Note } from "./review-notes.ts"
 import { Button } from "./ui/button.tsx"
-import { DIFF_NOTE_TEXT, diffRowClass } from "./ui/diff-row.ts"
+import { DIFF_NOTE_TEXT, OLD_GUTTER, diffRowClass } from "./ui/diff-row.ts"
 
 export function DiffRowActions(props: {
   /** A phone offers "range" until one is started. */
@@ -61,7 +61,7 @@ export function DiffNoteLine({ note, onEdit }: { note: Note; onEdit: () => void 
       className={`${diffRowClass("note", { cursor: false, noted: false })} w-full text-left`}
       onClick={onEdit}
     >
-      <span />
+      <span className={OLD_GUTTER} />
       <span />
       <span className="text-accent">●</span>
       <span className={DIFF_NOTE_TEXT}>{note.body}</span>

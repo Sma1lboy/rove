@@ -14,8 +14,10 @@ import {
   setWidths,
   showBrowser,
   showDiff,
+  showFile,
   showKind,
 } from "../src/panel-model.ts"
+import { parsePanel } from "../src/panel-storage.ts"
 
 const kinds = (panel: TaskPanel) => panel.columns.map((col) => col.kind)
 const browser = (panel: TaskPanel) => columnOf(panel, "browser") as BrowserColumn
@@ -23,6 +25,18 @@ const browser = (panel: TaskPanel) => columnOf(panel, "browser") as BrowserColum
 describe("opening columns", () => {
   test("a task never opened has Files alone", () => {
     expect(kinds(newPanel())).toEqual(["files"])
+  })
+  // A file clicked in Files opened in the Diff column, so reading a file and reading its diff were one view.
+  test("a file opens in its own column beside Files, apart from the Diff column, and survives a reload", () => {
+    let panel = showFile(showKind(newPanel(), "browser"), "src/a.ts")
+    expect(kinds(panel)).toEqual(["files", "file", "browser"])
+    panel = showDiff(panel, "src/a.ts", "working")
+    expect(kinds(panel)).toEqual(["files", "file", "diff", "browser"])
+    panel = showFile(panel, "src/b.ts")
+    expect(columnOf(panel, "file")).toEqual({ kind: "file", path: "src/b.ts" })
+    expect(columnOf(panel, "diff")).toMatchObject({ path: "src/a.ts" })
+    expect(parsePanel(JSON.parse(JSON.stringify(panel)))).toEqual(panel)
+    expect(showKind(newPanel(), "file")).toEqual(newPanel())
   })
 
   // A file opened from Files landed right of the Browser, far from the tree it came from.
@@ -175,10 +189,11 @@ describe("rove api panel-show", () => {
     expect(browser(apply(again, { url: "https://b.test/" })).tabs).toHaveLength(2)
   })
 
-  test("a file opens the Diff column on it, whether Files or Diff was asked for; another file retargets it", () => {
+  test("a path opens the File column with Files asked for, the Diff column with Diff; another path retargets it", () => {
     const opened = apply(newPanel(), { view: "files", path: "src/a.ts" })
-    expect(columnOf(opened, "diff")).toEqual({ kind: "diff", path: "src/a.ts", scope: "working" })
-    const next = apply(opened, { view: "diff", path: "src/b.ts" })
+    expect(columnOf(opened, "file")).toEqual({ kind: "file", path: "src/a.ts" })
+    expect(columnOf(opened, "diff")).toBeUndefined()
+    const next = apply(apply(opened, { view: "diff", path: "src/a.ts" }), { view: "diff", path: "src/b.ts" })
     expect(next.columns.filter((col) => col.kind === "diff")).toHaveLength(1)
     expect(columnOf(next, "diff")).toMatchObject({ path: "src/b.ts" })
   })

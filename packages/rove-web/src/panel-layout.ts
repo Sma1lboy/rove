@@ -9,7 +9,7 @@ import { slideLayout } from "./ui.ts"
  * The kinds the top bar opens: desktop's launcher icons and the phone's switch both read this, so a kind
  * added or dropped here changes both. Chat opens from the side panel's + menu instead.
  */
-export const LAUNCHED_KINDS = PANEL_KINDS.filter((kind) => kind !== "chat")
+export const LAUNCHED_KINDS = PANEL_KINDS.filter((kind) => kind !== "chat" && kind !== "file")
 /** Narrow mode, a task's content panel: the terminal, or one of the side panel's kinds (the desktop's right column). */
 export type NarrowView = "terminal" | PanelKind
 export const narrowView = createStore<NarrowView>("terminal")

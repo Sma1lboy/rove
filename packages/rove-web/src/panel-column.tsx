@@ -36,6 +36,7 @@ const SCOPE_LABEL = {
 
 /** A column's name in its header: the kind, or for a diff its file (the whole worktree: its scope). */
 function title(col: Exclude<Column, BrowserColumn>): { text: string; hint: string } {
+  if (col.kind === "file") return { text: diffName(col.path), hint: col.path }
   if (col.kind !== "diff") return { text: t(`panel.${col.kind}`), hint: t(`panel.${col.kind}`) }
   if (col.path === ".") return { text: t(SCOPE_LABEL[col.scope]), hint: t("preview.whole") }
   return { text: diffName(col.path), hint: col.path }
@@ -140,6 +141,16 @@ export function ColumnView({
       {column.kind === "files" && <FilesView model={model} task={task} narrow={narrow} />}
       {column.kind === "chat" && <TranscriptView model={model} task={task} active />}
       {column.kind === "quota" && <ContextView model={model} task={task} active />}
+      {column.kind === "file" && (
+        <PreviewHost
+          key={`${task.id}:file:${column.path}`}
+          model={model}
+          view={{ taskId: task.id, path: column.path, scope: "working", file: true }}
+          active
+          restored={restored}
+          onClose={() => closePanelColumn(task.id, "file")}
+        />
+      )}
       {column.kind === "diff" && (
         <PreviewHost
           key={`${task.id}:${column.path}:${column.scope}`}

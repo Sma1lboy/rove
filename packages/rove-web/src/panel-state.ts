@@ -17,6 +17,7 @@ import {
   newPanel,
   showBrowser,
   showDiff,
+  showFile,
   showKind,
 } from "./panel-model.ts"
 import { loadPanels, remember } from "./panel-storage.ts"
@@ -88,6 +89,14 @@ export function openDiff(view: Preview): void {
   // Zen hides the panel, and showing the diff is what was asked for (as `launchPanel` and a panel push do).
   if (zen.get()) zen.set(false)
   if (isNarrow()) narrowView.set("diff")
+}
+
+/** A file from the Files tree opens as itself in the File column, beside Files. */
+export function openFile(taskId: string, path: string): void {
+  editPanel(taskId, (panel) => showFile(panel, path))
+  panelOpen.set(true)
+  if (zen.get()) zen.set(false)
+  if (isNarrow()) narrowView.set("file")
 }
 
 /** An address opens in a Browser tab beside the terminal (the one already on it, else a blank one, else a new one). */

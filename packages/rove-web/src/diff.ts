@@ -113,11 +113,15 @@ export function noteRange(
 }
 
 /** A note's range plus the row indexes it spans (`first..last`), the rows its quoted code comes from. */
-export function noteTarget(
-  rows: readonly DiffRow[],
-  cursor: number,
-  anchor: number | null,
-): { path: string; line: number; startLine?: number; first: number; last: number } | null {
+export interface NoteTarget {
+  readonly path: string
+  readonly line: number
+  readonly startLine?: number
+  readonly first: number
+  readonly last: number
+}
+
+export function noteTarget(rows: readonly DiffRow[], cursor: number, anchor: number | null): NoteTarget | null {
   const range = noteRange(rows, cursor, anchor)
   if (!range) return null
   const spans = range.startLine !== undefined && anchor !== null

@@ -410,6 +410,14 @@ export async function loadPreviewData(
     return { kind: "diff", text: diff, ...(origPath ? { origPath } : {}) }
   }
   if (isCombinedPathspec(relPath)) return { kind: "empty" }
+  return loadFileContent(worktree, relPath)
+}
+
+/** The file as it is on disk, whatever its diff: a `code` view, or the `binary`/`error` card (images by extension, null bytes). */
+export async function loadFileContent(worktree: string, relPath: string): Promise<PreviewData> {
+  if (isImagePath(relPath)) {
+    return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
+  }
   const text = await readWorktreeFile(worktree, relPath)
   if (text === null) return { kind: "error", message: t("ops.preview.readFailed", { path: relPath }) }
   if (looksBinaryText(text)) {
