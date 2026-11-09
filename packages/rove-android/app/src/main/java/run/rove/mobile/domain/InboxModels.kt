@@ -33,7 +33,7 @@ object InboxLogic {
     fun key(item: Attention): String {
         if (item.gateId != null) return "gate\u0000${item.gateId}"
         if (item.deliveryId != null) return "delivery\u0000${item.deliveryId}"
-        if (item.taskId == null && item.automationId != null) return "routine\u0000${item.automationId}"
+        if (item.taskId == null && item.automationId != null) return "${item.state}\u0000${item.automationId}"
         if (item.taskId == null && item.label != null) return "${item.state}\u0000${item.label}"
         return "${item.taskId.orEmpty()}\u0000${item.tabId.orEmpty()}"
     }
