@@ -31,4 +31,17 @@
     <string name="rowmenu_archive_busy_body">%1$s 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。</string>
     <string name="rowmenu_archive_busy_confirm">仍要归档</string>
     <string name="rowmenu_archived_fold">已归档 · %1$d</string>
+    <string name="rowmenu_more">更多</string>
+    <string name="rowmenu_land">合入基础分支</string>
+    <string name="rowmenu_copy">复制</string>
+    <string name="rowmenu_copy_id">任务 ID</string>
+    <string name="rowmenu_copy_branch">分支</string>
+    <string name="rowmenu_copy_path">工作区路径</string>
+    <string name="rowmenu_copied">已复制 %1$s</string>
+    <string name="rowmenu_copy_nothing">这个任务还没有可复制的内容</string>
+    <string name="rowmenu_move_to_project">移到其他项目…</string>
+    <string name="rowmenu_move_empty">没有其他项目可以移过去</string>
+    <string name="rowmenu_change_engine">切换引擎</string>
+    <string name="rowmenu_engine_next_session">下次会话生效。</string>
+    <string name="rowmenu_remove">移除会话</string>
 </resources>

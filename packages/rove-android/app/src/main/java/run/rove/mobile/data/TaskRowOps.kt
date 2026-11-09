@@ -1,6 +1,9 @@
 package run.rove.mobile.data
 
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import run.rove.mobile.domain.OpenedTab
 import run.rove.mobile.domain.SyncResult
 import run.rove.mobile.domain.FixChecksResult
@@ -9,6 +12,12 @@ suspend fun RoveRepository.renameTask(taskId: String, title: String) { bridge.re
 suspend fun RoveRepository.renameBranch(taskId: String, branch: String) { bridge.request("task.setBranch", args("taskId" to taskId, "branch" to branch)) }
 suspend fun RoveRepository.pinTask(taskId: String, pinned: Boolean) { bridge.request("task.pin", args("taskId" to taskId, "pinned" to pinned)) }
 suspend fun RoveRepository.setTaskStatus(taskId: String, status: String) { bridge.request("task.setStatus", args("taskId" to taskId, "status" to status)) }
+
+/** Applies to the task's next session. */
+suspend fun RoveRepository.setTaskEngine(taskId: String, engine: String) { bridge.request("task.setEngine", args("taskId" to taskId, "engine" to engine)) }
+suspend fun RoveRepository.moveTaskToProject(taskId: String, repo: String) { bridge.request("task.moveToProject", args("taskId" to taskId, "repo" to repo)) }
+suspend fun RoveRepository.worktreePath(taskId: String): String? =
+    bridge.request("task.get", args("taskId" to taskId))["task"]?.jsonObject?.get("worktreePath")?.jsonPrimitive?.contentOrNull
 
 /** Archive only hides the row. `force` hides one whose engine is still working, after the owner says so. */
 suspend fun RoveRepository.archiveTask(taskId: String, archived: Boolean, force: Boolean = false) {
