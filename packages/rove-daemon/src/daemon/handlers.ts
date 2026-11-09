@@ -25,6 +25,7 @@ import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import type { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
+import { logDaemonInfo } from "./crash-log.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
@@ -312,6 +313,9 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
         // tells clients the code is being swapped. Anything else, unset or
         // unknown, is `stop`, so no caller can dress a shutdown as an upgrade.
         const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
+        // 223 boots in 14 days with nothing naming who asked: a stop is a real
+        // lifecycle event, so the log carries the caller.
+        logDaemonInfo("lifecycle", `daemon.stop (${reason}) requested by client #${ctx.clientId}`)
         await ctx.daemon.stopSoon(reason)
         return {}
       },

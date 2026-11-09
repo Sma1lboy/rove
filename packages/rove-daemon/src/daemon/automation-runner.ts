@@ -17,7 +17,7 @@
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
-import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
+import { formatPrecheckSkip, precheckPassed, precheckSkip, runAutomationPrecheck } from "./automation-precheck.ts"
 import { type WebhookEvent, webhookPrecheckEnv } from "./automation-webhook.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -333,11 +333,9 @@ export async function runAutomationOnce(
     })
 
   if (args.trigger !== "manual" && automation.precheck) {
-    const result = await runAutomationPrecheck(automation.precheck, await ensureRoutineCwd(automation), undefined, env)
-    if (!precheckPassed(result)) {
-      logDaemonInfo("automation", `skip ${automation.name}: ${formatPrecheckSkip(result)}`)
-      return await record("skipped_precheck", { precheckResult: result, error: formatPrecheckSkip(result) })
-    }
+    const skipped = await precheckSkip(automation, automation.precheck, await ensureRoutineCwd(automation), env)
+    if (skipped)
+      return await record("skipped_precheck", { precheckResult: skipped.precheckResult, error: skipped.reason })
   }
 
   if (cancelled())

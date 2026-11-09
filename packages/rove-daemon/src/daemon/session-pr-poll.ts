@@ -7,7 +7,8 @@
  */
 
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
-import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { logDaemonError } from "./crash-log.ts"
+import { logOncePerChange } from "./log-once.ts"
 import type { PrPollSchedule, PrUrlRunner } from "./pr-status-collector.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
@@ -62,13 +63,15 @@ async function pollSessionPr(
   try {
     const result = await ctx.run(url)
     if (result.kind === "error") {
-      logDaemonInfo(
+      logOncePerChange(
+        `session-pr:${key}`,
         "pr-status-poller",
         `gh pr view failed (${result.error}) for task ${taskId} session PR ${url} — keeping last status, backing off`,
       )
       schedule.set(key, runtime.prStatus.nextPoll({ kind: "error", error: result.error }, prevFailures, now, cfg, rand))
       return undefined
     }
+    logOncePerChange(`session-pr:${key}`, "pr-status-poller", undefined)
     const next = result.kind === "pr" ? runtime.prStatus.mapView(result.view, ctx.at) : null
     if (!next) {
       schedule.set(key, runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, now, cfg, rand))

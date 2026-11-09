@@ -36,7 +36,8 @@
 
 import { workspaceCapabilities } from "../workspace.ts"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
-import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { logDaemonError } from "./crash-log.ts"
+import { logOncePerChange } from "./log-once.ts"
 import { makeGhPrUrlRunner, makeGhPrViewRunner } from "./pr-gh-runner.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { pollableSessionPrs, sessionPrJobs, sessionPrKey } from "./session-pr-poll.ts"
@@ -224,7 +225,8 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       const result = await opts.run(repo.worktreePath ?? "", repo.branch, prev?.number)
       if (result.kind === "error") {
         // Not "no PR": keep the last value, log, mark stale, back off.
-        logDaemonInfo(
+        logOncePerChange(
+          `pr-poll:${key}`,
           "pr-status-poller",
           `gh pr list failed (${result.error}) for task ${label} [${repo.branch}] — keeping last PR status, backing off`,
         )
@@ -236,12 +238,14 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         return marked ? task.id : undefined
       }
       if (result.kind === "empty") {
+        logOncePerChange(`pr-poll:${key}`, "pr-status-poller", undefined)
         // Keep the last value. `gh` reaching the provider clears the stale
         // marker, whatever it answered.
         const marked = await setPrStaleMarker(orch, task.id, extraName, undefined)
         opts.schedule.set(key, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
         return marked ? task.id : undefined
       }
+      logOncePerChange(`pr-poll:${key}`, "pr-status-poller", undefined)
       const next = opts.runtime.prStatus.mapView(result.view, opts.at)
       // Re-read: the task may have been deleted during the await.
       const current = orch.getTask(task.id)

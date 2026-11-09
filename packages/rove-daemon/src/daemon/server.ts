@@ -190,8 +190,11 @@ async function startOwnedServer(
       connectedAt: new Date(),
       socket,
       writer: new ClientWriter(socket, {
-        onOverflow: () => {
-          logDaemonInfo("backpressure", "disconnecting daemon client whose queue exceeded 8MiB")
+        onOverflow: ({ queuedBytes, frames, frameBytes }) => {
+          logDaemonInfo(
+            "backpressure",
+            `disconnecting client #${client.id} (${client.holdsLifetime ? "gui" : client.subscribed ? "pane" : "unsubscribed"}, last request ${client.lastRequest ?? "none"}): queue held ${queuedBytes} B in ${frames} frame(s), this frame ${frameBytes} B`,
+          )
           socket.destroy()
         },
       }),
@@ -208,12 +211,16 @@ async function startOwnedServer(
         !receiver.push(chunk, (line) =>
           handleClientLine(client, line, (req, c) => {
             if (lifetime.isStopping()) return
+            client.lastRequest = req.name
             const pending = handleRequest(req, c).finally(() => requests.delete(pending))
             requests.add(pending)
           }),
         )
       ) {
-        logDaemonInfo("framing", "disconnecting daemon client whose request exceeded 8MiB")
+        logDaemonInfo(
+          "framing",
+          `disconnecting client #${client.id} (${client.holdsLifetime ? "gui" : client.subscribed ? "pane" : "unsubscribed"}, last request ${client.lastRequest ?? "none"}): request exceeded 8MiB`,
+        )
         socket.destroy()
       }
     })
