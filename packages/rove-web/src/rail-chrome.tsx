@@ -30,11 +30,12 @@ import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from ".
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
 
-/** The rail's right edge: drag to pin a width, double-click to go back to the automatic one. */
+/** The rail's right edge: drag to pin a width, click to fold the rail, double-click to go back to the automatic width. */
 export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }) {
   useLocale()
   const drag = useRef<{ x: number; width: number; moved: boolean } | null>(null)
   const lastUp = useRef(0)
+  const fold = useRef<number | null>(null)
   const down = (e: PointerEvent<HTMLDivElement>) => {
     drag.current = { x: e.clientX, width: rail.current?.getBoundingClientRect().width ?? 0, moved: false }
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -56,10 +57,16 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
       return
     }
     const now = Date.now()
+    if (fold.current !== null) window.clearTimeout(fold.current)
+    fold.current = null
     if (now - lastUp.current < DOUBLE_CLICK_MS) {
       lastUp.current = 0
       railWidth.set(null)
-    } else lastUp.current = now
+    } else {
+      lastUp.current = now
+      // A lone click folds once it can no longer be the first half of a double-click.
+      fold.current = window.setTimeout(() => railFolded.set(true), DOUBLE_CLICK_MS)
+    }
   }
   return (
     <ResizeGrip

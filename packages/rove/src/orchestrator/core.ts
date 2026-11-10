@@ -352,10 +352,13 @@ export class Orchestrator {
   setParent = (id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> =>
     this.editor.setParent(id, parentId, replyTab)
   setArchived = (id: TaskId | string, archived: boolean): Promise<void> => this.editor.setArchived(id, archived)
+  setWorktreeOnly = (id: TaskId | string, on: boolean): Promise<void> => this.editor.setWorktreeOnly(id, on)
   setRequireReport = (id: TaskId | string, required: boolean): Promise<void> =>
     this.editor.setRequireReport(id, required)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
   moveTaskToTop = (id: TaskId | string): Promise<void> => this.editor.moveTaskToTop(id)
+  moveProject = (repo: string, target: string, side: "before" | "after"): Promise<void> =>
+    this.editor.moveProject(repo, target, side)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
 
   /** Record the worker's own account of what it delivered — see

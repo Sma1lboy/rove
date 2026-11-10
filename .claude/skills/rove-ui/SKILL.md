@@ -174,6 +174,21 @@ Probe: `axe-scan` per theme (contrast), `theme-locale-matrix`.
   (probe `layout-shift`), or compare `r(container).height` before and after data lands.
 - **Scroll position survives updates.** A list or terminal does not snap to the bottom or top
   while the user reads. Check: scroll up, wait for a daemon update, and compare `scrollTop`.
+- **An action shows on the click.** A click that changes a task row or a tab strip is drawn before
+  the daemon answers and put back if it is refused. Send it through the model: `model.act(op, args)`
+  for a task op (what it changes is one entry in `EDITS`, `optimistic.ts`), `model.closeTab` /
+  `model.renameTab` for tabs. A raw `client.request("task.archive")` works and shows a round trip
+  plus the next push later: 258ms on localhost before this rule, 2ms after. A new op that changes a
+  row adds its `EDITS` entry in the same PR; `test/act-on-click.test.ts` fails a raw call to a listed
+  op (`// act-ok: <reason>` on the line above excuses one). A page that sends, then reloads
+  (`request` then `reload()`), pays two round trips: edit its own store first and revert on
+  failure, as `setPref` does. Check: time from the click to the row's first DOM change, under 50ms
+  on localhost.
+- **No fixed wait on the way to the screen.** A delay between a change and its draw is sized by
+  the cost it protects, and a change with nothing just before it goes at once. `TaskFeed` rests
+  four times what its last read took (a 2ms read: 8ms), capped at 250ms; a fixed 250ms there once
+  held every change a quarter second. Before adding a `_MS` constant on that path, measure the
+  cost it guards and write the number beside it.
 - **Every control has rest, hover, focus-visible, active and disabled states**, and each step
   is more prominent than rest. A disabled control says why (a title or an adjacent hint).
 
@@ -231,6 +246,8 @@ Probe: `viewport-stress`.
   (hover, menu highlight) changes instantly.
 - **Respect `prefers-reduced-motion`.** Gate new motion with Tailwind's `motion-safe:` /
   `motion-reduce:` variants on the element.
+- **Rail rows slide when the task list changes** (`rail-slide.ts`: 180ms, `transform`; a new row
+  fades in). Search, folding and theme changes redraw at once.
 - The rail spinner is a glyph frame from the daemon status, not a CSS animation. It ticks only
   while a row runs (`useSpinnerFrame`).
 

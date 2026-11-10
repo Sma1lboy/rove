@@ -10,8 +10,9 @@ import { hostname as osHostname } from "node:os"
 import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
+import { admit } from "./admit.ts"
 import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
-import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
+import { WEB_SUBPROTOCOL, offersWebSubprotocol } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
@@ -40,10 +41,11 @@ import {
   responseOk,
   str,
 } from "./protocol.ts"
-import { type Credential, type PushHub, sharedCredential } from "./push.ts"
+import type { Credential, PushHub } from "./push.ts"
 import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
+import { type SignIn, authOp } from "./sign-in.ts"
 import type { TabFeed } from "./tab-feed.ts"
 import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
@@ -94,6 +96,7 @@ export interface BridgeDeps {
   readonly web?: WebRoot
   /** `/login` and `/logout` for the browser client (`web-login.ts`). */
   readonly login?: WebLogin
+  readonly signIn?: SignIn // how a browser gets in; absent when no browser client is served
   /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
   readonly publicHost?: string | null
   /** Web Push for closed pages (`push.ts`); absent = the `push.*` ops refuse. */
@@ -334,6 +337,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       await ops.dismissAttention(taskId, tabId, deliveryId)
       return {}
     }
+    case "auth.status":
+    case "auth.setMode":
+      return authOp(deps.signIn, req.op, a, conn.credential)
     case "push.key":
       return { publicKey: requirePush(deps).publicKey() }
     case "push.status":
@@ -420,29 +426,23 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         const answer = await deps.login.handle(req, server.requestIP(req)?.address ?? "?")
         if (answer) return answer
       }
+      const peer = server.requestIP(req)?.address
+      const local = deps.signIn?.opens(req, peer) === true
+      // The page asks before it has a token whether to connect without one.
+      if (!upgrade && req.method === "GET" && new URL(req.url).pathname === "/auth") {
+        return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })
+      }
       if (!upgrade && deps.web) {
         const file = await serveWebFile(deps.web, req)
         if (file) return file
       }
-      // Phones send no Origin. A browser always does; one from another site never gets a socket,
-      // even holding the token. Absent Origin still needs the token below.
-      const origin = req.headers.get("origin")
-      if (origin !== null && !browserOriginAllowed(origin, req.headers.get("host"), deps.publicHost ?? null)) {
-        log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
-        return new Response("forbidden\n", { status: 403 })
-      }
-      const presented = presentedToken(req, deps.tokenInQuery === true)
-      const device = tokenMatches(deps.token, presented) ? null : (deps.deviceOf?.(presented) ?? undefined)
-      if (device === undefined) {
-        log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
-        return new Response("unauthorized\n", { status: 401 })
-      }
-      if (device) log(`[rove-bridge] ${new Date().toISOString()} device ${device} connected from ${from}`)
+      const who = admit(req, { local, from, log }, deps)
+      if (who instanceof Response) return who
       const data: Conn = {
-        peer: peerOf(req, server.requestIP(req)?.address, deps),
+        peer: peerOf(req, peer, deps),
         viewer: `bridge-${++nextViewer}`,
-        who: `device=${device ?? "shared-token"} from=${from}`,
-        credential: device ?? sharedCredential(deps.token),
+        who: `device=${who.name} from=${from}`,
+        credential: who.credential,
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),

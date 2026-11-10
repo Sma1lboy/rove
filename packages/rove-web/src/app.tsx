@@ -5,7 +5,7 @@ import { ConnectScreen } from "./connect-view.tsx"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
 import { useEscapeInterrupt } from "./esc-interrupt.ts"
-import { useLocale } from "./i18n/index.ts"
+import { t, useLocale } from "./i18n/index.ts"
 import { enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
@@ -26,6 +26,7 @@ import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./ui.ts"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
+import { maybeAskToUpdate } from "./update-prompt.tsx"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
 import { followTaskLinks } from "./web-push.ts"
@@ -56,8 +57,12 @@ function Shell({ model }: { model: AppModel }) {
   // Once per connection: the rail's update chip and the once-per-upgrade What's New.
   useEffect(() => {
     if (!hello) return
-    void checkForUpdate(model.client)
     maybeShowWhatsNew(model.client, hello.roveVersion)
+    // A page left open for days still hears about a release: ask the registry again each hour.
+    const check = () => void checkForUpdate(model.client).then(maybeAskToUpdate)
+    check()
+    const hourly = window.setInterval(check, 3_600_000)
+    return () => window.clearInterval(hourly)
   }, [hello, model.client])
   usePluginChords(model)
   useWorkspaceKeys(model)
@@ -130,10 +135,17 @@ function Shell({ model }: { model: AppModel }) {
         style={narrow ? undefined : railVars}
       >
         {!narrow && <RailBar model={model} />}
-        {/* Folded, the page's left edge brings the rail back as a floating panel; leaving the edge without
-            reaching the rail (out of the window, a quick flick) closes it again. */}
+        {/* Folded, the page's left edge brings the rail back as a floating panel, and a click on it unfolds;
+            leaving the edge without reaching the rail (out of the window, a quick flick) closes it again. */}
         {folded && !narrow && (
-          <div className={RAIL_PEEK_EDGE} onMouseEnter={() => peekRail(true)} onMouseLeave={() => peekRail(false)} />
+          <div
+            className={RAIL_PEEK_EDGE}
+            title={t("layout.railUnfold")}
+            onMouseEnter={() => peekRail(true)}
+            onMouseLeave={() => peekRail(false)}
+            // Mouse only: the keyboard reaches the fold through the bar's button.
+            onMouseUp={() => railFolded.set(false)}
+          />
         )}
         <RailView model={model} narrow={narrow} />
         <Workspace model={model} narrow={narrow} />

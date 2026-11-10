@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 110 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 111 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -107,6 +107,11 @@ needs them). It nests only in your own repo; another `--repo` stays a
 top-level task. `--no-parent` is the unrelated top-level task cut from the repo
 default, `--parent ID` nests under another task, and a bare `send` from the
 child reports back to you.
+
+Only need a separate checkout to edit in yourself? `add --repo "$PWD"
+--worktree-only` cuts the worktree (`worktreePath` in the reply) and starts no
+engine. It is not a session, so nothing lists it under you until you `send` it
+work. Delete it when you are done.
 
 The distinction that decides every routing call: **a shared child uses the
 parent's worktree and branch; only a new task (`add`) gets its own.**

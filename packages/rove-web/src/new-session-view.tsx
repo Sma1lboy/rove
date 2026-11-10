@@ -14,6 +14,7 @@ import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
+import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
@@ -66,9 +67,6 @@ export function startNewUngrouped(): void {
 
 const WORKTREE_KEY = "rove.web.newSession.worktree"
 
-// The unsent prompt outlives the view: picking a task unmounts the composer, as switching chats does on claude.ai.
-let promptDraft = ""
-
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
   const initialRepo = seed.repo
   useLocale()
@@ -106,11 +104,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [repoQuery, setRepoQuery] = useState("")
   // A link's `?prompt=` lands here as a draft to read and edit; nothing starts until Start is pressed.
   const [prompt, setPromptState] = useState(() => {
-    if (seed.prompt !== undefined) promptDraft = seed.prompt
-    return promptDraft
+    if (seed.prompt !== undefined) keepDraft(seed.prompt)
+    return promptDraft()
   })
   const setPrompt = (text: string): void => {
-    promptDraft = text
+    keepDraft(text)
     setPromptState(text)
   }
   const [pickedModel, setPickedModel] = useState("")
@@ -123,7 +121,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setWorktreeState(on)
   }
   const [error, setError] = useState<string | null>(null)
-  const { attachments, attach, remove, clear } = useAttachments(model, setError)
+  const { attachments, attach, remove, ready, clear } = useAttachments(model, setError, ATTACHMENTS_KEY)
   const area = useRef<HTMLTextAreaElement>(null)
 
   // Dictation lands at the caret and never submits: you read it before it goes anywhere.
@@ -245,7 +243,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         begin,
         baseRef: remoteBase,
       })
-      promptDraft = ""
+      keepDraft("")
       newSession.set(null)
       if (created) model.selectWhenListed(created)
       if (seed.retryOf && created) offerArchiveOriginal(model, seed.retryOf)
@@ -265,7 +263,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
     if ((begin || at) && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
-    const first = withRefs(prompt.trim(), attachments)
+    const first = withRefs(prompt.trim(), await ready())
     try {
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
       const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
@@ -309,7 +307,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           .then(() => toast(t("newSession.laterSet", { time: formatStartsAt(at) })))
           .catch((err) => toast(startError(err), "error"))
       }
-      promptDraft = ""
+      keepDraft("")
       clear()
       newSession.set(null)
       if (compared) openCompare(compared)
@@ -319,7 +317,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const round = partialRoundId(err)
       if (round) {
         // Some attempts did start: show them, with the failure, instead of leaving them unseen in the rail.
-        promptDraft = ""
+        keepDraft("")
         clear()
         newSession.set(null)
         toast(err instanceof Error ? err.message : String(err), "error")
@@ -375,7 +373,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 className={C.cardIcon(attachments.length > 0)}
                 title={t("newSession.attachHint")}
                 disabled={busy}
-                onFiles={(files) => void attach(files)}
+                onFiles={attach}
               >
                 <span className="sr-only">{t("newSession.attach")}</span>
                 <ClipGlyph />
@@ -408,7 +406,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               <>
                 <FolderIcon />
                 {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t(ungrouped ? "rail.noProject" : "newSession.repo")}
+                  t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
                 {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
               </>
             }

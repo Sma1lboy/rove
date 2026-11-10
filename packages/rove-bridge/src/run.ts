@@ -28,22 +28,14 @@ import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/state/tabs-persistence.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
-import { renderUnicodeCompact } from "uqr"
-import {
-  deviceOf,
-  listDevices,
-  loadOrCreateToken,
-  pairingUrl,
-  relayLink,
-  revokeDevice,
-  startupCredentials,
-  webUrl,
-} from "./auth.ts"
+import { addDevice, deviceOf, listDevices, loadOrCreateToken, revokeDevice, startupCredentials } from "./auth.ts"
+import { printBanner } from "./banner.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
 import { CredentialSockets } from "./credential-sockets.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
+import { LOCAL_CREDENTIAL, plainLocalRun } from "./local-access.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
@@ -57,10 +49,10 @@ import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { SessionTitles } from "./session-titles.ts"
+import { createSignIn } from "./sign-in.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
-import { createWebLogin } from "./web-login.ts"
-import { readPassword, webPasswordPaths } from "./web-password.ts"
+import { createWebLogin, loginDeviceName } from "./web-login.ts"
 import type { WebRoot } from "./web-static.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
@@ -342,6 +334,18 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       })
     : null
   const sockets = new CredentialSockets()
+  const signIn = opts.web
+    ? createSignIn({
+        bridgeDir,
+        configPath: join(bridgeDir, "config.json"),
+        plain: plainLocalRun(args),
+        leaveOpen: () => {
+          // The sessions that got in without a token end once the reply is out.
+          setTimeout(() => sockets.closeCredential(LOCAL_CREDENTIAL), 1000)
+          return addDevice(devicesPath, loginDeviceName(devicesPath, new Date()))
+        },
+      })
+    : null
   const deps: BridgeDeps = {
     // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
     token: sharedToken,
@@ -381,9 +385,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
+    ...(signIn ? { signIn } : {}),
     ...(opts.web
       ? {
           login: createWebLogin({
+            enabled: () => signIn?.mode() === "password",
             bridgeDir,
             devicesPath,
             publicHost: args.publicHost,
@@ -413,39 +419,17 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
   })
 
-  console.log(`${opts.name} ${CURRENT_VERSION} — Rove home ${home}`)
-  for (const server of servers) {
-    const host = server.hostname ?? "127.0.0.1"
-    const port = server.port ?? args.port
-    console.log(`listening on ${host}:${port}${args.preset === "none" ? "" : ` (preset ${args.preset})`}`)
-    if (host === "0.0.0.0" || host === "::") {
-      console.log("  WARNING: all interfaces, plain ws:// — prefer --preset tailscale or --preset cf")
-    }
-    const publicHost = args.publicHost ?? host
-    if (opts.web) console.log(`\nopen: ${webUrl({ host: publicHost, port, token, tls: args.tls })}`)
-    if (opts.web && readPassword(webPasswordPaths(bridgeDir).password)) {
-      console.log(`password login: on at ${webUrl({ host: publicHost, port, token: "", tls: args.tls }).split("#")[0]}`)
-    }
-    if (relay) continue
-    const url = pairingUrl({ host: publicHost, port, token, tls: args.tls, preset: args.preset })
-    console.log(`${opts.web ? "" : "\n"}pair: ${url}`)
-    if (args.qr && !opts.web) console.log(renderUnicodeCompact(url))
-  }
-  if (relay && args.relayServer) {
-    const link = relayLink({ server: args.relayServer, code: relay.code, token })
-    console.log(`\nrelay (end-to-end encrypted through ${args.relayServer}):\n${link}`)
-    if (args.qr) console.log(renderUnicodeCompact(link))
-    console.log("`--rotate-relay` unpairs every browser paired through the relay.")
-  }
-  if (args.cloudflare) {
-    console.log(
-      `\nCloudflare Access: team ${args.cloudflare.teamDomain}, every connection needs a valid JWT for this AUD.`,
-    )
-    console.log(`Point the tunnel at http://127.0.0.1:${args.port} (e.g. ingress service for ${args.publicHost}).`)
-  }
-  console.log(
-    `\nThe ${opts.web ? "links are passwords" : "pairing URL is a password"}. \`--rotate-token\` revokes every paired phone${opts.web ? " and browser" : ""}.`,
-  )
+  printBanner({
+    name: opts.name,
+    web: opts.web !== undefined,
+    home,
+    bridgeDir,
+    args,
+    token,
+    servers,
+    signIn: signIn?.mode() ?? null,
+    relayCode: relay?.code ?? null,
+  })
 }
 
 /**

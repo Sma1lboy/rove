@@ -32,6 +32,19 @@ const main = (id: string, repo: string) => task(id, { kind: "main", repo, branch
 const tabs = (entries: Record<string, number>) => new Map(Object.entries(entries).map(([id, n]) => [id, { length: n }]))
 
 describe("archived tasks leave the projects", () => {
+  test("a checkout a session cut for itself is listed only once it has no parent", () => {
+    const result = buildSidebarGroups({
+      tasks: [
+        main("m", "/repos/rove"),
+        task("parent"),
+        task("checkout", { worktreeOnly: true, parentTaskId: toTaskId("parent") }),
+        task("orphan", { worktreeOnly: true }),
+      ],
+      tabsByTask: new Map(),
+    })
+    expect(result.map((g) => g.tasks.map((t) => t.id))).toEqual([["m", "parent", "orphan"]])
+  })
+
   test("an archived row is in no group; its live siblings stay", () => {
     const result = buildSidebarGroups({
       tasks: [main("m", "/repos/rove"), task("live"), task("gone", { archived: true })],

@@ -332,6 +332,37 @@ export class TaskIndexStore {
   }
 
   /**
+   * Lifts `ids` out as one block, keeping their store order, and sets it down right before or after
+   * `anchorId`. A project is ordered by its first task in the store, so this moves a whole project.
+   * Only the order changes, which the cache order persists; no record is marked dirty.
+   */
+  async moveBlock(ids: readonly string[], anchorId: string, side: "before" | "after"): Promise<void> {
+    this.assertLoaded()
+    const lifted = new Set(ids)
+    if (lifted.has(anchorId)) throw new Error(`cannot move a block beside itself: ${anchorId}`)
+    const prior = this.cache.tasks.slice()
+    const block = prior.filter((t) => lifted.has(t.id))
+    const rest = prior.filter((t) => !lifted.has(t.id))
+    const anchor = rest.findIndex((t) => t.id === anchorId)
+    if (anchor < 0) throw new Error(`task not found: ${anchorId}`)
+    if (block.length === 0) return
+    const at = side === "after" ? anchor + 1 : anchor
+    const next = [...rest.slice(0, at), ...block, ...rest.slice(at)]
+    this.cache.tasks.splice(0, this.cache.tasks.length, ...next)
+    try {
+      await this.save()
+    } catch (err) {
+      // Put the old order back unless another mutation already changed the list meanwhile.
+      if (this.cache.tasks.length === next.length && this.cache.tasks.every((t, i) => t === next[i])) {
+        this.cache.tasks.splice(0, this.cache.tasks.length, ...prior)
+        this.notifyListeners()
+      }
+      throw err
+    }
+    this.notifyListeners()
+  }
+
+  /**
    * Returns whether there was a task to delete. Unlike `update`/`move`, an
    * unknown id doesn't throw: a daemon replaying a queued deletion after
    * restart finding nothing is success. The boolean lets a caller whose cache

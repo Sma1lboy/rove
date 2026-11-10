@@ -60,8 +60,7 @@ function renameTab(model: AppModel): void {
       initial={tabLabel(tab)}
       submitLabel={t("dialog.save")}
       onSubmit={async (title) => {
-        await model.client.request("tab.rename", { taskId, tabId: tab.id, title })
-        await model.refreshTabsNow()
+        await model.renameTab(taskId, tab.id, title)
       }}
     />,
   )

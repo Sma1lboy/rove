@@ -158,6 +158,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
 | `task.keep` | `taskId`, `kept` | `{}` | `update --kept` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `project.move` | `repo`, `target` (absolute project paths), `side` (`before`/`after`) | `{}`; every task of `repo` (main checkout or not, Scratch rows excluded) moves as one block before `target`'s project or after it | RPC `project.move` | |
 | `task.scheduleStart` | `taskId` (an unstarted task), `at` (ISO-8601, in the future), `prompt` | `{taskId, at}` | RPC `task.scheduleStart` | `ALREADY_STARTED` when the task has its first message |
 | `task.cancelScheduledStart` | `taskId` | `{}` | RPC `task.cancelScheduledStart` | |
 | `task.startScheduledNow` | `taskId` | `{outcome}` (`started`, `failed`, `dropped`) | RPC `task.startScheduledNow` | `NOT_SCHEDULED` |

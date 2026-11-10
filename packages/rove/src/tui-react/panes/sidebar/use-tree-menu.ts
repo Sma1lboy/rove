@@ -90,9 +90,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const openForRow = useCallback(
     (flatIndex: number, rowId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
-      // Shortcut rows ("↩ recent", routine count) name no task: no menu.
-      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines" || row.kind === "archived")
-        return
+      // Shortcut rows ("↩ recent", the Archived fold) name no task: no menu.
+      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "archived") return
       // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
       // Another machine's worktree path means nothing on this filesystem.
@@ -173,7 +172,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         return
       }
       // Only reachable through a stale `menu`.
-      if (row.kind === "routines" || row.kind === "archived") return
+      if (row.kind === "archived") return
       const taskId = row.task.id
       switch (action) {
         case "open":

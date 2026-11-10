@@ -40,7 +40,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const key = draftKey(taskId, tabId)
   const text = useSyncExternalStore(subscribeDrafts, () => getDraft(key))
   const [busy, setBusy] = useState(false)
-  const { attachments, attach, remove, clear } = useAttachments(model, (message) => toast(message, "error"))
+  const { attachments, attach, remove, ready, clear } = useAttachments(model, (message) => toast(message, "error"))
   const field = useRef<HTMLTextAreaElement>(null)
   // Talking comes first on a phone: the field shows only for a draft, an attachment, or the keyboard key.
   const hosted = useVoiceHosted(model.client)
@@ -74,10 +74,10 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const sendDictated = (spoken: string) => void sendSpoken(spoken)
   /** True once the engine has it. */
   const send = async (draft = text): Promise<boolean> => {
-    const prompt = withRefs(draft.trim(), attachments).trim()
-    if (!prompt) return false
     setBusy(true)
     try {
+      const prompt = withRefs(draft.trim(), await ready()).trim()
+      if (!prompt) return false
       const res = await model.client.request<SendReply>("tab.send", { taskId, tabId, prompt })
       if (!res.delivered) {
         toast(t("layout.composerNotSent", { reason: res.reason ?? "" }), "error")
@@ -108,7 +108,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     }
   }
   if (!local) return null
-  const onFiles = (files: File[]) => void attach(files)
+  const onFiles = attach
   const talk = {
     client: model.client,
     context: () => ({ draft: text, taskId, tabId }),

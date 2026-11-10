@@ -8,6 +8,7 @@
 
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { useEffect, useState } from "react"
+import { saveToken } from "./auth.ts"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
@@ -18,7 +19,7 @@ import { ts } from "./settings-copy.ts"
 import { Choice, Group, Row, Toggle } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
-import { SETTINGS_VALUE } from "./ui/settings.ts"
+import { SETTINGS_INPUT, SETTINGS_VALUE } from "./ui/settings.ts"
 import { checkForUpdate, updateState, useCatalog } from "./update-view.tsx"
 
 type DaemonInfo = { daemonVersion?: string; stale?: boolean }
@@ -91,6 +92,81 @@ function UpdateRows({ client }: { client: BridgeClient }) {
   )
 }
 
+type SignInMode = "open" | "password" | "token"
+interface SignInStatus {
+  readonly mode: SignInMode
+  readonly modes: readonly SignInMode[]
+  readonly hasPassword: boolean
+  readonly minPassword: number
+}
+
+/** How a browser gets in: nothing asked on this computer, a password, or only the token link. */
+function SignInRows({ client }: { client: BridgeClient }) {
+  const [status, setStatus] = useState<SignInStatus | null>(null)
+  // Password picked with none set yet: the mode changes once one is typed.
+  const [asking, setAsking] = useState(false)
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const read = () => client.request<SignInStatus>("auth.status").then(setStatus, () => setStatus(null))
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read once per client
+  useEffect(() => void read(), [client])
+  if (!status) return null
+  const set = async (mode: SignInMode, withPassword?: string): Promise<void> => {
+    setError(null)
+    try {
+      const args = withPassword === undefined ? { mode } : { mode, password: withPassword }
+      const { token } = await client.request<{ token?: string }>("auth.setMode", args)
+      // Leaving "no sign-in" ends tokenless sessions: keep this browser in, then reconnect with its token.
+      if (token) {
+        saveToken(token)
+        window.location.reload()
+        return
+      }
+      setAsking(false)
+      setPassword("")
+      await read()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+  const shown = asking ? "password" : status.mode
+  const short = password.length < status.minPassword
+  return (
+    <Group title={t("settings.about.access")}>
+      <Choice
+        label={t("settings.about.signIn")}
+        hint={t(`settings.about.signInHint.${shown}`)}
+        value={shown}
+        picks={status.modes.map((value) => ({ value, label: t(`settings.about.signInMode.${value}`) }))}
+        onPick={(mode) => {
+          if (mode === "password" && !status.hasPassword) setAsking(true)
+          else void set(mode)
+        }}
+      />
+      {shown === "password" && (
+        <Row
+          label={t(status.hasPassword ? "settings.about.passwordChange" : "settings.about.passwordSet")}
+          hint={error ?? t("settings.about.passwordHint", { min: status.minPassword })}
+        >
+          <input
+            className={`${SETTINGS_INPUT} w-48`}
+            type="password"
+            autoComplete="new-password"
+            aria-label={t("settings.about.passwordField")}
+            placeholder={t("settings.about.passwordField")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !short && void set("password", password)}
+          />
+          <Button variant="action" disabled={short} onClick={() => void set("password", password)}>
+            {t("settings.about.passwordSave")}
+          </Button>
+        </Row>
+      )}
+    </Group>
+  )
+}
+
 export function AboutSection({ client }: { client: BridgeClient }) {
   const [daemon, setDaemon] = useState<DaemonInfo | null>(() => lastReply<DaemonInfo>(client, "daemon.info") ?? null)
   useEffect(() => {
@@ -109,6 +185,7 @@ export function AboutSection({ client }: { client: BridgeClient }) {
         )}
         <UpdateRows client={client} />
       </Group>
+      <SignInRows client={client} />
       <Group title={t("settings.about.browser")}>
         <Row label={t("settings.about.signOut")} hint={t("settings.about.browserHint")}>
           <Button variant="action" onClick={() => void signOut().then(() => window.location.reload())}>

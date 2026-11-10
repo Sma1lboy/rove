@@ -114,8 +114,8 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   const deadSince = tab.kind === "engine" && liveStatus?.reason === "dead" ? liveStatus.since : null
   // The exit code rides the tab fetch, which may predate the death.
   useEffect(() => {
-    if (deadSince !== null) void model.refreshTabsNow()
-  }, [deadSince, model])
+    if (deadSince !== null) void model.refreshTabsNow(taskId)
+  }, [deadSince, model, taskId])
   const engineExit: EngineExit | null =
     deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
   // The engine's own activity state, not a vendor string: `rate_limited` shows the usage-limit strip.
@@ -152,10 +152,7 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
               if (several) void editSplit(model, { taskId, tabId: tab.id, action: "close", leafId: box.id })
               // A command tab (shell, editor, plugin pane) ends with its process, as in the TUI.
               else if (tab.kind !== "engine") {
-                void model.client
-                  .request("tab.close", { taskId, tabId: tab.id })
-                  .then(() => model.refreshTabsNow())
-                  .catch(() => {})
+                void model.closeTab(taskId, tab.id).catch(() => {})
               }
             }}
           />

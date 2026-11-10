@@ -134,13 +134,13 @@ test("a task arriving during the tab debounce gets its live tab without another 
   expect(timers).toHaveLength(0)
 })
 
-test("a tab sweep that resolves after a newer one changes neither tabs nor selection", async () => {
+test("a tab read that resolves after a newer one of the same task changes neither tabs nor selection", async () => {
   const { model, calls, timers, push } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
   await flush()
   timers.shift()?.()
   const first = calls.filter((call) => call.op === "task.tabs")
-  push("tasks", { tasks: [{ id: "A" }], attention: [] })
+  push("tabs", { taskIds: ["A"] })
   timers.shift()?.()
   const second = calls.filter((call) => call.op === "task.tabs" && !first.includes(call))
   expect(second).toHaveLength(1)
@@ -398,4 +398,80 @@ test("a tabs push naming one task reads only that task's tabs", async () => {
   timers.shift()?.()
   const sweep = calls.slice(before).filter((call) => call.op === "task.tabs")
   expect(sweep.map((call) => call.args.taskId)).toEqual(["B"])
+})
+
+test("a tasks push re-reads tabs only for a task whose set of tabs changed", async () => {
+  const { calls, timers, push } = modelHarness()
+  const rows = (b: Record<string, unknown>) => ({
+    tasks: [
+      { id: "A", tabStatus: { "tab-1": {} } },
+      { id: "B", tabStatus: b },
+    ],
+    attention: [],
+  })
+  calls[0].resolve(rows({ "tab-1": {} }))
+  await flush()
+  timers.shift()?.()
+  const before = calls.length
+  // What an engine at work sends several times a second: the same tabs, new token counts.
+  push("tasks", rows({ "tab-1": {} }))
+  expect(timers).toHaveLength(0)
+  push("tasks", rows({ "tab-1": {}, "tab-2": {} }))
+  timers.shift()?.()
+  const reads = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(reads.map((call) => call.args.taskId)).toEqual(["B"])
+})
+
+test("an archived row leaves when clicked, stays gone through a push read before the daemon applied it, and returns if refused", async () => {
+  const { archiveEdit } = await import("../src/optimistic.ts")
+  const { model, calls, push } = modelHarness()
+  const served = { tasks: [{ id: "A" }, { id: "B", parentTaskId: "A" }, { id: "C" }], attention: [] }
+  calls[0].resolve(served)
+  await flush()
+  const ids = () => model.tasks.get()?.tasks.map((task) => task.id)
+
+  let settle: { resolve: () => void; reject: (err: Error) => void } = { resolve() {}, reject() {} }
+  const request = () =>
+    new Promise<void>((resolve, reject) => {
+      settle = { resolve, reject }
+    })
+  const done = model.optimistic(archiveEdit("A", true), request)
+  expect(ids()).toEqual(["C"])
+  expect(model.tasks.get()?.archived?.map((task) => task.id)).toEqual(["A", "B"])
+  push("tasks", served)
+  expect(ids()).toEqual(["C"])
+  settle.resolve()
+  await done
+  expect(ids()).toEqual(["C"])
+  // The daemon's own list takes over from the next push on.
+  push("tasks", { tasks: [{ id: "C" }, { id: "D" }], attention: [] })
+  expect(ids()).toEqual(["C", "D"])
+
+  const refused = model.optimistic(archiveEdit("C", true), request)
+  expect(ids()).toEqual(["D"])
+  settle.reject(new Error("TASK_BUSY"))
+  await expect(refused).rejects.toThrow("TASK_BUSY")
+  expect(ids()).toEqual(["C", "D"])
+})
+
+test("a closed tab leaves the strip on the click, and comes back if the close was refused", async () => {
+  const { model, calls, timers } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  calls.find((call) => call.op === "task.tabs")?.resolve({ tabs: [{ id: "t1" }, { id: "t2" }] })
+  await flush()
+  const ids = () => model.tabs.get().A?.map((tab) => tab.id)
+  expect(ids()).toEqual(["t1", "t2"])
+
+  const closing = model.closeTab("A", "t2")
+  expect(ids()).toEqual(["t1"])
+  calls.find((call) => call.op === "tab.close")?.reject(new Error("refused"))
+  await flush()
+  calls
+    .filter((call) => call.op === "task.tabs")
+    .at(-1)
+    ?.resolve({ tabs: [{ id: "t1" }, { id: "t2" }] })
+  await expect(closing).rejects.toThrow("refused")
+  expect(ids()).toEqual(["t1", "t2"])
 })

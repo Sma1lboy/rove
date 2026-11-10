@@ -33,8 +33,8 @@ task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 lives in the sidebar's **Ungrouped** group above every project, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
 confirm; nothing on disk is touched). Routines created with **Ungrouped**
-run in their own directory under `.rove/routines/` and their sessions land in
-the same group, in its routines row; they are not scratch shells and are never
+run in their own directory under `.rove/routines/` and their sessions open from
+the Routines page, not the sidebar; they are not scratch shells and are never
 auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's

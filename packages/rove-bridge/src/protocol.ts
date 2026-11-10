@@ -50,6 +50,9 @@ export const OPS = [
   "push.status",
   "push.subscribe",
   "push.unsubscribe",
+  // How a browser gets in (`sign-in.ts`): the mode and the ones this run offers, and changing it ({mode, password?}).
+  "auth.status",
+  "auth.setMode",
 ] as const
 
 export type Op = (typeof OPS)[number]

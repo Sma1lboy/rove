@@ -832,14 +832,20 @@ edits (`set-vendor`, `rename`,
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start]`: create a task (appears in the
+  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start | --worktree-only]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
   starts the engine, and delivers the prompt. With `--start` and no prompt the
   engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
   `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
   `taskId`. A bare `add` is only the row (`started: false`, status `backlog`),
   and `--start` beside `--prompt`, `--count` or `--agents` is
-  `CONFLICTING_FLAGS`. Does not steal focus unless
+  `CONFLICTING_FLAGS`. With `--worktree-only` the worktree is cut at once and
+  no engine starts (`worktreePath`, `started: false`): a separate checkout for
+  the calling session to work in. Nested under a parent, such a task is not
+  listed in the sidebar or the web rail until an engine starts a turn in it;
+  `list` and the Worktrees page still show it, and deleting it removes the
+  worktree. It conflicts with `--prompt`, `--start`, `--count`, `--agents` and
+  `--no-worktree`. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. The result's `.engine`
   (`{vendor, command, model, effort}`, per row for `--count`/`--agents`) is
   what the task actually launches after the flags and the repo's default
@@ -1834,8 +1840,8 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 
 **`--persistent-session`** keeps ONE task per routine and delivers each firing
 into it, so a daily check can build on yesterday. Every routine task, standing or
-one fresh run's, is folded behind the sidebar's `N routine sessions` count row
-(still findable by search, still Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
+one fresh run's, stays out of the sidebar; it opens from the Routines page and
+still raises Inbox entries. Leave it off for a routine that edits code: a week of runs on
 one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
 files carried over, the conversation did not).

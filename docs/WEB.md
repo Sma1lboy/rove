@@ -12,12 +12,14 @@ rove --web --port 7900     # another port
 It prints two links and keeps running until you stop it:
 
 ```text
-open: http://127.0.0.1:7878/#token=…
+open: http://127.0.0.1:7878/
 pair: ws://127.0.0.1:7878/?token=…
 ```
 
-Open the first in a browser. The second is the phone pairing URL. A phone
-already paired with `rove-bridge` keeps working: the two share one token.
+Open the first in a browser on this computer: it needs no token (see
+[Sign-in modes](#sign-in-modes)). The second is the
+phone pairing URL. A phone already paired with `rove-bridge` keeps working:
+the two share one token.
 
 ## What it does today
 
@@ -134,17 +136,22 @@ a sidecar on this machine together with the conversation it is dictated into; th
 inserted at the caret and sent only when you slide up to send.
 
 Nothing in Rove bundles a model, and the mic stays hidden until dictation is set up. **Settings →
-Voice** does it from the page:
+Voice** does it from the page with one choice, **Dictation**:
 
-- **Local model** — shown with an Install button only on an Apple Silicon Mac with
+- **Off** — no mic, and no sidecar running. The default until something is set up.
+- **On this Mac** — Whisper large-v3 on the Mac's GPU. Install shows only on an Apple Silicon Mac with
   [uv](https://docs.astral.sh/uv/) and ~3.5 GB free; otherwise the row says which is missing. Install is
   a detached job on the Mac (`uv sync --frozen --extra local`, then the model download), so a phone
-  that sleeps or reconnects mid-download does not stop it; the page shows its latest line.
-- **Cloud endpoint** — base URL, model and API key. The key is written to
-  `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+  that sleeps or reconnects mid-download does not stop it; the page shows its latest line. **Uninstall**
+  removes the model from the Hugging Face cache and, unless a cloud endpoint is in use, the sidecar's
+  environment, and turns dictation off. Your dictionary and learned terms stay.
+- **Cloud** — base URL, model and API key of any OpenAI-compatible `/audio/transcriptions` service. The
+  key is written to `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+  The endpoint is kept when you switch to another choice, so coming back needs nothing retyped;
+  **Forget** removes it and its key.
 
-Once either is set up, the bridge starts the sidecar whenever it is not answering (`voice.status`) and
-restarts it when the endpoint changes. The sidecar's environment lives in
+Once local or cloud is chosen and set up, the bridge starts the sidecar whenever it is not answering
+(`voice.status`) and restarts it when the choice or the endpoint changes. The sidecar's environment lives in
 `<ROVE_HOME>/.rove/voice/venv`; its code is `scripts/voice/` in a checkout and `dist/voice/` in a
 release, one environment described by `pyproject.toml` and `uv.lock`. By hand:
 
@@ -251,12 +258,57 @@ the only public path to it.
   the commands to reach the bridge from another device. It changes nothing.
 
 The page's files are served without the token (they carry none); every
-operation needs it. With `--preset cf`, Cloudflare Access gates the page too.
+operation needs it, except from this computer's own browser as described
+next. With `--preset cf`, Cloudflare Access gates the page too.
+
+### Sign-in modes
+
+How a browser gets in is one of three modes. Tokens (the printed link, a
+device token, a phone's pairing URL) work in all of them.
+
+| Mode | A browser with no token | Offered on |
+| --- | --- | --- |
+| `open` | gets in from this computer; anywhere else it is asked for the link | a plain run only |
+| `password` | signs in with the password | every run |
+| `token` | is asked for the link; password sign-in is off | every run |
+
+A plain run is `rove --web` with no `--preset`, no `--public-host`, no relay
+and no `--host` other than loopback. It starts in `open`, and `open:` is then
+the bare address. Any other run starts in `token`. Once a password is set,
+both start in `password`.
+
+Pick the mode in **Settings → About → Sign-in**, or by hand; it applies to
+the next connection, with no restart:
+
+```json
+// <home>/.rove/bridge/config.json
+{ "auth": "password" }
+```
+
+Picking Password in Settings asks for one if none is set, and can change it
+later. Picking Token link keeps the stored password, so going back to
+Password needs no new one. Leaving `open` from a browser that got in without
+a token gives that browser a device token of its own, so it stays signed in;
+other tokenless sessions are closed.
+
+In `open`, only a request that came straight from this computer is let in
+without a token: its `Host` is `127.0.0.1`, `localhost` or `[::1]`, and it
+carries no forwarding header (`X-Forwarded-For`, `CF-Connecting-IP`,
+`Forwarded`, `Via`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`).
+cloudflared and `tailscale serve` set these, so a tunnel pointed at a plain
+run still needs a token.
+
+Leave `open` if other people have accounts on this computer: any local user
+or program that can reach `127.0.0.1:<port>` can drive Rove. Leave it as well
+if a reverse proxy of your own forwards to the bridge without passing the
+original `Host` or any forwarding header (a bare nginx `proxy_pass` does
+this): the bridge cannot tell such a request from a local one.
 
 ### Password login
 
 So you can open the page on a phone or another computer without carrying the
-token link, you can set a password:
+token link, you can set a password, in Settings → About → Sign-in or from the
+terminal. Setting one switches the mode to `password`:
 
 ```bash
 rove --web --set-password     # asks twice, nothing echoed
@@ -264,8 +316,10 @@ rove --web --clear-password   # remove it
 rove --web --unlock           # lift a lockout
 ```
 
-The password is only ever typed at that prompt, never passed as an argument
-or an environment variable, so it reaches no shell history or process list.
+At the terminal the password is only ever typed at that prompt, never passed
+as an argument or an environment variable, so it reaches no shell history or
+process list. Set in Settings, it travels once over the page's own signed-in
+connection.
 Only a scrypt hash with a random salt is kept, in
 `<home>/.rove/bridge/web-password.json` (owner-only).
 

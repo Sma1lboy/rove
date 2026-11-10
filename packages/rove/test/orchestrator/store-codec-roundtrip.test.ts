@@ -119,6 +119,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   ptyAlias: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB4", tabId: "tab-2" },
   deleteBranchPending: true,
   requireReport: true,
+  worktreeOnly: true,
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
   worktreeName: "probe-1",

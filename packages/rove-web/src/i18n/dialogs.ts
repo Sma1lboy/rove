@@ -5,6 +5,13 @@ export const en = {
     save: "save",
     close: "close",
   },
+  updatePrompt: {
+    title: "Rove {version} is available",
+    body: "This computer runs {current}. Update installs the new version on it.",
+    yes: "Update",
+    later: "Not now",
+    skip: "Skip this version",
+  },
   whatsNew: {
     continue: "Continue",
     openRelease: "Open release notes",
@@ -96,6 +103,7 @@ export const en = {
     repo: "Project",
     repoSearch: "Search projects or type a path · ⌘/Ctrl-click adds another",
     repoEmpty: "No matching project",
+    noFolder: "No folder",
     cloneRow: "Clone {source}",
     cloning: "Cloning {source}…",
     githubGroup: "Your GitHub repositories",
@@ -172,6 +180,13 @@ export const zh: typeof en = {
     cancel: "取消",
     save: "保存",
     close: "关闭",
+  },
+  updatePrompt: {
+    title: "Rove {version} 可以更新了",
+    body: "这台电脑运行的是 {current}。点更新会在它上面安装新版本。",
+    yes: "更新",
+    later: "暂不",
+    skip: "跳过这个版本",
   },
   whatsNew: {
     continue: "继续",
@@ -264,6 +279,7 @@ export const zh: typeof en = {
     repo: "项目",
     repoSearch: "搜索项目，或输入路径 · ⌘/Ctrl 点击可多选",
     repoEmpty: "没有匹配的项目",
+    noFolder: "无文件夹",
     cloneRow: "克隆 {source}",
     cloning: "正在克隆 {source}…",
     githubGroup: "你的 GitHub 仓库",

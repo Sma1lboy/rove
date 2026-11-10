@@ -169,8 +169,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
             body={t("confirm.closeTabBody")}
             confirmLabel={t("menu.closeTab")}
             onConfirm={async () => {
-              await c.request("tab.close", { taskId: task.id, tabId: tab.id })
-              await model.refreshTabsNow()
+              await model.closeTab(task.id, tab.id)
             }}
           />,
         ),
@@ -264,7 +263,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
           title={t("menu.rename")}
           initial={task.title}
           submitLabel={t("dialog.save")}
-          onSubmit={(title) => c.request("task.rename", { taskId: task.id, title }).then(() => {})}
+          onSubmit={(title) => model.act("task.rename", { taskId: task.id, title }).then(() => {})}
         />,
       ),
   })
@@ -274,7 +273,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
-        void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
@@ -294,7 +293,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         label: t(STATUS_KEYS[s]),
         checked: s === task.status,
         run: () =>
-          void c.request("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
+          void model.act("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
       }),
     ),
   })
