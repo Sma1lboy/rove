@@ -352,6 +352,7 @@ export class Orchestrator {
   setParent = (id: TaskId | string, parentId: string | null, replyTab?: string): Promise<ReparentResult> =>
     this.editor.setParent(id, parentId, replyTab)
   setArchived = (id: TaskId | string, archived: boolean): Promise<void> => this.editor.setArchived(id, archived)
+  setWorktreeOnly = (id: TaskId | string, on: boolean): Promise<void> => this.editor.setWorktreeOnly(id, on)
   setRequireReport = (id: TaskId | string, required: boolean): Promise<void> =>
     this.editor.setRequireReport(id, required)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)

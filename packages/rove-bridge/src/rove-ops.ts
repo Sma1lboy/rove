@@ -15,6 +15,7 @@ import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
+import { isUnlistedCheckout } from "@sma1lboy/rove/src/lib/worktree-only.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
@@ -298,7 +299,8 @@ export function createRoveOps(
       const remoteExtras = pushed ? { changes: pushed.changes, tokens: pushed.tokens, labels } : undefined
       // Archived rows are grouped on their own, so a hidden task never ranks or folds the visible ones.
       const rowsOf = (archived: boolean): TaskRow[] => {
-        const pick = (list: readonly SerializedTask[]) => list.filter((t) => (t.archived === true) === archived)
+        const pick = (list: readonly SerializedTask[]) =>
+          list.filter((t) => (t.archived === true) === archived && !isUnlistedCheckout(t))
         const local = taskRows(pick(tasks), localStatus, engineRows ?? [], now, localExtras)
         const remote = taskRows(pick(remoteTasks), remoteStatus, engineRows ?? [], now, remoteExtras).map((row) => ({
           ...row,

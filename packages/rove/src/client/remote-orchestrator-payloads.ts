@@ -341,6 +341,7 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.workspace ? { workspace: s.workspace } : {}),
     ...(s.sessionPrs?.length ? { sessionPrs: s.sessionPrs } : {}),
     requireReport: s.requireReport,
+    ...(s.worktreeOnly ? { worktreeOnly: true } : {}),
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,

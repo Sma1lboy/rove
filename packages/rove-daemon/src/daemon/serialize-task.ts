@@ -53,6 +53,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.workspace ? { workspace: task.workspace } : {}),
     ...(task.sessionPrs?.length ? { sessionPrs: task.sessionPrs } : {}),
     requireReport: task.requireReport,
+    ...(task.worktreeOnly ? { worktreeOnly: true } : {}),
     prompt: task.prompt,
     baseRef: task.baseRef,
     worktreeName: task.worktreeName,

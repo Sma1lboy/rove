@@ -315,6 +315,13 @@ export class TaskEditor {
     await this.store.update(task.id, { archived: archived || undefined })
   }
 
+  /** Mark a task as a bare checkout its parent works in (`false` clears: it now does work of its own). */
+  async setWorktreeOnly(id: TaskId | string, on: boolean): Promise<void> {
+    const task = this.requireTask(id)
+    if ((task.worktreeOnly ?? false) === on) return
+    await this.store.update(task.id, { worktreeOnly: on || undefined })
+  }
+
   /** Hold every later send to this task to a `rove api report` (`false` clears). */
   async setRequireReport(id: TaskId | string, required: boolean): Promise<void> {
     const task = this.requireTask(id)

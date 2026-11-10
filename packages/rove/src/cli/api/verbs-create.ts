@@ -163,6 +163,12 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         description: "Make this the active task (pulls every mounted TUI's Tasks-pane focus). Off by default.",
       },
       {
+        name: "worktree-only",
+        type: "bool",
+        description:
+          "Cut the task's worktree now and start no engine: a separate checkout for the CALLING session to work in. Replies `worktreePath`, `started: false`. Nested under a parent (the default from inside a rove session) the task is not listed in the sidebar or the web rail until an engine starts a turn in it (a later `send`); `list` and the Worktrees page still show it, and deleting it removes the worktree. CONFLICTING_FLAGS with --prompt/--prompt-file, --start, --count/--agents and --no-worktree.",
+      },
+      {
         name: "start",
         type: "bool",
         description:
