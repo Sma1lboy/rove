@@ -129,7 +129,7 @@ export async function openTab(
     model.selectWhenListed(child)
     return
   }
-  await model.refreshTabsNow()
+  await model.refreshTabsNow(taskId)
   // A replaced tab keeps its id, so its pane still shows the killed session: attach to the new one.
   if (args.replaceTab) await termFor(streamKey(taskId, tabId))?.reattach()
   model.select(taskId, tabId)

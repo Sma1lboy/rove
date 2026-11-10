@@ -134,13 +134,13 @@ test("a task arriving during the tab debounce gets its live tab without another 
   expect(timers).toHaveLength(0)
 })
 
-test("a tab sweep that resolves after a newer one changes neither tabs nor selection", async () => {
+test("a tab read that resolves after a newer one of the same task changes neither tabs nor selection", async () => {
   const { model, calls, timers, push } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
   await flush()
   timers.shift()?.()
   const first = calls.filter((call) => call.op === "task.tabs")
-  push("tasks", { tasks: [{ id: "A" }], attention: [] })
+  push("tabs", { taskIds: ["A"] })
   timers.shift()?.()
   const second = calls.filter((call) => call.op === "task.tabs" && !first.includes(call))
   expect(second).toHaveLength(1)
@@ -398,4 +398,26 @@ test("a tabs push naming one task reads only that task's tabs", async () => {
   timers.shift()?.()
   const sweep = calls.slice(before).filter((call) => call.op === "task.tabs")
   expect(sweep.map((call) => call.args.taskId)).toEqual(["B"])
+})
+
+test("a tasks push re-reads tabs only for a task whose set of tabs changed", async () => {
+  const { calls, timers, push } = modelHarness()
+  const rows = (b: Record<string, unknown>) => ({
+    tasks: [
+      { id: "A", tabStatus: { "tab-1": {} } },
+      { id: "B", tabStatus: b },
+    ],
+    attention: [],
+  })
+  calls[0].resolve(rows({ "tab-1": {} }))
+  await flush()
+  timers.shift()?.()
+  const before = calls.length
+  // What an engine at work sends several times a second: the same tabs, new token counts.
+  push("tasks", rows({ "tab-1": {} }))
+  expect(timers).toHaveLength(0)
+  push("tasks", rows({ "tab-1": {}, "tab-2": {} }))
+  timers.shift()?.()
+  const reads = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(reads.map((call) => call.args.taskId)).toEqual(["B"])
 })

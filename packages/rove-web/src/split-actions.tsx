@@ -57,7 +57,7 @@ export async function editSplit(
 ): Promise<void> {
   try {
     const reply = await model.client.request<SplitReply>("tab.split", args)
-    await model.refreshTabsNow()
+    if (typeof args.taskId === "string") await model.refreshTabsNow(args.taskId)
     after?.(reply)
   } catch (err) {
     toast(err instanceof Error ? err.message : String(err), "error")

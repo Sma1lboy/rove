@@ -240,7 +240,7 @@ export function endMainConversationDialog(model: AppModel, task: TaskRow) {
   const endConversation = async () => {
     const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
     for (const tab of tabs) await model.client.request("tab.close", { taskId: task.id, tabId: tab.id })
-    await model.refreshTabsNow()
+    await model.refreshTabsNow(task.id)
   }
   // The child whose delete was refused, so the force confirm names it rather than the project.
   let blocked: string | undefined

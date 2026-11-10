@@ -159,7 +159,7 @@ export function KanbanView({ model }: { model: AppModel }) {
       if (choice.jump) {
         page.set(null)
         model.selectWhenListed(res.taskId)
-        if (res.tabId) await model.refreshTabsNow().then(() => model.select(res.taskId, res.tabId))
+        if (res.tabId) await model.refreshTabsNow(res.taskId).then(() => model.select(res.taskId, res.tabId))
       } else {
         toast(fill(kanban.detail.startedBackground, { title: `#${issue.id} ${issue.title}` }))
       }
