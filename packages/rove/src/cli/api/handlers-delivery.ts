@@ -12,8 +12,9 @@ import {
   MAX_DELIVERIES_PER_TASK,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
 import { expandTilde } from "../../lib/path-home.ts"
+import { assertNotEmptyDoneReport } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
-import { simpleRpc } from "./handler-helpers.ts"
+import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 interface ReportBody {
@@ -82,6 +83,13 @@ async function report(ctx: VerbContext): Promise<unknown> {
       { hint: "Summarize: lead with the conclusion, put the detail in --evidence (commits, PR urls, paths)." },
     )
   }
+  await assertNotEmptyDoneReport(daemonOf(ctx), ctx, {
+    delivery: body.delivery,
+    outcome: body.outcome,
+    summary: body.summary,
+    evidence: body.evidence,
+    next: body.next,
+  })
   const res = (await simpleRpc(ctx, "delivery.report", {
     deliveryId: body.delivery,
     outcome: body.outcome,
@@ -100,7 +108,7 @@ async function report(ctx: VerbContext): Promise<unknown> {
 export const REPORT_VERB: VerbSpec = {
   name: "report",
   group: "drive",
-  summary: `Close the report a delivered prompt asked for. Run it as the LAST step of the turn, before you stop: a turn that ends without it is flagged \`report_missing\` in the owner's Inbox (a [ROVE ROUTINE] turn with nothing to report just stops: its delivery goes \`quiet\`). --delivery is the id in the prompt's [ROVE] / [ROVE ROUTINE] line. Re-reporting replaces the earlier report; a late report on a flagged delivery clears the flag. --summary ≤ ${DELIVERY_SUMMARY_MAX_CHARS} chars; put commits, PR urls, test results and paths in repeatable --evidence, and what the next tick should do in --next. Use --json - (stdin) for text with quotes or backticks.`,
+  summary: `Close the report a delivered prompt asked for. Run it as the LAST step of the turn, before you stop: a turn that ends without it is flagged \`report_missing\` in the owner's Inbox (a [ROVE ROUTINE] turn with nothing to report just stops: its delivery goes \`quiet\`). --delivery is the id in the prompt's [ROVE] / [ROVE ROUTINE] line. Re-reporting replaces the earlier report; a late report on a flagged delivery clears the flag. --summary ≤ ${DELIVERY_SUMMARY_MAX_CHARS} chars; put commits, PR urls, test results and paths in repeatable --evidence, and what the next tick should do in --next. Use --json - (stdin) for text with quotes or backticks. \`--outcome done\` on a \`send\` delivery from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits.`,
   flags: [
     { name: "delivery", type: "string", placeholder: "ID", description: "Delivery id, e.g. d-41." },
     {
@@ -120,6 +128,13 @@ export const REPORT_VERB: VerbSpec = {
       description: "A commit, PR url, test command + result, or file path. Repeat the flag for several.",
     },
     { name: "next", type: "string", placeholder: "TEXT", description: "What the next tick should do." },
+    {
+      name: "allow-empty",
+      type: "bool",
+      required: false,
+      description:
+        "Report `done` from a task with zero commits (EMPTY_SUCCESS_REPORT is refused otherwise, on a `send` delivery). For work that legitimately produces no commits — an investigation, a review, a question answered.",
+    },
     {
       name: "json",
       type: "string",

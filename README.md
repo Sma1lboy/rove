@@ -37,14 +37,13 @@ Press `n` to create your first task. You need git and at least one agent CLI on 
 
 ## Why more than one agent
 
-- **One writes, another reviews.** Open a second tab in a task and ask Codex to review what Claude wrote. It has its own conversation and reads the same files.
-- **A usage limit doesn't stop the task.** When one agent hits its limit, [switch the task to another engine](./docs/ENGINES.md). The new agent reads the old transcript and continues on the same branch.
-- **They talk to each other, not through you.** An agent hands a task to another with `rove api add`, and the report comes back to its own tab.
+- **Out of quota? Switch to another agent.** When Claude Code hits its usage limit halfway through a task, [switch the task to Codex or any other engine](./docs/ENGINES.md). The new agent reads what the last one did and continues on the same branch.
+- **Agents talk to each other directly.** One agent hands work to another with `rove api add` and gets the report back in its own tab. You don't copy text between windows.
 
 ## What you get
 
 <p align="center">
-  <img src="docs/assets/brand/promo-engines.png" alt="Every agent CLI, each in its own worktree. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity. Yours: any command you register, or an engine from a plugin." />
+  <img src="docs/assets/brand/promo-engines.png" alt="Any agent CLI. Pick one per task. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP, IBM Bob. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity, Hermes, Kilo, MastraCode. Yours: any command you register, or an engine from a plugin." />
 </p>
 
 - **A worktree and branch per task.** A refactor, a bug fix and a review run at the same time without overwriting each other's files ([Concepts](./docs/CONCEPTS.md)).

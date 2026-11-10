@@ -47,14 +47,15 @@ export function statusReportProtocol(taskId: string, api: string = roveApiInvoca
     "When you have COMPLETED the work requested in this session and verified it, report it by running:",
     `  ${api} update --task-id ${taskId} --status in_review`,
     "Run it only when the work is genuinely done — never while you are asking the user a question, waiting for input, or mid-task.",
+    "Skip it when another Rove session handed you the work (it created this task, or your prompt ends with a `report --delivery` footer): your `report`, or your outcome `send` to that session, is the one completion signal.",
     "Never set any other status value; everything beyond in_review is the user's decision.",
   ].join("\n")
 }
 
 /**
  * Note-filing protocol for worktree sessions (docs/design/dispatcher.md): a
- * resolved repo-level gotcha becomes a one-line note the daemon forwards to
- * the repo's dispatcher for routing.
+ * resolved repo-level gotcha becomes a one-line stored note that later
+ * sessions read at launch.
  */
 export function noteFilingProtocol(taskId: string, api: string = roveApiInvocation()): string {
   return [
@@ -128,21 +129,16 @@ export function withWorktreeProtocol(
 
 /**
  * Dispatcher protocol (docs/design/dispatcher.md), injected into a repo's
- * MAIN session — the per-repo seat the daemon forwards field notes to.
- * Autonomous with no approval gate because its only effectors are read
- * (`collect`) and message (`dispatch`): a bad call costs a stray FYI, never
- * a mutated worktree. No action on merge conflicts (the radar is display-only).
+ * MAIN session. Its only effectors are a read (`collect`) and a message
+ * (`dispatch`), so it needs no approval gate. No action on merge conflicts
+ * (the radar is display-only).
  */
 export function dispatcherProtocol(taskId: string, api: string = roveApiInvocation()): string {
   return [
     `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
-    "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [ROVE FIELD NOTE].",
-    "Your job is routing that knowledge without asking the user first: your only effects are a read (collect) and a message (dispatch), so a wrong call costs a stray FYI, never a changed worktree.",
+    "Rove runs multiple worktree task sessions on this repo in parallel.",
     `  - See the fleet: \`${api} collect --repo .\` (status, running, change counts per task), or \`--task-ids id1,id2\` for specific tasks.`,
-    `  - Relay a note to a task that would benefit: \`${api} dispatch --task-id <id> --prompt "[dispatcher] FYI from <author task>: <note verbatim>"\`.`,
-    "  - Relay to the in-flight tasks whose work plausibly touches the same area — and to nobody else. If no task benefits, do nothing.",
-    "  - Never relay a note back to its author, never relay the same note to the same task twice, and keep relays verbatim with provenance — no summarizing, no embellishment.",
-    "Use ONLY the dispatch verb to message sessions — it targets an already-hosted session without starting an idle task. If dispatch fails, report the error in your own session and stop; do not fall back to send.",
+    `  - Message an already-hosted session: \`${api} dispatch --task-id <id> --prompt "<text>"\`. If dispatch fails, report the error in your own session and stop; do not fall back to send.`,
     "Take no action on merge conflicts between tasks — the board's conflict radar is display-only by design, and resolution timing belongs to the humans and the tasks themselves.",
     "Never run git commands inside other tasks' worktrees.",
   ].join("\n")
@@ -160,9 +156,11 @@ export function withDispatcherProtocol(
   vendor: string | undefined,
   taskId: string | undefined,
   enabled: () => boolean = dispatcherEnabled,
+  notes: readonly { text: string; author: string }[] = [],
 ): readonly string[] {
   if (!taskId || !enabled()) return argv
   if (!acceptsSystemPrompt(vendor)) return argv
   if (hasOwnSystemPrompt(argv)) return argv
-  return [...argv, "--append-system-prompt", dispatcherProtocol(taskId)]
+  const text = [dispatcherProtocol(taskId), noteRecallProtocol(notes)].filter(Boolean).join("\n\n")
+  return [...argv, "--append-system-prompt", text]
 }

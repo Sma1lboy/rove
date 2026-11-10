@@ -25,7 +25,7 @@ import type { VendorId } from "../types/vendor.ts"
  * `test/architecture/skill-version-bump.test.ts` fails any content change
  * that skips the bump.
  */
-export const ROVE_SKILL_VERSION = 112
+export const ROVE_SKILL_VERSION = 114
 
 /** The skill's directory name inside an engine's skills dir. */
 const SKILL_NAME = "rove"

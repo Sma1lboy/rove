@@ -272,9 +272,8 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
   const gates = input.protocolGates
   const launchInit = resolveEngineLaunchInit(input.task.repo ?? "", input.worktreePath, input.promptIntent)
-  // Field notes ride the protocol's --append-system-prompt. Worktree sessions
-  // only — the main (dispatcher) session gets notes pushed live.
-  const notes = protocolTaskId ? (input.readNotes ?? readFieldNotes)(input.task.repo ?? "") : []
+  // Field notes ride the protocol's --append-system-prompt: the only way a note reaches a session.
+  const notes = (input.readNotes ?? readFieldNotes)(input.task.repo ?? "")
   let argv = withDispatcherProtocol(
     withWorktreeProtocol(
       input.argv,
@@ -289,6 +288,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     input.task.vendor,
     dispatcherTaskId,
     gates?.dispatcher,
+    notes,
   )
   // Extra worktrees through the engine's own flag; engines without one rely on the env and note below.
   const repos = exposedRepos(input.task.repos)

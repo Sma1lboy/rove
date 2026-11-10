@@ -113,7 +113,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "note",
     group: "drive",
     summary:
-      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store (every future session on this repo starts with it) and forwarded to the dispatcher session for live relay (docs/design/dispatcher.md).",
+      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store: every future session on this repo starts with it in its system prompt. It starts no turn in any running session (docs/design/dispatcher.md).",
     flags: [
       F.taskId(true),
       {

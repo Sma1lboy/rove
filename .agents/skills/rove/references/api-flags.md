@@ -166,7 +166,7 @@ row-token          --task-id(REQ) --text --ttl(60) --key(default)
                    --tone{info|success|warning|error|muted} --clear
 set-active         --task-id --none
 report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
-                   --next --json
+                   --next --allow-empty --json
 attention-dismiss  --delivery(REQ)
 gate-raise         --task-id(REQ) --tab --question(REQ) --option --recommend --context
 gate-answer        --gate(REQ) --option --text
@@ -181,13 +181,15 @@ dead PTY, no engine process — and each has its own code below.
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
-(every future session on this repo starts with them) AND relayed to the
-dispatcher. Read them back with `note-list --repo`. This is the right home for
+(every future session on this repo starts with them); it starts no turn in
+any running session. Read them back with `note-list --repo`. This is the right home for
 a resolved gotcha; an issue is for work that still needs doing.
 
-`send --allow-empty` is the escape hatch for a `succeeded:` report from a task
-that legitimately produced no commits (an investigation, a review, a question
-answered); without it such a report is refused with `EMPTY_SUCCESS_REPORT`.
+`send --allow-empty` (and `report --allow-empty`) is the escape hatch for a
+`succeeded:` send or a `report --outcome done` on a `send` delivery from a
+task that legitimately produced no commits (an investigation, a review, a
+question answered); without it such a claim is refused with
+`EMPTY_SUCCESS_REPORT`.
 
 **`send --expect-report` asks for a report.** The reply carries `deliveryId`
 (`d-<n>`) and the pasted prompt ends with a `[ROVE] When this turn ends,
@@ -478,7 +480,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
-| `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
+| `EMPTY_SUCCESS_REPORT` | `succeeded:` or `report --outcome done` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |

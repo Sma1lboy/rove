@@ -263,9 +263,8 @@ export async function replyTabOf(runtime: ApiRuntime, daemon: DaemonRpc, taskId:
  *
  * Both delivery verbs wear it, `add --prompt` included: otherwise the sender
  * is only the task ROW's `dispatcher`, which a receiver has no reason to go
- * read, so a dispatched task finishes and then sits waiting. Same convention
- * as field notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the
- * reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
+ * read, so a dispatched task finishes and then sits waiting. A
+ * `from "<label>" (task <id>)` header plus the reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
  * unverified one would bake a stranger's tab into the reply command. A send
  * from a plain shell, an unverified process, or to yourself stays untouched.
  */

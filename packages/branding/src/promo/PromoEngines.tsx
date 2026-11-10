@@ -51,9 +51,9 @@ const Group: React.FC<{ title: string; note?: string; children: React.ReactNode 
 export const PromoEngines: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: P.canvas, color: P.ink }}>
     <div style={{ ...statement(92), position: "absolute", left: 88, top: 84 }}>
-      Every agent CLI,
+      Any agent CLI.
       <br />
-      each in its own <span style={{ color: P.accentText }}>worktree.</span>
+      Pick one <span style={{ color: P.accentText }}>per task.</span>
     </div>
     <Wordmark size={34} ink={P.ink} bracket={P.accent} style={{ position: "absolute", right: 88, top: 100 }} />
     <div

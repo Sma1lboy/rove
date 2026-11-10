@@ -21,7 +21,7 @@ export interface EngineContextUsage {
   readonly cacheReadTokens?: number
   /** Cache-write tokens across the whole session, when the vendor reports them. */
   readonly cacheCreationTokens?: number
-  /** What `contextTokens` is made of (`system`, `messages`), when the engine records it; parts sum to it. */
+  /** What `contextTokens` is made of (`system`, `messages`), when the engine records it; the parts not `deferred` sum to it. */
   readonly parts?: readonly {
     readonly key: string
     readonly tokens: number
@@ -29,5 +29,7 @@ export interface EngineContextUsage {
     readonly items?: readonly { readonly name: string; readonly tokens: number }[]
     /** How many things the part holds, when `items` lists only the largest. */
     readonly itemCount?: number
+    /** Loaded on demand: listed for its size, in no window and no total. */
+    readonly deferred?: true
   }[]
 }
