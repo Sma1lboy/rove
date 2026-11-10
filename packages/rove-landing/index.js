@@ -2,10 +2,10 @@
 // (commands, branch names, TUI chrome) deliberately stays English.
 var ROVE_I18N = (function () {
   var zh = {
-    'meta.title': 'Rove — 装在你 shell 里的 agent 多路复用器',
-    'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
-    'hero.title': '并行编码 agent<span class="thin">，<span class="nb">就在终端里。</span></span>',
-    'hero.sub': '一个托管任务，一个 worktree，一条分支。并行工作在保持唤醒的主机上运行；断开终端后，再通过 SSH 接回来。',
+    'meta.title': 'Rove：所有编程 agent，都在一个地方',
+    'meta.desc': 'Rove 是终端里的 agent 开发环境（ADE）。Claude Code、Codex、Copilot 等编程 agent 在同一个窗口里并排工作，各自拥有独立的 git worktree，还能互相派活；断开连接后会话继续运行。',
+    'hero.title': '所有编程 agent<span class="thin">，<span class="nb">都在一个地方。</span></span>',
+    'hero.sub': 'Rove 是终端里的 agent 开发环境（ADE）。每个 agent 改自己那份代码，互相派活，你断开连接后它们继续跑。',
     'hero.engines': '支持 Claude Code、Codex、Copilot、Gemini CLI、OpenCode 等。',
     'hero.firstTasks': '下一步：完成前两个任务 →',
     'hero.alts': '或者用',
@@ -56,10 +56,10 @@ var ROVE_I18N = (function () {
     'ga.copyright': '© 2026 Sma1lboy。MIT 许可。',
   };
   var en = {
-    'meta.title': 'Rove: the agent multiplexer in your shell',
-    'meta.desc': 'Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.',
-    'hero.title': 'Parallel coding agents <span class="thin">in your terminal.</span>',
-    'hero.sub': 'One managed task, one worktree, one branch. Run parallel work on a host that stays awake; disconnect your terminal and pick it back up over SSH.',
+    'meta.title': 'Rove: all your coding agents, in one place',
+    'meta.desc': 'Rove is an agentic development environment (ADE) for your terminal. Claude Code, Codex, Copilot and more work side by side in one window, each in its own git worktree, and hand tasks to each other. Sessions keep running when you disconnect.',
+    'hero.title': 'All your coding agents, <span class="thin"><span class="nb">in one place.</span></span>',
+    'hero.sub': 'Rove is an agentic development environment (ADE) for your terminal. Every agent works on its own copy of your code, they hand tasks to each other, and they keep running after you disconnect.',
     'hero.engines': 'Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.',
     'hero.firstTasks': 'Next: complete your first two tasks →',
     'hero.alts': 'or with',

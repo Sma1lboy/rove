@@ -1,6 +1,8 @@
 # Quick start
 
-Rove runs many AI coding sessions side by side in your terminal. Each managed
+Rove is an agentic development environment (ADE) for your terminal: one window
+where Claude Code, Codex, Copilot and other coding agents work side by side and
+hand tasks to each other. Each managed
 Task gets its own git worktree and branch, so parallel Tasks never step on
 each other. Extra tabs inside one Task share that Task's directory.
 

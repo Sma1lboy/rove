@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://docs.rove.run'),
   title: { default: 'Rove docs', template: '%s — Rove docs' },
   description:
-    'Documentation for Rove, a terminal multiplexer for AI coding agents: isolated git worktrees per attempt, hosted engine sessions, and peer messaging between agents.',
+    'Documentation for Rove, an agentic development environment (ADE) for the terminal: every coding agent in one window, an isolated git worktree per task, hosted engine sessions, and agents that hand tasks to each other.',
   openGraph: {
     type: 'website',
     siteName: 'Rove docs',

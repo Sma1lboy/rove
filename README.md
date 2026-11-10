@@ -1,12 +1,12 @@
-# Rove: the agent multiplexer for your terminal
+# Rove: all your coding agents, in one place
 
 <p align="center">
-  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal. Works with Claude Code, Codex, Copilot, and Kimi." />
+  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove: all your coding agents, in one place. Works with Claude Code, Codex, Copilot, and Kimi." />
 </p>
 
-Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or any CLI you register.
+Rove is an agentic development environment (ADE) for your terminal. It puts your coding agents in one window, where they work side by side and hand tasks to each other: [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or any CLI you register.
 
-Rove isolates parallel work in git worktrees and branches, while agent and shell sessions keep running when you disconnect.
+Each task gets its own git worktree and branch, so agents never overwrite each other's files, and agent and shell sessions keep running when you disconnect.
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@sma1lboy/rove"><img src="https://img.shields.io/npm/v/%40sma1lboy%2Frove?style=flat-square&label=npm&color=c96442" alt="npm version" /></a>
@@ -111,7 +111,7 @@ rove skill install
 - **Parallel tasks, isolated in git.** Each task owns a worktree and branch, so a refactor, a bug fix, and a review move at the same time without agents overwriting each other's files.
 - **Every agent CLI, side by side.** Each task picks its engine: Claude Code, Codex, Copilot, Kimi, Pi, OMP, Gemini CLI, OpenCode, Cursor Agent, [and more](./docs/ENGINES.md), or a CLI you register. Rove runs the real CLI, with its own auth, permissions, and models.
 - **Sessions that outlive the terminal.** Quit the TUI or drop SSH, then reattach later. The agents keep working on the host.
-- **Terminal-native.** No desktop app. Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
+- **Terminal-native.** Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
 - **Scriptable.** Scripts and coding agents create, inspect, message, and land tasks through `rove api`.
 
 ## How it works
