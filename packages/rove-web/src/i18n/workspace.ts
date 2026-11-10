@@ -61,7 +61,7 @@ export const en = {
   },
   login: {
     title: "sign in",
-    body: "Enter the password set with `rove --web --set-password`.",
+    body: "Enter this Rove's password.",
     field: "password",
     submit: "sign in",
     checking: "checking…",
@@ -161,7 +161,7 @@ export const zh: typeof en = {
   },
   login: {
     title: "登录",
-    body: "输入用 `rove --web --set-password` 设置的密码。",
+    body: "输入这台 Rove 的密码。",
     field: "密码",
     submit: "登录",
     checking: "验证中…",

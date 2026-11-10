@@ -26,6 +26,8 @@ export interface WebLoginOptions {
   readonly publicHost: string | null
   /** True when a configured tunnel (cf preset or `--public-host`) puts `CF-Connecting-IP` in front. */
   readonly trustForwardedIp: boolean
+  /** Password sign-in is the mode in force (`sign-in.ts`); absent = whenever a password is set. */
+  readonly enabled?: () => boolean
   readonly log: (line: string) => void
   readonly now?: () => number
   /** Wait added to every failed attempt; tests pass 0. */
@@ -172,6 +174,7 @@ export function createWebLogin(opts: WebLoginOptions): WebLogin {
       const path = new URL(req.url).pathname
       if (path === "/logout" && req.method === "POST") return logout(req, peer)
       if (path !== "/login") return null
+      if (opts.enabled?.() === false) return null
       if (!readPassword(paths.password)) return null
       // The page asks this before it has a token, to pick the login screen over the link prompt.
       if (req.method === "GET") return json(200, { password: true })

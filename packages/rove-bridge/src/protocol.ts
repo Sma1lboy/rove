@@ -50,9 +50,9 @@ export const OPS = [
   "push.status",
   "push.subscribe",
   "push.unsubscribe",
-  // Whether this computer's own browser is asked for a token (`local-access.ts`), and changing it ({on}).
+  // How a browser gets in (`sign-in.ts`): the mode and the ones this run offers, and changing it ({mode, password?}).
   "auth.status",
-  "auth.requireToken",
+  "auth.setMode",
 ] as const
 
 export type Op = (typeof OPS)[number]
