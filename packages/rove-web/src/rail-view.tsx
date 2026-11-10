@@ -127,7 +127,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     label: repoLabel(repo),
     first: repo === firstMovable,
   })
-  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default", projectInfo)
+  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
   const place = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
@@ -358,7 +358,7 @@ function RailRow(props: {
   if (row.kind === "project" || row.kind === "state") {
     return (
       <h2
-        className={projectHead({ moving: props.moving, dragging: props.dragging })}
+        className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
         onContextMenu={props.onMenu}
         {...props.place}
         {...props.drag}
@@ -405,7 +405,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor}`}
+      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging, grab: props.drag !== undefined })} ${cursor}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}
