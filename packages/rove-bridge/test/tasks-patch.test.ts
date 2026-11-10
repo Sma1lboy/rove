@@ -26,8 +26,7 @@ test("adds, removes, moves, an archive and an inbox change all survive the round
   const patch = patchOf(before, after)
   expect(patch?.tasks?.order).toEqual(["c", "a", "d"])
   const applied = applyTasksPatch(before, patch as never)
-  expect({ ...applied, rev: after.rev }).toEqual(after)
-  expect(applied.rev).toBe(2)
+  expect(applied).toEqual({ ...after, rev: 2 })
 })
 
 test("a clock that only ticked is no change", () => {
