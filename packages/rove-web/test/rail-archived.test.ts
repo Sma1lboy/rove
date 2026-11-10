@@ -66,6 +66,7 @@ describe("Archive in the row menu", () => {
   function harness(reply: (payload: Record<string, unknown>) => unknown) {
     const calls: Array<[string, unknown]> = []
     const model = {
+      optimistic: (_edit: unknown, request: () => Promise<unknown>) => request(),
       client: {
         request: async (op: string, payload: Record<string, unknown>) => {
           calls.push([op, payload])

@@ -10,6 +10,7 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { archiveEdit, deleteEdit } from "./optimistic.ts"
 import { openTodos } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
@@ -186,9 +187,10 @@ function childrenOf(model: AppModel, id: string): readonly TaskRow[] {
 }
 
 /**
- * Delete a task entry (and its worktree). The first attempt is not forced: a worktree with
- * uncommitted work is refused with DIRTY_WORKTREE and only then does the dialog ask for an
- * explicit force, naming the refusal, as the TUI's `deleteTaskFlow`. A `dir` task pins the
+ * Delete a task entry (and its worktree). The row leaves and the dialog closes on the click. The
+ * first attempt is not forced: a worktree with uncommitted work is refused with DIRTY_WORKTREE, the
+ * row comes back, and a second dialog asks for an explicit force, naming the refusal, as the TUI's
+ * `deleteTaskFlow`. A `dir` task pins the
  * user's own directory, so only the entry goes. A task with child tasks offers both ends of the
  * daemon's choice: promote them (its default) or delete the whole subtree (`cascade`); a force
  * retry keeps whichever was picked.
@@ -197,7 +199,29 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
   const children = childrenOf(model, task.id)
   const hasChildren = children.length > 0
   const remove = (opts: { readonly force?: true; readonly cascade?: true }) =>
-    model.client.request("task.delete", { taskId: task.id, ...opts }).then(() => {})
+    model.optimistic(deleteEdit(task.id, opts.cascade === true), () =>
+      model.client.request("task.delete", { taskId: task.id, ...opts }).then(() => {}),
+    )
+  const forceBody = (err: unknown) =>
+    // The title already names the task; its raw id is noise in the refusal.
+    `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`
+  // The dialog closes on the click: the row is already gone, and a refusal comes back as its own question.
+  const start = async (opts: { readonly force?: true; readonly cascade?: true }) => {
+    remove(opts).catch((err) => {
+      if (opts.force || !(err instanceof BridgeRequestError) || err.code !== "DIRTY_WORKTREE") {
+        toast(errorText(err), "error")
+        return
+      }
+      dialog.set(
+        <ConfirmDialog
+          title={tc("tasks", "confirm.forceDeleteTitle", { title: task.label })}
+          body={forceBody(err)}
+          confirmLabel={tc("tasks", "confirm.forceDeleteConfirm")}
+          onConfirm={() => start({ ...opts, force: true })}
+        />,
+      )
+    })
+  }
   return (
     <ConfirmDialog
       title={
@@ -211,19 +235,10 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
           : tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")
       }
       confirmLabel={tc("tasks", hasChildren ? "confirm.childrenPromote" : "confirm.deleteConfirm")}
-      onConfirm={() => remove({})}
+      onConfirm={() => start({})}
       {...(hasChildren
-        ? { secondary: { label: tc("tasks", "confirm.childrenCascade"), onConfirm: () => remove({ cascade: true }) } }
+        ? { secondary: { label: tc("tasks", "confirm.childrenCascade"), onConfirm: () => start({ cascade: true }) } }
         : {})}
-      escalate={{
-        when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
-        label: tc("tasks", "confirm.forceDeleteConfirm"),
-        title: tc("tasks", "confirm.forceDeleteTitle", { title: task.label }),
-        // The title already names the task; its raw id is noise in the refusal.
-        body: (err) =>
-          `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`,
-        run: (cascade) => remove({ force: true, ...(cascade ? { cascade: true } : {}) }),
-      }}
     />
   )
 }
@@ -292,7 +307,9 @@ export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "l
   const archived = task.archived !== true
   const title = task.label
   const run = async (force: boolean) => {
-    await model.client.request("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
+    await model.optimistic(archiveEdit(task.id, archived), () =>
+      model.client.request("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) }),
+    )
     toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))
   }
   try {

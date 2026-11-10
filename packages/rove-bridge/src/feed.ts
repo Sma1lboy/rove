@@ -1,6 +1,6 @@
 import type { TasksPayload } from "./protocol.ts"
 
-/** Coalesces a burst of daemon pushes (snapshot + engine-state + inbox) into one read. */
+/** The least time between two reads: a burst of daemon pushes (snapshot + engine-state + inbox) costs one more. */
 const DEBOUNCE_MS = 250
 
 /**
@@ -15,6 +15,7 @@ export class TaskFeed {
   private latestKey = ""
   private readonly listeners = new Set<(payload: TasksPayload) => void>()
   private timer: ReturnType<typeof setTimeout> | null = null
+  private lastRead = Number.NEGATIVE_INFINITY
   private inflight: Promise<TasksPayload> | null = null
 
   constructor(
@@ -27,15 +28,20 @@ export class TaskFeed {
     return this.listeners.size > 0
   }
 
-  /** Something changed upstream; refresh soon. */
+  /**
+   * Something changed upstream. The first change after a quiet spell is read at once, so a click
+   * shows without the wait; what follows within the window shares one later read.
+   */
   poke(): void {
     if (this.listeners.size === 0 || this.timer) return
+    const wait = Math.max(0, this.lastRead + DEBOUNCE_MS - this.now())
     this.timer = setTimeout(() => {
       this.timer = null
+      this.lastRead = this.now()
       this.refresh().catch(() => {
         // Daemon mid-restart: the next push or tick retries.
       })
-    }, DEBOUNCE_MS)
+    }, wait)
   }
 
   /** Read now (pull-to-refresh), notifying subscribers on change. */
