@@ -5,7 +5,6 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { samePath } from "../path-identity.ts"
 import type { ChannelName } from "./channels.ts"
 import { objectPayload, optionalBoolean, optionalString, requireNumber, requireString } from "./handler-validators.ts"
 import { senderOf } from "./handlers-dispatch.ts"
@@ -336,33 +335,19 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "note.file",
     async handle(payload, ctx) {
-      // Field note (docs/design/dispatcher.md). The daemon only ADDRESSES it
-      // to the repo's main task; who benefits is the dispatcher's judgment.
+      // Field note (docs/design/dispatcher.md): stored only. Sessions read it
+      // from the system prompt at launch; it starts no turn anywhere.
       const taskId = requireString(payload, "taskId")
       const text = requireString(payload, "text")
       const author = ctx.orch.getTask(taskId)
       if (!author) throw new Error(`task not found: ${taskId}`)
       const label = displayTaskTitle(author) || taskId
-      // Persist BEFORE routing: with no dispatcher running the note must still
-      // reach the NEXT session (repo-init reads this store). A store failure
-      // must never error a working agent; it degrades to routing-only.
-      const persisted = await ctx.notes
-        ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
-        .then(() => true)
-        .catch(() => false)
-      const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && samePath(t.repo, author.repo))
-      // No main task, or main noting to itself: accepted but unrouted (persisted above).
-      const routed = !!main && main.id !== author.id
-      if (routed && main) {
-        ctx.bus.publish("session.deliver", {
-          taskId: main.id,
-          // Note text last and whole (as with [ROVE PEER]), so it reads in the
-          // filer's language, not as the tail of an English clause.
-          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId})\n\n${text}`,
-          at: Date.now(),
-          source: "note",
-        })
-      }
+      // A store failure must never error a working agent; the note is lost.
+      const persisted =
+        (await ctx.notes
+          ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
+          .then(() => true)
+          .catch(() => false)) ?? false
       // Capped: the envelope rides ROVE_PLUGIN_EVENT_JSON into spawn env
       // (E2BIG risk). Plugins read the full body via note-list.
       ctx.plugins?.handleUiReport({
@@ -373,11 +358,10 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           author: label,
           text: text.length > 512 ? `${text.slice(0, 512)}…` : text,
           length: text.length,
-          routed,
-          persisted: persisted ?? false,
+          persisted,
         },
       })
-      return { ok: true, routed, persisted: persisted ?? false }
+      return { ok: true, persisted }
     },
   },
   {

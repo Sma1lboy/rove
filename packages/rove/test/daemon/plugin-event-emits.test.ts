@@ -55,7 +55,6 @@ describe("handler emit sites", () => {
           author: "Task One",
           text: `${"x".repeat(512)}…`,
           length: 600,
-          routed: false,
           persisted: true,
         },
       },
