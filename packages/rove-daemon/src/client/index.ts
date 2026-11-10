@@ -100,6 +100,8 @@ export class RoveDaemonClient implements DaemonRpcClient {
   private connecting: Promise<void> | null = null
   /** Set by `close()`; a stray request must not revive a torn-down client. */
   private disposed = false
+  /** The unanswered `task.list`, shared by callers until any other request is sent. */
+  private taskListInflight: Promise<unknown> | null = null
 
   constructor(readonly socketPath: string) {}
 
@@ -210,7 +212,25 @@ export class RoveDaemonClient implements DaemonRpcClient {
     }
   }
 
-  async request<T = unknown>(name: DaemonRequestName, payload?: unknown): Promise<T> {
+  request<T = unknown>(name: DaemonRequestName, payload?: unknown): Promise<T> {
+    // The daemon answers a pipelined burst in one tick, before the socket can drain: enough queued
+    // copies of the task list overflow its write cap and it drops the connection.
+    if (name !== "task.list") {
+      this.taskListInflight = null
+      return this.send<T>(name, payload)
+    }
+    if (!this.taskListInflight) {
+      const p = this.send<T>(name, payload)
+      this.taskListInflight = p
+      const clear = (): void => {
+        if (this.taskListInflight === p) this.taskListInflight = null
+      }
+      p.then(clear, clear)
+    }
+    return this.taskListInflight as Promise<T>
+  }
+
+  private async send<T>(name: DaemonRequestName, payload?: unknown): Promise<T> {
     await this.connect()
     const socket = this.socket
     if (!socket) throw new Error("daemon connection is not open")
