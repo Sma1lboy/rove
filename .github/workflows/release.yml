@@ -57,7 +57,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -82,7 +82,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -103,7 +103,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -151,7 +151,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -163,9 +163,10 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        # `bun run test` = test:fast + test:socket (same as ci.yml's PR gate —
-        # the release gate must not be weaker than the PR gate). Behavior
-        # tests already ran in the required behavior job above.
+        # `bun run test` = test:fast + test:socket. The socket half is NOT in
+        # ci.yml (its daemon job runs there); it runs here and in
+        # `pre-pr --full`, so a release never ships a daemon the suite has not
+        # exercised. Behavior tests already ran in the required behavior job above.
         working-directory: packages/rove
         run: bun run test
 
