@@ -184,6 +184,11 @@ Probe: `axe-scan` per theme (contrast), `theme-locale-matrix`.
   (`request` then `reload()`), pays two round trips: edit its own store first and revert on
   failure, as `setPref` does. Check: time from the click to the row's first DOM change, under 50ms
   on localhost.
+- **No fixed wait on the way to the screen.** A delay between a change and its draw is sized by
+  the cost it protects, and a change with nothing just before it goes at once. `TaskFeed` rests
+  four times what its last read took (a 2ms read: 8ms), capped at 250ms; a fixed 250ms there once
+  held every change a quarter second. Before adding a `_MS` constant on that path, measure the
+  cost it guards and write the number beside it.
 - **Every control has rest, hover, focus-visible, active and disabled states**, and each step
   is more prominent than rest. A disabled control says why (a title or an adjacent hint).
 

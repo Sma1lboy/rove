@@ -1,7 +1,14 @@
 import type { TasksPayload } from "./protocol.ts"
 
-/** The least time between two reads: a burst of daemon pushes (snapshot + engine-state + inbox) costs one more. */
-const DEBOUNCE_MS = 250
+/**
+ * How much of the bridge's time the feed may spend reading: a read that took 5 ms is followed by
+ * at least 20 ms of something else. The wait before a push is sized by what a read costs, never a
+ * fixed number: a fixed 250 ms here once made every change on screen a quarter second late while
+ * a read took 2 ms.
+ */
+const READ_SHARE = 0.2
+/** The longest a change waits behind an earlier read, however slow that read was. */
+const MAX_WAIT_MS = 250
 
 /**
  * The task list every phone sees, recomputed when the daemon says something
@@ -15,7 +22,9 @@ export class TaskFeed {
   private latestKey = ""
   private readonly listeners = new Set<(payload: TasksPayload) => void>()
   private timer: ReturnType<typeof setTimeout> | null = null
-  private lastRead = Number.NEGATIVE_INFINITY
+  /** When the last read finished and how long it took. */
+  private lastDone = Number.NEGATIVE_INFINITY
+  private lastCost = 0
   private inflight: Promise<TasksPayload> | null = null
 
   constructor(
@@ -29,15 +38,16 @@ export class TaskFeed {
   }
 
   /**
-   * Something changed upstream. The first change after a quiet spell is read at once, so a click
-   * shows without the wait; what follows within the window shares one later read.
+   * Something changed upstream: read it. A change with no read just before it is read at once;
+   * one that follows a read waits `READ_SHARE` worth of that read's cost, and shares the wait
+   * with whatever else changes meanwhile.
    */
   poke(): void {
     if (this.listeners.size === 0 || this.timer) return
-    const wait = Math.max(0, this.lastRead + DEBOUNCE_MS - this.now())
+    const rest = Math.min(MAX_WAIT_MS, this.lastCost / READ_SHARE - this.lastCost)
+    const wait = Math.max(0, this.lastDone + rest - this.now())
     this.timer = setTimeout(() => {
       this.timer = null
-      this.lastRead = this.now()
       this.refresh().catch(() => {
         // Daemon mid-restart: the next push or tick retries.
       })
@@ -47,8 +57,11 @@ export class TaskFeed {
   /** Read now (pull-to-refresh), notifying subscribers on change. */
   refresh(): Promise<TasksPayload> {
     if (this.inflight) return this.inflight
+    const began = this.now()
     const p = this.read().then((payload) => {
-      this.latest = { payload, readAt: this.now() }
+      this.lastDone = this.now()
+      this.lastCost = this.lastDone - began
+      this.latest = { payload, readAt: this.lastDone }
       const key = JSON.stringify(payload, (k, v) => (k === "forMs" ? undefined : v))
       if (key !== this.latestKey) {
         this.latestKey = key
