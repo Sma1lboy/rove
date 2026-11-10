@@ -39,8 +39,12 @@ export interface PayloadIndex {
   readonly gates: string
 }
 
+/** A row's only ticking field is `activity.forMs`: zero it and let the native stringify run, which a replacer slows fivefold. */
+const rowKey = (row: TaskRow): string =>
+  JSON.stringify(row.activity ? { ...row, activity: { ...row.activity, forMs: 0 } } : row)
+
 const section = (rows: readonly TaskRow[]): Section => ({
-  keys: new Map(rows.map((row) => [row.id, keyOf(row)])),
+  keys: new Map(rows.map((row) => [row.id, rowKey(row)])),
   order: rows.map((row) => row.id).join("\n"),
 })
 
