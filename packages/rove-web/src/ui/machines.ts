@@ -1,0 +1,11 @@
+/** The Machines overview: one section per registered machine, its tasks by state and its repos. */
+export const MC = "flex flex-col font-mono text-meta"
+export const MC_SECTION = "flex flex-col gap-1 border-t-hairline border-line py-2.5 first:border-t-0 first:pt-0"
+export const MC_HEAD = "flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5"
+export const MC_NAME = "min-w-0 text-ink wrap-anywhere"
+export const MC_NOTE = "m-0 text-muted wrap-anywhere"
+export const MC_ACTIONS = "flex flex-wrap gap-x-3.5 gap-y-1 pt-0.5 whitespace-nowrap"
+export const MC_GROUP = "mt-1.5 mb-0.5 text-subtle"
+export const MC_ITEM = "flex min-w-0 items-baseline gap-2 pl-2"
+export const MC_ITEM_TITLE = "min-w-0 flex-1 truncate text-left"
+export const MC_ITEM_META = "min-w-0 max-w-[55%] flex-none truncate text-muted"

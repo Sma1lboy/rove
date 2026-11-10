@@ -276,6 +276,16 @@ TUI may show any task at any time.
 >
 > Unknown preserves the current running claim until its own hook, observer
 > evidence, or death signal resolves it; it cannot carry a completion timestamp.
+> Task activity and row status use the same urgency order: running, permission needed,
+> attention (`dead`, `error`, `rate_limited`), completion, idle.
+> The newest timestamp breaks ties within a tier. Both in-flight states outrank
+> attention so task-level archive and rewind guards protect work in any tab
+> or tab-less source, including an engine waiting for permission. Row-only jobs,
+> deletion, restored sessions, and read acknowledgments retain their presentation rules.
+> A newer tab-less completion cannot hide a dead tab. Cwd-only hooks match a
+> task rooted at the OS home directory only for that exact directory; a
+> descendant needs its own tracked task. Explicit task/tab identity still wins.
+>
 > A same-session terminal signal clears its task rollup too, while a sibling
 > or superseded session cannot clear a newer running claim. This intentionally
 > retains uncertainty when an older adapter cannot read the identified session.

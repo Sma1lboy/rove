@@ -1,5 +1,7 @@
 # Stable macOS IME anchor design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Problem
 
 The embedded Claude/Codex terminal draws its visible cursor as an inverse

@@ -21,6 +21,7 @@ function runtimeWhere(readable: readonly string[]) {
   return stubRuntime({
     resolveRepoRoot: async (path) => path,
     isUsableRepo: async (path) => readable.includes(path),
+    inspectRepo: async (path) => ({ root: path, usable: readable.includes(path) }),
   })
 }
 

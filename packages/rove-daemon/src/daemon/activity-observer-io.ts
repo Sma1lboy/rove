@@ -12,9 +12,18 @@ import type { ActivityObserverIo } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { defaultPtyExitsPath, defaultPtyHostSocketPath } from "./paths.ts"
-import { engineExitCodeFromTail, plainTail, readPtyExitRecords, recordEngineExit } from "./pty-exit-store.ts"
+import {
+  engineExitCodeFromTail,
+  plainTail,
+  readPtyExitRecords,
+  recordEngineExit,
+  wrapperBannerCodeFromTail,
+} from "./pty-exit-store.ts"
 import { type PtyOwnerResolver, engineDeathOf } from "./pty-exit-watch.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+
+/** Bytes re-read after a peek that found no banner. */
+const BANNER_OVERLAP_BYTES = 256
 
 export function createActivityObserverIo(
   homeDir: string | undefined,
@@ -91,6 +100,28 @@ export function createActivityObserverIo(
         })
         .catch((err) => logDaemonInfo("engine-exit", `boot record failed for ${key}: ${String(err)}`))
     },
+    /** A wrapped launch that never walked as an engine: its wrapper's banner is the only record of the death. */
+    async scanEngineExitBanner({ key, sinceOffset }) {
+      const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
+      try {
+        await client.connect()
+        const result = await client.request<{ data?: string; offset?: number }>("pty.peek", { key, sinceOffset })
+        const raw = Buffer.from(result.data ?? "", "base64").toString("utf8")
+        const offset = typeof result.offset === "number" ? result.offset : sinceOffset
+        if (wrapperBannerCodeFromTail(plainTail(raw)) === null) {
+          // The banner may straddle two peeks: take the next one from a few lines back.
+          return { offset: Math.max(sinceOffset, offset - BANNER_OVERLAP_BYTES), died: false }
+        }
+        recordEngineExit({ key, pid: null, at: new Date().toISOString(), tail: raw }, defaultPtyExitsPath(homeDir))
+        logDaemonInfo("engine-exit", `recorded a launch that never ran an engine in ${key}`)
+        return { offset, died: true }
+      } catch (err) {
+        logDaemonInfo("engine-exit", `banner scan failed for ${key}: ${String(err)}`)
+        return null
+      } finally {
+        client.close()
+      }
+    },
     async listSessions() {
       const client = new RoveDaemonClient(defaultPtyHostSocketPath(homeDir))
       try {
@@ -103,6 +134,8 @@ export function createActivityObserverIo(
             title?: string
             totalBytes?: number
             restored?: boolean
+            generation?: string
+            command?: readonly unknown[]
             programStatusEvent?: import("./program-status-event").ProgramStatusEvent
           }>
         }>("pty.list")
@@ -114,6 +147,10 @@ export function createActivityObserverIo(
           title: typeof s.title === "string" ? s.title : "",
           totalBytes: typeof s.totalBytes === "number" ? s.totalBytes : 0,
           restored: s.restored === true,
+          generation: typeof s.generation === "string" ? s.generation : undefined,
+          command: Array.isArray(s.command)
+            ? s.command.filter((arg): arg is string => typeof arg === "string")
+            : undefined,
         }))
       } catch {
         return null

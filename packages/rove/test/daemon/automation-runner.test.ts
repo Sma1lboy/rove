@@ -81,13 +81,13 @@ describe("runAutomationOnce", () => {
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
     expect(status).toBe("dispatched")
-    expect(created).toEqual([{ repo: REPO, title: "audit" }])
+    expect(created).toEqual([{ repo: REPO, title: "audit", routine: { automationId: a.id } }])
     const run = store.runsFor(a.id)[0]
     expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
     // The header names THIS run's delivery, and the routine's prompt comes last, unchanged.
     expect(run?.deliveryId).toBe("d-1")
     expect(prompts).toEqual([
-      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\nrun the audit`,
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)\n\nrun the audit`,
     ])
   })
 
@@ -98,7 +98,16 @@ describe("runAutomationOnce", () => {
 
     await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
-    expect(created).toEqual([{ repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }])
+    expect(created).toEqual([
+      {
+        repo: REPO,
+        title: "audit",
+        vendor: "codex",
+        model: "gpt-5.5",
+        modelEffort: "high",
+        routine: { automationId: a.id },
+      },
+    ])
   })
 
   it("skips without creating a task when the precheck fails", async () => {

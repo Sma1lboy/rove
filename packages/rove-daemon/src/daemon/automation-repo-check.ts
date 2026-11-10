@@ -28,6 +28,12 @@ async function isGitWorkTree(repo: string): Promise<boolean> {
   }
 }
 
+/** True when a routine's repo is gone at FIRE time (a projectless routine has none to lose). */
+export async function routineRepoMissing(repo: string | undefined): Promise<boolean> {
+  if (!repo || !isProbeable(repo)) return false
+  return !(await stat(repo).catch(() => null))?.isDirectory()
+}
+
 /** Throw unless `repo` is a directory holding a git work tree. */
 export async function assertRoutineRepo(repo: string): Promise<void> {
   if (!isProbeable(repo)) return

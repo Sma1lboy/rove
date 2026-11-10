@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from "react"
+import type { DiffScope } from "./panel-model.ts"
 import { createStore } from "./store.ts"
 
 export interface MenuItem {
@@ -18,7 +19,19 @@ export interface MenuItem {
   readonly children?: readonly MenuItem[]
   /** The current pick in a choice list: drawn with a check. */
   readonly checked?: boolean
+  /** Seldom used: `tuckRare` moves it into the menu's `More ›` instead of the top level. */
+  readonly rare?: boolean
   readonly run?: () => void
+}
+
+/** The rare entries, in their order, as one `More ›` ahead of the danger section; only a level deep, so an entry with its own `children` stays put. */
+export function tuckRare(items: readonly MenuItem[], label: string): MenuItem[] {
+  const rare = items.filter((item) => item.rare && !item.children)
+  if (rare.length === 0) return [...items]
+  const rest = items.filter((item) => !rare.includes(item))
+  const more: MenuItem = { label, section: "more", children: rare.map(({ section: _, ...item }) => item) }
+  const at = rest.findIndex((item) => item.section === "danger")
+  return at < 0 ? [...rest, more] : [...rest.slice(0, at), more, ...rest.slice(at)]
 }
 
 /** The entry a rail key runs, wherever it sits in the menu tree. */
@@ -45,6 +58,15 @@ export interface Toast {
   readonly id: number
   readonly text: string
   readonly tone: "info" | "error"
+  /** A second thing to do about it (undo); the card stays longer and only this button acts. */
+  readonly action?: ToastAction
+  /** Fading out; gone after {@link LEAVE_MS}. */
+  readonly leaving?: boolean
+}
+
+export interface ToastAction {
+  readonly label: string
+  readonly run: () => void
 }
 
 export const menu = createStore<MenuState | null>(null)
@@ -67,40 +89,167 @@ dialog.subscribe(() => {
 })
 export const toasts = createStore<readonly Toast[]>([])
 
-/** A read-only file or diff open over the workspace (the TUI's content tab). `path` `.` = whole worktree. */
+/** A read-only file or diff in the side panel (the TUI's content tab). `path` `.` = whole worktree. */
 export interface Preview {
   readonly taskId: string
   readonly path: string
-  readonly scope: "working" | "branch"
+  readonly scope: DiffScope
+  /** Show the file itself, its diff a toggle away; absent = the diff. */
+  readonly file?: true
 }
 
-export const preview = createStore<Preview | null>(null)
-export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "dispatch"
+export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "compare" | "usage"
 /** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
 export const page = createStore<PageId | null>(null)
 /** The routine the Inbox sent the Routines page to; the page puts its cursor there once and clears this. */
 export const routineFocus = createStore<string | null>(null)
+/** The parallel round (`groupId`) the Compare page shows. */
+export const compareGroup = createStore<string | null>(null)
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
 export const activeStream = createStore<string | null>(null)
-/** Zen hides the Files pane (TUI prefix z). `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
-export const zen = createStore<boolean>(false)
+/** Zen hides the Files pane (TUI prefix z), on until the stored pref says otherwise. `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
+export const zen = createStore<boolean>(true)
+/** What the New session composer starts from: a project (a path on `machine` when one is named) and the branch to cut the task from. */
+export interface NewSessionStart {
+  readonly repo?: string
+  readonly baseBranch?: string
+  /** A registered machine's alias; absent = this machine. */
+  readonly machine?: string
+  /** A draft to start from (a `?prompt=` link); absent = the last unsent draft. */
+  readonly prompt?: string
+  /** Start in no project (the rail's Ungrouped), the composer's "No folder" choice. */
+  readonly ungrouped?: true
+  /** The engine to pick, ahead of the project's preferred one (Retry). */
+  readonly engine?: string
+  /** Worktree on or off, ahead of the remembered choice (Retry: as the task it retries was made). */
+  readonly worktree?: boolean
+  /** A multi-repo task's other repos (Retry), picked after `repo` with the ref each branches from. */
+  readonly extras?: readonly { readonly repo: string; readonly baseRef?: string }[]
+  /** The task being retried: once the new one starts, the composer offers to archive this one. */
+  readonly retryOf?: { readonly id: string; readonly label: string }
+}
+
+const NEW_SESSION_KEY = "rove.web.newSession"
+
+function loadNewSession(): NewSessionStart | null {
+  try {
+    const raw: unknown = JSON.parse(sessionStorage.getItem(NEW_SESSION_KEY) ?? "null")
+    return raw && typeof raw === "object" ? (raw as NewSessionStart) : null
+  } catch {
+    // Storage blocked or a corrupt entry: the page opens on the last task.
+    return null
+  }
+}
+
+/** The prompt-first New session composer in the workspace pane; null = closed. A reload of this browser tab comes back to it. */
+export const newSession = createStore<NewSessionStart | null>(loadNewSession())
+newSession.subscribe(() => {
+  try {
+    const start = newSession.get()
+    if (!start) return sessionStorage.removeItem(NEW_SESSION_KEY)
+    // A link's prompt seeds the composer once; after a reload the unsent draft is the truth.
+    const { prompt: _prompt, ...kept } = start
+    sessionStorage.setItem(NEW_SESSION_KEY, JSON.stringify(kept))
+  } catch {
+    // Storage blocked: the composer just does not survive a reload.
+  }
+})
+
+export function openNewSession(
+  repo?: string,
+  baseBranch?: string,
+  machine?: string,
+  prompt?: string,
+  ungrouped?: boolean,
+): void {
+  openNewSessionFrom({
+    ...(repo ? { repo } : {}),
+    ...(baseBranch ? { baseBranch } : {}),
+    ...(machine ? { machine } : {}),
+    ...(prompt ? { prompt } : {}),
+    ...(ungrouped ? { ungrouped: true as const } : {}),
+  })
+}
+
+export function openNewSessionFrom(seed: NewSessionStart): void {
+  page.set(null)
+  dialog.set(null)
+  newSession.set(seed)
+}
+
+/**
+ * `?prompt=…&repo=…` (a bookmark, a phone home-screen shortcut) opens New session with that draft and project.
+ * It only fills the composer: a link someone else made never starts an agent. Read once, then taken off the
+ * address bar so a reload does not seed it again.
+ */
+export function openNewSessionFromLink(): void {
+  const params = new URLSearchParams(window.location.search)
+  const prompt = params.get("prompt")
+  if (prompt === null) return
+  const repo = params.get("repo") ?? undefined
+  params.delete("prompt")
+  params.delete("repo")
+  const rest = params.toString()
+  history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`)
+  openNewSession(repo, undefined, undefined, prompt)
+}
 
 let nextToast = 1
 const TOAST_MS = 4000
+/** Long enough to read the card and reach its button with a thumb. */
+const ACTION_TOAST_MS = 8000
 /** The TUI's overlay shows the newest three. */
 const TOASTS_SHOWN = 3
 
-export function toast(text: string, tone: Toast["tone"] = "info"): void {
+export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction): void {
   const id = nextToast++
-  toasts.set([...toasts.get(), { id, text, tone }].slice(-TOASTS_SHOWN))
-  window.setTimeout(() => dismissToast(id), TOAST_MS)
+  toasts.set([...toasts.get(), { id, text, tone, ...(action ? { action } : {}) }].slice(-TOASTS_SHOWN))
+  window.setTimeout(() => dismissToast(id), action ? ACTION_TOAST_MS : TOAST_MS)
 }
 
-/** A click on the card, or its timer. */
+/** How long a disappearing overlay fades. */
+export const LEAVE_MS = 140
+
+export function reducedMotion(): boolean {
+  return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
+/** A click on the card, or its timer: it fades, then goes. */
 export function dismissToast(id: number): void {
-  toasts.set(toasts.get().filter((t) => t.id !== id))
+  // The timer still fires after a click already took it.
+  if (!toasts.get().some((t) => t.id === id && !t.leaving)) return
+  const drop = () => toasts.set(toasts.get().filter((t) => t.id !== id))
+  if (reducedMotion()) {
+    drop()
+    return
+  }
+  toasts.set(toasts.get().map((t) => (t.id === id ? { ...t, leaving: true } : t)))
+  window.setTimeout(drop, LEAVE_MS)
 }
 
 export function closeDialog(): void {
   dialog.set(null)
+}
+
+/**
+ * A column is moving: `slide` for the app grid's 220ms transition (a fold, a width reset), `drag` while a
+ * grip is held (the transition off, so the column stays on the pointer). Terminals refit once it settles: a refit
+ * per frame blanks the canvas, reflows the scrollback and SIGWINCHes the engine each time.
+ */
+export const layoutMoving = createStore<"slide" | "drag" | null>(null)
+let slideTimer: number | null = null
+
+/** A column starts its transition; a drag in progress has none. */
+export function slideLayout(): void {
+  if (layoutMoving.get() === "drag") return
+  if (slideTimer !== null) window.clearTimeout(slideTimer)
+  layoutMoving.set("slide")
+  slideTimer = window.setTimeout(() => layoutMoving.set(null), 240)
+}
+
+/** A grip is pressed or let go. */
+export function dragLayout(on: boolean): void {
+  if (slideTimer !== null) window.clearTimeout(slideTimer)
+  slideTimer = null
+  layoutMoving.set(on ? "drag" : null)
 }

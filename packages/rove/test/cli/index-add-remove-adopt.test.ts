@@ -89,7 +89,8 @@ let stderrSpy: MockInstance
 async function runCli(...args: string[]): Promise<void> {
   process.argv = ["bun", "/rove/src/cli/index.ts", ...args]
   vi.resetModules()
-  await import("../../src/cli/index.ts")
+  const { cliDone } = await import("../../src/cli/index.ts")
+  await cliDone.catch(() => {})
   for (let i = 0; i < 3; i++) await new Promise((r) => setImmediate(r))
 }
 

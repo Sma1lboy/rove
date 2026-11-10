@@ -19,8 +19,25 @@ import {
   useSelectedRepo,
   useTaskRepos,
 } from "./pages-kit.ts"
+import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { ReviewQueueView } from "./review-queue-view.tsx"
+import { issuesSource } from "./review-queue.ts"
+import { SourceSwitch } from "./source-switch.tsx"
 import { useStore } from "./store.ts"
 import { page, toast } from "./ui.ts"
+import {
+  PAGE_SCROLL,
+  PAGE_TITLE,
+  PG_GROW,
+  PG_ISSUE_LINE,
+  PG_ISSUE_NUM,
+  PG_ISSUE_SUB,
+  PG_LIST,
+  PG_NOTICE,
+  PG_TOP,
+  pgHintClass,
+  pgIssueClass,
+} from "./ui/page.ts"
 
 const LIMIT = 30
 
@@ -50,7 +67,7 @@ function useErrorHint() {
   }
 }
 
-export function IssuesView({ model }: { model: AppModel }) {
+function IssueList({ model }: { model: AppModel }) {
   const { items: copy, common } = useCopy()
   const hint = useErrorHint()
   const c = model.client
@@ -62,8 +79,21 @@ export function IssuesView({ model }: { model: AppModel }) {
     return Math.max(0, at)
   })
   const repo = repos[repoIndex]
-  const [items, setItems] = useState<readonly WorkItem[] | null>(null)
-  const [links, setLinks] = useState<Readonly<Record<number, string>>>({})
+  // A repo's list (and its linked tasks) as last read shows at once; the reread replaces it.
+  const listKey = (forRepo: string, onlyMine: boolean) => ({
+    repo: forRepo,
+    limit: LIMIT,
+    ...(onlyMine ? { assignee: "@me" } : {}),
+  })
+  type Links = { links: { number: number; taskId: string }[] }
+  const linkMap = (reply: Links) => Object.fromEntries(reply.links.map((link) => [link.number, link.taskId]))
+  const [items, setItems] = useState<readonly WorkItem[] | null>(() =>
+    repo ? (lastReply<{ items: WorkItem[] }>(c, "workitem.list", listKey(repo, false))?.items ?? null) : null,
+  )
+  const [links, setLinks] = useState<Readonly<Record<number, string>>>(() => {
+    const last = repo ? lastReply<Links>(c, "workitem.links", { repo }) : undefined
+    return last ? linkMap(last) : {}
+  })
   const [error, setError] = useState<string | null>(null)
   const [mine, setMine] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
@@ -84,20 +114,18 @@ export function IssuesView({ model }: { model: AppModel }) {
     setError(null)
     const forced = refresh.current
     refresh.current = false
-    c.request<{ items: WorkItem[] }>("workitem.list", {
-      repo,
-      limit: LIMIT,
-      ...(mine ? { assignee: "@me" } : {}),
-      ...(forced ? { refresh: true } : {}),
-    })
-      .then((res) => live && setItems(res.items))
+    const key = listKey(repo, mine)
+    const last = lastReply<{ items: WorkItem[] }>(c, "workitem.list", key)
+    if (last) setItems(last.items)
+    c.request<{ items: WorkItem[] }>("workitem.list", { ...key, ...(forced ? { refresh: true } : {}) })
+      .then((res) => live && setItems(remember(c, "workitem.list", key, res).items))
       .catch((err: unknown) => {
         if (!live) return
         setError(errorMessage(err))
         setItems([])
       })
-    c.request<{ links: { number: number; taskId: string }[] }>("workitem.links", { repo })
-      .then((res) => live && setLinks(Object.fromEntries(res.links.map((link) => [link.number, link.taskId]))))
+    requestRemembered<Links>(c, "workitem.links", { repo })
+      .then((res) => live && setLinks(linkMap(res)))
       .catch(() => live && setLinks({}))
     return () => {
       live = false
@@ -114,7 +142,7 @@ export function IssuesView({ model }: { model: AppModel }) {
     list.current?.querySelector(`[data-row="${at}"]`)?.scrollIntoView({ block: "nearest" })
   }, [at])
 
-  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.title ?? taskId
+  const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? taskId
   const openTask = (taskId: string) => {
     page.set(null)
     model.select(taskId)
@@ -187,25 +215,26 @@ export function IssuesView({ model }: { model: AppModel }) {
   const now = Date.now()
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={root}>
-      <div className="pg-top">
-        <h1 className="page-title">{copy.title}</h1>
-        <span className="muted mono pg-hint">
+    <div className={PAGE_SCROLL} tabIndex={0} ref={root}>
+      <div className={PG_TOP}>
+        <h1 className={PAGE_TITLE}>{copy.title}</h1>
+        <SourceSwitch />
+        <span className={`mono touch:empty:hidden! text-muted ${pgHintClass(true)}`}>
           {repo ? projectLabel(repo, repos) : copy.noRepo}
           {mine ? `  ${copy.assignedFilter}` : ""}
         </span>
       </div>
       {error ? (
-        <div className="pg-list">
-          <p className="error">{error}</p>
-          <p className="muted">{hint(error)}</p>
+        <div className={PG_LIST}>
+          <p className="text-error">{error}</p>
+          <p className="text-muted">{hint(error)}</p>
         </div>
       ) : items === null ? (
-        <p className="muted">{common.loading}</p>
+        <p className="text-muted">{common.loading}</p>
       ) : rows.length === 0 ? (
-        <p className="muted">{copy.empty}</p>
+        <p className="text-muted">{copy.empty}</p>
       ) : (
-        <div className="pg-list" ref={list}>
+        <div className={PG_LIST} ref={list}>
           {rows.map((item, index) => {
             const linked = links[item.number]
             const updated = Date.parse(item.updatedAt)
@@ -214,16 +243,16 @@ export function IssuesView({ model }: { model: AppModel }) {
               <div
                 key={item.number}
                 data-row={index}
-                className={`pg-issue ${index === at ? "is-cursor" : ""}`}
+                className={pgIssueClass(index === at)}
                 onClick={() => (index === at ? void startSelected() : setCursor(index))}
               >
-                <div className="pg-issue-line">
-                  <span className="pg-num mono">#{item.number}</span>
-                  <span className="pg-grow">{item.title}</span>
+                <div className={PG_ISSUE_LINE}>
+                  <span className={`mono ${PG_ISSUE_NUM}`}>#{item.number}</span>
+                  <span>{item.title}</span>
                 </div>
-                <div className="pg-issue-sub">
-                  <span className="pg-grow">
-                    {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(" · ")}
+                <div className={PG_ISSUE_SUB}>
+                  <span className={PG_GROW}>
+                    {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(", ")}
                   </span>
                   {linked && <span>{fill(copy.linkedChip, { title: titleOf(linked) })}</span>}
                   <span className="mono">{Number.isFinite(updated) ? relativeAge(updated, now) : ""}</span>
@@ -233,7 +262,13 @@ export function IssuesView({ model }: { model: AppModel }) {
           })}
         </div>
       )}
-      {notice && <p className="muted pg-notice">{notice}</p>}
+      {notice && <p className={`text-muted ${PG_NOTICE}`}>{notice}</p>}
     </div>
   )
+}
+
+/** Issues, or the PRs waiting on the signed-in user; the palette's "Review queue" lands on the second. */
+export function IssuesView({ model }: { model: AppModel }) {
+  const source = useStore(issuesSource)
+  return source === "reviews" ? <ReviewQueueView model={model} /> : <IssueList model={model} />
 }

@@ -34,9 +34,8 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
     { id: "api", label: { glyphs: ` ${done}`, initials: ` ${done} API`, hairline: "▎" }[fold] },
     { id: "review", label: { glyphs: ` ${idle}`, initials: ` ${idle} QA`, hairline: "▎" }[fold] },
   ]
-  // Sample ids; the mark sits where the real rail's indent cell does.
+  // The task's hue shows on the flowing border, as the real workspace does; sidebar rows carry no mark.
   const marked = current.taskColors === "on"
-  const mark = (id: string) => (marked ? <text fg={taskColor(`preview-${id}`, theme)}>▎</text> : null)
   const flowing = current.workingBorder === "flow"
   const workingTaskInk = marked ? taskColor("preview-ui", theme) : undefined
   const inks = diffInks(theme, current.colorblind === "on")
@@ -93,9 +92,8 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
             </text>
             <box flexDirection="row">
               <text fg={theme.focusAccent} attributes={TextAttributes.BOLD} wrapMode="none">
-                {marked ? "▌" : "▌ "}
+                {"▌ "}
               </text>
-              {mark("ui")}
               <text fg={workingInk} wrapMode="none">
                 {`${working} `}
               </text>
@@ -108,16 +106,14 @@ export function AppearancePreview(props: { current: AppearanceSnapshot; active?:
               </text>
             </box>
             <box flexDirection="row">
-              <text wrapMode="none"> </text>
-              {mark("api")}
+              <text wrapMode="none">{"  "}</text>
               <text fg={theme.text} wrapMode="none">
                 API tests {done}
               </text>
             </box>
             {!short && (
               <box flexDirection="row">
-                <text wrapMode="none"> </text>
-                {mark("review")}
+                <text wrapMode="none">{"  "}</text>
                 <text fg={theme.textMuted} wrapMode="none">
                   Review {idle}
                 </text>

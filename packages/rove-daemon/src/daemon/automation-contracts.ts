@@ -27,8 +27,9 @@ export interface AutomationPrecheck {
 export interface Automation {
   readonly id: string
   readonly name: string
-  /** Absolute repo root; resolved once at create time. */
-  readonly repo: string
+  /** Absolute repo root; resolved once at create time. Absent = projectless:
+   *  runs execute in `routineDir(id)` and their tasks are `noProject` dir tasks. */
+  readonly repo?: string
   /** Delivered as the engine's launch-time first message. */
   readonly prompt: string
   readonly vendor?: VendorId
@@ -42,7 +43,7 @@ export interface Automation {
   /** Script routine: run this command instead of an engine. `prompt` is empty,
    *  and non-empty stdout becomes the run's response. */
   readonly script?: AutomationPrecheck
-  /** Push each run's response, and runs that need a human, to bound chat channels (WeChat). */
+  /** Hand each run's response, and runs that need a human, to a bound chat channel's agent (WeChat). */
   readonly notify?: boolean
   readonly baseRef?: string
   /**
@@ -142,6 +143,12 @@ export interface AutomationRun {
    *  response: `response` and `deliveryStatus` are read from it, never stored
    *  twice. */
   readonly deliveryId?: string
+  /** `routinePromptHash` of the prompt this run delivered; a standing session's next run sends it again only when it changed. */
+  readonly promptHash?: string
+  /** This run sent only the header: the session already held the prompt. */
+  readonly promptElided?: true
+  /** ISO-8601: the session's engine compacted or changed conversation after this run was delivered. */
+  readonly compactedAt?: string
   /** What the agent reported for THIS run. Never inferred from a transcript:
    *  no report, no response. Projected from the linked delivery by
    *  `automation.runs`; stored only on runs that predate deliveries. */
@@ -164,7 +171,7 @@ export const ROUTINE_RESPONSE_WINDOW_MS = 2 * 60 * 60_000
 
 /**
  * Where a run stands on its response. `null` for a run that never delivered a
- * prompt (nothing to respond to).
+ * prompt, or whose turn ended with nothing to report (`quiet`).
  */
 export function routineRunResponseState(
   run: Pick<AutomationRun, "status" | "at" | "response" | "deliveryStatus">,
@@ -172,6 +179,7 @@ export function routineRunResponseState(
 ): "responded" | "awaiting" | "missing" | null {
   if (run.response) return "responded"
   if (run.status !== "dispatched" && run.status !== "revived") return null
+  if (run.deliveryStatus === "quiet") return null
   // A delivery knows whether the turn ended unreported; the window is only
   // the fallback for runs that predate deliveries.
   if (run.deliveryStatus === "missing") return "missing"

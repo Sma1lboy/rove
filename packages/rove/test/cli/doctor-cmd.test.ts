@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   close: vi.fn(),
   inspectLegacyTmux: vi.fn(),
-  roveSkillState: vi.fn(),
+  skillOverview: vi.fn(),
   detectEngineStatuses: vi.fn(),
   listPresetIds: vi.fn(),
 }))
@@ -44,8 +44,7 @@ vi.mock("@sma1lboy/rove-daemon/client", () => ({
 }))
 
 vi.mock("../../src/lib/skill-install.ts", () => ({
-  skillInstallCommand: () => "rove skill install",
-  roveSkillState: mocks.roveSkillState,
+  skillOverview: mocks.skillOverview,
 }))
 
 vi.mock("../../src/cli/legacy-tmux.ts", async (importOriginal) => {
@@ -74,13 +73,7 @@ beforeEach(() => {
     processes: [],
     error: null,
   })
-  mocks.roveSkillState.mockReset().mockReturnValue({
-    installed: true,
-    installedVersion: 3,
-    currentVersion: 3,
-    stale: false,
-    legacyCopies: [],
-  })
+  mocks.skillOverview.mockReset().mockReturnValue({ targets: [{}], installed: true, outdated: [] })
   mocks.listPresetIds.mockReset().mockReturnValue(["claude", "codex", "copilot", "kimi"])
   mocks.detectEngineStatuses.mockReset().mockImplementation(async (vendors: readonly string[]) =>
     vendors.map((vendor) => ({

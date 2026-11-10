@@ -9,20 +9,16 @@ import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { redrawScreen } from "../../tui/lib/screen-refresh"
 import { CommandPalette } from "../component/command-palette"
 import { HelpDialog } from "../component/help-dialog"
+import type { PaletteSearch } from "../component/palette-search"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
 import { useT } from "../i18n"
-import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useBindings } from "../lib/keymap"
 import { usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import type { HostPagesState } from "./host-pages"
-import {
-  type WorkspacePageState,
-  nextFocusedPane,
-  settingsCloseKeysEnabled,
-  workspacePagesClosed,
-} from "./keybinding-gates"
+import { type WorkspacePageState, nextFocusedPane, workspacePagesClosed } from "./keybinding-gates"
 import { usePluginKeybindings } from "./use-plugin-keybindings"
 
 // The host's real panes, NOT PANE_ORDER: its "terminal" is never mounted here.
@@ -46,6 +42,10 @@ export type WorkspaceKeybindingDeps = {
   toggleZen: () => void
   jumpToNextAttention: () => void
   openInbox: () => void
+  /** Palette-only "Report a problem": a new scratch conversation seeded to file a Rove issue. No chord. */
+  reportProblem?: () => void
+  /** The palette's task and conversation sections: the tasks to match and the way into one; commands only when absent. */
+  paletteSearch?: PaletteSearch
   /** prefix+m — focus the sidebar and enter move mode on the current selection. */
   enterMoveMode: () => void
   /** prefix+p / prefix+P — send the Create PR prompt into the engine pane. */
@@ -112,7 +112,13 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     bindings: [
       ...bindByIds({
         "help.open": prefixAction(() => HelpDialog.show(dialog, focus.focused)),
-        "palette.open": prefixAction(() => CommandPalette.show(dialog)),
+        "palette.open": prefixAction(() =>
+          CommandPalette.show(dialog, deps.paletteSearch, [
+            ...(deps.reportProblem
+              ? [{ id: "feedback.report", name: t("help.reportProblem"), run: deps.reportProblem }]
+              : []),
+          ]),
+        ),
         "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4: reserved from terminal passthrough.
         "focus.next": prefixAction(() => cyclePane(1)),
@@ -221,11 +227,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       "tasks.focusEngine": prefixAction(() => focus.setFocused("workspace")),
       "sidebar.sort": prefixAction(() => deps.toggleSortMode()),
     }),
-  }))
-  // Settings page close keys; gated on an empty dialog stack so a sub-dialog keeps esc.
-  useBindings(() => ({
-    enabled: settingsCloseKeysEnabled(pages),
-    bindings: pageCloseBindings(deps.pages.closeSettings),
   }))
   // Registered LAST: workspace-open-worktree-bindings.test indexes registrations.
   usePluginKeybindings(pagesClosed)

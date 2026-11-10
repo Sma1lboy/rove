@@ -14,17 +14,35 @@
  * Font, Menlo, Monaco): U+2260, U+2713, U+2717 are one cell in all of them.
  */
 
+import { rollupPr } from "@/orchestrator/task-tree"
 import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
-import type { Task } from "@/types/task"
+import type { Task, TaskPRStatus } from "@/types/task"
 import type { SidebarTone } from "./row-view.ts"
 
-export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
-  const pr = task.prStatus
+function chipOf(pr: TaskPRStatus | undefined, glyphs: GlyphSet): { glyph: string; tone: SidebarTone } | null {
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")
-    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "error" }
+    // Amber: a wait the task can clear (rebase), where red is checks that failed.
+    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "warning" }
   if (pr.checkState === "failing") return { glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
   if (pr.checkState === "passing") return { glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
   return null
+}
+
+/** The task's own PR (all its repos rolled up). */
+export function prChip(task: Task, glyphs: GlyphSet = DEFAULT_GLYPHS): { glyph: string; tone: SidebarTone } | null {
+  return chipOf(rollupPr(task), glyphs)
+}
+
+/**
+ * What the sidebar draws: {@link prChip} over the task's own PRs plus the polled PRs its session
+ * attached (`rove api pr-attach`), so a main task with no branch of its own still shows one.
+ */
+export function sidebarPrChip(
+  task: Task,
+  glyphs: GlyphSet = DEFAULT_GLYPHS,
+): { glyph: string; tone: SidebarTone } | null {
+  const attached = (task.sessionPrs ?? []).flatMap((entry) => (entry.status ? [{ prStatus: entry.status }] : []))
+  return chipOf(rollupPr({ prStatus: task.prStatus, extraRepos: [...(task.extraRepos ?? []), ...attached] }), glyphs)
 }

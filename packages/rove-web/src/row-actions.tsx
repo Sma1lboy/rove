@@ -7,16 +7,21 @@
 
 import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
-import { ConfirmDialog, TextDialog } from "./dialogs.tsx"
+import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
 import { ChangeEngineDialog } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
+import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { NewTaskDialog } from "./new-task-dialog.tsx"
-import { newChatHere, openTab } from "./task-dialogs.tsx"
+import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
+import { openRetry } from "./retry.tsx"
+import { splitMenu } from "./split-actions.tsx"
+import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
 import {
+  archiveFlow,
   deleteTaskDialog,
+  endMainConversationDialog,
   fixChecksFlow,
   forgetProjectDialog,
   landFlow,
@@ -25,7 +30,7 @@ import {
 } from "./task-flows.tsx"
 import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, toast } from "./ui.ts"
+import { type MenuItem, dialog, openNewSessionFrom, toast } from "./ui.ts"
 import { prefixHint } from "./user-keys.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -66,9 +71,7 @@ export interface ProjectInfo {
 }
 
 export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): MenuItem[] {
-  const items: MenuItem[] = [
-    { label: t("menu.newTask"), section: "open", run: () => dialog.set(<NewTaskDialog model={model} repo={repo} />) },
-  ]
+  const items: MenuItem[] = [{ label: t("menu.newTask"), section: "open", run: () => startNewTask(repo) }]
   const main = info.mainTaskId
   if (main) {
     if (!info.first) {
@@ -85,7 +88,7 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
       label: tc("tasks", "menu.reorderProject"),
       section: "edit",
       ...bound("sidebar.localMerge"),
-      run: () => enterMoveMode(),
+      run: () => enterMoveMode(main),
     })
   }
   items.push({
@@ -98,17 +101,58 @@ export function projectMenu(model: AppModel, repo: string, info: ProjectInfo): M
       label: tc("tasks", "menu.forgetProject"),
       section: "danger",
       danger: true,
-      ...bound("sidebar.delete"),
       run: () => dialog.set(forgetProjectDialog(model, repo, info.label)),
     })
   }
   return items
 }
 
-/** Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus. */
-function enterMoveMode(): void {
-  moveMode.set(!moveMode.get())
+/** The Ungrouped header's verbs: a conversation or a shell that lives in no project. */
+export function ungroupedMenu(model: AppModel): MenuItem[] {
+  return [
+    { label: t("menu.newChatNoFolder"), section: "open", run: () => startNewUngrouped() },
+    {
+      label: t("menu.newShell"),
+      section: "open",
+      run: () => void openScratchShell(model).catch((e) => toast(String(e), "error")),
+    },
+  ]
+}
+
+/**
+ * Shift+M / "Reorder": j/k then move the cursor row at its level; the rail owns the keys, so hand it focus.
+ * From a project header, `main` is held as a row for the move, so a main with no tab still has one to drag.
+ */
+function enterMoveMode(main?: string): void {
+  const on = !moveMode.get()
+  if (on && main !== undefined) reorderingMain.set(main)
+  setMoveMode(on)
   document.querySelector<HTMLElement>(".rail")?.focus()
+}
+
+/** The saved projects a task can regroup into: this machine's, other than its own. Moving only regroups; the checkout stays. */
+function moveToProjectDialog(model: AppModel, task: TaskRow) {
+  const repos = (model.tasks.get()?.tasks ?? [])
+    .filter((row) => row.kind === "main" && !row.machine && row.repo !== task.repo)
+    .map((row) => row.repo)
+  const choices = repos.map((repo) => {
+    const name = repo.slice(repo.lastIndexOf("/") + 1)
+    return { value: repo, label: repos.filter((other) => other.endsWith(`/${name}`)).length > 1 ? repo : name }
+  })
+  if (choices.length === 0) {
+    toast(tc("tasks", "moveToProject.empty"), "error")
+    return null
+  }
+  return (
+    <ChoiceDialog
+      title={tc("tasks", "moveToProject.title")}
+      choices={choices}
+      onPick={async (repo) => {
+        await model.client.request("task.moveToProject", { taskId: task.id, repo })
+        toast(tc("tasks", "toast.movedToProject", { project: choices.find((c) => c.value === repo)?.label ?? repo }))
+      }}
+    />
+  )
 }
 
 export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): MenuItem[] {
@@ -125,12 +169,12 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
             body={t("confirm.closeTabBody")}
             confirmLabel={t("menu.closeTab")}
             onConfirm={async () => {
-              await c.request("tab.close", { taskId: task.id, tabId: tab.id })
-              await model.refreshTabsNow()
+              await model.closeTab(task.id, tab.id)
             }}
           />,
         ),
     })
+    items.push(...splitMenu(model, task.id, tab))
   }
 
   // Open: what starts work in this task.
@@ -143,18 +187,67 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({
     label: t("menu.newChatPick"),
     section: "open",
+    rare: true,
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />),
+  })
+  // Moves the conversation (tab-scoped from a tab's menu) to another engine in this directory.
+  items.push({
+    label: t("menu.continueEngine"),
+    section: "open",
+    rare: true,
+    ...bound("chat.tab.fork"),
+    run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} context="continue" sourceTabId={tab?.id} />),
   })
   items.push({
     label: t("menu.newShell"),
     section: "open",
     run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
   })
+  // Stacks a new task on this one's branch; only a single-repo managed branch on this machine resolves as a base here.
+  if (
+    task.kind === "task" &&
+    task.ownsBranch === true &&
+    task.branch &&
+    !task.sharesWorkspaceOf &&
+    !task.machine &&
+    !task.extraRepoCount
+  ) {
+    items.push({
+      label: tc("tasks", "menu.newTaskFromBranch"),
+      section: "open",
+      rare: true,
+      run: () => openNewSessionFrom({ repo: task.repo, baseBranch: task.branch, worktree: true }),
+    })
+  }
+  if (task.startsAt) {
+    items.push({
+      label: t("menu.startNow"),
+      section: "open",
+      run: () =>
+        void model.client
+          .request("task.startScheduledNow", { taskId: task.id })
+          .catch((e) => toast(String(e), "error")),
+    })
+    items.push({
+      label: t("menu.cancelStart"),
+      section: "open",
+      run: () =>
+        void model.client
+          .request("task.cancelScheduledStart", { taskId: task.id })
+          .catch((e) => toast(String(e), "error")),
+    })
+  }
   if (task.hasPrompt) {
     items.push({
       label: tc("tasks", "menu.runAgain"),
       section: "open",
       run: () => dialog.set(<RunAgainDialog model={model} task={task} />),
+    })
+    items.push({
+      label: t("menu.retryEdit"),
+      section: "open",
+      rare: true,
+      run: () => void openRetry(model, task),
     })
   }
   // A task on another machine runs its verbs there; what only this machine can do stays off its menu:
@@ -169,6 +262,12 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     })
   }
 
+  // A parallel round's attempts side by side, from any one of them.
+  if (task.groupId) {
+    const groupId = task.groupId
+    items.push({ label: t("compare.menu"), section: "open", run: () => openCompare(groupId) })
+  }
+
   // Edit: the task's own fields and place in the rail.
   items.push({
     label: t("menu.rename"),
@@ -180,7 +279,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
           title={t("menu.rename")}
           initial={task.title}
           submitLabel={t("dialog.save")}
-          onSubmit={(title) => c.request("task.rename", { taskId: task.id, title }).then(() => {})}
+          onSubmit={(title) => model.act("task.rename", { taskId: task.id, title }).then(() => {})}
         />,
       ),
   })
@@ -190,13 +289,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
-        void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
     items.push({
       label: tc("tasks", "menu.reorder"),
       section: "edit",
+      rare: true,
       ...bound("sidebar.localMerge"),
       run: () => enterMoveMode(),
     })
@@ -209,14 +309,27 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         label: t(STATUS_KEYS[s]),
         checked: s === task.status,
         run: () =>
-          void c.request("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
+          void model.act("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
       }),
     ),
   })
+  // Top-level, local, single-repo rows only; the daemon refuses the rest (`update --project`).
+  if (local && task.kind !== "main" && !task.routine && !task.parentTaskId && !task.extraRepoCount) {
+    items.push({
+      label: tc("tasks", "menu.moveToProject"),
+      section: "edit",
+      rare: true,
+      run: () => {
+        const picker = moveToProjectDialog(model, task)
+        if (picker) dialog.set(picker)
+      },
+    })
+  }
   if (local) {
     items.push({
       label: t("menu.changeEngine"),
       section: "edit",
+      rare: true,
       // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
       ...bound("tasks.cycleEngine"),
       run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
@@ -237,6 +350,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.syncBase"),
       section: "git",
+      rare: true,
       key: prefixHint("files.syncBase"),
       run: () => void syncBaseFlow(model, task.id),
     })
@@ -245,6 +359,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.renameBranch"),
       section: "git",
+      rare: true,
       ...bound("tasks.renameBranch"),
       run: () =>
         dialog.set(
@@ -275,16 +390,23 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   })
   items.push({ label: t("menu.copy"), section: "copy", children: copies })
 
+  // Hides the row and its children, stopping nothing; a project's main is the project itself.
+  if (task.kind !== "main") {
+    items.push({
+      label: tc("tasks", task.archived ? "menu.unarchive" : "menu.archive"),
+      section: "danger",
+      run: () => void archiveFlow(model, task),
+    })
+  }
   items.push({
-    label: t("menu.delete"),
+    // Say what goes: a conversation (in a folder, or a project's main) or a task with its worktree.
+    label: t("menu.removeSession"),
     section: "danger",
     ...bound("sidebar.delete"),
     danger: true,
     run: () =>
-      // A project's main checkout has no worktree to delete: Delete forgets the project (TUI `deleteTaskFlow`).
-      task.kind === "main"
-        ? dialog.set(forgetProjectDialog(model, task.repo, task.title))
-        : dialog.set(deleteTaskDialog(model, task)),
+      // A project's main checkout is never deleted: Delete ends its conversation, Remove project is on the header.
+      dialog.set(task.kind === "main" ? endMainConversationDialog(model, task) : deleteTaskDialog(model, task)),
   })
   return items
 }

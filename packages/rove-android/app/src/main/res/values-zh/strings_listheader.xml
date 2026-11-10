@@ -47,4 +47,5 @@
     <string name="listheader_note_delete_kicker">现场笔记 #%1$d</string>
     <string name="listheader_note_delete_confirm">删除笔记</string>
     <string name="listheader_note_delete_hint">此仓库的新会话将不再收到它。此操作无法撤销。</string>
+    <string name="listheader_page_search">搜索</string>
 </resources>

@@ -12,32 +12,27 @@ const colors = { foreground: [234, 231, 223], background: [20, 20, 19] } as cons
 
 async function setup() {
   const handle = await renderComponent(<box />, { width: 30, height: 8 })
-  const grid = new BoxRenderable(handle.renderer, { width: 20, height: 5, left: 3, top: 1 })
+  // A colored pane background: cells a row does not paint must show it, not the row buffer's own fill.
+  const grid = new BoxRenderable(handle.renderer, { width: 20, height: 5, left: 3, top: 1, backgroundColor: "#102030" })
   handle.renderer.root.add(grid)
   const painter = new TerminalRowPainter(grid, handle.renderer)
   return { handle, grid, painter }
 }
 
-test("changing one row retains the other text buffers and clears the shortened tail", async () => {
+test("changing one row keeps every row's buffer and clears the shortened tail", async () => {
   const { handle, grid, painter } = await setup()
   try {
     const rows: TerminalRow[] = [[{ text: "unchanged" }], [{ text: "long input here" }], [{ text: "footer" }]]
     painter.paint(rows, 20, colors)
     expect(await handle.frame()).toContain("long input here")
     const nodes = grid.getChildren()
-    const originalContent = nodes.map((node) => (node instanceof TextRenderable ? node.content : null))
     rows[1] = [{ text: "short" }]
     painter.paint(rows, 20, colors)
     const frame = await handle.frame()
+    expect(frame).toContain("unchanged")
     expect(frame).toContain("short")
     expect(frame).not.toContain("input here")
     expect(grid.getChildren()).toEqual(nodes)
-    for (const y of [0, 2]) {
-      const node = nodes[y]
-      expect(node instanceof TextRenderable && node.content === originalContent[y]).toBe(true)
-    }
-    const changed = nodes[1]
-    expect(changed instanceof TextRenderable && changed.content !== originalContent[1]).toBe(true)
     painter.paint(rows.slice(0, 1), 20, colors)
     expect(await handle.frame()).not.toContain("footer")
     expect(nodes[1]?.isDestroyed).toBe(true)
@@ -49,7 +44,7 @@ test("changing one row retains the other text buffers and clears the shortened t
   }
 })
 
-test("row buffers paint the same cells and styles as the multiline renderer", async () => {
+test("row buffers paint the same cells and styles as one styled text block", async () => {
   const { handle, grid, painter } = await setup()
   const rows: TerminalRow[] = [
     [{ text: "中文 e\u0301 🦊" }],
@@ -59,6 +54,12 @@ test("row buffers paint the same cells and styles as the multiline renderer", as
     ],
     [{ text: "inverse", attributes: ATTR.INVERSE }],
     [{ text: "underlined-wide-tail-", attributes: ATTR.UNDERLINE }],
+    [
+      { text: "中文" },
+      { text: "ab", fg: [1, 2, 3], attributes: ATTR.BOLD },
+      { text: "🦊", bg: [9, 9, 9] },
+      { text: "z", attributes: ATTR.ITALIC | ATTR.DIM },
+    ],
   ]
   try {
     painter.paint(rows, 20, colors)
@@ -86,25 +87,43 @@ test("row buffers paint the same cells and styles as the multiline renderer", as
   }
 })
 
-test("width and theme changes repaint retained rows; destroying the grid releases them safely", async () => {
+test("width and theme changes repaint rows; destroying the grid releases them safely", async () => {
   const { handle, grid, painter } = await setup()
   try {
-    const rows: TerminalRow[] = [[{ text: "inverse", attributes: ATTR.INVERSE }]]
+    const rows: TerminalRow[] = [[{ text: "inverse-and-then-some", attributes: ATTR.INVERSE }]]
     painter.paint(rows, 20, colors)
-    const node = grid.getChildren()[0]
-    if (!(node instanceof TextRenderable)) throw new Error("missing row")
-    const before = node.content
+    expect(await handle.frame()).toContain("inverse-and-then-som")
     painter.paint(rows, 10, colors)
-    expect(node.content).not.toBe(before)
-    const resized = node.content
+    const narrow = await handle.frame()
+    expect(narrow).toContain("inverse-an")
+    expect(narrow).not.toContain("inverse-and")
     painter.paint(rows, 10, { foreground: [255, 0, 0], background: [0, 0, 255] })
-    expect(node.content).not.toBe(resized)
-    const spans = JSON.stringify(await handle.spans())
-    expect(spans).toContain('"0":255,"1":0,"2":0,"3":255')
+    expect(JSON.stringify(await handle.spans())).toContain('"0":255,"1":0,"2":0,"3":255')
+    const node = grid.getChildren()[0]
     grid.destroyRecursively()
     painter.paint(rows, 10, colors)
     painter.dispose()
-    expect(node.isDestroyed).toBe(true)
+    expect(node?.isDestroyed).toBe(true)
+  } finally {
+    handle.destroy()
+  }
+})
+
+test("blank rows own no buffer until they fill in, then paint at their own row", async () => {
+  const { handle, grid, painter } = await setup()
+  try {
+    const rows: TerminalRow[] = [[{ text: "prompt" }], [], [], []]
+    painter.paint(rows, 20, colors)
+    expect(grid.getChildren()).toHaveLength(1)
+    rows[2] = [{ text: "later" }]
+    painter.paint(rows, 20, colors)
+    const lines = (await handle.frame()).split("\n")
+    expect(lines[1]).toContain("prompt")
+    expect(lines[2]).not.toContain("later")
+    expect(lines[3]).toContain("later")
+    painter.paint(rows.slice(0, 1), 20, colors)
+    expect(await handle.frame()).not.toContain("later")
+    expect(grid.getChildren()).toHaveLength(1)
   } finally {
     handle.destroy()
   }

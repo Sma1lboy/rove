@@ -36,8 +36,8 @@ import {
   interactiveEngineCommand,
   parseEngineCommand,
   withEngineEffort,
+  withEngineHostedArgs,
   withEngineModel,
-  withEngineTerminalTitle,
 } from "./interactive-command.ts"
 import {
   acceptsPinnedSession,
@@ -80,7 +80,8 @@ function isPresetId(id: string): boolean {
 
 /** Every registered engine id, built-ins first. */
 export function listPresetIds(): readonly string[] {
-  return [...BUILTIN_VENDORS, ...getCustomEngineIds()]
+  // Deduped: a stale `customEngineIds` entry for an id that is now built in (`omp`) must not list it twice.
+  return [...new Set([...BUILTIN_VENDORS, ...getCustomEngineIds()])]
 }
 
 /** One row of the `engine-list` verb — what the preset launches, verbatim. */
@@ -155,7 +156,7 @@ export interface EngineLaunchSpec {
  * For a custom preset two rules pull apart:
  *   - the BASE command comes from the preset id, so `--command claude` honors
  *     the `engineCommand.claude` override from Settings;
- *   - vendor launch FLAGS (codex effort + terminal-title) come from the
+ *   - vendor launch FLAGS (codex effort, terminal-title, hosted start) come from the
  *     resolved PROTOCOL — keying off the id finds the empty custom entry and
  *     silently drops them.
  * A built-in id resolves to itself, so both agree there.
@@ -171,10 +172,7 @@ export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
         return argv.length > 0 ? argv : null
       })()
   if (!base) return interactiveEngineCommand(spec.vendor, spec.effort, spec.model)
-  return withEngineTerminalTitle(
-    withEngineModel(withEngineEffort(base, vendor, spec.effort), vendor, spec.model),
-    vendor,
-  )
+  return withEngineHostedArgs(withEngineModel(withEngineEffort(base, vendor, spec.effort), vendor, spec.model), vendor)
 }
 
 /** A preset's UNDECORATED launch argv: its command override, else its default. */

@@ -9,20 +9,22 @@ import { randomBytes } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
-import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import {
   type ChatForkPlan,
   liveSourceProtocol,
   planWorktreeHandoff,
-} from "@sma1lboy/rove/src/tui-react/workspace/fork-chat-tab.ts"
+} from "@sma1lboy/rove/src/engine/session-handoff-plan.ts"
+import { promptAttachmentsDir } from "@sma1lboy/rove/src/env.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
 import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { initialTabs } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-lifecycle.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optInt, optStr, str } from "../protocol.ts"
-import { absPath, flag, optText, tabId, taskId, text } from "./args.ts"
+import { absPath, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
+import { taskOpDeps } from "./tasks-shared.ts"
 import type { Args, OpTable } from "./types.ts"
 
 /** What an attachment is worth to an engine: raw bytes on disk, named by magic number. */
@@ -52,7 +54,7 @@ export interface TerminalOpDeps {
   writeFile(path: string, bytes: Uint8Array): void
   /** The persisted tab (carries `sessionId`), if the snapshot has it. */
   readTab(taskId: string, tabId: string): TerminalTab | undefined
-  planHandoff(active: TerminalTab, source: VendorId, worktree: string): Promise<ChatForkPlan>
+  planHandoff(active: TerminalTab, source: VendorId, worktree: string, taskTitle?: string): Promise<ChatForkPlan>
   prPrompt(worktree: string): Promise<string>
 }
 
@@ -165,23 +167,49 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
     "tab.forkTask": {
       kind: "write",
       destructive: false,
-      wraps: "rove api add --base-branch (--count for attempts)",
+      wraps: "rove api add --fork (one attempt, from the task's branch), else --base-branch (--count for attempts)",
       async run(a, { api }) {
         const count = optInt(a, "count", 1, MAX_ATTEMPTS) ?? 1
-        const argv = [
-          flag("repo", absPath(a, "repo")),
-          flag("base-branch", gitRef(a, "baseBranch")),
-          flag("prompt", text(a, "prompt", PROMPT_MAX)),
-        ]
+        const repo = absPath(a, "repo")
+        const baseBranch = gitRef(a, "baseBranch")
+        const prompt = text(a, "prompt", PROMPT_MAX)
         const engine = engineId(a)
-        if (engine) argv.push(flag("command", engine))
         const title = optText(a, "title", 200)
+        type Added = { taskId?: string; groupId?: string; tasks?: ReadonlyArray<{ taskId: string }> }
+        const tail = [flag("prompt", prompt), ...(engine ? [flag("command", engine)] : [])]
+        // A clone of the source task carries its uncommitted work; a fan-out of attempts cannot share one clone.
+        const forkFrom =
+          count === 1 && a.forkFrom !== undefined && a.forkFrom !== null ? taskId(a, "forkFrom") : undefined
+        let forkRefused: string | undefined
+        if (forkFrom) {
+          try {
+            const res = await api.verb<Added>("add", [
+              flag("fork", forkFrom),
+              flag("title", title ?? deriveTitleFromPrompt(prompt)),
+              ...tail,
+            ])
+            if (res.taskId) {
+              if (engine) taskOpDeps.rememberEngine(repo, engine)
+              return { taskIds: [res.taskId], forked: true }
+            }
+          } catch (err) {
+            if (!(err instanceof BridgeError) || err.code !== "FORK_UNSUPPORTED") throw err
+            forkRefused = err.message.replace("FORK_UNSUPPORTED: ", "")
+          }
+        }
+        const argv = [flag("repo", repo), flag("base-branch", baseBranch), ...tail]
         if (title) argv.push(flag("title", title))
         if (count > 1) argv.push(flag("count", count))
-        const res = await api.verb<{ taskId?: string; tasks?: ReadonlyArray<{ taskId: string }> }>("add", argv)
+        const res = await api.verb<Added>("add", argv)
         const taskIds = res.tasks ? res.tasks.map((t) => t.taskId) : res.taskId ? [res.taskId] : []
         if (taskIds.length === 0) throw new BridgeError("ADD_FAILED", "no task was created")
-        return { taskIds }
+        if (engine) taskOpDeps.rememberEngine(repo, engine)
+        // Attempts share the round's id, so the page can open its Compare view.
+        return {
+          taskIds,
+          ...(count > 1 && res.groupId ? { groupId: res.groupId } : {}),
+          ...(forkRefused ? { forkRefused } : {}),
+        }
       },
     },
 
@@ -196,7 +224,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         // A snapshot-less tab still has a conversation: the planner falls back to the engine's newest session here.
         const active = deps.readTab(id, tab) ?? (initialTabs().tabs[0] as TerminalTab)
         const tabVendor = ((active.kind === "engine" ? active.vendor : undefined) ?? task.vendor) as VendorId
-        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree)
+        const plan = await deps.planHandoff(active, liveSourceProtocol(active, tabVendor), worktree, task.title)
         return plan.kind === "handoff"
           ? { kind: "handoff", prompt: plan.prompt }
           : plan.kind === "no-transcript"
@@ -216,6 +244,60 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
         await api.verb("send", argv)
         return {}
+      },
+    },
+
+    "tab.send": {
+      kind: "write",
+      destructive: false,
+      wraps:
+        "rove api send --plain [--queue] (a message typed in the page's composer, pasted and submitted by the engine's own composer; with `queue`, held for a busy tab until its turn ends)",
+      async run(a, { api }) {
+        const argv = [flag("task-id", taskId(a)), "--plain", flag("prompt", text(a, "prompt", PROMPT_MAX))]
+        if (a.tabId !== undefined && a.tabId !== null) argv.push(flag("tab", tabId(a)))
+        if (a.queue === true) argv.push("--queue")
+        const res = await api.verb<{
+          delivered?: boolean
+          queued?: boolean
+          queueId?: unknown
+          position?: unknown
+          reason?: unknown
+          targetDetail?: unknown
+        }>("send", argv)
+        if (res.queued === true) return { delivered: false, queued: true, queueId: res.queueId, position: res.position }
+        if (res.delivered === true) return { delivered: true }
+        return { delivered: false, reason: sendReason(res.targetDetail ?? res.reason) ?? "not confirmed" }
+      },
+    },
+
+    "queue.list": {
+      kind: "read",
+      destructive: false,
+      wraps: "rove api queue-list --task-id (prompts held for a busy tab, oldest first)",
+      async run(a, { api }) {
+        return await api.verb("queue-list", [flag("task-id", taskId(a))])
+      },
+    },
+
+    "queue.edit": {
+      kind: "write",
+      destructive: false,
+      wraps: "rove api queue-edit --id --prompt (rewrite a held prompt in place)",
+      async run(a, { api }) {
+        const id = str(a, "id")
+        if (!/^q-\d+$/.test(id)) throw new BridgeError("BAD_ARGS", "id must look like q-N")
+        return await api.verb("queue-edit", [flag("id", id), flag("prompt", str(a, "text"))])
+      },
+    },
+
+    "queue.cancel": {
+      kind: "write",
+      destructive: false,
+      wraps: "rove api queue-cancel --id (take back a held prompt before it is pasted)",
+      async run(a, { api }) {
+        const id = str(a, "id")
+        if (!/^q-\d+$/.test(id)) throw new BridgeError("BAD_ARGS", "id must look like q-N")
+        return await api.verb("queue-cancel", [flag("id", id)])
       },
     },
 

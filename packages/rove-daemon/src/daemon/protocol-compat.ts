@@ -21,7 +21,7 @@ import { samePath } from "../path-identity.ts"
  * frames). Additive: a newer client against an older daemon gets "unknown
  * daemon request" and falls back to a local PTY. MIN stays 2.
  *
- * v5: `daemon.stopping` carries a {@link import("./protocol").DaemonStopReason}
+ * v5: `daemon.stopping` carries a {@link import("./stop-reason").DaemonStopReason}
  * and `daemon.stop` accepts one. Additive: an older daemon still sends `{}`
  * (read as an unlabelled stop) and ignores the extra field; an older client
  * ignores unknown payload fields. MIN stays 2.

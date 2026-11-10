@@ -11,6 +11,8 @@ import type { ExecHost } from "../exec/exec-host.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { GitCommandFailedError, LandConflictError } from "./errors.ts"
 import { baseRepoCtx, landGit as git, landPreflight, landRefusalError } from "./land-preflight.ts"
+import { gitRepoOf } from "./task-tree.ts"
+import { workspaceCapabilities } from "./workspace/index.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
@@ -33,6 +35,8 @@ export interface LandTaskOpts {
   readonly removeWorktree?: boolean
   /** A caller inside the worktree it asks to remove is refused. */
   readonly callerCwd?: string
+  /** Only this repo of a multi-repo task (its name from `extraRepos[].name`). */
+  readonly repo?: string
 }
 
 export interface LandDeps {
@@ -56,15 +60,34 @@ interface LandWorktreeCleanup {
   readonly residue?: WorktreeResidue
 }
 
+/** Refuses a task with no Rove-managed branch (main, dir): there is nothing to land. */
+export function assertOwnsBranch(task: Task): void {
+  if (workspaceCapabilities(task).ownsBranch) return
+  throw new Error(
+    task.kind === "main"
+      ? "landTask: a main task has no branch to land"
+      : "landTask: a directory task has no Rove-managed branch to land",
+  )
+}
+
 /**
- * {@link landTask}, then cleanup: remove the worktree (default on), delete the
- * branch (opt-in). The merge has committed by then, so cleanup failures are
- * reported in the result, never thrown.
+ * {@link landTask}, then {@link finishLanded}'s cleanup: remove the worktree
+ * (default on), delete the branch (opt-in). The merge has committed by then,
+ * so cleanup failures are reported in the result, never thrown.
  */
 export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: LandDeps): Promise<LandResult> {
-  if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
-  if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
+  assertOwnsBranch(task)
   const result = await landTask(task, { strategy: opts.strategy })
+  return finishLanded(task, result, opts, deps)
+}
+
+/** The post-merge half of {@link landTaskWithCleanup}, for a branch already merged into its base. */
+export async function finishLanded(
+  task: Task,
+  result: LandResult,
+  opts: LandTaskOpts,
+  deps: LandDeps,
+): Promise<LandResult> {
   // Worktree removal BEFORE branch deletion: git won't delete a branch checked
   // out in a live worktree. The branch itself survives removal — git is the
   // durable record, the directory is not.
@@ -87,7 +110,7 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   } else if (opts.deleteBranch) {
     // Git can still refuse (another worktree on the branch, a lock, a moved
     // ref); `branchKept` carries git's own reason.
-    const outcome = await deps.worktrees.deleteBranch(task.repo, result.branch, {
+    const outcome = await deps.worktrees.deleteBranch(gitRepoOf(task), result.branch, {
       force: true,
       onAnchor: (record) => {
         branchAnchor = record
@@ -118,7 +141,8 @@ async function removeLandedWorktree(
   // The refusals are string compares, so normalise with the same
   // canonicalizer that matched this worktree to its task.
   const wt = canonicalize(worktreePath)
-  if (samePath(wt, canonicalize(task.repo))) return { removed: false, reason: "refusing to remove the base checkout" }
+  if (samePath(wt, canonicalize(gitRepoOf(task))))
+    return { removed: false, reason: "refusing to remove the base checkout" }
   if (deps.sharesWorktree?.(task)) {
     return { removed: false, reason: `kept ${worktreePath}: other tasks still run in this directory` }
   }
@@ -196,7 +220,7 @@ export async function landTask(
   const preflight = await landPreflight(task, deps)
   if (preflight.refusal) throw landRefusalError(task, { ...preflight, refusal: preflight.refusal })
   const { branch, landedOn } = preflight
-  const { exec, dir } = baseRepoCtx(task.repo, deps)
+  const { exec, dir } = baseRepoCtx(gitRepoOf(task), deps)
 
   if (strategy === "squash") {
     const merge = await git(exec, dir, ["merge", "--squash", branch])

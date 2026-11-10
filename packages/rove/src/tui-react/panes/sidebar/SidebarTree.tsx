@@ -19,7 +19,14 @@ import { useTheme } from "../../context/theme"
 import { useLatest } from "../../lib/use-latest"
 import { useTerminalSize } from "../../lib/use-terminal-size"
 import { ContextMenu } from "../../ui/context-menu"
-import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchInput, SidebarZenChip } from "./chrome"
+import {
+  SidebarBrandHeader,
+  SidebarCreateAction,
+  SidebarNavRail,
+  SidebarSearchInput,
+  SidebarSortLine,
+  SidebarZenChip,
+} from "./chrome"
 import { CollapseButton } from "./collapse-button"
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-row-shell"
@@ -32,7 +39,7 @@ import { useTreeState } from "./use-tree-state"
 export type SidebarTreeProps = SidebarProps & {
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree row's menu. */
-  onNewTab?: (taskId: string, kind: "chat" | "shell") => void
+  onNewTab?: (taskId: string, kind: "chat" | "shell" | "continue") => void
   /** Narrow mode's "↩ recent" row: first navigable row; ⏎ re-enters that task. */
   recentTask?: Task | null
   /** Filled with a reader of the task under the cursor, so the host's
@@ -56,6 +63,9 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const machines = useMachineRows()
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
+  // The main whose project Reorder is on, held as a row while it moves even with no tab: the
+  // header has no cursor slot, so a hidden main would leave j/k with nothing to drag.
+  const [reorderingTaskId, setReorderingTaskId] = useState<string | null>(null)
   const tree = useTreeState({
     tasks: props.tasks,
     kv,
@@ -66,6 +76,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     engineState: props.engineState,
     branchTick,
     machines,
+    reorderingTaskId,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()
@@ -130,6 +141,16 @@ export function SidebarTree(props: SidebarTreeProps) {
     if (cursorRef.current >= ids.length) setCursorIndex(Math.max(0, ids.length - 1))
     else if (cursorRef.current < 0 && ids.length > 0) setCursorIndex(at >= 0 ? at : 0)
   }, [tree.flatIds, tree.activeRowId, moveMode, setCursorIndex])
+  useEffect(() => {
+    if (!moveMode) setReorderingTaskId(null)
+  }, [moveMode])
+  // The held main appears when Reorder starts; the cursor goes to it so j/k drag its project.
+  const reorderShown = reorderingTaskId !== null && tree.flatIds.includes(reorderingTaskId)
+  useEffect(() => {
+    if (!reorderShown || reorderingTaskId === null) return
+    const at = flatIdsRef.current.indexOf(reorderingTaskId)
+    if (at >= 0) setCursorIndex(at)
+  }, [reorderShown, reorderingTaskId, setCursorIndex])
   // Deps-less on purpose: runs after every commit, so when the follow effect
   // fires on a flatIds change it reads the PREVIOUS render's row id.
   useEffect(() => {
@@ -146,18 +167,18 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   /** A task row switches to its task; the host enters it on ⏎. */
   const recentTaskRef = useLatest(props.recentTask ?? null)
-  const toggleRoutinesRow = tree.toggleRoutinesRow
+  const toggleArchivedRow = tree.toggleArchivedRow
   const activateRow = useCallback(
     (rowId: string): void => {
-      // The routine count row names no task; it only toggles.
-      if (toggleRoutinesRow(rowId)) return
+      // The Archived row names no task; it only toggles.
+      if (toggleArchivedRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
       const taskId = recent ? recent.id : rowId
       props.onSelect(taskId)
       props.onActivate?.(taskId)
     },
-    [props.onSelect, props.onActivate, toggleRoutinesRow],
+    [props.onSelect, props.onActivate, toggleArchivedRow],
   )
   const activateRowRef = useLatest(activateRow)
 
@@ -213,7 +234,13 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndex,
     onAddTask: props.onAddTask,
     onNewTab: props.onNewTab,
-    actions: props,
+    actions: {
+      ...props,
+      onLocalMergeRequest: (taskId) => {
+        setReorderingTaskId(taskId)
+        props.onLocalMergeRequest?.(taskId)
+      },
+    },
   })
 
   // Using the pane's own nav/select keys extinguishes its first-use hint.
@@ -275,7 +302,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     onContextMenu: menu.openForRow,
     onToggleFold: tree.toggleTaskFold,
     branchTick,
-    engineState: props.engineState,
     engineTabState: props.engineTabState,
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,
@@ -309,6 +335,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       {/* Rail below the search row (owner 2026-08-02) — Kanban/Routines live
           within the workspace you're in, so they read as children of it. */}
       <SidebarNavRail nav={props.nav ?? "terminal"} setNav={(next) => props.onNavChange?.(next)} />
+      {props.sortMode ? <SidebarSortLine mode={props.sortMode} /> : null}
       <SidebarTreeBody
         rows={tree.rows}
         flatIndexOf={flatIndexOf}

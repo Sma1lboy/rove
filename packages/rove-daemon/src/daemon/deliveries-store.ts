@@ -37,7 +37,7 @@ export interface ArmDeliveryInput {
 }
 
 const SOURCES: readonly string[] = ["routine", "send", "gate-answer"]
-const STATUSES: readonly string[] = ["awaiting", "reported", "missing", "skipped"]
+const STATUSES: readonly string[] = ["awaiting", "reported", "missing", "skipped", "quiet"]
 const CAUSES: readonly string[] = [
   "turn-complete",
   "turn-failed",
@@ -46,6 +46,7 @@ const CAUSES: readonly string[] = [
   "interrupted",
   "session-end",
   "rate-limited",
+  "transient-failure",
 ]
 
 function str(value: unknown): string | undefined {
@@ -101,6 +102,7 @@ function normalizeDelivery(value: unknown): Delivery | null {
     at,
     status: raw.status as Delivery["status"],
     ...(str(raw.turnStartedAt) ? { turnStartedAt: raw.turnStartedAt } : {}),
+    ...(str(raw.turnEndedAt) ? { turnEndedAt: raw.turnEndedAt } : {}),
     ...(missing ? { missing } : {}),
     ...(report ? { report } : {}),
     ...(str(raw.dismissedAt) ? { dismissedAt: raw.dismissedAt } : {}),
@@ -293,7 +295,34 @@ export class DeliveriesStore {
     const current = this.get(id)
     if (current?.status !== "awaiting") return undefined
     const at = new Date(this.now()).toISOString()
-    return await this.patch(id, (d) => ({ ...d, status: "missing", missing: { cause, ...(note ? { note } : {}), at } }))
+    return await this.patch(id, (d) => ({
+      ...d,
+      status: "missing",
+      missing: { cause, ...(note ? { note } : {}), at },
+      turnEndedAt: at,
+    }))
+  }
+
+  /** `awaiting` → `quiet`: a routine turn ended with nothing to report. Undefined when already settled. */
+  async markQuiet(id: string): Promise<Delivery | undefined> {
+    if (this.get(id)?.status !== "awaiting") return undefined
+    const at = new Date(this.now()).toISOString()
+    return await this.patch(id, (d) => ({ ...d, status: "quiet", turnEndedAt: at }))
+  }
+
+  /** A turn on the tab ended: stamp the reported deliveries whose turn had started and not yet ended. */
+  async endReportedTurns(taskId: string, tabId: string | null): Promise<Delivery[]> {
+    return await this.mutate((list) => {
+      const at = new Date(this.now()).toISOString()
+      const ended: Delivery[] = []
+      const next = list.map((d) => {
+        if (d.status !== "reported" || !d.turnStartedAt || d.turnEndedAt || !onTab(d, taskId, tabId)) return d
+        const stamped = { ...d, turnEndedAt: at }
+        ended.push(stamped)
+        return stamped
+      })
+      return { list: ended.length > 0 ? next : list, result: ended }
+    })
   }
 
   /** Record (or replace) the report. A `missing` delivery flips back to `reported`. */

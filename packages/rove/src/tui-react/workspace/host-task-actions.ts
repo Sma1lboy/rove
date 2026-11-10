@@ -7,6 +7,7 @@
 
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
@@ -15,6 +16,8 @@ import {
   copyTaskFieldFlow,
   cycleVendorFlow,
   deleteTaskFlow,
+  forgetProjectFlow,
+  moveToProjectFlow,
   pickVendorFlow,
   renameTaskFlow,
   setStatusFlow,
@@ -24,11 +27,13 @@ import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { FieldNotesDialog } from "../component/field-notes-dialog"
+import { ProjectPickerDialog } from "../component/project-picker-dialog"
 import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
+import { archiveTaskAction } from "./archive-task-action"
 import { landTaskAction } from "./land-task-action"
 import { rerunChecksAction } from "./rerun-checks-action"
 import { syncBaseAction } from "./sync-base-action"
@@ -49,11 +54,19 @@ export type WorkspaceTaskActionDeps = {
   activateTask: (id: string) => Promise<void>
   /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
+  /** Close every tab of a task whose row stays (a project main's ended conversation). */
+  closeTaskTabs?: (taskId: string) => void
+  /** New-task dialog with a first message: create the task and run its engine on it. */
+  startWithPrompt?: CreateTaskContext["startWithPrompt"]
 }
 
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
+  /** The new-task dialog seeded with a task's repo and branch as the base. */
+  createTaskFromBranch: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  /** Project-header menu "Remove project": un-save the repo; the main row's own delete ends its conversation instead. */
+  forgetProject: (id: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
@@ -67,6 +80,8 @@ export type WorkspaceTaskActions = {
   moveTaskToTop: (id: string) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
+  /** Tree-menu "Move to project…": a picker over the other saved projects; regroups only. */
+  moveToProject: (id: string) => Promise<void>
   /** Tree-menu "Copy task ID" / "Copy tab address" / "Copy branch name" / "Copy path" — system clipboard + toast. */
   copyTaskField: (id: string, field: TaskCopyField, tabId?: string) => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
@@ -76,6 +91,8 @@ export type WorkspaceTaskActions = {
   confirmRunAgain: (id: string) => Promise<Task | undefined>
   /** Row menu "Land": the Worktrees page's `l`. No busy state: the row goes with its worktree. */
   landTask: (id: string) => Promise<void>
+  /** Row menu "Archive" / "Unarchive": hide or restore the task and its children. */
+  archiveTask: (id: string) => Promise<void>
   /** Row menu "Sync with base": merge the base branch into the worktree. */
   syncBase: (id: string) => Promise<boolean>
   /** Row menu "Re-run failed checks": restart the PR's failed CI jobs. */
@@ -101,7 +118,9 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     }),
     // Pickers are adapters so the flows stay opentui-free.
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
+    pickProject: (projects) => ProjectPickerDialog.show(dialog, { projects }),
     pickEngine: (opts) => EnginePickerDialog.show(dialog, opts),
+    startWithPrompt: deps.startWithPrompt,
     // Local pipe + OSC52 (the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {
@@ -116,6 +135,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
         moveSelection(taskId, nextTask)
       }
     })(),
+    onConversationEnded: (taskId) => deps.closeTaskTabs?.(taskId),
   }
 
   async function togglePin(id: string): Promise<void> {
@@ -142,7 +162,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   // before opening a picker that could only end in an error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
-    if (!task || task.kind === "main" || task.kind === "dir") return
+    if (!task || !workspaceCapabilities(task).ownsBranch) return
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {
@@ -184,6 +204,29 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     )
   }
 
+  // Archive only hides, so it asks only when an engine is still busy (TASK_BUSY).
+  async function archiveTask(id: string): Promise<void> {
+    const task = tasks().find((candidate) => String(candidate.id) === id)
+    if (!task) return
+    await archiveTaskAction(
+      {
+        orchestrator,
+        confirmBusy: (title) =>
+          DialogConfirm.show(
+            dialog,
+            t("tasks.archive.busyTitle"),
+            t("tasks.archive.busyBody", { title }),
+            t("common.cancel"),
+            t("tasks.archive.busyConfirm"),
+          ).then((ok: unknown) => ok === true),
+        notifyInfo: deps.notifyInfo,
+        notifyError,
+        t,
+      },
+      task,
+    )
+  }
+
   // No dialog: a merge from base is additive and `git merge --abort` undoes it.
   const syncBase = (id: string): Promise<boolean> =>
     syncBaseAction(
@@ -201,7 +244,12 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     syncBase,
     rerunChecks,
     createTask: () => createTaskFlow(taskActions),
+    createTaskFromBranch: async (id) => {
+      const task = taskActions.tasks().find((candidate) => candidate.id === id)
+      if (task?.branch) await createTaskFlow(taskActions, { repo: task.repo, baseRef: task.branch })
+    },
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
+    forgetProject: (id) => forgetProjectFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
@@ -214,11 +262,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     moveTask,
     moveTaskToTop,
     setStatus: (id) => setStatusFlow(taskActions, id),
+    moveToProject: (id) => moveToProjectFlow(taskActions, id),
     copyTaskField: (id, field, tabId) => {
       void copyTaskFieldFlow(taskActions, id, field, tabId)
     },
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, orchestrator }),
     confirmRunAgain,
     landTask,
+    archiveTask,
   }
 }

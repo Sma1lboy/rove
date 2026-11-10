@@ -7,15 +7,35 @@
  */
 
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { DISPATCH_PROMPT_HEAD_CHARS } from "@sma1lboy/rove-daemon/daemon/dispatch-ledger"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
 /** The dispatcher pair as recorded on a task. */
 export type Dispatcher = NonNullable<SerializedTask["dispatcher"]>
+
+/** Tell the daemon's dispatch ledger about a paste it never saw; best-effort, an older daemon refuses the verb. */
+export async function recordSend(
+  daemon: DaemonRpc,
+  sent: { taskId: string; tabId?: string; prompt: string; delivered: boolean; deliveryId?: string },
+): Promise<void> {
+  const self = await ownSession(daemon).catch(() => null)
+  await daemon
+    .request("dispatch.record", {
+      taskId: sent.taskId,
+      ...(sent.tabId ? { tabId: sent.tabId } : {}),
+      promptHead: sent.prompt.slice(0, DISPATCH_PROMPT_HEAD_CHARS),
+      delivered: sent.delivered,
+      ...(sent.deliveryId ? { deliveryId: sent.deliveryId } : {}),
+      ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
+    })
+    .catch(() => {})
+}
 
 /** The two reads {@link verifiedSelfSession} needs; injectable for tests. */
 export interface SelfSessionProbe {
@@ -221,14 +241,30 @@ export async function resolveDispatcherTab(
 }
 
 /**
+ * The tab of `taskId` a task re-parented under it should reply to: the caller's own tab when the caller speaks
+ * for that task, else its live engine tab. `undefined` = none known (the daemon records `tab-1`, and a reply
+ * then falls back to the canonical engine tab if that one is dead — see {@link resolveDispatcherTab}).
+ */
+export async function replyTabOf(runtime: ApiRuntime, daemon: DaemonRpc, taskId: string): Promise<string | undefined> {
+  const self = await ownSession(daemon)
+  if (self?.taskId === taskId) return self.tabId
+  const task = await daemon
+    .request<{ task: SerializedTask }>("task.get", { taskId })
+    .then((res) => res.task)
+    .catch(() => null)
+  if (!task) return undefined
+  const { tabs } = await runtime.taskTabs(taskId, taskEngineArgv(task), await ptyScopeOf(daemon, task))
+  return tabs.find((t) => t.kind === "engine" && t.alive === true && t.engineAlive !== false)?.id
+}
+
+/**
  * Peer provenance: a prompt issued from INSIDE another rove task tells the
  * receiver who is talking and how to answer.
  *
  * Both delivery verbs wear it, `add --prompt` included: otherwise the sender
  * is only the task ROW's `dispatcher`, which a receiver has no reason to go
- * read, so a dispatched task finishes and then sits waiting. Same convention
- * as field notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the
- * reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
+ * read, so a dispatched task finishes and then sits waiting. A
+ * `from "<label>" (task <id>)` header plus the reply command. Sender is the VERIFIED $ROVE_TASK_ID/$ROVE_TAB_ID pair — an
  * unverified one would bake a stranger's tab into the reply command. A send
  * from a plain shell, an unverified process, or to yourself stays untouched.
  */
@@ -249,7 +285,7 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // into every engine tab (session-launch.ts).
   const replyTarget = `--task-id ${senderId} --tab ${self.tabId}`
   // A pointer, not a curriculum: every peer message pays for this prefix in
-  // context. The skill is required ONCE PER SESSION — a receiver replying
+  // context, so the command path appears once (the skill names `schema`). The skill is required ONCE PER SESSION — a receiver replying
   // from the raw prefix alone improvises verbs and side-channels.
   //
   // "reply only if it changes what I do next": an unconditional "reply" made
@@ -258,5 +294,5 @@ export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string
   // The sender's text goes LAST, whole, after a blank line: a model replies
   // in the language of the tokens nearest its turn, so wrapping a Chinese
   // prompt in an English clause pulls replies into English.
-  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session; reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
+  return `[ROVE PEER] from "${label}" (task ${senderId} — Rove agent skill /rove, read it once per session; reply only if it changes what I do next: \`${api} send ${replyTarget} --prompt "<text>"\`)\n\n${prompt}`
 }

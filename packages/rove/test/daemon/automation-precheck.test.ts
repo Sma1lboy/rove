@@ -49,6 +49,15 @@ describe("runAutomationPrecheck", () => {
     expect(formatPrecheckSkip(result)).toMatch(/exited 7/)
   })
 
+  it("returns as soon as the command exits under an interactive bash, not after the watchdog sleep", async () => {
+    // bash -i ignores SIGTERM and its backgrounded watchdog holds the pipe, so
+    // a polite kill left `close` waiting out the whole timeout.
+    const result = await runAutomationPrecheck({ command: "exit 0", timeoutSeconds: 10 }, CWD, "/bin/bash")
+    expect(result.timedOut).toBe(false)
+    expect(result.exitCode).toBe(0)
+    expect(result.durationMs).toBeLessThan(4000)
+  })
+
   it("fails closed on a timeout rather than letting the run proceed", async () => {
     // A hung precheck must not degrade into "run every time" — that is the
     // exact cost the feature exists to avoid.

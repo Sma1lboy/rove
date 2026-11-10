@@ -120,8 +120,7 @@ describe("other machines' tasks (the hub's relayed engine-state)", () => {
     const map = rowStatusCell.get()
     expect(glyph(tabRowStatus(map, "far", "tab-1")).spinning).toBe(true)
     expect(glyph(tabRowStatus(map, "far", "tab-2"))).toMatchObject({ glyph: "?", tone: "warning" })
-    // The rollup is `taskStatus`'s: a question outranks a running sibling.
-    expect(glyph(taskRowStatus(map, "far"))).toMatchObject({ glyph: "?", tone: "warning" })
+    expect(glyph(taskRowStatus(map, "far"))).toMatchObject({ spinning: true, tone: "accent" })
   })
 
   it("falls back to the task-level reading when no tab is reported", () => {

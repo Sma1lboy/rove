@@ -33,14 +33,57 @@ export const OPS = [
   "term.input",
   "term.resize",
   "term.detach",
+  // Output the page has parsed, for a stream attached with `acks: true` (terminal-flow.ts).
+  "term.ack",
+  // Reopen a tab's session when no PTY runs in it (`tab-revive`); the client re-attaches after.
+  "term.revive",
   "diff.files",
   "diff.file",
+  "diff.refs",
   "attention.dismiss",
-  // What this connection's screen shows ({taskId|null, tabId?}), for the daemon's row status.
+  // What this connection's screen shows ({taskId|null, tabId?, ...ViewingFields}), for the daemon's
+  // row status and `rove api viewers`.
   "ui.viewing",
+  // Web Push for a closed page (push.ts): the VAPID key, whether this browser's endpoint is subscribed
+  // under this connection's token, and subscribing/unsubscribing it.
+  "push.key",
+  "push.status",
+  "push.subscribe",
+  "push.unsubscribe",
+  // How a browser gets in (`sign-in.ts`): the mode and the ones this run offers, and changing it ({mode, password?}).
+  "auth.status",
+  "auth.setMode",
 ] as const
 
 export type Op = (typeof OPS)[number]
+
+/**
+ * The optional fields of `ui.viewing` that say what kind of screen this is. The page sends only
+ * `panel`, `panelOpen` and `narrow`; the bridge adds `surface` and `local` from the upgrade request
+ * (never from the page). Omitting all of them is valid: an older client still registers.
+ */
+export interface ViewingFields {
+  /** web = a browser page, phone = the app. Set by the bridge. */
+  readonly surface?: "web" | "phone"
+  /** Same machine as the daemon; false behind a tunnel. Set by the bridge. */
+  readonly local?: boolean
+  /** This page has a side panel (Files / Diff / Browser): web desktop only. */
+  readonly panel?: boolean
+  /** The side panel is open right now. */
+  readonly panelOpen?: boolean
+  /** The page is laid out narrow (phone-width). */
+  readonly narrow?: boolean
+}
+
+/**
+ * The `panel` push: `rove api panel-show` asked the web side panel to show something. Remember
+ * `view`/`url`/`path` for `taskId`; if this page is on that task with a panel, bring it up (no
+ * focus steal, no task switch). `at` (ms epoch) dedupes a replay. Absent `url`/`path` = just the view.
+ */
+export type { PanelShowPayload as PanelPush } from "./panels.ts"
+
+/** The `browser.probe` op's answer (`args: { url, origin? }`): can this page sit in an iframe? */
+export type { FrameProbe as BrowserProbeResult } from "@sma1lboy/rove-daemon/daemon/frame-check"
 
 export type TaskGroup = "waiting-on-you" | "landing" | "ready-for-review" | "working" | "idle" | "unknown"
 
@@ -58,9 +101,29 @@ export interface RowTokenChip {
   readonly expiresAt: number
 }
 
+/** A PR as a task row carries it: the task's own (`pr`) or one its session opened (`sessionPrs`). */
+export interface TaskRowPr {
+  readonly number?: number
+  readonly url?: string
+  readonly title?: string
+  readonly additions?: number
+  readonly deletions?: number
+  /** `TaskPRStatus.lifecycle`; `unknown` until the first poll lands. */
+  readonly lifecycle: string
+  readonly checkState: string
+  readonly reviewDecision?: string
+  readonly mergeable?: string
+}
+
 export interface TaskRow {
   readonly id: string
   readonly title: string
+  /**
+   * What every client calls the row: the engine's own conversation title when it has one (TUI rule,
+   * `worktreeRowLabel`), else the stored title / branch / path. `title` stays the stored title, the
+   * one a rename dialog edits. Absent from an older bridge: fall back to `title`.
+   */
+  readonly label: string
   readonly branch: string
   readonly repo: string
   readonly kind: string
@@ -85,21 +148,31 @@ export interface TaskRow {
   readonly tabStatus?: Readonly<Record<string, TabStatus>>
   /** Display name comes from the engine registry; the app never hardcodes vendors. */
   readonly engine: { readonly id: string | null; readonly name: string } | null
-  readonly pr: {
-    readonly number?: number
-    readonly url?: string
-    readonly lifecycle: string
-    readonly checkState: string
-    readonly reviewDecision?: string
-    readonly mergeable?: string
-  } | null
+  readonly pr: TaskRowPr | null
+  /** PRs the task's session opened anywhere (`rove api pr-attach`), newest last; absent = none. */
+  readonly sessionPrs?: readonly TaskRowPr[]
   /** The worker's own claim of what it delivered, not a verification. */
   readonly report: { readonly summary: string; readonly at: string } | null
   readonly deleting: boolean
   /** Additive row fields (all optional: absent = not collected / not known). */
   readonly pinned?: boolean
-  /** The standing session of a scheduled routine; clients fold these behind a per-project count row. */
+  /** Shared by the attempts of one parallel round (`add --count` / `--agents`); absent on a lone task. */
+  readonly groupId?: string
+  /** The attempt kept from its round (`update --kept`). */
+  readonly kept?: boolean
+  /** The owner's free-text notes and checklist for the task (`rove api todo`); absent = none. */
+  /** Auto-fix CI is on (`update --auto-fix-ci on`): attempts so far (of 3) and whether it stopped; absent = off. */
+  readonly autoFixCi?: { readonly attempts: number; readonly stopped?: true }
+  readonly notes?: string
+  readonly todos?: readonly { readonly id: string; readonly text: string; readonly done: boolean }[]
+  /** Archived (`rove api archive`): only ever in `TasksPayload.archived`, never in `tasks`. */
+  readonly archived?: boolean
+  /** A task a scheduled routine's firing made (its standing session or one fresh run); kept out of the task list. */
   readonly routine?: boolean
+  /** A temp shell task (sidebar Scratch); groups with `noProject` rows under "Ungrouped". */
+  readonly scratch?: boolean
+  /** A dir task a projectless routine made; groups with scratch rows under "Ungrouped". */
+  readonly noProject?: boolean
   /** Index in the daemon's own task list: the manual ("default") order. */
   readonly order?: number
   readonly createdAt?: string
@@ -114,14 +187,24 @@ export interface TaskRow {
   readonly prChipStale?: boolean
   /** The task has a stored brief (`task.prompt`), so "Run again" has something to run. */
   readonly hasPrompt?: boolean
+  /** ISO time an unstarted task's engine starts by itself (`task.scheduleStart`); absent = nothing scheduled. */
+  readonly startsAt?: string
   /** Set on a row another registered machine's daemon served (`rove machine add`); absent = this Mac's. `stale` = that machine is unreachable and this is its last known state. */
   readonly machine?: MachineTag
   /** The repo across machines (`host/owner/name`, else `root:<sha>`), from the serving daemon; absent outside a repo. Clients group projects by it, else by `repo`. */
   readonly repoId?: string
-  /** The task this one was spawned from (`rove api spawn`); clients nest a child under it. */
+  /** How many repos beyond the primary this task spans (`task.extraRepos`); absent = one repo. */
+  readonly extraRepoCount?: number
+  /** The task this one hangs under (`add` from a session, `add --parent`); clients nest a child under it. */
   readonly parentTaskId?: string
+  /** What the task's branch was cut from: a branch name, or the parent's HEAD sha for a cut child. Absent on a main or directory task. */
+  readonly baseRef?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
   readonly sharesWorkspaceOf?: string
+  /** The directory the task runs in, on its machine; tasks sharing one share its diff. */
+  readonly workspace?: string
+  /** Backend owns a host-resolvable branch; absent on older bridges, so clients must fail closed. */
+  readonly ownsBranch?: boolean
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }
@@ -172,10 +255,14 @@ export interface GateRow {
 }
 
 export interface TasksPayload {
+  /** Counts the list's changes; a `tasks.patch` push names the one it starts from. Absent from an older bridge. */
+  readonly rev?: number
   readonly tasks: readonly TaskRow[]
   readonly attention: readonly AttentionRow[]
   /** Pushed on change like `attention`. Absent from an older bridge: treat as none. */
   readonly gates: readonly GateRow[]
+  /** Archived rows (`rove api archive`), kept out of `tasks` so every client hides them; shown only by an Archived view. Absent from an older bridge: treat as none. */
+  readonly archived?: readonly TaskRow[]
 }
 
 export interface TabRow {
@@ -183,8 +270,12 @@ export interface TabRow {
   readonly kind: string
   readonly title: string | null
   readonly engineName: string | null
+  /** The engine's own name for the conversation (the TUI's `conversationTitle`): a rename, else the engine's title unless it is its bare product name. */
+  readonly conversation: string | null
   readonly alive: boolean | null
   readonly engineAlive: boolean | null
+  /** How the tab's engine or session ended (`rove api get-task` `.tabs[].exit`); absent while healthy or unknown. */
+  readonly exit?: { readonly code: number | null; readonly signal: string | null }
   /** Present while the tab is split: the pane layout (`rove api get-task` `.tabs[].split`). Absent = one pane. */
   readonly split?: SplitView
   /** A viewport tab: the task whose session it shows (`rove api get-task` `.tabs[].viewOf`). Absent = its own session. */

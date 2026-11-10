@@ -61,6 +61,16 @@ private val Keys = listOf(
     AccessoryKey(R.string.detail_key_ctrl_c, "\u0003"),
 )
 
+// Shown first at a menu, with Enter next. Typed into the composer they would be pasted, and Enter would take the highlighted option.
+private val MenuDigits = listOf("1", "2", "3", "4")
+
+/** DECCKM: a full-screen app that asked for application cursor keys reads `ESC O x`, not `ESC [ x`. */
+object CursorKeys {
+    private val arrow = Regex("\u001b\\[([ABCD])")
+    fun isArrow(bytes: String) = arrow.matches(bytes)
+    fun applicationMode(bytes: String) = arrow.replace(bytes, "\u001bO$1")
+}
+
 /** Bracketed paste, so a multi-line message reaches an engine without its first newline reading as Enter. */
 object PasteEncoding {
     private const val START = "\u001b[200~"
@@ -77,7 +87,7 @@ object PasteEncoding {
 }
 
 /** Always-visible key row: keys, a divider, then interrupt and the canned replies; `done` while the keyboard is up. */
-@Composable fun KeyRow(ctrl: Boolean, onKey: (String) -> Unit, onCtrl: () -> Unit, onInterrupt: () -> Unit,
+@Composable fun KeyRow(ctrl: Boolean, atMenu: Boolean, onKey: (String) -> Unit, onCtrl: () -> Unit, onInterrupt: () -> Unit,
                        onReply: (String) -> Unit, onDone: (() -> Unit)?) {
     val paper = Rove.c.paper
     Row(Modifier.fillMaxWidth().background(paper).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -91,7 +101,8 @@ object PasteEncoding {
             }
             .horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Keys.forEach { key ->
+            if (atMenu) MenuDigits.forEach { digit -> KeyTile(digit, tint = Rove.c.accent, minWidth = 38.dp) { onKey(digit) } }
+            (if (atMenu) Keys.sortedBy { it.bytes != "\r" } else Keys).forEach { key ->
                 val armed = key.bytes == null && ctrl
                 KeyTile(stringResource(key.label), armed = armed, minWidth = 38.dp) { if (key.bytes == null) onCtrl() else onKey(key.bytes) }
             }
@@ -127,9 +138,10 @@ object PasteEncoding {
     }
 }
 
-/** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false when the text could not be sent. */
-@Composable fun Composer(engineName: String?, onSend: (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
-    var field by remember { mutableStateOf(TextFieldValue("")) }
+/** Reply composer: `+` attach, text, `↵` for a new line, `send`. `onSend` returns false or throws to keep the text; what it throws shows above the field. */
+@Composable fun Composer(engineName: String?, onSend: suspend (String) -> Boolean, onAttach: suspend (Prepared) -> Unit) {
+    val draft = remember { ComposerDraft() }
+    val field = draft.field
     val text = field.text
     var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -137,7 +149,19 @@ object PasteEncoding {
     val scope = rememberCoroutineScope()
     val unsupported = stringResource(R.string.attach_error_unsupported)
     val tooLarge = stringResource(R.string.attach_error_too_large)
-    val send = { if (text.isNotEmpty() && onSend(text)) { field = TextFieldValue(""); error = null } }
+    var sending by remember { mutableStateOf(false) }
+    val send: () -> Unit = {
+        if (text.isNotBlank() && !sending) {
+            sending = true
+            error = null
+            scope.launch {
+                try { draft.send(onSend) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { error = e.message ?: e.toString() }
+                finally { sending = false }
+            }
+        }
+    }
     // Reads, checks, uploads, then pastes the path into the engine's input (not submitted).
     val load: (Uri?) -> Unit = { uri ->
         if (uri != null) {
@@ -162,17 +186,17 @@ object PasteEncoding {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AttachMenu(uploading, onPhoto = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onFile = { files.launch(FileTypes) })
-            FieldBox(field, { field = it },
+            FieldBox(field, { draft.field = it },
                 engineName?.let { stringResource(R.string.detail_reply_to, it.lowercase()) } ?: stringResource(R.string.detail_reply),
                 Modifier.weight(1f).heightIn(max = 140.dp), singleLine = false,
                 keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
             // Appended with the cursor after it, as iOS does; a String-bound field would leave the cursor before it.
-            Box(Modifier.size(34.dp, 44.dp).pressable { (text + "\n").let { field = TextFieldValue(it, TextRange(it.length)) } },
+            Box(Modifier.size(34.dp, 44.dp).pressable { (text + "\n").let { draft.field = TextFieldValue(it, TextRange(it.length)) } },
                 contentAlignment = Alignment.Center) {
                 // JetBrains Mono draws ↵ at half the size SF Mono does; the system face matches the iOS glyph.
                 Text("↵", color = Rove.c.muted, style = Rove.face(20, FontWeight.Medium))
             }
-            val empty = text.isEmpty()
+            val empty = text.isBlank() || sending
             Box(Modifier.height(44.dp).background(if (empty) Rove.c.inset else Rove.c.accent, RoundedCornerShape(Rove.radius))
                 .pressable(enabled = !empty, onClick = send), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.detail_send), Modifier.padding(horizontal = 14.dp), color = if (empty) Rove.c.muted else Rove.c.paper,

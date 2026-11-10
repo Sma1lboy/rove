@@ -1,0 +1,13 @@
+[
+ {"id": "deploy", "voice": "Tingting", "text": "今天我想把那个 [GitHub Actions] 的 [pipeline] 改一下，现在 [CI] 太慢了，[build cache] 好像没生效，我怀疑是 [Dockerfile] 里面 [layer] 的顺序有问题。"},
+ {"id": "standup", "voice": "Reed (Chinese (China mainland))", "text": "昨天我跟 [Sarah] 对了一下 [API] 的 [schema]，她那边的 [GraphQL] [resolver] 还差三个 [endpoint]，预计[周四|星期四]能合进 [main] [branch]。"},
+ {"id": "bug", "voice": "Tingting", "text": "这个 [bug] 只在 [Safari] 上复现，[iOS 17|iOS17|iOS 十七] 的 [WebKit] 对 [IndexedDB] 的 [transaction] 处理不一样，[retry] 逻辑要改成 [exponential backoff]。"},
+ {"id": "perf", "voice": "Reed (Chinese (China mainland))", "text": "我们把 [Redis] 的 [TTL] 从 [300|三百] 秒调到 [60|六十] 秒以后，[P99] [latency] 降到了 [120|一百二十|一百二] 毫秒，[QPS] 大概涨了 [40%|百分之四十|40 %]。"},
+ {"id": "meeting", "voice": "Tingting", "text": "下午[三点|3点|3:00]和 [Kevin] 还有 [Priya] 开个 [sync]，讨论一下 [Q4] 的 [roadmap]，重点是 [onboarding] 和 [retention] 这两个 [metric]。"},
+ {"id": "ml", "voice": "Reed (Chinese (China mainland))", "text": "这个模型用 [PyTorch] 训练，[batch size] 设成 [32|三十二]，[learning rate] 是 [3e-4|3e负4|3 e-4|3E-4]，在 [A100] 上跑了大概 [8 个小时|8个小时|八个小时]，[loss] 还在降。"},
+ {"id": "frontend", "voice": "Tingting", "text": "[React] 那边把 [useEffect|use effect] 换成 [React Query] 之后，组件不用自己管 [loading] 状态了，[Tailwind] 的 class 也顺便整理了一遍。"},
+ {"id": "infra", "voice": "Reed (Chinese (China mainland))", "text": "[Kubernetes] 集群升到 [1.30|一点三零] 以后，有两个 [Pod] 一直 [CrashLoopBackOff|crash loop back off]，看 log 是 [ConfigMap] 挂载路径变了，[Helm] [chart] 要同步改。"},
+ {"id": "product", "voice": "Tingting", "text": "这次 [release] 我们上了 [dark mode] 和一个新的 [paywall]，[A/B test|AB test|A B test] 跑了[两周|2周|两个星期]，[conversion rate] 提高了 [1.8|一点八] 个点。"},
+ {"id": "email", "voice": "Reed (Chinese (China mainland))", "text": "帮我给 [Michael] 回个邮件，说 [Figma] 的设计稿我看过了，[下周一]之前把 [feedback] 发到 [Slack] 的 [design] [channel] 里。"},
+ {"id": "security", "voice": "Tingting", "text": "[OAuth] 的 [refresh token] 现在存在 [localStorage|local storage] 里，有 [XSS] 风险，改成 [HttpOnly|HTTP only] 的 [cookie]，再加上 [CSRF] token 校验。"}
+]

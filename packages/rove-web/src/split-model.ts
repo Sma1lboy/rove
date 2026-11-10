@@ -4,7 +4,7 @@
  * in reading order, where each sits, what it is called, which one is next.
  */
 
-import type { SplitNodeView, SplitView } from "rove-bridge/protocol"
+import type { SplitNodeView, SplitView, TabRow } from "rove-bridge/protocol"
 
 export interface LeafView {
   readonly id: string
@@ -77,6 +77,16 @@ export function leafNames(split: SplitView, tabLabel: string): ReadonlyMap<strin
     names.set(leaf.id, n === 1 ? base : `${base} ${n}`)
   }
   return names
+}
+
+/** The pane a tab's engine runs in: the tab's own pane, on an engine tab. A shell tab's own pane is just a shell. */
+export function hostsEngine(tab: TabRow, split: SplitView, leaf: string): boolean {
+  return tab.kind === "engine" && leavesOf(split.root).some((l) => l.id === leaf && l.own)
+}
+
+/** A tab with something running to split: its own session, or split shells once its own pane was closed (the daemon then reports the tab itself dead). */
+export function hasLivePane(tab: TabRow): boolean {
+  return tab.alive !== false || (!!tab.split && !leavesOf(tab.split.root).some((l) => l.own))
 }
 
 /** Identity of the pane set: the local focus resets when it changes (the TUI re-seeds on a new tree). */

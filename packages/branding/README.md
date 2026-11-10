@@ -74,8 +74,8 @@ for statements, JetBrains Mono for anything you type). `bun run still:promo` ren
 
 | id | output | used by |
 |---|---|---|
-| `promo-engines` | `promo-engines.png` 1600×900 | README, top of "Why Rove" |
-| `promo-detach` | `promo-detach.png` 1600×900 | README, "How it works" |
+| `promo-engines` | `promo-engines.png` 1600×900 | README, "What you get" |
+| `promo-detach` | `promo-detach.png` 1600×900 | not placed |
 | `promo-plugins` | `promo-plugins.jpg` 1600×900 | README, "Plugins" |
 | `promo-social` | `promo-social.png` 1280×640 | the repository's social preview, uploaded in GitHub Settings |
 

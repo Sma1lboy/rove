@@ -22,7 +22,7 @@ g.localStorage ??= {
 const { CloudMark, remoteLabel, rowCloud } = await import("../src/machines-view.tsx")
 
 const task = (id: string, repo: string, extra: Partial<TaskRow> = {}): TaskRow =>
-  ({ id, title: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
+  ({ id, title: id, label: id, repo, kind: "task", branch: id, rank: 1, ...extra }) as TaskRow
 const onMac = (id: string, repo: string, extra: Partial<TaskRow> = {}) =>
   task(id, repo, { machine: { id: "mac", label: "mac" }, ...extra })
 const rove = { repoId: "github.com/me/rove" }
@@ -41,7 +41,6 @@ const rail = (machines: readonly MachineRow[]) =>
     machines,
     sort: "default",
     query: "",
-    routines: new Set<string>(),
   }).rows
 
 describe("the rail names no machine; a remote task carries a cloud", () => {
@@ -76,7 +75,6 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
 
   test("the cloud mark carries its text as tooltip and aria-label", () => {
     const html = renderToStaticMarkup(createElement(CloudMark, { label: "on studio.local · offline" }))
-    expect(html).toContain('class="cloud-mark"')
     expect(html).toContain('title="on studio.local · offline"')
     expect(html).toContain('aria-label="on studio.local · offline"')
     expect(html).toContain('role="img"')

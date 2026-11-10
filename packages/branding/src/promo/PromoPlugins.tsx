@@ -1,9 +1,6 @@
 import { AbsoluteFill } from "remotion"
 import { MONO, Marked, P, SANS, Wordmark, statement } from "./promo-theme"
 
-// Plugins over the film's clay, drawn here rather than photographed: a dusk ramp of the
-// brand's terracottas, a warm glow behind the statement, and the terminal-cell grid.
-
 // `rove plugin search` output copied verbatim, minus its trailing row for the repo itself.
 const SEARCH: readonly [string, string][] = [
   ["Sma1lboy/rove-plugins/notify", "Desktop/ntfy notifications when an agent finishes or needs input"],
@@ -14,28 +11,7 @@ const SEARCH: readonly [string, string][] = [
   ["Sma1lboy/rove-plugins/browser", "Chromium rendered as terminal cells (carbonyl) in a pane tab"],
 ]
 
-const CREAM = "#FFFAF5"
-const onClay: React.CSSProperties = { color: CREAM, textShadow: "0 4px 28px rgba(40,12,4,.35)" }
 const prompt = <span style={{ color: P.accentText, fontWeight: 700 }}>$</span>
-
-const Background: React.FC = () => (
-  <>
-    <AbsoluteFill style={{ background: "linear-gradient(160deg, #9C4A2C 0%, #7A3622 45%, #4A2015 100%)" }} />
-    <AbsoluteFill
-      style={{ background: "radial-gradient(760px 520px at 86% 18%, rgba(240,150,105,.38), transparent 70%)" }}
-    />
-    <AbsoluteFill
-      style={{ background: "radial-gradient(700px 500px at 92% 100%, rgba(30,10,4,.45), transparent 70%)" }}
-    />
-    <AbsoluteFill
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(255,240,228,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,240,228,.06) 1px, transparent 1px)",
-        backgroundSize: "30px 44px",
-      }}
-    />
-  </>
-)
 
 const Chrome: React.FC<{ title: string }> = ({ title }) => (
   <div
@@ -63,7 +39,7 @@ const card: React.CSSProperties = {
   borderRadius: 20,
   overflow: "hidden",
   background: P.island,
-  boxShadow: "0 40px 90px rgba(40,14,6,.42), 0 0 0 1px rgba(60,30,16,.12)",
+  boxShadow: "0 28px 64px rgba(60,30,16,.13), 0 0 0 1px rgba(60,30,16,.10)",
 }
 
 const Button: React.FC<{ label: string; tone: string }> = ({ label, tone }) => (
@@ -110,14 +86,15 @@ const ModPane: React.FC = () => (
 )
 
 export const PromoPlugins: React.FC = () => (
-  <AbsoluteFill style={{ backgroundColor: "#8E4128" }}>
-    <Background />
-    <div style={{ ...statement(104), ...onClay, position: "absolute", left: 96, top: 70 }}>
-      Make it <Marked>yours.</Marked>
+  <AbsoluteFill style={{ backgroundColor: P.canvas, color: P.ink }}>
+    <div style={{ ...statement(104), position: "absolute", left: 96, top: 70 }}>
+      Make it{" "}
+      <span style={{ color: P.island }}>
+        <Marked>yours.</Marked>
+      </span>
     </div>
     <div
       style={{
-        ...onClay,
         position: "absolute",
         left: 100,
         top: 196,
@@ -155,6 +132,6 @@ export const PromoPlugins: React.FC = () => (
       </div>
     </div>
 
-    <Wordmark size={30} ink={CREAM} bracket="#F3B595" style={{ ...onClay, position: "absolute", right: 98, bottom: 54 }} />
+    <Wordmark size={30} ink={P.ink} bracket={P.accent} style={{ position: "absolute", right: 98, bottom: 54 }} />
   </AbsoluteFill>
 )

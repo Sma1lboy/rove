@@ -36,10 +36,15 @@ export interface TerminalModes {
   mouseEncoding: MouseEncoding
 }
 
+/** An APC/DCS/PM/SOS body ends at ST; an OSC body also at BEL. */
+export type StringKind = "st" | "osc"
+
 /** Modes plus the unterminated escape a chunk boundary split. */
 export interface TerminalModeTrack {
   modes: TerminalModes
   carry: string
+  /** Inside a string escape whose end has not arrived (a Kitty image's base64 spans many reads). */
+  inString: StringKind | null
 }
 
 const DEFAULT_MODES: Readonly<TerminalModes> = {
@@ -69,7 +74,7 @@ const MAX_CARRY = 64
 const DA1_REPLY = "\x1b[?1;2c"
 
 export function freshModeTrack(modes: TerminalModes = { ...DEFAULT_MODES }): TerminalModeTrack {
-  return { modes, carry: "" }
+  return { modes, carry: "", inString: null }
 }
 
 /** A persisted mode record → full modes; anything missing or malformed reads as the default. */
@@ -97,7 +102,17 @@ export function scanTerminalModes(track: TerminalModeTrack, chunk: string): stri
   const text = track.carry + chunk
   track.carry = ""
   const replies: string[] = []
-  let i = text.indexOf("\x1b")
+  let i = 0
+  if (track.inString) {
+    const end = stringEnd(text, 0, track.inString)
+    if (end < 0) {
+      if (text.endsWith("\x1b")) track.carry = "\x1b"
+      return replies
+    }
+    track.inString = null
+    i = end
+  }
+  i = text.indexOf("\x1b", i)
   while (i !== -1) {
     if (i + 1 >= text.length) {
       track.carry = "\x1b"
@@ -112,6 +127,17 @@ export function scanTerminalModes(track: TerminalModeTrack, chunk: string): stri
       }
       if (end >= 0) applyCsi(track.modes, text.slice(i + 2, end), text[end] as string, replies)
       i = text.indexOf("\x1b", end >= 0 ? end + 1 : i + 2)
+      continue
+    }
+    const kind = STRING_INTRODUCERS[text[i + 1] as string]
+    if (kind) {
+      const end = stringEnd(text, i + 2, kind)
+      if (end < 0) {
+        track.inString = kind
+        if (text.endsWith("\x1b")) track.carry = "\x1b"
+        break
+      }
+      i = text.indexOf("\x1b", end)
       continue
     }
     if (next === 0x3d /* = */) track.modes.applicationKeypad = true
@@ -146,6 +172,29 @@ export function terminalModePreamble(modes: TerminalModes): string {
   if (modes.applicationKeypad) out += "\x1b="
   if (modes.insertMode) out += "\x1b[4h"
   return out
+}
+
+/**
+ * Where a full replay may start: past the body of a string escape the ring's
+ * first byte sits inside, which an emulator would otherwise print as text.
+ * 0 when the ring starts outside one; the whole ring when it never ends.
+ */
+export function replayStart(track: TerminalModeTrack, ring: Buffer): number {
+  if (!track.inString) return 0
+  const text = track.carry + ring.toString("latin1")
+  const end = stringEnd(text, 0, track.inString)
+  return end < 0 ? ring.byteLength : Math.max(0, end - track.carry.length)
+}
+
+const STRING_INTRODUCERS: Readonly<Record<string, StringKind>> = { _: "st", P: "st", "^": "st", X: "st", "]": "osc" }
+
+/** Index just past a string escape's end, or of the escape that aborts it; -1 when the text ends first. */
+function stringEnd(text: string, from: number, kind: StringKind): number {
+  const esc = text.indexOf("\x1b", from)
+  const bel = kind === "osc" ? text.indexOf("\x07", from) : -1
+  if (bel !== -1 && (esc === -1 || bel < esc)) return bel + 1
+  if (esc === -1 || esc + 1 >= text.length) return -1
+  return text[esc + 1] === "\\" ? esc + 2 : esc
 }
 
 /** Index of the CSI final byte; -1 when the text ends first, -2 when a

@@ -1,6 +1,6 @@
 # Routines
 
-Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
+Work that runs without you. A **Routine** is a cron rule + a prompt + a repo (or no repo),
 owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
 with its own worktree, its own branch, and its own engine session, carrying the
 prompt as that session's first message. A routine that needs to remember what it
@@ -86,6 +86,28 @@ in it, is refused with a message naming the value. The check is not a guarantee
 — a repo deleted after the routine was saved still fails at 03:00 — it just
 catches the typo while you are still at the keyboard.
 
+### A routine with no project
+
+Not every scheduled prompt belongs to a repo ("summarize my inbox", "check the
+weather"). `--no-repo` (instead of `--repo`) makes a routine with no project:
+
+```bash
+rove api routine-create --no-repo --name "Morning brief" \
+  --schedule "0 9 * * *" --prompt "Summarize what I should look at today."
+```
+
+Exactly one of `--repo` and `--no-repo` is required, so a forgotten `--repo` is
+an error, not a quiet repo-less routine. Every run works in the routine's own
+directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
+before a run if it went missing), and its session is a directory task: no
+worktree, no branch, nothing to land. Like every routine run's session, it
+stays out of the sidebar; open it from the Routines page. The precheck and `--script`
+run in the same directory. There is no `--base-branch`, there is no
+switching a routine between a repo and no project after it is saved (create
+a replacement), and `--target-task` still works: it only needs the task to
+exist. The default engine skips the per-repo layer: `--vendor`, else the
+built-in default.
+
 `--model` and `--effort` pin what every run's engine launches on, the same
 values `rove api add` takes. They are checked when the routine is saved, so an
 engine that has no reasoning levels refuses `--effort` at the keyboard instead
@@ -101,13 +123,15 @@ replace or clear incompatible pins in the same update. Clearing `--vendor`
 while pins remain resolves the engine again the same way, checks the pins
 against it and stores it; clearing it with no pins left stores no vendor.
 
-Once a persistent routine has a standing task, updates cannot add, change or
-clear its vendor, model or effort. This applies while the engine is live and
-after it exits, and while the routine retains that task link in fresh mode.
-Disable the routine with `routine-update --id ID --enabled false`, then create
-a replacement with the desired pins. Repeating unchanged pins and editing
-other fields remain supported. Binding to an existing tab clears the standing
-link and uses that tab's engine settings.
+Changing, adding or clearing the vendor, model or effort of a persistent
+routine that already has a standing task lets go of that task: its engine
+keeps what it launched with, so the next run builds a new standing task on the
+new pins, with a new conversation and (in a repo) a new worktree. The old task
+is not stopped or deleted; `routine-update` names it as
+`releasedSessionTaskId`, so delete it yourself once nothing in it is needed.
+Repeating unchanged pins and editing other fields keep the standing task.
+Binding to an existing tab also clears the standing link and uses that tab's
+engine settings.
 
 `--precheck-timeout` only means something alongside `--precheck`; on its own it
 is refused rather than quietly ignored. To change just the timeout, pass the
@@ -130,11 +154,11 @@ closes the page.
 
 Deleting removes the routine and its run history. **Tasks it already created are
 untouched.** They outlive the schedule that made them — but they are not quite
-ordinary: each carries a `routine` marker of its own, and the sidebar folds
-marked tasks behind the `N routine sessions` row and skips them in the
-cold-start "which task to open" fallback. Deleting a `--persistent-session`
-routine therefore leaves its standing task folded behind an orphan row forever;
-delete the task too, or open it explicitly.
+ordinary: each carries a `routine` marker of its own, and the sidebar leaves
+marked tasks out and skips them in the cold-start "which task to open"
+fallback. Deleting a `--persistent-session` routine therefore leaves its
+standing task with no row and no Routines page entry; delete the task too, or
+open it from the Inbox or `rove api list`.
 
 To find them — a routine that has been firing for weeks has a task per run —
 read the ids off its history before deleting it, since deleting takes the
@@ -222,11 +246,13 @@ into a prompt routine (pass `--prompt` in the same call).
 
 ## Tell me on WeChat
 
-`--notify` (on create or update) pushes every run's response, and every run
-that needs a human, to the bound chat channel. For a script routine that is
-its stdout; for an engine routine, the summary the agent reports. Bind the
+`--notify` (on create or update) hands every run's response, and every run
+that needs a human, to your WeChat agent, headed `[Routine <name> #<run>]`.
+For a script routine that is its stdout; for an engine routine, the summary
+the agent reports. Rove does not post it to WeChat itself: the WeChat agent
+decides whether it is worth telling you and writes the message. Bind the
 channel first with `rove weixin login` ([WeChat](WEIXIN.md)). Only runs that
-finish after the daemon starts are pushed.
+finish after the daemon starts are handed over.
 
 ## What each run did
 
@@ -242,7 +268,7 @@ needed:
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_blocked` | The task cannot use a tick right now (`blocked.reason`): an open decision gate, an unreported earlier run, a rate limit, a permission prompt, or a turn still running. The cause is already in the Inbox. Healthy as a status |
 | `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
-| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
+| `skipped_unavailable` | The routine's repo no longer exists (checked before the precheck, so a missing repo is never a quiet `skipped_precheck`), or the dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
 | `dispatch_failed` | The prompt did not reach an engine — the engine process never started — or should-run refused a bound tab whose engine is dead or in a sticky error (`blocked.reason` `engine-dead` / `engine-error`), which no Inbox row covers. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
@@ -266,6 +292,13 @@ engine's cached quota snapshot already says the window is exhausted (the
 daemon never fetches vendor usage for this), and the check is skipped
 when the quota is unknown. `run now` bypasses the check, like the precheck.
 
+An engine turn that fails because the connection dropped or the provider
+returned a 5xx (`Unable to connect`, `503`) does not stop the routine: the
+next scheduled firing goes ahead and is the retry. Any other failure still
+holds the next firing until you look (dismiss the Inbox row or `run now`).
+Either way the Routines page shows the newest failure under the routine
+(`last failed 3h ago: …`), so an outage that healed itself is still visible.
+
 `dispatched` means the engine PROCESS was seen running — not that the terminal
 opened. An engine whose launch command points at something that is not there
 exits immediately and leaves the login shell behind it, and the terminal is
@@ -284,12 +317,20 @@ naming the run and its delivery, then a blank line, then your prompt
 unchanged:
 
 ```text
-[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]
+[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)
 
 <your prompt>
 ```
 
-The agent closes the run:
+A standing session already has your prompt in its conversation, so it gets
+the full text only on its first run, on a run whose engine was just created
+or revived, on the first run after you edit the prompt, after the engine
+compacts its conversation or switches to a new one (`/clear`, a resume),
+and at least every 20th run for engines that never report compaction.
+Every other run gets the header and one line saying the instructions are
+unchanged.
+
+The agent reports when the run found something or is stuck:
 
 ```bash
 rove api report --delivery d-41 --outcome done --summary "No new failures since yesterday."
@@ -310,22 +351,25 @@ rove api routine-respond --run <runId> --prompt-file report.md   # `-` reads std
   (`RESPONSE_TOO_LARGE`) instead of truncating.
 - An unknown or pruned run id is `RUN_NOT_FOUND`; an unknown delivery id is
   `DELIVERY_NOT_FOUND`.
-- Rove does not read transcripts to guess a report. It does notice when the
-  turn ended without one: the delivery turns `missing` (the turn completed
-  or failed, the engine died, or nothing happened for 10 minutes), and an
-  Inbox entry **report missing** points at the tab. A late `report` clears
-  it.
+- Rove does not read transcripts to guess a report. A routine turn that
+  completes without one had nothing to report: the delivery turns `quiet`,
+  with no Inbox entry, and the next run goes ahead. A turn that failed or
+  was interrupted, an engine that died, or nothing happening for 10 minutes
+  still turns the delivery `missing`, and an Inbox entry **report missing**
+  points at the tab. A late `report` clears it.
+- A routine turn that reported (or went `quiet`) raises no "turn finished"
+  Inbox entry. The report is the entry.
 
 A delivered run (`dispatched` or `revived`) reads as **awaiting response**
 until its delivery is reported or goes missing, then **no response**, in the
-warning colour. A run from before deliveries existed has no delivery and
+warning colour. A `quiet` run shows neither. A run from before deliveries existed has no delivery and
 keeps the old rule: **no response** after two hours. A response raises an
 Inbox entry (one per routine, the newest replacing the last) that opens the
 Routines page. On the page, the selected routine's detail splits in two:
 run history on the left, its responses on the right, newest first, each
 headed by its run number, status and time, with the text rendered as
 markdown. `routine-runs` includes `deliveryId`, `deliveryStatus`
-(`awaiting`, `reported`, `missing`) and, once reported, `response`
+(`awaiting`, `reported`, `missing`, `quiet`) and, once reported, `response`
 (`{text, at}`) on every run; the last two are read from the delivery.
 
 ### You do not have to go looking
@@ -411,20 +455,16 @@ one branch is a branch nobody can merge.
 
 ### Where its output goes
 
-The standing task does not sit in your sidebar as another row. It rests behind a
-**`N routine sessions`** count row under its project — press `enter` on that row
-to open it and see them, `enter` again to close. Seven daily routines would
+A routine's tasks do not sit in your sidebar: not the standing task, not any
+fresh run's task, in the TUI or on the web. Seven daily routines would
 otherwise be forty-nine rows a week competing with the handful of tasks you
-opened yourself.
+opened yourself. Open a run from the Routines page: `enter` opens the latest
+run's task, and a click on any recent run opens its session.
 
-Hidden at rest is not hidden: the task is still found by `/` search, still opens
-from the Routines page (`enter` on the routine), and still raises an **Inbox**
-entry when its turn finishes or it needs you. That entry is how you learn what
-last night's routine said — you do not go looking for it.
-While the row is closed, it also names how many of those sessions are blocked on
-you (`3 routine sessions · needs you: 1`): a permission prompt, a quota wall that
-will not clear itself, or an error that has settled. A stalled routine makes no
-progress until you answer it, so the fold never hides that.
+Out of the sidebar is not out of reach: a run still raises an **Inbox** entry
+when it reports or needs you. That entry is how you learn what last
+night's routine said, and how a routine stuck on a permission prompt or a quota
+wall reaches you — you do not go looking for it.
 
 It also never wins the "which task should I open?" fallback on a cold start. A
 routine that fired at 03:00 is genuinely the most recently touched task in the

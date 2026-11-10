@@ -7,12 +7,11 @@ enum TaskListLogic {
     static func attentionCount(_ items: [AttentionItem]) -> Int { items.filter(\.unread).count }
 
     static func repos(_ rows: [TaskRow]) -> [String] {
-        Array(Set(rows.map(\.repo).filter { !$0.isEmpty })).sorted()
+        Array(Set(rows.filter { !$0.routine }.map(\.repo).filter { !$0.isEmpty })).sorted()
     }
 
     static func filtered(_ rows: [TaskRow], repo: String?) -> [TaskRow] {
-        guard let repo else { return rows }
-        return rows.filter { $0.repo == repo }
+        rows.filter { !$0.routine && (repo == nil || $0.repo == repo) }
     }
 
     /// Age of the row's activity now: server `forMs` at receipt plus local elapsed time.
@@ -41,6 +40,7 @@ enum TaskListLogic {
 @MainActor @Observable
 final class TaskStore {
     private(set) var tasks: [TaskRow] = []
+    private(set) var archived: [TaskRow] = []
     private(set) var attention: [AttentionItem] = []
     private(set) var gates: [GateRow] = []
     private(set) var loaded = false
@@ -102,7 +102,8 @@ final class TaskStore {
         return TaskListLogic.ageMs(forMs: a.forMs, receivedAt: receivedAt[row.id] ?? now, now: now)
     }
 
-    func task(id: String) -> TaskRow? { tasks.first { $0.id == id } }
+    func task(id: String) -> TaskRow? { tasks.first { $0.id == id } ?? archived.first { $0.id == id } }
+    func isArchived(_ id: String) -> Bool { archived.contains { $0.id == id } }
 
     func apply(_ p: TasksPayload) {
         for n in TransitionRule.notices(old: snapshot, new: p.tasks) { onNotice(n) }
@@ -113,6 +114,7 @@ final class TaskStore {
         receivedAt = stamps
         snapshot = p.tasks
         tasks = p.tasks
+        archived = p.archived
         attention = p.attention
         gates = p.gates
         loaded = true
@@ -133,19 +135,25 @@ final class TaskStore {
     /// Back to the not-yet-loaded state (leaving demo mode): the next bridge's first snapshot must neither
     /// show demo rows nor be diffed against them for notifications.
     func reset() {
-        tasks = []; attention = []; gates = []; tabTitles = [:]
+        tasks = []; archived = []; attention = []; gates = []; tabTitles = [:]
         loaded = false; error = nil; repoFilter = nil
         snapshot = nil; receivedAt = [:]
         version += 1
     }
 
     func dismissAttention(_ item: AttentionItem) async {
-        // A decision is answered (`answerGate`), never dismissed.
-        guard let taskId = item.taskId, item.gateId == nil else { return }
-        var args: [String: Any] = ["taskId": taskId]
-        if let tab = item.tabId { args["tabId"] = tab }
-        if let delivery = item.deliveryId { args["deliveryId"] = delivery }
-        _ = try? await client.request("attention.dismiss", args, as: EmptyResult.self)
+        await dismissAttention([item])
+    }
+
+    /// Clears every item that can be cleared, then re-reads the feed once.
+    func dismissAttention(_ items: [AttentionItem]) async {
+        let dismissals = items.compactMap(InboxLogic.dismissal)
+        guard !dismissals.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for d in dismissals {
+                group.addTask { @MainActor [client] in _ = try? await client.request(d.op, d.args, as: EmptyResult.self) }
+            }
+        }
         await refresh()
     }
 

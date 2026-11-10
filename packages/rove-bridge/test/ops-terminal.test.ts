@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { parseFlags } from "@sma1lboy/rove/src/cli/api/flags.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
+import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { MAX_ATTACHMENT_BYTES, type TerminalOpDeps, matchesMagic, terminalOps } from "../src/ops/terminal.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
+import { BridgeError } from "../src/protocol.ts"
 import { attentionRows } from "../src/rove-ops.ts"
+import { isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 type Call = { kind: "verb" | "rpc"; name: string; argv?: readonly string[]; payload?: unknown }
 
@@ -135,9 +140,9 @@ describe("tab.forkTask", () => {
       "tab.forkTask",
       { ...base, count: 3 },
       {},
-      { add: { tasks: [{ taskId: "A" }, { taskId: "B" }, { taskId: "C" }] } },
+      { add: { groupId: "G1", tasks: [{ taskId: "A" }, { taskId: "B" }, { taskId: "C" }] } },
     )
-    expect(fan.result).toEqual({ taskIds: ["A", "B", "C"] })
+    expect(fan.result).toEqual({ taskIds: ["A", "B", "C"], groupId: "G1" })
     expect(fan.calls[0]?.argv).toContain("--count=3")
   })
 
@@ -160,6 +165,61 @@ describe("tab.forkTask", () => {
 
   test("a reply naming no task is an error, never a silent success", async () => {
     await expect(run("tab.forkTask", base, {}, { add: {} })).rejects.toThrow("no task was created")
+  })
+
+  test("a fork on a picked engine makes it the project's next New conversation default; a failed fork does not", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    await run("tab.forkTask", { ...base, engine: "codex" }, {}, { add: { taskId: "T9" } })
+    await run("tab.forkTask", base, {}, { add: { taskId: "T10" } })
+    await expect(run("tab.forkTask", { ...base, engine: "claude" }, {}, { add: {} })).rejects.toThrow()
+    expect(remembered).toEqual([["/repos/api", "codex"]])
+  })
+
+  describe("with the source task", () => {
+    /** An api whose `add --fork` is refused the way the daemon refuses a clone it cannot make. */
+    function refusingFork() {
+      const calls: Call[] = []
+      const api: BridgeApi = {
+        async verb<T>(name: string, argv: readonly string[]): Promise<T> {
+          calls.push({ kind: "verb", name, argv })
+          if (argv.some((a) => a.startsWith("--fork="))) {
+            throw new BridgeError("FORK_UNSUPPORTED", "FORK_UNSUPPORTED: the volume cannot clone files")
+          }
+          return { taskId: "PLAIN" } as T
+        },
+        async rpc<T>(): Promise<T> {
+          return {} as T
+        },
+      }
+      return { api, calls }
+    }
+
+    test("a single attempt forks the source task, titled from the prompt", async () => {
+      const { result, calls } = await run("tab.forkTask", { ...base, forkFrom: TASK }, {}, { add: { taskId: "F1" } })
+      expect(result).toEqual({ taskIds: ["F1"], forked: true })
+      expect(calls[0]?.argv).toEqual([`--fork=${TASK}`, "--title=try it", "--prompt=try it"])
+    })
+
+    test("falls back to a plain task from the branch and reports why the uncommitted work stayed", async () => {
+      const { api, calls } = refusingFork()
+      const spec = terminalOps(deps())["tab.forkTask"]
+      const result = await spec?.run({ ...base, forkFrom: TASK }, { api })
+      expect(result).toEqual({ taskIds: ["PLAIN"], forkRefused: "the volume cannot clone files" })
+      expect(calls.map((c) => c.argv?.[0])).toEqual([`--fork=${TASK}`, "--repo=/repos/api"])
+    })
+
+    test("a fan-out of attempts never forks: one clone cannot be shared", async () => {
+      const { calls } = await run(
+        "tab.forkTask",
+        { ...base, forkFrom: TASK, count: 2 },
+        {},
+        { add: { tasks: [{ taskId: "A" }, { taskId: "B" }] } },
+      )
+      expect(calls).toHaveLength(1)
+      expect(calls[0]?.argv).toContain("--count=2")
+      expect(calls[0]?.argv?.some((arg) => arg.startsWith("--fork="))).toBe(false)
+    })
   })
 })
 
@@ -209,6 +269,26 @@ describe("tab.requestPR", () => {
     )
     expect(calls.map((c) => c.name)).toEqual(["get-task", "send"])
     expect(calls[1]?.argv).toEqual([`--task-id=${TASK}`, "--plain", "--prompt=PR from /wt", "--tab=tab-2"])
+  })
+})
+
+describe("tab.send", () => {
+  test("a blank message is refused before anything reaches the engine", async () => {
+    await expect(run("tab.send", { taskId: TASK, tabId: "tab-1", prompt: "  \n " })).rejects.toMatchObject({
+      code: "BAD_ARGS",
+    })
+  })
+
+  test("an undelivered send keeps the composer's draft: delivered is false with the engine's reason", async () => {
+    const { result } = await run(
+      "tab.send",
+      { taskId: TASK, tabId: "tab-1", prompt: "hi" },
+      {},
+      {
+        send: { delivered: false, targetDetail: "no engine process" },
+      },
+    )
+    expect(result).toEqual({ delivered: false, reason: "no engine process" })
   })
 })
 

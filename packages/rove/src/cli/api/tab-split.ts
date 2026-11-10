@@ -10,7 +10,7 @@
  * `tab.add` (`absorbTab` merges the tree).
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtyOpenResult } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
@@ -99,7 +99,7 @@ async function openLeafShell(
   await rpc.request<PtyOpenResult>("pty.open", {
     key,
     cwd,
-    command: opts.command ?? [resolveLoginShell({ fallback: "/bin/zsh" })],
+    command: opts.command ?? [resolveSessionShell()],
     defaultColors: readPersistedTerminalDefaultColors(),
     ...(opts.size ? { cols: opts.size.cols, rows: opts.size.rows } : {}),
   })
@@ -125,7 +125,7 @@ export async function splitTab(
         const { tab, before, after } = await editTree(client, taskId, tabId, (tree) => {
           const from = leaves(tree.root).some((l) => l.id === edit.from) ? edit.from : tree.activeLeafId
           const base = from === tree.activeLeafId ? tree : { ...tree, activeLeafId: from }
-          const argv = edit.command?.argv ?? [resolveLoginShell({ fallback: "/bin/zsh" })]
+          const argv = edit.command?.argv ?? [resolveSessionShell()]
           const next = splitActive(base, edit.orientation, argv, edit.size ?? null)
           if (next === base) return tree
           return edit.command ? renameLeaf(next, next.activeLeafId, edit.command.title) : next

@@ -3,6 +3,7 @@
  * clients only map it to glyphs (`lib/row-status-glyph.ts`).
  */
 
+import { deriveTaskActivity } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { RowStatusStore, type StatusSession } from "@sma1lboy/rove-daemon/daemon/row-status-store"
 import { describe, expect, it, vi } from "vitest"
@@ -11,6 +12,35 @@ import { rowStatusGlyph } from "../../src/lib/row-status-glyph"
 const glyphs = { spinner: ["⠋", "⠙"], idle: "○", unseen: "●", needsInput: "?", attention: "!" }
 
 describe("tab status", () => {
+  it.each([false, true])("agrees with the ledger for dead tab and newer completion, viewed=%s", (viewed) => {
+    const dead = { state: "dead", at: 1 } as const
+    const completed = { state: "turn_complete", at: 3 } as const
+    const row = taskStatus(
+      { "tab-1": tabStatus({ activity: dead, viewed: false, session: { alive: true, restored: false } }) },
+      { tabless: tabStatus({ activity: completed, pending: completed, viewed }) },
+    )
+    expect(row).toMatchObject({ kind: "attention", reason: "dead", state: "dead" })
+    expect(deriveTaskActivity([dead, completed])?.state).toBe(row.state)
+  })
+
+  it.each([
+    ["running", "dead"],
+    ["running", "permission_needed"],
+    ["permission_needed", "error"],
+    ["permission_needed", "dead"],
+    ["permission_needed", "rate_limited"],
+    ["permission_needed", "turn_complete"],
+  ] as const)("keeps %s above a newer %s in both folds", (winner, loser) => {
+    const older = { state: winner, at: 1 }
+    const newer = { state: loser, at: 3 }
+    const row = taskStatus({
+      "tab-1": tabStatus({ activity: older, pending: older, viewed: false }),
+      "tab-2": tabStatus({ activity: newer, pending: newer, viewed: false }),
+    })
+    expect(row.state).toBe(winner)
+    expect(deriveTaskActivity([older, newer])?.state).toBe(row.state)
+  })
+
   it("restored and broken outrank running; running outranks a question; a question outranks unseen", () => {
     const running = { activity: { state: "running" as const, at: 5 }, viewed: false }
     expect(tabStatus({ ...running, session: { alive: false, restored: true } }).kind).toBe("attention")
@@ -46,7 +76,7 @@ describe("tab status", () => {
       "tab-1": tabStatus({ activity: { state: "running", at: 1 }, viewed: false }),
       "tab-2": tabStatus({ activity: { state: "permission_needed", at: 2 }, viewed: false }),
     }
-    expect(taskStatus(tabs).kind).toBe("needs-input")
+    expect(taskStatus(tabs).kind).toBe("running")
     expect(taskStatus(tabs, { job: { at: 3 } })).toMatchObject({ kind: "busy", reason: "job" })
     expect(taskStatus(tabs, { deletion: { failed: true, at: 3 } })).toMatchObject({
       kind: "attention",

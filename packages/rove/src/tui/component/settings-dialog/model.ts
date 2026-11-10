@@ -53,11 +53,13 @@ export type SettingsRow =
   | { id: "sound"; kind: "sound" }
   | { id: "sound-volume"; kind: "soundVolume" }
   | { id: "cross-task"; kind: "crossTask" }
+  | { id: "finished-alerts"; kind: "finishedAlerts" }
   | { id: "key-hints"; kind: "keyHints" }
   | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "update-channel"; kind: "updateChannel" }
-  | { id: "update-try"; kind: "updateTry" }
+  | { id: "update-notify"; kind: "updateNotify" }
+  | { id: "update-check"; kind: "updateCheck" }
   | { id: "editor-kind"; kind: "editorKind" }
   | { id: "editor-custom"; kind: "editorCustom" }
   | { id: "worktree-base"; kind: "worktreeBase" }
@@ -68,6 +70,7 @@ export type SettingsRow =
   | { id: "add-engine"; kind: "engineAdd" }
   | { id: "install-hooks"; kind: "engineHooksInstall" }
   | { id: "uninstall-hooks"; kind: "engineHooksUninstall" }
+  | { id: "install-skill"; kind: "engineSkillInstall" }
   | { id: string; kind: "autoRoutingTier"; tier: AutoRoutingTier }
   | { id: "auto-routing-classifier"; kind: "autoRoutingClassifier" }
   | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
@@ -148,10 +151,12 @@ export function generalRows(): SettingsRow[] {
     { id: "sound", kind: "sound" },
     { id: "sound-volume", kind: "soundVolume" },
     { id: "cross-task", kind: "crossTask" },
+    { id: "finished-alerts", kind: "finishedAlerts" },
     { id: "key-hints", kind: "keyHints" },
     { id: "zen-default-on", kind: "zenDefaultOn" },
     { id: "update-channel", kind: "updateChannel" },
-    { id: "update-try", kind: "updateTry" },
+    { id: "update-notify", kind: "updateNotify" },
+    { id: "update-check", kind: "updateCheck" },
     { id: "editor-kind", kind: "editorKind" },
     { id: "editor-custom", kind: "editorCustom" },
     { id: "worktree-base", kind: "worktreeBase" },
@@ -179,6 +184,9 @@ export function engineRows(engineList: readonly VendorId[]): SettingsRow[] {
     // buttons, so j/k walks between them and enter fires the one under the
     // cursor — no chord to learn for an action taken once a year.
     { id: "uninstall-hooks", kind: "engineHooksUninstall" },
+    // The Rove agent skill: install only. Removing it is deleting a folder the
+    // user can see in Details, not a Rove integration to tear down.
+    { id: "install-skill", kind: "engineSkillInstall" },
   ]
 }
 

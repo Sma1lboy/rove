@@ -9,6 +9,7 @@ import type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
   NoticeEventPayload,
+  PanelShowPayload,
   SessionDeliverPayload,
   TabAddPayload,
   TabClosePayload,
@@ -30,6 +31,7 @@ export type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
   NoticeEventPayload,
+  PanelShowPayload,
   PaneClosePayload,
   SessionDeliverPayload,
   TabAddPayload,
@@ -227,9 +229,8 @@ export interface ChannelPayloads {
   /**
    * Text to paste into a task's live engine session (docs/design/dispatcher.md).
    * The daemon never delivers: whichever front-end hosts the session does.
-   * Producers: `note.file` (`source: "note"`, to the repo's main-task
-   * dispatcher) and `session.deliver` (`rove api dispatch`,
-   * `source: "dispatcher"`). EVENT channel.
+   * Producer: `session.deliver` (`rove api dispatch`, `source: "dispatcher"`).
+   * EVENT channel.
    */
   "session.deliver": SessionDeliverPayload
   /**
@@ -264,6 +265,11 @@ export interface ChannelPayloads {
   "engine.lifecycle": EngineLifecyclePayload
   /** One toast for attached UIs (`rove api notify` → `notice.send`). EVENT channel. */
   "notice.event": NoticeEventPayload
+  /**
+   * Bring up the web side panel on a view (`rove api panel-show` → `panel.show` RPC). Every web
+   * client remembers it for the task; one on the task with a panel opens it. EVENT channel.
+   */
+  "panel.show": PanelShowPayload
   /**
    * Per-vendor quota snapshots from the daemon's usage cache, keyed by vendor
    * id; full map, republished on change. Vendors without a quota probe (or a

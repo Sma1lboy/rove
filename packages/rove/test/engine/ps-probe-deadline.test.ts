@@ -14,6 +14,7 @@ import {
   PsProbeUnavailableError,
   type PsProcess,
   psSnapshotWith,
+  shareInflight,
 } from "../../src/engine/foreground.ts"
 import { enginePresence } from "../../src/engine/session-engine-presence.ts"
 
@@ -107,5 +108,27 @@ describe("a snapshot with no rows in it is a failed probe, not an empty machine"
   it("leaves a healthy ps untouched — one row is already an answer", async () => {
     expect(await psSnapshotWith(empty("  1     0 /sbin/launchd\n"), 150)).toBe("  1     0 /sbin/launchd\n")
     expect(await psSnapshotWith(empty(PS_LINE), 150)).toBe(PS_LINE)
+  })
+})
+
+describe("overlapping snapshots", () => {
+  it("run ps once, and the next caller after it settles gets a fresh one", async () => {
+    let runs = 0
+    let release: (text: string) => void = () => {}
+    const snapshot = shareInflight(() => {
+      runs++
+      return new Promise<string>((resolve) => {
+        release = resolve
+      })
+    })
+    const page = [snapshot(), snapshot(), snapshot()]
+    release("1 0 ps")
+    expect(await Promise.all(page)).toEqual(["1 0 ps", "1 0 ps", "1 0 ps"])
+    expect(runs).toBe(1)
+
+    const later = snapshot()
+    release("2 0 ps")
+    expect(await later).toBe("2 0 ps")
+    expect(runs).toBe(2)
   })
 })

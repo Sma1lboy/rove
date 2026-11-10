@@ -6,6 +6,8 @@
  * clients and replays `onOpen` hooks so subscriptions and terminals reattach.
  */
 
+import { forgetToken } from "./auth.ts"
+import { openBridgeSocket } from "./relay-transport.ts"
 import { type Store, createStore } from "./store.ts"
 
 export type ConnState = "connecting" | "open" | "retrying"
@@ -14,6 +16,8 @@ export interface Hello {
   readonly protocol: number
   readonly roveVersion: string
   readonly host: string
+  /** Where this page is, as the bridge saw the upgrade; absent from a bridge that predates it. */
+  readonly peer?: { readonly surface: "web" | "phone"; readonly local: boolean }
 }
 
 export interface ConnView {
@@ -27,6 +31,8 @@ export class BridgeRequestError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** The refusal's own fields beside `code` and `message` (a partial fan-out's `groupId`); absent for a local failure. */
+    readonly detail?: Readonly<Record<string, unknown>>,
   ) {
     super(message)
   }
@@ -39,6 +45,10 @@ interface Pending {
 }
 
 const BACKOFF_MS = [500, 1000, 2000, 4000, 8000, 15000]
+/** A woken page's socket gets this long to answer `hello` before it counts as dead. */
+const WAKE_PROBE_MS = 4000
+/** A new socket gets this long to open and answer its first `hello`. */
+const CONNECT_DEADLINE_MS = 10_000
 
 export class BridgeClient {
   readonly conn: Store<ConnView> = createStore<ConnView>({ state: "connecting", hello: null, failures: 0 })
@@ -48,6 +58,8 @@ export class BridgeClient {
   private readonly listeners = new Map<string, Set<(data: unknown) => void>>()
   private readonly openHooks = new Set<() => void>()
   private retryTimer: number | null = null
+  /** Drops `ws` unless a `hello` answers first: armed on connect and by a wake probe. */
+  private deadline: number | null = null
 
   constructor(
     private readonly url: string,
@@ -56,6 +68,41 @@ export class BridgeClient {
 
   start(): void {
     this.connect()
+    // A phone back from sleep may hold a socket that never fires `close`, or sit in a long backoff.
+    const wake = () => {
+      if (document.visibilityState === "visible") this.checkNow()
+    }
+    document.addEventListener("visibilitychange", wake)
+    window.addEventListener("online", wake)
+    window.addEventListener("pageshow", wake)
+  }
+
+  /** Reconnect now if retrying; if open, drop the socket unless it answers `hello` quickly. */
+  private checkNow(): void {
+    if (this.retryTimer !== null) {
+      this.retryNow()
+      return
+    }
+    const ws = this.ws
+    if (!ws || this.conn.get().state !== "open" || this.deadline !== null) return
+    this.armDeadline(ws, WAKE_PROBE_MS)
+    this.request("hello").then(
+      () => this.clearDeadline(),
+      // Any reply, even an error, proves the socket is alive.
+      (e) => {
+        if (e instanceof BridgeRequestError && e.code !== "NOT_CONNECTED") this.clearDeadline()
+      },
+    )
+  }
+
+  private armDeadline(ws: WebSocket, ms: number): void {
+    this.clearDeadline()
+    this.deadline = window.setTimeout(() => this.lost(ws), ms)
+  }
+
+  private clearDeadline(): void {
+    if (this.deadline !== null) window.clearTimeout(this.deadline)
+    this.deadline = null
   }
 
   /** Run now if connected, and again after every reconnect. */
@@ -90,28 +137,47 @@ export class BridgeClient {
 
   private connect(): void {
     this.retryTimer = null
-    const ws = new WebSocket(this.url, ["rove.v1", `rove.bearer.${this.token}`])
+    // No token: this computer's own bridge lets its browser in without one.
+    const ws = openBridgeSocket(this.url, this.token ? ["rove.v1", `rove.bearer.${this.token}`] : ["rove.v1"])
     this.ws = ws
+    this.armDeadline(ws, CONNECT_DEADLINE_MS)
     ws.onmessage = (ev) => this.receive(String(ev.data))
     ws.onopen = () => {
       this.request<Hello>("hello").then(
         (hello) => {
+          this.clearDeadline()
           this.conn.set({ state: "open", hello, failures: 0 })
           for (const hook of this.openHooks) hook()
         },
-        () => ws.close(),
+        () => this.lost(ws),
       )
     }
-    ws.onclose = () => {
-      if (this.ws !== ws) return
-      this.ws = null
-      for (const p of this.pending.values()) p.reject(new BridgeRequestError("NOT_CONNECTED", "connection lost"))
-      this.pending.clear()
-      const failures = this.conn.get().failures + 1
-      this.conn.set({ state: "retrying", hello: this.conn.get().hello, failures })
-      const delay = BACKOFF_MS[Math.min(failures - 1, BACKOFF_MS.length - 1)]
-      this.retryTimer = window.setTimeout(() => this.connect(), delay)
+    ws.onclose = (ev) => this.lost(ws, ev?.code)
+  }
+
+  private lost(ws: WebSocket, code?: number): void {
+    if (this.ws !== ws) return
+    this.ws = null
+    this.clearDeadline()
+    ws.onopen = null
+    ws.onclose = null
+    ws.onmessage = null
+    ws.close()
+    for (const p of this.pending.values()) p.reject(new BridgeRequestError("NOT_CONNECTED", "connection lost"))
+    this.pending.clear()
+    // 4401: the bridge closed us because this token was revoked (see rove-bridge
+    // credential-sockets.ts). A browser-level constant, not a server import.
+    if (code === 4401) {
+      // The host revoked this token (Sign out, a device revoked): retrying cannot
+      // succeed. Forget it and land on the sign-in screen instead of backoff.
+      forgetToken()
+      this.conn.set({ state: "retrying", hello: null, failures: 2 })
+      return
     }
+    const failures = this.conn.get().failures + 1
+    this.conn.set({ state: "retrying", hello: this.conn.get().hello, failures })
+    const delay = BACKOFF_MS[Math.min(failures - 1, BACKOFF_MS.length - 1)]
+    this.retryTimer = window.setTimeout(() => this.connect(), delay)
   }
 
   private receive(raw: string): void {
@@ -143,7 +209,7 @@ export class BridgeClient {
     const error = "error" in frame && frame.error && typeof frame.error === "object" ? frame.error : {}
     const code = "code" in error && typeof error.code === "string" ? error.code : "INTERNAL"
     const message = "message" in error && typeof error.message === "string" ? error.message : code
-    pending.reject(new BridgeRequestError(code, message))
+    pending.reject(new BridgeRequestError(code, message, error as Readonly<Record<string, unknown>>))
   }
 
   /** Retry now instead of waiting out the backoff (the status bar's reconnect). */

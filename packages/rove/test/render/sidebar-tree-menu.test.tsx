@@ -89,8 +89,7 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
-  // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
-  // to `forgetProject` behind a confirm).
+  // Menu-only: `d` on the project's main row ends its conversation instead of forgetting the project.
   expect(after).toContain("Remove project")
   // This entry is the only in-product reader of the repo's durable notes.
   expect(after).toContain("Field notes")
@@ -254,15 +253,15 @@ test("a press anywhere else dismisses the menu", async () => {
   // The whole point of the feature: the menu is not a mode you have to shoot
   // down by re-clicking the row it came from.
   tabsByTask.clear()
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
+  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 34 })
   await settle()
   await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Rename")
 
-  // Empty space below the last row — no row handler runs, so only the
+  // Empty space below the menu's last entry — no row handler runs, so only the
   // root-level dismiss can close it.
-  await mockMouse.click(2, 22, 0)
+  await mockMouse.click(2, 32, 0)
   await settle()
   expect(await frame()).not.toContain("Rename")
 })
@@ -307,9 +306,9 @@ test("Set status fires the row's callback with that row's task", async () => {
   await settle()
   expect(await frame()).toContain("Set status")
 
-  // open, newChat, newShell, rename, pin, reorder, setStatus — six steps from
-  // the highlight's start on "Open".
-  mockInput.typeText("jjjjjj")
+  // open, newChat, newShell, continueElsewhere, newTaskFromBranch, rename, pin, reorder,
+  // setStatus — eight steps from the highlight's start on "Open".
+  mockInput.typeText("jjjjjjjj")
   await settle()
   mockInput.pressEnter()
   await settle()

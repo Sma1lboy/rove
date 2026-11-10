@@ -109,10 +109,11 @@ interface Captured {
   chosen: string[]
   errors: string[]
   forks: { repo: string; result: QuickTaskResult }[]
+  restarts: number
   request: (preset?: NewChatPreset) => void
 }
 
-function Driver(props: { state: TabsState; captured: Captured }) {
+function Driver(props: { state: TabsState; captured: Captured; dead?: boolean }) {
   const dialog = useDialog()
   const t = useT()
   const api = useTabDialogs({
@@ -131,14 +132,26 @@ function Driver(props: { state: TabsState; captured: Captured }) {
     onChooseEngine: (vendor) => props.captured.chosen.push(vendor),
     onQuickFork: (r, result) => props.captured.forks.push({ repo: r, result }),
     notifyError: (title) => props.captured.errors.push(title),
+    sourceDead: () => props.dead === true,
+    restartActive: () => {
+      props.captured.restarts++
+    },
   })
   props.captured.request = api.requestNewChat
   return null
 }
 
-async function mountFlow(state: TabsState) {
-  const captured: Captured = { updates: [], spawns: [], chosen: [], errors: [], forks: [], request: () => {} }
-  const handle = await renderComponent(<Driver state={state} captured={captured} />, {
+async function mountFlow(state: TabsState, options: { dead?: boolean } = {}) {
+  const captured: Captured = {
+    updates: [],
+    spawns: [],
+    chosen: [],
+    errors: [],
+    forks: [],
+    restarts: 0,
+    request: () => {},
+  }
+  const handle = await renderComponent(<Driver state={state} captured={captured} dead={options.dead} />, {
     providers: { dialog: true, notifications: true },
   })
   return { ...handle, captured }
@@ -312,5 +325,67 @@ describe("requestNewChat dispatch", () => {
     expect(after).not.toContain("Quick task")
     expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])
     expect(captured.forks).toHaveLength(0)
+  })
+})
+
+describe("continue in another engine: where the handoff lands", () => {
+  // Custom engines are always offered, so the target exists on a runner with no engine binary too. Scoped to
+  // each test like the wrapper-preset fixture above: a registration left standing changes the picker for everyone.
+  async function pickOtherEngine(dead: boolean) {
+    const projectDir = path.join(process.env.CLAUDE_CONFIG_DIR as string, "projects", encodeCwd(worktree))
+    fs.mkdirSync(projectDir, { recursive: true })
+    fs.writeFileSync(path.join(projectDir, "s1.jsonl"), "{}\n")
+    const { frame, mockInput, captured } = await mountFlow(tabs({ sessionId: "s1", spawned: true }), { dead })
+    act(() => captured.request({ context: "continue" }))
+    await waitForFrameText(frame, "continue this conversation")
+    for (let i = 0; i < 24 && !(await frame()).includes("▸ otherbot"); i++) {
+      act(() => mockInput.pressArrow("right"))
+      await settle(20)
+    }
+    expect(await frame()).toContain("▸ otherbot")
+    act(() => mockInput.pressEnter())
+    await waitFor(() => captured.updates.length > 0 || captured.spawns.length > 0 || captured.errors.length > 0)
+    return captured
+  }
+
+  async function withOtherBot(run: () => Promise<void>) {
+    const statePath = path.join(process.env.ROVE_HOME_DIR as string, ".config", "rove", "state.json")
+    fs.mkdirSync(path.dirname(statePath), { recursive: true })
+    fs.writeFileSync(statePath, JSON.stringify({ customEngineIds: ["otherbot"], "engineCommand.otherbot": "otherbot" }))
+    try {
+      await run()
+    } finally {
+      fs.rmSync(statePath, { force: true })
+    }
+  }
+
+  test("a dead engine's tab is REPLACED in place: same tab id, fresh conversation on the brief, no child task", async () => {
+    await withOtherBot(async () => {
+      const captured = await pickOtherEngine(true)
+      expect(captured.errors).toHaveLength(0)
+      expect(captured.spawns).toHaveLength(0)
+      expect(captured.updates).toHaveLength(1)
+      const next = captured.updates[0]!
+      expect(next.tabs).toHaveLength(1)
+      const tab = next.tabs[0] as EngineTab
+      expect(tab).toMatchObject({ kind: "engine", id: "tab-1", ordinal: 1, vendor: "otherbot" })
+      expect(tab.initialPrompt).toContain("Continue the work from a previous")
+      // Nothing of the dead conversation rides along: the respawn must not resume it.
+      expect(tab.sessionId).toBeUndefined()
+      expect(tab.spawned).toBeUndefined()
+      expect(captured.restarts).toBe(1)
+    })
+  })
+
+  test("a live engine's conversation still opens a child task and leaves the tab alone", async () => {
+    await withOtherBot(async () => {
+      const captured = await pickOtherEngine(false)
+      expect(captured.errors).toHaveLength(0)
+      expect(captured.updates).toHaveLength(0)
+      expect(captured.restarts).toBe(0)
+      expect(captured.spawns).toHaveLength(1)
+      expect(captured.spawns[0]).toMatchObject({ parentTaskId: "task-under-test", vendor: "otherbot" })
+      expect(captured.spawns[0]?.prompt).toContain("Continue the work from a previous")
+    })
   })
 })

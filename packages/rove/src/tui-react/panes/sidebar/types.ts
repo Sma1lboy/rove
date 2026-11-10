@@ -2,6 +2,7 @@
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
+import type { VendorId } from "@/types/vendor"
 import type { TaskCopyField } from "../../../tui/lib/task-actions"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
@@ -13,6 +14,10 @@ export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
   /** Row menu only: the Worktrees page's `l` land flow. */
   onLandRequest?: (taskId: string) => void
+  /** The Scratch section's menu: a new Scratch task in $HOME on `vendor`'s engine, or a bare shell when undefined. */
+  onOpenScratch?: (vendor: VendorId | undefined) => void
+  /** Archive or restore the task and its children (`task.archived` picks which). Menu-only. */
+  onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
   /** Reorder mode: j/k move the cursor row at its LEVEL (tab, task, or a main row's project). */
@@ -21,13 +26,19 @@ export type SidebarTaskCallbacks = {
   onMoveModeExit?: () => void
   /** Project row menu only: move the project (via its main) above every other. */
   onMoveToTopRequest?: (taskId: string) => void
+  /** Project header menu only: remove the project (via its main) from the projects list; the repo stays on disk. */
+  onForgetProjectRequest?: (taskId: string) => void
   onRenameRequest?: (taskId: string) => void
   /** Shift+P only; a bare `p` binds nothing, so a mistype can't churn the pin flag. */
   onPinRequest?: (taskId: string) => void
   /** Set the task's board status. Menu-only, no chord. */
   onSetStatusRequest?: (taskId: string) => void
+  /** Regroup the task under another project via a picker. Menu-only, no chord. */
+  onMoveToProjectRequest?: (taskId: string) => void
   /** Copy task id, tab address, branch name or worktree path to the clipboard. Menu-only. */
   onCopyRequest?: (taskId: string, field: TaskCopyField, tabId?: string) => void
+  /** New-task dialog on the task's repo, based on its branch. Menu-only, no chord. */
+  onNewTaskFromBranchRequest?: (taskId: string) => void
   /** Re-fire `task.prompt` as a new task. Menu-only; hidden with no stored brief. */
   onRunAgainRequest?: (taskId: string) => void
   /** Menu route of `o`: open the task's worktree in the detected editor. */

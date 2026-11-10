@@ -6,7 +6,6 @@
  * file is the wire VOCABULARY (frames, request names, task serialization).
  */
 
-import { repoIdOf } from "../repo-id.ts"
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
 export type {
@@ -101,20 +100,47 @@ export type DaemonRequestName =
   // engine may hold files open.
   | "task.syncBase"
   | "task.pin"
+  // Mark the attempt kept from a parallel round (`groupId` siblings); a flag only, nothing else of the task moves.
+  | "task.keep"
+  // The owner's notes and checklist: replace notes, apply todo ops (add/check/edit/remove) atomically.
+  | "task.notes"
+  // Opt in or out of auto-fixing failing CI for a task; the daemon keeps the attempt count.
+  | "task.autoFixCi"
+  // Move a task under another (or to top level) and point its reply address at it; nothing else of the task moves.
+  | "task.setParent"
+  // Hide or restore a task and its descendants; nothing is stopped or removed.
+  | "task.archive"
+  // One-shot delayed start of an unstarted task (scheduled-start.ts); the first writes the schedule, the last starts it now.
+  | "task.scheduleStart"
+  | "task.cancelScheduledStart"
+  | "task.startScheduledNow"
+  // Continue rate-limited tasks now rather than at their quota reset.
+  | "task.resumeQuota"
+  // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
+  | "task.checkpointList"
+  | "task.checkpoint"
+  | "task.rewind"
+  | "task.exportBranch"
   | "task.move"
+  | "project.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
   // durable, so this copy is what survives engine/context loss.
   | "task.setPrompt"
+  // Attach a PR the engine session opened (any directory); the daemon polls its status.
+  | "task.addSessionPr"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
   | "task.openDir"
   // Scratch → project migration: repoint + clear the flag.
   | "task.adoptScratchRepo"
+  // An Ungrouped session moves itself under a project (`update --project`); its directory stays.
+  | "task.moveToProject"
   | "project.forget"
   | "task.ensureWorktree"
   | "task.setActive"
   | "task.requireReport"
+  | "task.worktreeOnly"
   | "issue.list"
   // Repo roots the issue store holds a record for — a board section means
   // "this repo has a backlog", which the task index cannot answer.
@@ -127,6 +153,8 @@ export type DaemonRequestName =
   | "tabs.release"
   | "status.list"
   | "ui.viewing"
+  | "ui.viewers"
+  | "panel.show"
   | "activity.answered"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
@@ -182,6 +210,13 @@ export type DaemonRequestName =
   // is the CLI telling the daemon about an `api send` it pasted itself.
   | "dispatch.list"
   | "dispatch.record"
+  // Prompts held for a busy tab until its turn ends (`prompt-queue.ts`, `send --queue`).
+  | "queue.add"
+  | "queue.list"
+  | "queue.edit"
+  | "queue.cancel"
+  // `send.check`: which tabs of a task a paste would land in a menu on (`handlers-queue.ts`), read-only.
+  | "send.check"
   // Should-run: `task.runnability` is the read verdict. `send.admit` evaluates,
   // claims and (when the send owes a report) arms in one daemon tick for
   // `send --if-runnable`; `send.release` frees the claim after the paste.
@@ -200,8 +235,13 @@ export type DaemonRequestName =
   | "pr.failingChecks"
   // Restart a PR's failed Actions jobs, once per human click.
   | "pr.rerunFailedChecks"
+  // A PR's unresolved review threads, on demand (`rove api review-comments`).
+  | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
+  // One engine session's context reading, fresh from the engine's reader;
+  // `probe: true` first has the engine refresh its own breakdown (may start a process).
+  | "engine.contextUsage"
   // Turn store read side; written only by hook ingest on `turn-complete`.
   | "agentTurn.list"
   // `rove api inspect`: RAW activity-registry entries (probe vendor, armed
@@ -239,8 +279,7 @@ export type DaemonRequestName =
   // space is the terminal's) and parses nothing.
   | "graphics.write"
   // Field note (docs/design/dispatcher.md): APPEND a one-line gotcha to the
-  // per-repo notes store, then forward it to the repo's main session over
-  // `session.deliver`. `note.list` seeds each fresh worktree session.
+  // per-repo notes store. `note.list` seeds each fresh session's system prompt.
   | "note.file"
   | "note.list"
   // The newest notes are injected into every fresh session, so a stale one
@@ -302,17 +341,28 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "workitem.start",
   // Precheck subprocess, then a full session start.
   "automation.runNow",
+  // Materializes the worktree and starts the engine.
+  "task.startScheduledNow",
+  // One serial paste per rate-limited task.
+  "task.resumeQuota",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
+  // Serial thread/comment pages each have their own gh subprocess budget.
+  "pr.reviewComments",
   // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
   "task.ensureWorktree",
   // Cuts a worktree for the child; same minute-scale cost as ensureWorktree.
   "task.spawn",
   "task.ensureMain",
+  "task.moveToProject",
   "worktree.discoverAdoptable",
   "worktree.adopt",
   "worktree.list",
   "worktree.remove",
+  // Snapshot / rewrite of a user-sized working tree.
+  "task.checkpoint",
+  "task.rewind",
+  "task.exportBranch",
 ])
 
 /**
@@ -336,34 +386,15 @@ export type SubscribeRole = "gui" | "pane"
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit" | "pty.programStatus"
 
-/**
- * WHY a daemon is going away, on the `daemon.stopping` frame (v5). Clients only
- * wait out `idle`/`socket-lost`/`stop`; `restart` replaces the CODE, so an
- * attached TUI can offer a refresh at once instead of after reconnect + `hello`.
- * `stop` is the default, so an unlabelled stop never claims to be a restart.
- */
-export type DaemonStopReason = "restart" | "stop" | "idle" | "socket-lost"
-
-/**
- * The `daemon.stopping` frame's payload. Every field optional: a v4 daemon
- * broadcasts `{}`, and a v4 client ignores what it does not know — so this
- * shape may only ever GROW optional fields.
- */
-export interface DaemonStoppingPayload {
-  readonly reason?: DaemonStopReason
-  /** Outgoing build version, comparable without waiting for the next `hello`. */
-  readonly roveVersion?: string
-}
-
-/** Unknown/absent → `undefined` (an older daemon, or a reason this build doesn't know). */
-export function parseDaemonStopReason(value: unknown): DaemonStopReason | undefined {
-  return value === "restart" || value === "stop" || value === "idle" || value === "socket-lost" ? value : undefined
-}
-
 export interface DaemonError {
   readonly message: string
   readonly name?: string
+  /** Structured context a thrown error carried (`Error.data`), e.g. a stopped multi-repo land's `repos`. */
+  readonly data?: unknown
 }
+
+/** Wire error name of a PTY host declining `daemon.stop` while it holds live sessions and the caller did not say `force`. */
+export const PTY_STOP_REFUSED = "PtyStopRefused"
 
 export interface SerializedTask {
   readonly id: string
@@ -374,10 +405,19 @@ export interface SerializedTask {
   readonly kind: "main" | "task" | "dir"
   /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
+  /** Projectless routine session — sorts into the Ungrouped group. */
+  readonly noProject?: boolean
   /** A routine's standing session — folded behind the sidebar's routine count row. */
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
+  /** The attempt kept from a parallel round. */
+  readonly kept?: boolean
+  /** The owner's notes and checklist (`rove api todo`). */
+  readonly notes?: string
+  readonly todos?: DaemonTask["todos"]
+  /** Hidden from the sidebar and the default `list`; worktree, branch and sessions untouched. */
+  readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
   /** Raw engine launch command as given to `add --command` / `update --command`. */
   readonly command?: DaemonTask["command"]
@@ -396,6 +436,9 @@ export interface SerializedTask {
   readonly deletion?: DaemonTask["deletion"]
   /** Durable rate-limit auto-resume schedule. */
   readonly quotaResume?: DaemonTask["quotaResume"]
+  /** One-shot delayed start (`task.scheduleStart`). */
+  readonly scheduledStart?: DaemonTask["scheduledStart"]
+  readonly autoFixCi?: DaemonTask["autoFixCi"]
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The rove session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
@@ -409,12 +452,22 @@ export interface SerializedTask {
   readonly ptyAlias?: DaemonTask["ptyAlias"]
   /** Every prompt sent to this task must end in `rove api report`. */
   readonly requireReport?: DaemonTask["requireReport"]
+  /** A checkout cut by `add --worktree-only`: no engine of its own, unlisted while it has a parent. */
+  readonly worktreeOnly?: DaemonTask["worktreeOnly"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */
   readonly baseRef?: DaemonTask["baseRef"]
   /** Caller-chosen worktree directory name (`add --worktree-name`). */
   readonly worktreeName?: DaemonTask["worktreeName"]
+  /** Origin repo of a moved task's worktree; omitted when it still lives under `repo`. */
+  readonly gitRepo?: DaemonTask["gitRepo"]
+  /** Secondary repos of a multi-repo task; omitted for a one-repo task. */
+  readonly extraRepos?: DaemonTask["extraRepos"]
+  /** Workspace backend when it is not the one `kind` implies; omitted otherwise. */
+  readonly workspace?: DaemonTask["workspace"]
+  /** PRs the session opened from any directory (`rove api pr-attach`); omitted when none. */
+  readonly sessionPrs?: DaemonTask["sessionPrs"]
   /** The worker's own outcome claim (`update --report-*`) — a CLAIM,
    *  where `prStatus` is the daemon's own observation of the forge. */
   readonly report?: DaemonTask["report"]
@@ -428,55 +481,6 @@ export interface SerializedTask {
   readonly repoId?: string
   readonly createdAt: string
   readonly updatedAt: string
-}
-
-/**
- * Empty-title fallback (scratch tasks mint no auto-name), filled on the wire
- * upstream of every consumer so none renders a blank row. The STORED title
- * stays empty. No truncation: consumers clip, agents want the full path.
- */
-export function displayTaskTitle(task: Pick<DaemonTask, "title" | "branch" | "worktreePath" | "repo">): string {
-  return task.title || task.branch || task.worktreePath || task.repo || "scratch"
-}
-
-export function serializeTask(task: DaemonTask): SerializedTask {
-  const repoId = repoIdOf(task.repo)
-  return {
-    id: task.id,
-    title: displayTaskTitle(task),
-    repo: task.repo,
-    branch: task.branch,
-    worktreePath: task.worktreePath,
-    kind: task.kind ?? "task",
-    ...(task.scratch ? { scratch: true } : {}),
-    ...(task.routine ? { routine: task.routine } : {}),
-    status: task.status,
-    pinned: task.pinned ?? false,
-    vendor: task.vendor,
-    command: task.command,
-    prStatus: task.prStatus,
-    modelEffort: task.modelEffort,
-    model: task.model,
-    tier: task.tier,
-    groupId: task.groupId,
-    observedLanguage: task.observedLanguage,
-    deletion: task.deletion,
-    quotaResume: task.quotaResume,
-    linkedWorkItem: task.linkedWorkItem,
-    dispatcher: task.dispatcher,
-    ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
-    ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
-    ...(task.cwdSubpath ? { cwdSubpath: task.cwdSubpath } : {}),
-    ...(task.ptyAlias ? { ptyAlias: task.ptyAlias } : {}),
-    requireReport: task.requireReport,
-    prompt: task.prompt,
-    baseRef: task.baseRef,
-    worktreeName: task.worktreeName,
-    report: task.report,
-    ...(repoId ? { repoId } : {}),
-    createdAt: task.createdAt,
-    updatedAt: task.updatedAt,
-  }
 }
 
 export function frameToLine(frame: DaemonFrame): string {

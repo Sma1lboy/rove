@@ -121,8 +121,7 @@ describe("Automation field round-trip", () => {
   it("every AutomationPatch key mutates through update()", async () => {
     const store = new AutomationsStore(tempPath(), () => NOW)
     await store.init()
-    // A retained standing task freezes its pins, so start unlinked: PATCH then sets every key.
-    const created = await store.create({ ...FULL, sessionTaskId: undefined })
+    const created = await store.create(FULL)
     const updated = await store.update(created.id, PATCH)
     expect(updated).toMatchObject(PATCH)
     // Sanity: the fixture really did change every key, or a no-op update
@@ -155,5 +154,19 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("model")
     expect(loaded).not.toHaveProperty("modelEffort")
     expect(loaded).not.toHaveProperty("webhook")
+  })
+
+  it("a projectless routine (no repo) survives a daemon restart", async () => {
+    const path = tempPath()
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const { repo: _repo, baseRef: _baseRef, ...projectless } = FULL
+    const created = await store.create(projectless)
+    expect(created).not.toHaveProperty("repo")
+
+    const reborn = new AutomationsStore(path, () => NOW)
+    await reborn.init()
+    expect(reborn.get(created.id)).toEqual(created)
+    expect(reborn.get(created.id)).not.toHaveProperty("repo")
   })
 })

@@ -1,7 +1,7 @@
 /**
  * Guard: editing the agent skill's CONTENT must bump its version marker.
  *
- * `roveSkillState` decides staleness by comparing marker numbers only
+ * Staleness (`lib/skill-install.ts`) compares marker numbers only
  * (`best.version < ROVE_SKILL_VERSION`) — it never looks at what the file
  * says. So a content edit that skips the bump ships silently: every machine
  * that installed the previous version keeps the old text, and
@@ -31,10 +31,10 @@ const SKILL_DIR = join(ROOT, ".agents", "skills", "rove")
  * Regenerate with the command the failure message prints.
  */
 const FINGERPRINT = {
-  version: 73,
+  version: 114,
   sha256: {
-    "SKILL.md": "cce580d434a3fd695c0db1ee82df4412c5903ed4c7f6fb33bbfa86e83e24fc8a",
-    "references/api-flags.md": "c30f1091a1a625b3a82edff8ce8ca91f2cef25f644de8cb6ae71162f67ec9d75",
+    "SKILL.md": "fe2b14cffe093c1fe2eb2a681c09bc55a0213f6227850a3a221bb6c75944cd62",
+    "references/api-flags.md": "322616508cf77eeebcb6cac4a716fc57c4f1075c70ecb7bc4f5c47e6b62de3ae",
   },
 } as const
 

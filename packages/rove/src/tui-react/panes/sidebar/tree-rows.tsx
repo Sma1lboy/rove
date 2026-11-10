@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tree rows: project header flush, a task one cell in, each generation of
- * child tasks one cell deeper (the state glyph carries the hierarchy). A task
+ * Tree rows: project header and its tasks' state glyphs flush, each generation
+ * of child tasks two cells deeper (the state glyph carries the hierarchy). A task
  * row is `[status] label` plus the right-edge cluster and stays ONE cell
  * tall: a dozen tasks must fit the rail.
  *
@@ -24,7 +24,7 @@ import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
-import { prChip } from "../../../tui/panes/sidebar/row-chips"
+import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   type SidebarRowView,
   buildSidebarRowView,
@@ -45,7 +45,6 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
-import { useTaskColor } from "../../lib/use-task-color"
 import { useTabRowStatus, useTaskRowStatus } from "../../workspace/row-status-sync"
 import { useMostUrgentStatus } from "./fold-summary"
 import { completionStampOf, useClockTick, useDonePulse, usePollOnClock, useSpinnerFrame } from "./row-cards"
@@ -201,7 +200,7 @@ export function WorktreeTreeRow(props: {
   const kv = useOptionalKV()
   const shared = props.shared
   const task = props.task
-  const chip = prChip(task, glyphs)
+  const chip = sidebarPrChip(task, glyphs)
   // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
   // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
@@ -233,11 +232,13 @@ export function WorktreeTreeRow(props: {
   const remoteLive = remote ? remoteMarkLive(remote) : true
   const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
   const marker = childMarkerOf(task)
+  // A task over several repos is listed once, under its primary, with how many more it spans.
+  const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
-    // The state-glyph column, and the indent past the first level `treeLabelBudget` assumes.
+    // The state-glyph column, and the child indent (`indentOf` in tree-row-shell).
     2 +
-    ((props.depth ?? 1) - 1) +
+    2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
@@ -245,6 +246,7 @@ export function WorktreeTreeRow(props: {
     (age ? clusterCells(age) : 0) +
     (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
     (marker ? clusterCells(SHARED_MARK) : 0) +
+    (extraRepoText ? clusterCells(extraRepoText) : 0) +
     (fold
       ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
         (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
@@ -262,14 +264,13 @@ export function WorktreeTreeRow(props: {
       ? `${glyphs.remote} ${truncateEndCells(caption ?? "", captionCells, charWidth)}`
       : glyphs.remote
     : null
-  const mark = useTaskColor(task.id)
   const shimmer =
     rowView.loading &&
     !pulsing &&
     normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
   const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
       <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
         {`${rowView.stateGlyph} `}
       </text>
@@ -331,6 +332,11 @@ export function WorktreeTreeRow(props: {
         {props.level !== undefined ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
             {String(props.level)}
+          </text>
+        ) : null}
+        {extraRepoText ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {extraRepoText}
           </text>
         ) : null}
         {marker ? (

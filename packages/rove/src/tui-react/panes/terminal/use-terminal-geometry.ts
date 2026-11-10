@@ -5,12 +5,8 @@
  * the PTY handle or viewport cursor (`use-terminal-host-cursor.ts` owns
  * those effects).
  *
- * `bodyEl` MUST be React state, not a ref, so the effect re-runs the instant
- * the box attaches. The caller's ref callback MUST be an inline arrow, not
- * the stable `setBodyEl`: its re-attach every render is what re-measures
- * after Yoga's first pass (the first attach reports 0x0). A stable ref left
- * three Terminal render tests with no PTY; re-measuring on the frame event, a
- * 0/16ms timer, or one forced post-mount render all land too late.
+ * React state tracks box identity; same-box reattachment does not remeasure.
+ * Terminal dimensions and layout ticks trigger measurement after attachment.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -36,9 +32,22 @@ export function useTerminalGeometry(): UseTerminalGeometryResult {
   const [bodyGeometry, setBodyGeometry] = useState<{ cols: number; rows: number } | null>(null)
   const dims = useTerminalSize()
 
+  // The inline ref's detach/attach of the same box would queue null→el, a no-op
+  // render that still costs a commit; only a real change of box reaches state.
+  const shownElRef = useRef<BoxRenderable | null>(null)
   const setBodyEl = useCallback((el: BoxRenderable | null): void => {
     bodyElRef.current = el
-    setBodyElState(el)
+    if (el) {
+      if (el === shownElRef.current) return
+      shownElRef.current = el
+      setBodyElState(el)
+      return
+    }
+    queueMicrotask(() => {
+      if (bodyElRef.current || !shownElRef.current) return
+      shownElRef.current = null
+      setBodyElState(null)
+    })
   }, [])
 
   const measure = useCallback((el: BoxRenderable): void => {

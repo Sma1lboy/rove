@@ -13,7 +13,7 @@ import {
 } from "@sma1lboy/rove/src/tui/ops/diff-comments.ts"
 import { listFiles } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { BridgeError, optInt } from "../protocol.ts"
-import { absPath, bool, flag, tabId, taskId, text } from "./args.ts"
+import { absPath, bool, flag, optText, sendReason, tabId, taskId, text } from "./args.ts"
 import type { Args, BridgeApi, OpSpec, OpTable } from "./types.ts"
 
 /** Beyond this the phone gets the first slice and `truncated: true`. */
@@ -22,6 +22,7 @@ const MAX_NOTES = 200
 const NOTE_MAX = 4_000
 const PATH_MAX = 1_024
 const MAX_LINE = 10_000_000
+const CODE_MAX = 8_000
 
 /** Where review notes are kept. Defaults to `state.json`; tests inject a fake. */
 export interface NoteStore {
@@ -106,6 +107,7 @@ interface TaskListRes {
 
 export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
   const spec = (s: OpSpec): OpSpec => s
+  const sending = new Set<string>()
   return {
     "files.list": spec({
       kind: "read",
@@ -119,6 +121,17 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
           : await deps.listFiles(await worktreeOf(api, id))
         const truncated = all.length > MAX_FILES
         return { files: truncated ? all.slice(0, MAX_FILES) : all, truncated }
+      },
+    }),
+
+    "file.read": spec({
+      kind: "read",
+      destructive: false,
+      wraps:
+        "rove api worktree-file — one markdown/HTML/SVG/image/PDF file of the task's worktree (real path confined to it, 5 MB cap), base64",
+      // The verb runs where the worktree lives and confines the read there; `verb` routes a remote task by its id.
+      async run(args, { api }) {
+        return api.verb("worktree-file", [flag("task-id", taskId(args)), flag("path", relPath(args, "path"))])
       },
     }),
 
@@ -141,12 +154,14 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
         const line = lineNo(args, "line")
         const startLine = optInt(args, "startLine", 1, MAX_LINE)
         if (startLine !== undefined && startLine > line) throw new BridgeError("BAD_ARGS", "startLine is after line")
+        const code = optText(args, "code", CODE_MAX)
         const note: DiffComment = {
           id: deps.newId(),
           filePath: relPath(args, "filePath"),
           ...(startLine !== undefined && startLine !== line ? { startLine } : {}),
           line,
           body: text(args, "body", NOTE_MAX),
+          ...(code ? { code } : {}),
           createdAt: deps.now(),
         }
         deps.notes.update(id, (cur) => {
@@ -154,6 +169,27 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
             throw new BridgeError("TOO_MANY_NOTES", `a task keeps at most ${MAX_NOTES} notes`)
           return [...cur, note]
         })
+        return { note }
+      },
+    }),
+
+    "review.edit": spec({
+      kind: "write",
+      destructive: false,
+      wraps: "state.json diffComments.<taskId> (rewrite one note's text in place)",
+      async run(args) {
+        const id = taskId(args)
+        const noteId = text(args, "id", 128)
+        const body = text(args, "body", NOTE_MAX)
+        let note: DiffComment | undefined
+        deps.notes.update(id, (cur) =>
+          cur.map((c) => {
+            if (c.id !== noteId) return c
+            note = { ...c, body }
+            return note
+          }),
+        )
+        if (!note) throw new BridgeError("NOT_FOUND", "no such note")
         return { note }
       },
     }),
@@ -182,32 +218,39 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       async run(args, { api }) {
         const id = taskId(args)
         const tab = args.tabId === undefined || args.tabId === null || args.tabId === "" ? undefined : tabId(args)
+        // A confirmed send takes seconds; a second one meanwhile would paste the same notes again.
+        if (sending.has(id)) throw new BridgeError("SEND_IN_FLIGHT", "this task's notes are already being sent")
         const unsent = unsentComments(deps.notes.read(id) as DiffComment[])
         if (unsent.length === 0) return { sent: 0, delivered: true }
-        const worktree = await worktreeOf(api, id).catch(() => undefined)
-        const prompt = formatDiffComments(unsent, worktree)
-        const res = await api.verb<{
-          delivered?: boolean
-          targetState?: string
-          targetDetail?: string
-          reason?: unknown
-        }>("send", [flag("task-id", id), "--plain", flag("prompt", prompt), ...(tab ? [flag("tab", tab)] : [])])
-        // A refused or unconfirmed send leaves every note unsent; the verb throws on a refusal.
-        if (res.delivered !== true || res.targetState) {
-          return {
-            sent: 0,
-            delivered: false,
-            reason:
-              reasonText(res.targetDetail ?? res.reason) ??
-              (res.targetState ? `engine is ${res.targetState}` : "not confirmed"),
+        sending.add(id)
+        try {
+          const worktree = await worktreeOf(api, id).catch(() => undefined)
+          const prompt = formatDiffComments(unsent, worktree)
+          const res = await api.verb<{
+            delivered?: boolean
+            targetState?: string
+            targetDetail?: string
+            reason?: unknown
+          }>("send", [flag("task-id", id), "--plain", flag("prompt", prompt), ...(tab ? [flag("tab", tab)] : [])])
+          // A refused or unconfirmed send leaves every note unsent; the verb throws on a refusal.
+          if (res.delivered !== true || res.targetState) {
+            return {
+              sent: 0,
+              delivered: false,
+              reason:
+                sendReason(res.targetDetail ?? res.reason) ??
+                (res.targetState ? `engine is ${res.targetState}` : "not confirmed"),
+            }
           }
+          const batch = new Set(unsent.map((c) => c.id))
+          const sentAt = deps.now()
+          deps.notes.update(id, (cur) =>
+            cur.map((c) => (batch.has(c.id) && c.sentAt === undefined ? { ...c, sentAt } : c)),
+          )
+          return { sent: unsent.length, delivered: true }
+        } finally {
+          sending.delete(id)
         }
-        const batch = new Set(unsent.map((c) => c.id))
-        const sentAt = deps.now()
-        deps.notes.update(id, (cur) =>
-          cur.map((c) => (batch.has(c.id) && c.sentAt === undefined ? { ...c, sentAt } : c)),
-        )
-        return { sent: unsent.length, delivered: true }
       },
     }),
 
@@ -264,12 +307,6 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       },
     }),
   }
-}
-
-/** `send` reports a string or a small object (`{failure: "other"}`); the phone gets one line either way. */
-function reasonText(reason: unknown): string | undefined {
-  if (reason === undefined || reason === null || reason === "") return undefined
-  return typeof reason === "string" ? reason : JSON.stringify(reason)
 }
 
 export const filesOps: OpTable = createFilesOps()

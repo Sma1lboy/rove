@@ -49,8 +49,8 @@ function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number 
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
     if (field === target) return i

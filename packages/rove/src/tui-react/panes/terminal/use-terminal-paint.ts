@@ -1,7 +1,6 @@
 /**
  * The terminal pane's paint pipeline: visible snapshot rows + the overlays
- * that sit on them (selection, search hits, cursor) → retained row buffers.
-
+ * that sit on them (selection, cursor) → retained row buffers.
  */
 
 import { profileSpan } from "@/lib/render-profile"
@@ -19,8 +18,6 @@ export interface UseTerminalPaintOpts {
   readonly firstRow: number
   readonly cols: number
   readonly selection: SelectionRange | null
-  /** Overlay the search hits — {@link useTerminalSearch}'s reference-stable painter. */
-  readonly paintMatches: (rows: readonly TerminalRow[], firstRow: number, width: number) => readonly TerminalRow[]
   /** Viewport-relative cursor, or null when there is none to draw. */
   readonly cursor: { x: number; y: number } | null
   readonly focused: boolean
@@ -29,23 +26,20 @@ export interface UseTerminalPaintOpts {
 
 /** Ref callback for the grid whose row buffers the painter owns. */
 export function useTerminalPaint(opts: UseTerminalPaintOpts): (el: BoxRenderable | null) => void {
-  const { visibleRows, firstRow, cols, selection, paintMatches, cursor, focused, colors } = opts
+  const { visibleRows, firstRow, cols, selection, cursor, focused, colors } = opts
   const renderer = useRenderer()
 
   const cursorRows = useMemo(
     () =>
       profileSpan("overlay", () => {
         const withSelection = overlaySelection(visibleRows, selection, firstRow, cols)
-        // Search hits paint OVER the selection: the two can coexist (a highlight
-        // survives until the next click), and the hit is what you are steering.
-        const withMatches = paintMatches(withSelection, firstRow, cols)
         // While a selection is active, the synthetic cursor cell is hidden
         // (tmux copy-mode behavior): cursor and selection share the same
         // inverse styling, so a cursor sitting just past the selection read
         // as the highlight overrunning by one blinking cell.
-        return overlayCursor(withMatches, focused && !selection ? cursor : null, colors)
+        return overlayCursor(withSelection, focused && !selection ? cursor : null, colors)
       }),
-    [visibleRows, selection, firstRow, cols, paintMatches, cursor, focused, colors],
+    [visibleRows, selection, firstRow, cols, cursor, focused, colors],
   )
 
   const [grid, setGrid] = useState<BoxRenderable | null>(null)

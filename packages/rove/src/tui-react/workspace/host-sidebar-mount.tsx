@@ -7,6 +7,7 @@
  */
 
 import type { Task } from "@/types/task"
+import type { VendorId } from "@/types/vendor"
 import type { MutableRefObject } from "react"
 import { RAIL_FOLD_STYLE_KEY } from "../../state/sidebar-collapsed.ts"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
@@ -45,6 +46,8 @@ export interface HostSidebarMountProps {
   readonly onFixChecks: (taskId: string) => void
   readonly onResolveConflicts: (taskId: string) => void
   readonly runAgain: (task: Task) => void
+  /** The Scratch section's menu: a Scratch task on an engine, or a bare shell. */
+  readonly openScratch: (vendor: VendorId | undefined) => void
   readonly activePane: string | null
   readonly zen: boolean
   readonly toggleZen: () => void
@@ -106,12 +109,17 @@ export function HostSidebarMount(props: HostSidebarMountProps) {
       focused={props.activePane === "sidebar"}
       // Task lifecycle: the Sidebar's d/r/p/m keys fire these.
       onAddTask={() => void actions.createTask()}
+      onNewTaskFromBranchRequest={(id) => void actions.createTaskFromBranch(id)}
+      onOpenScratch={props.openScratch}
       onDeleteRequest={(id) => void actions.deleteTask(id)}
+      onForgetProjectRequest={(id) => void actions.forgetProject(id)}
       onLandRequest={(id) => void actions.landTask(id)}
+      onArchiveRequest={(id) => void actions.archiveTask(id)}
       onSyncBaseRequest={(id) => void actions.syncBase(id)}
       onRenameRequest={(id) => void actions.renameTask(id)}
       onPinRequest={(id) => void actions.togglePin(id)}
       onSetStatusRequest={(id) => void actions.setStatus(id)}
+      onMoveToProjectRequest={(id) => void actions.moveToProject(id)}
       onCopyRequest={(id, field, tabId) => actions.copyTaskField(id, field, tabId)}
       onOpenEditorRequest={props.openTaskWorktree}
       onRenameBranchRequest={(id) => void actions.renameBranch(id)}

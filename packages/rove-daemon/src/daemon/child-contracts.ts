@@ -13,6 +13,8 @@ export interface TaskDeleteOptions {
 /** Input to `spawnChildTask` / `task.spawn`: a new conversation as a child of `parentTaskId`. */
 export interface SpawnChildInput {
   readonly parentTaskId: string
+  /** A bare checkout: see `CreateTaskInput.worktreeOnly`. */
+  readonly worktreeOnly?: boolean
   /** `true`: its own worktree cut from the parent's current branch tip; `false`: share the parent's directory. */
   readonly worktree: boolean
   /** Overrides the cut point of a new worktree. */
@@ -24,6 +26,15 @@ export interface SpawnChildInput {
   readonly command?: string
   /** The brief, kept on the row; delivery is the caller's. */
   readonly prompt?: string
+  /** Create-time fields `add` carries onto the child as given (a shared child takes only the engine fields and `groupId`). */
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  readonly groupId?: string
+  readonly branch?: string
+  readonly worktreeName?: string
+  /** A worktree child's checkout waits for its first entry (`add`'s lazy worktree) instead of being cut during the call. */
+  readonly lazy?: boolean
   readonly dispatcher?: TaskDispatcher
 }
 

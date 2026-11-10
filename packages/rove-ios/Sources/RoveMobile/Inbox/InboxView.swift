@@ -35,7 +35,7 @@ struct InboxView: View {
             }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    section(String(localized: "attention"), count: pending.count)
+                    section(String(localized: "attention"), count: pending.count, clearable: pending.filter { InboxLogic.dismissal($0) != nil })
                     if pending.isEmpty {
                         EmptyState(title: String(localized: "nothing needs you"), detail: String(localized: "blocked agents and finished turns land here"))
                             .padding(.horizontal, 20).padding(.vertical, 8)
@@ -57,10 +57,19 @@ struct InboxView: View {
         .task(id: recent) { await loadTabInfo(for: recent) }
     }
 
-    private func section(_ name: String, count: Int) -> some View {
+    private func section(_ name: String, count: Int, clearable: [AttentionItem] = []) -> some View {
         HStack {
             Theme.kicker(name)
             Spacer()
+            if !clearable.isEmpty {
+                Button { Task { await store.dismissAttention(clearable) } } label: {
+                    Text("ack all").font(Theme.mono(12)).foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 8).frame(minHeight: 44)
+                }
+                .buttonStyle(.pressable)
+                .padding(.vertical, -14)
+                .accessibilityIdentifier("ackAll")
+            }
             Text(String(format: "%02d", count)).font(Theme.mono(11)).monospacedDigit().foregroundStyle(Theme.muted)
         }
         .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 4)
@@ -102,7 +111,7 @@ struct InboxView: View {
             }
             .buttonStyle(RowButtonStyle())
             .accessibilityIdentifier("attention-\(InboxLogic.key(item))")
-            if item.taskId != nil && item.gateId == nil {
+            if InboxLogic.dismissal(item) != nil {
                 Button { Task { await store.dismissAttention(item) } } label: {
                     Text("dismiss").font(Theme.mono(12)).foregroundStyle(Theme.muted)
                         .padding(.horizontal, 10).frame(minHeight: 44)

@@ -2,99 +2,35 @@
  * One hosted PTY session in xterm.js: `term.attach` replays the host ring, then
  * `term.data` pushes stream live; keystrokes and resizes go back as `term.input`
  * / `term.resize`. Plain TypeScript around the xterm instance so the React view
- * only owns what it draws (notice, scroll chips, search row).
+ * only owns what it draws (notice, scroll chips).
  */
 
-import { FitAddon } from "@xterm/addon-fit"
-import { SearchAddon } from "@xterm/addon-search"
+import { SerializeAddon } from "@xterm/addon-serialize"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
-import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
-import { linesFromBottom, viewportAfterWrite, wheelLines, wheelOwner } from "./term-scroll.ts"
-import { activeStream } from "./ui.ts"
+import { markScrolling } from "./scroll-reveal.ts"
+import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
+import { createCover } from "./term-cover.ts"
+import { attachDictationGuard } from "./term-dictation.ts"
+import { OverlayFitAddon } from "./term-fit.ts"
+import { attachKittyImages } from "./term-images.ts"
+import { ctrlChord } from "./term-keys.ts"
+import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
+import { createReplyGate } from "./term-replies.ts"
+import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
+import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
+import { attachTouchScroll } from "./term-touch.ts"
+import { loadWebgl } from "./term-webgl.ts"
 
-/** The TUI's default `claude` theme, dark (`tui/context/theme/claude.json`). */
-const XTERM_THEME = {
-  background: "#141413",
-  foreground: "#eae7df",
-  cursor: "#cc785c",
-  cursorAccent: "#141413",
-  selectionBackground: "#33312e",
-  black: "#141413",
-  red: "#d47563",
-  green: "#9aca86",
-  yellow: "#e8c96b",
-  blue: "#61aaf2",
-  magenta: "#9b87f5",
-  cyan: "#d4967e",
-  white: "#a9a39a",
-  brightBlack: "#6b665f",
-  brightRed: "#d47563",
-  brightGreen: "#9aca86",
-  brightYellow: "#e8c96b",
-  brightBlue: "#61aaf2",
-  brightMagenta: "#9b87f5",
-  brightCyan: "#e0ab96",
-  brightWhite: "#eae7df",
-}
-
-/**
- * The bundled JetBrains Mono first; then any Nerd Font installed on the viewer's machine, so the
- * icons engines draw (Claude Code's status line, prompt themes) render instead of boxes. Nerd Fonts
- * v3 family names; the browser falls back per glyph, so only the icon code points come from these.
- */
-const NERD_FALLBACKS = [
-  "Symbols Nerd Font Mono",
-  "JetBrainsMono Nerd Font Mono",
-  "JetBrainsMonoNL Nerd Font Mono",
-  "FiraCode Nerd Font Mono",
-  "Hack Nerd Font Mono",
-  "MesloLGS Nerd Font Mono",
-  "CaskaydiaCove Nerd Font Mono",
-  "Symbols Nerd Font",
-  "JetBrainsMono Nerd Font",
-  "FiraCode Nerd Font",
-  "MesloLGS NF",
-]
-const FONT_FAMILY = [
-  '"JetBrains Mono"',
-  ...NERD_FALLBACKS.map((f) => `"${f}"`),
-  '"SF Mono"',
-  "ui-monospace",
-  "Menlo",
-  "monospace",
-].join(", ")
-
-/** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
-export const SCROLL_PAGE_LINES = 10
-
-/** Width of xterm's overlay scrollbar lane (its default is 14); the fit addon reserves the same. */
+/** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
-
-export type Notice =
-  | { readonly kind: "none" }
-  | { readonly kind: "restored" }
-  | { readonly kind: "notLive" }
-  | { readonly kind: "exited"; readonly code: number | null }
-  | { readonly kind: "failed"; readonly message: string }
-
-function decode(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-}
-
-function streamPayload(data: unknown): { stream: string; data?: string; code?: number | null } | null {
-  if (!data || typeof data !== "object" || !("stream" in data) || typeof data.stream !== "string") return null
-  return {
-    stream: data.stream,
-    ...("data" in data && typeof data.data === "string" ? { data: data.data } : {}),
-    ...("code" in data && (typeof data.code === "number" || data.code === null) ? { code: data.code } : {}),
-  }
-}
+import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
+import { activeStream, layoutMoving } from "./ui.ts"
 
 export interface MountOpts {
   readonly client: BridgeClient
@@ -112,24 +48,13 @@ export interface MountOpts {
   readonly onExit: (code: number | null) => void
   /** Copy-on-release and the copy chords; true = it reached the clipboard. */
   readonly copyText: (text: string) => Promise<boolean>
+  /** Mac Ctrl+V: attaches the image on the browser's clipboard, or says why it can't. */
+  readonly pasteImage: () => Promise<void>
   readonly focusOnMount: boolean
-}
-
-export interface TermHandle {
-  readonly term: Terminal
-  readonly search: SearchAddon
-  readonly stream: string
-  /** User scrolls (keys, the scroll chips): negative = toward older output. */
-  scrollLines(lines: number): void
-  scrollToTop(): void
-  scrollToBottom(): void
-  /** Attach again (a reset respawned the session under the same key). */
-  reattach(): Promise<void>
-  dispose(): void
-}
-
-export function streamKey(taskId: string, tabId: string, leafId?: string): string {
-  return leafId && leafId !== "leaf-1" ? `${taskId}::${tabId}::${leafId}` : `${taskId}::${tabId}`
+  /** The screen as it last looked (`TermHandle.snapshot`), shown over the terminal until the reattach repaints it. */
+  readonly snapshot?: string
+  /** The first replay is on screen (or the attach failed): what the view showed before can go. */
+  readonly onPainted?: () => void
 }
 
 /** Copy chords the browser would not make on its own inside xterm's textarea: Cmd+C, Ctrl+Shift+C, and Ctrl+C with a selection. */
@@ -141,6 +66,16 @@ function isCopyChord(e: KeyboardEvent): "interrupt-or-copy" | "copy" | null {
 
 // Attachments are shared by stream within a connection, including pending replies.
 const attachments = new WeakMap<BridgeClient, Map<string, { owners: number; attached: boolean }>>()
+
+const RIS = new Uint8Array([0x1b, 0x63])
+
+/** `bytes` behind a full reset, as one write: xterm parses it in a single pass, so no frame paints the cleared screen. */
+function withReset(bytes: Uint8Array): Uint8Array {
+  const out = new Uint8Array(RIS.length + bytes.length)
+  out.set(RIS)
+  out.set(bytes, RIS.length)
+  return out
+}
 
 export function mountTerminal(o: MountOpts): TermHandle {
   const { client, el, taskId, tabId } = o
@@ -157,22 +92,21 @@ export function mountTerminal(o: MountOpts): TermHandle {
     // xterm would also jump to the bottom on mouse reports sent to the app; typing is handled below.
     scrollOnUserInput: false,
   })
-  const fit = new FitAddon()
-  const search = new SearchAddon()
+  const fit = new OverlayFitAddon(term)
   term.loadAddon(fit)
-  term.loadAddon(search)
+  const serialize = new SerializeAddon()
+  term.loadAddon(serialize)
   term.loadAddon(new Unicode11Addon())
   term.unicode.activeVersion = "11"
   term.loadAddon(new WebLinksAddon())
   term.open(el)
-  try {
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => webgl.dispose())
-    term.loadAddon(webgl)
-  } catch {
-    // The DOM renderer is slower but complete.
-  }
+  const webgl = loadWebgl(term)
+  const images = attachKittyImages(term)
   fit.fit()
+  // A reattach replays a ring that starts mid-repaint, so the screen is blank until the engine redraws.
+  const cover = createCover(term, el, serialize)
+  let replayed = false
+  if (o.snapshot) cover.raise(o.snapshot)
   if (o.focusOnMount) term.focus()
 
   const expected = streamKey(taskId, tabId, o.leafId)
@@ -187,15 +121,34 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const detach = () => void client.request("term.detach", { stream: expected }).catch(() => {})
   let stream: string | null = null
   let alive = false
-  let held: Uint8Array[] | null = null
+  let held: Array<{ bytes: Uint8Array; chars: number }> | null = null
   let disposed = false
+  const replies = createReplyGate((data) => {
+    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
+  })
+  const acks = createAcks((chars) => {
+    if (stream) void client.request("term.ack", { stream, chars }).catch(() => {})
+  })
+  const writeAcked = (bytes: Uint8Array, chars: number, parsed?: () => void) => {
+    images.push(bytes)
+    term.write(bytes, () => {
+      parsed?.()
+      acks.parsed(chars)
+    })
+  }
 
   const offData = client.on("term.data", (raw) => {
     const p = streamPayload(raw)
     if (!p?.data || p.stream !== expected) return
     const bytes = decode(p.data)
-    if (held) held.push(bytes)
-    else if (stream) term.write(bytes)
+    if (held) held.push({ bytes, chars: p.data.length })
+    else if (stream) writeAcked(bytes, p.data.length)
+  })
+  // RIS and the replay are one chunk: a frame never paints between the wipe and the redraw.
+  const offReset = client.on("term.reset", (raw) => {
+    const p = resetPayload(raw)
+    if (!p || p.stream !== expected || !stream || held) return
+    replies.replay((parsed) => writeAcked(withReset(decode(p.replay)), p.replay.length, parsed))
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -205,24 +158,70 @@ export function mountTerminal(o: MountOpts): TermHandle {
     o.onExit(p.code ?? null)
   })
 
+  // Once the screen shows something (or the attach failed) the view can let go of what it showed before. A replay
+  // that starts mid-repaint parses to an empty screen: that is not it yet, the engine's redraw is.
+  let paintedOnce = false
+  let awaitingInk: { dispose(): void } | null = null
+  const hasInk = () => {
+    const buffer = term.buffer.active
+    for (let row = 0; row < term.rows; row++)
+      if (
+        buffer
+          .getLine(buffer.viewportY + row)
+          ?.translateToString(true)
+          .trim()
+      )
+        return true
+    return false
+  }
+  const painted = (drawn: boolean) => {
+    if (paintedOnce) return
+    if (drawn && !hasInk()) {
+      awaitingInk ??= term.onWriteParsed(() => painted(true))
+      return
+    }
+    paintedOnce = true
+    awaitingInk?.dispose()
+    if (drawn) requestAnimationFrame(() => requestAnimationFrame(() => o.onPainted?.()))
+    else o.onPainted?.()
+  }
   const attach = async (): Promise<void> => {
     held = []
     stream = null
     try {
-      const res = await client.request<{ stream: string; alive: boolean; replay: string }>("term.attach", {
-        taskId,
-        tabId,
-        ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
-        cols: term.cols,
-        rows: term.rows,
-      })
+      const res = await client.request<{ stream: string; alive: boolean; restored?: boolean; replay: string }>(
+        "term.attach",
+        {
+          taskId,
+          tabId,
+          ...(o.leafId && o.leafId !== "leaf-1" ? { leafId: o.leafId } : {}),
+          cols: term.cols,
+          rows: term.rows,
+          acks: true,
+        },
+      )
       const current = owned.get(expected)
       if (current) current.attached = true
       else detach()
       if (disposed) return
-      term.reset()
-      term.write(decode(res.replay))
-      for (const bytes of held) term.write(bytes)
+      smooth.reset()
+      // A screen already showing this session stays up as a snapshot until the engine has repainted over the replay.
+      if (replayed && !cover.raised) cover.raise(cover.snapshot())
+      replayed = true
+      heldBack = null
+      ignoreWipe = true
+      // Reset and replay go in as one chunk, so they parse in one pass and no frame paints between them: a
+      // synchronous `term.reset()` with the replay queued behind it painted the empty terminal for a frame.
+      replies.replay((parsed) => {
+        const bytes = decode(res.replay)
+        images.push(bytes)
+        term.write(withReset(bytes), () => {
+          ignoreWipe = false
+          parsed()
+          painted(true)
+        })
+      })
+      for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
       // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
@@ -239,10 +238,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
               ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
               : undefined,
           )
-          .catch(() => {})
-      }
+          .then(() => window.setTimeout(cover.lower, 250))
+          .catch(cover.lower)
+      } else cover.lower()
       if (res.alive && document.activeElement === term.textarea) activeStream.set(res.stream)
-      o.setNotice(res.alive ? { kind: "none" } : { kind: "restored" })
+      o.setNotice(res.alive ? { kind: "none" } : res.restored ? { kind: "restored" } : { kind: "exited", code: null })
     } catch (err) {
       if (disposed) return
       if (err instanceof BridgeRequestError && err.code === "TAB_NOT_LIVE") o.setNotice({ kind: "notLive" })
@@ -251,12 +251,41 @@ export function mountTerminal(o: MountOpts): TermHandle {
       }
     } finally {
       held = null
+      if (!stream) {
+        cover.lower()
+        painted(false)
+      }
     }
   }
-  const offOpen = client.onOpen(() => void attach())
+  // An unlaid-out box (phone workspace still display:none) would attach at xterm's 80×24 default.
+  const sized = () => el.clientWidth > 0 && el.clientHeight > 0
+  let attachWhenSized = false
+  const offOpen = client.onOpen(() => {
+    attachWhenSized = !sized()
+    if (!attachWhenSized) void attach()
+  })
 
+  let ctrlNext: (() => void) | null = null
   const input = term.onData((data) => {
-    if (stream && alive) void client.request("term.input", { stream, data }).catch(() => {})
+    if (ctrlNext && data.length === 1) {
+      const used = ctrlNext
+      ctrlNext = null
+      used()
+      replies.forward(ctrlChord(data))
+    } else replies.forward(data)
+  })
+  const detachDictation = attachDictationGuard(term, (data) => replies.forward(data))
+  // Every viewer of a PTY shares one size and the last to send wins; an inline TUI drawn for another
+  // viewer's width leaves ghost frames here. The viewer the person is using claims it back: on focus,
+  // and on a keystroke (throttled; the host ignores a size it already has).
+  let claimedAt = 0
+  const claimSize = () => {
+    if (!stream || !alive) return
+    claimedAt = Date.now()
+    void client.request("term.resize", { stream, cols: term.cols, rows: term.rows }).catch(() => {})
+  }
+  const keyed = term.onKey(() => {
+    if (Date.now() - claimedAt > 1000) claimSize()
   })
   let resizeTimer: number | null = null
   const resize = term.onResize(({ cols, rows }) => {
@@ -265,11 +294,19 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (stream && alive) void client.request("term.resize", { stream, cols, rows }).catch(() => {})
     }, 80)
   })
-  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY.
-  const observer = new ResizeObserver(() => {
-    if (el.clientWidth > 0 && el.clientHeight > 0) fit.fit()
-  })
+  // Hidden behind a preview the box is 0×0; fitting to it would shrink the shared PTY. While a column slides
+  // or is dragged the canvas keeps its size: fit once it settles.
+  const refit = () => {
+    if (layoutMoving.get() !== null || !sized()) return
+    fit.fit()
+    if (attachWhenSized) {
+      attachWhenSized = false
+      void attach()
+    }
+  }
+  const observer = new ResizeObserver(refit)
   observer.observe(el)
+  const offMoving = layoutMoving.subscribe(refit)
   // The theme and the scrollback depth follow Settings: a terminal restored before the page's first prefs reply catches up.
   const offScroll = prefsStore.subscribe(() => {
     term.options.scrollback = prefsStore.get().prefs.scrollbackRows
@@ -286,6 +323,14 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
+    // Elsewhere it is the browser's own paste, which the paste event already covers.
+    const ctrlV =
+      e.type === "keydown" && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "v"
+    if (ctrlV && /Mac|iPhone|iPad/.test(navigator.platform)) {
+      void o.pasteImage()
+      return false
+    }
     const chord = isCopyChord(e)
     if (!chord) return true
     const text = term.getSelection()
@@ -311,34 +356,33 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Scrolling as the TUI pane does it. A wheel the app does not take moves the scrollback by whole
   // lines here, not through xterm's scrollable, which drops a sub-line touchpad delta whenever new
-  // output lands before it adds up to a row. A view at the bottom follows output; a scrolled one
-  // stays put, and if the app wipes the scrollback under it (ESC[3J, ESC c: a full repaint) it
-  // keeps its distance from the bottom while the wipes go on. Typing returns to the bottom.
+  // output lands before it adds up to a row; the fraction of a line left over shifts the screen by
+  // CSS (`term-smooth.ts`) so the text follows the fingers every frame. A view at the bottom follows
+  // output; a scrolled one stays put, and if the app wipes the scrollback under it (ESC[3J, ESC c: a
+  // full repaint) it keeps its distance from the bottom while the wipes go on. Typing returns to the
+  // bottom.
   const textarea = term.textarea
-  let wheelCarry = 0
   let heldBack: number | null = null
+  // The wipe a reattach's own reset makes is not the app's: the view goes to the bottom, as it always did.
+  let ignoreWipe = false
   let lastWipe = 0
-  const onWheel = (e: WheelEvent) => {
-    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
-    const alternateScreen = term.buffer.active.type === "alternate"
-    if (wheelOwner({ alternateScreen, mouseTracking: term.modes.mouseTrackingMode !== "none" }) === "app") return
-    e.preventDefault()
-    e.stopPropagation()
-    const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
-    const cellHeight = screen && term.rows > 0 ? screen.clientHeight / term.rows : 0
-    const step = wheelLines(wheelCarry, e, cellHeight || 15, term.rows)
-    wheelCarry = step.carry
-    if (step.lines === 0) return
+  const smooth = createSmoothScroll(term, () => {
     heldBack = null
-    term.scrollLines(step.lines)
-  }
-  el.addEventListener("wheel", onWheel, { capture: true, passive: false })
+  })
+  const detachWheel = attachWheelScroll(el, term, smooth)
+  const detachTouch = attachTouchScroll(el, term, smooth)
   const onScrollbarDown = (e: MouseEvent) => {
-    if (e.target instanceof Element && e.target.closest(".scrollbar")) heldBack = null
+    if (!(e.target instanceof Element && e.target.closest(".scrollbar"))) return
+    heldBack = null
+    smooth.reset()
   }
   el.addEventListener("mousedown", onScrollbarDown, { capture: true })
+  // The slider shows only while the user scrolls, not on hover or when output moves the view.
+  const revealSlider = () => markScrolling(el)
+  el.addEventListener("wheel", revealSlider, { capture: true, passive: true })
+  el.addEventListener("touchmove", revealSlider, { capture: true, passive: true })
   const noteWipe = () => {
-    if (term.buffer.active.type === "normal") {
+    if (!ignoreWipe && term.buffer.active.type === "normal") {
       const back = linesFromBottom(term.buffer.active)
       if (heldBack === null && back > 0) heldBack = back
       lastWipe = performance.now()
@@ -351,6 +395,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
   const wipeAll = term.parser.registerEscHandler({ final: "c" }, noteWipe)
   const followInput = () => {
     heldBack = null
+    smooth.reset()
     if (linesFromBottom(term.buffer.active) > 0) term.scrollToBottom()
   }
   const typed = term.onKey(followInput)
@@ -368,11 +413,13 @@ export function mountTerminal(o: MountOpts): TermHandle {
   })
   const userScroll = (move: () => void) => {
     heldBack = null
+    smooth.reset()
     move()
   }
 
   const focused = () => {
     activeStream.set(stream)
+    claimSize()
     o.onFocusChange(true)
   }
   const blurred = () => o.onFocusChange(false)
@@ -381,17 +428,25 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   return {
     term,
-    search,
     stream: expected,
     scrollLines: (lines) => userScroll(() => term.scrollLines(lines)),
     scrollToTop: () => userScroll(() => term.scrollToTop()),
     scrollToBottom: () => userScroll(() => term.scrollToBottom()),
+    armCtrl: (onUsed) => {
+      ctrlNext = onUsed
+    },
     reattach: attach,
+    snapshot: cover.snapshot,
     dispose() {
       disposed = true
+      cover.lower()
       observer.disconnect()
-      el.removeEventListener("wheel", onWheel, { capture: true })
+      detachWheel()
+      detachTouch()
+      smooth.dispose()
       el.removeEventListener("mousedown", onScrollbarDown, { capture: true })
+      el.removeEventListener("wheel", revealSlider, { capture: true })
+      el.removeEventListener("touchmove", revealSlider, { capture: true })
       textarea?.removeEventListener("paste", followInput)
       textarea?.removeEventListener("compositionend", followInput)
       wipeScrollback.dispose()
@@ -399,6 +454,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       typed.dispose()
       offTheme()
       offScroll()
+      offMoving()
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)
       el.removeEventListener("mousedown", onDown)
       document.removeEventListener("mouseup", onUp)
@@ -407,17 +463,23 @@ export function mountTerminal(o: MountOpts): TermHandle {
       scroll.dispose()
       written.dispose()
       input.dispose()
+      detachDictation()
+      keyed.dispose()
       resize.dispose()
       offOpen()
       offData()
       offExit()
+      offReset()
+      acks.dispose()
       if (stream && activeStream.get() === stream) activeStream.set(null)
       ownership.owners--
       if (ownership.owners === 0) {
         owned.delete(expected)
         if (ownership.attached) detach()
       }
+      images.dispose()
       term.dispose()
+      webgl.dispose()
     },
   }
 }

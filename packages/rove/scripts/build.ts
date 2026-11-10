@@ -15,13 +15,8 @@
  * `rove daemon ...`, so there is no separate `roved` binary to build.
  *
  * The canonical Rove SKILL.md is copied from its compatibility source path
- * into the tarball. `npx skills add Sma1lboy/rove --skill rove` does a `git clone
- * --depth 1`, which for this repo means 198MB of working tree — unusable
- * on a slow connection for a file this size. Since the user already has
- * Rove installed, `rove skill install` points the agent-skills CLI at the
- * bundled copy instead (a local path, no network). The CLI still owns
- * agent detection, target dirs, and symlinking — rove never reimplements
- * that registry.
+ * into the tarball (from Sma1lboy/rove's `.agents/skills/rove`);
+ * `rove skill install` copies that bundled dir into each engine's skills dir.
  *
  * The published artifact carries the `rove-harness` capture page alongside
  * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs; and
@@ -58,6 +53,22 @@ const WEB_PTY_SIDE_CAR_FILES = [
   "pty-scrollback.mjs",
   "pty-session-lifecycle.mjs",
   "pty-server.mjs",
+]
+/** The dictation sidecar: the page's Settings → Voice installs and starts it from here (rove-bridge voice-setup.ts). */
+const VOICE_SRC_DIR = "../../scripts/voice"
+const VOICE_OUT_DIR = "./dist/voice"
+const VOICE_FILES = [
+  "asr_server.py",
+  "engine.py",
+  "fetch_model.py",
+  "learn.py",
+  "live.py",
+  "phonetic.py",
+  "polish.py",
+  "polish_prompt.md",
+  "vocab.py",
+  "pyproject.toml",
+  "uv.lock",
 ]
 const BROWSER_CLIENT_DIR = "../rove-web"
 const BROWSER_CLIENT_OUT_DIR = "./dist/web"
@@ -113,6 +124,19 @@ async function copySkill(): Promise<void> {
   await rm(SKILL_OUT_DIR, { recursive: true, force: true })
   await mkdir(SKILL_OUT_DIR, { recursive: true })
   await cp(SKILL_SRC_DIR, SKILL_OUT_DIR, { recursive: true, force: true })
+}
+
+/** Ship the sidecar's sources and lock, never a checkout's `.venv` or caches. Hard-fails on a missing file. */
+async function copyVoice(): Promise<void> {
+  await rm(VOICE_OUT_DIR, { recursive: true, force: true })
+  await mkdir(VOICE_OUT_DIR, { recursive: true })
+  for (const file of VOICE_FILES) {
+    if (!existsSync(`${VOICE_SRC_DIR}/${file}`)) {
+      console.error(`build failed: voice sidecar file missing at ${VOICE_SRC_DIR}/${file}`)
+      process.exit(1)
+    }
+    await cp(`${VOICE_SRC_DIR}/${file}`, `${VOICE_OUT_DIR}/${file}`, { force: true })
+  }
 }
 
 /**
@@ -234,7 +258,8 @@ for (const file of OUT_FILES) await chmod(file, 0o755)
 await writeCompletionScripts()
 await copyWebUi()
 await copySkill()
+await copyVoice()
 
 console.log(
-  `built ${OUT_FILES.join(", ")}, ./dist/cli/pty-host-node.mjs, ${COMPLETIONS_OUT_DIR}/*.${SHELLS.join("|")}, ${SKILL_OUT_DIR}`,
+  `built ${OUT_FILES.join(", ")}, ./dist/cli/pty-host-node.mjs, ${COMPLETIONS_OUT_DIR}/*.${SHELLS.join("|")}, ${SKILL_OUT_DIR}, ${VOICE_OUT_DIR}`,
 )

@@ -5,7 +5,7 @@
  */
 
 import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
   type AliasRef,
@@ -16,9 +16,11 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
+import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
+import { inspectRepo, isGitRepo, isRemoteRepoKey, isValidBranchName, resolveMainRepoRoot } from "../../state/repos.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
@@ -39,6 +41,7 @@ import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
+import { reviveTab } from "./tab-revive.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
@@ -84,6 +87,8 @@ async function deliverHosted(
         model: target.model,
       })[0]
       const tabId = target.tab
+      // Only a consented respawn rebuilds a launch, so only it needs the repos.
+      const respawnRepos = target.respawn && target.multiRepo ? await launchReposOf(client, target.id) : undefined
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
         maxLiveEngines: persistedMaxLiveEngines(),
@@ -91,7 +96,8 @@ async function deliverHosted(
         // only when reviving a tab a pty-host restart froze.
         ...(target.respawn
           ? {
-              respawn: () => restoredTabLaunch(target, tabId, worktree, resolveLoginShell({ fallback: "/bin/zsh" })),
+              respawn: () =>
+                restoredTabLaunch({ ...target, repos: respawnRepos }, tabId, worktree, resolveSessionShell()),
             }
           : {}),
       })
@@ -110,17 +116,24 @@ async function deliverHosted(
     )
     // A hosted session can't answer a trust dialog; no-op for generic protocols.
     trustEngineWorktree(target.vendor, worktree)
+    const repos = target.multiRepo ? await launchReposOf(client, target.id) : undefined
+    trustExtraRepos(target.vendor, repos)
     const launch = buildEngineSessionLaunch({
-      task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo },
+      task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: worktree,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
     })
     const result = await deliverHostedPrompt(
       host.rpc,
       // Another task's alias may claim a PTY under this task's key: never fall back to it.
-      { id: target.id, engineBin: argv[0], scope: await ptyScopeOf(client, { id: target.id }) },
+      {
+        id: target.id,
+        engineBin: argv[0],
+        scope: await ptyScopeOf(client, { id: target.id }),
+        ...(target.firstConversation ? { firstConversation: true } : {}),
+      },
       worktree,
       prompt,
       launch,
@@ -347,7 +360,8 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
-  openTab: async (client, target, kind) => openNewTab(client, target, await ensureWorktree(client, target), kind),
+  openTab: async (client, target, kind, opts) =>
+    openNewTab(client, target, await ensureWorktree(client, target), kind, opts),
   launchTab: (client, spec) =>
     launchTab(client, spec, (taskId, tabId, worktree, pane) =>
       splitTab(client, taskId, tabId, worktree, {
@@ -358,12 +372,11 @@ export const defaultApiRuntime: ApiRuntime = {
       }),
     ),
   splitTab,
-  resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
-  isUsableRepo: async (absPath) => {
-    const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
-    return isRemoteRepoKey(absPath) || isGitRepo(absPath)
-  },
-  isValidBranchName: async (branch) => (await import("../../state/repos.ts")).isValidBranchName(branch),
+  reviveTab,
+  resolveRepoRoot: async (absPath) => resolveMainRepoRoot(absPath),
+  inspectRepo: (absPath) => inspectRepo(absPath),
+  isUsableRepo: async (absPath) => isRemoteRepoKey(absPath) || isGitRepo(absPath),
+  isValidBranchName: async (branch) => isValidBranchName(branch),
   defaultVendor: async (repo) => {
     const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
     return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()
@@ -383,5 +396,11 @@ export const defaultApiRuntime: ApiRuntime = {
         host.close()
       }
     }
+  },
+  listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
+  measureCheckout: async (path) => {
+    const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
+    const { execHostForWorktreePath } = await import("../../exec/resolve.ts")
+    return measureCheckout(execHostForWorktreePath(path), path)
   },
 }

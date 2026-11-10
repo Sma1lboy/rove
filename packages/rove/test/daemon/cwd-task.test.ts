@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import {
   findAdoptableWorktree,
@@ -32,6 +32,15 @@ describe("matchTaskByCwd", () => {
   const other = { id: "other", worktreePath: "/elsewhere/proj" }
   const tasks = [main, sub, other]
 
+  it("limits home cwd attribution to the exact directory and allows explicit descendants", () => {
+    const home = { id: "home", worktreePath: homedir() }
+    const scratch = { id: "scratch", worktreePath: path.join(homedir(), "tmp") }
+    expect(matchTaskByCwd([home], home.worktreePath)).toBe("home")
+    expect(matchTaskByCwd([home], scratch.worktreePath)).toBeUndefined()
+    expect(matchTaskByCwd([home, scratch], path.join(scratch.worktreePath, "notes"))).toBe("scratch")
+    expect(resolvePtyOwner([home], "home", "tab-1")).toBe("home")
+  })
+
   it("matches a cwd inside a worktree", () => {
     expect(matchTaskByCwd(tasks, "/elsewhere/proj/src/deep")).toBe("other")
   })
@@ -54,6 +63,13 @@ describe("matchTaskByCwd", () => {
 
   it("does not treat a sibling-prefix dir as a match (/repo vs /repo-other)", () => {
     expect(matchTaskByCwd([main], "/repo-other/src")).toBeUndefined()
+  })
+
+  it("attributes a cwd inside an extra worktree of a multi-repo task, and the owner wins over the main row", () => {
+    const multi = { id: "multi", worktreePath: "/wt/web-1", extraRepos: [{ worktreePath: "/other/.wt/api-1" }] }
+    const apiMain = { id: "api-main", worktreePath: "/other" }
+    expect(matchTaskByCwd([main, apiMain, multi], "/other/.wt/api-1/src")).toBe("multi")
+    expect(tasksAtWorktreePath([multi], "/other/.wt/api-1")).toEqual(["multi"])
   })
 })
 

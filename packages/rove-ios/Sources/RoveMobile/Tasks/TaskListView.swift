@@ -40,6 +40,7 @@ struct TaskListView: View {
     @AppStorage("taskSortMode") private var sortRaw = TaskSortMode.attention.rawValue
     @State private var showNew = false
     @State private var searching = false
+    @State private var archivedOpen = false
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     /// The one owner of task / project action sheets for this screen (row and project menus feed it).
@@ -65,10 +66,12 @@ struct TaskListView: View {
                         Button("board") { model.path.append(.board) }.accessibilityIdentifier("page-board")
                     }
                     Button("routines") { model.path.append(.routines) }.accessibilityIdentifier("page-routines")
+                    Button("search conversations") { model.path.append(.search) }.accessibilityIdentifier("page-search")
                     if model.mods.gate.shows("issues") {
                         Button("github issues") { model.path.append(.issues) }.accessibilityIdentifier("page-issues")
                     }
                     Button("worktrees") { model.path.append(.worktrees) }.accessibilityIdentifier("page-worktrees")
+                    Button("machines") { model.path.append(.machines) }.accessibilityIdentifier("page-machines")
                 } label: { HeaderIcon(systemName: "square.grid.2x2") }
                     .accessibilityLabel("Pages")
                     .accessibilityIdentifier("pagesMenu")
@@ -88,7 +91,8 @@ struct TaskListView: View {
                     ForEach(sections, id: \.repo) { project in
                         projectSection(project.repo, project.rows)
                     }
-                    emptyView(TaskListLogic.emptiness(loaded: store.loaded, total: store.tasks.count, shown: shown))
+                    if !searching { archivedFold }
+                    emptyView(TaskListLogic.emptiness(loaded: store.loaded, total: store.tasks.filter { !$0.routine }.count, shown: shown))
                     if !store.loaded {
                         HStack(spacing: 8) {
                             BrailleSpinner(size: 13)
@@ -254,13 +258,37 @@ struct TaskListView: View {
             .padding(.trailing, 12)
             .padding(.top, 18)
             .padding(.bottom, 2)
-            ForEach(rows) { row in
-                NavigationLink(value: Route.task(row.id)) { TaskRowView(row: row) }
-                    .buttonStyle(RowButtonStyle())
-                    .padding(.horizontal, 8)
-                    .contextMenu { TaskActionItems(host: actions, taskId: row.id) }
-                    .accessibilityIdentifier("task-\(row.id)")
+            ForEach(rows) { taskLink($0) }
+        }
+    }
+
+    private func taskLink(_ row: TaskRow) -> some View {
+        NavigationLink(value: Route.task(row.id)) { TaskRowView(row: row) }
+            .buttonStyle(RowButtonStyle())
+            .padding(.horizontal, 8)
+            .contextMenu { TaskActionItems(host: actions, taskId: row.id) }
+            .accessibilityIdentifier("task-\(row.id)")
+    }
+
+    /// Closes the list: one row counting the archived tasks, and those tasks under it when open.
+    /// A routine's runs stay on the Routines page, archived or not.
+    @ViewBuilder private var archivedFold: some View {
+        let rows = TaskListLogic.filtered(model.store.archived, repo: model.store.repoFilter)
+        if !rows.isEmpty {
+            Button { withAnimation(Theme.spring) { archivedOpen.toggle() } } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: archivedOpen ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.muted)
+                    Theme.kicker(String(localized: "archived · \(rows.count)"))
+                    Spacer()
+                }
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.pressable)
+            .padding(.top, 8)
+            .accessibilityIdentifier("archivedFold")
+            if archivedOpen { ForEach(rows) { taskLink($0) } }
         }
     }
 

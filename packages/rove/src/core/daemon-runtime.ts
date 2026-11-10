@@ -13,14 +13,16 @@ import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
-import { deriveTitleFromSession } from "../monitor/auto-title.ts"
+import { deriveTitleFromSession, deriveTitleFromSessionId } from "../monitor/auto-title.ts"
 import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { loadStateFile } from "../state/store.ts"
 import { stateFileTabsPersistence } from "../state/tabs-persistence.ts"
-import { preferredReleaseChannel } from "../state/update-channel.ts"
+import { preferredReleaseChannel, updateDelayHours } from "../state/update-channel.ts"
+import { buildCIPromptForWorktree } from "../tui/ops/ci-prompt.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -74,7 +76,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // Lazy: the verb table pulls in most of the CLI, which a daemon that never
   // serves `api.invoke` should not load.
   async invokeApi(verb, params, socketPath, route) {
-    const [{ executeVerb, errorEnvelope }, { REMOTE_CALLER }, { RoveDaemonClient }] = await Promise.all([
+    const [{ executeVerb, errorEnvelope }, { daemonCaller }, { RoveDaemonClient }] = await Promise.all([
       import("../cli/api/invoke.ts"),
       import("../cli/api/types.ts"),
       import("@sma1lboy/rove-daemon/client"),
@@ -112,7 +114,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
             () => true,
             () => false,
           ),
-        runHere: () => executeVerb(verb, { params }, { client, caller: REMOTE_CALLER }),
+        runHere: () => executeVerb(verb, { params }, { client, caller: daemonCaller(route?.forwarded === true) }),
       })
     } catch (err) {
       return errorEnvelope(err)
@@ -139,13 +141,18 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // state-free `registry.ts` can't resolve presets. The raw id finds an empty
   // custom entry, so working→rest would never be seen on a wrapped tab.
   titleTurnHint: (vendor, title) => engineTitleTurnHint(sessionProtocol(vendor), title),
+  sessionProtocol,
   resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // An engine without a turn reader reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await protocolEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   // Read per check, so a channel picked in Settings or the CLI applies without a restart.
-  checkLatestVersion: () => checkLatestVersion({ channel: preferredReleaseChannel() }),
+  checkLatestVersion: () => {
+    const state = loadStateFile()
+    return checkLatestVersion({ channel: preferredReleaseChannel(state), minAgeHours: updateDelayHours(state) })
+  },
   latestTranscriptMtime,
   deriveTitleFromSession,
+  deriveTitleFromSessionId,
   createEngineTurnDetector: (vendor) => createEngineTurnDetector(sessionProtocol(vendor)),
   async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {
@@ -211,14 +218,17 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
       ...(snapshot.cache_creation_input_tokens === undefined
         ? {}
         : { cacheCreationTokens: snapshot.cache_creation_input_tokens }),
+      ...(snapshot.context_parts ? { parts: snapshot.context_parts } : {}),
     }
   },
+  probeEngineContext: async (vendor, sessionId) => protocolEntry(vendor).history.probeContext?.(sessionId),
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
   getPersistedString,
+  buildCIPrompt: (worktree, state) => buildCIPromptForWorktree(worktree, state as never),
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],
   prStatus: {

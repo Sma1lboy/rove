@@ -94,3 +94,51 @@ describe("list filters", () => {
     )
   })
 })
+
+describe("list repoCount", () => {
+  it("counts every repo (primary included) on a multi-repo task and leaves one-repo rows alone", async () => {
+    const extra = { name: "api", repo: "/api", branch: "b", worktreePath: "/wt/api" }
+    const client = new FakeClient({
+      "task.list": () => ({
+        tasks: [
+          taskFixture({ id: "multi", extraRepos: [extra, { ...extra, name: "web" }] }),
+          taskFixture({ id: "one" }),
+        ],
+      }),
+    })
+    const result = (await invokeVerb("list", [], { client, runtime: stubRuntime() })) as {
+      tasks: Array<{ id: string; repoCount?: number }>
+    }
+    expect(result.tasks.map((t) => [t.id, t.repoCount])).toEqual([
+      ["multi", 3],
+      ["one", undefined],
+    ])
+    expect(result.tasks[1]).not.toHaveProperty("repoCount")
+  })
+})
+
+describe("list --archived", () => {
+  const client = () =>
+    new FakeClient({
+      "task.list": () => ({
+        tasks: [
+          taskFixture({ id: "live", status: "in_progress" }),
+          taskFixture({ id: "hidden", status: "in_progress", archived: true }),
+          taskFixture({ id: "hidden-done", status: "done", archived: true }),
+        ],
+      }),
+    })
+  const listed = async (argv: string[]) =>
+    (
+      (await invokeVerb("list", argv, { client: client(), runtime: stubRuntime() })) as { tasks: Array<{ id: string }> }
+    ).tasks.map((t) => t.id)
+
+  it("leaves archived tasks out by default and lists only them with --archived", async () => {
+    expect(await listed([])).toEqual(["live"])
+    expect(await listed(["--archived"])).toEqual(["hidden", "hidden-done"])
+  })
+
+  it("ANDs with the other filters", async () => {
+    expect(await listed(["--archived", "--status", "done"])).toEqual(["hidden-done"])
+  })
+})

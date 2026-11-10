@@ -61,6 +61,24 @@ export function EngineDetails(props: {
   ]
   if (props.integration)
     facts.push({ label: t("settings.engines.detail.reporting"), lines: reportingLines(props, t, theme) })
+  if (props.integration?.skillDir) {
+    const { skillDir, skillState } = props.integration
+    facts.push({
+      label: t("settings.engines.detail.skill"),
+      lines: [
+        skillState === "installed"
+          ? { text: t("settings.engines.detail.skillInstalled", { dir: tildify(skillDir) }) }
+          : {
+              text: t(
+                skillState === "outdated"
+                  ? "settings.engines.detail.skillOutdated"
+                  : "settings.engines.detail.skillMissing",
+              ),
+              fg: theme.warning,
+            },
+      ],
+    })
+  }
   if (props.protocol)
     facts.push({
       label: t("settings.engines.detail.adapter"),

@@ -9,9 +9,13 @@ import type { TaskRow } from "rove-bridge/protocol"
 import { DialogActions, DialogShell, errorText, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
-import "./taskops.css"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHOICES } from "./ui/form.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
+import { ACTIONS, BRIEF, HINT, INSET_BOX, LINK, NOTES, noteClass } from "./ui/text.ts"
 
 interface BriefTask {
   readonly prompt?: string
@@ -21,13 +25,15 @@ interface BriefTask {
 }
 
 /** Re-fire `task.prompt` as a NEW task from the same repo, engine and fork point; only the worktree differs. */
-export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<TaskRow, "id" | "title"> }) {
-  const [brief, setBrief] = useState<BriefTask | null>(null)
+export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<TaskRow, "id" | "label"> }) {
+  // A task's prompt never changes, so the last read stands in at once.
+  const [brief, setBrief] = useState<BriefTask | null>(
+    () => lastReply<{ task: BriefTask }>(model, "task.get", { taskId: task.id })?.task ?? null,
+  )
   const [loadError, setLoadError] = useState<string | null>(null)
   const { busy, error, submit } = useSubmit()
   useEffect(() => {
-    model.client
-      .request<{ task: BriefTask }>("task.get", { taskId: task.id })
+    requestRemembered<{ task: BriefTask }>(model, "task.get", { taskId: task.id })
       .then((res) => setBrief(res.task))
       .catch((err) => setLoadError(errorText(err)))
   }, [model, task.id])
@@ -48,16 +54,16 @@ export function RunAgainDialog({ model, task }: { model: AppModel; task: Pick<Ta
   return (
     <DialogShell title={tc("tasks", "runAgain.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onSubmit={(e) => {
           e.preventDefault()
           void run()
         }}
       >
-        <p className="muted">{tc("tasks", "runAgain.source", { title: task.title })}</p>
-        <pre className="brief">{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
-        <p className="muted taskops-hint">{tc("tasks", "runAgain.hint")}</p>
-        {error && <p className="error">{error}</p>}
+        <p className="text-muted">{tc("tasks", "runAgain.source", { title: task.label })}</p>
+        <pre className={BRIEF}>{brief?.prompt ?? loadError ?? tc("tasks", "fieldNotes.loading")}</pre>
+        <p className={HINT}>{tc("tasks", "runAgain.hint")}</p>
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy || !brief?.prompt} submitLabel={tc("tasks", "runAgain.confirm")} />
       </form>
     </DialogShell>
@@ -129,44 +135,46 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
 
   return (
     <DialogShell title={tc("tasks", "fieldNotes.title")} wide>
-      <div className="dialog-body" onKeyDown={onKeyDown}>
-        <p className="muted taskops-path">{repo}</p>
-        {state.kind === "loading" && <p className="muted">{tc("tasks", "fieldNotes.loading")}</p>}
-        {state.kind === "error" && <p className="error">{state.message}</p>}
-        {state.kind === "ready" && notes.length === 0 && <p className="muted">{tc("tasks", "fieldNotes.empty")}</p>}
+      <div className={DIALOG_BODY} onKeyDown={onKeyDown}>
+        <p className="font-mono text-meta break-all text-muted">{repo}</p>
+        {state.kind === "loading" && <p className="text-muted">{tc("tasks", "fieldNotes.loading")}</p>}
+        {state.kind === "error" && <p className="text-error">{state.message}</p>}
+        {state.kind === "ready" && notes.length === 0 && (
+          <p className="text-muted">{tc("tasks", "fieldNotes.empty")}</p>
+        )}
         {notes.length > 0 && (
-          <ul className="notes choices" ref={list}>
+          <ul className={`${CHOICES} ${NOTES}`} ref={list}>
             {notes.map((note, i) => (
               <li key={`${note.at}:${i}`}>
                 <button
                   type="button"
-                  className={`note ${i === cursor ? "is-selected" : ""}`}
+                  className={noteClass(i === cursor)}
                   onClick={() => setCursor(i)}
                   // biome-ignore lint/a11y/noAutofocus: the reader's keys need focus inside the dialog
                   autoFocus={i === 0}
                 >
-                  <span className="note-head mono">
+                  <span className="font-mono text-meta whitespace-pre text-accent">
                     {i === cursor ? "▸ " : "  "}
-                    {formatAt(note.at)} · {note.author}
+                    {formatAt(note.at)}, {note.author}
                   </span>
-                  <span className="note-text">{note.text}</span>
+                  <span className="text-ink whitespace-pre-wrap wrap-anywhere">{note.text}</span>
                 </button>
               </li>
             ))}
           </ul>
         )}
         {confirming && (
-          <div className="note-confirm">
+          <div className={INSET_BOX}>
             <p>
               <strong>{tc("tasks", "fieldNotes.confirmDelete.title")}</strong>
             </p>
-            <p className="muted">{tc("tasks", "fieldNotes.confirmDelete.body", { text: confirming.text })}</p>
-            {deleteError && <p className="error">{deleteError}</p>}
-            <div className="actions">
-              <button type="button" className="link" onClick={() => setConfirming(null)}>
+            <p className="text-muted">{tc("tasks", "fieldNotes.confirmDelete.body", { text: confirming.text })}</p>
+            {deleteError && <p className="text-error">{deleteError}</p>}
+            <div className={ACTIONS}>
+              <button type="button" className={LINK} onClick={() => setConfirming(null)}>
                 {t("dialog.cancel")}
               </button>
-              <button type="button" className="button is-danger" onClick={() => void retire(confirming)}>
+              <button type="button" className={buttonClass({ danger: true })} onClick={() => void retire(confirming)}>
                 {t("taskops.retire")}
               </button>
             </div>
@@ -174,9 +182,18 @@ export function FieldNotesDialog({ model, repo }: { model: AppModel; repo: strin
         )}
         {!confirming && (
           <>
-            <p className="muted taskops-hint">{tc("tasks", "fieldNotes.footerDeletable")}</p>
-            <div className="actions">
-              <button type="button" className="link" onClick={closeDialog}>
+            <p className={`keys-only ${HINT}`}>{tc("tasks", "fieldNotes.footerDeletable")}</p>
+            <div className={ACTIONS}>
+              {/* `d`'s tap target, for the note under the cursor (a phone has no `d`). */}
+              <button
+                type="button"
+                className={LINK}
+                disabled={notes[cursor]?.id === undefined}
+                onClick={() => setConfirming(notes[cursor] ?? null)}
+              >
+                {t("taskops.retire")}
+              </button>
+              <button type="button" className={LINK} onClick={closeDialog}>
                 {t("taskops.close")}
               </button>
             </div>

@@ -43,9 +43,8 @@ const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) =
 
 describe("treeMenuItems", () => {
   test("a project header offers New task, Field notes, then Remove project", () => {
-    // New task / Remove project mirror chords the row already answers to (`d`
-    // routes to `forgetProject` behind a confirm). Field notes is menu-only,
-    // like setStatus: the repo's durable note store had no in-product reader.
+    // Remove project is menu-only (`d` on the main row ends its conversation instead), as is Field
+    // notes: the repo's durable note store had no in-product reader.
     expect(actions(projectRow)).toEqual(["newTask", "fieldNotes", "forgetProject"])
   })
 
@@ -65,15 +64,25 @@ describe("treeMenuItems", () => {
     ])
   })
 
+  test("only a top-level local task is offered Move to project", () => {
+    expect(actions(worktreeRow({ parentTaskId: "p1" as never }))).not.toContain("moveToProject")
+    expect(actions(worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" }))).not.toContain(
+      "moveToProject",
+    )
+  })
+
   test("a worktree row opens, adds a session, then the task verbs", () => {
     expect(actions(worktreeRow())).toEqual([
       "open",
       "newChat",
       "newShell",
+      "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",
@@ -82,8 +91,23 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
+  })
+
+  test("New task from this branch reaches only a local single-repo managed branch", () => {
+    // Any other row has no branch of its own in this repo to base the new worktree on.
+    const offered = (over: Partial<Task>) => actions(worktreeRow(over)).includes("newTaskFromBranch")
+    expect(offered({})).toBe(true)
+    expect(offered({ kind: "main", branch: "", worktreePath: "/repos/rove" })).toBe(false)
+    expect(offered({ kind: "dir", branch: "", worktreePath: "/home/me/notes" })).toBe(false)
+    expect(offered({ branch: "", worktreePath: "" })).toBe(false)
+    expect(offered({ sharesWorkspaceOf: toTaskId("p1") })).toBe(false)
+    expect(
+      offered({ extraRepos: [{ repo: "/repos/api", branch: "feat/a", worktreePath: "/wt/a-api" }] as never }),
+    ).toBe(false)
+    expect(offered({ origin: { machineId: "laptop" } as never })).toBe(false)
   })
 
   test("a row with no stored branch is offered Copy path but not Copy branch", () => {
@@ -110,6 +134,7 @@ describe("treeMenuItems", () => {
       "open",
       "newChat",
       "newShell",
+      "continueEngine",
       "rename",
       "reorder",
       "setStatus",
@@ -125,6 +150,12 @@ describe("treeMenuItems", () => {
     const dirRow = worktreeRow({ kind: "dir", branch: "" })
     expect(actions(dirRow)).toContain("pin")
     expect(actions(dirRow)).toContain("rename")
+  })
+
+  test("a project's main row says what its Delete does: ends the conversation, the project stays", () => {
+    const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "delete")?.labelKey
+    expect(label(worktreeRow({ kind: "main", branch: "" }))).toBe("tasks.menu.delete")
+    expect(label(worktreeRow({ branch: "feat/a" }))).toBe("tasks.menu.delete")
   })
 
   test('Rename branch is withheld from any row whose branch is "" — main, dir, or a never-entered task', () => {
@@ -183,11 +214,14 @@ describe("treeMenuItems", () => {
       "open",
       "newChat",
       "newShell",
+      "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",
       "runAgain",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",
@@ -196,6 +230,7 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
   })

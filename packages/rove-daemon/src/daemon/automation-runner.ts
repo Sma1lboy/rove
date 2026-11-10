@@ -1,6 +1,6 @@
 /**
  * Automation sweep: WHEN due schedules fire, and recording what happened.
- * WHERE the prompt lands is `automation-dispatch.ts`.
+ * WHERE the prompt lands is `automation-dispatch.ts`; WHAT it says, `routine-prompt.ts`.
  *
  * Same shape as {@link startQuotaResumeRunner} (stateless tick, re-entrancy
  * latch, unref'd timer) and deliberately exempt from the `hasSubscribers`
@@ -17,7 +17,8 @@
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
-import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
+import { formatPrecheckSkip, precheckPassed, precheckSkip, runAutomationPrecheck } from "./automation-precheck.ts"
+import { routineRepoMissing } from "./automation-repo-check.ts"
 import { type WebhookEvent, webhookPrecheckEnv } from "./automation-webhook.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -35,6 +36,8 @@ import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DispatchLedger } from "./dispatch-ledger.ts"
 import type { GateLedger } from "./gate-handoff.ts"
+import { ensureRoutineCwd } from "./routine-dir.ts"
+import { routinePromptHash, sessionHoldsPrompt, withRoutineRunHeader } from "./routine-prompt.ts"
 import type { SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -78,7 +81,7 @@ export function resolveDueOccurrence(
 
 /** The slice of the orchestrator this runner needs. `getTask` resolves a
  *  standing session's task before re-delivering into it. */
-export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask"> &
+export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "openDirectoryTask" | "getTask"> &
   Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type AutomationRuntime = Pick<
@@ -163,7 +166,7 @@ function emitRunEvent(
     detail: {
       automationId: automation.id,
       name: automation.name,
-      repo: automation.repo,
+      ...(automation.repo ? { repo: automation.repo } : {}),
       status,
       trigger: args.trigger,
       scheduledFor: new Date(args.scheduledFor).toISOString(),
@@ -238,23 +241,7 @@ function droppedOccurrences(automation: Automation, scheduledFor: number): { cou
 }
 
 /**
- * The delivered prompt: a one-line header naming the run and the verb that
- * answers it, then the routine's prompt unchanged. The prompt goes LAST: a
- * model replies in the language of the tokens nearest its turn.
- */
-export function withRoutineRunHeader(
-  automation: Pick<Automation, "name" | "prompt">,
-  run: { runNumber: number },
-  api: string,
-  deliveryId: string,
-  event?: WebhookEvent,
-): string {
-  const fired = event ? `Fired by webhook: ${event.summary}\n\n` : ""
-  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${fired}${automation.prompt}`
-}
-
-/**
- * A script routine's whole run: the command in the repo, no engine. Non-empty
+ * A script routine's whole run: the command in the repo (projectless: the routine's directory), no engine. Non-empty
  * stdout is the response; a failure carries its stderr as the error. Shares
  * the precheck's shell, output cap and timeout ceiling, and like the precheck
  * it runs inside the serial sweep, so a slow script delays later routines.
@@ -269,7 +256,7 @@ async function runScript(
   now: () => number,
   env?: Readonly<Record<string, string>>,
 ): Promise<AutomationRunStatus> {
-  const result = await runAutomationPrecheck(script, automation.repo, undefined, env)
+  const result = await runAutomationPrecheck(script, await ensureRoutineCwd(automation), undefined, env)
   const stdout = result.stdout.trim()
   const response = stdout ? { response: { text: stdout, at: new Date(now()).toISOString() } } : {}
   if (precheckPassed(result)) return await record("ran", response)
@@ -300,6 +287,8 @@ export async function runAutomationOnce(
       tabId?: string
       error?: string
       deliveryId?: string
+      promptHash?: string
+      promptElided?: true
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
       blocked?: SkipVerdict
       response?: AutomationRunResponse
@@ -331,12 +320,14 @@ export async function runAutomationOnce(
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
 
+  // Before the precheck: its "could not run" would record a missing repo as a quiet `skipped_precheck`.
+  if (await routineRepoMissing(automation.repo))
+    return await record("skipped_unavailable", { error: `repo does not exist: ${automation.repo}` })
+
   if (args.trigger !== "manual" && automation.precheck) {
-    const result = await runAutomationPrecheck(automation.precheck, automation.repo, undefined, env)
-    if (!precheckPassed(result)) {
-      logDaemonInfo("automation", `skip ${automation.name}: ${formatPrecheckSkip(result)}`)
-      return await record("skipped_precheck", { precheckResult: result, error: formatPrecheckSkip(result) })
-    }
+    const skipped = await precheckSkip(automation, automation.precheck, await ensureRoutineCwd(automation), env)
+    if (skipped)
+      return await record("skipped_precheck", { precheckResult: skipped.precheckResult, error: skipped.reason })
   }
 
   if (cancelled())
@@ -350,6 +341,7 @@ export async function runAutomationOnce(
   // Armed against the task the prompt lands in, BEFORE the paste: a failed
   // turn can fire its hook within milliseconds of it.
   let deliveryId: string | undefined
+  let elided = false
   const settleDelivery = async (delivered: { tabId?: string } | null): Promise<void> => {
     if (!deliveryId) return
     const id = deliveryId
@@ -373,21 +365,19 @@ export async function runAutomationOnce(
       },
       automation,
       async (target) => {
-        const delivery = await deps.deliveries.arm({
-          taskId: target.taskId,
-          tabId: target.tabId,
-          source: "routine",
-          automationRunId: reserved.id,
-          promptHead: automation.prompt,
-        })
-        deliveryId = delivery.id
-        return withRoutineRunHeader(
-          automation,
-          reserved,
-          deps.runtime.roveApiInvocation?.() ?? "rove api",
-          delivery.id,
-          args.event,
-        )
+        // A revive re-asks for the full prompt; it is the same delivery.
+        deliveryId ??= (
+          await deps.deliveries.arm({
+            taskId: target.taskId,
+            tabId: target.tabId,
+            source: "routine",
+            automationRunId: reserved.id,
+            promptHead: automation.prompt,
+          })
+        ).id
+        elided = sessionHoldsPrompt(automation, deps.store.runsFor(automation.id), target)
+        const api = deps.runtime.roveApiInvocation?.() ?? "rove api"
+        return withRoutineRunHeader(automation, reserved, api, deliveryId, args.event, elided)
       },
     )
   } catch (err) {
@@ -419,14 +409,16 @@ export async function runAutomationOnce(
   }
 
   if (outcome.status === "dispatched" || outcome.status === "revived") {
-    logDaemonInfo("automation", `${outcome.status} ${automation.name} task=${outcome.taskId}`)
+    const tab = outcome.tabId ? ` tab=${outcome.tabId}` : ""
+    logDaemonInfo("automation", `${outcome.status} ${automation.name} task=${outcome.taskId}${tab}`)
   }
   return await record(outcome.status, {
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
     ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
     ...(outcome.blocked ? { blocked: outcome.blocked } : {}),
-    ...(deliveryId ? { deliveryId } : {}),
+    ...(deliveryId ? { deliveryId, promptHash: routinePromptHash(automation.prompt) } : {}),
+    ...(deliveryId && elided ? { promptElided: true as const } : {}),
   })
 }
 

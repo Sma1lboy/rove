@@ -2,12 +2,12 @@
 /**
  * The host's left rail: which sidebar renders, and its wiring. A new sidebar
  * concern lands here, not on the host. Task-lifecycle callbacks come from
- * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest`.
+ * {@link SidebarTaskCallbacks}, all REQUIRED except `onLandRequest` and `onForgetProjectRequest`.
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { type MutableRefObject, useCallback } from "react"
+import { type MutableRefObject, useCallback, useMemo } from "react"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
@@ -21,8 +21,8 @@ import { useSidebarGroups } from "../panes/sidebar/use-sidebar-groups"
 import { requestNewTab } from "./terminal-tabs-shared"
 
 export interface HostSidebarProps
-  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
-    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest">> {
+  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest" | "onOpenScratch">>>,
+    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest" | "onForgetProjectRequest" | "onOpenScratch">> {
   readonly width: number
   readonly collapsed?: boolean
   /** Fold / unfold. Absent = the rail renders without the control. */
@@ -67,7 +67,7 @@ export function HostSidebar(props: HostSidebarProps) {
   // No background path: the picker is a dialog and a shell tab needs its PTY
   // where tabs render, so ENTER the task; its workspace claims the request.
   const newTab = useCallback(
-    (taskId: string, kind: "chat" | "shell"): void => {
+    (taskId: string, kind: "chat" | "shell" | "continue"): void => {
       props.onActivate(taskId)
       requestNewTab(taskId, kind)
     },
@@ -120,11 +120,14 @@ function CollapsedSidebar(props: {
 }) {
   // No KV provider: tabs unknown, which the hide rules read as "never mounted".
   const kv = useOptionalKV()
+  // The selected tabless main stays listed, as in the tree.
+  const keepTaskIds = useMemo(() => new Set(props.selectedId === null ? [] : [props.selectedId]), [props.selectedId])
   const { groups } = useSidebarGroups({
     tasks: props.tasks,
     kv,
     sortMode: props.sortMode,
     engineState: props.engineState,
+    keepTaskIds,
   })
   return (
     <CollapsedRail

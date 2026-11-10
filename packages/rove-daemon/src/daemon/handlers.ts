@@ -23,7 +23,9 @@ import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
+import type { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
+import { logDaemonInfo } from "./crash-log.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
@@ -32,16 +34,25 @@ import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { API_HANDLERS } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
 import { DELIVERY_HANDLERS } from "./handlers-deliveries.ts"
 import { DISPATCH_HANDLERS } from "./handlers-dispatch.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { GATE_HANDLERS } from "./handlers-gates.ts"
 import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
+import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { QUEUE_HANDLERS } from "./handlers-queue.ts"
+import { QUOTA_RESUME_HANDLERS } from "./handlers-quota-resume.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
+import { ARCHIVE_HANDLERS } from "./handlers-task-archive.ts"
+import { FIELD_HANDLERS } from "./handlers-task-fields.ts"
+import { SCHEDULE_HANDLERS } from "./handlers-task-schedule.ts"
+import { SCRATCH_HANDLERS } from "./handlers-task-scratch.ts"
+import { SESSION_PR_HANDLERS } from "./handlers-task-session-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -49,20 +60,20 @@ import { WORKTREE_HANDLERS } from "./handlers-worktree.ts"
 import type { IssuesStore } from "./issues-store.ts"
 import type { NotesStore } from "./notes-store.ts"
 import { defaultPtyHostSocketPath } from "./paths.ts"
+import type { PromptQueue } from "./prompt-queue.ts"
 import {
   CHANNEL_NAMES,
   DAEMON_PROTOCOL_VERSION,
   type DaemonError,
   type DaemonRequestName,
-  type DaemonStopReason,
   MIN_COMPATIBLE_PROTOCOL_VERSION,
   ROVE_API_VERSION,
   isProtocolCompatible,
-  parseDaemonStopReason,
-  serializeTask,
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { serializeTask } from "./serialize-task.ts"
+import { type DaemonStopReason, parseDaemonStopReason } from "./stop-reason.ts"
 import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
 import type { WorkItemCache } from "./work-items.ts"
@@ -100,8 +111,12 @@ export interface DaemonHandlerContext {
   readonly rowStatus?: import("./row-status-store.ts").RowStatusStore
   /** Prompts sessions handed each other and how far each got (absent in older test doubles). */
   readonly dispatches?: import("./dispatch-ledger.ts").DispatchLedger
+  /** Prompts held for a busy tab until its turn ends (`send --queue`; absent in older test doubles). */
+  readonly promptQueue?: PromptQueue
   /** Starts deduplicated durable background deletion after RPC acceptance. */
   readonly deletions: TaskDeletionScheduler
+  /** Per-task serializer for checkpoint snapshots and rewinds. */
+  readonly checkpoints: CheckpointQueue
   /** Daemon-owned issue tracker store, keyed by git common-dir. */
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
@@ -199,9 +214,11 @@ export function blockingRpcNames(
  * — shaping it here would add `"name":"SyntaxError"` bytes to the wire.
  */
 export function shapeDaemonError(err: unknown): DaemonError {
+  const data = err instanceof Error ? (err as { data?: unknown }).data : undefined
   return {
     message: err instanceof Error ? err.message : String(err),
     name: err instanceof Error ? err.name : undefined,
+    ...(data !== undefined ? { data } : {}),
   }
 }
 
@@ -296,6 +313,9 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
         // tells clients the code is being swapped. Anything else, unset or
         // unknown, is `stop`, so no caller can dress a shutdown as an upgrade.
         const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
+        // 223 boots in 14 days with nothing naming who asked: a stop is a real
+        // lifecycle event, so the log carries the caller.
+        logDaemonInfo("lifecycle", `daemon.stop (${reason}) requested by client #${ctx.clientId}`)
         await ctx.daemon.stopSoon(reason)
         return {}
       },
@@ -303,12 +323,20 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     // Entry ORDER is not wire-load-bearing (only key order within a payload is).
     ...API_HANDLERS,
     ...TASK_HANDLERS,
+    ...ARCHIVE_HANDLERS,
+    ...SCHEDULE_HANDLERS,
+    ...QUOTA_RESUME_HANDLERS,
+    ...FIELD_HANDLERS,
+    ...CHECKPOINT_HANDLERS,
+    ...SESSION_PR_HANDLERS,
+    ...SCRATCH_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,
     ...GATE_HANDLERS,
     ...AUTOMATION_HANDLERS,
     ...DELIVERY_HANDLERS,
     ...DISPATCH_HANDLERS,
+    ...QUEUE_HANDLERS,
     ...RUNNABILITY_HANDLERS,
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
@@ -317,6 +345,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...ISSUE_HANDLERS,
     ...TAB_HANDLERS,
     ...ROW_STATUS_HANDLERS,
+    ...PANEL_HANDLERS,
     ...PR_HANDLERS,
     {
       // `rove api inspect`: raw transient state, read-only. Wire payloads hide
@@ -342,6 +371,20 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
                 | undefined
             )?.context ?? null,
         }
+      },
+    },
+    {
+      name: "engine.contextUsage",
+      async handle(payload, ctx) {
+        const taskId = requireString(payload, "taskId")
+        const tabId = requireString(payload, "tabId")
+        const vendor = ctx.orch.getTask(taskId)?.vendor
+        const sessionId = ctx.activity
+          .liveSessions()
+          .find((state) => state.taskId === taskId && state.tabId === tabId)?.sessionId
+        if (!vendor || !sessionId) return { usage: null }
+        if (objectPayload(payload).probe === true) await ctx.runtime.probeEngineContext?.(vendor, sessionId)
+        return { usage: await ctx.runtime.readEngineContextUsage(vendor, sessionId) }
       },
     },
     {

@@ -1,5 +1,7 @@
 # Herdr gap analysis (2026-07-29)
 
+> **Historical: a 2026-07-29 snapshot.** The docs it asked for now exist (`CONCEPTS.md`, `CLI.md`, `API.md`); direction since then is in [fleet-direction.md](./fleet-direction.md).
+
 Compared against [herdr.dev/docs](https://herdr.dev/docs/) (`refs/herdr/docs/next/website/src/content/docs/*.mdx`, English set). Purpose: map every herdr documented feature/doc to Rove: what we already have (→ document it), what we lack (→ borrow or explicitly skip).
 
 ## Doc-surface mapping

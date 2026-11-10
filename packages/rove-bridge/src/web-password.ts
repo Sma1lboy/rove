@@ -47,7 +47,8 @@ export async function verifyPassword(record: PasswordRecord, password: string): 
   return key.length === expected.length && timingSafeEqual(key, expected)
 }
 
-function writeOwnerOnly(path: string, body: string): void {
+/** 0700 directory, 0600 file, written then renamed: the bridge's secrets on disk. */
+export function writeOwnerOnly(path: string, body: string): void {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   chmodSync(dirname(path), 0o700)
   // Write-then-rename: a crash mid-write must not leave a half file that reads as "no lock".

@@ -3,7 +3,8 @@ package run.rove.mobile.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -127,12 +130,15 @@ internal fun middleEllipsis(text: String, fits: (String) -> Boolean): String {
 }
 
 /** accentSoft wash + 0.97 scale on press, critically damped (iOS `RowButtonStyle`). */
-@Composable private fun Modifier.rowPress(onClick: () -> Unit): Modifier {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable private fun Modifier.rowPress(onClick: () -> Unit, onLongClick: () -> Unit): Modifier {
+    val haptics = LocalHapticFeedback.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.97f else 1f, spring(dampingRatio = 1f, stiffness = 600f), label = "rowPress")
     val wash = if (pressed) Rove.c.accentSoft else Color.Transparent
-    return scale(scale).background(wash, RoundedCornerShape(Rove.smallRadius)).clickable(source, null, onClick = onClick)
+    return scale(scale).background(wash, RoundedCornerShape(Rove.smallRadius)).combinedClickable(source, null, onClick = onClick,
+        onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onLongClick() })
 }
 
 /** Age text on its own scope: the once-a-second clock invalidates this alone, not the row. */
@@ -141,8 +147,8 @@ internal fun middleEllipsis(text: String, fits: (String) -> Boolean): String {
 }
 
 /** Line 1: pin mark + title. Line 2: status tag, branch, marks. Right column: age over engine. Nothing wraps. */
-@Composable fun TaskRowView(row: TaskRow, receipt: Receipt, now: State<Long>, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().rowPress(onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+@Composable fun TaskRowView(row: TaskRow, receipt: Receipt, now: State<Long>, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().rowPress(onClick, onLongClick).padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {

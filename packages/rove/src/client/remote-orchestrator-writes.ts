@@ -30,12 +30,16 @@ export async function createTaskOp(
     branch?: string
     baseRef?: string
     worktreeName?: string
+    /** More repos the task spans, in pick order; `repo` is the primary. */
+    extraRepos?: readonly { repo: string; baseRef?: string }[]
     vendor?: VendorId
     modelEffort?: string
     /** Wire key and field are both `model` — no remap, unlike effort. */
     model?: string
     tier?: string
     groupId?: string
+    /** Clone this task's worktree, uncommitted work included (`add --fork`). */
+    forkFrom?: string
   },
 ): Promise<Task> {
   // The wire spells `modelEffort` as `effort`.
@@ -64,6 +68,19 @@ export async function openDirectoryTaskOp(
 /** Scratch → project migration: repoint + clear the flag. */
 export async function adoptScratchRepoOp(client: RoveDaemonClient, id: TaskId | string, repo: string): Promise<void> {
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
+}
+
+/** Regroup a top-level task under another project; sessions and checkouts stay where they are. */
+export async function moveTaskToProjectOp(
+  client: RoveDaemonClient,
+  id: TaskId | string,
+  repo: string,
+): Promise<{ repo: string; moved: readonly string[] }> {
+  const res = await client.request<{ repo: string; moved: readonly string[] }>("task.moveToProject", {
+    taskId: String(id),
+    repo,
+  })
+  return { repo: res.repo, moved: res.moved }
 }
 
 export async function ensureWorktreeOp(client: RoveDaemonClient, id: TaskId | string): Promise<string> {
@@ -123,6 +140,16 @@ export async function setCommandOp(
 
 export async function setPinnedOp(client: RoveDaemonClient, id: TaskId | string, pinned?: boolean): Promise<void> {
   await client.request("task.pin", { taskId: String(id), pinned })
+}
+
+/** Hides or restores the task and its descendants; refused while an engine is busy unless `force`. */
+export async function archiveTaskOp(
+  client: RoveDaemonClient,
+  id: TaskId | string,
+  archived: boolean,
+  force = false,
+): Promise<void> {
+  await client.request("task.archive", { taskId: String(id), archived, force })
 }
 
 export async function moveTaskOp(client: RoveDaemonClient, id: TaskId | string, delta: -1 | 1): Promise<void> {
@@ -261,6 +288,7 @@ export async function landTaskOp(
     removeWorktree: opts?.removeWorktree,
     callerCwd: opts?.callerCwd,
   })
+  // A stopped multi-repo land arrives as the thrown `LandStoppedError` (its `repos` ride as `data`).
   return res.result
 }
 
@@ -315,9 +343,14 @@ export async function syncBaseOp(
   client: RoveDaemonClient,
   taskId: string,
 ): Promise<{ baseRef: string; alreadyCurrent: boolean }> {
-  const res = await client.request<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
+  const res = await client.request<{
+    result: { baseRef: string; alreadyCurrent: boolean; repos?: readonly { ok: boolean; error?: string }[] }
+  }>("task.syncBase", {
     taskId,
   })
+  // Several repos: each synced against its own base; the first failure is raised after all ran.
+  const failed = res.result.repos?.find((r) => !r.ok)
+  if (failed) throw new Error(failed.error ?? "sync failed")
   return res.result
 }
 
@@ -387,20 +420,22 @@ export async function mutateIssueOp(client: RoveDaemonClient, repoRoot: string, 
 }
 
 /** Scheduled automations. `lastRunStatus` = latest run's status per id, absent
- *  for a never-run routine (row health without a request per row). */
+ *  for a never-run routine (row health without a request per row); `lastFailure`
+ *  = the newest failure among recent runs, absent when none failed. */
 export async function listAutomationsOp(client: RoveDaemonClient): Promise<{
   automations: Automation[]
   keepsDaemonAlive: boolean
   lastRunStatus?: Record<string, AutomationRunStatus>
+  lastFailure?: Record<string, { readonly at: string; readonly reason: string }>
 }> {
   return client.request("automation.list", {})
 }
 
-/** Create a schedule (`automation.create`). The daemon validates the cron and
- *  rejects an expression that parses but never fires. */
+/** Create a schedule (`automation.create`); no `repo` = a projectless routine. The daemon validates
+ *  the cron and rejects an expression that parses but never fires. */
 export async function createAutomationOp(
   client: RoveDaemonClient,
-  input: { repo: string; name: string; prompt: string; schedule: string },
+  input: { repo?: string; name: string; prompt: string; schedule: string },
 ): Promise<{ automation: Automation }> {
   return client.request("automation.create", input)
 }

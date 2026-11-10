@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto"
 import { StringDecoder } from "node:string_decoder"
+import { KittyTransmits } from "./kitty-transmits.ts"
 import type { DaemonFrame, PtySessionExit } from "./protocol.ts"
 import type { PtyChild, PtyDriver } from "./pty-driver.ts"
 import type { PtyFreezeSink } from "./pty-freeze-store.ts"
@@ -10,11 +11,17 @@ import { DEFAULT_TERMINAL_COLORS, type TerminalDefaultColors, parseTerminalDefau
 import { type TerminalModeTrack, freshModeTrack } from "./terminal-modes.ts"
 
 /** Everything `pty.open` needs to spawn a session's child on first open. */
+/**
+ * File a workspace backend drops in a task directory whose files live elsewhere (a container):
+ * `{ "prefix": argv, "reap"?: argv }`, see `launchWrapper` in pty-child-controller.ts.
+ */
+export const LAUNCH_PREFIX_FILE = ".rove-launch.json"
+
 export interface PtySpawnSpec {
   readonly cwd: string
   /** Explicit argv (engine sessions). Falls back to `shell`. */
   readonly command?: readonly string[]
-  /** Shell override; defaults to `resolveLoginShell()`. */
+  /** Shell override; defaults to `resolveSessionShell()`. */
   readonly shell?: string
   /** Absent = size-agnostic open: fresh spawn gets 80×24, reattach NEVER
    *  resizes. Only size-carrying opens (the TUI) take last-attach-wins. */
@@ -77,6 +84,8 @@ export interface PtySessionState {
   /** Modes at the ring's first byte: the state a full replay must re-set,
    *  since the bytes that set it were trimmed. Advanced as chunks drop. */
   ringModes: TerminalModeTrack
+  /** Kitty image uploads the ring may have trimmed; a full replay re-sends them. */
+  readonly kitty: KittyTransmits
   /** Attached connections whose emulator answers terminal queries itself;
    *  with none, the host answers DA1/DECRQM. Subset of {@link sinks}' keys. */
   readonly emulatorSinks: Set<object>
@@ -142,6 +151,7 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     defaultColors: parseTerminalDefaultColors(spec.defaultColors) ?? DEFAULT_TERMINAL_COLORS,
     modes: freshModeTrack(),
     ringModes: freshModeTrack(),
+    kitty: new KittyTransmits(),
     sinks: new Map(),
     emulatorSinks: new Set(),
     parked: false,

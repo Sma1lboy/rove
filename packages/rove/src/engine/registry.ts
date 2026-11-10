@@ -58,6 +58,12 @@ export interface EngineHistoryReader {
    */
   readUsageSnapshot?(sessionId: string): Promise<EngineUsageSnapshot | undefined>
   /**
+   * Ask the engine itself what fills the session's window, when it can say
+   * more than its transcript does; later `readUsageSnapshot` reads carry the
+   * answer. May start a process: on demand only, never polled.
+   */
+  probeContext?(sessionId: string): Promise<void>
+  /**
    * Absolute transcript path, or null. Not for rove to parse: the cross-engine
    * handoff gives it to the next agent in its native format. `worktree`
    * scopes stores keyed by directory (claude).
@@ -112,6 +118,20 @@ export interface EngineRegistryEntry {
   readonly listModels?: () => Promise<readonly EngineModel[]>
   /** Argv that pins `model`. Absent = a pinned model is refused at the gate (`BAD_MODEL`), not lost at spawn. */
   readonly modelArgv?: (base: readonly string[], model: string) => readonly string[]
+  /**
+   * Argv that opens extra directories to the engine beside its cwd (a
+   * multi-repo task's other worktrees). Absent = the engine gets them through
+   * env and the first prompt only. Pass each as `--flag=<dir>`: claude's flag is
+   * variadic, so a spaced `--add-dir <dir>` would swallow the positional prompt.
+   */
+  readonly addDirArgv?: (base: readonly string[], dirs: readonly string[]) => readonly string[]
+  /**
+   * Rewrites every hosted interactive launch's full argv so the engine opens
+   * straight to its composer: a blocking startup screen of its own (an update
+   * offer) would take the first prompt Rove delivers and stall an unattended
+   * task. Must leave a value the user's command override already sets alone.
+   */
+  readonly hostedStartArgv?: (argv: readonly string[]) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**
@@ -123,6 +143,12 @@ export interface EngineRegistryEntry {
   readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
+  /**
+   * The user-level dir this engine loads agent skills from, where Rove's skill
+   * installer writes `rove/`. Null when the engine isn't set up on this machine
+   * or ships the skill another way (Claude's plugin). Absent = no known dir.
+   */
+  readonly skillsDir?: () => string | null
   /** Turn-completion detector (`turn-detector.ts`); copilot/custom get {@link UnknownTurnDetector}. */
   readonly createTurnDetector: () => EngineTurnDetector
   /** Undefined for engines that declare none (copilot, custom). */

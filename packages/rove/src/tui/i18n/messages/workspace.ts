@@ -16,7 +16,9 @@ export const en = {
     selectTask: "Select a task with a worktree",
     /** Every tab of this task was closed — the task and its worktree remain.
      *  Both chords are bound by `EmptyWorkspacePane`, which renders this. */
-    noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
+    noSessions: "No sessions here — press ⏎ to start {engine}, or ctrl+e to pick another",
+    /** The same, for a task whose last tab was a shell (a "New shell" row): ⏎ opens a fresh shell, not an engine. */
+    noSessionsShell: "No sessions here — press ⏎ to start a shell, or ctrl+e to pick another",
     /** Experimental remote (`ssh://`) project: the worktree is on the other
      *  machine, and the PTY host only spawns locally. Said here rather than
      *  letting the launch guard throw through the render path. */
@@ -25,7 +27,8 @@ export const en = {
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
     title: "Welcome to Rove",
-    tagline: "Run several AI coding sessions side by side — use managed tasks for isolated worktrees.",
+    tagline:
+      "All your coding agents in one place: when one runs out of quota, switch the task to another, and agents talk to each other directly.",
     /** The task kind determines the isolation boundary. */
     worktreeExplain:
       "Managed tasks create isolated worktrees and branches. Directory and project tasks reuse existing files; tabs within a task share its directory.",
@@ -52,7 +55,8 @@ export const en = {
     title: "INBOX",
     empty: "No pending attention",
     openHint: "enter open",
-    clearHint: "d clear",
+    clearHint: "d ack",
+    clearAllHint: "D ack all",
     /** Cards clipped past the visible window. `{count}` = hidden card count. */
     more: "+{count} more",
     section: {
@@ -69,7 +73,6 @@ export const en = {
       dead: "engine exited",
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
-      routineResponded: "routine responded",
       /** An armed prompt's turn ended without `rove api report`. */
       reportMissing: "report missing",
       /** An open decision gate: a task asked its owner a question. */
@@ -92,12 +95,13 @@ export const zh: typeof en = {
   narrowBack: "任务",
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
-    noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
+    noSessions: "这里没有会话——按 ⏎ 启动 {engine}，或按 ctrl+e 另选一个",
+    noSessionsShell: "这里没有会话——按 ⏎ 启动 shell，或按 ctrl+e 另选一个",
     remoteUnsupported: "尚未实现通过 SSH 启动托管引擎——该任务的 worktree 在 {host} 上",
   },
   welcome: {
     title: "欢迎使用 Rove",
-    tagline: "并行运行多个 AI 编码会话——使用托管任务获得独立的 worktree。",
+    tagline: "所有编程 agent 都在一个地方：一个额度用完了，换另一个接着干；agent 之间直接对话，不用你传话。",
     worktreeExplain: "托管任务创建独立的 worktree 和分支。目录与项目任务复用现有文件；同一任务内的标签页共享目录。",
     stepNew: "创建你的第一个任务——选仓库、基础分支和引擎",
     stepHelp: "查看当前焦点下的全部快捷键",
@@ -116,7 +120,8 @@ export const zh: typeof en = {
     title: "收件箱",
     empty: "暂无待处理",
     openHint: "enter 打开",
-    clearHint: "d 清除",
+    clearHint: "d 已阅",
+    clearAllHint: "D 全部已阅",
     more: "还有 {count} 条",
     section: {
       attention: "待处理",
@@ -130,7 +135,6 @@ export const zh: typeof en = {
       running: "进行中",
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
-      routineResponded: "例行任务已回报",
       reportMissing: "未回报",
       decisionNeeded: "等你决定",
       gateAnswered: "已回答 · 引擎未运行",

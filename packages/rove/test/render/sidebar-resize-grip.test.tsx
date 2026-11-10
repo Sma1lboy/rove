@@ -28,10 +28,15 @@ const EDGE_X = RAIL_WIDTH - 1
 const ROW_Y = 6
 
 /** The workspace's shape in miniature: a pane row with a rail inside it. */
-function Workspace(props: { onResize?: (w: number) => void; onReset?: () => void }) {
+function Workspace(props: {
+  onResize?: (w: number) => void
+  onRelease?: (w: number) => void
+  onReset?: () => void
+}) {
   const gesture = useSidebarResizeGesture({
     width: RAIL_WIDTH,
     onResize: props.onResize ?? (() => {}),
+    onRelease: props.onRelease,
     onReset: props.onReset ?? (() => {}),
   })
   return (
@@ -115,4 +120,20 @@ test("two quick drags are two resizes, not a double-click", async () => {
   // Both releases land inside the double-click window, and both gestures
   // MOVED: setting a width twice in a row must not throw the second one away.
   expect(resets).toBe(0)
+})
+
+test("the width is committed once, on release, not per motion", async () => {
+  const live: number[] = []
+  const committed: number[] = []
+  const { mockMouse, rerender } = await renderComponent(
+    <Workspace onResize={(w) => live.push(w)} onRelease={(w) => committed.push(w)} />,
+    { width: 60, height: 12 },
+  )
+  await mockMouse.pressDown(EDGE_X, ROW_Y)
+  for (const x of [30, 38, 45]) await mockMouse.moveTo(x, ROW_Y)
+  expect(committed).toEqual([])
+  await mockMouse.release(45, ROW_Y)
+  await rerender()
+  expect(committed).toEqual([RAIL_WIDTH + (45 - EDGE_X)])
+  expect(live.at(-1)).toBe(committed[0])
 })

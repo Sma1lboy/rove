@@ -32,7 +32,8 @@ function loadClips(scenes) {
     if (Math.abs(width / height - 16 / 9) > 0.01) throw new Error(`clip "${id}" is ${width}x${height}, not 16:9`)
     if (!existsSync(resolve(dir, `clips/${id}.mp4`))) throw new Error(`clips/${id}.mp4 is missing`)
   }
-  for (const id of Object.keys(cut)) if (!used.has(id)) throw new Error(`cut.json clip "${id}" is not used by any scene`)
+  for (const id of Object.keys(cut))
+    if (!used.has(id)) throw new Error(`cut.json clip "${id}" is not used by any scene`)
   return manifest
 }
 
@@ -68,7 +69,10 @@ function film(scenes) {
       zoom: scene.zoom ?? null,
       keyCount: scene.kind === "keys" ? KEYS.length : 0,
       keyPress: keyClip ? (keyClip.start + keyClip.frames) / FPS - scene.keyPress.fromEnd : null,
-      kickers: (scene.kickerChanges ?? []).map((change, i) => ({ slot: i + 1, at: clipNamed(change.clip).start / FPS + change.at })),
+      kickers: (scene.kickerChanges ?? []).map((change, i) => ({
+        slot: i + 1,
+        at: clipNamed(change.clip).start / FPS + change.at,
+      })),
     }
   })
 }
@@ -93,14 +97,19 @@ function captionLayer(scene) {
   const kickers = [scene.kicker ?? "", ...(scene.kickerChanges ?? []).map((change) => change.text)]
   const spans = kickers.map((text, i) => `<span class="k${i}">${escape(text)}</span>`).join("")
   const track = 3 + (scene.index % 2)
-  return layer(`cap-${scene.index}`, scene, track, `<div class="caption"><div class="kicker">${spans}</div><div class="headline">${headline(scene.caption)}</div></div>`)
+  return layer(
+    `cap-${scene.index}`,
+    scene,
+    track,
+    `<div class="caption"><div class="kicker">${spans}</div><div class="headline">${headline(scene.caption)}</div></div>`,
+  )
 }
 
 function layer(id, scene, track, inner) {
   return `      <section id="${id}" class="clip layer" data-start="${seconds(scene.start)}" data-duration="${seconds(scene.frames)}" data-track-index="${track}">${inner}</section>`
 }
 
-const END_CARD = `<div class="end"><div class="end-title"><div class="end-mark">[rove]</div><div class="end-tag">Parallel coding agents in your terminal.</div></div><div class="end-cmd"><b>$</b> curl -fsSL https://rove.run/install.sh | sh</div><div class="end-site">rove.run</div></div>`
+const END_CARD = `<div class="end"><div class="end-title"><div class="end-mark">[rove]</div><div class="end-tag">All your coding agents, in one place.</div></div><div class="end-cmd"><b>$</b> curl -fsSL https://rove.run/install.sh | sh</div><div class="end-site">rove.run</div></div>`
 
 export function build() {
   const storyboard = readJson("scenes.json").scenes
@@ -120,7 +129,9 @@ export function build() {
     .filter((scene) => scene.keyPress)
     .map((scene) => `              <div id="ring-key-${scene.index}" class="ring-key"></div>`)
   const layers = scenes.flatMap((scene) => [
-    ...(scene.kind === "keys" ? [layer(`keys-${scene.index}`, scene, 1, `<div class="keys"><div class="keys-row">${keyRow()}</div></div>`)] : []),
+    ...(scene.kind === "keys"
+      ? [layer(`keys-${scene.index}`, scene, 1, `<div class="keys"><div class="keys-row">${keyRow()}</div></div>`)]
+      : []),
     ...(scene.kind === "end" ? [layer("end", scene, 1, END_CARD)] : []),
     ...(scene.caption ? [captionLayer(scene)] : []),
   ])

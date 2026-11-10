@@ -66,7 +66,7 @@ export const assertHeroIsolation = (): void => assertFixtureIsolation(HERO_HOME,
  */
 export async function stopHeroStack(): Promise<void> {
   await stopDaemonProcess(PATHS.daemonSocket, PATHS.daemonPidPath)
-  await stopDaemonProcess(PATHS.ptySocket, PATHS.ptyPidPath)
+  await stopDaemonProcess(PATHS.ptySocket, PATHS.ptyPidPath, { force: true })
 }
 
 /**

@@ -1,5 +1,7 @@
 # Remote topology (SSH-backed projects) — status assessment, 2026-07-27
 
+> **Historical: a 2026-07-27 snapshot.** Machines ([MACHINES.md](../MACHINES.md), [workspace-runner.md](./workspace-runner.md)) replaced this topology as the way to work on another computer; `rove add --remote` stays experimental.
+
 Assessment of the `remote-projects` branch and the current state of the
 reverse-topology feature (Rove local, project on a remote host over SSH).
 Verified against code on current `main` (v0.8.19, commit `d31fbf31`), not

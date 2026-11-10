@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, statSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
+import { addSavedRepo } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
+import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 import {
   type EngineRow,
@@ -16,10 +19,13 @@ import {
   remoteRowStatus,
   taskRows,
 } from "../src/rove-ops.ts"
+import { isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 const ENGINES: EngineRow[] = [
-  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
-  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false },
+  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
+  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false, enabled: true },
 ]
 
 function task(over: Partial<SerializedTask> & { id: string }): SerializedTask {
@@ -138,6 +144,45 @@ describe("engine identity", () => {
     expect(engineFor(task({ id: "b", vendor: "alpha" } as never), ENGINES)).toEqual({ id: "alpha", name: "Alpha" })
     expect(engineFor(task({ id: "c", vendor: "zeta" } as never), ENGINES)).toEqual({ id: null, name: "zeta" })
   })
+
+  test("a task on an engine switched off still shows that engine's name", () => {
+    const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
+    expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
+      id: "alpha-fast",
+      name: "Alpha Fast",
+    })
+  })
+})
+
+describe("engines.list enabled flag", () => {
+  test("follows Settings → Engines at once, though the engine scan itself is cached", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "bridge-engines-"))
+    const switchOff = (ids: string[]) => {
+      mkdirSync(dirname(kvStatePath()), { recursive: true })
+      writeFileSync(kvStatePath(), JSON.stringify({ disabledEngineIds: ids }))
+    }
+    let scans = 0
+    const api: BridgeApi = {
+      verb: async <T>() => {
+        scans++
+        return { engines: [{ id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: false }] } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    try {
+      const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      switchOff(["alpha"])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([false])
+      switchOff([])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      expect(scans).toBe(1)
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
+  })
 })
 
 describe("task row extras", () => {
@@ -247,6 +292,21 @@ describe("task row extras", () => {
     expect(bare?.pr).not.toHaveProperty("mergeable")
   })
 
+  test("session PRs ride the row: polled ones like pr, unpolled ones unknown with the number from the URL", () => {
+    const url = (n: number) => `https://github.com/o/r/pull/${n}`
+    const sessionPrs = [
+      { url: url(7), addedAt: "2026-10-27T00:00:00.000Z" },
+      { url: url(8), addedAt: "2026-10-27T00:00:00.000Z", status: pr({ number: 8, checkState: "failing" }) },
+    ]
+    const [row] = taskRows([task({ id: "m", sessionPrs } as never)], null, ENGINES, now)
+    expect(row?.sessionPrs).toEqual([
+      { number: 7, url: url(7), lifecycle: "unknown", checkState: "unknown" },
+      { number: 8, url: url(8), lifecycle: "open", checkState: "failing" },
+    ])
+    const [none] = taskRows([task({ id: "n" })], null, ENGINES, now)
+    expect(none).not.toHaveProperty("sessionPrs")
+  })
+
   test("a row another machine served names it; this Mac's rows carry no machine at all", () => {
     const origin = (stale?: true) => ({ machineId: "narwhal", hostLabel: "narwhal", ...(stale ? { stale } : {}) })
     const rows = taskRows(
@@ -328,6 +388,21 @@ describe("tab.new verb choice", () => {
       expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
     }
   })
+
+  test("a picked engine becomes this machine's project default; another machine's task leaves it alone", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    const api = (remote: boolean): BridgeApi => ({
+      verb: async <T>(name: string) =>
+        (name === "get-task" ? { task: task({ id: "T1", repo: "/repos/app" }) } : { tabId: "tab-2" }) as T,
+      rpc: () => Promise.reject(new Error("unused")),
+      machineOf: () => (remote ? "mac" : undefined),
+    })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", engine: "codex" })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", latest: true })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(true)).newTab("T1", { kind: "engine", engine: "omp" })
+    expect(remembered).toEqual([["/repos/app", "codex"]])
+  })
 })
 
 describe("phone text that starts with --", () => {
@@ -345,6 +420,49 @@ describe("phone text that starts with --", () => {
     await ops.createTask({ repo: "/r", title: "--help", prompt: "--yes, do it" })
     expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({ prompt: "--force-push is broken", tab: "new" })
     expect(argvToParams(calls[1].name, calls[1].argv)).toMatchObject({ title: "--help", prompt: "--yes, do it" })
+  })
+})
+
+describe("repos.list", () => {
+  test("lists saved projects only; a No folder session's or routine's cwd is not offered as a project", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    const home = mkdtempSync(join(tmpdir(), "rove-bridge-repos-"))
+    process.env.ROVE_HOME_DIR = home
+    try {
+      addSavedRepo("/work/app", { skipGate: true })
+      const tasks = [
+        task({ id: "m", kind: "main", repo: "/work/app" }),
+        task({ id: "nf", kind: "dir", repo: home, noProject: true }),
+        task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
+      ]
+      const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
+      expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
+  })
+})
+
+describe("task.delete children", () => {
+  test("`cascade` rides the delete verb; without it the daemon promotes the children", async () => {
+    const calls: { name: string; argv: readonly string[] }[] = []
+    const api: BridgeApi = {
+      async verb<T>(name: string, argv: readonly string[]) {
+        calls.push({ name, argv })
+        return { queued: true } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+    await ops.deleteTask("T1", true, true)
+    await ops.deleteTask("T1", false)
+    expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({
+      "task-id": "T1",
+      force: "true",
+      cascade: "true",
+    })
+    expect(argvToParams(calls[1].name, calls[1].argv)).not.toHaveProperty("cascade")
   })
 })
 

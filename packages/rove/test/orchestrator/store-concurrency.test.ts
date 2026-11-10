@@ -94,13 +94,12 @@ describe("TaskIndexStore multi-process consistency", () => {
     const procB = new TaskIndexStore({ homeDir: home })
     await procB.load()
 
-    // A deletes; B then touches the SAME task without flushing (touchRecency
-    // marks dirty but defers the save). At B's next save the task is dirty in
-    // B's memory while gone from disk — the resurrection recipe: a merge
-    // whose dirty branch writes it back unconditionally.
+    // A deletes; B then edits the SAME task from its stale cache. At B's save
+    // the task is dirty in B's memory while gone from disk — the resurrection
+    // recipe: a merge whose dirty branch writes it back unconditionally.
     // A's on-disk tombstone must beat B's pending edit.
     await procA.remove(task.id)
-    procB.touchRecency(task.id)
+    await procB.update(task.id, { title: "edited" }).catch(() => undefined)
     const survivor = await procB.create(input("survivor"))
 
     const disk = await readDisk()

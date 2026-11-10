@@ -9,7 +9,7 @@
  * prefill, notification titles).
  */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
 import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useRef, useState } from "react"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
@@ -65,34 +65,46 @@ const MIN_TAB_TITLE_CELLS = 6
 /** Active tab: three sides, so the missing bottom edge reads as a notch. */
 const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
-export function TabStrip(props: {
+export interface TabStripProps {
   /** The task whose tabs these are: the key into the daemon's row status. */
   taskId: string
   tabs: readonly TerminalTab[]
   activeId: string
   onSelect: (tabId: string) => void
+  /** Right-click on a tab, in screen cells. */
+  onContextMenu?: (tabId: string, x: number, y: number) => void
   /** Task-level engine — the default-name fallback for unpinned tabs. */
   vendor: VendorId
   /** tabId → live process display name (see `useTurnPolls().liveTitles`). */
   liveTitles: ReadonlyMap<string, string>
   /** tabId → resolved live engine identity (see `useTurnPolls().turnVendors`). */
   turnVendors: ReadonlyMap<string, VendorId>
-}) {
-  const themeCtx = useTheme()
-  const { theme } = themeCtx
+}
+
+/**
+ * The gate. Off by default (the sidebar tree already lists every worktree's
+ * tabs), and while it is off this renders nothing BEFORE subscribing to the
+ * row-status map or arming the pulse — hidden used to build every chip first.
+ */
+export function TabStrip(props: TabStripProps) {
   const kv = useKV()
-  const glyphs = useGlyphs()
-  const statuses = useRowStatusMap()[props.taskId]?.tabs
-  const dims = useTerminalSize()
-  // Off by default: the sidebar tree already lists every worktree's tabs.
-  // Late bail so hooks run in the same order.
+  const size = useTerminalSize()
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
   // Narrow mode overrides the setting: the sidebar tree isn't on screen there.
-  const narrow = isNarrowWidth(dims.width)
-  const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
+  const narrow = isNarrowWidth(size.width)
+  if (!narrow && !tabStripVisible(stripMode, props.tabs.length)) return null
+  return <TabStripBody {...props} narrow={narrow} dimsWidth={size.width} />
+}
+
+function TabStripBody(props: TabStripProps & { readonly narrow: boolean; readonly dimsWidth: number }) {
+  const { theme } = useTheme()
+  const glyphs = useGlyphs()
+  const statuses = useRowStatusMap()[props.taskId]?.tabs
+  const narrow = props.narrow
+  const dims = { width: props.dimsWidth }
 
   /* Pulse: a tab whose turn just ended sits in `pulsing` for DONE_PULSE_MS.
    * The effect re-runs per daemon snapshot of this task. */
@@ -172,8 +184,6 @@ export function TabStrip(props: {
   }
   offsetRef.current = offset
 
-  if (hidden) return null
-
   /* Narrow (phone-SSH) form: only the ACTIVE tab plus a right-stuck `2/3`
    * counter, which is what tells you the others exist. */
   if (narrow) {
@@ -190,7 +200,17 @@ export function TabStrip(props: {
     return (
       // No row background: transparent mode forces panel backgrounds to alpha-0
       // (applyDisplayOverlay); only the active tab's fill paints.
-      <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
+      <box
+        flexDirection="row"
+        flexShrink={0}
+        paddingLeft={1}
+        paddingRight={1}
+        gap={1}
+        overflow="hidden"
+        onMouseUp={(evt: { button: number; x: number; y: number }) => {
+          if (evt.button === MouseButton.RIGHT) props.onContextMenu?.(active.tab.id, evt.x, evt.y)
+        }}
+      >
         {/* Chip OUTSIDE the fill, for the reason the wide branch dropped its
             own fill: on `focusAccent` the error red lands at a 1.02 contrast
             ratio, so every tone collapses into the orange. On the ambient
@@ -241,7 +261,11 @@ export function TabStrip(props: {
               border={active ? ACTIVE_TAB_SIDES : true}
               borderStyle="rounded"
               borderColor={active ? theme.focusAccent : theme.borderActive}
-              onMouseUp={() => props.onSelect(tab.id)}
+              onMouseUp={(evt: { button: number; x: number; y: number }) => {
+                // Right-click opens the menu and never falls through to select.
+                if (evt.button === MouseButton.RIGHT && props.onContextMenu) props.onContextMenu(tab.id, evt.x, evt.y)
+                else props.onSelect(tab.id)
+              }}
             >
               {/* Turn chip: the daemon's status for the tab, the sidebar
                   row's glyph and tone. Shown once the daemon has a record of

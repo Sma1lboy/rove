@@ -16,6 +16,7 @@ import { useState } from "react"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { Task } from "../../../types/task.ts"
 import type { KVContext } from "../../context/kv"
+import { t } from "../../i18n"
 
 export interface SidebarHostState {
   readonly sortMode: TaskSortMode
@@ -35,21 +36,23 @@ export interface SidebarHostState {
   readonly onLocalMergeRequest: (id: string) => void
 }
 
-/** The order `t` walks; `default` first so one press from anywhere returns to the resting sort. */
+/** The order `t` walks; `default` (manual order, what move mode edits) leads it. */
 const SORT_MODE_CYCLE: readonly TaskSortMode[] = ["default", "recent", "attention", "name"]
 
-/** A persisted value this build doesn't know reads as the resting sort — the
- *  stored string is shared with older/newer builds through `state.json`. */
+/** A value never stored, or one this build doesn't know (the string is shared with
+ *  older/newer builds through `state.json`), reads as recency. */
 function readSortMode(stored: unknown): TaskSortMode {
-  return SORT_MODE_CYCLE.find((mode) => mode === stored) ?? "default"
+  return SORT_MODE_CYCLE.find((mode) => mode === stored) ?? "recent"
 }
 
 export function useSidebarHostState(args: {
   readonly kv: KVContext
   readonly tasks: readonly Task[]
   readonly focusSidebar: () => void
+  /** Tells the user the sort changed under them (Reorder switches to manual). */
+  readonly notify?: (message: string) => void
 }): SidebarHostState {
-  const { kv, tasks, focusSidebar } = args
+  const { kv, tasks, focusSidebar, notify } = args
 
   // Seeding from `activeSortMode` is what makes the sort global: a new host
   // opens in the last sort. The live push is not applied (KNOWN GAP above).
@@ -60,9 +63,18 @@ export function useSidebarHostState(args: {
     kv.set("activeSortMode", next)
   }
 
-  const [moveMode, setMoveMode] = useState(false)
+  const [moveMode, setMoveModeState] = useState(false)
+  // Reorder edits the stored manual order; under any other sort the row would not land where j/k says.
+  const setMoveMode = (next: boolean): void => {
+    if (next && sortMode !== "default") {
+      setSortMode("default")
+      kv.set("activeSortMode", "default")
+      notify?.(t("tasks.sort.reorderSwitched"))
+    }
+    setMoveModeState(next)
+  }
   const onLocalMergeRequest = (id: string): void => {
-    const task = tasks.find((t) => t.id === id)
+    const task = tasks.find((row) => row.id === id)
     if (!task) return
     if (!moveMode) focusSidebar()
     setMoveMode(!moveMode)

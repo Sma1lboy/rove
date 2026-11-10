@@ -1,0 +1,108 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rove</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--paper); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .accent { fill:var(--accent); }
+  .slab { fill:var(--inset); rx:var(--radius); }
+  .second { fill:var(--secondary); rx:var(--radius); }
+  .deep { fill:var(--ink); rx:var(--radius); }
+  .arm { rx:var(--radius-sm); }
+  .dot { fill:var(--line-active); }
+  .dot-on { fill:var(--accent); }
+  .words { position:absolute; left:40px; bottom:36px; max-width:440px; }
+  .name { margin:0; font-family:var(--font-mono); font-size:120px; line-height:.92; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+  .tag { margin:10px 0 0 4px; font-size:14px; line-height:20px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      accent: two brackets, each a 40×224 stem + two 88×40 arms (the icon's "[ ]") · inset 208×224 slab between them · secondary 40×128 bleeding off the top right · ink 40×80 bleeding off the bottom right ≈ 27% of 960×288
+  arrangement the bracket pair framing one slab, exactly as the wordmark frames "rove"; the two satellites stack on the right edge
+  pattern     a literal motif: the web's 3×3 status orb, enlarged to a 7×8 dot grid at a 24px pitch (space-3 × 2) inside the slab, a diagonal lit in accent like a spinner frame; chosen because the status glyph is Rove's one recurring shape
+  scales      stems and arms in space-2 multiples (40, 88), gutters space-4 (16px), dot pitch 24px, slab and satellite corners radius (8), arm corners radius-sm (6)
+-->
+<rect class="accent arm" x="24" y="32" width="40" height="224" rx="6"/>
+<rect class="accent arm" x="24" y="32" width="88" height="40" rx="6"/>
+<rect class="accent arm" x="24" y="216" width="88" height="40" rx="6"/>
+<rect class="slab" x="128" y="32" width="208" height="224" rx="8"/>
+<circle class="dot-on" cx="152" cy="56" r="3"/>
+<circle class="dot" cx="176" cy="56" r="3"/>
+<circle class="dot" cx="200" cy="56" r="3"/>
+<circle class="dot" cx="224" cy="56" r="3"/>
+<circle class="dot" cx="248" cy="56" r="3"/>
+<circle class="dot" cx="272" cy="56" r="3"/>
+<circle class="dot" cx="296" cy="56" r="3"/>
+<circle class="dot-on" cx="152" cy="80" r="3"/>
+<circle class="dot-on" cx="176" cy="80" r="3"/>
+<circle class="dot" cx="200" cy="80" r="3"/>
+<circle class="dot" cx="224" cy="80" r="3"/>
+<circle class="dot" cx="248" cy="80" r="3"/>
+<circle class="dot" cx="272" cy="80" r="3"/>
+<circle class="dot" cx="296" cy="80" r="3"/>
+<circle class="dot" cx="152" cy="104" r="3"/>
+<circle class="dot-on" cx="176" cy="104" r="3"/>
+<circle class="dot-on" cx="200" cy="104" r="3"/>
+<circle class="dot" cx="224" cy="104" r="3"/>
+<circle class="dot" cx="248" cy="104" r="3"/>
+<circle class="dot" cx="272" cy="104" r="3"/>
+<circle class="dot" cx="296" cy="104" r="3"/>
+<circle class="dot" cx="152" cy="128" r="3"/>
+<circle class="dot" cx="176" cy="128" r="3"/>
+<circle class="dot-on" cx="200" cy="128" r="3"/>
+<circle class="dot-on" cx="224" cy="128" r="3"/>
+<circle class="dot" cx="248" cy="128" r="3"/>
+<circle class="dot" cx="272" cy="128" r="3"/>
+<circle class="dot" cx="296" cy="128" r="3"/>
+<circle class="dot" cx="152" cy="152" r="3"/>
+<circle class="dot" cx="176" cy="152" r="3"/>
+<circle class="dot" cx="200" cy="152" r="3"/>
+<circle class="dot-on" cx="224" cy="152" r="3"/>
+<circle class="dot-on" cx="248" cy="152" r="3"/>
+<circle class="dot" cx="272" cy="152" r="3"/>
+<circle class="dot" cx="296" cy="152" r="3"/>
+<circle class="dot" cx="152" cy="176" r="3"/>
+<circle class="dot" cx="176" cy="176" r="3"/>
+<circle class="dot" cx="200" cy="176" r="3"/>
+<circle class="dot" cx="224" cy="176" r="3"/>
+<circle class="dot-on" cx="248" cy="176" r="3"/>
+<circle class="dot-on" cx="272" cy="176" r="3"/>
+<circle class="dot" cx="296" cy="176" r="3"/>
+<circle class="dot" cx="152" cy="200" r="3"/>
+<circle class="dot" cx="176" cy="200" r="3"/>
+<circle class="dot" cx="200" cy="200" r="3"/>
+<circle class="dot" cx="224" cy="200" r="3"/>
+<circle class="dot" cx="248" cy="200" r="3"/>
+<circle class="dot-on" cx="272" cy="200" r="3"/>
+<circle class="dot-on" cx="296" cy="200" r="3"/>
+<circle class="dot" cx="152" cy="224" r="3"/>
+<circle class="dot" cx="176" cy="224" r="3"/>
+<circle class="dot" cx="200" cy="224" r="3"/>
+<circle class="dot" cx="224" cy="224" r="3"/>
+<circle class="dot" cx="248" cy="224" r="3"/>
+<circle class="dot" cx="272" cy="224" r="3"/>
+<circle class="dot-on" cx="296" cy="224" r="3"/>
+<rect class="accent arm" x="352" y="32" width="88" height="40" rx="6"/>
+<rect class="accent arm" x="352" y="216" width="88" height="40" rx="6"/>
+<rect class="accent arm" x="400" y="32" width="40" height="224" rx="6"/>
+<rect class="second" x="456" y="-16" width="40" height="128" rx="8"/>
+<rect class="deep" x="456" y="216" width="40" height="80" rx="8"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Rove</h1>
+<p class="tag">Many AI coding sessions at once, from one terminal.</p>
+</div>
+</div>
+</body>
+</html>

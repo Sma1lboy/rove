@@ -26,8 +26,8 @@ export const TOP_LEVEL_SUBCOMMANDS = [
 
 /**
  * Second-level verbs for `completions`. Import-free on purpose:
- * `daemon-cmd.ts`, `plugin-cmd.ts`, `theme.ts`, `repo-cmd.ts` and
- * `skill-cmd.ts` validate argv against these, so a verb missing here fails
+ * `daemon-cmd.ts`, `machine-cmd.ts`, `plugin-cmd.ts`, `theme.ts`, `repo-cmd.ts`
+ * and `skill-cmd.ts` validate argv against these, so a verb missing here fails
  * loud in the command itself. `api` is excluded (its verbs come from the
  * `VERBS` registry, loaded lazily). Canonical spellings only; aliases
  * (`theme ls`/`rm`) stay in their command module.
@@ -36,7 +36,7 @@ export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill
 
 export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
   daemon: ["status", "start", "stop", "restart", "relay"],
-  machine: ["add", "doctor", "remove", "list"],
+  machine: ["add", "doctor", "remove", "list", "tunnel", "inbound", "primary"],
   plugin: [
     "install",
     "link",
@@ -54,7 +54,7 @@ export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string
     "pane",
   ],
   repo: ["show", "set", "unset"],
-  skill: ["install", "status", "command", "print"],
+  skill: ["install", "status", "print"],
   theme: ["list", "add", "remove"],
   weixin: ["login", "logout", "status", "allow", "deny", "send", "agent"],
 }

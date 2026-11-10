@@ -11,14 +11,17 @@ import { createStore } from "./store.ts"
 export interface TermControl {
   readonly stream: string
   focus(): void
+  /** Bytes typed into the engine as if from the keyboard (the page's own Escape for it). */
+  input(data: string): void
   /** `ctrl+pgup` / `ctrl+pgdown`: a page of scrollback (the TUI's ten lines). */
   scrollPages(direction: 1 | -1): void
   hasSelection(): boolean
   /** Copy the selection and drop it; false = there was none. */
   copySelection(): boolean
-  openSearch(): void
   /** F5: confirm, then kill the shell and spawn a fresh one. */
   reset(): void
+  /** Attach again to whatever now runs under this stream (a replaced engine). */
+  reattach(): Promise<void>
   size(): { cols: number; rows: number }
 }
 
@@ -58,13 +61,5 @@ registerCommands(() => [
     prefix: false,
     surface: "terminal",
     run: () => focusedTerm.get()?.reset(),
-  },
-  {
-    id: "terminal.search",
-    chords: ["/"],
-    prefix: true,
-    surface: "terminal",
-    live: () => focusedTerm.get() !== null,
-    run: () => focusedTerm.get()?.openSearch(),
   },
 ])

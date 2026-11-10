@@ -9,11 +9,12 @@
  * One tab's state, highest first: a freeze-restored session or an attention
  * state (rate limited, error, dead) → running → needs input (unless just
  * answered) → a finished turn nobody has looked at → idle. The task row: a job
- * or deletion, else its most urgent tab, ranked attention → needs input →
- * running → unseen → idle (a question outranks a sibling that is still working).
+ * or deletion, else its most urgent tab, ranked running → needs input →
+ * attention → unseen → idle.
  */
 
 import type { TaskActivityState } from "./contracts.ts"
+import { STATUS_PRIORITY } from "./status-priority.ts"
 
 export type RowStatusKind =
   /** A task-level operation in flight: worktree being created, task being deleted. */
@@ -89,15 +90,6 @@ export function tabStatus(input: TabStatusInput): TabStatus {
   return { kind: "idle", since: a?.at ?? 0, ...(a ? { state: a.state } : {}), ...session }
 }
 
-const RANK: Readonly<Record<RowStatusKind, number>> = {
-  busy: 0,
-  attention: 1,
-  "needs-input": 2,
-  running: 3,
-  unseen: 4,
-  idle: 5,
-}
-
 /**
  * The task row: a task-level job or deletion wins, else the most urgent tab
  * (the tab-less hook entry counts as one more tab), most recent on a tie.
@@ -115,7 +107,9 @@ export function taskStatus(
   if (extra.job) return { kind: "busy", reason: "job", since: extra.job.at }
   let best: RowStatus = { kind: "idle", since: 0 }
   for (const status of [...Object.values(tabs), ...(extra.tabless ? [extra.tabless] : [])]) {
-    const better = RANK[status.kind] < RANK[best.kind] || (status.kind === best.kind && status.since > best.since)
+    const better =
+      STATUS_PRIORITY[status.kind] < STATUS_PRIORITY[best.kind] ||
+      (status.kind === best.kind && status.since > best.since)
     if (better)
       best = {
         kind: status.kind,

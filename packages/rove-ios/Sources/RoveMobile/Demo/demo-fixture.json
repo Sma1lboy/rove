@@ -1,4 +1,30 @@
 {
+  "sessions.search": {
+    "$by": "query",
+    "*": {
+      "matches": [
+        {
+          "taskId": "T-WAIT",
+          "title": "Verify refund webhook signatures",
+          "tabId": "tab-1",
+          "role": "assistant",
+          "at": { "$ago_min": 12 },
+          "snippet": "The refund webhook signature check rejects replays older than five minutes."
+        },
+        {
+          "taskId": "T-WORK",
+          "title": "Add pagination to invoices",
+          "tabId": "tab-1",
+          "role": "user",
+          "at": { "$ago_min": 95 },
+          "snippet": "also make sure refund lines keep their order across pages"
+        }
+      ],
+      "skipped": [{ "taskId": "T-REMOTE", "reason": "remote" }],
+      "truncated": false
+    },
+    "nothing": { "matches": [], "skipped": [], "truncated": false }
+  },
   "hello": {
     "protocol": 1,
     "roveVersion": "0.9.240",
@@ -198,6 +224,40 @@
         "updatedAt": {
           "$ago_min": 180
         }
+      },
+      {
+        "id": "T-NIGHTLY",
+        "kind": "task",
+        "status": "in_progress",
+        "repo": "/work/nightly-runs",
+        "routine": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Nightly dependency sweep",
+        "branch": "routine/nightly-deps",
+        "group": "idle",
+        "rank": 5,
+        "order": 5
+      }
+    ],
+    "archived": [
+      {
+        "id": "T-OLD",
+        "kind": "task",
+        "status": "done",
+        "repo": "/work/payments-api",
+        "archived": true,
+        "deleting": false,
+        "pinned": false,
+        "pr": null,
+        "report": null,
+        "title": "Spike a ledger rewrite",
+        "branch": "spike/ledger",
+        "group": "idle",
+        "rank": 6,
+        "order": 6
       }
     ],
     "attention": [
@@ -223,6 +283,7 @@
       },
       {
         "state": "routine_failed",
+        "automationId": "r-bad",
         "label": "flaky test hunter",
         "unread": true,
         "at": {
@@ -232,6 +293,15 @@
       }
     ]
   },
+  "machines.list": {
+    "machines": [
+      { "alias": "studio", "hostLabel": "studio.lan", "state": "online", "version": "0.9.282", "reason": null },
+      { "alias": "narwhal", "hostLabel": "narwhal", "state": "offline", "version": null, "reason": "refused" }
+    ]
+  },
+  "task.syncBase": { "baseRef": "main", "alreadyCurrent": false },
+  "task.fixChecks": { "outcome": "sent" },
+  "task.landPreflight": { "landedOn": "main", "ahead": 2 },
   "tasks.list": {
     "$same_as": "tasks.subscribe"
   },
@@ -270,6 +340,9 @@
   },
   "task.tabs": {
     "$by": "taskId",
+    "T-NIGHTLY": {
+      "tabs": [{ "id": "tab-1", "kind": "engine", "title": "claude", "engineName": "Claude", "alive": true, "engineAlive": true }]
+    },
     "T-WAIT": {
       "tabs": [
         {
@@ -333,7 +406,8 @@
           "engineName": "Claude",
           "alive": true,
           "engineAlive": true
-        }
+        },
+        { "id": "tab-3", "kind": "shell", "title": "dev server", "alive": false }
       ]
     },
     "*": {
@@ -752,6 +826,7 @@
       "taskId",
       "tabId"
     ],
+    "T-NIGHTLY:tab-1": { "stream": "demo-T-NIGHTLY-tab-1", "alive": true, "replay": { "$b64": "sweep finished\r\n" } },
     "T-WAIT:tab-1": {
       "stream": "demo-T-WAIT-tab-1",
       "alive": true,
@@ -787,6 +862,7 @@
         "$b64": "\u001b[38;5;173m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[38;5;173m✻\u001b[0m \u001b[1mWelcome to Claude Code\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m                                        \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2m/help for help\u001b[0m                         \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m│\u001b[0m \u001b[2mcwd: ~/work/payments-api\u001b[0m               \u001b[38;5;173m│\u001b[0m\r\n\u001b[38;5;173m╰────────────────────────────────────────╯\u001b[0m\r\n\r\n\u001b[1m>\u001b[0m Explain idempotency keys in docs/api.md\r\n\r\n\u001b[38;5;173m●\u001b[0m I'll read the current API docs first.\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mRead\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Read 212 lines\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m \u001b[1mUpdate\u001b[0m(docs/api.md)\r\n  \u001b[2m⎿  Updated docs/api.md with \u001b[0m\u001b[32m10 additions\u001b[0m\r\n     \u001b[2m88\u001b[0m  \u001b[32m+## Idempotency keys\u001b[0m\r\n     \u001b[2m89\u001b[0m  \u001b[32m+\u001b[0m\r\n     \u001b[2m90\u001b[0m \u001b[32m+Send an `Idempotency-Key` header\u001b[0m\r\n     \u001b[2m91\u001b[0m \u001b[32m+on every `POST`.\u001b[0m\r\n\r\n\u001b[38;5;173m●\u001b[0m Added an \"Idempotency keys\" section before\r\n  Errors: what the header is, how long we\r\n  keep the response, and what a mismatched\r\n  reuse returns. Examples use a UUID per\r\n  operation.\r\n\r\n\u001b[2m╭────────────────────────────────────────╮\u001b[0m\r\n\u001b[2m│\u001b[0m \u001b[1m>\u001b[0m \u001b[2mTry \"write a test for list.ts\"\u001b[0m       \u001b[2m│\u001b[0m\r\n\u001b[2m╰────────────────────────────────────────╯\u001b[0m\r\n  \u001b[2m? for shortcuts\u001b[0m\r\n"
       }
     },
+    "T-IDLE:tab-3": { "stream": "demo-T-IDLE-tab-3", "alive": false, "replay": { "$b64": "$ bun run dev\r\nserver stopped\r\n" } },
     "T-IDLE:tab-1": {
       "stream": "demo-T-IDLE-tab-1",
       "alive": true,
@@ -804,6 +880,7 @@
   },
   "diff.files": {
     "$by": "taskId",
+    "T-NIGHTLY": { "files": [] },
     "T-WAIT": {
       "base": "main",
       "files": [
@@ -2120,5 +2197,35 @@
     "kind": "image",
     "bytes": 2048
   },
-  "feedback.send": {}
+  "feedback.send": {},
+  "tab.send": {
+    "$by": "taskId",
+    "T-WORK": {
+      "delivered": false,
+      "queued": true,
+      "queueId": "q-2",
+      "position": 2
+    },
+    "*": {
+      "delivered": true
+    }
+  },
+  "queue.list": {
+    "$by": "taskId",
+    "T-WORK": {
+      "items": [
+        {
+          "id": "q-1",
+          "taskId": "T-WORK",
+          "tabId": "tab-1",
+          "text": "then add a test for the empty page",
+          "expectReport": false,
+          "at": 0
+        }
+      ]
+    },
+    "*": {
+      "items": []
+    }
+  }
 }

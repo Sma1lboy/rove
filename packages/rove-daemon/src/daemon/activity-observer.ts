@@ -55,6 +55,8 @@ export const DEFAULT_UNSUBSCRIBED_EVERY_TICKS = 6
  * fresh turn must not be idled by a stale observation.
  */
 export const DEFAULT_CORRECT_AFTER_MS = 20_000
+/** The banner's text inside a `keepAlive` launch script (`engine/session-launch.ts`). */
+const WRAPPED_LAUNCH_MARK = "Engine exited (code"
 
 /** One `pty.list` row the observer consumes. */
 export interface ObservedPtySession {
@@ -67,6 +69,10 @@ export interface ObservedPtySession {
   readonly totalBytes: number
   /** A freeze-restored session not yet reopened (`row-status-store.ts`). */
   readonly restored?: boolean
+  /** Spawn argv; only a wrapped engine launch carries the banner's `printf`. */
+  readonly command?: readonly string[]
+  /** The host's incarnation token (`pty.list`); absent on hosts that predate it. */
+  readonly generation?: string
 }
 
 export interface ActivityObserverIo {
@@ -109,6 +115,19 @@ export interface ActivityObserverIo {
    * never-started engine; the consumer judges (it reads the session's ring).
    */
   onEngineAbsentAtStart?(info: { taskId: string; tabId: string; key: string }): void | Promise<void>
+  /**
+   * A wrapped engine launch (the argv carries keepAlive's banner) born under this daemon and still
+   * showing no engine: read what it printed since `sinceOffset` for the wrapper's `Engine exited`
+   * banner. A launch that dies at once (command not found) never walks as an engine, so no
+   * vendor→null edge exists for it. Resolves the offset to resume from, and whether a death was
+   * recorded (the loop then stops asking); null = could not look.
+   */
+  scanEngineExitBanner?(info: {
+    taskId: string
+    tabId: string
+    key: string
+    sinceOffset: number
+  }): Promise<{ offset: number; died: boolean } | null>
 }
 
 export interface ActivityObserverOptions {
@@ -141,6 +160,12 @@ interface SessionTrack {
   /** ENGINE pid from the last walk (what a death record names), not the
    *  longer-lived session pid; null while no engine runs. */
   enginePid: number | null
+  /** The host's incarnation token for this session; a different one under the same key is a new child. */
+  generation?: string
+  /** A launch wrapped by `keepAlive` that has shown no engine since it was born here: where the next
+   *  banner scan resumes, and the byte count the last scan saw (the banner is output, so a quiet ring
+   *  needs no rescan). Absent once an engine shows or the death is recorded. */
+  bannerWatch?: { offset: number; scannedBytes: number }
 }
 
 /**
@@ -171,6 +196,10 @@ export function startActivityObserver(
    *  "died before us", not "starting". Not `tickCount === 0`: an unreachable
    *  host on the first tick must not burn the boot walk. */
   let bootWalkDone = false
+  /** A `pty.list` answered on an earlier tick: a session first listed now was born under this daemon. */
+  let listedBefore = false
+  /** Where a freeze-restored corpse's ring ends: its respawned child's own output starts there. */
+  const corpseEnd = new Map<string, number>()
 
   const applyRest = (track: Pick<SessionTrack, "taskId" | "tabId" | "vendor">, why: string): void => {
     const outcome = activity.observeTab(track.taskId, track.tabId, "rest", {
@@ -219,6 +248,7 @@ export function startActivityObserver(
         if (parts.length !== 2 || !parts[0] || !parts[1]) continue
         seen.add(s.key)
         if (!s.alive) {
+          if (s.restored) corpseEnd.set(s.key, s.totalBytes)
           // Exited is positive evidence even if never tracked alive: a stale hook `running` still gets corrected.
           const track = tracks.get(s.key)
           applyRest(
@@ -227,6 +257,13 @@ export function startActivityObserver(
           )
           tracks.delete(s.key)
           continue
+        }
+        const known = tracks.get(s.key)
+        // Retry kills and reopens a key within one poll: a new child, so it is tracked afresh.
+        if (known?.generation !== undefined && s.generation !== undefined && known.generation !== s.generation) {
+          // The old child's death claim has nothing to say about the new one.
+          activity.retireEngineDeath(known.taskId, known.tabId, now)
+          tracks.delete(s.key)
         }
         let track = tracks.get(s.key)
         if (!track) {
@@ -240,9 +277,19 @@ export function startActivityObserver(
             lastActivityAt: null,
             vendor: undefined,
             enginePid: null,
+            generation: s.generation,
           }
           tracks.set(s.key, track)
           newborn.add(s.key)
+          if (s.command?.some((arg) => arg.includes(WRAPPED_LAUNCH_MARK))) {
+            // Born under this daemon: its whole output (since the corpse it respawned, if any) is the new child's.
+            // Listed first now (an earlier daemon's, or born while the host was still coming up): what it already
+            // printed is the boot reconciler's, so only later output is scanned.
+            track.bannerWatch = listedBefore
+              ? { offset: corpseEnd.get(s.key) ?? 0, scannedBytes: -1 }
+              : { offset: s.totalBytes, scannedBytes: s.totalBytes }
+          }
+          corpseEnd.delete(s.key)
         } else if (s.totalBytes !== track.lastTotalBytes || s.title !== track.lastTitle) {
           track.lastTotalBytes = s.totalBytes
           track.lastTitle = s.title
@@ -250,6 +297,7 @@ export function startActivityObserver(
         }
         live.push(track)
       }
+      listedBefore = true
 
       // Dead or vanished: retire observed claims AND stale hook `running`s.
       for (const [key, track] of tracks) {
@@ -295,10 +343,39 @@ export function startActivityObserver(
             }
             track.vendor = found?.vendor ?? null
             track.enginePid = found?.pid ?? null
+            if (found) {
+              track.bannerWatch = undefined
+              // An engine runs here: whatever death was recorded for the tab is history.
+              activity.retireEngineDeath(track.taskId, track.tabId, now)
+            }
           }
         } catch {
           // ps failed: keep prior verdicts; never-walked sessions stay unclaimed.
         }
+      }
+
+      // A wrapped launch that never showed an engine leaves one trace: the wrapper's own banner.
+      for (const track of live) {
+        const watch = track.bannerWatch
+        if (!watch || watch.scannedBytes === track.lastTotalBytes) continue
+        watch.scannedBytes = track.lastTotalBytes
+        const scan = io.scanEngineExitBanner?.({
+          taskId: track.taskId,
+          tabId: track.tabId,
+          key: track.key,
+          sinceOffset: watch.offset,
+        })
+        if (!scan) continue
+        effects.push(
+          scan.then((result) => {
+            if (!result) {
+              watch.scannedBytes = -1
+              return
+            }
+            if (result.died) track.bannerWatch = undefined
+            else watch.offset = result.offset
+          }),
+        )
       }
 
       if (stopped) return

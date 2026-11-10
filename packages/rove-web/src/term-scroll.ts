@@ -2,44 +2,137 @@
  * Wheel and follow decisions for the xterm pane, kept pure so they can be tested.
  *
  * The TUI's terminal pane is the reference (`tui-react/panes/terminal`): a wheel
- * goes to the app when it tracks the mouse or owns the alternate screen,
- * otherwise it moves the local scrollback by whole lines; the view follows new
+ * goes to the app on the alternate screen; on the normal screen it moves the
+ * local scrollback (whole rows to xterm, the fraction of a row as a screen offset,
+ * `term-smooth.ts`), unless Shift hands it to an app that tracks
+ * the mouse (an inline app cannot scroll the scrollback itself); the view follows new
  * output only while it sits at the bottom, and when the app wipes the
  * scrollback (`ESC[3J`, `ESC c`) under a scrolled view it keeps the same
  * distance from the bottom (`resolveViewportScrollOffset`'s fallback).
  */
 
-/** Who a wheel tick belongs to, in emulator order. */
-export function wheelOwner(modes: { readonly alternateScreen: boolean; readonly mouseTracking: boolean }):
-  | "app"
-  | "local" {
-  return modes.mouseTracking || modes.alternateScreen ? "app" : "local"
+/** Who a wheel tick belongs to, in emulator order (TUI `encodeWheel`). */
+export function wheelOwner(modes: {
+  readonly alternateScreen: boolean
+  readonly mouseTracking: boolean
+  readonly shift: boolean
+}): "app" | "local" {
+  return modes.alternateScreen || (modes.mouseTracking && modes.shift) ? "app" : "local"
+}
+
+/**
+ * What a wheel of `lines` whole rows sends an app that owns it, one event per row as the TUI pane does
+ * (`encodeWheel`): SGR wheel reports under mouse tracking, else three arrow keys a row. xterm on its own
+ * sends one report per wheel event however far it moved, and a third of a trackpad's travel.
+ */
+export function appWheel(
+  modes: { readonly mouseTracking: boolean; readonly applicationCursorKeys: boolean },
+  lines: number,
+  col: number,
+  row: number,
+): string {
+  const up = lines < 0
+  const one = modes.mouseTracking
+    ? `\x1b[<${up ? 64 : 65};${Math.max(1, col)};${Math.max(1, row)}M`
+    : `\x1b${modes.applicationCursorKeys ? "O" : "["}${up ? "A" : "B"}`.repeat(3)
+  return one.repeat(Math.abs(lines))
+}
+
+/** Adds a wheel's fractional rows to what an earlier one left over; a turn the other way starts from nothing. */
+export function takeWholeLines(carry: number, delta: number): { lines: number; carry: number } {
+  const total = (Math.sign(carry) === -Math.sign(delta) ? 0 : carry) + delta
+  const lines = Math.trunc(total) || 0
+  return { lines, carry: total - lines }
 }
 
 export interface WheelInput {
   readonly deltaY: number
   /** `WheelEvent.deltaMode`: 0 pixels, 1 lines, 2 pages. */
   readonly deltaMode: number
+  /** Chromium/Safari's legacy `wheelDeltaY`: a notch of a mouse wheel is 120 there. */
+  readonly wheelDeltaY?: number
+}
+
+/** A wheel event in lines (negative = up, toward older output). */
+export function wheelDelta(event: WheelInput, cellHeight: number, rows: number): number {
+  const unit = event.deltaMode === 1 ? 1 : event.deltaMode === 2 ? Math.max(1, rows) : 1 / Math.max(1, cellHeight)
+  return event.deltaY * unit
 }
 
 /**
- * Whole lines to scroll for one wheel event (negative = up, toward older
- * output) plus the fraction carried to the next event. A touchpad sends many
- * sub-line deltas; they add up here instead of being dropped, and a change of
- * direction starts from zero.
+ * Whether an event is one notch of a mouse wheel, which arrives as a jump of several lines at once and is
+ * eased over a few frames. A touchpad (or the OS's momentum) already sends a stream of small deltas and is
+ * followed as it comes; Chromium on a Mac reports `wheelDeltaY` at three times the pixels, which is how a
+ * touchpad delta that happens to be a multiple of 120 is told apart from a notch (about 1.2 times).
  */
-export function wheelLines(
-  carry: number,
-  event: WheelInput,
-  cellHeight: number,
-  rows: number,
-): { readonly lines: number; readonly carry: number } {
-  const unit = event.deltaMode === 1 ? 1 : event.deltaMode === 2 ? Math.max(1, rows) : 1 / Math.max(1, cellHeight)
-  const delta = event.deltaY * unit
-  const start = Math.sign(carry) !== 0 && Math.sign(carry) !== Math.sign(delta) ? 0 : carry
-  const total = start + delta
-  const lines = Math.trunc(total) || 0
+export function isWheelNotch(event: WheelInput): boolean {
+  if (event.deltaMode !== 0) return true
+  const legacy = Math.abs(event.wheelDeltaY ?? 0)
+  return legacy > 0 && legacy % 120 === 0 && Math.abs(event.deltaY) * 2 > legacy
+}
+
+/**
+ * Whole lines to hand xterm for a move of `delta` lines, and the fraction left over. The fraction is the
+ * nearest whole line away, so it stays within half a line either way and the pane shows it as a pixel offset.
+ * It carries across a change of direction: the view is where the fingers put it, not where the last whole
+ * line was.
+ */
+export function scrollStep(carry: number, delta: number): { readonly lines: number; readonly carry: number } {
+  const total = carry + delta
+  const lines = Math.sign(total) * Math.round(Math.abs(total)) || 0
   return { lines, carry: total - lines }
+}
+
+/** The offset a view that sits on the first or last line of the buffer may keep: none toward the edge it cannot leave. */
+export function edgeCarry(carry: number, buffer: { readonly baseY: number; readonly viewportY: number }): number {
+  if (carry > 0 && buffer.viewportY >= buffer.baseY) return 0
+  if (carry < 0 && buffer.viewportY <= 0) return 0
+  return carry
+}
+
+/** Time constant of the notch ease: a three-line notch is within a pixel of rest after about 0.25s. */
+const GLIDE_TAU_MS = 55
+
+/** One frame of easing toward `pending` lines: the part to move now (all of it once what is left is a hair). */
+export function glideStep(pending: number, dtMs: number): number {
+  const part = pending * (1 - Math.exp(-Math.max(0, dtMs) / GLIDE_TAU_MS))
+  return Math.abs(pending - part) < 0.02 ? pending : part
+}
+
+/** A wheel stream so far: its direction, the delta it last rose to, and how long it has been falling. */
+export interface CoastState {
+  readonly sign: number
+  readonly at: number
+  readonly peak: number
+  readonly last: number
+  readonly falling: number
+  readonly coasting: boolean
+}
+
+/** Silence that ends a gesture, and how the OS's momentum looks in a stream with no phase information. */
+const COAST_GAP_MS = 120
+const COAST_FALLING_EVENTS = 4
+const COAST_PEAK_RATIO = 3
+/** Below this a momentum event is the crawl after the flick: a pixel or two per frame for up to a second. */
+const COAST_FLOOR_PX = 3
+/** Momentum's deltas are whole pixels, so its decay dithers (3, 2, 3, 2): a rise this small is not a new push. */
+const COAST_DITHER_PX = 1
+
+/**
+ * Whether a touchpad delta is the tail of the OS's momentum, not a finger: small, after a run of falling deltas
+ * that started well above it. A pause, a change of direction or a real rise starts over.
+ */
+export function coastStep(prev: CoastState | null, deltaPx: number, at: number): CoastState {
+  const abs = Math.abs(deltaPx)
+  const sign = Math.sign(deltaPx)
+  if (!prev || at - prev.at > COAST_GAP_MS || sign !== prev.sign) {
+    return { sign, at, peak: abs, last: abs, falling: 0, coasting: false }
+  }
+  const rising = abs > prev.last + COAST_DITHER_PX
+  const falling = rising ? 0 : prev.falling + 1
+  const peak = rising ? abs : prev.peak
+  const coasting = abs < COAST_FLOOR_PX && falling >= COAST_FALLING_EVENTS && peak >= abs * COAST_PEAK_RATIO
+  return { sign, at, peak, last: abs, falling, coasting }
 }
 
 /** Lines above the live screen the viewport sits (0 = following the bottom). */

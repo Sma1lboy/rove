@@ -15,6 +15,7 @@ import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { OWNER_ONLY_FILE_MODE } from "./owner-only.ts"
+import { salvageUnreadable } from "./store-salvage.ts"
 
 interface AgentTurnsFile {
   readonly version: 1
@@ -136,7 +137,8 @@ export class AgentTurnsStore {
       return parsed.turns.map(normalize).filter((t): t is AgentTurnRecord => t !== null)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return []
-      logDaemonError("agent-turns-load", err)
+      // Unreadable is not empty: keep the bytes aside before any later write.
+      salvageUnreadable(this.path, "agent-turns-load", err)
       return []
     }
   }

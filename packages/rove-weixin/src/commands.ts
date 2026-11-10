@@ -141,7 +141,7 @@ export async function handleInbound(text: string, ops: RoveOps, agent: AgentCont
     if (word.toLowerCase() !== "new") return { reply: await handleCommand(command, ops, true) }
     try {
       const firstMessage = rest.trim() || undefined
-      const next = await agent.startNew(firstMessage)
+      const next = await agent.startNew(firstMessage && agentPrompt(firstMessage))
       return {
         reply: `New conversation (#${next.conversations.length}). Earlier ones stay in Rove's ${AGENT_TITLE} project.`,
         ...(firstMessage ? { agentTaskId: next.taskId } : {}),
@@ -151,7 +151,7 @@ export async function handleInbound(text: string, ops: RoveOps, agent: AgentCont
     }
   }
   try {
-    const { agent: live, created } = await agent.current(trimmed)
+    const { agent: live, created } = await agent.current(agentPrompt(trimmed))
     // A just-created conversation already carried this message.
     if (created) return { reply: "", agentTaskId: live.taskId }
     const result = await ops.send(live.taskId, live.tab, agentPrompt(trimmed))

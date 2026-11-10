@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { buildTreeRows, childMarkerOf } from "../../src/tui/panes/sidebar/tree-core"
+import { AUTO_FOLD_CHILDREN, buildTreeRows, childMarkerOf } from "../../src/tui/panes/sidebar/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -80,6 +80,41 @@ describe("child tasks", () => {
   test("a task without children has no fold", () => {
     const result = rows({ tasks: [root()], collapsedTasks: new Set(["root"]) })
     expect(result.find((r) => r.kind === "worktree")).not.toHaveProperty("fold")
+  })
+
+  describe("a crowded parent folds on its own", () => {
+    const family = (kids: number) => [
+      root(),
+      ...Array.from({ length: kids }, (_, i) => child(`k${i}`, "root")),
+      task("other"),
+    ]
+    const ids = (tasks: Task[], over: Partial<Parameters<typeof buildTreeRows>[0]> = {}) =>
+      rows({ tasks, collapsedTasks: new Set(), ...over })
+        .filter((r) => r.kind === "worktree")
+        .map((r) => r.id)
+
+    test("more than the threshold folds and badges the child count; at the threshold it stays open", () => {
+      expect(ids(family(AUTO_FOLD_CHILDREN))).toHaveLength(AUTO_FOLD_CHILDREN + 2)
+      expect(ids(family(AUTO_FOLD_CHILDREN + 3))).toEqual(["root", "other"])
+      const parent = rows({ tasks: family(8), collapsedTasks: new Set() }).find((r) => r.id === "root")
+      expect(parent).toMatchObject({ fold: { count: 8, collapsed: true } })
+    })
+
+    test("an open by hand parent stays open; a parent folded by hand stays folded below the threshold", () => {
+      expect(ids(family(8), { openedTasks: new Set(["root"]) })).toHaveLength(10)
+      expect(ids(family(2), { collapsedTasks: new Set(["root"]) })).toEqual(["root", "other"])
+    })
+
+    test("the selected child keeps its crowded parent open, but not against a fold made by hand", () => {
+      expect(ids(family(8), { selectedTaskId: "k3" })).toHaveLength(10)
+      expect(ids(family(8), { selectedTaskId: "other" })).toEqual(["root", "other"])
+      expect(ids(family(8), { selectedTaskId: "k3", collapsedTasks: new Set(["root"]) })).toEqual(["root", "other"])
+    })
+
+    test("without a fold set (search, the icon rail) every parent is open", () => {
+      const result = rows({ tasks: family(8) })
+      expect(result.filter((r) => r.kind === "worktree")).toHaveLength(10)
+    })
   })
 
   test("nest under a parent in another project, and drop the header left with nothing", () => {

@@ -58,9 +58,13 @@ function newestDelivery(deps: RunnabilityDeps, taskId: string, tabId: string | n
     .find((d) => d.status !== "skipped" && (tabId === null || d.tabId === null || d.tabId === tabId))
 }
 
-/** A quota stop is the engine's own block: the delivery it ended is not an unreported tick. */
-const isRateLimited = (delivery: Delivery): boolean =>
-  delivery.status === "missing" && delivery.missing?.cause === "rate-limited"
+/**
+ * A miss the engine caused, not the agent: a quota stop (quota-resume continues it) or a dropped
+ * connection (the next tick is the retry). Neither is an unreported tick to hold the next one for.
+ */
+const isEngineMiss = (delivery: Delivery): boolean =>
+  delivery.status === "missing" &&
+  (delivery.missing?.cause === "rate-limited" || delivery.missing?.cause === "transient-failure")
 
 function missingDetail(delivery: Delivery): string {
   const missing = delivery.missing
@@ -106,7 +110,7 @@ export function evaluateRunnability(
   const tab = fresh ? null : tabId
   // A new tab has no state of its own, but a task whose last tick went unreported is still broken.
   const found = newestDelivery(deps, taskId, tab)
-  const newest = found && isRateLimited(found) ? undefined : found
+  const newest = found && isEngineMiss(found) ? undefined : found
   if (newest?.status === "missing" && !newest.dismissedAt && !ignored("report-missing")) {
     return skip("report-missing", { detail: missingDetail(newest) })
   }
@@ -121,7 +125,9 @@ export function evaluateRunnability(
       return skip("quota", { until, ...(entry.detail?.note ? { detail: entry.detail.note } : {}) })
     }
   }
-  const errored = entry?.state === "error" || (entry?.state === "rate_limited" && failure === "billing")
+  // A transient failure leaves the tab `error` until its next turn starts; that turn is this tick.
+  const errored =
+    (entry?.state === "error" && failure !== "transient") || (entry?.state === "rate_limited" && failure === "billing")
   if (errored && !ignored("engine-error")) {
     return skip("engine-error", { detail: entry?.detail?.note ?? (failure ? `failure: ${failure}` : undefined) })
   }

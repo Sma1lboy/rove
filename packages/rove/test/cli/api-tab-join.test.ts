@@ -72,7 +72,7 @@ describe("joinTaskTabs", () => {
       nextOrdinal: 3,
     } as unknown as TabsState
     const rows = joinTaskTabs(snap, "t1", [
-      { key: "t1::tab-2", alive: true },
+      { key: "t1::tab-2", alive: true, title: "Fix the login redirect" },
       { key: "t1::tab-1::leaf-2", alive: true }, // split shell leaf — not the tab itself
     ])
     expect(rows).toEqual([
@@ -83,6 +83,7 @@ describe("joinTaskTabs", () => {
         vendor: null,
         liveVendor: null,
         lastTitle: "building",
+        liveTitle: null,
         autoTitle: "first prompt",
         alive: false,
         engineAlive: false,
@@ -95,6 +96,7 @@ describe("joinTaskTabs", () => {
         vendor: "codex",
         liveVendor: "codex",
         lastTitle: null,
+        liveTitle: "Fix the login redirect",
         autoTitle: null,
         alive: true,
         engineAlive: null,
@@ -153,6 +155,7 @@ describe("joinTaskTabs", () => {
         vendor: null,
         liveVendor: null,
         lastTitle: null,
+        liveTitle: null,
         autoTitle: null,
         alive: true,
         engineAlive: null,
@@ -311,6 +314,18 @@ describe("joinTaskTabs", () => {
         "t1::tab-1#engine": engineRecord,
       })
       expect(rows[0]?.exit).toEqual({ ...ptyRecord, layer: "pty" })
+    })
+
+    it("a live session the snapshot never recorded carries the same engine death", () => {
+      const rows = joinTaskTabs(
+        undefined,
+        "t1",
+        alive,
+        { "t1::tab-1#engine": engineRecord },
+        undefined,
+        new Map([["t1::tab-1", false]]),
+      )
+      expect(rows[0]).toMatchObject({ id: "tab-1", unregistered: true, engineAlive: false, exit: engineRecord })
     })
   })
 })

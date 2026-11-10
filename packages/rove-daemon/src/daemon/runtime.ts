@@ -77,6 +77,11 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
+   * The engine whose session ids/argv `vendor` speaks (a wrapped preset
+   * resolves to its base). Two vendors share session ids iff these match.
+   */
+  sessionProtocol(vendor: VendorId | undefined): VendorId
+  /**
    * From live engine-tab evidence (walk vendor + OSC title), the `setCommand`
    * payload upgrading a generic record to a named protocol, or null. Engine-
    * owned; the daemon only relays evidence. Absent = never upgrades.
@@ -93,6 +98,8 @@ export interface DaemonRuntimeAdapter {
   checkLatestVersion(): Promise<UpdateInfo | null>
   latestTranscriptMtime(vendor: VendorId, worktreePath: string): Promise<number>
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
+  /** The first-prompt title of ONE session, by id; `""` when none yet. */
+  deriveTitleFromSessionId(vendor: VendorId, sessionId: string): Promise<string>
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
   /** `baseRef` is the task's RECORDED fork point; absent/stale falls back to
    *  own resolution, and `behind` is omitted when nothing resolves. */
@@ -102,6 +109,8 @@ export interface DaemonRuntimeAdapter {
    * reader; never summed here). `null` = none reported, distinct from zero.
    */
   readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
+  /** Have the engine refresh its own breakdown of the session's window (may start a process); the next read carries it. */
+  probeEngineContext?(vendor: VendorId, sessionId: string): Promise<void>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /**
@@ -198,6 +207,16 @@ export interface DaemonRuntimeAdapter {
     | { readonly outcome: "no-session" }
     | { readonly outcome: "no-engine"; readonly tabId: string }
   >
+  /** The fix-CI instruction for a worktree's failing checks (the repo's own template when it has one). */
+  buildCIPrompt(
+    worktree: string,
+    state: {
+      readonly branch: string
+      readonly prNumber?: number
+      readonly checks: readonly unknown[]
+      readonly totalFailing: number
+    },
+  ): Promise<string>
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]
@@ -221,6 +240,7 @@ export interface DaemonRuntimeAdapter {
      * SUCCESS the caller detects first. */
     classify(signals: {
       spawnError?: boolean
+      cwdMissing?: boolean
       timedOut?: boolean
       exitCode?: number | null
       stderr?: string

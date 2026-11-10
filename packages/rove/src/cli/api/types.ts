@@ -10,12 +10,15 @@ import {
   builtinModMissingMessage,
   isBuiltinModInstalled,
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
+import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
+import type { RevivedTab } from "./tab-revive.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
@@ -98,6 +101,15 @@ export interface ApiCaller {
   readonly cli: boolean
   /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
   readonly cwd?: string
+  /** Running inside the daemon process: the one place state that outlives a call (a login child) may live. */
+  readonly daemon?: true
+  /** The call arrived from another machine's hub (`api.invoke` with `forwarded: true`). */
+  readonly forwarded?: true
+}
+
+/** The daemon running a verb for a socket or bridge caller, or for another machine's hub. */
+export function daemonCaller(forwarded: boolean): ApiCaller {
+  return { cli: false, daemon: true, ...(forwarded ? { forwarded: true as const } : {}) }
 }
 
 /** The CLI process itself, read at call time (tests chdir). */
@@ -185,6 +197,11 @@ export interface PromptTarget {
   readonly model?: string
   readonly repo?: string
   /**
+   * The task has extra repos (`Task.extraRepos`): a launch reads their paths
+   * from the daemon and exposes them. Unset costs a one-repo task no RPC.
+   */
+  readonly multiRepo?: boolean
+  /**
    * `send --tab tab-N`: targets that exact alive tab (TAB_NOT_FOUND
    * otherwise). Undefined = canonical tab.
    */
@@ -202,6 +219,11 @@ export interface PromptTarget {
    * first prompt — so it is never inferred.
    */
   readonly respawn?: boolean
+  /**
+   * `send --tab new` on a task whose engine never started: this prompt IS its first conversation, so
+   * live shell tabs beside the unstarted engine tab do not make the canonical spawn ambiguous.
+   */
+  readonly firstConversation?: boolean
 }
 
 export interface DeliveredPrompt {
@@ -326,17 +348,35 @@ export interface ApiRuntime {
   /**
    * Open a tab with no first message (`tab-new`): a login shell or an empty
    * engine. Persists the row, spawns the session, and returns the row as saved.
+   * `home` makes a shell the task's own `tab-1` (a fresh shell task) rather than a later tab.
+   * `type` is typed into a new shell once it is up, Enter included.
    */
-  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  openTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    kind: NewTabKind,
+    opts?: { readonly home?: boolean; readonly type?: string },
+  ): Promise<OpenedTab>
   /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
   launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
   splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). `awaitEngine` returns only once the relaunched engine is a running process, failing when it never shows up. */
+  reviveTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    tabId: string,
+    worktree: string,
+    opts?: { readonly replaceExited?: boolean; readonly awaitEngine?: boolean },
+  ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no
    *  real repo. Remote (`ssh://…`) keys answer true; remote-add validates them. */
   isUsableRepo(absPath: string): Promise<boolean>
+  /** {@link resolveRepoRoot} plus {@link isUsableRepo} from one git call: what
+   *  a repo filter needs per stored repo, without two spawns each. */
+  inspectRepo(absPath: string): Promise<{ readonly root: string; readonly usable: boolean }>
   /** `git check-ref-format` verdict, on the seam so handler tests don't spawn git. */
   isValidBranchName(branch: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
@@ -363,4 +403,8 @@ export interface ApiRuntime {
    * the aliased PTYs of surviving children and adds the task's own.
    */
   tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
+  listeningPorts(): Promise<readonly ListeningSocket[] | null>
+  /** Disk a checkout takes, local or remote (`worktree-usage`). */
+  measureCheckout(path: string): Promise<CheckoutUsage>
 }

@@ -23,6 +23,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
 import { getSavedRepos } from "../../state/repos"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { isNoProjectTask } from "../../tui/panes/sidebar/groups"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -71,11 +72,14 @@ export function AutomationsPage(props: {
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
   /** Latest run status per routine id — the list's health column. */
   const [lastRunStatus, setLastRunStatus] = useState<Record<string, AutomationRunStatus>>({})
+  const [lastFailure, setLastFailure] = useState<Record<string, { readonly at: string; readonly reason: string }>>({})
   const [runs, setRuns] = useState<readonly AutomationRun[]>([])
   const [reloadTick, setReloadTick] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const refetch = (): void => setReloadTick((tick) => tick + 1)
+  /** Set only while nothing has loaded: a failed first read, not "no routines". */
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the body doesn't read it).
   useEffect(() => {
@@ -94,10 +98,14 @@ export function AutomationsPage(props: {
           setKeepsDaemonAlive(result.keepsDaemonAlive)
           // Older daemons omit it; empty renders every row as "never run".
           setLastRunStatus(result.lastRunStatus ?? {})
+          setLastFailure(result.lastFailure ?? {})
         })
-        .catch(() => {
-          // Keep the previous rows (stale, not wrong) until the next poll succeeds.
-          if (!disposed) setAutomations((prev) => prev ?? [])
+        .catch((err: unknown) => {
+          // Keep the previous rows (stale, not wrong) until the next poll succeeds;
+          // with none, a failed first load is not an empty routine list.
+          if (disposed) return
+          setAutomations((prev) => prev ?? [])
+          setLoadError((prev) => prev ?? (err instanceof Error ? err.message : String(err)))
         })
     }
     load()
@@ -195,12 +203,17 @@ export function AutomationsPage(props: {
     const orch = props.orchestrator
     if (!orch || busyId) return
     // Saved projects UNION task repos — the New-task dialog's set
-    // (`use-repo-field.ts`); task repos alone hide a just-saved project.
-    const repos = [...new Set([...getSavedRepos(), ...orch.listTasks().map((task) => task.repo)])].filter(Boolean)
-    if (repos.length === 0) {
-      setNotice(t("automations.needRepo"))
-      return
-    }
+    // (`use-repo-field.ts`); task repos alone hide a just-saved project. No-project
+    // tasks run in a synthetic dir, so their repo is not a project.
+    const repos = [
+      ...new Set([
+        ...getSavedRepos(),
+        ...orch
+          .listTasks()
+          .filter((task) => !isNoProjectTask(task))
+          .map((task) => task.repo),
+      ]),
+    ].filter(Boolean)
     const draft = await AutomationComposer.show(dialog, {
       repos,
       tasks: orch.listTasks().filter((task) => !task.deletion),
@@ -210,7 +223,8 @@ export function AutomationsPage(props: {
 
     setBusyId("new")
     try {
-      await orch.createAutomation(draft)
+      const { repo, ...rest } = draft
+      await orch.createAutomation(repo === null ? rest : { ...rest, repo })
       refetch()
     } catch (err) {
       // The daemon's cron error names the fix; carry it verbatim.
@@ -301,6 +315,8 @@ export function AutomationsPage(props: {
         <box paddingTop={1}>
           <text fg={theme.textMuted}>{t("common.loading")}</text>
         </box>
+      ) : loadError !== null && automations === null ? (
+        <text fg={theme.textMuted}>{t("automations.loadFailed", { message: loadError })}</text>
       ) : rows.length === 0 ? (
         // Empty state points at `n`, not a CLI command.
         <box flexDirection="column" paddingTop={1} gap={1}>
@@ -349,7 +365,7 @@ export function AutomationsPage(props: {
                   {dividerRule(dims.width)}
                 </text>
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                  {`${repoLabel(automation.repo)} · ${automation.schedule}`}
+                  {`${automation.repo ? repoLabel(automation.repo) : t("automations.noProject")} · ${automation.schedule}`}
                 </text>
                 {/* Paused reads as a state, not a missing feature. */}
                 {automation.enabled ? null : (
@@ -426,7 +442,15 @@ export function AutomationsPage(props: {
               {selected.precheck ? (
                 <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
               ) : null}
-              <RunHistory runs={runs} now={now} />
+              {lastFailure[selected.id] ? (
+                <text fg={theme.warning} wrapMode="word">
+                  {t("automations.lastFailed", {
+                    when: formatWhen(lastFailure[selected.id]?.at, now),
+                    reason: lastFailure[selected.id]?.reason ?? "",
+                  })}
+                </text>
+              ) : null}
+              <RunHistory runs={runs} now={now} onOpenTask={props.onOpenTask} />
             </box>
             <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
               <RunResponses runs={runs} now={now} />

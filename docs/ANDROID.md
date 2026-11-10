@@ -2,11 +2,11 @@
 
 Rove for Android is a Kotlin and Jetpack Compose client in `packages/rove-android`. It speaks bridge protocol version 1, shared with [iOS](IOS.md), and makes no daemon, bridge, or iOS changes. The Mac owns tasks and PTYs; Android holds pairing credentials and transient screen state.
 
-This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues and worktrees. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
+This draft implements pairing by paste, QR scan or deep link, task attention ordering, terminal tabs, a control-key row and line composer, image/PDF attachments, new engine tabs, branch and working-tree diffs, new tasks, two-step land/delete confirmations, local notifications, and the shared offline demo. The list header opens the same pages as iOS: inbox, settings (bridge, usage, engines, plugins, notifications, worktrees, activity, feedback, about), board, routines, GitHub issues, worktrees and conversation search. As on iOS, the board and GitHub issues show only while the Mac has the Kanban or Issues mod installed (`builtinMods.list`), and Settings → Plugins installs or removes them.
 
 ## Build
 
-Requirements: JDK 17, Node/npm, Android SDK platform 35, build-tools 35.0.0. Use the committed Gradle wrapper.
+Requirements: JDK 17, Node/npm, Android SDK platform 36, build-tools 35.0.0. Use the committed Gradle wrapper.
 
 ```sh
 cd packages/rove-android
@@ -18,6 +18,27 @@ export ANDROID_HOME=/path/to/android-sdk
 On macOS, `/usr/libexec/java_home -v 17` locates an installed JDK. On allen, use its installed JDK and SDK paths. Do not copy local signing keys or bridge credentials into the checkout.
 
 The build reads the iOS demo fixture from the sibling package and bundles the npm-locked terminal assets. Output: `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Release build
+
+Play requires `targetSdk` 36 or higher for new apps and updates; the build targets 36.
+
+The version lives in `packages/rove-android/gradle.properties` as `rove.versionName` and `rove.versionCode`. Pass `-Prove.versionCode=<n>` to override the code; Play rejects a bundle whose code is not higher than the last upload.
+
+Release signing reads four environment variables, or Gradle properties of the same name:
+
+| Variable | Value |
+| --- | --- |
+| `ROVE_ANDROID_KEYSTORE` | Path to the upload keystore (`.jks`) |
+| `ROVE_ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ROVE_ANDROID_KEY_ALIAS` | Key alias |
+| `ROVE_ANDROID_KEY_PASSWORD` | Key password |
+
+With all four set, `./gradlew :app:bundleRelease` writes a signed `app/build/outputs/bundle/release/app-release.aab`. Without them it writes the same bundle unsigned, which is enough to check that the release build compiles. Keep the keystore outside the checkout. With Play App Signing, this key is only the upload key, and Google holds the key that signs what users install.
+
+In CI, dispatch the Android workflow by hand. With the repository secrets `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64-encoded), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` set, it signs the bundle, uses the run number as the version code, and uploads the `.aab` as a workflow artifact. Upload that file to Play Console yourself. The workflow never publishes.
+
+Play Console answers (app access, permissions, Data safety, cleartext traffic) are drafted in `packages/rove-android/docs/PLAY_NOTES.md`.
 
 ## Run on allen
 
@@ -49,8 +70,23 @@ Push: `{"event":"tasks","data":{...}}`.
 | `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |
 | `term.data`, `term.exit` pushes | Decode bytes in xterm; stop input after exit |
 | `term.input`, `term.resize`, `term.detach` | Send text, resize within bridge bounds, detach on screen exit |
+| `tasks` push, `tabStatus` | A tab the daemon reads as `needs-input` puts 1-4 first in the key row, sent as keys rather than pasted |
+| `term.ack`, `term.reset` push (optional) | Attach with `acks: true`, then send `term.ack {stream, chars}` for the base64 chars xterm has parsed. Past ~1 MB unacked the bridge stops sending output; once everything is acked it pushes `term.reset {stream, replay}`: reset xterm and write the replay. Keeps Ctrl+C on a flood instant. Clients that never send `acks` get output as before |
 | `diff.files`, `diff.file` | Preserve the bridge's `branch` or `working` scope |
-| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete |
+| `task.create`, `task.land`, `task.delete` | Use bridge guards; never send force-delete. Land and remove use two-step dialogs, from task detail or the row menu. The row menu offers land on a task with a branch and remove on any row except a project's main |
+| `task.rename`, `task.setBranch`, `task.pin`, `task.setStatus`, `task.archive` | Long-press a task row. Archive retries with `force` only after the `TASK_BUSY` confirmation; archived tasks sit in a fold at the end of the list |
+| `tab.new` from a row | Long-press a task row: new conversation (`kind: engine`, `latest: true`, opens the child task the reply names) or new shell, with no form and no first prompt |
+| `task.syncBase` | Long-press a task row: merges the base into the worktree with no confirm; conflicts and a dirty worktree name their files. Not offered for a task on another machine |
+| `task.setEngine`, `task.moveToProject`, `task.get` | Long-press a task row: change engine (local rows), move to another of this Mac's projects (local, top-level, single-repo rows; the checkout stays), and copy the id, branch or worktree path. The path comes from `task.get` |
+| `prefs.get`, `prefs.set` | Settings → About: release channel (`latest`, `next`, `nightly`) and update notice on or off, stored on the Mac as `updateChannel` and `updateNotify`. A failed save reverts the choice. A bridge without `prefs.get` hides both controls |
+| `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss. The header offers next-pending; the attention section's ack all dismisses every row except decisions, stopping at the first failure, then refreshes |
+| `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
+| `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
+| `update.check` | Settings → About: check for updates through the Mac, sending the selected channel when `prefs.get` loaded one; otherwise the Mac checks its own channel. The app names `rove update` and opens the release; it never installs |
+| `task.fixChecks` | Long-press a task row whose PR checks are red: the bridge sends the agent the failing logs |
+| `sessions.search` | Search page: 2+ characters, debounced; a hit opens its task and tab. A bridge without the op shows the error line |
+| `task.landPreflight` | Read before the land dialog: a refusal shows instead of it, otherwise the dialog names the target and commit count. Skipped for a task on another machine; a bridge without the op gets the plain dialog |
+| `tab.send` | Composer on an engine tab sends without `queue: true`. The engine handles input during a turn; Rove holds no messages and shows no cancelable queue chips. Keeps the text when refused. An attachment in the input line, a shell tab, or a bridge without the op uses `term.input` |
 
 The six task groups are `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown`. As in iOS's default attention sort, main tasks and pinned tasks float first, then group and server rank; ties keep server order. Unknown additive fields are ignored and future groups display as unknown.
 
@@ -60,9 +96,11 @@ The demo resolver consumes the iOS fixture directly. Reconnects never replay use
 
 `./scripts/verify.sh` builds the APK and runs Android Lint, domain/protocol tests, MockWebServer integration tests, and Paparazzi Compose screenshot comparisons. The socket tests perform real localhost upgrades, check bearer authentication, close sockets during requests, observe reconnects, and test authorization failure and explicit disconnect.
 
-The repository's CI does not build Android yet; run `verify.sh` locally or on allen before trusting a change.
+CI runs the same script in `.github/workflows/android.yml` on pushes to `main` and others' PRs that touch the package, then builds an unsigned release bundle. Running the script locally or on allen is still the check before pushing.
 
 Screenshot baselines live under `packages/rove-android/app/src/test/snapshots/images/`. Regenerate with `./gradlew :app:recordPaparazziDebug`; inspect the resulting images before accepting them. These are Compose render tests, not emulator or real bridge evidence.
+
+The search baseline is external to keep its implementation diff free of binaries. Gradle restores it from a commit-pinned URL and verifies SHA-256 before tests run, including direct Paparazzi invocations. After recording and inspecting an intentional search change, publish the new baseline and update the URL and checksum in `prepareSearchSnapshot` in `app/build.gradle.kts`. The downloaded file is gitignored.
 
 ### Emulator screenshots on allen
 

@@ -7,10 +7,14 @@
 
 const STORAGE_KEY = "rove.bridge.token"
 
-const fromLink = new URLSearchParams(window.location.hash.slice(1)).get("token")
-if (fromLink) {
-  localStorage.setItem(STORAGE_KEY, fromLink)
-  history.replaceState(null, "", window.location.pathname + window.location.search)
+// Imported by bridge.ts too, which tests load without a DOM: capture the link
+// only where there is a browser to capture it from.
+if (typeof window !== "undefined") {
+  const fromLink = new URLSearchParams(window.location.hash.slice(1)).get("token")
+  if (fromLink) {
+    localStorage.setItem(STORAGE_KEY, fromLink)
+    history.replaceState(null, "", window.location.pathname + window.location.search)
+  }
 }
 
 export function storedToken(): string | null {

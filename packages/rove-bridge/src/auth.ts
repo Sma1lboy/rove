@@ -4,8 +4,8 @@ import { dirname } from "node:path"
 
 /**
  * The persisted pairing token. Minted on first start, reused afterwards so a
- * paired phone survives bridge restarts; `rotate` mints a fresh one, which
- * revokes every paired phone at once. Owner-only file.
+ * paired phone survives bridge restarts; `rotate` mints a fresh one. Revoking
+ * the per-device tokens as well is `revokeAllDevices`. Owner-only file.
  */
 export function loadOrCreateToken(path: string, rotate = false): string {
   if (!rotate && existsSync(path)) {
@@ -39,14 +39,15 @@ const TOKEN_SUBPROTOCOL_PREFIX = "rove.bearer."
  * `Sec-WebSocket-Protocol` instead. Never the query string: a URL token lands
  * in proxy and tunnel access logs, so only the pairing QR carries one.
  */
-export function presentedToken(req: Request): string | null {
+export function presentedToken(req: Request, allowQuery = false): string | null {
   const header = req.headers.get("authorization")
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim()
   for (const offered of (req.headers.get("sec-websocket-protocol") ?? "").split(",")) {
     const name = offered.trim()
     if (name.startsWith(TOKEN_SUBPROTOCOL_PREFIX)) return name.slice(TOKEN_SUBPROTOCOL_PREFIX.length)
   }
-  return null
+  // Only the relay ingress: its URLs exist inside the E2E tunnel and on loopback, never in a proxy log.
+  return allowQuery ? new URL(req.url).searchParams.get("token") : null
 }
 
 /**
@@ -80,6 +81,14 @@ export function webUrl(opts: { host: string; port: number; token: string; tls: b
 }
 
 /**
+ * `--preset relay`'s link: the relay Worker serves the page, and the fragment (never sent to the
+ * Worker) carries the pairing code and the bridge token. Both are passwords.
+ */
+export function relayLink(opts: { server: string; code: string; token: string }): string {
+  return `${opts.server}/#code=${opts.code}&token=${opts.token}`
+}
+
+/**
  * The URL the phone scans once; it IS the credential, so treat it like a
  * password. The app reads `token`/`preset` out of it and never dials it as is.
  * TLS endpoints (a tunnel or `tailscale serve`) are reached on the default port.
@@ -89,7 +98,7 @@ export function pairingUrl(opts: {
   port: number
   token: string
   tls: boolean
-  preset: "none" | "tailscale" | "cf"
+  preset: "none" | "tailscale" | "cf" | "relay"
 }): string {
   const shown = opts.host.includes(":") ? `[${opts.host}]` : opts.host
   const origin = opts.tls ? `wss://${shown}` : `ws://${shown}:${opts.port}`
@@ -98,9 +107,9 @@ export function pairingUrl(opts: {
 }
 
 /**
- * Per-device credentials: each phone or browser can get its own token, revoked on its own, beside
- * the shared one (`--rotate-token` still revokes everything). Only a SHA-256 of each token is kept,
- * owner-only, so the file cannot be replayed as a credential.
+ * Per-device credentials: each phone or browser (a password login is one too) gets its own token,
+ * revoked on its own beside the shared one. Only a SHA-256 of each token is kept, owner-only, so the
+ * file cannot be replayed as a credential.
  */
 export interface DeviceRecord {
   readonly name: string
@@ -147,6 +156,29 @@ export function revokeDevice(path: string, name: string): boolean {
   if (rest.length === devices.length) return false
   writeDevices(path, rest)
   return true
+}
+
+/** Forget every device token (`--rotate-token`); returns how many there were. */
+export function revokeAllDevices(path: string): number {
+  const count = listDevices(path).length
+  if (count > 0) writeDevices(path, [])
+  return count
+}
+
+/**
+ * The credentials a bridge start serves with. `rotate` mints a new shared token AND forgets every device
+ * token, so a leaked link of either kind stops working; it runs before `device` mints that device's token.
+ */
+export function startupCredentials(opts: {
+  readonly tokenPath: string
+  readonly devicesPath: string
+  readonly rotate: boolean
+  readonly device?: string | null
+}): { readonly sharedToken: string; readonly token: string; readonly revoked: number } {
+  const sharedToken = loadOrCreateToken(opts.tokenPath, opts.rotate)
+  const revoked = opts.rotate ? revokeAllDevices(opts.devicesPath) : 0
+  const token = opts.device ? addDevice(opts.devicesPath, opts.device) : sharedToken
+  return { sharedToken, token, revoked }
 }
 
 /** The device a presented token belongs to, or null. Constant-time per record. */

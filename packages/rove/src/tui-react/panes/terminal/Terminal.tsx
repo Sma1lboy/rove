@@ -10,6 +10,7 @@ import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
 import { useEffect, useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
+import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import type { SessionRecovery } from "../../../tui/panes/terminal/session-recovery"
 import { isShellMissing } from "../../../tui/panes/terminal/terminal-render"
@@ -24,20 +25,21 @@ import {
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialog } from "../../ui/dialog"
+import { type EngineExit, EngineExitBanner, type UsageLimit, UsageLimitBanner } from "./engine-exit-banner"
 import { useTerminalBindings } from "./keys"
-import { TerminalSearchBar } from "./search-bar"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPaint } from "./use-terminal-paint"
 import { useTerminalPointerForward } from "./use-terminal-pointer-forward"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalReset } from "./use-terminal-reset"
-import { useTerminalSearch } from "./use-terminal-search"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
 /*  Public surface                                                        */
 /* --------------------------------------------------------------------- */
+
+const NO_ROWS: readonly TerminalRow[] = []
 
 export type TerminalProps = {
   /** Working dir for the shell. Null disables the pane (no task). */
@@ -84,6 +86,10 @@ export type TerminalProps = {
   registry?: PtyRegistry
   /** Vendor-owned full-screen presentation policy for the original engine leaf. */
   terminalPresentation?: EngineTerminalPresentation
+  /** Positive evidence the engine died inside the live shell: draws the exit strip, and F5 becomes its Retry. */
+  engineExit?: EngineExit
+  /** The engine's usage-limit strip; the dead-engine strip takes precedence. */
+  usageLimit?: UsageLimit
 }
 
 /* --------------------------------------------------------------------- */
@@ -158,7 +164,11 @@ function TerminalSession(props: TerminalProps) {
     () => computeViewport(snapshot.length, bodyRows, scrollOffset),
     [snapshot.length, bodyRows, scrollOffset],
   )
-  const visibleRows = useMemo(() => snapshot.slice(visibleRange.start, visibleRange.end), [snapshot, visibleRange])
+  const visibleRows = useMemo(() => {
+    const rows = snapshot.slice(visibleRange.start, visibleRange.end)
+    // A remount re-slices an empty snapshot as geometry settles; a shared empty skips those overlay passes.
+    return rows.length === 0 ? NO_ROWS : rows
+  }, [snapshot, visibleRange])
   // Cursor is only meaningful when following the bottom of the buffer;
   // once scrolled back, the live (x,y) refers to the LIVE viewport.
   const visibleCursor = useMemo(
@@ -190,19 +200,6 @@ function TerminalSession(props: TerminalProps) {
     appOwnsMouse: pty?.appOwnsMouse ?? false,
   })
 
-  /* --------- scrollback search ---------- */
-
-  const search = useTerminalSearch({
-    focused,
-    snapshot,
-    snapshotWindow,
-    wrapped,
-    bodyRows,
-    onAlternateScreen: pty?.onAlternateScreen ?? false,
-    scrollState,
-    setScrollState,
-  })
-
   const terminalColors = useMemo(() => {
     const foreground = theme.text.toInts()
     const background = theme.background.toInts()
@@ -217,7 +214,6 @@ function TerminalSession(props: TerminalProps) {
     firstRow: visibleRange.start,
     cols: bodyGeometry?.cols ?? 80,
     selection: selection.selection,
-    paintMatches: search.paint,
     cursor: visibleCursor,
     focused,
     colors: terminalColors,
@@ -273,11 +269,8 @@ function TerminalSession(props: TerminalProps) {
       pty.paste(text)
     },
     scroll: scrollBy,
-    reset: requestReset,
-    searchActive: search.active,
-    openSearch: search.open,
-    stepSearch: search.step,
-    closeSearch: search.close,
+    // With the engine gone the shell holds nothing worth a confirm: F5 is Retry.
+    reset: props.engineExit?.onRetry ?? requestReset,
   })
 
   /* --------- resize-push + host-cursor anchor ---------- */
@@ -336,13 +329,14 @@ function TerminalSession(props: TerminalProps) {
         }
       }}
       onMouseScroll={(evt) => {
-        // Emulator order: mouse tracking → forward; fullscreen without it →
-        // arrow keys (both in pty.wheel); ONLY otherwise local scrollback.
+        // Emulator order (pty.wheel): alternate screen → the app (mouse
+        // report or arrow keys); normal screen → local scrollback, shift → the app.
         const scroll = evt.scroll
         if (!scroll || (scroll.direction !== "up" && scroll.direction !== "down")) return
         // One line per event: the host terminal already granulated the ticks.
         const step = Math.max(1, scroll.delta || 1)
-        const forwarded = scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
+        const lines = scroll.direction === "up" ? -step : step
+        const forwarded = scrollFromPointer(lines, evt.x, evt.y, evt.modifiers?.shift === true)
         // A wheel tick mid-drag scrolls the app; the selection must follow.
         if (forwarded) selection.noteAppScroll()
       }}
@@ -359,24 +353,25 @@ function TerminalSession(props: TerminalProps) {
           </text>
         </box>
       ) : null}
-      {exited ? (
+      {props.engineExit ? (
+        <EngineExitBanner {...props.engineExit} onRequestFocus={props.onRequestFocus} />
+      ) : props.usageLimit ? (
+        <UsageLimitBanner {...props.usageLimit} onRequestFocus={props.onRequestFocus} />
+      ) : exited ? (
         <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1}>
-          <text fg={theme.error} wrapMode="none">
+          <text
+            fg={theme.error}
+            wrapMode="none"
+            onMouseUp={(event) => {
+              event.stopPropagation()
+              if (event.button === 0) requestReset()
+            }}
+          >
             {t("terminal.exited")}
           </text>
         </box>
       ) : null}
-      {search.active ? (
-        <TerminalSearchBar
-          query={search.query}
-          index={search.index}
-          matchCount={search.matchCount}
-          unavailable={search.unavailable}
-        />
-      ) : null}
-      {/* The query row states where you are, so it replaces this hint rather
-          than stacking on it — both are bottom-anchored overlays. */}
-      {scrollOffset > 0 && !search.active ? (
+      {scrollOffset > 0 ? (
         <box
           position="absolute"
           zIndex={10}
@@ -425,11 +420,7 @@ function TerminalSession(props: TerminalProps) {
         </box>
       ) : null}
 
-      {/* Until the first real measurement the inline arrow is load-bearing: it
-          re-attaches on every render, which re-runs the geometry measurement
-          until Yoga has laid the box out (see `use-terminal-geometry.ts`).
-          After that the stable setter stops each render from scheduling a
-          second one; `onSizeChange` and `dims` cover later resizes. */}
+      {/* Same-box ref reattachment is ignored; layout ticks and terminal dimensions trigger measurement. */}
       <box
         ref={bodyGeometry ? setBodyEl : (r: BoxRenderable | null) => setBodyEl(r)}
         onSizeChange={bumpGeomTick}
@@ -451,7 +442,16 @@ function TerminalSession(props: TerminalProps) {
                 <text fg={theme.textMuted} wrapMode="word">
                   {acquireError}
                 </text>
-                <text fg={theme.textMuted}>{t("terminal.unavailable.retry")}</text>
+                <text
+                  fg={theme.info}
+                  wrapMode="none"
+                  onMouseUp={(event) => {
+                    event.stopPropagation()
+                    if (event.button === 0) requestReset()
+                  }}
+                >
+                  {t("terminal.unavailable.retry")}
+                </text>
               </>
             ) : (
               <text fg={theme.textMuted}>{t("terminal.noTask")}</text>

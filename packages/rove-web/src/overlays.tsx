@@ -3,6 +3,19 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useStore } from "./store.ts"
 import { type MenuItem, dialog, dismissToast, menu, toasts } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { Chevron } from "./ui/chevron.tsx"
+import {
+  MENU_CHECK,
+  MENU_SEP,
+  TOASTS,
+  TOAST_WITH_ACTION,
+  menuChevronClass,
+  menuClass,
+  menuItemClass,
+  menuKeyClass,
+  toastClass,
+} from "./ui/overlay.ts"
 
 /** How long the pointer rests on `Set status ›` before its choices open, so a diagonal sweep past it doesn't flash them. */
 const SUB_OPEN_MS = 120
@@ -30,22 +43,20 @@ function MenuRow(props: {
       aria-checked={item.checked}
       aria-haspopup={item.children ? "menu" : undefined}
       aria-expanded={item.children ? Boolean(props.open) : undefined}
-      className={`menu-item ${props.selected ? "is-selected" : ""} ${props.open ? "is-open" : ""} ${item.danger ? "is-danger" : ""}`}
+      className={menuItemClass({ selected: props.selected, open: props.open, danger: item.danger })}
       onMouseEnter={props.onEnter}
       onMouseLeave={props.onLeave}
       onClick={props.onPick}
     >
       <span>{item.label}</span>
       {item.children ? (
-        <span className="menu-chevron" aria-hidden>
-          ›
-        </span>
+        <Chevron right className={menuChevronClass(Boolean(props.selected || props.open))} />
       ) : item.checked ? (
-        <span className="menu-check" aria-hidden>
+        <span className={MENU_CHECK} aria-hidden>
           ✓
         </span>
       ) : (
-        item.key && <span className="menu-key">{item.key}</span>
+        item.key && <span className={menuKeyClass({ selected: props.selected, danger: item.danger })}>{item.key}</span>
       )}
     </button>
   )
@@ -171,10 +182,10 @@ function ContextMenu() {
   }
   return (
     <>
-      <div ref={ref} className="menu" role="menu" style={{ left: pos.x, top: pos.y }}>
+      <div ref={ref} className={menuClass()} role="menu" style={{ left: pos.x, top: pos.y }}>
         {state.items.map((item, i) => (
           <Fragment key={item.label}>
-            {i > 0 && item.section !== state.items[i - 1]?.section && <hr className="menu-sep" />}
+            {i > 0 && item.section !== state.items[i - 1]?.section && <hr className={MENU_SEP} />}
             <MenuRow
               item={item}
               rowRef={(el) => {
@@ -198,7 +209,7 @@ function ContextMenu() {
         ))}
       </div>
       {children && (
-        <div ref={subRef} className="menu menu-sub" role="menu" style={{ left: subPos.x, top: subPos.y }}>
+        <div ref={subRef} className={menuClass(true)} role="menu" style={{ left: subPos.x, top: subPos.y }}>
           {children.map((item, i) => (
             <MenuRow
               key={item.label}
@@ -225,17 +236,29 @@ export function Overlays() {
     <>
       <ContextMenu />
       {current}
-      <div className="toasts" aria-live="polite">
-        {list.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            className={`toast ${item.tone === "error" ? "is-error" : ""}`}
-            onClick={() => dismissToast(item.id)}
-          >
-            {item.text}
-          </button>
-        ))}
+      <div className={TOASTS} aria-live="polite">
+        {list.map((item) => {
+          const card = `${toastClass(item.tone === "error")} ${item.leaving ? "is-leaving" : ""}`
+          const action = item.action
+          // A card with its own button is not itself a button: only the action acts.
+          return action ? (
+            <div key={item.id} className={`${card} ${TOAST_WITH_ACTION}`}>
+              <span>{item.text}</span>
+              <Button
+                onClick={() => {
+                  dismissToast(item.id)
+                  action.run()
+                }}
+              >
+                {`[ ${action.label} ]`}
+              </Button>
+            </div>
+          ) : (
+            <button type="button" key={item.id} className={card} onClick={() => dismissToast(item.id)}>
+              {item.text}
+            </button>
+          )
+        })}
       </div>
     </>
   )

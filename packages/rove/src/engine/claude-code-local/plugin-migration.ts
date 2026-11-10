@@ -11,11 +11,11 @@
  * user-invoked `rove hook cleanup` plus removing the skill dir by hand.
  */
 
-import { readFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import { isObject } from "../../lib/is-object.ts"
-import { installedSkillDirs } from "../../lib/skill-install.ts"
 import { hasRoveActivityHooks } from "../json-hooks.ts"
+import { vendorConfigHome, vendorWriteHomeDeps } from "../vendor-home.ts"
 import { CLAUDE_HOOK_EVENT_MAP, claudeSettingsPath } from "./hook-adapter.ts"
 
 /** From `claude-plugin/.claude-plugin/plugin.json`. Keys are
@@ -48,14 +48,13 @@ export interface MigrationFindings {
 
 export function detectLegacyInstalls(opts: { settingsFilePath?: string; home?: string } = {}): MigrationFindings {
   const settingsFilePath = opts.settingsFilePath ?? claudeSettingsPath()
-  const home = opts.home ?? homedir()
   const settings = readSettings(settingsFilePath)
   // "worktree-created" isn't an activity verb, so the watch hook needs its own check.
   const legacyHooks =
     settings !== null && (hasRoveActivityHooks(settings, CLAUDE_HOOK_EVENT_MAP) || settingsHasWorktreeWatch(settings))
-  // Not just `.claude/skills/{rove,rove}`: the agent-skills CLI writes into
-  // `.agents/skills` and symlinks agent dirs at it.
-  const legacySkillDirs = installedSkillDirs(home)
+  // Claude loads only its own skills dir; a symlink into `.agents/skills` counts.
+  const skillDir = join(vendorConfigHome("claude", vendorWriteHomeDeps(opts.home)), "skills", "rove")
+  const legacySkillDirs = existsSync(join(skillDir, "SKILL.md")) ? [skillDir] : []
   return { legacyHooks, legacySkillDirs }
 }
 

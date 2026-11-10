@@ -3,6 +3,8 @@
  * RPC or helper (see `wraps`); nothing forwards a caller-chosen verb or argv.
  */
 
+import type { TaskExtraRepo, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
+import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
 import { BridgeError } from "../protocol.ts"
 import { flag, taskId } from "./args.ts"
 import { knownRepo, taskOpDeps } from "./tasks-shared.ts"
@@ -26,6 +28,7 @@ interface GetTaskResult {
     readonly kind?: string
     readonly status: string
     readonly pinned?: boolean
+    readonly archived?: boolean
     readonly vendor?: string
     readonly command?: string
     readonly model?: string
@@ -35,15 +38,8 @@ interface GetTaskResult {
     readonly groupId?: string
     readonly createdAt: string
     readonly updatedAt: string
-    readonly prStatus?: {
-      readonly number?: number
-      readonly url?: string
-      readonly lifecycle: string
-      readonly checkState: string
-      readonly reviewDecision?: string
-      readonly mergeable?: string
-      readonly baseRef?: string
-    }
+    readonly prStatus?: TaskPRStatus
+    readonly extraRepos?: readonly Pick<TaskExtraRepo, "repo" | "baseRef" | "prStatus">[]
     readonly report?: { readonly summary?: string; readonly at: string }
   }
 }
@@ -51,7 +47,7 @@ interface GetTaskResult {
 async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
   const res = await ctx.api.verb<GetTaskResult>("get-task", [flag("task-id", taskId(args))])
   const t = res.task
-  const pr = t.prStatus
+  const pr = rollupPr(t)
   return {
     task: {
       id: t.id,
@@ -62,6 +58,7 @@ async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
       kind: t.kind ?? "task",
       status: t.status,
       pinned: t.pinned === true,
+      ...(t.archived ? { archived: true } : {}),
       ...(t.vendor ? { engine: t.vendor } : {}),
       ...(t.command ? { command: t.command } : {}),
       ...(t.model ? { model: t.model } : {}),
@@ -69,6 +66,10 @@ async function taskGet(args: Args, ctx: OpContext): Promise<unknown> {
       ...(t.prompt ? { prompt: t.prompt } : {}),
       ...(t.baseRef ? { baseRef: t.baseRef } : {}),
       ...(t.groupId ? { groupId: t.groupId } : {}),
+      // The other repos of a multi-repo task, in pick order, each with the ref it was cut from.
+      ...(t.extraRepos?.length
+        ? { extraRepos: t.extraRepos.map((r) => ({ repo: r.repo, ...(r.baseRef ? { baseRef: r.baseRef } : {}) })) }
+        : {}),
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
       ...(pr
@@ -144,7 +145,8 @@ async function taskInfo(args: Args, ctx: OpContext): Promise<unknown> {
 
 async function repoBranches(args: Args, ctx: OpContext): Promise<unknown> {
   const repo = await knownRepo(args, ctx)
-  return { branches: taskOpDeps.listLocalBranches(repo), current: taskOpDeps.getCurrentBranch(repo) }
+  const [branches, current] = await Promise.all([taskOpDeps.listLocalBranches(repo), taskOpDeps.getCurrentBranch(repo)])
+  return { branches, current }
 }
 
 async function notesList(args: Args, ctx: OpContext): Promise<unknown> {

@@ -18,6 +18,7 @@
  */
 
 import { readFileSync } from "node:fs"
+import { type SkillCopyState, engineSkillDir, readSkillCopy } from "../lib/skill-install.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { type EngineHookAdapter, activityHookAdapters } from "./hook-adapter.ts"
 import { hookConfigIssues } from "./hook-config-check.ts"
@@ -87,6 +88,10 @@ export interface EngineIntegration {
    * the only symptom is latency (badges fall back to the daemon's ~10s poll).
    */
   readonly configIssue?: string
+  /** `<skills dir>/rove`; `""` when the engine isn't set up here or takes no skill. */
+  readonly skillDir: string
+  /** The Rove agent skill copy in {@link skillDir}; `not-installed` when there is no dir. */
+  readonly skillState: SkillCopyState
 }
 
 /**
@@ -114,6 +119,7 @@ function integrationFor(
     }
   }
   const configIssue = hookFile ? issues.get(hookFile) : undefined
+  const skillDir = engineSkillDir(vendor) ?? ""
   return {
     vendor,
     hooksSupported,
@@ -123,6 +129,8 @@ function integrationFor(
     markers: entry.createTurnDetector().supportsCompletionMarkers(),
     screen: entry.screenManifest !== undefined,
     ...(configIssue ? { configIssue } : {}),
+    skillDir,
+    skillState: skillDir ? readSkillCopy(skillDir).state : "not-installed",
   }
 }
 
@@ -140,6 +148,11 @@ export function engineIntegrations(vendors: readonly VendorId[]): EngineIntegrat
 /** Engines whose hooks a single install action would actually change. */
 export function enginesNeedingHookInstall(rows: readonly EngineIntegration[]): readonly VendorId[] {
   return rows.filter((row) => row.hooksSupported && row.hookState !== "installed").map((row) => row.vendor)
+}
+
+/** Engines a single skill install would change. */
+export function enginesNeedingSkillInstall(rows: readonly EngineIntegration[]): readonly VendorId[] {
+  return rows.filter((row) => row.skillDir && row.skillState !== "installed").map((row) => row.vendor)
 }
 
 /** Engines a single uninstall would change: any hooks on disk, current or

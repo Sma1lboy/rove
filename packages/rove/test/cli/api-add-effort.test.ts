@@ -88,7 +88,7 @@ describe("add --effort", () => {
 
   // `--agents` names a different engine per sibling, so one shared level has
   // to hold for all of them. Applying it to the codex sibling and dropping it
-  // on the claude one is exactly the silent half-application this gate exists
+  // on the gemini one is exactly the silent half-application this gate exists
   // to prevent.
   it("refuses a level no engine in an --agents plan declares", async () => {
     const client = createClient()
@@ -97,11 +97,11 @@ describe("add --effort", () => {
       () =>
         invokeVerb(
           "add",
-          ["--repo", "/repo/x", "--agents", "codex:1,claude:1", "--effort", "xhigh", "--prompt", "go"],
+          ["--repo", "/repo/x", "--agents", "codex:1,gemini:1", "--effort", "xhigh", "--prompt", "go"],
           { client, runtime },
         ),
       "BAD_EFFORT",
-      /engine claude declares no reasoning effort levels/,
+      /engine gemini declares no reasoning effort levels/,
     )
     expect(client.requests).toEqual([])
   })

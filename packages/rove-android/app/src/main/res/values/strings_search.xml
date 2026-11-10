@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">search conversations</string>
+    <string name="search_placeholder">find something said in any task</string>
+    <string name="search_hint">Searches what you and the agents wrote, newest first; tool output is left out. A hit opens its task.</string>
+    <string name="search_searching">searching…</string>
+    <string name="search_none">Nothing said matches “%1$s”.</string>
+    <string name="search_you">you</string>
+    <string name="search_agent">agent</string>
+    <string name="search_truncated">Stopped early to stay fast; add a word to narrow it.</string>
+    <plurals name="search_skipped">
+        <item quantity="one">%1$d task not searched: another machine\'s, or an engine Rove cannot read.</item>
+        <item quantity="other">%1$d tasks not searched: another machine\'s, or an engine Rove cannot read.</item>
+    </plurals>
+</resources>

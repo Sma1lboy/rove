@@ -12,17 +12,25 @@ export type TaskId = string & { readonly [TaskIdBrand]: never }
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
+import type { AutoFixState } from "@sma1lboy/rove-daemon/auto-fix-ci"
 import type {
-  TaskDeletionState,
   TaskDispatcher,
+  TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskPtyAlias,
-  TaskQuotaResumeState,
+  TaskSessionPr,
   TaskStatus,
-  TaskWorkerReport,
 } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type {
+  TaskDeletionState,
+  TaskQuotaResumeState,
+  TaskScheduledStart,
+  TaskWorkerReport,
+} from "@sma1lboy/rove-daemon/daemon/task-state-contracts"
 import type { ObservedLanguage } from "@sma1lboy/rove-daemon/prompts/observed-language"
+import type { TaskTodo } from "@sma1lboy/rove-daemon/task-notes"
+import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import type { VendorId } from "./vendor.ts"
 
 export type {
@@ -32,8 +40,12 @@ export type {
   TaskPRStatus,
   TaskPtyAlias,
   TaskQuotaResumeState,
+  TaskScheduledStart,
+  TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
+  TaskExtraRepo,
+  TaskWorkspace,
 }
 
 /** Engine vendor for a task that records none. */
@@ -100,17 +112,31 @@ export interface Task {
    * a project (`adoptScratchRepo`).
    */
   readonly scratch?: boolean
+  /** A `dir` task the daemon made for a projectless routine; sorts into the Ungrouped group. */
+  readonly noProject?: boolean
   /**
-   * The routine (`Automation`, `persistentSession`) this task is the standing
-   * session for; every firing re-delivers here. The sidebar folds these behind
-   * a per-project count row (7 daily routines would add 49 rows a week);
-   * otherwise ordinary (selectable, Inbox, `rove api`). Absent on routine
-   * tasks created before the field, which keep rendering as loose rows.
+   * The routine (`Automation`) whose firing made this task: its standing
+   * session, or one fresh run's task. The sidebar folds these behind a
+   * per-project count row (7 daily routines would add 49 rows a week) and the
+   * web leaves them to its Routines page; otherwise ordinary (selectable,
+   * Inbox, `rove api`). Absent on routine tasks created before the field
+   * (fresh runs before it was set on them too), which keep rendering as loose rows.
    */
   readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   /** Floats to the top of the sidebar's task list. Defaults to `false` on load. */
   readonly pinned?: boolean
+  /** The attempt kept from a parallel round (`update --kept true`); at most one per `groupId` by convention, never enforced. */
+  readonly kept?: boolean
+  /** The owner's free-text notes and checklist for this task (`rove api todo`); absent = none. */
+  readonly notes?: string
+  readonly todos?: readonly TaskTodo[]
+  /**
+   * Hidden from the sidebar and the default `rove api list` while the worktree,
+   * branch and sessions stay as they were. Set on a task and its descendants
+   * together; undone the same way.
+   */
+  readonly archived?: boolean
   /**
    * Engine protocol: which history reader parses this task's transcript.
    * Absent normalizes to {@link DEFAULT_TASK_VENDOR}. Derived from
@@ -157,13 +183,17 @@ export interface Task {
   readonly deletion?: TaskDeletionState
   /** Present while a rate-limited engine waits for its quota window to reset. */
   readonly quotaResume?: TaskQuotaResumeState
+  /** Present while an unstarted task waits for its one-shot delayed start. */
+  readonly scheduledStart?: TaskScheduledStart
+  /** Opt-in auto-fix of failing CI (`update --auto-fix-ci on`); present = on. */
+  readonly autoFixCi?: AutoFixState
   /** The external tracker item this task was started from, when it was. */
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The rove session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
   /**
-   * Tree lineage: the task this one was spawned from. Distinct from
-   * {@link dispatcher}, which only routes reports back.
+   * Tree lineage: the task this one was spawned from, or later moved under
+   * (`update --parent`). Distinct from {@link dispatcher}, which only routes reports back.
    */
   readonly parentTaskId?: TaskId
   /**
@@ -195,6 +225,11 @@ export interface Task {
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /**
+   * A checkout `add --worktree-only` cut for the calling session to work in, with no engine of its own. While it has a
+   * parent the clients list no row for it; the first turn an engine starts in it clears the mark.
+   */
+  readonly worktreeOnly?: boolean
+  /**
    * The brief `add --prompt` delivered, recorded on the delivery path because
    * the engine transcript isn't durable. Verbatim, never truncated: the key
    * constraints often sit at the end of a long brief.
@@ -214,11 +249,35 @@ export interface Task {
    */
   readonly worktreeName?: string
   /**
+   * The repo this row's worktree and branch were cut from, set only after the
+   * row was moved to another project (`update --project`). `repo` then names the
+   * project it shows under; git work (delete, land, forks) still runs here.
+   * Absent = `repo` is both. Read through `gitRepoOf`.
+   */
+  readonly gitRepo?: string
+  /**
+   * Secondary repos of a multi-repo task, in pick order. The primary stays in
+   * `repo`/`branch`/`worktreePath`/`baseRef`; `taskRepos` is the derived view
+   * of all of them. Only on a `kind: "task"` row that owns its worktree.
+   */
+  readonly extraRepos?: readonly TaskExtraRepo[]
+  /**
+   * Backend that materialised the directory. Absent = derived from `kind` (`workspaceBackendId`),
+   * so rows written before backends existed need no migration.
+   */
+  readonly workspace?: TaskWorkspace
+  /**
    * What the worker claims it delivered (`update --report-*`). Separate
    * from {@link prStatus}, which the daemon polls from the forge: a worker can
    * report a PR that doesn't exist; only `prStatus.checkState` is observed.
    */
   readonly report?: TaskWorkerReport
+  /**
+   * PRs this task's session opened, from any directory (`rove api pr-attach`),
+   * newest last; each carries its last polled forge status. Independent of
+   * {@link prStatus}, which follows the task's own branch.
+   */
+  readonly sessionPrs?: readonly TaskSessionPr[]
   /**
    * Source machine, stamped by the client merging several daemons' lists
    * (`machines/hub.ts`), never by a daemon (it doesn't know the viewer's

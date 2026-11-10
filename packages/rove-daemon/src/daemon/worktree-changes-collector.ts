@@ -90,16 +90,20 @@ export type WorktreeStatusRunner = (
 
 /**
  * Tracked paths (non-empty LOCAL worktrees; `ssh://` excluded) → the owning
- * task's recorded base ref. Tasks sharing a path collapse to one slot.
+ * repo's recorded base ref. Covers every repo of a multi-repo task: the
+ * primary's worktree, then each extra's with its own base. Tasks sharing a
+ * path collapse to one slot.
  */
 export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string | undefined> {
   const paths = new Map<string, string | undefined>()
   for (const task of tasks) {
-    if (!task.worktreePath) continue
-    if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
-    // First task that RECORDS a base ref wins: `get` === undefined covers "not
-    // seen" and "seen, no base", so a `main` row can't erase it in any order.
-    if (paths.get(task.worktreePath) === undefined) paths.set(task.worktreePath, task.baseRef)
+    for (const repo of [task, ...(task.extraRepos ?? [])]) {
+      if (!repo.worktreePath) continue
+      if (isRemoteRepoKey(repo.repo) || isRemoteRepoKey(repo.worktreePath)) continue
+      // First repo that RECORDS a base ref wins: `get` === undefined covers "not
+      // seen" and "seen, no base", so a `main` row can't erase it in any order.
+      if (paths.get(repo.worktreePath) === undefined) paths.set(repo.worktreePath, repo.baseRef)
+    }
   }
   return paths
 }
@@ -233,7 +237,10 @@ export class WorktreeChangesCollector {
     const active = new Set(ids)
     if (active.size === 0) return EMPTY_PATHS
     const paths = new Set<string>()
-    for (const task of tasks) if (task.worktreePath && active.has(task.id)) paths.add(task.worktreePath)
+    for (const task of tasks) {
+      if (!active.has(task.id)) continue
+      for (const repo of [task, ...(task.extraRepos ?? [])]) if (repo.worktreePath) paths.add(repo.worktreePath)
+    }
     return paths
   }
 

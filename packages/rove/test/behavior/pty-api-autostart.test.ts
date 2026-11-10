@@ -22,6 +22,7 @@ interface PtyListResult {
 
 interface OpenedTabResult {
   tabId: string
+  childTaskId?: string
 }
 
 interface GetTaskResult {
@@ -137,32 +138,46 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(existsSync(worktreePath)).toBe(true)
   }, 45_000)
 
-  it("tab-close removes one shell tab and ends only its hosted session", () => {
+  it("a new shell is its own child row; closing it ends only its hosted session", async () => {
     const opened = runRove(["api", "tab-new", "--task-id", taskId, "--kind", "shell", "--pretty"], env)
     expect(opened.code, `tab-new failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
-    const { tabId } = JSON.parse(opened.stdout) as OpenedTabResult
-    expect(tabId).not.toBe("tab-1")
+    const { tabId, childTaskId } = JSON.parse(opened.stdout) as OpenedTabResult
+    expect(childTaskId).toBeTruthy()
+    expect(childTaskId).not.toBe(taskId)
+    const shellTask = childTaskId as string
 
-    const closed = runRove(["api", "tab-close", "--task-id", taskId, "--tab", tabId, "--pretty"], env)
+    const closed = runRove(["api", "tab-close", "--task-id", shellTask, "--tab", tabId, "--pretty"], env)
     expect(closed.code, `tab-close failed: stdout=${JSON.stringify(closed.stdout)} stderr=${closed.stderr}`).toBe(0)
-    expect(JSON.parse(closed.stdout)).toMatchObject({ ok: true, taskId, tabId, handledBy: "headless" })
+    expect(JSON.parse(closed.stdout)).toMatchObject({ ok: true, taskId: shellTask, tabId })
 
-    const task = JSON.parse(runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout) as GetTaskResult
-    expect(task.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
+    const parent = JSON.parse(
+      runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout,
+    ) as GetTaskResult
+    expect(parent.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
     const afterClose = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
-    expect(afterClose.sessions.some((entry) => entry.key === `${taskId}::${tabId}`)).toBe(false)
+    expect(afterClose.sessions.some((entry) => entry.key === `${shellTask}::${tabId}`)).toBe(false)
     expect(afterClose.sessions.some((entry) => entry.key === session && entry.alive)).toBe(true)
 
-    const alreadyClosed = runRove(["api", "tab-close", "--task-id", taskId, "--tab", tabId, "--pretty"], env)
+    const alreadyClosed = runRove(["api", "tab-close", "--task-id", shellTask, "--tab", tabId, "--pretty"], env)
     expect(alreadyClosed.code).toBe(1)
     const error = JSON.parse(alreadyClosed.stderr) as {
       error: { code: string; hint: string; nextCommandArgs: string[] }
     }
     expect(error.error).toMatchObject({
       code: "TAB_NOT_FOUND",
-      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      nextCommandArgs: ["api", "get-task", "--task-id", shellTask],
     })
     expect(error.error.hint).toContain("get-task")
+
+    // The emptied shell row stays until removed; it shares the directory, so the next test needs it gone.
+    const removed = runRove(["api", "delete", "--task-id", shellTask, "--force"], env)
+    expect(removed.code, `delete shell row failed: stderr=${removed.stderr}`).toBe(0)
+    await waitForConverged(() => {
+      const task = runRove(["api", "get-task", "--task-id", shellTask, "--pretty"], env)
+      return task.code === 1 && task.stderr.includes("TASK_NOT_FOUND")
+        ? null
+        : `shell row still addressable: ${task.stdout}`
+    })
   }, 30_000)
 
   it("deleting a parent promotes its shared child and keeps the directory until the last user is gone", async () => {

@@ -5,10 +5,11 @@
  */
 
 import { useCallback, useState } from "react"
+import { resolvePreferredVendor } from "../../../state/vendor-prefs"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { pausedGitOperation } from "../../../tui/ops/conflict-prompt"
-import type { TreeRow } from "../../../tui/panes/sidebar/tree-core"
+import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { type TreeMenuAction, type TreeMenuContext, treeMenuItems } from "../../../tui/panes/sidebar/tree-menu"
 import { useT } from "../../i18n"
 import { useGlobalMouseDown } from "../../lib/use-global-mouse-down"
@@ -39,8 +40,8 @@ export interface TreeMenuDeps {
   readonly activateRow: (rowId: string) => void
   readonly setCursorIndex: (index: number) => void
   readonly onAddTask?: () => void
-  /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab. */
-  readonly onNewTab?: (taskId: string, kind: "chat" | "shell") => void
+  /** `"chat"` opens the ctrl+e picker there, `"shell"` a bare shell tab, `"continue"` the picker preset to carry the conversation over. */
+  readonly onNewTab?: (taskId: string, kind: "chat" | "shell" | "continue") => void
   readonly actions: SidebarTaskCallbacks
 }
 
@@ -89,8 +90,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const openForRow = useCallback(
     (flatIndex: number, rowId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
-      // Shortcut rows ("↩ recent", routine count) name no task: no menu.
-      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
+      // Shortcut rows ("↩ recent", the Archived fold) name no task: no menu.
+      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "archived") return
       // Menu and highlight must agree on the target row.
       setCursorIndex(flatIndex)
       // Another machine's worktree path means nothing on this filesystem.
@@ -105,6 +106,10 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
     (projectId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.kind === "project" && candidate.id === projectId)
       if (!row) return
+      if (projectId === SCRATCH_SECTION_ID) {
+        openAt(row, { scratchSection: true }, x, y)
+        return
+      }
       // Only THIS daemon's mains are in the move partition; another machine's
       // project is read-only here.
       const movable = (candidate: TreeRow): boolean =>
@@ -113,13 +118,18 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         tree.mainTaskIdOfProject(candidate.id) !== null
       const mainId = movable(row) ? tree.mainTaskIdOfProject(projectId) : null
       // The header has no cursor slot; its main row stands in, so "Reorder
-      // project" starts move mode where j/k drag the project.
+      // project" starts move mode where j/k drag the project. A main row
+      // with nothing to show is not listed: the Reorder entry brings it back
+      // for the move (`SidebarTree` holds it), so the entries follow the main
+      // task, not its row.
       const mainIndex = mainId === null ? -1 : tree.flatIds.indexOf(mainId)
       if (mainIndex >= 0) setCursorIndex(mainIndex)
       const firstMovable = tree.rows.find(movable)
-      openAt(row, { projectMovable: mainIndex >= 0, projectFirst: firstMovable?.id === projectId }, x, y)
+      // A search that dropped the main row leaves nothing to hold open for the move.
+      const projectMovable = mainId !== null && (mainIndex >= 0 || !tree.searching)
+      openAt(row, { projectMovable, projectFirst: firstMovable?.id === projectId }, x, y)
     },
-    [tree.rows, tree.flatIds, tree.mainTaskIdOfProject, openAt, setCursorIndex],
+    [tree.rows, tree.flatIds, tree.searching, tree.mainTaskIdOfProject, openAt, setCursorIndex],
   )
 
   const close = useCallback((): void => setMenu(null), [])
@@ -146,12 +156,15 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       const row = menu.row
       setMenu(null)
       if (row.kind === "project") {
+        // The Scratch section: a Scratch task in $HOME, on the preferred engine or a bare shell.
+        if (action === "newScratchChat") actions.onOpenScratch?.(resolvePreferredVendor())
+        if (action === "newScratchShell") actions.onOpenScratch?.(undefined)
         if (action === "newTask") deps.onAddTask?.()
         if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         const mainId = deps.tree.mainTaskIdOfProject(row.id)
         if (!mainId) return
-        // Same flow as `d` on the project's main checkout row.
-        if (action === "forgetProject") actions.onDeleteRequest?.(mainId)
+        // Not `d`'s flow: that is the main row's delete, which ends its conversation and keeps the project.
+        if (action === "forgetProject") actions.onForgetProjectRequest?.(mainId)
         if (action === "moveToTop") actions.onMoveToTopRequest?.(mainId)
         // Already moving: the cursor is on this main now, so j/k drag it — a
         // toggle would leave move mode instead.
@@ -159,7 +172,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         return
       }
       // Only reachable through a stale `menu`.
-      if (row.kind === "routines") return
+      if (row.kind === "archived") return
       const taskId = row.task.id
       switch (action) {
         case "open":
@@ -173,6 +186,12 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "newShell":
           deps.onNewTab?.(taskId, "shell")
+          break
+        case "continueEngine":
+          deps.onNewTab?.(taskId, "continue")
+          break
+        case "newTaskFromBranch":
+          actions.onNewTaskFromBranchRequest?.(taskId)
           break
         case "rename":
           actions.onRenameRequest?.(taskId)
@@ -189,6 +208,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "setStatus":
           actions.onSetStatusRequest?.(taskId)
+          break
+        case "moveToProject":
+          actions.onMoveToProjectRequest?.(taskId)
           break
         case "copyId":
           actions.onCopyRequest?.(taskId, "id")
@@ -223,6 +245,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "land":
           actions.onLandRequest?.(taskId)
+          break
+        case "archive":
+          actions.onArchiveRequest?.(taskId)
           break
         case "delete":
           actions.onDeleteRequest?.(taskId)

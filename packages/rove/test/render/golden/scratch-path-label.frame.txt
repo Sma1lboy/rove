@@ -9,11 +9,11 @@
 | Routines                     |
 | Issues                       |
 |                              |
-| SCRATCH ──────────────────── |
-| ▎○ …deep/nested/project-dir  |
+| Ungrouped ────────────────── |
+| ○ …deep/nested/project-dir   |
 |                              |
 | rove ─────────────────────── |
-|▌▎○ alpha                     |
+|▌○ alpha                      |
 |                              |
 |                              |
 |                              |

@@ -5,11 +5,23 @@
 
 import { availableEngineIds } from "@/engine/account-detect"
 import { errorMessage } from "@/lib/error-message"
-import { addSavedRepo, getSavedRepos } from "@/state/repos"
+import { addSavedRepo, getSavedRepos, resolveMainRepoRoot } from "@/state/repos"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
+
+/** What the dialog hands the host when a new task starts from a first message. */
+export interface FirstPromptStart {
+  readonly prompt: string
+  readonly vendor: VendorId
+  readonly baseRef: string
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  /** More repos the task spans, in pick order; `repo` stays the primary. */
+  readonly extraRepos?: readonly string[]
+}
 
 /** Hosts build ONE of these and pass it to every flow. */
 export interface CreateTaskContext extends TaskActionContext {
@@ -41,6 +53,11 @@ export interface CreateTaskContext extends TaskActionContext {
    * pane ready to type. Absent → cursor-only. The chattab surface jumps itself.
    */
   readonly enterTask?: (id: string) => void | Promise<void>
+  /**
+   * Create the task with its first message and run its engine on it. Absent → the message is
+   * dropped and the task is created empty.
+   */
+  readonly startWithPrompt?: (repo: string, start: FirstPromptStart) => void
 }
 
 /** Repo roots with a `main` task, trailing slashes trimmed as the sidebar groups them. */
@@ -54,11 +71,26 @@ function mainRepoSet(tasks: readonly Task[]): ReadonlySet<string> {
   return out
 }
 
+/** A repo path as its main checkout; a path git cannot read stays as given, for the daemon to refuse by name. */
+function mainRoot(repo: string): string {
+  try {
+    return resolveMainRepoRoot(repo)
+  } catch {
+    return repo
+  }
+}
+
+/** Where a new task starts when the caller already knows: a task's repo and branch, to stack on it. */
+export interface CreateTaskSeed {
+  readonly repo: string
+  readonly baseRef: string
+}
+
 /** Default repo → dialog → persist vendor + repo → create / adopt / open → select and enter. */
-export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
+export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSeed): Promise<void> {
   const repos = getSavedRepos()
   // With no saved repos, cwd lets the user pick a path in-TUI instead of a shell `add`.
-  const defaultRepo = ctx.cursorRepo() ?? repos[0] ?? process.cwd()
+  const defaultRepo = seed?.repo ?? ctx.cursorRepo() ?? repos[0] ?? process.cwd()
   const defaultVendor = ctx.lastVendor(defaultRepo) ?? DEFAULT_TASK_VENDOR
   const availableVendors = await availableEngineIds()
   // No engine at all: otherwise the missing binary surfaces only as a raw shell
@@ -74,11 +106,14 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     // "Open the project" is offered only for these. From live tasks, not
     // savedRepos: a saved repo with no main row has no project to open.
     mainRepos: mainRepoSet(ctx.tasks()),
+    ...(seed ? { initialBaseRef: seed.baseRef } : {}),
   })
   if (!result) return
   // Auto-save keeps `add` optional. Use the returned git toplevel so a
   // subdirectory entry is keyed under the same root the task record gets.
   const repo = addSavedRepo(result.repo).path
+  // The extras are keyed by their main checkout like the primary, so a subdirectory or a linked worktree names its repo.
+  const extraRepos = result.mode === "adopt" || result.mode === "open" ? [] : (result.extraRepos ?? []).map(mainRoot)
   ctx.rememberVendor(repo, result.vendor)
   ctx.onRepoSaved?.()
   if (!orch) {
@@ -100,6 +135,20 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
       ctx.logger.error(`${ctx.logPrefix} ensureMainTask failed:`, err)
       ctx.notifyError?.(t("newTask.open.failed", { error: errorMessage(err) }))
     }
+    return
+  }
+  // A task with a first message is born by it: the host's quick-start path creates it and
+  // delivers the message to its engine, which the bare `createTask` below cannot.
+  if (result.mode !== "adopt" && result.prompt && ctx.startWithPrompt) {
+    ctx.startWithPrompt(repo, {
+      prompt: result.prompt,
+      vendor: result.vendor,
+      baseRef: result.baseRef,
+      ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
+      ...(result.model ? { model: result.model } : {}),
+      ...(result.tier ? { tier: result.tier } : {}),
+      ...(extraRepos.length > 0 ? { extraRepos } : {}),
+    })
     return
   }
   // The git-worktree op has no other feedback once the dialog vanishes.
@@ -141,6 +190,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
         ...(result.modelEffort ? { modelEffort: result.modelEffort } : {}),
         ...(result.model ? { model: result.model } : {}),
         ...(result.tier ? { tier: result.tier } : {}),
+        ...(extraRepos.length > 0 ? { extraRepos: extraRepos.map((repo) => ({ repo })) } : {}),
       })
       createdId = task.id
     } catch (err) {

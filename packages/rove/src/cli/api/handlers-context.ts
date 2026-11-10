@@ -114,7 +114,7 @@ export const CONTEXT_VERB: VerbSpec = {
   name: "context",
   group: "read",
   summary:
-    "The coordinator's start-of-turn read: one composed snapshot of a repo — every worktree task with its DERIVED group (waiting-on-you|landing|ready-for-review|working|idle|unknown, sorted by rank so the first row is what needs a person next), title, branch, live engine activity + how long, `.checkState` (Rove's own CI truth), the worker's `.report` claim; plus the unhandled attention inbox and the repo's newest field notes (the same ones injected into fresh sessions here). The group is DERIVED from report/PR/activity/liveness — it is not the declared `status`, which a crashed worker leaves lying. `--text` renders it compactly instead of as structured JSON.",
+    "The coordinator's orientation read (session start, or whenever you lack the state): one composed snapshot of a repo — every worktree task with its DERIVED group (waiting-on-you|landing|ready-for-review|working|idle|unknown, sorted by rank so the first row is what needs a person next), title, branch, live engine activity + how long, `.checkState` (Rove's own CI truth), the worker's `.report` claim; plus the unhandled attention inbox and the repo's newest field notes (the same ones injected into fresh sessions here). The group is DERIVED from report/PR/activity/liveness — it is not the declared `status`, which a crashed worker leaves lying. `--text` renders it compactly instead of as structured JSON.",
   flags: [
     F.repo(true),
     {

@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test"
+import { execFileSync } from "node:child_process"
+import { mkdtempSync, realpathSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { getRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
+import { createBridgeApi } from "../src/ops/api.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { TASK_OPS } from "../src/ops/tasks.ts"
-import { type Call, REPO, T, fakeApi, isolateTaskOpDeps, refused, run } from "./task-ops-harness.ts"
+import { type Call, REPO, T, isolateTaskOpDeps, refused, run } from "./task-ops-harness.ts"
+
+// Captured before isolation swaps the dep for a no-op.
+const realRememberEngine = taskOpDeps.rememberEngine
 
 isolateTaskOpDeps()
 
@@ -16,6 +26,34 @@ describe("task.spawn", () => {
     expect(calls).toEqual([
       { verb: "add", argv: ["--repo=/Users/me/app", "--base-branch=main", "--command=only-on-mac"], machine: "mac" },
     ])
+  })
+
+  test("a repo id with clone has that machine fetch it with its own credentials", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "github.com/sma1lboy/rove", machine: "mac", clone: true, prompt: "p" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=github.com/sma1lboy/rove", "--clone=true", "--prompt=p"], machine: "mac" },
+    ])
+    for (const repo of ["sma1lboy/rove", "git@github.com:sma1lboy/rove.git", "https://gitlab.com/g/s/p.git"]) {
+      const spawned = await run(
+        "task.spawn",
+        { repo, machine: "mac", clone: true },
+        { add: { taskId: "N1", task: {} } },
+      )
+      expect(spawned.calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`, "--clone=true"], machine: "mac" }])
+    }
+  })
+
+  test("clone and repo ids are for another machine's add, and never a flag, a path or a local clone", async () => {
+    await refused("task.spawn", { repo: "sma1lboy/rove", clone: true })
+    await refused("task.spawn", { repo: "sma1lboy/rove" })
+    await refused("task.spawn", { repo: "/Users/me/app", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "--upload-pack=x", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "ext::sh -c id", machine: "mac", clone: true })
+    await refused("task.spawn", { repo: "relative/path/here", machine: "mac" })
   })
 
   test("single task: every flag goes through --name=value", async () => {
@@ -51,6 +89,59 @@ describe("task.spawn", () => {
       ],
     })
     expect(result).toEqual({ taskIds: ["N1"] })
+  })
+
+  test("a start on an engine is remembered as the project's last, so its New conversation follows it", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    await run("task.spawn", { repo: REPO, engine: "codex", prompt: "p" }, { add: { taskId: "N1", task: {} } })
+    await run("task.spawn", { repo: REPO, prompt: "p" }, { add: { taskId: "N2", task: {} } })
+    expect(remembered).toEqual([[REPO, "codex"]])
+  })
+
+  test("the remembered engine is keyed by the repo's main checkout, even when given a linked worktree", () => {
+    const real = realRememberEngine
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "rv-remember-")))
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync("git", ["-c", "user.email=a@b", "-c", "user.name=a", ...args], { cwd, stdio: "ignore" })
+    const main = join(dir, "main")
+    const linked = join(dir, "linked")
+    git(dir, "init", "-q", "-b", "main", main)
+    git(main, "commit", "-q", "--allow-empty", "-m", "init")
+    git(main, "worktree", "add", "-q", "-b", "side", linked)
+    const prev = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = join(dir, "home")
+    try {
+      real(linked, "codex")
+      expect(getRepoLastActiveVendor(main)).toBe("codex")
+      expect(getRepoLastActiveVendor(linked)).toBeUndefined()
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
+  })
+
+  test("extra repos ride as further --repo flags in pick order, each base as --base-for", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      {
+        repo: REPO,
+        prompt: "p",
+        extraRepos: [{ repo: "/w/api", baseRef: "dev" }, { repo: "/w/docs" }],
+      },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls.at(-1)).toEqual({
+      verb: "add",
+      argv: [`--repo=${REPO}`, "--repo=/w/api", "--repo=/w/docs", "--base-for=/w/api=dev", "--prompt=p"],
+    })
+  })
+
+  test("extra repos refuse a bad shape, too many repos, and another machine", async () => {
+    await refused("task.spawn", { repo: REPO, extraRepos: "/w/api" })
+    await refused("task.spawn", { repo: REPO, extraRepos: [{ repo: "relative/api" }] })
+    await refused("task.spawn", { repo: REPO, extraRepos: Array.from({ length: 8 }, (_, i) => ({ repo: `/w/r${i}` })) })
+    await refused("task.spawn", { repo: REPO, machine: "mac", extraRepos: [{ repo: "/w/api" }] })
   })
 
   test("count fleet normalizes to taskIds + groupId", async () => {
@@ -119,6 +210,11 @@ describe("task edits", () => {
       { verb: "update", argv: [`--task-id=${T}`, "--branch=feat/y"] },
     ],
     [
+      "task.moveToProject",
+      { taskId: T, repo: "/work/app" },
+      { verb: "update", argv: [`--task-id=${T}`, "--project=/work/app"] },
+    ],
+    [
       "task.setModel",
       { taskId: T, model: "gpt-5.1:high" },
       { verb: "update", argv: [`--task-id=${T}`, "--model=gpt-5.1:high"] },
@@ -127,6 +223,13 @@ describe("task edits", () => {
     ["task.setStatus", { taskId: T, status: "done" }, { verb: "update", argv: [`--task-id=${T}`, "--status=done"] }],
     ["task.pin", { taskId: T, pinned: false }, { verb: "update", argv: [`--task-id=${T}`, "--pinned=false"] }],
     ["task.pin", { taskId: T, pinned: true }, { verb: "update", argv: [`--task-id=${T}`, "--pinned=true"] }],
+    ["task.keep", { taskId: T, kept: true }, { verb: "update", argv: [`--task-id=${T}`, "--kept=true"] }],
+    ["task.autoFixCi", { taskId: T, enabled: true }, { verb: "update", argv: [`--task-id=${T}`, "--auto-fix-ci=on"] }],
+    [
+      "task.autoFixCi",
+      { taskId: T, enabled: false },
+      { verb: "update", argv: [`--task-id=${T}`, "--auto-fix-ci=off"] },
+    ],
     ["task.move", { taskId: T, direction: "top" }, { rpc: "task.move", payload: { taskId: T, direction: "top" } }],
     ["task.move", { taskId: T, direction: "up" }, { rpc: "task.move", payload: { taskId: T, direction: "up" } }],
   ]
@@ -137,6 +240,19 @@ describe("task edits", () => {
       expect(result).toEqual({})
     })
   }
+
+  test("task.notes hands the notes and todo ops to the daemon as one call and answers with its result", async () => {
+    const after = { notes: "n", todos: [{ id: "t1", text: "a", done: false }] }
+    const ops = [{ op: "add", text: "a" }]
+    const { result, calls } = await run("task.notes", { taskId: T, notes: "n", ops }, { "task.notes": after })
+    expect(calls).toEqual([{ rpc: "task.notes", payload: { taskId: T, notes: "n", ops } }])
+    expect(result).toEqual(after)
+  })
+
+  test("task.notes refuses ops that are not a short list", async () => {
+    await refused("task.notes", { taskId: T, ops: "add" })
+    await refused("task.notes", { taskId: T, ops: Array.from({ length: 51 }, () => ({ op: "add", text: "x" })) })
+  })
 
   test("task.setCommand takes an engine id and reports the protocol", async () => {
     const { result, calls } = await run(
@@ -167,6 +283,41 @@ describe("task edits", () => {
       ["task.move", { taskId: T, direction: "sideways" }],
     ]
     for (const [op, args] of bad) await refused(op, args)
+  })
+})
+
+describe("task.archive", () => {
+  test("archive and unarchive run their verbs and report the ids moved", async () => {
+    const archived = await run("task.archive", { taskId: T, archived: true }, { archive: { ids: ["c", T] } })
+    expect(archived.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`] })
+    expect(archived.result).toEqual({ ids: ["c", T] })
+    const forced = await run("task.archive", { taskId: T, archived: true, force: true }, { archive: { ids: [T] } })
+    expect(forced.calls.at(-1)).toEqual({ verb: "archive", argv: [`--task-id=${T}`, "--force=true"] })
+    // Restoring never needs force, so it never sends it.
+    const restored = await run("task.archive", { taskId: T, archived: false, force: true }, { unarchive: { ids: [T] } })
+    expect(restored.calls.at(-1)).toEqual({ verb: "unarchive", argv: [`--task-id=${T}`] })
+  })
+
+  test("the daemon's busy and main refusals reach the page as stable codes, prefix stripped", async () => {
+    for (const [message, code] of [
+      ["TASK_BUSY: an engine is still working or waiting on you in t1", "TASK_BUSY"],
+      ["MAIN_TASK: a project's main checkout cannot be archived", "MAIN_TASK"],
+    ] as const) {
+      const client = {
+        request: async () => {
+          throw new Error(message)
+        },
+      } as unknown as RoveDaemonClient
+      await expect(
+        TASK_OPS["task.archive"]?.run({ taskId: T, archived: true }, { api: createBridgeApi(client) }),
+      ).rejects.toMatchObject({ name: "BridgeError", code, message: message.slice(code.length + 2) })
+    }
+  })
+
+  test("bad args are refused", async () => {
+    await refused("task.archive", { taskId: T })
+    await refused("task.archive", { taskId: T, archived: "true" })
+    await refused("task.archive", { taskId: "--x", archived: true })
   })
 })
 
@@ -222,92 +373,6 @@ describe("task.openMain and worktree.adopt", () => {
     await refused("worktree.adopt", { repo: REPO, worktreePath: "w/a" }, replies)
     await refused("worktree.adopt", { repo: REPO, worktreePath: "/w/a", engine: "bad engine" }, replies)
     await refused("worktree.adopt", { repo: REPO, worktreePath: "/w/a", branch: "-x" }, replies)
-  })
-})
-
-describe("repo.clone", () => {
-  function fakeClone() {
-    const seen: Array<[string, string]> = []
-    taskOpDeps.cloneRepo = async (url, target) => {
-      seen.push([url, target])
-      return { ok: true, path: target }
-    }
-    taskOpDeps.validateCloneTarget = () => null
-    taskOpDeps.findAvailableFolderName = (_p, base) => base
-    return seen
-  }
-
-  test("clones into parentDir/<derived folder>", async () => {
-    const seen = fakeClone()
-    const { result } = await run("repo.clone", { url: "git@github.com:foo/bar.git", parentDir: "/work" })
-    expect(seen).toEqual([["git@github.com:foo/bar.git", "/work/bar"]])
-    expect(result).toEqual({ path: "/work/bar" })
-    expect((await run("repo.clone", { url: "https://h/x/y", parentDir: "/work", folder: "z" })).result).toEqual({
-      path: "/work/z",
-    })
-  })
-
-  test("git's output reaches the caller as progress lines, at most one per gap", async () => {
-    taskOpDeps.cloneRepo = async (_url, target, onProgress) => {
-      for (const line of ["Cloning into 'y'...", "Receiving objects: 10%", "Receiving objects: 20%"]) onProgress?.(line)
-      return { ok: true, path: target }
-    }
-    taskOpDeps.validateCloneTarget = () => null
-    taskOpDeps.findAvailableFolderName = (_p, base) => base
-    const { api } = fakeApi()
-    const lines: string[] = []
-    await TASK_OPS["repo.clone"]?.run(
-      { url: "https://h/x/y", parentDir: "/work" },
-      { api, progress: (l) => lines.push(l) },
-    )
-    expect(lines).toEqual(["Cloning into 'y'..."])
-  })
-
-  test("a failed clone surfaces git's message", async () => {
-    taskOpDeps.cloneRepo = async () => ({ ok: false, error: "fatal: repository not found" })
-    taskOpDeps.validateCloneTarget = () => null
-    const { api } = fakeApi()
-    await expect(
-      TASK_OPS["repo.clone"]?.run({ url: "https://h/x/y", parentDir: "/work" }, { api }),
-    ).rejects.toMatchObject({
-      code: "CLONE_FAILED",
-      message: "fatal: repository not found",
-    })
-  })
-
-  test("refuses option-shaped, helper-transport, local and malformed urls and folders without cloning", async () => {
-    const seen = fakeClone()
-    const bad: Array<Record<string, unknown>> = [
-      { url: "-oProxyCommand=touch /tmp/x", parentDir: "/work" },
-      { url: "--upload-pack=touch /tmp/x", parentDir: "/work" },
-      { url: "ext::sh -c touch% /tmp/x", parentDir: "/work" },
-      { url: "fd::17/foo", parentDir: "/work" },
-      { url: "file:///etc", parentDir: "/work" },
-      { url: "/etc/passwd", parentDir: "/work" },
-      { url: "ssh://-oProxyCommand=x/y", parentDir: "/work" },
-      { url: "ssh://user@-host/y", parentDir: "/work" },
-      { url: "-x@host:path", parentDir: "/work" },
-      { url: "https://h/x y", parentDir: "/work" },
-      { url: "ftp://h/x", parentDir: "/work" },
-      { url: "", parentDir: "/work" },
-      { url: 5, parentDir: "/work" },
-      { url: "https://h/x/y", parentDir: "rel" },
-      { url: "https://h/x/y", parentDir: "~/code" },
-      { url: "https://h/x/y", parentDir: "/work", folder: "../evil" },
-      { url: "https://h/x/y", parentDir: "/work", folder: "a/b" },
-      { url: "https://h/x/y", parentDir: "/work", folder: ".." },
-      { url: "https://h/x/y", parentDir: "/work", folder: "-rf" },
-    ]
-    for (const args of bad) await refused("repo.clone", args)
-    expect(seen).toEqual([])
-  })
-
-  test("accepts each allowed transport", async () => {
-    const seen = fakeClone()
-    for (const url of ["https://h/a/b.git", "http://h/a/b", "ssh://git@h:22/a/b", "git://h/a/b", "git@h:a/b.git"]) {
-      await run("repo.clone", { url, parentDir: "/work" })
-    }
-    expect(seen.map(([u]) => u)).toHaveLength(5)
   })
 })
 

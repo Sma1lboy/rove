@@ -17,10 +17,12 @@ import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import {
   type PatchNote,
   type PreviewData,
+  contentFirstLine,
   filetypeOf,
   isCombinedPathspec,
   isImagePath,
   loadPreviewData,
+  patchFirstLine,
   unifiedDiffFiles,
 } from "../../tui/ops/preview-core"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
@@ -62,7 +64,6 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   }
   const t = useT()
   const style = useMemo(() => buildSyntaxStyle(theme), [theme])
-  const filetype = filetypeOf(props.relPath)
   // A directory / whole-worktree diff. `.` would render as a bare dot in the
   // header, so it gets a name; everything else IS its own name.
   const combined = isCombinedPathspec(props.relPath)
@@ -71,6 +72,10 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const identity = JSON.stringify([props.worktree, props.relPath, props.base])
   const [loaded, setLoaded] = useState<{ identity: string; data: PreviewData } | null>(null)
   const data = loaded?.identity === identity ? loaded.data : null
+  const filetype = filetypeOf(
+    props.relPath,
+    data?.kind === "code" ? contentFirstLine(data.text) : data?.kind === "diff" ? patchFirstLine(data.text) : undefined,
+  )
   const [reloadTick, setReloadTick] = useState(0)
   const base = props.base
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
@@ -250,7 +255,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
                       diff={file.text}
                       view="unified"
                       wrapMode="none"
-                      filetype={filetypeOf(file.path)}
+                      filetype={filetypeOf(file.path, patchFirstLine(file.text))}
                       syntaxStyle={style}
                       showLineNumbers={true}
                     />

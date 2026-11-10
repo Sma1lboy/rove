@@ -46,6 +46,20 @@ describe("the no-sessions placeholder's keys", () => {
     expect(tabs("t1")?.tabs.length).toBe(1)
   })
 
+  it("clicking the hint reopens a session, as enter does", async () => {
+    const { tabs } = await seedEmptied()
+    const { mockMouse, frame } = await render()
+    const rows = (await frame()).split("\n")
+    const y = rows.findIndex((row) => row.includes("No sessions here"))
+    expect(y).toBeGreaterThanOrEqual(0)
+    await act(async () => {
+      await mockMouse.click((rows[y] ?? "").indexOf("No sessions here") + 1, y)
+    })
+    await settle()
+    expect(tabsByTask.get("t1")?.tabs.length).toBe(1)
+    await untilDaemon(() => tabs("t1")?.tabs.length === 1)
+  })
+
   it("reopens the KIND that was closed, not always an engine", async () => {
     // The close records what went (`reopenAs`); pressing the key here must
     // route through that, or closing a shell and pressing enter drops the

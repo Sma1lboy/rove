@@ -29,34 +29,33 @@ describe("Orchestrator active task recency", () => {
     await rm(home, { recursive: true, force: true })
   })
 
-  // CORRECTNESS PIN for `store.touchRecency`: keeping the fsync'd
-  // `store.update(id, {})` off the focus path must NOT cost the `recent`
-  // ordering it would have fed. After a sequence of setActive calls the
-  // sidebar's `recent` sort must still order tasks most-recently-focused
-  // first — the bump lives in-cache, but it must still change the `updatedAt`
-  // that `buildRows` reads. `active-task`/`lastActive` track ONE id; this
-  // pins the full ORDER.
-  it("`recent` sort still orders by focus recency after a sequence of setActive calls", async () => {
+  // A click must never move a row: `recent` ranks by creation, which neither focus
+  // nor bookkeeping writes (a first open, a rename) can change.
+  it("`recent` order survives focusing and renaming tasks", async () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"))
     const a = await orch.createTask({ repo: "/repo", title: "a", branch: "a", vendor: "claude" })
-    const b = await orch.createTask({ repo: "/repo", title: "b", branch: "b", vendor: "claude" })
-    const c = await orch.createTask({ repo: "/repo", title: "c", branch: "c", vendor: "claude" })
-
-    // Focus a, then c, then b — each at a distinct instant so recency is total.
     vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"))
-    await orch.setActiveTask(a.id)
+    const b = await orch.createTask({ repo: "/repo", title: "b", branch: "b", vendor: "claude" })
     vi.setSystemTime(new Date("2026-01-01T00:00:02.000Z"))
-    await orch.setActiveTask(c.id)
-    vi.setSystemTime(new Date("2026-01-01T00:00:03.000Z"))
-    await orch.setActiveTask(b.id)
+    const c = await orch.createTask({ repo: "/repo", title: "c", branch: "c", vendor: "claude" })
+    const ours = new Set<string>([a.id, b.id, c.id])
+    // createTask also provisions the repo's `main` row; only the three tasks matter here.
+    const order = () =>
+      buildRows(orch.listTasks(), "", "recent")
+        .map((r) => String(r.task.id))
+        .filter((id) => ours.has(id))
 
-    const rows = buildRows(orch.listTasks(), "", "recent")
-    // createTask auto-provisions the repo's `kind:"main"` project row
-    // (orchestrator/core.ts) — unfocused noise for this pin, so assert the
-    // RELATIVE recency order of just the three focused tasks.
-    // Most-recently-focused first: b (t=3) > c (t=2) > a (t=1).
-    const focusedOrder = rows.map((r) => r.task.id).filter((id) => id === a.id || id === b.id || id === c.id)
-    expect(focusedOrder).toEqual([b.id, c.id, a.id])
+    expect(order()).toEqual([c.id, b.id, a.id])
+
+    vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"))
+    await orch.setActiveTask(a.id)
+    vi.setSystemTime(new Date("2026-01-01T00:00:11.000Z"))
+    await orch.setActiveTask(b.id)
+    expect(order()).toEqual([c.id, b.id, a.id])
+
+    vi.setSystemTime(new Date("2026-01-01T00:00:20.000Z"))
+    await orch.setTitle(a.id, "a renamed")
+    expect(order()).toEqual([c.id, b.id, a.id])
   })
 
   // The `lastActive` contract (state/last-active.ts): whoever focused last

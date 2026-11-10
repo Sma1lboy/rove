@@ -6,6 +6,7 @@
  */
 
 import { connectOrStartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { CHANNEL_NAMES } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
@@ -29,7 +30,10 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       // (the daemon ignores a pane's).
       const cellPixelSize = await queryCellPixelSize({ stdin: process.stdin, stdout: process.stdout })
       const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize })
+      // No `state`: UiPrefsSync's own connection follows it, and every quiet KV
+      // flush (one per task switch) would otherwise also land here unread.
+      const channels = CHANNEL_NAMES.filter((name) => name !== "state")
+      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize, channels })
       await orchestrator.init()
       process.env.ROVE_DAEMON_SOCKET_PATH = client.socketPath
       // Pane emulators read this lazily: the cell size answers `CSI 16 t`, and the

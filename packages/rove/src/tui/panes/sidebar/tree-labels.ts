@@ -8,6 +8,7 @@ import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { tildify } from "../../../lib/path-home"
 import { truncateStart } from "../../lib/truncate"
+import { repoBasename } from "./groups"
 
 /** Widest path label a worktree row renders before tail-truncation — the
  *  default rail width minus row chrome. The row's flex still end-clips on
@@ -28,28 +29,37 @@ export function rowLiveBranchPath(task: Task): string {
 
 /**
  * The name of the task's one engine conversation: a migrated child reads its
- * parent's aliased tab, any other task its first named engine tab. Absent
- * until the engine has named the session.
+ * parent's aliased tab, any other task its first named engine tab (a diff or
+ * shell tab's title is not the conversation's). Absent until the engine has
+ * named the session.
  */
 export function conversationTitleOf(
   task: Task,
-  tabsByTask: ReadonlyMap<string, readonly { readonly id: string; readonly title?: string }[]>,
+  tabsByTask: ReadonlyMap<
+    string,
+    readonly { readonly id: string; readonly title?: string; readonly engine?: boolean }[]
+  >,
 ): string | undefined {
   const alias = task.ptyAlias
   const tabs = tabsByTask.get(alias?.taskId ?? task.id)
   if (!tabs) return undefined
   if (alias) return tabs.find((tab) => tab.id === alias.tabId)?.title
-  return tabs.find((tab) => tab.title !== undefined)?.title
+  return tabs.find((tab) => tab.engine === true && tab.title !== undefined)?.title
 }
+
+/** The `<dir>-xxxx` title `openDirectoryTaskRow` mints when no title is given. */
+const AUTO_DIR_TITLE = /^\S+-[0-9a-z]{4}$/
 
 /**
  * A row is a conversation, so it is named like one: the engine session's own
  * title (`liveTitle`, from {@link conversationTitleOf}), else the task's
- * title, else its branch. The task title only names `task` rows and children:
- * a `main` row reads its live HEAD, and a `dir` row its tail-truncated
- * directory (stored dir titles are auto-generated noise like `jacksonc-xxxx`,
- * and this needs no data migration). Then the path; then "scratch", never
- * blank. The branch stays searchable (`tree-search.ts`).
+ * title, else its branch. The task title names `task` rows and children; a
+ * `main` row only when it was renamed (it starts as the repo name, which would
+ * hide the live HEAD), else it reads its live HEAD, and a `dir` row its
+ * tail-truncated directory unless it was named (a prompt-derived or renamed
+ * title; the auto-minted `jacksonc-xxxx` and repo-name titles are noise, and
+ * this needs no data migration). Then the path; then
+ * "scratch", never blank. The branch stays searchable (`tree-search.ts`).
  *
  * `liveBranch` is the caller-resolved HEAD for branchless rows
  * ({@link rowLiveBranchPath}, `git-head.ts`); `home` is injectable for tests.
@@ -61,7 +71,10 @@ export function worktreeRowLabel(
   const live = opts.liveTitle?.trim()
   if (live) return live
   const title = task.title.trim()
-  if (title && (task.parentTaskId !== undefined || task.kind === "task")) return title
+  const renamedMain = task.kind === "main" && title !== "" && title !== repoBasename(task.repo)
+  // A `dir` title a person or a prompt gave, not the repo's name (an adopted scratch) or the auto-minted `<dir>-xxxx`.
+  const namedDir = task.kind === "dir" && title !== repoBasename(task.repo) && !AUTO_DIR_TITLE.test(title)
+  if (title && (task.parentTaskId !== undefined || task.kind === "task" || renamedMain || namedDir)) return title
   const branch = (opts.liveBranch ?? task.branch) || task.branch
   if (branch) return branch
   if (task.kind !== "dir" && task.title) return task.title

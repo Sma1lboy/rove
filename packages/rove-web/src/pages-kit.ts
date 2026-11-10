@@ -11,8 +11,10 @@ import { en as kanbanEn, zh as kanbanZh } from "@sma1lboy/rove/src/tui/i18n/mess
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { en as itemsEn, zh as itemsZh } from "@sma1lboy/rove/src/tui/i18n/messages/workItems.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { everyVisible } from "./every-visible.ts"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { isNoProject } from "./rail.ts"
 import { useStore } from "./store.ts"
 import { dialog, menu } from "./ui.ts"
 
@@ -30,6 +32,18 @@ export function useCopy() {
 
 export function fill(text: string, params: Record<string, string | number>): string {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => String(params[k] ?? m))
+}
+
+/** The TUI's `t("automations.x")` over the web copy: `cron-core` asks for keys by their TUI path. */
+export function useCronTranslate() {
+  const { auto } = useCopy()
+  return (key: string, params?: Record<string, string | number>): string => {
+    let node: unknown = auto
+    for (const part of key.replace(/^automations\./, "").split(".")) {
+      node = node && typeof node === "object" ? Reflect.get(node, part) : undefined
+    }
+    return typeof node === "string" ? (params ? fill(node, params) : node) : key
+  }
 }
 
 export function errorMessage(err: unknown): string {
@@ -67,7 +81,7 @@ export function mergeRepos(...lists: readonly (readonly string[])[]): string[] {
 /** Live task repos, newest feed first (the TUI's `listTasks().map(repo)`). */
 export function useTaskRepos(model: AppModel): string[] {
   const payload = useStore(model.tasks)
-  return mergeRepos((payload?.tasks ?? []).map((task) => task.repo))
+  return mergeRepos((payload?.tasks ?? []).filter((task) => !isNoProject(task)).map((task) => task.repo))
 }
 
 /** The repo of the selected task: the project every page opens on. */
@@ -77,13 +91,13 @@ export function useSelectedRepo(model: AppModel): string | undefined {
   return payload?.tasks.find((task) => task.id === taskId)?.repo
 }
 
-/** A counter that bumps every `ms` and on demand: the TUI pages' `reloadTick` + poll. */
+/**
+ * A counter that bumps every `ms` and on demand: the TUI pages' `reloadTick` + poll. A hidden
+ * browser tab does not poll (the Kanban board alone is hundreds of KB a read); coming back reads at once.
+ */
 export function useReload(ms: number): readonly [number, () => void] {
   const [tick, setTick] = useState(0)
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick((n) => n + 1), ms)
-    return () => window.clearInterval(timer)
-  }, [ms])
+  useEffect(() => everyVisible(ms, () => setTick((n) => n + 1)), [ms])
   return [tick, useCallback(() => setTick((n) => n + 1), [])]
 }
 
@@ -104,7 +118,7 @@ export function usePageKeys(onKey: (e: KeyboardEvent) => boolean): void {
     const handle = (e: KeyboardEvent) => {
       if (e.defaultPrevented || dialog.get() || menu.get()) return
       const target = e.target instanceof HTMLElement ? e.target : null
-      if (typingInField(target) || target?.closest(".rail, .files, .xterm")) return
+      if (typingInField(target) || target?.closest(".rail, .side-panel, .xterm")) return
       if (e.metaKey || e.altKey) return
       // Ctrl+C closes a page only when nothing is selected; a text selection keeps the browser's copy.
       if (e.ctrlKey && e.key.toLowerCase() === "c" && window.getSelection()?.toString()) return

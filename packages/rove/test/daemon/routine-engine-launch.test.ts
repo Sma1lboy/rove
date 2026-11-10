@@ -94,7 +94,8 @@ describe("routine engine pins launch on the engine they were validated against",
   it("validates against the built-in default when the repo has none", async () => {
     const { h, cli, routines, runNow } = await routineHarness()
     try {
-      await expect(cli("routine-create", create("--effort", "high"))).rejects.toMatchObject({ code: "BAD_EFFORT" })
+      // `none` is codex's level, not claude's.
+      await expect(cli("routine-create", create("--effort", "none"))).rejects.toMatchObject({ code: "BAD_EFFORT" })
       expect(await routines()).toEqual([])
       await cli("routine-create", create("--model", "sonnet"))
       const [routine] = await routines()
@@ -108,7 +109,7 @@ describe("routine engine pins launch on the engine they were validated against",
   it("re-resolves a cleared vendor under retained pins", async () => {
     const { h, cli, routines, runNow } = await routineHarness()
     try {
-      await cli("routine-create", create("--vendor", "codex", "--model", "gpt-5.5", "--effort", "high"))
+      await cli("routine-create", create("--vendor", "codex", "--model", "gpt-5.5", "--effort", "none"))
       const [routine] = await routines()
       const id = routine!.id
       await expect(cli("routine-update", ["--id", id, "--vendor", ""], "claude")).rejects.toMatchObject({
@@ -116,8 +117,14 @@ describe("routine engine pins launch on the engine they were validated against",
       })
       expect(await routines()).toEqual([routine])
       await cli("routine-update", ["--id", id, "--vendor", ""], "codex")
-      expect((await routines())[0]).toMatchObject({ vendor: "codex", model: "gpt-5.5", modelEffort: "high" })
-      expect((await runNow(id))?.slice(0, 5)).toEqual(CODEX_PINNED)
+      expect((await routines())[0]).toMatchObject({ vendor: "codex", model: "gpt-5.5", modelEffort: "none" })
+      expect((await runNow(id))?.slice(0, 5)).toEqual([
+        "codex",
+        "-c",
+        "model_reasoning_effort=none",
+        "--model",
+        "gpt-5.5",
+      ])
       await cli("routine-update", ["--id", id, "--vendor", "", "--model", "", "--effort", ""], "codex")
       expect((await routines())[0]).not.toHaveProperty("vendor")
     } finally {

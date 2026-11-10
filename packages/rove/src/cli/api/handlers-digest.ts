@@ -67,7 +67,7 @@ async function digest(ctx: VerbContext): Promise<unknown> {
   // Zero tasks beside non-empty `unresolvableRepos` is a failed lookup, not a quiet week.
   const filter = await repoFilter(runtime, repoFlag, [
     ...allTasks.map((t) => t.repo),
-    ...automations.map((a) => a.repo),
+    ...automations.flatMap((a) => (a.repo ? [a.repo] : [])),
   ])
   const repo = filter.target
 
@@ -81,7 +81,7 @@ async function digest(ctx: VerbContext): Promise<unknown> {
 
   const runs: AutomationRun[] = []
   for (const automation of automations) {
-    if (!filter.matches(automation.repo)) continue
+    if (!automation.repo || !filter.matches(automation.repo)) continue
     const page = await daemon.request<{ runs: AutomationRun[] }>("automation.runs", { id: automation.id })
     for (const run of page.runs) {
       if ((epochOf(run.at) ?? 0) >= sinceMs) runs.push(run)

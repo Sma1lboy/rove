@@ -39,6 +39,30 @@ const cs = (s, p) => getComputedStyle(document.querySelector(s))[p]
 A difference of 1px or more on a shared edge or center is a finding. Ignore sub-pixel noise
 under 0.5px. Report numbers as before → after.
 
+## 0. Build from `src/ui/`, style with Tailwind
+
+- **A control that appears twice is a component in `packages/rove-web/src/ui/`** (`Button`,
+  `Tabs`, `Chip`, `ResizeGrip`, …). The component owns its spacing, hit area and edge placement;
+  callers pass a variant or an edge, never a CSS override. Two call sites positioned by two
+  stylesheets is how the rail's and the panel's resize lines drifted apart.
+- **New styling is Tailwind utilities** (`src/tailwind.css`). Only Rove's tokens exist as
+  utilities (`bg-paper`, `text-accent`, `text-meta`, `rounded-sm`, `border-hairline border-line`,
+  `touch:` for coarse pointers); Tailwind's own palette and type scale are cleared, so a stray
+  `text-gray-500` does not compile. Arbitrary values (`p-[7px]`) live in `src/ui/` only.
+- **One stylesheet: `src/tailwind.css`.** It holds the `:root` tokens, the element reset,
+  scrollbars, xterm internals and the Tailwind theme, variants and `@utility` definitions. No
+  other `.css` file, and no component class rule in it: a look that repeats is a `src/ui/` recipe.
+- **The gate:** `scripts/web-ui-gate.mjs` (pre-pr, and pr-gates for others' PRs) fails a diff that
+  leaves any `.css` besides `tailwind.css` under `src/`, adds a component selector to it, nets new
+  raw `<button>`/checkbox outside `src/ui/`, or
+  puts an arbitrary value outside it. A line that must break the last two carries `ui-ok: <reason>`.
+- **No class merging.** A `className` passed to a `ui/` component may add placement but must not
+  set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
+- **Other package UIs** (e.g. `promo-kit`) start from rove-web's stack (Vite + React + TypeScript +
+  Tailwind v4), Tailwind's theme mapped to `packages/branding/design-system/` `tokens.css` and its
+  README rules: no hand-written HTML pages, raw hex or invented sizes.
+- **All UI:** no secondary labels or descriptions the layout already explains.
+
 ## 1. Layout and alignment
 
 - **One edge per column.** Everything in a column starts on the same x. In the rail this means
@@ -91,15 +115,17 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
   settings descriptions and tab-strip titles. The mono "technical voice" is a deliberate Rove
   choice, so don't "fix" it. But don't spread mono into paragraphs, and don't put sans into
   glyph columns (glyph alignment depends on `1ch`).
-- **The scale is the one in use:** 13px body (`body`), 12px secondary and lists, 14px task-row titles in the rail, 11px meta and
-  chips, 14px wordmark, 18px only for the dialog close glyph. 10px is the floor and only for a
-  tiny badge. Nothing new below 11px for readable text. Check:
-  `getComputedStyle(el).fontSize`.
+- **The scale is the four tokens in `tailwind.css`:** 12px `--fs-meta` (secondary text, lists, chips,
+  hints, buttons), 13px `--fs-body` (body, menu items), 14px `--fs-title` (rail task titles, the
+  wordmark, dialog titles), and 16px `--fs-display` (the dialog close glyph, fields on touch). Nothing
+  new below 12px for readable text. Check: `getComputedStyle(el).fontSize`.
 - **Hierarchy by weight and tone, not new sizes.** Use 700 for the wordmark, 600 for project
-  heads (11px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,
+  heads (12px, `--subtle`: they label a group, the task rows at 14px read first), 500 for kickers,
   400 elsewhere. Use `--ink` > `--muted` > `--subtle` for importance.
 - **No weight change on hover or selection.** Bold widens the label and shifts the row. Mark
-  state with background (`--hover`, `--inset`) or colour instead.
+  state with background (`--hover` for a pointer hover, `--menu` for a selected or cursor row) or
+  colour instead. The two must not match: a selected row one step past `--inset` is what keeps it
+  apart from a hovered one in light themes.
 - **Figures are tabular** (`font-variant-numeric: tabular-nums` is set on `body`). Counts and
   versions must not jitter when they change.
 - **Uppercase tracked labels (`.kicker`) are rare.** At most one per region, and only where the
@@ -109,9 +135,11 @@ Probe: `viewport-stress` for overflow; the rect snippets above for edges.
 
 ## 4. Colour, tokens and themes
 
-- **Tokens only.** Use `--paper`, `--surface`, `--inset`, `--line`, `--line-active`, `--ink`,
+- **Tokens only.** Use `--paper`, `--surface`, `--inset`, `--menu`, `--line`, `--line-active`, `--ink`,
   `--muted`, `--subtle`, `--accent`, `--accent-soft`, `--hover`, `--focus`, `--error`,
-  `--warning`, `--success`, `--info`, `--radius` (8), `--radius-sm` (6), `--mono` and `--sans`.
+  `--warning`, `--success`, `--info`, `--radius` (8), `--radius-sm` (6), `--radius-xs` (4), `--mono`
+  and `--sans`. A radius written as `calc(var(--radius) - Npx)` is a concentric inner corner (outer
+  radius minus the parent's padding), not drift; a literal `rounded-[6px]` is.
   `prefs-theme.ts` remaps every token from the active TUI theme for light and dark at runtime,
   so a raw hex or `rgb()` in a stylesheet goes stale on theme switch. Check:
   `rg -n '#[0-9a-fA-F]{3,8}\b|rgb\(' packages/rove-web/src/*.css` and justify each hit (the
@@ -146,6 +174,21 @@ Probe: `axe-scan` per theme (contrast), `theme-locale-matrix`.
   (probe `layout-shift`), or compare `r(container).height` before and after data lands.
 - **Scroll position survives updates.** A list or terminal does not snap to the bottom or top
   while the user reads. Check: scroll up, wait for a daemon update, and compare `scrollTop`.
+- **An action shows on the click.** A click that changes a task row or a tab strip is drawn before
+  the daemon answers and put back if it is refused. Send it through the model: `model.act(op, args)`
+  for a task op (what it changes is one entry in `EDITS`, `optimistic.ts`), `model.closeTab` /
+  `model.renameTab` for tabs. A raw `client.request("task.archive")` works and shows a round trip
+  plus the next push later: 258ms on localhost before this rule, 2ms after. A new op that changes a
+  row adds its `EDITS` entry in the same PR; `test/act-on-click.test.ts` fails a raw call to a listed
+  op (`// act-ok: <reason>` on the line above excuses one). A page that sends, then reloads
+  (`request` then `reload()`), pays two round trips: edit its own store first and revert on
+  failure, as `setPref` does. Check: time from the click to the row's first DOM change, under 50ms
+  on localhost.
+- **No fixed wait on the way to the screen.** A delay between a change and its draw is sized by
+  the cost it protects, and a change with nothing just before it goes at once. `TaskFeed` rests
+  four times what its last read took (a 2ms read: 8ms), capped at 250ms; a fixed 250ms there once
+  held every change a quarter second. Before adding a `_MS` constant on that path, measure the
+  cost it guards and write the number beside it.
 - **Every control has rest, hover, focus-visible, active and disabled states**, and each step
   is more prominent than rest. A disabled control says why (a title or an adjacent hint).
 
@@ -201,8 +244,10 @@ Probe: `viewport-stress`.
 - **Animate `transform` and `opacity` only**, never `transition: all`. Durations: about 100–160ms
   for a press, 150–250ms for a menu or popover, and 200–300ms for a dialog. High-frequency UI
   (hover, menu highlight) changes instantly.
-- **Respect `prefers-reduced-motion`.** Existing blocks in `styles.css`, `overlays.css` and
-  `settings.css` turn off the press scale; new motion adds itself there.
+- **Respect `prefers-reduced-motion`.** Gate new motion with Tailwind's `motion-safe:` /
+  `motion-reduce:` variants on the element.
+- **Rail rows slide when the task list changes** (`rail-slide.ts`: 180ms, `transform`; a new row
+  fades in). Search, folding and theme changes redraw at once.
 - The rail spinner is a glyph frame from the daemon status, not a CSS animation. It ticks only
   while a row runs (`useSpinnerFrame`).
 
@@ -218,8 +263,19 @@ only last.
   counts, status on a parent row when its children carry it, labels that repeat the heading
   under them, a count with no clear noun, and version or meta strings no one acts on.
 - **Near-duplicate scales and token drift.** Three or more one-off values in one component (a
-  15px font, a 7px radius, an off-palette grey) mean it was built without opening `styles.css`.
+  15px font, a 7px radius, an off-palette grey) mean it was built without opening `tailwind.css`.
 - **Eyebrow and kicker overuse:** more than one uppercase tracked label in a region.
+- **Side stripes.** No coloured 2–4px bar down one edge of a card, row or node (`border-left`,
+  `box-shadow: inset 2px 0 0 …`), least of all on a rounded box where the bar bends round the
+  corner. The owner rejected it as AI slop. Selection is a `--inset` or `--accent-soft` wash;
+  identity is the title. Check: `rg -n 'inset [0-9]px 0 0|border-left(-color)?: ' packages/rove-web/src/*.css`
+  (a pane divider is not a stripe).
+- **Focus rings inside a scroll box.** An `outline` outside a field is clipped by any
+  `overflow: auto` parent (a dialog body) down to a lone coloured underline. A field marks focus on
+  its own border (`.input:focus-visible`); a scroller that holds buttons pads 2px for their ring.
+- **Dashed outlines and cards inside cards.** A box is a solid 1px `--line`/`--line-subtle`
+  border or none. A dashed border reads as a placeholder; a bordered panel inside the bordered
+  `.page` is one frame too many.
 - **Insertion lines for drag and drop.** A drag that reorders shows the rows already in the order
   the drop would leave them: the others slide aside and the dragged row keeps a quiet
   `--accent-soft` wash. Don't use a 1–2px accent line above or below a row, a dashed drop zone or
@@ -254,6 +310,12 @@ only last.
 - **A change on one client is not done** until the other matches or the gap is named in the PR
   and in `docs/web/PARITY.md`. The same goes for light ↔ dark, wide ↔ narrow ↔ phone, local ↔
   remote machine, and `en` ↔ `zh`.
+- **One definition, every layout.** What the wide and narrow layouts both offer (which panel kinds
+  the top bar opens, their names, their icons, which actions a menu has) is defined once and both
+  read it: `LAUNCHED_KINDS` in `panel-layout.ts`, names from `panel.*`, icons from `ICONS`. A
+  narrow-only list or label set is the bug even when it matches today: dropping Chat from the
+  desktop launcher once left it on the phone's switch for exactly that reason. Only the drawing
+  (size, icons vs text, placement) may differ per layout.
 
 ## Rove-specific
 
@@ -263,7 +325,7 @@ spans the bottom. The rail (`rail-view.tsx`) holds the wordmark row (`[ rove ]`,
 kicker, the update chip), `PageNav`, `.rail-body` (project head → task row → tab rows), then the
 `+ New task` row and the fold and grip controls. The workspace has a tab strip, then split
 terminal panes (xterm) or a page (Kanban, Routines, Issues, Settings, Update, Worktrees,
-Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays.css`.
+Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `src/ui/overlay.ts`.
 
 **The owner's settled decisions.** Don't relitigate these. A difference from them is a defect:
 
@@ -276,7 +338,8 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays
 - **Project sections are collapsible**, with a `+` for a new task in that project and **no
   divider rule**, following Claude Desktop's session list (#1371). The name and chevron fold the
   section (kept in `localStorage` `rove.collapsedProjects`); the `+` shows on hover and is
-  centred on the task rows' cloud column (#1378). Project names are small and quiet (600 11px
+  centred on the task rows' rightmost mark: the 11px status dots, or the cloud when a row has one
+  (#1378). Project names are small and quiet (600 12px
   mono, `--subtle`); task rows read first (14px); tab rows sit 6px in (#1375, #1377).
 - **Idle projects are hidden:** a project whose only row is its repo's main task, with no tab
   open and not selected, is not listed; New task still reaches it. Search shows everything.
@@ -285,9 +348,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays
 - **Unknown is not empty:** nothing says "no sessions" before the first tab list arrives.
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.
 - Hover is a neutral wash; the accent is for selection and focus.
-- **Web ↔ TUI parity** is part of done. **Preview-install locally** (`scripts/preview-install.sh`
-  in a clone, restart the daemon and web, hard-reload) before calling anything shipped; never
-  cut a release just so the owner can look.
+- **Web ↔ TUI parity** is part of done. A working rove-web change goes onto the owner's live web
+  (the 7890 bridge from `rove-local-test`) at once, merged or not, then the owner refreshes:
+  `docs/agents/dev-loop.md` § Live web preview. Never cut a release just so the owner can look.
 
 **Running a check.**
 
@@ -296,9 +359,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) live in `overlays
 2. Drive it with the rove browser tools only (`mcp__rove__chrome_navigate`, `_screenshot`,
    `_javascript`, `_read_page`, `_computer`). Don't use the built-in browser pane, and don't pop
    windows that steal focus while the owner works.
-3. **Never touch the owner's global rove:** no restart, upgrade or preview-install over the
-   daemon, and no use of `rove --web` on `127.0.0.1:7878` from a routine. Read it if you must;
-   don't change it.
+3. **The owner's live web on 7890 is the test build:** install there per dev-loop § Live web
+   preview. Leave the `7878` bridge and the installed npm release alone, and never run
+   `scripts/preview-install.sh` over the global install from a routine.
 4. Unit tests: `bun run test` in `packages/rove-web`. Before a PR, from the repo root: `bun run pre-pr -- --body-file <file>`.
 
 ## Workflow
@@ -362,7 +425,6 @@ All read on 2026-10-21. Paraphrased and condensed; no passages copied.
   (no numbering or eyebrows without meaning), spend boldness in one place, the quality floor
   (focus, reduced motion, responsive), and the copy rules (name by user task, one name per
   action, errors give direction).
-- Local: `~/.claude/skills/owner-align/SKILL.md` (the owner's corrections),
-  `.claude/routines/ui-polish-sweep.md`, `packages/rove-web/src/{styles,overlays,taskops}.css`,
-  `rail-view.tsx`, `app.tsx`, `layout.ts`, `prefs-theme.ts`,
-  `packages/rove/src/lib/row-status-glyph.ts`, and `docs/web/PARITY.md`.
+- Local: `packages/rove-web/src/tailwind.css`, `src/ui/`, `rail-view.tsx`, `app.tsx`,
+  `layout.ts`, `prefs-theme.ts`, `packages/rove/src/lib/row-status-glyph.ts`, and
+  `docs/web/PARITY.md`.

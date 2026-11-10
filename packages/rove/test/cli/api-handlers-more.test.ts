@@ -47,16 +47,22 @@ function stubRuntime(): ApiRuntime {
     splitTab: async () => {
       throw new Error("splitTab should not run in this test")
     },
+    reviveTab: async () => {
+      throw new Error("reviveTab should not run in this test")
+    },
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (p) => p,
+    inspectRepo: async (p) => ({ root: p, usable: true }),
     isUsableRepo: async () => true,
     isValidBranchName: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
+    listeningPorts: async () => [],
+    measureCheckout: async () => ({ exists: false, bytes: null, ignoredBytes: null }),
   }
 }
 
@@ -110,14 +116,10 @@ describe("schema drill-ins", () => {
 
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
+      ["spawn", ["api", "add", "--help"], /--no-worktree/],
       ["set-vendor", ["api", "update", "--help"], /update --command/],
       ["set-status", ["api", "update", "--help"], /--status/],
       ["issue-set-status", ["api", "issue-update", "--help"], /--status/],
-      // `archive` died with the archived-task dimension; the rejection must
-      // point at delete AND
-      // say the branch survives — a coordinator closing a round should not
-      // have to guess between delete and --delete-branch.
-      ["archive", ["api", "delete", "--help"], /branch.*survives/s],
     ])("%s fails with UNKNOWN_VERB and the replacement command", async (verb, nextArgs, hintPattern) => {
       const err = await rejectionOf(verb)
       expect(err.code).toBe("UNKNOWN_VERB")
@@ -151,13 +153,21 @@ describe("schema drill-ins", () => {
       "agent-turns",
       "inspect",
       "read-output",
+      "queue-list",
+      "search",
       "watch",
+      "ports",
+      "viewers",
+      "review-comments",
       "worktree-files",
+      "worktree-file",
       "worktree-diff",
       "worktree-diff-file",
+      "worktree-refs",
       "deliveries",
       "should-run",
       "gates",
+      "github-status",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })

@@ -9,14 +9,20 @@ import { useEffect, useState } from "react"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
-import "./taskops.css"
 import { toast } from "./ui.ts"
+import { CHIPS_ROW, CHOICES, FIELD, chipClass } from "./ui/form.ts"
+import { Legend } from "./ui/legend.tsx"
+import { DIALOG_BODY } from "./ui/overlay.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { HINT, INPUT, KICKER } from "./ui/text.ts"
 
 export interface PickerEngine {
   readonly id: string
   readonly name: string
   readonly ready?: boolean
+  readonly enabled?: boolean
   readonly effortLevels?: readonly string[]
   readonly acceptsModel?: boolean
   readonly models?: ReadonlyArray<{ readonly id: string }> | null
@@ -48,8 +54,10 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
       model.client.request<{ engines: PickerEngine[] }>("engines.list"),
       model.client.request<{ task: Current }>("task.get", { taskId }),
     ]).then(([list, got]) => {
-      // The TUI lists detected engines; the task's own stays so it can be re-picked at another level.
-      const usable = list.engines.filter((e) => e.ready !== false || e.id === got.task.engine)
+      // The TUI lists detected, enabled engines; the task's own stays so it can be re-picked at another level.
+      const usable = offeredEngines(list.engines, got.task.engine).filter(
+        (e) => e.ready !== false || e.id === got.task.engine,
+      )
       const start = usable.find((e) => e.id === got.task.engine) ?? usable[0]
       setEngines(usable)
       setCurrent(got.task)
@@ -117,43 +125,43 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
   return (
     <DialogShell title={tc("tasks", "changeEngine.title")} wide>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onKeyDown={onKeyDown}
         onSubmit={(e) => {
           e.preventDefault()
           void apply()
         }}
       >
-        <ul className="choices" aria-label={tc("tasks", "changeEngine.title")}>
+        <ul className={CHOICES} aria-label={tc("tasks", "changeEngine.title")}>
           {engines.map((e) => (
             <li key={e.id}>
               <button
                 type="button"
                 aria-pressed={e.id === pick}
-                className={`row ${e.id === pick ? "is-selected" : ""}`}
+                className={rowClass({ selected: e.id === pick })}
                 onClick={() => choose(e.id)}
               >
-                <span className="glyph tone-accent">{e.id === pick ? "●" : " "}</span>
-                <span className="row-title">{e.name}</span>
-                {e.id === current.engine && <span className="muted">{tc("tasks", "changeEngine.current")}</span>}
+                <span className={`${GLYPH} text-accent`}>{e.id === pick ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{e.name}</span>
+                {e.id === current.engine && <span className="text-muted">{tc("tasks", "changeEngine.current")}</span>}
               </button>
             </li>
           ))}
         </ul>
         {loaded && engine && engine.acceptsModel && (
-          <label className="field">
-            <span className="kicker">{tc("tasks", "engineModel.label")}</span>
+          <label className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("tasks", "engineModel.label")}</span>
             <input
-              className="input"
+              className={INPUT}
               spellCheck={false}
               placeholder={tc("tasks", "engineModel.placeholder")}
               value={modelText}
               onChange={(e) => setModelText(e.target.value)}
             />
             {suggestions.length > 0 && (
-              <div className="chips-row model-suggest">
+              <div className={CHIPS_ROW}>
                 {suggestions.map((id) => (
-                  <button key={id} type="button" className="chip-button" onClick={() => setModelText(id)}>
+                  <button key={id} type="button" className={chipClass()} onClick={() => setModelText(id)}>
                     {id}
                   </button>
                 ))}
@@ -162,15 +170,15 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
           </label>
         )}
         {choices.length > 0 && (
-          <div className="field">
-            <span className="kicker">{tc("tasks", "changeEngine.effortLabel")}</span>
-            <div className="chips-row">
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("tasks", "changeEngine.effortLabel")}</span>
+            <div className={CHIPS_ROW}>
               {choices.map((level) => (
                 <button
                   key={level || "default"}
                   type="button"
                   aria-pressed={level === effort}
-                  className={`chip-button ${level === effort ? "is-active" : ""}`}
+                  className={chipClass(level === effort)}
                   onClick={() => setEffort(level)}
                 >
                   {level === "" ? tc("tasks", "changeEngine.noEffort") : level}
@@ -179,16 +187,18 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
             </div>
           </div>
         )}
-        <p className="muted taskops-hint">
-          {[
-            tc("tasks", "changeEngine.footer.engine"),
-            ...(engine?.acceptsModel ? [tc("tasks", "changeEngine.footer.model")] : []),
-            ...(choices.length > 0 ? [tc("tasks", "changeEngine.footer.effort")] : []),
-            tc("tasks", "changeEngine.footer.set"),
-            tc("tasks", "changeEngine.footer.cancel"),
-          ].join(" · ")}
+        <p className={`keys-only ${HINT}`}>
+          <Legend
+            text={[
+              tc("tasks", "changeEngine.footer.engine"),
+              ...(engine?.acceptsModel ? [tc("tasks", "changeEngine.footer.model")] : []),
+              ...(choices.length > 0 ? [tc("tasks", "changeEngine.footer.effort")] : []),
+              tc("tasks", "changeEngine.footer.set"),
+              tc("tasks", "changeEngine.footer.cancel"),
+            ].join(" · ")}
+          />
         </p>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy || !loaded} submitLabel={t("taskops.set")} />
       </form>
     </DialogShell>

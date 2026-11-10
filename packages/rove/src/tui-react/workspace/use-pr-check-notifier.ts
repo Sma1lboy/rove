@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from "react"
 import { checkResolutionNotify } from "../../monitor/pr-status"
+import { rollupPr } from "../../orchestrator/task-tree"
 import type { PRCheckState, Task } from "../../types/task"
 import type { NotificationsContext } from "../context/notifications"
 import { useT } from "../i18n"
@@ -27,7 +28,8 @@ export function usePrCheckNotifier(args: {
   useEffect(() => {
     const next = new Map<string, PRCheckState>()
     for (const task of args.tasks) {
-      const state = task.prStatus?.checkState
+      const pr = rollupPr(task)
+      const state = pr?.checkState
       if (state === undefined) continue
       next.set(task.id, state)
       const landed = checkResolutionNotify(prev.current.get(task.id), state)
@@ -40,7 +42,7 @@ export function usePrCheckNotifier(args: {
           title: task.title,
         }),
         body: t.current("tasks.toast.checksResolvedBody", {
-          pr: task.prStatus?.number === undefined ? "—" : `#${task.prStatus.number}`,
+          pr: pr?.number === undefined ? "—" : `#${pr.number}`,
           branch: task.branch || "—",
         }),
       })

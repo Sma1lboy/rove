@@ -141,13 +141,13 @@ describe("buildTreeRows", () => {
     expect(treeFlatIds(result)).toEqual(["s", "m"])
   })
 
-  test("recent sort reorders regular worktrees by updatedAt while keeping main first", () => {
+  test("recent sort reorders regular worktrees newest-created first while keeping main first", () => {
     const result = rows({
       sortMode: "recent",
       tasks: [
-        task("older", { repo: "/repos/rove", updatedAt: "2026-08-01T00:00:00.000Z" }),
+        task("older", { repo: "/repos/rove", createdAt: "2026-08-01T00:00:00.000Z" }),
         task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
-        task("newer", { repo: "/repos/rove", updatedAt: "2026-08-02T00:00:00.000Z" }),
+        task("newer", { repo: "/repos/rove", createdAt: "2026-08-02T00:00:00.000Z" }),
       ],
     })
     expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
@@ -335,19 +335,6 @@ describe("a project closed down to nothing", () => {
       tabsByTask: new Map([["m", [tab("t1")]]]),
     })
     expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
-  })
-
-  test("keeps a project that has worktree tasks, even with every tab closed", () => {
-    // The worktree rows are how you get back to that work — losing them would
-    // strand the branches. Only the main-only case hides.
-    const out = rows({
-      tasks: [mainOf("/repos/rove"), task("a", { repo: "/repos/rove" })],
-      tabsByTask: new Map([
-        ["m", []],
-        ["a", []],
-      ]),
-    })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
   })
 
   test("hiding one project does not disturb the others", () => {

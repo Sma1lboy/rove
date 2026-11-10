@@ -5,9 +5,11 @@
  * the size cap.
  */
 
-import type { AttentionInboxItem } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { AttentionInboxItem, TaskPRStatus } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import {
   type RowTokenMap,
@@ -16,7 +18,7 @@ import {
 } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { DEFAULT_GLYPHS } from "@sma1lboy/rove/src/tui/lib/glyphs.ts"
 import { prChip } from "@sma1lboy/rove/src/tui/panes/sidebar/row-chips.ts"
-import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow } from "./protocol.ts"
+import type { AttentionRow, MachineTag, PrChipKind, RowChanges, RowTokenChip, TaskRow, TaskRowPr } from "./protocol.ts"
 import type { EngineRow } from "./rove-ops.ts"
 
 /** Name a task's engine from the registry: its exact preset, else its protocol's builtin. */
@@ -33,6 +35,8 @@ export function engineFor(task: SerializedTask, engines: readonly EngineRow[]): 
 export interface RowExtras {
   readonly changes: WorktreeChangesMap | null
   readonly tokens: RowTokenMap
+  /** taskId → row name (`rowLabels`); a task not in it reads its stored title. */
+  readonly labels?: ReadonlyMap<string, string>
 }
 
 /** `worktree.changes` for one row: absent when not collected (never zeros), `unreadable` for a tracked path git could not read. */
@@ -67,6 +71,35 @@ const PR_CHIP_BY_GLYPH: Record<string, PrChipKind> = {
 function prChipKind(task: SerializedTask): PrChipKind | null {
   const chip = prChip(task as unknown as Parameters<typeof prChip>[0])
   return chip ? (PR_CHIP_BY_GLYPH[chip.glyph] ?? null) : null
+}
+
+/** A polled PR status as the wire carries it. */
+function rowPr(pr: TaskPRStatus): TaskRowPr {
+  return {
+    ...(pr.number !== undefined ? { number: pr.number } : {}),
+    ...(pr.url ? { url: pr.url } : {}),
+    ...(pr.title ? { title: pr.title } : {}),
+    ...(pr.additions !== undefined ? { additions: pr.additions } : {}),
+    ...(pr.deletions !== undefined ? { deletions: pr.deletions } : {}),
+    lifecycle: pr.lifecycle,
+    checkState: pr.checkState,
+    ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),
+    ...(pr.mergeable ? { mergeable: pr.mergeable } : {}),
+  }
+}
+
+/** The PRs a task's session attached: polled ones as `pr` is built, the rest `unknown` until the first poll. */
+function sessionPrRows(task: SerializedTask): TaskRowPr[] {
+  return (task.sessionPrs ?? []).map((entry) => {
+    if (entry.status) return rowPr({ ...entry.status, url: entry.status.url ?? entry.url })
+    const number = Number(entry.url.match(/\/pull\/(\d+)$/)?.[1])
+    return {
+      ...(Number.isInteger(number) ? { number } : {}),
+      url: entry.url,
+      lifecycle: "unknown",
+      checkState: "unknown",
+    }
+  })
 }
 
 /**
@@ -167,8 +200,9 @@ export function taskRows(
   return context.tasks.flatMap((row): TaskRow[] => {
     const task = byId.get(row.taskId)
     if (!task) return []
-    const pr = task.prStatus
+    const pr = rollupPr(task)
     const changes = rowChanges(extras?.changes ?? null, task.worktreePath)
+    const sessionPrs = sessionPrRows(task)
     const tokens = rowTokenChips(extras?.tokens, task.id, now)
     const chip = prChipKind(task)
     const daemon = status?.tasks[task.id]
@@ -176,7 +210,9 @@ export function taskRows(
       {
         id: task.id,
         title: task.title,
+        label: extras?.labels?.get(task.id) ?? task.title,
         branch: task.branch,
+        ownsBranch: workspaceCapabilities(task).ownsBranch,
         repo: task.repo,
         kind: task.kind ?? "task",
         status: task.status,
@@ -185,33 +221,43 @@ export function taskRows(
         activity: row.activity ? { ...row.activity, since: now - row.activity.forMs } : null,
         ...(daemon ? { rowStatus: daemon.task, tabStatus: daemon.tabs } : {}),
         engine: engineFor(task, engines),
-        pr: pr
-          ? {
-              ...(pr.number !== undefined ? { number: pr.number } : {}),
-              ...(pr.url ? { url: pr.url } : {}),
-              lifecycle: pr.lifecycle,
-              checkState: pr.checkState,
-              ...(pr.reviewDecision ? { reviewDecision: pr.reviewDecision } : {}),
-              ...(pr.mergeable ? { mergeable: pr.mergeable } : {}),
-            }
-          : null,
+        pr: pr ? rowPr(pr) : null,
+        ...(sessionPrs.length > 0 ? { sessionPrs } : {}),
         report: task.report ? { summary: task.report.summary ?? "", at: task.report.at } : null,
         deleting: task.deletion?.phase === "queued" || task.deletion?.phase === "running",
         pinned: task.pinned === true,
+        ...(task.groupId ? { groupId: task.groupId } : {}),
+        ...(task.kept ? { kept: true } : {}),
+        ...(task.autoFixCi
+          ? {
+              autoFixCi: {
+                attempts: task.autoFixCi.attempts,
+                ...(task.autoFixCi.stopped ? { stopped: true as const } : {}),
+              },
+            }
+          : {}),
+        ...(task.notes ? { notes: task.notes } : {}),
+        ...(task.todos ? { todos: task.todos } : {}),
+        ...(task.archived ? { archived: true } : {}),
         ...(task.routine ? { routine: true } : {}),
+        ...(task.scratch ? { scratch: true } : {}),
+        ...(task.noProject ? { noProject: true } : {}),
         order: orderOf.get(task.id) ?? 0,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         ...machineOf(task),
         ...(task.repoId ? { repoId: task.repoId } : {}),
+        ...(task.extraRepos?.length ? { extraRepoCount: task.extraRepos.length } : {}),
         ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
+        ...(task.baseRef ? { baseRef: task.baseRef } : {}),
         ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
         ...(changes ? { changes } : {}),
         ...(tokens.length > 0 ? { rowTokens: tokens } : {}),
         prChip: chip,
         ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
+        ...(task.scheduledStart ? { startsAt: task.scheduledStart.at } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
-        ...(task.worktreePath ? {} : { noWorktree: true as const }),
+        ...(task.worktreePath ? { workspace: task.worktreePath } : { noWorktree: true as const }),
       },
     ]
   })

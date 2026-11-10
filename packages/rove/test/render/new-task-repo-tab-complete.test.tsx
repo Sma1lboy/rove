@@ -68,13 +68,20 @@ function stopsTo(target: Field, tab: DialogTab = "existing"): number {
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, tab, {
       intentVisible: false,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
     if (field === target) return i
   }
   throw new Error(`the focus chain never reaches ${target}`)
+}
+/** Enter on the branch field moves to the first-message field; Enter there creates. */
+async function commit(h: { mockInput: { pressEnter: () => void } }) {
+  for (let i = 0; i < 2; i++) {
+    act(() => h.mockInput.pressEnter())
+    await settle()
+  }
 }
 const TO_REPO = stopsTo("repo")
 
@@ -132,8 +139,9 @@ test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async (
   // advanced instead of completing, focus would sit on Create with `zeph` in
   // the repo box and this would fail validation rather than submit.
   await pressTab(h)
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  // The other saved repo is offered as an extra: a stop between the repo and the branch.
+  await pressTab(h)
+  await commit(h)
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(zephyr)
   act(() => h.destroy())
@@ -151,8 +159,7 @@ test("Tab still advances when the dropdown has nothing to offer", async () => {
   await settle()
 
   await pressTab(h)
-  act(() => h.mockInput.pressEnter())
-  await settle()
+  await commit(h)
   // Focus reached `from branch`, whose Enter commits — and the invalid repo
   // is refused there, on screen, instead of the key vanishing.
   expect(h.submitted).toHaveLength(0)

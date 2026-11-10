@@ -20,7 +20,7 @@ suspend fun RoveRepository.repoDigest(repo: String, sinceDays: Int): DigestResul
 suspend fun RoveRepository.turnsList(repo: String, sinceDays: Int, limit: Int = 50): TurnsResult =
     wireJson.decodeFromJsonElement(bridge.request("turns.list", args("repo" to repo, "sinceDays" to sinceDays, "limit" to limit)))
 
-/** Posts a public GitHub Discussion; returns its URL when the reply carries one (the reply is otherwise arbitrary JSON). */
+/** Files a public GitHub issue; returns its URL when the reply carries one (the reply is otherwise arbitrary JSON). */
 suspend fun RoveRepository.sendFeedback(title: String, body: String): String? =
     (bridge.request("feedback.send", args("title" to title, "body" to body))["url"] as? JsonPrimitive)?.contentOrNull
 
@@ -57,3 +57,14 @@ object NotificationPrefs {
     fun asked(context: Context) = prefs(context).getBoolean(ASKED, false)
     fun markAsked(context: Context) = prefs(context).edit().putBoolean(ASKED, true).apply()
 }
+
+/** Asks the registry through the Mac, past the bridge's cache. Read-only: installing stays a command on the Mac. */
+suspend fun RoveRepository.checkForUpdate(locale: String, channel: String?): UpdateCheck =
+    wireJson.decodeFromJsonElement(bridge.request("update.check",
+        if (channel != null) args("force" to true, "locale" to locale, "channel" to channel) else args("force" to true, "locale" to locale)))
+
+/** The Mac's own settings, shared with the TUI: `rove update` follows the channel. */
+suspend fun RoveRepository.updatePrefs(): UpdatePrefs =
+    wireJson.decodeFromJsonElement(bridge.request("prefs.get").getValue("prefs"))
+suspend fun RoveRepository.setUpdateChannel(channel: String) { bridge.request("prefs.set", args("key" to "updateChannel", "value" to channel)) }
+suspend fun RoveRepository.setUpdateNotify(notify: Boolean) { bridge.request("prefs.set", args("key" to "updateNotify", "value" to notify)) }

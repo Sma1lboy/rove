@@ -128,7 +128,8 @@ async function asSession(taskId: string, tabId: string, opts?: { detached?: bool
   await verifiedSelfSession({ ROVE_TASK_ID: taskId, ROVE_TAB_ID: tabId }, probeFor(`${taskId}::${tabId}`, opts))
 }
 
-const created = (client: FakeClient): unknown => client.requests.find((r) => r.name === "task.create")?.payload
+const created = (client: FakeClient): unknown =>
+  client.requests.find((r) => r.name === "task.create" || r.name === "task.spawn")?.payload
 
 describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
   it("add sends the caller's task + tab to task.create", async () => {
@@ -322,7 +323,12 @@ describe("a migrated child's PTY env names its parent", () => {
   const alias = { taskId: "parent", tabId: "tab-3" }
   const listed = () => ({ tasks: [taskFixture({ id: "parent" }), taskFixture({ id: "child", ptyAlias: alias })] })
   const createClient = () =>
-    new FakeClient({ "task.list": listed, "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
+    new FakeClient({
+      "task.list": listed,
+      "task.create": () => ({ taskId: "t1", task: taskFixture() }),
+      // Both children sit in the caller's own repo, so `add` nests and cuts from the tip.
+      "task.spawn": () => ({ taskId: "t1", task: taskFixture(), parentDirty: false, sharedLinks: [] }),
+    })
 
   it("stamps the child that lives in the PTY as the dispatcher, on its own tab", async () => {
     await asSession("parent", "tab-3")

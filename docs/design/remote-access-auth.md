@@ -1,10 +1,16 @@
 # Remote access: auth model and guided setup
 
-> Status: **design draft.** Steps 1–2 of "Order of work" have landed: the ssh
-> failure classifier, host-key confirmation and `roveBin`, then guided
-> `machine add` / `machine doctor` (`machines/setup.ts`) with the hub key and
-> `install` fixes. Tailscale SSH detection and the resident prompt are not
-> done; steps 3–5 are not implemented. Companion to
+> Status: **design draft, mostly landed.** Shipped: the ssh failure
+> classifier, host-key confirmation and `roveBin` (A4); guided `machine add` /
+> `machine doctor` (`machines/setup.ts`) with the hub key and `install` fixes;
+> per-device bridge tokens (A1: `rove --web --device`, `--list-devices`,
+> `--revoke-device`); the runner inbound policy (A3: `rove machine inbound`);
+> and the stdio transport (`rove daemon relay`). Not done: the restricted hub
+> key (A5, [MACHINES.md](../MACHINES.md#what-this-release-does-not-do-yet)),
+> Tailscale SSH detection, the resident prompt and the peer-uid check (A6).
+> The "Today" table and the first three gaps below describe the state before
+> that work.
+> Companion to
 > [workspace-runner.md](./workspace-runner.md): a hub that dispatches to
 > machines makes "who may run what where" and "how do I get this working"
 > two halves of one problem. Decisions marked **OPEN** need the owner.
@@ -23,7 +29,7 @@ What runner routing (`machines/forward.ts`) changed: daemon access was always
 power over **every** registered machine, and so does anyone holding the hub's
 bridge token.
 
-## Gaps, in order of cost/benefit
+## Gaps, in order of cost/benefit (gaps 1–3 are closed; kept as the record of why)
 
 1. **No per-device credential.** One bridge token for every phone and
    browser. You can't revoke one device or tell which one ran `delete`.

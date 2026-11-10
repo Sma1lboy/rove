@@ -99,7 +99,13 @@ export function outcomeFields(outcome: PromptWriteOutcome | null): {
  */
 export async function deliverHostedPrompt(
   rpc: PtyHostRpc,
-  target: { readonly id: string; readonly engineBin?: string; readonly scope?: PtyScope },
+  target: {
+    readonly id: string
+    readonly engineBin?: string
+    readonly scope?: PtyScope
+    /** The task's engine never started and this prompt starts it: live shell tabs are not a conflict. */
+    readonly firstConversation?: boolean
+  },
   cwd: string,
   prompt: string,
   launch: EngineSessionLaunch,
@@ -147,7 +153,7 @@ export async function deliverHostedPrompt(
   // Spawn only when no session is alive; an unidentified alive tab means a
   // duplicate engine the receiver never sees. Fail loud.
   const aliveTabs = sessions.filter((s) => s.alive && isTaskKey(s.key, target.id)).map((s) => s.key)
-  if (aliveTabs.length > 0) {
+  if (aliveTabs.length > 0 && !target.firstConversation) {
     throw new ApiError(
       `task ${target.id} has live tabs (${aliveTabs.join(", ")}) but none resolves as its engine tab — refusing to spawn a new engine`,
       "NO_ENGINE_TAB",

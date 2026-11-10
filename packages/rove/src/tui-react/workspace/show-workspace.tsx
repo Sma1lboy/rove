@@ -8,7 +8,8 @@ import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { remoteKeyForRepo } from "../../exec/resolve.ts"
-import { taskCwd } from "../../orchestrator/task-tree.ts"
+import { taskCwd, taskRepos } from "../../orchestrator/task-tree.ts"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -17,7 +18,7 @@ import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
 import { EmptyWorkspacePane } from "./empty-workspace-pane"
-import type { ChildSpawnRequest } from "./quick-fork"
+import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
 import { RemoteTerminalTabs } from "./remote-terminal-tabs"
 import { useViewingReport } from "./row-status-sync"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
@@ -37,7 +38,7 @@ export function ShowWorkspace(props: {
   onEnginePasteReady: (paste: (text: string) => boolean) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
   onSpawnChild: (request: ChildSpawnRequest) => void
-  onQuickFork: (repo: string, result: QuickTaskResult) => void
+  onQuickFork: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   initialPrompt?: string
   /** The user landed on a tab of the selected task; resolve its episodes. */
   onTabVisited?: (taskId: string, tabId: string) => void
@@ -47,6 +48,8 @@ export function ShowWorkspace(props: {
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** The ctrl+e picker landed on an engine — persist it and toast the result. */
   onEngineChosen?: (taskId: string, vendor: VendorId) => Promise<void>
+  /** Open the Settings page on `section` (a dead engine's "Settings → Engines"). */
+  onOpenSettings?: (section: SectionId) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
@@ -120,9 +123,13 @@ export function ShowWorkspace(props: {
         focused={props.focused}
         vendor={props.task.vendor}
         command={props.task.command}
+        onSpawnChild={props.onSpawnChild}
       />
     )
   }
+  // Only a task that really spans several repos exposes them; a one-repo sharer launches as before.
+  const taskReposView = props.task ? taskRepos(props.task, tasks) : undefined
+  const taskReposIfMulti = taskReposView && taskReposView.length > 1 ? taskReposView : undefined
   return (
     // The center column IS the engine: an in-process PTY running the real
     // CLI, never re-rendered by Rove. Keyed by TASK, not path: two tasks can
@@ -131,6 +138,7 @@ export function ShowWorkspace(props: {
     // unaffected (registry keys are `taskId::tabId`).
     <TerminalTabs
       key={props.task?.id ?? path}
+      repos={taskReposIfMulti}
       taskId={props.task?.id ?? path}
       worktree={path}
       repo={props.task?.repo}
@@ -168,6 +176,7 @@ export function ShowWorkspace(props: {
       onEnginePasteReady={props.onEnginePasteReady}
       onDiffTabReady={props.onDiffTabReady}
       onSpawnChild={props.onSpawnChild}
+      onOpenSettings={props.onOpenSettings}
       onQuickFork={props.onQuickFork}
       initialPrompt={props.initialPrompt}
       // Hook-driven per-tab engine state: the sub-second chip/notification

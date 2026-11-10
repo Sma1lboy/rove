@@ -88,7 +88,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
     scope: "sidebar",
     keys: ["d"],
     category: "Sidebar",
-    description: "Delete task (with confirm)",
+    description: "Remove session (with confirm)",
     hint: { keys: "d" },
   },
   {

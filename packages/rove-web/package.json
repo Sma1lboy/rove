@@ -7,14 +7,15 @@
   "packageManager": "bun@1.3.13",
   "scripts": {
     "dev": "vite dev --port 5180 --strictPort",
-    "build": "vite build",
+    "build": "vite build && bun scripts/build-relay-shell.ts",
     "test": "bun test test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-search": "0.16.0",
+    "@xterm/addon-serialize": "^0.14.0",
     "@xterm/addon-unicode11": "^0.9.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/addon-webgl": "^0.19.0",
@@ -23,12 +24,15 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@hsinsekai-nanami/client": "0.2.4",
     "@sma1lboy/rove": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "1.3.14",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.4",
-    "rove-bridge": "0.0.29",
+    "rove-bridge": "0.0.45",
+    "tailwindcss": "^4.3.3",
     "typescript": "5.8.2",
     "vite": "^8.2.2"
   }

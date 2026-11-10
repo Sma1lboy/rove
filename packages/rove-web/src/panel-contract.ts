@@ -1,0 +1,79 @@
+/**
+ * The side panel's side of `rove api panel-show` and `rove api viewers`, as plain functions: what the
+ * page reports about its panel (`ui.viewing`), and what a `panel` push asks of it. The stores they act
+ * on live in `panel-state.ts` and `panel-report.ts`.
+ */
+
+import type { PanelKind } from "./panel-model.ts"
+import { type TaskPanel, showBrowser, showDiff, showFile, showKind } from "./panel-model.ts"
+
+/** The `panel` push the bridge sends for `rove api panel-show`. */
+export interface PanelPush {
+  readonly taskId: string
+  readonly view: PanelKind
+  /** Browser view: an absolute http(s) address. */
+  readonly url?: string
+  /** Files and Diff views: a file relative to the task's worktree. */
+  readonly path?: string
+  /** Publish time (ms epoch). */
+  readonly at: number
+}
+
+const VIEWS: readonly unknown[] = ["files", "diff", "browser"] satisfies readonly PanelKind[]
+
+export function isPanelPush(data: unknown): data is PanelPush {
+  if (!data || typeof data !== "object") return false
+  const p = data as Record<string, unknown>
+  return (
+    typeof p.taskId === "string" &&
+    p.taskId !== "" &&
+    VIEWS.includes(p.view) &&
+    typeof p.at === "number" &&
+    (p.url === undefined || typeof p.url === "string") &&
+    (p.path === undefined || typeof p.path === "string")
+  )
+}
+
+/**
+ * What `ui.viewing` says about the panel. A narrow page has none (its Files / Diff / Browser are
+ * full-pane views); a desktop page has one that zen hides.
+ */
+export function panelFields(layout: { narrow: boolean; panelOpen: boolean; zen: boolean }) {
+  return layout.narrow
+    ? { panel: false, panelOpen: false, narrow: true }
+    : { panel: true, panelOpen: layout.panelOpen && !layout.zen, narrow: false }
+}
+
+/** What to do with a `panel` push on this page. */
+export interface PanelPlan {
+  /** The kind of view this task's panel will show: a path is the File column with `--view files`, else the Diff column. */
+  readonly tab: PanelKind
+  /** The Browser's address for the task. */
+  readonly url?: string
+  /** The file the File or Diff column opens. */
+  readonly path?: string
+  /** Open the panel now: this page is on the task and has a side panel. */
+  readonly show: boolean
+}
+
+/**
+ * Every page remembers the view for the task; only a page that is on the task, with a side panel,
+ * opens it, and it never moves to another task or takes focus.
+ */
+export function planPanelPush(push: PanelPush, here: { taskId: string | null; narrow: boolean }): PanelPlan {
+  // A path with `--view files` is the file itself; otherwise its diff.
+  const tab: PanelKind = push.path ? (push.view === "files" ? "file" : "diff") : push.view
+  return {
+    tab,
+    ...(push.view === "browser" && push.url ? { url: push.url } : {}),
+    ...(push.view !== "browser" && push.path ? { path: push.path } : {}),
+    show: here.taskId === push.taskId && !here.narrow,
+  }
+}
+
+/** The panel after a push: an address finds or opens its Browser tab, a path retargets the File or Diff column, a kind alone opens its column. */
+export function applyPlan(panel: TaskPanel, plan: PanelPlan): TaskPanel {
+  if (plan.url) return showBrowser(panel, plan.url)
+  if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path) : showDiff(panel, plan.path, "working")
+  return showKind(panel, plan.tab)
+}

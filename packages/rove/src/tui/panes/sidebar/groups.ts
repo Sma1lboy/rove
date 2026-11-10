@@ -68,7 +68,7 @@ export function buildRows(
   }
   // Projects keep tasks.json (save) order so the list never reshuffles on its
   // own; a sort reorders tasks only. Manual reorder goes through `moveTask`.
-  const compare = sortMode === "recent" ? compareRecent : sortMode === "name" ? compareName : null
+  const compare = sortMode === "recent" ? compareNewest : sortMode === "name" ? compareName : null
   if (compare) {
     pinnedRegular.sort(compare)
     regular.sort(compare)
@@ -88,6 +88,16 @@ export function buildRows(
     flatIndex++
   }
   return rows
+}
+
+/**
+ * Newest-created first: the `recent` sort. Not `updatedAt`, which also moves on bookkeeping
+ * (a first open, a PR poll) and would reorder rows under a click.
+ */
+export function compareNewest(a: Task, b: Task): number {
+  const byTime = Date.parse(b.createdAt) - Date.parse(a.createdAt)
+  if (Number.isFinite(byTime) && byTime !== 0) return byTime
+  return String(b.id).localeCompare(String(a.id))
 }
 
 /** Most-recently-touched first. Shared with the Inbox's RECENT section. */
@@ -142,6 +152,11 @@ function isLocalTask(task: Pick<Task, "origin">): boolean {
   return (task.origin?.machineId ?? "local") === "local"
 }
 
+/** A task that sits in the "Ungrouped" group: a scratch shell or a projectless routine's dir. */
+export function isNoProjectTask(task: Task): boolean {
+  return task.kind === "dir" && (task.scratch === true || task.noProject === true)
+}
+
 /**
  * One project per REPO across machines, the way the web rail merges by
  * `repoId`: every checkout (machine + path) whose tasks name the same
@@ -160,7 +175,7 @@ export function sidebarProjectKeyResolver(tasks: readonly Task[]): ProjectKeyOf 
   const counted = tasks.filter((task) => {
     const phase = task.deletion?.phase
     if (phase === "queued" || phase === "running") return false
-    return !(task.kind === "dir" && task.scratch === true)
+    return !isNoProjectTask(task)
   })
   // A checkout's repoId: the first of its tasks that carries one (the web's `groupByProject`).
   const repoIdOf = new Map<string, string>()
@@ -347,8 +362,7 @@ export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSection
  * a new rendered field MUST be added here or it renders stale.
  *
  * Excludes `createdAt`/`updatedAt`/`prStatus`: unrendered, and `updatedAt`
- * bumps on every `setActiveTask` touch, which would re-key the row on each
- * switch. `recent` ordering still sees `updatedAt` (in `buildRows`), and an
+ * moves on every real mutation, which would re-key the row each time. An
  * order change breaks reuse via `flatIndex`.
  */
 export function sameSidebarRowTask(a: Task, b: Task): boolean {

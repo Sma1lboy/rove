@@ -183,9 +183,10 @@ describe("offersProjectIntent", () => {
 })
 
 describe("nextField / firstFieldFor (per-tab field cycling)", () => {
-  it("cycles the existing tab: tabs → engine → repo → baseRef → confirm → tabs", () => {
+  it("cycles the existing tab: tabs → engine → repo → baseRef → prompt → confirm → tabs", () => {
     expect(nextField("repo", "existing")).toBe("baseRef")
-    expect(nextField("baseRef", "existing")).toBe("confirm")
+    expect(nextField("baseRef", "existing")).toBe("prompt")
+    expect(nextField("prompt", "existing")).toBe("confirm")
     expect(nextField("confirm", "existing")).toBe("tabs")
     expect(nextField("tabs", "existing")).toBe("engine")
     expect(nextField("engine", "existing")).toBe("repo")

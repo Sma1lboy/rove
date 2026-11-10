@@ -5,7 +5,7 @@
  */
 
 import type { RowTokenMap, TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import { type BoxRenderable, MouseButton, type RGBA } from "@opentui/core"
+import { type BoxRenderable, MouseButton } from "@opentui/core"
 import type { ReactNode } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
@@ -14,10 +14,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** One cell per depth level: the rail is narrow and the glyph column already separates levels. */
-const INDENT_CELLS = 1
-/** The task-colour mark; it takes the indent's last cell, so it never pushes the label. */
-const TASK_MARK = "▎"
+/** Indent cells at `depth`: none for a top-level task (its glyph sits under the project header), then two per level, so a child's glyph sits under its parent's title. */
+const indentOf = (depth: number): string => (depth > 1 ? " ".repeat((depth - 1) * 2) : "")
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -41,8 +39,6 @@ export type TreeRowShared = {
   readonly onToggleFold?: (taskId: string) => void
   /** Bumps when a git poll lands a changed value; rows re-render to read it. */
   readonly branchTick: number
-  /** Task rollup activity; only the closed routines fold reads it, for rows it hides. */
-  readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
@@ -59,8 +55,8 @@ export type TreeRowShared = {
  */
 export function treeLabelBudget(shared: TreeRowShared, reserved: number): number {
   const width = shared.width ?? SIDEBAR_WIDTH
-  // marker (1) + indent (1) + paddingRight (1) = 3 cells every row spends.
-  return Math.max(6, width - 3 - reserved)
+  // marker (1) + paddingRight (1) = 2 cells every row spends.
+  return Math.max(6, width - 2 - reserved)
 }
 
 /** Cells one right-cluster glyph occupies: itself plus the row's 1-cell gap. */
@@ -87,8 +83,6 @@ export function RowShell(props: {
   readonly flatIndex: number
   readonly depth: number
   readonly shared: TreeRowShared
-  /** The row's task colour (`useTaskColor`); absent keeps a plain indent. */
-  readonly mark?: RGBA
   readonly children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -124,15 +118,11 @@ export function RowShell(props: {
       <text fg={selection.markerColor} wrapMode="none">
         {selection.marker}
       </text>
-      {props.mark && props.depth > 0 ? (
-        <text fg={props.mark} wrapMode="none" flexShrink={0}>
-          {`${" ".repeat(props.depth * INDENT_CELLS - 1)}${TASK_MARK}`}
-        </text>
-      ) : (
+      {props.depth > 1 ? (
         <text wrapMode="none" flexShrink={0}>
-          {" ".repeat(props.depth * INDENT_CELLS)}
+          {indentOf(props.depth)}
         </text>
-      )}
+      ) : null}
       {props.children}
     </box>
   )

@@ -7,7 +7,7 @@
 
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
-import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { ensureDaemonReachable, restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
 import type { TaskDeleteOptions } from "@sma1lboy/rove-daemon/daemon/child-contracts"
 import type { RepoIssues } from "@sma1lboy/rove-daemon/daemon/issues-store"
@@ -275,12 +275,12 @@ export class RemoteOrchestrator {
   readonly daemonRestartingSignal = (): ReadableState<boolean> => this.daemonRestartingAcc
 
   /**
-   * Stop the daemon for a restart so it reloads code from disk (the half of
-   * a build skew relaunching this process can't fix). Best-effort: a gone or
-   * wedged daemon is covered by the caller's relaunch, which spawns one.
+   * Restart the daemon so it reloads code from disk (the half of a build skew
+   * relaunching this process can't fix), on the build installed here. Best-effort:
+   * a failure is covered by the caller's relaunch, which spawns one.
    */
   async restartDaemon(): Promise<void> {
-    await this.client.request("daemon.stop", { reason: "restart" }).catch(() => {})
+    await restartDaemon().catch(() => {})
   }
 
   readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> => this.engineStateAcc
@@ -397,6 +397,8 @@ export class RemoteOrchestrator {
     writes.openDirectoryTaskOp(this.client, input)
   adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
     writes.adoptScratchRepoOp(this.client, id, repo)
+  moveTaskToProject = (id: TaskId | string, repo: string): Promise<{ repo: string; moved: readonly string[] }> =>
+    writes.moveTaskToProjectOp(this.client, id, repo)
   ensureWorktree = (id: TaskId | string): Promise<string> => writes.ensureWorktreeOp(this.client, id)
   forgetProject = (repo: string): Promise<void> => writes.forgetProjectOp(this.client, repo)
   setTitle = (id: TaskId | string, title: string): Promise<void> => writes.setTitleOp(this.client, id, title)
@@ -406,6 +408,8 @@ export class RemoteOrchestrator {
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     writes.setCommandOp(this.client, id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => writes.setPinnedOp(this.client, id, pinned)
+  archiveTask = (id: TaskId | string, archived: boolean, force?: boolean): Promise<void> =>
+    writes.archiveTaskOp(this.client, id, archived, force)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => writes.moveTaskOp(this.client, id, delta)
   moveTaskToTop = (id: TaskId | string): Promise<void> => writes.moveTaskToTopOp(this.client, id)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)

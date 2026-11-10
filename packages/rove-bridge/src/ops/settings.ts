@@ -18,6 +18,7 @@ import {
 } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
+import { FEEDBACK_KINDS, isFeedbackKind } from "@sma1lboy/rove/src/lib/feedback.ts"
 import {
   type PluginRowView,
   readPluginRows,
@@ -30,7 +31,6 @@ import { bool, flag, optText, tabId, taskId, text } from "./args.ts"
 import type { OpTable } from "./types.ts"
 
 const PLUGIN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-const CATEGORY = /^[a-z0-9][a-z0-9-]{0,39}$/
 
 export interface SettingsDeps {
   readonly usage: UsageStore
@@ -166,15 +166,16 @@ export function createSettingsOps(deps: SettingsDeps): OpTable {
     },
     "feedback.send": {
       kind: "write",
-      // A public GitHub Discussion cannot be unsent.
+      // A GitHub issue is public and cannot be unsent.
       destructive: true,
-      wraps: "rove api feedback (GitHub Discussion in the Rove repo's Feedback category, via gh)",
+      wraps: "rove api feedback (GitHub issue on the Rove repo via gh; a prefilled new-issue link when gh cannot file)",
       run(args, { api }) {
         const argv = [flag("title", text(args, "title", 200).trim()), flag("body", text(args, "body", 10_000))]
-        const category = optText(args, "category", 40)
-        if (category !== undefined) {
-          if (!CATEGORY.test(category)) throw new BridgeError("BAD_ARGS", "category is not a category slug")
-          argv.push(flag("category", category))
+        const kind = optText(args, "kind", 16)
+        if (kind !== undefined) {
+          if (!isFeedbackKind(kind))
+            throw new BridgeError("BAD_ARGS", `kind must be one of ${FEEDBACK_KINDS.join(", ")}`)
+          argv.push(flag("kind", kind))
         }
         return api.verb("feedback", argv)
       },

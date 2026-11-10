@@ -5,7 +5,12 @@
  */
 
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
-import type { TaskRow } from "rove-bridge/protocol"
+import type { TabRow, TaskRow } from "rove-bridge/protocol"
+import { t } from "./i18n/index.ts"
+import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
+import { mergedLabel, repoLabel } from "./rail-labels.ts"
+import { attemptLabels, roundKey, roundTitle, roundsAmong } from "./rail-rounds.ts"
+import type { RailState } from "./rail-states.ts"
 
 export type SortMode = "default" | "recent" | "attention" | "name"
 /** `t` cycles in this order, like `use-sidebar-host-state.ts`. */
@@ -22,6 +27,8 @@ export interface ProjectGroup {
   readonly key?: string
   /** The machine `repo` lives on; absent = this one. */
   readonly machine?: string
+  /** The "Ungrouped" group: Scratch shells and projectless routine runs, never a repo. */
+  readonly noProject?: true
 }
 
 /** A row from another machine carries its alias, so its menu and keys run there. */
@@ -43,6 +50,7 @@ export type NavRow =
       readonly kind: "project"
       readonly repo: string
       readonly label: string
+      readonly noProject?: true
     })
   | (Remote & {
       readonly id: string
@@ -54,102 +62,138 @@ export type NavRow =
       readonly level?: number
       /** Set on a task with children: how many descendants, and whether they are folded away. */
       readonly fold?: RowFold
+      /** An attempt under a round header: the engine it ran on stands in for its title. */
+      readonly attempt?: string
     })
-  /** One row folding a project's routine sessions (`tree-core.ts` `routines`); `key` names the fold in `expandedRoutines`. */
+  /** The header of a parallel round: its attempts (rows with one `groupId`) nest one level under it (`rail-rounds.ts`). */
   | (Remote & {
       readonly id: string
-      readonly kind: "routines"
-      readonly repo: string
-      readonly key: string
+      readonly kind: "round"
+      readonly groupId: string
+      readonly title: string
+      /** The attempts shown under it, for the count and the status rolled up into the header. */
       readonly tasks: readonly TaskRow[]
-      readonly expanded: boolean
+      readonly depth: number
     })
+  /** A section header of the by-state list: its rows (every top-level task in that state, with its subtree) follow (`rail-states.ts`). */
+  | (Remote & {
+      readonly id: string
+      readonly kind: "state"
+      readonly state: RailState
+      readonly label: string
+      /** The tasks listed under it, folded or not. */
+      readonly count: number
+    })
+  /** One pane of a split tab, a quiet row one level under its task (`rail-panes.ts`). */
+  | (Remote & {
+      readonly id: string
+      readonly kind: "pane"
+      readonly task: TaskRow
+      readonly tab: TabRow
+      readonly leaf: string
+      readonly label: string
+      readonly depth: number
+    })
+  /** The fold at the end of the rail holding every archived task (`rail-archived.ts`). */
+  | {
+      readonly id: typeof ARCHIVED_ROW_ID
+      readonly kind: "archived"
+      readonly machine?: undefined
+      readonly count: number
+      readonly expanded: boolean
+    }
 
-const taskTime = (task: TaskRow): number => {
-  const parsed = Date.parse(task.updatedAt ?? task.createdAt ?? "")
+/** A parent with more children than this starts folded (the TUI's `AUTO_FOLD_CHILDREN`). */
+export const AUTO_FOLD_CHILDREN = 5
+
+/** Which parents are folded: the user's choices over the automatic rule. */
+export interface FoldState {
+  /** Folded by hand. */
+  readonly folded: ReadonlySet<string>
+  /** Opened by hand: stays open however many children it has. */
+  readonly opened: ReadonlySet<string>
+  /** The selected task: an automatic fold never hides it. */
+  readonly selectedId?: string
+}
+
+const NO_FOLDS: FoldState = { folded: new Set(), opened: new Set() }
+
+const stamp = (iso: string | undefined): number => {
+  const parsed = Date.parse(iso ?? "")
   return Number.isFinite(parsed) ? parsed : 0
 }
+const taskTime = (task: TaskRow): number => stamp(task.updatedAt ?? task.createdAt)
+/**
+ * The `recent` sort: newest-created first. Not `updatedAt`, which also moves on bookkeeping
+ * (a first open, a PR poll) and would reorder rows under a click.
+ */
+const createdTime = (task: TaskRow): number => stamp(task.createdAt)
+const compareNewest = (a: TaskRow, b: TaskRow): number => createdTime(b) - createdTime(a) || b.id.localeCompare(a.id)
 // `groups.ts` compareRecent / compareName (not importable here: `@/` paths).
 const compareRecent = (a: TaskRow, b: TaskRow): number => taskTime(b) - taskTime(a) || b.id.localeCompare(a.id)
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 const compareName = (a: TaskRow, b: TaskRow): number =>
-  collator.compare(a.title.trim(), b.title.trim()) || a.id.localeCompare(b.id)
+  collator.compare(a.label.trim(), b.label.trim()) || a.id.localeCompare(b.id)
 /** `rank` is the bridge's task-group rank (needs a person next first), as `compareTaskGroup`. */
 const compareAttention = (a: TaskRow, b: TaskRow): number => a.rank - b.rank || compareRecent(a, b)
 
 const COMPARE: Record<SortMode, ((a: TaskRow, b: TaskRow) => number) | null> = {
   default: null,
-  recent: compareRecent,
+  recent: compareNewest,
   attention: compareAttention,
   name: compareName,
 }
 
-export const routinesRowId = (key: string): string => `~routines:${key}`
+/** The one "Ungrouped" group's key and row id suffix: the TUI's `~scratch`, stable across clients. */
+export const NO_PROJECT_KEY = "~scratch"
 
-export const repoLabel = (repo: string): string => repo.split("/").filter(Boolean).pop() ?? repo
+/** A directory task with no project of its own: a Scratch shell or a projectless routine's run. */
+export const isNoProject = (task: TaskRow): boolean =>
+  task.kind === "dir" && (task.scratch === true || task.noProject === true)
 
-/** A repo as the label rules see it: its path plus the host it lives on (`""` = this Mac). */
-export interface LabelledRepo {
-  readonly repo: string
-  readonly host: string
+/** `tasks` in the rail's order for `sort`: manual order, then a project's main and pinned rows first, then the sort. */
+export function orderTasks(tasks: readonly TaskRow[], sort: SortMode): TaskRow[] {
+  return [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank)).sort(headFirst(COMPARE[sort]))
 }
-
-/**
- * `groups.ts` `sidebarProjectLabel` (not importable here: `@/` paths): the narrowest unique header label.
- * A basename unique on screen reads `rove`; shared on one machine, the last two segments (`gihub/rove`);
- * shared only with another machine, `host:basename` (`narwhal:rove`), the local one keeping the bare name.
- */
-export function projectLabel(repo: string, repos: readonly LabelledRepo[], host = ""): string {
-  const base = repoLabel(repo)
-  const collisions = repos.filter(
-    (entry) => (entry.repo !== repo || entry.host !== host) && repoLabel(entry.repo) === base,
-  )
-  if (collisions.length === 0) return base
-  const tailOf = (path: string) => path.split("/").filter(Boolean).slice(-2).join("/")
-  if (collisions.some((entry) => entry.host === host)) {
-    const tailRepeats = collisions.some((entry) => entry.host !== host && tailOf(entry.repo) === tailOf(repo))
-    return tailRepeats && host ? `${host}:${tailOf(repo)}` : tailOf(repo)
-  }
-  return host ? `${host}:${base}` : base
-}
-
 export function groupByProject(tasks: readonly TaskRow[], sort: SortMode = "default"): ProjectGroup[] {
   const ordered = [...tasks].sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
   const groups = new Map<string, TaskRow[]>()
   for (const task of ordered) {
-    const list = groups.get(task.repo)
-    // The project's main checkout heads its group, whatever the sort.
-    if (list) task.kind === "main" ? list.unshift(task) : list.push(task)
-    else groups.set(task.repo, [task])
+    // Never keyed by directory: every no-project task is one group.
+    const bucket = isNoProject(task) ? NO_PROJECT_KEY : task.repo
+    const list = groups.get(bucket)
+    if (list) list.push(task)
+    else groups.set(bucket, [task])
   }
   const compare = COMPARE[sort]
-  return [...groups].map(([repo, rows]) => {
+  const built = [...groups].map(([bucket, rows]): ProjectGroup => {
+    const sorted = rows.sort(headFirst(compare))
+    if (bucket === NO_PROJECT_KEY && rows.every(isNoProject)) {
+      return { repo: "", label: t("rail.noProject"), tasks: sorted, key: NO_PROJECT_KEY, noProject: true }
+    }
     const repoId = rows.find((task) => task.repoId)?.repoId
     return {
-      repo,
-      label: repoLabel(repo),
-      tasks: compare ? rows.sort(mainFirst(compare)) : rows,
+      repo: bucket,
+      label: repoLabel(bucket),
+      tasks: sorted,
       ...(repoId ? { repoId } : {}),
     }
   })
+  // Ungrouped sits above every project.
+  return [...built.filter((group) => group.noProject), ...built.filter((group) => !group.noProject)]
 }
 
-/** The project's main checkouts head its group, whatever the sort. */
-const mainFirst =
-  (compare: (a: TaskRow, b: TaskRow) => number) =>
+/** A project's main checkout heads its group, then its pinned tasks, whatever the sort (TUI `buildRows`). */
+const tier = (task: TaskRow): number => (task.kind === "main" ? 0 : task.pinned ? 1 : 2)
+
+/** Stable, so manual order holds within each tier. */
+const headFirst =
+  (compare: ((a: TaskRow, b: TaskRow) => number) | null) =>
   (a: TaskRow, b: TaskRow): number =>
-    (a.kind === "main") === (b.kind === "main") ? compare(a, b) : a.kind === "main" ? -1 : 1
+    tier(a) - tier(b) || (compare ? compare(a, b) : 0)
 
 /** Indent stops growing here; a deeper row keeps this depth and shows its real level (TUI `MAX_TREE_DEPTH`). */
 export const MAX_ROW_DEPTH = 3
-
-/** `shared` = runs in its parent's directory, `worktree` = its own checkout; null for a task nobody spawned. */
-export type ChildMarker = "shared" | "worktree"
-
-export function childMarkerOf(task: TaskRow): ChildMarker | null {
-  if (task.parentTaskId === undefined) return null
-  return task.sharesWorkspaceOf === undefined ? "worktree" : "shared"
-}
 
 /** True when `task`'s parent chain comes back to `task`. */
 function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
@@ -163,10 +207,10 @@ function loopsBack(task: TaskRow, byId: ReadonlyMap<string, TaskRow>): boolean {
 
 /**
  * Children nest under their parent wherever it sits, another project's included. One whose parent is
- * not on screen (or whose lineage loops) stays top level; routine sessions stay in their fold.
+ * not on screen (or whose lineage loops) stays top level.
  * Children keep list order (`tree-core.ts` `indexChildren`).
  */
-function indexChildren(groups: readonly ProjectGroup[]): {
+export function indexChildren(groups: readonly ProjectGroup[]): {
   children: ReadonlyMap<string, readonly TaskRow[]>
   nested: ReadonlySet<string>
 } {
@@ -176,7 +220,7 @@ function indexChildren(groups: readonly ProjectGroup[]): {
   const nested = new Set<string>()
   for (const task of byId.values()) {
     const parent = task.parentTaskId
-    if (parent === undefined || task.routine || !byId.has(parent) || loopsBack(task, byId)) continue
+    if (parent === undefined || !byId.has(parent) || loopsBack(task, byId)) continue
     nested.add(task.id)
     const siblings = children.get(parent)
     if (siblings) siblings.push(task)
@@ -193,16 +237,25 @@ function descendantIds(children: ReadonlyMap<string, readonly TaskRow[]>, id: st
   return out
 }
 
+/** The user's choice wins; otherwise a crowded parent folds, unless the selected task sits under it. */
+function isFolded(id: string, childCount: number, descendants: readonly string[], fold: FoldState): boolean {
+  if (fold.folded.has(id)) return true
+  if (fold.opened.has(id) || childCount <= AUTO_FOLD_CHILDREN) return false
+  return fold.selectedId === undefined || !descendants.includes(fold.selectedId)
+}
+
 /**
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
  * matched on its own; a project hit keeps its whole subtree, a task hit its
- * children, a child hit its parents and project. A task in `collapsedTasks` hides its children.
+ * children, a child hit its parents and project. A folded task (`fold`) hides its children.
+ * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
  */
 export function navRows(
   groups: readonly ProjectGroup[],
   query = "",
-  expandedRoutines: ReadonlySet<string> = new Set(),
-  collapsedTasks: ReadonlySet<string> = new Set(),
+  fold: FoldState = NO_FOLDS,
+  base = 0,
+  rounds = true,
 ): NavRow[] {
   const q = query.trim()
   const hit = (...fields: string[]) => fields.some((f) => f !== "" && fuzzyMatch(q, f))
@@ -212,17 +265,17 @@ export function navRows(
     const projectHit = q === "" || hit(group.label)
     const head: Remote = group.machine === undefined ? {} : { machine: group.machine }
     const key = group.key ?? group.repo
-    const selfHit = (task: TaskRow) => projectHit || hit(task.title, task.branch, repoLabel(task.repo))
+    const selfHit = (task: TaskRow) => projectHit || hit(task.label, task.title, task.branch, repoLabel(task.repo))
     // A task survives the filter on its own hit or a descendant's.
     const hasHit = (task: TaskRow): boolean => selfHit(task) || (children.get(task.id) ?? []).some(hasHit)
     // A task, then its children one level deeper each.
-    const push = (out: NavRow[], task: TaskRow, generation: number, inherited = false): void => {
+    const push = (out: NavRow[], task: TaskRow, generation: number, inherited = false, attempt?: string): void => {
       const level = generation + 1
       const remote: Remote = task.machine ? { machine: task.machine.id } : {}
       const kids = children.get(task.id)
       const ids = kids ? descendantIds(children, task.id) : []
       // A search shows everything, so a folded parent stays open under it (the TUI's rule).
-      const folded = kids !== undefined && q === "" && collapsedTasks.has(task.id)
+      const folded = kids !== undefined && q === "" && isFolded(task.id, kids.length, ids, fold)
       out.push({
         id: task.id,
         kind: "task",
@@ -230,37 +283,54 @@ export function navRows(
         depth: Math.min(level, MAX_ROW_DEPTH),
         ...(level > MAX_ROW_DEPTH ? { level } : {}),
         ...(kids ? { fold: { count: ids.length, collapsed: folded, descendantIds: ids } } : {}),
+        ...(attempt === undefined ? {} : { attempt }),
         ...remote,
       })
       const open = inherited || selfHit(task)
       if (folded) return
-      for (const child of kids ?? []) if (open || hasHit(child)) push(out, child, generation + 1, open)
+      pushAll(
+        out,
+        (kids ?? []).filter((child) => open || hasHit(child)),
+        generation + 1,
+        open,
+      )
+    }
+    // Sibling rows in order; the attempts of a round gather under one header at the first one's place.
+    const pushAll = (out: NavRow[], siblings: readonly TaskRow[], generation: number, inherited: boolean): void => {
+      const byRound = rounds ? roundsAmong(siblings) : new Map<string, TaskRow[]>()
+      const placed = new Set<string>()
+      for (const task of siblings) {
+        const key = roundKey(task)
+        const members = key === null ? undefined : byRound.get(key)
+        if (key === null || !members) {
+          push(out, task, generation, inherited)
+          continue
+        }
+        if (placed.has(key)) continue
+        placed.add(key)
+        const first = members[0]
+        if (!first) continue
+        const level = generation + 1
+        out.push({
+          id: `round:${first.machine?.id ?? ""}:${first.groupId}`,
+          kind: "round",
+          groupId: first.groupId ?? "",
+          title: roundTitle(members),
+          tasks: members,
+          depth: Math.min(level, MAX_ROW_DEPTH),
+          ...(first.machine ? { machine: first.machine.id } : {}),
+        })
+        const labels = attemptLabels(members)
+        for (const member of members) push(out, member, generation + 1, inherited, labels.get(member.id))
+      }
     }
     const under: NavRow[] = []
-    const routines: TaskRow[] = []
-    const routineRows: NavRow[] = []
-    for (const task of group.tasks) {
-      if (nested.has(task.id) || !hasHit(task)) continue
-      // Routine sessions are the tail of the group: a count row folds them.
-      if (task.routine) {
-        routines.push(task)
-        push(routineRows, task, 0)
-      } else push(under, task, 0)
-    }
-    if (routines.length > 0) {
-      // Search builds fully open, so a folded routine stays findable.
-      const expanded = q !== "" || expandedRoutines.has(key)
-      under.push({
-        id: routinesRowId(key),
-        kind: "routines",
-        repo: group.repo,
-        key,
-        tasks: routines,
-        expanded,
-        ...head,
-      })
-      if (expanded) under.push(...routineRows)
-    }
+    pushAll(
+      under,
+      group.tasks.filter((task) => !nested.has(task.id) && hasHit(task)),
+      base,
+      false,
+    )
     if (under.length === 0 && !projectHit) continue
     rows.push(
       {
@@ -268,6 +338,7 @@ export function navRows(
         kind: "project",
         repo: group.repo,
         label: group.label,
+        ...(group.noProject ? { noProject: true as const } : {}),
         ...head,
       },
       ...under,
@@ -285,12 +356,11 @@ export interface RailInput {
   readonly machines: readonly { readonly alias: string; readonly hostLabel: string }[]
   readonly sort: SortMode
   readonly query: string
-  readonly routines: ReadonlySet<string>
-  /** Task ids whose children are folded away; absent = all open. */
-  readonly folded?: ReadonlySet<string>
+  /** Parents the user folded or opened over the automatic rule; absent = automatic only. */
+  readonly fold?: FoldState
 }
 
-const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(taskTime))
+const newest = (group: ProjectGroup): number => Math.max(0, ...group.tasks.map(createdTime))
 
 /** One machine's checkout of a project: a per-path group plus the machine it lives on (absent = this one). */
 interface Part {
@@ -299,29 +369,6 @@ interface Part {
 }
 
 type Project = ProjectGroup
-
-/** `owner/name` of a `host/owner/name` id; a `root:` id has no readable name. */
-const repoIdTail = (id: string): string | null => (id.startsWith("root:") ? null : id.split("/").slice(-2).join("/"))
-
-/**
- * The repo's basename, widened only when a DIFFERENT project shares it: a repo id reads `owner/name`
- * (the whole id when even that repeats), a path-only project its path tail ({@link projectLabel} with
- * every checkout as one host): the header never names a machine, the rows' cloud marks do.
- */
-function mergedLabel(project: Project, all: readonly Project[]): string {
-  const base = repoLabel(project.repo)
-  const others = all.filter((other) => other !== project && repoLabel(other.repo) === base)
-  if (others.length === 0) return base
-  const id = project.repoId
-  const tail = id ? repoIdTail(id) : null
-  if (id && tail) {
-    return others.some((other) => other.repoId && other.repoId !== id && repoIdTail(other.repoId) === tail) ? id : tail
-  }
-  return projectLabel(
-    project.repo,
-    [project, ...others].map((entry) => ({ repo: entry.repo, host: "" })),
-  )
-}
 
 /**
  * The whole rail as ONE list of projects from every machine, the way Claude Desktop lists sessions
@@ -334,11 +381,14 @@ function mergedLabel(project: Project, all: readonly Project[]): string {
  * per-path projects, labelled as their headers.
  */
 export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGroup[] } {
+  // Routine runs live on the Routines page, not in the rail.
+  const tasks = input.tasks.filter((task) => !task.routine)
+  const remote = input.remote.filter((task) => !task.routine)
   const parts: Part[] = [
-    ...groupByProject(input.tasks, input.sort).map((group) => ({ group })),
+    ...groupByProject(tasks, input.sort).map((group) => ({ group })),
     ...input.machines.flatMap((machine) =>
       groupByProject(
-        input.remote.filter((task) => task.machine?.id === machine.alias),
+        remote.filter((task) => task.machine?.id === machine.alias),
         input.sort,
       ).map((group) => ({ group, machine: machine.alias })),
     ),
@@ -346,7 +396,9 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   const buckets = new Map<string, Part[]>()
   for (const part of parts) {
     const { repoId, repo } = part.group
-    const key = repoId ?? (part.machine === undefined ? repo : `${part.machine}\0${repo}`)
+    const key = part.group.noProject
+      ? NO_PROJECT_KEY
+      : (repoId ?? (part.machine === undefined ? repo : `${part.machine}\0${repo}`))
     const bucket = buckets.get(key)
     if (bucket) bucket.push(part)
     else buckets.set(key, [part])
@@ -358,27 +410,29 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
     const head = bucket[0]
     if (!head) continue
     const all = bucket.flatMap((part) => part.group.tasks)
+    const noProject = head.group.noProject === true
     const project: Project = {
       repo: head.group.repo,
-      label: "",
+      label: noProject ? head.group.label : "",
       key,
-      tasks:
-        bucket.length === 1
-          ? head.group.tasks
-          : compare
-            ? all.sort(mainFirst(compare))
-            : [...all.filter((task) => task.kind === "main"), ...all.filter((task) => task.kind !== "main")],
+      tasks: bucket.length === 1 ? head.group.tasks : all.sort(headFirst(compare)),
       ...(head.group.repoId ? { repoId: head.group.repoId } : {}),
-      ...(head.machine === undefined ? {} : { machine: head.machine }),
+      // The group acts on no machine: its header has no menu or +.
+      ...(head.machine === undefined || noProject ? {} : { machine: head.machine }),
+      ...(noProject ? { noProject: true as const } : {}),
     }
     projects.push(project)
     for (const part of bucket) projectOf.set(part, project)
   }
-  const labels = new Map(projects.map((project) => [project, mergedLabel(project, projects)]))
+  const labels = new Map(
+    projects.map((project) => [project, project.noProject ? project.label : mergedLabel(project, projects)]),
+  )
   const labelled = projects.map((project) => ({ ...project, label: labels.get(project) ?? project.label }))
   if (input.sort === "recent") labelled.sort((a, b) => newest(b) - newest(a))
   if (input.sort === "name") labelled.sort((a, b) => collator.compare(a.label, b.label))
-  const rows = navRows(labelled, input.query, input.routines, input.folded)
+  // Ungrouped stays above every project, whatever the sort.
+  labelled.sort((a, b) => Number(b.noProject === true) - Number(a.noProject === true))
+  const rows = navRows(labelled, input.query, input.fold)
   const groups = parts
     .filter((part) => part.machine === undefined)
     .map((part) => {
@@ -388,54 +442,19 @@ export function railRows(input: RailInput): { rows: NavRow[]; groups: ProjectGro
   return { rows, groups }
 }
 
-/**
- * How many `task.move` steps take `from` to `to`'s place, in the daemon's move partition
- * (`movePartition`): all mains (projects), or one repo's tasks with the same pin. Null across partitions.
- */
-export function dragSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow): number | null {
-  const main = from.kind === "main"
-  const same = (task: TaskRow) =>
-    main ? task.kind === "main" : task.kind !== "main" && task.repo === from.repo && !task.pinned === !from.pinned
-  if (from.id === to.id || !same(to)) return null
-  const ids = tasks
-    .filter(same)
-    .sort((a, b) => (a.order ?? a.rank) - (b.order ?? b.rank))
-    .map((task) => task.id)
-  return ids.indexOf(to.id) - ids.indexOf(from.id)
+export function tabLabel(tab: TabRow): string {
+  return tab.title ?? tab.engineName ?? (tab.kind === "engine" ? t("tab.engine") : t("tab.shell"))
 }
 
-export type DropSide = "above" | "below"
-
-/** {@link dragSteps} for a drop that lands right above or right below `to`. */
-export function dropSteps(tasks: readonly TaskRow[], from: TaskRow, to: TaskRow, side: DropSide): number | null {
-  const steps = dragSteps(tasks, from, to)
-  if (steps === null) return null
-  if (side === "above" && steps > 0) return steps - 1
-  if (side === "below" && steps < 0) return steps + 1
-  return steps
-}
-
-/** A row's nesting level: a project 0, its tasks and routine count 1, a child task one deeper per generation. */
-const depthOf = (row: NavRow | undefined): number =>
-  row === undefined || row.kind === "project" ? 0 : row.kind === "task" ? row.depth : 1
-
-/** Where the block starting at `i` (the row and every row nested under it) ends. */
-export function blockEnd(rows: readonly NavRow[], i: number): number {
-  const depth = depthOf(rows[i])
-  let end = i + 1
-  while (end < rows.length && depthOf(rows[end]) > depth) end++
-  return end
-}
-
-/** `rows` with the dragged row's block moved right above or below the target's block, as it would land. */
-export function previewDrop(rows: readonly NavRow[], fromId: string, toId: string, side: DropSide): readonly NavRow[] {
-  const from = rows.findIndex((row) => row.id === fromId)
-  if (from < 0 || fromId === toId) return rows
-  const end = blockEnd(rows, from)
-  const block = rows.slice(from, end)
-  const rest = [...rows.slice(0, from), ...rows.slice(end)]
-  const to = rest.findIndex((row) => row.id === toId)
-  if (to < 0) return rows
-  const at = side === "above" ? to : blockEnd(rest, to)
-  return [...rest.slice(0, at), ...block, ...rest.slice(at)]
+/** The rows under a collapsed project header drop out until the next header. */
+export function foldProjects(rows: readonly NavRow[], collapsed: ReadonlySet<string>): readonly NavRow[] {
+  if (collapsed.size === 0) return rows
+  let hiding = false
+  return rows.filter((row) => {
+    if (row.kind === "project" || row.kind === "state") {
+      hiding = collapsed.has(row.id)
+      return true
+    }
+    return !hiding
+  })
 }

@@ -57,6 +57,8 @@ export function useWorkspaceSelection(args: {
   const focusRestoredRef = useRef(false)
   const userPickedRef = useRef(false)
   const bootFocusRef = useRef(false)
+  // The selected id while it was listed (not archived, not deleting); null otherwise.
+  const liveSelectedRef = useRef<string | null>(null)
   // Adopt the daemon's first restored focus, but never let later sibling-client
   // events yank a task the local user already selected.
   useEffect(() => {
@@ -73,6 +75,20 @@ export function useWorkspaceSelection(args: {
     if (!bootFocusRef.current && !userPickedRef.current && selectedId && tasks.some((task) => task.id === selectedId)) {
       bootFocusRef.current = true
       args.focusWorkspace()
+    }
+    // Archiving the open task moves off it, as a delete does. Opening an
+    // archived task from the fold is no change, so that one stays open.
+    const selected = selectedId ? tasks.find((task) => task.id === selectedId) : undefined
+    const wasLive = selectedId !== null && liveSelectedRef.current === selectedId
+    liveSelectedRef.current = selected && selected.archived !== true && !selected.deletion ? selectedId : null
+    if (wasLive && selected?.archived === true) {
+      setSelectedId(
+        firstSelectableTask(
+          tasks.filter((task) => task.archived !== true),
+          null,
+        )?.id ?? null,
+      )
+      return
     }
     // A deleting task is NOT selectable: keeping it selected keeps its
     // Terminal mounted, which answers the sweep's kill with a dead-on-attach RESUME.

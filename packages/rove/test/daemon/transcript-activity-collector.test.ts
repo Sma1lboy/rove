@@ -59,7 +59,8 @@ function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {
 }
 
 /** Cadence with a zero floor so every tick is immediately eligible. */
-const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0 }
+// durationFactor 0: these tests tick again at once, and a run that took 1 ms must not decline that tick.
+const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0, durationFactor: 0 }
 
 /** Let the collector's fire-and-forget probe completions settle. */
 async function settle(): Promise<void> {

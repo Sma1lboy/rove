@@ -7,7 +7,8 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { worktreeDiff, worktreeDiffFile, worktreeFiles } from "../../worktree/review-read.ts"
+import { readPreviewFile } from "../../worktree/file-read.ts"
+import { worktreeDiff, worktreeDiffFile, worktreeFiles, worktreeRefs } from "../../worktree/review-read.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
@@ -34,6 +35,23 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     handler: async (ctx) => ({ files: await worktreeFiles((await taskWorktree(ctx)).path) }),
   },
   {
+    name: "worktree-file",
+    group: "read",
+    summary:
+      "Read one previewable file of a task's worktree for a client to render: markdown, HTML, SVG, PNG/JPEG/GIF/WebP or PDF, at most 5 MB. Returns { path, mime, size, base64 }. Confined: a worktree-relative path whose real path (symlinks resolved) stays inside the worktree, else BAD_ARGS; any other type is NOT_PREVIEWABLE, a larger file TOO_LARGE. Runs where the worktree lives, so it reads a task on another registered machine too.",
+    flags: [
+      F.taskId(),
+      {
+        name: "path",
+        type: "string",
+        required: true,
+        placeholder: "PATH",
+        description: "Worktree-relative file path; absolute or `..` paths are refused.",
+      },
+    ],
+    handler: async (ctx) => readPreviewFile((await taskWorktree(ctx)).path, ctx.args.require("path")),
+  },
+  {
     name: "worktree-diff",
     group: "read",
     summary:
@@ -48,7 +66,7 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     name: "worktree-diff-file",
     group: "read",
     summary:
-      "One changed file's preview in a task's worktree: its uncommitted diff (`--scope working`) or its whole branch diff against the base (`--scope branch`). Returns the Files pane's preview data (diff hunks, or the file for a code/binary view).",
+      "One changed file's preview in a task's worktree: its uncommitted diff (`--scope working`), its committed diff against the base (`--scope branch`) or everything since the base, uncommitted and untracked work included (`--scope task`). Returns the Files pane's preview data (diff hunks, or the file for a code/binary view).",
     flags: [
       F.taskId(),
       {
@@ -61,15 +79,40 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
       {
         name: "scope",
         type: "enum",
-        values: ["branch", "working"],
+        values: ["branch", "working", "task"],
         required: true,
-        description: "`working` = uncommitted changes; `branch` = everything since the base.",
+        description:
+          "`working` = uncommitted changes; `branch` = commits since the base; `task` = commits and uncommitted work since the base.",
+      },
+      {
+        name: "base",
+        type: "string",
+        placeholder: "REF",
+        description:
+          "With `--scope task`: compare against this branch, tag or commit instead of the task's base. Refused (`BAD_REF`) when it is not a commit in the repository.",
+      },
+      {
+        name: "ignore-whitespace",
+        type: "bool",
+        description: "Diff with `git diff -w`: whitespace-only changes drop out. Off by default.",
       },
     ],
     handler: async (ctx) => {
       const wt = await taskWorktree(ctx)
-      const scope = ctx.args.require("scope") === "branch" ? "branch" : "working"
-      return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef)
+      const asked = ctx.args.require("scope")
+      const scope = asked === "branch" || asked === "task" ? asked : "working"
+      return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef, {
+        ignoreWhitespace: ctx.args.bool("ignore-whitespace") === true,
+        ...(ctx.args.str("base") ? { base: ctx.args.str("base") as string } : {}),
+      })
     },
+  },
+  {
+    name: "worktree-refs",
+    group: "read",
+    summary:
+      "What a task's diff can be compared against: its repository's local branches, remote branches and tags, plus the worktree branch's recent commits. Returns { branches, remotes, tags, commits[{ sha, subject }] }.",
+    flags: [F.taskId()],
+    handler: async (ctx) => worktreeRefs((await taskWorktree(ctx)).path),
   },
 ]

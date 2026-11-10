@@ -5,8 +5,9 @@ import type { SkipVerdict } from "./runnability-contracts.ts"
 
 export type DeliverySource = "routine" | "send" | "gate-answer"
 
-/** `skipped` is written only by the should-run layer. */
-export type DeliveryStatus = "awaiting" | "reported" | "missing" | "skipped"
+/** `skipped` is written only by the should-run layer. `quiet`: a routine turn ended with no
+ *  report, which a routine reads as "nothing to report" (no Inbox row, no hold on the next run). */
+export type DeliveryStatus = "awaiting" | "reported" | "missing" | "skipped" | "quiet"
 
 export type DeliveryOutcome = "done" | "partial" | "blocked" | "failed"
 
@@ -21,6 +22,8 @@ export type DeliveryMissingCause =
   | "session-end"
   /** The engine hit its quota; quota-resume continues the turn, so no Inbox row. */
   | "rate-limited"
+  /** The connection dropped or the provider 5xx'd: the next tick is the retry, so it does not block one. */
+  | "transient-failure"
 
 export interface DeliveryReport {
   readonly outcome: DeliveryOutcome
@@ -50,6 +53,8 @@ export interface Delivery {
   /** First `turn-start` seen after arming. A turn end before this belongs to
    *  an earlier prompt the engine was still working on. */
   readonly turnStartedAt?: string
+  /** When that turn ended; a later turn on the tab is not this delivery's. */
+  readonly turnEndedAt?: string
   /** Why the expectation failed; set with status `missing`. */
   readonly missing?: { readonly cause: DeliveryMissingCause; readonly note?: string; readonly at: string }
   readonly report?: DeliveryReport

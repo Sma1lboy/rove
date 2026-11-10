@@ -9,7 +9,7 @@
  * multi-repo warm hits matter.
  */
 
-import { resolveLoginShell } from "./platform-shell.js"
+import { resolveSessionShell } from "./platform-shell.js"
 import type { PtySessionState, PtySpawnSpec } from "./pty-host-types.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
@@ -31,7 +31,7 @@ export class WarmSpare {
    * `onSessionStart` so it never cancels the host's idle-exit.
    */
   warm(cwd: string, shell?: string, cols = 80, rows = 24): void {
-    const argv0 = shell ?? resolveLoginShell()
+    const argv0 = shell ?? resolveSessionShell()
     if (this.spare?.alive && this.spare.cwd === cwd && this.spare.command[0] === argv0) return
     const old = this.spare
     this.spare = null
@@ -47,7 +47,7 @@ export class WarmSpare {
   adopt(key: string, spec: PtySpawnSpec): PtySessionState | null {
     const spare = this.spare
     if (!spare?.alive || spare.cwd !== spec.cwd) return null
-    const want = spec.command && spec.command.length > 0 ? spec.command : [spec.shell ?? resolveLoginShell()]
+    const want = spec.command && spec.command.length > 0 ? spec.command : [spec.shell ?? resolveSessionShell()]
     if (want.length !== 1 || want[0] !== spare.command[0]) return null
     this.spare = null
     spare.key = key

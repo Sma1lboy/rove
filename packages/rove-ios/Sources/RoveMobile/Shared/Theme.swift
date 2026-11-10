@@ -42,7 +42,7 @@ enum Theme {
     })
     static let success = dyn(0x5F8C49, 0x9ACA86)
     /// Failures only — terracotta never means error.
-    static let error = dyn(0xB65742, 0xD47563)
+    static let error = dyn(0xB65742, 0xEC6F74)
     /// Quota at 75%+ and routine runs that were missed; palette `yellow` (packages/branding colors.ts).
     /// Not an error and not terracotta: it asks for a look, never for action.
     static let warning = dyn(0xB08A2F, 0xE8C96B)
@@ -70,8 +70,8 @@ enum Theme {
         /// ANSI 0–15: the claude-theme xterm palette the harness photographs
         /// (rove-harness/src/lib/harness-terminal.ts); color 0 is the terminal background.
         static let ansi: [UInt32] = [
-            Hex.paperDark, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xD4967E, Hex.mutedDark,
-            0x6B665F, 0xD47563, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xE0AB96, Hex.inkDark,
+            Hex.paperDark, 0xEC6F74, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xD4967E, Hex.mutedDark,
+            0x6B665F, 0xEC6F74, 0x9ACA86, 0xE8C96B, 0x61AAF2, 0x9B87F5, 0xE0AB96, Hex.inkDark,
         ]
     }
 

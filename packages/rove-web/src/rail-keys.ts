@@ -8,25 +8,26 @@ import type { KeyboardEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
-import { enterWorkspace } from "./layout.ts"
+import { enterWorkspace, openCompare, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode, moveRow } from "./move-mode.ts"
+import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
+import { offeredEngines } from "./new-session.ts"
+import { focusActiveTerminal } from "./pane-focus.ts"
 import { railCursorTask } from "./rail-aim.ts"
-import { type NavRow, SORT_MODES, type SortMode } from "./rail.ts"
+import { openPane } from "./rail-pane-row.tsx"
+import { cycleRailSort, railSort } from "./rail-sort.ts"
+import type { NavRow } from "./rail.ts"
 import { taskMenu } from "./row-actions.tsx"
-import { findBinding, page, toast } from "./ui.ts"
+import { useStore } from "./store.ts"
+import { tc } from "./tui-copy.ts"
+import { findBinding, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
 
-const SORT_KEY = "rove.activeSortMode"
 const COLLAPSED_KEY = "rove.collapsedProjects"
 const FOLDED_TASKS_KEY = "rove.foldedTasks"
+const OPENED_TASKS_KEY = "rove.openedTasks"
 /** Second `g` of `gg` must land within this. */
 const GG_MS = 600
-
-function loadSort(): SortMode {
-  const saved = localStorage.getItem(SORT_KEY)
-  return SORT_MODES.find((mode) => mode === saved) ?? "default"
-}
 
 function loadSet(key: string): ReadonlySet<string> {
   try {
@@ -53,11 +54,11 @@ const toggled = (now: ReadonlySet<string>, id: string): ReadonlySet<string> => {
 
 /** Sort + `/` query: owned by the rail, which builds the rows from them before the keys see them. */
 export function useRailFilters() {
-  const [sort, setSort] = useState<SortMode>(loadSort)
+  const sort = useStore(railSort)
   const [search, setSearch] = useState({ active: false, query: "" })
-  // Open routine count rows (project repos); session-scoped, as the TUI's `expandedRoutines`.
-  const [routines, setRoutines] = useState<ReadonlySet<string>>(new Set())
-  const toggleRoutines = (repo: string) => setRoutines((now) => toggled(now, repo))
+  // The Archived fold at the end; session-scoped.
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const toggleArchived = () => setArchivedOpen((open) => !open)
   // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => loadSet(COLLAPSED_KEY))
   const toggleProject = (id: string) =>
@@ -66,36 +67,43 @@ export function useRailFilters() {
       saveSet(COLLAPSED_KEY, next)
       return next
     })
-  // Task ids whose children are folded away; per browser too, open until folded.
-  const [foldedTasks, setFoldedTasks] = useState<ReadonlySet<string>>(() => loadSet(FOLDED_TASKS_KEY))
-  const toggleTaskFold = (id: string) =>
-    setFoldedTasks((now) => {
-      const next = toggled(now, id)
-      saveSet(FOLDED_TASKS_KEY, next)
-      return next
+  // Parents folded or opened by hand (ids); per browser too. Past that, a crowded parent folds on its own.
+  const [hand, setHand] = useState(() => ({
+    folded: loadSet(FOLDED_TASKS_KEY),
+    opened: loadSet(OPENED_TASKS_KEY),
+  }))
+  const toggleTaskFold = (id: string, collapsed: boolean) =>
+    setHand((now) => {
+      const folded = new Set(now.folded)
+      const opened = new Set(now.opened)
+      if (collapsed) {
+        folded.delete(id)
+        opened.add(id)
+      } else {
+        opened.delete(id)
+        folded.add(id)
+      }
+      saveSet(FOLDED_TASKS_KEY, folded)
+      saveSet(OPENED_TASKS_KEY, opened)
+      return { folded, opened }
     })
-  const cycleSort = () => {
-    const next = SORT_MODES[(SORT_MODES.indexOf(sort) + 1) % SORT_MODES.length] ?? "default"
-    setSort(next)
-    localStorage.setItem(SORT_KEY, next)
-  }
   return {
     sort,
-    cycleSort,
+    cycleSort: cycleRailSort,
     search,
     setSearch,
-    routines,
-    toggleRoutines,
+    archivedOpen,
+    toggleArchived,
     collapsed,
     toggleProject,
-    foldedTasks,
+    hand,
     toggleTaskFold,
   }
 }
 
 export type RailFilters = ReturnType<typeof useRailFilters>
 
-type Stop = Exclude<NavRow, { kind: "project" }>
+type Stop = Exclude<NavRow, { kind: "project" | "state" }>
 
 /** The TUI binding ids the rail answers to (`keybindings-sidebar.ts`, `task.new`, Settings, Worktrees). */
 const RAIL_IDS = [
@@ -132,6 +140,14 @@ function railAction(candidates: readonly string[]): { id: RailId; slot: number }
   return null
 }
 
+/** A click on a task row. Another task's terminal takes the keyboard as it mounts; the open one is already mounted and the click left focus on the row, where Esc reaches no engine. */
+export function openTaskRow(model: AppModel, taskId: string): void {
+  const open = model.selection.get().taskId === taskId
+  model.select(taskId)
+  enterWorkspace()
+  if (open) focusActiveTerminal()
+}
+
 export function useRailKeys(
   model: AppModel,
   allRows: readonly NavRow[],
@@ -142,7 +158,7 @@ export function useRailKeys(
   const [cursor, setCursor] = useState<string | null>(null)
   const gAt = useRef(0)
   // Project and machine headers are not stops, as the TUI's `treeFlatIds`.
-  const rows = allRows.filter((row): row is Stop => row.kind !== "project")
+  const rows = allRows.filter((row): row is Stop => row.kind !== "project" && row.kind !== "state")
 
   // The cursor rests on the selection until the keys move it, and is re-homed when its row vanishes.
   const at = rows.findIndex((row) => row.id === cursor)
@@ -151,7 +167,8 @@ export function useRailKeys(
       setCursor(opts.selectedId && rows.some((r) => r.id === opts.selectedId) ? opts.selectedId : (rows[0]?.id ?? null))
   }, [at, rows, opts.selectedId])
   const cursorRow = rows[at]
-  const cursorTaskId = cursorRow && cursorRow.kind !== "routines" ? cursorRow.task.id : null
+  // A pane row aims its prefix verbs at its task.
+  const cursorTaskId = cursorRow?.kind === "task" || cursorRow?.kind === "pane" ? cursorRow.task.id : null
   useEffect(() => railCursorTask.set(cursorTaskId), [cursorTaskId])
   // Top match on every search keystroke, as the TUI.
   const firstId = rows[0]?.id ?? null
@@ -165,22 +182,24 @@ export function useRailKeys(
     if (row) setCursor(row.id)
   }
   const open = (row: Stop | undefined) => {
-    if (row?.kind === "routines") filters.toggleRoutines(row.key)
+    if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
-    if (row) enterWorkspace()
+    if (row?.kind === "round") openCompare(row.groupId)
+    if (row?.kind === "pane") openPane(model, row)
+    if (row && row.kind !== "archived") enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {
-    if (!row || row.kind === "routines") return
+    if (row?.kind !== "task") return
     // A remote task's menu holds only what runs on its machine, so a key with no entry there does nothing.
     findBinding(taskMenu(model, row.task, null), id)?.run?.()
   }
   const cycleEngine = async (row: Stop | undefined) => {
-    if (!row || row.kind === "routines" || row.machine !== undefined) return
+    if (row?.kind !== "task" || row.machine !== undefined) return
     try {
-      const { engines } = await model.client.request<{ engines: Array<{ id: string; name: string; ready?: boolean }> }>(
-        "engines.list",
-      )
-      const usable = engines.filter((e) => e.ready !== false)
+      const { engines } = await model.client.request<{
+        engines: Array<{ id: string; name: string; ready?: boolean; enabled?: boolean }>
+      }>("engines.list")
+      const usable = offeredEngines(engines).filter((e) => e.ready !== false)
       const i = usable.findIndex((e) => e.id === row.task.engine?.id)
       const next = usable[(i + 1) % usable.length]
       if (!next || next.id === row.task.engine?.id) return
@@ -193,6 +212,8 @@ export function useRailKeys(
 
   const onKeyDown = (e: KeyboardEvent) => {
     const row = rows[at]
+    // The chip's own field takes the characters; the arrows, Enter and Esc stay here.
+    const typing = e.target instanceof HTMLInputElement
     if (search.active) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === "Escape") setSearch({ active: false, query: "" })
@@ -201,8 +222,8 @@ export function useRailKeys(
         setSearch({ active: false, query: "" })
       } else if (e.key === "ArrowDown") move(at + 1)
       else if (e.key === "ArrowUp") move(at - 1)
-      else if (e.key === "Backspace") setSearch((s) => ({ ...s, query: s.query.slice(0, -1) }))
-      else if (e.key.length === 1) setSearch((s) => ({ ...s, query: s.query + e.key }))
+      else if (e.key === "Backspace" && !typing) setSearch((s) => ({ ...s, query: s.query.slice(0, -1) }))
+      else if (e.key.length === 1 && !typing) setSearch((s) => ({ ...s, query: s.query + e.key }))
       else return
       e.preventDefault()
       return
@@ -210,10 +231,10 @@ export function useRailKeys(
     const hit = railAction(chordCandidates(e))
     if (moveMode.get()) {
       // Only the move keys answer; `sidebar.*` verbs are off while a row is being dragged.
-      const movable = row && row.kind !== "routines" && row.machine === undefined
+      const movable = row?.kind === "task" && row.machine === undefined
       if (hit?.id === "sidebar.nav") {
         if (movable) void moveRow(model, row, hit.slot % 2 === 0 ? 1 : -1)
-      } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") moveMode.set(false)
+      } else if (hit?.id === "sidebar.localMerge" || e.key === "Enter" || e.key === "Escape") setMoveMode(false)
       else return
       e.preventDefault()
       return
@@ -234,7 +255,7 @@ export function useRailKeys(
         open(row)
         break
       case "tasks.focusEngine":
-        document.querySelector<HTMLElement>(".term-slot:not(.is-hidden) textarea")?.focus()
+        focusActiveTerminal()
         break
       case "sidebar.rename":
       case "sidebar.pin":
@@ -247,26 +268,28 @@ export function useRailKeys(
         void cycleEngine(row)
         break
       case "sidebar.localMerge":
-        if (row?.machine === undefined) moveMode.set(true)
+        if (row?.machine === undefined) setMoveMode(true)
         break
       case "sidebar.sort":
         filters.cycleSort()
+        // The rail shows no sort label: the key says where it landed.
+        toast(tc("tasks", "sort.label", { mode: tc("tasks", `sort.modes.${railSort.get()}`) }))
         break
       case "sidebar.search.enter":
         setSearch({ active: true, query: "" })
         break
       case "task.new":
         // On another machine's row the dialog opens on that machine, with that row's repo.
-        opts.onNewTask(row?.kind === "routines" ? row.repo : row?.task.repo, row?.machine)
+        opts.onNewTask(row?.kind === "task" || row?.kind === "pane" ? row.task.repo : undefined, row?.machine)
         break
       case "settings.open.sidebar":
         opts.onSettings()
         break
       case "worktrees.open.sidebar":
-        page.set("worktrees")
+        openPage("worktrees")
         break
       case "tasks.update":
-        page.set("update")
+        openPage("update")
         break
       default:
         return

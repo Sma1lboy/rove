@@ -163,6 +163,7 @@ private fun DrawScope.drawGlyph(glyph: HeaderGlyph, tint: Color) {
             RoveMenuItem(stringResource(R.string.listheader_page_routines)) { close(); onPage(Route.Routines) }
             if (mods.allows(Route.Issues)) RoveMenuItem(stringResource(R.string.listheader_page_issues)) { close(); onPage(Route.Issues) }
             RoveMenuItem(stringResource(R.string.listheader_page_worktrees)) { close(); onPage(Route.Worktrees) }
+            RoveMenuItem(stringResource(R.string.listheader_page_search)) { close(); onPage(Route.Search) }
         }
         HeaderButton(stringResource(R.string.listheader_settings_a11y), { onPage(Route.Settings) }) { GlyphIcon(HeaderGlyph.Gear, Rove.c.muted) }
     }

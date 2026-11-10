@@ -5,7 +5,11 @@ ten more are [one command away](#hosted-themes). You can also write your own.
 
 Any `~/.rove/themes/*.json` file loads at boot and appears in the theme
 picker (Settings → General → Theme, or `ctrl+a` then `,`). A user theme with
-the same name as a bundled one wins.
+the same name as a bundled one wins. The web client rereads the directory
+each time Settings opens, so a new or edited file shows there without a
+restart; its **Make one with an agent** link opens a Scratch session whose
+agent is asked to write a theme into this directory (see
+[What an agent may edit](./CONFIGURATION.md#what-an-agent-may-edit)).
 
 ## JSON shape
 
@@ -69,6 +73,26 @@ overwrite without `--force`. Invalid themes are rejected with a
 one-line reason; the schema rules are the same ones the boot-time
 loader applies.
 
+## From your terminal's color scheme
+
+`rove theme add` also takes a terminal color scheme file, so Rove can wear
+the same colors as the terminal it runs in:
+
+```sh
+rove theme add ~/.config/term/themes/night-owl.conf
+```
+
+It reads the line formats terminal emulators keep their schemes in:
+`background = #011627` with `palette = 4=#82aaff`, `background #011627` with
+`color4 #82aaff`, and `*.background: #011627` resource lines. The file must
+set `background` and `foreground`; the 16 ANSI colors fill the roles
+terminal programs give them (blue for the primary accent, red for errors,
+green and red for diff lines), and panels and borders are stepped from the
+background toward the foreground. A hue the file leaves out falls back to
+the text color. The theme is named after the file without its extension
+(`night-owl`) unless you pass `--name`, and it is written as ordinary theme
+JSON you can then edit.
+
 ## Publishing on GitHub
 
 1. Commit your theme JSON to a public repo (or gist).
@@ -90,7 +114,10 @@ Ten more themes are hosted rather than bundled: `catppuccin`, `dracula`,
 rove theme add https://rove.run/themes/gruvbox.json
 ```
 
-Preview all thirteen at <https://rove.run/themes>.
+Preview all thirteen at <https://rove.run/themes>. In the web client,
+Settings → General → Theme lists the hosted themes you have not installed
+under the installed ones: point at one to preview the page in it, click to
+install it and switch to it.
 
 ## Troubleshooting
 

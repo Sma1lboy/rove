@@ -9,22 +9,14 @@
  * bookkeeping lives here.
  */
 
-import { deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
-import { roveApiInvocation } from "../../engine/interactive-command.ts"
 import { homeDir } from "../../env.ts"
-import { errorMessage } from "../../lib/error-message.ts"
-import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
-import { ulid } from "../../orchestrator/index/ulid.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
-import { addSavedRepo } from "../../state/repos.ts"
-import type { TaskStatus } from "../../types/task.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import {
-  type EngineChoice,
   type EngineFields,
   effortFor,
   engineChoice,
@@ -35,81 +27,27 @@ import {
   tierFields,
   withTierNote,
 } from "./add-engine-fields.ts"
+import { addParallel } from "./add-parallel.ts"
+import { type Placement, parentFlags, placeAdd, placedRequest, resolveAddParent } from "./add-parent.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
-import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import {
-  ApiError,
-  type DeliveredPrompt,
-  type PromptTarget,
-  type VerbContext,
-  helpStep,
-  promptMayHaveLanded,
-} from "./types.ts"
-import { resolveLocalRepo } from "./verbs-repo-match.ts"
-
-/**
- * `--status` / `--pin` aren't create-time RPC fields — apply them as
- * follow-ups. Shared by the single and parallel paths so they cannot drift.
- * Returns whether anything was applied (so the caller can skip a `task.get`).
- */
-async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: VerbContext["args"]): Promise<boolean> {
-  const status = args.enumOf<TaskStatus>("status")
-  if (status) await daemon.request("task.status", { taskId, status })
-  const pin = args.bool("pin")
-  if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
-  const requireReport = args.bool("require-report")
-  if (requireReport !== undefined) await daemon.request("task.requireReport", { taskId, required: requireReport })
-  return Boolean(status) || pin !== undefined || requireReport !== undefined
-}
-
-/**
- * Deliver a new task's first prompt. A task created with `--require-report` (or
- * `--expect-report`) arms its delivery BEFORE the spawn, once the task and its
- * first tab are known; the footer rides the engine argv with the prompt. A
- * spawn that fails drops the delivery, as `send` does.
- */
-async function deliverArmed(
-  ctx: VerbContext,
-  daemon: DaemonRpc,
-  taskId: string,
-  target: PromptTarget,
-  text: string,
-): Promise<DeliveredPrompt & { deliveryId?: string }> {
-  if (ctx.args.bool("require-report") !== true && ctx.args.bool("expect-report") !== true) {
-    return ctx.runtime.deliverPrompt(daemon, target, text)
-  }
-  // A fresh task's first engine tab is always tab-1.
-  const { deliveryId } = await daemon.request<{ deliveryId: string }>("delivery.arm", {
-    taskId,
-    tabId: "tab-1",
-    promptHead: text,
-  })
-  const settle = (delivered: boolean) =>
-    daemon.request("delivery.settle", { deliveryId, delivered, tabId: "tab-1" }).catch(() => {})
-  try {
-    const delivered = await ctx.runtime.deliverPrompt(
-      daemon,
-      target,
-      `${text}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}`,
-    )
-    // An unconfirmed launch keeps its delivery: the engine may still start with the prompt.
-    await settle(promptMayHaveLanded(delivered))
-    return { ...delivered, deliveryId }
-  } catch (err) {
-    await settle(false)
-    throw err
-  }
-}
+import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
+import { ApiError, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const requestedRepo = await repoFlag(ctx)
-  const repo = await runtime.resolveRepoRoot(requestedRepo)
+  const daemon = daemonOf(ctx)
+  const flags = parentFlags(ctx)
+  const refs = args.list("repo")
+  const fork = await resolveFork(ctx)
+  // A shared-directory or linked-repo child lives where its parent does, so the parent comes before the repo.
+  const inherited = flags.takesParentRepo ? await resolveAddParent(ctx, daemon, flags, undefined) : null
+  const requestedRepo = inherited ? inherited.repo : fork ? fork.repo : await resolveRepoFlag(ctx, refs[0] ?? "")
+  const repo = inherited ? inherited.repo : await runtime.resolveRepoRoot(requestedRepo)
   // Without this a non-git `--repo` SUCCEEDS: `resolveRepoRoot` falls back to
   // the path verbatim and the row persists with an empty branch and
   // worktreePath, failing only later with nothing pointing back at the flag.
-  if (!(await runtime.isUsableRepo(repo))) {
+  if (!inherited && !(await runtime.isUsableRepo(repo))) {
     throw new ApiError(
       `--repo ${repo} is not a git repository — a task needs one to cut its worktree and branch from (run \`git init\` there, or point --repo at a checkout)`,
       "NOT_A_REPO",
@@ -119,6 +57,21 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   const parallel = count !== undefined || agentsSpec !== undefined
+  if (args.bool("start") && (parallel || args.promptText())) {
+    throw new ApiError(
+      "--start boots one idle engine without a first message: it conflicts with --prompt/--prompt-file (which already start the engine) and with --count/--agents",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
+  const worktreeOnly = args.bool("worktree-only") === true
+  if (worktreeOnly && (parallel || args.promptText() || args.bool("start") || args.bool("no-worktree"))) {
+    throw new ApiError(
+      "--worktree-only cuts a checkout and starts no engine: it conflicts with --prompt/--prompt-file, --start, --count/--agents and --no-worktree",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
   // Validate with git before anything is created: an unusable name otherwise
   // fails only at `ensure-worktree` as a raw RPC_ERROR, leaving a row that
   // can never materialize. Skipped for a parallel round, which refuses
@@ -136,33 +89,46 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   // Gated on ANCESTRY, not `!==`: git reports the realpath (macOS `/tmp/x` ->
   // `/private/tmp/x`), and a symlink rewrite is never a prefix of its input.
   const resolvedFrom = pathWithin(repo, requestedRepo) ? { repoResolvedFrom: requestedRepo } : undefined
-  const result = parallel ? await addParallel(ctx, repo, count, agentsSpec) : await addOne(ctx, repo)
+  const repoSet: RepoSetFields = inherited ? { extraRepos: [] } : await resolveRepoSet(ctx, repo, refs.slice(1))
+  const workspace = args.str("workspace")
+  if (workspace && (parallel || fork || repoSet.extraRepos.length > 0)) {
+    throw new ApiError(
+      "--workspace takes one task in one repo: it conflicts with --fork, --count, --agents, --no-worktree, --isolate-in and extra repos",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
+  const parent = inherited ?? (await resolveAddParent(ctx, daemon, flags, repo))
+  const placement = await placeAdd(ctx, parent, flags, {
+    repo,
+    fork: fork !== undefined,
+    baseRef: args.str("base-branch") ?? repoSet.primaryBaseRef,
+    multiRepo: repoSet.extraRepos.length > 0,
+    ownWorkspace: workspace !== undefined,
+  })
+  const result = parallel
+    ? await addParallel(ctx, repo, repoSet, placement, count, agentsSpec)
+    : await addOne(ctx, repo, repoSet, placement)
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
-/**
- * `--repo` as a checkout path: a path as given, a repo id (`owner/name`, a URL) as this
- * machine's checkout of it — cloned first with `--clone`, else a NO_LOCAL_CHECKOUT naming the fix.
- */
-async function repoFlag(ctx: VerbContext): Promise<string> {
-  const ref = parseRepoRef(ctx.args.require("repo"), ctx.caller.cwd ?? process.cwd())
-  if (ref.kind === "path") return ctx.args.requireRepo("repo")
-  const found = await resolveLocalRepo(ctx, { origin: ref.id })
-  if (found.repo) return found.repo
-  if (ctx.args.bool("clone") !== true) {
-    throw new ApiError(`no checkout of ${ref.id} on this machine`, "NO_LOCAL_CHECKOUT", {
-      hint: `pass --clone to clone it into ${cloneDirFor(ref.id)}, or --repo with a checkout's path`,
-    })
+/** Flags that name a different repo or fork point than the parent's own, so they cannot ride along with `--fork`. */
+const FORK_EXCLUSIVE = ["repo", "base-branch", "base-for", "count", "agents"] as const
+
+/** `--fork ID`: the parent task whose worktree (uncommitted work included) the new task clones, and its repo. */
+async function resolveFork(ctx: VerbContext): Promise<{ taskId: string; repo: string } | undefined> {
+  const taskId = ctx.args.str("fork")
+  if (!taskId) return undefined
+  const clash = FORK_EXCLUSIVE.find((flag) => ctx.args.str(flag) !== undefined)
+  if (clash) {
+    throw new ApiError(
+      `--fork and --${clash} conflict — a fork is a sibling in the parent's repo, starting at the parent's HEAD`,
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
   }
-  try {
-    const dir = cloneRepo(ref)
-    addSavedRepo(dir)
-    return dir
-  } catch (err) {
-    throw new ApiError(`could not clone ${ref.cloneUrl}: ${errorMessage(err)}`, "CLONE_FAILED", {
-      hint: "check this machine can fetch it (`git ls-remote <url>`), or clone it yourself and pass its path",
-    })
-  }
+  const { task } = await daemonOf(ctx).request<{ task: SerializedTask }>("task.get", { taskId })
+  return { taskId, repo: task.repo }
 }
 
 /** The typed-out engine fields: `--command` / `--effort` / `--model`, each gated. */
@@ -172,7 +138,24 @@ async function typedEngineFields(ctx: VerbContext, repo: string): Promise<Engine
   return { choice, effort: effortFor(ctx, engines), model: modelFor(ctx, engines) }
 }
 
-async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
+/** The task as the engine launcher addresses it; `newTask` marks a first prompt the launch itself carries. */
+function deliveryTarget(task: SerializedTask, newTask = false): PromptTarget {
+  return {
+    id: task.id,
+    worktreePath: taskCwd(task),
+    kind: task.kind,
+    vendor: task.vendor as VendorId | undefined,
+    command: task.command,
+    modelEffort: task.modelEffort,
+    model: task.model,
+    repo: task.repo,
+    // A shared child has no repos of its own: its owner's are read.
+    ...(task.extraRepos?.length || task.sharesWorkspaceOf ? { multiRepo: true } : {}),
+    ...(newTask ? { newTask: true } : {}),
+  }
+}
+
+async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, placement: Placement): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
   // Read (and validate) the prompt BEFORE `task.create`: its throws would
@@ -186,21 +169,38 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const tierNote: Record<string, string> = picked.note ? { tierAuto: picked.note } : {}
   const warnings = foreignModelWarnings([fields.choice.vendor ?? DEFAULT_VENDOR], fields.model)
   const warned = warnings.length > 0 ? { warnings } : {}
-  const payload: Record<string, string> = {
+  const payload: Record<string, unknown> = {
     repo,
     ...(await dispatcherEnvPayload(daemon)),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
   }
-  const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
+  // A fork without --title keeps the parent-derived name the daemon gives it rather than being renamed from the prompt.
+  const fork = args.str("fork")
+  const title = args.str("title") || (prompt && !fork ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
+  // Marked in the create itself: marking after the cut showed the row for as long as the cut took.
+  if (args.bool("worktree-only")) payload.worktreeOnly = true
   const branch = args.str("branch")
   if (branch) payload.branch = branch
-  const baseRef = args.str("base-branch")
+  const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
   if (baseRef) payload.baseRef = baseRef
+  if (fork) payload.forkFrom = fork
+  const workspace = args.str("workspace")
+  if (workspace) payload.workspace = workspace
+  if (repoSet.extraRepos.length > 0) payload.extraRepos = repoSet.extraRepos
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName
 
-  const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
+  const request = placedRequest(placement, payload)
+  const res = await daemon.request<{
+    taskId: string
+    task: SerializedTask
+    parentDirty?: boolean
+    sharedLinks?: string[]
+  }>(request.method, request.payload)
+  // Only a child cut from its parent reports whether the parent had uncommitted work the new worktree lacks.
+  const placed =
+    res.parentDirty === undefined ? {} : { parentDirty: res.parentDirty, sharedLinks: res.sharedLinks ?? [] }
   const taskId = res.taskId
   // Every mounted TUI follows the shared active task, so only steal it when
   // asked — a background agent/cron must not yank focus on every create.
@@ -213,7 +213,42 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 
   // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
   // to classify, so a note and an absent prompt cannot coexist.
-  if (!prompt) return { taskId, task, engine: launchedEngine(task), home: homeDir(), started: false, ...warned }
+  if (!prompt) {
+    if (args.bool("worktree-only")) {
+      // An older daemon ignores the create's mark: set it here too, before the cut.
+      await daemon.request("task.worktreeOnly", { taskId, on: true })
+      try {
+        await daemon.request("task.ensureWorktree", { taskId })
+      } catch (err) {
+        // A failed cut leaves an ordinary, visible backlog row.
+        await daemon.request("task.worktreeOnly", { taskId, on: false }).catch(() => {})
+        throw err
+      }
+      task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
+      return { taskId, task, worktreePath: task.worktreePath, home: homeDir(), ...placed, started: false, ...warned }
+    }
+    if (!args.bool("start")) {
+      return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
+    }
+    // `--start`: no first message, but the engine boots idle in the task's own tab-1. The task IS created, so a failure names it.
+    try {
+      const opened = await ctx.runtime.openTab(daemon, deliveryTarget(task), "engine")
+      return {
+        taskId,
+        task,
+        engine: launchedEngine(task),
+        home: homeDir(),
+        ...placed,
+        started: true,
+        tabId: opened.tab.id,
+        session: opened.session,
+        ...warned,
+      }
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err
+      throw new ApiError(err.message, err.code, { ...err.data, taskId, ...placed, ...warned })
+    }
+  }
   // Same provenance prefix `send` carries: the `dispatcher` row field is data
   // a receiver must think to read; this puts the reply address in the brief.
   // No-op for a create from a plain shell.
@@ -225,23 +260,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // that leaves an agent unable to tell "it routed to deep and the engine
   // died" from "it never routed at all" without a second round-trip.
   const delivered = await withTierNote(tierNote, () =>
-    deliverArmed(
-      ctx,
-      daemon,
-      taskId,
-      {
-        id: taskId,
-        worktreePath: taskCwd(task),
-        kind: task.kind,
-        vendor: task.vendor as VendorId | undefined,
-        command: task.command,
-        modelEffort: task.modelEffort,
-        model: task.model,
-        repo: task.repo,
-        newTask: true,
-      },
-      brief,
-    ),
+    deliverArmed(ctx, daemon, taskId, deliveryTarget(task, true), brief),
   )
   // The task IS created, so carry the taskId in the error.
   if (!delivered.delivered) {
@@ -251,6 +270,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       {
         taskId,
         engine: launchedEngine(task),
+        ...placed,
         ...tierNote,
         ...warned,
       },
@@ -269,6 +289,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     // The home actually written to — otherwise a collapsed isolation
     // override reads identically to the intended one.
     home: homeDir(),
+    ...placed,
     started: delivered.started,
     ...(delivered.deliveryId ? { deliveryId: delivered.deliveryId } : {}),
     engineReady: delivered.engineReady,
@@ -283,215 +304,4 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     ...tierNote,
     ...warned,
   }
-}
-
-/**
- * Record the brief on the task. Resolves `false` (never rejects) when the
- * store refused it; callers must surface that.
- */
-async function persistPrompt(daemon: DaemonRpc, taskId: string, prompt: string): Promise<boolean> {
-  try {
-    await daemon.request("task.setPrompt", { taskId, prompt })
-    return true
-  } catch (err) {
-    console.error(`[rove api add] task.setPrompt failed for ${taskId} — no "Run again" for this task:`, err)
-    return false
-  }
-}
-
-/**
- * `--count N` / `--agents e:2,f:1`: N sibling tasks of ONE prompt, each in
- * its own worktree + branch, sharing one persisted groupId. Titles get an
- * `#i/N` ordinal here (siblings share a prompt, so bare titles collide);
- * placeholder-titled siblings get theirs from the daemon's auto-title pass
- * (keyed on groupId).
- */
-async function addParallel(
-  ctx: VerbContext,
-  repo: string,
-  count: number | undefined,
-  agentsSpec: string | undefined,
-): Promise<unknown> {
-  const daemon = daemonOf(ctx)
-  const { args } = ctx
-  // A parallel round with nothing to deliver would spawn N idle worktrees —
-  // the prompt IS the round.
-  const prompt = args.promptText()
-  if (!prompt) {
-    throw new ApiError(
-      "--count/--agents spawn parallel attempts of ONE prompt — pass --prompt",
-      "MISSING_FLAG",
-      helpStep("add"),
-    )
-  }
-  if (args.str("branch")) {
-    throw new ApiError(
-      "--branch names ONE branch and cannot be shared by parallel siblings — drop it (each sibling gets its own auto branch) or spawn them one at a time",
-      "BAD_FLAG",
-      helpStep("add"),
-    )
-  }
-  // Same reason, one directory instead of one branch: the second sibling
-  // would collide on the name and the round would half-spawn.
-  if (args.str("worktree-name")) {
-    throw new ApiError(
-      "--worktree-name names ONE directory and cannot be shared by parallel siblings — drop it (each sibling gets its own generated name) or spawn them one at a time",
-      "BAD_FLAG",
-      helpStep("add"),
-    )
-  }
-  // `--agents` already names each sibling's engine and count; refuse
-  // `--command` / `--count` beside it rather than silently ignore — a fleet
-  // is expensive to spawn wrong. `--status` / `--pin` apply per sibling.
-  if (agentsSpec) {
-    const conflict = count !== undefined ? "--count" : args.str("command") ? "--command" : null
-    if (conflict) {
-      throw new ApiError(
-        `${conflict} conflicts with --agents, which already names each sibling's engine and how many — pass one or the other`,
-        "BAD_FLAG",
-        helpStep("add"),
-      )
-    }
-  }
-  // No --title: seed from the prompt, else N rows all read `(new task)`. The
-  // auto-title pass only renames placeholders, so this is final — fine, it
-  // derives from the same first message that pass would read.
-  const title = args.str("title") || deriveTitleFromPrompt(prompt)
-  const baseRef = args.str("base-branch")
-
-  // `--count` repeats ONE engine — `--command`'s (full command line) or a
-  // tier's; the plan carries only its protocol.
-  const picked = await tierFields(ctx, prompt)
-  const tier = picked.fields
-  const choice = tier?.choice ?? (await engineChoice(ctx, repo))
-  const plan: VendorId[] = agentsSpec
-    ? parseAgentsSpec(agentsSpec)
-    : buildCountPlan(count ?? 1, choice.vendor ?? DEFAULT_VENDOR)
-  if (plan.length > FANOUT_CAP) {
-    throw new ApiError(
-      `a parallel round of ${plan.length} exceeds the cap of ${FANOUT_CAP} — spawn in batches`,
-      "BAD_FLAG",
-    )
-  }
-  const effort = tier ? tier.effort : effortFor(ctx, plan)
-  const model = tier ? tier.model : modelFor(ctx, plan)
-  const warnings = foreignModelWarnings(plan, model)
-  const groupId = ulid()
-
-  // Create serially (a pure store write; worktrees are lazy) so `#i/N`
-  // ordinals match tasks.json order. Deliver concurrently: N cold boots
-  // overlap (5 tasks: ~6s, not ~30s). A mid-loop create failure carries the
-  // already-created tasks into PARTIAL_FANOUT so a script doesn't double-spawn.
-  const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
-  let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  const dispatcher = await dispatcherEnvPayload(daemon)
-  for (const [i, vendor] of plan.entries()) {
-    // `--agents` picks engines BY ID (command = id); `--count` reuses `--command` verbatim.
-    const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }
-    const payload: Record<string, string> = {
-      repo,
-      groupId,
-      ...dispatcher,
-      ...enginePayload(engine, effort, model, tier?.tier),
-    }
-    if (title) payload.title = plan.length > 1 ? `${title} #${i + 1}/${plan.length}` : title
-    if (baseRef) payload.baseRef = baseRef
-    try {
-      const res = await daemon.request<{ taskId: string; task: SerializedTask }>("task.create", payload)
-      created.push({ taskId: res.taskId, vendor, task: res.task })
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code : "CREATE_FAILED"
-      const message = err instanceof Error ? err.message : String(err)
-      createFailure = { vendor, error: { message, code } }
-      break
-    }
-  }
-
-  // Before delivery, so the row already reads right when the engine boots.
-  for (const { taskId } of created) await applyPostCreateFlags(daemon, taskId, args)
-
-  const settled = await Promise.allSettled(
-    created.map(({ taskId, vendor, task }) =>
-      deliverArmed(
-        ctx,
-        daemon,
-        taskId,
-        {
-          id: taskId,
-          worktreePath: taskCwd(task),
-          kind: task.kind,
-          vendor,
-          command: task.command,
-          modelEffort: task.modelEffort,
-          model: task.model,
-          repo: task.repo,
-          newTask: true,
-        },
-        prompt,
-      ),
-    ),
-  )
-
-  const tasks: unknown[] = []
-  const failures: unknown[] = []
-  // Best-effort, same contract as addOne: a persist failure must NOT flip a
-  // delivered sibling into a failure row.
-  const persistedPrompts: Promise<unknown>[] = []
-  settled.forEach((r, i) => {
-    const { taskId, vendor, task } = created[i]
-    if (r.status === "fulfilled" && r.value.delivered) {
-      // `title` and `branch` are what the sidebar shows — the only handles a
-      // spawner can name a sibling by (the worktree dir name appears nowhere).
-      const row: Record<string, unknown> = {
-        ok: true,
-        taskId,
-        title: task.title,
-        branch: task.branch,
-        vendor,
-        engine: launchedEngine(task),
-        started: r.value.started,
-        engineReady: r.value.engineReady,
-        session: r.value.session,
-        ...(r.value.reason ? { reason: r.value.reason } : {}),
-      }
-      tasks.push(row)
-      // Patched on the pushed row: the persist resolves after it is in `tasks`.
-      persistedPrompts.push(
-        persistPrompt(daemon, taskId, prompt).then((ok) => {
-          if (!ok) row.promptPersisted = false
-        }),
-      )
-      return
-    }
-    // Threw or never landed; the task IS created (engine burning tokens), so
-    // always carry its taskId.
-    const err =
-      r.status === "rejected"
-        ? r.reason
-        : new ApiError(`prompt was not confirmed in ${taskId}'s engine`, "NOT_DELIVERED")
-    const code = err instanceof ApiError ? err.code : "DELIVER_FAILED"
-    const message = err instanceof Error ? err.message : String(err)
-    failures.push({ ok: false, taskId, vendor, engine: launchedEngine(task), error: { message, code } })
-  })
-
-  // A create-stage failure row has no taskId (nothing was created for it).
-  if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
-  await Promise.all(persistedPrompts)
-
-  const result = {
-    count: created.length,
-    requested: plan.length,
-    groupId,
-    home: homeDir(),
-    tasks,
-    failures,
-    ...(picked.note ? { tierAuto: picked.note } : {}),
-    ...(warnings.length > 0 ? { warnings } : {}),
-  }
-  // Any failure must not exit 0: the dispatcher emits the whole result
-  // (created taskIds included) to stdout and exits 3.
-  if (failures.length > 0) {
-    throw new ApiError(`add delivered ${tasks.length}/${plan.length}`, "PARTIAL_FANOUT", result)
-  }
-  return result
 }

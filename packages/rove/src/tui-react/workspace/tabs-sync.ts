@@ -60,6 +60,7 @@ const RESERVE_BLOCK = 2
 
 let transport: TabsTransport | null = null
 let loaded = false
+let listFailed = false
 let seq = 0
 const tasks = new Map<string, TaskTabs>()
 
@@ -75,6 +76,16 @@ function entry(taskId: string): TaskTabs {
 /** True once the daemon's tabs arrived (`tabs.list`): before that, "no record" may only mean "not loaded". */
 export function tabsLoaded(): boolean {
   return loaded
+}
+
+/**
+ * True while this TUI is wired to the daemon's tab store (loading or loaded). The daemon holds a record for
+ * every task that has tabs, so against it "no record" means no tabs — or, until `tabs.list` lands, nothing
+ * known yet, which the sidebar reads the same way so a row never shows and then vanishes at startup.
+ * False (render tests, a TUI without a daemon, a `tabs.list` that failed): no record may only mean "never opened".
+ */
+export function tabsDaemonBacked(): boolean {
+  return transport !== null && !listFailed
 }
 
 /** The shared tabs this TUI shows for `taskId`: confirmed state with its in-flight ops folded on top. */
@@ -270,6 +281,9 @@ export function forgetTaskTabsView(taskId: string): void {
 export function attachTabsTransport(next: TabsTransport | null): () => void {
   transport = next
   loaded = false
+  listFailed = false
+  // The sidebar's reading of a task with no record changes with the source of truth.
+  tabsRevision.update((n) => n + 1)
   if (!next) return () => {}
   const off = next.onChanged((event) => {
     accept(event.taskId, event.state, event.rev)
@@ -278,7 +292,9 @@ export function attachTabsTransport(next: TabsTransport | null): () => void {
   void reloadTabs()
   return () => {
     off()
-    if (transport === next) transport = null
+    if (transport !== next) return
+    transport = null
+    tabsRevision.update((n) => n + 1)
   }
 }
 
@@ -291,9 +307,18 @@ export async function reloadTabs(): Promise<void> {
     for (const [taskId, state] of Object.entries(all)) accept(taskId, state, rev)
     for (const [taskId, task] of tasks) if (!(taskId in all) && task.pending.length === 0) accept(taskId, null, rev)
     loaded = true
+    if (listFailed) {
+      listFailed = false
+      tabsRevision.update((n) => n + 1)
+    }
     for (const taskId of new Set([...tasks.keys(), ...Object.keys(all)])) publish(taskId)
   } catch (err) {
     logClientError("tabs", err)
+    // The read failed: "no record" says nothing now, so the sidebar stops reading it as "no tabs".
+    if (current === transport && !listFailed) {
+      listFailed = true
+      tabsRevision.update((n) => n + 1)
+    }
   }
 }
 
@@ -301,6 +326,7 @@ export async function reloadTabs(): Promise<void> {
 export function resetTabsSyncForTests(): void {
   transport = null
   loaded = false
+  listFailed = false
   tasks.clear()
   tabsByTask.clear()
 }

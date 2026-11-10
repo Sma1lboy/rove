@@ -38,15 +38,6 @@ export type TerminalBindingsOpts = {
   reset: () => void
   /** Copy + clear the selection; false (none) lets ctrl+c stay an interrupt. */
   copySelection: () => boolean
-  /** Search row open: all passthrough AND the raw catch-all switch off, since
-   *  the query's raw listener runs after them and would lose the keystroke. */
-  searchActive: boolean
-  /** Open the scrollback search row (prefix `/`). */
-  openSearch: () => void
-  /** Walk to the next (+1) / previous (-1) hit. */
-  stepSearch: (delta: 1 | -1) => void
-  /** Close the search row and restore the viewport it opened on. */
-  closeSearch: () => void
 }
 
 /** Register the terminal pane's pane-local bindings. */
@@ -65,7 +56,6 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
         "terminal.scroll-up": () => optsRef.current.scroll(-pageSizeRef.current),
         "terminal.scroll-down": () => optsRef.current.scroll(pageSizeRef.current),
         "terminal.reset": () => optsRef.current.reset(),
-        "terminal.search": () => optsRef.current.openSearch(),
       }),
     )
     // BEFORE the table, to beat its `ctrl+shift+c`. `cmd+c` has no table
@@ -87,23 +77,8 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
   }, [])
 
   useBindings(() => ({
-    enabled: optsRef.current.focused && !optsRef.current.searchActive,
+    enabled: optsRef.current.focused,
     bindings,
-  }))
-
-  // Separate so it survives the gate above; `up`/`down` reach it because passthrough is off.
-  const searchBindings = useMemo(
-    () =>
-      bindByIds({
-        "terminal.search.older": () => optsRef.current.stepSearch(-1),
-        "terminal.search.newer": () => optsRef.current.stepSearch(1),
-        "terminal.search.cancel": () => optsRef.current.closeSearch(),
-      }),
-    [],
-  )
-  useBindings(() => ({
-    enabled: optsRef.current.focused && optsRef.current.searchActive,
-    bindings: searchBindings,
   }))
 
   // Catch-all forwarder for IME commits and names outside `PASSTHROUGH_NAMES`.
@@ -114,7 +89,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     // Pane focus doesn't change when a dialog opens; raw listeners must gate
     // themselves or dialog typing lands in the PTY.
     const forwardUnhandled = (evt: KeyEvent) => {
-      if (!optsRef.current.focused || optsRef.current.searchActive) return
+      if (!optsRef.current.focused) return
       if (evt.defaultPrevented || modalActive()) return
       const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes == null) return
@@ -122,7 +97,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
       evt.preventDefault()
     }
     const forwardPaste = (evt: { bytes: Uint8Array; defaultPrevented: boolean; preventDefault(): void }) => {
-      if (evt.defaultPrevented || modalActive() || optsRef.current.searchActive) return
+      if (evt.defaultPrevented || modalActive()) return
       const text = decodePasteBytes(evt.bytes)
       if (text.length === 0) return
       if (!optsRef.current.focused && (!optsRef.current.unfocusedAttachmentTarget || !asAttachmentPaths(text))) return

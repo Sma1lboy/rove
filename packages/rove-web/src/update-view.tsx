@@ -1,19 +1,39 @@
 /**
  * The Update page (TUI `update-page.tsx`) and What's New (`whats-new-dialog.tsx`), over the
- * bridge's read-only `update.check` / `release.notes`. Copy is the TUI's `update.*` catalog.
- * No "Update now": running the updater from a browser replaces the Mac's install, which the
- * bridge does not offer; the page names the command to run instead.
+ * bridge's `update.check` / `release.notes`, and Update now over `update.run` / `update.status`:
+ * the installer runs on the computer serving the page, which polls it. Copy is the TUI's `update.*` catalog.
  */
 
+import type { ReleaseChannel } from "@sma1lboy/rove/src/release-channels.ts"
 import { en as upEn, zh as upZh } from "@sma1lboy/rove/src/tui/i18n/messages/update.ts"
 import type { ReleaseNotesRangeItem, UpdateInfo } from "@sma1lboy/rove/src/version.ts"
 import { useEffect, useRef, useState } from "react"
-import type { BridgeClient } from "./bridge.ts"
+import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { DialogShell } from "./dialogs.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { locale, t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
+import { openPage } from "./layout.ts"
+import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
+import { HEAD_CHIP } from "./ui/shell.ts"
+import { ACTIONS, KICKER, LINK } from "./ui/text.ts"
+import {
+  PAGE_HEAD,
+  RELEASE_NOTES,
+  UPDATE_ACTIONS,
+  UPDATE_CHIP,
+  UPDATE_CHIP_VERSION,
+  UPDATE_LABEL,
+  UPDATE_OUTPUT,
+  UPDATE_VERSIONS,
+  WHATS_NEW_BODY,
+  WHATS_NEW_KEYS,
+  updateActionClass,
+} from "./ui/update.ts"
 
 interface CheckReply {
   readonly current: string
@@ -24,6 +44,9 @@ interface CheckReply {
 /** The last answer, shared by the rail chip and the page. `null` = not asked yet. */
 export const updateState = createStore<CheckReply | null>(null)
 
+/** Set by the update prompt's Update: the page starts the install as it opens, with nothing more to click. */
+export const updateAutoRun = createStore(false)
+
 const fill = (text: string, p: Record<string, string>) => text.replace(/\{(\w+)\}/g, (m, k: string) => p[k] ?? m)
 const releaseUrl = (version: string) => `https://github.com/Sma1lboy/rove/releases/tag/v${version}`
 
@@ -31,29 +54,78 @@ export function useCatalog() {
   return useLocale() === "zh" ? upZh : upEn
 }
 
-export function checkForUpdate(client: BridgeClient): Promise<void> {
-  return client.request<CheckReply>("update.check", { force: true }).then(updateState.set, () => {})
+/**
+ * Asks the registry (bypassing the bridge cache). `channel` names the dist-tag; without it the bridge
+ * follows the stored `update.channel`. `false` = the request itself failed.
+ */
+export function checkForUpdate(client: BridgeClient, channel?: ReleaseChannel): Promise<boolean> {
+  return client.request<CheckReply>("update.check", { force: true, locale: locale.get(), channel }).then(
+    (reply) => {
+      updateState.set(reply)
+      return true
+    },
+    () => false,
+  )
 }
 
 /** Rail head chip, as the TUI brand row's `↑ v`: only when the registry says newer. */
 export function UpdateChip() {
   const u = useCatalog()
   const state = useStore(updateState)
-  if (!state?.info?.hasUpdate) return null
+  // `update.notify` off hides the passive chip; Settings' explicit check and the Update page still report.
+  const { prefs } = usePrefs()
+  if (!prefs.updateNotify || !state?.info?.hasUpdate) return null
   return (
     // A narrow rail keeps only the arrow (the version is in the title); a wide one shows both.
     <button
       type="button"
-      className="kicker update-chip"
+      className={`${KICKER} text-muted ${UPDATE_CHIP} ${HEAD_CHIP}`}
       title={fill(u.chip, { version: state.info.latest })}
-      onClick={() => page.set("update")}
+      onClick={() => openPage("update")}
     >
-      ↑<span className="update-chip-version"> {state.info.latest}</span>
+      ↑<span className={UPDATE_CHIP_VERSION}> {state.info.latest}</span>
     </button>
   )
 }
 
-type ActionId = "release" | "close"
+type ActionId = "update" | "release" | "close"
+
+/** The bridge's last `update.run`; `null` = none since it started. */
+interface RunStatus {
+  readonly running: boolean
+  readonly command: string
+  readonly code: number | null
+  readonly output: string
+}
+
+const POLL_MS = 1000
+
+/** Reads `update.status` once now, then every second while the installer runs. */
+function useUpdateRun(client: BridgeClient) {
+  const [run, setRun] = useState<RunStatus | null>(null)
+  const [polling, setPolling] = useState(true)
+  useEffect(() => {
+    if (!polling) return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const tick = () =>
+      client.request<{ status: RunStatus | null }>("update.status", {}).then(
+        (r) => {
+          if (!alive) return
+          setRun(r.status)
+          if (r.status?.running) timer = setTimeout(tick, POLL_MS)
+          else setPolling(false)
+        },
+        () => alive && setPolling(false),
+      )
+    void tick()
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [client, polling])
+  return { run, setRun, poll: () => setPolling(true) }
+}
 
 export function UpdateView({ client }: { client: BridgeClient }) {
   const u = useCatalog()
@@ -61,6 +133,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const [checked, setChecked] = useState(false)
   const [selected, setSelected] = useState<ActionId>("release")
   const [status, setStatus] = useState<string | null>(null)
+  const { run, setRun, poll } = useUpdateRun(client)
   const host = useRef<HTMLDivElement>(null)
   useEffect(() => {
     host.current?.focus()
@@ -76,13 +149,37 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const notes = state?.notes ?? []
   const url = notes[0]?.url ?? (latest ? releaseUrl(latest) : null)
   const actions: readonly { id: ActionId; key: string; label: string; detail: string }[] = [
+    ...(hasUpdate && !run?.running
+      ? [{ id: "update" as const, key: "U", label: u.actions.updateNow, detail: "rove update" }]
+      : []),
     { id: "release", key: "R", label: u.actions.openRelease, detail: url ?? u.releaseUrlUnavailable },
     { id: "close", key: "Q", label: u.actions.close, detail: u.actions.closeDetail },
   ]
   const activate = (id: ActionId) => {
     if (id === "close") return page.set(null)
+    if (id === "update") {
+      if (!hasUpdate || run?.running) return
+      setStatus(null)
+      return void client.request<{ status: RunStatus | null }>("update.run", {}).then(
+        (r) => {
+          setRun(r.status)
+          poll()
+        },
+        (err: unknown) => {
+          // BUSY: another page already started it; follow that run.
+          if (err instanceof BridgeRequestError && err.code === "BUSY") return poll()
+          setStatus(fill(u.webStartFailed, { error: err instanceof Error ? err.message : String(err) }))
+        },
+      )
+    }
     setStatus(url && window.open(url, "_blank", "noopener") !== null ? u.statusReleaseOpened : u.statusReleaseError)
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once, when the check has answered
+  useEffect(() => {
+    if (!checked || !updateAutoRun.get()) return
+    updateAutoRun.set(false)
+    if (hasUpdate) activate("update")
+  }, [checked, hasUpdate])
   const onKey = (e: React.KeyboardEvent) => {
     // Ctrl+C closes, as the TUI's page bindings; a text selection keeps the browser's copy.
     if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
@@ -95,6 +192,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     else if (e.key === "k" || e.key === "ArrowUp")
       setSelected(actions[(i - 1 + actions.length) % actions.length]?.id ?? "close")
     else if (e.key === "Enter") activate(selected)
+    else if (e.key === "u") activate("update")
     else if (e.key === "r") activate("release")
     else if (e.key === "q" || e.key === "Escape") activate("close")
     else return
@@ -103,46 +201,57 @@ export function UpdateView({ client }: { client: BridgeClient }) {
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
-    <div className="page" tabIndex={0} ref={host} onKeyDown={onKey}>
-      <div className="page-head">
-        <h1 className="page-title mono">{u.pageTitle}</h1>
-        <button type="button" className="link muted mono" onClick={() => activate("close")}>
-          {u.closeHint}
+    <div className={PAGE_SCROLL} tabIndex={0} ref={host} onKeyDown={onKey}>
+      <div className={PAGE_HEAD}>
+        <h1 className={PAGE_TITLE}>{u.pageTitle}</h1>
+        <button type="button" className={`${LINK} mono`} onClick={() => activate("close")}>
+          {isTouch() ? t("dialog.close") : u.closeHint}
         </button>
       </div>
-      <p className="mono update-versions">
-        <span className="muted">{u.current}</span> <b>v{current}</b> <span className="muted">{u.latest}</span>{" "}
+      <p className={`mono ${UPDATE_VERSIONS}`}>
+        <span className="text-muted">{u.current}</span> <b>v{current}</b> <span className="text-muted">{u.latest}</span>{" "}
         {latestUnknown ? (
-          <b className="muted">{u.latestUnknown}</b>
+          <b className="text-muted">{u.latestUnknown}</b>
         ) : checked ? (
-          <b className={hasUpdate ? "tone-warning" : "tone-success"}>v{latest}</b>
+          <b className={hasUpdate ? "text-warning" : "text-success"}>v{latest}</b>
         ) : (
-          <span className="muted">…</span>
+          <span className="text-muted">…</span>
         )}
       </p>
-      {latestUnknown && <p className="muted">{u.registryRetry}</p>}
-      {upToDate && <p className="tone-success">{u.upToDate}</p>}
-      {hasUpdate && <p className="mono muted">rove update</p>}
-      <div className="update-actions">
+      {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
+      {upToDate && <p className="text-success">{u.upToDate}</p>}
+      <div className={UPDATE_ACTIONS}>
         {actions.map((a) => (
           <button
             type="button"
             key={a.id}
-            className={`update-action ${selected === a.id ? "is-cursor" : ""}`}
+            className={updateActionClass(selected === a.id)}
             onClick={() => activate(a.id)}
           >
-            <span className="tone-accent mono">[{a.key}]</span>
-            <span className="update-label">{a.label}</span>
-            <span className="muted">{a.detail}</span>
+            <span className="mono keys-only text-accent">[{a.key}]</span>
+            <span className={UPDATE_LABEL}>{a.label}</span>
+            <span className="text-muted">{a.detail}</span>
           </button>
         ))}
       </div>
-      {status && <p className="mono tone-accent">{status}</p>}
-      {hasUpdate && <p className="mono muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
-      {!checked && <p className="muted">{u.loadingNotes}</p>}
-      {checked && hasUpdate && notes.length === 0 && <p className="muted">{u.notesUnavailable}</p>}
+      {status && <p className="mono text-accent">{status}</p>}
+      {run && (
+        <>
+          {run.output && <pre className={UPDATE_OUTPUT}>{run.output}</pre>}
+          <p className={`mono ${run.running ? "text-muted" : run.code === 0 ? "text-success" : "text-error"}`}>
+            {run.running
+              ? fill(u.webRunning, { command: run.command })
+              : run.code === 0
+                ? fill(u.webInstalled, { current })
+                : fill(u.updateFailed, { code: String(run.code) })}
+          </p>
+        </>
+      )}
+      {hasUpdate && <p className="mono text-muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
+      {!checked && <p className="text-muted">{u.loadingNotes}</p>}
+      {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
       {notes.map((n) => (
-        <section key={n.version} className="release-notes">
+        <section key={n.version} className={RELEASE_NOTES}>
           <h2 className="mono">v{n.version}</h2>
           <ReleaseNotes body={n.body} />
         </section>
@@ -168,7 +277,10 @@ export function maybeShowWhatsNew(client: BridgeClient, version: string): void {
   localStorage.setItem(SEEN_KEY, version)
   if (!seen || !newer(version, seen)) return
   void client
-    .request<{ notes: ReleaseNotesRangeItem | null }>("release.notes", { version: version.replace(/-.*$/, "") })
+    .request<{ notes: ReleaseNotesRangeItem | null }>("release.notes", {
+      version: version.replace(/-.*$/, ""),
+      locale: locale.get(),
+    })
     .then(
       (r) => dialog.set(<WhatsNewDialog from={seen} to={version} notes={r.notes} />),
       () => dialog.set(<WhatsNewDialog from={seen} to={version} notes={null} />),
@@ -189,20 +301,20 @@ function WhatsNewDialog(props: { from: string; to: string; notes: ReleaseNotesRa
   }, [])
   return (
     <DialogShell title={u.whatsNew.title} wide>
-      <p className="muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
-      <div className="whats-new-body">
+      <p className="text-muted">{fill(u.whatsNew.upgraded, { from: props.from, to: props.to })}</p>
+      <div className={WHATS_NEW_BODY}>
         {props.notes ? (
           <ReleaseNotes body={props.notes.body} />
         ) : (
-          <p className="muted">{u.whatsNew.notesUnavailable}</p>
+          <p className="text-muted">{u.whatsNew.notesUnavailable}</p>
         )}
       </div>
-      <div className="actions">
-        <span className="mono muted whats-new-keys">{t("whatsNew.keys")}</span>
-        <a className="link" href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
+      <div className={ACTIONS}>
+        <span className={`mono text-muted ${WHATS_NEW_KEYS} touch:hidden!`}>{t("whatsNew.keys")}</span>
+        <a className={LINK} href={props.notes?.url ?? releaseUrl(props.to)} target="_blank" rel="noopener noreferrer">
           {t("whatsNew.openRelease")}
         </a>
-        <button ref={ok} type="button" className="button" onClick={() => dialog.set(null)}>
+        <button ref={ok} type="button" className={buttonClass()} onClick={() => dialog.set(null)}>
           {t("whatsNew.continue")}
         </button>
       </div>
