@@ -16,6 +16,8 @@ const CX = COLS / 2
 const CY = ROWS / 2
 /** Planet radius in cells. */
 const R = 25
+/** Squared radius where the outermost ring of cells starts. */
+const LIMB = (1 - 1.2 / R) ** 2
 const FRAME_MS = 1000 / 30
 const STILL_T = 7
 
@@ -26,9 +28,14 @@ const INK = 3
 const ACCENT = 4
 const TOKEN = ["", "--color-subtle", "--color-muted", "--color-ink", "--color-accent"] as const
 
-/** 4×4 Bayer thresholds in (0, 1): a cell is lit when its brightness clears its threshold. */
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((n) => (n + 0.5) / 16)
-const threshold = (col: number, row: number) => BAYER[(row & 3) * 4 + (col & 3)] ?? 1
+/** 8×8 Bayer thresholds in (0, 1): a cell is lit when its brightness clears its threshold. */
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+const BAYER = Array.from({ length: 64 }, (_, i) => {
+  const x = i % 8
+  const y = i >> 3
+  return (4 * (BAYER4[(y & 3) * 4 + (x & 3)] ?? 0) + ([0, 2, 3, 1][(y >> 2) * 2 + (x >> 2)] ?? 0) + 0.5) / 64
+})
+const threshold = (col: number, row: number) => BAYER[(row & 7) * 8 + (col & 7)] ?? 1
 
 /** radius in planet radii, `lift` = how open the ellipse reads, `roll` = its tilt on screen. */
 const ORBITS = [
@@ -85,7 +92,9 @@ export function plateFrame(cells: Uint8Array, t: number): void {
       const lon = Math.atan2(xt * cosS + z * sinS, z * cosS - xt * sinS)
       const lat = Math.asin(Math.max(-1, Math.min(1, yt)))
       const band = 0.5 + 0.5 * Math.sin(lat * 9 + 1.3 * Math.sin(lon * 2 + lat * 3))
-      if (light * (0.5 + 0.5 * band) > threshold(col, row)) put(col, row, light > 0.8 ? INK : MUTED)
+      if (light ** 0.75 * (0.4 + 0.6 * band) > threshold(col, row)) put(col, row, light > 0.4 ? INK : MUTED)
+      // A one-cell limb keeps the night side reading as a sphere.
+      else if (r2 > LIMB) put(col, row, SUBTLE)
     }
   }
 
@@ -93,38 +102,40 @@ export function plateFrame(cells: Uint8Array, t: number): void {
   for (const orbit of ORBITS) {
     const sinR = Math.sin(orbit.roll)
     const cosR = Math.cos(orbit.roll)
-    /** Cell under orbit angle `phi`, or null where the planet hides it. */
-    const at = (phi: number): readonly [number, number] | null => {
+    /** Cell under orbit angle `phi` and whether it crosses the planet's face, or null where the planet hides it. */
+    const at = (phi: number): readonly [number, number, boolean] | null => {
       const ox = orbit.radius * Math.cos(phi)
       const depth = orbit.radius * Math.sin(phi)
       const oy = depth * orbit.lift
       const x = ox * cosR - oy * sinR
       const y = ox * sinR + oy * cosR
-      if (depth < 0 && x * x + y * y < 1) return null
-      return [Math.floor(CX + x * R), Math.floor(CY + y * R)]
+      const over = x * x + y * y < 1
+      if (depth < 0 && over) return null
+      return [Math.floor(CX + x * R), Math.floor(CY + y * R), over]
     }
-    for (let i = 0; i < 72; i++) {
-      const cell = at((i / 72) * Math.PI * 2)
-      if (cell) put(cell[0], cell[1], SUBTLE)
+    // The path: a dot every other cell, left off the planet's face so it does not read as surface.
+    const dots = Math.round(Math.PI * orbit.radius * R)
+    for (let i = 0; i < dots; i++) {
+      const cell = at((i / dots) * Math.PI * 2)
+      if (cell && !cell[2]) put(cell[0], cell[1], SUBTLE)
     }
     const head = orbit.phase + t * orbit.speed
     // Half a cell per step, so the trail is a solid line before the dither thins it.
     const step = 0.5 / (orbit.radius * R)
     const back = -Math.sign(orbit.speed) * step
+    // Crossing the face, the trail first clears a gap in the surface so it stays legible.
+    for (let k = TRAIL / step; k >= 0; k--) {
+      const cell = at(head + k * back)
+      if (!cell?.[2]) continue
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) put(cell[0] + dx, cell[1] + dy, NONE)
+    }
     for (let k = TRAIL / step; k > 0; k--) {
       const cell = at(head + k * back)
       const fade = 1 - (k * step) / TRAIL
-      if (cell && fade * fade > threshold(cell[0], cell[1])) put(cell[0], cell[1], fade > 0.7 ? INK : MUTED)
+      if (cell && fade > threshold(cell[0], cell[1])) put(cell[0], cell[1], fade > 0.6 ? orbit.ink : MUTED)
     }
     const sat = at(head)
-    if (sat)
-      for (const [dx, dy] of [
-        [0, 0],
-        [1, 0],
-        [0, 1],
-        [1, 1],
-      ] as const)
-        put(sat[0] + dx, sat[1] + dy, orbit.ink)
+    if (sat) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) put(sat[0] + dx, sat[1] + dy, orbit.ink)
   }
 }
 
