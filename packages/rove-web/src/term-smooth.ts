@@ -11,11 +11,13 @@ import type { Terminal } from "@xterm/xterm"
 import { createEdgeStrips } from "./term-edge.ts"
 import {
   type CoastState,
+  appWheel,
   coastStep,
   edgeCarry,
   glideStep,
   isWheelNotch,
   scrollStep,
+  takeWholeLines,
   wheelDelta,
   wheelOwner,
 } from "./term-scroll.ts"
@@ -180,22 +182,40 @@ export function createSmoothScroll(term: Terminal, onMove: () => void): SmoothSc
 /**
  * A wheel the app does not take (normal screen, or mouse tracking without Shift) moves `scroll`; a notch glides.
  * The OS's momentum is followed until its crawl, then the view stops and eases onto the row grid.
+ * One the app takes (the alternate screen) goes to it a row at a time (`appWheel`).
  */
+const NOTCH_ROWS = 3
+
 export function attachWheelScroll(el: HTMLElement, term: Terminal, scroll: SmoothScroll): () => void {
   let coast: CoastState | null = null
+  // Rows of travel an app-owned wheel has not yet added up to.
+  let carry = 0
   const onWheel = (e: WheelEvent) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
     const alternateScreen = term.buffer.active.type === "alternate"
     const mouseTracking = term.modes.mouseTrackingMode !== "none"
-    if (wheelOwner({ alternateScreen, mouseTracking, shift: e.shiftKey }) === "app") {
-      scroll.reset()
-      return
-    }
+    // Ours either way: xterm's own handler never sees the wheel.
     e.preventDefault()
     e.stopPropagation()
     const screen = term.element?.querySelector<HTMLElement>(".xterm-screen")
     const cellHeight = screen && term.rows > 0 ? screen.clientHeight / term.rows : 0
     const delta = wheelDelta(e, cellHeight || FALLBACK_ROW_PX, term.rows)
+    if (wheelOwner({ alternateScreen, mouseTracking, shift: e.shiftKey }) === "app") {
+      scroll.reset()
+      // A notch of a mouse wheel is a terminal's usual three rows, not the browser's hundred pixels.
+      const taken = isWheelNotch(e) ? { lines: Math.sign(delta) * NOTCH_ROWS, carry: 0 } : takeWholeLines(carry, delta)
+      carry = taken.carry
+      // A page per event at most: a runaway delta must not queue a flood of redraws in the app.
+      const lines = Math.max(-term.rows, Math.min(term.rows, taken.lines))
+      if (lines === 0) return
+      const box = screen?.getBoundingClientRect()
+      const col = box && term.cols > 0 ? Math.floor(((e.clientX - box.left) / box.width) * term.cols) + 1 : 1
+      const row = box && term.rows > 0 ? Math.floor(((e.clientY - box.top) / box.height) * term.rows) + 1 : 1
+      const applicationCursorKeys = term.modes.applicationCursorKeysMode
+      term.input(appWheel({ mouseTracking, applicationCursorKeys }, lines, col, row), false)
+      return
+    }
+    carry = 0
     if (isWheelNotch(e)) {
       coast = null
       scroll.glide(delta)

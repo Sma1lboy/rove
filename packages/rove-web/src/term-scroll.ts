@@ -20,6 +20,31 @@ export function wheelOwner(modes: {
   return modes.alternateScreen || (modes.mouseTracking && modes.shift) ? "app" : "local"
 }
 
+/**
+ * What a wheel of `lines` whole rows sends an app that owns it, one event per row as the TUI pane does
+ * (`encodeWheel`): SGR wheel reports under mouse tracking, else three arrow keys a row. xterm on its own
+ * sends one report per wheel event however far it moved, and a third of a trackpad's travel.
+ */
+export function appWheel(
+  modes: { readonly mouseTracking: boolean; readonly applicationCursorKeys: boolean },
+  lines: number,
+  col: number,
+  row: number,
+): string {
+  const up = lines < 0
+  const one = modes.mouseTracking
+    ? `\x1b[<${up ? 64 : 65};${Math.max(1, col)};${Math.max(1, row)}M`
+    : `\x1b${modes.applicationCursorKeys ? "O" : "["}${up ? "A" : "B"}`.repeat(3)
+  return one.repeat(Math.abs(lines))
+}
+
+/** Adds a wheel's fractional rows to what an earlier one left over; a turn the other way starts from nothing. */
+export function takeWholeLines(carry: number, delta: number): { lines: number; carry: number } {
+  const total = (Math.sign(carry) === -Math.sign(delta) ? 0 : carry) + delta
+  const lines = Math.trunc(total) || 0
+  return { lines, carry: total - lines }
+}
+
 export interface WheelInput {
   readonly deltaY: number
   /** `WheelEvent.deltaMode`: 0 pixels, 1 lines, 2 pages. */
