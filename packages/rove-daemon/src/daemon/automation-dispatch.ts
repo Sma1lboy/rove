@@ -21,7 +21,6 @@
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
-import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
 import { ensureRoutineCwd, routineDir } from "./routine-dir.ts"
@@ -286,7 +285,6 @@ async function liveDeliveryOutcome(
 ): Promise<DispatchOutcome> {
   switch (result.outcome) {
     case "delivered":
-      logDaemonInfo("automation", `delivered ${automation.name} task=${taskId} tab=${result.tabId}`)
       return { status: "dispatched", taskId, tabId: result.tabId }
     case "no-engine":
     case "no-session":
