@@ -92,3 +92,17 @@ describe("Claude context probe", () => {
     expect(snapshot?.context_parts).toBeUndefined()
   })
 })
+
+describe("Claude context probe pacing", () => {
+  it("does not start a second process for a session whose probe just came back empty", async () => {
+    const d = deps("probe-4", turn("claude-opus-5-5", 50_000))
+    let runs = 0
+    const empty = async () => {
+      runs++
+      return ""
+    }
+    await probeSessionContext("probe-4", d, empty)
+    await probeSessionContext("probe-4", d, empty)
+    expect(runs).toBe(1)
+  })
+})

@@ -418,7 +418,8 @@ export async function runAutomationOnce(
   }
 
   if (outcome.status === "dispatched" || outcome.status === "revived") {
-    logDaemonInfo("automation", `${outcome.status} ${automation.name} task=${outcome.taskId}`)
+    const tab = outcome.tabId ? ` tab=${outcome.tabId}` : ""
+    logDaemonInfo("automation", `${outcome.status} ${automation.name} task=${outcome.taskId}${tab}`)
   }
   return await record(outcome.status, {
     ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
