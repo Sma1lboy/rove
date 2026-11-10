@@ -35,10 +35,10 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 功能 | Web | Bridge | iOS 状态 |
 |---|---|---|---|
 | 菜单数字键、`tab.send` 和排队 chip、搜索所有对话、Routine 不进任务列表、归档、Sync with base | | | 已对齐（#1639、#1655–#1659） |
-| Inbox：全部已阅、routine 条目可清 | `inbox-view.tsx`、`inbox-open.ts` | `attention.dismissRoutine` | **有 PR** [#1811](https://github.com/Sma1lboy/rove/pull/1811) |
-| 行菜单 Fix checks、Land 前预检 | `fixChecksFlow`、`landFlow` | `task.fixChecks`、`task.landPreflight` | **有 PR** [#1812](https://github.com/Sma1lboy/rove/pull/1812) |
-| 复活已退出的 tab | `terminal-view.tsx`、`term-notice.tsx` | `term.revive` | **有 PR** [#1813](https://github.com/Sma1lboy/rove/pull/1813)；shell 还活着但引擎退出（`restartExited`）没做 |
-| Machines 总览 | `machines-dialog.tsx` | `machines.list` | **有 PR** [#1814](https://github.com/Sma1lboy/rove/pull/1814)；`[ new task here ]`、`[ repos ]` 没做 |
+| Inbox：全部已阅、routine 条目可清 | `inbox-view.tsx`、`inbox-open.ts` | `attention.dismissRoutine` | 已对齐 [#1811](https://github.com/Sma1lboy/rove/pull/1811) |
+| 行菜单 Fix checks、Land 前预检 | `fixChecksFlow`、`landFlow` | `task.fixChecks`、`task.landPreflight` | 已对齐 [#1812](https://github.com/Sma1lboy/rove/pull/1812) |
+| 复活已退出的 tab | `terminal-view.tsx`、`term-notice.tsx` | `term.revive` | 已对齐 [#1813](https://github.com/Sma1lboy/rove/pull/1813)；shell 还活着但引擎退出（`restartExited`）没做 |
+| Machines 总览 | `machines-dialog.tsx` | `machines.list` | 已对齐 [#1814](https://github.com/Sma1lboy/rove/pull/1814)；`[ new task here ]`、`[ repos ]` 没做 |
 | 行上一个任务开的多个 PR | `pr-chip.tsx` | 行字段 `sessionPrs` | **缺** |
 | Inbox 每行直接回复 | `term-replies.ts`、`inbox-view.tsx` | `tab.send` | **缺** |
 | 定时启动（New session 的 Later、行上的倒计时） | `new-session-later.tsx`、`schedule-start.ts` | `task.scheduleStart`、`task.cancelScheduledStart`、`task.startScheduledNow` | **缺** |
@@ -74,7 +74,7 @@ iOS 领先的地方，不反向对齐：Inbox 的 `decision_needed`、`report_mi
 
 ## 下一轮的顺序
 
-1. 确认 #1811–#1814 的合入情况，把上表的「有 PR」改成已对齐。
+1. #1811–#1814 已合入并标为已对齐；下一轮从剩余行开始。
 2. 行上多个 PR、Inbox 直接回复、定时启动、CI 检查列表：后端都已就绪，每项只碰一两个页面。
 3. 笔记和 todo、review queue、Files 的提交和 PR 入口。
 4. Mods、Context、Usage：页面大，每个单开一轮。Machines 的 `[ new task here ]` 和 New task 的机器选择一起做。
