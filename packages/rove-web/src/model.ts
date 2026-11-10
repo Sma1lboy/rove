@@ -20,8 +20,8 @@ export interface Selection {
 const SELECTION_KEY = "rove.web.selection"
 /** `ui.viewing`'s key for "shows no task". */
 const NOTHING_SHOWN = "null"
-/** Pushes arrive in bursts while engines work; one tab sweep per burst is enough. */
-const TAB_REFRESH_DEBOUNCE_MS = 300
+/** The least time between two sweeps of tab reads; a lone change does not wait for it. */
+const TAB_READ_GAP_MS = 300
 
 function loadSelection(): Selection {
   try {
@@ -106,7 +106,7 @@ export class AppModel {
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
   private tabTimer: number | null = null
-  private tabsLoaded = false
+  private tabsReadAt = Number.NEGATIVE_INFINITY
   /** The tasks whose tabs the next read covers; null = every task. */
   private tabScope: Set<string> | null = new Set()
   /** The tab ids the daemon last reported per task, as one string: a change is what re-reads that task's tabs. */
@@ -386,11 +386,11 @@ export class AppModel {
     if (!taskIds) this.tabScope = null
     else for (const id of taskIds) this.tabScope?.add(id)
     if (this.tabTimer !== null) return
-    // The first load reads tabs at once; the debounce only batches later pushes.
-    const delay = this.tabsLoaded ? TAB_REFRESH_DEBOUNCE_MS : 0
-    this.tabsLoaded = true
+    // A change with no read just before it is read at once; the gap only batches a run of them.
+    const delay = Math.max(0, this.tabsReadAt + TAB_READ_GAP_MS - Date.now())
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
+      this.tabsReadAt = Date.now()
       const scope = this.tabScope
       this.tabScope = new Set()
       void this.refreshTabs(scope ? [...scope] : this.tabbedTasks().map((task) => task.id))
