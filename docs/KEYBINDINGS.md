@@ -66,6 +66,7 @@ shows only actions that can run right now.
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `n` | New task |
+| `ctrl+a` `q` | Focus the sidebar — the prefix twin of `ctrl+q`; `q` there quits with a confirm |
 | `ctrl+a` `w` | Close the active split, otherwise the tab — the prefix twin of `ctrl+w` |
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their first-party mods are installed) |
 | `ctrl+a` `z` | Toggle zen mode |

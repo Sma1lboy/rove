@@ -25,7 +25,7 @@ describe("resetKeymapToDefaults", () => {
     // relative cycling rather than four absolute prefix targets.
     // h/l (left/right) — the panes sit side by side.
     expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
-    expect(findBinding("focus.sidebar")?.prefixKeys).toBeUndefined()
+    expect(findBinding("focus.sidebar")?.prefixKeys).toEqual(["q"])
     expect(findBinding("focus.numeric")).toBeUndefined()
     expect(findBinding("focus.previous")?.keys).toEqual([])
     expect(findBinding("focus.previous")?.prefixKeys).toEqual(["h"])
@@ -37,7 +37,6 @@ describe("resetKeymapToDefaults", () => {
 
   test("non-ChatPane bindings retain their direct Ctrl chords", () => {
     expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
-    expect(findBinding("focus.sidebar")?.prefixKeys).toBeUndefined()
     expect(findBinding("terminal.scroll-up")?.keys).toEqual(["ctrl+pageup"])
     expect(findBinding("terminal.scroll-up")?.prefixKeys).toBeUndefined()
   })
