@@ -40,7 +40,7 @@ routine, or use `rove api routine-update`. The composer carries name, repo,
 delivery target, prompt, schedule and the confirm step. The web page's detail
 has `[ change ]` beside the engine, which sets the engine, model and effort;
 everything else is CLI-only — `--precheck` (below), `--precheck-timeout`,
-`--base-branch`, `--grace`, `--persistent-session` and `--disabled`, and in
+`--base-branch`, `--grace`, `--persistent-session`, `--new-conversation` and `--disabled`, and in
 the TUI `--vendor`, `--model` and `--effort` too.
 
 The page end to end: walking the schedules, pausing one, then composing a
@@ -483,9 +483,24 @@ an existing tab runs in your task, and that engine is never stopped.
 The standing task's tab remembers its conversation. The next firing starts the
 engine again **in the same worktree** and reopens that conversation through the
 engine's own resume command, so files, branch and transcript all carry over.
-That run is recorded as `revived` rather than `dispatched`. An engine with no
-resume command, or a conversation the engine no longer has, starts a new
-conversation in the same worktree instead.
+That run is recorded as `revived` rather than `dispatched`, and it gets the
+short "instructions unchanged" line when the reopened conversation already
+holds the prompt. An engine with no resume command, or a conversation the
+engine no longer has, starts a new conversation in the same worktree instead,
+with the full prompt.
+
+A reopened conversation grows with every run, and each run reads all of it
+again. A routine that works a queue and needs nothing from earlier runs can
+keep the standing task without that cost:
+
+```bash
+rove api routine-update --id <id> --new-conversation
+```
+
+Every run then starts a new conversation in the same task and worktree, with
+the full prompt. `--new-conversation false` goes back to reopening the last
+one; it is refused without `--persistent-session`, and turning that off drops
+it. The detail's "Delivers to" line says which of the two a routine does.
 
 If the standing task is deleted, the routine simply builds a new one on its next
 firing rather than failing forever.

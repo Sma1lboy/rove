@@ -448,7 +448,13 @@ export function AutomationsPage(props: {
                         selected.target.taskId,
                       tab: selected.target.tabId,
                     })
-                  : t(selected.persistentSession ? "automations.targetStanding" : "automations.targetFresh")}
+                  : t(
+                      selected.persistentSession
+                        ? selected.newConversation
+                          ? "automations.targetStandingNew"
+                          : "automations.targetStanding"
+                        : "automations.targetFresh",
+                    )}
               </text>
               {selectedEngine ? <text fg={theme.textMuted}>{selectedEngine.full}</text> : null}
               {selected.precheck ? (

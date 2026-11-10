@@ -96,6 +96,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     ...(str(raw.webhook?.secret) ? { webhook: { secret: raw.webhook?.secret as string } } : {}),
     ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
     ...(raw.persistentSession === true ? { persistentSession: true } : {}),
+    ...(raw.newConversation === true ? { newConversation: true } : {}),
     ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
     ...(lastOccurrenceAt ? { lastOccurrenceAt } : {}),
     createdAt: str(raw.createdAt) ?? now,

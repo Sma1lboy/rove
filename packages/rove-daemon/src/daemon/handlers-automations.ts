@@ -145,6 +145,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         modelEffort,
         baseRef,
         persistentSession: optionalBoolean(payload, "persistentSession"),
+        newConversation: optionalBoolean(payload, "newConversation"),
       }
       assertAutomationTargetOptions(targetOptions)
       const script = readPrecheck(payload, "script") ?? undefined
@@ -167,6 +168,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(precheck ? { precheck } : {}),
         ...(baseRef ? { baseRef } : {}),
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
+        ...(optionalBoolean(payload, "newConversation") === true ? { newConversation: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
       // A projectless routine's cwd must exist before its first firing; a save that can't make it is no save.
@@ -213,6 +215,9 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(readGraceMinutes(payload) !== undefined ? { missedRunGraceMinutes: readGraceMinutes(payload) } : {}),
         ...(optionalBoolean(payload, "persistentSession") !== undefined
           ? { persistentSession: optionalBoolean(payload, "persistentSession") }
+          : {}),
+        ...(optionalBoolean(payload, "newConversation") !== undefined
+          ? { newConversation: optionalBoolean(payload, "newConversation") }
           : {}),
       }
       const current = ctx.automations.get(id)

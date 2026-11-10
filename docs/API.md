@@ -1811,7 +1811,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-list`: every routine with its next run time.
 - `routine-create (--repo PATH | --no-repo) --name N (--prompt TEXT | --prompt-file PATH | --script CMD [--script-timeout SEC]) --schedule CRON
   [--vendor V] [--model M] [--effort LEVEL] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--persistent-session] [--disabled] [--target-task ID --target-tab TAB]
+  [--grace MIN] [--persistent-session [--new-conversation]] [--disabled] [--target-task ID --target-tab TAB]
   [--notify]`: schedule a prompt (or, with `--script`, a shell command
   with no engine: [Script routines](./ROUTINES.md#script-routines-no-engine-at-all); `--notify` hands each run's
   response to the bound chat agent). Script routines cannot set `--vendor`, `--model`, `--effort`,
@@ -1844,8 +1844,9 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   routine prompt starts with a
   `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: rove api report --delivery d-<n> --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)`
   line, then the prompt. A `--persistent-session` routine sends the full
-  prompt only when its engine was just created or revived, or when the
-  prompt changed since the last run delivered to that session; other runs
+  prompt only when its engine starts a new conversation, or when the
+  prompt changed since the last run delivered to that conversation; other runs,
+  a `revived` one that reopened the conversation included,
   get one line saying the instructions are unchanged. One response per run, a second call replaces it; cap
   32,000 characters (`RESPONSE_TOO_LARGE`, never truncated); an unknown run id
   is `RUN_NOT_FOUND`. No response is ever inferred from a transcript. Prefer
@@ -1869,6 +1870,9 @@ still raises Inbox entries. Leave it off for a routine that edits code: a week o
 one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine is stopped after every run, so it was started again in the
 same worktree; the conversation is reopened where the engine has a resume command).
+`--new-conversation` (with `--persistent-session` only) keeps the standing task
+and worktree but starts a new conversation on every run instead of reopening
+the last one; `routine-update --new-conversation false` turns it off.
 
 **`--webhook`** also fires the routine on a POST to the web server's
 `/hooks/routines/<id>` signed with `.webhook.secret` (GitHub's

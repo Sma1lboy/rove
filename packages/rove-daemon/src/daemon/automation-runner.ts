@@ -342,6 +342,8 @@ export async function runAutomationOnce(
   // turn can fire its hook within milliseconds of it.
   let deliveryId: string | undefined
   let elided = false
+  // What a conversation that outlived the last run was sent, should a revive reopen it.
+  let elidedLive = false
   const settleDelivery = async (delivered: { tabId?: string } | null): Promise<void> => {
     if (!deliveryId) return
     const id = deliveryId
@@ -376,6 +378,7 @@ export async function runAutomationOnce(
           })
         ).id
         elided = sessionHoldsPrompt(automation, deps.store.runsFor(automation.id), target)
+        if (!target.fresh) elidedLive = elided
         const api = deps.runtime.roveApiInvocation?.() ?? "rove api"
         return withRoutineRunHeader(automation, reserved, api, deliveryId, args.event, elided)
       },
@@ -387,6 +390,7 @@ export async function runAutomationOnce(
     await settleDelivery(null)
     return await record("skipped_unavailable", { error })
   }
+  if (outcome.status === "revived" && outcome.resumed) elided = elidedLive
   // Only a prompt that reached an engine owes a report.
   await settleDelivery(outcome.status === "dispatched" || outcome.status === "revived" ? outcome : null)
 

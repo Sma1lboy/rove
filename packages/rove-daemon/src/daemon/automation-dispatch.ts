@@ -69,6 +69,8 @@ export interface DispatchOutcome {
   readonly sessionTaskIdToClear?: boolean
   /** Set on the firing that established a standing session. */
   readonly sessionTaskIdToSet?: string
+  /** Set on a `revived` run that reopened the standing task's conversation, not a new one. */
+  readonly resumed?: boolean
   /** Set with `skipped_blocked`, and with `dispatch_failed` when the refusal needs a human. */
   readonly blocked?: SkipVerdict
 }
@@ -144,15 +146,23 @@ async function spawnWithPrompt(
   prompt: string,
   taskId: string,
   status: AutomationRunStatus,
+  options: { readonly newConversation?: boolean; readonly resumedPrompt?: string } = {},
 ): Promise<DispatchOutcome> {
   if (deps.canDeliver?.() === false) return { status: "skipped_cancelled", taskId }
   const owed = carryOwedGateAnswers(deps.gates, taskId, null, prompt)
-  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, owed.prompt)
+  const resumedPrompt =
+    options.resumedPrompt === undefined
+      ? undefined
+      : carryOwedGateAnswers(deps.gates, taskId, null, options.resumedPrompt).prompt
+  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, owed.prompt, {
+    ...(options.newConversation ? { newConversation: true } : {}),
+    ...(resumedPrompt === undefined ? {} : { resumedPrompt }),
+  })
   if (!outcome.started) {
     return { status: "dispatch_failed", taskId, error: outcome.error ?? "engine session did not start" }
   }
   await owed.commit()
-  return { status, taskId }
+  return { status, taskId, ...(outcome.resumed ? { resumed: true } : {}) }
 }
 
 /** Where a firing's prompt lands. `fresh`: a just-spawned engine, with no transcript of earlier runs. */
@@ -277,12 +287,19 @@ export async function dispatchAutomation(
     await owed.commit()
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
-  // `no-session` (tab gone) and `no-engine` (keepAlive left a login shell):
-  // the engine died between firings. Respawn in the SAME worktree as
-  // `revived`. `no-engine` must land here, or the prompt gets typed into zsh
-  // and RUN as shell commands.
+  // `no-session` (the engine was stopped after its last run, or the tab is gone)
+  // and `no-engine` (keepAlive left a login shell): start it again in the SAME
+  // worktree as `revived`. `no-engine` must land here, or the prompt gets typed
+  // into zsh and RUN as shell commands.
   const fullText = await resolvePrompt(prompt, { taskId: task.id, tabId: null, fresh: true })
-  return await spawnWithPrompt(deps, fullText, task.id, "revived")
+  // A reopened conversation gets what a live one would have; a new one needs the whole prompt.
+  return await spawnWithPrompt(
+    deps,
+    fullText,
+    task.id,
+    "revived",
+    automation.newConversation ? { newConversation: true } : { resumedPrompt: text },
+  )
 }
 
 async function liveDeliveryOutcome(

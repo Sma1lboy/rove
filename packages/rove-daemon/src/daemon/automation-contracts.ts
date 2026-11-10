@@ -52,6 +52,8 @@ export interface Automation {
    * landable branch, not a week of runs piled onto one.
    */
   readonly persistentSession?: boolean
+  /** With {@link persistentSession}: every run starts a new conversation in the standing task, instead of reopening the last one. */
+  readonly newConversation?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
   /** Webhook trigger: a POST to `/hooks/routines/<id>` signed with this secret
@@ -202,6 +204,7 @@ export interface AutomationPatch {
   readonly enabled?: boolean
   readonly missedRunGraceMinutes?: number
   readonly persistentSession?: boolean
+  readonly newConversation?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: Automation["target"] | null
   /** `null` turns the webhook trigger off. */

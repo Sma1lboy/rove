@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
     (input: {
       task: { id: string }
       argv?: readonly string[]
+      promptIntent?: { prompt?: string }
     }): { key: string; command: string[]; firstMessage?: string } => ({
       key: `${input.task.id}::tab-1`,
       command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
@@ -133,18 +134,34 @@ describe("daemon session adapter", () => {
 
   const launchedArgv = (call: number) => mocks.buildLaunch.mock.calls[call]?.[0].argv ?? []
 
-  it("reopens the conversation a stopped task's tab row holds", async () => {
-    await expect(startTaskSessionWithPromptAdapter(link("s-1"), "task-1", "next run")).resolves.toEqual({
-      started: true,
-    })
+  const launchedPrompt = (call: number) => mocks.buildLaunch.mock.calls[call]?.[0].promptIntent?.prompt
+
+  it("reopens the conversation a stopped task's tab row holds, with the prompt meant for it", async () => {
+    await expect(
+      startTaskSessionWithPromptAdapter(link("s-1"), "task-1", "full prompt", { resumedPrompt: "as before" }),
+    ).resolves.toEqual({ started: true, resumed: true })
     expect(mocks.buildLaunch).toHaveBeenCalledOnce()
     expect(launchedArgv(0)).toEqual(["claude", "--resume", "s-1"])
+    expect(launchedPrompt(0)).toBe("as before")
+  })
+
+  it("starts a new conversation when asked to, whatever the tab row holds", async () => {
+    await expect(
+      startTaskSessionWithPromptAdapter(link("s-1"), "task-1", "full prompt", { newConversation: true }),
+    ).resolves.toEqual({ started: true })
+    expect(mocks.buildLaunch).toHaveBeenCalledOnce()
+    expect(launchedArgv(0)).not.toContain("--resume")
+    expect(launchedPrompt(0)).toBe("full prompt")
   })
 
   it("starts a new conversation when the held one no longer opens, clearing the failed launch first", async () => {
     mocks.awaitEngineProcess.mockResolvedValueOnce(null)
     const client = link("s-gone")
-    await expect(startTaskSessionWithPromptAdapter(client, "task-1", "next run")).resolves.toEqual({ started: true })
+    await expect(
+      startTaskSessionWithPromptAdapter(client, "task-1", "full prompt", { resumedPrompt: "as before" }),
+    ).resolves.toEqual({ started: true })
+    // A conversation that never saw the instructions needs them whole.
+    expect(launchedPrompt(1)).toBe("full prompt")
     expect(mocks.killSessions).toHaveBeenCalledWith(expect.anything(), ["task-1::tab-1"], { wait: true })
     expect(launchedArgv(1)).toContain("--session-id")
     expect(launchedArgv(1)).not.toContain("--resume")

@@ -68,10 +68,11 @@ function harness(
     tasks?: Record<string, DaemonTask>
     deliver?: DispatchDeps["runtime"]["deliverPromptToLiveEngineDetailed"]
     startOk?: boolean
+    resumed?: boolean
   } = {},
 ) {
   const created: unknown[] = []
-  const spawned: Array<{ taskId: string; prompt: string }> = []
+  const spawned: Array<{ taskId: string; prompt: string; options?: unknown }> = []
   const delivered: Array<{ taskId: string; prompt: string }> = []
   const deps: DispatchDeps = {
     orch: {
@@ -89,9 +90,9 @@ function harness(
       deliverPromptToLiveEngineTabDetailed: async () => {
         throw new Error("standing must not use bound-tab delivery")
       },
-      startTaskSessionWithPrompt: async (_l: DaemonRpcClient, taskId: string, prompt: string) => {
-        spawned.push({ taskId, prompt })
-        return { started: args.startOk !== false }
+      startTaskSessionWithPrompt: async (_l: DaemonRpcClient, taskId: string, prompt: string, options?: object) => {
+        spawned.push({ taskId, prompt, ...(options && Object.keys(options).length > 0 ? { options } : {}) })
+        return { started: args.startOk !== false, ...(args.resumed ? { resumed: true } : {}) }
       },
       deliverPromptToLiveEngineDetailed:
         args.deliver ??
@@ -164,10 +165,29 @@ describe("standing session — later firings", () => {
     const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "task-1" }))
 
     expect(created).toHaveLength(0)
-    expect(spawned).toEqual([{ taskId: "task-1", prompt: "what changed since yesterday?" }])
-    // NOT `dispatched`: the files carried over but the conversation did not,
-    // and a run that started over must not read like one that had context.
+    // The live prompt rides along for a conversation the engine can reopen.
+    expect(spawned).toEqual([
+      {
+        taskId: "task-1",
+        prompt: "what changed since yesterday?",
+        options: { resumedPrompt: "what changed since yesterday?" },
+      },
+    ])
+    // NOT `dispatched`: the engine was started for this run.
     expect(outcome).toMatchObject({ status: "revived", taskId: "task-1" })
+  })
+
+  it("a new-conversation routine revives without reopening, and says so to the runtime", async () => {
+    const { spawned, deps } = harness({
+      tasks: { "task-1": task() },
+      deliver: async () => ({ outcome: "no-session" as const }),
+    })
+
+    const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "task-1", newConversation: true }))
+
+    expect(spawned[0]?.options).toEqual({ newConversation: true })
+    expect(outcome).toMatchObject({ status: "revived", taskId: "task-1" })
+    expect(outcome.resumed).toBeUndefined()
   })
 
   it("rebuilds when the standing task is mid-deletion or lost its worktree", async () => {

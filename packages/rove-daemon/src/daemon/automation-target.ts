@@ -34,9 +34,19 @@ export function readAutomationTarget(value: unknown): Automation["target"] | nul
 export function assertAutomationTargetOptions(
   value: Pick<
     Automation,
-    "target" | "vendor" | "model" | "modelEffort" | "baseRef" | "persistentSession" | "sessionTaskId"
+    | "target"
+    | "vendor"
+    | "model"
+    | "modelEffort"
+    | "baseRef"
+    | "persistentSession"
+    | "newConversation"
+    | "sessionTaskId"
   >,
 ): void {
+  if (value.newConversation && !value.persistentSession) {
+    throw new Error("newConversation needs persistentSession: a fresh task per run already starts a new conversation")
+  }
   if (!value.target) {
     // Pins were validated against one engine; a vendor-less run would launch the default one.
     if ((value.model || value.modelEffort) && !value.vendor) {
@@ -53,13 +63,16 @@ export function assertAutomationTargetOptions(
 
 /** One merge policy for boundary validation and durable updates. */
 export function mergeAutomationTargetOptions(automation: Automation, patch: AutomationPatch) {
+  const persistentSession = patch.persistentSession ?? automation.persistentSession
   return {
     target: patch.target === null ? undefined : (patch.target ?? automation.target),
     vendor: patch.vendor === null ? undefined : (patch.vendor ?? automation.vendor),
     model: patch.model === null ? undefined : (patch.model ?? automation.model),
     modelEffort: patch.modelEffort === null ? undefined : (patch.modelEffort ?? automation.modelEffort),
     baseRef: patch.baseRef === null ? undefined : (patch.baseRef ?? automation.baseRef),
-    persistentSession: patch.persistentSession ?? automation.persistentSession,
+    persistentSession,
+    // It only qualifies a standing task: leaving that mode drops it, unless this patch asks for both.
+    newConversation: patch.newConversation ?? (persistentSession ? automation.newConversation : undefined),
     sessionTaskId:
       patch.target || patch.sessionTaskId === null ? undefined : (patch.sessionTaskId ?? automation.sessionTaskId),
   }
