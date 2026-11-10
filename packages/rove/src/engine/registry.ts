@@ -58,6 +58,12 @@ export interface EngineHistoryReader {
    */
   readUsageSnapshot?(sessionId: string): Promise<EngineUsageSnapshot | undefined>
   /**
+   * Ask the engine itself what fills the session's window, when it can say
+   * more than its transcript does; later `readUsageSnapshot` reads carry the
+   * answer. May start a process: on demand only, never polled.
+   */
+  probeContext?(sessionId: string): Promise<void>
+  /**
    * Absolute transcript path, or null. Not for rove to parse: the cross-engine
    * handoff gives it to the next agent in its native format. `worktree`
    * scopes stores keyed by directory (claude).
