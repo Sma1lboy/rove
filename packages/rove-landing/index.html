@@ -250,7 +250,7 @@
             <option value="wsl">WSL (Linux shell)</option>
           </select>
         </div>
-        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in engine CLI. The installer sets up Bun if needed.</p>
+        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
         <div class="install-wrap" id="installWrap">
           <button class="copy" id="copyBtn" data-install-copy type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh" aria-label="Copy install command: curl -fsSL https://rove.run/install.sh | sh">
             <span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span>
@@ -270,8 +270,8 @@
 
     <div class="hero-r">
       <figure class="demo">
-        <video src="/assets/hero-multirepo.mp4" poster="/assets/hero-multirepo-poster.webp" autoplay muted loop playsinline preload="metadata"
-               aria-label="Screen recording of Rove: a task started in each of three repos, running Claude Code and Codex at once; the terminal is closed and reopened with all three still running, then one task's diff"></video>
+        <video id="heroVideo" src="/assets/hero-typed-en.mp4" poster="/assets/hero-typed-en-poster.webp" autoplay muted loop playsinline preload="metadata"
+               aria-label="A 40-second film of Rove: a task is typed in one sentence, a second agent reviews it, one agent hands work to three others, the terminal closes while they keep working, and the same list opens in a browser and on a phone"></video>
       </figure>
     </div>
   </section>

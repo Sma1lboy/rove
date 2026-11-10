@@ -101,6 +101,12 @@ var ROVE_I18N = (function () {
       var v = t(el.getAttribute('data-i18n-html'));
       if (v) el.innerHTML = v;
     });
+    var hero = document.getElementById('heroVideo');
+    var heroSrc = '/assets/hero-typed-' + lang + '.mp4';
+    if (hero && hero.getAttribute('src') !== heroSrc) {
+      hero.poster = '/assets/hero-typed-' + lang + '-poster.webp';
+      hero.src = heroSrc;
+    }
     document.dispatchEvent(new Event('rove:language'));
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
