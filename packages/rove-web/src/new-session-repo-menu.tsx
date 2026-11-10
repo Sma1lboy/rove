@@ -57,10 +57,10 @@ export function RepoMenu(props: {
 
   const typed = query.trim()
   const local = filterText(saved, query)
-  const noFolder = t("rail.noProject")
+  const noFolder = t("newSession.noFolder")
   const ungrouped =
     props.ungrouped && (!typed || noFolder.toLowerCase().includes(typed.toLowerCase()))
-      ? [{ key: NO_PROJECT_KEY, text: noFolder, dim: home, checked: props.ungrouped.on }]
+      ? [{ key: NO_PROJECT_KEY, text: noFolder, checked: props.ungrouped.on }]
       : []
   const projects = local.map((path) => {
     const { base, dir } = splitRepoRow(path)
