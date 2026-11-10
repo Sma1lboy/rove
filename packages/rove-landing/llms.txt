@@ -1,6 +1,6 @@
 # Rove
 
-> Rove is an agentic development environment (ADE) for the terminal: one window where Claude Code, Codex, Copilot and other coding agents work side by side. Each task has its own git worktree, branch, and hosted engine session. The agents hand tasks to each other and message each other as peers with no coordinator, and every session survives closing the SSH connection.
+> Rove is an agentic development environment (ADE) for the terminal: one window where Claude Code, Codex, Copilot and other coding agents work side by side. Each task has its own git worktree, branch, and hosted engine session. The agents hand tasks to each other and message each other as peers with no coordinator, and every session survives closing the SSH connection. Why more than one agent: one writes and another reviews the same files; when one hits its usage limit mid-task another engine reads its transcript and continues on the same branch; and agents pass work to each other without a person copying text between windows.
 
 Rove is a local-first TUI, not a web app. It runs where your code lives — laptop, devbox, or a box you reach over SSH. Engine adapters (Claude Code by default, Codex behind the same contract) are execution backends; the TUI is the product.
 

@@ -11,7 +11,7 @@
     <string name="list_pinned">Pinned</string>
     <string name="list_pair_again">pair again</string>
     <string name="list_welcome">welcome</string>
-    <string name="list_welcome_body">rove runs coding agents side by side — every task gets its own git worktree and branch.</string>
+    <string name="list_welcome_body">rove keeps all your coding agents in one place — one writes, another reviews, and every task gets its own git worktree and branch.</string>
     <string name="list_welcome_hint">start one with the new task bar below.</string>
     <string name="list_new_task_plus" translatable="false">+</string>
     <string name="list_new_task">new task</string>

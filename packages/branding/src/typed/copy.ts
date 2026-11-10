@@ -3,11 +3,11 @@
 const en = {
   header: "the agentic development environment for your terminal · open source",
   hero: "All your coding agents, in one place.",
-  heroSub: "Claude Code, Codex, Copilot and more, side by side, handing work to each other",
+  heroSub: "One writes, another reviews, and when one runs out of quota the next takes over",
   chapters: [
     ["New task", "One prompt. Its own worktree and branch."],
-    ["Any engine", "Claude Code, Codex, Copilot, and a dozen more"],
-    ["Hand off", "Agents give work to each other and report back"],
+    ["Any engine", "No single one is best at everything. Pick per task."],
+    ["Hand off", "One writes. The others test it and review it."],
     ["Keeps running", "Close the terminal. The agents keep working."],
     ["Inbox", "See which agent is waiting for you"],
     ["Create PR", "From a finished task to a pull request"],
@@ -42,11 +42,11 @@ const en = {
 const zh: typeof en = {
   header: "终端里的 agent 开发环境（ADE）· 开源",
   hero: "所有编程 agent，都在一个地方。",
-  heroSub: "Claude Code、Codex、Copilot 等等，并排干活，还能互相派活",
+  heroSub: "一个写，一个查；谁的额度用完了，换下一个接着干",
   chapters: [
     ["新建任务", "一句话，自带 worktree 和分支"],
-    ["任选引擎", "Claude Code、Codex、Copilot，还有十几个"],
-    ["互相派活", "agent 把活分给别的 agent，做完回报"],
+    ["任选引擎", "没有哪个样样都强，按任务挑"],
+    ["互相派活", "一个写，其他的写测试、做审查"],
     ["关了也在跑", "终端关掉，agent 继续干活"],
     ["收件箱", "哪个 agent 在等你，一眼看到"],
     ["开 PR", "任务做完，直接提 PR"],

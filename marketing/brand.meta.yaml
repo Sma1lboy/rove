@@ -18,6 +18,8 @@ product:
     - "developers who work inside terminals, tmux, SSH, and local devboxes"
   value_props:
     - "every coding agent in one window"
+    - "one agent writes, another reviews the same files"
+    - "when one agent hits its usage limit, another continues the task on the same branch"
     - "agents hand tasks to each other and report back"
     - "parallel isolated worktrees"
     - "persistent hosted engine sessions"

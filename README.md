@@ -8,6 +8,12 @@ Rove is an agentic development environment (ADE) for your terminal. It puts your
 
 Each task gets its own git worktree and branch, so agents never overwrite each other's files, and agent and shell sessions keep running when you disconnect.
 
+Why more than one agent:
+
+- **One writes, another reviews.** Open a second tab in a task and ask Codex to review what Claude wrote. It has its own conversation and reads the same files.
+- **A usage limit doesn't stop the task.** When one agent hits its limit mid-task, [switch the task to another engine](./docs/ENGINES.md). The new agent reads the old transcript and continues on the same branch.
+- **They talk to each other, not through you.** An agent hands a task to another with `rove api add`, and the report comes back to its own tab. You stop copying text between windows.
+
 <p align="center">
   <a href="https://www.npmjs.com/package/@sma1lboy/rove"><img src="https://img.shields.io/npm/v/%40sma1lboy%2Frove?style=flat-square&label=npm&color=c96442" alt="npm version" /></a>
   <a href="https://github.com/Sma1lboy/rove/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Sma1lboy/rove/ci.yml?branch=main&style=flat-square" alt="build" /></a>

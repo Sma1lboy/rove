@@ -125,6 +125,14 @@
         },
         {
           "@type": "Question",
+          "name": "Why would I use more than one coding agent?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No single agent is best at everything, and each has a usage limit. In Rove one agent writes and another reviews the same files from its own tab; when one hits its limit mid-task you switch the task to another engine, which reads the old transcript and continues on the same branch; and agents hand tasks to each other directly instead of you copying text between windows."
+          }
+        },
+        {
+          "@type": "Question",
           "name": "How do I install Rove?",
           "acceptedAnswer": {
             "@type": "Answer",
@@ -231,7 +239,7 @@
   <section class="hero">
     <div class="hero-l">
       <h1 data-i18n-html="hero.title">All your coding agents, <span class="thin"><span class="nb">in one place.</span></span></h1>
-      <p class="lede" data-i18n-html="hero.sub">Rove is an agentic development environment (ADE) for your terminal. Every agent works on its own copy of your code, they hand tasks to each other, and they keep running after you disconnect.</p>
+      <p class="lede" data-i18n-html="hero.sub">No single agent is best at everything, and every one of them runs out of quota. Rove puts them in one terminal: one writes, another reviews, and when one hits its limit the next picks up the task.</p>
 
       <div id="install">
         <div class="install-platform">
@@ -265,6 +273,16 @@
         <video src="/assets/hero-multirepo.mp4" poster="/assets/hero-multirepo-poster.webp" autoplay muted loop playsinline preload="metadata"
                aria-label="Screen recording of Rove: a task started in each of three repos, running Claude Code and Codex at once; the terminal is closed and reopened with all three still running, then one task's diff"></video>
       </figure>
+    </div>
+  </section>
+
+  <section class="note wide" id="why">
+    <h2 data-i18n="why.h">Why more than one agent?</h2>
+
+    <div class="txt-col">
+      <p data-i18n-html="why.p1"><b>One writes, another reviews.</b> Open a second tab in the task and ask Codex to review what Claude wrote. It has its own conversation and reads the same files.</p>
+      <p data-i18n-html="why.p2"><b>A usage limit doesn't stop the task.</b> When one agent hits its limit mid-task, switch the task to another engine. The new agent reads the old transcript, says where the last one stopped, and continues on the same branch.</p>
+      <p data-i18n-html="why.p3"><b>They talk to each other, not through you.</b> Without Rove, each agent sits in its own window and you copy text between them. Here an agent hands a task to another with <span class="mono">rove api add</span>, and the report comes back to its own tab.</p>
     </div>
   </section>
 
