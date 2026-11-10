@@ -20,7 +20,14 @@ const rollup = [
     startedAt: "2026-01-01T00:00:00Z",
     completedAt: "2026-01-01T00:03:12Z",
   },
-  { name: "build", status: "IN_PROGRESS", conclusion: "", detailsUrl: URL("13") },
+  {
+    name: "build",
+    status: "IN_PROGRESS",
+    conclusion: "",
+    detailsUrl: URL("13"),
+    startedAt: "2026-01-01T00:01:00Z",
+    completedAt: "0001-01-01T00:00:00Z",
+  },
   { context: "ci/legacy", state: "ERROR", targetUrl: "https://ci.example/1" },
 ]
 const view = {
@@ -65,6 +72,14 @@ describe("pr.checks", () => {
       ["ci/legacy", "fail", null, null],
       ["build", "pending", null, "13"],
       ["lint", "pass", 42_000, "11"],
+    ])
+    // GitHub's zero date on a running check means "not finished", not a finish time.
+    const at = (iso: string) => Date.parse(iso)
+    expect(res.checks.map((c) => [c.name, c.startedAt, c.completedAt])).toEqual([
+      ["test", at("2026-01-01T00:00:00Z"), at("2026-01-01T00:03:12Z")],
+      ["ci/legacy", null, null],
+      ["build", at("2026-01-01T00:01:00Z"), null],
+      ["lint", at("2026-01-01T00:00:00Z"), at("2026-01-01T00:00:42Z")],
     ])
     expect(res).toMatchObject({
       outcome: "ok",

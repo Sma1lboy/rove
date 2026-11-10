@@ -36,6 +36,10 @@ export const en = {
       noLog: "no log excerpt for this job",
       logUnavailable: "couldn't read the log: {detail}",
       more: "{count} more not shown",
+      took: "{duration}",
+      tookAgo: "{duration} · {age} ago",
+      finishedAgo: "{age} ago",
+      runningFor: "running {elapsed}",
     },
     merge: {
       draft: "draft",
@@ -200,6 +204,10 @@ export const zh: typeof en = {
       noLog: "这个作业没有日志摘录",
       logUnavailable: "读不到日志：{detail}",
       more: "还有 {count} 个未显示",
+      took: "{duration}",
+      tookAgo: "{duration} · {age}前",
+      finishedAgo: "{age}前",
+      runningFor: "已运行 {elapsed}",
     },
     merge: {
       draft: "草稿",

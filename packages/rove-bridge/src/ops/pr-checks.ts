@@ -16,6 +16,9 @@ export interface CheckRow {
   readonly state: CheckState
   /** Run time in ms; null while running or when the check reports no times. */
   readonly durationMs: number | null
+  /** Epoch ms the check started / finished; null when not yet (or never) reported. */
+  readonly startedAt: number | null
+  readonly completedAt: number | null
   readonly url: string
   /** The Actions run a log can be read from; null for a check from another provider. */
   readonly runId: string | null
@@ -61,20 +64,25 @@ export function checkState(entry: unknown): CheckState {
   return "pending"
 }
 
-function durationOf(entry: unknown): number | null {
-  const start = Date.parse(field(entry, "startedAt"))
-  const end = Date.parse(field(entry, "completedAt"))
-  return Number.isFinite(start) && Number.isFinite(end) && end >= start ? end - start : null
+/** A rollup timestamp as epoch ms; GitHub sends the zero date for a time it has not set. */
+function timeOf(entry: unknown, key: string): number | null {
+  const at = Date.parse(field(entry, key))
+  return Number.isFinite(at) && at > 0 ? at : null
 }
 
 export function checkRows(rollup: readonly unknown[]): CheckRow[] {
   const rows = rollup.map((entry, i): CheckRow & { i: number } => {
     const url = field(entry, "detailsUrl") || field(entry, "targetUrl")
+    const startedAt = timeOf(entry, "startedAt")
+    const completedAt = timeOf(entry, "completedAt")
     return {
       i,
       name: field(entry, "name") || field(entry, "context") || "check",
       state: checkState(entry),
-      durationMs: durationOf(entry),
+      durationMs:
+        startedAt !== null && completedAt !== null && completedAt >= startedAt ? completedAt - startedAt : null,
+      startedAt,
+      completedAt,
       url,
       runId: runIdFromDetailsUrl(url),
     }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow, TaskRowPr } from "rove-bridge/protocol"
-import { duration, hasChecks, mergeParts } from "../src/checks-data.ts"
+import { type CheckRow, checkTiming, duration, hasChecks, mergeParts } from "../src/checks-data.ts"
 
 const pr = (over: Partial<TaskRowPr> = {}): TaskRowPr => ({
   number: 7,
@@ -24,6 +24,51 @@ describe("checks section", () => {
 
   test("durations read compactly across the minute and hour boundaries", () => {
     expect([42_000, 192_000, 3_660_000].map(duration)).toEqual(["42s", "3m12s", "1h01m"])
+  })
+
+  test("a finished check says how long it took and how long ago; a running one how long it has run", () => {
+    const now = Date.parse("2026-01-01T03:00:00Z")
+    const check = (over: Partial<CheckRow>): CheckRow => ({
+      name: "test",
+      state: "pass",
+      durationMs: null,
+      startedAt: null,
+      completedAt: null,
+      url: "",
+      runId: null,
+      ...over,
+    })
+    expect(
+      checkTiming(check({ state: "fail", durationMs: 192_000, completedAt: Date.parse("2026-01-01T01:00:00Z") }), now),
+    ).toEqual({ key: "files.checks.tookAgo", vars: { duration: "3m12s", age: "2h" } })
+    expect(checkTiming(check({ state: "pending", startedAt: now - 240_000 }), now)).toEqual({
+      key: "files.checks.runningFor",
+      vars: { elapsed: "4m00s" },
+    })
+    // An older bridge sends the duration alone; a legacy status sends no times at all.
+    expect(checkTiming(check({ durationMs: 42_000, completedAt: undefined }), now)).toEqual({
+      key: "files.checks.took",
+      vars: { duration: "42s" },
+    })
+    expect(checkTiming(check({ state: "fail" }), now)).toBeNull()
+    expect(checkTiming(check({ state: "pending" }), now)).toBeNull()
+  })
+
+  test("a finished check keeps its completion age when its duration is unavailable", () => {
+    const completedAt = 1793983746000
+    const check: CheckRow = {
+      name: "typecheck-and-test",
+      state: "skipped",
+      startedAt: 1793983756000,
+      completedAt,
+      durationMs: null,
+      url: "",
+      runId: null,
+    }
+    expect(checkTiming(check, completedAt + 120_000)).toEqual({
+      key: "files.checks.finishedAgo",
+      vars: { age: "2m" },
+    })
   })
 
   test("a conflict is named instead of a clean merge, and the review decision always shows", () => {
