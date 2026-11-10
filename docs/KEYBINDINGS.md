@@ -376,6 +376,9 @@ that takes a pair of keys, such as move down / up, asks for each in turn.
 as a bare letter on a binding that is live while you type, is refused with the
 reason and nothing is saved.
 
+The web client has the same rows in its Settings → Keybindings, with
+**Record**, **Default** and **Unbind** buttons.
+
 Each change is written to `~/.rove/settings/keybindings.yaml` and applies at
 once. You can also edit that file by hand; it reloads live, no restart, and
 your comments survive the edits Settings makes.

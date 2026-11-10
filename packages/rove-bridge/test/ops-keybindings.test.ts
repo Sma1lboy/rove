@@ -24,6 +24,7 @@ function ops(doc: unknown, over: Partial<KeybindingsDeps> = {}): OpTable {
       warnings: [],
     }),
     create: () => true,
+    write: () => ({ ok: true, lines: [] }),
     fireAction: () => true,
     platform: "linux",
     ...over,
@@ -117,5 +118,32 @@ describe("plugin.chordAction", () => {
       await expect(run(table, "plugin.chordAction", { chord })).rejects.toMatchObject({ code: "NOT_BOUND" })
     }
     expect(fired.seen).toEqual([])
+  })
+})
+
+describe("keybindings.set", () => {
+  const setWith = async (args: Record<string, unknown>) => {
+    const edits: unknown[] = []
+    const table = ops(undefined, {
+      write: (given) => {
+        edits.push(...given)
+        return { ok: true, lines: [] }
+      },
+    })
+    await run(table, "keybindings.set", args)
+    return edits
+  }
+
+  test("hands the writer canonical chords for the modes it was given", async () => {
+    expect(await setWith({ id: "chat.tab.new", direct: ["Control+G"], prefix: "default" })).toEqual([
+      { id: "chat.tab.new", mode: "direct", keys: ["ctrl+g"] },
+      { id: "chat.tab.new", mode: "prefix", keys: "default" },
+    ])
+  })
+
+  test("refuses an id Settings cannot rebind, a malformed chord, and an empty change", async () => {
+    await expect(setWith({ id: "diff.review.send", direct: ["x"] })).rejects.toThrow("not rebindable")
+    await expect(setWith({ id: "chat.tab.new", direct: ["ctrl+"] })).rejects.toThrow()
+    await expect(setWith({ id: "chat.tab.new" })).rejects.toThrow("nothing to change")
   })
 })
