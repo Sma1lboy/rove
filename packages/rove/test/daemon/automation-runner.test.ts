@@ -87,7 +87,7 @@ describe("runAutomationOnce", () => {
     // The header names THIS run's delivery, and the routine's prompt comes last, unchanged.
     expect(run?.deliveryId).toBe("d-1")
     expect(prompts).toEqual([
-      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\nrun the audit`,
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)\n\nrun the audit`,
     ])
   })
 

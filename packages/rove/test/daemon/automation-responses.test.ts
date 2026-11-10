@@ -50,7 +50,7 @@ describe("delivered prompt names its run", () => {
     expect(runs.map((run) => run.status)).toEqual(["dispatched", "dispatched"])
     expect(sent.map(headerDeliveryId)).toEqual([runs[1]?.deliveryId, runs[0]?.deliveryId])
     expect(sent[1]).toContain(" run #2 ")
-    expect(sent[1]?.endsWith(`\n\n${a.prompt}`)).toBe(true)
+    expect(sent[0]?.endsWith(`\n\n${a.prompt}`)).toBe(true)
   })
 })
 

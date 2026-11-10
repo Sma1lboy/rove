@@ -140,6 +140,7 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(blocked ? { blocked } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
     ...(str(raw.deliveryId) ? { deliveryId: raw.deliveryId } : {}),
+    ...(str(raw.promptHash) ? { promptHash: raw.promptHash } : {}),
     ...(typeof raw.response?.text === "string" && str(raw.response.at)
       ? { response: { text: raw.response.text, at: raw.response.at } }
       : {}),

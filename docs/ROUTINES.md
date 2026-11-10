@@ -315,12 +315,17 @@ naming the run and its delivery, then a blank line, then your prompt
 unchanged:
 
 ```text
-[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]
+[ROVE ROUTINE] "morning audit" run #12 — when done, report with: rove api report --delivery d-41 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)
 
 <your prompt>
 ```
 
-The agent closes the run:
+A standing session already has your prompt in its conversation, so it gets
+the full text only on its first run, on a run whose engine was just created
+or revived, and on the first run after you edit the prompt. Every other run
+gets the header and one line saying the instructions are unchanged.
+
+The agent reports when the run found something or is stuck:
 
 ```bash
 rove api report --delivery d-41 --outcome done --summary "No new failures since yesterday."
@@ -341,22 +346,25 @@ rove api routine-respond --run <runId> --prompt-file report.md   # `-` reads std
   (`RESPONSE_TOO_LARGE`) instead of truncating.
 - An unknown or pruned run id is `RUN_NOT_FOUND`; an unknown delivery id is
   `DELIVERY_NOT_FOUND`.
-- Rove does not read transcripts to guess a report. It does notice when the
-  turn ended without one: the delivery turns `missing` (the turn completed
-  or failed, the engine died, or nothing happened for 10 minutes), and an
-  Inbox entry **report missing** points at the tab. A late `report` clears
-  it.
+- Rove does not read transcripts to guess a report. A routine turn that
+  completes without one had nothing to report: the delivery turns `quiet`,
+  with no Inbox entry, and the next run goes ahead. A turn that failed or
+  was interrupted, an engine that died, or nothing happening for 10 minutes
+  still turns the delivery `missing`, and an Inbox entry **report missing**
+  points at the tab. A late `report` clears it.
+- A routine turn that reported (or went `quiet`) raises no "turn finished"
+  Inbox entry. The report is the entry.
 
 A delivered run (`dispatched` or `revived`) reads as **awaiting response**
 until its delivery is reported or goes missing, then **no response**, in the
-warning colour. A run from before deliveries existed has no delivery and
+warning colour. A `quiet` run shows neither. A run from before deliveries existed has no delivery and
 keeps the old rule: **no response** after two hours. A response raises an
 Inbox entry (one per routine, the newest replacing the last) that opens the
 Routines page. On the page, the selected routine's detail splits in two:
 run history on the left, its responses on the right, newest first, each
 headed by its run number, status and time, with the text rendered as
 markdown. `routine-runs` includes `deliveryId`, `deliveryStatus`
-(`awaiting`, `reported`, `missing`) and, once reported, `response`
+(`awaiting`, `reported`, `missing`, `quiet`) and, once reported, `response`
 (`{text, at}`) on every run; the last two are read from the delivery.
 
 ### You do not have to go looking
@@ -449,7 +457,7 @@ opened yourself. Open a run from the Routines page: `enter` opens the latest
 run's task, and a click on any recent run opens its session.
 
 Out of the sidebar is not out of reach: a run still raises an **Inbox** entry
-when its turn finishes or it needs you. That entry is how you learn what last
+when it reports or needs you. That entry is how you learn what last
 night's routine said, and how a routine stuck on a permission prompt or a quota
 wall reaches you — you do not go looking for it.
 

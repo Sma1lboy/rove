@@ -1,6 +1,6 @@
 /**
  * Automation sweep: WHEN due schedules fire, and recording what happened.
- * WHERE the prompt lands is `automation-dispatch.ts`.
+ * WHERE the prompt lands is `automation-dispatch.ts`; WHAT it says, `routine-prompt.ts`.
  *
  * Same shape as {@link startQuotaResumeRunner} (stateless tick, re-entrancy
  * latch, unref'd timer) and deliberately exempt from the `hasSubscribers`
@@ -36,6 +36,7 @@ import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DispatchLedger } from "./dispatch-ledger.ts"
 import type { GateLedger } from "./gate-handoff.ts"
 import { ensureRoutineCwd } from "./routine-dir.ts"
+import { routinePromptHash, sessionHoldsPrompt, withRoutineRunHeader } from "./routine-prompt.ts"
 import type { SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -239,22 +240,6 @@ function droppedOccurrences(automation: Automation, scheduledFor: number): { cou
 }
 
 /**
- * The delivered prompt: a one-line header naming the run and the verb that
- * answers it, then the routine's prompt unchanged. The prompt goes LAST: a
- * model replies in the language of the tokens nearest its turn.
- */
-export function withRoutineRunHeader(
-  automation: Pick<Automation, "name" | "prompt">,
-  run: { runNumber: number },
-  api: string,
-  deliveryId: string,
-  event?: WebhookEvent,
-): string {
-  const fired = event ? `Fired by webhook: ${event.summary}\n\n` : ""
-  return `[ROVE ROUTINE] "${automation.name}" run #${run.runNumber} — when done, report with: ${api} report --delivery ${deliveryId} --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\n${fired}${automation.prompt}`
-}
-
-/**
  * A script routine's whole run: the command in the repo (projectless: the routine's directory), no engine. Non-empty
  * stdout is the response; a failure carries its stderr as the error. Shares
  * the precheck's shell, output cap and timeout ceiling, and like the precheck
@@ -301,6 +286,7 @@ export async function runAutomationOnce(
       tabId?: string
       error?: string
       deliveryId?: string
+      promptHash?: string
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
       blocked?: SkipVerdict
       response?: AutomationRunResponse
@@ -372,20 +358,23 @@ export async function runAutomationOnce(
       },
       automation,
       async (target) => {
-        const delivery = await deps.deliveries.arm({
-          taskId: target.taskId,
-          tabId: target.tabId,
-          source: "routine",
-          automationRunId: reserved.id,
-          promptHead: automation.prompt,
-        })
-        deliveryId = delivery.id
+        // A revive re-asks for the full prompt; it is the same delivery.
+        deliveryId ??= (
+          await deps.deliveries.arm({
+            taskId: target.taskId,
+            tabId: target.tabId,
+            source: "routine",
+            automationRunId: reserved.id,
+            promptHead: automation.prompt,
+          })
+        ).id
         return withRoutineRunHeader(
           automation,
           reserved,
           deps.runtime.roveApiInvocation?.() ?? "rove api",
-          delivery.id,
+          deliveryId,
           args.event,
+          sessionHoldsPrompt(automation, deps.store.runsFor(automation.id), target),
         )
       },
     )
@@ -426,7 +415,7 @@ export async function runAutomationOnce(
     ...(outcome.tabId ? { tabId: outcome.tabId } : {}),
     ...(outcome.error ? { error: outcome.error } : {}),
     ...(outcome.blocked ? { blocked: outcome.blocked } : {}),
-    ...(deliveryId ? { deliveryId } : {}),
+    ...(deliveryId ? { deliveryId, promptHash: routinePromptHash(automation.prompt) } : {}),
   })
 }
 

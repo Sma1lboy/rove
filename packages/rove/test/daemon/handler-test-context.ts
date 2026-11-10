@@ -119,6 +119,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     deliveries: {
       awaitingFor: () => undefined,
       awaitingOn: () => [],
+      endReportedTurns: () => Promise.resolve([]),
       noteTurnStart: () => Promise.resolve(),
       dismiss: () => Promise.resolve(undefined),
     } as unknown as DeliveriesStore,

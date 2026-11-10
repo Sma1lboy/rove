@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 111 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 112 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -735,7 +735,8 @@ rove api report --delivery d-41 --outcome done \
 `--outcome` is `done`, `partial`, `blocked` (you need the owner or an
 outside fix) or `failed` (you tried and could not). A turn that ends with no
 report is flagged `report_missing` in the owner's Inbox, and the delivery is
-marked `missing`. Reporting again replaces the report; a late report clears
+marked `missing`; a `[ROVE ROUTINE]` turn with nothing to report just stops
+(the delivery goes `quiet`, no Inbox row). Reporting again replaces the report; a late report clears
 the flag. For text with quotes or backticks use `--json -` (stdin) with
 `{delivery, outcome, summary, evidence?, next?}`. `routine-respond` is the
 same report as `--outcome done`.

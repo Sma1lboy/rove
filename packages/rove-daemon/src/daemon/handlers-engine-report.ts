@@ -86,10 +86,13 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
       // No tab id still records at TASK level (bare-shell engines). Only an
       // explicit id records: a cwd-matched task is a guess, not an identity.
       if (explicitId) {
-        await ctx.inbox
-          .record(taskId, kind, detail, tabId ?? null)
-          .catch((err) => logDaemonError("attention-inbox-record", err))
-        await trackDeliveryTurn(deliveryDepsOf(ctx), taskId, tabId ?? null, kind, detail)
+        // Tracked first: a turn that closed a routine delivery raises no `turn_complete` row.
+        const closed = await trackDeliveryTurn(deliveryDepsOf(ctx), taskId, tabId ?? null, kind, detail)
+        if (!closed) {
+          await ctx.inbox
+            .record(taskId, kind, detail, tabId ?? null)
+            .catch((err) => logDaemonError("attention-inbox-record", err))
+        }
       }
     }
     ctx.engineEvents?.append(taskId, {

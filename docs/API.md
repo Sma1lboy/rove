@@ -797,7 +797,11 @@ edits (`set-vendor`, `rename`,
   engine exit ends all of the tab's. A missing delivery raises a
   `report_missing` Inbox row (none for `rate-limited`: the engine's own
   rate-limit row covers it), keyed by the delivery so the tab's next turn
-  does not clear it. A late `report` or dismissing the row clears it. A loop prompt can read
+  does not clear it. A late `report` or dismissing the row clears it. A
+  routine delivery whose turn completes unreported is `quiet` instead
+  (nothing to report): no Inbox row, and it does not hold the next run. A
+  routine turn that reported or went `quiet` raises no `turn_complete`
+  Inbox row. A loop prompt can read
   `deliveries --limit 5` instead of a growing notes file.
 
 - `should-run --task-id ID [--tab TAB]`: would a tick sent to this task be
@@ -1821,15 +1825,18 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   `report --delivery <deliveryId> --outcome done --summary <text>` and writes
   the same delivery report, so `deliveries` shows it too. Each delivered
   routine prompt starts with a
-  `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: rove api report --delivery d-<n> --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]`
-  line, then the prompt. One response per run, a second call replaces it; cap
+  `[ROVE ROUTINE] "<name>" run #<n> — when done, report with: rove api report --delivery d-<n> --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)`
+  line, then the prompt. A `--persistent-session` routine sends the full
+  prompt only when its engine was just created or revived, or when the
+  prompt changed since the last run delivered to that session; other runs
+  get one line saying the instructions are unchanged. One response per run, a second call replaces it; cap
   32,000 characters (`RESPONSE_TOO_LARGE`, never truncated); an unknown run id
   is `RUN_NOT_FOUND`. No response is ever inferred from a transcript. Prefer
   `report` when the run ended `partial`, `blocked` or `failed`, or when you
   have evidence to attach.
 - `routine-runs --id ID`: run history, newest first. Each delivered run
   carries `deliveryId` and `deliveryStatus` (`awaiting`, `reported`,
-  `missing`), and `response: { text, at }` once the agent reported; both are
+  `missing`, or `quiet`: the turn completed with nothing to report), and `response: { text, at }` once the agent reported; both are
   read from the linked delivery. Runs from before deliveries existed keep
   the response they stored. `revived` describes a
   respawned standing session; `skipped_cancelled` means disabled, changed or stopped before delivery; `skipped_blocked` means should-run refused the tick (`blocked` is the verdict, see `should-run`; the cause is already in the Inbox and `routine-run-now` bypasses it), except `engine-dead` and `engine-error`, which have no Inbox row of their own and are recorded `dispatch_failed` with the same `blocked`. Bound deliveries include `taskId`/`tabId`. An unknown id is an error
