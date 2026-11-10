@@ -76,7 +76,8 @@ export function showPanel(taskId: string, kind: PanelKind): void {
 
 /** A launcher button in the workspace's top bar toggles its column. Zen hides the panel, so from zen it opens rather than closes (and leaves zen). */
 export function launchPanel(taskId: string, kind: PanelKind): void {
-  const next = launch(panels.get()[taskId] ?? FRESH, panelOpen.get() && !zen.get(), kind)
+  const open = panelOpen.get()
+  const next = launch(panels.get()[taskId] ?? FRESH, open && !zen.get(), kind, !open)
   editPanel(taskId, () => next.panel)
   panelOpen.set(next.open)
   if (next.open && zen.get()) zen.set(false)
