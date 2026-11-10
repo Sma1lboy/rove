@@ -22,7 +22,7 @@ import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
-import { dropIdleMains } from "./rail-idle.ts"
+import { dropIdleMains, useIdleTabs } from "./rail-idle.ts"
 import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
@@ -83,6 +83,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
+  const idleTabs = useIdleTabs(tasks, tabs, tabsSettled)
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
@@ -106,7 +107,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     ? built.rows
     : withArchived(
         foldProjects(
-          withPanes(withStateCounts(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering)), tabs),
+          withPanes(
+            withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
+            tabs,
+          ),
           filters.collapsed,
         ),
         payload?.archived ?? [],

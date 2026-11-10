@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react"
 import type { NavRow } from "./rail.ts"
 
 /**
@@ -31,4 +32,40 @@ export function dropIdleMains(
     const next = shown[i + 1]
     return next !== undefined && next.kind !== "project" && next.kind !== "state"
   })
+}
+
+const SHOWN_MAINS_KEY = "rove.web.rail.shownMains"
+
+/** Which main tasks had a tab open at the last settled sweep, shaped as `tabs` so the rule above reads it. */
+export function shownMainsBefore(): Record<string, readonly unknown[]> {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(SHOWN_MAINS_KEY) ?? "[]")
+    return Array.isArray(ids) ? Object.fromEntries(ids.map((id) => [String(id), [null]])) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function rememberShownMains(
+  tasks: readonly { readonly id: string; readonly kind?: string }[],
+  tabs: Readonly<Record<string, readonly unknown[]>>,
+): void {
+  try {
+    const ids = tasks.filter((task) => task.kind === "main" && (tabs[task.id]?.length ?? 0) > 0).map((task) => task.id)
+    localStorage.setItem(SHOWN_MAINS_KEY, JSON.stringify(ids))
+  } catch {
+    // Storage blocked: main rows wait for the first sweep, as before.
+  }
+}
+
+/** The tab lists `dropIdleMains` judges by: until the first sweep lands, a main row is shown as it was before the reload. */
+export function useIdleTabs(
+  tasks: readonly { readonly id: string; readonly kind?: string }[],
+  tabs: Readonly<Record<string, readonly unknown[]>>,
+  settled: boolean,
+): Readonly<Record<string, readonly unknown[]>> {
+  useEffect(() => {
+    if (settled) rememberShownMains(tasks, tabs)
+  }, [settled, tasks, tabs])
+  return useMemo(() => (settled ? tabs : { ...shownMainsBefore(), ...tabs }), [settled, tabs])
 }
