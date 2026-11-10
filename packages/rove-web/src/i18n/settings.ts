@@ -188,6 +188,11 @@ export const en = {
   },
   keys: {
     createFile: "Create keybindings.yaml",
+    editHint:
+      "Click Record on a binding, then press the key you want. To put it behind the prefix, press the prefix key first.",
+    record: "Record",
+    default: "Default",
+    unbind: "Unbind",
     exists: "keybindings.yaml already exists; nothing was changed.",
     pluginNoTask: "Select a task before using a plugin chord.",
     pluginChords: "Plugin chords",
@@ -408,6 +413,10 @@ export const zh: typeof en = {
   },
   keys: {
     createFile: "创建 keybindings.yaml",
+    editHint: "在某一行点「录入」，再按你想要的键。想放到 prefix 后面，就先按 prefix 键。",
+    record: "录入",
+    default: "默认",
+    unbind: "解绑",
     exists: "keybindings.yaml 已存在,未做任何改动。",
     pluginNoTask: "使用插件快捷键前请先选中一个任务。",
     pluginChords: "插件快捷键",

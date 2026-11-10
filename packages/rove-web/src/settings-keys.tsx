@@ -1,8 +1,9 @@
 /**
  * Settings → Keybindings (TUI `KeybindingsSettingsSection`): the prefix-tap guide mode, the
- * config file and what it changed (overrides and plugin chords), every load warning, the starter-file
- * action offered while the file is absent, and a Scratch session whose agent edits the file. The file
- * is read and written on the Mac; chords are edited there, and it is reread each time this opens.
+ * config file, every load warning, the starter-file action offered while the file is absent, a
+ * Scratch session whose agent edits the file, and every rebindable binding as a row to record,
+ * restore or unbind (`settings-keys-editor.tsx`). The file is read and written on the Mac and
+ * reread each time this opens.
  */
 
 import { FIXED_BINDING_IDS } from "@sma1lboy/rove/src/tui/lib/keymap-overrides.ts"
@@ -14,6 +15,7 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
+import { BindingsEditor } from "./settings-keys-editor.tsx"
 import { Choice, Group, Row } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
 import { toast } from "./ui.ts"
@@ -58,7 +60,7 @@ export function KeysSection({ model }: { model: AppModel }) {
           hint={ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
         />
       </Group>
-      <Group title={ts("keybindings.configFile")} hint={`${ts("keybindings.hint")} ${t("prefs.keysYaml")}`}>
+      <Group title={ts("keybindings.configFile")} hint={`${t("keys.editHint")} ${t("prefs.keysYaml")}`}>
         <Row
           label={
             <span className="font-mono break-all">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</span>
@@ -83,18 +85,6 @@ export function KeysSection({ model }: { model: AppModel }) {
           </Button>
         </Row>
       </Group>
-      {keys.exists && (
-        <Group title={ts("keybindings.overridesApplied")}>
-          {keys.applied.length === 0 && <Row label={ts("keybindings.none")} />}
-          {keys.applied.map((o) => (
-            <Row
-              key={o.id}
-              label={<span className="font-mono">{o.id}</span>}
-              hint={`${o.keys.length > 0 ? o.keys.join(" / ") : ts("keybindings.unbound")} (${ts("keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
-            />
-          ))}
-        </Group>
-      )}
       {keys.warnings.length > 0 && (
         <Group title={ts("keybindings.warnings")}>
           {keys.warnings.map((w) => (
@@ -102,6 +92,7 @@ export function KeysSection({ model }: { model: AppModel }) {
           ))}
         </Group>
       )}
+      <BindingsEditor client={client} />
       {keys.plugins.length > 0 && (
         <Group title={t("keys.pluginChords")}>
           {keys.plugins.map((p) => (

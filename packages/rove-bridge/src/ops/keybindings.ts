@@ -2,9 +2,10 @@
  * The user's `~/.rove/settings/keybindings.yaml` for a client that has no terminal to bind keys in:
  * what the TUI's parser makes of it (`resolveUserKeybindings`, run on a copy of the default keymap
  * so the bridge's own table never changes), the starter file Settings → Keybindings writes, and
- * firing a plugin action from a chord. The client never authors a chord target or a command: the
- * file is read on the Mac, the starter text is fixed, and an action runs only when the Mac's own
- * YAML binds the chord to it.
+ * firing a plugin action from a chord, and Settings → Keybindings' edits. The client never authors
+ * a chord target or a command: the file is read on the Mac, the starter text is fixed, and an action
+ * runs only when the Mac's own YAML binds the chord to it. An edit names a rebindable binding id and
+ * chords in the keymap grammar; the TUI's own writer checks it and refuses what the loader would drop.
  */
 
 import { roveCliInvocation } from "@sma1lboy/rove/src/cli/invocation.ts"
@@ -15,19 +16,26 @@ import {
   resetKeybindingsFileCache,
 } from "@sma1lboy/rove/src/state/keybindings-file.ts"
 import { RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
+import { editableBindings } from "@sma1lboy/rove/src/tui/lib/editable-bindings.ts"
 import { resolveUserKeybindings } from "@sma1lboy/rove/src/tui/lib/keybindings-resolve.ts"
+import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove/src/tui/lib/keybindings-save.ts"
 import { createKeybindingsFile } from "@sma1lboy/rove/src/tui/lib/keybindings-starter.ts"
+import type { KeybindingEdit } from "@sma1lboy/rove/src/tui/lib/keybindings-write.ts"
 import { prefixFirstStrokes } from "@sma1lboy/rove/src/tui/lib/keymap-dispatch.ts"
+import { normalizeChord } from "@sma1lboy/rove/src/tui/lib/keymap-overrides.ts"
 import { BridgeError, str } from "../protocol.ts"
 import type { Args, OpTable } from "./types.ts"
 
 const CHORD_MAX = 64
+const CHORDS_MAX = 8
 
 export interface KeybindingsDeps {
   /** The YAML as the TUI reads it, from disk (never the process cache). */
   read(): KeybindingsFile
   /** Write the fixed starter text unless a file is there; false when one already is. */
   create(path: string): boolean
+  /** Apply edits to the YAML (created from the starter when absent); all or nothing. */
+  write(edits: readonly KeybindingEdit[]): KeybindingSaveResult
   /** Run `rove plugin action invoke <target>` detached, as the TUI's chord does; false when it would not start. */
   fireAction(target: string): boolean
   platform: NodeJS.Platform
@@ -39,6 +47,7 @@ const realDeps: KeybindingsDeps = {
     return readKeybindingsFile()
   },
   create: createKeybindingsFile,
+  write: (edits) => writeKeybindingEdits(edits),
   fireAction(target) {
     const [cmd, ...rest] = [...roveCliInvocation(), "plugin", "action", "invoke", target]
     return spawnDetached(cmd as string, rest, {
@@ -53,6 +62,22 @@ interface RowOut {
   readonly keys: readonly string[]
   readonly prefixKeys?: readonly string[]
   readonly hint?: { readonly keys: string }
+}
+
+/** `direct` / `prefix` of `keybindings.set`: canonical chords, `"default"`, or absent. */
+function editKeys(a: Args, mode: "direct" | "prefix"): KeybindingEdit["keys"] | undefined {
+  const raw = a[mode]
+  if (raw === undefined) return undefined
+  if (raw === "default") return "default"
+  if (!Array.isArray(raw) || raw.length > CHORDS_MAX)
+    throw new BridgeError("BAD_ARGS", `${mode} must be chords or "default"`)
+  return raw.map((chord) => {
+    if (typeof chord !== "string" || chord.length > CHORD_MAX)
+      throw new BridgeError("BAD_ARGS", "a chord must be a short string")
+    const normal = normalizeChord(chord)
+    if ("error" in normal) throw new BridgeError("BAD_ARGS", normal.error)
+    return normal.chord
+  })
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
@@ -117,6 +142,24 @@ export function createKeybindingsOps(deps: KeybindingsDeps = realDeps): OpTable 
         const file = deps.read()
         if (file.exists) return { path: file.path, created: false }
         return { path: file.path, created: deps.create(file.path) }
+      },
+    },
+
+    "keybindings.set": {
+      kind: "write",
+      destructive: false,
+      wraps: "helper writeKeybindingEdits (the TUI's Settings → Keybindings save) for one rebindable binding id",
+      async run(a: Args) {
+        const id = str(a, "id")
+        if (!editableBindings().some((row) => row.id === id))
+          throw new BridgeError("BAD_ARGS", `${id} is not rebindable`)
+        const edits: KeybindingEdit[] = []
+        for (const mode of ["direct", "prefix"] as const) {
+          const keys = editKeys(a, mode)
+          if (keys !== undefined) edits.push({ id, mode, keys })
+        }
+        if (edits.length === 0) throw new BridgeError("BAD_ARGS", "nothing to change")
+        return deps.write(edits)
       },
     },
 

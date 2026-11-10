@@ -9,7 +9,6 @@
 import { TextAttributes } from "@opentui/core"
 import { tildify } from "../../../lib/path-home"
 import {
-  editableBindings,
   keybindingRowId,
   keybindingRows,
   prefixTapPresentationRowId,
@@ -18,6 +17,7 @@ import {
 import { findBinding } from "../../../tui/context/keybindings"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { tKeys } from "../../../tui/i18n"
+import { editableBindings } from "../../../tui/lib/editable-bindings"
 import { groupBindings } from "../../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import { FIXED_BINDING_IDS, recordSlotLabels } from "../../../tui/lib/keymap-overrides"
