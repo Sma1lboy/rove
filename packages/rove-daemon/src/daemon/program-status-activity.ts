@@ -41,8 +41,9 @@ export function programStatusActivity(
     if (!ownClaim && activity.hasHookSince(taskId, tabId, event.at)) return
     const report = statusActivity(event.status)
     next.owns = activity.reportProgramStatus(taskId, tabId, report.kind, report.detail, undefined, event.at)
+    // Tracked first: a turn that closed a routine delivery raises no `turn_complete` row.
+    const closed = deliveries ? await trackDeliveryTurn(deliveries, taskId, tabId, report.kind, report.detail) : false
     if (event.status.state === "idle") await inbox?.deleteEpisode(taskId, tabId)
-    else await inbox?.record(taskId, report.kind, report.detail, tabId)
-    if (deliveries) await trackDeliveryTurn(deliveries, taskId, tabId, report.kind, report.detail)
+    else if (!closed) await inbox?.record(taskId, report.kind, report.detail, tabId)
   }
 }

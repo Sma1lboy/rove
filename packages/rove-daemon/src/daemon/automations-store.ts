@@ -140,6 +140,9 @@ function normalizeRun(value: unknown): AutomationRun | null {
     ...(blocked ? { blocked } : {}),
     ...(str(raw.error) ? { error: raw.error } : {}),
     ...(str(raw.deliveryId) ? { deliveryId: raw.deliveryId } : {}),
+    ...(str(raw.promptHash) ? { promptHash: raw.promptHash } : {}),
+    ...(raw.promptElided === true ? { promptElided: true as const } : {}),
+    ...(str(raw.compactedAt) ? { compactedAt: raw.compactedAt } : {}),
     ...(typeof raw.response?.text === "string" && str(raw.response.at)
       ? { response: { text: raw.response.text, at: raw.response.at } }
       : {}),
@@ -413,6 +416,27 @@ export class AutomationsStore {
       this.runs = this.runs.map((run, i) => (i === index ? next : run))
       await this.commit()
       return next
+    })
+  }
+
+  /**
+   * The engine on (taskId, tabId) compacted or switched conversation: stamp the newest run delivered
+   * there, so a standing session's next run sends the full prompt again. No-op for a non-routine task.
+   */
+  async markSessionCompacted(taskId: string, tabId: string | null): Promise<void> {
+    await this.enqueue(async () => {
+      const target = this.runs
+        .filter(
+          (r) =>
+            r.taskId === taskId &&
+            (r.status === "dispatched" || r.status === "revived") &&
+            (tabId === null || !r.tabId || r.tabId === tabId),
+        )
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at) || b.runNumber - a.runNumber)[0]
+      if (!target || target.compactedAt) return
+      const at = new Date(this.now()).toISOString()
+      this.runs = this.runs.map((r) => (r === target ? { ...r, compactedAt: at } : r))
+      await this.commit()
     })
   }
 

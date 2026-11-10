@@ -416,13 +416,15 @@ and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
 A delivered routine prompt starts with `[ROVE ROUTINE] "<name>" run #<n> — when
-done, report with: … rove api report --delivery d-<n> …`. When you received
-one, finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
+done, report with: … rove api report --delivery d-<n> … (only if something
+happened or you are blocked)`. When the run found something or you are stuck,
+finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
 --summary …`): lead with the conclusion, markdown welcome, 32,000 characters
 max. Reporting again replaces the answer. `routine-respond --run <runId>
 --text …` still works; it is `report --outcome done` on the same delivery.
-Nothing is inferred if you skip it; the run shows "no response" and the
-delivery goes `missing`.
+With nothing to report, just stop: the delivery goes `quiet`, with no Inbox
+row. In a standing session, a run whose prompt you already have says the
+instructions are unchanged; follow the earlier run's prompt again.
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
 respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
