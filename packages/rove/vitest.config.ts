@@ -13,7 +13,7 @@ const includeDaemonCoverage = process.env.ROVE_COVERAGE_DAEMON === "1"
 const exclude: string[] = ["test/render/**"]
 if (!includeBehavior) exclude.push("test/behavior/**")
 if (!includeSocket) {
-  exclude.push("test/daemon/**", "test/orchestrator/bridge.test.ts")
+  exclude.push("test/daemon/**")
 }
 // Windows ratchet: files known to fail on windows-latest, harvested from
 // ci.yml's `windows` job so it can gate on the rest. The list may only shrink
