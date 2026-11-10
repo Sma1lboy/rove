@@ -9,11 +9,11 @@
 | Routines                     |
 | Issues                       |
 |                              |
-|  ↩ Recent: bravo             |
+| ↩ Recent: bravo              |
 |                              |
 | rove ─────────────────────── |
-|▌ ○ alpha                     |
-|  ○ bravo                     |
+|▌○ alpha                      |
+| ○ bravo                      |
 |                              |
 |                              |
 |                              |

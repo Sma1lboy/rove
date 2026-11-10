@@ -15,7 +15,6 @@ import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
-import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
@@ -102,20 +101,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
   // A collapsed project keeps its header and hides what is under it; search shows everything.
-  // Archived tasks are only in the closing fold, which a search leaves out (as the TUI).
+  // Archived tasks stay out of the rail: the closing Archived fold (`rail-archived.ts`) is switched off for now.
   const rows = filters.search.active
     ? built.rows
-    : withArchived(
-        foldProjects(
-          withPanes(
-            withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
-            tabs,
-          ),
-          filters.collapsed,
+    : foldProjects(
+        withPanes(
+          withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
+          tabs,
         ),
-        payload?.archived ?? [],
-        filters.archivedOpen,
-        { ...filters.hand, selectedId: selectedId ?? undefined },
+        filters.collapsed,
       )
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")

@@ -167,18 +167,18 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   /** A task row switches to its task; the host enters it on ⏎. */
   const recentTaskRef = useLatest(props.recentTask ?? null)
-  const toggleRoutinesRow = tree.toggleRoutinesRow
+  const toggleArchivedRow = tree.toggleArchivedRow
   const activateRow = useCallback(
     (rowId: string): void => {
-      // The routine count row names no task; it only toggles.
-      if (toggleRoutinesRow(rowId)) return
+      // The Archived row names no task; it only toggles.
+      if (toggleArchivedRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
       const taskId = recent ? recent.id : rowId
       props.onSelect(taskId)
       props.onActivate?.(taskId)
     },
-    [props.onSelect, props.onActivate, toggleRoutinesRow],
+    [props.onSelect, props.onActivate, toggleArchivedRow],
   )
   const activateRowRef = useLatest(activateRow)
 
@@ -302,7 +302,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     onContextMenu: menu.openForRow,
     onToggleFold: tree.toggleTaskFold,
     branchTick,
-    engineState: props.engineState,
     engineTabState: props.engineTabState,
     engineLifecycle: props.engineLifecycle,
     taskJobs: props.taskJobs,

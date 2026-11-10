@@ -68,6 +68,7 @@ export interface EngineRow {
 export interface RoveOps {
   tasks(): Promise<TasksPayload>
   engines(): Promise<readonly EngineRow[]>
+  /** Saved projects, as the TUI picker lists them. Not task repos: a No folder session's or routine's cwd is no project. */
   repos(): Promise<readonly string[]>
   createTask(input: { repo: string; engine?: string; prompt?: string; title?: string }): Promise<{ taskId: string }>
   /** `cascade` also removes every descendant; absent, the task's children are promoted. */
@@ -320,8 +321,7 @@ export function createRoveOps(
     engines,
 
     async repos() {
-      const { tasks } = await client.request<{ tasks: SerializedTask[] }>("task.list")
-      return [...new Set([...getSavedRepos(), ...tasks.map((t) => t.repo)])].sort()
+      return [...getSavedRepos()].sort()
     },
 
     async createTask({ repo, engine, prompt, title }) {

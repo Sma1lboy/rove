@@ -450,7 +450,7 @@ export function AutomationsPage(props: {
                   })}
                 </text>
               ) : null}
-              <RunHistory runs={runs} now={now} />
+              <RunHistory runs={runs} now={now} onOpenTask={props.onOpenTask} />
             </box>
             <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
               <RunResponses runs={runs} now={now} />

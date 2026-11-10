@@ -10,10 +10,10 @@
 | Issues                       |
 |                              |
 | Ungrouped ────────────────── |
-|  ○ scratchy                  |
+| ○ scratchy                   |
 |                              |
 | rove ─────────────────────── |
-|▌ ○ alpha                     |
+|▌○ alpha                      |
 |                              |
 |                              |
 |                              |

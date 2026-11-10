@@ -26,7 +26,6 @@ import {
   conversationTitleOf,
   filterTreeRows,
   mainTaskIdOfProject,
-  projectKeyOfRoutinesRow,
   rowLiveBranchPath,
   treeFlatIds,
   withRecentRow,
@@ -89,8 +88,8 @@ export interface TreeState {
   readonly projectIdOfTask: (taskId: string) => string | null
   /** The task whose move reorders this project (its `main` checkout). */
   readonly mainTaskIdOfProject: (projectId: string) => string | null
-  /** Toggle a routine count row or the Archived row; true (press consumed) when `rowId` was one. */
-  readonly toggleRoutinesRow: (rowId: string) => boolean
+  /** Toggle the Archived row; true (press consumed) when `rowId` was it. */
+  readonly toggleArchivedRow: (rowId: string) => boolean
   /** Fold or unfold a task's children. */
   readonly toggleTaskFold: (taskId: string) => void
 }
@@ -100,9 +99,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const query = opts.query ?? ""
   const searching = query.trim() !== ""
 
-  // Open routine count rows, and the folds the user set by hand over the automatic rule.
-  const [expandedRoutines, setExpandedRoutines] = useState<ReadonlySet<string>>(() => new Set())
   const [archivedOpen, setArchivedOpen] = useState(false)
+  // The folds the user set by hand over the automatic rule.
   const [folds, setFolds] = useState<Folds>(() => ({
     collapsed: readTaskIds(kv, COLLAPSED_TASKS_KEY),
     opened: readTaskIds(kv, OPENED_TASKS_KEY),
@@ -110,13 +108,6 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   // The latest folds and rows, so a toggle persists what it just built and flips what is on screen.
   const foldsRef = useRef(folds)
   const rowsRef = useRef<readonly TreeRow[]>([])
-  const toggleRoutines = useCallback((projectKey: string): void => {
-    setExpandedRoutines((current) => {
-      const next = new Set(current)
-      if (!next.delete(projectKey)) next.add(projectKey)
-      return next
-    })
-  }, [])
   const toggleTaskFold = useCallback(
     (taskId: string): void => {
       const row = rowsRef.current.find((candidate) => candidate.kind === "worktree" && candidate.id === taskId)
@@ -156,8 +147,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const recentTask = opts.recentTask ?? null
   const machines = opts.machines ?? EMPTY_MACHINES
   const { rows, totalCount } = useMemo(() => {
-    // Search builds fully expanded so folded rows stay findable;
-    // `filterTreeRows` drops the emptied count row.
+    // Search builds with no task folds so folded rows stay findable.
     const conversationTitles = new Map<string, string>()
     for (const task of tasks) {
       const title = conversationTitleOf(task, tabsByTask)
@@ -166,7 +156,6 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     const all = buildRowsFromGroups({
       groups,
       conversationTitles,
-      expandedRoutines: searching ? new Set(groups.map((group) => group.key)) : expandedRoutines,
       collapsedTasks: searching ? undefined : folds.collapsed,
       openedTasks: folds.opened,
       selectedTaskId: selectedTaskId ?? undefined,
@@ -197,7 +186,6 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     searching,
     query,
     recentTask,
-    expandedRoutines,
     archived,
     archivedOpen,
     folds,
@@ -236,19 +224,10 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     projectIdOfTask,
     mainTaskIdOfProject: mainTaskOfProject,
     toggleTaskFold,
-    /** True when `rowId` WAS a routine row: the press is consumed. */
-    toggleRoutinesRow: useCallback(
-      (rowId: string): boolean => {
-        if (rowId === ARCHIVED_ROW_ID) {
-          setArchivedOpen((open) => !open)
-          return true
-        }
-        const projectKey = projectKeyOfRoutinesRow(rowId)
-        if (projectKey === null) return false
-        toggleRoutines(projectKey)
-        return true
-      },
-      [toggleRoutines],
-    ),
+    toggleArchivedRow: useCallback((rowId: string): boolean => {
+      if (rowId !== ARCHIVED_ROW_ID) return false
+      setArchivedOpen((open) => !open)
+      return true
+    }, []),
   }
 }
