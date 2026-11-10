@@ -14,7 +14,7 @@ const SEARCH: readonly [string, string][] = [
 
 const I = T.page
 const C = T.card
-const onPage: React.CSSProperties = { color: I.ink, textShadow: T.textShadow }
+const onPage: React.CSSProperties = { color: I.ink }
 const prompt = <span style={{ color: C.accentText, fontWeight: 700 }}>$</span>
 
 const Chrome: React.FC<{ title: string }> = ({ title }) => (

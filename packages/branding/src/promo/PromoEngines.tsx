@@ -53,7 +53,7 @@ const Group: React.FC<{ title: string; note?: string; children: React.ReactNode 
 export const PromoEngines: React.FC = () => (
   <AbsoluteFill style={{ color: I.ink }}>
     <Backdrop />
-    <div style={{ ...statement(92), position: "absolute", left: 88, top: 84, textShadow: T.textShadow }}>
+    <div style={{ ...statement(92), position: "absolute", left: 88, top: 84 }}>
       Any agent CLI.
       <br />
       Pick one <span style={{ color: I.accentText }}>per task.</span>

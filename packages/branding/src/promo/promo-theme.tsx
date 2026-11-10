@@ -78,20 +78,8 @@ const nightInks: Inks = {
   amber: "#E8C96B",
 }
 
-const clayInks: Inks = {
-  ...paperInks,
-  ink: "#FFFAF5",
-  ink2: "rgba(255,250,245,.8)",
-  hair: "rgba(255,240,228,.32)",
-  island: "rgba(255,250,245,.13)",
-  line: "rgba(255,240,228,.6)",
-  accentText: "#FFD2B8",
-  bracket: "#F3B595",
-  tint: "rgba(255,250,245,.07)",
-}
-
 /** `page` inks sit on the backdrop; `card` inks sit inside a window card. */
-const TONES: Record<Tone, { page: Inks; card: Inks; cardShadow: string; chipShadow: string; textShadow?: string }> = {
+const TONES: Record<Tone, { page: Inks; card: Inks; cardShadow: string; chipShadow: string }> = {
   paper: {
     page: paperInks,
     card: paperInks,
@@ -99,13 +87,6 @@ const TONES: Record<Tone, { page: Inks; card: Inks; cardShadow: string; chipShad
     chipShadow: "0 6px 16px rgba(60,30,16,.07)",
   },
   night: { page: nightInks, card: nightInks, cardShadow: "0 0 0 1px #3A3835", chipShadow: "none" },
-  clay: {
-    page: clayInks,
-    card: paperInks,
-    cardShadow: "0 40px 90px rgba(40,14,6,.42), 0 0 0 1px rgba(60,30,16,.12)",
-    chipShadow: "none",
-    textShadow: "0 4px 28px rgba(40,12,4,.35)",
-  },
 }
 
 export const TONE: Tone = pickedTone ?? "paper"
@@ -222,29 +203,10 @@ export const CellGrid: React.FC = () => (
 /** The set's background for the picked tone. */
 export const Backdrop: React.FC = () => {
   if (TONE === "paper") return <AbsoluteFill style={{ background: P.canvas }} />
-  if (TONE === "night")
-    return (
-      <>
-        <AbsoluteFill style={{ background: P.night }} />
-        <CellGrid />
-      </>
-    )
   return (
     <>
-      <AbsoluteFill style={{ background: "linear-gradient(160deg, #9C4A2C 0%, #7A3622 45%, #4A2015 100%)" }} />
-      <AbsoluteFill
-        style={{ background: "radial-gradient(760px 520px at 86% 18%, rgba(240,150,105,.38), transparent 70%)" }}
-      />
-      <AbsoluteFill
-        style={{ background: "radial-gradient(700px 500px at 92% 100%, rgba(30,10,4,.45), transparent 70%)" }}
-      />
-      <AbsoluteFill
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,240,228,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,240,228,.06) 1px, transparent 1px)",
-          backgroundSize: "30px 44px",
-        }}
-      />
+      <AbsoluteFill style={{ background: P.night }} />
+      <CellGrid />
     </>
   )
 }
