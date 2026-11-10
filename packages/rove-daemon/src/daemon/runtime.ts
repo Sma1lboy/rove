@@ -141,12 +141,17 @@ export interface DaemonRuntimeAdapter {
    * `started` = the ENGINE process was seen in the process table (PTY liveness
    * is the login shell's, true even for a missing binary). `error` is what the
    * session last printed — how a caller tells `code 127` from a real start.
+   *
+   * A task whose tab holds a conversation reopens it (`resumed`), with
+   * `resumedPrompt` in place of `prompt` when given: that conversation may
+   * already hold what `prompt` would repeat. `newConversation` never reopens.
    */
   startTaskSessionWithPrompt(
     link: DaemonRpcClient,
     taskId: string,
     prompt: string,
-  ): Promise<{ started: boolean; error?: string }>
+    options?: { readonly newConversation?: boolean; readonly resumedPrompt?: string },
+  ): Promise<{ started: boolean; error?: string; resumed?: boolean }>
   /** Kill the task's hosted PTYs; `scope` spares surviving children's aliased ones and adds the task's own. */
   tearDownTaskSession(taskId: string, scope?: TeardownScope): Promise<void>
   /** Stop the engine in one tab, leaving the task's other PTYs and the tab row alone. */

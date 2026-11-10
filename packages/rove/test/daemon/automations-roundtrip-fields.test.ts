@@ -44,6 +44,7 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   webhook: { secret: "s3cret-a" },
   baseRef: "release/1.x",
   persistentSession: true,
+  newConversation: true,
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   enabled: true,
   missedRunGraceMinutes: 15,
@@ -67,6 +68,7 @@ const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   enabled: false,
   missedRunGraceMinutes: 120,
   persistentSession: false,
+  newConversation: false,
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
 }
 

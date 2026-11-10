@@ -366,11 +366,11 @@ routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
                  --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
-                 --target-task --target-tab --disabled
+                 --new-conversation --target-task --target-tab --disabled
 routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
                  --effort --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
-                 --target-task --target-tab --enabled
+                 --new-conversation --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file
@@ -403,7 +403,10 @@ yesterday?") is worthless from zero each morning — give it
 never wins the cold-start "which task to open" fallback. The daemon stops a
 routine task's engine when each run's turn ends; the next firing starts it again
 in the SAME worktree and reopens the same conversation where the engine can
-resume one, and records that run as `revived`, not `dispatched`.
+resume one, and records that run as `revived`, not `dispatched`. A routine that
+works a queue and needs no memory of earlier runs adds `--new-conversation`:
+same standing task and worktree, a new conversation every run, so the
+transcript does not grow.
 
 A bare `--enabled` means true, so pausing a routine is
 `routine-update --id <id> --enabled=false` (the same `=false` spelling

@@ -100,6 +100,13 @@ const PERSISTENT_FLAG = {
     "Re-deliver into ONE standing task instead of a fresh worktree per run — for a routine that needs yesterday's context (a trend check). Its task is folded behind the sidebar's routine count row. Leave off for a routine that EDITS code: a week of runs on one branch is a branch nobody can land.",
 } as const
 
+const NEW_CONVERSATION_FLAG = {
+  name: "new-conversation",
+  type: "bool",
+  description:
+    "With --persistent-session: every run starts a new conversation in the standing task (same worktree and files) instead of reopening the last one. For a routine that works a queue and needs no memory of earlier runs; refused without --persistent-session.",
+} as const
+
 const MODEL_FLAG = {
   name: "model",
   type: "string",
@@ -215,6 +222,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       WEBHOOK_FLAG,
       GRACE_FLAG,
       PERSISTENT_FLAG,
+      NEW_CONVERSATION_FLAG,
       ...TARGET_FLAGS,
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
@@ -243,6 +251,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
           : {}),
         ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
+        ...(ctx.args.bool("new-conversation") ? { newConversation: true } : {}),
         ...(ctx.args.bool("disabled") ? { enabled: false } : {}),
       })
     },
@@ -273,6 +282,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { ...WEBHOOK_FLAG, placeholder: "BOOL" },
       GRACE_FLAG,
       PERSISTENT_FLAG,
+      { ...NEW_CONVERSATION_FLAG, placeholder: "BOOL" },
       ...TARGET_FLAGS,
       { name: "enabled", type: "bool", placeholder: "BOOL", description: "false pauses the routine, true resumes it." },
     ],
@@ -300,6 +310,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.present("persistent-session")
           ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
           : {}),
+        ...(ctx.args.present("new-conversation") ? { newConversation: ctx.args.bool("new-conversation") ?? true } : {}),
         ...(ctx.args.present("enabled") ? { enabled: ctx.args.bool("enabled") ?? true } : {}),
       })
     },

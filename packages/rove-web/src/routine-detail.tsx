@@ -87,7 +87,9 @@ export function RoutineDetail(props: {
                     tab: routine.target.tabId,
                   })
                 : routine.persistentSession
-                  ? auto.targetStanding
+                  ? routine.newConversation
+                    ? auto.targetStandingNew
+                    : auto.targetStanding
                   : auto.targetFresh}
             </dd>
           </>

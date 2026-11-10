@@ -97,7 +97,8 @@ export async function startTaskSessionWithPromptAdapter(
   link: DaemonRpcClient,
   taskId: string,
   prompt: string,
-): Promise<{ started: boolean; error?: string }> {
+  options: { readonly newConversation?: boolean; readonly resumedPrompt?: string } = {},
+): Promise<{ started: boolean; error?: string; resumed?: boolean }> {
   const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
   // So later Rove-injected text (e.g. timer-fired quota resume) matches the
   // user's language. Best-effort: must never block the session.
@@ -111,13 +112,16 @@ export async function startTaskSessionWithPromptAdapter(
   // A task whose engine was stopped holds its conversation on the tab row: reopen that one.
   const row = (await readDaemonTabs(link, taskId).catch(() => undefined))?.tabs.find((tab) => tab.id === "tab-1")
   const held = row?.kind === "engine" && row.spawned && row.sessionId ? row.sessionId : null
-  const resumeArgv = held ? engineResumeArgv(base, task.vendor, held) : null
+  const resumeArgv = held && !options.newConversation ? engineResumeArgv(base, task.vendor, held) : null
   const host = await ensureHostedSessionHost()
   try {
-    const start = async (argv: readonly string[]): Promise<{ started: boolean; error?: string; key: string }> => {
+    const start = async (
+      argv: readonly string[],
+      text: string,
+    ): Promise<{ started: boolean; error?: string; key: string }> => {
       // "new-task", not "explicit": callers just created the task, so the prompt
       // gets the branch-rename coda like other new-worktree entry points.
-      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt }, repos, argv)
+      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt: text }, repos, argv)
       const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
       if (!opened.alive) return { started: false, error: "hosted session did not open", key: launch.key }
       const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
@@ -130,14 +134,14 @@ export async function startTaskSessionWithPromptAdapter(
       return { started: false, error: await startFailureReason(host.rpc, launch.key), key: launch.key }
     }
     if (resumeArgv) {
-      const resumed = await start(resumeArgv)
-      if (resumed.started) return { started: true }
+      const resumed = await start(resumeArgv, options.resumedPrompt ?? prompt)
+      if (resumed.started) return { started: true, resumed: true }
       // A conversation the engine no longer has must not wedge the task: clear the
       // failed launch's shell (an open would reattach to it) and start a new one.
       await killHostedSessions(host.rpc, [resumed.key], { wait: true })
     }
     const pinned = withPinnedSessionId(base, task.vendor)
-    const { key: _key, ...fresh } = await start(pinned.argv)
+    const { key: _key, ...fresh } = await start(pinned.argv, prompt)
     if (fresh.started) {
       // The row the next start resumes from; an engine that mints its own id reports it through its hook.
       await publishCliTabSnapshot(link, taskId, pinned.sessionId)
