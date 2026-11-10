@@ -108,10 +108,7 @@ export const ACTIONS: readonly PrefixAction[] = [
       const { taskId, tabId } = model.selection.get()
       if (!taskId || !tabId) return
       // No confirm: the TUI's `<prefix> w` closes the active tab outright.
-      void model.client
-        .request("tab.close", { taskId, tabId })
-        .then(() => model.refreshTabsNow(taskId))
-        .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+      void model.closeTab(taskId, tabId).catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
     },
   },
   // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.

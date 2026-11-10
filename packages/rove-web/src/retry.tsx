@@ -29,7 +29,7 @@ export async function openRetry(model: AppModel, task: TaskRow): Promise<void> {
 /** After the retry started: archive the original, escalating once when its engine is still working. */
 export function offerArchiveOriginal(model: AppModel, original: { id: string; label: string }): void {
   const run = async (force: boolean) => {
-    await model.client.request("task.archive", { taskId: original.id, archived: true, ...(force ? { force } : {}) })
+    await model.act("task.archive", { taskId: original.id, archived: true, ...(force ? { force } : {}) })
     toast(tc("tasks", "archive.done", { title: original.label }))
   }
   dialog.set(

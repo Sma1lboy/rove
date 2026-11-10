@@ -152,10 +152,7 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
               if (several) void editSplit(model, { taskId, tabId: tab.id, action: "close", leafId: box.id })
               // A command tab (shell, editor, plugin pane) ends with its process, as in the TUI.
               else if (tab.kind !== "engine") {
-                void model.client
-                  .request("tab.close", { taskId, tabId: tab.id })
-                  .then(() => model.refreshTabsNow(taskId))
-                  .catch(() => {})
+                void model.closeTab(taskId, tab.id).catch(() => {})
               }
             }}
           />

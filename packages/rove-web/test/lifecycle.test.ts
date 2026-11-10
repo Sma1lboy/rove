@@ -453,3 +453,25 @@ test("an archived row leaves when clicked, stays gone through a push read before
   await expect(refused).rejects.toThrow("TASK_BUSY")
   expect(ids()).toEqual(["C", "D"])
 })
+
+test("a closed tab leaves the strip on the click, and comes back if the close was refused", async () => {
+  const { model, calls, timers } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  calls.find((call) => call.op === "task.tabs")?.resolve({ tabs: [{ id: "t1" }, { id: "t2" }] })
+  await flush()
+  const ids = () => model.tabs.get().A?.map((tab) => tab.id)
+  expect(ids()).toEqual(["t1", "t2"])
+
+  const closing = model.closeTab("A", "t2")
+  expect(ids()).toEqual(["t1"])
+  calls.find((call) => call.op === "tab.close")?.reject(new Error("refused"))
+  await flush()
+  calls
+    .filter((call) => call.op === "task.tabs")
+    .at(-1)
+    ?.resolve({ tabs: [{ id: "t1" }, { id: "t2" }] })
+  await expect(closing).rejects.toThrow("refused")
+  expect(ids()).toEqual(["t1", "t2"])
+})
