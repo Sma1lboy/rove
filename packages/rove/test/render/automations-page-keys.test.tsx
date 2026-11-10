@@ -218,6 +218,28 @@ test("a bound routine shows its exact target in the detail box", async () => {
   expect(text).toContain("tab-2")
 })
 
+test("a routine says what its runs launch on: the model on its row, engine and model in the detail", async () => {
+  const pinned = { ...AUTOMATION, vendor: "codex", model: "gpt-9-test", modelEffort: "high" }
+  const bound = {
+    ...AUTOMATION,
+    id: "a2",
+    name: "bound one",
+    vendor: "codex",
+    model: "never-shown",
+    target: { kind: "existing-tab", taskId: "existing", tabId: "tab-2" },
+  }
+  const { frame } = await renderComponent(
+    <AutomationsPage orchestrator={orchestrator([pinned, bound]) as never} focused={true} onClose={() => {}} />,
+    { width: 130, height: 30, providers: { dialog: true, notifications: true } },
+  )
+  await Bun.sleep(150)
+  const text = await frame()
+  expect(text).toContain("0 9 * * MON-FRI · gpt-9-test")
+  expect(text).toContain("Codex · gpt-9-test · high")
+  // A bound tab keeps its own engine: the routine's stored one would be a lie.
+  expect(text).not.toContain("never-shown")
+})
+
 test("a click on an older run opens that run's task, not the latest", async () => {
   // The sidebar lists no routine runs, so this click is the only way back to an older one.
   const run = (n: number, taskId: string) => ({

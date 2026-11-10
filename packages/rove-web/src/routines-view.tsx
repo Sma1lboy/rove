@@ -7,11 +7,13 @@
  * CLI-only (`rove api routine-update`).
  */
 
+import { routineEngineText } from "@sma1lboy/rove/src/tui/component/automation-engine-core.ts"
 import { type Automation, automationRunNeedsAttention } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
 import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./dialogs.tsx"
-import { t, useLocale } from "./i18n/index.ts"
+import { ChangeEngineDialog } from "./engine-dialog.tsx"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import {
   errorMessage,
@@ -28,8 +30,9 @@ import {
 } from "./pages-kit.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
-import { RunLog, useRoutineRuns } from "./routine-run-log.tsx"
-import { RoutineRuns, TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
+import { RoutineDetail } from "./routine-detail.tsx"
+import { useRoutineRuns } from "./routine-run-log.tsx"
+import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import type { RoutinesReply } from "./routines-data.ts"
 import { useStore } from "./store.ts"
 import { dialog, page, routineFocus, toast } from "./ui.ts"
@@ -38,12 +41,8 @@ import {
   RT_BODY,
   RT_DETAIL,
   RT_GROUP,
-  RT_HEAD,
   RT_LIST,
-  RT_META,
-  RT_NAME,
   RT_PAGE,
-  RT_PROMPT,
   RT_ROW_LINE,
   RT_ROW_SUB,
   RT_WHEN,
@@ -53,6 +52,8 @@ import {
 import { KICKER, LINK } from "./ui/text.ts"
 
 const POLL_MS = 5_000
+
+type EngineName = { readonly id: string; readonly name: string }
 
 export function RoutinesView({ model }: { model: AppModel }) {
   const { auto, common } = useCopy()
@@ -68,7 +69,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
   const [notice, setNotice] = useState<string | null>(null)
   const root = usePageFocus()
   const cronT = useCronTranslate()
-  const intl = useLocale() === "zh" ? "zh-CN" : "en-US"
   const detail = useRef<HTMLDivElement>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger the body doesn't read
@@ -82,6 +82,20 @@ export function RoutinesView({ model }: { model: AppModel }) {
       live = false
     }
   }, [c, tick])
+
+  // Engine ids are the daemon's; their names come from the engine list, as every picker's do.
+  const [engineNames, setEngineNames] = useState<readonly EngineName[]>(
+    () => lastReply<{ engines: EngineName[] }>(c, "engines.list")?.engines ?? [],
+  )
+  useEffect(() => {
+    let live = true
+    requestRemembered<{ engines: EngineName[] }>(c, "engines.list")
+      .then((res) => live && setEngineNames(res.engines))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [c])
 
   const listed = reply?.automations ?? []
   const lastRunStatus = reply?.lastRunStatus ?? {}
@@ -296,8 +310,34 @@ export function RoutinesView({ model }: { model: AppModel }) {
     }
   })
 
-  const target = selected?.target
-  const described = selected ? describeCronWith(selected.schedule, cronT) : null
+  const engineOf = (routine: Automation) =>
+    routineEngineText(routine, (id) => engineNames.find((e) => e.id === id)?.name ?? id, auto.engineDefault)
+  const changeEngine = () => {
+    if (!selected) return
+    const routine = selected
+    dialog.set(
+      <ChangeEngineDialog
+        model={model}
+        current={async () => ({ engine: routine.vendor, effort: routine.modelEffort, model: routine.model })}
+        onSet={async (pick) => {
+          // All three every time: a pin the new engine does not take is cleared, not carried over.
+          const res = await c.request<{ releasedSessionTaskId?: string }>("routine.setEngine", {
+            id: routine.id,
+            engine: pick.engine.id,
+            model: pick.model ?? "",
+            effort: pick.effort ?? "",
+          })
+          setNotice(
+            fill(res.releasedSessionTaskId ? auto.engineChangedNewSession : auto.engineChanged, {
+              name: routine.name,
+              engine: [pick.engine.name, pick.model, pick.effort].filter(Boolean).join(" · "),
+            }),
+          )
+          reload()
+        }}
+      />,
+    )
+  }
   const repoName = (repo: string | undefined) =>
     repo === undefined
       ? t("rail.noProject")
@@ -305,7 +345,6 @@ export function RoutinesView({ model }: { model: AppModel }) {
           repo,
           listed.flatMap((r) => r.repo ?? []),
         )
-  const nextAt = selected?.nextRunAt ? Date.parse(selected.nextRunAt) : Number.NaN
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: the page takes the TUI page keys while focused
     <div className={`${PAGE} ${RT_PAGE}`} tabIndex={0} ref={root}>
@@ -366,7 +405,13 @@ export function RoutinesView({ model }: { model: AppModel }) {
                           </span>
                         </span>
                         <span className={`mono text-muted ${RT_ROW_SUB}`} title={routine.schedule}>
-                          {`${repoName(routine.repo)} · ${describeCronWith(routine.schedule, cronT) ?? routine.schedule}`}
+                          {[
+                            repoName(routine.repo),
+                            describeCronWith(routine.schedule, cronT) ?? routine.schedule,
+                            engineOf(routine)?.short,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </span>
                         {lastFailure[routine.id] ? (
                           <span className={`mono text-warning ${RT_ROW_SUB}`} title={lastFailure[routine.id]?.reason}>
@@ -387,98 +432,24 @@ export function RoutinesView({ model }: { model: AppModel }) {
           {/* Always mounted, even with nothing selected: a panel that comes and goes makes the page jump. */}
           <div className={RT_DETAIL} ref={detail}>
             {selected ? (
-              <>
-                <div className={RT_HEAD}>
-                  <h2 className={RT_NAME}>{selected.name}</h2>
-                  <span className={`mono ${PG_ACTIONS}`}>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={() => void runNow()}
-                    >
-                      {auto.runNow}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={() => void toggleEnabled()}
-                    >
-                      {t(selected.enabled ? "pages.routinePause" : "pages.routineEnable")}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${LINK} ${PG_ACTION_LINK.row}`}
-                      disabled={busy === selected.id}
-                      onClick={requestDelete}
-                    >
-                      {t("pages.delete")}
-                    </button>
-                  </span>
-                </div>
-                <dl className={RT_META}>
-                  <dt className="text-muted">{t("pages.routineSchedule")}</dt>
-                  <dd>
-                    {described ?? <span className="mono">{selected.schedule}</span>}
-                    {described && <span className="mono text-muted">{`  ${selected.schedule}`}</span>}
-                  </dd>
-                  <dt className="text-muted">{t("pages.routineNext")}</dt>
-                  <dd className={selected.enabled ? "" : "text-warning"}>
-                    {selected.enabled
-                      ? Number.isFinite(nextAt)
-                        ? `${when(selected.nextRunAt)} · ${new Date(nextAt).toLocaleString(intl, {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}`
-                        : "—"
-                      : auto.paused}
-                  </dd>
-                  <dt className="text-muted">{t("pages.routineProject")}</dt>
-                  <dd>{repoName(selected.repo)}</dd>
-                  {/* A script routine runs a command, not an engine: nothing is delivered anywhere. */}
-                  {!selected.script && (
-                    <>
-                      <dt className="text-muted">{t("pages.routineDelivers")}</dt>
-                      <dd>
-                        {target
-                          ? fill(auto.targetExisting, { task: titleOf(target.taskId), tab: target.tabId })
-                          : selected.persistentSession
-                            ? auto.targetStanding
-                            : auto.targetFresh}
-                      </dd>
-                    </>
-                  )}
-                </dl>
-                {selected.precheck && (
-                  <p className="mono text-muted">{fill(auto.precheck, { command: selected.precheck.command })}</p>
-                )}
-                {selected.script ? (
-                  <>
-                    <h2 className={`${KICKER} text-muted`}>{t("pages.routineScript")}</h2>
-                    <p className={`mono ${RT_PROMPT}`}>{selected.script.command}</p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className={`${KICKER} text-muted`}>{t("pages.routinePrompt")}</h2>
-                    <p className={RT_PROMPT}>{selected.prompt}</p>
-                  </>
-                )}
-
-                <RunLog
-                  c={c}
-                  tick={tick}
-                  routines={listed}
-                  followId={selected.id}
-                  now={now}
-                  when={when}
-                  openRun={openRun}
-                />
-                <RoutineRuns runs={runs} when={when} />
-              </>
+              <RoutineDetail
+                c={c}
+                tick={tick}
+                routine={selected}
+                routines={listed}
+                runs={runs}
+                busy={busy === selected.id}
+                project={repoName(selected.repo)}
+                engine={engineOf(selected)?.full ?? null}
+                targetTitle={selected.target ? titleOf(selected.target.taskId) : undefined}
+                now={now}
+                when={when}
+                openRun={openRun}
+                onRunNow={() => void runNow()}
+                onToggle={() => void toggleEnabled()}
+                onDelete={requestDelete}
+                onChangeEngine={changeEngine}
+              />
             ) : (
               <p className="text-muted">{auto.noSelection}</p>
             )}

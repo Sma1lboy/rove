@@ -237,6 +237,21 @@ describe("routine ops", () => {
     await expect(run("routine.setEnabled", { id: "r-1", enabled: "yes" })).rejects.toThrow("boolean")
   })
 
+  test("an engine change sends engine, model and effort together, clearing a pin that was not given", async () => {
+    const engines = { "engine-list": { engines: [{ id: "claude" }, { id: "codex" }] } }
+    const update = (calls: readonly Call[]) => calls.find((call) => call.name === "routine-update")?.payload
+    const pinned = await run(
+      "routine.setEngine",
+      { id: "r-1", engine: "claude", model: "sonnet", effort: "high" },
+      engines,
+    )
+    expect(update(pinned.calls)).toEqual(["--id=r-1", "--vendor=claude", "--model=sonnet", "--effort=high"])
+    // Switching engines must not carry the old engine's pins along.
+    const bare = await run("routine.setEngine", { id: "r-1", engine: "codex", model: "" }, engines)
+    expect(update(bare.calls)).toEqual(["--id=r-1", "--vendor=codex", "--model=", "--effort="])
+    await expect(run("routine.setEngine", { id: "r-1", engine: "nope" }, engines)).rejects.toThrow("not a known engine")
+  })
+
   test("run now, runs and list each wrap their one verb; delete is destructive", async () => {
     expect((await run("routine.runNow", { id: "r-1" })).calls[0]).toEqual({
       kind: "verb",

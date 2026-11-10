@@ -1,8 +1,8 @@
 /**
  * Change engine (TUI `engine-picker-dialog.tsx`): a pick over the engines this machine can
  * run, a reasoning-level row for engines that declare levels, and a model input for engines
- * with a model flag. Engine, level and model go to the daemon in one call; like `v`, the
- * change applies to the task's next session.
+ * with a model flag. The caller says what it opens on and where the pick goes: a task's next
+ * session, or a routine's runs.
  */
 
 import { useEffect, useState } from "react"
@@ -11,7 +11,6 @@ import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { offeredEngines } from "./new-session.ts"
 import { tc } from "./tui-copy.ts"
-import { toast } from "./ui.ts"
 import { CHIPS_ROW, CHOICES, FIELD, chipClass } from "./ui/form.ts"
 import { Legend } from "./ui/legend.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
@@ -28,8 +27,15 @@ export interface PickerEngine {
   readonly models?: ReadonlyArray<{ readonly id: string }> | null
 }
 
-interface Current {
+export interface EngineCurrent {
   readonly engine?: string
+  readonly effort?: string
+  readonly model?: string
+}
+
+/** A pick that differs from what the dialog opened on; an absent level or model is one the engine does not take. */
+export interface EnginePick {
+  readonly engine: PickerEngine
   readonly effort?: string
   readonly model?: string
 }
@@ -40,33 +46,36 @@ function seedEffort(engine: PickerEngine | undefined, current: string | undefine
   return level && engine?.effortLevels?.includes(level) ? level : ""
 }
 
-export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId: string }) {
+export function ChangeEngineDialog(props: {
+  model: AppModel
+  current: () => Promise<EngineCurrent>
+  onSet: (pick: EnginePick) => Promise<void>
+}) {
+  const { model } = props
   const [engines, setEngines] = useState<readonly PickerEngine[]>([])
-  const [current, setCurrent] = useState<Current>({})
+  const [current, setCurrent] = useState<EngineCurrent>({})
   const [pick, setPick] = useState("")
   const [effort, setEffort] = useState("")
   const [modelText, setModelText] = useState("")
   const [loaded, setLoaded] = useState(false)
   const { busy, error, submit } = useSubmit()
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read once, as the dialog opens
   useEffect(() => {
-    void Promise.all([
-      model.client.request<{ engines: PickerEngine[] }>("engines.list"),
-      model.client.request<{ task: Current }>("task.get", { taskId }),
-    ]).then(([list, got]) => {
-      // The TUI lists detected, enabled engines; the task's own stays so it can be re-picked at another level.
-      const usable = offeredEngines(list.engines, got.task.engine).filter(
-        (e) => e.ready !== false || e.id === got.task.engine,
-      )
-      const start = usable.find((e) => e.id === got.task.engine) ?? usable[0]
-      setEngines(usable)
-      setCurrent(got.task)
-      setPick(start?.id ?? "")
-      setEffort(seedEffort(start, got.task.effort))
-      setModelText(start?.id === got.task.engine ? (got.task.model ?? "") : "")
-      setLoaded(true)
-    })
-  }, [model, taskId])
+    void Promise.all([model.client.request<{ engines: PickerEngine[] }>("engines.list"), props.current()]).then(
+      ([list, got]) => {
+        // The TUI lists detected, enabled engines; the current one stays so it can be re-picked at another level.
+        const usable = offeredEngines(list.engines, got.engine).filter((e) => e.ready !== false || e.id === got.engine)
+        const start = usable.find((e) => e.id === got.engine) ?? usable[0]
+        setEngines(usable)
+        setCurrent(got)
+        setPick(start?.id ?? "")
+        setEffort(seedEffort(start, got.effort))
+        setModelText(start?.id === got.engine ? (got.model ?? "") : "")
+        setLoaded(true)
+      },
+    )
+  }, [model])
 
   const engine = engines.find((e) => e.id === pick)
   const levels = engine?.effortLevels ?? []
@@ -113,13 +122,11 @@ export function ChangeEngineDialog({ model, taskId }: { model: AppModel; taskId:
         (nextEffort === undefined || nextEffort === (current.effort ?? "")) &&
         (nextModel === undefined || nextModel === (current.model ?? ""))
       if (same) return
-      await model.client.request("task.setEngine", {
-        taskId,
-        engine: engine.id,
+      await props.onSet({
+        engine,
         ...(nextEffort === undefined ? {} : { effort: nextEffort }),
         ...(nextModel === undefined ? {} : { model: nextModel }),
       })
-      toast(tc("tasks", "toast.engineSwitched", { engine: engine.name }))
     })
 
   return (

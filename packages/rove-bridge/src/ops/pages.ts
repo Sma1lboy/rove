@@ -17,6 +17,7 @@ import { detailFragment } from "@sma1lboy/rove/src/tui-react/component/issue-eve
 import { ALL_VENDORS } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, tabId, taskId, text } from "./args.ts"
+import { effortLevel, engineId, model } from "./tasks-shared.ts"
 import type { Args, OpTable } from "./types.ts"
 
 const ISSUE_STATUSES = ["open", "doing", "hold", "done"] as const
@@ -217,6 +218,24 @@ export const pagesOps: OpTable = {
     wraps: "rove api routine-update --enabled",
     run: (args, { api }) =>
       api.verb("routine-update", [flag("id", taskId(args, "id")), flag("enabled", String(bool(args, "enabled")))]),
+  },
+  "routine.setEngine": {
+    kind: "write",
+    destructive: false,
+    wraps:
+      "rove api routine-update --vendor --model --effort (all three every time; an absent or '' model/effort clears that pin)",
+    async run(args, ctx) {
+      const id = taskId(args, "id")
+      const vendor = await engineId(args, "engine", ctx)
+      const pinned = optStr(args, "model") ? model(args) : ""
+      const effort = optStr(args, "effort") ? effortLevel(args, "effort") : ""
+      return ctx.api.verb("routine-update", [
+        flag("id", id),
+        flag("vendor", vendor),
+        flag("model", pinned),
+        flag("effort", effort),
+      ])
+    },
   },
   "routine.runNow": {
     kind: "write",
