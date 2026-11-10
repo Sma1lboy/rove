@@ -25,8 +25,9 @@ product:
     - "terminal-native task switching"
     - "local-first engine orchestration"
 voice:
-  tone: ["technical", "compressed", "confident", "terminal-native"]
-  avoid: ["generic AI glow", "glossy SaaS cards", "fake dashboards", "sports references"]
+  tone: ["plain", "concrete", "full sentences", "confident"]
+  # Promo copy names the reader's situation, then what happens: "Out of quota? Switch the task to another agent."
+  avoid: ["generic AI glow", "glossy SaaS cards", "fake dashboards", "sports references", "paired slogans that leave out who does what", "internal terms (worktree, PTY, daemon, fan-out) in promo copy"]
 visual_direction:
   accepted_styles:
     - "real TUI panes as the main subject"
