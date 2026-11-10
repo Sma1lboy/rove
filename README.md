@@ -22,7 +22,7 @@ Rove is an agentic development environment (ADE) for your terminal. [Claude Code
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Rove demo: three repos, two engines, three agents running at once; the terminal closes, the agents keep working, and on reopening the Inbox lists their finished turns and one task's diff" />
+  <img src="docs/assets/demo-typed.gif" alt="Rove in eight steps: type one sentence to start a task, pick Claude Code, Codex, Copilot or another agent for it, agents hand work to each other and report back, close the terminal and they keep working, the Inbox shows which agents finished and which are waiting for you, turn a finished task into a pull request, start tasks on a schedule, and open the same sessions in a browser or on your phone." />
 </p>
 
 ## Quick start
