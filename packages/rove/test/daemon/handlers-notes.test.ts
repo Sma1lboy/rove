@@ -2,12 +2,9 @@
  * Field-note handler tests (`note.file` / `note.list`, docs/design/
  * dispatcher.md).
  *
- * The load-bearing bit is the ORDER: persistence happens before routing, so
- * a note filed when no dispatcher seat exists is still durable — that's the
- * whole difference between v1 (knowledge evaporates with the transcript) and
- * v2 (the next session on this repo starts with it). The other pins are the
- * degradations: a store failure must not error the agent that filed the
- * note, and neither must a missing store.
+ * A note is stored and nothing else: it reaches sessions through the next
+ * launch's system prompt, never as a turn on a running one. A store failure
+ * must not error the agent that filed the note.
  */
 
 import { describe, expect, it } from "vitest"
@@ -17,14 +14,14 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 const MAIN: Task = { ...TASK, id: "m1", kind: "main", title: "repo" } as Task
 
 describe("note.file", () => {
-  it("persists the note with provenance, then relays it to the dispatcher seat", async () => {
+  it("stores the note with provenance and starts no turn on the repo's main session", async () => {
     const { ctx, rec } = fakeCtx({
       getTask: (id: string) => (id === "t1" ? TASK : undefined),
       listTasks: () => [MAIN, TASK],
     })
     const result = await dispatch("note.file", { taskId: "t1", text: "build needs --no-sandbox" }, ctx)
 
-    expect(result).toEqual({ ok: true, routed: true, persisted: true })
+    expect(result).toEqual({ ok: true, persisted: true })
     expect(rec.noteCalls).toHaveLength(1)
     expect(rec.noteCalls[0]).toMatchObject({ method: "append", repo: "/repo" })
     expect(rec.noteCalls[0]?.note).toMatchObject({
@@ -32,57 +29,18 @@ describe("note.file", () => {
       taskId: "t1",
       author: "demo task",
     })
-    const delivered = rec.published.find((p) => p.channel === "session.deliver")
-    expect(delivered?.payload).toMatchObject({ taskId: "m1", source: "note" })
-    expect((delivered?.payload as { text: string }).text).toContain("build needs --no-sandbox")
-  })
-
-  it("relays the note text LAST and whole, not as the tail of the provenance sentence", async () => {
-    const { ctx, rec } = fakeCtx({
-      getTask: (id: string) => (id === "t1" ? TASK : undefined),
-      listTasks: () => [MAIN, TASK],
-    })
-    await dispatch("note.file", { taskId: "t1", text: "构建要先跑 bun install" }, ctx)
-
-    const delivered = rec.published.find((p) => p.channel === "session.deliver")
-    const text = (delivered?.payload as { text: string }).text
-    // The dispatcher reads the note in the filing session's own language: a
-    // model generates in the language of the tokens nearest its turn, so a
-    // note appended to an English clause came back in English.
-    expect(text.endsWith("构建要先跑 bun install")).toBe(true)
-    const [provenance, ...rest] = text.split("\n\n")
-    expect(rest.join("\n\n")).toBe("构建要先跑 bun install")
-    expect(provenance).toContain("[ROVE FIELD NOTE]")
-    expect(provenance).not.toContain("构建要先跑")
-  })
-
-  it("still persists when there is no dispatcher seat — an unrouted note is no longer a loss", async () => {
-    const { ctx, rec } = fakeCtx({ getTask: () => TASK, listTasks: () => [TASK] })
-    const result = await dispatch("note.file", { taskId: "t1", text: "flaky auth test" }, ctx)
-
-    expect(result).toEqual({ ok: true, routed: false, persisted: true })
-    expect(rec.noteCalls).toHaveLength(1)
     expect(rec.published.filter((p) => p.channel === "session.deliver")).toHaveLength(0)
   })
 
-  it("never routes a note back to its own author (the dispatcher noting to itself)", async () => {
-    const { ctx, rec } = fakeCtx({ getTask: () => MAIN, listTasks: () => [MAIN] })
-    const result = await dispatch("note.file", { taskId: "m1", text: "self note" }, ctx)
-
-    expect(result).toMatchObject({ routed: false, persisted: true })
-    expect(rec.published.filter((p) => p.channel === "session.deliver")).toHaveLength(0)
-  })
-
-  it("degrades to routing-only when the store throws — filing must never error a working agent", async () => {
-    const { ctx, rec } = fakeCtx({
+  it("answers ok when the store throws — filing must never error a working agent", async () => {
+    const { ctx } = fakeCtx({
       getTask: (id: string) => (id === "t1" ? TASK : undefined),
       listTasks: () => [MAIN, TASK],
       noteAppendThrows: true,
     })
-    const result = await dispatch("note.file", { taskId: "t1", text: "still relayed" }, ctx)
+    const result = await dispatch("note.file", { taskId: "t1", text: "lost" }, ctx)
 
-    expect(result).toEqual({ ok: true, routed: true, persisted: false })
-    expect(rec.published.filter((p) => p.channel === "session.deliver")).toHaveLength(1)
+    expect(result).toEqual({ ok: true, persisted: false })
   })
 
   it("rejects an unknown author task and files nothing", async () => {

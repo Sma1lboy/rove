@@ -279,8 +279,7 @@ export type DaemonRequestName =
   // space is the terminal's) and parses nothing.
   | "graphics.write"
   // Field note (docs/design/dispatcher.md): APPEND a one-line gotcha to the
-  // per-repo notes store, then forward it to the repo's main session over
-  // `session.deliver`. `note.list` seeds each fresh worktree session.
+  // per-repo notes store. `note.list` seeds each fresh session's system prompt.
   | "note.file"
   | "note.list"
   // The newest notes are injected into every fresh session, so a stale one

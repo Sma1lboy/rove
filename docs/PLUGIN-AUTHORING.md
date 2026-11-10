@@ -280,7 +280,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `task.pr-changed` | the task's PR status changed (open/merged/closed, checks) | `from`, `to` (TaskPRStatus) |
 | `worktree.created` | a task's worktree materialized: lazy ensure, adopt, or scratch-adopt | task context |
 | `issue.changed` | a daemon-tracker issue mutated (create/edit/status) | `repo`, `op` |
-| `note.filed` | a session filed a field note (`rove api note`) | `repo`, `author`, `text`, `routed`, `persisted` |
+| `note.filed` | a session filed a field note (`rove api note`) | `repo`, `author`, `text`, `persisted` |
 | `message.delivered` | text was dispatched into a task's live session (`dispatch`/note relay) | `source`, `tabId`, `length` |
 | `attention.handled` | the human resolved an inbox episode | `how: dismissed\|read`, `tabId` |
 | `automation.dispatched` / `automation.skipped` / `automation.failed` | one scheduled-automation run finished with that outcome | `automationId`, `name`, `repo` (absent for a routine with no project), `status`, `trigger`, `scheduledFor`, `tabId`, `error` |

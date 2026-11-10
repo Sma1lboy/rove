@@ -119,7 +119,6 @@ A session filed a field note (`rove api note`).
 | `author` | string | the author task's display title |
 | `text` | string | the note, capped at 512 chars (`…`-suffixed when cut); the envelope rides every subscriber's spawn env, so read the full body from `rove api note-list` |
 | `length` | number | the UNCAPPED length |
-| `routed` | boolean | whether a live dispatcher seat received the relay |
 | `persisted` | boolean | whether the durable note store took it |
 
 ### `message.delivered`

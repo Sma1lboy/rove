@@ -141,10 +141,12 @@ Siblings with no `--title` are named from `--prompt` at creation, so a fan-out
 is comparable the moment it returns rather than showing N identical `(new
 task)` rows until the engines write their first transcripts.
 
-**Completion.** A worker spawned from another Rove task sends its outcome
-back to the dispatching engine tab: creation records the dispatcher
-(task + tab), so a bare `send` routes home without any id in hand; no
-stored report, no blocking wait. Silence is a checkpoint, never a verdict:
+**Completion.** A worker spawned from another Rove task sends one outcome
+signal back to the dispatching engine tab: creation records the dispatcher
+(task + tab). If its prompt was armed, that signal is `report` (Rove then
+pastes one `[ROVE REPORT]` line into the dispatcher's tab); otherwise a bare
+`send` routes home without any id in hand. No blocking wait. Silence is a
+checkpoint, never a verdict:
 
 ```bash
 rove api send --prompt "succeeded: auth flow simplified (branch fix/auth-flow)"
@@ -520,9 +522,11 @@ edits (`set-vendor`, `rename`,
   Read-only by contract: it starts no engines, writes nothing, and changes
   no task state.
 - `context --repo PATH [--limit N] [--text]`: **the coordinator's
-  start-of-turn read.** One composed snapshot of a project, meant to be run
-  at the beginning of every turn so a coordinating agent works from what the
-  command printed instead of from what it remembers. Composition only — five
+  orientation read.** One composed snapshot of a project, meant to be run at
+  the start of a session and whenever the agent lacks the state it needs, so
+  a coordinating agent works from what the command printed instead of from
+  what it remembers. A turn started by a message that already carries the
+  outcome acts on that message. Composition only — five
   reads the daemon already answers, joined server-side.
 
   The point is the **derived group**. A task's `status` is a claim somebody
@@ -1346,8 +1350,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     anything — the text reached nobody.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
-  future worktree session on this repo starts with it in its system prompt;
-  and forwarded to the dispatcher session for live relay to in-flight tasks.
+  future session on this repo (worktree or main) starts with it in its
+  system prompt. It starts no turn in any running session.
 - `note-list --repo PATH`: read a repo's accumulated field notes, newest
   first. Returns `{ notes }`, each carrying the `id` `note-delete` takes. The
   same list is readable inside the TUI from the project header's right-click
@@ -1588,7 +1592,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   delivery flips it to `reported` and clears its `report_missing` Inbox
   row. The first line of `--summary` (up to 280 characters) also refreshes
   the task card's report summary, so no second `update --report-summary` is
-  needed. Daemon RPCs behind this: `delivery.arm`, `delivery.settle`,
+  needed. For a prompt delivered by `send` (not a routine or a gate answer)
+  to a task with a recorded dispatcher, the daemon also pastes one line into
+  the dispatcher's tab: `[ROVE REPORT] "<title>" (task <id>, branch <b>)
+  <outcome>: <first line of summary>`. It carries no footer and asks for no
+  reply, goes to the dispatcher rather than whoever sent the prompt, and is
+  skipped when that tab is at a menu or has no live engine. The reporting
+  agent sends no separate `succeeded:` message. Daemon RPCs behind this: `delivery.arm`, `delivery.settle`,
   `delivery.report`, `delivery.list`, `task.requireReport`.
 - `attention-dismiss --delivery ID`: dismiss the `report_missing` Inbox row of
   a delivery. `ID` is the `d-<n>` from the row. This is the explicit way to

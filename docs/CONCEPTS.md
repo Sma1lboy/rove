@@ -50,7 +50,9 @@ menu (**Set status**) or with `rove api update --status`. It is a label and noth
 more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
-`in_review` when it finishes; everything past that is yours. The sidebar row
+`in_review` when it finishes, unless another Rove session handed it the work
+(then its `report` or outcome message is the signal); everything past that is
+yours. The sidebar row
 does not draw it: the one mark in that cell is the PR's, and the status is
 something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).

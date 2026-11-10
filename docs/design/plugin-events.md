@@ -69,7 +69,7 @@ where the CLIs do — OMP's approval/question events, pi's `--fork`.
 | `task.pr-changed` | PR status changed on the task (`detail.from/to`) | ✅ |
 | `worktree.created` | worktree materialized for a task (lazy ensure, adopt, scratch-adopt — snapshot-diff sourced) | ✅ |
 | `issue.changed` | daemon-tracker issue mutated (`detail.repo/op`) | ✅ |
-| `note.filed` | a session filed a field note (`detail.repo/author/text/routed/persisted`) | ✅ |
+| `note.filed` | a session filed a field note (`detail.repo/author/text/persisted`) | ✅ |
 | `message.delivered` | text dispatched into a task's live session (`detail.source/tabId/length`) | ✅ |
 | `attention.handled` | the human resolved an inbox episode (`detail.how: dismissed\|read`) | ✅ |
 | `automation.dispatched` / `.skipped` / `.failed` | one scheduled-automation run's outcome (`detail.automationId/name/status/trigger/error`) | ✅ |
