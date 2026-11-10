@@ -109,6 +109,8 @@ export interface DaemonRuntimeAdapter {
    * reader; never summed here). `null` = none reported, distinct from zero.
    */
   readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
+  /** Have the engine refresh its own breakdown of the session's window (may start a process); the next read carries it. */
+  probeEngineContext?(vendor: VendorId, sessionId: string): Promise<void>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /**

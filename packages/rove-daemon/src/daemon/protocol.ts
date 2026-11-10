@@ -239,6 +239,9 @@ export type DaemonRequestName =
   | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
+  // One engine session's context reading, fresh from the engine's reader;
+  // `probe: true` first has the engine refresh its own breakdown (may start a process).
+  | "engine.contextUsage"
   // Turn store read side; written only by hook ingest on `turn-complete`.
   | "agentTurn.list"
   // `rove api inspect`: RAW activity-registry entries (probe vendor, armed

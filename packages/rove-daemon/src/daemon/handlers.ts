@@ -374,6 +374,20 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       },
     },
     {
+      name: "engine.contextUsage",
+      async handle(payload, ctx) {
+        const taskId = requireString(payload, "taskId")
+        const tabId = requireString(payload, "tabId")
+        const vendor = ctx.orch.getTask(taskId)?.vendor
+        const sessionId = ctx.activity
+          .liveSessions()
+          .find((state) => state.taskId === taskId && state.tabId === tabId)?.sessionId
+        if (!vendor || !sessionId) return { usage: null }
+        if (objectPayload(payload).probe === true) await ctx.runtime.probeEngineContext?.(vendor, sessionId)
+        return { usage: await ctx.runtime.readEngineContextUsage(vendor, sessionId) }
+      },
+    },
+    {
       name: "task.recentEvents",
       async handle(payload, ctx) {
         const taskId = requireString(payload, "taskId")

@@ -15,12 +15,22 @@ import * as s from "./ui/context.ts"
 
 const POLL_MS = 10_000
 /** Segment colours in row order: theme roles, never literal hex. */
-const PALETTE = ["var(--info)", "var(--accent)", "var(--success)", "var(--warning)"] as const
+const PALETTE = [
+  "var(--info)",
+  "var(--success)",
+  "var(--warning)",
+  "var(--merged)",
+  "var(--muted)",
+  "var(--ink)",
+  "var(--accent)",
+] as const
 
 interface ContextRow {
   readonly key: string
   readonly tokens: number
   readonly share?: number
+  readonly label?: string
+  readonly items?: readonly { readonly name: string; readonly tokens: number }[]
 }
 interface ContextMeter {
   readonly percent: number | null
@@ -49,15 +59,16 @@ export function ContextView({ model, task, active }: { model: AppModel; task: Ta
       return
     }
     let live = true
-    const read = () =>
+    const read = (probe = false) =>
       model.client
-        .request<{ meter: ContextMeter | null }>("context.usage", { taskId: task.id, tabId })
+        .request<{ meter: ContextMeter | null }>("context.usage", { taskId: task.id, tabId, probe })
         .then((reply) => live && setLoad({ kind: "ready", meter: reply.meter }))
         .catch(
           (err) =>
             live && setLoad((prev) => (prev.kind === "ready" ? prev : { kind: "failed", error: errorMessage(err) })),
         )
-    void read()
+    // The transcript's total paints at once; the engine's own breakdown lands when its probe answers.
+    void read().then(() => read(true))
     const stop = everyVisible(POLL_MS, read)
     return () => {
       live = false
@@ -101,16 +112,42 @@ export function ContextView({ model, task, active }: { model: AppModel; task: Ta
         </div>
         <ul className={s.CTX_ROWS}>
           {meter.rows.map((row) => {
-            const label = t(`context.part.${row.key}`)
+            const key = `context.part.${row.key}`
+            const label = t(key) === key ? (row.label ?? row.key) : t(key)
             const swatch = colour(row)
-            return (
-              <li key={row.key} className={s.CTX_ROW}>
+            const cells = (
+              <>
                 <span className={s.CTX_SWATCH} style={swatch ? { background: swatch } : undefined} />
                 <span className={s.CTX_LABEL} title={label}>
                   {label}
                 </span>
+                {row.items && <span className={s.CTX_CHEVRON}>›</span>}
                 <span className={s.CTX_VALUE}>{tokens(row.tokens)}</span>
                 <span className={s.CTX_PCT}>{percentText((row.tokens / (meter.window ?? meter.used)) * 100)}</span>
+              </>
+            )
+            if (!row.items) {
+              return (
+                <li key={row.key} className={s.CTX_ROW}>
+                  {cells}
+                </li>
+              )
+            }
+            return (
+              <li key={row.key}>
+                <details className={s.CTX_FOLD}>
+                  <summary className={s.CTX_SUMMARY}>{cells}</summary>
+                  <ul className={s.CTX_ITEMS}>
+                    {row.items.map((item) => (
+                      <li key={item.name} className={s.CTX_ROW}>
+                        <span className={s.CTX_ITEM_LABEL} title={item.name}>
+                          {item.name}
+                        </span>
+                        <span className={s.CTX_ITEM_VALUE}>{tokens(item.tokens)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               </li>
             )
           })}
