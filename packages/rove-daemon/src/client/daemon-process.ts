@@ -208,6 +208,61 @@ export async function ensureDaemonReachable(
   }
 }
 
+/** The seams {@link restartDaemon} is tested through. */
+export interface RestartDeps {
+  readonly resolveSpawn: (subcommand: readonly string[]) => string[]
+  readonly stop: () => Promise<unknown>
+  readonly spawn: (command: string, args: string[]) => void
+  readonly responds: () => Promise<boolean>
+  readonly lockPath: string
+  readonly waitMs: number
+}
+
+/**
+ * Restart the daemon onto THIS build. The spawn lock is taken before the stop and held until the
+ * new daemon answers, so every other client that sees the socket drop waits for it. Stopping first
+ * left the respawn to whichever client reconnected first, and an older client still attached
+ * brought its own, older daemon back: a refresh that left the build skew it was asked to fix.
+ */
+export async function restartDaemon(overrides: Partial<RestartDeps> = {}): Promise<void> {
+  const socketPath = defaultDaemonSocketPath()
+  const pidPath = defaultDaemonPidPath()
+  const deps: RestartDeps = {
+    resolveSpawn: resolveRoveSpawn,
+    stop: () => stopDaemonProcess(socketPath, pidPath, { reason: "restart" }),
+    spawn: (command, args) =>
+      spawnDetachedDaemon(command, args, autospawnDaemonEnv(process.env, "explicit-restart"), defaultDaemonLogPath()),
+    responds: () => testDaemonResponds(socketPath),
+    lockPath: `${pidPath}.spawn-lock`,
+    waitMs: SPAWN_LOCK_WAIT_MS,
+    ...overrides,
+  }
+  const pause = (ms: number) => new Promise((resolveTimer) => setTimeout(resolveTimer, ms))
+  const lockBy = Date.now() + deps.waitMs
+  while (!tryAcquireSpawnLock(deps.lockPath)) {
+    if (Date.now() >= lockBy) throw new Error("rove: another process is starting the daemon; try again in a moment")
+    await pause(100)
+  }
+  try {
+    // Resolved before the stop: a stale install throws here having stopped nothing.
+    const [command, ...args] = deps.resolveSpawn(DAEMON_START_ARGS)
+    await deps.stop().catch(() => {})
+    deps.spawn(command as string, args)
+    const upBy = Date.now() + 10_000
+    while (Date.now() < upBy) {
+      if (await deps.responds()) return
+      await pause(100)
+    }
+    throw new Error(`rove: the daemon did not come back at ${socketPath}; check ${defaultDaemonLogPath()}`)
+  } finally {
+    try {
+      unlinkSync(deps.lockPath)
+    } catch {
+      /* reclaimed as stale by a peer */
+    }
+  }
+}
+
 export async function connectOrStartDaemon(spawnReason: DaemonSpawnReason = "autospawn"): Promise<RoveDaemonClient> {
   const socketPath = await ensureDaemonReachable(resolveRoveSpawn, spawnReason)
   const client = new RoveDaemonClient(socketPath)
