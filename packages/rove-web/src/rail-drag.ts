@@ -13,6 +13,7 @@ import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
 import { dropTask } from "./move-mode.ts"
 import { type DropSide, blockEnd, dropMove, dropsOn, opensProject, previewDrop } from "./rail-blocks.ts"
+import { useRowSlide } from "./rail-slide.ts"
 import { setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
 import { tc } from "./tui-copy.ts"
@@ -61,6 +62,7 @@ export function useRowDrag(
   const railBody = useRef<Element | null>(null)
   // Where each row was drawn just before a sort switch, so it can slide to its new place.
   const flip = useRef<Map<string, number> | null>(null)
+  useRowSlide(tasks, drag !== null || landing !== null)
   const rowEls = () => [...(railBody.current?.querySelectorAll<HTMLElement>("[data-row]") ?? [])]
   useLayoutEffect(() => {
     const from = flip.current

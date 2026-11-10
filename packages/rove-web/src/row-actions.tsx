@@ -15,6 +15,7 @@ import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
+import { pinEdit } from "./optimistic.ts"
 import { openRetry } from "./retry.tsx"
 import { splitMenu } from "./split-actions.tsx"
 import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
@@ -274,7 +275,11 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
-        void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+        void model
+          .optimistic(pinEdit(task.id, !task.pinned), () =>
+            c.request("task.pin", { taskId: task.id, pinned: !task.pinned }),
+          )
+          .catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
