@@ -185,7 +185,7 @@ gh release view v<new-version> --json name -q .name    # GitHub release exists
 
 Confirm: `@sma1lboy/rove` and both SDK names report their expected versions,
 the Rove version matches the tag and `packages/rove/package.json`,
-and the release landed on `main` (`git log --oneline -1 origin/main` is the `chore: release` commit).
+and the release landed on `main` (`git merge-base --is-ancestor v<new-version> origin/main` succeeds; the tip is the `chore: release` commit, or its `(with main)` merge when main moved during the run).
 Then report done with the version, the npm dist-tag it went to (`latest` for
 plain semver), and the release URL.
 
