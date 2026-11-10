@@ -158,11 +158,30 @@ export function mountTerminal(o: MountOpts): TermHandle {
     o.onExit(p.code ?? null)
   })
 
-  // Once the first replay is parsed and drawn (or the attach failed) the view can let go of what it showed before.
+  // Once the screen shows something (or the attach failed) the view can let go of what it showed before. A replay
+  // that starts mid-repaint parses to an empty screen: that is not it yet, the engine's redraw is.
   let paintedOnce = false
+  let awaitingInk: { dispose(): void } | null = null
+  const hasInk = () => {
+    const buffer = term.buffer.active
+    for (let row = 0; row < term.rows; row++)
+      if (
+        buffer
+          .getLine(buffer.viewportY + row)
+          ?.translateToString(true)
+          .trim()
+      )
+        return true
+    return false
+  }
   const painted = (drawn: boolean) => {
     if (paintedOnce) return
+    if (drawn && !hasInk()) {
+      awaitingInk ??= term.onWriteParsed(() => painted(true))
+      return
+    }
     paintedOnce = true
+    awaitingInk?.dispose()
     if (drawn) requestAnimationFrame(() => requestAnimationFrame(() => o.onPainted?.()))
     else o.onPainted?.()
   }
