@@ -182,7 +182,11 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
-      conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      // A client that asked for patches is sent the rows that changed; the others, the list again.
+      const patches = a.patches === true
+      conn.unsubscribeTasks ??= deps.feed.subscribe((payload, patch) =>
+        ws.send(patches && patch ? pushEvent("tasks.patch", patch) : pushEvent("tasks", payload)),
+      )
       conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }

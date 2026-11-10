@@ -7,6 +7,7 @@
 
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { applyTasksPatch, isTasksPatch } from "rove-bridge/tasks-patch"
 import type { BridgeClient } from "./bridge.ts"
 import { type TasksEdit, taskEdit } from "./optimistic.ts"
 import { type Store, createStore } from "./store.ts"
@@ -113,6 +114,7 @@ export class AppModel {
   private readonly tabSets = new Map<string, string>()
   /** The latest `task.tabs` read per task; an older reply is dropped. */
   private readonly tabReads = new Map<string, number>()
+  private syncing: Promise<void> | null = null
   /** The daemon's last list, before this page's own edits. */
   private served: TasksPayload | null = null
   /** Edits drawn ahead of the daemon; true once its request succeeded, so the next push replaces it. */
@@ -131,7 +133,7 @@ export class AppModel {
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
-      void client.request<TasksPayload>("tasks.subscribe").then((payload) => this.acceptTasks(payload))
+      void this.resync()
       // The bridge forgot what a closed socket showed.
       this.viewingSent = NOTHING_SHOWN
       this.reportViewing()
@@ -151,9 +153,27 @@ export class AppModel {
     client.on("tasks", (data) => {
       if (isTasksPayload(data)) this.acceptTasks(data)
     })
+    // The rows that changed. A patch that does not start from the list held here means one was missed: ask again.
+    client.on("tasks.patch", (data) => {
+      const base = this.served
+      if (base && isTasksPatch(data) && data.from === base.rev) this.acceptTasks(applyTasksPatch(base, data))
+      else void this.resync()
+    })
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
     client.on("tabs", (data) => this.scheduleTabRefresh(changedTaskIds(data)))
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
+  }
+
+  /** Take the whole list, asking for patches from then on (an older bridge keeps sending the list). */
+  private resync(): Promise<void> {
+    this.syncing ??= this.client
+      .request<TasksPayload>("tasks.subscribe", { patches: true })
+      .then((payload) => this.acceptTasks(payload))
+      .catch(() => {})
+      .finally(() => {
+        this.syncing = null
+      })
+    return this.syncing
   }
 
   async refreshMods(): Promise<void> {

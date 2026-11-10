@@ -475,3 +475,32 @@ test("a closed tab leaves the strip on the click, and comes back if the close wa
   await expect(closing).rejects.toThrow("refused")
   expect(ids()).toEqual(["t1", "t2"])
 })
+
+test("a patch changes the rows it names; one that starts from another revision asks for the list again", async () => {
+  const { model, calls, push } = modelHarness()
+  expect(calls[0].args).toEqual({ patches: true })
+  calls[0].resolve({
+    rev: 4,
+    tasks: [
+      { id: "A", title: "a" },
+      { id: "B", title: "b" },
+    ],
+    attention: [],
+  })
+  await flush()
+
+  push("tasks.patch", { from: 4, rev: 5, tasks: { upsert: [{ id: "B", title: "renamed" }], remove: [] } })
+  expect(model.tasks.get()?.tasks).toEqual([
+    { id: "A", title: "a" },
+    { id: "B", title: "renamed" },
+  ] as never)
+
+  // Revision 6 never arrived.
+  push("tasks.patch", { from: 6, rev: 7, tasks: { upsert: [], remove: ["A"] } })
+  expect(model.tasks.get()?.tasks.map((task) => task.id)).toEqual(["A", "B"])
+  const again = calls.filter((call) => call.op === "tasks.subscribe")
+  expect(again).toHaveLength(2)
+  again[1].resolve({ rev: 7, tasks: [{ id: "B", title: "renamed" }], attention: [] })
+  await flush()
+  expect(model.tasks.get()?.tasks.map((task) => task.id)).toEqual(["B"])
+})

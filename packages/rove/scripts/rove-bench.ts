@@ -139,6 +139,20 @@ async function benchTasks(n: number): Promise<void> {
     const json = JSON.stringify(payload)
     record("bridge push payload (KB)", n, json.length / 1024)
     record("bridge change check, stringify (ms)", n, await timed(7, () => JSON.stringify(payload)))
+    // The same change as a patch: what a browser that asked for patches is sent instead.
+    const { diffPayload, indexPayload } = await import("../../rove-bridge/src/tasks-patch.ts")
+    const edited = {
+      ...payload,
+      tasks: payload.tasks.map((t, i) => (i === 7 ? { ...t, title: "one row changed" } : t)),
+    }
+    const before = indexPayload(payload)
+    const patch = diffPayload(before, indexPayload(edited), edited, 1)
+    record("bridge push when one row changed (KB)", n, JSON.stringify(patch).length / 1024)
+    record(
+      "bridge: find what changed (ms)",
+      n,
+      await timed(7, () => diffPayload(before, indexPayload(edited), edited, 1)),
+    )
     // What each browser does with that push before React draws: parse it, then lay the rail out.
     record("browser: parse the push (ms)", n, await timed(7, () => JSON.parse(json)))
     const { railRows } = await import("../../rove-web/src/rail.ts")
