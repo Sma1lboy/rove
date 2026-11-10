@@ -11,7 +11,7 @@
     <string name="list_pinned">已置顶</string>
     <string name="list_pair_again">重新配对</string>
     <string name="list_welcome">欢迎</string>
-    <string name="list_welcome_body">rove 并行运行多个编码 agent，每个任务都有独立的 git worktree 和分支。</string>
+    <string name="list_welcome_body">rove 把所有编程 agent 放在一个地方：一个额度用完了，换另一个接着干，每个任务都有独立的 git worktree 和分支。</string>
     <string name="list_welcome_hint">点下方的新建任务栏即可开始。</string>
     <string name="list_new_task">新建任务</string>
     <string name="list_new_task_kind">worktree</string>

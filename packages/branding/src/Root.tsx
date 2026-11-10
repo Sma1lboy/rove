@@ -19,6 +19,8 @@ import quicklookCapture from "./quicklook/frames.json"
 import quicklookSpec from "./quicklook/quicklook.replay.json"
 import { replayDurationSeconds } from "./quicklook/replay-spec"
 import { TaskStreams } from "./TaskStreams"
+import { TYPED } from "./typed/timeline"
+import { TypedFilm } from "./typed/TypedFilm"
 
 export const RemotionRoot: React.FC = () => {
   const quicklookDuration = replayDurationSeconds(quicklookSpec, quicklookCapture)
@@ -59,6 +61,9 @@ export const RemotionRoot: React.FC = () => {
       {/* Rove's history inked stroke by stroke, day 0 to the current release, with its score. */}
       <Composition id="rove-life" component={RoveLife} {...LIFE} />
       <Composition id="rove-life-cyanotype" component={RoveLife} {...LIFE} defaultProps={{ theme: "cyanotype" }} />
+      {/* Rove used on screen, one typed prompt per feature. One composition per language in typed/copy.ts. */}
+      <Composition id="rove-typed" component={TypedFilm} {...TYPED} defaultProps={{ lang: "en" as const }} />
+      <Composition id="rove-typed-zh" component={TypedFilm} {...TYPED} defaultProps={{ lang: "zh" as const }} />
       <Composition id="docs-fan-out" component={DocsFanOut} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-task-model" component={DocsTaskModel} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-detach-survives" component={DocsDetachSurvives} durationInFrames={1} fps={30} width={1600} height={900} />
