@@ -87,6 +87,9 @@ export const en = {
       updates: "Updates",
       browser: "This browser",
       browserHint: "Forget this browser's token. A login token is revoked on the host too.",
+      requireToken: "Ask for the link on this computer",
+      requireTokenHint:
+        "Off, a browser on this computer opens Rove without the link or a password. Phones and other computers always need one.",
       signOut: "Sign out",
     },
     engines: {
@@ -296,6 +299,8 @@ export const zh: typeof en = {
       updates: "更新",
       browser: "此浏览器",
       browserHint: "忘掉此浏览器的令牌。登录得到的令牌也会在主机上吊销。",
+      requireToken: "本机访问也要链接",
+      requireTokenHint: "关闭时，本机浏览器不用链接或密码就能打开 Rove。手机和其他电脑始终需要。",
       signOut: "退出登录",
     },
     engines: {

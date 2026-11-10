@@ -137,7 +137,8 @@ export class BridgeClient {
 
   private connect(): void {
     this.retryTimer = null
-    const ws = openBridgeSocket(this.url, ["rove.v1", `rove.bearer.${this.token}`])
+    // No token: this computer's own bridge lets its browser in without one.
+    const ws = openBridgeSocket(this.url, this.token ? ["rove.v1", `rove.bearer.${this.token}`] : ["rove.v1"])
     this.ws = ws
     this.armDeadline(ws, CONNECT_DEADLINE_MS)
     ws.onmessage = (ev) => this.receive(String(ev.data))
