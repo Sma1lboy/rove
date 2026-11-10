@@ -249,7 +249,7 @@ export interface PsProcess {
 export type PsSpawn = () => PsProcess
 
 /**
- * `ps -A` answers in ~20ms, so 5s only fires on a stuck process table.
+ * `ps -A` answers in 20-200ms, so 5s only fires on a stuck process table.
  * Bounded because callers' try/catch catches a throw, not a hang: an
  * unbounded await freezes the asking gate until restart.
  */
@@ -296,11 +296,27 @@ export async function psSnapshotWith(spawn: PsSpawn, timeoutMs = PS_PROBE_TIMEOU
 }
 
 /**
+ * Callers that overlap share one run. A web page load asks once per task, and
+ * `ps` on a machine with a thousand processes takes ~200ms.
+ */
+export function shareInflight<T>(run: () => Promise<T>): () => Promise<T> {
+  let inflight: Promise<T> | null = null
+  return () => {
+    inflight ??= run().finally(() => {
+      inflight = null
+    })
+    return inflight
+  }
+}
+
+const sharedPs = shareInflight(() => psSnapshotWith(bunPsSpawn))
+
+/**
  * One process-table snapshot, in `pid ppid args` text. POSIX runs `ps`;
  * win32 runs the CIM + ConPTY walk in `win-process-snapshot.ts`.
  */
 export const psSnapshot: PsSnapshot = async (anchors) => {
-  if (process.platform !== "win32") return psSnapshotWith(bunPsSpawn)
+  if (process.platform !== "win32") return sharedPs()
   const { defaultWinProcessProbe, winProcessSnapshot } = await import("./win-process-snapshot.ts")
   // Own budget (`WIN_PROBE_TIMEOUT_MS`): PowerShell + CIM is ~0.8s vs ~20ms.
   return winProcessSnapshot(anchors ?? [], defaultWinProcessProbe())
