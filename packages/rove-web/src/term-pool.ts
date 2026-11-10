@@ -15,8 +15,8 @@ import { TERM_BOX } from "./ui/shell.ts"
 const PARKED_MAX = 8
 /** Snapshots kept for evicted terminals. */
 const SNAPSHOTS_MAX = 32
-/** The longest a leaving terminal stays over the host while the next one waits for its replay. */
-const LEAVING_MAX_MS = 600
+/** The longest a leaving terminal stays over the host while the next one has nothing on screen: a backstop, the next one's first content ends it. */
+const LEAVING_MAX_MS = 3000
 /** A cold mount this soon after a terminal was parked is the view switching to another task. */
 const ADOPT_WITHIN_MS = 100
 
