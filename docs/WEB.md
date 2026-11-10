@@ -12,12 +12,14 @@ rove --web --port 7900     # another port
 It prints two links and keeps running until you stop it:
 
 ```text
-open: http://127.0.0.1:7878/#token=…
+open: http://127.0.0.1:7878/
 pair: ws://127.0.0.1:7878/?token=…
 ```
 
-Open the first in a browser. The second is the phone pairing URL. A phone
-already paired with `rove-bridge` keeps working: the two share one token.
+Open the first in a browser on this computer: it needs no token (see
+[Access from this computer](#access-from-this-computer)). The second is the
+phone pairing URL. A phone already paired with `rove-bridge` keeps working:
+the two share one token.
 
 ## What it does today
 
@@ -251,7 +253,45 @@ the only public path to it.
   the commands to reach the bridge from another device. It changes nothing.
 
 The page's files are served without the token (they carry none); every
-operation needs it. With `--preset cf`, Cloudflare Access gates the page too.
+operation needs it, except from this computer's own browser as described
+next. With `--preset cf`, Cloudflare Access gates the page too.
+
+### Access from this computer
+
+A plain `rove --web` (no `--preset`, no `--public-host`, no `--host` other
+than loopback) lets a browser on the same computer in without the link or a
+password. `open:` is then the bare address.
+
+Everything else still presents a token, a device token or the password:
+
+- any run with a preset, `--public-host`, a relay, or a non-loopback `--host`;
+- on a plain run, any request that did not come straight from this computer:
+  one whose `Host` is not `127.0.0.1`, `localhost` or `[::1]`, or that carries
+  a forwarding header (`X-Forwarded-For`, `CF-Connecting-IP`, `Forwarded`,
+  `Via`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`). cloudflared and
+  `tailscale serve` set these, so a tunnel pointed at a plain run is not let
+  in without a token;
+- phones, which always pair with the `pair:` URL.
+
+To ask for the link on this computer too, turn on **Settings → About → Ask
+for the link on this computer**, or set it by hand; it applies to the next
+connection, with no restart:
+
+```json
+// <home>/.rove/bridge/config.json
+{ "requireToken": true }
+```
+
+Turning it on from a browser that got in without a token gives that browser
+a device token of its own, so it stays signed in; other tokenless sessions
+are closed.
+
+Turn it on if other people have accounts on this computer: without it, any
+local user or program that can reach `127.0.0.1:<port>` can drive Rove. Turn
+it on as well if a reverse proxy of your own forwards to the bridge without
+passing the original `Host` or any forwarding header (a bare nginx
+`proxy_pass` does this): the bridge cannot tell such a request from a local
+one.
 
 ### Password login
 

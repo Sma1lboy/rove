@@ -8,6 +8,7 @@
 
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"
 import { useEffect, useState } from "react"
+import { saveToken } from "./auth.ts"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
@@ -91,6 +92,30 @@ function UpdateRows({ client }: { client: BridgeClient }) {
   )
 }
 
+/** Only on a bridge this computer alone can reach: one a tunnel or the LAN reaches always asks for a token. */
+function RequireToken({ client }: { client: BridgeClient }) {
+  const [auth, setAuth] = useState<{ canChange: boolean; requireToken: boolean } | null>(null)
+  useEffect(() => {
+    void client.request<{ canChange: boolean; requireToken: boolean }>("auth.status").then(setAuth, () => setAuth(null))
+  }, [client])
+  if (!auth?.canChange) return null
+  const change = async (on: boolean): Promise<void> => {
+    const { token } = await client.request<{ token?: string }>("auth.requireToken", { on })
+    // The bridge ends tokenless sessions once it asks for one: keep this browser in, then reconnect with it.
+    if (token) saveToken(token)
+    if (token) window.location.reload()
+    else setAuth({ canChange: true, requireToken: on })
+  }
+  return (
+    <Toggle
+      label={t("settings.about.requireToken")}
+      hint={t("settings.about.requireTokenHint")}
+      checked={auth.requireToken}
+      onChange={(on) => void change(on)}
+    />
+  )
+}
+
 export function AboutSection({ client }: { client: BridgeClient }) {
   const [daemon, setDaemon] = useState<DaemonInfo | null>(() => lastReply<DaemonInfo>(client, "daemon.info") ?? null)
   useEffect(() => {
@@ -110,6 +135,7 @@ export function AboutSection({ client }: { client: BridgeClient }) {
         <UpdateRows client={client} />
       </Group>
       <Group title={t("settings.about.browser")}>
+        <RequireToken client={client} />
         <Row label={t("settings.about.signOut")} hint={t("settings.about.browserHint")}>
           <Button variant="action" onClick={() => void signOut().then(() => window.location.reload())}>
             {t("settings.about.signOut")}

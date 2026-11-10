@@ -97,7 +97,9 @@ export const BRIDGE_USAGE = `usage: rove-bridge [--preset tailscale|cf|relay] [-
   --unlock             lift a password-login lockout, then exit
 
   --cf-team, --cf-aud, --public-host and --relay-server may also live in
-  <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost, relayServer.`
+  <ROVE_HOME>/.rove/bridge/config.json as cfTeam, cfAud, publicHost, relayServer.
+  \`requireToken: true\` there makes \`rove --web\` ask this computer's own browser
+  for the link too; without it a plain local run lets that browser in.`
 
 /** `myteam`, `myteam.cloudflareaccess.com` or its https URL → the issuer origin. */
 export function teamDomainOf(team: string): string {
