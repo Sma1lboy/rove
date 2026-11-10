@@ -13,6 +13,8 @@ export interface TaskDeleteOptions {
 /** Input to `spawnChildTask` / `task.spawn`: a new conversation as a child of `parentTaskId`. */
 export interface SpawnChildInput {
   readonly parentTaskId: string
+  /** A bare checkout: see `CreateTaskInput.worktreeOnly`. */
+  readonly worktreeOnly?: boolean
   /** `true`: its own worktree cut from the parent's current branch tip; `false`: share the parent's directory. */
   readonly worktree: boolean
   /** Overrides the cut point of a new worktree. */

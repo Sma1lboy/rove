@@ -178,6 +178,8 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const fork = args.str("fork")
   const title = args.str("title") || (prompt && !fork ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
+  // Marked in the create itself: marking after the cut showed the row for as long as the cut took.
+  if (args.bool("worktree-only")) payload.worktreeOnly = true
   const branch = args.str("branch")
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
@@ -213,9 +215,15 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // to classify, so a note and an absent prompt cannot coexist.
   if (!prompt) {
     if (args.bool("worktree-only")) {
-      // The checkout exists before the mark, so a failed cut leaves an ordinary, visible backlog row.
-      await daemon.request("task.ensureWorktree", { taskId })
+      // An older daemon ignores the create's mark: set it here too, before the cut.
       await daemon.request("task.worktreeOnly", { taskId, on: true })
+      try {
+        await daemon.request("task.ensureWorktree", { taskId })
+      } catch (err) {
+        // A failed cut leaves an ordinary, visible backlog row.
+        await daemon.request("task.worktreeOnly", { taskId, on: false }).catch(() => {})
+        throw err
+      }
       task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
       return { taskId, task, worktreePath: task.worktreePath, home: homeDir(), ...placed, started: false, ...warned }
     }
