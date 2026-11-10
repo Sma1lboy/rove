@@ -87,6 +87,7 @@ async function stopSandbox(target: string): Promise<boolean> {
 async function sweepSandboxes(): Promise<void> {
   for (const lease of expiredLeases(leases, Date.now())) {
     if (await stopSandbox(lease.home)) {
+      dropFixtureRepo(lease.home)
       rmSync(lease.path, { force: true })
       console.error(`[rove dev:sandbox] stopped idle sandbox ${lease.home}`)
     } else {
@@ -116,6 +117,7 @@ const env = sandboxChildEnv(home, process.env)
 if (mode === "reset") {
   await stopSandbox(home)
   dropLease(leases, home)
+  dropFixtureRepo(home)
   console.error(`[rove ${label}] stopped daemon and PTY host`)
   process.exit(0)
 }
@@ -145,8 +147,36 @@ function runRove(argv: readonly string[], stdio: "inherit" | "pipe" = "inherit")
  * task here opens a real engine tab. The prompt is deliberately trivial: it
  * exists to make the engine boot and register the tab, not to produce work.
  */
+/**
+ * The repo a seed cuts its tasks from. Seeding from the developer's own
+ * checkout registered worktrees and branches in the REAL repository, and
+ * `reset` could not undo that (it stops processes, not git). A throwaway repo
+ * inside the sandbox keeps every worktree, branch and commit sandbox-owned.
+ */
+function fixtureRepo(home: string): string {
+  const dir = join(home, "fixture-repo")
+  if (existsSync(join(dir, ".git"))) return dir
+  mkdirSync(dir, { recursive: true })
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" }
+  const git = (args: string[]): void => {
+    const r = spawnSync("git", args, { cwd: dir, env, encoding: "utf8" })
+    if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed in the sandbox fixture: ${r.stderr}`)
+  }
+  git(["init", "-b", "main"])
+  writeFileSync(join(dir, "README.md"), "# sandbox fixture\n\nThrowaway repo for `dev:sandbox seed`.\n")
+  writeFileSync(join(dir, "package.json"), '{\n  "name": "sandbox-fixture",\n  "private": true\n}\n')
+  git(["add", "-A"])
+  git(["-c", "user.email=sandbox@rove.invalid", "-c", "user.name=rove sandbox", "commit", "-m", "init"])
+  return dir
+}
+
+/** Reset: the fixture repo (and the worktrees the sandbox cut from it) goes. */
+function dropFixtureRepo(home: string): void {
+  rmSync(join(home, "fixture-repo"), { recursive: true, force: true })
+}
+
 async function seed(): Promise<never> {
-  const repo = dirname(await gitCommonDir())
+  const repo = fixtureRepo(home)
   const TASKS: readonly { title: string; prompt: string }[] = [
     { title: "Trace the engine handshake", prompt: "In one line: what does this repo do?" },
     { title: "Audit the daemon's restart path", prompt: "In one line: name the package manager this repo uses." },
