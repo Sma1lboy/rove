@@ -253,6 +253,8 @@ export interface GateRow {
 }
 
 export interface TasksPayload {
+  /** Counts the list's changes; a `tasks.patch` push names the one it starts from. Absent from an older bridge. */
+  readonly rev?: number
   readonly tasks: readonly TaskRow[]
   readonly attention: readonly AttentionRow[]
   /** Pushed on change like `attention`. Absent from an older bridge: treat as none. */

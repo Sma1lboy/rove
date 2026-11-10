@@ -16,7 +16,7 @@ import { WEB_SUBPROTOCOL, offersWebSubprotocol } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
 import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
-import type { TaskFeed } from "./feed.ts"
+import { type TaskFeed, taskPusher } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { absPath, oneOf } from "./ops/args.ts"
@@ -182,7 +182,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
-      conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      conn.unsubscribeTasks ??= deps.feed.subscribe(taskPusher((frame) => ws.send(frame), a.patches === true))
       conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }

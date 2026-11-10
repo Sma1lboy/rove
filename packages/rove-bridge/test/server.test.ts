@@ -145,7 +145,7 @@ describe("task feed", () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     const first = await c.call("tasks.subscribe")
-    expect(first.result).toEqual(ROWS)
+    expect(first.result).toEqual({ ...ROWS, rev: 1 })
     const row = {
       id: "T1",
       title: "t",
