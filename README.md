@@ -44,7 +44,7 @@ Press `n` to create your first task. You need git and at least one agent CLI on 
 ## What you get
 
 <p align="center">
-  <img src="docs/assets/brand/promo-engines.png" alt="Every agent CLI, each in its own worktree. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity. Yours: any command you register, or an engine from a plugin." />
+  <img src="docs/assets/brand/promo-engines.png" alt="Any agent CLI. Pick one per task. Built in: Claude Code, Codex, GitHub Copilot, Kimi Code, Pi, OMP, IBM Bob. From the catalog, when the CLI is on your PATH: Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp, Devin, Qoder CLI, Cline, Kiro CLI, Maki, Antigravity, Hermes, Kilo, MastraCode. Yours: any command you register, or an engine from a plugin." />
 </p>
 
 - **A worktree and branch per task.** A refactor, a bug fix and a review run at the same time without overwriting each other's files ([Concepts](./docs/CONCEPTS.md)).

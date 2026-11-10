@@ -1,5 +1,3 @@
-import { getInputProps } from "remotion"
-
 // rove brand palettes.
 // `dark` — the original Claude-brand port (terracotta accent on warm neutrals),
 // coherent with the running TUI's default theme.
@@ -46,14 +44,9 @@ const light: typeof dark = {
 
 export const palettes = { dark, light } as const
 
-/** The README set's background: warm paper or the TUI's own night. */
-export type Tone = "paper" | "night"
-/** Set with `--props='{"tone":"night"}'`; unset, the env theme decides as before. */
-export const pickedTone = getInputProps().tone as Tone | undefined
+export const isDark = process.env.ROVE_BRAND_THEME === "dark"
 
-export const isDark = pickedTone ? pickedTone !== "paper" : process.env.ROVE_BRAND_THEME === "dark"
-
-export const colors: typeof dark = pickedTone === "paper" ? { ...light, bg: "#FAF8F5" } : isDark ? dark : light
+export const colors = isDark ? dark : light
 
 export const monoStack =
   '"JetBrains Mono", "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", ui-monospace, monospace'

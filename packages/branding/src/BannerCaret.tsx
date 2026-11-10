@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion"
-import { colors, monoStack, pickedTone } from "./colors"
+import { colors, monoStack } from "./colors"
 import {
   CapsLabel,
   clamp,
@@ -13,7 +13,7 @@ import {
   useSceneOpacity,
   Wordmark,
 } from "./banner/primitives"
-import { Backdrop } from "./promo/promo-theme"
+import { P } from "./promo/promo-theme"
 
 // Option 2 — "Caret step".
 // The row is static and mono; a terracotta caret steps under it one engine at a
@@ -43,8 +43,7 @@ export const BannerCaret: React.FC = () => {
   const caretOpacity = interpolate(frame, [FIRST_STEP_FRAME - 4, FIRST_STEP_FRAME + 2], [0, 1], clamp)
 
   return (
-    <AbsoluteFill style={{ backgroundColor: colors.bg, fontFamily: monoStack }}>
-      {pickedTone ? <Backdrop /> : null}
+    <AbsoluteFill style={{ backgroundColor: P.canvas, fontFamily: monoStack }}>
       <AbsoluteFill style={{ opacity: sceneOpacity }}>
         <Wordmark top={44} />
 

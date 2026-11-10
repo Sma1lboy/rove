@@ -129,16 +129,16 @@ accepted:
     checksum_sha256: d96108b738f61511a31aa49a89d2aa79d096ab72f05df91896896d176e065a02
     accepted_at: "2026-07-02"
   - id: bracket-chip-banner
-    concept: "[ rove ] bracket chip — banner ratio, multiplexer slogan"
-    round: "readme-banner · r1"
+    concept: "[ rove ] bracket chip — banner ratio, all-your-coding-agents slogan, on the stills' paper"
+    round: "rove-readme-set · r1 (paper)"
     modality: image
     asset_type: banner
     path: docs/assets/brand/bracket-chip.gif
     source: .studio/out/readme-banner/bracket-chip-banner.gif
     mime_type: image/gif
     size: [1600, 400]
-    checksum_sha256: fb03a9c5f553ace44fc5b1814bf86c3a1ba2417f92d02b22c09db6d49e8b2faf
-    accepted_at: "2026-07-28"
+    checksum_sha256: b1c56771bd890288e0a5508b03278058bd0735f79d3bcd44ee97038f47278429
+    accepted_at: "2026-11-09"
   - id: rove-promo
     concept: "rove promo — the agent multiplexer in your shell (Eric v3 VO, EN)"
     round: "promo v4 · 2026-08-25"
@@ -152,16 +152,16 @@ accepted:
     checksum_sha256: bba25fbea074f6f662992df72ebcad9ef6da67f97f9187798b1f14c281b3ae54
     accepted_at: "2026-08-25"
   - id: promo-engines
-    concept: "Every agent CLI, each in its own worktree — built-in, catalog, and your own engines"
-    round: "rove-promo-stills · round 1"
+    concept: "Any agent CLI. Pick one per task. — built-in, catalog, and your own engines"
+    round: "rove-readme-set · r1 (paper)"
     modality: image
     asset_type: promo-image
     path: docs/assets/brand/promo-engines.png
     source: packages/branding/src/promo/PromoEngines.tsx
     mime_type: image/png
     size: [1600, 900]
-    checksum_sha256: d5118c72bdd7ca733826e085e499f1a090c57062fc7337991011423bc3873101
-    accepted_at: "2026-09-22"
+    checksum_sha256: 2985de21ef429157ab7de1819095d4af6cacc000546f10365e6741e175e86221
+    accepted_at: "2026-11-09"
   - id: promo-detach
     concept: "Close the terminal. They keep working. — persistent sessions over the film's deep-clay cells"
     round: "rove-promo-stills · round 1"
@@ -174,16 +174,16 @@ accepted:
     checksum_sha256: 869d67b4d32aef94834935e5da48f0b3bee9632ee827a61aa973c540185d6e2f
     accepted_at: "2026-09-22"
   - id: promo-plugins
-    concept: "Make it yours — real rove plugin search output over the Martian-dusk wallpaper"
-    round: "rove-promo-stills · round 1"
+    concept: "Make it yours — real rove plugin search output on the stills' paper"
+    round: "rove-readme-set · r1 (paper)"
     modality: image
     asset_type: promo-image
     path: docs/assets/brand/promo-plugins.jpg
     source: packages/branding/src/promo/PromoPlugins.tsx
     mime_type: image/jpeg
     size: [1600, 900]
-    checksum_sha256: eff8a6168e8962901faef3329755b29720f411d2bc6c9716303baca18ce41501
-    accepted_at: "2026-09-22"
+    checksum_sha256: 50cbb103317e5bf06f6e8143a8612e2ab60f3b417b5594baa946b73b8bf9d0f7
+    accepted_at: "2026-11-09"
   - id: promo-social
     concept: "GitHub social preview — the film's end card with the engine ids"
     round: "rove-promo-stills · round 1"

@@ -1,7 +1,5 @@
 import { AbsoluteFill } from "remotion"
-import { Backdrop, ENGINES, MONO, SANS, T, Wordmark, statement } from "./promo-theme"
-
-const I = T.page
+import { ENGINES, MONO, P, SANS, Wordmark, statement } from "./promo-theme"
 
 // Engine roster: solid chips ship an adapter, outlined ones come from the catalog, dashed ones are yours.
 
@@ -19,16 +17,16 @@ const chip: React.CSSProperties = {
 }
 const builtIn: React.CSSProperties = {
   ...chip,
-  background: I.island,
-  border: `2px solid ${I.line}`,
-  boxShadow: T.chipShadow,
+  background: P.island,
+  border: "2px solid #D9CFC2",
+  boxShadow: "0 6px 16px rgba(60,30,16,.07)",
 }
-const catalog: React.CSSProperties = { ...chip, border: `2px solid ${I.hair}`, color: I.ink2 }
+const catalog: React.CSSProperties = { ...chip, border: `2px solid ${P.hair}`, color: "#3B342E" }
 const yours: React.CSSProperties = {
   ...chip,
-  border: `2px dashed ${I.bracket}`,
-  color: I.accentText,
-  background: I.tint,
+  border: `2px dashed ${P.accent}`,
+  color: P.accentText,
+  background: "rgba(246,228,219,.45)",
 }
 
 const Group: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
@@ -40,10 +38,10 @@ const Group: React.FC<{ title: string; note?: string; children: React.ReactNode 
         fontSize: 17,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: I.ink2,
+        color: P.ink2,
       }}
     >
-      <span style={{ color: I.ink }}>{title}</span>
+      <span style={{ color: P.ink }}>{title}</span>
       {note ? ` · ${note}` : null}
     </div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>{children}</div>
@@ -51,14 +49,13 @@ const Group: React.FC<{ title: string; note?: string; children: React.ReactNode 
 )
 
 export const PromoEngines: React.FC = () => (
-  <AbsoluteFill style={{ color: I.ink }}>
-    <Backdrop />
+  <AbsoluteFill style={{ backgroundColor: P.canvas, color: P.ink }}>
     <div style={{ ...statement(92), position: "absolute", left: 88, top: 84 }}>
       Any agent CLI.
       <br />
-      Pick one <span style={{ color: I.accentText }}>per task.</span>
+      Pick one <span style={{ color: P.accentText }}>per task.</span>
     </div>
-    <Wordmark size={34} ink={I.ink} bracket={I.bracket} style={{ position: "absolute", right: 88, top: 100 }} />
+    <Wordmark size={34} ink={P.ink} bracket={P.accent} style={{ position: "absolute", right: 88, top: 100 }} />
     <div
       style={{ position: "absolute", left: 88, right: 88, top: 344, display: "flex", flexDirection: "column", gap: 50 }}
     >

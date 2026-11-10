@@ -1,6 +1,5 @@
 import { AbsoluteFill } from "remotion"
-import { Backdrop, MONO, Marked, P, SANS, T, Wordmark, statement } from "./promo-theme"
-
+import { MONO, Marked, P, SANS, Wordmark, statement } from "./promo-theme"
 
 // `rove plugin search` output copied verbatim, minus its trailing row for the repo itself.
 const SEARCH: readonly [string, string][] = [
@@ -12,10 +11,7 @@ const SEARCH: readonly [string, string][] = [
   ["Sma1lboy/rove-plugins/browser", "Chromium rendered as terminal cells (carbonyl) in a pane tab"],
 ]
 
-const I = T.page
-const C = T.card
-const onPage: React.CSSProperties = { color: I.ink }
-const prompt = <span style={{ color: C.accentText, fontWeight: 700 }}>$</span>
+const prompt = <span style={{ color: P.accentText, fontWeight: 700 }}>$</span>
 
 const Chrome: React.FC<{ title: string }> = ({ title }) => (
   <div
@@ -25,14 +21,14 @@ const Chrome: React.FC<{ title: string }> = ({ title }) => (
       alignItems: "center",
       gap: 8,
       padding: "0 16px",
-      background: C.chrome,
-      borderBottom: `1px solid ${C.hair}`,
+      background: "#EFE9E0",
+      borderBottom: `1px solid ${P.hair}`,
     }}
   >
     {[0, 1, 2].map((i) => (
-      <span key={i} style={{ width: 12, height: 12, borderRadius: "50%", background: C.dot }} />
+      <span key={i} style={{ width: 12, height: 12, borderRadius: "50%", background: "#D9D0C4" }} />
     ))}
-    <span style={{ flex: 1, textAlign: "center", marginRight: 52, fontFamily: SANS, fontSize: 15, color: C.ink2 }}>
+    <span style={{ flex: 1, textAlign: "center", marginRight: 52, fontFamily: SANS, fontSize: 15, color: P.ink2 }}>
       {title}
     </span>
   </div>
@@ -42,8 +38,8 @@ const card: React.CSSProperties = {
   position: "absolute",
   borderRadius: 20,
   overflow: "hidden",
-  background: C.island,
-  boxShadow: T.cardShadow,
+  background: P.island,
+  boxShadow: "0 28px 64px rgba(60,30,16,.13), 0 0 0 1px rgba(60,30,16,.10)",
 }
 
 const Button: React.FC<{ label: string; tone: string }> = ({ label, tone }) => (
@@ -63,23 +59,23 @@ const Button: React.FC<{ label: string; tone: string }> = ({ label, tone }) => (
 
 /** One mod pane, as both clients draw it from the same element tree. */
 const ModPane: React.FC = () => (
-  <div style={{ fontFamily: MONO, fontSize: 15, lineHeight: "28px", color: C.ink }}>
+  <div style={{ fontFamily: MONO, fontSize: 15, lineHeight: "28px", color: P.ink }}>
     <div style={{ fontWeight: 700 }}>
-      Counter <span style={{ color: C.ink2, fontWeight: 400 }}>· examples.counter-mod</span>
+      Counter <span style={{ color: P.ink2, fontWeight: 400 }}>· examples.counter-mod</span>
     </div>
     <div style={{ fontWeight: 700, marginTop: 4 }}>Count: 2</div>
     <div style={{ display: "flex", gap: 12, margin: "8px 0" }}>
-      <Button label="+1" tone={C.green} />
-      <Button label="-1" tone={C.blue} />
-      <Button label="Reset" tone={C.amber} />
+      <Button label="+1" tone={P.greenText} />
+      <Button label="-1" tone="#2F6FA8" />
+      <Button label="Reset" tone="#A0761C" />
     </div>
     <div
       style={{
-        border: `1px solid ${C.hair}`,
+        border: `1px solid ${P.hair}`,
         borderRadius: 8,
         padding: "2px 12px",
-        color: C.fieldInk,
-        background: C.field,
+        color: "#9A9086",
+        background: "#FBF7F2",
       }}
     >
       Add a note and press Enter
@@ -90,17 +86,15 @@ const ModPane: React.FC = () => (
 )
 
 export const PromoPlugins: React.FC = () => (
-  <AbsoluteFill>
-    <Backdrop />
-    <div style={{ ...statement(104), ...onPage, position: "absolute", left: 96, top: 70 }}>
+  <AbsoluteFill style={{ backgroundColor: P.canvas, color: P.ink }}>
+    <div style={{ ...statement(104), position: "absolute", left: 96, top: 70 }}>
       Make it{" "}
-      <span style={{ color: "#FFFAF5" }}>
+      <span style={{ color: P.island }}>
         <Marked>yours.</Marked>
       </span>
     </div>
     <div
       style={{
-        ...onPage,
         position: "absolute",
         left: 100,
         top: 196,
@@ -115,12 +109,12 @@ export const PromoPlugins: React.FC = () => (
 
     <div style={{ ...card, left: 96, top: 412, width: 1130 }}>
       <Chrome title="zsh" />
-      <div style={{ padding: "22px 30px 26px", fontFamily: MONO, fontSize: 15, lineHeight: "31px", color: C.ink, whiteSpace: "pre" }}>
+      <div style={{ padding: "22px 30px 26px", fontFamily: MONO, fontSize: 15, lineHeight: "31px", color: P.ink, whiteSpace: "pre" }}>
         <div>{prompt} rove plugin search</div>
         {SEARCH.map(([id, what]) => (
           <div key={id}>
             <span style={{ fontWeight: 700 }}>{id.padEnd(40)}</span>
-            <span style={{ color: C.green }}>first-party</span> <span style={{ color: C.ink2 }}>{what}</span>
+            <span style={{ color: P.greenText }}>first-party</span> <span style={{ color: P.ink2 }}>{what}</span>
           </div>
         ))}
         <div> </div>
@@ -138,6 +132,6 @@ export const PromoPlugins: React.FC = () => (
       </div>
     </div>
 
-    <Wordmark size={30} ink={I.ink} bracket={I.bracket} style={{ ...onPage, position: "absolute", right: 98, bottom: 54 }} />
+    <Wordmark size={30} ink={P.ink} bracket={P.accent} style={{ position: "absolute", right: 98, bottom: 54 }} />
   </AbsoluteFill>
 )
