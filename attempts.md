@@ -419,3 +419,13 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next / owner call:** the stateListener ✗ has now blocked the baseline three runs running while paintRow/styled (43 → 1) and cli-startup (74.8 → 30–38) are ✓. Either move the baseline by hand to a 3.6-mode run, or decide cross-window visit sync isn't needed (then the change above removes one listener and one daemon push per switch, for every client). Switch counts otherwise at floor (see 11-02, 11-05).
 
 **Sandbox:** bun 1.3.14 from npm; `ELECTRON_SKIP_BINARY_DOWNLOAD=1` for `bun install`; per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/chrome-headless-shell-linux64/` worked.
+
+## 2026-11-10 — notes, baseline moved, no attempt (main f06e9f5)
+
+**No regression.** Run 1 exited 0 with every past-tolerance change ✓ (switch.perOp.paintRow/styled 43 → 2.2), so **baseline.json is now run 1's metrics**. Run 2 exited 1 on switch.perOp.stateListener 2 → 3.5 only (the bimodal count from 11-05/08/09). Counts held: commit.root/workspace 6, sidebar 2, frame 4, overlay 3, spawns 0.2, idle 0; switch.shown 450–459, typing.echo 161–163, cli-startup 36–47. 71 commits since 722e4c8, mostly web; #1875 (row draw into cell buffers) and #1867 (bottom-up row check) touched the terminal pane and moved no count. No open GitHub issues. Tonight's history line is run 1.
+
+**The new baseline's timings are run 1's, on the slow side** (boot.firstFrame 882.6, boot.ready 2617; run 2 read 447/2041), so a boot regression now has more slack before it shows. Its stateListener is the low mode (2), so the bimodal ✗ still fires on high-mode runs.
+
+**Looked at, not attempted:** golden.vt-1mb-parse-ms. An in-process probe (5 runs) puts raw `@xterm/headless` parse of the same 1 MB at 32–69 ms and Rove's overhead (2–4 snapshot refreshes of ~4 ms each, plus the 5 ms poll) at ~13–23 ms; the first run is JIT-cold. Nothing to gain there that clears the 50%/15 ms timing tolerance, and it has no count to drop. Switch counts are still at floor (see 11-02, 11-05); stateListener is waiting on the owner's call (11-09).
+
+**Sandbox:** bun 1.3.14 from npm; `ELECTRON_SKIP_BINARY_DOWNLOAD=1` for `bun install`; per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-{1228,1243}/chrome-headless-shell-linux64/` worked.
