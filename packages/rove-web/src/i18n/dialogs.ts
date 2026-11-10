@@ -5,6 +5,13 @@ export const en = {
     save: "save",
     close: "close",
   },
+  updatePrompt: {
+    title: "Rove {version} is available",
+    body: "This computer runs {current}. Update installs the new version on it.",
+    yes: "Update",
+    later: "Not now",
+    skip: "Skip this version",
+  },
   whatsNew: {
     continue: "Continue",
     openRelease: "Open release notes",
@@ -173,6 +180,13 @@ export const zh: typeof en = {
     cancel: "取消",
     save: "保存",
     close: "关闭",
+  },
+  updatePrompt: {
+    title: "Rove {version} 可以更新了",
+    body: "这台电脑运行的是 {current}。点更新会在它上面安装新版本。",
+    yes: "更新",
+    later: "暂不",
+    skip: "跳过这个版本",
   },
   whatsNew: {
     continue: "继续",

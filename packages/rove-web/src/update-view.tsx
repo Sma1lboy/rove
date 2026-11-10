@@ -44,6 +44,9 @@ interface CheckReply {
 /** The last answer, shared by the rail chip and the page. `null` = not asked yet. */
 export const updateState = createStore<CheckReply | null>(null)
 
+/** Set by the update prompt's Update: the page starts the install as it opens, with nothing more to click. */
+export const updateAutoRun = createStore(false)
+
 const fill = (text: string, p: Record<string, string>) => text.replace(/\{(\w+)\}/g, (m, k: string) => p[k] ?? m)
 const releaseUrl = (version: string) => `https://github.com/Sma1lboy/rove/releases/tag/v${version}`
 
@@ -171,6 +174,12 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     }
     setStatus(url && window.open(url, "_blank", "noopener") !== null ? u.statusReleaseOpened : u.statusReleaseError)
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once, when the check has answered
+  useEffect(() => {
+    if (!checked || !updateAutoRun.get()) return
+    updateAutoRun.set(false)
+    if (hasUpdate) activate("update")
+  }, [checked, hasUpdate])
   const onKey = (e: React.KeyboardEvent) => {
     // Ctrl+C closes, as the TUI's page bindings; a text selection keeps the browser's copy.
     if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
