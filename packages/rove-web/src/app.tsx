@@ -125,7 +125,8 @@ function Shell({ model }: { model: AppModel }) {
       <DaemonBanner onRefresh={() => refreshRove(model.client)} />
       <div
         className={appClass({
-          zen: zenOn || !panelShown || (!task && !remoteTask) || narrow,
+          // The composer starts a task: the open task's Files and Browser are not about it.
+          zen: zenOn || !panelShown || (!task && !remoteTask) || narrow || composing,
           expanded: panelWide && !zenOn && !narrow,
           surface,
           folded: folded && !narrow,
