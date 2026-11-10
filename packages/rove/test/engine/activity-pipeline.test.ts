@@ -126,6 +126,11 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.subtitleText).toBe("feature/sidebar")
   })
 
+  it("turn failed (rate limit): the `error` field Claude Code 2.1 sends is read as a quota wall too", () => {
+    const row = rowAfterClaudeHook("StopFailure", { error: "rate_limit" })
+    expect(row.tone).toBe("warning")
+  })
+
   it("turn failed (other): unknown error_type shows the attention badge", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "hook_crashed" })
     expect(row.loading).toBe(false)
