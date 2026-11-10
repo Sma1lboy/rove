@@ -365,9 +365,8 @@ export class TaskEditor {
     // The next project down is the next one whose first task comes after the target's.
     const seen = rest.slice(0, head + 1).flatMap((t) => projectOf(t) ?? [])
     const next = rest.slice(head + 1).find((t) => projectOf(t) !== null && !seen.some((p) => samePath(p, t.repo)))
-    const last = rest.at(-1)
     if (next) await this.store.moveBlock(block, String(next.id), "before")
-    else if (last) await this.store.moveBlock(block, String(last.id), "after")
+    else if (rest.length > 0) await this.store.moveBlock(block, String(rest.at(-1)?.id), "after")
   }
 
   private movePartition(task: Task): string[] {

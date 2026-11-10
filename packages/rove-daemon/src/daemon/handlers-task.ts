@@ -367,9 +367,8 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.worktreeOnly",
     async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
       if (typeof payload.on !== "boolean") throw new Error("on must be a boolean")
-      await ctx.orch.setWorktreeOnly(taskId, payload.on)
+      await ctx.orch.setWorktreeOnly(requireString(payload, "taskId"), payload.on)
       return {}
     },
   },
