@@ -15,6 +15,7 @@ import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
+import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
@@ -101,15 +102,20 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
   // A collapsed project keeps its header and hides what is under it; search shows everything.
-  // Archived tasks stay out of the rail: the closing Archived fold (`rail-archived.ts`) is switched off for now.
+  // Archived tasks are only in the closing fold, which a search leaves out (as the TUI).
   const rows = filters.search.active
     ? built.rows
-    : foldProjects(
-        withPanes(
-          withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
-          tabs,
+    : withArchived(
+        foldProjects(
+          withPanes(
+            withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
+            tabs,
+          ),
+          filters.collapsed,
         ),
-        filters.collapsed,
+        payload?.archived ?? [],
+        filters.archivedOpen,
+        { ...filters.hand, selectedId: selectedId ?? undefined },
       )
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
@@ -121,7 +127,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     label: repoLabel(repo),
     first: repo === firstMovable,
   })
-  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
+  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default", projectInfo)
   const place = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
@@ -352,7 +358,7 @@ function RailRow(props: {
   if (row.kind === "project" || row.kind === "state") {
     return (
       <h2
-        className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
+        className={projectHead({ moving: props.moving, dragging: props.dragging })}
         onContextMenu={props.onMenu}
         {...props.place}
         {...props.drag}
@@ -399,7 +405,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging, grab: props.drag !== undefined })} ${cursor}`}
+      className={`${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}
