@@ -357,6 +357,8 @@ export class Orchestrator {
     this.editor.setRequireReport(id, required)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
   moveTaskToTop = (id: TaskId | string): Promise<void> => this.editor.moveTaskToTop(id)
+  moveProject = (repo: string, target: string, side: "before" | "after"): Promise<void> =>
+    this.editor.moveProject(repo, target, side)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
 
   /** Record the worker's own account of what it delivered — see

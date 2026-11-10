@@ -394,6 +394,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "project.move",
+    async handle(payload, ctx) {
+      const repo = requireString(payload, "repo")
+      const target = requireString(payload, "target")
+      const side = requireString(payload, "side")
+      if (side !== "before" && side !== "after") throw new Error("side must be before or after")
+      await ctx.orch.moveProject(repo, target, side)
+      return {}
+    },
+  },
+  {
     name: "task.status",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

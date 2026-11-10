@@ -1,6 +1,6 @@
 /**
- * Drag to reorder: a project header among projects, a task among its project's tasks, as the TUI's
- * move mode does with keys. A task let go at the top of its project or among its pinned tasks is
+ * Drag to reorder: a project header among projects (`project.move`, the whole project, with or without a
+ * main checkout), a task among its project's tasks, as the TUI's move mode does with keys. A task let go at the top of its project or among its pinned tasks is
  * pinned; a pinned one let go among the rest is unpinned. While dragging, the rows slide to where
  * the drop would leave them; there is no insertion line. They slide by transform, not by reordering
  * the DOM: Chrome cancels a drag whose source node moves. Any sort drags; a drop outside manual
@@ -14,7 +14,7 @@ import type { AppModel } from "./model.ts"
 import { dropTask } from "./move-mode.ts"
 import { type DropSide, blockEnd, dropMove, dropsOn, opensProject, previewDrop } from "./rail-blocks.ts"
 import { setRailSort } from "./rail-sort.ts"
-import type { NavRow } from "./rail.ts"
+import { type NavRow, isNoProject } from "./rail.ts"
 import { tc } from "./tui-copy.ts"
 import { toast } from "./ui.ts"
 
@@ -22,15 +22,29 @@ export type DragProps = Pick<HTMLAttributes<HTMLElement>, "draggable" | "onDragS
 
 export interface RowPlace {
   readonly "data-row": string
+  /** In the block being dragged: the rail dims every other row. */
+  readonly "data-lifted"?: ""
   readonly style?: CSSProperties
 }
 
 interface Drag {
   readonly fromRow: string
+  /** A task drag's task; a project drag's first task, standing for its project. */
   readonly from: TaskRow
   readonly toRow: string
   readonly to: TaskRow
   readonly side: DropSide
+  readonly project: boolean
+}
+
+let blank: HTMLImageElement | null = null
+/** The browser's translucent copy of the row would float over the rows already sliding into place. */
+const noGhost = (): HTMLImageElement => {
+  if (!blank) {
+    blank = new Image()
+    blank.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+  }
+  return blank
 }
 
 export function useRowDrag(
@@ -39,7 +53,6 @@ export function useRowDrag(
   enabled: boolean,
   /** The rail shows manual order (the `default` sort). */
   manual: boolean,
-  mainTaskOf: (repo: string) => { mainTaskId: string | null },
 ) {
   const [drag, setDrag] = useState<Drag | null>(null)
   const latest = useRef(tasks)
@@ -98,7 +111,9 @@ export function useRowDrag(
   }
   const taskOf = (row: NavRow): TaskRow | null => {
     if (!enabled || row.machine !== undefined) return null
-    if (row.kind === "project") return tasks.find((task) => task.id === mainTaskOf(row.repo).mainTaskId) ?? null
+    // Any project moves, main checkout or not; Ungrouped is not one.
+    if (row.kind === "project")
+      return row.noProject ? null : (tasks.find((task) => task.repo === row.repo && !isNoProject(task)) ?? null)
     // Only top-level tasks move: a child's place is under its parent, and the daemon orders the flat list.
     return row.kind === "task" && row.depth === 1 && row.task.kind !== "main" ? row.task : null
   }
@@ -109,6 +124,7 @@ export function useRowDrag(
       draggable: true,
       onDragStart: (e: DragEvent) => {
         e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.setDragImage(noGhost(), 0, 0)
         e.dataTransfer.setData("text/plain", task.id)
         railBody.current = e.currentTarget.closest("[data-rail-body]")
         measure(railBody.current)
@@ -121,20 +137,21 @@ export function useRowDrag(
             0,
           )
         lastY.current = e.clientY
-        set({ fromRow: row.id, from: task, toRow: row.id, to: task, side: "above" })
+        set({ fromRow: row.id, from: task, toRow: row.id, to: task, side: "above", project: row.kind === "project" })
       },
       // A drop already let go of `live` and keeps its preview; this is the cancelled drag.
       onDragEnd: () => live.current && set(null),
     }
   }
-  // The row a drag over `rows[i]` aims at: for a project, the project that row is in (its header,
-  // standing for its main task); for a task, that task.
+  // The row a drag over `rows[i]` aims at: for a project, the project that row is in (its header);
+  // for a task, that task.
   const targetAt = (rows: readonly NavRow[], i: number, now: Drag): { row: string; task: TaskRow } | null => {
     let at = i
-    if (now.from.kind === "main") while (at > 0 && rows[at]?.kind !== "project") at--
+    if (now.project) while (at > 0 && rows[at]?.kind !== "project") at--
     const row = rows[at]
-    const task = row && taskOf(row)
-    if (!row || !task || !dropsOn(now.from, task)) return null
+    if (!row || (row.kind === "project") !== now.project) return null
+    const task = taskOf(row)
+    if (!task || (!now.project && !dropsOn(now.from, task))) return null
     return { row: row.id, task }
   }
   // Letting go anywhere in the rail lands the row where the preview shows it.
@@ -166,7 +183,6 @@ export function useRowDrag(
       const now = live.current
       if (!now) return
       e.preventDefault()
-      const move = dropMove(tasks, now.from, now.to, now.side, opensProject(shown.current, now.fromRow, now.toRow))
       live.current = null
       if (!manual) {
         // Manual order is the only sort that shows where the row went: switch to it once the move has
@@ -179,7 +195,23 @@ export function useRowDrag(
         }
       } else land.current = () => setDrag(null)
       // The preview stays until the daemon's new order has arrived, so the row doesn't jump back first.
-      if (move) void dropTask(model, now.from.id, move).finally(() => setLanding(latest.current))
+      const settle = () => setLanding(latest.current)
+      if (now.project) {
+        if (now.toRow === now.fromRow) return land.current()
+        const args = { repo: now.from.repo, target: now.to.repo, side: now.side === "above" ? "before" : "after" }
+        void model.client
+          .request("project.move", args)
+          .catch((err: unknown) =>
+            toast(
+              tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }),
+              "error",
+            ),
+          )
+          .finally(settle)
+        return
+      }
+      const move = dropMove(tasks, now.from, now.to, now.side, opensProject(shown.current, now.fromRow, now.toRow))
+      if (move) void dropTask(model, now.from.id, move).finally(settle)
       else land.current()
     },
   }
@@ -200,10 +232,13 @@ export function useRowDrag(
     const out = new Map<string, number>()
     if (!drag) return out
     let y = Math.min(...[...slots.current.values()].map((s) => s.top))
+    // The first header was drawn with no gap above it; once moved down it takes the gap every group has.
+    const isHead = (row: NavRow) => row.kind === "project" || row.kind === "state"
+    const groupGap = Math.max(0, ...rows.filter(isHead).map((row) => slots.current.get(row.id)?.gap ?? 0))
     for (const [i, row] of shown.current.entries()) {
       const at = slots.current.get(row.id)
       if (!at) return new Map()
-      if (i > 0) y += at.gap
+      if (i > 0) y += isHead(row) ? groupGap : at.gap
       if (y !== at.top) out.set(row.id, y - at.top)
       y += at.height
     }
@@ -216,9 +251,15 @@ export function useRowDrag(
     /** Call once per render with the rows in drawn order; returns each row's place. */
     places: (rows: readonly NavRow[]) => {
       const by = shifts(rows)
+      const from = drag ? rows.findIndex((row) => row.id === drag.fromRow) : -1
+      const lifted = new Set(from < 0 ? [] : rows.slice(from, blockEnd(rows, from)).map((row) => row.id))
       return (row: NavRow): RowPlace => {
         const dy = by.get(row.id)
-        return dy ? { "data-row": row.id, style: { transform: `translateY(${dy}px)` } } : { "data-row": row.id }
+        return {
+          "data-row": row.id,
+          ...(lifted.has(row.id) ? { "data-lifted": "" as const } : {}),
+          ...(dy ? { style: { transform: `translateY(${dy}px)` } } : {}),
+        }
       }
     },
   }

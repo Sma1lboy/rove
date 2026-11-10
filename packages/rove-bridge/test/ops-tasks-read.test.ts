@@ -33,6 +33,7 @@ describe("op table", () => {
         "task.cancelScheduledStart",
         "task.startScheduledNow",
         "task.move",
+        "project.move",
         "project.forget",
         "notes.delete",
         "task.openMain",

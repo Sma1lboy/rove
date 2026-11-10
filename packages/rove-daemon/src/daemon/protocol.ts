@@ -122,6 +122,7 @@ export type DaemonRequestName =
   | "task.rewind"
   | "task.exportBranch"
   | "task.move"
+  | "project.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
   // durable, so this copy is what survives engine/context loss.
