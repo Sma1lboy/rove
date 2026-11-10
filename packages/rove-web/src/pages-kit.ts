@@ -11,6 +11,7 @@ import { en as kanbanEn, zh as kanbanZh } from "@sma1lboy/rove/src/tui/i18n/mess
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { en as itemsEn, zh as itemsZh } from "@sma1lboy/rove/src/tui/i18n/messages/workItems.ts"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { everyVisible } from "./every-visible.ts"
 import { useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { isNoProject } from "./rail.ts"
@@ -90,13 +91,13 @@ export function useSelectedRepo(model: AppModel): string | undefined {
   return payload?.tasks.find((task) => task.id === taskId)?.repo
 }
 
-/** A counter that bumps every `ms` and on demand: the TUI pages' `reloadTick` + poll. */
+/**
+ * A counter that bumps every `ms` and on demand: the TUI pages' `reloadTick` + poll. A hidden
+ * browser tab does not poll (the Kanban board alone is hundreds of KB a read); coming back reads at once.
+ */
 export function useReload(ms: number): readonly [number, () => void] {
   const [tick, setTick] = useState(0)
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick((n) => n + 1), ms)
-    return () => window.clearInterval(timer)
-  }, [ms])
+  useEffect(() => everyVisible(ms, () => setTick((n) => n + 1)), [ms])
   return [tick, useCallback(() => setTick((n) => n + 1), [])]
 }
 

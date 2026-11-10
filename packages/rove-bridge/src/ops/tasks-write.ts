@@ -280,7 +280,7 @@ export const TASK_WRITE_OPS: OpTable = {
     const repo = absPath(a, "repo")
     // Opening a project's main task is how a fresh clone becomes a known project, so this
     // takes any real git repo rather than only a known one.
-    const problem = taskOpDeps.validateRepoPath(repo)
+    const problem = await taskOpDeps.validateRepoPath(repo)
     if (problem) throw new BridgeError("BAD_ARGS", problem)
     const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
     return { taskId: res.task.id }
@@ -289,7 +289,7 @@ export const TASK_WRITE_OPS: OpTable = {
   // conversation of the main task: `tab.new` on a main that already runs one makes a child nested under it.
   "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
     const repo = absPath(a, "repo")
-    const problem = taskOpDeps.validateRepoPath(repo)
+    const problem = await taskOpDeps.validateRepoPath(repo)
     // A folder git cannot use is a standalone directory session (`rove <path>`'s shape): no project row.
     if (problem && !taskOpDeps.isDirectory(repo)) throw new BridgeError("BAD_ARGS", problem)
     const title = optText(a, "title", 200)

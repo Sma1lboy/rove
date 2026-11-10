@@ -10,7 +10,7 @@ import { type UsageStore, usageStore } from "../usage-store.ts"
 import { optText } from "./args.ts"
 import type { OpTable } from "./types.ts"
 
-/** One row under the bar; `share` (0..100 of the bar) gives it a segment. */
+/** One row under the bar; `share` (0..100 of the bar) gives it a segment. Order: counted parts biggest first, free space, deferred parts. */
 export interface ContextRow {
   /** `context.part.<key>` in the web's catalog. */
   readonly key: string
@@ -22,6 +22,8 @@ export interface ContextRow {
   readonly items?: readonly { readonly name: string; readonly tokens: number }[]
   /** How many things the part holds, when `items` lists only the largest. */
   readonly itemCount?: number
+  /** Loaded on demand: listed for its size, in no window and no total. */
+  readonly deferred?: true
 }
 
 export interface ContextMeter {
@@ -39,10 +41,13 @@ export function contextMeter(ctx: EngineContextUsage | null): ContextMeter | nul
   const used = ctx.contextTokens
   const window = ctx.contextWindowTokens ?? null
   const share = (n: number) => Math.min(100, (n / (window ?? used)) * 100)
-  const rows: ContextRow[] = ctx.parts?.length
-    ? ctx.parts.map((part) => ({ ...part, share: share(part.tokens) }))
+  const counted = (ctx.parts ?? []).filter((part) => !part.deferred)
+  // Biggest first: what to trim reads off the top.
+  const rows: ContextRow[] = counted.length
+    ? counted.map((part) => ({ ...part, share: share(part.tokens) })).sort((a, b) => b.tokens - a.tokens)
     : [{ key: "used", tokens: used, share: share(used) }]
   if (window) rows.push({ key: "free", tokens: Math.max(0, window - used) })
+  rows.push(...(ctx.parts ?? []).filter((part) => part.deferred))
   return { percent: window ? share(used) : null, used, window, rows, approximate: ctx.approximate === true }
 }
 

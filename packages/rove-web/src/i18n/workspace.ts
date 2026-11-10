@@ -26,8 +26,8 @@ export const en = {
     engine: "engine",
   },
   firstRun: {
-    title: "Run several agents side by side",
-    body: "Every task gets its own worktree and branch, so sessions never step on each other.",
+    title: "All your coding agents, in one place",
+    body: "When one runs out of quota, switch the task to another. Agents talk to each other directly, and every task gets its own worktree and branch.",
     start: "Start your first task",
   },
   status: {
@@ -126,8 +126,8 @@ export const zh: typeof en = {
     engine: "引擎",
   },
   firstRun: {
-    title: "让多个智能体并排工作",
-    body: "每个任务有独立的 worktree 和分支，会话之间互不干扰。",
+    title: "所有编程 agent，都在一个地方",
+    body: "一个额度用完了，换另一个接着干；agent 之间直接对话。每个任务有独立的 worktree 和分支，互不覆盖。",
     start: "开始第一个任务",
   },
   status: {

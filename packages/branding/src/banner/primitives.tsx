@@ -166,7 +166,7 @@ export const Slogan: React.FC<{ opacity: number }> = ({ opacity }) => (
       opacity,
     }}
   >
-    THE AGENT MULTIPLEXER IN YOUR SHELL
+    ALL YOUR CODING AGENTS, IN ONE PLACE
   </div>
 )
 
