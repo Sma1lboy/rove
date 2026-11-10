@@ -235,7 +235,9 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!automation) throw new Error(`automation not found: ${id}`)
       // Disabling the last one releases the hold; nothing else would notice.
       ctx.daemon.reevaluateIdle()
-      return { automation }
+      // The task a re-pin or a new target let go of still exists; name it so the caller can find it.
+      const released = current.sessionTaskId && !automation.sessionTaskId ? current.sessionTaskId : undefined
+      return { automation, ...(released ? { releasedSessionTaskId: released } : {}) }
     },
   },
   {

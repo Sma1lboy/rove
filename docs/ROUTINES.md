@@ -123,13 +123,15 @@ replace or clear incompatible pins in the same update. Clearing `--vendor`
 while pins remain resolves the engine again the same way, checks the pins
 against it and stores it; clearing it with no pins left stores no vendor.
 
-Once a persistent routine has a standing task, updates cannot add, change or
-clear its vendor, model or effort. This applies while the engine is live and
-after it exits, and while the routine retains that task link in fresh mode.
-Disable the routine with `routine-update --id ID --enabled false`, then create
-a replacement with the desired pins. Repeating unchanged pins and editing
-other fields remain supported. Binding to an existing tab clears the standing
-link and uses that tab's engine settings.
+Changing, adding or clearing the vendor, model or effort of a persistent
+routine that already has a standing task lets go of that task: its engine
+keeps what it launched with, so the next run builds a new standing task on the
+new pins, with a new conversation and (in a repo) a new worktree. The old task
+is not stopped or deleted; `routine-update` names it as
+`releasedSessionTaskId`, so delete it yourself once nothing in it is needed.
+Repeating unchanged pins and editing other fields keep the standing task.
+Binding to an existing tab also clears the standing link and uses that tab's
+engine settings.
 
 `--precheck-timeout` only means something alongside `--precheck`; on its own it
 is refused rather than quietly ignored. To change just the timeout, pass the

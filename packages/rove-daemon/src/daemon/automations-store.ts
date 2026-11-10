@@ -276,12 +276,11 @@ export class AutomationsStore {
       const current = this.automations[index] as Automation
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
-      // Checked inside the queue so it orders against `linkSessionTask`.
-      if (current.sessionTaskId && targetOptions.sessionTaskId && !samePins(current, targetOptions)) {
-        throw new Error(
-          "cannot change vendor, model or effort while a routine retains its standing task; disable this routine and create a replacement with the desired pins",
-        )
-      }
+      // Decided inside the queue so it orders against `linkSessionTask`.
+      const repinned =
+        current.sessionTaskId !== undefined &&
+        targetOptions.sessionTaskId === current.sessionTaskId &&
+        !samePins(current, targetOptions)
       const nowMs = this.now()
       const schedule = patch.schedule ?? current.schedule
       // A paused routine's nextRunAt froze when it was paused (the sweep skips
@@ -292,6 +291,8 @@ export class AutomationsStore {
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.prompt !== undefined ? { prompt: patch.prompt } : {}),
         ...targetOptions,
+        // The standing task keeps the engine it launched with: new pins get a new one on the next firing.
+        ...(repinned ? { sessionTaskId: undefined } : {}),
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(patch.missedRunGraceMinutes !== undefined ? { missedRunGraceMinutes: patch.missedRunGraceMinutes } : {}),
         schedule,

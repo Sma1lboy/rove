@@ -1832,9 +1832,9 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
   re-anchors the next run; `--precheck ''` clears the precheck, `--model ''` / `--effort ''` clear those pins,
   and `--vendor ''` under surviving pins re-resolves, re-validates and stores the engine. Omitted target flags
   preserve the binding; `--target-task '' --target-tab ''` sends `target: null` to clear it.
-  While a routine retains a standing task, vendor/model/effort changes and clears
-  are rejected even if its engine has exited. Disable it and create a replacement
-  with the desired pins. Unchanged pins and other field updates remain supported.
+  Changing or clearing vendor/model/effort while a routine retains a standing task
+  lets go of that task (returned as `releasedSessionTaskId`, never deleted); the next
+  run builds a new one on the new pins. Unchanged pins keep it.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
 - `routine-respond --run RUN_ID (--text T | --prompt-file PATH|-)`: store the
