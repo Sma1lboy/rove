@@ -56,6 +56,8 @@ export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
 type SlotContract = {
   /** Used in warnings and the docs. */
   layout: string
+  /** What each chord of one full set means, in order; a recorder asks for them one by one. */
+  slots?: readonly string[]
   /** Null when `count` chords satisfy the layout; otherwise the problem. */
   validateCount: (count: number) => string | null
 }
@@ -65,6 +67,7 @@ function pairContract(first: string, second: string): SlotContract {
   const layout = `alternating [${first}, ${second}] pairs`
   return {
     layout,
+    slots: [first, second],
     validateCount: (count) =>
       count >= 2 && count % 2 === 0 ? null : `needs ${layout} (an even number of chords — got ${count})`,
   }
@@ -87,6 +90,11 @@ const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
     layout: "[quit confirm, hard exit] (second chord optional)",
     validateCount: (count) => (count <= 2 ? null : `needs [quit confirm, hard exit] (1 or 2 chords — got ${count})`),
   },
+}
+
+/** The chords one recording of `id` must collect: a label per slot, or none for a plain one-chord binding. */
+export function recordSlotLabels(id: string): readonly string[] {
+  return SLOT_CONTRACTS[id]?.slots ?? []
 }
 
 /** Scopes where a bare single-character chord would steal typed input. */

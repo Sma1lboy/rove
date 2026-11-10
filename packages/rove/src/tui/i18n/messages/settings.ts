@@ -46,6 +46,7 @@ export const en = {
   esc: "esc",
   nav: {
     default: "j/k pick · h/l switch level · enter activate · esc close",
+    keys: "j/k pick · enter record a key · backspace default · x unbind · esc close",
     feedback: "tab next field · enter sends on Send · esc close",
   },
   sections: {
@@ -221,7 +222,7 @@ export const en = {
   ...pluginsEn,
   keybindings: {
     title: "Keybindings",
-    hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
+    hint: "Press enter on a binding, then the key you want. To put it behind the prefix, press the prefix key first. Changes are saved to the file below and apply at once.",
     configFile: "Config file",
     notCreated: "  (not created yet)",
     /** Heading for the prefix/grammar block; {prefix} is the live first stroke */
@@ -240,8 +241,12 @@ export const en = {
     createHint:
       "No overrides file yet. Rove can write one for you, fully commented — nothing is rebound until you uncomment a line.",
     createFile: "[enter] Create keybindings.yaml",
-    overridesApplied: "Overrides applied",
-    none: "none",
+    /** Shown in place of a binding's chords while it waits for the new key */
+    recording: "press the new key… (esc cancels)",
+    /** After the prefix key was pressed while recording; {prefix} is that key */
+    recordingPrefix: "{prefix}, then… (esc cancels)",
+    /** Recording one chord of a paired binding; {slot} names it, e.g. down */
+    recordingSlot: "press the key for {slot}… (esc cancels)",
     unbound: "(unbound)",
     defaultKeys: "default: {keys}",
     warnings: "Warnings",
@@ -290,6 +295,7 @@ export const zh: typeof en = {
   esc: "esc",
   nav: {
     default: "j/k 选择 · h/l 切换层级 · enter 确认 · esc 关闭",
+    keys: "j/k 选择 · enter 录入按键 · backspace 恢复默认 · x 解绑 · esc 关闭",
     feedback: "tab 下一项 · enter 在发送项发送 · esc 关闭",
   },
   sections: {
@@ -438,7 +444,7 @@ export const zh: typeof en = {
   ...pluginsZh,
   keybindings: {
     title: "快捷键",
-    hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
+    hint: "在某一行按 enter，再按你想要的键。想放到 prefix 后面，就先按 prefix 键。改动会写进下面的文件，立即生效。",
     configFile: "配置文件",
     notCreated: "  (尚未创建)",
     prefixTitle: "命令层（{prefix}）",
@@ -452,8 +458,9 @@ export const zh: typeof en = {
     fixed: "固定（不可重绑定）：{ids}。",
     createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
     createFile: "[enter] 创建 keybindings.yaml",
-    overridesApplied: "已应用的覆盖",
-    none: "无",
+    recording: "按下新的键…（esc 取消）",
+    recordingPrefix: "{prefix}，然后…（esc 取消）",
+    recordingSlot: "按下「{slot}」对应的键…（esc 取消）",
     unbound: "(已解绑)",
     defaultKeys: "默认: {keys}",
     warnings: "警告",

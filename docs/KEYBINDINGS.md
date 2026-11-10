@@ -358,6 +358,7 @@ active only while the page has focus.
 | Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
 | Settings → Engines | `j`/`k` move; `space` switches the focused engine on or off; `r` renames its display label; `d` makes it the global default; `x` resets a built-in engine (or removes a custom one) |
+| Settings → Keybindings | `j`/`k` move; `enter` records a new key for the focused binding (`esc` cancels); `backspace` restores its default; `x` unbinds it |
 
 In the Kanban story drawer, `tab` / `shift+tab` walks fields and `ctrl+enter`
 activates its primary action: start an unlinked story or open the linked Task.
@@ -367,7 +368,17 @@ them.
 
 ## Customizing
 
-Edit `~/.rove/settings/keybindings.yaml`. Changes reload live, no restart.
+Open Settings → Keybindings (`ctrl+a` `,`). Every binding you can change is a
+row. Press `enter` on one, then press the key you want. To put the action
+behind the prefix, press the prefix key first and then the stroke. A binding
+that takes a pair of keys, such as move down / up, asks for each in turn.
+`backspace` restores the default and `x` unbinds. A key that cannot work, such
+as a bare letter on a binding that is live while you type, is refused with the
+reason and nothing is saved.
+
+Each change is written to `~/.rove/settings/keybindings.yaml` and applies at
+once. You can also edit that file by hand; it reloads live, no restart, and
+your comments survive the edits Settings makes.
 
 ```yaml
 prefix:

@@ -10,6 +10,8 @@ export type KeybindingsFile = {
   path: string
   /** Whether a config file was found at all. */
   exists: boolean
+  /** The file that was read (`.yml` when only that exists); null when none. */
+  source: string | null
   /** Parsed YAML document, or null when missing/unparseable. */
   doc: unknown
   /** Read/parse-level problems (NOT per-binding validation). */
@@ -37,7 +39,7 @@ export function readKeybindingsFile(): KeybindingsFile {
   if (cached) return cached
   const { canonical, found } = resolveConfigFile()
   if (!found) {
-    cached = { path: canonical, exists: false, doc: null, warnings: [] }
+    cached = { path: canonical, exists: false, source: null, doc: null, warnings: [] }
     return cached
   }
   const warnings: string[] = []
@@ -49,6 +51,6 @@ export function readKeybindingsFile(): KeybindingsFile {
     const msg = errorMessage(err)
     warnings.push(`could not read/parse ${found}: ${msg}`)
   }
-  cached = { path: canonical, exists: true, doc, warnings }
+  cached = { path: canonical, exists: true, source: found, doc, warnings }
   return cached
 }

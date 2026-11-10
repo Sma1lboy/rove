@@ -165,13 +165,19 @@ describe("feedbackRows", () => {
 })
 
 describe("sectionRows / bodyRowCount", () => {
-  it("keys has no rows once the YAML exists, and one create action while it doesn't", () => {
-    expect(sectionRows("keys", input()).map((r) => r.kind)).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
-    expect(sectionRows("keys", input({ keybindingsFileExists: false })).map((r) => r.kind)).toEqual([
+  it("keys lists every rebindable binding after the fixed rows, and never a fixed or doc-only one", () => {
+    const kinds = (rows: ReturnType<typeof sectionRows>) =>
+      rows.filter((r) => r.kind !== "keybinding").map((r) => r.kind)
+    expect(kinds(sectionRows("keys", input()))).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
+    expect(kinds(sectionRows("keys", input({ keybindingsFileExists: false })))).toEqual([
       "prefixTapPresentation",
       "prefixTapPresentation",
       "keysCreate",
     ])
+    const ids = sectionRows("keys", input()).flatMap((r) => (r.kind === "keybinding" ? [r.bindingId] : []))
+    expect(ids).toContain("focus.sidebar")
+    expect(ids).not.toContain("diff.review.send")
+    expect(ids).not.toContain("chat.send")
   })
 
   it("matches the old per-section count formulas for a representative input", () => {
@@ -180,7 +186,6 @@ describe("sectionRows / bodyRowCount", () => {
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 4) // built-ins + 2 custom + add + install + remove + skill
     // swift / standard / deep, then the classifier: mode, endpoint, floor, key.
     expect(bodyRowCount("autoRouting", inp)).toBe(3 + 4)
-    expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("marketplace", inp)).toBe(2)
     expect(bodyRowCount("marketplace", { ...inp, marketplace: [] })).toBe(0)
     expect(bodyRowCount("feedback", inp)).toBe(3)

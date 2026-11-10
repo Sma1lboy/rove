@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings sections — Feedback + Dev + Keybindings.
+ * Settings sections — Feedback + Dev.
  * Feedback-form design notes: the body is an UNCONTROLLED `<textarea>` so
  * pasted newlines survive; edits mirror back through `onContentChange`,
  * and an external reset clears the edit buffer through the ref.
@@ -8,19 +8,8 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
-import { tildify } from "../../../lib/path-home"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
-import {
-  devRows,
-  keybindingRows,
-  prefixTapPresentationRowId,
-  rowIndex,
-} from "../../../tui/component/settings-dialog/model"
-import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
-import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
-import { FIXED_BINDING_IDS } from "../../../tui/lib/keymap-overrides"
-import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentation"
-import { useKeymapVersion } from "../../context/keybindings"
+import { devRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
@@ -249,149 +238,6 @@ export function DevSettingsSection(
           prefs.toggleDispatcher,
         )}
       </box>
-    </box>
-  )
-}
-
-/**
- * Keybindings: read-only view of the overrides loaded from
- * `~/.rove/settings/keybindings.yaml` (edit the YAML). Shows which overrides
- * landed and every load warning, which otherwise only reach the console log.
- */
-export function KeybindingsSettingsSection(
-  props: SectionCursorProps & {
-    /** Write the starter YAML — offered only while the file is absent. */
-    onCreateFile: () => void
-    prefs: SettingsPrefs
-  },
-) {
-  const { theme } = useTheme()
-  const t = useT()
-  // Re-read on live keymap reload so an open page stays truthful after a YAML edit.
-  useKeymapVersion()
-  const report = userKeybindingsReport()
-  const rows = keybindingRows(report.exists)
-  const prefix = currentPrefixConfiguration()
-  const fixedIds = Object.keys(FIXED_BINDING_IDS).sort()
-  const appliedIdWidth = Math.min(
-    28,
-    report.applied.reduce((max, o) => Math.max(max, o.id.length), 0),
-  )
-  return (
-    <box flexDirection="column" gap={1}>
-      <text fg={theme.text} attributes={TextAttributes.BOLD}>
-        {t("settings.keybindings.title")}
-      </text>
-      <text fg={theme.textMuted} wrapMode="word">
-        {t("settings.keybindings.hint")}
-      </text>
-      <box flexDirection="column" gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          {t("settings.keybindings.configFile")}
-        </text>
-        {/* Tildified: the raw path wrapped onto a second line, which read as
-            two facts instead of one. */}
-        <text fg={theme.textMuted} wrapMode="word">
-          {tildify(report.path) + (report.exists ? "" : t("settings.keybindings.notCreated"))}
-        </text>
-      </box>
-      <box flexDirection="column" gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          {t("settings.keybindings.tapPresentation")}
-        </text>
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.keybindings.tapPresentationHint")}
-        </text>
-        {PREFIX_TAP_PRESENTATIONS.map((presentation) => {
-          const row = rowIndex(rows, prefixTapPresentationRowId(presentation))
-          const selected = props.prefs.prefixTapPresentation() === presentation
-          return (
-            <Row
-              key={presentation}
-              cursor={props.level === "body" && props.bodyRow === row}
-              rowRef={props.rowRef(row)}
-              onMouseUp={() => {
-                props.setLevel("body")
-                props.setBodyRow(row)
-                props.prefs.selectPrefixTapPresentation(presentation)
-              }}
-              fg={selected ? theme.accent : theme.text}
-              bold={selected || (props.level === "body" && props.bodyRow === row)}
-            >
-              {`${selected ? "(●)" : "( )"} ${t(
-                presentation === "local"
-                  ? "settings.keybindings.tapPresentationLocal"
-                  : "settings.keybindings.tapPresentationGuide",
-              )}`}
-            </Row>
-          )
-        })}
-      </box>
-      <box flexDirection="column" gap={0}>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          {t("settings.keybindings.prefixTitle", { prefix: prefix.key ?? t("settings.keybindings.prefixDisabled") })}
-        </text>
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.keybindings.prefixHint", {
-            prefix: prefix.key ?? t("settings.keybindings.prefixDisabled"),
-            timeout: prefix.timeoutMs,
-          })}
-        </text>
-      </box>
-      {!report.exists ? (
-        // The example is the CONTENT of the starter file, one keypress away,
-        // rather than something to retype — see `keybindings-starter.ts`.
-        <box flexDirection="column" gap={0}>
-          <text fg={theme.textMuted} wrapMode="word">
-            {t("settings.keybindings.createHint")}
-          </text>
-          <Row
-            cursor={props.level === "body" && props.bodyRow === rowIndex(rows, "keys-create")}
-            rowRef={props.rowRef(rowIndex(rows, "keys-create"))}
-            onMouseUp={() => {
-              props.setLevel("body")
-              props.setBodyRow(rowIndex(rows, "keys-create"))
-              props.onCreateFile()
-            }}
-            fg={theme.text}
-            idleBackground={theme.backgroundElement}
-          >
-            {t("settings.keybindings.createFile")}
-          </Row>
-        </box>
-      ) : (
-        <box flexDirection="column" gap={0}>
-          <text fg={theme.text} attributes={TextAttributes.BOLD}>
-            {t("settings.keybindings.overridesApplied")}
-          </text>
-          {report.applied.length === 0 ? <text fg={theme.textMuted}>{t("settings.keybindings.none")}</text> : null}
-          {/* Ids share a column so the chords line up under each other — an
-              override list is read by scanning the right-hand side. */}
-          {report.applied.map((o) => (
-            <text key={o.id} fg={theme.text} wrapMode="none">
-              {`${o.id.padEnd(appliedIdWidth)}  ${o.keys.length > 0 ? o.keys.join(" / ") : t("settings.keybindings.unbound")}` +
-                `  (${t("settings.keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
-            </text>
-          ))}
-        </box>
-      )}
-      {report.warnings.length > 0 ? (
-        <box flexDirection="column" gap={0}>
-          <text fg={theme.warning} attributes={TextAttributes.BOLD}>
-            {t("settings.keybindings.warnings")}
-          </text>
-          {report.warnings.map((w) => (
-            <text key={w} fg={theme.warning} wrapMode="word">
-              {`! ${w}`}
-            </text>
-          ))}
-        </box>
-      ) : null}
-      {fixedIds.length > 0 ? (
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.keybindings.fixed", { ids: fixedIds.join(", ") })}
-        </text>
-      ) : null}
     </box>
   )
 }

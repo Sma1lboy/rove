@@ -27,6 +27,7 @@ import {
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
+import { isKittyModifierKeyName } from "../../tui/lib/modifier-keys"
 import { capturePaletteActions } from "../../tui/lib/palette-actions"
 import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
 import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
@@ -80,6 +81,12 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   })
   listener = (evt: KeyEvent) => {
     profileTick("key")
+    if (keyCapture) {
+      evt.preventDefault()
+      const capture = keyCapture
+      if (!isKittyModifierKeyName(evt.name)) flushSync(() => capture(evt))
+      return
+    }
     ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
       // OpenTUI renders synchronously on input; batched updates from this
@@ -91,6 +98,16 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   releaseListener = (evt: KeyEvent) => ctrlHoldDetector?.keyrelease(evt)
   installed.on("keypress", listener)
   installed.on("keyrelease", releaseListener)
+}
+
+let keyCapture: ((evt: KeyEvent) => void) | null = null
+
+/** Every keypress goes to `handler` and none to the binding stack, until the returned release runs. */
+export function captureKeys(handler: (evt: KeyEvent) => void): () => void {
+  keyCapture = handler
+  return () => {
+    if (keyCapture === handler) keyCapture = null
+  }
 }
 
 /**

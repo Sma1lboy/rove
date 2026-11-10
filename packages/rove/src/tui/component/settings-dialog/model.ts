@@ -18,9 +18,12 @@
 
 import { AUTO_ROUTING_TIERS, type AutoRoutingTier } from "../../../engine/auto-routing"
 import type { VendorId } from "../../../types/vendor"
+import { defaultKeymapCopy } from "../../context/keybindings"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
 import { LOCALES, type LocaleId } from "../../i18n/catalog"
+import { groupBindings } from "../../lib/help-groups"
+import { FIXED_BINDING_IDS } from "../../lib/keymap-overrides"
 import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
 import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
 
@@ -77,6 +80,7 @@ export type SettingsRow =
   | { id: "auto-routing-threshold"; kind: "autoRoutingClassifierThreshold" }
   | { id: "auto-routing-key"; kind: "autoRoutingClassifierKey" }
   | { id: "keys-create"; kind: "keysCreate" }
+  | { id: string; kind: "keybinding"; bindingId: string }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
   | { id: string; kind: "pluginInstall"; ref: string }
@@ -257,6 +261,17 @@ export function feedbackRows(): SettingsRow[] {
   ]
 }
 
+/** The bindings Settings can rebind: not the fixed ones, not the doc-only rows. */
+export function editableBindings(): ReturnType<typeof defaultKeymapCopy> {
+  const editable = defaultKeymapCopy().filter(
+    (row) => !(row.id in FIXED_BINDING_IDS) && (row.keys.length > 0 || row.prefixKeys !== undefined),
+  )
+  // Category by category, as the section draws them, so the cursor walks the rows in drawn order.
+  return groupBindings(editable).flatMap((group) => [...group.rows])
+}
+
+export const keybindingRowId = (bindingId: string): string => `key:${bindingId}`
+
 export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
   return [
     ...PREFIX_TAP_PRESENTATIONS.map(
@@ -267,6 +282,9 @@ export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
       }),
     ),
     ...(keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" } as const]),
+    ...editableBindings().map(
+      (row): SettingsRow => ({ id: keybindingRowId(row.id), kind: "keybinding", bindingId: row.id }),
+    ),
   ]
 }
 
