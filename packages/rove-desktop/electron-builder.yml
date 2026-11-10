@@ -1,6 +1,6 @@
 # The desktop shell: the rove-web client in one window, driving the Rove already installed here.
-# Ad-hoc signed (no Developer ID yet): a build from a person's own machine opens; a download needs
-# `xattr -d com.apple.quarantine /Applications/Rove.app` or right-click › Open.
+# Ad-hoc signed by default, so a build on a person's own machine opens. The published dmgs are signed
+# and notarized by scripts/release-mac.sh, which overrides the identity.
 appId: run.rove.desktop
 productName: Rove
 copyright: Rove
