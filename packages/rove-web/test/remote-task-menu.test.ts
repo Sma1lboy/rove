@@ -16,6 +16,8 @@ g.localStorage ??= {
   setItem: (k: string, v: string) => void memory.set(k, v),
   removeItem: (k: string) => void memory.delete(k),
 }
+g.sessionStorage ??= g.localStorage
+g.location ??= { hash: "", search: "", pathname: "/", origin: "http://localhost", href: "http://localhost/" }
 const { taskMenu } = await import("../src/row-actions.tsx")
 
 const task = (extra: Partial<TaskRow> = {}): TaskRow =>
@@ -34,13 +36,13 @@ const model = { client: { request: async () => ({}) } } as unknown as AppModel
 const labels = (row: TaskRow) => taskMenu(model, row, null).map((item) => item.label)
 
 describe("a task on another machine keeps its menu", () => {
-  test("it drops only what this machine alone can do: editor, rail order, engine pick, sync with base, move to project", () => {
+  test("it drops only what this machine alone can do: editor, rail order, engine pick, sync with base, move to project, a task from its branch", () => {
     const here = labels(task())
     const there = labels(task({ machine: { id: "mac", label: "mac" } }))
     const dropped = here.filter((label) => !there.includes(label))
-    expect(dropped).toHaveLength(5)
+    expect(dropped).toHaveLength(6)
     // Everything else — new chat/shell, rename, pin, status, branch, land, copy, delete — stays.
-    expect(there.length).toBe(here.length - 5)
+    expect(there.length).toBe(here.length - 6)
     expect(there).toEqual(here.filter((label) => !dropped.includes(label)))
   })
 })

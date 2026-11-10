@@ -30,7 +30,7 @@ import {
 } from "./task-flows.tsx"
 import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, toast } from "./ui.ts"
+import { type MenuItem, dialog, openNewSessionFrom, toast } from "./ui.ts"
 import { prefixHint } from "./user-keys.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -203,6 +203,15 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     section: "open",
     run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
   })
+  // Stacks a new task on this one's branch; only a single-repo managed branch on this machine resolves as a base here.
+  if (task.kind === "task" && task.branch && !task.sharesWorkspaceOf && !task.machine && !task.extraRepoCount) {
+    items.push({
+      label: tc("tasks", "menu.newTaskFromBranch"),
+      section: "open",
+      rare: true,
+      run: () => openNewSessionFrom({ repo: task.repo, baseBranch: task.branch, worktree: true }),
+    })
+  }
   if (task.startsAt) {
     items.push({
       label: t("menu.startNow"),

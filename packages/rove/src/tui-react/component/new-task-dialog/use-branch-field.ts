@@ -26,6 +26,8 @@ export type BranchFieldOpts = {
   pickerRows: number
   /** Seeds the ref before any repo is resolved (the caller's cwd). */
   defaultRepo: string
+  /** A caller-chosen ref; counts as typed, so picking the repo doesn't replace it. */
+  initialBaseRef?: string
   /** Enter on this field: the ref is resolved, move on. */
   onResolved: () => void
   /** Focus moves on once a branch is clicked out of the picker. */
@@ -36,10 +38,10 @@ export function useBranchField(opts: BranchFieldOpts) {
   // Initial baseRef tracks the cwd's current branch (a worktree forked from a
   // feature branch defaults to it, not a hardcoded "main").
   const [baseRef, setBaseRef] = useState(
-    () => getCurrentBranch(expandHome(opts.defaultRepo.trim())) ?? DEFAULT_BASE_REF,
+    () => opts.initialBaseRef || (getCurrentBranch(expandHome(opts.defaultRepo.trim())) ?? DEFAULT_BASE_REF),
   )
   // Once typed in, stop auto-syncing from the repo's current branch.
-  const [baseRefTouched, setBaseRefTouched] = useState(false)
+  const [baseRefTouched, setBaseRefTouched] = useState(() => Boolean(opts.initialBaseRef))
   const [branchCursor, setBranchCursor] = useState(0)
 
   const branches = useMemo(() => listLocalBranches(opts.expandedRepo), [opts.expandedRepo])

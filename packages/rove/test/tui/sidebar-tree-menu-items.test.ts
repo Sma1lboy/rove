@@ -77,6 +77,7 @@ describe("treeMenuItems", () => {
       "newChat",
       "newShell",
       "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",
@@ -93,6 +94,20 @@ describe("treeMenuItems", () => {
       "archive",
       "delete",
     ])
+  })
+
+  test("New task from this branch reaches only a local single-repo managed branch", () => {
+    // Any other row has no branch of its own in this repo to base the new worktree on.
+    const offered = (over: Partial<Task>) => actions(worktreeRow(over)).includes("newTaskFromBranch")
+    expect(offered({})).toBe(true)
+    expect(offered({ kind: "main", branch: "", worktreePath: "/repos/rove" })).toBe(false)
+    expect(offered({ kind: "dir", branch: "", worktreePath: "/home/me/notes" })).toBe(false)
+    expect(offered({ branch: "", worktreePath: "" })).toBe(false)
+    expect(offered({ sharesWorkspaceOf: toTaskId("p1") })).toBe(false)
+    expect(
+      offered({ extraRepos: [{ repo: "/repos/api", branch: "feat/a", worktreePath: "/wt/a-api" }] as never }),
+    ).toBe(false)
+    expect(offered({ origin: { machineId: "laptop" } as never })).toBe(false)
   })
 
   test("a row with no stored branch is offered Copy path but not Copy branch", () => {
@@ -200,6 +215,7 @@ describe("treeMenuItems", () => {
       "newChat",
       "newShell",
       "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",

@@ -24,7 +24,7 @@ Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree (each opens a child Task listed under the row; a shell child's
-last shell exiting leaves the row empty, and `enter` starts a fresh shell), plus **Copy task ID**, **Copy branch name** and **Copy path**,
+last shell exiting leaves the row empty, and `enter` starts a fresh shell), **New task from this branch** (the New task dialog with the Task's branch as the base), plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
 `rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
