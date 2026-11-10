@@ -47,6 +47,7 @@ export const claudeHistoryReader: EngineHistoryReader = {
   },
   readHistory: (sessionId) => claudeHistory.readHistory(sessionId),
   readUsageSnapshot: (sessionId) => claudeHistory.readUsageSnapshot(sessionId),
+  probeContext: (sessionId) => claudeHistory.probeSessionContext(sessionId),
   async transcriptPath(sessionId, worktree) {
     const files = await claudeHistory.listSessionFilesForWorktree(worktree)
     return files.find((f) => f.sessionId === sessionId)?.path ?? null

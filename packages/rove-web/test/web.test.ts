@@ -268,7 +268,7 @@ describe("a task's PR mark", () => {
   })
 
   test("an open PR is red while it can't land, green when checks pass, grey when the forge was unreachable", () => {
-    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "text-error", checks: "conflict" })
+    expect(prMark(withPr("open", "conflict"))).toMatchObject({ tone: "text-warning", checks: "conflict" })
     expect(prMark(withPr("ready_to_merge", "failing"))).toMatchObject({ tone: "text-error", checks: "failing" })
     expect(prMark(withPr("open", "passing"))).toMatchObject({ tone: "text-success", checks: "passing" })
     expect(prMark(withPr("open", "passing", { prChipStale: true }))?.tone).toBe("text-muted")

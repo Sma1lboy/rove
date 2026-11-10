@@ -86,7 +86,16 @@ export type EngineUsageSnapshot = {
   readonly context_parts?: readonly ContextPart[]
 }
 
-export type ContextPart = { readonly key: string; readonly tokens: number }
+export type ContextPart = {
+  readonly key: string
+  readonly tokens: number
+  /** The engine's own name for the part, for a key no catalog words. */
+  readonly label?: string
+  /** The largest things in the part (memory files, tools, skills), biggest first. */
+  readonly items?: readonly { readonly name: string; readonly tokens: number }[]
+  /** How many things the part holds, when `items` lists only the largest. */
+  readonly itemCount?: number
+}
 
 /** What `engine/<vendor>/history.ts` returns: messages plus the session's aggregate usage. */
 export interface EngineHistory {
