@@ -400,8 +400,17 @@
 
     <h3 class="sub" data-i18n="get.apps">Apps</h3>
     <div class="cards">
-      <p class="card" data-i18n-html="get.desktop"><b>Desktop: macOS, Linux, Windows.</b> Rove in its own window, driving the same tasks as the terminal app. There is no packaged download yet: <a href="https://docs.rove.run/rove/desktop">build it from source</a>.</p>
-      <p class="card" data-i18n-html="get.phone"><b>Phone: iOS and Android.</b> Read output, answer questions and start tasks from your phone. Not in the app stores yet: <a href="https://docs.rove.run/rove/ios">build it from source</a>, or open <span class="mono">rove --web</span> in your phone browser today.</p>
+      <div class="card">
+        <p data-i18n-html="get.desktop"><b>Desktop app.</b> Rove in its own window, so you don't need to keep a terminal open. Install the terminal app above first, because the desktop app runs it for you.</p>
+        <p class="dl">
+          <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-arm64.dmg" data-i18n="get.dlMac">macOS, Apple silicon</a>
+          <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-x64.dmg" data-i18n="get.dlIntel">macOS, Intel</a>
+          <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-win-x64.exe">Windows</a>
+          <a href="https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-linux-x86_64.AppImage">Linux</a>
+        </p>
+        <p class="t-note" data-i18n="get.desktopNote">The Windows installer is not signed yet, so Windows asks once: choose More info, then Run anyway.</p>
+      </div>
+      <div class="card"><p data-i18n-html="get.phone"><b>Phone: iOS and Android.</b> Read output, answer questions and start tasks from your phone. Not in the app stores yet: <a href="https://docs.rove.run/rove/ios">build it from source</a>, or open <span class="mono">rove --web</span> in your phone browser today.</p></div>
     </div>
   </section>
 

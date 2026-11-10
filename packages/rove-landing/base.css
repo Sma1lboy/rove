@@ -125,6 +125,11 @@ select{
 .note>h2+.sub{margin-top:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
 .card{margin:0;padding:20px 22px;border:var(--hair) solid var(--rule);background:var(--paper-2)}
+.card p{margin:0}
+.card .t-note{margin-top:12px}
+.dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px!important}
+.dl a{border:var(--hair) solid var(--ink);padding:8px 14px;text-decoration:none;color:var(--ink);background:var(--paper)}
+.dl a:hover{border-color:var(--accent-line);color:var(--accent-text)}
 .chan{border-top:var(--hair) solid var(--rule)}
 .chan-row{display:grid;grid-template-columns:260px minmax(0,1fr);gap:8px 24px;align-items:start;padding:12px 0;border-bottom:var(--hair) solid var(--rule)}
 .chan-n{grid-row:span 2}
