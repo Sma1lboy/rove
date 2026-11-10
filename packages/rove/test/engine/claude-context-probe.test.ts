@@ -73,6 +73,7 @@ describe("Claude context probe", () => {
         ],
       },
       { key: "messages", tokens: 40_000 },
+      { key: "mcp_tools_deferred", tokens: 38_000, label: "MCP tools (deferred)", deferred: true },
     ])
   })
 
@@ -80,7 +81,7 @@ describe("Claude context probe", () => {
     const d = deps("probe-2", turn("claude-opus-5-5", 50_000))
     await probeSessionContext("probe-2", d, async () => reply("claude-sonnet-5-5"))
     const snapshot = await readUsageSnapshot("probe-2", d)
-    expect(snapshot?.context_parts).toHaveLength(3)
+    expect(snapshot?.context_parts).toHaveLength(4)
     expect(snapshot?.context_window_tokens).toBeUndefined()
   })
 
