@@ -35,6 +35,7 @@ export const ENGINES = {
     ["Kimi Code", "kimi"],
     ["Pi", "pi"],
     ["OMP", "omp"],
+    ["IBM Bob", "bob"],
   ],
   catalog: [
     ["Gemini CLI", "gemini"],
@@ -49,6 +50,9 @@ export const ENGINES = {
     ["Kiro CLI", "kiro"],
     ["Maki", "maki"],
     ["Antigravity", "antigravity"],
+    ["Hermes", "hermes"],
+    ["Kilo", "kilo"],
+    ["MastraCode", "mastracode"],
   ],
 } as const
 
