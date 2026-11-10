@@ -3,6 +3,8 @@
  * password. The password is read from the terminal with echo off, never from argv or env.
  */
 
+import { join } from "node:path"
+import { writeSignInMode } from "./sign-in.ts"
 import {
   EMPTY_LOCKOUT,
   MAX_PASSWORD_LENGTH,
@@ -77,6 +79,8 @@ export async function runPasswordAction(
   }
   writePassword(paths.password, await hashPassword(first))
   writeLockout(paths.lockout, EMPTY_LOCKOUT)
+  // Setting a password is asking for password sign-in, whatever mode was picked before.
+  writeSignInMode(join(bridgeDir, "config.json"), "password")
   console.log(
     `browser password set (${paths.password}). A page without a token now shows a password field;\neach login gets its own device token (see --list-devices).`,
   )

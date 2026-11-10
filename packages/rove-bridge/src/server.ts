@@ -18,7 +18,6 @@ import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
 import type { TaskFeed } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
-import { type LocalAccess, authOp, directFromThisComputer } from "./local-access.ts"
 import type { NoticeFeed } from "./notices.ts"
 import { absPath, oneOf } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
@@ -46,6 +45,7 @@ import type { Credential, PushHub } from "./push.ts"
 import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
+import { type SignIn, authOp } from "./sign-in.ts"
 import type { TabFeed } from "./tab-feed.ts"
 import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
@@ -96,7 +96,7 @@ export interface BridgeDeps {
   readonly web?: WebRoot
   /** `/login` and `/logout` for the browser client (`web-login.ts`). */
   readonly login?: WebLogin
-  readonly local?: LocalAccess // absent on any run a tunnel or the LAN can reach
+  readonly signIn?: SignIn // how a browser gets in; absent when no browser client is served
   /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
   readonly publicHost?: string | null
   /** Web Push for closed pages (`push.ts`); absent = the `push.*` ops refuse. */
@@ -338,8 +338,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       return {}
     }
     case "auth.status":
-    case "auth.requireToken":
-      return authOp(deps.local, req.op, a, conn.credential)
+    case "auth.setMode":
+      return authOp(deps.signIn, req.op, a, conn.credential)
     case "push.key":
       return { publicKey: requirePush(deps).publicKey() }
     case "push.status":
@@ -427,7 +427,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         if (answer) return answer
       }
       const peer = server.requestIP(req)?.address
-      const local = deps.local?.open() === true && directFromThisComputer(req, peer)
+      const local = deps.signIn?.opens(req, peer) === true
       // The page asks before it has a token whether to connect without one.
       if (!upgrade && req.method === "GET" && new URL(req.url).pathname === "/auth") {
         return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })

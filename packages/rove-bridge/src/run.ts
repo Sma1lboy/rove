@@ -35,7 +35,7 @@ import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs
 import { CredentialSockets } from "./credential-sockets.ts"
 import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
-import { LOCAL_CREDENTIAL, createLocalAccess, plainLocalRun } from "./local-access.ts"
+import { LOCAL_CREDENTIAL, plainLocalRun } from "./local-access.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
@@ -49,6 +49,7 @@ import { createRoveOps } from "./rove-ops.ts"
 import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
 import { SessionTitles } from "./session-titles.ts"
+import { createSignIn } from "./sign-in.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
 import { createWebLogin, loginDeviceName } from "./web-login.ts"
@@ -333,14 +334,18 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       })
     : null
   const sockets = new CredentialSockets()
-  const local =
-    opts.web && plainLocalRun(args)
-      ? createLocalAccess(join(bridgeDir, "config.json"), () => {
-          // Asking for the token again ends the sessions that got in without one, once the reply is out.
+  const signIn = opts.web
+    ? createSignIn({
+        bridgeDir,
+        configPath: join(bridgeDir, "config.json"),
+        plain: plainLocalRun(args),
+        leaveOpen: () => {
+          // The sessions that got in without a token end once the reply is out.
           setTimeout(() => sockets.closeCredential(LOCAL_CREDENTIAL), 1000)
           return addDevice(devicesPath, loginDeviceName(devicesPath, new Date()))
-        })
-      : null
+        },
+      })
+    : null
   const deps: BridgeDeps = {
     // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
     token: sharedToken,
@@ -380,10 +385,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
-    ...(local ? { local } : {}),
+    ...(signIn ? { signIn } : {}),
     ...(opts.web
       ? {
           login: createWebLogin({
+            enabled: () => signIn?.mode() === "password",
             bridgeDir,
             devicesPath,
             publicHost: args.publicHost,
@@ -421,7 +427,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     args,
     token,
     servers,
-    openHere: local?.open() === true,
+    signIn: signIn?.mode() ?? null,
     relayCode: relay?.code ?? null,
   })
 }

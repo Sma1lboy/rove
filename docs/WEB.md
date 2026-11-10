@@ -17,7 +17,7 @@ pair: ws://127.0.0.1:7878/?token=…
 ```
 
 Open the first in a browser on this computer: it needs no token (see
-[Access from this computer](#access-from-this-computer)). The second is the
+[Sign-in modes](#sign-in-modes)). The second is the
 phone pairing URL. A phone already paired with `rove-bridge` keeps working:
 the two share one token.
 
@@ -256,47 +256,54 @@ The page's files are served without the token (they carry none); every
 operation needs it, except from this computer's own browser as described
 next. With `--preset cf`, Cloudflare Access gates the page too.
 
-### Access from this computer
+### Sign-in modes
 
-A plain `rove --web` (no `--preset`, no `--public-host`, no `--host` other
-than loopback) lets a browser on the same computer in without the link or a
-password. `open:` is then the bare address.
+How a browser gets in is one of three modes. Tokens (the printed link, a
+device token, a phone's pairing URL) work in all of them.
 
-Everything else still presents a token, a device token or the password:
+| Mode | A browser with no token | Offered on |
+| --- | --- | --- |
+| `open` | gets in from this computer; anywhere else it is asked for the link | a plain run only |
+| `password` | signs in with the password | every run |
+| `token` | is asked for the link; password sign-in is off | every run |
 
-- any run with a preset, `--public-host`, a relay, or a non-loopback `--host`;
-- on a plain run, any request that did not come straight from this computer:
-  one whose `Host` is not `127.0.0.1`, `localhost` or `[::1]`, or that carries
-  a forwarding header (`X-Forwarded-For`, `CF-Connecting-IP`, `Forwarded`,
-  `Via`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`). cloudflared and
-  `tailscale serve` set these, so a tunnel pointed at a plain run is not let
-  in without a token;
-- phones, which always pair with the `pair:` URL.
+A plain run is `rove --web` with no `--preset`, no `--public-host`, no relay
+and no `--host` other than loopback. It starts in `open`, and `open:` is then
+the bare address. Any other run starts in `token`. Once a password is set,
+both start in `password`.
 
-To ask for the link on this computer too, turn on **Settings → About → Ask
-for the link on this computer**, or set it by hand; it applies to the next
-connection, with no restart:
+Pick the mode in **Settings → About → Sign-in**, or by hand; it applies to
+the next connection, with no restart:
 
 ```json
 // <home>/.rove/bridge/config.json
-{ "requireToken": true }
+{ "auth": "password" }
 ```
 
-Turning it on from a browser that got in without a token gives that browser
-a device token of its own, so it stays signed in; other tokenless sessions
-are closed.
+Picking Password in Settings asks for one if none is set, and can change it
+later. Picking Token link keeps the stored password, so going back to
+Password needs no new one. Leaving `open` from a browser that got in without
+a token gives that browser a device token of its own, so it stays signed in;
+other tokenless sessions are closed.
 
-Turn it on if other people have accounts on this computer: without it, any
-local user or program that can reach `127.0.0.1:<port>` can drive Rove. Turn
-it on as well if a reverse proxy of your own forwards to the bridge without
-passing the original `Host` or any forwarding header (a bare nginx
-`proxy_pass` does this): the bridge cannot tell such a request from a local
-one.
+In `open`, only a request that came straight from this computer is let in
+without a token: its `Host` is `127.0.0.1`, `localhost` or `[::1]`, and it
+carries no forwarding header (`X-Forwarded-For`, `CF-Connecting-IP`,
+`Forwarded`, `Via`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`).
+cloudflared and `tailscale serve` set these, so a tunnel pointed at a plain
+run still needs a token.
+
+Leave `open` if other people have accounts on this computer: any local user
+or program that can reach `127.0.0.1:<port>` can drive Rove. Leave it as well
+if a reverse proxy of your own forwards to the bridge without passing the
+original `Host` or any forwarding header (a bare nginx `proxy_pass` does
+this): the bridge cannot tell such a request from a local one.
 
 ### Password login
 
 So you can open the page on a phone or another computer without carrying the
-token link, you can set a password:
+token link, you can set a password, in Settings → About → Sign-in or from the
+terminal. Setting one switches the mode to `password`:
 
 ```bash
 rove --web --set-password     # asks twice, nothing echoed
@@ -304,8 +311,10 @@ rove --web --clear-password   # remove it
 rove --web --unlock           # lift a lockout
 ```
 
-The password is only ever typed at that prompt, never passed as an argument
-or an environment variable, so it reaches no shell history or process list.
+At the terminal the password is only ever typed at that prompt, never passed
+as an argument or an environment variable, so it reaches no shell history or
+process list. Set in Settings, it travels once over the page's own signed-in
+connection.
 Only a scrypt hash with a random salt is kept, in
 `<home>/.rove/bridge/web-password.json` (owner-only).
 

@@ -5,7 +5,7 @@ import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
 import { renderUnicodeCompact } from "uqr"
 import { pairingUrl, relayLink, webUrl } from "./auth.ts"
 import type { BridgeArgs } from "./cli-args.ts"
-import { readPassword, webPasswordPaths } from "./web-password.ts"
+import type { SignInMode } from "./sign-in.ts"
 
 export function printBanner(o: {
   readonly name: string
@@ -16,8 +16,8 @@ export function printBanner(o: {
   readonly args: BridgeArgs
   readonly token: string
   readonly servers: readonly { readonly hostname?: string; readonly port?: number }[]
-  /** This computer's own browser needs no token (`local-access.ts`). */
-  readonly openHere: boolean
+  /** The sign-in mode (`sign-in.ts`); null when no browser client is served. */
+  readonly signIn: SignInMode | null
   readonly relayCode: string | null
 }): void {
   console.log(`${o.name} ${CURRENT_VERSION} — Rove home ${o.home}`)
@@ -30,17 +30,14 @@ export function printBanner(o: {
     }
     const publicHost = o.args.publicHost ?? host
     const link = webUrl({ host: publicHost, port, token: o.token, tls: o.args.tls })
-    if (o.web && o.openHere) {
-      console.log(`\nopen: ${link.split("#")[0]}`)
+    const bare = link.split("#")[0]
+    if (o.signIn === "open") {
+      console.log(`\nopen: ${bare}`)
       console.log(
-        `  No link is needed on this computer. To ask for one here too, set "requireToken": true in ${join(o.bridgeDir, "config.json")} or in Settings.`,
+        `  No sign-in on this computer. For a password or the token link, set "auth" to "password" or "token" in ${join(o.bridgeDir, "config.json")}, or pick one in Settings.`,
       )
     } else if (o.web) console.log(`\nopen: ${link}`)
-    if (o.web && readPassword(webPasswordPaths(o.bridgeDir).password)) {
-      console.log(
-        `password login: on at ${webUrl({ host: publicHost, port, token: "", tls: o.args.tls }).split("#")[0]}`,
-      )
-    }
+    if (o.signIn === "password") console.log(`password login: on at ${bare}`)
     if (o.relayCode !== null) continue
     const url = pairingUrl({ host: publicHost, port, token: o.token, tls: o.args.tls, preset: o.args.preset })
     console.log(`${o.web ? "" : "\n"}pair: ${url}`)
