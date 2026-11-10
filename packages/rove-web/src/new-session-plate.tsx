@@ -175,13 +175,14 @@ export function NewSessionPlate() {
   }, [])
 
   return (
-    <canvas
-      ref={ref}
-      width={COLS * PITCH}
-      height={ROWS * PITCH}
-      aria-hidden="true"
-      data-plate="rove"
-      className="mb-3 h-auto w-96 max-w-full text-muted"
-    />
+    <div aria-hidden="true" className="mb-3 max-w-full">
+      <canvas
+        ref={ref}
+        width={COLS * PITCH}
+        height={ROWS * PITCH}
+        data-plate="rove"
+        className="h-auto w-96 max-w-full text-muted"
+      />
+    </div>
   )
 }
