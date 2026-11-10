@@ -8,6 +8,7 @@
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
+import type { TasksEdit } from "./optimistic.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
 
@@ -112,6 +113,10 @@ export class AppModel {
   private readonly tabSets = new Map<string, string>()
   /** The latest `task.tabs` read per task; an older reply is dropped. */
   private readonly tabReads = new Map<string, number>()
+  /** The daemon's last list, before this page's own edits. */
+  private served: TasksPayload | null = null
+  /** Edits drawn ahead of the daemon; true once its request succeeded, so the next push replaces it. */
+  private readonly edits = new Map<TasksEdit, boolean>()
   /** A task just created here: select it once the feed lists it. */
   private pendingSelect: string | null = null
   /** Bumped by every user selection; a worktree reply selects only if no newer one happened since. */
@@ -272,7 +277,36 @@ export class AppModel {
     ]
   }
 
-  private acceptTasks(payload: TasksPayload): void {
+  /**
+   * Draw `edit` now and send `request`. A failure puts the daemon's list back. A success keeps the
+   * edit until the next push, which carries the same change.
+   */
+  async optimistic<T>(edit: TasksEdit, request: () => Promise<T>): Promise<T> {
+    this.edits.set(edit, false)
+    const open = this.selection.get()
+    if (this.served) this.acceptTasks(this.served, true)
+    try {
+      const result = await request()
+      // ponytail: a push read before the daemon applied the change undoes the edit until the next one; track a revision if that flicker shows.
+      if (this.edits.has(edit)) this.edits.set(edit, true)
+      return result
+    } catch (err) {
+      this.edits.delete(edit)
+      if (this.served) this.acceptTasks(this.served, true)
+      // The edit moved the selection off a row that never left.
+      const back = open.taskId !== null && this.selection.get().taskId !== open.taskId
+      if (back && selectedRow(this.tasks.get(), open.taskId)) this.commitSelection(open.taskId as string, open.tabId)
+      throw err
+    }
+  }
+
+  private acceptTasks(served: TasksPayload, redraw = false): void {
+    this.served = served
+    let payload = served
+    for (const [edit, confirmed] of this.edits) {
+      if (confirmed && !redraw) this.edits.delete(edit)
+      else payload = edit(payload)
+    }
     const before = [...(this.tasks.get()?.tasks ?? []), ...this.remote.get()]
     this.remote.set(payload.tasks.filter((task) => task.machine))
     this.tasks.set({ ...payload, tasks: payload.tasks.filter((task) => !task.machine) })

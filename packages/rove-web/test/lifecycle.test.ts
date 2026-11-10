@@ -421,3 +421,35 @@ test("a tasks push re-reads tabs only for a task whose set of tabs changed", asy
   const reads = calls.slice(before).filter((call) => call.op === "task.tabs")
   expect(reads.map((call) => call.args.taskId)).toEqual(["B"])
 })
+
+test("an archived row leaves when clicked, stays gone through a push read before the daemon applied it, and returns if refused", async () => {
+  const { archiveEdit } = await import("../src/optimistic.ts")
+  const { model, calls, push } = modelHarness()
+  const served = { tasks: [{ id: "A" }, { id: "B", parentTaskId: "A" }, { id: "C" }], attention: [] }
+  calls[0].resolve(served)
+  await flush()
+  const ids = () => model.tasks.get()?.tasks.map((task) => task.id)
+
+  let settle: { resolve: () => void; reject: (err: Error) => void } = { resolve() {}, reject() {} }
+  const request = () =>
+    new Promise<void>((resolve, reject) => {
+      settle = { resolve, reject }
+    })
+  const done = model.optimistic(archiveEdit("A", true), request)
+  expect(ids()).toEqual(["C"])
+  expect(model.tasks.get()?.archived?.map((task) => task.id)).toEqual(["A", "B"])
+  push("tasks", served)
+  expect(ids()).toEqual(["C"])
+  settle.resolve()
+  await done
+  expect(ids()).toEqual(["C"])
+  // The daemon's own list takes over from the next push on.
+  push("tasks", { tasks: [{ id: "C" }, { id: "D" }], attention: [] })
+  expect(ids()).toEqual(["C", "D"])
+
+  const refused = model.optimistic(archiveEdit("C", true), request)
+  expect(ids()).toEqual(["D"])
+  settle.reject(new Error("TASK_BUSY"))
+  await expect(refused).rejects.toThrow("TASK_BUSY")
+  expect(ids()).toEqual(["C", "D"])
+})
