@@ -4,7 +4,7 @@
  * Rule: **a row's menu is what that row's KEYBOARD already does** — every
  * entry routes to an existing callback.
  *
- * Exceptions (`setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
+ * Exceptions (`newTaskFromBranch`, `setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
  * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
@@ -33,6 +33,7 @@ export type TreeMenuAction =
   | "newScratchChat"
   | "newScratchShell"
   | "newTask"
+  | "newTaskFromBranch"
   | "rename"
   | "pin"
   | "reorder"
@@ -85,6 +86,21 @@ function newTabVerbs(): TreeMenuItem[] {
     { action: "newShell", labelKey: "tasks.menu.newShell" },
     { action: "continueEngine", labelKey: "tasks.menu.continueEngine", bindingId: "chat.tab.fork" },
   ]
+}
+
+/**
+ * A new task cut from this task's branch, so it stacks on the work in progress.
+ * Single-repo, local, materialised managed tasks only: the base must resolve in this repo.
+ */
+function stackVerbs(task: Task): TreeMenuItem[] {
+  const stackable =
+    workspaceCapabilities(task).ownsBranch &&
+    task.branch !== "" &&
+    !task.sharesWorkspaceOf &&
+    !task.extraRepos?.length &&
+    (task.origin?.machineId ?? "local") === "local" &&
+    !isRemoteRepoKey(task.repo)
+  return stackable ? [{ action: "newTaskFromBranch", labelKey: "tasks.menu.newTaskFromBranch" }] : []
 }
 
 /** Rows `update --project` accepts: top-level, local, single-repo, not a project or routine session. */
@@ -201,7 +217,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
         labelKey: row.fold.collapsed ? "tasks.menu.expandChildren" : "tasks.menu.collapseChildren",
       })
     }
-    return [...items, ...newTabVerbs(), ...taskVerbs(row.task, ctx)]
+    return [...items, ...newTabVerbs(), ...stackVerbs(row.task), ...taskVerbs(row.task, ctx)]
   }
   // Routines and "recent" rows have no task for any verb to act on.
   return []

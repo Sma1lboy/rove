@@ -203,6 +203,8 @@ export interface TaskRow {
   readonly sharesWorkspaceOf?: string
   /** The directory the task runs in, on its machine; tasks sharing one share its diff. */
   readonly workspace?: string
+  /** Backend owns a host-resolvable branch; absent on older bridges, so clients must fail closed. */
+  readonly ownsBranch?: boolean
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }

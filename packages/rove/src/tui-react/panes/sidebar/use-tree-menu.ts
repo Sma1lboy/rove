@@ -190,6 +190,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "continueEngine":
           deps.onNewTab?.(taskId, "continue")
           break
+        case "newTaskFromBranch":
+          actions.onNewTaskFromBranchRequest?.(taskId)
+          break
         case "rename":
           actions.onRenameRequest?.(taskId)
           break

@@ -31,7 +31,6 @@ vi.mock("../../src/engine/account-detect", () => ({
 const mockAvailableEngineIds = vi.fn(async () => ["claude"])
 
 import type { RoveOrchestrator } from "../../src/client/remote-orchestrator"
-import type { NewTaskInput } from "../../src/tui/component/new-task-dialog/state"
 import { type CreateTaskContext, createTaskFlow } from "../../src/tui/lib/task-create-flow"
 
 type AdoptItem = { worktreePath: string; branch: string }
@@ -40,7 +39,7 @@ function makeCreateCtx(opts: {
   adopt?: readonly AdoptItem[]
   adoptWorktree?: (input: { worktreePath: string }) => Promise<{ id: string }>
   createTask?: (input: { repo: string; baseRef?: string; vendor: unknown }) => Promise<{ id: string }>
-  promptNewTask?: () => Promise<NewTaskInput | undefined>
+  promptNewTask?: CreateTaskContext["promptNewTask"]
   orch?: RoveOrchestrator | null
 }): {
   ctx: CreateTaskContext
@@ -189,6 +188,24 @@ describe("createTaskFlow — create mode + guards", () => {
     expect(reload).toHaveBeenCalledTimes(1)
     expect(selectTask).toHaveBeenCalledWith("new-id")
     expect(enterTask).toHaveBeenCalledWith("new-id")
+  })
+
+  test("a seed opens the dialog on that repo and branch instead of the cursor's", async () => {
+    const promptNewTask = vi.fn(
+      async (_repo: string, _repos: readonly string[], _opts: { initialBaseRef?: string }) => ({
+        mode: "create" as const,
+        repo: "/repos/api",
+        baseRef: "feat/schema",
+        vendor: "claude",
+      }),
+    )
+    const { ctx, createTask } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx, { repo: "/repos/api", baseRef: "feat/schema" })
+
+    expect(promptNewTask.mock.calls[0]?.[0]).toBe("/repos/api")
+    expect(promptNewTask.mock.calls[0]?.[2].initialBaseRef).toBe("feat/schema")
+    expect(createTask).toHaveBeenCalledWith({ repo: "/repos/api", baseRef: "feat/schema", vendor: "claude" })
   })
 
   test("extra repos reach task.create in pick order, the dialog's repo staying the primary", async () => {

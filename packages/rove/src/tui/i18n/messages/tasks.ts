@@ -48,6 +48,7 @@ export const en = {
     /** Scratch section header: a new Scratch task in $HOME on the preferred engine. */
     newScratchChat: "New conversation (no folder)",
     newTask: "New task",
+    newTaskFromBranch: "New task from this branch",
     /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
     forgetProject: "Remove project",
     /** Project row: read the repo's durable field notes (`rove api note`). */
@@ -322,6 +323,7 @@ export const zh: typeof en = {
     continueEngine: "换个引擎继续…",
     newScratchChat: "新建会话（无文件夹）",
     newTask: "新建任务",
+    newTaskFromBranch: "基于此分支新建任务",
     forgetProject: "移除项目",
     fieldNotes: "现场笔记",
     rename: "重命名",

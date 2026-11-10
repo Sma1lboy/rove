@@ -37,6 +37,8 @@ export type SidebarTaskCallbacks = {
   onMoveToProjectRequest?: (taskId: string) => void
   /** Copy task id, tab address, branch name or worktree path to the clipboard. Menu-only. */
   onCopyRequest?: (taskId: string, field: TaskCopyField, tabId?: string) => void
+  /** New-task dialog on the task's repo, based on its branch. Menu-only, no chord. */
+  onNewTaskFromBranchRequest?: (taskId: string) => void
   /** Re-fire `task.prompt` as a new task. Menu-only; hidden with no stored brief. */
   onRunAgainRequest?: (taskId: string) => void
   /** Menu route of `o`: open the task's worktree in the detected editor. */

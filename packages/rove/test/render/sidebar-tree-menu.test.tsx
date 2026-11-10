@@ -253,7 +253,7 @@ test("a press anywhere else dismisses the menu", async () => {
   // The whole point of the feature: the menu is not a mode you have to shoot
   // down by re-clicking the row it came from.
   tabsByTask.clear()
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 32 })
+  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 34 })
   await settle()
   await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
@@ -261,7 +261,7 @@ test("a press anywhere else dismisses the menu", async () => {
 
   // Empty space below the menu's last entry — no row handler runs, so only the
   // root-level dismiss can close it.
-  await mockMouse.click(2, 30, 0)
+  await mockMouse.click(2, 32, 0)
   await settle()
   expect(await frame()).not.toContain("Rename")
 })
@@ -306,9 +306,9 @@ test("Set status fires the row's callback with that row's task", async () => {
   await settle()
   expect(await frame()).toContain("Set status")
 
-  // open, newChat, newShell, continueElsewhere, rename, pin, reorder, setStatus —
-  // seven steps from the highlight's start on "Open".
-  mockInput.typeText("jjjjjjj")
+  // open, newChat, newShell, continueElsewhere, newTaskFromBranch, rename, pin, reorder,
+  // setStatus — eight steps from the highlight's start on "Open".
+  mockInput.typeText("jjjjjjjj")
   await settle()
   mockInput.pressEnter()
   await settle()

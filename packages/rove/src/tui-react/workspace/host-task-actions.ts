@@ -62,6 +62,8 @@ export type WorkspaceTaskActionDeps = {
 
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
+  /** The new-task dialog seeded with a task's repo and branch as the base. */
+  createTaskFromBranch: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   /** Project-header menu "Remove project": un-save the repo; the main row's own delete ends its conversation instead. */
   forgetProject: (id: string) => Promise<void>
@@ -242,6 +244,10 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     syncBase,
     rerunChecks,
     createTask: () => createTaskFlow(taskActions),
+    createTaskFromBranch: async (id) => {
+      const task = taskActions.tasks().find((candidate) => candidate.id === id)
+      if (task?.branch) await createTaskFlow(taskActions, { repo: task.repo, baseRef: task.branch })
+    },
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     forgetProject: (id) => forgetProjectFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
