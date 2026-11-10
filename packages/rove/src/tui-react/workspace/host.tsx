@@ -10,7 +10,6 @@ import { useRenderer } from "@opentui/react"
 import { isValidElement, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
-import { TASK_PARTNER_HUE_DEG } from "../../tui/lib/border-flow"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
 import { useWhatsNewDialog } from "../component/whats-new-dialog"
@@ -27,7 +26,6 @@ import { useTaskColor } from "../lib/use-task-color"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { useWelcomeDialog } from "../onboarding/host"
 import { PageServicesProvider } from "../pages/services"
-import { useSpinnerFrame } from "../panes/sidebar/row-cards"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
@@ -42,7 +40,7 @@ import { NarrowBackBar } from "./narrow-back-bar"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
 import { useRowStatusSync } from "./row-status-sync"
-import { runningPaneFlow, runningPaneTitle } from "./running-pane-chrome"
+import { runningPaneTitle } from "./running-pane-chrome"
 import { selfRefreshAction } from "./self-refresh-action"
 import { ShowWorkspace } from "./show-workspace"
 import { useSidebarResizeGesture } from "./sidebar-resize-gesture"
@@ -62,6 +60,7 @@ import { useScratchShell } from "./use-scratch-shell"
 import { useSidebarCollapsed, useSidebarWidth } from "./use-sidebar-layout"
 import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
+import { WorkspacePaneFrame } from "./workspace-frame"
 
 /** Exported for the render track: banner wiring is only provable on the REAL host. */
 export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & BootDialogs) {
@@ -75,7 +74,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   const [sidebarCollapsed] = useSidebarCollapsed()
   const sidebarResize = useSidebarResizeGesture({
     width: sidebarWidth.width,
-    onResize: sidebarWidth.pin,
+    onResize: sidebarWidth.pinLive,
+    onRelease: sidebarWidth.pin,
     onReset: sidebarWidth.reset,
   })
   // The self-refresh must hand the terminal back before its successor inherits it.
@@ -125,7 +125,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
     selectedId !== null &&
     engineState?.get(selectedId)?.state === "running" &&
     normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER)) === "flow"
-  const breath = useSpinnerFrame(workingFlow)
   const taskInk = useTaskColor(selectedId)
 
   const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
@@ -400,28 +399,17 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
       ) : null}
 
       {pageRender.showContent ? (
-        <box
-          flexGrow={1}
-          flexShrink={1}
-          borderStyle="rounded"
-          borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
-          renderAfter={
-            workingFlow
-              ? runningPaneFlow(
-                  taskInk ?? theme.focusAccent,
-                  inactiveBorder,
-                  focus.focused === "workspace",
-                  breath,
-                  taskInk ? TASK_PARTNER_HUE_DEG : undefined,
-                )
-              : undefined
-          }
+        <WorkspacePaneFrame
+          workingFlow={workingFlow}
+          taskInk={taskInk}
+          focused={focus.focused === "workspace"}
+          inactiveBorder={inactiveBorder}
           title={
             workingFlow && selectedTask
               ? runningPaneTitle(selectedTask.title, t("workspace.inbox.state.running"))
               : undefined
           }
-          onMouseUp={() => focus.setFocused("workspace")}
+          onActivate={() => focus.setFocused("workspace")}
         >
           {/* Narrow hides the sidebar; a null slot keeps the boundary's index stable across the breakpoint. */}
           {isNarrowWidth(dims.width) ? <NarrowBackBar onBack={() => focus.setFocused("sidebar")} /> : null}
@@ -458,7 +446,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
               </RenderProfiler>
             )}
           </PaneErrorBoundary>
-        </box>
+        </WorkspacePaneFrame>
       ) : null}
 
       {/* The FileTree lists a WORKTREE's files. A rail page is not about a

@@ -78,6 +78,8 @@ export function AutomationsPage(props: {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const refetch = (): void => setReloadTick((tick) => tick + 1)
+  /** Set only while nothing has loaded: a failed first read, not "no routines". */
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the body doesn't read it).
   useEffect(() => {
@@ -98,9 +100,12 @@ export function AutomationsPage(props: {
           setLastRunStatus(result.lastRunStatus ?? {})
           setLastFailure(result.lastFailure ?? {})
         })
-        .catch(() => {
-          // Keep the previous rows (stale, not wrong) until the next poll succeeds.
-          if (!disposed) setAutomations((prev) => prev ?? [])
+        .catch((err: unknown) => {
+          // Keep the previous rows (stale, not wrong) until the next poll succeeds;
+          // with none, a failed first load is not an empty routine list.
+          if (disposed) return
+          setAutomations((prev) => prev ?? [])
+          setLoadError((prev) => prev ?? (err instanceof Error ? err.message : String(err)))
         })
     }
     load()
@@ -310,6 +315,8 @@ export function AutomationsPage(props: {
         <box paddingTop={1}>
           <text fg={theme.textMuted}>{t("common.loading")}</text>
         </box>
+      ) : loadError !== null && automations === null ? (
+        <text fg={theme.textMuted}>{t("automations.loadFailed", { message: loadError })}</text>
       ) : rows.length === 0 ? (
         // Empty state points at `n`, not a CLI command.
         <box flexDirection="column" paddingTop={1} gap={1}>

@@ -65,7 +65,7 @@ const MIN_TAB_TITLE_CELLS = 6
 /** Active tab: three sides, so the missing bottom edge reads as a notch. */
 const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
-export function TabStrip(props: {
+export interface TabStripProps {
   /** The task whose tabs these are: the key into the daemon's row status. */
   taskId: string
   tabs: readonly TerminalTab[]
@@ -79,22 +79,32 @@ export function TabStrip(props: {
   liveTitles: ReadonlyMap<string, string>
   /** tabId → resolved live engine identity (see `useTurnPolls().turnVendors`). */
   turnVendors: ReadonlyMap<string, VendorId>
-}) {
-  const themeCtx = useTheme()
-  const { theme } = themeCtx
+}
+
+/**
+ * The gate. Off by default (the sidebar tree already lists every worktree's
+ * tabs), and while it is off this renders nothing BEFORE subscribing to the
+ * row-status map or arming the pulse — hidden used to build every chip first.
+ */
+export function TabStrip(props: TabStripProps) {
   const kv = useKV()
-  const glyphs = useGlyphs()
-  const statuses = useRowStatusMap()[props.taskId]?.tabs
-  const dims = useTerminalSize()
-  // Off by default: the sidebar tree already lists every worktree's tabs.
-  // Late bail so hooks run in the same order.
+  const size = useTerminalSize()
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
   // Narrow mode overrides the setting: the sidebar tree isn't on screen there.
-  const narrow = isNarrowWidth(dims.width)
-  const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
+  const narrow = isNarrowWidth(size.width)
+  if (!narrow && !tabStripVisible(stripMode, props.tabs.length)) return null
+  return <TabStripBody {...props} narrow={narrow} dimsWidth={size.width} />
+}
+
+function TabStripBody(props: TabStripProps & { readonly narrow: boolean; readonly dimsWidth: number }) {
+  const { theme } = useTheme()
+  const glyphs = useGlyphs()
+  const statuses = useRowStatusMap()[props.taskId]?.tabs
+  const narrow = props.narrow
+  const dims = { width: props.dimsWidth }
 
   /* Pulse: a tab whose turn just ended sits in `pulsing` for DONE_PULSE_MS.
    * The effect re-runs per daemon snapshot of this task. */
@@ -173,8 +183,6 @@ export function TabStrip(props: {
     offset = 0
   }
   offsetRef.current = offset
-
-  if (hidden) return null
 
   /* Narrow (phone-SSH) form: only the ACTIVE tab plus a right-stuck `2/3`
    * counter, which is what tells you the others exist. */

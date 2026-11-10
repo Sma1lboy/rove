@@ -8,10 +8,19 @@
  * folded).
  */
 
+import { createStateCell } from "../../lib/external-store"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
 import { resolveSidebarWidth } from "../../tui/panes/sidebar/view-core"
 import { useKV } from "../context/kv"
+import { useAccessor } from "../lib/use-accessor"
 import { useTerminalSize } from "../lib/use-terminal-size"
+
+/**
+ * The width a drag is showing RIGHT NOW. A drag writes here per cell and KV once
+ * on release: `kv.set` swaps the whole snapshot, so a per-cell write re-rendered
+ * every `useKV()` consumer and rewrote state.json for each pixel pulled.
+ */
+const dragged = createStateCell<number | null>(null, "sidebar-dragged-width")
 
 /** A stored pin that isn't a usable number falls back to the derived width. */
 function storedOverride(raw: unknown): number | null {
@@ -25,6 +34,8 @@ export interface SidebarWidthHandle {
   readonly pinned: boolean
   /** Stores the raw drag target; clamping happens on read. */
   readonly pin: (width: number) => void
+  /** Mid-drag: show `width` without persisting it (see {@link dragged}). */
+  readonly pinLive: (width: number) => void
   /** Back to following the terminal. */
   readonly reset: () => void
 }
@@ -33,11 +44,19 @@ export function useSidebarWidth(): SidebarWidthHandle {
   const kv = useKV()
   const dims = useTerminalSize()
   const override = storedOverride(kv.get(SIDEBAR_WIDTH_KEY, null))
+  const live = useAccessor(dragged)
   return {
-    width: resolveSidebarWidth(dims.width, override),
-    pinned: override != null,
-    pin: (width: number) => kv.set(SIDEBAR_WIDTH_KEY, width),
-    reset: () => kv.set(SIDEBAR_WIDTH_KEY, null),
+    width: resolveSidebarWidth(dims.width, live ?? override),
+    pinned: override != null || live != null,
+    pin: (width: number) => {
+      dragged.set(null)
+      kv.set(SIDEBAR_WIDTH_KEY, width)
+    },
+    pinLive: (width: number) => dragged.set(width),
+    reset: () => {
+      dragged.set(null)
+      kv.set(SIDEBAR_WIDTH_KEY, null)
+    },
   }
 }
 
