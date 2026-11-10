@@ -109,7 +109,16 @@ export const PromoPlugins: React.FC = () => (
 
     <div style={{ ...card, left: 96, top: 412, width: 1130 }}>
       <Chrome title="zsh" />
-      <div style={{ padding: "22px 30px 26px", fontFamily: MONO, fontSize: 15, lineHeight: "31px", color: P.ink, whiteSpace: "pre" }}>
+      <div
+        style={{
+          padding: "22px 30px 26px",
+          fontFamily: MONO,
+          fontSize: 15,
+          lineHeight: "31px",
+          color: P.ink,
+          whiteSpace: "pre",
+        }}
+      >
         <div>{prompt} rove plugin search</div>
         {SEARCH.map(([id, what]) => (
           <div key={id}>

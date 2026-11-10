@@ -3,7 +3,6 @@
 
 import { loadFont as loadSans } from "@remotion/google-fonts/InstrumentSans"
 import { loadFont as loadMono } from "@remotion/google-fonts/JetBrainsMono"
-import { AbsoluteFill } from "remotion"
 
 loadSans("normal", { weights: ["400", "500", "600"], subsets: ["latin"] })
 loadMono("normal", { weights: ["400", "700"], subsets: ["latin"] })
@@ -118,15 +117,4 @@ export const Keycap: React.FC<{ children: React.ReactNode; mono?: boolean }> = (
   >
     {children}
   </span>
-)
-
-/** The end card's faint terminal-cell grid. */
-export const CellGrid: React.FC = () => (
-  <AbsoluteFill
-    style={{
-      backgroundImage:
-        "linear-gradient(rgba(234,231,223,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(234,231,223,.045) 1px, transparent 1px)",
-      backgroundSize: "30px 44px",
-    }}
-  />
 )
