@@ -29,6 +29,11 @@ export interface PollCadenceConfig {
   readonly slowRetryMs: number
   /** Floor between successful runs — typically the caller's tick cadence. */
   readonly minIntervalMs: number
+  /**
+   * How many times its own duration a finished run keeps the key quiet; 5 when absent. A test that
+   * ticks twice in a row passes 0: otherwise a run that took 1 ms on a slow machine declines the second tick.
+   */
+  readonly durationFactor?: number
 }
 
 /** Per-key scheduling state the guards read/write. */
@@ -43,10 +48,10 @@ export function computeNextAllowedAt(
   startedAt: number,
   finishedAt: number,
   timedOut: boolean,
-  cfg: { readonly slowRetryMs: number; readonly minIntervalMs: number },
+  cfg: { readonly slowRetryMs: number; readonly minIntervalMs: number; readonly durationFactor?: number },
 ): number {
   if (timedOut) return startedAt + cfg.slowRetryMs
-  return finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * 5)
+  return finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * (cfg.durationFactor ?? 5))
 }
 
 /** Whether a run may start now. */
