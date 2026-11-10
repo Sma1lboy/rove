@@ -6,7 +6,7 @@
 <title>Rove: all your coding agents, in one place</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Rove is an agentic development environment (ADE) for your terminal. Claude Code, Codex, Copilot and more work side by side in one window, each in its own git worktree, and hand tasks to each other. Sessions keep running when you disconnect.">
+<meta name="description" content="Rove puts all your coding agents in one terminal. When Claude Code runs out of quota, you switch the task to Codex or another agent and it continues. Agents hand work to each other directly, and they keep working after you close the terminal.">
 <link rel="canonical" href="https://rove.run/">
 <!-- Release notes feed: GitHub already publishes this for every release, so
      there is no feed to build or keep in sync. -->
@@ -243,14 +243,18 @@
 
       <div id="install">
         <div class="install-platform">
-          <label id="installOsLabel" for="installOs">Install on</label>
-          <select id="installOs" aria-describedby="installHelp">
+          <span id="installOsLabel" class="seg-label">Install on</span>
+          <div class="seg" role="group" aria-labelledby="installOsLabel">
+            <button type="button" data-os="posix" aria-pressed="true">macOS / Linux</button>
+            <button type="button" data-os="windows" aria-pressed="false">Windows</button>
+            <button type="button" data-os="wsl" aria-pressed="false">WSL</button>
+          </div>
+          <select id="installOs" hidden aria-hidden="true" tabindex="-1">
             <option value="posix">macOS / Linux</option>
             <option value="windows">Windows (PowerShell)</option>
             <option value="wsl">WSL (Linux shell)</option>
           </select>
         </div>
-        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
         <div class="install-wrap" id="installWrap">
           <button class="copy" id="copyBtn" data-install-copy type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh" aria-label="Copy install command: curl -fsSL https://rove.run/install.sh | sh">
             <span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span>
@@ -263,8 +267,9 @@
           <button class="alt" type="button" data-cmd="bun install -g @sma1lboy/rove" title="bun install -g @sma1lboy/rove">bun</button>
           <button class="alt" type="button" data-cmd="npx @sma1lboy/rove" title="npx @sma1lboy/rove">npx</button>
         </p>
+        <p id="installHelp" class="install-help" aria-live="polite">macOS / Linux: use a POSIX shell. Requires git and a signed-in agent CLI, such as Claude Code. The installer sets up Bun if needed.</p>
         <p class="engines" data-i18n="hero.engines">Works with Claude Code, Codex, Copilot, Gemini CLI, OpenCode and more.</p>
-        <p class="install-help"><a href="https://docs.rove.run/rove/quick-start#your-first-task" data-i18n="hero.firstTasks">Next: complete your first two tasks →</a></p>
+        <p class="install-help"><a href="#get" data-i18n="hero.allInstall">All install options: next and nightly builds, desktop and phone apps ↓</a></p>
       </div>
     </div>
 
@@ -279,9 +284,9 @@
   <section class="note wide" id="why">
     <h2 data-i18n="why.h">Why more than one agent?</h2>
 
-    <div class="txt-col">
-      <p data-i18n-html="why.p2"><b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.</p>
-      <p data-i18n-html="why.p3"><b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.</p>
+    <div class="cards">
+      <p class="card" data-i18n-html="why.p2"><b>Out of quota? Switch to another agent.</b> When Claude Code hits its usage limit halfway through a task, switch the task to Codex or any other agent. It reads what the first one did and continues from there.</p>
+      <p class="card" data-i18n-html="why.p3"><b>Agents talk to each other directly.</b> Without Rove, each agent sits in its own window and you copy text between them. Here one agent hands a task to another and gets the report back by itself.</p>
     </div>
   </section>
 
@@ -367,6 +372,36 @@
 
     <div class="txt-col">
       <p data-i18n-html="can.more">Rove runs agents you already have, so install and sign in to one first, such as Claude Code or Codex. How each feature works is in the <a href="https://docs.rove.run">docs</a>.</p>
+    </div>
+  </section>
+
+  <section class="note wide" id="get">
+    <h2 data-i18n="get.h">Get Rove</h2>
+
+    <h3 class="sub" data-i18n="get.tui">Terminal app</h3>
+    <div class="chan">
+      <div class="chan-row">
+        <div class="chan-n"><b data-i18n="get.stable">Stable</b><span data-i18n="get.stableD">The tested release. Install this one if you are new.</span></div>
+        <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+        <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove"><span class="cmd">npm install -g @sma1lboy/rove</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+      </div>
+      <div class="chan-row">
+        <div class="chan-n"><b data-i18n="get.next">Next</b><span data-i18n="get.nextD">You get every change a few minutes after it is merged. It has had fewer tests.</span></div>
+        <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh -s -- --next"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh -s -- --next</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+        <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove@next"><span class="cmd">npm install -g @sma1lboy/rove@next</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+      </div>
+      <div class="chan-row">
+        <div class="chan-n"><b data-i18n="get.nightly">Nightly</b><span data-i18n="get.nightlyD">You get one new build each morning, after all the tests have passed.</span></div>
+        <button class="copy" type="button" data-cmd="curl -fsSL https://rove.run/install.sh | sh -s -- --nightly"><span class="cmd">curl -fsSL https://rove.run/install.sh | sh -s -- --nightly</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+        <button class="copy" type="button" data-cmd="npm install -g @sma1lboy/rove@nightly"><span class="cmd">npm install -g @sma1lboy/rove@nightly</span><span class="hint" data-hint data-i18n="copy.short">copy</span></button>
+      </div>
+    </div>
+    <p class="t-note" data-i18n-html="get.switch">Already installed? Switch with <span class="mono">rove update --next</span>, <span class="mono">--nightly</span> or <span class="mono">--stable</span>. On Windows use the npm command in PowerShell.</p>
+
+    <h3 class="sub" data-i18n="get.apps">Apps</h3>
+    <div class="cards">
+      <p class="card" data-i18n-html="get.desktop"><b>Desktop: macOS, Linux, Windows.</b> Rove in its own window, driving the same tasks as the terminal app. There is no packaged download yet: <a href="https://docs.rove.run/rove/desktop">build it from source</a>.</p>
+      <p class="card" data-i18n-html="get.phone"><b>Phone: iOS and Android.</b> Read output, answer questions and start tasks from your phone. Not in the app stores yet: <a href="https://docs.rove.run/rove/ios">build it from source</a>, or open <span class="mono">rove --web</span> in your phone browser today.</p>
     </div>
   </section>
 

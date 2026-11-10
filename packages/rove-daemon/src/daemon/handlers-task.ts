@@ -143,6 +143,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         groupId: optionalString(payload, "groupId"),
         forkFrom: optionalString(payload, "forkFrom"),
         parentTaskId: optionalString(payload, "parentTaskId"),
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
         ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
         dispatcher,
       })
@@ -161,6 +162,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         parentTaskId,
         // A child gets its own worktree unless the caller says to share.
         worktree: optionalBoolean(payload, "worktree") ?? true,
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
         baseRef: optionalString(payload, "baseRef"),
         isolateIn: optionalString(payload, "isolateIn"),
         title: optionalString(payload, "title"),
@@ -362,14 +364,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const { repo, moved } = await ctx.orch.moveTaskToProject(taskId, requireString(payload, "repo"))
       return { taskId, repo, moved }
-    },
-  },
-  {
-    name: "task.worktreeOnly",
-    async handle(payload, ctx) {
-      if (typeof payload.on !== "boolean") throw new Error("on must be a boolean")
-      await ctx.orch.setWorktreeOnly(requireString(payload, "taskId"), payload.on)
-      return {}
     },
   },
   {

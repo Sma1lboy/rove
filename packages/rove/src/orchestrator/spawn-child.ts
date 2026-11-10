@@ -136,6 +136,7 @@ export async function spawnChildTaskRow(deps: SpawnChildDeps, input: SpawnChildI
     command: common.command,
     dispatcher: common.dispatcher,
     parentTaskId: toTaskId(common.parentTaskId),
+    ...(input.worktreeOnly ? { worktreeOnly: true } : {}),
     cwdSubpath,
     projectIntent: "derived",
     modelEffort: common.modelEffort,

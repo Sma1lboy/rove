@@ -21,6 +21,7 @@
     },
   };
   function words() { return document.documentElement.lang === 'zh-CN' ? copy.zh : copy.en; }
+  var segs = [];
   function render() {
     revision++;
     clearTimeout(timer);
@@ -32,7 +33,12 @@
     document.getElementById('installOsLabel').textContent = words().label;
     hint.textContent = words().hint;
     button.classList.remove('is-copied');
+    segs.forEach(function (seg) { seg.setAttribute('aria-pressed', String(seg.getAttribute('data-os') === select.value)); });
   }
+  segs = document.querySelectorAll ? Array.prototype.slice.call(document.querySelectorAll('[data-os]')) : [];
+  segs.forEach(function (seg) {
+    seg.addEventListener('click', function () { select.value = seg.getAttribute('data-os'); render(); });
+  });
   select.addEventListener('change', render);
   document.addEventListener('rove:language', render);
   button.addEventListener('click', async function () {
