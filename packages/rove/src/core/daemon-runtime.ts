@@ -35,6 +35,7 @@ import {
   deliverPromptToLiveEngineTabDetailedAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
+  stopTaskEngineTabAdapter,
   tearDownTaskSessionAdapter,
 } from "./daemon-session-adapter.ts"
 import {
@@ -201,6 +202,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
+  stopTaskEngineTab: stopTaskEngineTabAdapter,
   // Vendor history does the token arithmetic; neutral layers only carry it.
   // No `context_tokens` = no entry. A missing count stays missing, never `0`.
   async readEngineContextUsage(vendor, sessionId) {

@@ -11,7 +11,14 @@ import { displayTaskTitle } from "./serialize-task.ts"
 
 /** The handler context's slice the delivery operations need. */
 export function deliveryDepsOf(ctx: DaemonHandlerContext): DeliveryDeps {
-  return { deliveries: ctx.deliveries, inbox: ctx.inbox, orch: ctx.orch, automations: ctx.automations }
+  return {
+    deliveries: ctx.deliveries,
+    inbox: ctx.inbox,
+    orch: ctx.orch,
+    automations: ctx.automations,
+    stopEngineTab: (taskId, tabId) =>
+      ctx.runtime.stopTaskEngineTab(taskId, tabId, ptyScopeFor(ctx.orch.listTasks(), taskId)),
+  }
 }
 
 function evidenceOf(payload: Record<string, unknown>): string[] | undefined {

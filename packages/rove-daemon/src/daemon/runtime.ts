@@ -149,6 +149,8 @@ export interface DaemonRuntimeAdapter {
   ): Promise<{ started: boolean; error?: string }>
   /** Kill the task's hosted PTYs; `scope` spares surviving children's aliased ones and adds the task's own. */
   tearDownTaskSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** Stop the engine in one tab, leaving the task's other PTYs and the tab row alone. */
+  stopTaskEngineTab(taskId: string, tabId: string, scope?: PtyScope): Promise<void>
   /**
    * Vendor account usage windows, or null when unknowable. Hits the vendor's
    * rate-limited API — ONLY QuotaUsageCache may call this.

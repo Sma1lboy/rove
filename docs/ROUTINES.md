@@ -263,7 +263,7 @@ needed:
 | Status | Meaning |
 |---|---|
 | `dispatched` | A new task started with the prompt, or the prompt was delivered into a live standing or bound conversation |
-| `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
+| `revived` | Standing session only: its engine was not running (it is stopped after every run), so it was started again in the same worktree, on the same conversation where the engine can reopen one |
 | `skipped_cancelled` | The routine was disabled, edited, deleted, or its runner stopped before delivery |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_blocked` | The task cannot use a tick right now (`blocked.reason`): an open decision gate, an unreported earlier run, a rate limit, a permission prompt, or a turn still running. The cause is already in the Inbox. Healthy as a status |
@@ -471,14 +471,19 @@ routine that fired at 03:00 is genuinely the most recently touched task in the
 install and the least likely one you meant; opening Rove lands on your own work
 instead.
 
-### When the engine has exited
+### Between runs
 
-Continuity comes from the engine's own live conversation, which the PTY host
-keeps alive across daemon restarts. When that process is gone — an overnight gap
-usually means it is — the next firing respawns it **in the same worktree**. The
-files and the branch carry over; the transcript does not, and that run is
-recorded as `revived` rather than `dispatched` so a run that started over never
-reads like one that had yesterday in front of it.
+A routine's own task keeps no engine running between runs. When a run's turn
+ends and no other prompt is waiting on that tab, the daemon stops the engine;
+this goes for a fresh run's task as well as a standing one. A routine bound to
+an existing tab runs in your task, and that engine is never stopped.
+
+The standing task's tab remembers its conversation. The next firing starts the
+engine again **in the same worktree** and reopens that conversation through the
+engine's own resume command, so files, branch and transcript all carry over.
+That run is recorded as `revived` rather than `dispatched`. An engine with no
+resume command, or a conversation the engine no longer has, starts a new
+conversation in the same worktree instead.
 
 If the standing task is deleted, the routine simply builds a new one on its next
 firing rather than failing forever.

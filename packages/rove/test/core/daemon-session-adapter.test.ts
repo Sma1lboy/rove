@@ -23,10 +23,15 @@ const mocks = vi.hoisted(() => ({
     async (): Promise<{ pid: number; vendor: "claude" } | null> => ({ pid: 4242, vendor: "claude" }),
   ),
   failureLine: vi.fn(async () => "⚠ Engine exited (code 127)."),
-  buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
-    key: `${input.task.id}::tab-1`,
-    command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
-  })),
+  buildLaunch: vi.fn(
+    (input: {
+      task: { id: string }
+      argv?: readonly string[]
+    }): { key: string; command: string[]; firstMessage?: string } => ({
+      key: `${input.task.id}::tab-1`,
+      command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
+    }),
+  ),
 }))
 
 vi.mock("../../src/engine/hosted-session.ts", () => ({
@@ -53,9 +58,13 @@ import {
   tearDownTaskSessionAdapter,
 } from "../../src/core/daemon-session-adapter.ts"
 
-function link(): DaemonRpcClient {
+function link(heldSessionId?: string): DaemonRpcClient {
   return {
     request: vi.fn(async <T>(name: string, payload?: unknown): Promise<T> => {
+      if (name === "tabs.get" && heldSessionId) {
+        const tab = { kind: "engine", id: "tab-1", title: null, ordinal: 1, sessionId: heldSessionId, spawned: true }
+        return { state: { tabs: [tab], activeId: "tab-1", nextOrdinal: 2 } } as T
+      }
       if (name === "task.get") {
         return {
           task: {
@@ -120,6 +129,31 @@ describe("daemon session adapter", () => {
       error: "engine process never started; last session output: ⚠ Engine exited (code 127).",
     })
     expect(mocks.awaitEngineProcess).toHaveBeenCalled()
+  })
+
+  const launchedArgv = (call: number) => mocks.buildLaunch.mock.calls[call]?.[0].argv ?? []
+
+  it("reopens the conversation a stopped task's tab row holds", async () => {
+    await expect(startTaskSessionWithPromptAdapter(link("s-1"), "task-1", "next run")).resolves.toEqual({
+      started: true,
+    })
+    expect(mocks.buildLaunch).toHaveBeenCalledOnce()
+    expect(launchedArgv(0)).toEqual(["claude", "--resume", "s-1"])
+  })
+
+  it("starts a new conversation when the held one no longer opens, clearing the failed launch first", async () => {
+    mocks.awaitEngineProcess.mockResolvedValueOnce(null)
+    const client = link("s-gone")
+    await expect(startTaskSessionWithPromptAdapter(client, "task-1", "next run")).resolves.toEqual({ started: true })
+    expect(mocks.killSessions).toHaveBeenCalledWith(expect.anything(), ["task-1::tab-1"], { wait: true })
+    expect(launchedArgv(1)).toContain("--session-id")
+    expect(launchedArgv(1)).not.toContain("--resume")
+    // The new conversation replaces the dead one on the row, or the next start retries it forever.
+    const newId = launchedArgv(1)[launchedArgv(1).indexOf("--session-id") + 1]
+    expect(client.request).toHaveBeenCalledWith("tabs.apply", {
+      taskId: "task-1",
+      ops: [{ op: "patch", id: "tab-1", set: { sessionId: newId, spawned: true } }],
+    })
   })
 
   it("tears down a task session best-effort", async () => {

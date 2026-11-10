@@ -70,7 +70,7 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
 | Status | Meaning |
 |---|---|
 | `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
-| `revived` | Standing session whose engine had died, respawned in the same worktree — files kept, transcript not |
+| `revived` | Standing session whose engine was not running (stopped after its last run), started again in the same worktree on the conversation its tab row holds |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
 | `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
 | `skipped_missed` | The occurrence was older than the grace window |
@@ -105,14 +105,13 @@ fire → persistentSession?
                          └─ no-session→ respawn same worktree   → revived
 ```
 
-**What continuity actually rests on.** The engine's own conversation, kept alive
-by the PTY host — which lives outside the daemon on purpose
-([`pty-server.ts`](../../packages/rove-daemon/src/daemon/pty-server.ts)), so it
-survives `rove daemon restart`. When that process is gone, the respawn does NOT
-inherit the transcript: the daemon's spawn path (`buildEngineSessionLaunch`) has
-no resume verb wired into it — `engineResumeArgv` is the TUI's tab-restart path.
-Hence `revived` as its own status: a run that started over must not read like
-one that had context.
+**What continuity actually rests on.** The standing task's `tab-1` row, which
+holds the engine's session id. The daemon stops a routine-owned task's engine
+when a run's turn ends (`stopIdleRoutineEngine` in
+[`delivery-ops.ts`](../../packages/rove-daemon/src/daemon/delivery-ops.ts)), and
+the next firing's start reopens that id through `engineResumeArgv`. An engine
+with no resume verb, or an id it no longer has, gets a new pinned conversation.
+`revived` stays its own status: the engine was started for this run.
 
 **Self-healing.** A `sessionTaskId` whose task was deleted, is mid-deletion, or
 lost its worktree resolves to null, and the firing rebuilds and relinks. Without

@@ -15,12 +15,22 @@ import { dispatch, fakeCtx } from "./handler-test-context.ts"
 const TASK = "t1"
 const TAB = "tab-1"
 
-async function harness() {
+async function harness(opts: { routineTask?: boolean } = {}) {
   const deliveries = new DeliveriesStore(join(mkdtempSync(join(tmpdir(), "rove-quiet-turn-")), "deliveries.json"))
   await deliveries.init()
-  const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === TASK ? { id } : undefined) })
+  const row = { id: TASK, ...(opts.routineTask ? { routine: { automationId: "a1" } } : {}) }
+  const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === TASK ? row : undefined), listTasks: () => [row] })
   const missingRows: string[] = []
-  Object.assign(ctx, { deliveries })
+  const stopped: string[] = []
+  Object.assign(ctx, {
+    deliveries,
+    runtime: {
+      ...ctx.runtime,
+      stopTaskEngineTab: async (taskId: string, tabId: string) => {
+        stopped.push(`${taskId}::${tabId}`)
+      },
+    },
+  })
   ctx.inbox.recordReportMissing = async (_t, _tab, delivery) => {
     missingRows.push(delivery.id)
   }
@@ -39,7 +49,7 @@ async function harness() {
       TAB,
     )
   const arm = (source: "routine" | "send") => deliveries.arm({ taskId: TASK, tabId: TAB, source, promptHead: "tick" })
-  return { deliveries, turn, turnCompleteRows, missingRows, verdict, arm }
+  return { deliveries, turn, turnCompleteRows, missingRows, verdict, arm, stopped }
 }
 
 describe("a routine turn that ends without a report", () => {
@@ -80,5 +90,34 @@ describe("a routine turn that reported", () => {
     await h.turn("turn-start")
     await h.turn("turn-complete")
     expect(h.turnCompleteRows()).toBe(1)
+  })
+})
+
+describe("the engine of a routine's own task", () => {
+  it.each(["quiet", "reported"] as const)("is stopped once its %s turn ends", async (how) => {
+    const h = await harness({ routineTask: true })
+    const d = await h.arm("routine")
+    await h.turn("turn-start")
+    if (how === "reported") await h.deliveries.setReport(d.id, { outcome: "done", summary: "ok", evidence: [] })
+    expect(h.stopped).toEqual([])
+    await h.turn("turn-complete")
+    expect(h.stopped).toEqual([`${TASK}::${TAB}`])
+  })
+
+  it("keeps running while another prompt still waits on the tab", async () => {
+    const h = await harness({ routineTask: true })
+    await h.arm("routine")
+    await h.arm("send")
+    await h.turn("turn-start")
+    await h.turn("turn-complete")
+    expect(h.stopped).toEqual([])
+  })
+
+  it("is left alone in a task the routine does not own (a routine bound to someone's tab)", async () => {
+    const h = await harness()
+    await h.arm("routine")
+    await h.turn("turn-start")
+    await h.turn("turn-complete")
+    expect(h.stopped).toEqual([])
   })
 })
