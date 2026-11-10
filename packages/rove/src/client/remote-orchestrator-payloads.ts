@@ -131,7 +131,28 @@ export interface ContextUsage {
   readonly cacheReadTokens?: number
   readonly cacheCreationTokens?: number
   /** What `contextTokens` is made of, when the engine records it. */
-  readonly parts?: readonly { readonly key: string; readonly tokens: number }[]
+  readonly parts?: readonly ContextUsagePart[]
+}
+type ContextUsageItem = { readonly name: string; readonly tokens: number }
+type ContextUsagePart = {
+  readonly key: string
+  readonly tokens: number
+  readonly label?: string
+  readonly items?: readonly ContextUsageItem[]
+  readonly itemCount?: number
+}
+/** A part off the wire, keeping what it is made of when that is well formed. */
+function contextPart(p: Record<string, unknown>): ContextUsagePart {
+  const items = Array.isArray(p.items)
+    ? p.items.filter((i): i is ContextUsageItem => typeof i?.name === "string" && typeof i?.tokens === "number")
+    : []
+  return {
+    key: p.key as string,
+    tokens: p.tokens as number,
+    ...(typeof p.label === "string" ? { label: p.label } : {}),
+    ...(items.length > 0 ? { items: items.map(({ name, tokens }) => ({ name, tokens })) } : {}),
+    ...(typeof p.itemCount === "number" ? { itemCount: p.itemCount } : {}),
+  }
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
@@ -168,9 +189,7 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
       ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
       ...(v.approximate === true ? { approximate: true } : {}),
       ...totals,
-      ...(Array.isArray(parts)
-        ? { parts: parts.map((p) => ({ key: p.key as string, tokens: p.tokens as number })) }
-        : {}),
+      ...(Array.isArray(parts) ? { parts: parts.map(contextPart) } : {}),
     })
   }
   return map

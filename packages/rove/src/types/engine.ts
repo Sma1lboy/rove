@@ -93,6 +93,8 @@ export type ContextPart = {
   readonly label?: string
   /** The largest things in the part (memory files, tools, skills), biggest first. */
   readonly items?: readonly { readonly name: string; readonly tokens: number }[]
+  /** How many things the part holds, when `items` lists only the largest. */
+  readonly itemCount?: number
 }
 
 /** What `engine/<vendor>/history.ts` returns: messages plus the session's aggregate usage. */
