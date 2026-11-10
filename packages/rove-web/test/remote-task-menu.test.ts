@@ -28,6 +28,7 @@ const task = (extra: Partial<TaskRow> = {}): TaskRow =>
     repo: "/w/app",
     kind: "task",
     branch: "fix/x",
+    ownsBranch: true,
     rank: 1,
     status: "in_progress",
     ...extra,
@@ -44,5 +45,16 @@ describe("a task on another machine keeps its menu", () => {
     // Everything else — new chat/shell, rename, pin, status, branch, land, copy, delete — stays.
     expect(there.length).toBe(here.length - 6)
     expect(there).toEqual(here.filter((label) => !dropped.includes(label)))
+  })
+})
+
+describe("new task from a host branch", () => {
+  test("LayerFS rows cannot seed a host worktree", () => {
+    expect(labels(task({ ownsBranch: false }))).not.toContain("New task from this branch")
+    expect(labels(task({ ownsBranch: true }))).toContain("New task from this branch")
+  })
+
+  test("an older bridge without the capability cannot offer a host branch", () => {
+    expect(labels(task({ ownsBranch: undefined }))).not.toContain("New task from this branch")
   })
 })

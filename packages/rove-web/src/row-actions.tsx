@@ -204,7 +204,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
   })
   // Stacks a new task on this one's branch; only a single-repo managed branch on this machine resolves as a base here.
-  if (task.kind === "task" && task.branch && !task.sharesWorkspaceOf && !task.machine && !task.extraRepoCount) {
+  if (
+    task.kind === "task" &&
+    task.ownsBranch === true &&
+    task.branch &&
+    !task.sharesWorkspaceOf &&
+    !task.machine &&
+    !task.extraRepoCount
+  ) {
     items.push({
       label: tc("tasks", "menu.newTaskFromBranch"),
       section: "open",

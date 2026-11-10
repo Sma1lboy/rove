@@ -450,3 +450,8 @@ screen first (iOS 16.4 or later); the switch says so when it cannot turn on.
 - Through the relay, one message is capped near 700 KB (the Worker's 1 MiB
   per message, after encoding), so a large image paste fails;
   the notification sound does not play there either.
+
+The task menu offers **New task from this branch** only when the bridge reports
+`TaskRow.ownsBranch: true`, derived from the workspace backend capability. LayerFS
+branches live inside the sandbox and cannot seed a host worktree. Older bridges
+that omit the capability do not offer this action.
