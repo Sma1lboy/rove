@@ -1,5 +1,11 @@
-import type { TasksPayload } from "./protocol.ts"
+import { type TasksPayload, pushEvent } from "./protocol.ts"
 import { type PayloadIndex, type TasksPatch, diffPayload, indexPayload } from "./tasks-patch.ts"
+
+/** What one client is sent on a change: the rows that changed if it asked for patches, else the list again. */
+export function taskPusher(send: (frame: string) => void, patches: boolean) {
+  return (payload: TasksPayload, patch: TasksPatch | null): void =>
+    void send(patches && patch ? pushEvent("tasks.patch", patch) : pushEvent("tasks", payload))
+}
 
 /**
  * How much of the bridge's time the feed may spend reading: a read that took 5 ms is followed by
