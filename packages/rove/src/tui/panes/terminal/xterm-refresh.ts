@@ -189,7 +189,8 @@ export function dirtyRowsMatchSnapshot(
     last = Math.min(last, active.baseY + dirty.end)
   }
   const cursorY = active.baseY + active.cursorY
-  for (let y = first; y <= last; y++) {
+  // Bottom-up: output changes near the cursor, so a frame that did change fails on its first rows instead of its last.
+  for (let y = last; y >= first; y--) {
     const row = snapshot[y - currentMeta.start]
     if (!row) return false
     // xterm never edits a scrolled-out line (only trims top / appends), so a
