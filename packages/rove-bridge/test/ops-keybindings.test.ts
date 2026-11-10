@@ -16,7 +16,13 @@ interface Got {
 
 function ops(doc: unknown, over: Partial<KeybindingsDeps> = {}): OpTable {
   return createKeybindingsOps({
-    read: () => ({ path: FILE, exists: doc !== undefined, doc: doc ?? null, warnings: [] }),
+    read: () => ({
+      path: FILE,
+      exists: doc !== undefined,
+      source: doc === undefined ? null : FILE,
+      doc: doc ?? null,
+      warnings: [],
+    }),
     create: () => true,
     fireAction: () => true,
     platform: "linux",

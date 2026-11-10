@@ -941,3 +941,13 @@ owner approved `ctrl+a` `q` as the prefix twin of `ctrl+q`: it focuses the
 sidebar and nothing else. `ctrl+q` keeps its key and its two-stage quit. From
 the sidebar, `q` still quits with a confirm, so `ctrl+a q q` reaches the quit
 dialog without a new way to close Rove by accident.
+
+## Settings → Keybindings edits bindings in place (2026-11-10, approved)
+
+The owner asked to change every binding from Settings instead of editing the
+YAML by hand, and approved three keys for the Keybindings section: `enter`
+records a new key for the focused binding, `backspace` restores its default,
+`x` unbinds it. They are live only on a binding row of that section. `x`
+already resets the focused engine in Settings → Engines; the two never share a
+row. While a recording waits, every key goes to it, so `esc` cancels the
+recording instead of closing Settings.

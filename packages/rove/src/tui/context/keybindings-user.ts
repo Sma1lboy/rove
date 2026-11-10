@@ -11,11 +11,15 @@
  * pristine defaults whatever the developer's own file says.
  */
 
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname } from "node:path"
 import { readKeybindingsFile, resetKeybindingsFileCache } from "../../state/keybindings-file"
 import { type UserKeybindingsReport, resolveUserKeybindings } from "../lib/keybindings-resolve"
+import { KEYBINDINGS_STARTER } from "../lib/keybindings-starter"
+import { type KeybindingEdit, editKeybindingsYaml } from "../lib/keybindings-write"
 import { configurePrefix, resetPrefixConfiguration } from "../lib/keymap-dispatch"
 import type { PluginKeyBinding } from "../lib/keymap-plugin-bindings"
-import { RoveKeymap, bumpKeymapVersion, resetKeymapToDefaults } from "./keybindings"
+import { RoveKeymap, bumpKeymapVersion, defaultKeymapCopy, resetKeymapToDefaults } from "./keybindings"
 
 export type { UserKeybindingsReport }
 
@@ -54,4 +58,31 @@ export function reloadUserKeybindings(): UserKeybindingsReport {
   const report = applyUserKeybindings()
   bumpKeymapVersion()
   return report
+}
+
+/**
+ * Settings → Keybindings: write `edits` into the YAML (created from the starter when absent) and
+ * reload. All or nothing: a refused edit leaves the file alone. `lines` are the refusal reasons,
+ * or the loader's warnings about what was saved.
+ */
+export function saveKeybindingEdits(edits: readonly KeybindingEdit[]): { ok: boolean; lines: string[] } {
+  resetKeybindingsFileCache()
+  const file = readKeybindingsFile()
+  const target = file.source ?? file.path
+  const lines: string[] = []
+  try {
+    let text = file.source ? readFileSync(target, "utf8") : KEYBINDINGS_STARTER
+    for (const edit of edits) {
+      const result = editKeybindingsYaml(text, edit, defaultKeymapCopy(), process.platform)
+      if (!result.ok) return { ok: false, lines: result.reasons }
+      text = result.text
+      for (const warning of result.warnings) if (!lines.includes(warning)) lines.push(warning)
+    }
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, text)
+  } catch (err) {
+    return { ok: false, lines: [err instanceof Error ? err.message : String(err)] }
+  }
+  reloadUserKeybindings()
+  return { ok: true, lines }
 }

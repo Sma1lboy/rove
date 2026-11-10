@@ -20,8 +20,6 @@ import {
   rowAt,
   sectionRows,
 } from "../../../tui/component/settings-dialog/model"
-import { reloadUserKeybindings, userKeybindingsReport } from "../../../tui/context/keybindings-user"
-import { createKeybindingsFile } from "../../../tui/lib/keybindings-starter"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
@@ -44,14 +42,16 @@ import {
 import { AutoRoutingSettingsSection } from "./sections-auto-routing"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
+import { KeybindingsSettingsSection } from "./sections-keybindings"
 import { MarketplaceSettingsSection } from "./sections-marketplace"
-import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
+import { DevSettingsSection, FeedbackSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
 import { useAppearanceSettings } from "./use-appearance-settings"
 import { useAutoRoutingSettings } from "./use-auto-routing-settings"
 import { useClassifierSettings } from "./use-classifier-settings"
 import { useEngineSettings } from "./use-engine-settings"
 import { useFeedbackForm } from "./use-feedback-form"
+import { useKeybindingEditor } from "./use-keybinding-editor"
 import { useAccountProbes, useEngineIntegrations, useMarketplace, usePluginSettings } from "./use-section-data"
 import { useSettingsPrefs } from "./use-settings-prefs"
 import { useUpdateCheck } from "./use-update-check"
@@ -119,18 +119,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   // The tier targets, gated against the same account probe the cards read.
   const autoRouting = useAutoRoutingSettings(props.kv, dialog, engines.engineList, engineStatuses)
   const classifier = useClassifierSettings(props.kv, dialog, section === "autoRouting")
-  // Re-applying after writing the starter YAML re-renders the Keybindings
-  // section (and drops its create row) without a restart.
-  const [keysFileExists, setKeysFileExists] = useState(() => userKeybindingsReport().exists)
-  function createKeysFile(): void {
-    try {
-      createKeybindingsFile(userKeybindingsReport().path)
-      reloadUserKeybindings()
-    } catch {
-      /* unwritable config dir — the section keeps offering the action */
-    }
-    setKeysFileExists(userKeybindingsReport().exists)
-  }
+  const keyEditor = useKeybindingEditor(() => setBodyRow((row) => Math.max(0, row - 1)))
   const plugins = usePluginSettings(section, dialog)
   const marketplace = useMarketplace(section, dialog, plugins)
 
@@ -145,7 +134,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
       marketplace: marketplace.rows.map((r) => r.ref),
       hasDaemon,
-      keybindingsFileExists: keysFileExists,
+      keybindingsFileExists: keyEditor.fileExists,
     })
   }
 
@@ -247,7 +236,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
     autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
     autoRoutingClassifierThreshold: () => void classifier.editThreshold(),
     autoRoutingClassifierKey: () => void classifier.editKey(),
-    keysCreate: () => createKeysFile(),
+    keysCreate: () => keyEditor.createFile(),
+    keybinding: (row) => keyEditor.record(row.bindingId),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
     pluginInstall: (row) => void marketplace.install(row.ref),
@@ -260,6 +250,12 @@ export function SettingsDialog(props: SettingsDialogProps) {
     devRemoteProjects: () => prefs.toggleRemoteProjects(),
     devAutoStatus: () => prefs.toggleAutoStatus(),
     devDispatcher: () => prefs.toggleDispatcher(),
+  }
+
+  /** The binding under the body cursor in the Keybindings section. */
+  function currentKeyRow(): string | null {
+    const row = level === "body" ? rowAt(bodyRows(), bodyRow) : undefined
+    return row?.kind === "keybinding" ? row.bindingId : null
   }
 
   function activateBodyRow(): void {
@@ -307,6 +303,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
         cmd: () => {
           const v = currentEngineRow()
           if (v) engines.resetEngine(v)
+          const id = currentKeyRow()
+          if (id) keyEditor.unbind(id)
+        },
+      },
+      {
+        // Keybindings section: `x` above unbinds the focused binding, `backspace` restores its default.
+        key: "backspace",
+        cmd: () => {
+          const id = currentKeyRow()
+          if (id) keyEditor.reset(id)
         },
       },
       {
@@ -356,7 +362,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const cursorProps = { level, bodyRow, setLevel, setBodyRow, rowRef: follow.rowRef }
   const navHint = (
     <box paddingTop={0}>
-      <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
+      <text fg={theme.textMuted}>
+        {editingFeedback
+          ? t("settings.nav.feedback")
+          : t(section === "keys" ? "settings.nav.keys" : "settings.nav.default")}
+      </text>
     </box>
   )
   const body = (
@@ -430,9 +440,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               install={(ref) => void marketplace.install(ref)}
             />
           ) : null}
-          {section === "keys" ? (
-            <KeybindingsSettingsSection {...cursorProps} prefs={prefs} onCreateFile={createKeysFile} />
-          ) : null}
+          {section === "keys" ? <KeybindingsSettingsSection {...cursorProps} prefs={prefs} editor={keyEditor} /> : null}
           {section === "feedback" ? (
             <FeedbackSettingsSection
               {...cursorProps}

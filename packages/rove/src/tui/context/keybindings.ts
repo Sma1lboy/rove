@@ -25,6 +25,27 @@ const KEYMAP_DEFAULTS: ReadonlyMap<
   ]),
 )
 
+/** A fresh, mutable copy of the default keymap, for resolving a keybindings file without touching the live rows. */
+export function defaultKeymapCopy(): Array<
+  Pick<RoveBinding, "id" | "scope" | "category"> & {
+    keys: readonly string[]
+    prefixKeys?: readonly string[]
+    hint?: RoveBindingHint
+  }
+> {
+  return RoveKeymap.map((row) => {
+    const def = KEYMAP_DEFAULTS.get(row.id)
+    return {
+      id: row.id,
+      scope: row.scope,
+      category: row.category,
+      keys: [...(def?.keys ?? [])],
+      ...(def?.prefixKeys ? { prefixKeys: [...def.prefixKeys] } : {}),
+      ...(def?.hint ? { hint: { ...def.hint } } : {}),
+    }
+  })
+}
+
 /**
  * From the pristine snapshot, NOT the live row: `RESERVED_GLOBAL_CHORDS`
  * (panes/terminal/keys-pure.ts) derives from this, so a user override never
