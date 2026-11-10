@@ -933,3 +933,11 @@ The web preview's "ask in chat" types the selected lines into the task's engine
 prompt as `@path (lines a-b) `. `a` was proposed for it; the owner declined a
 chord. It is a bubble that appears beside a selection (`v`, Shift+click or a
 mouse drag) and nothing else.
+
+## `ctrl+a q` focuses the sidebar (2026-11-10, approved)
+
+A user asked for a way out of a pane that stays inside the prefix layer. The
+owner approved `ctrl+a` `q` as the prefix twin of `ctrl+q`: it focuses the
+sidebar and nothing else. `ctrl+q` keeps its key and its two-stage quit. From
+the sidebar, `q` still quits with a confirm, so `ctrl+a q q` reaches the quit
+dialog without a new way to close Rove by accident.

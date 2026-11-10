@@ -202,11 +202,12 @@ export const RoveKeymap: readonly RoveBinding[] = [
     hint: { keys: "q" },
   },
   {
-    // ctrl+q is THE escape hatch out of any pane; direct-only, too load-bearing
-    // for a two-stroke prefix. Scope "workspace" is for override validation.
+    // ctrl+q is THE escape hatch out of any pane, so it stays direct; prefix q
+    // is its twin. Scope "workspace" is for override validation.
     id: "focus.sidebar",
     scope: "workspace",
     keys: ["ctrl+q"],
+    prefixKeys: ["q"],
     category: "Workspace",
     description: "Back to sidebar (tasks)",
     hint: { keys: "ctrl+q" },
