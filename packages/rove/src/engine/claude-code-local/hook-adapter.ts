@@ -129,7 +129,8 @@ export class ClaudeHookAdapter extends JsonHookAdapter {
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
   ): EngineActivityDetail | undefined {
-    if (kind === "turn-failed") return { failure: failureFromErrorType(payload.error_type) }
+    // Claude Code 2.1 sends the class as `error`; earlier payloads used `error_type`.
+    if (kind === "turn-failed") return { failure: failureFromErrorType(payload.error ?? payload.error_type) }
     if (kind === "awaiting-input") {
       return { waiting: payload.notification_type === "elicitation_dialog" ? "input" : "permission" }
     }
