@@ -487,6 +487,26 @@ the source CLI into the hook command itself. A fresh HOME also needs
 `ROVE_PTY_DEV_COMMAND` must be a script path — nested quotes are lost when the
 dev server re-spawns the sidecar.
 
+## Scale: `rove-bench`
+
+`bun run rove-bench` from `packages/rove` answers "what happens at 10,000 tasks". For each size (`--sizes`, default 100, 1,000, 10,000) it seeds a throwaway home, starts the real daemon on it, and times daemon start, `task.list`, changing one row, the web bridge's list build and push size, what a browser does with that push before React draws, and the CLI. `--branches` grows one repo's branch count and times the branch pickers. `--json <file>` saves a run; `--baseline <file>` prints each cell's change against one. It has no ceilings: it is a measuring tool, and its numbers are one machine's.
+
+Reference run, 2026-11-09, Apple Silicon:
+
+| | 100 | 1,000 | 10,000 |
+|---|---|---|---|
+| daemon start (ms) | 1084 | 866 | 858 |
+| `task.list` p50 (ms) / payload (KB) | 1.4 / 44 | 1.9 / 445 | 64 / 4,482 |
+| change one row: `task.pin` p50 (ms) | 1.2 | 3.3 | 28 |
+| bridge list build p50 (ms) | 0.7 | 5.0 | 74 |
+| bridge push to each browser (KB) | 58 | 584 | 5,888 |
+| browser: parse the push + build rail rows (ms) | 0.2 | 0.8 | 8.3 |
+| daemon memory (MB) | 122 | 155 | 341 |
+| `rove api list` wall (ms) | 77 | 83 | 228 |
+| list 100 / 1,000 / 10,000 branches (ms) | 17 | 32 | 193 |
+
+Not measured: React drawing the rail (6,668 rows at 10,000 tasks), which needs a browser.
+
 ## Terminal endurance probe
 
 `perf:golden` stays the fast release doctor. For multi-tab retention and

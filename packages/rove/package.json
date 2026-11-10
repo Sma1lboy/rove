@@ -63,6 +63,7 @@
     "check-i18n": "bun run scripts/check-i18n.ts",
     "test": "bun run test:fast && bun run test:socket",
     "perf:golden": "bun scripts/perf-golden.ts",
+    "rove-bench": "bun --conditions=browser scripts/rove-bench.ts",
     "pty:soak": "bun scripts/pty-soak.ts",
     "test:fast": "vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8",
     "test:socket": "ROVE_INCLUDE_SOCKET=1 vitest run test/daemon --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
