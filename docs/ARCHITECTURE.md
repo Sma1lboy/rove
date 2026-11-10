@@ -12,6 +12,7 @@ flowchart LR
   subgraph laptop["Your machine"]
     tui["TUI and rove api<br/>(you, scripts, agents)"]
     browser["Browser page"]
+    desktop["Desktop app"]
     bridge["rove-bridge<br/>(rove --web)"]
     core["Daemon<br/>tasks, issue store,<br/>PR poller, machine hub"]
     routines["Routines<br/>(cron, run by the daemon)"]
@@ -27,6 +28,7 @@ flowchart LR
 
   app -->|"Tailscale or<br/>Cloudflare tunnel"| bridge
   browser --> bridge
+  desktop --> bridge
   tui --> core
   tui --> pty
   bridge --> core
@@ -41,7 +43,7 @@ flowchart LR
   classDef client fill:#dbeafe,stroke:#2563eb,color:#111
   classDef engine fill:#ffedd5,stroke:#ea580c,color:#111
   classDef routine fill:#dcfce7,stroke:#16a34a,color:#111
-  class app,wxapp,tui,browser client
+  class app,wxapp,tui,browser,desktop client
   class pty,rhost engine
   class routines routine
   classDef planned fill:#fff,stroke:#6b7280,stroke-dasharray:5 5,color:#374151
