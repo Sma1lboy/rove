@@ -32,6 +32,7 @@ import {
   TaskNotFoundError,
 } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import { movePartition } from "./move-partition.ts"
 import { isPlaceholderDerivedBranch, sanitizeTaskTitle } from "./title.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
@@ -336,13 +337,13 @@ export class TaskEditor {
    */
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
-    await this.store.move(task.id, delta, this.movePartition(task))
+    await this.store.move(task.id, delta, movePartition(this.store.list(), task))
   }
 
   /** {@link moveTask} to the head of the same partition; a main = project to the top. */
   async moveTaskToTop(id: TaskId | string): Promise<void> {
     const task = this.requireTask(id)
-    await this.store.moveToFront(task.id, this.movePartition(task))
+    await this.store.moveToFront(task.id, movePartition(this.store.list(), task))
   }
 
   /**
@@ -367,20 +368,6 @@ export class TaskEditor {
     const next = rest.slice(head + 1).find((t) => projectOf(t) !== null && !seen.some((p) => samePath(p, t.repo)))
     if (next) await this.store.moveBlock(block, String(next.id), "before")
     else if (rest.length > 0) await this.store.moveBlock(block, String(rest.at(-1)?.id), "after")
-  }
-
-  private movePartition(task: Task): string[] {
-    const isMain = task.kind === "main"
-    return this.store
-      .list()
-      .filter((t) =>
-        isMain
-          ? (t.kind ?? "task") === "main"
-          : (t.kind ?? "task") !== "main" &&
-            samePath(t.repo, task.repo) &&
-            (t.pinned ?? false) === (task.pinned ?? false),
-      )
-      .map((t) => String(t.id))
   }
 
   /** Transitions are user-driven, not enforced, except `done` ↔ `error`
