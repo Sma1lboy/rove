@@ -8,6 +8,7 @@ export const en = {
   title: "Worktrees",
   loading: "Loading worktrees…",
   noProjects: "No local projects known to Rove yet.",
+  loadFailed: "Could not read the worktrees: {message}",
   noWorktrees: "No worktrees.",
 
   badge: {
@@ -85,6 +86,7 @@ export const zh: typeof en = {
   title: "工作树",
   loading: "正在加载 worktree…",
   noProjects: "Rove 还没有已知的本地项目。",
+  loadFailed: "读不到 worktree 列表：{message}",
   noWorktrees: "没有 worktree。",
 
   badge: {

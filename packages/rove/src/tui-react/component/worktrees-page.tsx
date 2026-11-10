@@ -74,6 +74,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   useEffect(() => {
     let disposed = false
     let fullLanded = false
+
     const orch = props.orchestrator
     if (!orch) {
       setProjects([])
@@ -98,8 +99,10 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         const live = new Set(flattenRows(rows).map((r) => r.path))
         setRemovingPaths((paths) => paths.filter((p) => live.has(p)))
       })
-      .catch(() => {
-        // A failed read keeps the fast-pass rows or the placeholder.
+      .catch((err: unknown) => {
+        // With rows on screen, a failed read is invisible; with none, it IS the page.
+        if (disposed || fullLanded) return
+        setLoadError(err instanceof Error ? err.message : String(err))
       })
     return () => {
       disposed = true
@@ -108,6 +111,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
 
   // Paths with a delete in flight: hidden, restored if the daemon call fails.
   const [removingPaths, setRemovingPaths] = useState<readonly string[]>([])
+  /** Both reads failing used to leave the page on its loading line forever. */
+  const [loadError, setLoadError] = useState<string | null>(null)
   const visibleProjects = (projects ?? []).map((p) => ({
     ...p,
     worktrees: p.worktrees.filter((w) => !removingPaths.includes(w.path)),
@@ -249,7 +254,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     return <text fg={fg}> {t(`worktrees.verdict.${row.verdictReason}`)}</text>
   }
 
-  const loading = projects === null
+  const loading = projects === null && loadError === null
   let rowBase = 0
 
   return (
@@ -271,6 +276,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
 
       {loading ? (
         <text fg={theme.textMuted}>{t("worktrees.loading")}</text>
+      ) : loadError !== null && projects === null ? (
+        <text fg={theme.textMuted}>{t("worktrees.loadFailed", { message: loadError })}</text>
       ) : visibleProjects.length === 0 ? (
         <text fg={theme.textMuted}>{t("worktrees.noProjects")}</text>
       ) : (
