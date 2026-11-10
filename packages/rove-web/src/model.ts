@@ -8,7 +8,7 @@
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
 import type { BridgeClient } from "./bridge.ts"
-import type { TasksEdit } from "./optimistic.ts"
+import { type TasksEdit, taskEdit } from "./optimistic.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
 
@@ -275,6 +275,47 @@ export class AppModel {
       ...(open ? [open] : []),
       ...this.remote.get().filter((task) => !task.machine?.stale),
     ]
+  }
+
+  /**
+   * Send an op that changes the task list. One that `optimistic.ts` can predict is drawn on the
+   * click; every such op is sent from here, so none waits a round trip to show.
+   */
+  act<T = unknown>(op: string, args: Readonly<Record<string, unknown>>): Promise<T> {
+    const edit = taskEdit(op, args)
+    const send = () => this.client.request<T>(op, args)
+    return edit ? this.optimistic(edit, send) : send()
+  }
+
+  /** The tab leaves the strip on the click; the daemon's own list follows, and puts it back if the close failed. */
+  closeTab(taskId: string, tabId: string): Promise<void> {
+    return this.tabAct(taskId, "tab.close", { taskId, tabId }, (tabs) => tabs.filter((tab) => tab.id !== tabId))
+  }
+
+  renameTab(taskId: string, tabId: string, title: string): Promise<void> {
+    return this.tabAct(taskId, "tab.rename", { taskId, tabId, title }, (tabs) =>
+      tabs.map((tab) => (tab.id === tabId ? { ...tab, title } : tab)),
+    )
+  }
+
+  private async tabAct(
+    taskId: string,
+    op: string,
+    args: Readonly<Record<string, unknown>>,
+    edit: (tabs: readonly TabRow[]) => readonly TabRow[],
+  ): Promise<void> {
+    const shown = this.tabs.get()[taskId]
+    if (shown) {
+      // A read already on its way predates the edit: drop its reply.
+      this.tabReads.set(taskId, (this.tabReads.get(taskId) ?? 0) + 1)
+      this.tabs.set({ ...this.tabs.get(), [taskId]: edit(shown) })
+      this.reselectIfClosed(taskId)
+    }
+    try {
+      await this.client.request(op, args)
+    } finally {
+      await this.refreshTabs([taskId])
+    }
   }
 
   /**

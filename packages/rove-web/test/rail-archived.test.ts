@@ -65,15 +65,13 @@ describe("the rail's Archived fold", () => {
 describe("Archive in the row menu", () => {
   function harness(reply: (payload: Record<string, unknown>) => unknown) {
     const calls: Array<[string, unknown]> = []
-    const model = {
-      optimistic: (_edit: unknown, request: () => Promise<unknown>) => request(),
-      client: {
-        request: async (op: string, payload: Record<string, unknown>) => {
-          calls.push([op, payload])
-          return reply(payload)
-        },
+    const client = {
+      request: async (op: string, payload: Record<string, unknown>) => {
+        calls.push([op, payload])
+        return reply(payload)
       },
-    } as unknown as AppModel
+    }
+    const model = { client, act: client.request } as unknown as AppModel
     return { model, calls }
   }
   const entry = (model: AppModel, row: TaskRow) =>

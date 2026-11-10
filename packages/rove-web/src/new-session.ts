@@ -177,6 +177,7 @@ export async function startUngrouped(
   const pick = engine ? { engine } : {}
   const { taskId } = await request<{ taskId: string }>("task.openScratch", pick)
   if (begin) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
+  // act-ok: the task was made a line ago and is not listed yet, so there is no row to edit.
   else if (prompt.trim()) await request("task.rename", { taskId, title: deriveTitleFromPrompt(prompt) })
   return taskId
 }

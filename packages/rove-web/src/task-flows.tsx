@@ -10,7 +10,6 @@ import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { archiveEdit, deleteEdit } from "./optimistic.ts"
 import { openTodos } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
@@ -199,9 +198,7 @@ export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "ti
   const children = childrenOf(model, task.id)
   const hasChildren = children.length > 0
   const remove = (opts: { readonly force?: true; readonly cascade?: true }) =>
-    model.optimistic(deleteEdit(task.id, opts.cascade === true), () =>
-      model.client.request("task.delete", { taskId: task.id, ...opts }).then(() => {}),
-    )
+    model.act("task.delete", { taskId: task.id, ...opts }).then(() => {})
   const forceBody = (err: unknown) =>
     // The title already names the task; its raw id is noise in the refusal.
     `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`
@@ -254,15 +251,14 @@ export function endMainConversationDialog(model: AppModel, task: TaskRow) {
   const title = task.label
   const endConversation = async () => {
     const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
-    for (const tab of tabs) await model.client.request("tab.close", { taskId: task.id, tabId: tab.id })
-    await model.refreshTabsNow(task.id)
+    for (const tab of tabs) await model.closeTab(task.id, tab.id)
   }
   // The child whose delete was refused, so the force confirm names it rather than the project.
   let blocked: string | undefined
   const endWithChildren = async (force: boolean) => {
     for (const child of children) {
       try {
-        await model.client.request("task.delete", {
+        await model.act("task.delete", {
           taskId: child.id,
           cascade: true,
           ...(force ? { force: true } : {}),
@@ -307,9 +303,7 @@ export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "l
   const archived = task.archived !== true
   const title = task.label
   const run = async (force: boolean) => {
-    await model.optimistic(archiveEdit(task.id, archived), () =>
-      model.client.request("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) }),
-    )
+    await model.act("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
     toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))
   }
   try {

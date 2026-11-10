@@ -15,7 +15,6 @@ import type { AppModel } from "./model.ts"
 import { moveMode, reorderingMain, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
-import { pinEdit } from "./optimistic.ts"
 import { openRetry } from "./retry.tsx"
 import { splitMenu } from "./split-actions.tsx"
 import { newChatHere, openScratchShell, openTab } from "./task-dialogs.tsx"
@@ -170,8 +169,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
             body={t("confirm.closeTabBody")}
             confirmLabel={t("menu.closeTab")}
             onConfirm={async () => {
-              await c.request("tab.close", { taskId: task.id, tabId: tab.id })
-              await model.refreshTabsNow(task.id)
+              await model.closeTab(task.id, tab.id)
             }}
           />,
         ),
@@ -265,7 +263,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
           title={t("menu.rename")}
           initial={task.title}
           submitLabel={t("dialog.save")}
-          onSubmit={(title) => c.request("task.rename", { taskId: task.id, title }).then(() => {})}
+          onSubmit={(title) => model.act("task.rename", { taskId: task.id, title }).then(() => {})}
         />,
       ),
   })
@@ -275,11 +273,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
-        void model
-          .optimistic(pinEdit(task.id, !task.pinned), () =>
-            c.request("task.pin", { taskId: task.id, pinned: !task.pinned }),
-          )
-          .catch((e) => toast(String(e), "error")),
+        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
@@ -299,7 +293,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         label: t(STATUS_KEYS[s]),
         checked: s === task.status,
         run: () =>
-          void c.request("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
+          void model.act("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
       }),
     ),
   })
