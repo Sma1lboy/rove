@@ -1,7 +1,10 @@
 import type { DaemonRpcClient } from "@sma1lboy/rove-daemon/client/rpc"
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../engine/engine-presets.ts"
+import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
+import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "../cli/api/tab-snapshot.ts"
+import { engineLaunchArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
   deliverToHostedKey,
@@ -15,10 +18,12 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
+import { launchReposOf, trustExtraRepos } from "../engine/multi-repo-launch.ts"
 import { enginePresence } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
+import { taskCwd } from "../orchestrator/task-tree.ts"
 import type { PromptDeliveryIntent } from "../state/repo-init.ts"
 import type { VendorId } from "../types/task.ts"
 
@@ -29,18 +34,31 @@ async function getTask(link: DaemonRpcClient, taskId: string): Promise<Serialize
   return task
 }
 
+/**
+ * `worktreePath` is where the engine runs: the worktree root plus the task's `cwdSubpath`.
+ * `repos` is set only for a multi-repo task (or a sharer of one), once all its worktrees exist.
+ */
 async function ensureTaskWorktree(link: DaemonRpcClient, taskId: string) {
   const task = await getTask(link, taskId)
   if (task.deletion) throw new TaskDeletingError(taskId)
-  if (task.worktreePath) return { task, worktreePath: task.worktreePath }
+  const hasExtras = Boolean(task.extraRepos?.length)
+  if (task.worktreePath && !hasExtras) {
+    // A sharer follows its owner's worktrees, extras included.
+    const repos = task.sharesWorkspaceOf ? await launchReposOf(link, taskId) : undefined
+    return { task, worktreePath: taskCwd(task), repos }
+  }
   const { worktreePath } = await link.request<{ worktreePath: string | null }>("task.ensureWorktree", { taskId })
   if (!worktreePath) throw new Error(`task ${taskId} has no worktree`)
-  return { task, worktreePath }
+  return {
+    task,
+    worktreePath: taskCwd({ worktreePath, cwdSubpath: task.cwdSubpath }),
+    repos: hasExtras || task.sharesWorkspaceOf ? await launchReposOf(link, taskId) : undefined,
+  }
 }
 
 export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: string) {
-  const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
-  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" })
+  const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
+  const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" }, repos)
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
@@ -80,36 +98,52 @@ export async function startTaskSessionWithPromptAdapter(
   taskId: string,
   prompt: string,
 ): Promise<{ started: boolean; error?: string }> {
-  const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
+  const { task, worktreePath, repos } = await ensureTaskWorktree(link, taskId)
   // So later Rove-injected text (e.g. timer-fired quota resume) matches the
   // user's language. Best-effort: must never block the session.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
-  // "new-task", not "explicit": callers just created the task, so the prompt
-  // gets the branch-rename coda like other new-worktree entry points.
-  const launch = taskEngineLaunch(task, worktreePath, {
-    kind: "new-task",
-    prompt,
+  const base = engineLaunchArgv({
+    command: task.command,
+    vendor: task.vendor,
+    effort: task.modelEffort,
+    model: task.model,
   })
+  // A task whose engine was stopped holds its conversation on the tab row: reopen that one.
+  const row = (await readDaemonTabs(link, taskId).catch(() => undefined))?.tabs.find((tab) => tab.id === "tab-1")
+  const held = row?.kind === "engine" && row.spawned && row.sessionId ? row.sessionId : null
+  const resumeArgv = held ? engineResumeArgv(base, task.vendor, held) : null
   const host = await ensureHostedSessionHost()
   try {
-    const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
-    if (!opened.alive) return { started: false, error: "hosted session did not open" }
-    const engineBin = engineLaunchArgv({
-      command: task.command,
-      vendor: task.vendor,
-      effort: task.modelEffort,
-      model: task.model,
-    })[0]
-    const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
-    // Paste-delivery vendor (kimi): a paste that never lands is not started.
-    if (launch.firstMessage) {
-      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, wait)
-      if (outcome !== null) return { started: true }
-      return { started: false, error: await startFailureReason(host.rpc, launch.key) }
+    const start = async (argv: readonly string[]): Promise<{ started: boolean; error?: string; key: string }> => {
+      // "new-task", not "explicit": callers just created the task, so the prompt
+      // gets the branch-rename coda like other new-worktree entry points.
+      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt }, repos, argv)
+      const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
+      if (!opened.alive) return { started: false, error: "hosted session did not open", key: launch.key }
+      const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
+      // Paste-delivery vendor (kimi): a paste that never lands is not started.
+      const up = launch.firstMessage
+        ? await pastePromptWhenEngineUp(host.rpc, launch.key, base[0], launch.firstMessage, wait)
+        : // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
+          await awaitEngineProcess(host.rpc, launch.key, base[0], wait)
+      if (up !== null) return { started: true, key: launch.key }
+      return { started: false, error: await startFailureReason(host.rpc, launch.key), key: launch.key }
     }
-    // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
-    if ((await awaitEngineProcess(host.rpc, launch.key, engineBin, wait)) !== null) return { started: true }
-    return { started: false, error: await startFailureReason(host.rpc, launch.key) }
+    if (resumeArgv) {
+      const resumed = await start(resumeArgv)
+      if (resumed.started) return { started: true }
+      // A conversation the engine no longer has must not wedge the task: clear the
+      // failed launch's shell (an open would reattach to it) and start a new one.
+      await killHostedSessions(host.rpc, [resumed.key], { wait: true })
+    }
+    const pinned = withPinnedSessionId(base, task.vendor)
+    const { key: _key, ...fresh } = await start(pinned.argv)
+    if (fresh.started) {
+      // The row the next start resumes from; an engine that mints its own id reports it through its hook.
+      await publishCliTabSnapshot(link, taskId, pinned.sessionId)
+      await markCliTabSession(link, taskId, "tab-1", pinned.sessionId)
+    }
+    return fresh
   } finally {
     host.close()
   }
@@ -122,24 +156,32 @@ async function startFailureReason(rpc: Parameters<typeof hostedSessionFailureLin
   return tail ? `${base}; last session output: ${tail}` : base
 }
 
-function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptIntent: PromptDeliveryIntent) {
+function taskEngineLaunch(
+  task: SerializedTask,
+  worktreePath: string,
+  promptIntent: PromptDeliveryIntent,
+  repos: readonly TaskRepoView[] | undefined,
+  argv: readonly string[] = engineLaunchArgv({
+    command: task.command,
+    vendor: task.vendor,
+    effort: task.modelEffort,
+    model: task.model,
+  }),
+) {
   // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
+  trustExtraRepos(task.vendor, repos)
   return buildEngineSessionLaunch({
     task: {
       id: task.id,
       kind: task.kind,
       vendor: task.vendor,
       repo: task.repo,
+      repos,
     },
     worktreePath,
-    shell: resolveLoginShell({ fallback: "/bin/zsh" }),
-    argv: engineLaunchArgv({
-      command: task.command,
-      vendor: task.vendor,
-      effort: task.modelEffort,
-      model: task.model,
-    }),
+    shell: resolveSessionShell(),
+    argv,
     promptIntent,
   })
 }
@@ -159,6 +201,7 @@ export async function deliverPromptToLiveEngineAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<boolean> {
@@ -170,7 +213,7 @@ export async function deliverPromptToLiveEngineAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return false
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") return false
@@ -198,6 +241,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -211,7 +255,7 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
       command: task.command,
       vendor: task.vendor,
     })
-    const key = findHostedEngineKey(sessions, task.id, engineArgv[0])
+    const key = findHostedEngineKey(sessions, task.id, engineArgv[0], task.scope)
     if (!key) return { outcome: "no-session" }
     const presence = await enginePresence(sessions.find((s) => s.key === key)?.pid, engineArgv)
     if (presence.kind !== "engine") {
@@ -235,6 +279,7 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
     readonly vendor?: VendorId
     readonly command?: string
     readonly worktreePath: string
+    readonly scope?: PtyScope
   },
   prompt: string,
 ): Promise<
@@ -243,7 +288,8 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
   try {
-    const key = `${target.id}::${target.tabId}`
+    const key = hostedKeyFor(target.id, target.tabId, target.scope)
+    if (!key) return { outcome: "no-session" }
     let sessions: Awaited<ReturnType<typeof listHostedSessions>>
     try {
       sessions = await listHostedSessions(host.rpc)
@@ -265,15 +311,28 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   }
 }
 
-export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> {
+export async function tearDownTaskSessionAdapter(taskId: string, scope?: TeardownScope): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return
   try {
     // `wait`: every caller removes the worktree next, and on Windows a child
     // still exiting with its cwd inside makes it undeletable.
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId), { wait: true })
+    const keys = hostedTaskKeys(await listHostedSessions(host.rpc), taskId, scope)
+    await killHostedSessions(host.rpc, keys, { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
+  } finally {
+    host.close()
+  }
+}
+
+/** Stop one tab's engine and forget its PTY; the tab row keeps the conversation a later start resumes. */
+export async function stopTaskEngineTabAdapter(taskId: string, tabId: string, scope?: PtyScope): Promise<void> {
+  const host = await openHostedSessionHost()
+  if (!host) return
+  try {
+    const key = hostedKeyFor(taskId, tabId, scope)
+    if (key) await killHostedSessions(host.rpc, [key], { wait: true })
   } finally {
     host.close()
   }

@@ -13,6 +13,8 @@ import type {
   UiPrefsPayload,
   UiPromptPayload,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { ReadableState } from "../lib/external-store.ts"
 import type { CommandTab, EngineTab } from "../tui/workspace/terminal-tabs-core.ts"
@@ -82,6 +84,8 @@ export interface RemoteOrchestratorOptions {
  * Accessor/setter closures `handleOrchestratorEvent` and `performInit` use in
  * place of `this`; built once from the same state the class's read methods return.
  */
+export type RawChannel = "state" | "machines"
+
 export interface OrchestratorSignals {
   /** Write one `graphics.write` payload verbatim. Not a signal: storing a
    *  picture would replay it on every reconnect. */
@@ -119,10 +123,16 @@ export interface OrchestratorSignals {
   readonly setTabCloseSig: (next: TabClosePayload | null) => void
   readonly setTabRenameSig: (next: TabRenamePayload | null) => void
   readonly setTabAddSig: (next: TabAddSignal | null) => void
+  /** `tabs.changed`, one call per event (`remote-orchestrator-tabs.ts`). */
+  readonly emitTabsChanged: (event: TabsChangedPayload) => void
+  /** `row.status`, the whole snapshot each time (`remote-orchestrator-row-status.ts`). */
+  readonly emitRowStatus: (payload: RowStatusPayload) => void
   readonly setUiPromptSig: (next: UiPromptPayload | null) => void
   readonly engineLifecycleAcc: ReadableState<EngineLifecycleMap>
   readonly setEngineLifecycleSig: (next: EngineLifecycleMap) => void
   readonly setUiPrefsSig: (next: UiPrefsPayload | null) => void
+  /** Whole-snapshot channels a consumer decodes itself: `state` (`kv-core.ts`), `machines` (`machines/feed.ts`). */
+  readonly setRawSig: (name: RawChannel, payload: unknown) => void
   readonly setKeybindingsRevSig: (next: number | null) => void
   readonly setConnectionState: (next: DaemonConnectionState) => void
 }

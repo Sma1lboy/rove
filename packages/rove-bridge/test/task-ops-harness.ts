@@ -3,7 +3,7 @@ import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { TASK_OPS } from "../src/ops/tasks.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
 
-export type Call = { verb: string; argv: readonly string[] } | { rpc: string; payload: unknown }
+export type Call = { verb: string; argv: readonly string[]; machine?: string } | { rpc: string; payload: unknown }
 
 /** Records every verb/RPC and answers from canned replies keyed by name. */
 export function fakeApi(replies: Record<string, unknown> = {}): { api: BridgeApi; calls: Call[] } {
@@ -13,8 +13,8 @@ export function fakeApi(replies: Record<string, unknown> = {}): { api: BridgeApi
     return typeof r === "function" ? (r as () => unknown)() : r
   }
   const api: BridgeApi = {
-    async verb(name, argv) {
-      calls.push({ verb: name, argv })
+    async verb(name, argv, machine) {
+      calls.push(machine === undefined ? { verb: name, argv } : { verb: name, argv, machine })
       return reply(name) as never
     },
     async rpc(name, payload) {
@@ -51,11 +51,13 @@ export async function refused(op: string, args: Record<string, unknown>, replies
   ).toEqual([])
 }
 
-/** Each test starts with no saved repos and gets the real deps back afterwards. */
+/** Each test starts with no saved repos and no engine memory (the real one is the user's state.json), and gets the real deps back afterwards. */
 export function isolateTaskOpDeps(): void {
   const saved = { ...taskOpDeps }
   beforeEach(() => {
     taskOpDeps.savedRepos = () => []
+    taskOpDeps.rememberEngine = () => {}
+    taskOpDeps.preferredEngine = () => "claude"
   })
   afterEach(() => {
     Object.assign(taskOpDeps, saved)

@@ -14,11 +14,11 @@ matters.
 - `bun run test` — the package's required fast + socket aggregate.
 
 The render track is a required macOS CI/release gate. It uses Bun's native
-OpenTUI renderer and carries the same 50% per-touched-file floor as Vitest for
-`.tsx` components and React-owning hooks. The separate required visual gate
+OpenTUI renderer to mount `.tsx` components and React-owning hooks and assert on
+real frames; it enforces no line-coverage floor. The separate required visual gate
 runs the committed browser journey on Linux, which compiles node-pty and can
-create a real PTY in the hosted environment. The Ubuntu V8 coverage job remains
-the fast/unit track; it does not pretend Node can execute OpenTUI components.
+create a real PTY in the hosted environment. Vitest remains the fast/unit
+track; it does not pretend Node can execute OpenTUI components.
 
 ## Harness terminal lifetime
 
@@ -65,7 +65,7 @@ publish both states on one share-server series board as well.
 The evidence check covers `packages/rove/src/tui/`,
 `packages/rove/src/tui-react/` and `packages/rove-harness/src/`, including deleted
 or renamed files. `bun run pre-pr -- --body-file <body>` runs it against the body
-you will open the PR with; `pr-gates.yml` re-runs it by hand on a PR's current
+you will open the PR with; `pr-gates.yml` runs it on others' PRs, and by hand on a PR's current
 description. A change
 that cannot move a frame (a dropped import, a type moved to another module) may
 instead carry one `ui-evidence: none — <reason>` line; the reason is what the
@@ -487,6 +487,26 @@ the source CLI into the hook command itself. A fresh HOME also needs
 `ROVE_PTY_DEV_COMMAND` must be a script path — nested quotes are lost when the
 dev server re-spawns the sidecar.
 
+## Scale: `rove-bench`
+
+`bun run rove-bench` from `packages/rove` answers "what happens at 10,000 tasks". For each size (`--sizes`, default 100, 1,000, 10,000) it seeds a throwaway home, starts the real daemon on it, and times daemon start, `task.list`, changing one row, the web bridge's list build and push size, what a browser does with that push before React draws, and the CLI. `--branches` grows one repo's branch count and times the branch pickers. `--json <file>` saves a run; `--baseline <file>` prints each cell's change against one. It has no ceilings: it is a measuring tool, and its numbers are one machine's.
+
+Reference run, 2026-11-09, Apple Silicon:
+
+| | 100 | 1,000 | 10,000 |
+|---|---|---|---|
+| daemon start (ms) | 1084 | 866 | 858 |
+| `task.list` p50 (ms) / payload (KB) | 1.4 / 44 | 1.9 / 445 | 64 / 4,482 |
+| change one row: `task.pin` p50 (ms) | 1.2 | 3.3 | 28 |
+| bridge list build p50 (ms) | 0.7 | 5.0 | 74 |
+| bridge push to each browser (KB) | 58 | 584 | 5,888 |
+| browser: parse the push + build rail rows (ms) | 0.2 | 0.8 | 8.3 |
+| daemon memory (MB) | 122 | 155 | 341 |
+| `rove api list` wall (ms) | 77 | 83 | 228 |
+| list 100 / 1,000 / 10,000 branches (ms) | 17 | 32 | 193 |
+
+Not measured: React drawing the rail (6,668 rows at 10,000 tasks), which needs a browser.
+
 ## Terminal endurance probe
 
 `perf:golden` stays the fast release doctor. For multi-tab retention and
@@ -527,48 +547,20 @@ for post-failure inspection and never points at production state.
 - daemon/orchestrator/engine edits are verified after replacing stale daemon
   processes in the chosen sandbox.
 
-## Coverage gate
+## Coverage
 
-`render-track` (bun-test render lcov) holds every file a PR touches to a 50%
-line floor. Only touched files are gated, so a legacy file with thin coverage
-stays green until someone edits it. The vitest-side `coverage-cap` job was
-removed — the render track is now the only coverage gate.
-
-### The escape hatch, and when it is honest
-
-A `coverage-exemption: <path> — <reason>` line in the PR body waives one file.
-It is a paper trail, not a mute button: the next person reads it as "someone
-evaluated this and concluded the floor does not apply". Three situations come up,
-and only two of them justify one.
-
-- **Structurally untestable** — the render track cannot mount it at all.
-  `tui-react/workspace/host.tsx` and `workspace/TerminalTabs.tsx` are integration
-  layers needing a live daemon + PTY; their behaviour is covered by the behavior
-  track and the visual-ground-truth harness instead. Exemption is correct, and the
-  reason should name the covering track.
-- **Genuinely untested** — the file is ordinary code that vitest reaches fine, and
-  the number is low because nobody wrote the test. **Write the test.** An exemption
-  here turns the gate into a rubber stamp. (Two CLI modules sat at 28% and 41% and
-  went to 100% once someone actually tested them.)
-- **Pre-existing gap, unrelated change** — the file is partly testable, its gap
-  predates the PR, and the diff is something like a constant rename. Exemption is
-  reasonable, but say *that*: "pre-existing gap, not introduced by this PR". Do not
-  dress it up as untestable — the coverage number itself contradicts you.
+No CI job enforces a line-coverage floor: `render-track` dropped its 50%
+per-touched-file floor and the `coverage-exemption:` lines it read. Line
+coverage says a line ran, not that anything checked it; write tests by the
+"pin behavior" rule in `AGENTS.md` instead.
 
 ### Editing the PR body does not re-run CI
 
-The gate reads the body **during a workflow run**, so an exemption added after the
-failing run is invisible until a new run starts:
-
-```bash
-gh pr edit <n> --body-file <file>          # 1. add the exemption
-git commit --allow-empty -m "chore: re-trigger CI"   # 2. THEN force a fresh run
-git push
-```
-
-`gh run rerun` does **not** work here — it replays the frozen event payload, which
-carries the body as it was before the edit. Three PRs hit this in one night; each
-had a correct exemption sitting in the body that no run ever read.
+`pr-gates.yml` reads the PR body **during a workflow run**, so a fix to the body
+(UI evidence, an exemption line) after a failing run is invisible until a new run
+starts: `gh pr edit <n> --body-file <file>`, then push a commit
+(`git commit --allow-empty -m "chore: re-trigger CI"`). `gh run rerun` replays the
+frozen event payload, which carries the old body.
 
 ## Required pre-PR command
 

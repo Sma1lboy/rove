@@ -9,6 +9,7 @@
  */
 
 import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
+import { effortLabel } from "../../../tui/lib/effort-glyph"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
@@ -16,6 +17,7 @@ import { DialogBody } from "../../ui/dialog-body"
 import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
 import { EngineHookReadiness } from "../engine-hook-readiness"
 import { FailureHint } from "../failure-hint"
+import { ModelSection } from "../model-field"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -60,13 +62,6 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
             onPick={(tabId) => vm.switchToTab(tabId)}
           />
         </DialogSection>
-        {/* No depth / model / effort rows here (owner 2026-09-19). Depth and
-            reasoning level belong to auto-routing, which owns that decision in
-            Settings; a pinned model is a per-task exception, not something
-            every new task should be asked about. Both are still settable
-            after the fact — `rove api update --model` / `--effort`, or the
-            change-engine picker (`v`). What is left is what creating a task
-            actually needs: where, with which engine, opening what. */}
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
         <DialogSection
@@ -85,6 +80,35 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           />
         </DialogSection>
         <EngineHookReadiness vendor={vm.vendor} />
+        {/* Model and effort come from the engine's registry entry and show only for engines that declare them. */}
+        {vm.modelVisible ? (
+          <ModelSection
+            field={vm.modelField}
+            focused={vm.field === "model"}
+            onFocus={() => vm.setField("model")}
+            onSubmit={() => vm.advanceFrom("model")}
+          />
+        ) : null}
+        {vm.effortChoices.length > 0 ? (
+          <DialogSection
+            label={t("newTask.field.effort")}
+            focused={vm.field === "effort"}
+            hint="←/→"
+            onPress={() => vm.setField("effort")}
+          >
+            <ChipRow
+              choices={vm.effortChoices}
+              selected={vm.effort}
+              display={(choice) =>
+                choice === "" ? t("tasks.changeEngine.noEffort") : effortLabel(vm.effortChoices.slice(1), choice)
+              }
+              onPick={(choice) => {
+                vm.setEffort(choice)
+                vm.setField("effort")
+              }}
+            />
+          </DialogSection>
+        ) : null}
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}

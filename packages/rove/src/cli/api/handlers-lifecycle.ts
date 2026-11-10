@@ -5,14 +5,18 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import type { LandResult } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { pathWithin, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { gitRepoOf } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { reportBranchDeletion } from "./delete-branch-report.ts"
-import { verifiedSelfSession } from "./dispatcher.ts"
+import { type Dispatcher, ownSession } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, splitDaemonCode } from "./types.ts"
 
@@ -32,7 +36,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   if (groupId && taskIdFlag) throw new ApiError("pass --task-id or --group, not both", "BAD_FLAG")
   if (!groupId && !taskIdFlag) throw new ApiError("delete needs --task-id ID or --group GROUPID", "MISSING_TARGET")
   // One identity read for the whole round — it shells out to verify.
-  const self = await verifiedSelfSession()
+  const self = await ownSession(daemon)
   if (!groupId) return deleteOne(ctx, taskIdFlag as string, self)
 
   const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
@@ -66,11 +70,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   return { groupId, count: members.length, failures, results }
 }
 
-async function deleteOne(
-  ctx: VerbContext,
-  taskId: string,
-  self: Awaited<ReturnType<typeof verifiedSelfSession>>,
-): Promise<unknown> {
+async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | null): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const force = ctx.args.bool("force") ?? false
   // Opt-in: by default git keeps the branch as the durable record.
@@ -78,40 +78,82 @@ async function deleteOne(
   // A SEPARATE opt-in, never implied by --delete-branch: a remote delete is
   // unrecoverable by anyone and breaks an open PR. Two radii, two consents.
   const deleteRemote = ctx.args.bool("delete-remote") ?? false
+  // Opt-in: the whole subtree goes; default re-parents the task's children.
+  const cascade = ctx.args.bool("cascade") ?? false
   // Read BEFORE the delete: the task row is gone once removal resolves.
   const subject =
     deleteBranch || deleteRemote
-      ? (await daemon.request<{ task: { repo: string; branch?: string } }>("task.get", { taskId })).task
+      ? (
+          await daemon.request<{ task: { repo: string; gitRepo?: string; branch?: string; worktreePath?: string } }>(
+            "task.get",
+            {
+              taskId,
+            },
+          )
+        ).task
       : undefined
   // The daemon's audit line names WHO asked, from the verified identity —
   // never the bare env: unverifiable stays unattributed.
-  let res: { taskId: string; queued: boolean }
+  let res: { taskId: string; queued: boolean; deleted?: string[]; teardown?: Record<string, TeardownScope> }
   try {
     res = (await daemon.request("task.delete", {
       taskId,
       force,
       deleteBranch,
+      ...(cascade ? { cascade } : {}),
       ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-    })) as { taskId: string; queued: boolean }
+    })) as typeof res
   } catch (err) {
     throw deleteRecoveryError(err, taskId)
   }
   // task.delete never kills the hosted session; without this the
   // `rove-<id>` session + engine orphan invisibly. Mirrors the TUI's
-  // finishDeletedTaskFlow, after the RPC succeeds.
-  await ctx.runtime.tearDownSession(taskId)
+  // finishDeletedTaskFlow, after the RPC succeeds. A cascade tears down every
+  // task of the subtree, not just the one named.
+  const removing = res.deleted ?? [taskId]
+  // `teardown` (from the daemon, which knows the aliases): PTYs surviving children still live in are spared.
+  for (const id of removing) await ctx.runtime.tearDownSession(id, res.teardown?.[id])
   if (!res.queued) return { ...res, status: "not_found" as const }
   // Removal runs in the background; `--wait` asks for the OUTCOME. A branch
   // flag implies it: git refuses to delete a branch a live worktree holds, so
   // the branch report is only truthful once removal has resolved.
   if (!ctx.args.bool("wait") && !subject) return { ...res, status: "queued" as const }
-  const outcome = await awaitDeletion(daemon, taskId)
+  const outcomes = []
+  for (const id of removing) outcomes.push(await awaitDeletion(daemon, id))
+  // One verdict for the whole subtree: the first failure, else a still-pending member, else removed.
+  const outcome =
+    outcomes.find((o) => o.status === "failed") ?? outcomes.find((o) => o.status === "pending") ?? outcomes[0]
+  if (!outcome) return { ...res, status: "removed" as const }
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"
-      ? reportBranchDeletion(subject.repo, subject.branch ?? "", { deleteBranch, force, deleteRemote })
+      ? reportBranchDeletion(gitRepoOf(subject), subject.branch ?? "", {
+          deleteBranch,
+          force,
+          deleteRemote,
+          heldBy: await branchHolder(daemon, subject, removing),
+        })
       : undefined
   return { ...res, ...outcome, ...(branch ? { branch } : {}) }
+}
+
+/** Title of a row outside `gone` that still holds the deleted task's branch or directory. */
+async function branchHolder(
+  daemon: DaemonRpc,
+  subject: { repo: string; gitRepo?: string; branch?: string; worktreePath?: string },
+  gone: readonly string[],
+): Promise<string | undefined> {
+  const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+  const holder = tasks.find(
+    (t) =>
+      !gone.includes(t.id) &&
+      ((subject.worktreePath && t.worktreePath && samePath(t.worktreePath, subject.worktreePath)) ||
+        (subject.branch &&
+          t.branch === subject.branch &&
+          gitRepoOf(t) === gitRepoOf(subject) &&
+          workspaceCapabilities(t).ownsBranch)),
+  )
+  return holder?.title
 }
 
 /**
@@ -140,20 +182,36 @@ async function awaitDeletion(
   }
 }
 
+/** `archive` / `unarchive`: hide or restore a task and its descendants; no session, worktree or branch is touched. */
+async function setArchived(ctx: VerbContext, archived: boolean): Promise<unknown> {
+  const taskId = ctx.args.require("task-id")
+  const res = await daemonOf(ctx).request<{ archived: string[] }>("task.archive", {
+    taskId,
+    archived,
+    force: archived && (ctx.args.bool("force") ?? false),
+  })
+  return { taskId, archived, ids: res.archived }
+}
+
+export const archiveTask = (ctx: VerbContext): Promise<unknown> => setArchived(ctx, true)
+export const unarchiveTask = (ctx: VerbContext): Promise<unknown> => setArchived(ctx, false)
+
 export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
+  // Only one repo of a multi-repo task; absent = every repo.
+  const repo = ctx.args.str("repo")
   // `--dry-run`: the land's own preflight, writing nothing — destination
   // branch (the base checkout's current one), commit count, base dirtiness,
   // and the refusal if any.
   if (ctx.args.bool("dry-run") === true) {
-    const res = await daemon.request<{ result: unknown }>("task.landPreflight", { taskId })
+    const res = await daemon.request<{ result: unknown }>("task.landPreflight", { taskId, ...(repo ? { repo } : {}) })
     return res.result
   }
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
-  let res: { result: unknown }
+  let res: { result: LandResult }
   try {
-    res = await daemon.request<{ result: unknown }>("task.land", {
+    res = await daemon.request<{ result: LandResult }>("task.land", {
       taskId,
       strategy,
       deleteBranch: ctx.args.bool("delete-branch") ?? false,
@@ -163,11 +221,39 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // Sent on EVERY land with a cwd: the daemon refuses to remove the
       // caller's own worktree, else an agent landing its own task deletes its cwd.
       ...(ctx.caller.cwd !== undefined ? { callerCwd: ctx.caller.cwd } : {}),
+      ...(repo ? { repo } : {}),
     })
   } catch (err) {
-    throw landRecoveryError(err, taskId)
+    throw landStoppedError(err, taskId) ?? landRecoveryError(err, taskId)
   }
-  return { ok: true, taskId, ...(res.result as object) }
+  return { ok: true, taskId, ...res.result }
+}
+
+/** What the daemon attaches to the error of a multi-repo land that stopped partway (`LandStoppedError`). */
+interface LandStoppedData {
+  readonly stopped?: { readonly repo: string; readonly code: string }
+  readonly repos?: LandResult["repos"]
+}
+
+/**
+ * A multi-repo land that stopped partway (a conflict, a refusal): the same
+ * error a one-repo land raises, plus `repos` — what landed already, what is
+ * still pending — and the way to resume. `null` for any other failure.
+ */
+function landStoppedError(err: unknown, taskId: string): ApiError | null {
+  const data =
+    err instanceof Error && err.name === "LandStoppedError" ? (err as { data?: LandStoppedData }).data : undefined
+  if (!data?.stopped) return null
+  const head = landRecoveryError(err, taskId)
+  const recovery = head instanceof ApiError ? head.data : undefined
+  const message = errorMessage(err)
+  return new ApiError(splitDaemonCode(message)?.rest ?? message, data.stopped.code, {
+    taskId,
+    failedRepo: data.stopped.repo,
+    repos: data.repos,
+    hint: `repos that already landed stay landed — fix ${data.stopped.repo}, then run \`land\` again: it resumes with the repos still pending`,
+    ...recovery,
+  })
 }
 
 /**
@@ -245,7 +331,7 @@ export async function removeTaskWorktree(ctx: VerbContext): Promise<unknown> {
     })
   }
   const wt = canonicalize(worktreePath)
-  if (samePath(wt, canonicalize(task.repo))) {
+  if (samePath(wt, canonicalize(gitRepoOf(task)))) {
     throw new ApiError(
       `refusing to remove ${worktreePath} — it is the project's own checkout, not a Rove worktree`,
       "BASE_CHECKOUT",

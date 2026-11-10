@@ -16,8 +16,10 @@ import {
   type UiPromptPayload,
   isAttentionInboxState,
   isRoutineInboxState,
-  parseDaemonStopReason,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
+import { parseDaemonStopReason } from "@sma1lboy/rove-daemon/daemon/stop-reason"
+import type { TabsChangedPayload } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import type { EngineActivityDetail, TaskActivityState } from "../engine/hook-events.ts"
 import { isAddedTab } from "../tui/workspace/tabs-adopt.ts"
 import type { UpdateInfo } from "../version.ts"
@@ -252,7 +254,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     return
   }
   if (name === "task.jobs") {
-    const p = payload as { taskId?: string; kind?: string; phase?: string } | undefined
+    const p = payload as { taskId?: string; kind?: string; phase?: string; progress?: unknown } | undefined
     if (typeof p?.taskId !== "string" || p.kind !== "ensureWorktree") {
       logClientError(
         "orch",
@@ -262,8 +264,11 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     }
     const current = signals.taskJobsAcc()
     if (p.phase === "running") {
+      // A bare `running` (a second caller joining the same add) keeps the percent already shown.
+      const progress =
+        typeof p.progress === "number" && Number.isFinite(p.progress) ? p.progress : current.get(p.taskId)?.progress
       const next = new Map(current)
-      next.set(p.taskId, { kind: p.kind })
+      next.set(p.taskId, progress === undefined ? { kind: p.kind } : { kind: p.kind, progress })
       signals.setTaskJobsSig(next)
       return
     }
@@ -319,6 +324,29 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setTabRenameSig(p as TabRenamePayload)
+    return
+  }
+  if (name === "tabs.changed") {
+    const p = payload as Partial<TabsChangedPayload> | undefined
+    const state = p?.state
+    if (
+      typeof p?.taskId !== "string" ||
+      typeof p.rev !== "number" ||
+      (state !== null && (typeof state !== "object" || !Array.isArray(state?.tabs)))
+    ) {
+      logClientError("orch", `dropped tabs.changed event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.emitTabsChanged(p as TabsChangedPayload)
+    return
+  }
+  if (name === "row.status") {
+    const p = payload as Partial<RowStatusPayload> | undefined
+    if (typeof p?.rev !== "number" || typeof p.tasks !== "object" || p.tasks === null) {
+      logClientError("orch", `dropped row.status event: malformed payload (${describePayload(payload)})`)
+      return
+    }
+    signals.emitRowStatus(p as RowStatusPayload)
     return
   }
   if (name === "tab.add") {
@@ -389,6 +417,10 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       return
     }
     signals.setUiPrefsSig(decoded)
+    return
+  }
+  if (name === "state" || name === "machines") {
+    signals.setRawSig(name, payload)
     return
   }
   if (name === "keybindings") {

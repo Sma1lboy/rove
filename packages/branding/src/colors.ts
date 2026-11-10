@@ -23,7 +23,7 @@ const dark = {
   magenta: "#9B87F5", // highlights.violet
   yellow: "#E8C96B", // warning.dark
   orange: "#D97757", // secondary
-  red: "#D47563", // error.dark
+  red: "#EC6F74", // error.dark
 } as const
 
 const light: typeof dark = {

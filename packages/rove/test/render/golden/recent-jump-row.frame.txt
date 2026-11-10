@@ -9,14 +9,14 @@
 | Routines                     |
 | Issues                       |
 |                              |
-|  ↩ Recent: bravo             |
+| ↩ Recent: bravo              |
 |                              |
 | rove ─────────────────────── |
-| ▎feat/alpha                ? |
-|▌▎○ build                     |
-| ▎○ review                    |
-| ▎feat/bravo                ? |
-| ▎○ tests                     |
+|▌○ alpha                      |
+| ○ bravo                      |
+|                              |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

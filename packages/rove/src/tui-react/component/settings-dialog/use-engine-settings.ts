@@ -12,6 +12,7 @@ import {
   defaultEngineCommand,
   engineCommandKey,
   engineNameKey,
+  engineRenamedFrom,
   humanizeSlug,
 } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
@@ -84,6 +85,14 @@ export function useEngineSettings(
   }
   function engineCommandText(vendor: VendorId): string {
     return engineOverride(vendor) || defaultEngineCommand(vendor).join(" ")
+  }
+  /** True when the launch command is the user's own, not the registry default. */
+  function engineHasCommandOverride(vendor: VendorId): boolean {
+    return engineOverride(vendor).length > 0
+  }
+  /** The registry name when the user renamed this engine (a muted subtitle), else undefined. */
+  function engineRenamedFromName(vendor: VendorId): string | undefined {
+    return engineRenamedFrom(vendor, engineNameOverride(vendor))
   }
   function engineIsDefault(vendor: VendorId): boolean {
     // A user-added engine has no built-in default, so it never reads as
@@ -221,6 +230,8 @@ export function useEngineSettings(
     engineName,
     engineProtocol,
     engineCommandText,
+    engineHasCommandOverride,
+    engineRenamedFromName,
     engineIsDefault,
     defaultEngine,
     setEngineDefault,

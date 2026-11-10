@@ -8,18 +8,26 @@
 import { type SkipVerdict, deliveryFooter } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { IssueStatus } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
-import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { roveApiInvocation } from "../../engine/interactive-command.ts"
+import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
-import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
+import { ownSession, readOwnDispatcher, recordSend, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
+import { assertNotEmptySuccess } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { markGateAnswersDelivered, takeOwedGateAnswers } from "./handlers-gates.ts"
+import { assertQueueFlags, queueIfBusy } from "./handlers-queue.ts"
 import { readRunnability } from "./handlers-runnability.ts"
-import { filterTaskList, listFilters } from "./list-filter.ts"
+import { handoffBrief } from "./handoff-brief.ts"
+import { replaceDeadTab } from "./handoff-replace.ts"
+import { filterTaskList, listFields, listFilters, projectTasks } from "./list-filter.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
+import { awaitingChoiceError, tabsAwaitingChoice } from "./send-menu-guard.ts"
+import { conversationHome, failSharedChild, withFirstConversationLock } from "./shared-child.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
@@ -53,71 +61,6 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   return state
 }
 
-/**
- * Refuse a `succeeded:` report from a worker whose branch carries no commits —
- * at `send`, where the claim enters, rather than at `land`'s EMPTY_BRANCH after
- * the coordinator may have archived the siblings.
- *
- * Deliberately narrow: a false NEGATIVE is cheap, a false POSITIVE blocks a
- * worker from reporting at all:
- *   - only a VERIFIED self session (the same identity `send` already trusts
- *     for dispatcher routing) — an unverified env names a stranger's branch;
- *   - only a MANAGED task: `main`/`dir` tasks have no Rove-created branch, and
- *     an agent on a main checkout legitimately reads `ahead: 0`;
- *   - only a DEFINITE `ahead === 0`. An unresolvable base reads null — an
- *     honest unknown, never grounds to refuse.
- *
- * Investigation and review tasks genuinely succeed with no commits, so
- * `--allow-empty` (the `git commit` spelling) says so outright.
- */
-async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt: string): Promise<void> {
-  if (ctx.args.bool("allow-empty")) return
-  // Fullwidth colon too: a CJK IME types `succeeded：` without the agent noticing.
-  if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
-  const self = await verifiedSelfSession()
-  if (!self) return
-  let sender: SerializedTask
-  try {
-    sender = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })).task
-  } catch {
-    return // stale id / unreadable task — an unknown is never grounds to refuse
-  }
-  if (sender.kind === "main" || sender.kind === "dir") return
-  if (!sender.worktreePath) return
-  // A throwing read is an unknown, and an unknown never refuses.
-  let ahead: number | null
-  try {
-    // Against the task's RECORDED base (`add --base-branch`), like `collect`,
-    // never the origin/main guess: on a branch cut from `release/2.x` the
-    // guess reads an empty branch as `ahead: 2` and can false-positive too.
-    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath, sender.baseRef)).ahead
-  } catch {
-    return
-  }
-  if (ahead !== 0) return
-  const branch = sender.branch || "your branch"
-  throw new ApiError(
-    `refusing to report success: ${branch} has 0 commits — "succeeded" means COMMITTED, and this report would reach the coordinator as a clean success with nothing to land`,
-    "EMPTY_SUCCESS_REPORT",
-    {
-      taskId: self.taskId,
-      branch,
-      hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
-      // Carry the caller's target forward, or the verbatim retry re-resolves
-      // via the active-task fallback and could land in a DIFFERENT task.
-      nextCommandArgs: [
-        "api",
-        "send",
-        ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
-        ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
-        "--allow-empty",
-        "--prompt",
-        prompt,
-      ],
-    },
-  )
-}
-
 /** `--prompt` or `--prompt-file`, and one of them must be there. */
 export function requirePromptText(ctx: VerbContext, verb: string): string {
   const text = ctx.args.promptText()
@@ -125,15 +68,73 @@ export function requirePromptText(ctx: VerbContext, verb: string): string {
   return text
 }
 
+/**
+ * The task a send goes to: `--task-id`, else — inside a sub-task — its DISPATCHER (task + tab), else the
+ * global active task. An explicit `--tab` stays exact (on the dispatcher task); the dispatcher's own tab
+ * is only the default.
+ */
+async function resolveSendTask(
+  ctx: VerbContext,
+  daemon: DaemonRpc,
+  tab: string | undefined,
+): Promise<{ taskId: string; tab: string | undefined }> {
+  const explicit = ctx.args.str("task-id")
+  if (explicit) return { taskId: explicit, tab }
+  const dispatcher = await readOwnDispatcher(daemon)
+  if (dispatcher) {
+    return { taskId: dispatcher.taskId, tab: tab ?? (await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)) }
+  }
+  const active = await resolveActiveTaskId(daemon)
+  if (!active) {
+    throw new ApiError("no --task-id given and no active task — open a task first or pass --task-id", "MISSING_TARGET")
+  }
+  return { taskId: active, tab }
+}
+
+/** Taking back a dead-tab replacement whose handoff did not complete (`handoff-replace.ts`). */
+interface ReplaceRollback {
+  undo?: () => Promise<void>
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
+  const rollback: ReplaceRollback = {}
+  try {
+    if (ctx.args.str("tab") !== "new") return await sendNow(ctx, rollback)
+    // Whichever way the task is found, two new conversations on it are serialized.
+    const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
+    return await withFirstConversationLock(taskId, () => sendNow(ctx, rollback))
+  } catch (err) {
+    await rollback.undo?.().catch(() => {})
+    throw err
+  }
+}
+
+async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const prompt = requirePromptText(ctx, "send")
+  const handoffFrom = ctx.args.str("handoff-from")
   let tab = ctx.args.str("tab")
+  if (handoffFrom && tab !== "new") {
+    throw new ApiError(
+      `--handoff-from starts a new conversation; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
+      "BAD_FLAG",
+      helpStep("send"),
+    )
+  }
+  const replace = ctx.args.bool("replace") === true
+  if (replace && !handoffFrom) {
+    throw new ApiError(
+      "--replace takes over a tab for a handoff; pass --handoff-from tab-N",
+      "BAD_FLAG",
+      helpStep("send"),
+    )
+  }
+  // With a handoff the prompt is optional: the brief already asks the engine to say where the work stood.
+  let prompt = handoffFrom ? (ctx.args.promptText() ?? "") : requirePromptText(ctx, "send")
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
   }
-  // A pinned engine only applies to a tab being CREATED; refuse rather than
-  // hand a caller who asked for codex a claude tab and a success exit.
+  // A pinned engine only applies to the child `--tab new` creates; refuse rather than
+  // hand a caller who asked for codex a claude conversation and a success exit.
   const tabCommand = ctx.args.str("command")
   if (tabCommand && tab !== "new") {
     throw new ApiError(
@@ -143,6 +144,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     )
   }
   const respawn = ctx.args.bool("respawn")
+  assertQueueFlags(ctx, tab)
   // Exact-tab only: the canonical path already respawns a restored tab-1 and
   // `--tab new` spawns by definition, so the flag would be a silent no-op.
   if (respawn && (tab === undefined || tab === "new")) {
@@ -152,44 +154,67 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       helpStep("send"),
     )
   }
-  // Protocol resolution happens HERE, in the CLI, because the preset
-  // registry lives in rove's state.json — the same tier-(a) read `add` does.
-  const tabVendor = tabCommand ? resolveCommandProtocol(tabCommand) : undefined
-  let taskId = ctx.args.str("task-id")
-  if (!taskId) {
-    // Inside a sub-task a bare `send` replies to its DISPATCHER (task + tab),
-    // not the global active task. An explicit --tab stays exact (on the
-    // dispatcher task); the fallback chain only runs for the tab default.
-    const dispatcher = await readOwnDispatcher(daemon)
-    if (dispatcher) {
-      taskId = dispatcher.taskId
-      if (tab === undefined) tab = await resolveDispatcherTab(ctx.runtime, dispatcher)
-    } else {
-      const active = await resolveActiveTaskId(daemon)
-      if (!active) {
-        throw new ApiError(
-          "no --task-id given and no active task — open a task first or pass --task-id",
-          "MISSING_TARGET",
-        )
-      }
-      taskId = active
-    }
-  }
-  const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  const sendTo = await resolveSendTask(ctx, daemon, tab)
+  let taskId = sendTo.taskId
+  tab = sendTo.tab
+  let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  if (handoffFrom) prompt = [await handoffBrief(ctx, res.task, handoffFrom), prompt].filter(Boolean).join("\n\n")
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
+  const requestedTaskId = taskId
+  // `--tab new` is a new conversation: the task's own engine while it has none yet,
+  // else a shared child whose own engine gets the prompt.
+  let childTaskId: string | undefined
+  let freshConversation = false
+  let replacedTab: string | undefined
+  if (tab === "new" && replace && handoffFrom) {
+    // A dead source's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
+    rollback.undo = await replaceDeadTab({ runtime: ctx.runtime, daemon }, res.task, handoffFrom, tabCommand)
+    replacedTab = handoffFrom
+    tab = handoffFrom
+  } else if (tab === "new") {
+    const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
+    res = { task: home.task }
+    freshConversation = true
+    if (home.child) {
+      childTaskId = home.task.id
+      taskId = childTaskId
+    }
+    tab = undefined
+  }
+  // A migrated child's conversation is a hosted PTY keyed under its parent: its default tab IS that one,
+  // delivered to exactly (a dead one is TAB_NOT_FOUND, never a second engine beside the live one).
+  const alias = res.task.ptyAlias
+  if (alias && tab === undefined) tab = alias.tabId
+  // The same tab id under the parent names the child's conversation: not this task's to write into.
+  if (tab && hostedKeyFor(taskId, tab, await ptyScopeOf(daemon, res.task)) === null) {
+    throw new ApiError(`tab ${tab} on task ${taskId} belongs to a child task's conversation`, "TAB_NOT_FOUND", {
+      taskId,
+      tabId: tab,
+      hint: "address the child itself with its own --task-id (`list` shows the lineage)",
+      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+    })
+  }
   const plain = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
-  // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
-  const owed = await takeOwedGateAnswers(daemon, taskId, tab)
-  const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
+  // `--queue` on a busy tab: the daemon holds it until the turn ends, so owed gate answers stay owed too.
+  const held = await queueIfBusy(ctx, daemon, res.task, tab, plain)
+  if (held) return held
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
-  const target = tab === "new" ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
+  const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
+  if (!childTaskId && tab !== "new") {
+    const waiting = await tabsAwaitingChoice(daemon, taskId, tab, target)
+    if (waiting) throw awaitingChoiceError(taskId, waiting)
+  }
+  // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
+  // A fresh child is a different conversation: the answer stays owed to its own.
+  const owed = childTaskId ? null : await takeOwedGateAnswers(daemon, taskId, tab)
+  const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
   // Armed BEFORE the paste: a failed turn can fire its hook within
   // milliseconds of it, and an unarmed delivery can't be flagged missing.
   const expectReport = ctx.args.bool("expect-report") === true
-  const pinnedTab = tab && tab !== "new" ? { tabId: tab } : {}
+  const pinnedTab = tab ? { tabId: tab } : {}
   // `--if-runnable`: the daemon decides, claims the tab and arms in one tick, so
   // two ticks arriving together cannot both pass. The claim is freed in `settle`.
   const admit = ctx.args.bool("if-runnable")
@@ -219,9 +244,10 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   const text = deliveryId ? `${withAnswers}\n\n${deliveryFooter(deliveryId, roveApiInvocation())}` : withAnswers
   const settle = async (delivered: boolean, session?: string): Promise<void> => {
     if (claimId) await daemon.request("send.release", { claimId, delivered }).catch(() => {})
-    if (!deliveryId) return
     // The hosted session key is `<taskId>::<tabId>`.
-    const landedTab = session?.split("::")[1]
+    const landedTab = session?.split("::")[1] ?? (tab && tab !== "new" ? tab : undefined)
+    await recordSend(daemon, { taskId, tabId: landedTab, prompt, delivered, deliveryId })
+    if (!deliveryId) return
     await daemon
       .request("delivery.settle", { deliveryId, delivered, ...(landedTab ? { tabId: landedTab } : {}) })
       .catch(() => {})
@@ -231,42 +257,65 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     delivered = await ctx.runtime.deliverPrompt(
       daemon,
       {
-        id: taskId,
-        worktreePath: res.task.worktreePath,
+        id: alias && tab === alias.tabId ? alias.taskId : taskId,
+        worktreePath: taskCwd(res.task),
         kind: res.task.kind,
-        // The pinned engine wins for THIS delivery's argv; the task's own
-        // command/protocol stays untouched (a second agent in the worktree is
-        // not a change of the task's engine).
         vendor: res.task.vendor as VendorId | undefined,
         command: res.task.command,
-        modelEffort: tabCommand ? undefined : res.task.modelEffort,
-        model: tabCommand ? undefined : res.task.model,
+        modelEffort: res.task.modelEffort,
+        model: res.task.model,
         repo: res.task.repo,
+        ...(res.task.extraRepos?.length || res.task.sharesWorkspaceOf ? { multiRepo: true } : {}),
         tab,
-        tabVendor,
-        tabCommand,
         respawn,
+        ...(freshConversation && !childTaskId ? { firstConversation: true } : {}),
       },
       text,
     )
   } catch (err) {
     await settle(false)
-    throw err
+    if (!childTaskId) throw err
+    return failSharedChild(daemon, err, childTaskId, [
+      "api",
+      "send",
+      "--task-id",
+      requestedTaskId,
+      "--tab",
+      "new",
+      ...(tabCommand ? ["--command", tabCommand] : []),
+      "--plain",
+      "--prompt",
+      prompt,
+    ])
   }
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
   if (!delivered.delivered) {
     // Cancel only when nothing was written: an unobserved launch may still start with the prompt.
     const mayLand = promptMayHaveLanded(delivered)
+    // A paste that may have landed is the new engine's now; only a clean miss gives the tab back.
+    if (mayLand) rollback.undo = undefined
     await settle(mayLand, mayLand ? delivered.session : undefined)
-    throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
+    throw new ApiError(
+      `prompt was not confirmed in ${taskId}'s engine (paste did not land)`,
+      "NOT_DELIVERED",
+      childTaskId ? { childTaskId } : undefined,
+    )
   }
   await settle(true, delivered.session)
   // The answers rode this paste; only now are they the engine's.
   if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
+  if (freshConversation) {
+    // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
+    await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
+      console.error(`[rove api send] task.setPrompt failed for ${taskId}:`, err)
+    })
+  }
   return {
     ok: true,
-    taskId,
+    taskId: requestedTaskId,
+    ...(childTaskId ? { childTaskId } : {}),
+    ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),
     started: delivered.started,
@@ -305,11 +354,14 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const text = requirePromptText(ctx, "dispatch")
   const tabId = ctx.args.str("tab")
+  // The sender, for the daemon's dispatch ledger.
+  const self = await ownSession(daemon).catch(() => null)
   const reply = (await daemon.request("session.deliver", {
     taskId,
     text,
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
+    ...(self ? { fromTaskId: self.taskId, fromTabId: self.tabId } : {}),
   })) as { clients?: number; delivered?: boolean; reason?: string; layer?: string; tabId?: string } | undefined
   // `delivered: true` is OBSERVED (a paste landed in a live engine). `false`
   // means refused (busy composer) or broadcast, where `clients` is a raw
@@ -361,7 +413,11 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
   const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // One liveness read serves both: `.running` (any live engine tab) and the
   // per-tab `.alive` an agent needs to pick a `send --tab tab-N` target.
-  const { tabs, running } = await ctx.runtime.taskTabs(taskId, taskEngineArgv(res.task))
+  const { tabs, running } = await ctx.runtime.taskTabs(
+    taskId,
+    taskEngineArgv(res.task),
+    await ptyScopeOf(daemon, res.task),
+  )
   // The verdict a scheduler would act on, so a dashboard shows the same answer.
   const runnability = await readRunnability(daemon, taskId)
   return { task: res.task, running, tabs, ...(runnability ? { runnability } : {}) }
@@ -374,10 +430,17 @@ export async function list(ctx: VerbContext): Promise<unknown> {
   // transport caller gets this daemon's own tasks: a hub that forwarded the
   // call already merges, and fanning out again could loop back to it.
   const { mergeTaskList } = await import("../../machines/api-merge.ts")
-  const merged = ctx.caller.cli ? await mergeTaskList(local) : local
+  const all = ctx.caller.cli ? await mergeTaskList(local) : local
+  // Archived tasks are hidden unless `--archived` asks for exactly them.
+  const wantArchived = ctx.args.bool("archived") ?? false
+  const merged = { ...all, tasks: (all.tasks ?? []).filter((task) => (task.archived === true) === wantArchived) }
   const filters = listFilters(ctx)
-  if (!filters) return merged
-  return { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) }
+  const fields = listFields(ctx)
+  const result = filters ? { ...merged, ...(await filterTaskList(ctx, daemon, merged.tasks ?? [], filters)) } : merged
+  if (!result.tasks) return result
+  // `.repoCount` (primary included) marks a multi-repo task; one-repo rows stay as they were.
+  const tasks = result.tasks.map((t) => (t.extraRepos?.length ? { ...t, repoCount: t.extraRepos.length + 1 } : t))
+  return { ...result, tasks: fields ? projectTasks(tasks, fields) : tasks }
 }
 
 export async function setActive(ctx: VerbContext): Promise<unknown> {

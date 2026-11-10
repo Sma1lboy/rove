@@ -18,8 +18,18 @@ class Renderer {
   onScroll() {
     return { dispose() {} }
   }
+  onRender() {
+    return { dispose() {} }
+  }
   onWriteParsed() {
     return { dispose() {} }
+  }
+  onKey() {
+    return { dispose() {} }
+  }
+  parser = {
+    registerCsiHandler: () => ({ dispose() {} }),
+    registerEscHandler: () => ({ dispose() {} }),
   }
   options = {}
   onData() {
@@ -35,15 +45,6 @@ class Addon {
   dispose() {}
 }
 mock.module("@xterm/xterm", () => ({ Terminal: Renderer }))
-class SearchAddon {
-  findNext() {}
-  findPrevious() {}
-  clearDecorations() {}
-  onDidChangeResults() {
-    return { dispose() {} }
-  }
-}
-mock.module("@xterm/addon-search", () => ({ SearchAddon }))
 mock.module("@xterm/addon-fit", () => ({ FitAddon: Addon }))
 mock.module("@xterm/addon-unicode11", () => ({ Unicode11Addon: Addon }))
 mock.module("@xterm/addon-web-links", () => ({ WebLinksAddon: Addon }))
@@ -133,13 +134,13 @@ test("a task arriving during the tab debounce gets its live tab without another 
   expect(timers).toHaveLength(0)
 })
 
-test("a tab sweep that resolves after a newer one changes neither tabs nor selection", async () => {
+test("a tab read that resolves after a newer one of the same task changes neither tabs nor selection", async () => {
   const { model, calls, timers, push } = modelHarness()
   calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
   await flush()
   timers.shift()?.()
   const first = calls.filter((call) => call.op === "task.tabs")
-  push("tasks", { tasks: [{ id: "A" }], attention: [] })
+  push("tabs", { taskIds: ["A"] })
   timers.shift()?.()
   const second = calls.filter((call) => call.op === "task.tabs" && !first.includes(call))
   expect(second).toHaveLength(1)
@@ -253,17 +254,50 @@ test("a task removed while its worktree materializes is not selected", async () 
   expect(model.selection.get().taskId).toBe("A")
 })
 
-function terminals() {
-  install("document", { addEventListener() {}, removeEventListener() {}, activeElement: null })
+test("the page reports what it shows to the daemon, and nothing once hidden", async () => {
+  let onVisibility = () => {}
+  const page = {
+    visibilityState: "visible",
+    addEventListener(_: string, fn: () => void) {
+      onVisibility = fn
+    },
+  }
+  install("document", page)
+  const { model, calls, timers } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  calls.find((call) => call.op === "task.tabs")?.resolve({ tabs: [{ id: "tab-1", alive: true }] })
+  await flush()
+  const viewing = () => calls.filter((call) => call.op === "ui.viewing").map((call) => call.args)
+  // Nothing selected on a fresh socket: nothing to report.
+  expect(viewing()).toEqual([])
+  model.select("A")
+  model.select("A", "tab-1")
+  expect(viewing()).toEqual([{ taskId: "A", tabId: "tab-1" }])
+  page.visibilityState = "hidden"
+  onVisibility()
+  page.visibilityState = "visible"
+  onVisibility()
+  expect(viewing()).toEqual([{ taskId: "A", tabId: "tab-1" }, { taskId: null }, { taskId: "A", tabId: "tab-1" }])
+})
+
+function terminals(size = { clientWidth: 600, clientHeight: 400 }) {
+  const events = { addEventListener() {}, removeEventListener() {} }
+  install("document", { ...events, fonts: events, activeElement: null })
+  const observed: (() => void)[] = []
   install(
     "ResizeObserver",
     class {
+      constructor(fn: () => void) {
+        observed.push(fn)
+      }
       observe() {}
       disconnect() {}
     },
   )
   const { client, calls } = protocol()
-  const el = { addEventListener() {}, removeEventListener() {} } as unknown as HTMLElement
+  const el = { addEventListener() {}, removeEventListener() {}, style: {}, ...size } as unknown as HTMLElement
   const mount = (tab: string) =>
     mountTerminal({
       client,
@@ -275,6 +309,7 @@ function terminals() {
       onFocusChange() {},
       onExit() {},
       copyText: async () => true,
+      pasteImage: async () => {},
       focusOnMount: false,
     }).dispose
   const resolve = async (index: number) => {
@@ -283,8 +318,23 @@ function terminals() {
     await flush()
   }
   const detached = () => calls.filter((call) => call.op === "term.detach").map((call) => call.args.stream)
-  return { mount, resolve, detached }
+  const attaches = () => calls.filter((call) => call.op === "term.attach").length
+  const laidOut = () => {
+    Object.assign(el, { clientWidth: 600, clientHeight: 400 })
+    for (const fn of observed) fn()
+  }
+  return { mount, resolve, detached, attaches, laidOut }
 }
+
+test("a terminal mounted in a box not laid out yet attaches only once the box has a size", async () => {
+  const t = terminals({ clientWidth: 0, clientHeight: 0 })
+  t.mount("A")
+  await flush()
+  expect(t.attaches()).toBe(0)
+  t.laidOut()
+  await flush()
+  expect(t.attaches()).toBe(1)
+})
 
 test("switching tabs releases an attachment that succeeds after unmount", async () => {
   const t = terminals()
@@ -334,4 +384,40 @@ test("a late reply is released even after the newer same-stream view has closed"
   second()
   await t.resolve(0)
   expect(t.detached()).toEqual(["task::A", "task::A"])
+})
+
+test("a tabs push naming one task reads only that task's tabs", async () => {
+  const { calls, timers, push } = modelHarness()
+  calls[0].resolve({ tasks: [{ id: "A" }, { id: "B" }], attention: [] })
+  await flush()
+  timers.shift()?.()
+  for (const call of calls.filter((c) => c.op === "task.tabs")) call.resolve({ tabs: [] })
+  await flush()
+  const before = calls.length
+  push("tabs", { taskIds: ["B"] })
+  timers.shift()?.()
+  const sweep = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(sweep.map((call) => call.args.taskId)).toEqual(["B"])
+})
+
+test("a tasks push re-reads tabs only for a task whose set of tabs changed", async () => {
+  const { calls, timers, push } = modelHarness()
+  const rows = (b: Record<string, unknown>) => ({
+    tasks: [
+      { id: "A", tabStatus: { "tab-1": {} } },
+      { id: "B", tabStatus: b },
+    ],
+    attention: [],
+  })
+  calls[0].resolve(rows({ "tab-1": {} }))
+  await flush()
+  timers.shift()?.()
+  const before = calls.length
+  // What an engine at work sends several times a second: the same tabs, new token counts.
+  push("tasks", rows({ "tab-1": {} }))
+  expect(timers).toHaveLength(0)
+  push("tasks", rows({ "tab-1": {}, "tab-2": {} }))
+  timers.shift()?.()
+  const reads = calls.slice(before).filter((call) => call.op === "task.tabs")
+  expect(reads.map((call) => call.args.taskId)).toEqual(["B"])
 })

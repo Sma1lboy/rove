@@ -4,18 +4,21 @@
  * wraps. `savedRepos` is a `string[]` of repo paths the user added.
  *
  * All writes go through `store.ts` read-merge-write transactions, so
- * concurrent writers never erase each other's keys. A running TUI won't see
- * an external addition until restart — deliberately no file watching.
+ * concurrent writers never erase each other's keys. Running clients see a
+ * change through the daemon's `state` push (`state-watcher.ts`).
  */
 
-import { spawnSync } from "node:child_process"
+import { execFile, spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
+import { promisify } from "node:util"
 import { pathIdentity, samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { kvStatePath } from "../env.ts"
 import { recordSpawn } from "../lib/spawn-profile.ts"
 import { type ProjectIntent, type ProjectRejection, projectRejection } from "./project-eligibility.ts"
 import { isRemoteRepoKey, readRemoteRepos } from "./remote-repos.ts"
 import { type StateSnapshot, loadStateFile, patchStateFile, readSavedRepos, updateStateFile } from "./store.ts"
+
+const run = promisify(execFile)
 
 // Re-exported so importers of this module keep working.
 export {
@@ -106,6 +109,32 @@ export function resolveMainRepoRoot(absPath: string): string {
     ?.slice("worktree ".length)
     .trim()
   return first || resolveRepoRoot(absPath)
+}
+
+/**
+ * Both facts a repo filter needs from one stored path — its primary checkout
+ * and whether git accepts it — from a SINGLE spawn. `rove api list --repo`
+ * probes every task repo, so two git calls per repo cost seconds at a few
+ * dozen projects; async so the probes overlap. `usable` matches
+ * {@link isGitRepo}: a bare repo has no work tree to cut from.
+ */
+export async function inspectRepo(absPath: string): Promise<{ readonly root: string; readonly usable: boolean }> {
+  if (isRemoteRepoKey(absPath)) return { root: absPath, usable: true }
+  recordSpawn("repos.inspectRepo", ["git", "worktree", "list", "--porcelain"], absPath)
+  let stdout = ""
+  let ok = true
+  try {
+    stdout = (await run("git", ["worktree", "list", "--porcelain"], { cwd: absPath, encoding: "utf8" })).stdout
+  } catch {
+    ok = false
+  }
+  const first = stdout
+    .split(/\r?\n/)
+    .find((line) => line.startsWith("worktree "))
+    ?.slice("worktree ".length)
+    .trim()
+  const usable = ok && !/^bare$/m.test(stdout)
+  return { root: (usable && first) || absPath, usable }
 }
 
 /**

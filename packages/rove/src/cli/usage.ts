@@ -30,14 +30,14 @@ export function topLevelUsage(cliName: ProductCliName = ROVE_PRODUCT_NAME): stri
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
     "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
     "  machine <verb>          Other computers running Rove (add|doctor|remove|list)",
-    "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)",
+    "  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)",
     "  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]         Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]          Stop runtimes; optionally wipe task/UI state",
     "  theme <verb>            Manage user themes (list|add|remove)",
     `  skill <verb>            Install the ${cliName} agent skill (install|status|command|print)`,
     "  plugin <verb>           Install and run plugins (install|link|list|action|…)",
-    "  feedback                Send feedback to GitHub Discussions",
+    "  feedback                File a GitHub issue on the Rove repo",
     // `channel` has shipped since `update` learned --channel/bare channel
     // names; the subcommand lock-step test only compares the command LIST, so
     // this description drifted past CI for several releases.

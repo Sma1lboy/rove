@@ -1,5 +1,7 @@
 # PureTUI Replay Terminal Colors Implementation Plan
 
+> **Historical: frozen plan** (July 2026), kept as written. File paths and steps are not current; see [README](./README.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restore bidirectional default-color negotiation in native replay capture and produce a visually verified current Brand Studio frame.

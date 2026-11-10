@@ -22,4 +22,5 @@
     <string name="inbox_state_report_missing">report missing</string>
     <string name="inbox_state_decision">decision</string>
     <string name="inbox_state_decision_answered">answered · engine away</string>
+    <string name="inbox_ack_all">ack all</string>
 </resources>

@@ -24,6 +24,7 @@ describe("parseStatusJson", () => {
       hostname: "Nahuels-Mac-mini.local",
       roveVersion: "0.9.185",
       daemonPid: 900,
+      relayPreamble: false,
     })
   })
 

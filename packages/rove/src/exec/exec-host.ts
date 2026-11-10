@@ -65,6 +65,8 @@ export interface ExecOpts {
   readonly env?: Readonly<Record<string, string>>
   /** Optional cancellation signal. Local and remote async subprocesses receive it. */
   readonly signal?: AbortSignal
+  /** Each stderr chunk as it arrives (the result still carries all of it), for progress meters. */
+  readonly onStderr?: (chunk: string) => void
 }
 
 /** `run` matches `orchestrator/worktree/git.ts`'s result shape so the worktree
@@ -132,7 +134,7 @@ export function sshConnectArgs(spec: RemoteSpec, opts: { tty?: boolean; batch?: 
  *  (ENOENT, bad cwd) → exitCode -1. */
 function spawnCollect(
   argv: readonly string[],
-  opts: { cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal } = {},
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv; signal?: AbortSignal; onStderr?: (chunk: string) => void } = {},
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
     const [cmd, ...rest] = argv
@@ -163,6 +165,7 @@ function spawnCollect(
     child.stderr?.setEncoding("utf8")
     child.stderr?.on("data", (d: string) => {
       stderr += d
+      opts.onStderr?.(d)
     })
     child.on("error", () => finish(-1))
     child.on("close", (code) => finish(code ?? -1))
@@ -179,6 +182,7 @@ export class LocalExecHost implements ExecHost {
       cwd: opts.cwd,
       env: opts.env ? { ...process.env, ...opts.env } : process.env,
       signal: opts.signal,
+      onStderr: opts.onStderr,
     })
   }
 
@@ -217,7 +221,7 @@ export type Spawner = (argv: readonly string[], env?: Record<string, string>) =>
 export type AsyncSpawner = (
   argv: readonly string[],
   env?: Record<string, string>,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; onStderr?: (chunk: string) => void },
 ) => Promise<ExecResult>
 
 const defaultSpawner: Spawner = (argv, env) => {
@@ -234,6 +238,7 @@ const defaultAsyncSpawner: AsyncSpawner = (argv, env, opts) =>
   spawnCollect(argv, {
     env: env ? { ...process.env, ...env } : process.env,
     signal: opts?.signal,
+    onStderr: opts?.onStderr,
   })
 
 /** `ensureReady` opens the control socket once; the keychain password feeds
@@ -283,6 +288,7 @@ export class RemoteExecHost implements ExecHost {
     const remote = remoteShellCommand(`${remoteEnvPrefix(opts.env)}${shJoin(argv)}`, opts.cwd)
     const result = await this.spawnAsync([...sshConnectArgs(this.spec, { batch: true }), remote], undefined, {
       signal: opts.signal,
+      onStderr: opts.onStderr,
     })
     // 255 is ssh's own failure code (0-254 pass through from the far side),
     // e.g. a stale ControlPersist socket. Reset so the cached host instance

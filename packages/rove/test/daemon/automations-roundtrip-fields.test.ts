@@ -39,6 +39,9 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   modelEffort: "high",
   schedule: "0 9 * * *",
   precheck: { command: "git fetch --dry-run", timeoutSeconds: 45 },
+  script: { command: "./sweep.sh", timeoutSeconds: 30 },
+  notify: true,
+  webhook: { secret: "s3cret-a" },
   baseRef: "release/1.x",
   persistentSession: true,
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
@@ -57,6 +60,9 @@ const PATCH: Omit<DeepRequired<AutomationPatch>, "target"> = {
   modelEffort: "low",
   schedule: "*/15 * * * *",
   precheck: { command: "true", timeoutSeconds: 5 },
+  script: { command: "./other.sh", timeoutSeconds: 9 },
+  notify: false,
+  webhook: { secret: "s3cret-b" },
   baseRef: "main",
   enabled: false,
   missedRunGraceMinutes: 120,
@@ -115,8 +121,7 @@ describe("Automation field round-trip", () => {
   it("every AutomationPatch key mutates through update()", async () => {
     const store = new AutomationsStore(tempPath(), () => NOW)
     await store.init()
-    // A retained standing task freezes its pins, so start unlinked: PATCH then sets every key.
-    const created = await store.create({ ...FULL, sessionTaskId: undefined })
+    const created = await store.create(FULL)
     const updated = await store.update(created.id, PATCH)
     expect(updated).toMatchObject(PATCH)
     // Sanity: the fixture really did change every key, or a no-op update
@@ -137,6 +142,7 @@ describe("Automation field round-trip", () => {
       sessionTaskId: null,
       model: null,
       modelEffort: null,
+      webhook: null,
     })
 
     const reborn = new AutomationsStore(path, () => NOW)
@@ -147,5 +153,20 @@ describe("Automation field round-trip", () => {
     expect(loaded).not.toHaveProperty("sessionTaskId")
     expect(loaded).not.toHaveProperty("model")
     expect(loaded).not.toHaveProperty("modelEffort")
+    expect(loaded).not.toHaveProperty("webhook")
+  })
+
+  it("a projectless routine (no repo) survives a daemon restart", async () => {
+    const path = tempPath()
+    const store = new AutomationsStore(path, () => NOW)
+    await store.init()
+    const { repo: _repo, baseRef: _baseRef, ...projectless } = FULL
+    const created = await store.create(projectless)
+    expect(created).not.toHaveProperty("repo")
+
+    const reborn = new AutomationsStore(path, () => NOW)
+    await reborn.init()
+    expect(reborn.get(created.id)).toEqual(created)
+    expect(reborn.get(created.id)).not.toHaveProperty("repo")
   })
 })

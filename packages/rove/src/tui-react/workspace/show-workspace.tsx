@@ -8,6 +8,8 @@ import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { remoteKeyForRepo } from "../../exec/resolve.ts"
+import { taskCwd, taskRepos } from "../../orchestrator/task-tree.ts"
+import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -16,6 +18,9 @@ import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
 import { EmptyWorkspacePane } from "./empty-workspace-pane"
+import type { ChildSpawnRequest, QuickForkSource } from "./quick-fork"
+import { RemoteTerminalTabs } from "./remote-terminal-tabs"
+import { useViewingReport } from "./row-status-sync"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
@@ -32,7 +37,8 @@ export function ShowWorkspace(props: {
    *  silently killing `a`. */
   onEnginePasteReady: (paste: (text: string) => boolean) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
-  onQuickFork: (repo: string, result: QuickTaskResult) => void
+  onSpawnChild: (request: ChildSpawnRequest) => void
+  onQuickFork: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
   initialPrompt?: string
   /** The user landed on a tab of the selected task; resolve its episodes. */
   onTabVisited?: (taskId: string, tabId: string) => void
@@ -42,6 +48,8 @@ export function ShowWorkspace(props: {
   onOpenScratch?: (vendor: VendorId | undefined) => void
   /** The ctrl+e picker landed on an engine — persist it and toast the result. */
   onEngineChosen?: (taskId: string, vendor: VendorId) => Promise<void>
+  /** Open the Settings page on `section` (a dead engine's "Settings → Engines"). */
+  onOpenSettings?: (section: SectionId) => void
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
@@ -53,6 +61,11 @@ export function ShowWorkspace(props: {
   useAccessor(tabsRevision)
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
+  // The daemon decides unseen from what every client shows: this pane shows the
+  // selected local task's active tab (a remote task's daemon is another machine's).
+  const localTask = props.worktree && props.task && (props.task.origin?.machineId ?? "local") === "local"
+  const viewingTaskId = localTask && props.task ? String(props.task.id) : null
+  useViewingReport(viewingTaskId, viewingTaskId ? (knownTaskTabs(kv, viewingTaskId)?.activeId ?? null) : null)
   if (!props.worktree) {
     // Zero tasks = brand-new home: teach instead of pointing at an empty sidebar.
     if (!tasks.some((task) => !task.deletion)) return <WelcomePane onQuickTask={props.onQuickFork} />
@@ -62,7 +75,10 @@ export function ShowWorkspace(props: {
       </box>
     )
   }
-  const path = props.worktree
+  // Where the tabs run: the worktree plus the task's own subdirectory, if it has one.
+  const path = props.task
+    ? taskCwd({ worktreePath: props.worktree, cwdSubpath: props.task.cwdSubpath })
+    : props.worktree
   // Remote (`ssh://`) project: the PTY host spawns locally only and
   // `buildEngineSessionLaunch` refuses. Say so instead of letting the refusal
   // throw through render as an uninformative "This pane crashed".
@@ -72,6 +88,27 @@ export function ShowWorkspace(props: {
       <box flexGrow={1} alignItems="center" justifyContent="center">
         <text fg={theme.textMuted}>{t("workspace.empty.remoteUnsupported", { host: remoteKey })}</text>
       </box>
+    )
+  }
+  // A task on another machine: its tabs, KV and engine live there. Mounting the local tab host
+  // would spawn an engine on THIS machine in a directory that only exists over there.
+  const origin = props.task?.origin && props.task.origin.machineId !== "local" ? props.task.origin : null
+  if (origin && props.task) {
+    if (origin.stale) {
+      return (
+        <box flexGrow={1} alignItems="center" justifyContent="center">
+          <text fg={theme.textMuted}>{t("tasks.machine.terminalElsewhere", { host: origin.hostLabel })}</text>
+        </box>
+      )
+    }
+    return (
+      <RemoteTerminalTabs
+        taskId={String(props.task.id)}
+        machine={origin.machineId}
+        host={origin.hostLabel}
+        worktree={path ?? ""}
+        focused={props.focused}
+      />
     )
   }
   // Existing checkouts wait for an explicit start; managed and scratch tasks auto-start.
@@ -86,9 +123,13 @@ export function ShowWorkspace(props: {
         focused={props.focused}
         vendor={props.task.vendor}
         command={props.task.command}
+        onSpawnChild={props.onSpawnChild}
       />
     )
   }
+  // Only a task that really spans several repos exposes them; a one-repo sharer launches as before.
+  const taskReposView = props.task ? taskRepos(props.task, tasks) : undefined
+  const taskReposIfMulti = taskReposView && taskReposView.length > 1 ? taskReposView : undefined
   return (
     // The center column IS the engine: an in-process PTY running the real
     // CLI, never re-rendered by Rove. Keyed by TASK, not path: two tasks can
@@ -97,6 +138,7 @@ export function ShowWorkspace(props: {
     // unaffected (registry keys are `taskId::tabId`).
     <TerminalTabs
       key={props.task?.id ?? path}
+      repos={taskReposIfMulti}
       taskId={props.task?.id ?? path}
       worktree={path}
       repo={props.task?.repo}
@@ -133,6 +175,8 @@ export function ShowWorkspace(props: {
       onEngineSendReady={props.onEngineSendReady}
       onEnginePasteReady={props.onEnginePasteReady}
       onDiffTabReady={props.onDiffTabReady}
+      onSpawnChild={props.onSpawnChild}
+      onOpenSettings={props.onOpenSettings}
       onQuickFork={props.onQuickFork}
       initialPrompt={props.initialPrompt}
       // Hook-driven per-tab engine state: the sub-second chip/notification

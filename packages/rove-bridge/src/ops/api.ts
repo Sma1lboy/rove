@@ -41,9 +41,17 @@ function taskIdOf(argv: readonly string[]): string | undefined {
 export function createBridgeApi(client: RoveDaemonClient, remote?: RemoteVerbs): BridgeApi {
   return {
     machineOf: (taskId) => remote?.machineOf(taskId),
-    async verb<T>(name: string, argv: readonly string[]): Promise<T> {
+    async verb<T>(name: string, argv: readonly string[], machine?: string): Promise<T> {
+      if (machine !== undefined && machine !== "local" && !remote) {
+        throw new BridgeError("UNKNOWN_MACHINE", `this bridge serves no machine named "${machine}"`)
+      }
       const taskId = taskIdOf(argv)
-      const alias = taskId === undefined ? undefined : remote?.machineOf(taskId)
+      const alias =
+        machine !== undefined && machine !== "local"
+          ? machine
+          : taskId === undefined
+            ? undefined
+            : remote?.machineOf(taskId)
       if (alias !== undefined && remote) {
         let envelope: ApiEnvelope
         try {

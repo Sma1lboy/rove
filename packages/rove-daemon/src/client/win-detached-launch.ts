@@ -40,9 +40,13 @@ using System.Runtime.InteropServices;
 public static class RoveDetachedLaunch {
   [StructLayout(LayoutKind.Sequential)] public struct SA { public int nLength; public IntPtr lpSecurityDescriptor; public bool bInheritHandle; }
   [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] public struct SI { public int cb; public string lpReserved; public string lpDesktop; public string lpTitle; public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags; public short wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError; }
+  [StructLayout(LayoutKind.Sequential)] public struct SIEX { public SI StartupInfo; public IntPtr lpAttributeList; }
   [StructLayout(LayoutKind.Sequential)] public struct PI { public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId; }
   [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateFile(string name, uint access, uint share, ref SA sa, uint disposition, uint flags, IntPtr template);
-  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool CreateProcess(string app, string cmd, IntPtr pa, IntPtr ta, bool inherit, uint flags, IntPtr env, string cwd, ref SI si, out PI pi);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool CreateProcess(string app, string cmd, IntPtr pa, IntPtr ta, bool inherit, uint flags, IntPtr env, string cwd, ref SIEX si, out PI pi);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool InitializeProcThreadAttributeList(IntPtr list, int count, int flags, ref IntPtr size);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool UpdateProcThreadAttribute(IntPtr list, uint flags, IntPtr attr, IntPtr value, IntPtr size, IntPtr prev, IntPtr ret);
+  [DllImport("kernel32.dll")] static extern void DeleteProcThreadAttributeList(IntPtr list);
   [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
   public static int Launch(string cmd, string log) {
     SA sa = new SA(); sa.nLength = Marshal.SizeOf(sa); sa.bInheritHandle = true;
@@ -50,13 +54,26 @@ public static class RoveDetachedLaunch {
     IntPtr h = CreateFile(log, 0x0004 | 0x80000000, 0x1 | 0x2, ref sa, 4, 0x80, IntPtr.Zero);
     if (h == (IntPtr)(-1)) throw new Exception("CreateFile(" + log + ") failed: " + Marshal.GetLastWin32Error());
     IntPtr nul = CreateFile("NUL", 0x80000000, 0x1 | 0x2, ref sa, 3, 0x80, IntPtr.Zero);
-    SI si = new SI(); si.cb = Marshal.SizeOf(si);
-    si.dwFlags = 0x100 | 0x1; // STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW
-    si.wShowWindow = 0;       // SW_HIDE
-    si.hStdInput = nul; si.hStdOutput = h; si.hStdError = h;
+    SIEX si = new SIEX(); si.StartupInfo.cb = Marshal.SizeOf(si);
+    si.StartupInfo.dwFlags = 0x100 | 0x1; // STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW
+    si.StartupInfo.wShowWindow = 0;       // SW_HIDE
+    si.StartupInfo.hStdInput = nul; si.StartupInfo.hStdOutput = h; si.StartupInfo.hStdError = h;
+    // Inherit ONLY the log and NUL: an inheritable handle leaked from the spawner (an ssh
+    // session's stdout pipe) would keep that session open for as long as the child lives.
+    IntPtr handles = Marshal.AllocHGlobal(2 * IntPtr.Size);
+    Marshal.WriteIntPtr(handles, 0, h); Marshal.WriteIntPtr(handles, IntPtr.Size, nul);
+    IntPtr size = IntPtr.Zero;
+    InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+    si.lpAttributeList = Marshal.AllocHGlobal(size);
+    if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, ref size)) throw new Exception("InitializeProcThreadAttributeList failed: " + Marshal.GetLastWin32Error());
+    // PROC_THREAD_ATTRIBUTE_HANDLE_LIST
+    if (!UpdateProcThreadAttribute(si.lpAttributeList, 0, (IntPtr)0x20002, handles, (IntPtr)(2 * IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) throw new Exception("UpdateProcThreadAttribute failed: " + Marshal.GetLastWin32Error());
     PI pi;
-    uint flags = 0x00000010 | 0x01000000 | 0x00000200; // CREATE_NEW_CONSOLE | CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP
-    if (!CreateProcess(null, cmd, IntPtr.Zero, IntPtr.Zero, true, flags, IntPtr.Zero, null, ref si, out pi)) throw new Exception("CreateProcess failed: " + Marshal.GetLastWin32Error());
+    uint flags = 0x00000010 | 0x01000000 | 0x00000200 | 0x00080000; // CREATE_NEW_CONSOLE | CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP | EXTENDED_STARTUPINFO_PRESENT
+    bool ok = CreateProcess(null, cmd, IntPtr.Zero, IntPtr.Zero, true, flags, IntPtr.Zero, null, ref si, out pi);
+    int err = Marshal.GetLastWin32Error();
+    DeleteProcThreadAttributeList(si.lpAttributeList); Marshal.FreeHGlobal(si.lpAttributeList); Marshal.FreeHGlobal(handles);
+    if (!ok) throw new Exception("CreateProcess failed: " + err);
     CloseHandle(h); CloseHandle(nul); CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
     return pi.dwProcessId;
   }

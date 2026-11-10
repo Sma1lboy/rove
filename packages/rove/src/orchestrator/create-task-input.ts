@@ -4,7 +4,8 @@
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
-import type { TaskDispatcher, TaskRoutineLink, VendorId } from "../types/task.ts"
+import type { TaskDispatcher, TaskId, TaskRoutineLink, TaskWorkspace, VendorId } from "../types/task.ts"
+import type { ExtraRepoInput } from "./multi-repo.ts"
 
 /** Input to {@link Orchestrator.createTask}. */
 export interface CreateTaskInput {
@@ -15,6 +16,12 @@ export interface CreateTaskInput {
   readonly branch?: string
   /** Optional base ref for the new lazy worktree branch. */
   readonly baseRef?: string
+  /**
+   * More repos the task spans, in pick order (the first is {@link repo}, the
+   * primary). Each gets its own worktree on the shared branch name; `baseRef`
+   * is that repo's own fork point. At most 7 (see `MULTI_REPO_CAP`), all local.
+   */
+  readonly extraRepos?: readonly ExtraRepoInput[]
   /**
    * Directory name for the lazy worktree instead of the animal pool. Refused
    * (not suffixed) when already in use in this repo, since the caller means to
@@ -32,10 +39,24 @@ export interface CreateTaskInput {
   readonly model?: string
   /** The auto-routing tier the engine fields were filled from (`Task.tier`). */
   readonly tier?: string
+  /** Backend that materialises the worktree; absent = `git-worktree`. */
+  readonly workspace?: TaskWorkspace
+  /**
+   * Clone this task's worktree instead of cutting a fresh one, so the new task starts with its uncommitted,
+   * staged and ignored files, on a new branch at the parent's HEAD (`baseRef` is ignored). Materialised
+   * during the call, not lazily. Refused with `FORK_UNSUPPORTED` when the parent cannot be cloned.
+   */
+  readonly forkFrom?: TaskId
   /** Fan-out round marker shared by all siblings of one fan-out call. */
   readonly groupId?: string
   /** The rove session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
+  /** A bare checkout (`add --worktree-only`): marked from its first write, so no client lists it even for a moment. */
+  readonly worktreeOnly?: boolean
+  /** Tree lineage: the task this one is spawned from (`Task.parentTaskId`). */
+  readonly parentTaskId?: TaskId
+  /** Engine cwd below the worktree root (`Task.cwdSubpath`). */
+  readonly cwdSubpath?: string
   /** Marks this the standing session task of a routine: the
    *  sidebar folds it behind a count row instead of a loose task row. */
   readonly routine?: TaskRoutineLink

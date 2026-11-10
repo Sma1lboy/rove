@@ -2,9 +2,9 @@
  * What's left here after the golden took over.
  *
  * `test/golden/sidebar-row-state.golden.txt` now enumerates
- * `buildSidebarRowView` over its whole input space — every activity state ×
- * seen bit × job × deletion phase × vendor × transcript, plus the spinner sets,
- * the completion grace window, subagent marks and subtitle truncation. Every
+ * `buildSidebarRowView` over its whole input space — every daemon row status ×
+ * deletion phase × vendor, plus the spinner sets, subagent marks and subtitle
+ * truncation. Every
  * per-state assertion belongs in that table rather than here, as a second,
  * less complete copy that could disagree with it.
  *
@@ -42,10 +42,10 @@ function task(overrides: Omit<Partial<Task>, "id"> & { id?: string } = {}): Task
   } as Task
 }
 
-function view(overrides: Parameters<typeof task>[0], activity?: Parameters<typeof buildSidebarRowView>[0]["activity"]) {
+function view(overrides: Parameters<typeof task>[0], status?: Parameters<typeof buildSidebarRowView>[0]["status"]) {
   return buildSidebarRowView({
     task: task(overrides),
-    activity,
+    status,
     spinnerFrame: 0,
     subtitleBudget: 80,
     truncateBranch: (branch) => branch,
@@ -113,27 +113,29 @@ describe("rowIsLoading / anyRowLoading (spinner gate)", () => {
       { task: task({ status: "in_progress" }) },
       { task: task({ status: "backlog" }) },
       { task: task({ kind: "main", branch: "", status: "in_progress" }) },
-      { task: task({ status: "done" }), job: { kind: "ensureWorktree" as const } },
-      { task: task({}), activity: { state: "running" as const, at: 1 } },
+      { task: task({ status: "done" }), status: { kind: "busy" as const, reason: "job" as const, since: 1 } },
+      { task: task({}), status: { kind: "running" as const, since: 1, state: "running" as const } },
+      { task: task({}), status: { kind: "needs-input" as const, since: 1, state: "permission_needed" as const } },
+      { task: task({}), status: { kind: "unseen" as const, since: 1 } },
       // A custom engine has no transcript store to watch, so its rest state is
       // "untracked" rather than idle — the one input where the two functions
       // could plausibly have been written to disagree.
       { task: task({ vendor: "my-custom-engine" }) },
-      { task: task({ deletion: { phase: "running" as const, force: true, requestedAt: "2026-07-15T00:00:00.000Z" } }) },
+      {
+        task: task({ deletion: { phase: "running" as const, force: true, requestedAt: "2026-07-15T00:00:00.000Z" } }),
+        status: { kind: "busy" as const, reason: "deleting" as const, since: 1 },
+      },
     ]
     for (const c of cases) {
       const built = buildSidebarRowView({ ...base, ...c })
-      expect(rowIsLoading(c)).toBe(built.loading)
+      expect(rowIsLoading(c.status)).toBe(built.loading)
     }
   })
 
   it("anyRowLoading is true iff at least one row has live runtime activity", () => {
     const idle = task({ id: "idle", status: "backlog" })
     const busy = task({ id: "busy", status: "in_progress" })
-    const reads = {
-      activity: (id: string) => (id === "busy" ? ({ state: "running" as const, at: 1 } as const) : undefined),
-      job: () => undefined,
-    }
+    const reads = (id: string) => (id === "busy" ? ({ kind: "running", since: 1 } as const) : undefined)
     expect(anyRowLoading([idle], reads)).toBe(false)
     expect(anyRowLoading([idle, busy], reads)).toBe(true)
     expect(anyRowLoading([], reads)).toBe(false)

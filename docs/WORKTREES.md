@@ -40,6 +40,17 @@ Worktree location relocates the root (a `$project_dir` token expands to each
 task's project root). Remote (SSH) projects put worktrees under the remote
 project's own path at `<project>/.rove/worktrees/<slug>`.
 
+## Move a task to another project
+
+A task created in the wrong project moves with the row menu's "Move to
+project…" (TUI and web) or `rove api update --task-id ID --project PATH`. The
+move regroups the rows only: the checkout, branch, terminals and running
+engine stay exactly where they are, so the conversation keeps resuming. A
+worktree task remembers the repo that cut it, so Remove session, Land and
+forks still run in that repo, and moving it back clears the link. Children
+follow their parent; a child, a project's main task, a routine session and a
+multi-repo task are not movable on their own.
+
 ## Ignored directories are cloned in
 
 On macOS a new local task's worktree gets the main checkout's `node_modules`
@@ -50,6 +61,37 @@ cost stays near zero until it does. Turn it off with `worktree.cloneIgnored`
 or change the list per repo with `.rove/clone-dirs`; see
 [Cloned ignored directories](./CONFIGURATION.md#cloned-ignored-directories).
 Cross-volume, non-APFS, SSH and non-macOS setups behave as before.
+
+## Fork a task with its uncommitted work
+
+A new task normally starts from a branch's last commit, so edits the original
+has not committed stay behind. A **fork** clones the original's worktree
+instead: modified tracked files, staged changes, untracked files and
+gitignored directories (`node_modules`, build output) all arrive, on a new
+branch rooted at the original's HEAD. The original is not touched, and the two
+share no state afterwards: an edit on one side never shows on the other.
+
+```bash
+rove api add --fork <task-id> --command claude --prompt "try the other approach"
+```
+
+The fork is a sibling in the same repo, titled `<original title> (fork)`
+unless you pass `--title`. In the TUI and the web, the quick-fork composer
+(`ctrl+f`, or New conversation → Fork) does the same whenever the base stays
+on the original's own branch.
+
+The copy is made with the filesystem's clone call (`clonefile` on APFS,
+reflink on btrfs and XFS), so it takes well under a second whatever the size
+and uses no extra disk until either side writes. Rove never falls back to a
+full copy. When the volume cannot clone files, `add --fork` fails with
+`FORK_UNSUPPORTED` and creates nothing, and the TUI and web start the task
+the old way and say that the uncommitted work stays in the original. The same
+refusal covers a project's main checkout, a `rove .` directory task, a
+multi-repo task and a remote (SSH) project.
+
+Not carried over: state git keeps in the original's git directory outside the
+index, such as a half-done merge or rebase. Deleting a fork works like deleting
+any worktree, so its uncommitted work needs `--force` (and is salvaged).
 
 ## Open and navigate the page
 
@@ -127,6 +169,16 @@ still there. Deleting the
 task and deleting the source branch remain separate lifecycle decisions;
 from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
+A Task that spans several repos (`add --repo A --repo B`) lands from the CLI
+(`rove api land`) as a unit with no atomicity: every repo is checked first and
+nothing is merged if one refuses; then the repos merge in the order they were
+picked, primary first, and the run stops at the first conflict. Earlier repos
+stay landed, the conflicted one is aborted and clean, and running `land` again
+resumes with the repos still unlanded (a repo already merged, or already
+squashed onto its base, counts as having nothing to land). The worktrees are removed only after the last repo lands,
+because the primary is the engine's working directory and the conflict is
+resolved from it. `rove api sync` merges each repo's own base into its worktree.
+
 ## Remove a clean worktree
 
 1. Select the worktree and press `d`.
@@ -147,12 +199,29 @@ worktree pointer. It does not delete the Task, its branch, or engine history.
 Opening the Task later may materialize a fresh worktree from the retained
 branch.
 
+A Task that spans several repos (`add --repo A --repo B`) deletes as a unit:
+the dirty / gitignored check covers every repo's worktree before anything is
+queued (the refusal lists each repo that has work), a forced delete takes its
+salvage snapshot in each repo, and a removal that fails in one repo leaves the
+Task in `deletion.phase = "error"` naming that repo; already-removed repos are
+skipped on retry. When a Task that owns extra worktrees is deleted while a
+shared child survives, the child inherits them.
+
+Downgrading is unsupported for such Tasks: a build from before multi-repo
+drops `extraRepos` the next time it writes the task index, after which the
+extra worktrees are unowned. Rove never deletes them; they stay visible in
+`git worktree list` of their repo, and `git worktree remove` there clears them.
+
 `rove api remove-worktree --task-id ID [--force]` is the same operation from a
 shell, for scripting a reclaim of idle checkouts. It runs this path — session
 teardown first, dirty refused without `--force`, salvage snapshot on every
 force — and adds two refusals a clicking human cannot trigger: it will not
 remove the project's own checkout (`BASE_CHECKOUT`) or the worktree the
 command is running from (`CALLER_WORKTREE`).
+
+`rove api worktree-usage` says which checkouts are worth reclaiming: every task's own
+worktrees ranked by size, with the gitignored part (dependencies, build
+output) broken out.
 
 ### When git removes the worktree but not its directory
 
@@ -289,6 +358,92 @@ deletion by task title and time.
 The refs are ordinary git refs: they are not garbage-collected, and they are
 never pushed. Delete one you no longer need with
 `git update-ref -d refs/rove/salvage/<branch>-<timestamp>`.
+
+## Checkpoints
+
+Every time an engine finishes a turn in a task's worktree, Rove saves a
+checkpoint: a snapshot of the files as they stand, kept as a git ref in the
+owning repo (`refs/rove/checkpoints/<task>/<n>`). It is the undo button for an
+agent that went the wrong way, one step per turn.
+
+A checkpoint holds tracked edits and files you never `git add`ed. Gitignored
+files (`node_modules/`, build output, `.env`) are left out. It does not touch
+your branch, your index or `HEAD`, and a turn that changed nothing takes no new
+one. The newest 100 per task are kept. Only a task's own worktree is covered —
+a project's main checkout and a directory task are your own files, and get no
+checkpoints. A nested repo or submodule is recorded as a pointer, not its
+files; `checkpoint` reports those paths as `uncaptured`.
+
+```
+rove api checkpoint-list --task-id ID   # what there is, oldest first
+rove api checkpoint --task-id ID        # take one now
+rove api rewind --task-id ID --to 3     # restore the files to checkpoint 3
+```
+
+`rewind` makes the worktree files equal checkpoint 3: files created since are
+deleted, files deleted since come back, ignored files stay. The branch and the
+agent's conversation do not move. It checkpoints the current state first and
+prints that number as `undo.n`, so `rewind --to <undo.n>` puts everything back.
+While the agent is mid-turn or waiting on a permission, `rewind` refuses with
+`TASK_BUSY`; pass `--force` to override.
+
+Checkpoints belong to the directory's owner. A child task that shares its
+parent's directory has none of its own: its turns are recorded in the owner's
+history, and `--task-id <child>` lists, takes and rewinds the owner's
+checkpoints (replies say which task in `workspaceTaskId`). Because every task
+in the directory edits the same files, `rewind` refuses while *any* of their
+engines is working, not only the one you named.
+
+A checkpoint is an ordinary commit, so the same history is reachable with git
+in the owning repo:
+
+```
+git for-each-ref refs/rove/checkpoints/<task>
+git diff refs/rove/checkpoints/<task>/3
+git restore --source=refs/rove/checkpoints/<task>/3 -- path/to/file
+```
+
+Deleting the task deletes its checkpoint refs; the worktree directory going
+away does not, since the refs live in the repo. If the owner is deleted while a
+child still uses the directory, the child inherits the history.
+
+## LayerFS tasks (experimental)
+
+On a Linux machine with Docker, `rove api add --workspace layerfs` gives a task
+a [LayerFS](https://github.com/Ephemeral-AI-Lab/layerfs) Workspace instead of
+a git worktree. The repo is imported into a LayerFS Store once (its `.git`
+included), each task gets a Sandbox container of its own, and the Workspace is
+mounted inside it at the same path the task row records. Every terminal Rove
+opens in the task runs inside the container through `docker exec`, as uid
+`501:20` with `HOME=/tmp/rove-home`. On the host that directory holds only
+`.rove-launch.json` (the `docker exec` prefix) and `.rove-layerfs.json` (the
+backend's state).
+
+Set `experimental.layerfs` in state.json to an env file of `KEY=VALUE` lines:
+`LAYERFS_CLI` (the CLI's `layerfs.js`) and `LAYERFS_NODE` (the `node` that
+runs it), plus the LayerFS settings `LAYERFS_HOME`, `LAYERFS_STORE_PATH`,
+`LAYERFS_IMAGE` and whichever others your setup needs, all passed through
+as-is. The Store lives under `/var/lib/docker`, so every LayerFS call runs
+through `sudo -n`; without passwordless sudo the task is refused with
+`LAYERFS_NEEDS_ROOT`. Build steps: [workspace-runner.md](./design/workspace-runner.md#layerfs-backend-experimental).
+
+What differs from a worktree task:
+
+- `checkpoint` is a LayerFS commit of the whole tree, `.git` and ignored files
+  included, and `rewind` mounts a fork of that commit at the same path. Close
+  the task's terminals first: `rewind` refuses with `WORKSPACE_BUSY` while a
+  process runs in the directory.
+- No checkpoint at turn end: engine hooks inside the container cannot reach
+  the daemon. Run `rove api checkpoint` yourself.
+- The task's branch lives inside the sandbox. `rove api export-branch` copies
+  its commits into the host repo under the same name; land or push from there.
+- Engines see the container, not your machine: the engine CLI must be in the
+  image, and logins, keys and host paths in its launch flags are not there.
+- Deleting the task kills what still runs in its directory, then unmounts and
+  closes the Sandbox. The LayerFS Branch stays in the Store.
+- A Docker or machine restart ends the Sandbox and loses uncommitted work.
+  The task does not remount; delete it and start a new one (committed state is
+  still in the Store).
 
 ## Troubleshooting
 

@@ -15,15 +15,16 @@
  * like a schedule that is merely quiet.
  */
 
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { DaemonRpcClient } from "../../../rove-daemon/src/client/rpc.ts"
 import { type DispatchDeps, dispatchAutomation } from "../../../rove-daemon/src/daemon/automation-dispatch.ts"
 import { runAutomationOnce } from "../../../rove-daemon/src/daemon/automation-runner.ts"
 import { AutomationsStore } from "../../../rove-daemon/src/daemon/automations-store.ts"
 import type { Automation, DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
+import { routineDir } from "../../../rove-daemon/src/daemon/routine-dir.ts"
 import { fakeDeliveries } from "./automation-runner-fixtures.ts"
 
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
@@ -78,6 +79,10 @@ function harness(
         created.push(input)
         return task({ id: `task-${created.length}` })
       },
+      openDirectoryTask: async (input: never) => {
+        created.push(input)
+        return task({ id: `task-${created.length}` })
+      },
       getTask: (id: string) => args.tasks?.[id],
     },
     runtime: {
@@ -116,14 +121,14 @@ describe("standing session — first firing", () => {
     expect(outcome).toMatchObject({ status: "dispatched", taskId: "task-1", sessionTaskIdToSet: "task-1" })
   })
 
-  it("does NOT mark a task when the routine is not persistent", async () => {
+  it("marks a fresh-per-run routine's task as the routine's too, without making it the standing session", async () => {
     const { created, deps } = harness()
 
-    await dispatchAutomation(deps, automation({ persistentSession: false }))
+    const outcome = await dispatchAutomation(deps, automation({ persistentSession: false }))
 
-    // A fresh-per-run routine makes ordinary tasks: its output is a branch the
-    // user has to review and land, so hiding it would hide real work.
-    expect(created[0]).not.toHaveProperty("routine")
+    // Every run folds out of the task list; the Routines page is where runs open.
+    expect(created[0]).toMatchObject({ routine: { automationId: "auto-1" } })
+    expect(outcome).not.toHaveProperty("sessionTaskIdToSet")
   })
 
   it("remembers the task even when its engine failed to start", async () => {
@@ -229,5 +234,44 @@ describe("runAutomationOnce persists the standing link", () => {
 
     // Relinked to the REBUILT task, not left pointing at the corpse.
     expect(store.get(created.id)?.sessionTaskId).toBe("task-1")
+  })
+})
+
+describe("projectless routine firing", () => {
+  const home = mkdtempSync(join(tmpdir(), "rove-routine-home-"))
+  beforeEach(() => vi.stubEnv("ROVE_HOME_DIR", home))
+  afterEach(() => vi.unstubAllEnvs())
+
+  it("opens a noProject directory task in the routine's own dir, linked to the routine either way", async () => {
+    const standing = harness()
+    await dispatchAutomation(standing.deps, automation({ repo: undefined, model: "m1", vendor: "codex" }))
+    expect(standing.created[0]).toMatchObject({
+      dir: routineDir("auto-1"),
+      noProject: true,
+      title: "daily audit",
+      vendor: "codex",
+      model: "m1",
+      routine: { automationId: "auto-1" },
+    })
+    expect(statSync(routineDir("auto-1")).isDirectory()).toBe(true)
+
+    const fresh = harness()
+    await dispatchAutomation(fresh.deps, automation({ repo: undefined, persistentSession: false }))
+    expect(fresh.created[0]).toMatchObject({
+      dir: routineDir("auto-1"),
+      noProject: true,
+      routine: { automationId: "auto-1" },
+    })
+  })
+
+  it("revives a dead standing session in the same directory", async () => {
+    const dir = routineDir("auto-1")
+    const { deps, spawned } = harness({
+      tasks: { "task-1": task({ worktreePath: dir }) },
+      deliver: async () => ({ outcome: "no-engine" as const, tabId: "tab-1" }),
+    })
+    const outcome = await dispatchAutomation(deps, automation({ repo: undefined, sessionTaskId: "task-1" }))
+    expect(outcome.status).toBe("revived")
+    expect(spawned).toHaveLength(1)
   })
 })

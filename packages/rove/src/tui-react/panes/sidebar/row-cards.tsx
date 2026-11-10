@@ -17,9 +17,7 @@ import { DONE_PULSE_MS } from "../../../tui/panes/sidebar/row-view"
 import { type WorktreeChanges, pickPushedChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { pollWorktreeChanges, worktreeChanges } from "../../../tui/panes/sidebar/worktree-changes-poller"
 import { useDiffInks } from "../../context/diff-inks"
-import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
-import { completionSeenAt, completionSeenKey, markCompletionSeen } from "../../workspace/completion-seen"
 
 const NOOP_SUBSCRIBE = () => () => {}
 const ZERO_FRAME = () => 0
@@ -123,43 +121,8 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges | null })
   )
 }
 
-/**
- * Rows whose CURRENT `turn_complete` the user has seen (● → ✓); cleared when
- * activity moves off `turn_complete`. Process-scoped: the durable half is
- * `workspace/completion-seen`; this Set is the same-render answer.
- *
- * Keyed per ROW, not per task: a sibling tab passing `activityState:
- * undefined` would otherwise wipe the completed tab's bit (✓ → ●).
- */
-const completionSeenIds = new Set<string>()
-
-/**
- * Render-time seen bookkeeping: the render that shows a viewed+complete row
- * must already draw ✓. `viewing` = this row is what the right pane shows.
- * `tabId` scopes the bit to one tab row; omit it for whole-task cards.
- *
- * `durableSeen` ({@link useDurableCompletionSeen}) is ORed in, not added to
- * the Set: it is keyed on the completion's timestamp, so it un-sets itself
- * when a newer turn completes.
- */
-export function completionSeenFor(
-  taskId: string,
-  activityState: string | undefined,
-  viewing: boolean,
-  tabId?: string,
-  durableSeen = false,
-): boolean {
-  const key = completionSeenKey(taskId, tabId)
-  if (activityState === "turn_complete") {
-    if (viewing) completionSeenIds.add(key)
-  } else {
-    completionSeenIds.delete(key)
-  }
-  return completionSeenIds.has(key) || durableSeen
-}
-
-/** The stamp a row's seen mark is keyed on, or undefined when the row is not
- *  sitting on a completion at all. */
+/** The completion stamp the landing pulse keys on, or undefined when the row
+ *  is not sitting on a completion at all. */
 export function completionStampOf(activity: TaskEngineState | undefined): number | undefined {
   return activity?.state === "turn_complete" ? activity.at : undefined
 }
@@ -189,25 +152,4 @@ export function useDonePulse(completionAt: number | undefined): boolean {
     return () => clearTimeout(timer)
   }, [completionAt])
   return pulsingAt !== null && pulsingAt === completionAt
-}
-
-/**
- * Persisted half of the seen bit. The write is an EFFECT: `kv.set` re-renders
- * every KV consumer, so writing in render would update the provider mid-render
- * of another component. No KV provider → session-only behaviour.
- */
-export function useDurableCompletionSeen(
-  taskId: string,
-  tabId: string | undefined,
-  completionAt: number | undefined,
-  viewing: boolean,
-): boolean {
-  const kv = useOptionalKV()
-  const key = completionSeenKey(taskId, tabId)
-  const seen = completionSeenAt(kv, key, completionAt)
-  useEffect(() => {
-    if (!kv || !viewing || completionAt === undefined || seen) return
-    markCompletionSeen(kv, key, completionAt)
-  }, [kv, key, completionAt, viewing, seen])
-  return seen
 }

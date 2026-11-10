@@ -10,13 +10,21 @@ import { hostname as osHostname } from "node:os"
 import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
-import { WEB_SUBPROTOCOL, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
+import { admit } from "./admit.ts"
+import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
+import { WEB_SUBPROTOCOL, offersWebSubprotocol } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
-import type { TaskFeed } from "./feed.ts"
+import type { CredentialSockets } from "./credential-sockets.ts"
+import type { DispatchFeed } from "./dispatch-feed.ts"
+import { type TaskFeed, taskPusher } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
+import { absPath, oneOf } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
+import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
+import type { PanelFeed } from "./panels.ts"
+import { type Peer, peerOf, viewingFields } from "./peer.ts"
 import type { PromptFeed } from "./prompts.ts"
 import {
   BRIDGE_PROTOCOL_VERSION,
@@ -33,26 +41,41 @@ import {
   responseOk,
   str,
 } from "./protocol.ts"
+import type { Credential, PushHub } from "./push.ts"
+import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
+import type { RowStatusFeed } from "./row-status.ts"
+import { type SignIn, authOp } from "./sign-in.ts"
 import type { TabFeed } from "./tab-feed.ts"
-import { type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
+import type { WebLogin } from "./web-login.ts"
 import { type WebRoot, serveWebFile } from "./web-static.ts"
 
 export interface BridgeDeps {
   readonly token: string
+  /** A per-device token's owner (`auth.ts` devices), or null; absent = only the shared token works. */
+  readonly deviceOf?: (presented: string | null) => string | null
+  /** Live sockets per credential, so a sign-out ends the connection it holds. */
+  readonly sockets?: CredentialSockets
   readonly ops: RoveOps
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
   readonly notices?: Pick<NoticeFeed, "subscribe">
   /** Plugin input dialogs (`rove api prompt`), pushed to every connected client as a `prompt` event. */
   readonly prompts?: Pick<PromptFeed, "subscribe">
+  /** `rove api panel-show` requests, pushed to every connected browser as a `panel` event. */
+  readonly panels?: Pick<PanelFeed, "subscribe">
   /** Open mod panes (`mod.ui`), pushed as a `mods` event on connect and on every change. */
   readonly mods?: {
     current(): readonly ModPaneView[]
     subscribe(listener: (panes: readonly ModPaneView[]) => void): () => void
   }
+  /** The daemon's dispatch ledger, pushed as a `dispatch` event on connect and on every change. */
+  readonly dispatches?: Pick<DispatchFeed, "current" | "subscribe">
   /** Tasks whose Terminal Tabs changed, pushed as a `tabs` event to task subscribers. */
   readonly tabs?: Pick<TabFeed, "subscribe">
+  /** The daemon's row status: where `ui.viewing` and answered questions (`term.input`) are reported. */
+  readonly rowStatus?: Pick<RowStatusFeed, "setViewing" | "noteInput">
   /** A fresh PTY Host socket for one phone connection. */
   readonly openPty: () => PtyHostClient
   /** The PTY host of a registered machine, over its forwarded socket; absent = this bridge serves no machines. */
@@ -71,9 +94,26 @@ export interface BridgeDeps {
   readonly areaOps?: OpTable
   /** Serve the browser client's files on plain GETs (`rove --web`). */
   readonly web?: WebRoot
+  /** `/login` and `/logout` for the browser client (`web-login.ts`). */
+  readonly login?: WebLogin
+  readonly signIn?: SignIn // how a browser gets in; absent when no browser client is served
+  /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
+  readonly publicHost?: string | null
+  /** Web Push for closed pages (`push.ts`); absent = the `push.*` ops refuse. */
+  readonly push?: Pick<PushHub, "publicKey" | "subscribe" | "unsubscribe" | "subscribed" | "setVisible">
+  /** The relay ingress only (`--preset relay`): the relay agent dials this listener with no headers, so the token rides `?token=` inside the E2E tunnel. */
+  readonly tokenInQuery?: boolean
 }
 
 interface Conn {
+  /** What opened it: browser or phone, on the bridge's own machine or not (decided at upgrade). */
+  readonly peer: Peer
+  /** This connection's screen as the daemon's row status knows it (`ui.viewing`'s `viewer`). */
+  readonly viewer: string
+  /** Who opened it, for the audit lines: the paired device's name (or the shared token) and its address. */
+  readonly who: string
+  /** The token this connection presented: a device's name, or the shared token's hash (`push.ts`). */
+  readonly credential: Credential
   terminal: TerminalForwarder | null
   /** One forwarder per other machine whose terminal this connection opened. */
   machineTerminals: Map<string, Promise<TerminalForwarder>>
@@ -84,6 +124,8 @@ interface Conn {
   unsubscribeNotices: (() => void) | null
   unsubscribeMods: (() => void) | null
   unsubscribePrompts: (() => void) | null
+  unsubscribeDispatches: (() => void) | null
+  unsubscribePanels: (() => void) | null
 }
 
 async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request): Promise<unknown> {
@@ -110,7 +152,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     return pending
   }
   const owner = (stream: string): TerminalForwarder => conn.streamOwner.get(stream) ?? terminal()
-  if (DESTRUCTIVE_CORE[req.op]) logDestructive(deps, req)
+  if (DESTRUCTIVE_CORE[req.op]) logDestructive({ log: deps.log, who: conn.who }, req)
   switch (req.op) {
     case "hello":
       return {
@@ -119,6 +161,8 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         apiVersion: ROVE_API_VERSION,
         roveVersion: deps.roveVersion,
         host: osHostname(),
+        // Where this page is, as the bridge saw the upgrade: a remote page cannot load the agent's localhost.
+        peer: conn.peer,
       }
     case "api.invoke": {
       if (!deps.invoke) throw new BridgeError("UNKNOWN_OP", "this bridge does not serve verbs")
@@ -127,7 +171,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       if (typeof params !== "object" || params === null || Array.isArray(params)) {
         throw new BridgeError("BAD_ARGS", "params must be an object keyed by flag name")
       }
-      if (DESTRUCTIVE_VERBS.has(verb)) logDestructiveVerb(deps, verb, params as Record<string, unknown>)
+      if (Object.hasOwn(DESTRUCTIVE_VERBS, verb)) {
+        logDestructiveVerb({ log: deps.log, who: conn.who }, verb, params as Record<string, unknown>)
+      }
       const envelope = await deps.invoke(verb, params as ApiParams, optStr(a, "machine"))
       if (envelope.ok) return envelope.result
       throw new BridgeError(envelope.error.code, envelope.error.message, envelope.error)
@@ -136,14 +182,17 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
-      conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      conn.unsubscribeTasks ??= deps.feed.subscribe(taskPusher((frame) => ws.send(frame), a.patches === true))
       conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }
     case "tasks.list":
       return deps.feed.refresh()
-    case "engines.list":
-      return { engines: await ops.engines() }
+    case "engines.list": {
+      // `repo` (absolute) asks which engine a picker for that project preselects.
+      const repo = a.repo === undefined ? undefined : absPath(a, "repo")
+      return { engines: await ops.engines(), preferred: taskOpDeps.preferredEngine(repo) }
+    }
     case "repos.list":
       return { repos: await ops.repos() }
     case "task.create":
@@ -154,7 +203,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         title: optStr(a, "title"),
       })
     case "task.delete":
-      return ops.deleteTask(str(a, "taskId"), optBool(a, "force"))
+      return ops.deleteTask(str(a, "taskId"), optBool(a, "force"), optBool(a, "cascade"))
     case "task.land": {
       const strategy = optStr(a, "strategy") ?? "merge"
       if (strategy !== "merge" && strategy !== "squash") throw new BridgeError("BAD_ARGS", "strategy is merge|squash")
@@ -167,10 +216,21 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const kind = optStr(a, "kind") ?? "engine"
       if (kind !== "shell" && kind !== "engine") throw new BridgeError("BAD_ARGS", "kind is shell|engine")
       const engine = optStr(a, "engine")
-      if (kind === "shell" && (prompt !== undefined || engine !== undefined)) {
+      const latest = optBool(a, "latest")
+      const replaceTab = optStr(a, "replaceTab")
+      if (kind === "shell" && (prompt !== undefined || engine !== undefined || latest || replaceTab !== undefined)) {
         throw new BridgeError("BAD_ARGS", "a shell tab takes no prompt or engine")
       }
-      return ops.newTab(str(a, "taskId"), { kind, prompt, engine })
+      if (replaceTab !== undefined && !/^tab-[A-Za-z0-9-]+$/.test(replaceTab)) {
+        throw new BridgeError("BAD_ARGS", "replaceTab is not a tab id")
+      }
+      return ops.newTab(str(a, "taskId"), {
+        kind,
+        prompt,
+        engine,
+        ...(latest ? { latest } : {}),
+        ...(replaceTab ? { replaceTab } : {}),
+      })
     }
     case "tab.close":
       await ops.closeTab(str(a, "taskId"), str(a, "tabId"))
@@ -191,13 +251,33 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const target = shown?.taskId ?? taskId
       const forwarder = await terminalFor(target)
       const cwd = shown?.cwd ?? (await ops.worktreeOf(taskId))
-      const attached = await forwarder.attach(
-        target,
-        shown?.tabId ?? tabId,
-        cwd,
-        cols !== undefined && rows !== undefined ? { cols, rows } : undefined,
-        leafId,
-      )
+      const shownTab = shown?.tabId ?? tabId
+      const size = cols !== undefined && rows !== undefined ? { cols, rows } : undefined
+      const acks = optBool(a, "acks")
+      const attach = () => forwarder.attach(target, shownTab, cwd, size, leafId, acks)
+      // A tab with no running session reopens as it is opened, the way a TUI attach
+      // resumes it (`tab-revive`). When that fails the page still gets the dead tab and
+      // its Reopen button. Split panes and another machine's tabs attach as they are.
+      const autoRevive = !remote && leafId === undefined
+      let attached: AttachResult | null = null
+      let gone: unknown = null
+      try {
+        attached = await attach()
+      } catch (err) {
+        if (!autoRevive || !(err instanceof BridgeError && err.code === "TAB_NOT_LIVE")) throw err
+        gone = err
+      }
+      if (autoRevive && (gone !== null || attached?.alive === false)) {
+        // Let go of the corpse first, so its exit never reaches the page as this tab's.
+        if (attached) await forwarder.detach(attached.stream)
+        const revived = await ops.reviveTab(target, shownTab).then(
+          () => true,
+          () => false,
+        )
+        if (!revived && gone !== null) throw gone
+        attached = await attach()
+      }
+      if (!attached) throw gone
       conn.streamOwner.set(attached.stream, forwarder)
       return attached
     }
@@ -205,6 +285,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       const data = a.data
       if (typeof data !== "string") throw new BridgeError("BAD_ARGS", "data must be a string")
       await owner(str(a, "stream")).input(str(a, "stream"), data)
+      deps.rowStatus?.noteInput(str(a, "stream"), data)
       return {}
     }
     case "term.resize":
@@ -214,6 +295,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         optInt(a, "rows", 4, 500) ?? 24,
       )
       return {}
+    case "term.ack":
+      conn.streamOwner.get(str(a, "stream"))?.ack(str(a, "stream"), optInt(a, "chars", 0, 1e9) ?? 0)
+      return {}
     case "term.detach":
       {
         const stream = str(a, "stream")
@@ -222,13 +306,22 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
         await forwarder?.detach(stream)
       }
       return {}
+    case "term.revive": {
+      const taskId = str(a, "taskId")
+      const tabId = str(a, "tabId")
+      // The session `term.attach` would open: a viewport tab revives the one it shows.
+      const shown = ops.machineOf?.(taskId) !== undefined ? null : ops.viewedSession(taskId, tabId)
+      return ops.reviveTab(shown?.taskId ?? taskId, shown?.tabId ?? tabId, optBool(a, "restartExited"))
+    }
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
     case "diff.file": {
-      const scope = str(a, "scope")
-      if (scope !== "branch" && scope !== "working") throw new BridgeError("BAD_ARGS", "scope is branch|working")
-      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope)
+      const scope = oneOf(a, "scope", ["branch", "working", "task"])
+      const flags = [optBool(a, "ignoreWhitespace"), optStr(a, "base"), optBool(a, "content")] as const
+      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, ...flags)
     }
+    case "diff.refs":
+      return ops.diffRefs(str(a, "taskId"))
     case "attention.dismiss": {
       const taskId = str(a, "taskId")
       const tabId = optStr(a, "tabId")
@@ -244,11 +337,31 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       await ops.dismissAttention(taskId, tabId, deliveryId)
       return {}
     }
+    case "auth.status":
+    case "auth.setMode":
+      return authOp(deps.signIn, req.op, a, conn.credential)
+    case "push.key":
+      return { publicKey: requirePush(deps).publicKey() }
+    case "push.status":
+      return { subscribed: requirePush(deps).subscribed(a.endpoint, conn.credential) }
+    case "push.subscribe":
+      requirePush(deps).subscribe(a.subscription, conn.credential)
+      return {}
+    case "push.unsubscribe":
+      return { removed: requirePush(deps).unsubscribe(a.endpoint, conn.credential) }
+    case "ui.viewing": {
+      // `taskId: null` = this screen shows no task (the page went hidden).
+      const taskId = a.taskId === null ? null : str(a, "taskId")
+      const tabId = taskId === null ? null : (optStr(a, "tabId") ?? null)
+      deps.push?.setVisible(conn.viewer, taskId !== null)
+      deps.rowStatus?.setViewing(conn.viewer, taskId, tabId, viewingFields(a, conn.peer))
+      return {}
+    }
     default: {
       const spec = (deps.areaOps ?? AREA_OPS)[req.op]
       // Unreachable for unregistered names: parseRequest already refused them.
       if (!spec) throw new BridgeError("UNKNOWN_OP", `unknown op: ${req.op}`)
-      if (spec.destructive) logDestructive(deps, req)
+      if (spec.destructive) logDestructive({ log: deps.log, who: conn.who }, req)
       return spec.run(a, {
         api: deps.api,
         progress: (line) => ws.send(pushEvent("op.progress", { id: req.id, line })),
@@ -257,37 +370,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
   }
 }
 
-/** Core ops that lose work or are hard to undo; area ops declare it on their spec. */
-const DESTRUCTIVE_CORE: Readonly<Record<string, true>> = { "task.delete": true, "task.land": true, "tab.close": true }
-
-/**
- * Verbs that lose work or are hard to undo, audited like {@link DESTRUCTIVE_CORE}.
- * The token already grants a shell (`term.input`), so serving verbs adds no
- * power; the audit line is what keeps a destructive call visible.
- */
-const DESTRUCTIVE_VERBS: ReadonlySet<string> = new Set([
-  "delete",
-  "land",
-  "remove-worktree",
-  "tab-close",
-  "issue-delete",
-  "routine-delete",
-  "note-delete",
-])
-
-function logDestructiveVerb(deps: BridgeDeps, verb: string, params: Record<string, unknown>): void {
-  const ids = ["task-id", "tab", "id"]
-    .filter((key) => typeof params[key] === "string" || typeof params[key] === "number")
-    .map((key) => `${key}=${String(params[key])}`)
-  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] api.invoke ${verb} ${ids.join(" ")}`.trimEnd())
-}
-
-/** Audit line for a destructive op: op name and the ids it targets. Never other args, never the token. */
-function logDestructive(deps: BridgeDeps, req: Request): void {
-  const ids = ["taskId", "tabId", "path"]
-    .filter((key) => typeof req.args[key] === "string")
-    .map((key) => `${key}=${String(req.args[key])}`)
-  ;(deps.log ?? ((line: string) => console.error(line)))(`[rove-bridge] ${req.op} ${ids.join(" ")}`.trimEnd())
+function requirePush(deps: BridgeDeps): NonNullable<BridgeDeps["push"]> {
+  if (!deps.push) throw new BridgeError("UNAVAILABLE", "this bridge sends no push notifications")
+  return deps.push
 }
 
 async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: string): Promise<void> {
@@ -309,19 +394,17 @@ async function onMessage(deps: BridgeDeps, ws: ServerWebSocket<Conn>, raw: strin
   }
 }
 
-/** `Origin` names the same host:port the request was sent to (default ports normalised by URL). */
-function sameHost(origin: string, host: string | null): boolean {
-  try {
-    return host !== null && new URL(origin).host === host.toLowerCase()
-  } catch {
-    return false
-  }
-}
+/** Names each connection's screen for `ui.viewing`; unique across every server this process runs. */
+let nextViewer = 0
 
 export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; port: number }): Server<Conn> {
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
     port: listen.port,
+    // The only HTTP bodies are the routine webhook (1 MiB cap) and password
+    // login (4 KiB): reject anything larger before it is buffered, so a
+    // chunked POST cannot grow the bridge's RSS past the caps it checks later.
+    maxRequestBodySize: 2 * 1024 * 1024,
     async fetch(req, server) {
       const log = deps.log ?? ((line: string) => console.error(line))
       // Behind cloudflared every peer is 127.0.0.1; Cloudflare names the real client.
@@ -335,22 +418,31 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         }
       }
       const upgrade = req.headers.get("upgrade")?.toLowerCase() === "websocket"
+      if (!upgrade) {
+        const hook = await routineHook(deps.api, req, log)
+        if (hook) return hook
+      }
+      if (!upgrade && deps.login) {
+        const answer = await deps.login.handle(req, server.requestIP(req)?.address ?? "?")
+        if (answer) return answer
+      }
+      const peer = server.requestIP(req)?.address
+      const local = deps.signIn?.opens(req, peer) === true
+      // The page asks before it has a token whether to connect without one.
+      if (!upgrade && req.method === "GET" && new URL(req.url).pathname === "/auth") {
+        return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })
+      }
       if (!upgrade && deps.web) {
         const file = await serveWebFile(deps.web, req)
         if (file) return file
       }
-      // Phones send no Origin. A browser always does; one from another site never gets a socket,
-      // even holding the token. Absent Origin still needs the token below.
-      const origin = req.headers.get("origin")
-      if (origin !== null && !sameHost(origin, req.headers.get("host"))) {
-        log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
-        return new Response("forbidden\n", { status: 403 })
-      }
-      if (!tokenMatches(deps.token, presentedToken(req))) {
-        log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
-        return new Response("unauthorized\n", { status: 401 })
-      }
+      const who = admit(req, { local, from, log }, deps)
+      if (who instanceof Response) return who
       const data: Conn = {
+        peer: peerOf(req, peer, deps),
+        viewer: `bridge-${++nextViewer}`,
+        who: `device=${who.name} from=${from}`,
+        credential: who.credential,
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),
@@ -359,6 +451,8 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         unsubscribeNotices: null,
         unsubscribeMods: null,
         unsubscribePrompts: null,
+        unsubscribeDispatches: null,
+        unsubscribePanels: null,
       }
       // A browser drops a socket whose server did not pick one of its offered protocols.
       const headers = offersWebSubprotocol(req) ? { "Sec-WebSocket-Protocol": WEB_SUBPROTOCOL } : undefined
@@ -367,11 +461,20 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
     },
     websocket: {
       open(ws) {
+        deps.sockets?.add(ws)
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
         ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
+        ws.data.unsubscribePanels = deps.panels?.subscribe((p) => ws.send(pushEvent("panel", p))) ?? null
         if (deps.mods) {
           ws.send(pushEvent("mods", { panes: deps.mods.current() }))
           ws.data.unsubscribeMods = deps.mods.subscribe((panes) => ws.send(pushEvent("mods", { panes })))
+        }
+        if (deps.dispatches) {
+          const now = deps.dispatches.current()
+          if (now) ws.send(pushEvent("dispatch", now))
+          ws.data.unsubscribeDispatches = deps.dispatches.subscribe((snapshot) =>
+            ws.send(pushEvent("dispatch", snapshot)),
+          )
         }
       },
       // Terminal replays reach 512 KiB raw (~700 KiB base64); leave headroom for paste.
@@ -380,11 +483,17 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         void onMessage(deps, ws, typeof message === "string" ? message : message.toString("utf8"))
       },
       close(ws) {
+        deps.sockets?.remove(ws)
+        // What this screen showed is no longer looked at.
+        deps.rowStatus?.setViewing(ws.data.viewer, null, null)
+        deps.push?.setVisible(ws.data.viewer, false)
         ws.data.unsubscribeTasks?.()
         ws.data.unsubscribeTabs?.()
         ws.data.unsubscribeNotices?.()
         ws.data.unsubscribeMods?.()
         ws.data.unsubscribePrompts?.()
+        ws.data.unsubscribeDispatches?.()
+        ws.data.unsubscribePanels?.()
         ws.data.terminal?.dispose()
         for (const pending of ws.data.machineTerminals.values()) {
           pending.then(

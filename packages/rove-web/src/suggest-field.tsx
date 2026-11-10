@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
+import { INPUT, SUGGEST_LIST, suggestRowClass } from "./ui/text.ts"
 
 export interface Suggestion {
   readonly key: string
@@ -44,8 +45,12 @@ export function SuggestField(props: {
   const active = useRef<HTMLLIElement>(null)
   const { onCursor } = props
   useEffect(() => onCursor?.(at), [at, onCursor])
+  // Braced: newer Chromium returns a Promise from scrollIntoView, and an effect that returns it hands
+  // React a "cleanup" it then calls — a TypeError that blanks the whole page on the next re-render.
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when the cursor or the list moves
-  useEffect(() => active.current?.scrollIntoView({ block: "nearest" }), [at, props.items])
+  useEffect(() => {
+    active.current?.scrollIntoView({ block: "nearest" })
+  }, [at, props.items])
 
   const key = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return
@@ -66,9 +71,9 @@ export function SuggestField(props: {
   }
 
   return (
-    <div className="suggest">
+    <div className="relative">
       <input
-        className="input"
+        className={INPUT}
         data-field={props.field}
         spellCheck={false}
         autoComplete="off"
@@ -83,21 +88,21 @@ export function SuggestField(props: {
         onKeyDown={key}
       />
       {shown && (
-        <ul className="suggest-list">
+        <ul className={SUGGEST_LIST}>
           {props.items.map((item, i) => (
             <li key={item.key} ref={i === at ? active : undefined}>
               <button
                 type="button"
                 tabIndex={-1}
                 aria-pressed={i === at}
-                className={`suggest-row ${i === at ? "is-cursor" : ""} ${item.accent ? "is-accent" : ""}`}
+                className={suggestRowClass({ cursor: i === at, accent: !!item.accent })}
                 onMouseDown={(e) => {
                   e.preventDefault()
                   props.onPick(i)
                 }}
               >
                 <span>{item.text}</span>
-                {item.dim && <span className="muted"> {item.dim}</span>}
+                {item.dim && <span className="text-muted"> {item.dim}</span>}
               </button>
             </li>
           ))}

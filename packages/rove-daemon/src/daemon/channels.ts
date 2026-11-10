@@ -9,6 +9,7 @@ import type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
   NoticeEventPayload,
+  PanelShowPayload,
   SessionDeliverPayload,
   TabAddPayload,
   TabClosePayload,
@@ -30,6 +31,7 @@ export type {
   EngineLifecyclePayload,
   GraphicsWritePayload,
   NoticeEventPayload,
+  PanelShowPayload,
   PaneClosePayload,
   SessionDeliverPayload,
   TabAddPayload,
@@ -39,9 +41,13 @@ export type {
   TerminalTabClosePayload,
   UiPromptPayload,
 } from "./channels-events.ts"
+import type { DispatchSnapshot } from "./dispatch-ledger.ts"
 import type { RepoIssues } from "./issues-store.ts"
 import type { SerializedTask } from "./protocol.ts"
+import type { RowStatusPayload } from "./row-status-store.ts"
 import type { RowTokenMap } from "./row-tokens.ts"
+import type { SharedStatePayload } from "./state-watcher.ts"
+import type { TabsChangedPayload } from "./tabs-store.ts"
 
 /**
  * Daemon→client push channels. Each carries a last value the daemon caches
@@ -65,6 +71,19 @@ export interface ChannelPayloads {
    * `lifetime.hasSubscribersFor`: free with nobody attached.
    */
   "issue.snapshot": RepoIssues
+  /**
+   * One task's whole terminal-tab state after a `tabs.apply` (`tabs-store.ts`).
+   * Replay carries only the last changed task: a client lists them all
+   * (`tabs.list`) when it connects and keeps the highest `rev` per task.
+   */
+  "tabs.changed": TabsChangedPayload
+  /**
+   * What every rail shows for every task and tab (`row-status-store.ts`), whole, after any
+   * change. Clients render it (`rove/src/lib/row-status-glyph.ts`); none derives a status.
+   */
+  "row.status": RowStatusPayload
+  /** Every in-flight prompt one session handed another, plus recent settled ones (`dispatch-ledger.ts`), whole. */
+  "dispatch.snapshot": DispatchSnapshot
   /**
    * The task last switched into, shared so every Tasks pane and the monitor
    * highlight the same focus. `null` = none yet. Set via `task.setActive`.
@@ -139,6 +158,19 @@ export interface ChannelPayloads {
    */
   keybindings: { rev: number }
   /**
+   * The shared state file minus `isUnpublishedStateKey` (`state-watcher.ts`), whole,
+   * after every change by any writer. Clients follow it instead of keeping a
+   * boot-time copy.
+   */
+  state: SharedStatePayload
+  /**
+   * Other registered machines as the daemon's hub holds them (rove
+   * `machines/daemon-hub.ts`), whole after any change: each machine's
+   * connection state, its tasks stamped with their origin, and what its daemon
+   * pushes about them. Published only while someone subscribes to it.
+   */
+  machines: MachinesPayload
+  /**
    * Plugin-written row tokens, the FULL map, republished on every write and
    * as each token's TTL expires (`row-tokens.ts`) — the expiry republish is
    * what makes an abandoned label fade.
@@ -156,6 +188,8 @@ export interface ChannelPayloads {
     taskId: string
     kind: "ensureWorktree"
     phase: "running" | "done" | "error"
+    /** On `running` only, once git starts checking out files: whole percent, 0-100. */
+    progress?: number
     /** Present only on `phase: "error"` — the thrown message, for UI hints. */
     error?: string
   }
@@ -195,9 +229,8 @@ export interface ChannelPayloads {
   /**
    * Text to paste into a task's live engine session (docs/design/dispatcher.md).
    * The daemon never delivers: whichever front-end hosts the session does.
-   * Producers: `note.file` (`source: "note"`, to the repo's main-task
-   * dispatcher) and `session.deliver` (`rove api dispatch`,
-   * `source: "dispatcher"`). EVENT channel.
+   * Producer: `session.deliver` (`rove api dispatch`, `source: "dispatcher"`).
+   * EVENT channel.
    */
   "session.deliver": SessionDeliverPayload
   /**
@@ -232,6 +265,11 @@ export interface ChannelPayloads {
   "engine.lifecycle": EngineLifecyclePayload
   /** One toast for attached UIs (`rove api notify` → `notice.send`). EVENT channel. */
   "notice.event": NoticeEventPayload
+  /**
+   * Bring up the web side panel on a view (`rove api panel-show` → `panel.show` RPC). Every web
+   * client remembers it for the task; one on the task with a panel opens it. EVENT channel.
+   */
+  "panel.show": PanelShowPayload
   /**
    * Per-vendor quota snapshots from the daemon's usage cache, keyed by vendor
    * id; full map, republished on change. Vendors without a quota probe (or a
@@ -273,6 +311,27 @@ export interface ChannelPayloads {
 }
 
 /** The `ui-prefs` channel payload — the persisted visual prefs snapshot. */
+export interface MachineStatusWire {
+  readonly alias: string
+  readonly hostLabel: string
+  readonly hostname?: string
+  readonly state: "connecting" | "online" | "offline" | "unsupported" | "mismatch"
+  readonly version?: string
+  readonly duplicateOf?: string
+  readonly error?: string
+}
+
+export interface MachinesPayload {
+  readonly machines: readonly MachineStatusWire[]
+  readonly tasks: readonly SerializedTask[]
+  /** Engine state by task id, worktree changes by that machine's path, token chips by task id. */
+  readonly live: {
+    readonly activity: Readonly<Record<string, unknown>>
+    readonly changes: Readonly<Record<string, unknown>>
+    readonly tokens: Readonly<Record<string, unknown>>
+  }
+}
+
 export type UiPrefsPayload = ChannelPayloads["ui-prefs"]
 
 /** The `worktree.changes` channel payload — daemon-collected change counts. */

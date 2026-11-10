@@ -390,9 +390,8 @@ describe("hosted engine session launch", () => {
     expect(main.command[2]).not.toContain("report it by running")
   })
 
-  test("seeds a worktree session with the repo's field notes, and never the main session", () => {
-    // The main session is the dispatcher — it gets notes pushed to it live,
-    // so reading the store for it would double-deliver.
+  test("seeds both worktree and main sessions with the repo's field notes", () => {
+    // Launch-time injection is the only way a note reaches a session.
     const readNotes = (repoRoot: string) => {
       seen.push(repoRoot)
       return [{ text: "build needs --no-sandbox", author: "worker A" }]
@@ -418,9 +417,8 @@ describe("hosted engine session launch", () => {
     })
 
     expect(card.command[2]).toContain("build needs --no-sandbox")
-    expect(main.command[2]).not.toContain("build needs --no-sandbox")
-    // Read once, for the card only — keyed by the task's source repo.
-    expect(seen).toEqual(["/repo"])
+    expect(main.command[2]).toContain("build needs --no-sandbox")
+    expect(seen).toEqual(["/repo", "/repo"])
   })
 })
 

@@ -6,6 +6,12 @@
 > the work is merged, the row should get out of the way and the branch stays
 > behind as history. The original design kept `archive` as an internal GC
 > state; issue #75 removed the concept entirely.
+>
+> **Archive is back as a hide-only flag.** `rove api archive` now hides a task
+> and its children from the sidebar and the default `list` without stopping a
+> session or touching the worktree, unlike the archive described below, which
+> stopped hosted sessions. `delete` stays the verb that ends a task. See
+> `archive` in [`docs/API.md`](../API.md#lifecycle).
 
 ## 1. The changes
 

@@ -18,7 +18,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { noteClosedPtyKey } from "../../tui/workspace/closed-tab-suppress"
 import { type TerminalTab, closeTab, tabPtyKey, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import {
   knownTabsState,
   reportTabsDelta,
@@ -30,12 +30,14 @@ import {
 /**
  * Release a closing tab's split leaves and its own PTY. A viewport tab
  * (`ptyTask`) only views another task's session, so it isn't killed — same
- * carve-out as `chat.tab.close`.
+ * carve-out as `chat.tab.close`. A migrated child's tab names the tab it
+ * lives in (`ptyTask.tabId`): that session IS the child's conversation, so
+ * closing the tab ends it like any other engine tab.
  */
 export function releaseClosedTabPtys(taskId: string, closing: TerminalTab | undefined, closedId: string): void {
   const key = closing ? tabPtyKeyFor(taskId, closing) : tabPtyKey(taskId, closedId)
   releaseSplitLeaves(key, closing?.splitTree ?? null)
-  if (closing?.kind === "engine" && closing.ptyTask) return
+  if (closing?.kind === "engine" && closing.ptyTask && closing.ptyTask.tabId === undefined) return
   // The orphan backstop polls the host every 2s and would re-adopt the session
   // before it sees the kill (ctrl+w needing two presses); note the key so
   // orphan detection skips it meanwhile.
@@ -99,7 +101,6 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
   if (!closedId) return false
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   reportTabsDelta(taskId, state.tabs, next.tabs)
   releaseClosedTabPtys(taskId, closing, closedId)
   return true
@@ -116,6 +117,17 @@ export function closeOtherTaskTabs(kv: TabsSnapshotKv, taskId: string, keepId: s
   let closed = 0
   for (const tab of state.tabs) {
     if (tab.id !== keepId && closeTaskTab(kv, taskId, tab.id)) closed++
+  }
+  return closed
+}
+
+/** Close every tab of `taskId`, one {@link closeTaskTab} each; the row stays and re-entering revives a tab. */
+export function closeAllTaskTabs(kv: TabsSnapshotKv, taskId: string): number {
+  const state = knownTabsState(kv, taskId)
+  if (!state) return 0
+  let closed = 0
+  for (const tab of state.tabs) {
+    if (closeTaskTab(kv, taskId, tab.id)) closed++
   }
   return closed
 }

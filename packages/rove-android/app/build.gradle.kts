@@ -1,3 +1,6 @@
+import java.net.URI
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,15 +8,33 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("app.cash.paparazzi")
 }
+// Release signing comes from the environment or Gradle properties, never from the checkout (docs/ANDROID.md).
+fun signingValue(name: String): String? =
+    (findProperty(name) as String?)?.takeIf { it.isNotBlank() } ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+val releaseKeystore = signingValue("ROVE_ANDROID_KEYSTORE")
+
 android {
     namespace = "run.rove.mobile"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "run.rove.mobile"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        targetSdk = 36
+        versionCode = property("rove.versionCode").toString().toInt()
+        versionName = property("rove.versionName").toString()
+    }
+    signingConfigs {
+        if (releaseKeystore != null) create("release") {
+            storeFile = file(releaseKeystore)
+            storePassword = signingValue("ROVE_ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = signingValue("ROVE_ANDROID_KEY_ALIAS")
+            keyPassword = signingValue("ROVE_ANDROID_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -30,6 +51,13 @@ val copyDemo by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/demo"))
 }
 tasks.named("preBuild") { dependsOn(copyDemo) }
+// Settings → about shows the same policy Play Console links to; bundled so it reads offline and in demo mode.
+val copyPrivacy by tasks.registering(Copy::class) {
+    from("../../../docs/PRIVACY.md")
+    into(layout.buildDirectory.dir("generated/privacy/docs"))
+}
+android.sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/privacy"))
+tasks.named("preBuild") { dependsOn(copyPrivacy) }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.04.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -66,3 +94,20 @@ val copyTerminalLicenses by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/terminal/terminal/licenses"))
 }
 tasks.named("preBuild") { dependsOn(copyTerminalLicenses) }
+
+val prepareSearchSnapshot by tasks.registering {
+    val baseline = layout.projectDirectory.file("src/test/snapshots/images/run.rove.mobile_ScreenshotsTest_searchHits.png")
+    val checksum = "9edddbb8f1a4cc47072d1c58c8f84ea1c925b1a86d3ee7d6b467692460f05e83"
+    inputs.property("sha256", checksum)
+    outputs.file(baseline)
+    doLast {
+        val bytes = URI("https://raw.githubusercontent.com/Sma1lboy/rove/7d5e833912636ffe08d0b95ef4098d6957d6aa90/packages/rove-android/app/src/test/snapshots/images/run.rove.mobile_ScreenshotsTest_searchHits.png").toURL().openConnection().apply {
+            connectTimeout = 30_000
+            readTimeout = 30_000
+        }.getInputStream().use { it.readBytes() }
+        val actual = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        check(actual == checksum) { "Search screenshot checksum mismatch: $actual" }
+        baseline.asFile.apply { parentFile.mkdirs(); writeBytes(bytes) }
+    }
+}
+tasks.withType<Test>().configureEach { dependsOn(prepareSearchSnapshot) }

@@ -3,6 +3,7 @@ import { preRenameStateDir } from "../daemon/pre-rename-runtime.ts"
  * Filesystem layout for installed plugins, all under `<home>/.rove/`:
  *
  *   plugins.json                  — the registry (see plugins/registry.ts)
+ *   builtin-mods.json             — which first-party mods are installed (see plugins/builtin-mods.ts)
  *   plugins/<id>/checkout/        — managed source checkout (GitHub installs only)
  *   plugins/<id>/config/          — user-editable config (.env etc.); plugin-owned format
  *   plugins/<id>/state/           — plugin-owned runtime state
@@ -25,6 +26,10 @@ function stateRoot(homeDir?: string): string {
 
 export function pluginRegistryPath(homeDir?: string): string {
   return join(stateRoot(homeDir), "plugins.json")
+}
+
+export function builtinModsPath(homeDir?: string): string {
+  return join(stateRoot(homeDir), "builtin-mods.json")
 }
 
 /** Parent of every per-plugin directory — also where installs stage their clone. */

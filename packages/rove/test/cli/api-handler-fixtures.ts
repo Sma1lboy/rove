@@ -78,16 +78,22 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
     splitTab: async () => {
       throw new Error("splitTab should not run in this test")
     },
+    reviveTab: async () => {
+      throw new Error("reviveTab should not run in this test")
+    },
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (path) => path,
     isUsableRepo: async () => true,
+    inspectRepo: async (path) => ({ root: path, usable: true }),
     isValidBranchName: async () => true,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
     readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
+    listeningPorts: async () => [],
+    measureCheckout: async () => ({ exists: false, bytes: null, ignoredBytes: null }),
     ...overrides,
   }
 }

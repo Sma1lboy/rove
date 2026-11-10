@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">搜索会话</string>
+    <string name="search_placeholder">在所有任务的对话里找</string>
+    <string name="search_hint">搜你和 agent 写过的话，新的在前；不含工具输出。点结果打开那个任务。</string>
+    <string name="search_searching">搜索中…</string>
+    <string name="search_none">没有说过「%1$s」。</string>
+    <string name="search_you">你</string>
+    <string name="search_agent">agent</string>
+    <string name="search_truncated">为了快提前停了；多加一个词缩小范围。</string>
+    <plurals name="search_skipped">
+        <item quantity="other">有 %1$d 个任务没搜：在别的机器上，或 Rove 读不了它的引擎记录。</item>
+    </plurals>
+</resources>

@@ -1,20 +1,20 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The sidebar tree's body: ONE scrollbox of one-line rows (the cursor indexes
- * one flat id list). The only fold is a project's routine count row, which
- * hides sessions a SCHEDULE created; everything a human opened shows.
+ * one flat id list). A project's routine count row folds the sessions a
+ * SCHEDULE created, a task folds its child tasks, and the Archived row at the
+ * end folds what the user archived; everything else a human opened shows.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { machineRowLabel } from "../../../tui/panes/sidebar/machine-layer"
 import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tree-core"
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { ArchivedTreeRow } from "./archived-row"
 import { SectionHeader } from "./chrome"
-import { RoutinesTreeRow } from "./routines-row"
 import type { TreeRowShared } from "./tree-row-shell"
-import { RecentJumpRow, TabTreeRow, WorktreeTreeRow } from "./tree-rows"
+import { RecentJumpRow, WorktreeTreeRow } from "./tree-rows"
 
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
@@ -41,23 +41,8 @@ export function SidebarTreeBody(props: {
     >
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
-          if (row.kind === "machine") {
-            // Machine header, one rung above projects. Offline/mismatched
-            // machines grey out: a stale snapshot must not read as live.
-            return (
-              <SectionHeader
-                key={row.id}
-                label={machineRowLabel(
-                  { alias: row.alias, hostLabel: row.label, state: row.state, version: row.version },
-                  t,
-                )}
-                topPad={i > 0}
-                muted={row.state !== "online"}
-              />
-            )
-          }
           if (row.kind === "project") {
-            // Scratch is a fixed section, not a repo: no context menu.
+            // Scratch is a fixed section, not a repo: its menu offers only the two ways to start with no folder.
             const isScratch = row.id === SCRATCH_SECTION_ID
             return (
               <SectionHeader
@@ -67,9 +52,7 @@ export function SidebarTreeBody(props: {
                 topPad={i > 0}
                 depth={row.depth}
                 onContextMenu={
-                  props.onProjectContextMenu && !isScratch
-                    ? (x, y) => props.onProjectContextMenu?.(row.id, x, y)
-                    : undefined
+                  props.onProjectContextMenu ? (x, y) => props.onProjectContextMenu?.(row.id, x, y) : undefined
                 }
               />
             )
@@ -85,39 +68,29 @@ export function SidebarTreeBody(props: {
               />
             )
           }
-          if (row.kind === "routines") {
+          if (row.kind === "archived") {
             return (
-              <RoutinesTreeRow
+              <ArchivedTreeRow
                 key={row.id}
                 rowId={row.id}
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 count={row.count}
-                tasks={row.tasks}
                 expanded={row.expanded}
                 shared={props.shared}
               />
             )
           }
-          if (row.kind === "worktree") {
-            return (
-              <WorktreeTreeRow
-                key={row.id}
-                rowId={row.id}
-                flatIndex={props.flatIndexOf.get(row.id) ?? -1}
-                task={row.task}
-                depth={row.depth}
-                shared={props.shared}
-              />
-            )
-          }
           return (
-            <TabTreeRow
+            <WorktreeTreeRow
               key={row.id}
               rowId={row.id}
               flatIndex={props.flatIndexOf.get(row.id) ?? -1}
               task={row.task}
-              tab={row.tab}
-              depth={row.depth - 1}
+              depth={row.depth}
+              level={row.level}
+              fold={row.fold}
+              title={row.title}
+              remote={row.remote}
               shared={props.shared}
             />
           )

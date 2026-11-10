@@ -81,13 +81,13 @@ describe("runAutomationOnce", () => {
     const status = await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
     expect(status).toBe("dispatched")
-    expect(created).toEqual([{ repo: REPO, title: "audit" }])
+    expect(created).toEqual([{ repo: REPO, title: "audit", routine: { automationId: a.id } }])
     const run = store.runsFor(a.id)[0]
     expect(run).toMatchObject({ status: "dispatched", taskId: "task-1" })
     // The header names THIS run's delivery, and the routine's prompt comes last, unchanged.
     expect(run?.deliveryId).toBe("d-1")
     expect(prompts).toEqual([
-      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …]\n\nrun the audit`,
+      `[ROVE ROUTINE] "audit" run #1 — when done, report with: rove api report --delivery d-1 --outcome done|partial|blocked|failed --summary … [--evidence …]… [--next …] (only if something happened or you are blocked)\n\nrun the audit`,
     ])
   })
 
@@ -98,7 +98,16 @@ describe("runAutomationOnce", () => {
 
     await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })
 
-    expect(created).toEqual([{ repo: REPO, title: "audit", vendor: "codex", model: "gpt-5.5", modelEffort: "high" }])
+    expect(created).toEqual([
+      {
+        repo: REPO,
+        title: "audit",
+        vendor: "codex",
+        model: "gpt-5.5",
+        modelEffort: "high",
+        routine: { automationId: a.id },
+      },
+    ])
   })
 
   it("skips without creating a task when the precheck fails", async () => {
@@ -112,6 +121,27 @@ describe("runAutomationOnce", () => {
     // The whole point of a precheck: no engine, no token spend.
     expect(created).toEqual([])
     expect(store.runsFor(a.id)[0]?.precheckResult?.exitCode).toBe(1)
+  })
+
+  it("runs a script routine with no task or engine; stdout is the response, a bad exit needs a human", async () => {
+    const store = await tempStore()
+    const { deps, created, prompts } = fakeDeps({ store })
+    const ok = await store.create(
+      automation({ prompt: "", script: { command: "echo removed 3 worktrees", timeoutSeconds: 10 } }),
+    )
+    const bad = await store.create(
+      automation({ prompt: "", script: { command: "echo partial; echo boom >&2; exit 2", timeoutSeconds: 10 } }),
+    )
+
+    expect(await runAutomationOnce(deps, ok, { scheduledFor: NOW, trigger: "scheduled" })).toBe("ran")
+    expect(await runAutomationOnce(deps, bad, { scheduledFor: NOW, trigger: "scheduled" })).toBe("script_failed")
+
+    expect(created).toEqual([])
+    expect(prompts).toEqual([])
+    expect(store.runsFor(ok.id)[0]?.response?.text).toBe("removed 3 worktrees")
+    const failed = store.runsFor(bad.id)[0]
+    expect(failed?.response?.text).toBe("partial")
+    expect(failed?.error).toMatch(/^script exited 2: [\s\S]*boom/)
   })
 
   it("ignores the precheck on a manual trigger", async () => {

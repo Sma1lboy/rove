@@ -290,6 +290,24 @@ worktree path, the `--force`/`--delete-branch` flags, and who asked:
   context, but it names who CREATED the task, not who deleted it.
 - `client=<n>` — the daemon connection id, which distinguishes concurrent
   callers when neither identity above is present (a TUI keypress, `rove api`).
+  Many `requested` lines with ONE `client` a few seconds apart, and no `by=`,
+  are one long-lived connection: a TUI, or the web app's bridge.
+
+A delete from the web app or a paired phone also leaves a line in the
+bridge's own output (the stderr of `rove --web`, wherever your launcher sends
+it), with the same task id, the time, and who sent it:
+
+```
+[rove-bridge] 2026-11-01T02:13:06.414Z task.delete taskId=01M6… device=phone-1 from=203.0.113.7
+```
+
+`device` is the name given to `--device` or the password login
+(`web-login-<date>`), or `shared-token` for the main link; `from` is the
+address it connected from (behind Cloudflare, the visitor's). Match it to the
+daemon's `requested` line by task id and time. A device you do not recognize:
+`rove --web --revoke-device <name>`. Every other destructive web action
+(landing a task, closing a tab, removing a worktree, deleting a routine)
+writes the same kind of line.
 
 A `salvaged` line appears between `requested` and `removed` when a **forced**
 deletion had uncommitted work to destroy. It names the git ref holding a
@@ -365,8 +383,8 @@ under `~/.rove/` (or the selected Rove home):
 - `pty-sessions/` freezes each hosted session's launch metadata and bounded
   scrollback ring so a PTY-host crash, restart, or machine reboot can restore
   the old screen and respawn the launch command. An explicit tab close or task
-  delete drops that session's frozen record; a reset asks the running host to
-  start fresh.
+  delete drops that session's frozen record; a reset clears the whole directory
+  once the host is gone.
 
 These files can contain text that was visible in the embedded terminal. Treat
 the Rove home with the same permissions and backup policy as shell history and
@@ -677,16 +695,19 @@ guide is unavailable.
 
 ## Mouse wheel in the embedded terminal
 
-The wheel follows real terminal-emulator semantics, in order:
+The wheel follows the same rules in the TUI and on the web, in order:
 
-1. the embedded app enabled mouse tracking (claude's transcript, `vim`,
-   `less --mouse`) → the wheel is forwarded; the app scrolls itself;
-2. fullscreen app without mouse tracking → 3 arrow keys per tick;
-3. plain shell → Rove's local scrollback (same channel as
-   `ctrl+pgup` / `ctrl+pgdn`; scroll to the bottom to resume following).
+1. a fullscreen app (alternate screen) that enabled mouse tracking (claude's
+   transcript, `vim`, `less --mouse`) → the wheel is forwarded; the app scrolls itself;
+2. a fullscreen app without mouse tracking → 3 arrow keys per tick;
+3. anything on the normal screen → Rove's local scrollback (same channel as
+   `ctrl+pgup` / `ctrl+pgdn`; scroll to the bottom to resume following), even
+   when the app tracks the mouse: an inline app such as omp turns tracking on
+   but cannot scroll the scrollback. Hold `shift` to send the wheel to such an
+   app instead (an inline `fzf` list).
 
-If scrolling "does nothing" inside an app, that app received the events and
-chose not to scroll. Check its own mouse setting (e.g. `:set mouse=a`).
+If scrolling "does nothing" inside a fullscreen app, that app received the
+events and chose not to scroll. Check its own mouse setting (e.g. `:set mouse=a`).
 
 An app may turn mouse tracking on once at startup and never send it again.
 When you reopen a tab, the Hosted PTY host replays only the last 512 KB of

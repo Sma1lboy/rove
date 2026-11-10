@@ -4,7 +4,10 @@ import type { IssueBoardColumn } from "@sma1lboy/rove/src/state/issue-board.ts"
 import { useEffect, useState } from "react"
 import type { EngineOption, Issue } from "./kanban-drawer.tsx"
 import type { AppModel } from "./model.ts"
+import { type ComposerEngine, defaultEngineId, offeredEngines } from "./new-session.ts"
 import { errorMessage, mergeRepos, useTaskRepos } from "./pages-kit.ts"
+import { lastReply, remember, requestRemembered } from "./remembered.ts"
+import { KB_CARD_BODY, KB_CARD_FOOT, KB_CARD_HEAD, kbCardClass, kbCardTitleClass } from "./ui/kanban.ts"
 
 export interface Board {
   readonly repoRoot: string
@@ -16,21 +19,24 @@ export interface Board {
 
 /** Task-group badge tones, as the TUI's `taskGroupTone`. */
 export const TONE: Record<string, string> = {
-  "waiting-on-you": "tone-attention",
-  landing: "tone-success",
-  "ready-for-review": "tone-ink",
-  working: "tone-accent",
+  "waiting-on-you": "text-error",
+  landing: "text-success",
+  "ready-for-review": "text-ink",
+  working: "text-accent",
 }
 
 export function useEngines(model: AppModel): { engines: readonly EngineOption[]; defaultEngine: string } {
-  const [rows, setRows] = useState<readonly (EngineOption & { ready?: boolean })[]>([])
+  type Row = EngineOption & ComposerEngine
+  const [rows, setRows] = useState<readonly Row[]>(() => {
+    const last = lastReply<{ engines: Row[] }>(model, "engines.list")
+    return last ? offeredEngines(last.engines) : []
+  })
   useEffect(() => {
-    model.client
-      .request<{ engines: (EngineOption & { ready?: boolean })[] }>("engines.list")
-      .then((res) => setRows(res.engines))
+    requestRemembered<{ engines: Row[] }>(model, "engines.list")
+      .then((res) => setRows(offeredEngines(res.engines)))
       .catch(() => setRows([]))
   }, [model])
-  return { engines: rows, defaultEngine: (rows.find((row) => row.ready !== false) ?? rows[0])?.id ?? "" }
+  return { engines: rows, defaultEngine: defaultEngineId(rows) }
 }
 
 /**
@@ -40,7 +46,10 @@ export function useEngines(model: AppModel): { engines: readonly EngineOption[];
 export function useBoards(model: AppModel, tick: number) {
   const taskRepos = useTaskRepos(model)
   const repoKey = taskRepos.join("\n")
-  const [boards, setBoards] = useState<readonly Board[] | null>(null)
+  // The boards as last read show at once on every visit; the reread replaces them.
+  const [boards, setBoards] = useState<readonly Board[] | null>(
+    () => lastReply<readonly Board[]>(model, "kanban.boards") ?? null,
+  )
   // biome-ignore lint/correctness/useExhaustiveDependencies: tick is a trigger; the body reads taskRepos through repoKey
   useEffect(() => {
     let live = true
@@ -64,7 +73,13 @@ export function useBoards(model: AppModel, tick: number) {
         ),
       )
       .then((results) => {
-        if (live) setBoards([...results].sort((a, b) => a.repoRoot.localeCompare(b.repoRoot)))
+        const sorted = remember(
+          model,
+          "kanban.boards",
+          undefined,
+          [...results].sort((a, b) => a.repoRoot.localeCompare(b.repoRoot)),
+        )
+        if (live) setBoards(sorted)
       })
     return () => {
       live = false
@@ -88,19 +103,19 @@ export function Card(props: {
     // biome-ignore lint/a11y/useKeyWithClickEvents: the page's keys (arrows, Enter) drive the cards
     <div
       data-issue={issue.id}
-      className={`kb-card ${props.selected ? "is-selected" : ""} ${props.column === "done" ? "is-done" : ""} ${props.badge?.tone === "tone-attention" ? "is-attention" : ""}`}
+      className={kbCardClass({ selected: props.selected, attention: props.badge?.tone === "text-error" })}
       onClick={() => (props.selected ? props.onOpen() : props.onSelect())}
       onContextMenu={(e) => {
         e.preventDefault()
         props.onMenu(e.clientX, e.clientY)
       }}
     >
-      <div className="kb-card-head">
-        <span className="kb-card-title">{issue.title}</span>
-        <span className="muted mono">#{issue.id}</span>
+      <div className={KB_CARD_HEAD}>
+        <span className={kbCardTitleClass(props.column === "done")}>{issue.title}</span>
+        <span className="mono text-muted">#{issue.id}</span>
       </div>
-      <div className="kb-card-body muted">{body}</div>
-      <div className="kb-card-foot mono muted">
+      <div className={`text-muted ${KB_CARD_BODY}`}>{body}</div>
+      <div className={`mono text-muted ${KB_CARD_FOOT}`}>
         <span>{issue.created}</span>
         {props.badge && <span className={props.badge.tone}>{props.badge.label}</span>}
       </div>

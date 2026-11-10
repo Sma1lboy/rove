@@ -1,5 +1,5 @@
 /**
- * `rove machine <add|remove|list>`. Machines are reached by forwarding the
+ * `rove machine <verb>` (verbs: `SUBCOMMAND_VERBS.machine`). Machines are reached by forwarding the
  * daemon's unix socket over SSH — no ports, no own auth. The remote socket
  * path is always asked, never guessed.
  *
@@ -8,7 +8,9 @@
  * with the specific remedy.
  */
 
+import { type DiscoverResult, learnedFrom, sshServerIsWindows } from "../machines/discover.ts"
 import { checkHostKey } from "../machines/host-key.ts"
+import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.ts"
 import {
   type MachineConfig,
   addMachine,
@@ -25,17 +27,27 @@ import {
   updateMachine,
 } from "../machines/registry.ts"
 import { readMachines } from "../machines/registry.ts"
+import {
+  installReverseTunnel,
+  reverseTunnelArgv,
+  tunnelServicePath,
+  uninstallReverseTunnel,
+} from "../machines/reverse-tunnel.ts"
 import { type SetupRuntime, establishMachine } from "../machines/setup.ts"
 import { machineSocketDir } from "../machines/ssh-args.ts"
+import { isWindowsMachine } from "../machines/windows-remote.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { loadStateFile } from "../state/store.ts"
 import { CURRENT_VERSION } from "../version.ts"
+import { argvHasFlag } from "./argv.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
+import { machinePrimary } from "./machine-primary.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
 const MACHINE_USAGE = [
-  `Usage: ${CLI_NAME} machine <add|remove|list> [options]`,
+  `Usage: ${CLI_NAME} machine <${SUBCOMMAND_VERBS.machine.join("|")}> [options]`,
   "",
   "Manage the other computers running Rove. Each one is reached over SSH;",
   "its tasks appear in the sidebar under a row of its own.",
@@ -45,12 +57,23 @@ const MACHINE_USAGE = [
   "  doctor [alias]          Re-check registered machines and offer the same fixes",
   "  remove <alias>          Forget a machine (nothing on it is touched)",
   "  list                    Show registered machines",
+  "  tunnel <alias>          Keep a reverse tunnel to <alias> so it can reach THIS machine",
+  "  inbound [allow|deny <class>]  What other machines' hubs may run here (default: everything)",
+  "  primary [<path>] [--clear]    The checkout a repo id resolves to here when there are several",
   "",
   "Add options:",
   "  --alias <name>          Local name for the machine (default: the target you typed)",
   "  --port <n>              SSH port (default: whatever ssh_config says)",
   "  --identity <file>       SSH private key (default: ssh-agent / ssh_config)",
   "  --yes                   Run every offered fix without asking (add, doctor)",
+  "",
+  "Tunnel options (when <alias> cannot reach this machine, e.g. WSL behind Windows NAT):",
+  "  --install               Run it as a login service (systemd user unit / launchd agent)",
+  "  --uninstall             Stop and remove that service",
+  "  --print                 Print the ssh command and service file; change nothing (default)",
+  "  --remote-port <n>       Port on <alias>'s loopback that leads back here (default 2222)",
+  "  --local-port <n>        This machine's sshd port (default 22)",
+  "  Then on <alias>: machine add <you>@127.0.0.1:<remote-port>",
   "",
   "  <ssh-target> is [user@]host[:port] — usually just an ssh_config Host alias.",
   "  In a terminal, a key the machine rejects or a missing Rove is offered as",
@@ -89,10 +112,15 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
     process.stdout.write(`${MACHINE_USAGE}\n`)
     return
   }
+  // Gate on the registry first: a verb dispatched below but missing there would not complete in the shell.
+  if (!SUBCOMMAND_VERBS.machine.includes(verb)) usageError(`unknown verb "${verb}"`)
   if (verb === "list") return list()
   if (verb === "add") return await add(rest)
   if (verb === "doctor") return await doctor(rest)
   if (verb === "remove") return remove(rest)
+  if (verb === "tunnel") return tunnel(rest)
+  if (verb === "inbound") return inbound(rest)
+  if (verb === "primary") return machinePrimary(rest, usageError)
   usageError(`unknown verb "${verb}"`)
 }
 
@@ -145,19 +173,20 @@ async function add(argv: readonly string[]): Promise<void> {
   }
   const duplicate = duplicateAliasOf(readMachines(loadStateFile()), alias, identityTriple)
 
-  const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
+  const learned = learnedFrom(found)
+  const sockets = learned.sockets
   if (found.roveBin) {
     process.stderr.write(
       `${CLI_NAME} machine: rove is not on ${alias}'s non-interactive PATH; using ${found.roveBin}\n`,
     )
   }
-  addMachine(alias, { ...settled, identity: identityTriple, sockets })
+  addMachine(alias, { ...settled, ...learned, identity: identityTriple })
   setMachineIdentity(alias, identityTriple)
   // Forward now, or `rove api list` can't see it until a TUI starts one.
   const { ensureForwards } = await import("../machines/tunnel.ts")
   const up = await ensureForwards({
     alias,
-    config: settled,
+    config: { ...settled, ...learned },
     remoteDaemonSocket: sockets.daemon,
     remotePtySocket: sockets.pty,
   })
@@ -214,9 +243,11 @@ async function doctor(argv: readonly string[]): Promise<void> {
       process.stdout.write(`${name}  ✗  ${established.failure.code}\n`)
       continue
     }
-    const { found, config: settled } = established
-    const sockets = { daemon: found.status.socketPath, pty: found.status.ptySocketPath }
-    updateMachine(name, { ...settled, sockets })
+    const { found } = established
+    const learned = learnedFrom(found)
+    const sockets = learned.sockets
+    const settled = { ...established.config, ...learned }
+    updateMachine(name, settled)
     const up = await ensureForwards({
       alias: name,
       config: settled,
@@ -228,9 +259,32 @@ async function doctor(argv: readonly string[]): Promise<void> {
     process.stdout.write(
       `${name}  ${up ? "✓" : "✗ socket not forwarded"}  rove ${version}${skew} on ${found.status.hostname || "?"}\n`,
     )
+    for (const note of await doctorNotes(name, settled, found)) process.stdout.write(`  ${note}\n`)
     if (!up) failed++
   }
   if (failed > 0) process.exitCode = 1
+}
+
+/** What a working machine still gets wrong: version skew, a noisy shell, a Windows sshd that runs a Unix shell. */
+async function doctorNotes(name: string, config: MachineConfig, found: DiscoverResult): Promise<string[]> {
+  const notes: string[] = []
+  const windows = isWindowsMachine(config)
+  if (found.status.roveVersion && found.status.roveVersion !== CURRENT_VERSION) {
+    notes.push(
+      `versions differ: update the older side (\`rove update\`${windows ? " or `npm install -g @sma1lboy/rove`" : ""}), then \`rove daemon restart\` there.`,
+    )
+  }
+  if (windows && found.shellNoise) {
+    notes.push(
+      `${name}'s shell prints ${found.shellNoise} bytes before every command (a PowerShell profile?). Rove skips them, but each connection waits for that profile. Keep it to your own logins: wrap it in \`if (-not [Console]::IsOutputRedirected) { … }\`.`,
+    )
+  }
+  if (!windows && (await sshServerIsWindows(name, config))) {
+    notes.push(
+      `${name}'s sshd is OpenSSH for Windows, but its commands run in a Unix shell (DefaultShell is bash or WSL), so this is the Rove in that shell, not native Windows Rove. For native Rove, set DefaultShell back (elevated): Remove-ItemProperty -Path HKLM:\\SOFTWARE\\OpenSSH -Name DefaultShell`,
+    )
+  }
+  return notes
 }
 
 /**
@@ -270,6 +324,79 @@ function remove(argv: readonly string[]): void {
   process.stdout.write(`${CLI_NAME} machine: leftover sockets live in ${machineSocketDir(alias)}\n`)
 }
 
+function tunnel(argv: readonly string[]): void {
+  const alias = positionalOf(argv)
+  if (!alias) usageError("tunnel needs the alias of the machine to tunnel to, e.g. `machine tunnel mac --install`")
+  const entry = getMachine(alias)
+  if (!entry) fail(`no machine named "${alias}" (see \`${CLI_NAME} machine list\`)`)
+  const port = (name: string, fallback: number) => {
+    const raw = flagValue(argv, name)
+    if (raw === undefined) return fallback
+    const n = Number.parseInt(raw, 10)
+    if (!Number.isInteger(n) || n < 1 || n > 65535) usageError(`--${name} must be a port number`)
+    return n
+  }
+  const ports = { remotePort: port("remote-port", 2222), localPort: port("local-port", 22) }
+  if (argvHasFlag(argv, "--uninstall")) {
+    const removed = uninstallReverseTunnel(alias)
+    process.stdout.write(
+      removed
+        ? `${CLI_NAME} machine: removed the tunnel service ${removed}
+`
+        : `${CLI_NAME} machine: no tunnel service for ${alias}
+`,
+    )
+    return
+  }
+  if (!argvHasFlag(argv, "--install")) {
+    process.stdout.write(`${reverseTunnelArgv(entry, ports).join(" ")}
+`)
+    const path = tunnelServicePath(alias)
+    process.stdout.write(
+      path
+        ? `
+--install writes ${path} and starts it.
+`
+        : `
+No service manager Rove supports here; keep the command above running yourself.
+`,
+    )
+    return
+  }
+  try {
+    const result = installReverseTunnel(alias, entry, ports)
+    process.stdout.write(`${CLI_NAME} machine: wrote ${result.path}
+`)
+    if (!result.started) fail(`the service did not start: ${result.detail}`)
+    process.stdout.write(
+      `${CLI_NAME} machine: tunnel to ${alias} is up and restarts on its own. On ${alias}, register this machine with \`${CLI_NAME} machine add <you>@127.0.0.1:${ports.remotePort}\`.
+`,
+    )
+  } catch (err) {
+    fail(err instanceof Error ? err.message : String(err))
+  }
+}
+
+/**
+ * This machine's policy for verbs another machine's hub forwards here. Classes are the verb groups
+ * plus `land` (land, publish). Nothing is denied until you deny it.
+ */
+function inbound(argv: readonly string[]): void {
+  const [action, cls] = argv
+  if (action === "allow" || action === "deny") {
+    if (!cls || !INBOUND_CLASSES.includes(cls))
+      usageError(`inbound ${action} needs one of: ${INBOUND_CLASSES.join(", ")}`)
+    const denied = setInbound(cls, action === "allow")
+    process.stdout.write(
+      `${CLI_NAME} machine: other machines ${action === "allow" ? "may now" : "may no longer"} run "${cls}" verbs here. Denied: ${denied.length ? denied.join(", ") : "nothing"}\n`,
+    )
+    return
+  }
+  if (action !== undefined) usageError("inbound takes allow|deny <class>, or nothing to show the policy")
+  const denied = new Set(deniedClasses())
+  for (const c of INBOUND_CLASSES) process.stdout.write(`${c.padEnd(11)} ${denied.has(c) ? "deny" : "allow"}\n`)
+}
+
 function list(): void {
   const machines = listMachines()
   if (machines.length === 0) {
@@ -294,7 +421,7 @@ function list(): void {
 }
 
 /** Flags that carry no value; every other flag eats the next token. */
-const SWITCHES = new Set(["--yes"])
+const SWITCHES = new Set(["--yes", "--install", "--uninstall", "--print"])
 
 /** The first argument that is neither a `--flag` nor a flag's value. */
 function positionalOf(argv: readonly string[]): string | undefined {

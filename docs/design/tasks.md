@@ -186,8 +186,9 @@ Claude Code's JSONL on disk and is reread via `engine.readHistory`.
   enforced as such by the code — the only enforced rule is the done↔error
   guard above.
 
-There is no separate archived state; a task is either present in the sidebar
-or deleted. `delete` keeps the branch by default and removes the worktree
+A task is present in the sidebar, archived, or deleted. `archive` only hides
+the row and its children (worktree, branch and sessions stay; `unarchive`
+restores it). `delete` keeps the branch by default and removes the worktree
 after the dirty-worktree safety check.
 
 ---

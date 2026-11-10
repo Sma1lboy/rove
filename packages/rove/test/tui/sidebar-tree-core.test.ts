@@ -7,7 +7,6 @@ import {
   mainTaskIdOfProject,
   parseRowId,
   projectKeysOf,
-  tabRowId,
   treeFlatIds,
   withRecentRow,
 } from "../../src/tui/panes/sidebar/tree-core"
@@ -90,12 +89,11 @@ describe("buildTreeRows", () => {
     expect(result.filter((r) => r.kind === "project").map((r) => r.id)).toEqual(["/repos/rove", "/repos/no-main"])
   })
 
-  test("every tab always renders — the tree has no fold", () => {
-    // No collapse anywhere, ever. The tree is
-    // a map; hiding rows makes the map lie.
+  test("tabs never become rows — a task is one conversation", () => {
+    // Engine, shell and content tabs live in the tab strip; the sidebar lists tasks only.
     const tabs = new Map([["a", [tab("tab-1"), tab("tab-2")]]])
     const result = rows({ tasks: [task("a")], tabsByTask: tabs })
-    expect(result.map((r) => r.id)).toEqual(["/repos/rove", "a", "a::tab-1", "a::tab-2"])
+    expect(result.map((r) => r.id)).toEqual(["/repos/rove", "a"])
   })
 
   test("a dir task groups under its directory as the project header", () => {
@@ -107,13 +105,6 @@ describe("buildTreeRows", () => {
       ["project", "/tmp/scratch"],
       ["worktree", "d"],
     ])
-  })
-
-  test("a task whose tabs never mounted contributes no tab rows", () => {
-    // Absent from the map is "unknown", not "zero tabs" — the difference
-    // matters because every task has at least one tab once it mounts.
-    const result = rows({ tasks: [task("a")] })
-    expect(result.filter((r) => r.kind === "tab")).toHaveLength(0)
   })
 
   test("scratch tasks render in one Scratch section above every project", () => {
@@ -133,9 +124,7 @@ describe("buildTreeRows", () => {
     ])
   })
 
-  test("a scratch task with tabs renders NO worktree row — tabs hang under the header", () => {
-    // The auto-generated scratch name is noise; the shell IS the session.
-    // The task stays real in the data layer — only its middle row is skipped.
+  test("a scratch task is one reachable row, whether or not it has tabs", () => {
     const result = rows({
       tasks: [
         task("s", { kind: "dir", scratch: true, repo: "/Users/me" }),
@@ -145,32 +134,20 @@ describe("buildTreeRows", () => {
     })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
       ["project", SCRATCH_SECTION_ID],
-      ["tab", "s::tab-1"],
-      ["tab", "s::tab-2"],
+      ["worktree", "s"],
       ["project", "/repos/rove"],
       ["worktree", "m"],
     ])
-    // Every emitted row is navigable — no unreachable middle level.
-    expect(treeFlatIds(result)).toEqual(["s::tab-1", "s::tab-2", "m"])
+    expect(treeFlatIds(result)).toEqual(["s", "m"])
   })
 
-  test("a scratch task whose tabs never mounted keeps its worktree row as the only handle", () => {
-    // Zero rows would make the task invisible AND unnavigable; the fallback
-    // row is what the cursor (and delete) can still land on.
-    const result = rows({ tasks: [task("s", { kind: "dir", scratch: true, repo: "/Users/me" })] })
-    expect(result.map((r) => [r.kind, r.id])).toEqual([
-      ["project", SCRATCH_SECTION_ID],
-      ["worktree", "s"],
-    ])
-  })
-
-  test("recent sort reorders regular worktrees by updatedAt while keeping main first", () => {
+  test("recent sort reorders regular worktrees newest-created first while keeping main first", () => {
     const result = rows({
       sortMode: "recent",
       tasks: [
-        task("older", { repo: "/repos/rove", updatedAt: "2026-08-01T00:00:00.000Z" }),
+        task("older", { repo: "/repos/rove", createdAt: "2026-08-01T00:00:00.000Z" }),
         task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
-        task("newer", { repo: "/repos/rove", updatedAt: "2026-08-02T00:00:00.000Z" }),
+        task("newer", { repo: "/repos/rove", createdAt: "2026-08-02T00:00:00.000Z" }),
       ],
     })
     expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
@@ -252,11 +229,8 @@ describe("buildTreeRows", () => {
 
 describe("treeFlatIds", () => {
   test("skips project headers so the cursor can never rest on one", () => {
-    const result = rows({
-      tasks: [task("a")],
-      tabsByTask: new Map([["a", [tab("tab-1")]]]),
-    })
-    expect(treeFlatIds(result)).toEqual(["a", "a::tab-1"])
+    const result = rows({ tasks: [task("a")] })
+    expect(treeFlatIds(result)).toEqual(["a"])
   })
 })
 
@@ -360,20 +334,7 @@ describe("a project closed down to nothing", () => {
       tasks: [mainOf("/repos/codefox")],
       tabsByTask: new Map([["m", [tab("t1")]]]),
     })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
-  })
-
-  test("keeps a project that has worktree tasks, even with every tab closed", () => {
-    // The worktree rows are how you get back to that work — losing them would
-    // strand the branches. Only the main-only case hides.
-    const out = rows({
-      tasks: [mainOf("/repos/rove"), task("a", { repo: "/repos/rove" })],
-      tabsByTask: new Map([
-        ["m", []],
-        ["a", []],
-      ]),
-    })
-    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
   })
 
   test("hiding one project does not disturb the others", () => {
@@ -416,7 +377,7 @@ describe("a project closed down to nothing", () => {
 
     // What opening the project does: its main row gets a session again.
     const back = rows({ tasks, tabsByTask: new Map([["m", [tab("t1")]]]) })
-    expect(back.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
+    expect(back.map((r) => r.kind)).toEqual(["project", "worktree"])
     // And it is reachable — a row you can see but not move the cursor to
     // would be the same dead end in a different costume.
     expect(treeFlatIds(back).length).toBeGreaterThan(0)
@@ -434,7 +395,7 @@ describe("a project closed down to nothing", () => {
       deletion: { phase, force: false, requestedAt: "2026-08-01T00:00:00.000Z" } as const,
     })
 
-    test("drops a queued or running deletion, and its tabs with it", () => {
+    test("drops a queued or running deletion", () => {
       const out = rows({
         tasks: [task("keep"), task("q", deleting("queued")), task("r", deleting("running"))],
         tabsByTask: new Map([
@@ -443,7 +404,7 @@ describe("a project closed down to nothing", () => {
           ["r", [tab("t1")]],
         ]),
       })
-      expect(out.map((r) => r.id)).toEqual(["/repos/rove", "keep", tabRowId("keep", "t1")])
+      expect(out.map((r) => r.id)).toEqual(["/repos/rove", "keep"])
     })
 
     test("keeps a failed deletion — the worktree is still there", () => {

@@ -2,14 +2,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { type TaskOpsDeps, taskOps } from "../src/ops/taskops.ts"
+import { type TaskOpsDeps, reorderDaemonTab, taskOps } from "../src/ops/taskops.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
-import { ENGINES, T, fakeApi } from "./task-ops-harness.ts"
+import { ENGINES, T, fakeApi, isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   homeDir: () => "/home/me",
   buildCIPrompt: async (wt, s) => `fix ${s.branch} in ${wt}: ${s.checks.map((c) => c.jobName).join(",")}`,
-  reorderTab: () => true,
+  prPrompt: async (wt) => `open a PR from ${wt}`,
+  reorderTab: async () => true,
   openExternal: () => {},
   detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
   openWorktree: () => true,
@@ -98,11 +101,68 @@ describe("task.fixChecks", () => {
   })
 })
 
+describe("task.prompt", () => {
+  const task = (pr: object) => ({ task: { worktreePath: "/wt", branch: "feat", prStatus: pr } })
+  const sent = (calls: readonly object[]) => calls.some((c) => "verb" in c && c.verb === "send")
+
+  test("returns each kind's text and never sends it", async () => {
+    const info = task({ number: 7, baseRef: "develop" })
+    const [create, conflicts, comments] = await Promise.all(
+      (["createPR", "conflicts", "comments"] as const).map((kind) =>
+        run("task.prompt", { taskId: T, kind }, { "get-task": info }),
+      ),
+    )
+    const prompt = (r: { result: unknown } | undefined) => (r?.result as { prompt: string }).prompt
+    expect(prompt(create)).toBe("open a PR from /wt")
+    expect(prompt(conflicts)).toContain("PR #7 has merge conflicts with develop")
+    expect(prompt(comments)).toContain("PR #7 has review feedback")
+    expect([create, conflicts, comments].map(prompt).some((p) => p.includes("\n"))).toBe(false)
+    expect([create, conflicts, comments].some((r) => sent(r?.calls ?? []))).toBe(false)
+  })
+
+  test("commit needs no PR, asks for commits and says not to push", async () => {
+    const { result, calls } = await run("task.prompt", { taskId: T, kind: "commit" }, { "get-task": task({}) })
+    const prompt = (result as { prompt: string }).prompt
+    expect(prompt).toContain("Commit the uncommitted changes")
+    expect(prompt).toContain("do not push")
+    expect(prompt).not.toContain("\n")
+    expect(sent(calls)).toBe(false)
+  })
+
+  test("a PR without a known base still names a base to merge", async () => {
+    const { result } = await run("task.prompt", { taskId: T, kind: "conflicts" }, { "get-task": task({}) })
+    expect((result as { prompt: string }).prompt).toContain("This task's PR has merge conflicts with its base branch")
+  })
+
+  test("fixCI renders the failing checks; no red check or no `gh` is not a prompt", async () => {
+    const failing = { checks: [{ jobName: "lint", conclusion: "failure", url: "u", tail: "t" }], totalFailing: 1 }
+    const info = task({ number: 7 })
+    const ok = await run("task.prompt", { taskId: T, kind: "fixCI" }, { "get-task": info, "pr.failingChecks": failing })
+    expect(ok.result).toEqual({ outcome: "ok", prompt: "fix feat in /wt: lint" })
+    const none = await run(
+      "task.prompt",
+      { taskId: T, kind: "fixCI" },
+      { "get-task": info, "pr.failingChecks": { checks: [] } },
+    )
+    expect(none.result).toEqual({ outcome: "none" })
+    const down = await run(
+      "task.prompt",
+      { taskId: T, kind: "fixCI" },
+      { "get-task": info, "pr.failingChecks": { unavailable: { reason: "gh", detail: "gh: down" } } },
+    )
+    expect(down.result).toEqual({ outcome: "unavailable", detail: "gh: down" })
+  })
+
+  test("an unknown kind is refused", async () => {
+    await expect(run("task.prompt", { taskId: T, kind: "merge" })).rejects.toMatchObject({ code: "BAD_ARGS" })
+  })
+})
+
 describe("tab.move", () => {
   test("up swaps with the previous tab and down with the next; the answer says whether anything moved", async () => {
     const moves: Array<[string, string, number]> = []
     const d = deps({
-      reorderTab: (task, tab, delta) => {
+      reorderTab: async (task, tab, delta) => {
         moves.push([task, tab, delta])
         return tab !== "tab-1"
       },
@@ -117,6 +177,22 @@ describe("tab.move", () => {
       [T, "tab-2", -1],
       [T, "tab-1", 1],
     ])
+  })
+
+  test("the real mover sends the TUI's moveTab as one daemon order op, and nothing at an edge", async () => {
+    const tabs = (ids: string[]) => ({
+      state: { tabs: ids.map((id, i) => ({ kind: "engine", id, ordinal: i + 1 })), nextOrdinal: 4 },
+      rev: 1,
+    })
+    const { api, calls } = fakeApi({ "tabs.get": tabs(["tab-1", "tab-2", "tab-3"]), "tabs.apply": {} })
+    expect(await reorderDaemonTab(T, "tab-3", -1, api)).toBe(true)
+    expect(await reorderDaemonTab(T, "tab-1", -1, api)).toBe(false)
+    expect(await reorderDaemonTab(T, "tab-9", 1, api)).toBe(false)
+    expect(calls.filter((c) => "rpc" in c && c.rpc === "tabs.apply")).toEqual([
+      { rpc: "tabs.apply", payload: { taskId: T, ops: [{ op: "order", ids: ["tab-1", "tab-3", "tab-2"] }] } },
+    ])
+    const none = fakeApi({ "tabs.get": { state: null, rev: 0 } })
+    expect(await reorderDaemonTab(T, "tab-1", 1, none.api)).toBe(false)
   })
 
   test("refuses a direction that is not up or down, and a tab id that is not a tab", async () => {
@@ -209,9 +285,21 @@ describe("task.openScratch", () => {
     })
   })
 
-  test("no engine opens a bare scratch task; an unknown engine is refused", async () => {
-    const bare = await run("task.openScratch", {}, { "task.openDir": { taskId: "S2" } })
-    expect(bare.calls.at(-1)).toEqual({ rpc: "task.openDir", payload: { dir: "/home/me", scratch: true } })
+  test("a picked engine is remembered for Scratch; the one-click + opens on the remembered one", async () => {
+    const memory = new Map<string, string>()
+    taskOpDeps.rememberEngine = (repo, engine) => void memory.set(repo, engine)
+    taskOpDeps.preferredEngine = (repo) => (repo ? memory.get(repo) : undefined) ?? "claude"
+    const first = await run("task.openScratch", {}, { "task.openDir": { taskId: "S1" } })
+    expect(first.calls.at(-1)).toEqual({
+      rpc: "task.openDir",
+      payload: { dir: "/home/me", scratch: true, vendor: "claude" },
+    })
+    await run("task.openScratch", { engine: "codex" }, { "task.openDir": { taskId: "S2" } })
+    const again = await run("task.openScratch", {}, { "task.openDir": { taskId: "S3" } })
+    expect(again.calls.at(-1)).toEqual({
+      rpc: "task.openDir",
+      payload: { dir: "/home/me", scratch: true, vendor: "codex" },
+    })
     await expect(run("task.openScratch", { engine: "nope" })).rejects.toMatchObject({ code: "UNKNOWN_ENGINE" })
   })
 })
@@ -265,6 +353,9 @@ describe("fs.subdirs and repo.probe", () => {
       taskOpDeps.getCurrentBranch = () => "dev"
       const bad = await run("repo.probe", { path: "/nope/" })
       expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
+      // A real folder git cannot use is fine: it opens in place, without worktrees.
+      const plain = await run("repo.probe", { path: `${root}/alpha` })
+      expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
       const ok = await run("repo.probe", { path: "/r/" })
       expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
       const withWt = await run(

@@ -47,4 +47,5 @@
     <string name="listheader_note_delete_kicker">field note #%1$d</string>
     <string name="listheader_note_delete_confirm">delete note</string>
     <string name="listheader_note_delete_hint">Fresh sessions on this repo stop receiving it. This cannot be undone.</string>
+    <string name="listheader_page_search">search</string>
 </resources>

@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   utimesSync,
@@ -139,6 +140,21 @@ describe("listSessionFilesForWorktree (real default deps)", () => {
     expect(files[2]?.mtimeMs).toBe(0)
     await expect(latestTranscriptMtimeForWorktree(wt)).resolves.toBe(new Date("2026-06-01").getTime())
     await expect(latestTranscriptMtimeForWorktree("/never/entered")).resolves.toBe(0)
+  })
+
+  it("finds the transcript of a worktree reached through a symlinked base (Claude encodes the real path)", async () => {
+    const real = realpathSync(mkdtempSync(path.join(tmpdir(), "rove-hist-real-")))
+    const link = `${real}-link`
+    symlinkSync(real, link)
+    mkdirSync(path.join(real, "wt"))
+    writeSession(path.join(real, "wt"), "ffff", [userLine("hi", "ffff", "2026-01-01T00:00:00Z")])
+    try {
+      const files = await listSessionFilesForWorktree(path.join(link, "wt"))
+      expect(files.map((f) => f.sessionId)).toEqual(["ffff"])
+    } finally {
+      rmSync(link, { force: true })
+      rmSync(real, { recursive: true, force: true })
+    }
   })
 })
 

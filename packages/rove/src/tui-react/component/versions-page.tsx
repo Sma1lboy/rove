@@ -19,7 +19,7 @@ import {
   updateCommandFor,
 } from "../../version.ts"
 import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
+import { currentLang, useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { ReleaseNotesBody } from "./release-notes.tsx"
@@ -57,7 +57,7 @@ export function VersionsPage(props: {
   useEffect(() => {
     if (selectedVersion === undefined || notes[selectedVersion] !== undefined) return
     setNotes((cache) => ({ ...cache, [selectedVersion]: "loading" }))
-    void loadNotes(selectedVersion).then((fetched) => {
+    void loadNotes(selectedVersion, currentLang()).then((fetched) => {
       setNotes((cache) => ({ ...cache, [selectedVersion]: fetched ?? "missing" }))
     })
   }, [selectedVersion, notes, loadNotes])

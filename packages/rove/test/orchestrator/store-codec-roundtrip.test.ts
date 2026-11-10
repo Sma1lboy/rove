@@ -49,7 +49,8 @@ type DeepRequired<T> = {
  * merging several machines' task lists (`machines/hub.ts`), so a round-trip
  * guard demanding it survive would be asserting the opposite of the design.
  */
-const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
+/** `repoId` too: derived on the wire, never stored. */
+const FULL_TASK: DeepRequired<Omit<Task, "origin" | "repoId">> = {
   id: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
   title: "round-trip fixture",
   repo: "/repo",
@@ -57,9 +58,15 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
   worktreePath: "/repo/.worktrees/round-trip",
   kind: "dir",
   scratch: true,
+  noProject: true,
   routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
+  kept: true,
+  notes: "check the migration",
+  todos: [{ id: "t1", text: "run the migration", done: true }],
+  autoFixCi: { attempts: 1, lastSha: "abc123", stopped: true },
+  archived: true,
   vendor: "claude",
   command: "claude --continue",
   observedLanguage: "zh",
@@ -70,9 +77,12 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
     number: 42,
     url: "https://github.com/o/r/pull/42",
     title: "fix: round trip",
+    additions: 79,
+    deletions: 16,
     baseRef: "main",
     reviewDecision: "APPROVED",
     mergeable: "MERGEABLE",
+    headSha: "abc123",
     lastCheckedAt: "2026-08-27T00:00:00.000Z",
     lastError: "transient fetch error",
   },
@@ -91,6 +101,7 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
     resumeAt: "2026-08-27T06:00:00.000Z",
     requestedAt: "2026-08-27T00:00:00.000Z",
   },
+  scheduledStart: { at: "2026-07-01T03:00:00.000Z", prompt: "run the nightly migration" },
   linkedWorkItem: {
     provider: "github",
     type: "issue",
@@ -102,10 +113,65 @@ const FULL_TASK: DeepRequired<Omit<Task, "origin">> = {
     taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB1",
     tabId: "tab-1",
   },
+  parentTaskId: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FB2"),
+  sharesWorkspaceOf: toTaskId("01ARZ3NDEKTSV4RRFFQ69G5FB3"),
+  cwdSubpath: "packages/app",
+  ptyAlias: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB4", tabId: "tab-2" },
+  deleteBranchPending: true,
   requireReport: true,
+  worktreeOnly: true,
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
   worktreeName: "probe-1",
+  gitRepo: "/work/origin",
+  workspace: { backend: "cow-clone", ref: "01ARZ3NDEKTSV4RRFFQ69G5FB5" },
+  extraRepos: [
+    {
+      name: "api",
+      repo: "/other/api",
+      branch: "fix/round-trip",
+      worktreePath: "/other/.worktrees/api-1",
+      baseRef: "release/1.x",
+      prStatus: {
+        provider: "github",
+        lifecycle: "open",
+        checkState: "failing",
+        number: 43,
+        url: "https://github.com/o/api/pull/43",
+        title: "fix: api side",
+        additions: 79,
+        deletions: 16,
+        baseRef: "release/1.x",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        headSha: "abc123",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
+  sessionPrs: [
+    {
+      url: "https://github.com/o/other/pull/44",
+      addedAt: "2026-08-27T00:00:00.000Z",
+      status: {
+        provider: "github",
+        lifecycle: "merged",
+        checkState: "passing",
+        number: 44,
+        url: "https://github.com/o/other/pull/44",
+        title: "feat: session side",
+        additions: 5,
+        deletions: 2,
+        baseRef: "main",
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
+        headSha: "abc123",
+        lastCheckedAt: "2026-08-27T00:00:00.000Z",
+        lastError: "transient fetch error",
+      },
+    },
+  ],
   report: {
     branch: "fix/round-trip",
     pr: 921,
@@ -121,5 +187,30 @@ describe("tasks.json codec round-trip", () => {
     const written = JSON.parse(JSON.stringify({ version: 3, tasks: [FULL_TASK] }))
     const loaded = normalizeIndex(written, "round-trip-test").tasks
     expect(loaded).toEqual([FULL_TASK])
+  })
+
+  it("drops malformed session PRs without dropping the row", () => {
+    const row = {
+      ...JSON.parse(JSON.stringify(FULL_TASK)),
+      sessionPrs: [
+        {
+          url: "https://github.com/o/r/pull/1/files",
+          addedAt: "2026-08-27T00:00:00.000Z",
+          status: { provider: "nope" },
+        },
+        { url: "https://github.com/o/r/issues/2", addedAt: "2026-08-27T00:00:00.000Z" },
+        { url: "https://github.com/o/r/pull/3" },
+        "https://github.com/o/r/pull/4",
+        { url: "https://github.com/o/r/pull/1", addedAt: "2026-08-28T00:00:00.000Z" },
+      ],
+    }
+    const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
+    expect(loaded?.sessionPrs).toEqual([{ url: "https://github.com/o/r/pull/1", addedAt: "2026-08-27T00:00:00.000Z" }])
+  })
+
+  it("drops a backend this build does not know, so the row falls back to its kind", () => {
+    const row = { ...JSON.parse(JSON.stringify(FULL_TASK)), workspace: { backend: "from-the-future" } }
+    const [loaded] = normalizeIndex({ version: 3, tasks: [row] }, "round-trip-test").tasks
+    expect(loaded && "workspace" in loaded).toBe(false)
   })
 })

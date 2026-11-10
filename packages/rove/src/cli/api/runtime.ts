@@ -4,13 +4,23 @@
  * so unit tests never open a PTY host or git.
  */
 
-import { resolveLoginShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
+import { resolvePtyOwner } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell"
 import type { PtySessionExit } from "@sma1lboy/rove-daemon/daemon/protocol"
+import {
+  type AliasRef,
+  type AliasTask,
+  aliasKey,
+  isUnderKey,
+  unclaimedSessions,
+} from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
 
+import { launchReposOf, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
+import { inspectRepo, isGitRepo, isRemoteRepoKey, isValidBranchName, resolveMainRepoRoot } from "../../state/repos.ts"
 import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
@@ -26,17 +36,19 @@ import {
   openPtyHost,
   taskKeys,
 } from "./pty-delivery.ts"
+import { ptyScopeOf } from "./pty-scope.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
 import { launchTab } from "./tab-launch.ts"
 import { openNewTab } from "./tab-new.ts"
 import { restoredTabLaunch } from "./tab-respawn.ts"
+import { reviveTab } from "./tab-revive.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
   joinTaskTabs,
   markCliTabSession,
-  mintCliTab,
   publishCliTabSnapshot,
+  readDaemonTabs,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
 import { splitTab } from "./tab-split.ts"
@@ -52,19 +64,22 @@ async function ensureWorktree(client: DaemonRpc, target: PromptTarget): Promise<
 }
 
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
- *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
- *  exact alive tab only). */
-async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
+ *  undefined = canonical, "tab-N" = that exact alive tab only). */
+async function deliverHosted(
+  client: DaemonRpc,
+  target: PromptTarget,
+  worktree: string,
+  prompt: string,
+): Promise<DeliveredPrompt> {
   const host = await ensureHostFor(
     target.id,
     "no PTY host to run the engine in — nothing was started; check `rove daemon status`, then retry the same send",
   )
-  let newTab: string | undefined
   try {
     // Exact tab: deliver-only, never spawn — a dead/absent tab is
     // TAB_NOT_FOUND. engineBin covers a CUSTOM engine; builtins the foreground
     // gate recognizes on its own (cross-vendor send stays open).
-    if (target.tab && target.tab !== "new") {
+    if (target.tab) {
       const engineBin = engineLaunchArgv({
         command: target.command,
         vendor: target.vendor,
@@ -72,6 +87,8 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         model: target.model,
       })[0]
       const tabId = target.tab
+      // Only a consented respawn rebuilds a launch, so only it needs the repos.
+      const respawnRepos = target.respawn && target.multiRepo ? await launchReposOf(client, target.id) : undefined
       return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
         maxLiveEngines: persistedMaxLiveEngines(),
@@ -79,54 +96,54 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         // only when reviving a tab a pty-host restart froze.
         ...(target.respawn
           ? {
-              respawn: () => restoredTabLaunch(target, tabId, worktree, resolveLoginShell({ fallback: "/bin/zsh" })),
+              respawn: () =>
+                restoredTabLaunch({ ...target, repos: respawnRepos }, tabId, worktree, resolveSessionShell()),
             }
           : {}),
       })
     }
-    newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
-    // A `--tab new` pin (command and/or protocol) applies to THIS launch
-    // only; the task's own engine is left alone.
-    const launchVendor = target.tabVendor ?? target.vendor
-    const launchCommand = target.tabCommand ?? (target.tabVendor ? undefined : target.command)
     // Pin the session id up front (same contract as the TUI) so a reattach
     // after a pty-host restart resumes THIS conversation. Engines that mint
     // their own id (kimi/codex) return null and are discovered post-spawn.
     const { argv, sessionId } = withPinnedSessionId(
       engineLaunchArgv({
-        command: launchCommand,
-        vendor: launchVendor,
+        command: target.command,
+        vendor: target.vendor,
         effort: target.modelEffort,
         model: target.model,
       }),
-      launchVendor,
+      target.vendor,
     )
     // A hosted session can't answer a trust dialog; no-op for generic protocols.
-    trustEngineWorktree(launchVendor, worktree)
+    trustEngineWorktree(target.vendor, worktree)
+    const repos = target.multiRepo ? await launchReposOf(client, target.id) : undefined
+    trustExtraRepos(target.vendor, repos)
     const launch = buildEngineSessionLaunch({
-      task: { id: target.id, kind: target.kind, vendor: launchVendor, repo: target.repo },
+      task: { id: target.id, kind: target.kind, vendor: target.vendor, repo: target.repo, repos },
       worktreePath: worktree,
-      shell: resolveLoginShell({ fallback: "/bin/zsh" }),
+      shell: resolveSessionShell(),
       argv,
       promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
-      tabId: newTab,
     })
     const result = await deliverHostedPrompt(
       host.rpc,
-      { id: target.id, engineBin: argv[0] },
+      // Another task's alias may claim a PTY under this task's key: never fall back to it.
+      {
+        id: target.id,
+        engineBin: argv[0],
+        scope: await ptyScopeOf(client, { id: target.id }),
+        ...(target.firstConversation ? { firstConversation: true } : {}),
+      },
       worktree,
       prompt,
       launch,
       {
-        forceNew: newTab !== undefined,
         maxLiveEngines: persistedMaxLiveEngines(),
         retryArgs: [
           "api",
           "send",
           "--task-id",
           target.id,
-          ...(target.tab ? ["--tab", target.tab] : []),
-          ...(target.tabCommand ? ["--command", target.tabCommand] : []),
           // `prompt` already carries any peer header; a re-wrap would stack a second one.
           "--plain",
           "--prompt",
@@ -141,7 +158,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       throw sessionFailed(
         target.id,
         `failed to start hosted engine session for ${target.id}`,
-        "the session was created but no engine ran in it — fix the task's launch command (`api update --command`), then retry with `api send --tab new`",
+        "the session was created but no engine ran in it — fix the task's launch command (`api update --command`), then retry the send",
         {
           session: result.session,
           engineReady: result.engineReady,
@@ -149,27 +166,18 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         },
       )
     }
-    // Make the session visible in the sidebar (`--tab new` already appended
-    // its tab in mintCliTab). Write-once; see `tab-snapshot.ts`.
-    if (!newTab) publishCliTabSnapshot(target.id, result.started ? sessionId : undefined)
+    // Make the session visible in the sidebar. Write-once; see `tab-snapshot.ts`.
+    await publishCliTabSnapshot(client, target.id, result.started ? sessionId : undefined)
     if (result.started && sessionId) {
       // publishCliTabSnapshot no-ops on an existing snapshot, which would
       // leave the PREVIOUS conversation's id after a host-restart respawn of
       // tab-1, and `--resume` would reopen the wrong one. Recording the id of
       // a session this process just started doesn't fight the TUI.
-      const startedTab = newTab ?? result.session.split("::")[1]
-      if (startedTab) markCliTabSession(target.id, startedTab, sessionId)
+      const startedTab = result.session.split("::")[1]
+      if (startedTab) await markCliTabSession(client, target.id, startedTab, sessionId)
     }
     return result
   } catch (error) {
-    // The refusal spawned nothing, so the tab minted for it must not linger in the strip.
-    if (
-      error instanceof ApiError &&
-      newTab &&
-      ["ENGINE_LIMIT", "ENGINE_ADMISSION_BUSY", "ENGINE_ADMISSION_UNAVAILABLE"].includes(error.code)
-    ) {
-      closeTabsSnapshot(target.id, newTab)
-    }
     if (error instanceof ApiError) throw error
     throw sessionFailed(
       target.id,
@@ -186,13 +194,14 @@ const realPromptDeliveryOps: PromptDeliveryOps = { deliverHosted }
 /** Headless half of ctrl+w: remove the persisted tab, then end every hosted
  * PTY the tab owns. Attached TUIs run their existing close path instead. */
 async function closeHeadlessTerminalTab(
+  client: DaemonRpc,
   taskId: string,
   tabId: string,
 ): Promise<{ kind: TerminalTab["kind"]; wasAlive: boolean }> {
   const host = await openPtyHost()
   try {
     const sessions = host ? await listSessions(host.rpc) : []
-    const snapshot = readTabsSnapshot(taskId)
+    const snapshot = await readDaemonTabs(client, taskId)
     const saved = snapshot?.tabs.find((tab) => tab.id === tabId)
     const directKey = `${taskId}::${tabId}`
     const unregisteredAlive = sessions.some((session) => session.key === directKey && session.alive)
@@ -203,7 +212,7 @@ async function closeHeadlessTerminalTab(
       })
     }
 
-    const closing = saved ? closeTabsSnapshot(taskId, tabId) : undefined
+    const closing = saved ? await closeTabsSnapshot(client, taskId, tabId) : undefined
     if (saved && !closing) {
       throw new ApiError(`tab ${tabId} no longer exists on task ${taskId}`, "TAB_NOT_FOUND", {
         hint: "the tab closed while this command was running; refresh with get-task before retrying",
@@ -212,7 +221,8 @@ async function closeHeadlessTerminalTab(
     }
 
     const baseKey = closing ? tabPtyKeyFor(taskId, closing) : directKey
-    const ownsBase = !(closing?.kind === "engine" && closing.ptyTask)
+    // A migrated child's tab (`ptyTask.tabId` named) is the conversation itself, not a view onto someone else's.
+    const ownsBase = !(closing?.kind === "engine" && closing.ptyTask && closing.ptyTask.tabId === undefined)
     // `ownsBase` gates the SPLIT LEAVES too. For a viewport tab `baseKey` is
     // the REFERENCED task's key (`tabPtyKeyFor` resolves through `ptyTask`), so
     // `<referenced>::tab-1::leaf-N` are that task's own splits — closing the
@@ -245,7 +255,7 @@ export async function deliverPrompt(
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
 
-  const hosted = await ops.deliverHosted(target, worktree, prompt)
+  const hosted = await ops.deliverHosted(client, target, worktree, prompt)
   if (!hosted)
     throw sessionFailed(
       target.id,
@@ -257,24 +267,26 @@ export async function deliverPrompt(
 
 /**
  * Task ids owning a live session, from one fleet-wide `pty.list` (keys are
- * `<taskId>::<tabId>`). `null` when there is no host to ask.
+ * `<taskId>::<tabId>`; a migrated child's aliased key counts for the child, not
+ * the parent it is keyed under). `null` when there is no host to ask.
  */
-async function readLiveTaskIds(): Promise<ReadonlySet<string> | null> {
+async function readLiveTaskIds(tasks: readonly AliasTask[]): Promise<ReadonlySet<string> | null> {
   const listed = (await handlePtyList()) as { sessions?: readonly { key?: string; alive?: boolean }[] | null }
   if (!listed?.sessions) return null
   const live = new Set<string>()
   for (const row of listed.sessions) {
     if (row.alive === false || typeof row.key !== "string") continue
-    const taskId = row.key.split("::")[0]
-    if (taskId) live.add(taskId)
+    const [taskId, tabId] = row.key.split("::")
+    if (taskId) live.add(resolvePtyOwner(tasks, taskId, tabId))
   }
   return live
 }
 
 export const defaultApiRuntime: ApiRuntime = {
   liveTaskIds: readLiveTaskIds,
-  isTaskRunning: async (taskId, engineArgv) => (await defaultApiRuntime.taskTabs(taskId, engineArgv)).running,
-  taskTabs: async (taskId, engineArgv) => {
+  isTaskRunning: async (taskId, engineArgv, scope) =>
+    (await defaultApiRuntime.taskTabs(taskId, engineArgv, scope)).running,
+  taskTabs: async (taskId, engineArgv, scope) => {
     // No host = "couldn't ask" (`null`), NOT "nothing alive": reporting
     // `false` would let a cleanup loop delete worktrees holding live work.
     // Persisted tabs still return so the layout stays inspectable.
@@ -289,7 +301,9 @@ export const defaultApiRuntime: ApiRuntime = {
         host.close()
       }
     }
-    const sessions = listed ?? []
+    // A session another task's alias claims is that child's conversation, not this task's.
+    const visible = listed ? unclaimedSessions(listed, scope) : null
+    const sessions = visible ?? []
     const hostReachable = listed !== null
     // ONE ps snapshot answers: which vendor is in the foreground
     // (`liveVendor`) and whether ANY engine is in the tree (`engineAlive`,
@@ -328,19 +342,29 @@ export const defaultApiRuntime: ApiRuntime = {
       (snapshot?.tabs ?? []).map((t) => [t.id, (t as { sessionId?: string | null }).sessionId ?? undefined]),
     )
     return {
-      tabs: joinTaskTabs(snapshot, taskId, listed, exits, liveVendors, engineAlive).map((row) => {
+      tabs: joinTaskTabs(snapshot, taskId, visible, exits, liveVendors, engineAlive).map((row) => {
         const sessionId = sessionIds.get(row.id)
         return sessionId ? { ...row, sessionId } : row
       }),
-      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive, engineArgv?.[0]) : null,
+      running: hostReachable
+        ? hasLiveEngineTab(
+            snapshot,
+            // A migrated child is running when the PTY its conversation lives in is.
+            scope?.alias?.taskId ?? taskId,
+            scope?.alias ? sessions.filter((s) => isUnderKey(s.key, aliasKey(scope.alias as AliasRef))) : sessions,
+            engineAlive,
+            engineArgv?.[0],
+          )
+        : null,
     }
   },
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
-  openTab: async (client, target, kind) => openNewTab(target, await ensureWorktree(client, target), kind),
-  launchTab: (spec) =>
-    launchTab(spec, (taskId, tabId, worktree, pane) =>
-      splitTab(taskId, tabId, worktree, {
+  openTab: async (client, target, kind, opts) =>
+    openNewTab(client, target, await ensureWorktree(client, target), kind, opts),
+  launchTab: (client, spec) =>
+    launchTab(client, spec, (taskId, tabId, worktree, pane) =>
+      splitTab(client, taskId, tabId, worktree, {
         kind: "open",
         orientation: "row",
         from: "",
@@ -348,12 +372,11 @@ export const defaultApiRuntime: ApiRuntime = {
       }),
     ),
   splitTab,
-  resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
-  isUsableRepo: async (absPath) => {
-    const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
-    return isRemoteRepoKey(absPath) || isGitRepo(absPath)
-  },
-  isValidBranchName: async (branch) => (await import("../../state/repos.ts")).isValidBranchName(branch),
+  reviveTab,
+  resolveRepoRoot: async (absPath) => resolveMainRepoRoot(absPath),
+  inspectRepo: (absPath) => inspectRepo(absPath),
+  isUsableRepo: async (absPath) => isRemoteRepoKey(absPath) || isGitRepo(absPath),
+  isValidBranchName: async (branch) => isValidBranchName(branch),
   defaultVendor: async (repo) => {
     const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
     return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()
@@ -362,16 +385,22 @@ export const defaultApiRuntime: ApiRuntime = {
     (await import("../../tui/panes/sidebar/worktree-changes.ts")).readWorktreeChanges(worktreePath),
   readBranchSignals: async (worktreePath, recordedBaseRef) =>
     (await import("./branch-signals.ts")).readBranchSignals(worktreePath, recordedBaseRef),
-  tearDownSession: async (taskId) => {
+  tearDownSession: async (taskId, scope) => {
     const host = await openPtyHost()
     if (host) {
       try {
-        await killTaskSessions(host.rpc, taskKeys(await listSessions(host.rpc), taskId))
+        await killTaskSessions(host.rpc, taskKeys(await listSessions(host.rpc), taskId, scope))
       } catch {
         /* pty-host hiccup must not fail the already-committed RPC */
       } finally {
         host.close()
       }
     }
+  },
+  listeningPorts: async () => (await import("./listening-ports.ts")).scanListeningPorts(),
+  measureCheckout: async (path) => {
+    const { measureCheckout } = await import("../../orchestrator/worktree/disk-usage.ts")
+    const { execHostForWorktreePath } = await import("../../exec/resolve.ts")
+    return measureCheckout(execHostForWorktreePath(path), path)
   },
 }

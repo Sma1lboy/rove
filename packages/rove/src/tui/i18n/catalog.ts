@@ -21,6 +21,7 @@ import { en as newTask, zh as newTaskZh } from "./messages/newTask"
 import { en as onboarding, zh as onboardingZh } from "./messages/onboarding"
 import { en as ops, zh as opsZh } from "./messages/ops"
 import { en as quickTask, zh as quickTaskZh } from "./messages/quickTask"
+import { en as search, zh as searchZh } from "./messages/search"
 import { en as settings, zh as settingsZh } from "./messages/settings"
 import { en as tasks, zh as tasksZh } from "./messages/tasks"
 import { en as terminal, zh as terminalZh } from "./messages/terminal"
@@ -51,6 +52,7 @@ export const en = {
   gates,
   doctor,
   mods,
+  search,
 }
 
 /** Each namespace `zh` is typed `typeof en`, so this annotation just documents the contract. */
@@ -78,6 +80,7 @@ const zh: Messages = {
   gates: gatesZh,
   doctor: doctorZh,
   mods: modsZh,
+  search: searchZh,
 }
 
 /**

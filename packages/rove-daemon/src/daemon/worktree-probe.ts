@@ -73,7 +73,9 @@ export function resolveGitDirs(worktreePath: string): GitDirs | null {
   if (!st) return null
   let gitDir = dotGit
   if (!st.isDirectory()) {
-    const pointer = readText(dotGit)?.match(/^gitdir:\s*(.+)$/m)?.[1]?.trim()
+    const pointer = readText(dotGit)
+      ?.match(/^gitdir:\s*(.+)$/m)?.[1]
+      ?.trim()
     if (!pointer) return null
     gitDir = isAbsolute(pointer) ? pointer : resolve(worktreePath, pointer)
   }

@@ -4,12 +4,51 @@
  * `handlers.ts` (byte-equivalent payloads, key order load-bearing) applies.
  */
 
+import { isBuiltinModInstalled } from "../plugins/builtin-mods.ts"
+import { pickRepos, subtreeIds } from "../task-tree.ts"
+import type { DaemonTask, TaskDispatcher } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import {
+  objectPayload,
+  optionalBoolean,
+  optionalNumber,
+  optionalString,
+  optionalVendor,
+  requireString,
+} from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
-import { serializeTask } from "./protocol.ts"
+import { teardownScope } from "./pty-alias.ts"
+import { serializeTask } from "./serialize-task.ts"
+import { syncRepos } from "./sync-repos.ts"
 import { auditDeletionRequested } from "./task-deletion-audit.ts"
+
+/**
+ * Everything outside the index that hangs off a task being deleted: activity,
+ * Inbox episodes, gates, and the issue link.
+ */
+async function releaseDeletedTask(
+  ctx: DaemonHandlerContext,
+  taskId: string,
+  task: DaemonTask | undefined,
+): Promise<void> {
+  ctx.activity.clearTask(taskId)
+  // The one lifecycle action allowed to cascade durable Inbox episodes.
+  await ctx.inbox.deleteTaskBestEffort(taskId)
+  await ctx.gates.withdrawTask(taskId).catch((err) => logDaemonError("gates-withdraw-task", err))
+  // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
+  // card would show In progress forever. Best-effort: the deletion already
+  // committed, so failures are logged, never a failed delete.
+  // Without the Kanban mod the store stays as it was left, links included.
+  if (task && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
+    try {
+      const next = await ctx.issues.unlinkTask(task.repo, taskId)
+      if (next) publishIssueSnapshot(ctx, next)
+    } catch (err) {
+      logDaemonError("issue-delete-unlink", err)
+    }
+  }
+}
 
 /**
  * `update --report-*` fields, or undefined when none were sent — never an
@@ -27,6 +66,39 @@ function optionalWorkerReport(
     ...(pr !== undefined ? { pr } : {}),
     ...(summary !== undefined ? { summary } : {}),
   }
+}
+
+/** `task.create`'s `extraRepos`: `[{ repo, baseRef? }]` in pick order, or undefined when absent. */
+function optionalExtraRepos(payload: Record<string, unknown>): { repo: string; baseRef?: string }[] | undefined {
+  const raw = payload.extraRepos
+  if (raw === undefined || raw === null) return undefined
+  if (!Array.isArray(raw)) throw new Error("extraRepos must be an array")
+  return raw.map((entry, i) => {
+    const item = objectPayload(entry)
+    const repo = optionalString(item, "repo")
+    if (!repo) throw new Error(`extraRepos[${i}].repo is required`)
+    const baseRef = optionalString(item, "baseRef")
+    return { repo, ...(baseRef ? { baseRef } : {}) }
+  })
+}
+
+/** The CLI's verified `$ROVE_TASK_ID`/`$ROVE_TAB_ID` as the dispatcher (the daemon has no caller env); the tab defaults to tab-1. */
+function payloadDispatcher(payload: Record<string, unknown>): TaskDispatcher | undefined {
+  const taskId = optionalString(payload, "dispatcherTaskId")
+  return taskId ? { taskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" } : undefined
+}
+
+/** A task created from a rove session lands in the dispatch ledger; the first prompt rides the session launch, after this reply. */
+function recordAddDispatch(ctx: DaemonHandlerContext, dispatcher: TaskDispatcher | undefined, task: DaemonTask): void {
+  if (!dispatcher) return
+  ctx.dispatches?.record({
+    kind: "add",
+    from: dispatcher,
+    to: { taskId: task.id, tabId: "tab-1" },
+    // `add` titles the task from its prompt; the prompt itself rides the launch, past the daemon.
+    promptHead: task.title,
+    delivered: true,
+  })
 }
 
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
@@ -55,27 +127,64 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.create",
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // The CLI sends its $ROVE_TASK_ID/$ROVE_TAB_ID (the daemon has no caller
-      // env). Recorded only with a task id; tab defaults to tab-1.
-      const dispatcherTaskId = optionalString(payload, "dispatcherTaskId")
-      const dispatcher = dispatcherTaskId
-        ? { taskId: dispatcherTaskId, tabId: optionalString(payload, "dispatcherTabId") || "tab-1" }
-        : undefined
+      const dispatcher = payloadDispatcher(payload)
       const task = await ctx.orch.createTask({
         repo,
         title: optionalString(payload, "title"),
         branch: optionalString(payload, "branch"),
         baseRef: optionalString(payload, "baseRef"),
         worktreeName: optionalString(payload, "worktreeName"),
+        extraRepos: optionalExtraRepos(payload),
         vendor: optionalVendor(payload, "vendor"),
         command: optionalString(payload, "command"),
         modelEffort: optionalString(payload, "effort"),
         model: optionalString(payload, "model"),
         tier: optionalString(payload, "tier"),
         groupId: optionalString(payload, "groupId"),
+        forkFrom: optionalString(payload, "forkFrom"),
+        parentTaskId: optionalString(payload, "parentTaskId"),
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
+        ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
         dispatcher,
       })
+      recordAddDispatch(ctx, dispatcher, task)
       return { taskId: task.id, task: serializeTask(task) }
+    },
+  },
+  {
+    // `git worktree add` on a big repo takes minutes: no client deadline.
+    name: "task.spawn",
+    blocking: true,
+    async handle(payload, ctx) {
+      const parentTaskId = requireString(payload, "parentTaskId")
+      const dispatcher = payloadDispatcher(payload)
+      const result = await ctx.orch.spawnChildTask({
+        parentTaskId,
+        // A child gets its own worktree unless the caller says to share.
+        worktree: optionalBoolean(payload, "worktree") ?? true,
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
+        baseRef: optionalString(payload, "baseRef"),
+        isolateIn: optionalString(payload, "isolateIn"),
+        title: optionalString(payload, "title"),
+        vendor: optionalVendor(payload, "vendor"),
+        command: optionalString(payload, "command"),
+        prompt: optionalString(payload, "prompt"),
+        modelEffort: optionalString(payload, "effort"),
+        model: optionalString(payload, "model"),
+        tier: optionalString(payload, "tier"),
+        groupId: optionalString(payload, "groupId"),
+        branch: optionalString(payload, "branch"),
+        worktreeName: optionalString(payload, "worktreeName"),
+        lazy: optionalBoolean(payload, "lazy"),
+        dispatcher,
+      })
+      recordAddDispatch(ctx, dispatcher, result.task)
+      return {
+        taskId: result.task.id,
+        task: serializeTask(result.task),
+        parentDirty: result.parentDirty,
+        sharedLinks: result.sharedLinks,
+      }
     },
   },
   {
@@ -137,42 +246,47 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const force = optionalBoolean(payload, "force")
       const deleteBranch = optionalBoolean(payload, "deleteBranch")
+      const cascade = optionalBoolean(payload, "cascade")
+      // Deepest first. Without `cascade` only the task itself goes and its
+      // children are promoted by `prepareTaskDeletion`.
+      const targets = cascade ? subtreeIds(ctx.orch.listTasks(), taskId) : [taskId]
       // Audit before `prepareTaskDeletion`, which can throw: refusals get
-      // recorded too. Read the task now; the runner removes it from the index.
-      const task = ctx.orch.getTask(taskId)
+      // recorded too. Read the tasks now; the runner removes them from the index.
+      const tasks = new Map(targets.map((id) => [id, ctx.orch.getTask(id)]))
       const byTaskId = optionalString(payload, "requestedByTaskId")
-      auditDeletionRequested(
-        taskId,
-        task,
-        {
-          clientId: ctx.clientId,
-          ...(byTaskId
-            ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
-            : {}),
-        },
-        { force, deleteBranch },
-      )
-      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch })
-      ctx.activity.clearTask(taskId)
-      // The one lifecycle action allowed to cascade durable Inbox episodes.
-      await ctx.inbox.deleteTaskBestEffort(taskId)
-      await ctx.gates.withdrawTask(taskId).catch((err) => logDaemonError("gates-withdraw-task", err))
-      // The issue owns the link (`Issue.taskId`); nothing else clears it, so the
-      // card would show In progress forever. Best-effort: the deletion already
-      // committed, so failures are logged, never a failed delete.
-      if (task) {
-        try {
-          const next = await ctx.issues.unlinkTask(task.repo, taskId)
-          if (next) publishIssueSnapshot(ctx, next)
-        } catch (err) {
-          logDaemonError("issue-delete-unlink", err)
-        }
+      for (const id of targets) {
+        auditDeletionRequested(
+          id,
+          tasks.get(id),
+          {
+            clientId: ctx.clientId,
+            ...(byTaskId
+              ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
+              : {}),
+          },
+          { force, deleteBranch },
+        )
       }
-      if (accepted) ctx.deletions.enqueue(taskId)
+      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch, cascade })
+      for (const id of targets) await releaseDeletedTask(ctx, id, tasks.get(id))
+      // Per removed task, the PTYs its teardown must spare (a surviving child's conversation) or also take
+      // (its own aliased one). Read now: the runner drops the rows from the index. Absent when nothing differs.
+      const teardown = Object.fromEntries(
+        targets.flatMap((id) => {
+          const scope = teardownScope(ctx.orch.listTasks(), id, new Set(targets))
+          return scope.spare.length > 0 || scope.also.length > 0 ? [[id, scope]] : []
+        }),
+      )
+      if (accepted) for (const id of targets) ctx.deletions.enqueue(id)
       // Removal runs in the background (teardown can take tens of seconds), so
       // this reports only that the request was taken. `queued: false`: no such
       // task id, nothing will ever run.
-      return { taskId, queued: accepted }
+      return {
+        taskId,
+        queued: accepted,
+        ...(cascade ? { deleted: targets } : {}),
+        ...(Object.keys(teardown).length > 0 ? { teardown } : {}),
+      }
     },
   },
   {
@@ -181,7 +295,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     // deadline; the land confirm awaits it inline.
     name: "task.landPreflight",
     async handle(payload, ctx) {
-      return { result: await ctx.orch.landPreflight(requireString(payload, "taskId")) }
+      return {
+        result: await ctx.orch.landPreflight(requireString(payload, "taskId"), optionalString(payload, "repo")),
+      }
     },
   },
   {
@@ -196,8 +312,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         // Absent → orchestrator default (remove); only explicit `false` keeps it.
         removeWorktree: optionalBoolean(payload, "removeWorktree"),
         callerCwd: optionalString(payload, "callerCwd"),
+        repo: optionalString(payload, "repo"),
       })
-      // landTask throws on refusal/conflict, so reaching here means it landed.
+      // A multi-repo run that stopped (conflict, refusal) throws, like a one-repo land does, so
+      // every client fails loudly; the per-repo statuses ride along as the error's data.
+      if (result.stopped) {
+        const { code, message } = result.stopped
+        throw Object.assign(new Error(message.startsWith(`${code}: `) ? message : `${code}: ${message}`), {
+          name: "LandStoppedError",
+          data: { stopped: result.stopped, repos: result.repos },
+        })
+      }
       ctx.plugins?.handleUiReport({
         kind: "task.landed",
         taskId,
@@ -211,18 +336,34 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const task = ctx.orch.getTask(taskId)
-      if (!task?.worktreePath) throw new Error("task has no worktree to sync")
+      if (!task) throw new Error(`task not found: ${taskId}`)
+      const only = optionalString(payload, "repo")
+      pickRepos(task, only)
+      // Several repos: each against its own base, a conflict in one not stopping the rest.
+      if (task.extraRepos?.length) return { result: await syncRepos(ctx.runtime, task, only) }
+      if (!task.worktreePath) throw new Error("task has no worktree to sync")
       // Throws `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY`; callers match
       // the marker as for `LAND_CONFLICT`.
       return { result: await ctx.runtime.syncWorktreeWithBase(task.worktreePath, task.baseRef) }
     },
   },
   {
-    name: "task.pin",
+    name: "task.setParent",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      await ctx.orch.setPinned(taskId, optionalBoolean(payload, "pinned"))
-      return {}
+      // `parentTaskId: null` = top level; absent is a malformed call, not a silent promote.
+      const parentTaskId = payload.parentTaskId === null ? null : requireString(payload, "parentTaskId")
+      return await ctx.orch.setParent(taskId, parentTaskId, optionalString(payload, "replyTab"))
+    },
+  },
+  {
+    // `update --project`: regroup only, so the session's directory stays and its engine resumes where it was.
+    name: "task.moveToProject",
+    blocking: true,
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const { repo, moved } = await ctx.orch.moveTaskToProject(taskId, requireString(payload, "repo"))
+      return { taskId, repo, moved }
     },
   },
   {
@@ -246,6 +387,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "project.move",
+    async handle(payload, ctx) {
+      const repo = requireString(payload, "repo")
+      const target = requireString(payload, "target")
+      const side = requireString(payload, "side")
+      if (side !== "before" && side !== "after") throw new Error("side must be before or after")
+      await ctx.orch.moveProject(repo, target, side)
+      return {}
+    },
+  },
+  {
     name: "task.status",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
@@ -262,7 +414,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // issue-store lock so a concurrent reopen isn't clobbered. Only on a real
       // transition, so re-firing done never re-clobbers a manually reopened
       // issue. The status already committed: failures are logged, not thrown.
-      if (status === "done" && prevStatus !== "done" && linked) {
+      if (status === "done" && prevStatus !== "done" && linked && isBuiltinModInstalled("kanban", ctx.daemon.homeDir)) {
         try {
           const next = await ctx.issues.mirrorTaskDone(linked.repo, taskId)
           if (next) publishIssueSnapshot(ctx, next)
@@ -270,27 +422,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
           logDaemonError("issue-done-mirror", err)
         }
       }
-      return {}
-    },
-  },
-  {
-    name: "task.openDir",
-    async handle(payload, ctx) {
-      const dir = requireString(payload, "dir")
-      const task = await ctx.orch.openDirectoryTask({
-        dir,
-        vendor: optionalVendor(payload, "vendor"),
-        scratch: optionalBoolean(payload, "scratch"),
-      })
-      return { taskId: task.id, task: serializeTask(task) }
-    },
-  },
-  {
-    // No-op on non-scratch rows.
-    name: "task.adoptScratchRepo",
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      await ctx.orch.adoptScratchRepo(taskId, requireString(payload, "repo"))
       return {}
     },
   },
@@ -322,7 +453,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // the last value, so late subscribers would see `running` forever.
       ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "running" })
       try {
-        const path = await ctx.orch.ensureWorktree(taskId)
+        const path = await ctx.orch.ensureWorktree(taskId, {
+          onProgress: (progress) =>
+            ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "running", progress }),
+        })
         ctx.bus.publish("task.jobs", { taskId, kind: "ensureWorktree", phase: "done" })
         return { worktreePath: path }
       } catch (err) {
@@ -350,8 +484,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.setActive",
     async handle(payload, ctx) {
-      // Also touches updatedAt so "recent" sorting reflects use. The bus caches
-      // the last value, so late-subscribing panes get the current focus.
+      // The bus caches the last value, so late-subscribing panes get the current focus.
       const taskId = optionalString(payload, "taskId") ?? null
       await ctx.orch.setActiveTask(taskId)
       ctx.bus.publish("active-task", { taskId })

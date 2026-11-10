@@ -1,64 +1,58 @@
 /**
- * Layout state the TUI keeps in its KV (`sidebar.width`, `sidebar.collapsed`) and its focus
- * (narrow mode): the Tasks rail's pinned width and fold, and which single panel a narrow
- * viewport shows. Kept per browser, in px; one terminal cell is `CELL_PX` wide.
+ * The viewport and the TUI's narrow mode (its focus): which single panel a narrow viewport shows.
+ * The rail's and the side panel's own sizes live in `rail-layout.ts` and `panel-layout.ts`.
+ * One terminal cell is `CELL_PX` wide.
  */
 
 import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove/src/tui-react/lib/narrow-mode.ts"
-/** `view-core.ts`'s `SIDEBAR_WIDTH` and `MIN_WORKSPACE_WIDTH` (its import chain reaches `@/` aliases the page cannot resolve). */
-const SIDEBAR_WIDTH = 24
-const MIN_WORKSPACE_WIDTH = 40
 import { useSyncExternalStore } from "react"
 import { createStore } from "./store.ts"
+import { type PageId, compareGroup, page } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
-/** The Tasks rail's own minimum (`SIDEBAR_WIDTH` cells), and the fold's width. */
-export const RAIL_MIN_PX = SIDEBAR_WIDTH * CELL_PX
-/** The fold's width per style: the TUI's 2 / 4 / 7 cells (`COLLAPSED_RAIL_WIDTH`) plus the page's padding. */
-const FOLDED_PX = { hairline: 20, glyphs: 48, initials: 76 } as const
-export const foldedPx = (style: keyof typeof FOLDED_PX): number => FOLDED_PX[style]
+/** `view-core.ts`'s `MIN_WORKSPACE_WIDTH` (its import chain reaches `@/` aliases the page cannot resolve). */
+export const MIN_WORKSPACE_WIDTH = 40
 const NARROW_QUERY = `(max-width: ${NARROW_BREAKPOINT * CELL_PX - 1}px)`
-const WIDTH_KEY = "rove.web.railWidth"
-const FOLD_KEY = "rove.web.railFolded"
-
-function loadWidth(): number | null {
-  const raw = Number(localStorage.getItem(WIDTH_KEY))
-  return Number.isFinite(raw) && raw > 0 ? raw : null
-}
-
-/** The user's dragged width; null = the automatic width. */
-export const railWidth = createStore<number | null>(loadWidth())
-railWidth.subscribe(() => {
-  const width = railWidth.get()
-  if (width === null) localStorage.removeItem(WIDTH_KEY)
-  else localStorage.setItem(WIDTH_KEY, String(Math.round(width)))
-})
-
-export const railFolded = createStore<boolean>(localStorage.getItem(FOLD_KEY) === "1")
-railFolded.subscribe(() => localStorage.setItem(FOLD_KEY, railFolded.get() ? "1" : "0"))
-
-/** The pin, clamped on every read like `resolveSidebarWidth`: a pin survives a narrow window and returns when it widens. */
-export function clampRailWidth(px: number, viewport = window.innerWidth): number {
-  const max = Math.max(RAIL_MIN_PX, viewport - MIN_WORKSPACE_WIDTH * CELL_PX)
-  return Math.max(RAIL_MIN_PX, Math.min(max, Math.round(px)))
-}
 
 /** Narrow mode: which panel is up. The list is where a cold start lands, with the Recent row to go back. */
 export const narrowPane = createStore<"sidebar" | "workspace">("sidebar")
 
 export const enterWorkspace = (): void => narrowPane.set("workspace")
 export const backToTasks = (): void => narrowPane.set("sidebar")
+/** Open a page and, in narrow mode, show it: a page left open behind the list sets to the same value and fires nothing. */
+export function openPage(id: PageId): void {
+  page.set(id)
+  enterWorkspace()
+}
+/** The Compare page over one parallel round's attempts (`groupId`); no rail row of its own: it opens from a task's menu or a compare Start. */
+export function openCompare(groupId: string): void {
+  compareGroup.set(groupId)
+  openPage("compare")
+}
 
-const narrowQuery = window.matchMedia(NARROW_QUERY)
+let narrowQuery: MediaQueryList | undefined
+// Read on first use, not at import: a module that only opens a page (a row menu) must load without a browser's `matchMedia`.
+const narrowMedia = (): MediaQueryList => {
+  narrowQuery ??= window.matchMedia(NARROW_QUERY)
+  return narrowQuery
+}
+export const isNarrow = (): boolean => narrowMedia().matches
+/** Runs when the viewport crosses the narrow breakpoint. */
+export const onNarrowChange = (listener: () => void): (() => void) => {
+  const query = narrowMedia()
+  query.addEventListener("change", listener)
+  return () => query.removeEventListener("change", listener)
+}
 
 export function useNarrow(): boolean {
   return useSyncExternalStore(
     (notify) => {
-      narrowQuery.addEventListener("change", notify)
-      return () => narrowQuery.removeEventListener("change", notify)
+      const query = narrowMedia()
+      query.addEventListener("change", notify)
+      return () => query.removeEventListener("change", notify)
     },
-    () => narrowQuery.matches,
+    () => narrowMedia().matches,
   )
 }
 

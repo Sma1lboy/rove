@@ -155,7 +155,7 @@ describe("startQuotaResumeRunner", () => {
     expect(order.slice(0, 2)).toEqual(["clear", "deliver"])
     expect(orch.setQuotaResume).toHaveBeenCalledWith("t1", null)
     expect(deliverPromptToLiveEngine).toHaveBeenCalledWith(
-      { id: "t1", vendor: "claude", worktreePath: "/wt/t1" },
+      { id: "t1", vendor: "claude", worktreePath: "/wt/t1", scope: { claimed: [] } },
       quotaResumeContinuePrompt(undefined),
     )
   })

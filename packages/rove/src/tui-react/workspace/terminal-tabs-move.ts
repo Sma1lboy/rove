@@ -6,7 +6,7 @@
  */
 
 import { moveTab } from "../../tui/workspace/terminal-tabs-core"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabMove, setTaskTabs, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /** Whether the order changed; false for no such tab, no tabs, or the edge-stop (never wraps). */
@@ -21,6 +21,5 @@ export function moveTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string, d
   const next = moveTab(state, tabId, delta)
   if (next === state) return false
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   return true
 }

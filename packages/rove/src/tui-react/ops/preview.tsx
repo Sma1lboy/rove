@@ -12,14 +12,17 @@ import { execHostForWorktreePath } from "../../exec/resolve"
 import { errorMessage } from "../../lib/error-message"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
+import { remotePreview } from "../../machines/remote-worktree.ts"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import {
   type PatchNote,
   type PreviewData,
+  contentFirstLine,
   filetypeOf,
   isCombinedPathspec,
   isImagePath,
   loadPreviewData,
+  patchFirstLine,
   unifiedDiffFiles,
 } from "../../tui/ops/preview-core"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
@@ -45,6 +48,8 @@ export interface OpsPreviewArgs {
   /** Line-anchored review notes (diff kind only) — supplied by the
    *  workspace content-tab host; absent for the standalone entrypoint. */
   readonly review?: DiffReviewApi
+  /** A task on another machine: its diff is read there (`worktree-diff-file`). */
+  readonly remote?: { readonly machine: string; readonly taskId: string }
 }
 
 export function PreviewScreen(props: OpsPreviewArgs) {
@@ -59,7 +64,6 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   }
   const t = useT()
   const style = useMemo(() => buildSyntaxStyle(theme), [theme])
-  const filetype = filetypeOf(props.relPath)
   // A directory / whole-worktree diff. `.` would render as a bare dot in the
   // header, so it gets a name; everything else IS its own name.
   const combined = isCombinedPathspec(props.relPath)
@@ -68,12 +72,21 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const identity = JSON.stringify([props.worktree, props.relPath, props.base])
   const [loaded, setLoaded] = useState<{ identity: string; data: PreviewData } | null>(null)
   const data = loaded?.identity === identity ? loaded.data : null
+  const filetype = filetypeOf(
+    props.relPath,
+    data?.kind === "code" ? contentFirstLine(data.text) : data?.kind === "diff" ? patchFirstLine(data.text) : undefined,
+  )
   const [reloadTick, setReloadTick] = useState(0)
   const base = props.base
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
-    void loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
+    const remote = props.remote
+    void (
+      remote
+        ? remotePreview(remote.machine, remote.taskId, props.relPath, base)
+        : loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
+    )
       .then((d) => {
         if (!disposed) setLoaded({ identity, data: d })
       })
@@ -242,7 +255,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
                       diff={file.text}
                       view="unified"
                       wrapMode="none"
-                      filetype={filetypeOf(file.path)}
+                      filetype={filetypeOf(file.path, patchFirstLine(file.text))}
                       syntaxStyle={style}
                       showLineNumbers={true}
                     />

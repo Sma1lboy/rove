@@ -25,10 +25,18 @@ export type DiffComment = {
   readonly startLine?: number
   readonly line: number
   readonly body: string
+  /** The diff rows the note covers as the reviewer saw them (`+`/`-`/` ` sign, then the text), quoted in the prompt and compared later to flag a note whose code moved. */
+  readonly code?: string
   readonly createdAt: number
   /** Set once the note was handed to the engine session; unsent notes are
    *  the pending send batch. */
   readonly sentAt?: number
+}
+
+/** A fence longer than any backtick run in `text`, so quoted code can't close it early. */
+function fenceFor(text: string): string {
+  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length))
+  return "`".repeat(Math.max(3, longest + 1))
 }
 
 /**
@@ -37,7 +45,7 @@ export type DiffComment = {
  * the agent can't open would otherwise read as the agent's mistake.
  */
 export function formatDiffComment(
-  c: Pick<DiffComment, "filePath" | "startLine" | "line" | "body">,
+  c: Pick<DiffComment, "filePath" | "startLine" | "line" | "body" | "code">,
   stale = false,
 ): string {
   const escaped = c.body.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n")
@@ -46,11 +54,13 @@ export function formatDiffComment(
   const staleNote = stale
     ? ["Note: this path is no longer in the branch — it was renamed or deleted after the note was written."]
     : []
-  return [`File: ${c.filePath}`, location, ...staleNote, `User comment: "${escaped}"`].join("\n")
+  const fence = c.code ? fenceFor(c.code) : ""
+  const quoted = c.code ? ["Code:", `${fence}diff`, c.code, fence] : []
+  return [`File: ${c.filePath}`, location, ...staleNote, ...quoted, `User comment: "${escaped}"`].join("\n")
 }
 
 export function formatDiffComments(
-  comments: readonly Pick<DiffComment, "filePath" | "startLine" | "line" | "body">[],
+  comments: readonly Pick<DiffComment, "filePath" | "startLine" | "line" | "body" | "code">[],
   /** Worktree root, for the staleness check. Omitted = mark nothing stale. */
   worktreePath?: string,
 ): string {

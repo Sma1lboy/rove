@@ -19,7 +19,7 @@ import { renderComponent } from "./harness"
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
     id: toTaskId(id),
-    title: id,
+    title: `row-${id}`,
     repo: "/repos/rove",
     branch: `feat/${id}`,
     worktreePath: `/wt/${id}`,
@@ -41,7 +41,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[MAIN, task("a"), task("b")]}
       selectedId="a"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={40}
@@ -65,7 +64,7 @@ test("escape closes the menu and hands j/k back to the tree", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Rename")
 
@@ -90,8 +89,7 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
-  // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
-  // to `forgetProject` behind a confirm).
+  // Menu-only: `d` on the project's main row ends its conversation instead of forgetting the project.
   expect(after).toContain("Remove project")
   // This entry is the only in-product reader of the repo's durable notes.
   expect(after).toContain("Field notes")
@@ -196,41 +194,29 @@ test("left-click still activates the row it lands on", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/b"), 0)
+  await mockMouse.click(2, lineOf(await frame(), "row-b"), 0)
   await settle()
 
   expect(chosen).toEqual(["b"])
 })
 
-/** Seed a task with N tabs so the tab rows render. */
-function seedTabs(taskId: string, tabIds: readonly string[]): void {
-  tabsByTask.set(taskId, {
-    tabs: tabIds.map((id, i) => ({ kind: "engine" as const, id, title: `tab ${i + 1}`, ordinal: i + 1 })),
-    activeId: tabIds[0] ?? "tab-1",
-    nextOrdinal: tabIds.length + 1,
-  })
-}
-
-test("a tab row's menu closes that tab, naming the (task, tab) pair", async () => {
+test("a parent's menu folds its children away", async () => {
   tabsByTask.clear()
-  seedTabs("a", ["tab-1", "tab-2"])
-  const closed: Array<[string, string]> = []
-  const { frame, mockMouse, mockInput } = await renderComponent(
-    tree({ onCloseTab: (taskId, tabId) => closed.push([taskId, tabId]) }),
-    { width: 40, height: 24 },
-  )
+  const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") })]
+  const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "tab 2"), RIGHT)
+  expect(await frame()).toContain("kid")
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
-  expect(await frame()).toContain("Close tab")
+  expect(await frame()).toContain("Collapse children")
 
-  // Highlight starts on "Open tab"; j steps to "Close tab".
+  // Highlight starts on "Open"; j steps to the fold entry.
   mockInput.typeText("j")
   await settle()
   mockInput.pressEnter()
   await settle()
 
-  expect(closed).toEqual([["a", "tab-2"]])
+  expect(await frame()).not.toContain("kid")
 })
 
 test("a worktree row's menu opens a new conversation in that task", async () => {
@@ -243,7 +229,7 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
     { width: 40, height: 24 },
   )
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("New conversation")
 
@@ -254,21 +240,6 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
   await settle()
 
   expect(asked).toEqual([["a", "chat"]])
-})
-
-test("a worktree's LAST tab DOES offer a close", async () => {
-  // Closing it leaves the task with no sessions — the row stays and re-opens
-  // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
-  tabsByTask.clear()
-  seedTabs("a", ["tab-1"])
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "tab 1"), RIGHT)
-  await settle()
-
-  const after = await frame()
-  expect(after).toContain("Open tab")
-  expect(after).toContain("Close tab")
 })
 
 /** Screen position of the first occurrence of `needle`. */
@@ -282,15 +253,15 @@ test("a press anywhere else dismisses the menu", async () => {
   // The whole point of the feature: the menu is not a mode you have to shoot
   // down by re-clicking the row it came from.
   tabsByTask.clear()
-  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
+  const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 34 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   expect(await frame()).toContain("Rename")
 
-  // Empty space below the last row — no row handler runs, so only the
+  // Empty space below the menu's last entry — no row handler runs, so only the
   // root-level dismiss can close it.
-  await mockMouse.click(2, 22, 0)
+  await mockMouse.click(2, 32, 0)
   await settle()
   expect(await frame()).not.toContain("Rename")
 })
@@ -305,7 +276,7 @@ test("a press ON the menu still picks its entry", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
 
   const entry = posOf(await frame(), "Rename")
@@ -331,13 +302,13 @@ test("Set status fires the row's callback with that row's task", async () => {
     height: 24,
   })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/b"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT)
   await settle()
   expect(await frame()).toContain("Set status")
 
-  // open, newChat, newShell, rename, pin, reorder, setStatus — six steps from
-  // the highlight's start on "Open".
-  mockInput.typeText("jjjjjj")
+  // open, newChat, newShell, continueElsewhere, newTaskFromBranch, rename, pin, reorder,
+  // setStatus — eight steps from the highlight's start on "Open".
+  mockInput.typeText("jjjjjjjj")
   await settle()
   mockInput.pressEnter()
   await settle()
@@ -356,7 +327,7 @@ test("the menu panel sits on `backgroundMenu`, a step above the inset it covers"
   tabsByTask.clear()
   const { frame, spans, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
   await settle()
-  await mockMouse.click(2, lineOf(await frame(), "feat/a"), RIGHT)
+  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
   await settle()
   const rename = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("Rename"))
   expect(rename).toBeDefined()

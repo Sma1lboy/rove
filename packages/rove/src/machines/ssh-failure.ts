@@ -4,6 +4,8 @@
  * user to search for the cause Rove already had in hand.
  */
 
+import { WINDOWS_SSHD_STEPS } from "./windows-remote.ts"
+
 export type SshFailureKind =
   | "unresolved"
   | "refused"
@@ -28,13 +30,26 @@ export function classifySshFailure(stderr: string): SshFailureKind {
   return "unknown"
 }
 
-/** One line naming the cause and the next step. `target` is what the user typed. */
-export function sshFailureRemedy(kind: SshFailureKind, target: string): string {
+/**
+ * One line naming the cause and the next step. `target` is what the user typed;
+ * `windows` = the machine is known to run Windows, whose sshd is set up differently.
+ */
+export function sshFailureRemedy(kind: SshFailureKind, target: string, windows = false): string {
+  if (windows && (kind === "refused" || kind === "timeout")) {
+    return [
+      `${target} (Windows) ${kind === "refused" ? "refused the connection: its OpenSSH Server is not running" : "did not answer on the ssh port: its OpenSSH Server is off, or the firewall drops it"}.`,
+      "In an elevated PowerShell there:",
+      ...WINDOWS_SSHD_STEPS.map((step) => `  ${step}`),
+    ].join("\n")
+  }
+  if (windows && kind === "auth-denied") {
+    return `${target} (Windows) rejected every key ssh offered. For an Administrators account, OpenSSH for Windows reads only %ProgramData%\\ssh\\administrators_authorized_keys; ~\\.ssh\\authorized_keys is ignored.`
+  }
   switch (kind) {
     case "unresolved":
       return `${target} does not resolve to an address. Check the name, or the Host block in ~/.ssh/config; on a tailnet, check \`tailscale status\`.`
     case "refused":
-      return `${target} refused the connection: nothing listens for ssh there. Enable Remote Login / start sshd on it, or pass the right --port.`
+      return `${target} refused the connection: nothing listens for ssh there. Enable Remote Login / start sshd on it (Windows: \`Start-Service sshd\`, elevated), or pass the right --port.`
     case "timeout":
       return `${target} did not answer. Is it awake and on this network (or VPN / tailnet)?`
     case "host-key-changed":

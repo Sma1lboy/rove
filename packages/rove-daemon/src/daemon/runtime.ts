@@ -11,6 +11,7 @@ import type {
   VendorId,
   WorktreeChanges,
 } from "./contracts.ts"
+import type { PtyScope, TeardownScope } from "./pty-alias.ts"
 
 export interface EngineTurnDetectorAdapter {
   latestActivity(worktreePath: string): Promise<{
@@ -31,6 +32,11 @@ export type { PollCadenceConfig, PollScheduleState } from "./poll-scheduling.ts"
 export interface DaemonRuntimeAdapter {
   readonly currentVersion: string
   /**
+   * Where the tab store keeps tasks' terminal tabs (rove: the `terminalTabs.*`
+   * keys of state.json). Absent in test doubles: tabs live in memory only.
+   */
+  readonly tabsPersistence?: import("./tabs-store.ts").TabsPersistence
+  /**
    * Run one `rove api` verb in the daemon process, against this daemon's own
    * socket. Never rejects: a refusal is an `ok: false` envelope. Absent in
    * test doubles, where `api.invoke` refuses.
@@ -39,11 +45,17 @@ export interface DaemonRuntimeAdapter {
    * verb on to that machine's daemon; `route.forwarded` marks a call that
    * already crossed one, which never moves again.
    */
+  /**
+   * Connect the registered machines and publish them on `machines`, following
+   * the registry on `state`. Returns stop(). Absent in test doubles.
+   */
+  startMachineHub?(bus: Pick<import("./event-bus.ts").DaemonEventBus, "publish" | "onPublish">): () => void
   invokeApi?(
     verb: string,
     params: ApiParams,
     socketPath: string,
-    route?: { readonly machine?: string; readonly forwarded?: boolean },
+    /** `from`: the hub's hostname on a forwarded call, for the refusal and the log. */
+    route?: { readonly machine?: string; readonly forwarded?: boolean; readonly from?: string },
   ): Promise<ApiEnvelope>
   readonly defaultTaskVendor: VendorId
   readonly placeholderTaskTitle: string
@@ -65,6 +77,11 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
+   * The engine whose session ids/argv `vendor` speaks (a wrapped preset
+   * resolves to its base). Two vendors share session ids iff these match.
+   */
+  sessionProtocol(vendor: VendorId | undefined): VendorId
+  /**
    * From live engine-tab evidence (walk vendor + OSC title), the `setCommand`
    * payload upgrading a generic record to a named protocol, or null. Engine-
    * owned; the daemon only relays evidence. Absent = never upgrades.
@@ -81,6 +98,8 @@ export interface DaemonRuntimeAdapter {
   checkLatestVersion(): Promise<UpdateInfo | null>
   latestTranscriptMtime(vendor: VendorId, worktreePath: string): Promise<number>
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
+  /** The first-prompt title of ONE session, by id; `""` when none yet. */
+  deriveTitleFromSessionId(vendor: VendorId, sessionId: string): Promise<string>
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
   /** `baseRef` is the task's RECORDED fork point; absent/stale falls back to
    *  own resolution, and `behind` is omitted when nothing resolves. */
@@ -90,6 +109,8 @@ export interface DaemonRuntimeAdapter {
    * reader; never summed here). `null` = none reported, distinct from zero.
    */
   readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
+  /** Have the engine refresh its own breakdown of the session's window (may start a process); the next read carries it. */
+  probeEngineContext?(vendor: VendorId, sessionId: string): Promise<void>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /**
@@ -126,7 +147,10 @@ export interface DaemonRuntimeAdapter {
     taskId: string,
     prompt: string,
   ): Promise<{ started: boolean; error?: string }>
-  tearDownTaskSession(taskId: string): Promise<void>
+  /** Kill the task's hosted PTYs; `scope` spares surviving children's aliased ones and adds the task's own. */
+  tearDownTaskSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** Stop the engine in one tab, leaving the task's other PTYs and the tab row alone. */
+  stopTaskEngineTab(taskId: string, tabId: string, scope?: PtyScope): Promise<void>
   /**
    * Vendor account usage windows, or null when unknowable. Hits the vendor's
    * rate-limited API — ONLY QuotaUsageCache may call this.
@@ -145,6 +169,8 @@ export interface DaemonRuntimeAdapter {
       /** Raw launch command pinned on the task; wins over `vendor` when set. */
       readonly command?: string
       readonly worktreePath: string
+      /** Whose PTYs the delivery may pick from (`ptyScopeFor`): a migrated child's conversation lives under its parent's key. */
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<boolean>
@@ -159,6 +185,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<
@@ -174,6 +201,7 @@ export interface DaemonRuntimeAdapter {
       readonly vendor?: VendorId
       readonly command?: string
       readonly worktreePath: string
+      readonly scope?: PtyScope
     },
     prompt: string,
   ): Promise<
@@ -181,6 +209,16 @@ export interface DaemonRuntimeAdapter {
     | { readonly outcome: "no-session" }
     | { readonly outcome: "no-engine"; readonly tabId: string }
   >
+  /** The fix-CI instruction for a worktree's failing checks (the repo's own template when it has one). */
+  buildCIPrompt(
+    worktree: string,
+    state: {
+      readonly branch: string
+      readonly prNumber?: number
+      readonly checks: readonly unknown[]
+      readonly totalFailing: number
+    },
+  ): Promise<string>
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]
@@ -204,6 +242,7 @@ export interface DaemonRuntimeAdapter {
      * SUCCESS the caller detects first. */
     classify(signals: {
       spawnError?: boolean
+      cwdMissing?: boolean
       timedOut?: boolean
       exitCode?: number | null
       stderr?: string

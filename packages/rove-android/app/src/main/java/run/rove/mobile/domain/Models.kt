@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class TaskRow(
     val id: String,
     val title: String = "",
+    val label: String? = null,
     val branch: String = "",
     val repo: String = "",
     val kind: String = "task",
@@ -13,6 +14,9 @@ data class TaskRow(
     val rank: Double = 0.0,
     val pinned: Boolean = false,
     val deleting: Boolean = false,
+    val archived: Boolean = false,
+    val routine: Boolean = false,
+    val machine: TaskMachine? = null,
     val engine: EngineLabel? = null,
     val status: String = "",
     val activity: TaskActivity? = null,
@@ -23,10 +27,19 @@ data class TaskRow(
     val changes: TaskChanges? = null,
     val prChip: String? = null,
     val prChipStale: Boolean = false,
+    val tabStatus: Map<String, TabStatus> = emptyMap(),
+    val parentTaskId: String? = null,
+    val extraRepoCount: Int = 0,
 ) {
-    val displayTitle get() = title.ifEmpty { branch.ifEmpty { id } }
+    /** The bridge's row name; an older bridge sends none, then the stored title / branch / id. `title` stays the one a rename edits. */
+    val displayTitle get() = label?.takeIf { it.isNotEmpty() } ?: title.ifEmpty { branch.ifEmpty { id } }
+    /** The daemon's own reading: this tab's engine waits at a menu that takes digits and Enter as keys. */
+    fun atMenu(tabId: String) = tabStatus[tabId]?.kind == "needs-input"
     val repoName get() = repo.trimEnd('/').substringAfterLast('/')
 }
+@Serializable data class TabStatus(val kind: String = "")
+/** The registered machine a remote task lives on; there is no base checkout of it here to merge into. */
+@Serializable data class TaskMachine(val label: String = "")
 @Serializable data class EngineLabel(val id: String? = null, val name: String)
 @Serializable data class TaskActivity(val state: String, val forMs: Double = 0.0)
 @Serializable data class TaskPR(val number: Int? = null, val url: String? = null, val lifecycle: String = "",
@@ -38,7 +51,8 @@ data class TaskRow(
 /** One attention-inbox item (iOS `AttentionItem`); `at` is ms since epoch. */
 @Serializable data class Attention(val taskId: String? = null, val tabId: String? = null, val state: String = "",
                                    val unread: Boolean = false, val at: Double = 0.0, val resumeAt: String? = null,
-                                   val label: String? = null, val deliveryId: String? = null, val gateId: String? = null)
+                                   val label: String? = null, val deliveryId: String? = null, val gateId: String? = null,
+                                   val automationId: String? = null)
 @Serializable data class GateOption(val key: String, val label: String, val detail: String? = null)
 /** A decision a task put to its owner (bridge `GateRow`): `open`, or `answered` with the engine not yet holding the answer. */
 @Serializable data class GateRow(
@@ -47,7 +61,7 @@ data class TaskRow(
     val status: String = "open", val handoff: String? = null, val createdAt: String = "", val label: String = "",
 ) { val isOpen get() = status == "open" }
 @Serializable data class Tasks(val tasks: List<TaskRow> = emptyList(), val attention: List<Attention> = emptyList(),
-                               val gates: List<GateRow> = emptyList())
+                               val gates: List<GateRow> = emptyList(), val archived: List<TaskRow> = emptyList())
 @Serializable data class Engines(val engines: List<Engine>)
 @Serializable data class Repos(val repos: List<String>)
 @Serializable data class TabRow(

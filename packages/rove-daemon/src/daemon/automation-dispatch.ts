@@ -12,22 +12,24 @@
  * ## Continuity
  *
  * Rests on the engine conversation in the PTY host, which lives OUTSIDE the
- * daemon (`pty-server.ts`) and survives `rove daemon restart`. When that PTY
- * is gone, a standing task is revived with a fresh engine in the same
- * worktree — files carry over, the transcript does NOT (`buildEngineSessionLaunch`
- * has no resume verb; `engineResumeArgv` is the TUI's path). Recorded as
- * `revived`, not `dispatched`, so run history tells the two apart.
+ * daemon (`pty-server.ts`) and survives `rove daemon restart`. A routine-owned
+ * task's engine is stopped when its run ends, so a standing task is usually
+ * revived: the engine starts again in the same worktree and the runtime reopens
+ * the conversation its tab row holds. Recorded as `revived`, not `dispatched`,
+ * so run history tells the two apart.
  */
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
-import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
+import { ptyScopeFor } from "./pty-alias.ts"
+import { ensureRoutineCwd, routineDir } from "./routine-dir.ts"
 import type { RunnabilityVerdict, SkipReason, SkipVerdict } from "./runnability-contracts.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
-export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
+export type DispatchOrchestrator = Pick<DaemonOrchestrator, "createTask" | "openDirectoryTask" | "getTask"> &
+  Partial<Pick<DaemonOrchestrator, "listTasks">>
 
 export type DispatchRuntime = Pick<
   DaemonRuntimeAdapter,
@@ -105,8 +107,26 @@ function blockedOutcome(
   return { status, ...where, blocked: verdict, error }
 }
 
-/** Create the task a firing runs in, marked as the routine's when standing. */
+/**
+ * Create the task a firing runs in, marked as the routine's. A projectless
+ * routine runs in a `noProject` directory task at its routine dir; a repo
+ * routine gets a (lazy) worktree task.
+ */
 async function createRunTask(deps: DispatchDeps, automation: Automation): Promise<DaemonTask> {
+  // Folds the task behind the sidebar's routine row; fresh runs too, which the Routines page opens.
+  // The standing session is found through `sessionTaskId`, never through this mark.
+  const routine = { routine: { automationId: automation.id } }
+  if (!automation.repo) {
+    return await deps.orch.openDirectoryTask({
+      dir: routineDir(automation.id),
+      title: automation.name,
+      noProject: true,
+      ...(automation.vendor ? { vendor: automation.vendor } : {}),
+      ...(automation.model ? { model: automation.model } : {}),
+      ...(automation.modelEffort ? { modelEffort: automation.modelEffort } : {}),
+      ...routine,
+    })
+  }
   return await deps.orch.createTask({
     repo: automation.repo,
     title: automation.name,
@@ -114,9 +134,7 @@ async function createRunTask(deps: DispatchDeps, automation: Automation): Promis
     ...(automation.model ? { model: automation.model } : {}),
     ...(automation.modelEffort ? { modelEffort: automation.modelEffort } : {}),
     ...(automation.baseRef ? { baseRef: automation.baseRef } : {}),
-    // Folds the task behind the sidebar's routine row. Standing only: fresh
-    // runs are work the user must land.
-    ...(automation.persistentSession ? { routine: { automationId: automation.id } } : {}),
+    ...routine,
   })
 }
 
@@ -137,11 +155,18 @@ async function spawnWithPrompt(
   return { status, taskId }
 }
 
+/** Where a firing's prompt lands. `fresh`: a just-spawned engine, with no transcript of earlier runs. */
+export interface DispatchTarget {
+  readonly taskId: string
+  readonly tabId: string | null
+  readonly fresh: boolean
+}
+
 /** The prompt for a firing, built once the task (and tab, when known) it lands
  *  in exists, so a delivery can be armed against it before the paste. */
-export type DispatchPrompt = string | ((target: { taskId: string; tabId: string | null }) => Promise<string>)
+export type DispatchPrompt = string | ((target: DispatchTarget) => Promise<string>)
 
-async function resolvePrompt(prompt: DispatchPrompt, target: { taskId: string; tabId: string | null }) {
+async function resolvePrompt(prompt: DispatchPrompt, target: DispatchTarget) {
   return typeof prompt === "string" ? prompt : await prompt(target)
 }
 
@@ -179,15 +204,24 @@ export async function dispatchAutomation(
       tabId: target.tabId,
     })
     if (blocked) return blocked
-    const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
+    const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId, fresh: false })
     const owed = carryOwedGateAnswers(deps.gates, task.id, target.tabId, text)
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
-      { id: task.id, tabId: target.tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+      {
+        id: task.id,
+        tabId: target.tabId,
+        vendor: task.vendor,
+        command: task.command,
+        worktreePath: task.worktreePath,
+        scope: ptyScopeFor(deps.orch.listTasks?.() ?? [], task.id),
+      },
       owed.prompt,
     )
     if (result.outcome === "delivered") await owed.commit()
     return await liveDeliveryOutcome(deps, automation, task.id, result)
   }
+  // Removed between firings? Every remaining shape (create, deliver, revive) runs in it.
+  if (!automation.repo) await ensureRoutineCwd(automation)
   if (target.kind === "fresh") {
     const quota = blockedOutcome(deps.runnability?.freshQuota(automation.vendor), {})
     if (quota) return quota
@@ -195,7 +229,7 @@ export async function dispatchAutomation(
     // A fresh task's first engine tab is always tab-1.
     return await spawnWithPrompt(
       deps,
-      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1", fresh: true }),
       task.id,
       "dispatched",
     )
@@ -209,7 +243,7 @@ export async function dispatchAutomation(
     const task = await createRunTask(deps, automation)
     const outcome = await spawnWithPrompt(
       deps,
-      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1", fresh: true }),
       task.id,
       "dispatched",
     )
@@ -226,11 +260,17 @@ export async function dispatchAutomation(
   // `engine-dead` is not a skip here: the revive path below respawns it.
   const blocked = blockedOutcome(deps.runnability?.check(task.id, null, ["engine-dead"]), { taskId: task.id })
   if (blocked) return blocked
-  // Built once: the live attempt and the respawn below carry the same delivery.
-  const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
+  // The live attempt and the respawn below carry the same delivery; the respawn re-resolves for its empty transcript.
+  const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null, fresh: false })
   const owed = carryOwedGateAnswers(deps.gates, task.id, null, text)
   const result = await deps.runtime.deliverPromptToLiveEngineDetailed(
-    { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+    {
+      id: task.id,
+      vendor: task.vendor,
+      command: task.command,
+      worktreePath: task.worktreePath,
+      scope: ptyScopeFor(deps.orch.listTasks?.() ?? [], task.id),
+    },
     owed.prompt,
   )
   if (result.outcome === "delivered") {
@@ -241,7 +281,8 @@ export async function dispatchAutomation(
   // the engine died between firings. Respawn in the SAME worktree as
   // `revived`. `no-engine` must land here, or the prompt gets typed into zsh
   // and RUN as shell commands.
-  return await spawnWithPrompt(deps, text, task.id, "revived")
+  const fullText = await resolvePrompt(prompt, { taskId: task.id, tabId: null, fresh: true })
+  return await spawnWithPrompt(deps, fullText, task.id, "revived")
 }
 
 async function liveDeliveryOutcome(
@@ -252,7 +293,6 @@ async function liveDeliveryOutcome(
 ): Promise<DispatchOutcome> {
   switch (result.outcome) {
     case "delivered":
-      logDaemonInfo("automation", `delivered ${automation.name} task=${taskId} tab=${result.tabId}`)
       return { status: "dispatched", taskId, tabId: result.tabId }
     case "no-engine":
     case "no-session":

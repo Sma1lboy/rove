@@ -76,7 +76,9 @@ external application rather than grow a poor terminal imitation.
 ### 6. Reuse proven primitives
 
 Use the locked stack: TypeScript, Bun, React 19, `@opentui/core`, and
-`@opentui/react`. Study the read-only `refs/` projects before replacing a
+`@opentui/react`. The web client (`packages/rove-web`) adds Tailwind v4 over the
+same tokens and its own components in `src/ui/` (copied-in, no behaviour
+library: the app owns focus and keys); see the `rove-ui` skill. Study the read-only `refs/` projects before replacing a
 proven parser, terminal primitive, history reader, or interaction pattern.
 
 ## UI rules
@@ -117,3 +119,11 @@ Superseded design records under `docs/design/` and historical CHANGELOG entries
 may describe older architectures. They are context, not current implementation
 instructions. Current ownership and vocabulary live in
 [CONTEXT.md](../CONTEXT.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+- **2026-10-24 — the new-task flow asks for a model again.** #1070 (2026-09-19)
+  took depth, model and effort out of the New task dialog: a pinned model was a
+  per-task exception and depth belonged to auto-routing. The owner's direction of
+  2026-10-24 supersedes that for the new-task flow: New task is repos plus a
+  model/effort chip, prompt-first, 1:1 with claude.ai/code, and model selection is
+  the priority. The rows come from the engine registry and show only for engines
+  that declare a model flag or effort levels; depth stays auto-routing's.

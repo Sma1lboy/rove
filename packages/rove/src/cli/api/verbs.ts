@@ -6,6 +6,7 @@
 import { DELIVERIES_VERB, REPORT_VERB } from "./handlers-delivery.ts"
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
 import { ATTENTION_DISMISS_VERB, SHOULD_RUN_VERB } from "./handlers-runnability.ts"
+import { TODO_VERB } from "./handlers-todo.ts"
 import { fullSchema, groupSchema, schemaIndex, verbSchema } from "./schema.ts"
 import { ApiError, VERB_GROUP_IDS, type VerbContext, type VerbGroup, type VerbSpec } from "./types.ts"
 import { ROUTINE_VERBS } from "./verbs-automations.ts"
@@ -14,9 +15,13 @@ import { DRIVE_VERBS } from "./verbs-drive.ts"
 import { EDIT_VERBS } from "./verbs-edit.ts"
 import { FEEDBACK_VERBS } from "./verbs-feedback.ts"
 import { GATE_VERBS } from "./verbs-gates.ts"
+import { GITHUB_VERBS } from "./verbs-github.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
+import { PR_ATTACH_VERB } from "./verbs-pr.ts"
+import { PUBLISH_VERB } from "./verbs-publish.ts"
 import { READ_VERBS } from "./verbs-read.ts"
+import { REPO_LIST_VERB, REPO_MATCH_VERB } from "./verbs-repo-match.ts"
 import { REVIEW_VERBS } from "./verbs-review.ts"
 import { WORK_ITEM_VERBS } from "./verbs-work-items.ts"
 import { WORKTREE_VERBS } from "./verbs-worktree.ts"
@@ -60,6 +65,10 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
     hint: "fan-out was folded into `add`: pass --count N (or --agents claude:2,codex:1) to spawn N parallel tasks of one prompt",
     nextCommandArgs: ["api", "add", "--help"],
   },
+  spawn: {
+    hint: "spawn was folded into `add`, which nests the new task under the calling session: --no-worktree shares the parent's directory, --parent ID names another parent, --no-parent opts out",
+    nextCommandArgs: ["api", "add", "--help"],
+  },
   "set-vendor": {
     hint: "set-vendor was replaced by `update --command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "update", "--help"],
@@ -90,10 +99,6 @@ const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandArgs: re
   "routine-set-enabled": {
     hint: "routine-set-enabled was folded into `routine-update`: pass --enabled true|false",
     nextCommandArgs: ["api", "routine-update", "--help"],
-  },
-  archive: {
-    hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
-    nextCommandArgs: ["api", "delete", "--help"],
   },
 }
 
@@ -145,6 +150,10 @@ export const VERBS: readonly VerbSpec[] = [
   ENGINE_LIST_VERB,
   ...READ_VERBS,
   ...REVIEW_VERBS,
+  REPO_MATCH_VERB,
+  REPO_LIST_VERB,
+  PUBLISH_VERB,
+  PR_ATTACH_VERB,
   DELIVERIES_VERB,
   SHOULD_RUN_VERB,
   ...CREATE_VERBS,
@@ -157,8 +166,10 @@ export const VERBS: readonly VerbSpec[] = [
   ...ROUTINE_VERBS,
   ...WORK_ITEM_VERBS,
   ...EDIT_VERBS,
+  TODO_VERB,
   ...LIFECYCLE_VERBS,
   ...WORKTREE_VERBS,
+  ...GITHUB_VERBS,
 ]
 
 /** Verb names in canonical order (schema/help/tests). */

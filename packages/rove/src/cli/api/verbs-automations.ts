@@ -38,6 +38,45 @@ const PRECHECK_FLAGS = [
   },
 ] as const
 
+const SCRIPT_FLAGS = [
+  {
+    name: "script",
+    type: "string",
+    placeholder: "CMD",
+    description:
+      "Run this shell command in the repo instead of an engine: no task, no worktree, no agent turn. Exit 0 records `ran`, anything else `script_failed`; non-empty stdout (last 4000 chars) is the run's response. Replaces --prompt and the engine flags. '' on update turns it back into a prompt routine.",
+  },
+  {
+    name: "script-timeout",
+    type: "int",
+    placeholder: "SEC",
+    default: "120",
+    description: "Seconds before the script is killed and the run recorded as script_failed (max 600).",
+  },
+] as const
+
+const NOTIFY_FLAG = {
+  name: "notify",
+  type: "bool",
+  description:
+    "Hand every run's response, and runs that need a human, to the bound chat channel's agent (`rove weixin login`), which decides what to tell you. Off by default.",
+} as const
+
+/** `--script` → payload, same empty-clears and timeout-alone rules as {@link precheckPayload}. */
+function scriptPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
+  if (!ctx.args.present("script")) {
+    if (ctx.args.present("script-timeout"))
+      throw new ApiError(
+        "--script-timeout requires --script (pass the command again to change its timeout)",
+        "BAD_FLAG",
+      )
+    return {}
+  }
+  const command = ctx.args.str("script")
+  if (command === undefined) return { script: null }
+  return { script: { command, timeoutSeconds: ctx.args.int("script-timeout") ?? 120 } }
+}
+
 const GRACE_FLAG = {
   name: "grace",
   type: "uint",
@@ -45,6 +84,13 @@ const GRACE_FLAG = {
   default: "60",
   description:
     "How late a missed occurrence may still run when the daemon was down. Only the most recent missed occurrence is ever run.",
+} as const
+
+const WEBHOOK_FLAG = {
+  name: "webhook",
+  type: "bool",
+  description:
+    "Also fire on a signed POST to the web server's /hooks/routines/<id> (GitHub's X-Hub-Signature-256). Turning it on generates the secret, shown as .webhook.secret; paste it into the GitHub webhook with content type application/json. The precheck still runs, with ROVE_WEBHOOK_EVENT and ROVE_WEBHOOK_ACTION set, and the prompt starts with what fired it. Off again forgets the secret.",
 } as const
 
 const PERSISTENT_FLAG = {
@@ -133,11 +179,21 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-create",
     group: "routine",
     summary:
-      "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. Use --target-task and --target-tab for an existing conversation. An enabled routine keeps the daemon alive.",
+      "Schedule a prompt. Each firing creates a fresh task (worktree + engine, or with --no-repo a directory session) and delivers it. Use --target-task and --target-tab for an existing conversation, or --script to run a command with no engine. An enabled routine keeps the daemon alive.",
     flags: [
-      F.repo(),
+      {
+        ...F.repo(false),
+        description:
+          "Repo root (git toplevel) every run works in. Relative paths resolve against $PWD. Required unless --no-repo.",
+      },
+      {
+        name: "no-repo",
+        type: "bool",
+        description:
+          "A routine with no project: each run works in its own directory (<home>/.rove/routines/<id>) and its session sits in the sidebar's Ungrouped group. Takes no --base-branch.",
+      },
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
-      F.prompt(true, "Text delivered to the selected conversation or a new session."),
+      F.prompt(false, "Text delivered to the selected conversation or a new session. Required unless --script."),
       F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
       {
@@ -154,18 +210,31 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         description: "Base ref each run's worktree branches from.",
       },
       ...PRECHECK_FLAGS,
+      ...SCRIPT_FLAGS,
+      NOTIFY_FLAG,
+      WEBHOOK_FLAG,
       GRACE_FLAG,
       PERSISTENT_FLAG,
       ...TARGET_FLAGS,
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
     handler: async (ctx) => {
-      const repo = ctx.args.requireRepo("repo")
+      // Exactly one: a forgotten --repo must not quietly become a projectless routine.
+      const noRepo = ctx.args.bool("no-repo") === true
+      const hasRepo = ctx.args.str("repo") !== undefined
+      if (noRepo && hasRepo) throw new ApiError("--repo and --no-repo conflict — pass one", "CONFLICTING_FLAGS")
+      if (!noRepo && !hasRepo) throw new ApiError("pass exactly one of --repo PATH or --no-repo", "MISSING_FLAG")
+      const repo = noRepo ? undefined : ctx.args.requireRepo("repo")
+      const script = scriptPayload(ctx)
+      if (script.script && ctx.args.promptText() !== undefined)
+        throw new ApiError("pass --prompt or --script, not both", "BAD_FLAG")
       return simpleRpc(ctx, "automation.create", {
-        repo,
+        ...(repo ? { repo } : {}),
         name: ctx.args.require("name"),
-        prompt: requirePromptText(ctx, "routine-create"),
+        ...(script.script ? script : { prompt: requirePromptText(ctx, "routine-create") }),
         schedule: ctx.args.require("schedule"),
+        ...(ctx.args.bool("notify") ? { notify: true } : {}),
+        ...(ctx.args.bool("webhook") ? { webhook: true } : {}),
         ...(await createEngineFields(ctx, repo)),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
@@ -199,6 +268,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { ...EFFORT_FLAG, description: `${EFFORT_FLAG.description} '' clears it.` },
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
       ...PRECHECK_FLAGS,
+      ...SCRIPT_FLAGS,
+      { ...NOTIFY_FLAG, placeholder: "BOOL" },
+      { ...WEBHOOK_FLAG, placeholder: "BOOL" },
       GRACE_FLAG,
       PERSISTENT_FLAG,
       ...TARGET_FLAGS,
@@ -216,6 +288,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
+        ...scriptPayload(ctx),
+        ...(ctx.args.present("notify") ? { notify: ctx.args.bool("notify") ?? true } : {}),
+        ...(ctx.args.present("webhook") ? { webhook: ctx.args.bool("webhook") ?? true } : {}),
         ...targetPayload(ctx),
         ...(ctx.args.nonNegativeInt("grace") !== undefined
           ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
@@ -297,7 +372,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     name: "routine-runs",
     group: "routine",
     summary:
-      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_blocked (should-run refused the tick: `blocked` is the verdict {reason, detail?, until?, gateIds?} — busy, awaiting-owner, report-missing, quota, awaiting-permission; not an alarm, the cause is already in the Inbox; a manual run-now bypasses it), skipped_missed, skipped_unavailable, dispatch_failed (also a should-run refusal for engine-dead or engine-error, which have no Inbox row of their own: it keeps `blocked` and raises the routine alarm). Each run carries `deliveryId`, `deliveryStatus` (awaiting|reported|missing) and `response` ({text, at}) once its agent reported (routine-respond or report).",
+      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), skipped_cancelled (disabled, changed or stopped before delivery), skipped_precheck (nothing to do), skipped_blocked (should-run refused the tick: `blocked` is the verdict {reason, detail?, until?, gateIds?} — busy, awaiting-owner, report-missing, quota, awaiting-permission; not an alarm, the cause is already in the Inbox; a manual run-now bypasses it), skipped_missed, skipped_unavailable, ran / script_failed (a --script routine: exit 0 or not; stdout is the response), dispatch_failed (also a should-run refusal for engine-dead or engine-error, which have no Inbox row of their own: it keeps `blocked` and raises the routine alarm). Each run carries `deliveryId`, `deliveryStatus` (awaiting|reported|missing|quiet: the turn completed with nothing to report) and `response` ({text, at}) once its agent reported (routine-respond or report).",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.runs", { id: ctx.args.require("id") }),
   },

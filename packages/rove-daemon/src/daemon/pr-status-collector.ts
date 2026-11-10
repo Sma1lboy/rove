@@ -1,6 +1,6 @@
 /**
- * Daemon-side PR-status poller: per eligible task, `gh pr list --head <branch>
- * --state all --json …` → neutral {@link TaskPRStatus} → `orch.setPRStatus`.
+ * Daemon-side PR-status poller: per eligible task, find its PR
+ * ({@link makeGhPrViewRunner}) → neutral {@link TaskPRStatus} → `orch.setPRStatus`.
  * Persisting on the Task lets the `task.snapshot` broadcast carry the chip to
  * every pane and the web board, and survives a daemon restart. The poller only
  * persists; the TUI fires the checks-resolved toast/bell.
@@ -13,7 +13,8 @@
  * `monitor/pr-status.ts` and arrive via `runtime.prStatus.classify` /
  * `viewFields`: rove-daemon must not depend on the `rove` package.
  *
- * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR.
+ * GitHub only: `ssh://` projects and non-GitHub remotes yield no PR. Session PRs
+ * (`task.sessionPrs`, attached by URL) are polled by URL in `session-pr-poll.ts`.
  *
  * Per-task schedule by outcome:
  *   - open PR → tick cadence (checks move).
@@ -33,11 +34,13 @@
  * other tasks.
  */
 
-import { spawn } from "node:child_process"
+import { workspaceCapabilities } from "../workspace.ts"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
-import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import { decodeCapturedChunks } from "./poll-scheduling.ts"
+import { logDaemonError } from "./crash-log.ts"
+import { logOncePerChange } from "./log-once.ts"
+import { makeGhPrUrlRunner, makeGhPrViewRunner } from "./pr-gh-runner.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { pollableSessionPrs, sessionPrJobs, sessionPrKey } from "./session-pr-poll.ts"
 import { startTicker } from "./ticker.ts"
 
 export interface GhPrView {
@@ -47,27 +50,15 @@ export interface GhPrView {
   readonly [key: string]: unknown
 }
 
-/** Rank for {@link pickPr} — open beats merged/closed. */
-const PR_STATE_RANK: Record<string, number> = { OPEN: 2, MERGED: 1, CLOSED: 1 }
-
-/**
- * Open beats merged/closed; ties (incl. merged vs closed) keep the first entry,
- * which `gh pr list` returns most-recently-updated-first. Empty → undefined.
- */
-export function pickPr(views: readonly GhPrView[]): GhPrView | undefined {
-  let best: GhPrView | undefined
-  let bestRank = -1
-  for (const view of views) {
-    const rank = PR_STATE_RANK[(view.state ?? "").toUpperCase()] ?? 0
-    if (rank > bestRank) {
-      best = view
-      bestRank = rank
-    }
-  }
-  return best
-}
-
-export type PrViewErrorKind = "missing-binary" | "auth" | "timeout" | "network" | "parse" | "no-remote" | "unknown"
+export type PrViewErrorKind =
+  | "missing-binary"
+  | "worktree-missing"
+  | "auth"
+  | "timeout"
+  | "network"
+  | "parse"
+  | "no-remote"
+  | "unknown"
 
 /** `gh` hits the network; 30s tracks checks without hammering it. */
 export const DEFAULT_PR_STATUS_POLL_MS = 30_000
@@ -79,9 +70,6 @@ export const PR_FAILURE_CAP_MS = 15 * 60_000
 export const NO_REMOTE_BACKOFF_MS = 30 * 60_000
 /** ± jitter ratio on every scheduled delay (de-syncs N tasks after a reconnect). */
 export const PR_POLL_JITTER_RATIO = 0.2
-/** Kill a `gh pr list` that hangs past this (network stall). */
-export const PR_VIEW_TIMEOUT_MS = 10_000
-
 /**
  * `gh pr list` calls in flight per pass. `startTicker` drops ticks while a pass
  * runs, so a serial pass makes the refresh `max(tickMs, N × gh_latency)`:
@@ -103,95 +91,25 @@ export type PrViewResult =
   | { kind: "empty" }
   | { kind: "error"; error: PrViewErrorKind }
 
-/** Runs `gh pr list --head` for a branch in a worktree. Injectable for tests. */
-export type PrViewRunner = (worktreePath: string, branch: string) => Promise<PrViewResult>
-
-export interface GhSpawnResult {
-  readonly status: number | null
-  readonly stdout: string
-  readonly stderr: string
-  /** The child failed to spawn (ENOENT etc.) and it was NOT our abort. */
-  readonly spawnError: boolean
-}
-
-/** Captures stderr too (the classifier needs it). Never rejects: spawn error or
- * abort resolves with `status: null`. */
-export function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
-  return new Promise((resolve) => {
-    const outChunks: (Buffer | string)[] = []
-    const errChunks: (Buffer | string)[] = []
-    let settled = false
-    const finish = (status: number | null, spawnError: boolean): void => {
-      if (settled) return
-      settled = true
-      resolve({ status, stdout: decodeCapturedChunks(outChunks), stderr: decodeCapturedChunks(errChunks), spawnError })
-    }
-    const child = spawn("gh", args.slice(), {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      signal,
-      killSignal: "SIGKILL",
-    })
-    child.stdout?.on("data", (chunk: Buffer | string) => {
-      outChunks.push(chunk)
-    })
-    child.stderr?.on("data", (chunk: Buffer | string) => {
-      errChunks.push(chunk)
-    })
-    // An abort (our timeout) also surfaces as an `error` event — don't count
-    // that as a spawn failure; the caller reads `timedOut` separately.
-    child.on("error", () => finish(null, !signal.aborted))
-    child.on("close", (code) => finish(code, false))
-  })
-}
-
-/** Structurally rove's `classifyGhFailure`; injected, not imported (see header). */
-type GhFailureClassifier = DaemonRuntimeAdapter["prStatus"]["classify"]
-
 /**
- * Exit 0 + parseable JSON → {@link pickPr} (empty array → `empty`); non-zero
- * exit or bad JSON → `classify`, never `empty`. Never throws.
+ * Finds a repo's PR: `branch` from its worktree, `pinned` the PR number its
+ * last status carried. Injectable for tests.
  */
-export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: string): PrViewRunner {
-  return async (worktreePath, branch) => {
-    const controller = new AbortController()
-    let timedOut = false
-    const timer = setTimeout(() => {
-      timedOut = true
-      controller.abort()
-    }, PR_VIEW_TIMEOUT_MS)
-    try {
-      const res = await spawnGh(
-        ["pr", "list", "--head", branch, "--state", "all", "--json", viewFields],
-        worktreePath,
-        controller.signal,
-      )
-      if (res.status === 0 && !timedOut) {
-        try {
-          const views = JSON.parse(res.stdout) as GhPrView[]
-          const picked = Array.isArray(views) ? pickPr(views) : undefined
-          return picked ? { kind: "pr", view: picked } : { kind: "empty" }
-        } catch {
-          return classify({ parseError: true }) as PrViewResult
-        }
-      }
-      return classify({
-        spawnError: res.spawnError,
-        timedOut,
-        exitCode: res.status,
-        stderr: res.stderr,
-      }) as PrViewResult
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-}
+export type PrViewRunner = (worktreePath: string, branch: string, pinned?: number) => Promise<PrViewResult>
+
+/** Finds one PR by its URL, from any cwd. Never `empty`: an unknown PR is an `error`. */
+export type PrUrlRunner = (url: string) => Promise<PrViewResult>
 
 /** A real branch on a LOCAL worktree; `main` rows and remote projects are skipped. */
 export function isPrPollable(task: Task): boolean {
-  if (task.kind === "main") return false
-  if (!task.branch || !task.worktreePath) return false
-  if (task.repo.startsWith("ssh://") || task.worktreePath.startsWith("ssh://")) return false
+  return isRepoPollable(task, task)
+}
+
+/** {@link isPrPollable} for one repo of `task` (its own repo/branch/worktree). */
+function isRepoPollable(task: Task, view: { repo: string; branch: string; worktreePath?: string }): boolean {
+  if (!workspaceCapabilities(task).ownsBranch) return false
+  if (!view.branch || !view.worktreePath) return false
+  if (view.repo.startsWith("ssh://") || view.worktreePath.startsWith("ssh://")) return false
   return true
 }
 
@@ -202,12 +120,21 @@ export interface PrPollEntry {
   readonly failures: number
 }
 
-/** Keyed by task id; carried across passes by the live poller. */
+/** Keyed by task id (the primary repo) or `${task.id}::${extra.name}` (an extra); carried across passes by the live poller. */
 export type PrPollSchedule = Map<string, PrPollEntry>
+
+const EXTRA_KEY_SEP = "::"
+
+/** The schedule key of one repo: the task id for the primary, `id::name` for an extra. */
+function pollKey(taskId: string, extraName: string | undefined): string {
+  return extraName === undefined ? taskId : `${taskId}${EXTRA_KEY_SEP}${extraName}`
+}
 
 export interface PrStatusPassOptions {
   readonly runtime: Pick<DaemonRuntimeAdapter, "prStatus">
   readonly run: PrViewRunner
+  /** Resolves session PRs by URL; absent → they are not polled. */
+  readonly runUrl?: PrUrlRunner
   /** Epoch ms. */
   readonly now: number
   /** ISO timestamp stamped onto each status. */
@@ -224,15 +151,21 @@ export interface PrStatusPassOptions {
  * `samePrStatus` ignores `lastError`, so this change check is what stops a long
  * outage re-persisting and re-broadcasting every backoff tick.
  */
-async function setPrStaleMarker(orch: DaemonOrchestrator, taskId: string, error: string | undefined): Promise<boolean> {
-  const prev = orch.getTask(taskId)?.prStatus
+async function setPrStaleMarker(
+  orch: DaemonOrchestrator,
+  taskId: string,
+  extraName: string | undefined,
+  error: string | undefined,
+): Promise<boolean> {
+  const row = orch.getTask(taskId)
+  const prev = extraName === undefined ? row?.prStatus : row?.extraRepos?.find((e) => e.name === extraName)?.prStatus
   if (!prev || prev.lastError === error) return false
   const { lastError: _cleared, ...rest } = prev
-  await orch.setPRStatus(taskId, error === undefined ? rest : { ...rest, lastError: error })
+  await orch.setPRStatus(taskId, error === undefined ? rest : { ...rest, lastError: error }, extraName)
   return true
 }
 
-/** One pass over eligible, due tasks. Returns ids whose persisted status changed. */
+/** One pass over eligible, due repos of every task. Returns ids whose persisted status changed. */
 export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPassOptions): Promise<string[]> {
   const tickMs = opts.tickMs ?? DEFAULT_PR_STATUS_POLL_MS
   const rand = opts.rand
@@ -246,93 +179,141 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     jitterRatio: PR_POLL_JITTER_RATIO,
   }
   const tasks = orch.listTasks()
-  // Drop entries for deleted tasks; the ineligible-delete below never sees
-  // them, so they'd grow unbounded.
-  const live = new Set(tasks.map((task) => task.id))
-  for (const id of opts.schedule.keys()) {
-    if (!live.has(id)) opts.schedule.delete(id)
-  }
-  // Select due tasks against one `opts.now` before any `gh` runs, so the set
-  // doesn't depend on how long the pass takes.
-  const due: Array<{ task: Task; prevFailures: number }> = []
+  // Drop entries for deleted tasks and removed extras; the ineligible-delete
+  // below never sees them, so they'd grow unbounded.
+  const liveKeys = new Set<string>()
   for (const task of tasks) {
-    if (!isPrPollable(task)) {
-      opts.schedule.delete(task.id) // forget backoff for now-ineligible tasks
-      continue
+    liveKeys.add(task.id)
+    for (const extra of task.extraRepos ?? []) liveKeys.add(pollKey(task.id, extra.name))
+    for (const { url } of pollableSessionPrs(task)) liveKeys.add(sessionPrKey(task.id, url))
+  }
+  for (const key of opts.schedule.keys()) {
+    if (!liveKeys.has(key)) opts.schedule.delete(key)
+  }
+  // Select due repos against one `opts.now` before any `gh` runs, so the set
+  // doesn't depend on how long the pass takes.
+  const due: Array<{ task: Task; extraName: string | undefined; repo: DuePollRepo; prevFailures: number }> = []
+  for (const task of tasks) {
+    const repos: Array<{ extraName: string | undefined; repo: DuePollRepo }> = [
+      { extraName: undefined, repo: task },
+      ...(task.extraRepos ?? []).map((e) => ({ extraName: e.name as string | undefined, repo: e })),
+    ]
+    for (const { extraName, repo } of repos) {
+      const key = pollKey(task.id, extraName)
+      if (!isRepoPollable(task, repo)) {
+        opts.schedule.delete(key) // forget backoff for now-ineligible repos
+        continue
+      }
+      const entry = opts.schedule.get(key)
+      if (entry && opts.now < entry.nextAllowedAt) continue
+      due.push({ task, extraName, repo, prevFailures: entry?.failures ?? 0 })
     }
-    const entry = opts.schedule.get(task.id)
-    if (entry && opts.now < entry.nextAllowedAt) continue
-    due.push({ task, prevFailures: entry?.failures ?? 0 })
   }
 
-  /** One task's poll. Returns its id when the persisted status changed. */
-  const pollOne = async (task: Task, prevFailures: number): Promise<string | undefined> => {
+  /** One repo's poll. Returns the task id when the persisted status changed. */
+  const pollOne = async (
+    task: Task,
+    extraName: string | undefined,
+    repo: DuePollRepo,
+    prevFailures: number,
+  ): Promise<string | undefined> => {
+    const key = pollKey(task.id, extraName)
+    const label = extraName === undefined ? task.id : `${task.id} repo ${extraName}`
     try {
-      const result = await opts.run(task.worktreePath, task.branch)
+      const prev =
+        extraName === undefined ? task.prStatus : task.extraRepos?.find((e) => e.name === extraName)?.prStatus
+      const result = await opts.run(repo.worktreePath ?? "", repo.branch, prev?.number)
       if (result.kind === "error") {
         // Not "no PR": keep the last value, log, mark stale, back off.
-        logDaemonInfo(
+        logOncePerChange(
+          `pr-poll:${key}`,
           "pr-status-poller",
-          `gh pr list failed (${result.error}) for task ${task.id} [${task.branch}] — keeping last PR status, backing off`,
+          `gh pr list failed (${result.error}) for task ${label} [${repo.branch}] — keeping last PR status, backing off`,
         )
-        const marked = await setPrStaleMarker(orch, task.id, result.error)
+        const marked = await setPrStaleMarker(orch, task.id, extraName, result.error)
         opts.schedule.set(
-          task.id,
+          key,
           opts.runtime.prStatus.nextPoll({ kind: "error", error: result.error }, prevFailures, opts.now, cfg, rand),
         )
         return marked ? task.id : undefined
       }
       if (result.kind === "empty") {
+        logOncePerChange(`pr-poll:${key}`, "pr-status-poller", undefined)
         // Keep the last value. `gh` reaching the provider clears the stale
         // marker, whatever it answered.
-        const marked = await setPrStaleMarker(orch, task.id, undefined)
-        opts.schedule.set(task.id, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
+        const marked = await setPrStaleMarker(orch, task.id, extraName, undefined)
+        opts.schedule.set(key, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
         return marked ? task.id : undefined
       }
+      logOncePerChange(`pr-poll:${key}`, "pr-status-poller", undefined)
       const next = opts.runtime.prStatus.mapView(result.view, opts.at)
       // Re-read: the task may have been deleted during the await.
       const current = orch.getTask(task.id)
       if (!current) {
-        opts.schedule.delete(task.id)
+        opts.schedule.delete(key)
         return undefined
       }
+      const currentPr =
+        extraName === undefined ? current.prStatus : current.extraRepos?.find((e) => e.name === extraName)?.prStatus
       // `sameStatus` ignores `lastError`; `next` never carries one, so writing
       // it is what clears the stale marker.
-      const wasStale = current.prStatus?.lastError !== undefined
+      const wasStale = currentPr?.lastError !== undefined
       let changedId: string | undefined
-      if (wasStale || !opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
-        await orch.setPRStatus(task.id, next)
+      if (wasStale || !opts.runtime.prStatus.sameStatus(currentPr, next ?? undefined)) {
+        await orch.setPRStatus(task.id, next, extraName)
         changedId = task.id
       }
       const settled = next?.lifecycle === "merged" || next?.lifecycle === "closed"
-      opts.schedule.set(
-        task.id,
-        opts.runtime.prStatus.nextPoll({ kind: "pr", settled }, prevFailures, opts.now, cfg, rand),
-      )
+      opts.schedule.set(key, opts.runtime.prStatus.nextPoll({ kind: "pr", settled }, prevFailures, opts.now, cfg, rand))
       return changedId
     } catch (err) {
       // Only an injected runner throws; back off as a transient error.
       logDaemonError("pr-status-poller", err)
-      const marked = await setPrStaleMarker(orch, task.id, "network").catch(() => false)
+      const marked = await setPrStaleMarker(orch, task.id, extraName, "network").catch(() => false)
       opts.schedule.set(
-        task.id,
+        key,
         opts.runtime.prStatus.nextPoll({ kind: "error", error: "network" }, prevFailures, opts.now, cfg, rand),
       )
       return marked ? task.id : undefined
     }
   }
 
-  // Per-task slots keep returned ids in task order however polls interleave.
-  const slots = new Array<string | undefined>(due.length)
+  // Session PRs share the pool, queued after the branch repos.
+  const sessionJobs = opts.runUrl
+    ? sessionPrJobs(orch, tasks, {
+        runtime: opts.runtime,
+        run: opts.runUrl,
+        now: opts.now,
+        at: opts.at,
+        schedule: opts.schedule,
+        cfg,
+        rand,
+      })
+    : []
+  const total = due.length + sessionJobs.length
+  // Per-job slots keep returned ids in task order however polls interleave.
+  const slots = new Array<string | undefined>(total)
   let cursor = 0
   const worker = async (): Promise<void> => {
-    for (let i = cursor++; i < due.length; i = cursor++) {
+    for (let i = cursor++; i < total; i = cursor++) {
+      if (i >= due.length) {
+        slots[i] = await sessionJobs[i - due.length]?.()
+        continue
+      }
       const item = due[i]
-      if (item) slots[i] = await pollOne(item.task, item.prevFailures)
+      if (item) slots[i] = await pollOne(item.task, item.extraName, item.repo, item.prevFailures)
     }
   }
-  await Promise.all(Array.from({ length: Math.min(PR_POLL_CONCURRENCY, due.length) }, worker))
-  return slots.filter((id): id is string => id !== undefined)
+  await Promise.all(Array.from({ length: Math.min(PR_POLL_CONCURRENCY, total) }, worker))
+  // A task with several changed PRs reports once.
+  return [...new Set(slots.filter((id): id is string => id !== undefined))]
+}
+
+/** The fields of a repo (the task row itself for the primary, an extra otherwise) the poller reads. */
+interface DuePollRepo {
+  readonly repo: string
+  readonly branch: string
+  readonly worktreePath?: string
 }
 
 /**
@@ -351,6 +332,7 @@ export function startPrStatusPoller(
   hasSubscribers?: () => boolean,
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
+  runUrl: PrUrlRunner = makeGhPrUrlRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
 ): ReturnType<typeof startTicker> {
   const schedule: PrPollSchedule = new Map()
   return startTicker({
@@ -361,6 +343,7 @@ export function startPrStatusPoller(
       runPrStatusPass(orch, {
         runtime,
         run,
+        runUrl,
         now: Date.now(),
         at: new Date().toISOString(),
         schedule,

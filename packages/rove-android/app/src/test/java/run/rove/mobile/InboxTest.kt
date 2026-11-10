@@ -60,4 +60,20 @@ class InboxTest {
         assertEquals(true, InboxLogic.clearsOnVisit(item("a", "turn_complete", 1.0)))
         assertEquals(true, InboxLogic.clearsOnVisit(item("a", "error", 1.0)))
     }
+    @Test fun aFailedRoutineClearsByItsSchedule() {
+        assertEquals("auto-1", InboxLogic.routineEpisode(Attention(state = "routine_failed", automationId = "auto-1")))
+        assertNull(InboxLogic.routineEpisode(Attention(taskId = "t", state = "routine_responded", automationId = "auto-1")))
+    }
+    @Test fun ackAllSkipsDecisionsAndRoutineRowsItCannotKey() {
+        fun row(state: String, taskId: String? = "t", gateId: String? = null, automationId: String? = null) =
+            Attention(taskId = taskId, state = state, at = 0.0, gateId = gateId, automationId = automationId)
+        assertEquals(true, InboxLogic.clearable(row("report_missing")))
+        assertEquals(true, InboxLogic.clearable(row("routine_failed", taskId = null, automationId = "a")))
+        assertEquals(false, InboxLogic.clearable(row("routine_failed", taskId = null)))
+        assertEquals(false, InboxLogic.clearable(row("decision_needed", gateId = "g")))
+    }
+    @Test fun twoFailedRoutinesWithOneNameKeepTheirOwnRows() {
+        fun row(id: String) = Attention(state = "routine_failed", label = "Broken check", automationId = id)
+        assertEquals(2, listOf(row("a"), row("b")).distinctBy(InboxLogic::key).size)
+    }
 }

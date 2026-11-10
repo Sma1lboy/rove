@@ -14,18 +14,23 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import run.rove.mobile.data.AttachmentLogic
+import run.rove.mobile.data.BridgeFailure
+import run.rove.mobile.data.sendMessage
 import run.rove.mobile.data.putAttachment
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
+import run.rove.mobile.data.reviveTab
 import run.rove.mobile.domain.QueryReplyFilter
 import java.io.ByteArrayInputStream
 
@@ -46,7 +51,7 @@ private const val ATTACHING = "connecting"
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("SetJavaScriptEnabled")
-@Composable fun TerminalView(model: AppModel, taskId: String, tabId: String, engineName: String?, fit: Boolean) {
+@Composable fun TerminalView(model: AppModel, taskId: String, tabId: String, engineName: String?, fit: Boolean, menuKeys: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ctrl by remember { mutableStateOf(false) }
@@ -60,7 +65,12 @@ private const val ATTACHING = "connecting"
     val session = remember(web) { TerminalSession(model.bridge, scope, taskId, tabId,
         write = { encoded -> web.evaluateJavascript("window.roveWrite(${JsonPrimitive(encoded)});", null) },
         reset = { web.evaluateJavascript("window.roveReset();", null) }) }
+    val input = remember(session) { TerminalInput(scope,
+        queryCursorMode = { complete -> web.evaluateJavascript("window.roveAppCursor();") { complete(it == "true") } },
+        send = session::input) }
     val status by session.status.collectAsState()
+    var reviving by remember(session) { mutableStateOf(false) }
+    var reviveError by remember(session) { mutableStateOf<String?>(null) }
     val interruptSent = stringResource(R.string.detail_interrupt_sent)
     val showFlash = { text: String ->
         flashJob?.cancel()
@@ -72,18 +82,34 @@ private const val ATTACHING = "connecting"
     val send: (String) -> Unit = send@{ raw ->
         val text = QueryReplyFilter.filter(raw)
         if (text.isEmpty()) return@send
-        if (ctrl && text.length == 1 && text[0].code in 64..127) session.input((text[0].code and 31).toChar().toString())
-        else session.input(text)
+        if (ctrl && text.length == 1 && text[0].code in 64..127) input.input((text[0].code and 31).toChar().toString())
+        else input.input(text)
         ctrl = false
     }
     // References pasted since the last reply: `images[0]`, `images[1]`… restart with the next message (iOS `attachmentCount`).
     var attachments by remember(session) { mutableIntStateOf(0) }
     // Text, then Enter after a pause: engine TUIs read text+CR in one burst as a paste and insert a newline.
-    val reply: (String) -> Boolean = { text ->
+    val reply: suspend (String) -> Boolean = { text ->
         val message = PasteEncoding.message(text)
-        (message.isNotEmpty() && session.input(message)).also { sent ->
-            if (sent) { attachments = 0; scope.launch { delay(150); session.input("\r") } }
+        (message.isNotEmpty() && input.input(message).await()).also { sent ->
+            if (sent) { attachments = 0; scope.launch { delay(150); input.input("\r") } }
         }
+    }
+    val atMenu = stringResource(R.string.detail_composer_at_menu)
+    val notSent = stringResource(R.string.detail_composer_not_sent)
+    // A shell tab has no turns to wait for, the demo has no daemon, and a pasted attachment path already sits in the engine's input line.
+    val compose: suspend (String) -> Boolean = compose@{ text ->
+        if (engineName == null || attachments > 0 || model.demo.value) return@compose reply(text)
+        val answer = try { model.repository.sendMessage(taskId, tabId, text.trim()) }
+        catch (e: BridgeFailure) {
+            when (e.code) {
+                "UNKNOWN_OP" -> return@compose reply(text)
+                "AWAITING_PERMISSION" -> throw IllegalStateException(atMenu)
+                else -> throw e
+            }
+        }
+        if (!answer.delivered) throw IllegalStateException(notSent.format(answer.reason.orEmpty()))
+        true
     }
     LaunchedEffect(session, fit) { session.setFit(fit) }
     DisposableEffect(web) {
@@ -108,7 +134,7 @@ private const val ATTACHING = "connecting"
         }, "Rove")
         web.loadUrl("https://appassets.androidplatform.net/assets/terminal/index.html")
         onDispose {
-            session.close(); web.removeJavascriptInterface("Rove"); web.stopLoading(); web.destroy()
+            input.close(); session.close(); web.removeJavascriptInterface("Rove"); web.stopLoading(); web.destroy()
         }
     }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -116,14 +142,26 @@ private const val ATTACHING = "connecting"
         // Inset so glyphs never touch the bezel; xterm fits its columns to the inset width.
         Box(Modifier.weight(1f).fillMaxWidth().background(Rove.Terminal.background)) {
             AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, top = 6.dp))
-            if (status != LIVE) StatusBanner(status, Modifier.align(Alignment.TopCenter))
+            if (status != LIVE) StatusBanner(status, Modifier.align(Alignment.TopCenter), reviving, onReopen = {
+                reviving = true
+                reviveError = null
+                scope.launch {
+                    try { model.repository.reviveTab(taskId, tabId); session.restart() }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { reviveError = e.message.orEmpty() }
+                    finally { reviving = false }
+                }
+            }, reviveError)
             flash?.let {
                 Text(it.lowercase(), Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp)
                     .background(Rove.Terminal.control, RoundedCornerShape(Rove.smallRadius)).padding(horizontal = 10.dp, vertical = 6.dp),
                     color = Rove.Terminal.foreground, style = Rove.mono(12))
             }
         }
-        KeyRow(ctrl, onKey = { ctrl = false; session.input(it) }, onCtrl = { ctrl = !ctrl },
+        KeyRow(ctrl, menuKeys, onKey = { key ->
+            ctrl = false
+            input.input(key, cursorKey = true)
+        }, onCtrl = { ctrl = !ctrl },
             onInterrupt = {
                 scope.launch {
                     try { model.repository.interrupt(taskId, tabId); showFlash(interruptSent) }
@@ -131,20 +169,24 @@ private const val ATTACHING = "connecting"
                     catch (e: Exception) { showFlash(e.message ?: "") }
                 }
             },
-            onReply = { reply(it) }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
-        Composer(engineName, reply) { prepared ->
+            onReply = { scope.launch(start = CoroutineStart.UNDISPATCHED) { reply(it) } }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
+        Composer(engineName, compose) { prepared ->
             val put = model.repository.putAttachment(prepared.mime, prepared.data)
-            if (session.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments)))) attachments++
+            if (input.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments))).await()) attachments++
         }
     }
 }
 
 /** Only shown while not live: attach progress, an exit, or the attach error. */
-@Composable private fun StatusBanner(status: String, modifier: Modifier) {
+@Composable private fun StatusBanner(status: String, modifier: Modifier, reviving: Boolean, onReopen: () -> Unit, error: String?) {
     val exited = status.startsWith("session")
     Row(modifier.fillMaxWidth().background(Rove.c.inset).padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (status == ATTACHING) BrailleSpinner(12)
-        Text(statusLabel(status), color = if (exited) Rove.c.muted else Rove.c.ink, style = Rove.mono(12), maxLines = 2)
+        Text(error?.let { stringResource(R.string.detail_reopen_failed, it) } ?: statusLabel(status), Modifier.weight(1f),
+            color = if (error != null) Rove.c.error else if (exited) Rove.c.muted else Rove.c.ink, style = Rove.mono(12), maxLines = 2)
+        if (exited) Box(Modifier.heightIn(min = 32.dp).pressable(enabled = !reviving, onClick = onReopen).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(if (reviving) R.string.detail_reopening else R.string.detail_reopen), color = Rove.c.accent, style = Rove.mono(12, FontWeight.SemiBold), maxLines = 1)
+        }
     }
 }

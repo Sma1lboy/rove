@@ -255,6 +255,23 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       ])
     })
 
+    it("publishes the checkout's percents as running frames before done", async () => {
+      const { ctx, rec } = fakeCtx({
+        ensureWorktree: async (id: string, opts?: { onProgress?: (percent: number) => void }) => {
+          opts?.onProgress?.(40)
+          opts?.onProgress?.(100)
+          return `/worktrees/${id}`
+        },
+      })
+      await dispatch("task.ensureWorktree", { taskId: "t1" }, ctx)
+      expect(rec.published.map((p) => p.payload)).toEqual([
+        { taskId: "t1", kind: "ensureWorktree", phase: "running" },
+        { taskId: "t1", kind: "ensureWorktree", phase: "running", progress: 40 },
+        { taskId: "t1", kind: "ensureWorktree", phase: "running", progress: 100 },
+        { taskId: "t1", kind: "ensureWorktree", phase: "done" },
+      ])
+    })
+
     it("publishes task.jobs running → error (with the message) when the orchestrator throws, and rethrows", async () => {
       const { ctx, rec } = fakeCtx({
         ensureWorktree: async () => {
@@ -270,5 +287,118 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
         },
       ])
     })
+  })
+})
+
+describe("daemon handler registry — child tasks", () => {
+  it("task.spawn shares the directory only when asked, and rebuilds the dispatcher from its two ids", async () => {
+    const calls: unknown[] = []
+    const { ctx } = fakeCtx({
+      spawnChildTask: async (input: unknown) => {
+        calls.push(input)
+        return { task: TASK, parentDirty: true, sharedLinks: ["linked"] }
+      },
+    })
+
+    const result = await dispatch(
+      "task.spawn",
+      { parentTaskId: "p1", worktree: false, dispatcherTaskId: "d1", dispatcherTabId: "tab-2" },
+      ctx,
+    )
+
+    expect(result).toEqual({ taskId: "t1", task: SERIALIZED_TASK, parentDirty: true, sharedLinks: ["linked"] })
+    expect(calls).toEqual([
+      expect.objectContaining({ parentTaskId: "p1", worktree: false, dispatcher: { taskId: "d1", tabId: "tab-2" } }),
+    ])
+  })
+
+  it("task.spawn gives the child its own worktree by default", async () => {
+    const calls: Array<{ worktree: boolean }> = []
+    const { ctx } = fakeCtx({
+      spawnChildTask: async (input: { worktree: boolean }) => {
+        calls.push(input)
+        return { task: TASK, parentDirty: false, sharedLinks: [] }
+      },
+    })
+
+    await dispatch("task.spawn", { parentTaskId: "p1" }, ctx)
+
+    expect(calls.map((c) => c.worktree)).toEqual([true])
+  })
+
+  it("task.delete with cascade releases and enqueues every descendant, deepest first", async () => {
+    const tree = [
+      { ...TASK, id: "top" },
+      { ...TASK, id: "mid", parentTaskId: "top" },
+      { ...TASK, id: "leaf", parentTaskId: "mid" },
+      { ...TASK, id: "other" },
+    ]
+    const prepared: unknown[] = []
+    const { ctx, rec } = fakeCtx({
+      listTasks: () => tree,
+      getTask: (id: string) => tree.find((t) => t.id === id),
+      prepareTaskDeletion: async (id: string, opts: unknown) => {
+        prepared.push([id, opts])
+        return true
+      },
+    })
+
+    const result = await dispatch("task.delete", { taskId: "top", cascade: true }, ctx)
+
+    expect(result).toEqual({ taskId: "top", queued: true, deleted: ["leaf", "mid", "top"] })
+    expect(prepared).toEqual([["top", { cascade: true }]])
+    expect(rec.deletions).toEqual(["leaf", "mid", "top"])
+    expect(rec.inboxTaskDeleted).toEqual(["leaf", "mid", "top"])
+  })
+
+  it("task.delete tells the caller which PTYs to spare for a surviving aliased child, and which to add", async () => {
+    const tree = [
+      { ...TASK, id: "p" },
+      { ...TASK, id: "keeps", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-2" } },
+      { ...TASK, id: "goes", parentTaskId: "p", ptyAlias: { taskId: "p", tabId: "tab-3" } },
+    ]
+    const { ctx } = fakeCtx({
+      listTasks: () => tree,
+      getTask: (id: string) => tree.find((t) => t.id === id),
+      prepareTaskDeletion: async () => true,
+    })
+
+    const parent = await dispatch("task.delete", { taskId: "p" }, ctx)
+    expect(parent).toEqual({
+      taskId: "p",
+      queued: true,
+      teardown: { p: { spare: ["p::tab-2", "p::tab-3"], also: [] } },
+    })
+
+    const child = await dispatch("task.delete", { taskId: "goes" }, ctx)
+    expect(child).toEqual({ taskId: "goes", queued: true, teardown: { goes: { spare: [], also: ["p::tab-3"] } } })
+  })
+})
+
+describe("task.addSessionPr", () => {
+  it("attaches the canonical url and replies with it", async () => {
+    const calls: unknown[][] = []
+    const { ctx } = fakeCtx({
+      getTask: () => TASK,
+      addSessionPr: async (...args: unknown[]) => void calls.push(args),
+    })
+    const url = "https://github.com/o/r/pull/9/files#diff-1"
+    await expect(dispatch("task.addSessionPr", { taskId: "t1", url }, ctx)).resolves.toEqual({
+      taskId: "t1",
+      url: "https://github.com/o/r/pull/9",
+    })
+    expect(calls).toEqual([["t1", "https://github.com/o/r/pull/9"]])
+  })
+
+  it("refuses a link that is not a GitHub PR, and an unknown task, without attaching", async () => {
+    const addSessionPr = vi.fn(async () => {})
+    const { ctx } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined), addSessionPr })
+    await expect(
+      dispatch("task.addSessionPr", { taskId: "t1", url: "https://github.com/o/r/issues/9" }, ctx),
+    ).rejects.toThrow(/pull/)
+    await expect(
+      dispatch("task.addSessionPr", { taskId: "nope", url: "https://github.com/o/r/pull/9" }, ctx),
+    ).rejects.toThrow(/task not found/)
+    expect(addSessionPr).not.toHaveBeenCalled()
   })
 })

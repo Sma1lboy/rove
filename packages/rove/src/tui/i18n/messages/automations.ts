@@ -23,7 +23,7 @@ export const en = {
   fieldSchedule: "SCHEDULE (FIVE-FIELD CRON)",
   namePlaceholder: "weekday dependency audit",
   promptPlaceholder: "Audit dependencies and summarize risky changes.",
-  needRepo: "Open a project first — a routine runs in one.",
+  noProject: "Ungrouped",
   cronInvalid: "not a five-field cron",
   cronField: {
     minute: "min",
@@ -88,6 +88,8 @@ export const en = {
     skipped_missed: "skipped (missed)",
     skipped_unavailable: "skipped (unavailable)",
     dispatch_failed: "dispatch failed",
+    ran: "ran",
+    script_failed: "script failed",
   },
   cronNever: "valid, but never fires",
   missing: {
@@ -100,8 +102,11 @@ export const en = {
   },
 
   empty: "No routines scheduled.",
+  loadFailed: "Could not read the routines: {message}",
   emptyHint: "Press n to create one.",
   precheck: "precheck: {command}",
+  /** The newest failure among the recent runs; `{when}` is relative ("3h ago"). */
+  lastFailed: "last failed {when}: {reason}",
   recentRuns: "RECENT RUNS",
   /** Header of the latest run's precheck detail. `{exit}` is `exited 1` or `timed out`. */
   precheckDetail: "WHY IT SKIPPED — precheck {exit} in {duration}ms",
@@ -154,7 +159,7 @@ export const zh: typeof en = {
   fieldSchedule: "调度（五段 cron）",
   namePlaceholder: "工作日依赖审计",
   promptPlaceholder: "审计依赖并总结有风险的变更。",
-  needRepo: "先打开一个项目——例行任务要跑在某个项目里。",
+  noProject: "未分组",
   cronInvalid: "不是合法的五段 cron",
   cronField: {
     minute: "分",
@@ -203,6 +208,8 @@ export const zh: typeof en = {
     skipped_missed: "已跳过（错过时间）",
     skipped_unavailable: "已跳过（不可用）",
     dispatch_failed: "派发失败",
+    ran: "已运行",
+    script_failed: "脚本失败",
   },
   cronNever: "语法合法，但永远不会触发",
   missing: {
@@ -215,8 +222,10 @@ export const zh: typeof en = {
   },
 
   empty: "还没有例行任务。",
+  loadFailed: "读不到例行任务：{message}",
   emptyHint: "按 n 新建一条。",
   precheck: "预检：{command}",
+  lastFailed: "上次失败（{when}）：{reason}",
   recentRuns: "最近执行",
   /** 最近一次执行的预检详情标题。`{exit}` 为“退出码 1”或“超时”。 */
   precheckDetail: "为什么跳过 —— 预检{exit}，耗时 {duration}ms",

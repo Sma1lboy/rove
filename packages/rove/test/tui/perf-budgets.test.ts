@@ -53,7 +53,9 @@ function task(overrides: Omit<Partial<Task>, "id"> & { id?: string } = {}): Task
 function rowView(id: string, running: boolean) {
   return buildSidebarRowView({
     task: task({ id, status: running ? "in_progress" : "done" }),
-    activity: running ? { state: "running", at: 1 } : { state: "turn_complete", at: 1 },
+    status: running
+      ? { kind: "running", since: 1, state: "running" }
+      : { kind: "idle", since: 1, state: "turn_complete" },
     spinnerFrame: 0,
     subtitleBudget: 80,
     truncateBranch: (branch) => branch,

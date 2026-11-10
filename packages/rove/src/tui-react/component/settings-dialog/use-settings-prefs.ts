@@ -6,6 +6,7 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
+import { RELEASE_CHANNELS, type ReleaseChannel } from "../../../release-channels.ts"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
@@ -26,12 +27,6 @@ import {
 } from "../../../state/sound-volume"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
 import {
-  DEFAULT_TAB_ROW_HEIGHT,
-  TAB_ROW_HEIGHT_KEY,
-  type TabRowHeight,
-  normalizeTabRowHeight,
-} from "../../../state/tab-row-height"
-import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODES,
   TAB_STRIP_MODE_KEY,
@@ -39,7 +34,12 @@ import {
   resolveTabStripMode,
 } from "../../../state/tab-strip"
 import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
-import { UPDATE_CHANNEL_KEY, normalizeReleaseChannel } from "../../../state/update-channel"
+import {
+  UPDATE_CHANNEL_KEY,
+  UPDATE_NOTIFY_KEY,
+  normalizeReleaseChannel,
+  updateNotifyEnabled,
+} from "../../../state/update-channel"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -65,12 +65,13 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "../../../tui/lib/editor-prefs"
+import { FINISHED_ALERTS_KEY } from "../../../tui/lib/notify-state"
 import {
   PREFIX_TAP_PRESENTATION_KEY,
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
 } from "../../../tui/lib/prefix-tap-presentation"
-import { type ReleaseChannel, channelOf } from "../../../version"
+import { channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {
@@ -114,6 +115,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function toggleCrossTask(): void {
     kv.set("notifications.crossTask.enabled", !crossTaskEnabled())
   }
+  function finishedAlertsEnabled(): boolean {
+    return (kv.get(FINISHED_ALERTS_KEY, true) as boolean) !== false
+  }
+  function toggleFinishedAlerts(): void {
+    kv.set(FINISHED_ALERTS_KEY, !finishedAlertsEnabled())
+  }
 
   function prefixTapPresentation(): PrefixTapPresentation {
     return normalizePrefixTapPresentation(kv.get(PREFIX_TAP_PRESENTATION_KEY))
@@ -142,8 +149,16 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function updateChannel(): ReleaseChannel {
     return normalizeReleaseChannel(kv.get(UPDATE_CHANNEL_KEY)) ?? channelOf()
   }
-  function toggleUpdateChannel(): void {
-    kv.set(UPDATE_CHANNEL_KEY, updateChannel() === "nightly" ? "latest" : "nightly")
+  /** Cycles stable → next → nightly (`RELEASE_CHANNELS` order). */
+  function cycleUpdateChannel(): void {
+    const at = RELEASE_CHANNELS.indexOf(updateChannel())
+    kv.set(UPDATE_CHANNEL_KEY, RELEASE_CHANNELS[(at + 1) % RELEASE_CHANNELS.length])
+  }
+  function updateNotify(): boolean {
+    return updateNotifyEnabled(kv.get(UPDATE_NOTIFY_KEY))
+  }
+  function toggleUpdateNotify(): void {
+    kv.set(UPDATE_NOTIFY_KEY, !updateNotify())
   }
 
   // Chat tab strip: never / 2+ tabs / always (state/tab-strip.ts); "off" is
@@ -183,12 +198,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function selectRailFoldStyle(style: CollapsedRailStyle): void {
     kv.set(RAIL_FOLD_STYLE_KEY, style)
-  }
-  function tabRowHeight(): TabRowHeight {
-    return normalizeTabRowHeight(kv.get(TAB_ROW_HEIGHT_KEY, DEFAULT_TAB_ROW_HEIGHT))
-  }
-  function selectTabRowHeight(height: TabRowHeight): void {
-    kv.set(TAB_ROW_HEIGHT_KEY, height)
   }
   function workingBorder(): WorkingBorder {
     return normalizeWorkingBorder(kv.get(WORKING_BORDER_KEY, DEFAULT_WORKING_BORDER))
@@ -355,6 +364,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     cycleSoundVolume,
     toggleSound,
     crossTaskEnabled,
+    finishedAlertsEnabled,
+    toggleFinishedAlerts,
     toggleCrossTask,
     prefixTapPresentation,
     selectPrefixTapPresentation,
@@ -363,11 +374,11 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     zenDefaultOn,
     toggleZenDefaultOn,
     updateChannel,
-    toggleUpdateChannel,
+    cycleUpdateChannel,
+    updateNotify,
+    toggleUpdateNotify,
     railFoldStyle,
     selectRailFoldStyle,
-    tabRowHeight,
-    selectTabRowHeight,
     workingBorder,
     selectWorkingBorder,
     taskColors,

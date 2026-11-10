@@ -16,10 +16,16 @@ export interface DevDeps {
   readonly uninstallHooks: () => Promise<void>
   /** Empty state.json and remove the task index (the TUI's "Reset UI state"). */
   readonly resetState: () => void
+  /** Restart the daemon onto the bridge's own build, holding the spawn lock so no other client's build takes the respawn. */
+  readonly restartDaemon: () => Promise<void>
 }
 
 /** Dynamic imports: a static edge from a render path to a CLI verb's module is a bundle-only TDZ crash (see `engine/hook-config-check.ts`). */
 const realDeps: DevDeps = {
+  restartDaemon: async () => {
+    const { restartDaemon } = await import("@sma1lboy/rove-daemon/client/daemon-process")
+    await restartDaemon()
+  },
   installHooks: async () => {
     const { ensureGlobalRoveHooks } = await import("@sma1lboy/rove/src/cli/hook-cmd.ts")
     await ensureGlobalRoveHooks({ quiet: true })
@@ -73,11 +79,11 @@ export function createDevOps(deps: DevDeps): OpTable {
       kind: "write",
       destructive: true,
       wraps:
-        "Settings → Dev reset: replaceStateFile({}), remove tasks.json, then daemon.stop {reason: restart} so its in-memory tasks go too (worktrees and engine history stay)",
-      async run(_args, { api }) {
+        "Settings → Dev reset: replaceStateFile({}), remove tasks.json, then restartDaemon so its in-memory tasks go too (worktrees and engine history stay)",
+      async run() {
         deps.resetState()
         // The running daemon still holds the old index in memory; the TUI exits and relaunches, the web restarts the daemon.
-        await api.rpc("daemon.stop", { reason: "restart" }).catch(() => undefined)
+        void deps.restartDaemon().catch(() => undefined)
         return {}
       },
     },
@@ -85,10 +91,10 @@ export function createDevOps(deps: DevDeps): OpTable {
       kind: "write",
       destructive: true,
       wraps:
-        "Settings → Dev restart: daemon RPC daemon.stop {reason: restart} (PTY host and engine sessions keep running)",
-      async run(_args, { api }) {
-        // The daemon may drop the link before it answers; that is the stop working.
-        await api.rpc("daemon.stop", { reason: "restart" }).catch(() => undefined)
+        "Settings → Dev restart: restartDaemon, which stops the daemon and starts this build's under the spawn lock (PTY host and engine sessions keep running)",
+      async run() {
+        // Not awaited: the page polls for the new build, and the restart outlives this reply.
+        void deps.restartDaemon().catch(() => undefined)
         return {}
       },
     },

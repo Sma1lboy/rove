@@ -2,8 +2,9 @@
  * Golden behavior — session events → sidebar running state, anchored end to
  * end. Each case feeds a REAL hook-event sequence through
  * the daemon's activity registry, over the actual `engine-state` wire payload,
- * into the client accumulator, and derives what a sidebar TAB row renders
- * (`tabRowActivity` + `buildSidebarRowView`) — the same chain a live TUI runs.
+ * into the client accumulator, folds it the way the daemon's row-status store
+ * does (`tabStatus`, with the attention inbox's episode for a finished turn),
+ * and derives what a sidebar TAB row renders (`buildSidebarRowView`).
  *
  * The stakes: don't borrow a sibling's spinner, honour a cold-registry Stop,
  * keep liveness session-scoped. Deliberately asserted at DISPLAY level, so
@@ -18,6 +19,7 @@ import {
   type EngineStatePayload,
 } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
+import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { afterEach, describe, expect, it } from "vitest"
 import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events"
 import type {
@@ -48,7 +50,8 @@ const TASK: Task = {
 
 interface RowOpts {
   readonly active?: boolean
-  readonly completionSeen?: boolean
+  /** A client is looking at this tab (`ui.viewing`). */
+  readonly viewed?: boolean
   readonly transcript?: { readonly mtimeMs: number }
 }
 
@@ -77,13 +80,18 @@ function harness(opts: { staleMs?: number; probe?: ActivityLivenessProbe } = {})
         tabActivities: tabs,
         ...{ taskActivity: engineState().get(TASK_ID), active: o.active === true },
       })
+      // The inbox opens an episode for a finished turn; the daemon shows it unseen until viewed.
+      const status = tabStatus({
+        ...(activity ? { activity: { state: activity.state, at: activity.at } } : {}),
+        ...(activity?.state === "turn_complete" ? { pending: { state: "turn_complete", at: activity.at } } : {}),
+        viewed: o.viewed === true,
+      })
       const view = buildSidebarRowView({
         task: TASK,
-        activity,
+        status,
         spinnerFrame: 0,
         subtitleBudget: 60,
         truncateBranch: (b) => b,
-        completionSeen: o.completionSeen === true,
         ...{ transcript: o.transcript },
       })
       return { activity, loading: view.loading, glyph: view.stateGlyph, tone: view.tone }
@@ -133,7 +141,7 @@ describe("golden: session events → sidebar running state", () => {
     expect(unseen.loading).toBe(false)
     expect(unseen.glyph).toBe("●")
     expect(unseen.tone).toBe("primary")
-    const seen = h.row("tab-1", { completionSeen: true })
+    const seen = h.row("tab-1", { viewed: true })
     expect(seen.glyph).toBe("○")
     expect(seen.tone).toBe("textMuted")
   })

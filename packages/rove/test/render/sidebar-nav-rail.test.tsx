@@ -20,7 +20,7 @@ const SETTLE = 80
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
     id: toTaskId(id),
-    title: id,
+    title: `row-${id}`,
     repo: "/repos/rove",
     branch: `feat/${id}`,
     worktreePath: `/wt/${id}`,
@@ -39,7 +39,6 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
     <SidebarTree
       tasks={[MAIN, task("a"), task("b")]}
       selectedId="a"
-      selectedTabId={null}
       onSelect={() => {}}
       focused={true}
       width={24}
@@ -78,6 +77,6 @@ test("the task list stays visible whatever the rail selects", async () => {
   for (const nav of ["terminal", "kanban.board", "automations", "issues.github"] as const) {
     const { frame } = await renderComponent(tree({ nav }), { width: 24, height: 40 })
     await new Promise((r) => setTimeout(r, SETTLE))
-    expect(await frame(), nav).toContain("feat/a")
+    expect(await frame(), nav).toContain("row-a")
   }
 })

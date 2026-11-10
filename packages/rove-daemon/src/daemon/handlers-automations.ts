@@ -1,13 +1,14 @@
 /** Automation CRUD + manual-trigger RPC handlers. */
 
 import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
-import { runAutomationOnce } from "./automation-runner.ts"
+import { type RunnerDeps, runAutomationOnce } from "./automation-runner.ts"
 import {
   assertAutomationTargetOptions,
   assertAutomationTargetTask,
   mergeAutomationTargetOptions,
   readAutomationTarget,
 } from "./automation-target.ts"
+import { newWebhookSecret, readWebhookEvent, webhookSignatureValid } from "./automation-webhook.ts"
 import {
   type AutomationPatch,
   type AutomationPrecheck,
@@ -16,10 +17,26 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { isValidCron } from "./cron.ts"
-import { reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
+import { type RoutineFailure, lastRoutineFailure, reportDelivery, withDeliveryReport } from "./delivery-ops.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
-import type { DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
+import { ensureRoutineCwd } from "./routine-dir.ts"
+
+function runnerDepsOf(ctx: DaemonHandlerContext): RunnerDeps {
+  return {
+    store: ctx.automations,
+    deliveries: ctx.deliveries,
+    orch: ctx.orch,
+    runtime: ctx.runtime,
+    link: ctx.selfLink,
+    ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
+    inbox: ctx.inbox,
+  }
+}
+
+/** Why a webhook POST did or did not fire; the web server maps it to an HTTP status. */
+export type WebhookVerdict = "fired" | "pong" | "not_found" | "bad_signature" | "disabled"
 
 /** A persisted bad schedule never fires and is only discoverable by its silence. */
 function requireSchedule(payload: Record<string, unknown>, key: string): string {
@@ -28,18 +45,41 @@ function requireSchedule(payload: Record<string, unknown>, key: string): string 
   return schedule
 }
 
-/** `null` clears the precheck; absent leaves it untouched. */
-function readPrecheck(payload: Record<string, unknown>): AutomationPrecheck | null | undefined {
-  if (!("precheck" in payload)) return undefined
-  const raw = payload.precheck
+/** `null` clears the precheck (or script); absent leaves it untouched. */
+function readPrecheck(
+  payload: Record<string, unknown>,
+  key: "precheck" | "script" = "precheck",
+): AutomationPrecheck | null | undefined {
+  if (!(key in payload)) return undefined
+  const raw = payload[key]
   if (raw === null) return null
-  if (!raw || typeof raw !== "object") throw new Error("precheck must be an object or null")
+  if (!raw || typeof raw !== "object") throw new Error(`${key} must be an object or null`)
   const command = requireString(raw as Record<string, unknown>, "command")
   // `automations-store.ts` keeps only `> 0`, so 0/negative would silently
   // become 120 on the next boot.
   const timeoutSeconds = optionalNumber(raw as Record<string, unknown>, "timeoutSeconds") ?? 120
-  if (timeoutSeconds <= 0) throw new Error("precheck.timeoutSeconds must be greater than zero")
+  if (timeoutSeconds <= 0) throw new Error(`${key}.timeoutSeconds must be greater than zero`)
   return { command, timeoutSeconds }
+}
+
+/** A script routine launches no engine, so engine and delivery options would be silently ignored. */
+function assertScriptOptions(value: {
+  script?: AutomationPrecheck
+  prompt?: string
+  target?: unknown
+  vendor?: unknown
+  model?: unknown
+  modelEffort?: unknown
+  baseRef?: unknown
+  persistentSession?: boolean
+}): void {
+  if (!value.script) {
+    if (!value.prompt) throw new Error("a routine needs a prompt, or a script to run instead of an engine")
+    return
+  }
+  if (value.target || value.vendor || value.model || value.modelEffort || value.baseRef || value.persistentSession) {
+    throw new Error("a script routine cannot set target, vendor, model, effort, baseRef or persistentSession")
+  }
 }
 
 /**
@@ -55,21 +95,30 @@ function readGraceMinutes(payload: Record<string, unknown>): number | undefined 
   return value
 }
 
+const NO_PROJECT_BASE_REF = "a routine with no project has no base branch; drop baseRef or give it a repo"
+
+/** How far back a routine row looks for its last failure: ~8 hours of a 10-minute routine. */
+const FAILURE_LOOKBACK_RUNS = 50
+
 export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "automation.list",
     async handle(_payload, ctx) {
       const automations = ctx.automations.list()
-      // Latest run status so the list shows broken routines. Status only;
-      // details stay behind `automation.runs`.
+      // Latest run status so the list shows broken routines, and the newest failure among the
+      // recent runs so a stalled or self-healed routine still says why. Details stay behind `automation.runs`.
       const lastRunStatus: Record<string, AutomationRunStatus> = {}
+      const lastFailure: Record<string, RoutineFailure> = {}
       for (const automation of automations) {
-        const latest = ctx.automations.runsFor(automation.id, 1)[0]
-        if (latest) lastRunStatus[automation.id] = latest.status
+        const recent = ctx.automations.runsFor(automation.id, FAILURE_LOOKBACK_RUNS)
+        if (recent[0]) lastRunStatus[automation.id] = recent[0].status
+        const failure = lastRoutineFailure(recent, ctx.deliveries)
+        if (failure) lastFailure[automation.id] = failure
       }
       return {
         automations,
         lastRunStatus,
+        lastFailure,
         // Why the daemon stays up, without a second round-trip.
         keepsDaemonAlive: ctx.automations.hasEnabled(),
       }
@@ -79,12 +128,14 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.create",
     async handle(payload, ctx) {
       const precheck = readPrecheck(payload)
-      const repo = requireString(payload, "repo")
+      // Absent repo = projectless: runs happen in the routine's own directory.
+      const repo = optionalString(payload, "repo")
       const baseRef = optionalString(payload, "baseRef")
       const target = "target" in payload ? readAutomationTarget(payload.target) : undefined
+      if (!repo && baseRef) throw new Error(NO_PROJECT_BASE_REF)
       // Validate before persisting, not at the first unattended failure.
-      if (!target) await assertRoutineRepo(repo)
-      if (baseRef) await assertRoutineBaseRef(repo, baseRef)
+      if (repo && !target) await assertRoutineRepo(repo)
+      if (repo && baseRef) await assertRoutineBaseRef(repo, baseRef)
       const model = optionalString(payload, "model")
       const modelEffort = optionalString(payload, "effort")
       const targetOptions = {
@@ -96,12 +147,18 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         persistentSession: optionalBoolean(payload, "persistentSession"),
       }
       assertAutomationTargetOptions(targetOptions)
+      const script = readPrecheck(payload, "script") ?? undefined
+      const prompt = optionalString(payload, "prompt") ?? ""
+      assertScriptOptions({ ...targetOptions, script, prompt })
       await assertAutomationTargetTask({ repo, target: target ?? undefined }, ctx.orch)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
-        repo,
+        ...(repo ? { repo } : {}),
         ...(target ? { target } : {}),
-        prompt: requireString(payload, "prompt"),
+        prompt: script ? "" : prompt,
+        ...(script ? { script } : {}),
+        ...(optionalBoolean(payload, "notify") === true ? { notify: true } : {}),
+        ...(optionalBoolean(payload, "webhook") === true ? { webhook: { secret: newWebhookSecret() } } : {}),
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
@@ -112,6 +169,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
+      // A projectless routine's cwd must exist before its first firing; a save that can't make it is no save.
+      if (!repo) {
+        await ensureRoutineCwd(automation).catch(async (error) => {
+          await ctx.automations.delete(automation.id)
+          throw error
+        })
+      }
       // A new enabled schedule may be the daemon's only reason to stay up.
       ctx.daemon.reevaluateIdle()
       return { automation }
@@ -122,11 +186,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       // Validate a new base ref (a clear has nothing to check). The repo isn't
-      // patchable, so it's validated only at create.
+      // patchable (a routine never converts between a repo and no project), so
+      // it's validated only at create.
       const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
       const currentRepo = ctx.automations.get(id)?.repo
+      if (nextBaseRef && ctx.automations.get(id) && !currentRepo) throw new Error(NO_PROJECT_BASE_REF)
       if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
-      const patch: AutomationPatch = {
+      let patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),
         ...(payload.vendor === null
@@ -140,6 +206,8 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...("target" in payload ? { target: readAutomationTarget(payload.target) } : {}),
         ...("schedule" in payload ? { schedule: requireSchedule(payload, "schedule") } : {}),
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),
+        ...(readPrecheck(payload, "script") !== undefined ? { script: readPrecheck(payload, "script") } : {}),
+        ...(optionalBoolean(payload, "notify") !== undefined ? { notify: optionalBoolean(payload, "notify") } : {}),
         ...("baseRef" in payload ? { baseRef: optionalString(payload, "baseRef") ?? null } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
         ...(readGraceMinutes(payload) !== undefined ? { missedRunGraceMinutes: readGraceMinutes(payload) } : {}),
@@ -149,15 +217,27 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const current = ctx.automations.get(id)
       if (!current) throw new Error(`automation not found: ${id}`)
+      // Turning it on again keeps the secret, so a configured sender keeps working.
+      const webhook = optionalBoolean(payload, "webhook")
+      if (webhook !== undefined) {
+        patch = { ...patch, webhook: webhook ? (current.webhook ?? { secret: newWebhookSecret() }) : null }
+      }
       const targetOptions = mergeAutomationTargetOptions(current, patch)
       assertAutomationTargetOptions(targetOptions)
+      assertScriptOptions({
+        ...targetOptions,
+        script: patch.script === null ? undefined : (patch.script ?? current.script),
+        prompt: patch.prompt ?? current.prompt,
+      })
       // A stale target must remain pausable, clearable and repairable.
       if (patch.target) await assertAutomationTargetTask({ repo: current.repo, target: patch.target }, ctx.orch)
       const automation = await ctx.automations.update(id, patch)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // Disabling the last one releases the hold; nothing else would notice.
       ctx.daemon.reevaluateIdle()
-      return { automation }
+      // The task a re-pin or a new target let go of still exists; name it so the caller can find it.
+      const released = current.sessionTaskId && !automation.sessionTaskId ? current.sessionTaskId : undefined
+      return { automation, ...(released ? { releasedSessionTaskId: released } : {}) }
     },
   },
   {
@@ -201,19 +281,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       // Predates deliveries: the response lives on the run itself.
       const run = await ctx.automations.setRunResponse(runId, text)
-      if (!run) return { run: null }
-      const automation = ctx.automations.get(run.automationId)
-      if (automation) {
-        await ctx.inbox
-          .recordRoutineResponse(
-            { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
-            run.taskId ?? null,
-            Date.now(),
-          )
-          // The response is already stored; an Inbox write must not fail the verb.
-          .catch((err: unknown) => logDaemonError("automation-respond-inbox", err))
-      }
-      return { run }
+      return { run: run ?? null }
     },
   },
   {
@@ -224,20 +292,36 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       const automation = ctx.automations.get(id)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // `manual` skips the precheck: the user asking is the answer.
-      const status = await runAutomationOnce(
-        {
-          store: ctx.automations,
-          deliveries: ctx.deliveries,
-          orch: ctx.orch,
-          runtime: ctx.runtime,
-          link: ctx.selfLink,
-          ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
-          inbox: ctx.inbox,
-        },
-        automation,
-        { scheduledFor: Date.now(), trigger: "manual" },
-      )
+      const status = await runAutomationOnce(runnerDepsOf(ctx), automation, {
+        scheduledFor: Date.now(),
+        trigger: "manual",
+      })
       return { status }
+    },
+  },
+  {
+    // A signed POST from the web server (`/hooks/routines/<id>`). Answers at once and runs in the
+    // background: GitHub gives a delivery 10s, a run takes longer.
+    name: "automation.webhook",
+    async handle(payload, ctx) {
+      const automation = ctx.automations.get(requireString(payload, "id"))
+      // An unknown id and a routine without a webhook look the same from outside.
+      if (!automation?.webhook) return { verdict: "not_found" satisfies WebhookVerdict }
+      const body = typeof payload.body === "string" ? payload.body : ""
+      if (!webhookSignatureValid(automation.webhook.secret, body, optionalString(payload, "signature"))) {
+        return { verdict: "bad_signature" satisfies WebhookVerdict }
+      }
+      const name = optionalString(payload, "event")
+      // GitHub's hello when a hook is added; nothing to run.
+      if (name === "ping") return { verdict: "pong" satisfies WebhookVerdict }
+      if (!automation.enabled) return { verdict: "disabled" satisfies WebhookVerdict }
+      const event = readWebhookEvent(name, body)
+      void runAutomationOnce(runnerDepsOf(ctx), automation, {
+        scheduledFor: Date.now(),
+        trigger: "webhook",
+        event,
+      }).catch((err: unknown) => logDaemonError("automation-webhook", err))
+      return { verdict: "fired" satisfies WebhookVerdict, event: event.summary }
     },
   },
 ]

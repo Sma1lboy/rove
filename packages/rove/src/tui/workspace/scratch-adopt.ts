@@ -22,6 +22,8 @@ export interface ScratchOwnerTask {
   readonly kind: "main" | "task" | "dir"
   /** The task's directory (worktreePath), canonicalized like `cwd`. */
   readonly dir: string
+  /** Set on a child running in another task's directory; the owner, not the child, absorbs the shell. */
+  readonly sharesWorkspaceOf?: string
 }
 
 export interface ScratchAdoptInput {
@@ -43,7 +45,7 @@ export type ScratchAdoptDecision =
 
 export function decideScratchAdopt(input: ScratchAdoptInput): ScratchAdoptDecision {
   if (!input.repoRoot || !input.harnessLive) return { kind: "stay" }
-  const owners = input.ownerTasks.filter((task) => task.dir !== "")
+  const owners = input.ownerTasks.filter((task) => task.dir !== "" && !task.sharesWorkspaceOf)
   if (input.cwd) {
     const cwd = input.cwd
     const managed = owners.find((task) => task.kind === "task" && pathWithin(task.dir, cwd) !== null)

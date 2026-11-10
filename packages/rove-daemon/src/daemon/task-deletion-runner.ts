@@ -1,6 +1,7 @@
 import type { DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { teardownScope } from "./pty-alias.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { auditDeletionFailed, auditDeletionRemoved } from "./task-deletion-audit.ts"
 
@@ -14,7 +15,10 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
 
   constructor(
     // `getTask` only snapshots the task for the audit line.
-    private readonly orch: Pick<DaemonOrchestrator, "beginTaskDeletion" | "finishTaskDeletion" | "getTask">,
+    private readonly orch: Pick<
+      DaemonOrchestrator,
+      "beginTaskDeletion" | "finishTaskDeletion" | "getTask" | "listTasks"
+    >,
     private readonly runtime: Pick<DaemonRuntimeAdapter, "tearDownTaskSession">,
     private readonly clearTaskState: (taskId: string) => void | Promise<void>,
     /**
@@ -49,8 +53,12 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
     if (!(await this.orch.beginTaskDeletion(taskId))) return
     // Snapshot BEFORE `finishTaskDeletion` drops it from the index.
     const task = this.orch.getTask(taskId)
+    // Rows still in the index and not on their way out keep their aliased conversations alive.
+    const scope = teardownScope(this.orch.listTasks(), taskId, new Set([taskId]))
     await this.clearTaskState(taskId)
-    await this.runtime.tearDownTaskSession(taskId).catch((err) => logDaemonError("task-deletion-session-teardown", err))
+    await this.runtime
+      .tearDownTaskSession(taskId, scope)
+      .catch((err) => logDaemonError("task-deletion-session-teardown", err))
     try {
       await this.orch.finishTaskDeletion(taskId)
     } catch (err) {

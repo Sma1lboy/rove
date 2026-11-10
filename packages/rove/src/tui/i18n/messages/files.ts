@@ -47,6 +47,9 @@ export const en = {
   },
   toast: {
     prOnTargetBranch: "Already on the target branch ({branch}) — ask the agent to create the PR from a task branch",
+    noPausedOperation: "Nothing to resolve — no merge, rebase or cherry-pick is paused here",
+    conflictReadFailed: "Git could not read the conflicted files. Run git status in this worktree, then retry.",
+    conflictSendFailed: "Could not send the conflict prompt. Open an engine tab in this task, then retry.",
     /** `gh` unavailable, the run expired, or the checks went green while the
      *  menu was open — better than pasting a prompt with no evidence in it. */
     ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
@@ -90,6 +93,9 @@ export const zh: typeof en = {
   },
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
+    noPausedOperation: "没有要解决的冲突——这里没有暂停中的合并、变基或拣选",
+    conflictReadFailed: "Git 无法读取冲突文件。请在此 worktree 运行 git status，然后重试。",
+    conflictSendFailed: "无法发送冲突提示。请在此任务中打开一个引擎标签页，然后重试。",
     ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
     ciChecksUnavailable: "gh 读不到这个 PR 的检查状态：{detail}。请运行 `gh auth status`，然后重试。",
   },

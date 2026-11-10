@@ -23,18 +23,22 @@ moves left or right, and `ctrl+q` returns from the workspace to Tasks. From the
 Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
-Task's worktree, plus **Copy task ID**, **Copy branch name** and **Copy path**,
+Task's worktree (each opens a child Task listed under the row; a shell child's
+last shell exiting leaves the row empty, and `enter` starts a fresh shell), **New task from this branch** (the New task dialog with the Task's branch as the base), plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
-`rove api` call, a `git checkout` or a `cd` in another shell, **Copy tab address**
-on a tab row, which copies the `--task-id … --tab …` pair that sends a
-`rove api send` to that one tab, **Close other tabs** on a tab row of a Task with
-several tabs (it confirms, then ends every other tab's session), and **Open in editor**, **Rename branch**, and
+`rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
 offers **New task**, **Field notes** (the notes agents filed on that repo with
 `rove api note`, newest first, each with its author and time — `↑↓` walks them
 and `d` retires the one under the cursor, which is how a note whose fact has
 stopped being true stops being injected into new sessions) and **Remove
-project**. Clicking anywhere else dismisses that menu.
+project**. Right-clicking the **Scratch** header offers **New conversation (no
+folder)** and **New shell**, which open a Scratch Task in `$HOME`. Clicking anywhere else dismisses that menu.
+
+Right-clicking a tab in the workspace tab strip offers **Rename tab**, **Close
+tab**, **Copy tab address**, which copies the `--task-id … --tab …` pair that
+sends a `rove api send` to that one tab, and **Close other tabs** when the Task
+has several tabs (it confirms, then ends every other tab's session).
 
 The Tasks rail sizes itself from the terminal — wider terminals get a wider
 rail, so branch names stop truncating. Drag its right edge to set the width
@@ -44,11 +48,10 @@ restarts, and it is an override rather than a replacement: a terminal too
 narrow to honour it squeezes the rail down to what fits and pays the full
 width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
-its first letter and a rule, such as `r──` or `w──`; scratch tasks share an
-`s──` section. The fold shows the
+its first letter and a rule, such as `r──` or `w──`; the Ungrouped group is `u──`. The fold shows the
 same projects the expanded rail shows and hides the same ones — a project you
-have closed down to nothing is absent from both, and so are the routine
-sessions the expanded rail folds behind its count row — and a section's letter
+have closed down to nothing is absent from both, and neither lists routine
+runs (open those from the Routines page) — and a section's letter
 comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
 `a──` twice.
@@ -150,7 +153,7 @@ anything of you:
 
 | Glyph | Meaning |
 |---|---|
-| spinner | Engine is working (also shown while a worktree materializes or deletes) |
+| spinner | Engine is working (also shown while a worktree materializes or deletes; a materializing row also shows its checkout percent once git reports one) |
 | `!` | Needs you: a permission prompt, a rate limit, an errored turn, a dead engine process, or a failed worktree deletion. Open the tab to see which |
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Quiet: idle, not yet observed, a finished turn you've already seen, a shell tab, or a custom engine without activity tracking |
@@ -173,6 +176,10 @@ needs input, `!` error) over the same saved timestamps, because there the
 glyph sits next to a word that explains it; a `✓` you have already read
 settles back to `○`, and stays settled after a restart.
 
+Help (`F1`) ends with a legend of every mark, drawn in your glyph preset
+(`appearance.glyphSet`) and colors. Its `/` filter searches the legend too:
+type `rate limit` or `!` to see what that mark means.
+
 ## Managing Tasks in the sidebar
 
 Press `/` to fuzzy-search task titles, repositories, branches, and live tab
@@ -192,10 +199,16 @@ row or one of its tab rows:
   reorders the row under the cursor at its own level: a tab moves within its
   Task, a Task moves within its repo group, and a project-main row moves the
   whole project. Moves stop at the edges (no wrap-around), and the new order
-  persists across restarts.
-- `d` is kind-aware: it forgets a project-main row, removes only the Rove
-  record for a directory Task, or removes a managed Task and its worktree after
-  the dirty-worktree safety check.
+  persists across restarts. A project-main row with no tab open, not selected
+  and with no child Tasks is not listed (the header stands for it): the
+  header's **Reorder project** and **Move to top** still work, and Reorder lists
+  the row while the project moves.
+- `d` is kind-aware: on a project-main row it ends the conversation (kills the
+  sessions, closes the tabs; the project stays saved, the repo and worktrees stay
+  on disk, and the project leaves the rail until it has a session again), removes only the Rove record for a directory Task, or removes a
+  managed Task and its worktree after the dirty-worktree safety check. A Task
+  or project main with child Tasks asks whether to keep the children or delete
+  them too. **Remove project** is on the project header's menu.
 
 Right-clicking a row opens the same verbs as a menu, plus **Run again** on any
 Task that still has its brief. Rove stores the prompt a Task was created with,
@@ -212,6 +225,15 @@ caused by the change. The `✗` mark turns pending on the next PR refresh.
 Checks that did not run on GitHub Actions cannot be restarted from Rove; the
 toast says so. Reruns wait for every `gh run rerun` command to finish; a slow batch
 does not trigger the client's 20-second daemon-disconnect deadline.
+
+While a Task's worktree has a merge, rebase, cherry-pick or revert stopped on
+conflicts (a conflicted **Sync with base** leaves its merge in place), the menu
+also offers **Resolve conflicts**. It sends the Task's engine the operation,
+the conflicted files, and the command that finishes it. The engine is told to
+ask rather than pick a side when a conflict needs your decision, and never to
+abort the operation on its own. If Git cannot read the conflicted files, the
+action shows an error without sending a prompt. If delivery fails, it asks you
+to open an engine tab in the Task and retry.
 
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
@@ -245,8 +267,8 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
-item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting
+item. `d` acks (clears) the one under the cursor without navigating (ATTENTION rows only;
+RECENT rows have nothing to drop), and `D` acks every ATTENTION row at once. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
@@ -317,8 +339,10 @@ diff in one tab, and the Changes tab's `[D] diff everything` chip does the same
 for the whole worktree — reviewing a twelve-file attempt is one keypress and one
 tab instead of twelve of each. A combined diff is **read-only**: a review note
 anchors to a single path, so a diff spanning files carries none, and its footer
-says so. Per-file notes are unchanged. A directory with nothing changed in the
-active scope says so rather than opening blank.
+says so. Per-file notes are unchanged. In the working-tree scope, untracked
+files (the `?` rows) are in it as new files, so a task that only created files
+does not read as unchanged. A directory with nothing changed in the active
+scope says so rather than opening blank.
 
 **What a diff states instead of drawing nothing.** A renamed file's diff shows
 the rename and the same `+N −M` as its list row, not the whole file as added. A
@@ -416,9 +440,14 @@ another row fails, and Rove reports the result count.
 
 ## Tabs and terminal splits
 
-`ctrl+t` starts a fresh engine tab immediately; `ctrl+e` opens the full engine,
-shell, and plugin picker. Tabs share the Task's worktree but keep separate
-processes, scrollback, titles, and engine conversations. `ctrl+[` / `ctrl+]`
+`ctrl+t` starts a new conversation immediately: a **child task** under the
+current one, sharing its directory, on the engine this project used last. It
+appears under its parent in the sidebar and you land in it. `ctrl+e` opens the
+full engine, shell, and plugin picker. A task's first conversation still runs
+in its own engine tab; a second one is always a child. Children share the
+parent's worktree but keep separate processes, scrollback, titles, and engine
+conversations. A shell, editor, or preview opened from the picker is still a
+tab of the current task. `ctrl+[` / `ctrl+]`
 switch tabs, `F2` renames one, and `ctrl+w` closes it — including the last
 one, which leaves the Task open with no session. Re-entering that Task from
 the sidebar reopens the kind of tab that was there; from the empty pane
@@ -503,7 +532,7 @@ left arrow to return to the section list, and `enter` to activate a row.
   GitHub was unreachable (it falls back to the first-party plugins).
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
-- **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
+- **Feedback** files a GitHub issue on the Rove repo through an authenticated `gh` CLI; without one it shows a prefilled new-issue link. The command palette also has **Report a problem** (no chord): it opens a new scratch conversation on the default engine that interviews you, drafts the issue and files it with `rove feedback` once you agree.
 - **Dev** contains reset, a backend-exit action, **Reload settings** and
   experimental switches. Reload settings applies hand edits to `state.json` to
   this window without a restart. Reset
@@ -520,7 +549,7 @@ leaving zen. There is no setting for this.
 `ctrl+e` is the one dialog for starting anything. It lists your detected
 engines, a `shell`, and any plugin panes. Two toggles set what happens:
 
-- `tab` flips the **destination**: a new tab in this worktree ⇄ a forked
+- `tab` flips the **destination**: a child task sharing this directory ⇄ a forked
   child task in a fresh worktree.
 - `ctrl+f` flips the **context**: a fresh conversation ⇄ continue this one.
 
@@ -548,22 +577,24 @@ because that one is "carry on from here". The chip stops at 5 where the CLI
 allows 10; [Orchestration](ORCHESTRATION.md) calls 3-4 the sweet spot, and past
 five the shell command is the better tool.
 
-`ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
+`ctrl+a` `c` (continue in a new child task) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.
 
 To resume a conversation that is not already represented by a tab, use the
-engine's own picker (e.g. claude-code's `/resume`) inside a fresh engine
-tab. Availability and restart behavior vary by engine; see
+engine's own picker (e.g. claude-code's `/resume`) inside a fresh
+conversation. Availability and restart behavior vary by engine; see
 [Resuming a conversation](SESSIONS.md#resuming-a-conversation).
 
 ## Pages: `ctrl+a` `1` / `2` / `3`
 
 Three pages replace the workspace pane while the sidebar stays put. Kanban
-and Issues are built-in plugins you can turn off in Settings → Plugins, and
+and Issues are first-party mods: they show only once installed, from
+Settings → Plugins or with `rove plugin install kanban` / `issues`, and
 installed plugins can add pages of their own
 ([Pages](./PLUGIN-AUTHORING.md#pages-experimental)). `esc` or
 `q` closes a page; selecting a task in the sidebar also returns you to the
 workspace. The chords stay live, so you can hop between pages directly.
+To find something said in a conversation, use the command palette (`ctrl+a` `/`), see [Search](#search).
 
 ### Kanban (`ctrl+a` `1`)
 
@@ -653,6 +684,17 @@ explicitly marked as an untrusted report), and the task keeps a
 shows that task's title on its detail line, and `enter` opens the task instead
 of creating a second one. Nothing is imported into the local issue store and
 nothing is written back to GitHub.
+
+### Search
+
+Open the command palette with `ctrl+a` `/` and type. Below the matching
+commands it lists tasks whose title matches (the sidebar's fuzzy match) and,
+from two characters, **In conversations**: the words in what you and the agents
+wrote in any task's conversation (the same search as `rove api search`), newest
+session first, with the words around each hit highlighted. `↑`/`↓` move, `enter`
+opens the task (a hit opens it on the tab it came from; the terminal does not
+scroll to the line), `esc` closes. Tool calls and their output are not
+searched, and neither is a task on another [machine](./MACHINES.md).
 
 ### Mods
 

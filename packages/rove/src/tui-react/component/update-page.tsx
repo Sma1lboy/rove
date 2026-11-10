@@ -22,7 +22,7 @@ import {
   updateCommandFor,
 } from "../../version.ts"
 import { useTheme } from "../context/theme"
-import { useT } from "../i18n"
+import { currentLang, useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 import { ReleaseNotesBody } from "./release-notes"
@@ -87,7 +87,7 @@ export function UpdatePage(props: { onClose: () => void }) {
     if (next?.hasUpdate) setSelected("update")
     // Only a FORWARD range has notes; a backwards one would read as a failed fetch.
     const fetched = next?.hasUpdate
-      ? await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: next.latest })
+      ? await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: next.latest, locale: currentLang() })
       : []
     setReleaseNotes(fetched)
     setLoadingNotes(false)

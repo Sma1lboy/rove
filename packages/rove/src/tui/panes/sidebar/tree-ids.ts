@@ -21,20 +21,8 @@ export const RECENT_ROW_ID = "~recent"
  */
 export const SCRATCH_SECTION_ID = "~scratch"
 
-/** Navigation id of a machine section header. */
-export function machineRowId(alias: string): string {
-  return `~machine:${alias}`
-}
-
-/** A project's routine count row id; carries the project key so rows stay distinct. */
-export function routinesRowId(projectKey: string): string {
-  return `~routines:${projectKey}`
-}
-
-/** The project key a routines row id names, or null for any other id. */
-export function projectKeyOfRoutinesRow(id: string): string | null {
-  return id.startsWith("~routines:") ? id.slice("~routines:".length) : null
-}
+/** The Archived fold row at the end of the tree. */
+export const ARCHIVED_ROW_ID = "~archived"
 
 /** Compose a tab row's navigation id. */
 export function tabRowId(taskId: string, tabId: string): string {

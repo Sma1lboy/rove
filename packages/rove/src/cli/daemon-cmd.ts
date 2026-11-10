@@ -1,9 +1,8 @@
 /** `rove daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/rove-daemon/client/daemon-process"
-import { installDaemonCrashHandlers, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
-import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
+import { daemonSpawnReason, restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { installDaemonCrashHandlers, logDaemonError, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
@@ -11,6 +10,9 @@ import type { ChatChannel } from "../channels/chat-channel.ts"
 import { startChatChannels } from "../channels/registry.ts"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { type RoveCore, createRoveCore } from "../core/index.ts"
+import { cancelAllLogins } from "../github/login.ts"
+import { refreshOutdatedSkills } from "../lib/skill-install.ts"
+import { RELAY_PREAMBLE } from "../machines/relay-preamble.ts"
 import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
@@ -54,10 +56,33 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     process.exit(2)
   }
 
+  // The stdio transport: a hub that cannot forward unix sockets (native Windows, a host whose sshd
+  // refuses streamlocal) runs `ssh <here> rove daemon relay [--pty]` and speaks to this daemon
+  // (or PTY host) through the session's stdin/stdout. Bytes in, bytes out; nothing parsed here.
+  if (command === "relay") {
+    const pty = argvHasFlag(flags, "--pty")
+    const { ensureDaemonReachable } = await import("@sma1lboy/rove-daemon/client/daemon-process")
+    const { ensurePtyHostReachable } = await import("@sma1lboy/rove-daemon/client/pty-process")
+    const target = pty ? await ensurePtyHostReachable() : await ensureDaemonReachable(undefined, "autospawn")
+    const { connect } = await import("node:net")
+    const socket = connect(target)
+    // Whatever the remote shell printed before this process (a profile, an rc echo) ends here.
+    if (argvHasFlag(flags, "--preamble")) process.stdout.write(RELAY_PREAMBLE)
+    process.stdin.pipe(socket)
+    socket.pipe(process.stdout)
+    await new Promise<void>((resolve) => {
+      socket.on("close", () => resolve())
+      process.stdin.on("end", () => socket.end())
+    })
+    process.exit(0)
+  }
+
   // `status --json` is what other machines' `machine add` sends; its output is JSON either way.
   const badFlag = flags.find(
     (flag) =>
-      !(command === "start" && argvHasFlag([flag], "--resident")) && !(command === "status" && flag === "--json"),
+      !(command === "start" && argvHasFlag([flag], "--resident")) &&
+      !(command === "status" && flag === "--json") &&
+      !(command === "relay" && flag === "--pty"),
   )
   const resident = switchFlag(flags, "--resident")
   if (badFlag !== undefined || resident === undefined) {
@@ -70,7 +95,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     const client = new RoveDaemonClient(socketPath)
     try {
       const status = await client.request<Record<string, unknown>>("daemon.status")
-      console.log(JSON.stringify(status, null, 2))
+      // Not the daemon's: what THIS `rove` can do when a hub runs it over ssh.
+      console.log(JSON.stringify({ ...status, relayPreamble: true }, null, 2))
     } catch {
       const pid = await readPidFile(pidPath)
       if (pid) console.log(`${CLI_NAME} daemon: no daemon socket at ${socketPath} (stale pidfile pid=${pid})`)
@@ -101,10 +127,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     // Respawn as a detached child, not in-process, or restart blocks the shell.
     // Reason `restart` is relayed to every attached TUI, so a client learns its
     // build is about to be stale before the socket drops.
-    await stopDaemonProcess(socketPath, pidPath, { reason: "restart" })
-    // Tagged so the new daemon's boot line tells restart from autospawn.
-    const next = await connectOrStartDaemon("explicit-restart")
-    next.close()
+    // One step holding the spawn lock: no other client's build can take the respawn.
+    await restartDaemon()
     console.log(`${CLI_NAME} daemon: restarted, listening on ${socketPath}`)
     return
   }
@@ -148,12 +172,22 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
       keepAlive: () => channels.some((channel) => channel.keepAlive()),
       resident,
       onStop: async () => {
+        cancelAllLogins()
         for (const channel of channels) channel.stop()
         await core?.close()
       },
     },
   )
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
+  // A boot follows every upgrade: bring installed skill copies up to this build.
+  try {
+    for (const { target, error } of refreshOutdatedSkills()) {
+      if (error) logDaemonError("skill-refresh", new Error(`${target.dir}: ${error}`))
+      else logDaemonInfo("skill-refresh", `refreshed ${target.dir}`)
+    }
+  } catch (err) {
+    logDaemonError("skill-refresh", err)
+  }
   channels = await startChatChannels({
     socketPath: server.socketPath,
     log: logDaemonInfo,

@@ -1,15 +1,18 @@
 /**
- * Settings → General → Appearance: the TUI's twelve appearance settings. Each pick is written to
- * the TUI's own state.json key and shows on this page at once, which is the preview. Two have
- * nothing to draw on a page (transparent background, split-pane style); they are still written so
- * the TUI changes.
+ * Settings → Appearance: the TUI's appearance settings. Each pick is written to the TUI's own state.json key and
+ * shows on this page at once; the theme tiles also preview on hover. Two have nothing to draw on a page
+ * (transparent background, split-pane style): they are grouped apart and still written, so the TUI changes.
  */
 
-import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
+import { RAIL_GROUPS, type RailGroup, railGroup, setRailGroup } from "./rail-group.ts"
 import { ts } from "./settings-copy.ts"
-import { Chips, Group, type Pick, Toggle } from "./settings-rows.tsx"
+import { Choice, Group, Toggle } from "./settings-rows.tsx"
+import { ThemeGallery } from "./settings-theme-gallery.tsx"
+import { useStore } from "./store.ts"
+import { useMode } from "./task-colors.ts"
 
 /** The TUI's wording for one choice of an enum setting (`appearance-labels.ts`). */
 const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
@@ -30,77 +33,86 @@ const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
     initials: "general.railFoldInitials",
     hairline: "general.railFoldHairline",
   },
-  tabRowHeight: { "1": "appearance.singleRow", "2": "appearance.doubleRow" },
   workingBorder: { flow: "appearance.borderFlow", still: "appearance.borderStill" },
-  taskColors: { on: "appearance.enabled", off: "appearance.disabled" },
   glyphSet: {
     braille: "appearance.glyphsBraille",
     starburst: "appearance.glyphsStarburst",
     ascii: "appearance.glyphsAscii",
   },
-  colorblind: { on: "appearance.enabled", off: "appearance.disabled" },
   runningTitle: { shimmer: "appearance.titleShimmer", still: "appearance.titleStill" },
 }
 
-/** Rows in the TUI's order; `hint` is the TUI's own hint key when it has one. */
-const ROWS: readonly { key: PrefKey; label: string; hint?: string; terminalOnly?: true }[] = [
-  { key: "theme", label: "general.theme" },
-  { key: "themeMode", label: "general.themeMode" },
-  { key: "transparent", label: "general.transparent", terminalOnly: true },
-  { key: "focusAccent", label: "general.focusAccent", hint: "general.focusAccentHint" },
-  { key: "splitStyle", label: "general.splitStyle", terminalOnly: true },
-  { key: "railFold", label: "general.railFold", hint: "general.railFoldHint" },
-  { key: "tabRowHeight", label: "general.tabRowHeight", hint: "general.tabRowHeightHint" },
-  { key: "workingBorder", label: "general.workingBorder" },
-  { key: "taskColors", label: "general.taskColors" },
-  { key: "glyphSet", label: "general.glyphSet" },
-  { key: "colorblind", label: "general.colorblind" },
-  { key: "runningTitle", label: "general.runningTitle" },
-]
+type EnumKey = keyof typeof CHOICE_LABEL & PrefKey
+type FlagKey = "transparent" | "taskColors" | "colorblind"
 
-export function AppearanceGroup({ client }: { client: BridgeClient }) {
+export function AppearanceSection({ model }: { model: AppModel }) {
+  const { client } = model
   const state = usePrefs()
+  const mode = useMode()
+  const grouping = useStore(railGroup)
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
+
+  const choice = (key: EnumKey, label: string, hint?: string) => (
+    <Choice
+      label={ts(label)}
+      hint={hint}
+      value={state.prefs[key] as string}
+      picks={choicesOf(state, key).map((value) => ({
+        value: value as string,
+        label:
+          key === "themeMode" && value === "auto"
+            ? t("prefs.modeAuto")
+            : ts(CHOICE_LABEL[key]?.[String(value)] ?? String(value)),
+      }))}
+      onPick={(next) => pick(key, next as never)}
+    />
+  )
+  // The on/off prefs the TUI stores as "on" / "off" are switches here.
+  const flag = (key: FlagKey, label: string, hint?: string) => (
+    <Toggle
+      label={ts(label)}
+      hint={hint}
+      checked={key === "transparent" ? state.prefs.transparent : state.prefs[key] === "on"}
+      onChange={(next) => pick(key, (key === "transparent" ? next : next ? "on" : "off") as never)}
+    />
+  )
+
   return (
-    <Group title={ts("general.appearance")}>
-      {ROWS.map((row) => {
-        const hint = [row.hint ? ts(row.hint) : null, row.terminalOnly ? t("prefs.terminalOnly") : null]
-          .filter(Boolean)
-          .join(" ")
-        if (row.key === "transparent") {
-          return (
-            <Toggle
-              key={row.key}
-              label={ts(row.label)}
-              hint={hint}
-              checked={state.prefs.transparent}
-              onChange={(next) => pick("transparent", next)}
-            />
-          )
-        }
-        const names = CHOICE_LABEL[row.key]
-        const picks: Pick<string | number>[] = (
-          row.key === "theme" ? state.themes.map((th) => th.name) : choicesOf(state, row.key)
-        ).map((value) => ({
-          value: value as string | number,
-          label:
-            row.key === "theme"
-              ? String(value)
-              : row.key === "themeMode" && value === "auto"
-                ? t("prefs.modeAuto")
-                : ts(names?.[String(value)] ?? String(value)),
-        }))
-        return (
-          <Chips
-            key={row.key}
-            label={ts(row.label)}
-            hint={hint || undefined}
-            value={state.prefs[row.key] as string | number}
-            picks={picks}
-            onPick={(next) => pick(row.key, next as never)}
-          />
-        )
-      })}
-    </Group>
+    <>
+      <Group>
+        <ThemeGallery
+          model={model}
+          label={ts("general.theme")}
+          themes={state.themes}
+          value={state.prefs.theme}
+          mode={mode}
+        />
+        {choice("themeMode", "general.themeMode")}
+      </Group>
+      <Group title={t("settings.appearance.groupColours")}>
+        {choice("focusAccent", "general.focusAccent", ts("general.focusAccentHint"))}
+        {flag("taskColors", "general.taskColors", t("settings.appearance.taskColorsNote"))}
+        {flag("colorblind", "general.colorblind", t("settings.appearance.colorblindNote"))}
+      </Group>
+      <Group title={t("settings.appearance.groupTasks")}>
+        {choice("workingBorder", "general.workingBorder", t("settings.appearance.workingBorderNote"))}
+        {choice("runningTitle", "general.runningTitle")}
+        {choice("glyphSet", "general.glyphSet")}
+        {choice("railFold", "general.railFold", ts("general.railFoldHint"))}
+        <Choice<RailGroup>
+          label={t("settings.appearance.railGroup")}
+          value={grouping}
+          picks={RAIL_GROUPS.map((value) => ({
+            value,
+            label: t(value === "state" ? "settings.appearance.railGroupState" : "settings.appearance.railGroupProject"),
+          }))}
+          onPick={setRailGroup}
+        />
+      </Group>
+      <Group title={t("settings.appearance.groupTerminal")} hint={t("prefs.terminalOnly")}>
+        {flag("transparent", "general.transparent")}
+        {choice("splitStyle", "general.splitStyle")}
+      </Group>
+    </>
   )
 }

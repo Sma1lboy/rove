@@ -1,13 +1,18 @@
 /** @jsxImportSource @opentui/react */
 import { describe, expect, it } from "bun:test"
 import { useState } from "react"
-import { EngineIntegrationLine } from "../../src/tui-react/component/settings-dialog/sections-engines-integration"
+import { EngineDetails } from "../../src/tui-react/component/settings-dialog/sections-engines-details"
 import { act, renderComponent } from "./harness"
 
 describe("hook setup guidance", () => {
   it("does not present written hooks as trusted", async () => {
     const { frame } = await renderComponent(
-      <EngineIntegrationLine
+      <EngineDetails
+        name="Codex"
+        status={null}
+        probing={false}
+        commandText="codex"
+        commandIsOwn={false}
         integration={{
           vendor: "codex",
           hooksSupported: true,
@@ -15,6 +20,8 @@ describe("hook setup guidance", () => {
           hookFile: "/tmp/hooks.json",
           markers: true,
           screen: true,
+          skillDir: "",
+          skillState: "not-installed",
           setupCommand: "/hooks",
         }}
       />,
@@ -36,6 +43,8 @@ const ready: HookReadiness = {
     hookFile: "/fake/hooks.json",
     markers: true,
     screen: true,
+    skillDir: "",
+    skillState: "not-installed",
   },
 }
 const probeReady = async () => ready

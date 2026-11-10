@@ -9,7 +9,7 @@
  */
 
 import { setTabTitle } from "../../tui/workspace/terminal-tabs-core"
-import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { knownTabsState, requestTabRename, setTaskTabs, takeUnclaimedTabRename } from "./terminal-tabs-shared"
 
 /**
@@ -29,6 +29,5 @@ export function renameTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string,
   // Same object = already titled; nothing to persist.
   if (next === state) return true
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   return true
 }

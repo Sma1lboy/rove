@@ -4,9 +4,8 @@
  * in the render track's `sidebar-tree-menu.test.tsx`).
  *
  * The rules worth locking: a project header offers its entries (move verbs only
- * with a main checkout), the
- * per-task verbs reach a tab row too, `closeTab` appears only above one tab,
- * and the new-conversation pair rides both task-bearing row kinds.
+ * with a main checkout), a task with children offers Collapse/Expand, and the
+ * new-conversation pair rides every task row.
  */
 
 import { describe, expect, test } from "vitest"
@@ -39,15 +38,13 @@ const projectRow: TreeRow = {
   depth: 0,
 }
 const worktreeRow = (over: Partial<Task> = {}): TreeRow => ({ kind: "worktree", id: "a", task: task(over), depth: 1 })
-const tabRow: TreeRow = { kind: "tab", id: "a::tab-2", task: task(), tab: { id: "tab-2", label: "tab 2" }, depth: 2 }
 
 const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) => item.action)
 
 describe("treeMenuItems", () => {
   test("a project header offers New task, Field notes, then Remove project", () => {
-    // New task / Remove project mirror chords the row already answers to (`d`
-    // routes to `forgetProject` behind a confirm). Field notes is menu-only,
-    // like setStatus: the repo's durable note store had no in-product reader.
+    // Remove project is menu-only (`d` on the main row ends its conversation instead), as is Field
+    // notes: the repo's durable note store had no in-product reader.
     expect(actions(projectRow)).toEqual(["newTask", "fieldNotes", "forgetProject"])
   })
 
@@ -67,15 +64,25 @@ describe("treeMenuItems", () => {
     ])
   })
 
+  test("only a top-level local task is offered Move to project", () => {
+    expect(actions(worktreeRow({ parentTaskId: "p1" as never }))).not.toContain("moveToProject")
+    expect(actions(worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" }))).not.toContain(
+      "moveToProject",
+    )
+  })
+
   test("a worktree row opens, adds a session, then the task verbs", () => {
     expect(actions(worktreeRow())).toEqual([
       "open",
       "newChat",
       "newShell",
+      "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",
@@ -84,8 +91,23 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
+  })
+
+  test("New task from this branch reaches only a local single-repo managed branch", () => {
+    // Any other row has no branch of its own in this repo to base the new worktree on.
+    const offered = (over: Partial<Task>) => actions(worktreeRow(over)).includes("newTaskFromBranch")
+    expect(offered({})).toBe(true)
+    expect(offered({ kind: "main", branch: "", worktreePath: "/repos/rove" })).toBe(false)
+    expect(offered({ kind: "dir", branch: "", worktreePath: "/home/me/notes" })).toBe(false)
+    expect(offered({ branch: "", worktreePath: "" })).toBe(false)
+    expect(offered({ sharesWorkspaceOf: toTaskId("p1") })).toBe(false)
+    expect(
+      offered({ extraRepos: [{ repo: "/repos/api", branch: "feat/a", worktreePath: "/wt/a-api" }] as never }),
+    ).toBe(false)
+    expect(offered({ origin: { machineId: "laptop" } as never })).toBe(false)
   })
 
   test("a row with no stored branch is offered Copy path but not Copy branch", () => {
@@ -112,29 +134,7 @@ describe("treeMenuItems", () => {
       "open",
       "newChat",
       "newShell",
-      "rename",
-      "reorder",
-      "setStatus",
-      "copyId",
-      "copyPath",
-      "openEditor",
-      "changeEngine",
-      "delete",
-    ])
-    const mainTab: TreeRow = {
-      kind: "tab",
-      id: "a::tab-2",
-      task: task({ kind: "main", branch: "", worktreePath: "/repos/rove" }),
-      tab: { id: "tab-2", label: "tab 2" },
-      depth: 2,
-    }
-    expect(actions(mainTab, { tabCount: 2 })).toEqual([
-      "open",
-      "closeTab",
-      "closeOtherTabs",
-      "copyTab",
-      "newChat",
-      "newShell",
+      "continueEngine",
       "rename",
       "reorder",
       "setStatus",
@@ -150,6 +150,12 @@ describe("treeMenuItems", () => {
     const dirRow = worktreeRow({ kind: "dir", branch: "" })
     expect(actions(dirRow)).toContain("pin")
     expect(actions(dirRow)).toContain("rename")
+  })
+
+  test("a project's main row says what its Delete does: ends the conversation, the project stays", () => {
+    const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "delete")?.labelKey
+    expect(label(worktreeRow({ kind: "main", branch: "" }))).toBe("tasks.menu.delete")
+    expect(label(worktreeRow({ branch: "feat/a" }))).toBe("tasks.menu.delete")
   })
 
   test('Rename branch is withheld from any row whose branch is "" — main, dir, or a never-entered task', () => {
@@ -185,51 +191,18 @@ describe("treeMenuItems", () => {
     expect(actions(projectRow)).not.toContain("land")
   })
 
-  test("a tab row carries the same session + task verbs, plus its own close", () => {
-    expect(actions(tabRow, { tabCount: 2 })).toEqual([
-      "open",
-      "closeTab",
-      "closeOtherTabs",
-      "copyTab",
-      "newChat",
-      "newShell",
-      "rename",
-      "pin",
-      "reorder",
-      "setStatus",
-      "copyId",
-      "copyBranch",
-      "copyPath",
-      "openEditor",
-      "renameBranch",
-      "changeEngine",
-      "syncBase",
-      "land",
-      "delete",
-    ])
-  })
-
-  test("the LAST tab IS offered a close", () => {
-    // Closing it leaves the task with no sessions; its sidebar row stays and
-    // re-opens on ⏎ / ctrl+e. The entry is NOT withheld — closeTab accepts
-    // the last tab.
-    expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
-    expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
-  })
-
-  test("Close other tabs needs a sibling to close, and is danger-toned", () => {
-    // It ends every other session on the worktree; with one tab there is
-    // nothing for it to do.
-    expect(actions(tabRow, { tabCount: 1 })).not.toContain("closeOtherTabs")
-    const entry = treeMenuItems(tabRow, { tabCount: 2 }).find((item) => item.action === "closeOtherTabs")
-    expect(entry?.danger).toBe(true)
-    expect(actions(worktreeRow())).not.toContain("closeOtherTabs")
-  })
-
-  test("a tab row with NO known tabs is offered no close", () => {
-    // `tabCount` 0 means the count could not be read; offering an action that
-    // names nothing is the entry-that-does-nothing this module rules out.
-    expect(actions(tabRow, { tabCount: 0 })).not.toContain("closeTab")
+  test("a task with children offers Collapse, or Expand once folded; a leaf offers neither", () => {
+    const parent = (collapsed: boolean): TreeRow => ({
+      kind: "worktree",
+      id: "a",
+      task: task(),
+      depth: 1,
+      fold: { count: 2, collapsed, descendantIds: ["x", "y"] },
+    })
+    const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "toggleFold")?.labelKey
+    expect(label(parent(false))).toBe("tasks.menu.collapseChildren")
+    expect(label(parent(true))).toBe("tasks.menu.expandChildren")
+    expect(actions(worktreeRow())).not.toContain("toggleFold")
   })
 
   test("Run again is offered only to a task that stored a brief", () => {
@@ -241,11 +214,14 @@ describe("treeMenuItems", () => {
       "open",
       "newChat",
       "newShell",
+      "continueEngine",
+      "newTaskFromBranch",
       "rename",
       "pin",
       "reorder",
       "runAgain",
       "setStatus",
+      "moveToProject",
       "copyId",
       "copyBranch",
       "copyPath",
@@ -254,21 +230,12 @@ describe("treeMenuItems", () => {
       "changeEngine",
       "syncBase",
       "land",
+      "archive",
       "delete",
     ])
   })
 
-  test("Run again reaches a TAB row too, and never a project header", () => {
-    // Same rule as the rest of the task verbs: a tab row carries them because
-    // the chords walk up from a tab to its worktree.
-    const withBrief: TreeRow = {
-      kind: "tab",
-      id: "a::tab-2",
-      task: task({ prompt: "the brief" }),
-      tab: { id: "tab-2", label: "tab 2" },
-      depth: 2,
-    }
-    expect(actions(withBrief, { tabCount: 2 })).toContain("runAgain")
+  test("Run again never reaches a project header", () => {
     expect(actions(projectRow)).not.toContain("runAgain")
   })
 
@@ -305,15 +272,24 @@ describe("the failing-checks entries", () => {
     }
   })
 
-  test("appears just before Land when the checks are red — on a tab row too", () => {
+  test("appears just before Land when the checks are red", () => {
     const failing = { provider: "github", lifecycle: "open", checkState: "failing" } as const
     const rowActions = actions(worktreeRow({ prStatus: failing }))
     // Order: fixChecks → rerunChecks → syncBase → land — CI, then drift, then the exit.
     const ci = rowActions.indexOf("fixChecks")
     expect(ci).toBeGreaterThan(-1)
     expect(rowActions.slice(ci, ci + 3)).toEqual(["fixChecks", "rerunChecks", "syncBase"])
-    const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
-    expect(tabActions).toContain("fixChecks")
+  })
+})
+
+describe("the resolve-conflicts entry", () => {
+  // Gated on a paused merge/rebase in the worktree: otherwise the engine would
+  // get a prompt about conflicts that do not exist.
+  test("appears between Sync with base and Land only while an operation is paused", () => {
+    expect(actions(worktreeRow())).not.toContain("resolveConflicts")
+    const rowActions = actions(worktreeRow(), { operationPaused: true })
+    const at = rowActions.indexOf("syncBase")
+    expect(rowActions.slice(at, at + 3)).toEqual(["syncBase", "resolveConflicts", "land"])
   })
 })
 
@@ -321,7 +297,6 @@ describe("the chord an entry advertises", () => {
   const everyItem = [
     ...treeMenuItems(projectRow),
     ...treeMenuItems(worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState: "failing" } })),
-    ...treeMenuItems(tabRow, { tabCount: 2 }),
   ]
 
   test("every declared bindingId is a real keymap row", () => {

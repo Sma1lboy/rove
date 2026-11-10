@@ -46,6 +46,8 @@ final class TaskActionHost {
     }
 
     var request: Request?
+    /// `task.archive` refused because an engine in this task is busy; asks before hiding it anyway.
+    var archiveBusy: String?
     /// Called after a task was deleted / a project forgotten, so a detail screen can pop.
     var onRemoved: ((_ taskId: String?) -> Void)?
     /// Called to open a task (e.g. after "run again" spawned a new one).
@@ -116,6 +118,48 @@ final class TaskActionHost {
         } catch { fail(error) }
     }
 
+    /// Hands the PR's failing check logs to the task's engine.
+    func fixChecks(_ taskId: String) async {
+        guard let model else { return }
+        do {
+            let line = TaskActionLogic.fixChecksLine(try await model.client.request("task.fixChecks", ["taskId": taskId], as: FixChecksResult.self))
+            show(line.text, isError: line.isError)
+        } catch { fail(error) }
+    }
+
+    /// Merges the task's base into its worktree.
+    func syncBase(_ taskId: String) async {
+        guard let model else { return }
+        do {
+            let r = try await model.client.request("task.syncBase", ["taskId": taskId], as: SyncBaseResult.self)
+            await didMutate(taskId)
+            show(r.alreadyCurrent ? String(localized: "already up to date with \(r.baseRef)")
+                                  : String(localized: "merged \(r.baseRef) into this worktree"))
+        } catch {
+            show(TaskActionLogic.syncFailure((error as? BridgeError)?.message ?? error.localizedDescription), isError: true)
+        }
+    }
+
+    /// Hides the row or brings it back; the worktree, branch and sessions are untouched either way.
+    func toggleArchived(_ taskId: String, force: Bool = false) async {
+        guard let model else { return }
+        let archiving = !model.store.isArchived(taskId)
+        let title = model.store.task(id: taskId)?.displayTitle ?? taskId
+        var args: [String: Any] = ["taskId": taskId, "archived": archiving]
+        if force { args["force"] = true }
+        do {
+            _ = try await model.client.request("task.archive", args, as: EmptyResult.self)
+            await didMutate(taskId)
+            show(archiving ? String(localized: "archived \(title) · worktree, branch and sessions untouched")
+                           : String(localized: "restored \(title)"))
+        } catch let busy as BridgeError where archiving && busy.code == "TASK_BUSY" {
+            archiveBusy = taskId
+        } catch {
+            show(archiving ? String(localized: "couldn't archive: \(error.localizedDescription)")
+                           : String(localized: "couldn't restore: \(error.localizedDescription)"), isError: true)
+        }
+    }
+
     /// `direction`: `up`, `down` or `top`.
     func move(_ taskId: String, _ direction: String) async {
         guard let model else { return }
@@ -174,7 +218,8 @@ struct TaskActionItems: View {
     var body: some View {
         let row = host.model?.store.task(id: taskId)
         let plan = TaskActionLogic.menu(kind: row?.kind ?? "task", pinned: row?.pinned ?? false,
-                                        branch: row?.branch ?? "", detail: host.details[taskId])
+                                        branch: row?.branch ?? "", checksFailing: row?.pr?.checkState.lowercased() == "failing",
+                                        detail: host.details[taskId])
         Group {
             Button { host.request = .info(taskId: taskId) } label: { Label("Info", systemImage: "info.circle") }
                 .accessibilityIdentifier("actionInfo")
@@ -183,6 +228,12 @@ struct TaskActionItems: View {
             if plan.branch {
                 Button { host.request = .branch(taskId: taskId) } label: { Label("Branch…", systemImage: "arrow.triangle.branch") }
                     .accessibilityIdentifier("actionBranch")
+            }
+            if plan.fixChecks {
+                Button { Task { await host.fixChecks(taskId) } } label: {
+                    Label("Fix failing checks", systemImage: "wrench.and.screwdriver")
+                }
+                .accessibilityIdentifier("actionFixChecks")
             }
             Divider()
             Button { host.request = .engine(taskId: taskId) } label: { Label("Change engine…", systemImage: "cpu") }
@@ -198,6 +249,13 @@ struct TaskActionItems: View {
                 Button { Task { await host.move(taskId, "up") } } label: { Label("Move up", systemImage: "arrow.up") }
                 Button { Task { await host.move(taskId, "down") } } label: { Label("Move down", systemImage: "arrow.down") }
                 Button { Task { await host.move(taskId, "top") } } label: { Label("Move to top", systemImage: "arrow.up.to.line") }
+            }
+            if plan.syncBase {
+                Divider()
+                Button { Task { await host.syncBase(taskId) } } label: {
+                    Label("Sync with base", systemImage: "arrow.triangle.merge")
+                }
+                .accessibilityIdentifier("actionSyncBase")
             }
             if plan.showsCopyGroup {
                 Divider()
@@ -233,6 +291,13 @@ struct TaskActionItems: View {
                 }
             }
             Divider()
+            if row?.kind != "main" {
+                let archived = host.model?.store.isArchived(taskId) == true
+                Button { Task { await host.toggleArchived(taskId) } } label: {
+                    Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
+                }
+                .accessibilityIdentifier("actionArchive")
+            }
             Button(role: .destructive) { host.request = .delete(taskId: taskId) } label: {
                 Label(plan.delete.menuTitle, systemImage: plan.delete.menuSymbol)
             }
@@ -298,6 +363,10 @@ private struct TaskActionSheets: ViewModifier {
             set: { if !$0, host.request?.confirmed != nil { host.request = nil } })
     }
 
+    private var archiveBusyShown: Binding<Bool> {
+        Binding(get: { host.archiveBusy != nil }, set: { if !$0 { host.archiveBusy = nil } })
+    }
+
     private func plan(for request: TaskActionHost.Request) -> TaskActionLogic.ConfirmPlan {
         switch request {
         case .delete(let id), .confirmDelete(let id): TaskActionLogic.deletePlan(kind: model.store.task(id: id)?.kind ?? "task")
@@ -318,6 +387,11 @@ private struct TaskActionSheets: ViewModifier {
                 }
             } message: {
                 Text(firstPlan?.dialogMessage ?? "")
+            }
+            .alert("archive while it's working?", isPresented: archiveBusyShown, presenting: host.archiveBusy) { id in
+                Button("archive anyway", role: .destructive) { Task { await host.toggleArchived(id, force: true) } }
+            } message: { id in
+                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving hides the row without stopping it.")
             }
             .overlay(alignment: .top) { bannerView }
     }

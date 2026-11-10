@@ -76,6 +76,29 @@ describe("PTY observation before destructive cleanup", () => {
     expect(requests).toEqual(["pty.list", "pty.list"])
   })
 
+  it("spares a PTY a surviving child is aliased to, even though the task its key names is gone", async () => {
+    const kills: Record<string, unknown>[] = []
+    await listen((name, payload) => {
+      if (name === "pty.list") {
+        return {
+          sessions: [
+            { key: "gone::tab-1", generation: "g1" },
+            { key: "gone::tab-2", generation: "g2" },
+            { key: "gone::tab-2::leaf-1", generation: "g3" },
+          ],
+        }
+      }
+      kills.push(payload)
+      return { accepted: true }
+    })
+    await sweepPtyHostSessions(
+      () => ["child"],
+      home,
+      () => ["gone::tab-2"],
+    )
+    expect(kills).toEqual([{ key: "gone::tab-1", expectedGeneration: "g1" }])
+  })
+
   it("distinguishes confirmed host absence, live sessions, empty inventory and malformed replies", async () => {
     expect(await ptyHostHasLiveSessions(home)).toBe(false)
     let reply: unknown = { sessions: [{ alive: true }] }

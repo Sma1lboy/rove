@@ -5,8 +5,9 @@
  * already applied instead of looking like nothing happened.
  */
 
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { ApiError } from "../../src/cli/api/types.ts"
 import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.ts"
 
@@ -17,12 +18,13 @@ const writes = {
   "task.setVendor": ok,
   "task.rename": ok,
   "task.pin": ok,
+  "task.keep": ok,
   "task.status": ok,
 }
 
 describe("update", () => {
   it("applies several fields in one call, branch first, and reports them in write order", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "claude" } }), ...writes })
+    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "gemini" } }), ...writes })
     const out = await invokeVerb(
       "update",
       [
@@ -59,8 +61,19 @@ describe("update", () => {
     })
   })
 
+  it("--kept marks and clears the round's kept attempt through task.keep", async () => {
+    const client = new FakeClient({ ...writes })
+    const on = await invokeVerb("update", ["--task-id", "t1", "--kept", "true"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--kept", "false"], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([
+      { name: "task.keep", payload: { taskId: "t1", kept: true } },
+      { name: "task.keep", payload: { taskId: "t1", kept: false } },
+    ])
+    expect(on).toMatchObject({ updated: ["kept"] })
+  })
+
   it("writes nothing when any field is invalid", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "claude" } }), ...writes })
+    const client = new FakeClient({ "task.get": () => ({ task: { id: "t1", vendor: "gemini" } }), ...writes })
     await expectApiError(
       () =>
         invokeVerb("update", ["--task-id", "t1", "--branch", "feat/x", "--effort", "high"], {
@@ -125,6 +138,66 @@ describe("update", () => {
   })
 })
 
+describe("update without --task-id", () => {
+  const saved = { task: process.env.ROVE_TASK_ID, tab: process.env.ROVE_TAB_ID }
+  const restore = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  const probe = (insideTab: boolean): SelfSessionProbe => ({
+    sessions: async () => [{ key: "worker-1::tab-1", pid: 100, alive: true }],
+    ps: async () => `  100     1 /bin/zsh -il\n  500   ${insideTab ? 100 : 1} bun rove api update`,
+    pid: 500,
+  })
+  const asSession = (insideTab: boolean) =>
+    verifiedSelfSession({ ROVE_TASK_ID: "worker-1", ROVE_TAB_ID: "tab-1" }, probe(insideTab))
+
+  beforeEach(() => {
+    resetVerifiedSelfSession()
+    process.env.ROVE_TASK_ID = "worker-1"
+    process.env.ROVE_TAB_ID = "tab-1"
+  })
+  afterEach(() => {
+    resetVerifiedSelfSession()
+    restore("ROVE_TASK_ID", saved.task)
+    restore("ROVE_TAB_ID", saved.tab)
+  })
+
+  it("renames the caller's own task", async () => {
+    await asSession(true)
+    const client = new FakeClient(writes)
+    await invokeVerb("update", ["--title", "Fix login redirect"], { client, runtime: stubRuntime() })
+    expect(client.requests.at(-1)).toEqual({
+      name: "task.rename",
+      payload: { taskId: "worker-1", title: "Fix login redirect" },
+    })
+  })
+
+  it("an inherited env that does not verify is MISSING_TARGET, never a guess", async () => {
+    await asSession(false)
+    const client = new FakeClient(writes)
+    await expectApiError(
+      () => invokeVerb("update", ["--title", "x"], { client, runtime: stubRuntime() }),
+      "MISSING_TARGET",
+      /--task-id/,
+    )
+    expect(client.requests.filter((r) => r.name === "task.rename")).toEqual([])
+  })
+
+  it("--tab still needs an explicit task", async () => {
+    await asSession(true)
+    await expectApiError(
+      () =>
+        invokeVerb("update", ["--tab", "tab-2", "--title", "x"], {
+          client: new FakeClient(writes),
+          runtime: stubRuntime(),
+        }),
+      "MISSING_FLAG",
+      /--task-id/,
+    )
+  })
+})
+
 describe("folded update flags on issues and routines", () => {
   it("issue-update --status rides its own setStatus op after the field update", async () => {
     const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
@@ -139,5 +212,17 @@ describe("folded update flags on issues and routines", () => {
     const client = new FakeClient({ "automation.update": () => ({}) })
     await invokeVerb("routine-update", ["--id", "r1", "--enabled", "false"], { client, runtime: stubRuntime() })
     expect(client.requests).toEqual([{ name: "automation.update", payload: { id: "r1", enabled: false } }])
+  })
+})
+
+describe("update --auto-fix-ci", () => {
+  it("turns the loop on and off through task.autoFixCi", async () => {
+    const client = new FakeClient({ "task.autoFixCi": () => ({}) })
+    await invokeVerb("update", ["--task-id", "t1", "--auto-fix-ci", "on"], { client, runtime: stubRuntime() })
+    await invokeVerb("update", ["--task-id", "t1", "--auto-fix-ci", "off"], { client, runtime: stubRuntime() })
+    expect(client.requests).toEqual([
+      { name: "task.autoFixCi", payload: { taskId: "t1", enabled: true } },
+      { name: "task.autoFixCi", payload: { taskId: "t1", enabled: false } },
+    ])
   })
 })

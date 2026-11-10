@@ -10,7 +10,8 @@ import type { DaemonRpcClient } from "../client/rpc.ts"
 import { createActivityObserverIo } from "./activity-observer-io.ts"
 import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
-import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
+import { DEFAULT_AUTO_FIX_TICK_MS, needsPrPoll, startAutoFixRunner } from "./auto-fix-ci.ts"
+import { type ConversationOf, DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import type { DispatchRunnability } from "./automation-dispatch.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
@@ -18,6 +19,7 @@ import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { resolvePtyOwner } from "./cwd-task.ts"
 import { type DeliveryDeps, sweepStalledDeliveries } from "./delivery-ops.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
@@ -26,9 +28,12 @@ import {
   startKeybindingsWatcher,
 } from "./keybindings-watcher.ts"
 import { DEFAULT_PR_STATUS_POLL_MS, startPrStatusPoller } from "./pr-status-collector.ts"
+import type { PtyOwnerResolver } from "./pty-exit-watch.ts"
 import { DEFAULT_QUOTA_RESUME_TICK_MS, startQuotaResumeRunner } from "./quota-resume.ts"
 import { type QuotaUsageCache, startQuotaUsagePoller } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { DEFAULT_SCHEDULED_START_TICK_MS, startScheduledStartRunner } from "./scheduled-start.ts"
+import { DEFAULT_STATE_DEBOUNCE_MS, startStateWatcher } from "./state-watcher.ts"
 import { startTicker } from "./ticker.ts"
 import {
   DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
@@ -53,8 +58,14 @@ export interface DaemonCollectorOptions {
   readonly transcriptActivityTickMs?: number
   readonly contextUsageTickMs?: number
   readonly quotaResumeTickMs?: number
+  readonly scheduledStartTickMs?: number
+  readonly autoFixTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  /** Whose a hosted PTY is (default: the child aliased to it, else the key's task); the server adds released aliases. */
+  readonly ownerOf?: PtyOwnerResolver
+  /** The conversation a task's own engine tab pinned; names a task that shares its directory. */
+  readonly conversationOf?: ConversationOf
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -70,6 +81,7 @@ export interface AutomationCollectorDeps {
   readonly gates?: import("./gate-handoff.ts").GateLedger
   /** Should-run for the routine runner and quota-resume. */
   readonly runnability?: DispatchRunnability
+  readonly dispatches?: import("./automation-runner.ts").RunnerDeps["dispatches"]
 }
 
 /**
@@ -104,6 +116,47 @@ export function createProtocolUpgradeReporter(
         ),
       )
       .catch((err) => logDaemonError("protocol-sniff", err))
+  }
+}
+
+const MACHINE_HUB_GATE_MS = 1_000
+/** Grace before a hub nobody reads lets its machines go: a TUI restarting must not flap every connection. */
+const MACHINE_HUB_IDLE_MS = 15_000
+
+/**
+ * Run the machine hub only while some client reads `machines`. A peer's hub
+ * subscribes here without it (`PEER_CHANNELS` in rove `machines/hub.ts`), so
+ * two machines registered to each other never keep each other's hubs up.
+ */
+function gateMachineHub(
+  start: NonNullable<DaemonRuntimeAdapter["startMachineHub"]>,
+  bus: DaemonEventBus,
+  hasSubscribersFor: (channel: ChannelName) => boolean,
+): () => void {
+  let stop: (() => void) | null = null
+  let idleSince: number | null = null
+  const tick = (): void => {
+    try {
+      if (hasSubscribersFor("machines")) {
+        idleSince = null
+        stop ??= start(bus)
+      } else if (stop) {
+        idleSince ??= Date.now()
+        if (Date.now() - idleSince >= MACHINE_HUB_IDLE_MS) {
+          stop()
+          stop = null
+        }
+      }
+    } catch (err) {
+      logDaemonError("machine-hub", err)
+    }
+  }
+  tick()
+  const timer = setInterval(tick, MACHINE_HUB_GATE_MS)
+  timer.unref?.()
+  return () => {
+    clearInterval(timer)
+    stop?.()
   }
 }
 
@@ -143,8 +196,12 @@ export function startDaemonCollectors(
   activity?: DaemonActivityRegistry,
   inbox?: Pick<import("./attention-inbox").AttentionInboxStore, "record" | "deleteEpisode">,
 ): () => Promise<void> {
+  // A migrated child owns the PTY keyed under its parent: its observed activity, program status and
+  // death records are the child's, as its hook events already are.
+  const ownerOf: PtyOwnerResolver =
+    options.ownerOf ?? ((taskId, tabId) => resolvePtyOwner(orch.listTasks(), taskId, tabId))
   const receiveStatus = activity
-    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps)
+    ? programStatusActivity(activity, (id) => !!orch.getTask(id), inbox, automations?.deliveryDeps, ownerOf)
     : undefined
   const stopStatusWatch = receiveStatus
     ? watchProgramStatus(receiveStatus, { homeDir: options.homeDir })
@@ -154,11 +211,12 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime, activity),
+          ...createActivityObserverIo(options.homeDir, runtime, activity, ownerOf),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
           onProgramStatusEvent: receiveStatus,
         },
         () => hasSubscribersFor("engine-state"),
+        { ownerOf },
       )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion
@@ -181,12 +239,23 @@ export function startDaemonCollectors(
     options.autoTitlePollMs ?? DEFAULT_AUTO_TITLE_POLL_MS,
     // A rename rides the task push, so the consumer to gate on is task.snapshot.
     () => hasSubscribersFor("task.snapshot"),
+    options.conversationOf,
   )
 
   const stopUiPrefsWatcher = startUiPrefsWatcher(bus, {
     statePath: defaultUiPrefsStatePath(options.homeDir),
     debounceMs: options.uiPrefsDebounceMs ?? DEFAULT_UI_PREFS_DEBOUNCE_MS,
   })
+
+  const stopStateWatcher = startStateWatcher(
+    bus,
+    defaultUiPrefsStatePath(options.homeDir),
+    options.uiPrefsDebounceMs ?? DEFAULT_STATE_DEBOUNCE_MS,
+  )
+
+  const stopMachineHub = runtime.startMachineHub
+    ? gateMachineHub(runtime.startMachineHub, bus, hasSubscribersFor)
+    : () => {}
 
   const stopKeybindingsWatcher = startKeybindingsWatcher(bus, {
     path: defaultKeybindingsPath(options.homeDir),
@@ -234,7 +303,8 @@ export function startDaemonCollectors(
     // prStatus rides the task push too.
     () => hasSubscribersFor("task.snapshot"),
     undefined,
-    activity ? () => activity.workingTaskIds().length > 0 : undefined,
+    // An opted-in task with an open PR is watched too: CI turning red overnight is what it waits for.
+    () => needsPrPoll(orch.listTasks()) || (activity?.workingTaskIds().length ?? 0) > 0,
   )
 
   // Ungated: its job is resuming rate-limited engines while nobody is attached.
@@ -245,7 +315,21 @@ export function startDaemonCollectors(
     undefined,
     automations?.plugins,
     automations?.runnability,
+    automations?.deliveryDeps.deliveries.claims,
   )
+
+  // Ungated, and it needs the self link only a full daemon has (the same one routines start sessions through).
+  const stopScheduledStartRunner = automations
+    ? startScheduledStartRunner(
+        { orch, runtime, link: automations.link },
+        options.scheduledStartTickMs ?? DEFAULT_SCHEDULED_START_TICK_MS,
+      )
+    : async () => {}
+  // Ungated: an opted-in task is fixed while nobody watches.
+  const stopAutoFixRunner =
+    activity && options.autoFixTickMs !== 0
+      ? startAutoFixRunner({ orch, runtime, activity, inbox }, options.autoFixTickMs ?? DEFAULT_AUTO_FIX_TICK_MS)
+      : () => {}
 
   // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
@@ -260,6 +344,7 @@ export function startDaemonCollectors(
           ...(automations.inbox ? { inbox: automations.inbox } : {}),
           ...(automations.gates ? { gates: automations.gates } : {}),
           ...(automations.runnability ? { runnability: automations.runnability } : {}),
+          ...(automations.dispatches ? { dispatches: automations.dispatches } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )
@@ -298,10 +383,14 @@ export function startDaemonCollectors(
         stopAutoTitlePoller,
         stopPrStatusPoller,
         stopQuotaResumeRunner,
+        stopScheduledStartRunner,
+        stopAutoFixRunner,
         stopAutomationRunner,
         stopDeliverySweep,
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
+        stopStateWatcher,
+        stopMachineHub,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,
         stopTranscriptActivityCollector,

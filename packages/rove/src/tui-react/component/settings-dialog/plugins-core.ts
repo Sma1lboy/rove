@@ -66,11 +66,11 @@ export interface PluginRowView {
   readonly updateAvailable: boolean
   /** Pages the last load could not mount (or mounted without their chord), with why. */
   readonly pageErrors: readonly string[]
-  /** Compiled into Rove (`src/bundled-plugins/`): toggled in state.json, never installed or removed. */
+  /** A first-party mod compiled into Rove (`src/bundled-plugins/`): `enabled` means installed. */
   readonly builtIn: boolean
 }
 
-/** A built-in plugin as Settings lists it. */
+/** A first-party mod as Settings lists it. */
 export interface BuiltInPluginInfo {
   readonly id: string
   readonly description: string
@@ -206,7 +206,7 @@ function readTextOrNull(path: string | null): string | null {
   }
 }
 
-/** The built-in plugins first, then every registered one in registry order, ready to render. */
+/** The first-party mods first, then every registered one in registry order, ready to render. */
 export function readPluginRows(builtIns: readonly BuiltInPluginInfo[] = [], homeDir?: string): PluginRowView[] {
   const outdated = new Set(readOutdatedCache(homeDir))
   const registered = loadPluginRegistry(homeDir).plugins.map((entry) =>

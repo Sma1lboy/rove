@@ -357,16 +357,21 @@ export const PASSTHROUGH_CHORDS: readonly string[] = PASSTHROUGH_NAMES.flatMap((
 
 /**
  * Encode one wheel tick like a real emulator (routing contract:
- * `TaskPtyLike.wheel`). Null means the app asked for neither, so the caller
+ * `TaskPtyLike.wheel`). Null means the app gets none, so the caller
  * scrolls its local view.
+ *
+ * On the normal screen the scrollback is the terminal's and an inline app
+ * cannot scroll it, so the wheel stays local even under mouse tracking
+ * (omp turns on 1003 there and ignores the wheel); `shift` still forwards it.
  */
 export function encodeWheel(
   modes: { mouseTracking: boolean; applicationCursorKeys: boolean; alternateScreen: boolean },
   direction: "up" | "down",
   col: number,
   row: number,
+  shift = false,
 ): string | null {
-  if (modes.mouseTracking) {
+  if (modes.mouseTracking && (modes.alternateScreen || shift)) {
     // SGR (1006) assumed: xterm.js doesn't expose the negotiated encoding,
     // and every current TUI (claude, vim, less --mouse) requests SGR.
     const btn = direction === "up" ? 64 : 65

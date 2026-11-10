@@ -1,14 +1,16 @@
 /**
  * Row-menu task verbs that are more than one request: land (preflight, then a confirm that
- * names the destination and the commit count), sync with base, fix failing checks, forget a
- * project. Outcomes and copy are the TUI's (`land-task-action.ts`, `sync-base-action.ts`,
+ * names the destination and the commit count), sync with base, fix failing checks, archive,
+ * forget a project. Outcomes and copy are the TUI's (`land-task-action.ts`, `sync-base-action.ts`,
  * `use-fix-ci.ts`), read from its own catalogs.
  */
 
-import type { TaskRow } from "rove-bridge/protocol"
+import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { openTodos } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
 
@@ -38,9 +40,13 @@ export function landErrorText(err: unknown): string {
  */
 export async function landFlow(
   model: AppModel,
-  task: Pick<TaskRow, "id" | "title" | "branch">,
+  task: Pick<TaskRow, "id" | "title" | "branch" | "machine">,
   onLanded?: () => void,
 ): Promise<void> {
+  if (task.machine) {
+    publishFlow(model, task, task.machine.label, onLanded)
+    return
+  }
   let probe: LandPreflight
   try {
     probe = await model.client.request<LandPreflight>("task.landPreflight", { taskId: task.id })
@@ -58,15 +64,20 @@ export async function landFlow(
     return
   }
   const branch = task.branch || task.title
+  // A warning, not a gate: the owner's checklist is theirs to override.
+  const unchecked = openTodos(model.tasks.get()?.tasks.find((row) => row.id === task.id) ?? {}).length
   dialog.set(
     <ConfirmDialog
       title={tc("worktrees", "land.confirmTitle")}
-      body={tc("worktrees", probe.ahead === 1 ? "land.confirmBodyOne" : "land.confirmBody", {
-        branch,
-        landedOn: probe.landedOn,
-        // Never invent a count: `?` only when git printed a non-number.
-        commits: probe.ahead ?? "?",
-      })}
+      body={[
+        tc("worktrees", probe.ahead === 1 ? "land.confirmBodyOne" : "land.confirmBody", {
+          branch,
+          landedOn: probe.landedOn,
+          // Never invent a count: `?` only when git printed a non-number.
+          commits: probe.ahead ?? "?",
+        }),
+        ...(unchecked > 0 ? [t("files.landTodos", { count: unchecked })] : []),
+      ].join("\n\n")}
       confirmLabel={tc("worktrees", "land.button")}
       onConfirm={async () => {
         try {
@@ -78,6 +89,35 @@ export async function landFlow(
         } catch (err) {
           throw new Error(landErrorText(err))
         }
+      }}
+    />,
+  )
+}
+
+/**
+ * Landing a task that lives on another machine: there is no base checkout of it here to merge
+ * into, so its branch is pushed from that machine and a PR opened (`publish`).
+ */
+function publishFlow(
+  model: AppModel,
+  task: Pick<TaskRow, "id" | "title" | "branch">,
+  host: string,
+  onLanded?: () => void,
+): void {
+  const branch = task.branch || task.title
+  dialog.set(
+    <ConfirmDialog
+      title={t("taskops.publishTitle")}
+      body={t("taskops.publishBody", { branch, host })}
+      confirmLabel={t("taskops.publishButton")}
+      onConfirm={async () => {
+        const res = await model.client.request<{
+          published?: { prUrl: string | null; prError: string | null }
+        }>("task.land", { taskId: task.id })
+        const pr = res.published?.prUrl
+        if (pr) toast(t("taskops.publishedPr", { branch, url: pr }))
+        else toast(t("taskops.publishedNoPr", { branch, reason: firstLine(res.published?.prError ?? "") }), "error")
+        onLanded?.()
       }}
     />,
   )
@@ -139,30 +179,149 @@ export async function openEditorFlow(model: AppModel, taskId: string): Promise<v
   }
 }
 
+/** Direct children of a task, archived ones included: a cascade deletes those too. */
+function childrenOf(model: AppModel, id: string): readonly TaskRow[] {
+  const payload = model.tasks.get()
+  return [...(payload?.tasks ?? []), ...(payload?.archived ?? [])].filter((task) => task.parentTaskId === id)
+}
+
 /**
- * Delete a task entry (and its worktree). The first attempt is not forced: a worktree with
- * uncommitted work is refused with DIRTY_WORKTREE and only then does the dialog ask for an
- * explicit force, naming the refusal, as the TUI's `deleteTaskFlow`. A `dir` task pins the
- * user's own directory, so only the entry goes.
+ * Delete a task entry (and its worktree). The row leaves and the dialog closes on the click. The
+ * first attempt is not forced: a worktree with uncommitted work is refused with DIRTY_WORKTREE, the
+ * row comes back, and a second dialog asks for an explicit force, naming the refusal, as the TUI's
+ * `deleteTaskFlow`. A `dir` task pins the
+ * user's own directory, so only the entry goes. A task with child tasks offers both ends of the
+ * daemon's choice: promote them (its default) or delete the whole subtree (`cascade`); a force
+ * retry keeps whichever was picked.
  */
-export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "branch" | "kind">) {
+export function deleteTaskDialog(model: AppModel, task: Pick<TaskRow, "id" | "title" | "label" | "branch" | "kind">) {
+  const children = childrenOf(model, task.id)
+  const hasChildren = children.length > 0
+  const remove = (opts: { readonly force?: true; readonly cascade?: true }) =>
+    model.act("task.delete", { taskId: task.id, ...opts }).then(() => {})
+  const forceBody = (err: unknown) =>
+    // The title already names the task; its raw id is noise in the refusal.
+    `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`
+  // The dialog closes on the click: the row is already gone, and a refusal comes back as its own question.
+  const start = async (opts: { readonly force?: true; readonly cascade?: true }) => {
+    remove(opts).catch((err) => {
+      if (opts.force || !(err instanceof BridgeRequestError) || err.code !== "DIRTY_WORKTREE") {
+        toast(errorText(err), "error")
+        return
+      }
+      dialog.set(
+        <ConfirmDialog
+          title={tc("tasks", "confirm.forceDeleteTitle", { title: task.label })}
+          body={forceBody(err)}
+          confirmLabel={tc("tasks", "confirm.forceDeleteConfirm")}
+          onConfirm={() => start({ ...opts, force: true })}
+        />,
+      )
+    })
+  }
   return (
     <ConfirmDialog
-      title={tc("tasks", "confirm.deleteTitle", { title: task.title })}
-      body={tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")}
-      confirmLabel={tc("tasks", "confirm.deleteConfirm")}
-      onConfirm={() => model.client.request("task.delete", { taskId: task.id }).then(() => {})}
+      title={
+        hasChildren
+          ? tc("tasks", "confirm.childrenTitle", { title: task.label, count: String(children.length) })
+          : tc("tasks", task.kind === "dir" ? "confirm.deleteTitleDir" : "confirm.deleteTitle", { title: task.label })
+      }
+      body={
+        hasChildren
+          ? tc("tasks", "confirm.childrenBody")
+          : tc("tasks", task.kind === "dir" ? "confirm.deleteBodyDir" : "confirm.deleteBodyTask")
+      }
+      confirmLabel={tc("tasks", hasChildren ? "confirm.childrenPromote" : "confirm.deleteConfirm")}
+      onConfirm={() => start({})}
+      {...(hasChildren
+        ? { secondary: { label: tc("tasks", "confirm.childrenCascade"), onConfirm: () => start({ cascade: true }) } }
+        : {})}
+    />
+  )
+}
+
+/**
+ * A project's main checkout is never deleted (`task.delete` refuses it): its Delete ends the conversation —
+ * every tab closes, so the sessions die — and the project stays listed, nothing on disk touched. With
+ * children the dialog also offers to delete them first, each subtree as a normal delete (force retry included).
+ */
+export function endMainConversationDialog(model: AppModel, task: TaskRow) {
+  const children = childrenOf(model, task.id)
+  const hasChildren = children.length > 0
+  const title = task.label
+  const endConversation = async () => {
+    const { tabs } = await model.client.request<{ tabs: readonly TabRow[] }>("task.tabs", { taskId: task.id })
+    for (const tab of tabs) await model.closeTab(task.id, tab.id)
+  }
+  // The child whose delete was refused, so the force confirm names it rather than the project.
+  let blocked: string | undefined
+  const endWithChildren = async (force: boolean) => {
+    for (const child of children) {
+      try {
+        await model.act("task.delete", {
+          taskId: child.id,
+          cascade: true,
+          ...(force ? { force: true } : {}),
+        })
+      } catch (err) {
+        blocked = child.title
+        throw err
+      }
+    }
+    await endConversation()
+  }
+  return (
+    <ConfirmDialog
+      title={
+        hasChildren
+          ? tc("tasks", "confirm.childrenTitle", { title, count: String(children.length) })
+          : tc("tasks", "confirm.deleteTitleDir", { title })
+      }
+      body={tc("tasks", hasChildren ? "confirm.childrenBodyMain" : "confirm.deleteBodyMain")}
+      confirmLabel={tc("tasks", hasChildren ? "confirm.childrenKeepMain" : "confirm.deleteConfirm")}
+      onConfirm={endConversation}
+      {...(hasChildren
+        ? { secondary: { label: tc("tasks", "confirm.childrenCascadeMain"), onConfirm: () => endWithChildren(false) } }
+        : {})}
       escalate={{
         when: (err) => err instanceof BridgeRequestError && err.code === "DIRTY_WORKTREE",
         label: tc("tasks", "confirm.forceDeleteConfirm"),
-        title: tc("tasks", "confirm.forceDeleteTitle", { title: task.title }),
-        // The title already names the task; its raw id is noise in the refusal.
-        body: (err) =>
-          `${tc("worktrees", "delete.forceBody", { branch: task.branch || task.title })}\n\n${tc("worktrees", "delete.forceReason", { reason: errorText(err).replace(`task ${task.id} `, "") })}`,
-        run: () => model.client.request("task.delete", { taskId: task.id, force: true }).then(() => {}),
+        title: tc("tasks", "confirm.forceDeleteTitle", { title }),
+        body: (err) => `${tc("worktrees", "delete.forceBody", { branch: blocked ?? title })}\n\n${errorText(err)}`,
+        run: () => endWithChildren(true),
       }}
     />
   )
+}
+
+/**
+ * Row menu Archive / Unarchive (`archive-task-action.ts`): hide or restore the task and its children.
+ * No confirm, since nothing stops; only the daemon's TASK_BUSY refusal (an engine still working or
+ * waiting on you) asks once, and "Archive anyway" retries with force.
+ */
+export async function archiveFlow(model: AppModel, task: Pick<TaskRow, "id" | "label" | "archived">): Promise<void> {
+  const archived = task.archived !== true
+  const title = task.label
+  const run = async (force: boolean) => {
+    await model.act("task.archive", { taskId: task.id, archived, ...(force ? { force: true } : {}) })
+    toast(tc("tasks", archived ? "archive.done" : "archive.restored", { title }))
+  }
+  try {
+    await run(false)
+  } catch (err) {
+    if (archived && err instanceof BridgeRequestError && err.code === "TASK_BUSY") {
+      dialog.set(
+        <ConfirmDialog
+          title={tc("tasks", "archive.busyTitle")}
+          body={tc("tasks", "archive.busyBody", { title })}
+          confirmLabel={tc("tasks", "archive.busyConfirm")}
+          onConfirm={() => run(true)}
+        />,
+      )
+      return
+    }
+    toast(tc("tasks", archived ? "archive.failed" : "archive.restoreFailed", { error: errorText(err) }), "error")
+  }
 }
 
 /** The project row's Delete: the repo and its tasks stay on disk, only the list entry goes. */

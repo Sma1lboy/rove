@@ -6,7 +6,7 @@
  * What the HUD shows is `prefix-guide.tsx`; the state it reads is `prefix-state.ts`.
  *
  * Which stroke runs what is read from the command registry, so a stroke registered by
- * any pane (the terminal's `/`, a split's `w`) competes by focus like the TUI's binding stack.
+ * any pane (a split's `w`) competes by focus like the TUI's binding stack.
  */
 
 import { CTRL_HOLD_THRESHOLD_MS } from "@sma1lboy/rove/src/tui/lib/ctrl-hold.ts"
@@ -16,10 +16,11 @@ import { type WebCommand, allCommands, appliesOn, currentSurface, registerComman
 import { daemonHealth, refreshRove } from "./daemon-health.tsx"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
+import { openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
-import { moveMode } from "./move-mode.ts"
+import { moveMode, setMoveMode } from "./move-mode.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
-import { NewTaskDialog } from "./new-task-dialog.tsx"
+import { startNewTask } from "./new-session-view.tsx"
 import { openPalette } from "./palette-view.tsx"
 import { focusPane } from "./pane-focus.ts"
 import { hud, hudPush } from "./prefix-state.ts"
@@ -27,7 +28,7 @@ import { aimedTask } from "./rail-aim.ts"
 import { SettingsDialog } from "./settings-view.tsx"
 import { isSplit } from "./split-model.ts"
 import { fixChecksFlow, openEditorFlow, syncBaseFlow } from "./task-flows.tsx"
-import { dialog, page, toast, zen } from "./ui.ts"
+import { dialog, toast, zen } from "./ui.ts"
 import { defaultPrefixKeys, prefixKey, userKeys } from "./user-keys.ts"
 
 interface PrefixAction {
@@ -61,7 +62,7 @@ export const ACTIONS: readonly PrefixAction[] = [
   {
     id: "task.new.global",
     live: () => true,
-    run: (model) => dialog.set(<NewTaskDialog model={model} repo={selectedTask(model)?.repo} />),
+    run: (model) => startNewTask(selectedTask(model)?.repo),
   },
   {
     id: "chat.tab.fork",
@@ -82,7 +83,7 @@ export const ACTIONS: readonly PrefixAction[] = [
   {
     id: "settings.open",
     live: () => true,
-    run: (model) => dialog.set(<SettingsDialog client={model.client} />),
+    run: (model) => dialog.set(<SettingsDialog model={model} />),
   },
   { id: "inbox.show", live: () => true, run: (model) => dialog.set(<InboxDialog model={model} />) },
   { id: "focus.previous", live: () => true, run: () => focusPane(-1) },
@@ -107,21 +108,18 @@ export const ACTIONS: readonly PrefixAction[] = [
       const { taskId, tabId } = model.selection.get()
       if (!taskId || !tabId) return
       // No confirm: the TUI's `<prefix> w` closes the active tab outright.
-      void model.client
-        .request("tab.close", { taskId, tabId })
-        .then(() => model.refreshTabsNow())
-        .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+      void model.closeTab(taskId, tabId).catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
     },
   },
   // Rail pages in the rail's top-to-bottom order; they swap only the workspace, so 1 → 2 → 3 hops directly.
-  { id: "kanban.open", live: () => true, run: () => page.set("kanban") },
-  { id: "automations.open", live: () => true, run: () => page.set("routines") },
-  { id: "workItems.open", live: () => true, run: () => page.set("issues") },
+  { id: "kanban.open", live: (m) => m.installedMods.get().has("kanban"), run: () => openPage("kanban") },
+  { id: "automations.open", live: () => true, run: () => openPage("routines") },
+  { id: "workItems.open", live: (m) => m.installedMods.get().has("issues"), run: () => openPage("issues") },
   {
     id: "task.moveMode",
     live: (m) => !!aimedTask(m),
     run: () => {
-      moveMode.set(!moveMode.get())
+      setMoveMode(!moveMode.get())
       document.querySelector<HTMLElement>(".rail")?.focus()
     },
   },
@@ -190,8 +188,12 @@ function disarm(): void {
   if (state.guide?.kind === "prefix") hud.set({ ...state, guide: null })
 }
 
-/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`. */
+/** The mouse path in (the footer's hint, a keycap badge): arm without a key, like `armPrefixFromCurrentStack`; again disarms. */
 export function armPrefix(): void {
+  if (armedAt !== null) {
+    disarm()
+    return
+  }
   if (dialog.get() || prefixKey() === null) return
   armedAt = Date.now()
   hud.set({ ...hud.get(), guide: { kind: "prefix", armedAt } })
@@ -253,12 +255,20 @@ export function usePrefixLayer(model: AppModel): void {
       }
     }
     const onKeyUp = (e: KeyboardEvent) => e.key === "Control" && cancelHold()
+    // A touch screen has no esc: a press outside the guide (and its keycap badges) dismisses it.
+    const onPointer = (e: PointerEvent) => {
+      if (armedAt === null) return
+      if (e.target instanceof Element && e.target.closest(".prefix-guide, .shortcut-badge, [data-prefix-arm]")) return
+      disarm()
+    }
     window.addEventListener("keydown", onKey, { capture: true })
     window.addEventListener("keyup", onKeyUp, { capture: true })
+    window.addEventListener("pointerdown", onPointer, { capture: true })
     window.addEventListener("blur", cancelHold)
     return () => {
       window.removeEventListener("keydown", onKey, { capture: true })
       window.removeEventListener("keyup", onKeyUp, { capture: true })
+      window.removeEventListener("pointerdown", onPointer, { capture: true })
       window.removeEventListener("blur", cancelHold)
       cancelHold()
       disarm()

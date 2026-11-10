@@ -55,8 +55,8 @@ export function affectsActivityState(kind: string): boolean {
 
 /** Optional normalized detail an adapter can attach (read from the hook's stdin payload). */
 export interface EngineActivityDetail {
-  /** For `turn-failed`: a normalized failure class. */
-  readonly failure?: "rate_limit" | "billing" | "other"
+  /** For `turn-failed`: a normalized failure class. `transient` = the connection dropped or the provider 5xx'd. */
+  readonly failure?: "rate_limit" | "billing" | "transient" | "other"
   /** For `awaiting-input`: why the engine is blocked. */
   readonly waiting?: "permission" | "input"
   /** For `tool-*`: normalized tool identity (vendor field spellings die here). */
@@ -67,6 +67,12 @@ export interface EngineActivityDetail {
   readonly subagent?: { readonly type?: string; readonly id?: string }
   /** Free-form human note (e.g. the raw error type), shown in tooltips. */
   readonly note?: string
+  /** For `dead`: the pty-host's exit record — who ended the engine process. */
+  readonly exit?: {
+    readonly code?: number | null
+    readonly signal?: string | null
+    readonly lastLine?: string
+  }
 }
 
 /**

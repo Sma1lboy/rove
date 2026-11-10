@@ -17,8 +17,10 @@ import { basename } from "node:path"
 import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ContextPayload } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import { ApiError } from "@sma1lboy/rove/src/cli/api/types.ts"
+import { AGENT_TITLE, type AgentControl, agentPrompt } from "./agent.ts"
 import { head, renderStatus, shortId } from "./format.ts"
 import { answeredReply, parseAnswer, renderGates } from "./gates.ts"
+import type { NotifyingRoutine } from "./routines.ts"
 
 export interface TaskRef {
   readonly id: string
@@ -44,6 +46,20 @@ export interface RoveOps {
   answerGate(gateId: string, answer: { option?: string; text?: string }): Promise<{ readonly delivered: boolean }>
   /** Dismiss a `report_missing` row (`attention-dismiss --delivery`); throws DELIVERY_NOT_FOUND for an unknown id. */
   clearReport(deliveryId: string): Promise<void>
+  /** Routines created with `--notify`, each with its run history. */
+  notifyingRoutineRuns(): Promise<readonly NotifyingRoutine[]>
+  /** Open `dir` as a pinned directory task named `title` (the WeChat agent's project). */
+  openAgentTask(dir: string, title: string): Promise<{ readonly taskId: string }>
+  /** A new engine tab in `taskId` whose first message is `prompt`. */
+  newConversation(taskId: string, prompt: string): Promise<{ readonly tab: string }>
+  /** The daemon shows `taskId`'s engine mid-turn. */
+  taskRunning(taskId: string): Promise<boolean>
+}
+
+/** The agent free text goes to (`rove weixin agent <task-id> [tab-N]`). */
+export interface AgentBinding {
+  readonly taskId: string
+  readonly tab?: string
 }
 
 /** Fewer characters than this matches too many ids to be a reference. */
@@ -104,8 +120,52 @@ function failure(err: unknown): string {
   return `Failed: ${err instanceof Error ? err.message : String(err)}`
 }
 
+/** What an inbound message produced: a reply to send, and the agent task now working on it, if any. */
+export interface InboundResult {
+  readonly reply: string
+  readonly agentTaskId?: string
+}
+
+/**
+ * One inbound message → the reply text ("" when the agent will answer by
+ * itself) and, when it went to the agent, that agent's task. With an agent,
+ * plain text is a conversation and commands need a leading `/` (`/status`,
+ * `/new` for a fresh conversation); without one, every message is a command.
+ */
+export async function handleInbound(text: string, ops: RoveOps, agent: AgentControl | null): Promise<InboundResult> {
+  const trimmed = text.trim()
+  if (!agent) return { reply: await handleCommand(trimmed, ops) }
+  if (trimmed.startsWith("/")) {
+    const command = trimmed.slice(1)
+    const [word, rest] = head(command)
+    if (word.toLowerCase() !== "new") return { reply: await handleCommand(command, ops, true) }
+    try {
+      const firstMessage = rest.trim() || undefined
+      const next = await agent.startNew(firstMessage && agentPrompt(firstMessage))
+      return {
+        reply: `New conversation (#${next.conversations.length}). Earlier ones stay in Rove's ${AGENT_TITLE} project.`,
+        ...(firstMessage ? { agentTaskId: next.taskId } : {}),
+      }
+    } catch (err) {
+      return { reply: failure(err) }
+    }
+  }
+  try {
+    const { agent: live, created } = await agent.current(agentPrompt(trimmed))
+    // A just-created conversation already carried this message.
+    if (created) return { reply: "", agentTaskId: live.taskId }
+    const result = await ops.send(live.taskId, live.tab, agentPrompt(trimmed))
+    return {
+      reply: result.started ? "The agent was not running; started it again, it will reply here." : "",
+      agentTaskId: live.taskId,
+    }
+  } catch (err) {
+    return { reply: `${failure(err)}\nYour message did not reach the agent. Send /status for commands.` }
+  }
+}
+
 /** One inbound message → the reply text. Never throws: a failure is a reply. */
-export async function handleCommand(text: string, ops: RoveOps): Promise<string> {
+export async function handleCommand(text: string, ops: RoveOps, agentBound = false): Promise<string> {
   const [word, rest] = head(text)
   try {
     switch (word.toLowerCase()) {
@@ -114,7 +174,9 @@ export async function handleCommand(text: string, ops: RoveOps): Promise<string>
       case "h":
       case "?":
       case "帮助":
-        return HELP_TEXT
+        return agentBound
+          ? `${HELP_TEXT}\nPut / in front of a command (/status). /new starts a new conversation; anything else goes to your agent.`
+          : HELP_TEXT
 
       case "status":
       case "s":

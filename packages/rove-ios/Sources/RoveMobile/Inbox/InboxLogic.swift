@@ -19,6 +19,19 @@ enum InboxLogic {
     /// late report or the explicit dismiss clears it).
     static func clearsOnVisit(_ item: AttentionItem) -> Bool { item.gateId == nil && item.state != "report_missing" }
 
+    /// The op and args that clear an episode, nil when it can't be cleared: a decision is answered,
+    /// and a routine's subject is its schedule, so it needs that id rather than a task.
+    static func dismissal(_ item: AttentionItem) -> (op: String, args: [String: String])? {
+        if item.state == "routine_failed" {
+            return item.automationId.map { ("attention.dismissRoutine", ["automationId": $0]) }
+        }
+        guard let taskId = item.taskId, item.gateId == nil else { return nil }
+        var args = ["taskId": taskId]
+        if let tab = item.tabId { args["tabId"] = tab }
+        if let delivery = item.deliveryId { args["deliveryId"] = delivery }
+        return ("attention.dismiss", args)
+    }
+
     /// One episode per tab, the fresh one replacing the stale (same key as `attentionInboxItemKey`);
     /// a delivery episode is keyed by its delivery, a decision by its gate.
     static func key(_ item: AttentionItem) -> String {

@@ -25,6 +25,8 @@ export interface GitRunOpts {
    * a writer without its lock can corrupt the index.
    */
   readonly readOnly?: boolean
+  /** Each stderr chunk as it arrives (git's progress meters). */
+  readonly onStderr?: (chunk: string) => void
 }
 
 export interface GitRunResult {

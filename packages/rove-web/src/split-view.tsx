@@ -5,105 +5,40 @@
  * never remounts (and replays) when a sibling is added around it.
  */
 
+import { useEffect } from "react"
 import type { SplitView, TabRow } from "rove-bridge/protocol"
 import { registerCommands } from "./commands.ts"
-import { TextDialog } from "./dialogs.tsx"
-import { t } from "./i18n/index.ts"
-import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { usePrefs } from "./prefs.ts"
-import { tabLabel } from "./rail-view.tsx"
-import { type LeafBox, cycleLeaf, isSplit, layoutSplit, leafNames, leafSignature, leavesOf } from "./split-model.ts"
-import { createStore, useStore } from "./store.ts"
-import { termFor } from "./term-control.ts"
-import { streamKey } from "./term-mount.ts"
+import { openMenu } from "./rail-view.tsx"
+import { tabLabel } from "./rail.ts"
+import {
+  activeLeafOf,
+  activeLeaves,
+  closeLeaf,
+  editSplit,
+  focusLeaf,
+  renameLeaf,
+  selectedTab,
+  setActiveLeaf,
+  splitLeaf,
+  splitMenu,
+} from "./split-actions.tsx"
+import { type LeafBox, cycleLeaf, isSplit, layoutSplit, leafNames } from "./split-model.ts"
+import { useStore } from "./store.ts"
+import type { EngineExit } from "./term-notice.tsx"
 import { TerminalView } from "./terminal-view.tsx"
-import { dialog, toast } from "./ui.ts"
-
-/** Local focus per tab, tied to the pane set it was chosen in (the server's `activeLeafId` seeds a new one). */
-const activeLeaves = createStore<Readonly<Record<string, { readonly sig: string; readonly leaf: string }>>>({})
-
-function activeLeafOf(taskId: string, tab: TabRow, split: SplitView): string {
-  const saved = activeLeaves.get()[`${taskId}::${tab.id}`]
-  return saved && saved.sig === leafSignature(split) && leavesOf(split.root).some((l) => l.id === saved.leaf)
-    ? saved.leaf
-    : split.activeLeafId
-}
-
-function setActiveLeaf(taskId: string, tabId: string, split: SplitView, leaf: string): void {
-  activeLeaves.set({ ...activeLeaves.get(), [`${taskId}::${tabId}`]: { sig: leafSignature(split), leaf } })
-}
-
-function selectedTab(model: AppModel): { taskId: string; tab: TabRow } | null {
-  const { taskId, tabId } = model.selection.get()
-  const tab = taskId ? model.tabs.get()[taskId]?.find((row) => row.id === tabId) : undefined
-  return taskId && tab ? { taskId, tab } : null
-}
-
-interface SplitReply {
-  readonly leaf: string
-  readonly changed: boolean
-  readonly split: SplitView | null
-}
-
-/** One server edit, then the new layout in hand: `after` runs with the reply once the tab list has caught up. */
-async function editSplit(
-  model: AppModel,
-  args: Record<string, unknown>,
-  after?: (reply: SplitReply) => void,
-): Promise<void> {
-  try {
-    const reply = await model.client.request<SplitReply>("tab.split", args)
-    await model.refreshTabsNow()
-    after?.(reply)
-  } catch (err) {
-    toast(err instanceof Error ? err.message : String(err), "error")
-  }
-}
-
-function open(model: AppModel, direction: "right" | "down"): void {
-  const at = selectedTab(model)
-  if (!at) return
-  const { taskId, tab } = at
-  const from = tab.split ? activeLeafOf(taskId, tab, tab.split) : "leaf-1"
-  const size = termFor(streamKey(taskId, tab.id, from))?.size()
-  void editSplit(model, { taskId, tabId: tab.id, action: "open", direction, leafId: from, ...size }, (reply) => {
-    if (!reply.changed) toast(t("layout.splitTooSmall"), "error")
-    else if (reply.split) setActiveLeaf(taskId, tab.id, reply.split, reply.leaf)
-  })
-}
-
-function closeActive(model: AppModel): void {
-  const at = selectedTab(model)
-  const split = at?.tab.split
-  if (!at || !split) return
-  const { taskId, tab } = at
-  void editSplit(
-    model,
-    { taskId, tabId: tab.id, action: "close", leafId: activeLeafOf(taskId, tab, split) },
-    (reply) => reply.split && setActiveLeaf(taskId, tab.id, reply.split, reply.split.activeLeafId),
-  )
-}
-
-function renameActive(model: AppModel): void {
-  const at = selectedTab(model)
-  const split = at?.tab.split
-  if (!at || !split) return
-  const { taskId, tab } = at
-  const leaf = activeLeafOf(taskId, tab, split)
-  dialog.set(
-    <TextDialog
-      title={terminalText("split.renameTitle")}
-      initial={leafNames(split, tabLabel(tab)).get(leaf) ?? ""}
-      allowEmpty
-      submitLabel={t("dialog.save")}
-      onSubmit={(title) => editSplit(model, { taskId, tabId: tab.id, action: "rename", leafId: leaf, title })}
-    />,
-  )
-}
+import { SPLIT, splitLeafClass, splitName } from "./ui/shell.ts"
 
 const hasTab = (model: AppModel): boolean => selectedTab(model) !== null
 const splitNow = (model: AppModel): boolean => isSplit(selectedTab(model)?.tab.split)
+
+/** The selected tab's active pane, while the tab is split. */
+function activePane(model: AppModel): { taskId: string; tab: TabRow; split: SplitView; leaf: string } | null {
+  const at = selectedTab(model)
+  const split = at?.tab.split
+  return at && split ? { ...at, split, leaf: activeLeafOf(at.taskId, at.tab, split) } : null
+}
 
 registerCommands(() => [
   {
@@ -112,7 +47,10 @@ registerCommands(() => [
     prefix: false,
     surface: "workspace",
     live: hasTab,
-    run: (m) => open(m, "right"),
+    run: (model) => {
+      const at = selectedTab(model)
+      if (at) splitLeaf(model, at.taskId, at.tab, "right")
+    },
   },
   {
     id: "workspace.split.down",
@@ -120,7 +58,10 @@ registerCommands(() => [
     prefix: false,
     surface: "workspace",
     live: hasTab,
-    run: (m) => open(m, "down"),
+    run: (model) => {
+      const at = selectedTab(model)
+      if (at) splitLeaf(model, at.taskId, at.tab, "down")
+    },
   },
   {
     id: "workspace.split.focus-next",
@@ -129,21 +70,31 @@ registerCommands(() => [
     surface: "workspace",
     live: splitNow,
     run: (model) => {
-      const at = selectedTab(model)
-      if (!at?.tab.split) return
-      const next = cycleLeaf(at.tab.split, activeLeafOf(at.taskId, at.tab, at.tab.split))
-      setActiveLeaf(at.taskId, at.tab.id, at.tab.split, next)
-      termFor(streamKey(at.taskId, at.tab.id, next))?.focus()
+      const at = activePane(model)
+      if (at) focusLeaf(at.taskId, at.tab, at.split, cycleLeaf(at.split, at.leaf))
     },
   },
-  { id: "workspace.split.close", chords: ["w"], prefix: true, surface: "workspace", live: splitNow, run: closeActive },
+  {
+    id: "workspace.split.close",
+    chords: ["w"],
+    prefix: true,
+    surface: "workspace",
+    live: splitNow,
+    run: (model) => {
+      const at = activePane(model)
+      if (at) closeLeaf(model, at.taskId, at.tab, at.leaf)
+    },
+  },
   {
     id: "workspace.split.rename",
     chords: ["f2"],
     prefix: false,
     surface: "workspace",
     live: splitNow,
-    run: renameActive,
+    run: (model) => {
+      const at = activePane(model)
+      if (at) renameLeaf(model, at.taskId, at.tab, at.leaf)
+    },
   },
 ])
 
@@ -157,12 +108,28 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
   const names = split ? leafNames(split, tabLabel(tab)) : new Map<string, string>()
   const several = isSplit(split)
   const { prefs } = usePrefs()
+  // The daemon marks an engine tab dead when its engine ended and only the fallback shell is left.
+  // Read from the task's live `tabStatus` push: the tab row's own `status` is a snapshot of the last tab fetch.
+  const liveStatus = useStore(model.tasks)?.tasks.find((row) => row.id === taskId)?.tabStatus?.[tab.id] ?? tab.status
+  const deadSince = tab.kind === "engine" && liveStatus?.reason === "dead" ? liveStatus.since : null
+  // The exit code rides the tab fetch, which may predate the death.
+  useEffect(() => {
+    if (deadSince !== null) void model.refreshTabsNow(taskId)
+  }, [deadSince, model, taskId])
+  const engineExit: EngineExit | null =
+    deadSince !== null && tab.alive !== false ? { code: tab.exit?.code ?? null, since: deadSince } : null
+  // The engine's own activity state, not a vendor string: `rate_limited` shows the usage-limit strip.
+  const usageLimit = tab.kind === "engine" && liveStatus?.reason === "rate_limited" ? { since: liveStatus.since } : null
   return (
-    <div className={`split ${several ? `is-${prefs.splitStyle}` : ""}`}>
+    <div className={SPLIT}>
       {(split ? layoutSplit(split.root) : WHOLE).map((box) => (
         <div
           key={box.id}
-          className={`split-leaf ${box.left ? "has-left" : ""} ${box.top ? "has-top" : ""} ${box.id === active ? "is-active" : ""}`}
+          className={splitLeafClass(several ? prefs.splitStyle : null, {
+            left: box.left,
+            top: box.top,
+            active: box.id === active,
+          })}
           style={{
             left: `calc(${box.x * 100}% + var(--ml, 0px))`,
             top: `calc(${box.y * 100}% + var(--mt, 0px))`,
@@ -172,6 +139,10 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
         >
           <TerminalView
             client={model.client}
+            model={model}
+            engineExit={box.id === "leaf-1" ? engineExit : null}
+            usageLimit={box.id === "leaf-1" ? usageLimit : null}
+            composer={tab.kind === "engine" && box.id === "leaf-1"}
             taskId={taskId}
             tabId={tab.id}
             leafId={box.id}
@@ -181,14 +152,18 @@ export function SplitPane({ model, taskId, tab }: { model: AppModel; taskId: str
               if (several) void editSplit(model, { taskId, tabId: tab.id, action: "close", leafId: box.id })
               // A command tab (shell, editor, plugin pane) ends with its process, as in the TUI.
               else if (tab.kind !== "engine") {
-                void model.client
-                  .request("tab.close", { taskId, tabId: tab.id })
-                  .then(() => model.refreshTabsNow())
-                  .catch(() => {})
+                void model.closeTab(taskId, tab.id).catch(() => {})
               }
             }}
           />
-          {several && <span className="split-name">{names.get(box.id)}</span>}
+          {several && (
+            <span
+              className={splitName(prefs.splitStyle === "rule", box.id === active)}
+              onContextMenu={(e) => openMenu(e, splitMenu(model, taskId, tab, box.id))}
+            >
+              {names.get(box.id)}
+            </span>
+          )}
         </div>
       ))}
     </div>

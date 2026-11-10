@@ -1,4 +1,4 @@
-import { findAdoptableWorktree, matchTaskByCwd, matchTaskByWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { findAdoptableWorktree, matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { expect, it } from "vitest"
 import { isForeignDaemonHome } from "../../../rove-daemon/src/daemon/protocol-compat"
 import { sameHistoryWorktree } from "../../src/engine/history-worktree"
@@ -12,7 +12,7 @@ it("attributes Windows hooks to the most specific saved worktree", () => {
     { id: "child", worktreePath: "C:/repo/worktrees/child/" },
   ]
   expect(matchTaskByCwd(tasks, "C:\\repo\\worktrees\\child\\src")).toBe("child")
-  expect(matchTaskByWorktreePath(tasks, "C:\\repo\\worktrees\\child")).toBe("child")
+  expect(tasksAtWorktreePath(tasks, "C:\\repo\\worktrees\\child")).toEqual(["child"])
   expect(matchTaskByCwd(tasks, "C:\\repo-other")).toBeUndefined()
 })
 

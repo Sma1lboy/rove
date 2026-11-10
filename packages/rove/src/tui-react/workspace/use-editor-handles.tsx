@@ -10,6 +10,7 @@ import { useLatest } from "../lib/use-latest"
 import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
 import { requestFixCI, takeFixCI, useFixCI } from "./use-fix-ci"
+import { requestResolveConflicts, takeResolveConflicts, useResolveConflicts } from "./use-resolve-conflicts"
 
 export interface UseEditorHandlesOpts {
   orchestrator: RemoteOrchestrator
@@ -32,6 +33,8 @@ export interface UseEditorHandlesResult {
   /** Row menu "Fix failing checks" (and proposed prefix+k): enters the row if
    *  not active, then pastes the failing job's log into its engine. */
   onFixChecks: (taskId: string) => void
+  /** Row menu "Resolve conflicts": same enter-then-send route as `onFixChecks`. */
+  onResolveConflicts: (taskId: string) => void
   /** FileTree `a`: paste `@<path>` WITHOUT submitting (docs/TUI.md). */
   onMention: (relPath: string) => void
 }
@@ -90,6 +93,14 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     fetchChecks: (taskId) => orchestrator.failingChecks(taskId),
   })
 
+  const resolveConflicts = useResolveConflicts({
+    worktree,
+    sendToEngineFn,
+    selectedWorktreeRef,
+    notifyError,
+    getBranch: (taskId) => orchestrator.getTask(taskId)?.branch ?? null,
+  })
+
   const { openFileInEditor, openDiff } = useFileOpenActions({
     orch: orchestrator,
     worktree,
@@ -110,6 +121,8 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
       if (takeCreatePR(selectedId)) void createPR()
       const parked = takeFixCI(selectedId)
       if (parked) void fixCI(parked)
+      const parkedResolve = takeResolveConflicts(selectedId)
+      if (parkedResolve) void resolveConflicts(parkedResolve)
     },
     onEnginePasteReady: (paste) => {
       pasteToEngineFn.current = paste
@@ -125,6 +138,11 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
       // `onEngineSendReady` claims it once that task's TerminalTabs mounts.
       if (taskId === selectedId) return void fixCI(taskId)
       requestFixCI(taskId)
+      activateTask(taskId)
+    },
+    onResolveConflicts: (taskId) => {
+      if (taskId === selectedId) return void resolveConflicts(taskId)
+      requestResolveConflicts(taskId)
       activateTask(taskId)
     },
     onMention: mentionAction(pasteToEngineFn, () => notifyError(t("files.mentionNoEngine"))),

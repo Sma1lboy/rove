@@ -24,10 +24,12 @@ import {
 
 export interface DeliveryDeps {
   readonly deliveries: DeliveriesStore
-  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode" | "recordRoutineResponse">
+  readonly inbox: Pick<AttentionInboxStore, "recordReportMissing" | "deleteDeliveryEpisode">
   readonly orch: Pick<DaemonOrchestrator, "getTask" | "setWorkerReport">
   readonly automations: Pick<AutomationsStore, "get" | "getRun">
   readonly now?: () => number
+  /** Stops the engine in one tab; absent where nothing may be stopped. */
+  readonly stopEngineTab?: (taskId: string, tabId: string) => Promise<void>
 }
 
 export type DeliveryReportInput = Omit<DeliveryReport, "at" | "evidence"> & { readonly evidence?: readonly string[] }
@@ -46,6 +48,35 @@ export function withDeliveryReport(run: AutomationRun, deliveries: Pick<Deliveri
     deliveryStatus: delivery.status,
     ...(delivery.report ? { response: { text: delivery.report.summary, at: delivery.report.at } } : {}),
   }
+}
+
+/** What a routine row says about its most recent failure, so a stall or a self-healed outage is visible. */
+export interface RoutineFailure {
+  /** ISO-8601: when the run was refused or its engine stopped. */
+  readonly at: string
+  readonly reason: string
+}
+
+/** Run outcomes that are failures. A precheck exiting non-zero, a missed or cancelled tick, or a
+ *  busy/quota skip is the routine working as configured, not something to flag. */
+const FAILED_RUN: ReadonlySet<string> = new Set(["dispatch_failed", "script_failed", "skipped_unavailable"])
+
+/**
+ * The newest of `runs` (newest first) that went wrong: a dispatch or script error, a firing held on
+ * an unreported tick, or a delivery its engine ended with no report (`transient-failure: Unable to
+ * connect`). Undefined when none did.
+ */
+export function lastRoutineFailure(
+  runs: readonly AutomationRun[],
+  deliveries: Pick<DeliveriesStore, "get">,
+): RoutineFailure | undefined {
+  for (const run of runs) {
+    const held = run.status === "skipped_blocked" && run.blocked?.reason === "report-missing"
+    if (run.error && (FAILED_RUN.has(run.status) || held)) return { at: run.at, reason: run.error }
+    const missing = run.deliveryId ? deliveries.get(run.deliveryId)?.missing : undefined
+    if (missing) return { at: missing.at, reason: `${missing.cause}${missing.note ? `: ${missing.note}` : ""}` }
+  }
+  return undefined
 }
 
 /** Throws on a malformed report; the verb refuses rather than truncating. */
@@ -105,24 +136,7 @@ export async function reportDelivery(
       .setWorkerReport(delivery.taskId, { summary: cardSummary(report.summary) })
       .catch((err: unknown) => logDaemonError("delivery-report-card", err))
   }
-  await recordRoutineResponse(deps, delivery)
   return delivery
-}
-
-/** A routine run's report is its response: surface it as the Routines episode. */
-async function recordRoutineResponse(deps: DeliveryDeps, delivery: Delivery): Promise<void> {
-  if (delivery.source !== "routine" || !delivery.automationRunId) return
-  const run = deps.automations.getRun(delivery.automationRunId)
-  const automation = run ? deps.automations.get(run.automationId) : undefined
-  if (!run || !automation) return
-  await deps.inbox
-    .recordRoutineResponse(
-      { automationId: automation.id, name: automation.name, status: run.status, runNumber: run.runNumber },
-      run.taskId ?? delivery.taskId,
-      (deps.now ?? Date.now)(),
-    )
-    // The report is already stored; an Inbox write must not fail the verb.
-    .catch((err: unknown) => logDaemonError("delivery-report-routine-inbox", err))
 }
 
 /**
@@ -157,6 +171,9 @@ export async function noteDeliveryTurnStart(deps: DeliveryDeps, taskId: string, 
  * A rate-limited failure marks the delivery without an Inbox row: the
  * engine's own `rate_limited` episode covers it and quota-resume continues
  * the turn, after which a late report still lands.
+ *
+ * True when a `turn-complete` closed a routine delivery (reported, or `quiet`):
+ * the caller records no `turn_complete` Inbox row for it.
  */
 export async function trackDeliveryTurn(
   deps: DeliveryDeps,
@@ -164,11 +181,25 @@ export async function trackDeliveryTurn(
   tabId: string | null,
   kind: EngineActivityKind,
   detail: EngineActivityDetail | undefined,
-): Promise<void> {
-  if (kind === "turn-start") await noteDeliveryTurnStart(deps, taskId, tabId)
-  else if (kind === "turn-complete") {
-    await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
-  } else if (kind === "turn-interrupted") {
+): Promise<boolean> {
+  if (kind === "turn-start") {
+    await noteDeliveryTurnStart(deps, taskId, tabId)
+    return false
+  }
+  if (kind === "turn-complete" || kind === "turn-interrupted" || kind === "session-end" || kind === "turn-failed") {
+    const reported = await deps.deliveries.endReportedTurns(taskId, tabId).catch((err: unknown) => {
+      logDaemonError("delivery-turn-end", err)
+      return []
+    })
+    if (kind === "turn-complete") {
+      const ended = await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
+      const closed = [...reported, ...ended].filter((d) => d.source === "routine")
+      const first = closed[0]
+      if (first) stopIdleRoutineEngine(deps, taskId, tabId ?? first.tabId ?? "tab-1")
+      return first !== undefined
+    }
+  }
+  if (kind === "turn-interrupted") {
     await markDeliveryMissing(deps, { taskId, tabId, cause: "interrupted", scope: "started" })
   } else if (kind === "session-end") {
     await markDeliveryMissing(deps, { taskId, tabId, cause: "session-end", scope: "started" })
@@ -177,11 +208,30 @@ export async function trackDeliveryTurn(
     await markDeliveryMissing(deps, {
       taskId,
       tabId,
-      cause: detail?.failure === "rate_limit" ? "rate-limited" : "turn-failed",
+      cause:
+        detail?.failure === "rate_limit"
+          ? "rate-limited"
+          : detail?.failure === "transient"
+            ? "transient-failure"
+            : "turn-failed",
       scope: "started-or-oldest",
       ...(note ? { note } : {}),
     })
   }
+  return false
+}
+
+/**
+ * A routine's own task keeps no engine between runs: the tab row holds the
+ * conversation and the next run resumes it. A routine bound to someone's tab
+ * runs in their task, which carries no routine mark and is left alone.
+ */
+function stopIdleRoutineEngine(deps: DeliveryDeps, taskId: string, tabId: string): void {
+  if (!deps.stopEngineTab || !deps.orch.getTask(taskId)?.routine) return
+  // A prompt still waiting on this tab would die with the engine.
+  if (deps.deliveries.awaitingOn(taskId, tabId).length > 0) return
+  // Not awaited: the engine's own hook is the caller, and it ends with the engine.
+  void deps.stopEngineTab(taskId, tabId).catch((err: unknown) => logDaemonError("routine-engine-stop", err))
 }
 
 /**
@@ -226,12 +276,17 @@ async function markOneMissing(
   note: string | undefined,
   eventTab: string | null,
 ): Promise<Delivery | null> {
-  const missing = await deps.deliveries.markMissing(delivery.id, cause, note).catch((err: unknown) => {
+  // A routine turn that ends without a report had nothing to report.
+  const quiet = delivery.source === "routine" && cause === "turn-complete"
+  const missing = await (quiet
+    ? deps.deliveries.markQuiet(delivery.id)
+    : deps.deliveries.markMissing(delivery.id, cause, note)
+  ).catch((err: unknown) => {
     logDaemonError("delivery-missing", err)
     return undefined
   })
   if (!missing) return null
-  if (cause === "rate-limited") return missing
+  if (quiet || cause === "rate-limited") return missing
   await deps.inbox
     .recordReportMissing(
       missing.taskId,

@@ -32,6 +32,8 @@ const NO_WRAP: RowWrapFlags = []
 export interface UseTerminalPtyOpts {
   cwd: string | null
   taskId: string | null
+  /** The registered machine whose PTY host holds the session (attach only); absent = this machine. */
+  machine?: string
   /** Read at acquire/reset time via a ref — see file header. */
   command: readonly string[] | undefined
   /** Typed into a FRESH spawn (`TaskPtyOpts.initialInput`). Read via a ref. */
@@ -79,6 +81,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const [exited, setExited] = useState(false)
 
   const commandRef = useLatest(opts.command)
+  const machineRef = useLatest(opts.machine)
   const initialInputRef = useLatest(opts.initialInput)
   const firstMessageRef = useLatest(opts.firstMessage)
   const engineBinRef = useLatest(opts.engineBin)
@@ -119,6 +122,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         defaultColors: defaultColorsRef.current,
         alternateScreenStyleRewrites: alternateScreenStyleRewritesRef.current,
         scheduleRefresh: scheduleRefreshRef.current,
+        ...(machineRef.current ? { machine: machineRef.current } : {}),
       })
     } catch (err) {
       const message = errorMessage(err)

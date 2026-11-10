@@ -184,10 +184,10 @@ Channel payloads are host-versioned `unknown`: validate what you read against
 the shape your target Rove version actually emits. The channel names are the
 `DAEMON_CHANNELS` constant:
 
-`task.snapshot`, `issue.snapshot`, `active-task`, `update`, `engine-state`,
-`attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
+`task.snapshot`, `issue.snapshot`, `tabs.changed`, `active-task`, `update`, `engine-state`,
+`attention.inbox`, `dispatch.snapshot`, `ui-prefs`, `keybindings`, `state`, `machines`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`, `tab.add`,
-`engine.lifecycle`, `notice.event`, `usage.snapshot`, `usage.context`,
+`engine.lifecycle`, `notice.event`, `panel.show`, `usage.snapshot`, `usage.context`,
 `ui.prompt`, `graphics.write`, `mod.ui`.
 
 A name the daemon does not know is dropped from the filter, not rejected: the

@@ -36,6 +36,9 @@ export type ClientState = DaemonClientConnection & {
   /** Cell pixel size the GUI measured at boot; `null` for a pane or a terminal
    *  that declined. `graphics.write` refuses rather than guess without one. */
   cellPixelSize: CellPixelSize | null
+  /** The last request verb this client sent — the only attribution an overflow
+   *  log has for WHICH call piled up a queue. */
+  lastRequest?: string
 }
 
 /** Only full-channel snapshots are replaceable. Per-task/repo updates and
@@ -49,6 +52,8 @@ function replacementKey(frame: DaemonFrame): string | null {
     case "attention.inbox":
     case "gates":
     case "ui-prefs":
+    case "state":
+    case "machines":
     case "worktree.changes":
     case "transcript.activity":
     case "usage.snapshot":

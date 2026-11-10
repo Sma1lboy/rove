@@ -4,14 +4,14 @@
 > still say `automation` — renaming those buys nothing and would need a
 > migration of `~/.rove/automations.json`.
 
-> Daemon-owned cron. A schedule + a prompt + a repo; every firing creates a
+> Daemon-owned cron. A schedule + a prompt + a repo (or none); every firing creates a
 > fresh task and starts its engine with that prompt — or, with
 > `persistentSession`, re-delivers into one standing task.
 
 ## What it is
 
 ```text
-Automation = cron rule + prompt + repo
+Automation = cron rule + prompt + repo (or no repo)
 Firing     = a new Task (worktree + branch + engine session)
            | a delivery into the ONE standing Task (persistentSession)
 ```
@@ -24,12 +24,35 @@ that produces something you cannot inspect is not worth scheduling.
 Typical use: *"every weekday at 09:00, audit the dependencies of this repo and
 summarize risky changes."*
 
+## Routines with no project
+
+`repo` is optional. A routine without one (`routine-create --no-repo`, RPC
+`automation.create` with `repo` absent) runs in `routineDir(id)` =
+`<product home>/.rove/routines/<automation id>/`, keyed by the id so a rename
+never moves the cwd. The directory is made at save and again before every
+firing that needs it (precheck, script, create, deliver, revive). Its tasks
+are `kind: "dir"` tasks (`openDirectoryTask`, so no worktree or branch, and
+it never hits the project-eligibility gate that refuses Rove's own state
+dirs) with `noProject: true`. They are never `scratch`, so the Scratch
+lifecycle (delete on last-tab exit, adopt, rename) does not apply, and
+startup promotion and `MainTaskCoordinator` skip `noProject` rows even when
+the directory is a git root. A standing session carries the `routine` link,
+so it reuses and revives in the same directory; a fresh run is an ordinary
+row. Both sort into the sidebar's **Ungrouped** group with Scratch
+(`kind === "dir" && (scratch || noProject)`).
+
+No `baseRef` (refused at save), and `update` cannot add or drop `repo`; the
+loader keeps repo-less entries. The default engine skips the per-repo layer.
+An existing-tab target only checks that the task exists. Plugin run events
+omit `repo`.
+
 ## Data model
 
 Two records, both in `<ROVE_HOME>/.rove/automations.json` (daemon is the only
 writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contracts.ts).
 
-- **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, `repo`,
+- **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, optional `repo`
+  (absent = no project, see [above](#routines-with-no-project)),
   optional `vendor` / `baseRef` / `precheck`, `enabled`, `nextRunAt`,
   `missedRunGraceMinutes`, and the standing-session pair `persistentSession` /
   `sessionTaskId` (issue #91). Types in
@@ -47,11 +70,11 @@ writer). Types in [`contracts.ts`](../../packages/rove-daemon/src/daemon/contrac
 | Status | Meaning |
 |---|---|
 | `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
-| `revived` | Standing session whose engine had died, respawned in the same worktree — files kept, transcript not |
+| `revived` | Standing session whose engine was not running (stopped after its last run), started again in the same worktree on the conversation its tab row holds |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
 | `skipped_blocked` | Should-run declined the tick: the target task is busy, awaiting the owner, rate limited, … (`blocked` carries the verdict; see `long-run-controls.md` § 2) — no alarm, the cause is already in the Inbox. `engine-dead` / `engine-error` have no Inbox row of their own and are recorded `dispatch_failed` instead |
 | `skipped_missed` | The occurrence was older than the grace window |
-| `skipped_unavailable` | The repo/worktree could not be resolved |
+| `skipped_unavailable` | The repo/worktree could not be resolved (or, with no project, the routine directory could not be made) |
 | `dispatch_failed` | Task created but its engine did not start |
 
 The "didn't run" reasons are deliberately distinct. Unattended automation
@@ -82,28 +105,25 @@ fire → persistentSession?
                          └─ no-session→ respawn same worktree   → revived
 ```
 
-**What continuity actually rests on.** The engine's own conversation, kept alive
-by the PTY host — which lives outside the daemon on purpose
-([`pty-server.ts`](../../packages/rove-daemon/src/daemon/pty-server.ts)), so it
-survives `rove daemon restart`. When that process is gone, the respawn does NOT
-inherit the transcript: the daemon's spawn path (`buildEngineSessionLaunch`) has
-no resume verb wired into it — `engineResumeArgv` is the TUI's tab-restart path.
-Hence `revived` as its own status: a run that started over must not read like
-one that had context.
+**What continuity actually rests on.** The standing task's `tab-1` row, which
+holds the engine's session id. The daemon stops a routine-owned task's engine
+when a run's turn ends (`stopIdleRoutineEngine` in
+[`delivery-ops.ts`](../../packages/rove-daemon/src/daemon/delivery-ops.ts)), and
+the next firing's start reopens that id through `engineResumeArgv`. An engine
+with no resume verb, or an id it no longer has, gets a new pinned conversation.
+`revived` stays its own status: the engine was started for this run.
 
 **Self-healing.** A `sessionTaskId` whose task was deleted, is mid-deletion, or
 lost its worktree resolves to null, and the firing rebuilds and relinks. Without
 that, one deleted task would wedge the routine forever — and a wedged schedule
 looks exactly like a quiet one.
 
-**In the sidebar.** A standing task carries `Task.routine`, which folds it behind
-a per-project `N routine sessions` count row
-([`tree-core.ts`](../../packages/rove/src/tui/panes/sidebar/tree-core.ts)). This
-is the one fold in a tree that otherwise has none (owner call 2026-08-01, round
-5), scoped so the rule it bends still holds: it hides only what a SCHEDULE
-created, never a task a human opened. A folded task stays findable by `/` (the
-search builds the tree fully expanded), openable from the Routines page, and
-reachable from the Inbox — hiding a ROW, not a task.
+**In the sidebar.** Every task a firing makes, standing or fresh, carries `Task.routine`, and neither the
+TUI sidebar nor the web rail lists it ([`project-groups.ts`](../../packages/rove/src/tui/panes/sidebar/project-groups.ts),
+web `railRows`): schedule output never competes with tasks a human opened. A run's task stays openable
+from the Routines page (`enter` opens the latest run, a click opens any recent one) and reachable from the
+Inbox — hiding a ROW, not a task. A project left with only its idle main checkout once the runs are
+gone closes down like any other.
 
 ## Scheduling
 

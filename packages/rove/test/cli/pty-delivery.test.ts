@@ -297,6 +297,29 @@ describe("deliverHostedPrompt", () => {
     expect(calls).not.toContain("pty.write") // and nothing was pasted anywhere
   })
 
+  it("starts tab-1 beside a live shell when the call IS the task's first conversation", async () => {
+    const calls: string[] = []
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list") return { sessions: [session("t1::tab-2", ["/bin/zsh", "-il"])] } as T
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude", firstConversation: true },
+      "/wt/t1",
+      "go",
+      {
+        key: "t1::tab-1",
+        command: ["/bin/zsh", "-ilc", "claude 'go'"],
+      },
+    )
+    expect(result.session).toBe("t1::tab-1")
+    expect(calls).toContain("pty.open")
+  })
+
   it("bare send reaches a live non-tab-1 engine instead of refusing", async () => {
     // End-to-end shape of the report: the task's only live tab is tab-22
     // running plain `claude` while the task's vendor is the `claudecpa`

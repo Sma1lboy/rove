@@ -18,6 +18,7 @@ import {
   readPtyExitRecords,
   recordEngineExit,
   recordPtyExit,
+  wrapperBannerCodeFromTail,
 } from "@sma1lboy/rove-daemon/daemon/pty-exit-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
@@ -41,6 +42,12 @@ describe("engine exit code scrape", () => {
   it("reads the wrapper banner's code and null when absent", () => {
     expect(engineExitCodeFromTail(["  Engine exited (code 143). Check Settings"])).toBe(143)
     expect(engineExitCodeFromTail(["all quiet", "$ "])).toBeNull()
+  })
+
+  it("the live scan takes only the wrapper's own row, not a shell echo of the text", () => {
+    expect(wrapperBannerCodeFromTail(["", "  ⚠ Engine exited (code 137). Check Settings → Engines and"])).toBe(137)
+    expect(wrapperBannerCodeFromTail(["% printf '⚠ Engine exited (code 1). Check Settings'"])).toBeNull()
+    expect(wrapperBannerCodeFromTail(["Engine exited (code 1)", "% "])).toBeNull()
   })
 })
 
@@ -127,7 +134,7 @@ function observeWalk(steps: readonly (string | null)[]): Promise<WalkFires> {
 describe("observer engine-death edge", () => {
   it("fires once on vendor → no-engine, and not again while it stays gone", async () => {
     const { exits } = await observeWalk(["kimi", "kimi", null, null, null])
-    expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", vendor: "kimi", pid: 9001 }])
+    expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", key: "t1::tab-1", vendor: "kimi", pid: 9001 }])
   })
 
   it("fires again when an engine is restarted and dies a second time", async () => {
@@ -146,7 +153,7 @@ describe("observer engine-death edge", () => {
 describe("observer boot reconciliation", () => {
   it("reports a live, engine-free session on the first walk", async () => {
     const { absent, exits } = await observeWalk([null, null, null])
-    expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1" }])
+    expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1", key: "t1::tab-1" }])
     // It is NOT an observed death — nothing was watched dying.
     expect(exits).toEqual([])
   })

@@ -268,24 +268,6 @@ export class TaskIndexStore {
     return next
   }
 
-  /**
-   * Focus-switch hot path: bump `updatedAt` in memory and notify (so `recent`
-   * reorders live), mark dirty, and let the NEXT real save flush it — no
-   * fsync'd {@link doSave} per switch. The last-focused id is persisted
-   * eagerly by `state/last-active.ts`; only `recent` ordering across a hard
-   * restart rides the lazy flush (best-effort). No-op on an unknown id.
-   */
-  touchRecency(id: TaskId | string): void {
-    this.assertLoaded()
-    const idx = this.cache.tasks.findIndex((t) => t.id === id)
-    if (idx < 0) return
-    const existing = this.cache.tasks[idx]
-    if (!existing) return
-    this.cache.tasks[idx] = { ...existing, updatedAt: new Date().toISOString() }
-    this.dirtyIds.add(String(id))
-    this.notifyListeners()
-  }
-
   /** Move within `withinIds` so UI partitions (pinned vs regular) stay intact. */
   async move(id: TaskId | string, delta: -1 | 1, withinIds?: readonly string[]): Promise<Task> {
     this.assertLoaded()
@@ -347,6 +329,37 @@ export class TaskIndexStore {
     })
     this.notifyListeners()
     return next
+  }
+
+  /**
+   * Lifts `ids` out as one block, keeping their store order, and sets it down right before or after
+   * `anchorId`. A project is ordered by its first task in the store, so this moves a whole project.
+   * Only the order changes, which the cache order persists; no record is marked dirty.
+   */
+  async moveBlock(ids: readonly string[], anchorId: string, side: "before" | "after"): Promise<void> {
+    this.assertLoaded()
+    const lifted = new Set(ids)
+    if (lifted.has(anchorId)) throw new Error(`cannot move a block beside itself: ${anchorId}`)
+    const prior = this.cache.tasks.slice()
+    const block = prior.filter((t) => lifted.has(t.id))
+    const rest = prior.filter((t) => !lifted.has(t.id))
+    const anchor = rest.findIndex((t) => t.id === anchorId)
+    if (anchor < 0) throw new Error(`task not found: ${anchorId}`)
+    if (block.length === 0) return
+    const at = side === "after" ? anchor + 1 : anchor
+    const next = [...rest.slice(0, at), ...block, ...rest.slice(at)]
+    this.cache.tasks.splice(0, this.cache.tasks.length, ...next)
+    try {
+      await this.save()
+    } catch (err) {
+      // Put the old order back unless another mutation already changed the list meanwhile.
+      if (this.cache.tasks.length === next.length && this.cache.tasks.every((t, i) => t === next[i])) {
+        this.cache.tasks.splice(0, this.cache.tasks.length, ...prior)
+        this.notifyListeners()
+      }
+      throw err
+    }
+    this.notifyListeners()
   }
 
   /**

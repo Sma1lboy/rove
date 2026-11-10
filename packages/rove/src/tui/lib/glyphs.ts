@@ -37,6 +37,14 @@ export interface GlyphSet {
   readonly conflict: string
   readonly checksFailing: string
   readonly checksPassing: string
+  /**
+   * After the title of a row whose task lives on ANOTHER machine. U+2601 is
+   * East-Asian-Width Neutral and text-presentation by default (no VS16 is
+   * ever appended), so wcwidth, `charWidth` and the terminal all give it one
+   * cell; only an emoji-presentation fallback font could draw it wider, which
+   * is why ascii keeps a 7-bit stand-in.
+   */
+  readonly remote: string
 }
 
 export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
@@ -55,6 +63,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "≠",
     checksFailing: "✗",
     checksPassing: "✓",
+    remote: "☁",
   },
   starburst: {
     spinner: ["✻", "✼", "❉", "❊", "✺", "✹", "✸", "✶"],
@@ -71,6 +80,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "≠",
     checksFailing: "✘",
     checksPassing: "✔",
+    remote: "☁",
   },
   ascii: {
     spinner: ["|", "/", "-", "\\"],
@@ -87,6 +97,7 @@ export const GLYPH_SETS: Readonly<Record<GlyphSetName, GlyphSet>> = {
     conflict: "#",
     checksFailing: "x",
     checksPassing: "+",
+    remote: "@",
   },
 }
 

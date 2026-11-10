@@ -17,9 +17,9 @@ test("signed-out first run explains login before offering optional installs", as
   expect(text).toContain("No usable engine yet")
   expect(text).toContain("Codex: installed, not signed in")
   expect(text).toContain("run its CLI and sign in")
-  expect(text).not.toContain("shell completions")
+  expect(text).not.toContain("Shell completions")
   act(() => mockInput.pressEnter())
-  expect(await frame()).toContain("Optional: install shell completions")
+  expect(await frame()).toContain("Shell completions for")
 })
 
 test("an unresolved engine check cannot be skipped with enter", async () => {

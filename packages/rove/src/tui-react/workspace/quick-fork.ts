@@ -9,20 +9,26 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
+import { FORK_UNSUPPORTED_CODE } from "../../orchestrator/errors"
+import type { SpawnChildInput } from "../../orchestrator/spawn-child"
+import { deriveTitleFromPrompt } from "../../orchestrator/title"
 import { addSavedRepo } from "../../state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs"
 import { t } from "../../tui/i18n"
 import { appendAttachmentRefs } from "../../tui/lib/attachments"
 import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
+import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task"
 import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/quick-task-composer"
 import { type RoundOrchestrator, runQuickForkRound } from "./quick-fork-round"
+import { setTaskTabs } from "./terminal-tabs-shared"
 
 /**
  * `branchFrom` is the SOURCE TASK'S WORKTREE, not the main checkout: the child
  * branches off the parent's commits. Falls back to `repo`. Uncommitted work
- * does NOT come along.
+ * comes along only when the fork is a clone ({@link QuickForkSource}); a plain
+ * new task leaves it behind.
  */
 export function quickForkComposerOptions(
   repo: string,
@@ -46,10 +52,36 @@ export function quickForkDefaultVendor(repo: string, detected: readonly VendorId
   return detected[0] ?? pref
 }
 
+/** The engine fields a new task can be created with beyond its vendor. */
+interface EngineFields {
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  /** The sidebar name: the first prompt, so the row is not left as the placeholder. */
+  readonly title?: string
+  /** More repos the task spans, in pick order (the repo it is created on is the primary). */
+  readonly extraRepos?: readonly string[]
+  /** Clone this task's worktree (uncommitted work included) instead of cutting a fresh one. */
+  readonly forkFrom?: string
+}
+
+/** The task a quick-fork was started from, and the branch the composer offered as its base. */
+export interface QuickForkSource {
+  readonly taskId: string
+  /** Absent when the source sits on a detached HEAD, which a clone cannot be offered for. */
+  readonly branch: string | null
+}
+
 export interface QuickForkOrchestrator extends RoundOrchestrator {
-  createTask(input: { repo: string; baseRef: string; vendor: VendorId }): Promise<Task>
+  createTask(
+    input: { repo: string; baseRef: string; vendor: VendorId } & Omit<EngineFields, "extraRepos" | "forkFrom"> & {
+        forkFrom?: string
+        extraRepos?: readonly { repo: string; baseRef?: string }[]
+      },
+  ): Promise<Task>
   /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
   setPrompt(id: string, prompt: string): Promise<void>
+  spawnChildTask(input: SpawnChildInput): Promise<{ readonly task: Task }>
 }
 
 /** Create, plus `createTaskFlow`'s side effects: vendor becomes the repo default, repo auto-saved. */
@@ -58,26 +90,51 @@ async function createQuickForkTask(
   repo: string,
   baseRef: string,
   vendor: VendorId,
+  fields: EngineFields = {},
+  onForkRefused?: (reason: string) => void,
 ): Promise<Task> {
   setRepoLastActiveVendor(repo, vendor)
   addSavedRepo(repo)
-  return orch.createTask({ repo, baseRef, vendor })
+  const input = {
+    repo,
+    baseRef,
+    vendor,
+    ...(fields.modelEffort ? { modelEffort: fields.modelEffort } : {}),
+    ...(fields.model ? { model: fields.model } : {}),
+    ...(fields.tier ? { tier: fields.tier } : {}),
+    ...(fields.title ? { title: fields.title } : {}),
+    ...(fields.extraRepos?.length ? { extraRepos: fields.extraRepos.map((repo) => ({ repo })) } : {}),
+  }
+  if (!fields.forkFrom) return orch.createTask(input)
+  try {
+    return await orch.createTask({ ...input, forkFrom: fields.forkFrom })
+  } catch (err) {
+    // A refused clone creates nothing: fall back to a plain new task and say what stays behind.
+    const message = userFacingErrorMessage(err)
+    if (!message.includes(FORK_UNSUPPORTED_CODE)) throw err
+    onForkRefused?.(message.replace(`${FORK_UNSUPPORTED_CODE}: `, ""))
+    return orch.createTask(input)
+  }
 }
 
 /** Create, then select + enter (`createTaskFlow`'s order). Errors go to
  *  `notifyError`, never thrown. Returns the new id, or undefined. */
-async function runQuickFork(
+export async function runQuickFork(
   orch: QuickForkOrchestrator,
   repo: string,
-  result: { baseRef: string; vendor: VendorId },
+  result: { baseRef: string; vendor: VendorId } & EngineFields,
   hooks: {
     selectTask: (id: string) => void
     enterTask: (id: string) => Promise<void>
     notifyError: (message: string) => void
+    /** Told when a requested clone was refused and the task started from the last commit instead. */
+    notify?: (message: string) => void
   },
 ): Promise<string | undefined> {
   try {
-    const task = await createQuickForkTask(orch, repo, result.baseRef, result.vendor)
+    const task = await createQuickForkTask(orch, repo, result.baseRef, result.vendor, result, (reason) =>
+      hooks.notify?.(t("tasks.toast.forkLeftBehind", { reason })),
+    )
     hooks.selectTask(task.id)
     await hooks.enterTask(task.id)
     return task.id
@@ -115,16 +172,61 @@ export async function runAgainTask(
   return taskId
 }
 
+/** Spawn a shared child, then select + enter it (quick-fork's order). Errors go to `notifyError`, never thrown. */
+export async function runSpawnChild(
+  orch: Pick<QuickForkOrchestrator, "spawnChildTask">,
+  request: ChildSpawnRequest,
+  hooks: {
+    selectTask: (id: string) => void
+    enterTask: (id: string) => Promise<void>
+    notifyError: (message: string) => void
+  },
+): Promise<string | undefined> {
+  try {
+    const { task } = await orch.spawnChildTask({
+      parentTaskId: request.parentTaskId,
+      worktree: false,
+      vendor: request.vendor,
+      ...(request.title ? { title: request.title } : {}),
+    })
+    // Before the child is shown: its first mount reads these.
+    if (request.tabs) setTaskTabs(task.id, request.tabs)
+    hooks.selectTask(task.id)
+    await hooks.enterTask(task.id)
+    return task.id
+  } catch (err) {
+    console.error("[rove workspace] spawn child task failed:", err)
+    hooks.notifyError(t("tasks.toast.childFailed", { error: userFacingErrorMessage(err) }))
+    return undefined
+  }
+}
+
 interface PendingInitialPrompt {
   readonly taskId: string
   readonly prompt: string
 }
 
+/** A second conversation next to `parentTaskId`'s own: a child sharing its directory. */
+export interface ChildSpawnRequest {
+  readonly parentTaskId: string
+  readonly vendor: VendorId
+  /** The child's first prompt, held in the same slot as a quick-fork's. */
+  readonly prompt?: string
+  /** The child's first tab, written before it is shown (a native fork of the parent's session). */
+  readonly tabs?: TabsState
+  /** The child's row title; absent = the placeholder a first prompt later replaces. */
+  readonly title?: string
+}
+
 export interface UseQuickForkResult {
   /** Pass to `ShowWorkspace`'s `onQuickFork` prop. */
-  readonly onQuickFork: (repo: string, result: QuickTaskResult) => void
+  readonly onQuickFork: (repo: string, result: QuickTaskResult, source?: QuickForkSource) => void
+  /** ctrl+t, the picker's tab destination and the sidebar's "New conversation". */
+  readonly onSpawnChild: (request: ChildSpawnRequest) => void
   /** Pass to `initialPrompt`; undefined except for the task just forked. */
   readonly initialPromptFor: (taskId: string | undefined) => string | undefined
+  /** Park a first prompt for a task about to be entered (the Report-a-problem scratch), via the same slot. */
+  readonly seedPrompt: (taskId: string, prompt: string) => void
   /** Row menu "Run again", via the same pending slot. */
   readonly runAgain: (task: Task) => void
 }
@@ -143,7 +245,7 @@ export function useQuickFork(
 ): UseQuickForkResult {
   const [pending, setPending] = useState<PendingInitialPrompt | null>(null)
 
-  async function onQuickFork(repo: string, result: QuickTaskResult): Promise<void> {
+  async function onQuickFork(repo: string, result: QuickTaskResult, source?: QuickForkSource): Promise<void> {
     const prompt = appendAttachmentRefs(result.prompt, result.attachments)
     // A round is a different gesture (`quick-fork-round.ts`), not a loop over this one.
     if (result.attempts > 1) {
@@ -161,14 +263,26 @@ export function useQuickFork(
       hooks.notify(hooks.t("quickTask.startedRound", { count: outcome.started.length }))
       return
     }
-    await runQuickFork(orch, repo, result, {
-      ...hooks,
-      selectTask: (taskId) => {
-        // Selection can mount the engine immediately; its first spawn owns the prompt.
-        setPending({ taskId, prompt })
-        hooks.selectTask(taskId)
+    const taskId = await runQuickFork(
+      orch,
+      repo,
+      {
+        ...result,
+        title: deriveTitleFromPrompt(prompt),
+        // A different base than the source's own branch means the user asked for something other than "continue from here".
+        ...(source && source.branch !== null && result.baseRef === source.branch ? { forkFrom: source.taskId } : {}),
       },
-    })
+      {
+        ...hooks,
+        selectTask: (id) => {
+          // Selection can mount the engine immediately; its first spawn owns the prompt.
+          setPending({ taskId: id, prompt })
+          hooks.selectTask(id)
+        },
+      },
+    )
+    // The brief makes the task re-runnable ("Run again"); best-effort, the prompt is already on its way.
+    if (taskId) await orch.setPrompt(taskId, prompt).catch(() => undefined)
   }
 
   async function onRunAgain(task: Task): Promise<void> {
@@ -180,9 +294,22 @@ export function useQuickFork(
     return taskId && pending?.taskId === taskId ? pending.prompt : undefined
   }
 
+  /** Sharing the parent's directory needs no repo or branch choice, so the picker's pick is the whole input. */
+  async function onSpawnChild(request: ChildSpawnRequest): Promise<void> {
+    await runSpawnChild(orch, request, {
+      ...hooks,
+      selectTask: (taskId) => {
+        if (request.prompt !== undefined) setPending({ taskId, prompt: request.prompt })
+        hooks.selectTask(taskId)
+      },
+    })
+  }
+
   return {
-    onQuickFork: (repo, result) => void onQuickFork(repo, result),
+    onQuickFork: (repo, result, source) => void onQuickFork(repo, result, source),
+    onSpawnChild: (request) => void onSpawnChild(request),
     initialPromptFor,
+    seedPrompt: (taskId, prompt) => setPending({ taskId, prompt }),
     runAgain: (task) => void onRunAgain(task),
   }
 }

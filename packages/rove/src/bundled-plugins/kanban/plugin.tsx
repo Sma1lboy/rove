@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/react */
-/** Kanban: the daemon issue store as a story board, shipped as a built-in plugin. */
+/** Kanban: the daemon issue store as a story board, shipped as a first-party mod. */
 
 import type { PageProps } from "../../tui-react/pages/registry"
 import type { BundledPlugin } from "../types"

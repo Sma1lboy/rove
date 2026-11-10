@@ -8,6 +8,19 @@ function rollup(registry: DaemonActivityRegistry) {
 }
 
 describe("derived task rollup", () => {
+  it("keeps a dead tab above a newer tab-less completion", () => {
+    let now = 1
+    const registry = new DaemonActivityRegistry(new DaemonEventBus(), 1000, () => now)
+    try {
+      registry.recordEngineDeath("t", "tab-1", { code: 1 }, now)
+      now = 3
+      registry.report("t", "turn-complete")
+      expect(rollup(registry)).toMatchObject({ state: "dead", at: 1 })
+    } finally {
+      registry.close()
+    }
+  })
+
   it.each([undefined, { id: "b", transcriptPath: "/a" }])("does not clear a sibling whose session is %j", (sibling) => {
     let now = 1
     const registry = new DaemonActivityRegistry(new DaemonEventBus(), 1000, () => now)

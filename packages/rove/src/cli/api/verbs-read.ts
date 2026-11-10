@@ -14,6 +14,11 @@ import { CONTEXT_VERB } from "./handlers-context.ts"
 import { DIGEST_VERB } from "./handlers-digest.ts"
 import { collect } from "./handlers-fanout.ts"
 import { INSPECT_VERB } from "./handlers-inspect.ts"
+import { VIEWERS_VERB } from "./handlers-panel.ts"
+import { PORTS_VERB } from "./handlers-ports.ts"
+import { QUEUE_LIST_VERB } from "./handlers-queue.ts"
+import { REVIEW_COMMENTS_VERB } from "./handlers-review-comments.ts"
+import { SEARCH_VERB } from "./handlers-search.ts"
 import { getTask, list } from "./handlers-tasks.ts"
 import { WATCH_VERB } from "./handlers-watch.ts"
 import { READ_OUTPUT_VERB } from "./read-output.ts"
@@ -25,7 +30,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
     name: "list",
     group: "read",
     summary:
-      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery. Filters AND together: --repo, --status, --activity (comma lists match any value). With --activity each task carries the `.activity` it matched; a task whose state Rove cannot read never matches. `unresolvableRepos` beside `tasks` names task repos --repo could not compare.",
+      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery. Archived tasks are left out unless --archived. Filters AND together: --repo, --status, --activity (comma lists match any value). --fields id,title,status trims each row to those keys. With --activity each task carries the `.activity` it matched; a task whose state Rove cannot read never matches. `unresolvableRepos` beside `tasks` names task repos --repo could not compare.",
     flags: [
       F.repo(false),
       {
@@ -39,6 +44,19 @@ export const READ_VERBS: readonly VerbSpec[] = [
         type: "csv",
         placeholder: "A1,A2",
         description: `Only tasks whose engine is in these states (${TASK_ACTIVITY_STATES.join(", ")}). \`permission_needed,error\` = tasks waiting on you.`,
+      },
+      {
+        name: "archived",
+        type: "bool",
+        description:
+          "List ONLY archived tasks (`archive` hides a task from the default list; `unarchive` brings it back).",
+      },
+      {
+        name: "fields",
+        type: "csv",
+        placeholder: "F1,F2",
+        description:
+          "Keep only these keys on each task (e.g. `id,title,status,branch`), so a large fleet reads short; a key a task does not carry stays absent. `activeTaskId` and `unresolvableRepos` are unaffected. An unknown name is refused with BAD_FLAG and lists the valid ones.",
       },
     ],
     handler: list,
@@ -81,5 +99,10 @@ export const READ_VERBS: readonly VerbSpec[] = [
   AGENT_TURNS_VERB,
   INSPECT_VERB,
   READ_OUTPUT_VERB,
+  QUEUE_LIST_VERB,
+  SEARCH_VERB,
   WATCH_VERB,
+  PORTS_VERB,
+  VIEWERS_VERB,
+  REVIEW_COMMENTS_VERB,
 ]

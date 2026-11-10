@@ -15,11 +15,13 @@
  */
 
 import { homedir } from "node:os"
+import { defaultDaemonLogPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { userFacingErrorMessage } from "../../lib/error-message"
+import { getGlobalDefaultVendor } from "../../state/vendor-prefs"
 import { t } from "../../tui/i18n"
 import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
-import type { Task } from "../../types/task"
+import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task"
 import type { VendorId } from "../../types/vendor"
 import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { engineScratchTasks, requestTabActivation } from "./terminal-tabs-shared"
@@ -39,9 +41,12 @@ export function useScratchShell(deps: {
   readonly forgetTaskTabs: (taskId: string) => void
   readonly notifyError: (message: string) => void
   readonly notifyInfo: (message: string) => void
+  /** Parks a first prompt that the task's engine tab starts on. */
+  readonly seedPrompt: (taskId: string, prompt: string) => void
 }): {
-  openScratchShell: (vendor: VendorId | undefined) => void
+  openScratchShell: (vendor: VendorId | undefined, prompt?: string) => void
   onScratchExit: (taskId: string) => void
+  reportProblem: () => void
 } {
   const { orchestrator, enterTask, forgetTaskTabs, notifyError } = deps
 
@@ -63,12 +68,13 @@ export function useScratchShell(deps: {
     },
   })
 
-  const openScratchShell = (vendor: VendorId | undefined): void => {
+  const openScratchShell = (vendor: VendorId | undefined, prompt?: string): void => {
     void orchestrator
       .openDirectoryTask({ dir: homedir(), scratch: true, ...(vendor ? { vendor } : {}) })
       .then((task) => {
         // Before the select mounts its tabs: the mount reads the mark.
         if (vendor) engineScratchTasks.add(task.id)
+        if (vendor && prompt) deps.seedPrompt(task.id, prompt)
         enterTask(task.id)
       })
       .catch((err) => notifyError(t("tasks.toast.scratchOpenFailed", { message: userFacingErrorMessage(err) })))
@@ -99,5 +105,12 @@ export function useScratchShell(deps: {
     })()
   }
 
-  return { openScratchShell, onScratchExit }
+  /** Report a problem: a scratch conversation on the default engine, seeded to interview the user and file the issue. */
+  const reportProblem = (): void =>
+    openScratchShell(
+      getGlobalDefaultVendor() ?? DEFAULT_TASK_VENDOR,
+      t("help.reportPrompt", { logPath: defaultDaemonLogPath() }),
+    )
+
+  return { openScratchShell, onScratchExit, reportProblem }
 }

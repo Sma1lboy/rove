@@ -24,6 +24,7 @@ import {
   type Flags,
   type VerbSpec,
   cliCaller,
+  requireVerbInstalled,
   splitDaemonCode,
 } from "./types.ts"
 import { findVerb, unknownVerbError } from "./verbs.ts"
@@ -137,6 +138,7 @@ export function repeatableFlagsOf(verb: VerbSpec): ReadonlySet<string> {
 
 /** Run a resolved, validated verb; every failure leaves as an {@link ApiError}. */
 export async function callVerb(verb: VerbSpec, flags: Flags, deps: VerbDeps): Promise<unknown> {
+  requireVerbInstalled(verb)
   const caller = deps.caller ?? cliCaller()
   try {
     return await verb.handler({

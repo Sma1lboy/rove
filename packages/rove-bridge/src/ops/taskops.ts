@@ -10,8 +10,7 @@
 import { existsSync, realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { extname, join, sep } from "node:path"
-import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
-import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
+import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import {
   expandHome,
   filterSubdirs,
@@ -25,13 +24,14 @@ import {
   type CIFailingChecksRead,
   buildCIPromptForWorktree,
 } from "@sma1lboy/rove/src/tui/ops/ci-prompt.ts"
+import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
 import { openExternally } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
 import { flag, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, taskOpDeps } from "./tasks-shared.ts"
-import type { Args, OpContext, OpTable } from "./types.ts"
+import type { Args, BridgeApi, OpContext, OpTable } from "./types.ts"
 
 /** More names than a picker can show; the client filters the rest by typing. */
 const SUBDIR_CAP = 200
@@ -40,8 +40,10 @@ const PATH_MAX = 1000
 export interface TaskOpsDeps {
   homeDir(): string
   buildCIPrompt: typeof buildCIPromptForWorktree
-  /** Swap a tab with its neighbour in the persisted strip order; false at an edge or for an unknown tab. */
-  reorderTab(taskId: string, tabId: string, delta: -1 | 1): boolean
+  /** The create-PR instruction for a worktree (the repo's template when it has one). */
+  prPrompt(worktree: string): Promise<string>
+  /** Swap a tab with its neighbour in the daemon's strip order; false at an edge or for an unknown tab. */
+  reorderTab(taskId: string, tabId: string, delta: -1 | 1, api: BridgeApi): Promise<boolean>
   /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
   openExternal(absPath: string): void
   /** The Mac's editor for `o`: the `ROVE_OPEN_EDITOR` override, else an installed editor CLI or app; null when none. */
@@ -56,18 +58,22 @@ export interface TaskOpsDeps {
   runnable(path: string): boolean
 }
 
-function reorderPersistedTab(taskId: string, tab: string, delta: -1 | 1): boolean {
-  let moved = false
-  updateStateFile((store) => {
-    const state = store[terminalTabsKey(taskId)] as TabsState | undefined
-    if (!state || !Array.isArray(state.tabs)) return false
-    const next = moveTab(state, tab, delta)
-    if (next === state) return false
-    store[terminalTabsKey(taskId)] = next
-    moved = true
-    return undefined
-  })
-  return moved
+/**
+ * The TUI's `moveTab` on the daemon's current tabs (`tabs.get`), sent as one
+ * `order` op: the daemon owns the tabs and publishes the new order on
+ * `tabs.changed`. Ids only, so a tab another client opened in between keeps
+ * its place after the ones named.
+ */
+export async function reorderDaemonTab(taskId: string, tab: string, delta: -1 | 1, api: BridgeApi): Promise<boolean> {
+  const { state } = await api.rpc<{ state: SharedTabs | null }>("tabs.get", { taskId })
+  if (!state || !Array.isArray(state.tabs)) return false
+  // `moveTab` reads only the order; `activeId` is no client's here.
+  const current = { ...state, activeId: state.activeId ?? "" } as unknown as TabsState
+  const next = moveTab(current, tab, delta)
+  if (next === current) return false
+  const ops: TabOp[] = [{ op: "order", ids: next.tabs.map((t) => t.id) }]
+  await api.rpc("tabs.apply", { taskId, ops })
+  return true
 }
 
 function canonical(path: string): string | null {
@@ -99,7 +105,8 @@ const realDeps: TaskOpsDeps = {
   runnable,
   homeDir: homedir,
   buildCIPrompt: buildCIPromptForWorktree,
-  reorderTab: reorderPersistedTab,
+  prPrompt: buildPRPrompt,
+  reorderTab: reorderDaemonTab,
 }
 
 /** A typed path as the dialog holds it: absolute or `~`-led, never relative to the bridge's cwd. */
@@ -124,12 +131,26 @@ function clearable(args: Args, name: string, check: (a: Args, n: string) => stri
 
 async function worktreeAndBranch(ctx: OpContext, id: string) {
   const res = await ctx.api.verb<{
-    task: { worktreePath?: string; branch?: string; prStatus?: { number?: number } }
+    task: { worktreePath?: string; branch?: string; prStatus?: { number?: number; baseRef?: string } }
   }>("get-task", [flag("task-id", id)])
   const { worktreePath, branch, prStatus } = res.task
   if (!worktreePath) throw new BridgeError("NO_WORKTREE", `task ${id} has no worktree yet`)
-  return { worktree: worktreePath, branch: branch ?? "", prNumber: prStatus?.number }
+  return { worktree: worktreePath, branch: branch ?? "", prNumber: prStatus?.number, baseRef: prStatus?.baseRef }
 }
+
+const PR_PROMPT_KINDS = ["commit", "createPR", "fixCI", "conflicts", "comments"] as const
+
+/** One line each: the page types them into an engine's input, where a newline would send. */
+function conflictsPrompt(pr: string, base: string): string {
+  return `${pr} has merge conflicts with ${base}. Fetch, merge ${base} into this branch, resolve every conflict keeping the intent of both sides, run the project's checks, then commit the merge and push.`
+}
+
+function commentsPrompt(pr: string): string {
+  return `${pr} has review feedback to address. Read it with \`gh pr view --comments\` and \`gh api repos/{owner}/{repo}/pulls/<number>/comments\`, make a change for each point (reply only where you disagree and say why), run the project's checks, then commit and push.`
+}
+
+const COMMIT_PROMPT =
+  "Commit the uncommitted changes in this worktree. Review them with `git status` and `git diff`, split them into logical commits when they are unrelated, write each message in the style of this repo's recent `git log`, and do not push."
 
 export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
   return {
@@ -148,9 +169,12 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       destructive: false,
       wraps: "rpc task.syncBase (merge base into the worktree)",
       async run(a, { api }) {
-        const res = await api.rpc<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
-          taskId: taskId(a),
-        })
+        const res = await api.rpc<{
+          result: { baseRef: string; alreadyCurrent: boolean; repos?: readonly { ok: boolean; error?: string }[] }
+        }>("task.syncBase", { taskId: taskId(a) })
+        // A multi-repo task syncs every repo; surface the first failure like a one-repo conflict.
+        const failed = res.result.repos?.find((r) => !r.ok)
+        if (failed) throw new Error(failed.error ?? "sync failed")
         return { baseRef: res.result.baseRef, alreadyCurrent: res.result.alreadyCurrent === true }
       },
     },
@@ -184,6 +208,38 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       },
     },
 
+    "task.prompt": {
+      kind: "read",
+      destructive: false,
+      wraps:
+        "buildPRPrompt | rpc pr.failingChecks + buildCIPromptForWorktree | fixed text (commit, conflicts, comments); returns the prompt, sends nothing",
+      async run(a, ctx) {
+        const id = taskId(a)
+        const kind = oneOf(a, "kind", PR_PROMPT_KINDS)
+        const { worktree, branch, prNumber, baseRef } = await worktreeAndBranch(ctx, id)
+        const pr = prNumber === undefined ? "This task's PR" : `PR #${prNumber}`
+        if (kind === "createPR") return { outcome: "ok", prompt: await deps.prPrompt(worktree) }
+        if (kind === "commit") return { outcome: "ok", prompt: COMMIT_PROMPT }
+        if (kind === "conflicts") return { outcome: "ok", prompt: conflictsPrompt(pr, baseRef || "its base branch") }
+        if (kind === "comments") return { outcome: "ok", prompt: commentsPrompt(pr) }
+        const read = await ctx.api.rpc<{
+          checks?: readonly CIFailingCheck[]
+          totalFailing?: number
+          unavailable?: { reason: string; detail: string }
+        }>("pr.failingChecks", { taskId: id })
+        const checks = read.checks ?? []
+        if (read.unavailable) return { outcome: "unavailable", detail: read.unavailable.detail }
+        if (checks.length === 0) return { outcome: "none" }
+        const prompt = await deps.buildCIPrompt(worktree, {
+          branch: branch || "HEAD",
+          ...(prNumber === undefined ? {} : { prNumber }),
+          checks,
+          totalFailing: read.totalFailing ?? checks.length,
+        })
+        return { outcome: "ok", prompt }
+      },
+    },
+
     "task.openEditor": {
       kind: "write",
       destructive: false,
@@ -210,12 +266,15 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       destructive: false,
       wraps: "rpc task.openDir {dir: $HOME, scratch: true}",
       async run(a, ctx) {
-        const vendor = optStr(a, "engine") === undefined ? undefined : await engineId(a, "engine", ctx)
+        const home = deps.homeDir()
+        // Scratch remembers its own last engine, keyed by $HOME like any project; `+` reuses it.
+        const picked = optStr(a, "engine") === undefined ? undefined : await engineId(a, "engine", ctx)
         const res = await ctx.api.rpc<{ taskId: string }>("task.openDir", {
-          dir: deps.homeDir(),
+          dir: home,
           scratch: true,
-          ...(vendor ? { vendor } : {}),
+          vendor: picked ?? taskOpDeps.preferredEngine(home),
         })
+        if (picked) taskOpDeps.rememberEngine(home, picked)
         return { taskId: res.taskId }
       },
     },
@@ -242,10 +301,10 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
     "tab.move": {
       kind: "write",
       destructive: false,
-      wraps: "state.json terminalTabs.<task> order (moveTab)",
-      async run(a) {
+      wraps: "rpc tabs.apply order (the TUI's moveTab on tabs.get)",
+      async run(a, { api }) {
         const direction = oneOf(a, "direction", ["up", "down"] as const)
-        return { moved: deps.reorderTab(taskId(a), tabId(a), direction === "up" ? -1 : 1) }
+        return { moved: await deps.reorderTab(taskId(a), tabId(a), direction === "up" ? -1 : 1, api) }
       },
     },
 
@@ -299,14 +358,15 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       wraps: "helpers validateRepoPath + listLocalBranches + getCurrentBranch (+ rpc worktree.discoverAdoptable)",
       async run(a, { api }) {
         const repo = stripTrailingSlash(expandHome(typedPath(a, "path")))
-        const reason = taskOpDeps.validateRepoPath(repo)
+        const reason = await taskOpDeps.validateRepoPath(repo)
+        // Not a git repo (or no commit yet) but a real folder: it opens in place, without worktrees.
+        if (reason && taskOpDeps.isDirectory(repo)) return { ok: true, repo, git: false, branches: [], current: null }
         if (reason) return { ok: false, repo, reason }
-        const out: Record<string, unknown> = {
-          ok: true,
-          repo,
-          branches: taskOpDeps.listLocalBranches(repo),
-          current: taskOpDeps.getCurrentBranch(repo),
-        }
+        const [branches, current] = await Promise.all([
+          taskOpDeps.listLocalBranches(repo),
+          taskOpDeps.getCurrentBranch(repo),
+        ])
+        const out: Record<string, unknown> = { ok: true, repo, branches, current }
         if (a.adoptable === true) {
           const found = await api.rpc<{ worktrees?: readonly unknown[] }>("worktree.discoverAdoptable", { repo })
           out.worktrees = found.worktrees ?? []

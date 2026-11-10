@@ -64,7 +64,7 @@ describe("tierBlock", () => {
 
   it("blocks a model on an engine with no model flag, and an effort its engine never declared", () => {
     expect(tierBlock({ engine: "copilot", model: "gpt-5" }, deps())).toMatchObject({ kind: "model" })
-    expect(tierBlock({ engine: "claude", effort: "high" }, deps())).toMatchObject({ kind: "effort", levels: [] })
+    expect(tierBlock({ engine: "copilot", effort: "high" }, deps())).toMatchObject({ kind: "effort", levels: [] })
     expect(describeTierBlock(tierBlock({ engine: "codex", effort: "turbo" }, deps())!)).toMatch(/none, low, medium/)
   })
 })

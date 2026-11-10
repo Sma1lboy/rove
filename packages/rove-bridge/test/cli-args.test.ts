@@ -10,6 +10,11 @@ describe("presets", () => {
     expect(parseBridgeArgs([], { tailscale: TS })).toMatchObject({ preset: "none", hosts: ["127.0.0.1"], tls: false })
   })
 
+  test("a plain tunnel keeps loopback and names its https host", () => {
+    const a = parseBridgeArgs(["--public-host", "rove.example.com"], { config: { publicHost: "saved.example.com" } })
+    expect(a).toMatchObject({ preset: "none", hosts: ["127.0.0.1"], publicHost: "rove.example.com", tls: true })
+  })
+
   test("tailscale binds only the tailnet address and pairs over MagicDNS", () => {
     const a = parseBridgeArgs(["--preset", "tailscale"], { tailscale: TS })
     expect(a).toMatchObject({ hosts: ["100.64.1.2"], publicHost: "mac.tail1234.ts.net", tls: false })
@@ -76,9 +81,22 @@ describe("presets", () => {
     expect(() => parseBridgeArgs(["--preset", "tailscale", "--host", "0.0.0.0"], { tailscale: TS })).toThrow(
       "cannot be combined",
     )
-    expect(() => parseBridgeArgs(["--preset", "lan"])).toThrow("tailscale or cf")
+    expect(() => parseBridgeArgs(["--preset", "lan"])).toThrow("tailscale, cf or relay")
     expect(() =>
       parseBridgeArgs(["--preset", "cf", "--cf-team", "acme.evil.com", "--cf-aud", "x", "--public-host", "h"]),
     ).toThrow("--cf-team")
+  })
+
+  test("relay stays on loopback, needs a relay URL, and refuses plain http off loopback", () => {
+    const a = parseBridgeArgs(["--preset", "relay"], { config: { relayServer: "https://relay.example.com/x" } })
+    expect(a.hosts).toEqual(["127.0.0.1"])
+    expect(a.relayServer).toBe("https://relay.example.com")
+    expect(() => parseBridgeArgs(["--preset", "relay"])).toThrow("--relay-server")
+    expect(() => parseBridgeArgs(["--preset", "relay", "--relay-server", "http://relay.example.com"])).toThrow(
+      "https://",
+    )
+    expect(parseBridgeArgs(["--preset", "relay", "--relay-server", "http://127.0.0.1:8899"]).relayServer).toBe(
+      "http://127.0.0.1:8899",
+    )
   })
 })

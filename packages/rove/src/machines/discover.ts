@@ -10,10 +10,21 @@
 import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { posix } from "node:path"
+import { PRE_RENAME_VERSION_KEY } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { shQuote } from "../exec/exec-host.ts"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
 import { machineSocketDir, machineSshArgs } from "./ssh-args.ts"
 import { type SshFailureKind, classifySshFailure, sshFailureRemedy } from "./ssh-failure.ts"
+import {
+  WINDOWS_LOCATE_ROVE,
+  WINDOWS_ROVE_MISSING,
+  WINDOWS_SCRIPTS_DISABLED,
+  WINDOWS_SSHD_BANNER,
+  isWindowsMachine,
+  isWindowsPath,
+  windowsNoRoveMessage,
+  windowsRoveCommand,
+} from "./windows-remote.ts"
 
 export interface RemoteDaemonStatus {
   readonly socketPath: string
@@ -22,6 +33,8 @@ export interface RemoteDaemonStatus {
   readonly hostname: string
   readonly roveVersion: string
   readonly daemonPid: number
+  /** The machine's `rove` (not its daemon) accepts `daemon relay --preamble`. */
+  readonly relayPreamble: boolean
 }
 
 export interface DiscoverResult {
@@ -29,11 +42,15 @@ export interface DiscoverResult {
   readonly status: RemoteDaemonStatus
   /** Set when `rove` was found off the non-interactive PATH; persist it as `MachineConfig.roveBin`. */
   readonly roveBin?: string
+  /** Bytes the remote shell printed before Rove's output (a login banner, a PowerShell profile). */
+  readonly shellNoise?: number
 }
 export interface DiscoverFailure {
   readonly ok: false
   readonly code: "SSH_FAILED" | "NO_ROVE" | "NO_DAEMON" | "BAD_STATUS"
   readonly message: string
+  /** The answer came from a Windows shell (cmd or PowerShell), not sh. */
+  readonly windows?: boolean
   /** For `SSH_FAILED`: the cause read from ssh's stderr. */
   readonly ssh?: SshFailureKind
 }
@@ -43,7 +60,7 @@ async function runOnMachine(
   alias: string,
   config: MachineConfig,
   command: string,
-  opts: { readonly home?: string; readonly timeoutMs?: number } = {},
+  opts: { readonly home?: string; readonly timeoutMs?: number; readonly sshFlags?: readonly string[] } = {},
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   // The ControlPath's directory must exist first, else ssh's `Control socket
   // connect(...): No such file or directory` reads like a missing Rove.
@@ -52,7 +69,9 @@ async function runOnMachine(
   } catch {
     /* already there, or a filesystem without modes */
   }
-  const argv = [...machineSshArgs(alias, config, { home: opts.home }), command]
+  // Extra flags (`-v`) want a fresh connection: through a shared master, ssh says nothing about the server.
+  const base = machineSshArgs(alias, config, { home: opts.home, mux: opts.sshFlags === undefined })
+  const argv = [base[0] ?? "ssh", ...(opts.sshFlags ?? []), ...base.slice(1), command]
   return await new Promise((resolve) => {
     let stdout = ""
     let stderr = ""
@@ -97,12 +116,32 @@ export async function discoverMachine(
   config: MachineConfig,
   opts: { readonly home?: string } = {},
 ): Promise<DiscoverResult | DiscoverFailure> {
-  const found = await probe(alias, config, roveCommand(config.roveBin), opts)
+  const found = await probe(alias, config, config.roveBin, opts)
   if (found.ok || found.code !== "NO_ROVE") return found
-  const located = parseLocatedRove((await runOnMachine(alias, config, LOCATE_ROVE_SCRIPT, opts)).stdout)
+  const locate = found.windows ? WINDOWS_LOCATE_ROVE : LOCATE_ROVE_SCRIPT
+  const located = parseLocatedRove((await runOnMachine(alias, config, locate, opts)).stdout)
   if (!located || located === config.roveBin) return found
-  const retry = await probe(alias, config, roveCommand(located), opts)
+  const retry = await probe(alias, config, located, opts)
   return retry.ok ? { ...retry, roveBin: located } : retry
+}
+
+/** What a successful probe teaches the registry about a machine. */
+export function learnedFrom(found: DiscoverResult): {
+  sockets: { daemon: string; pty: string }
+  roveBin?: string
+  relayPreamble?: true
+} {
+  return {
+    sockets: { daemon: found.status.socketPath, pty: found.status.ptySocketPath },
+    ...(found.roveBin ? { roveBin: found.roveBin } : {}),
+    ...(found.status.relayPreamble ? { relayPreamble: true as const } : {}),
+  }
+}
+
+/** `rove <args>` on the machine, in whatever shell its sshd runs. */
+export function remoteRove(roveBin: string | undefined, args: readonly string[]): string {
+  if (roveBin && isWindowsPath(roveBin)) return windowsRoveCommand(roveBin, args)
+  return [roveCommand(roveBin), ...args].join(" ")
 }
 
 /**
@@ -125,9 +164,9 @@ const LOCATE_ROVE_SCRIPT = [
   "exit 1",
 ].join("\n")
 
-/** The `ROVE_BIN=` line the locate script prints; an absolute path or nothing. */
+/** The `ROVE_BIN=` line a locate script prints; an absolute POSIX or Windows path, or nothing. */
 export function parseLocatedRove(stdout: string): string | null {
-  const match = /^ROVE_BIN=(\/\S.*)$/m.exec(stdout)
+  const match = /^ROVE_BIN=((?:\/|[A-Za-z]:\\)\S.*)$/m.exec(stdout)
   return match?.[1]?.trim() ?? null
 }
 
@@ -143,13 +182,17 @@ const ROVE_MISSING =
 async function probe(
   alias: string,
   config: MachineConfig,
-  rove: string,
+  roveBin: string | undefined,
   opts: { readonly home?: string },
 ): Promise<DiscoverResult | DiscoverFailure> {
-  const first = await runOnMachine(alias, config, `${rove} daemon status --json`, opts)
+  const status = remoteRove(roveBin, ["daemon", "status", "--json"])
+  const first = await runOnMachine(alias, config, status, opts)
   const parsed = parseStatusJson(first.stdout)
-  if (parsed) return { ok: true, status: parsed }
+  if (parsed) return withNoise(windowsReady(alias, parsed), first.stdout)
   const combined = `${first.stdout}\n${first.stderr}`.trim()
+  if (WINDOWS_ROVE_MISSING.test(combined) || WINDOWS_SCRIPTS_DISABLED.test(combined)) {
+    return { ok: false, code: "NO_ROVE", windows: true, message: windowsNoRoveMessage(alias, combined) }
+  }
   if (ROVE_MISSING.test(combined)) {
     return {
       ok: false,
@@ -159,20 +202,27 @@ async function probe(
   }
   if (first.exitCode === 255 || first.exitCode === -1) {
     const ssh = classifySshFailure(first.stderr)
-    const remedy = sshFailureRemedy(ssh, sshTargetOf(config))
+    // A rejected key is fixed differently on Windows; its sshd says what it is before any login.
+    const windows =
+      isWindowsMachine(config) || (ssh === "auth-denied" && (await sshServerIsWindows(alias, config, opts)))
+    const remedy = sshFailureRemedy(ssh, sshTargetOf(config), windows)
     return {
       ok: false,
       code: "SSH_FAILED",
       ssh,
+      ...(windows ? { windows } : {}),
       message: ssh === "unknown" && combined ? `${remedy}\n${combined}` : remedy,
     }
   }
   // No daemon over there yet — start one and ask again. `restart` spawns it
   // detached; `start` would make this ssh session the daemon and never return.
-  const started = await runOnMachine(alias, config, `${rove} daemon restart`, { ...opts, timeoutMs: 60_000 })
-  const second = await runOnMachine(alias, config, `${rove} daemon status --json`, opts)
+  const started = await runOnMachine(alias, config, remoteRove(roveBin, ["daemon", "restart"]), {
+    ...opts,
+    timeoutMs: 60_000,
+  })
+  const second = await runOnMachine(alias, config, status, opts)
   const retry = parseStatusJson(second.stdout)
-  if (retry) return { ok: true, status: retry }
+  if (retry) return withNoise(windowsReady(alias, retry), second.stdout)
   // A remote Rove predating `ptySocketPath` answers but can't be tunnelled —
   // report that, not a daemon that would not start.
   if (looksLikeOldStatus(second.stdout)) {
@@ -186,6 +236,35 @@ async function probe(
     ok: false,
     code: started.exitCode === 0 ? "BAD_STATUS" : "NO_DAEMON",
     message: `could not read a daemon status from ${alias}: ${`${second.stdout}\n${second.stderr}\n${started.stderr}`.trim() || "no output"}`,
+  }
+}
+
+function withNoise(found: DiscoverResult | DiscoverFailure, stdout: string): DiscoverResult | DiscoverFailure {
+  const noise = Buffer.byteLength(stdout.slice(0, Math.max(0, stdout.indexOf("{"))), "utf8")
+  return found.ok && noise > 0 ? { ...found, shellNoise: noise } : found
+}
+
+/** Whether the machine's sshd is OpenSSH for Windows, read from `ssh -v` before authentication. */
+export async function sshServerIsWindows(
+  alias: string,
+  config: MachineConfig,
+  opts: { readonly home?: string } = {},
+): Promise<boolean> {
+  const run = await runOnMachine(alias, config, "exit", { ...opts, timeoutMs: 15_000, sshFlags: ["-v"] })
+  return WINDOWS_SSHD_BANNER.test(run.stderr)
+}
+
+/**
+ * A Windows machine is reachable only through `rove daemon relay`, and its
+ * PowerShell profile may print on every ssh command: a `rove` that cannot mark
+ * where the relayed bytes start is too old to serve a hub from there.
+ */
+function windowsReady(alias: string, status: RemoteDaemonStatus): DiscoverResult | DiscoverFailure {
+  if (status.relayPreamble || !isWindowsPath(status.socketPath)) return { ok: true, status }
+  return {
+    ok: false,
+    code: "BAD_STATUS",
+    message: `${alias} runs a Rove too old to serve another machine from Windows (rove ${status.roveVersion || "?"}; it needs \`rove daemon relay --preamble\`). Update it there: \`npm install -g @sma1lboy/rove\`.`,
   }
 }
 
@@ -254,7 +333,15 @@ export function parseStatusJson(stdout: string): RemoteDaemonStatus | null {
     ptySocketPath,
     homeDir: typeof o.homeDir === "string" ? o.homeDir : "",
     hostname: typeof o.hostname === "string" ? o.hostname : "",
-    roveVersion: typeof o.roveVersion === "string" ? o.roveVersion : "",
+    roveVersion: statusVersion(o),
     daemonPid: typeof o.daemonPid === "number" ? o.daemonPid : 0,
+    relayPreamble: o.relayPreamble === true,
   }
+}
+
+/** A pre-rename daemon's version still explains a skew. */
+function statusVersion(o: Record<string, unknown>): string {
+  if (typeof o.roveVersion === "string") return o.roveVersion
+  const old = o[PRE_RENAME_VERSION_KEY]
+  return typeof old === "string" ? old : ""
 }

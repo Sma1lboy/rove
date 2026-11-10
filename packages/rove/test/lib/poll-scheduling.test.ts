@@ -12,6 +12,7 @@
 import { describe, expect, test } from "vitest"
 import {
   applyJitter,
+  computeNextAllowedAt,
   decodeCapturedChunks,
   exponentialBackoff,
   maybeStartScheduledRun,
@@ -168,5 +169,16 @@ describe("decodeCapturedChunks", () => {
   })
   test("accepts string chunks and preserves ASCII round-trips", () => {
     expect(decodeCapturedChunks([Buffer.from("ab"), "cd", Buffer.from("ef")])).toBe("abcdef")
+  })
+})
+
+describe("the quiet spell after a run", () => {
+  test("is five times the run's own duration unless the caller sets the factor", () => {
+    const cfg = { slowRetryMs: 60_000, minIntervalMs: 0 }
+    // A 2 ms run: quiet until 10 ms after it finished.
+    expect(computeNextAllowedAt(100, 102, false, cfg)).toBe(112)
+    // Factor 0, as the collector tests set: the next tick may run at once.
+    expect(computeNextAllowedAt(100, 102, false, { ...cfg, durationFactor: 0 })).toBe(102)
+    expect(computeNextAllowedAt(100, 102, true, { ...cfg, durationFactor: 0 })).toBe(60_100)
   })
 })

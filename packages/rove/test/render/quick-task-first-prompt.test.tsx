@@ -58,3 +58,47 @@ test("a quick task has its prompt on the first selected render, before activatio
   expect(await frame()).toContain("Explain this project")
   expect(firstPrompts).toEqual(["Explain this project"])
 })
+
+test("a quick task is titled from its first message and records it as the brief", async () => {
+  const created: Array<{ title?: string; model?: string; modelEffort?: string }> = []
+  const briefs: Array<[string, string]> = []
+  const child = { id: toTaskId("child"), repo: "/fixture", worktreePath: "/fixture/child" } as Task
+  const orch = {
+    createTask: async (input: { title?: string }) => {
+      created.push(input)
+      return child
+    },
+    setPrompt: async (id: string, prompt: string) => {
+      briefs.push([id, prompt])
+    },
+  } as unknown as QuickForkOrchestrator
+  let create: () => void = () => {}
+  function Host() {
+    const quick = useQuickFork(orch, {
+      selectTask: () => {},
+      enterTask: async () => {},
+      notify: () => {},
+      notifyError: () => {},
+      t: (key) => key,
+    })
+    create = () =>
+      quick.onQuickFork("/fixture", {
+        prompt: "Fix the login redirect",
+        vendor: "codex",
+        baseRef: "main",
+        attachments: [],
+        attempts: 1,
+        model: "m-1",
+        modelEffort: "high",
+      })
+    return <text>host</text>
+  }
+  await renderComponent(<Host />)
+  await act(async () => {
+    create()
+  })
+  expect(created).toEqual([
+    expect.objectContaining({ title: "Fix the login redirect", model: "m-1", modelEffort: "high" }),
+  ])
+  expect(briefs).toEqual([["child", "Fix the login redirect"]])
+})

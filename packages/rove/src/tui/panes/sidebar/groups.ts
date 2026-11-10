@@ -68,7 +68,7 @@ export function buildRows(
   }
   // Projects keep tasks.json (save) order so the list never reshuffles on its
   // own; a sort reorders tasks only. Manual reorder goes through `moveTask`.
-  const compare = sortMode === "recent" ? compareRecent : sortMode === "name" ? compareName : null
+  const compare = sortMode === "recent" ? compareNewest : sortMode === "name" ? compareName : null
   if (compare) {
     pinnedRegular.sort(compare)
     regular.sort(compare)
@@ -88,6 +88,16 @@ export function buildRows(
     flatIndex++
   }
   return rows
+}
+
+/**
+ * Newest-created first: the `recent` sort. Not `updatedAt`, which also moves on bookkeeping
+ * (a first open, a PR poll) and would reorder rows under a click.
+ */
+export function compareNewest(a: Task, b: Task): number {
+  const byTime = Date.parse(b.createdAt) - Date.parse(a.createdAt)
+  if (Number.isFinite(byTime) && byTime !== 0) return byTime
+  return String(b.id).localeCompare(String(a.id))
 }
 
 /** Most-recently-touched first. Shared with the Inbox's RECENT section. */
@@ -133,6 +143,96 @@ export function sidebarProjectKey(repo: string, machineId = "local"): string {
 /** The project key for a task, honouring the machine it came from. */
 export function sidebarProjectKeyOfTask(task: Pick<Task, "repo" | "origin">): string {
   return sidebarProjectKey(task.repo, task.origin?.machineId ?? "local")
+}
+
+/** Maps a task to the project key its sidebar header carries. */
+export type ProjectKeyOf = (task: Pick<Task, "repo" | "origin" | "repoId">) => string
+
+function isLocalTask(task: Pick<Task, "origin">): boolean {
+  return (task.origin?.machineId ?? "local") === "local"
+}
+
+/** A task that sits in the "Ungrouped" group: a scratch shell or a projectless routine's dir. */
+export function isNoProjectTask(task: Task): boolean {
+  return task.kind === "dir" && (task.scratch === true || task.noProject === true)
+}
+
+/**
+ * One project per REPO across machines, the way the web rail merges by
+ * `repoId`: every checkout (machine + path) whose tasks name the same
+ * `repoId` resolves to ONE key — the HOME checkout's own
+ * {@link sidebarProjectKeyOfTask}: this machine's when the repo is checked out
+ * here (its main first), else the first other machine's. Keying on the home
+ * checkout rather than the id keeps a single-machine sidebar's keys (fold
+ * state, routines rows, move mode) byte-identical, and makes a project action
+ * on the header land on the home checkout. A checkout with no `repoId` keeps
+ * its own per-machine key.
+ *
+ * Tasks being deleted and scratch tasks never pick the home: the former are
+ * leaving the sidebar, the latter have no project.
+ */
+export function sidebarProjectKeyResolver(tasks: readonly Task[]): ProjectKeyOf {
+  const counted = tasks.filter((task) => {
+    const phase = task.deletion?.phase
+    if (phase === "queued" || phase === "running") return false
+    return !isNoProjectTask(task)
+  })
+  // A checkout's repoId: the first of its tasks that carries one (the web's `groupByProject`).
+  const repoIdOf = new Map<string, string>()
+  for (const task of counted) {
+    if (!task.repoId) continue
+    const key = sidebarProjectKeyOfTask(task)
+    if (!repoIdOf.has(key)) repoIdOf.set(key, task.repoId)
+  }
+  if (repoIdOf.size === 0) return sidebarProjectKeyOfTask
+  const home = new Map<string, { key: string; rank: number }>()
+  for (const task of counted) {
+    const key = sidebarProjectKeyOfTask(task)
+    const id = repoIdOf.get(key)
+    if (!id) continue
+    const rank = (isLocalTask(task) ? 0 : 2) + (task.kind === "main" ? 0 : 1)
+    const current = home.get(id)
+    if (!current || rank < current.rank) home.set(id, { key, rank })
+  }
+  return (task) => {
+    const key = sidebarProjectKeyOfTask(task)
+    const id = repoIdOf.get(key)
+    return (id && home.get(id)?.key) || key
+  }
+}
+
+/** `owner/name` of a `host/owner/name` repo id; a `root:` id has no readable name. */
+function repoIdTail(id: string): string | null {
+  return id.startsWith("root:") ? null : id.split("/").slice(-2).join("/")
+}
+
+/** A merged project as {@link sidebarRepoLabel} sees it. */
+export interface LabelledProject {
+  readonly repo: string
+  readonly repoId?: string
+}
+
+/**
+ * Header label for a project merged across machines (the web rail's
+ * `mergedLabel`): the repo basename, widened only to tell DIFFERENT repos
+ * apart — `owner/name` from the repo id (the whole id when even that
+ * repeats), else the path tail. Never the host: a project is one header
+ * wherever it is checked out, and each remote row carries its own mark.
+ */
+export function sidebarRepoLabel(project: LabelledProject, all: readonly LabelledProject[]): string {
+  const base = repoBasename(project.repo)
+  const others = all.filter((other) => other !== project && repoBasename(other.repo) === base)
+  if (others.length === 0) return base
+  const id = project.repoId
+  const tail = id ? repoIdTail(id) : null
+  if (id && tail) {
+    const tailRepeats = others.some((other) => other.repoId && other.repoId !== id && repoIdTail(other.repoId) === tail)
+    return tailRepeats ? id : tail
+  }
+  return sidebarProjectLabel(
+    project.repo,
+    others.map((other) => other.repo),
+  )
 }
 
 /** A repo as the label rules see it: its path plus the host it lives on. */
@@ -262,8 +362,7 @@ export function splitSidebarRows(rows: readonly SidebarRow[]): SidebarRowSection
  * a new rendered field MUST be added here or it renders stale.
  *
  * Excludes `createdAt`/`updatedAt`/`prStatus`: unrendered, and `updatedAt`
- * bumps on every `setActiveTask` touch, which would re-key the row on each
- * switch. `recent` ordering still sees `updatedAt` (in `buildRows`), and an
+ * moves on every real mutation, which would re-key the row each time. An
  * order change breaks reuse via `flatIndex`.
  */
 export function sameSidebarRowTask(a: Task, b: Task): boolean {

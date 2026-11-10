@@ -1,0 +1,22 @@
+{
+  "name": "@sma1lboy/rove-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rove as a desktop app: the rove-web client in its own window, driving the same local daemon as the TUI.",
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "start": "bun run build && electron .",
+    "pack": "bun run build && electron-builder --mac --dir",
+    "dist": "bun run build && electron-builder --mac",
+    "dist:linux": "bun run build && electron-builder --linux --x64 --publish never",
+    "dist:win": "bun run build && electron-builder --win --x64 --publish never",
+    "postinstall": "node scripts/setup-electron.mjs"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "@types/node": "^22.10.0"
+  }
+}

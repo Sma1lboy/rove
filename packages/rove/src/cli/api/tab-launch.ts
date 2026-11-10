@@ -4,8 +4,8 @@
  * command line from the caller: the editor comes from the user's own Settings, a pane from a registered
  * plugin's manifest, and a viewport runs nothing at all.
  *
- * Rows are written as `tab-new` writes them (`allocateTab`, before the spawn) and broadcast by the caller
- * over `terminalTab.add`, so an attached TUI absorbs them (`absorbTab`).
+ * Rows are opened as `tab-new` opens them (`allocateTab`: the daemon mints the id, before the spawn); the
+ * daemon publishes them on `tabs.changed`, and the caller still announces them over `terminalTab.add`.
  */
 
 import { realpathSync, statSync } from "node:fs"
@@ -18,10 +18,9 @@ import { ROVE_PRODUCT_NAME } from "../../product.ts"
 import { resolveEditorLaunch } from "../../tui/lib/editor-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import { type TerminalTab, findEditorTab } from "../../tui/workspace/terminal-tabs-core.ts"
-import { listSessions } from "./pty-delivery.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
-import { collision, createdFresh, hostTabIds } from "./tab-new.ts"
-import { allocateTab, closeTabsSnapshot, readTabsSnapshot } from "./tab-snapshot.ts"
+import { collision, createdFresh } from "./tab-new.ts"
+import { type TabsRpc, allocateTab, closeTabsSnapshot, readDaemonTabs } from "./tab-snapshot.ts"
 import type { SplitOutcome } from "./tab-split.ts"
 import { ApiError } from "./types.ts"
 
@@ -86,6 +85,7 @@ export function fileInside(worktree: string, rel: string): string {
 
 /** A new command tab running `command` in `cwd`, row first, spawn second; a refused spawn takes the row back. */
 async function spawnCommandTab(
+  client: TabsRpc,
   taskId: string,
   cwd: string,
   command: readonly string[],
@@ -98,12 +98,7 @@ async function spawnCommandTab(
     "no PTY host to run the tab in — nothing was started; check `rove daemon status`, then retry",
   )
   try {
-    const taken = hostTabIds(await listSessions(host.rpc), taskId)
-    const tab = allocateTab(
-      taskId,
-      (id, ordinal) => ({ kind: "command", id, title, ordinal, command, ...(purpose ? { purpose } : {}) }),
-      taken,
-    )
+    const tab = await allocateTab(client, taskId, { kind: "command", title, command, ...(purpose ? { purpose } : {}) })
     const key = `${taskId}::${tab.id}`
     try {
       let open: PtyOpenResult
@@ -115,27 +110,27 @@ async function spawnCommandTab(
           defaultColors: readPersistedTerminalDefaultColors(),
         })
       } catch (error) {
-        closeTabsSnapshot(taskId, tab.id)
+        await closeTabsSnapshot(client, taskId, tab.id).catch(() => undefined)
         throw error
       }
       if (!createdFresh(open)) throw collision(taskId, key, retryArgs)
     } finally {
       await host.rpc.request("pty.detach", { key }).catch(() => {})
     }
-    return { tab: readTabsSnapshot(taskId)?.tabs.find((t) => t.id === tab.id) ?? tab, session: key }
+    return { tab, session: key }
   } catch (error) {
     if (error instanceof ApiError) throw error
     throw sessionFailed(
       taskId,
       `opening the tab failed for ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
-      "the PTY host or state.json refused the new tab — check `rove daemon status` and that state.json is writable, then retry",
+      "the PTY host or the daemon refused the new tab — check `rove daemon status`, then retry",
     )
   } finally {
     host.close()
   }
 }
 
-async function launchEditor(spec: Extract<LaunchSpec, { kind: "editor" }>): Promise<Launched> {
+async function launchEditor(client: TabsRpc, spec: Extract<LaunchSpec, { kind: "editor" }>): Promise<Launched> {
   const abs = fileInside(spec.worktree, spec.file)
   const launch = await resolveEditorLaunch(spec.worktree, abs, spec.line)
   if (!launch) {
@@ -144,9 +139,10 @@ async function launchEditor(spec: Extract<LaunchSpec, { kind: "editor" }>): Prom
     })
   }
   // The TUI keeps one editor slot per task; the old one goes only after the new one is up.
-  const snapshot = readTabsSnapshot(spec.taskId)
+  const snapshot = await readDaemonTabs(client, spec.taskId)
   const previous = snapshot ? findEditorTab(snapshot)?.id : undefined
   const opened = await spawnCommandTab(
+    client,
     spec.taskId,
     spec.worktree,
     ["sh", "-c", launch.command],
@@ -183,15 +179,20 @@ export function findPane(taskId: string, pane: string): PaneLaunch {
 }
 
 /** A `split` pane joins a terminal tab's split group; a `tab` pane, or one the tab can't take, opens its own tab. */
-async function launchPane(spec: Extract<LaunchSpec, { kind: "pane" }>, split: SplitPane): Promise<Launched> {
+async function launchPane(
+  client: TabsRpc,
+  spec: Extract<LaunchSpec, { kind: "pane" }>,
+  split: SplitPane,
+): Promise<Launched> {
   const pane = findPane(spec.taskId, spec.pane)
-  const snapshot = readTabsSnapshot(spec.taskId)
+  // No --tab: the tab some client focused last.
+  const snapshot = await readDaemonTabs(client, spec.taskId)
   const host = snapshot?.tabs.find((t) => t.id === (spec.hostTab ?? snapshot.activeId))
   if (pane.placement === "split" && host && host.kind !== "content") {
     const out = await split(spec.taskId, host.id, spec.worktree, pane)
     if (out.changed) return { tab: out.tab, session: `${spec.taskId}::${host.id}::${out.leaf}`, leaf: out.leaf }
   }
-  return spawnCommandTab(spec.taskId, spec.worktree, pane.argv, pane.title, undefined, [
+  return spawnCommandTab(client, spec.taskId, spec.worktree, pane.argv, pane.title, undefined, [
     "api",
     "tab-new",
     "--task-id",
@@ -206,30 +207,28 @@ async function launchPane(spec: Extract<LaunchSpec, { kind: "pane" }>, split: Sp
  * A viewport tab (`EngineTab.ptyTask`): the kanban `projectWorktree` placement shows the story's
  * worktree session inside the project workspace. Nothing is spawned; the session already runs.
  */
-function launchViewport(spec: Extract<LaunchSpec, { kind: "viewport" }>): Launched {
-  const shown = readTabsSnapshot(spec.view.id)?.tabs.find((t) => t.id === "tab-1")
+async function launchViewport(client: TabsRpc, spec: Extract<LaunchSpec, { kind: "viewport" }>): Promise<Launched> {
+  const shown = (await readDaemonTabs(client, spec.view.id))?.tabs.find((t) => t.id === "tab-1")
   const engine = shown?.kind === "engine" ? shown : undefined
-  const tab = allocateTab(spec.taskId, (id, ordinal) => ({
+  const tab = await allocateTab(client, spec.taskId, {
     kind: "engine",
-    id,
     title: null,
-    ordinal,
     ...(engine?.vendor ? { vendor: engine.vendor } : {}),
     sessionId: engine?.sessionId ?? null,
     // The session is already running; a spawn would start a second engine under the viewed key.
     spawned: true,
     ptyTask: { id: spec.view.id, worktree: spec.view.worktree },
-  }))
+  })
   return { tab, session: `${spec.view.id}::tab-1` }
 }
 
-export function launchTab(spec: LaunchSpec, split: SplitPane): Promise<Launched> {
+export function launchTab(client: TabsRpc, spec: LaunchSpec, split: SplitPane): Promise<Launched> {
   switch (spec.kind) {
     case "editor":
-      return launchEditor(spec)
+      return launchEditor(client, spec)
     case "pane":
-      return launchPane(spec, split)
+      return launchPane(client, spec, split)
     case "viewport":
-      return Promise.resolve(launchViewport(spec))
+      return launchViewport(client, spec)
   }
 }

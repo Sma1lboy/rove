@@ -56,6 +56,21 @@ function setup(listed: string[] = ["a.ts"]) {
 
 const task = { "get-task": () => ({ task: { worktreePath: "/wt/t1" } }) }
 
+describe("file.read", () => {
+  test("asks the verb for the file; a path that climbs out or a flag-like id never reaches it", async () => {
+    const { run } = setup()
+    const reply = { path: "docs/a.md", mime: "text/markdown", size: 1, base64: "IQ==" }
+    const { api, calls } = fakeApi({ "worktree-file": () => reply })
+    expect(await run("file.read", { taskId: "t1", path: "docs/a.md" }, api)).toEqual(reply)
+    expect(calls).toEqual([{ kind: "verb", name: "worktree-file", payload: ["--task-id=t1", "--path=docs/a.md"] }])
+    for (const path of ["../a.md", "/etc/a.md", "a/../../b.md"]) {
+      await expect(run("file.read", { taskId: "t1", path }, api)).rejects.toThrow("relative")
+    }
+    await expect(run("file.read", { taskId: "--force", path: "a.md" }, api)).rejects.toThrow("not a task id")
+    expect(calls).toHaveLength(1)
+  })
+})
+
 describe("files.list", () => {
   test("lists the task's worktree and flags truncation", async () => {
     const { run } = setup(["a", "b"])
@@ -93,6 +108,20 @@ describe("review notes", () => {
       await expect(run("review.add", { taskId: "t1", ...bad }, api)).rejects.toThrow()
     }
     expect(notes.data.get("t1")).toHaveLength(2)
+  })
+
+  test("edit rewrites one note's text in place and keeps its code, id and place in line", async () => {
+    const { run, notes } = setup()
+    const { api } = fakeApi({})
+    await run("review.add", { taskId: "t1", filePath: "a", line: 1, code: "+x", body: "one" }, api)
+    await run("review.add", { taskId: "t1", filePath: "a", line: 2, body: "two" }, api)
+    await run("review.edit", { taskId: "t1", id: "n1", body: "one, reworded" }, api)
+    expect(notes.data.get("t1")).toEqual([
+      { id: "n1", filePath: "a", line: 1, body: "one, reworded", code: "+x", createdAt: 1000 },
+      { id: "n2", filePath: "a", line: 2, body: "two", createdAt: 1000 },
+    ])
+    await expect(run("review.edit", { taskId: "t1", id: "nope", body: "x" }, api)).rejects.toThrow("no such note")
+    await expect(run("review.edit", { taskId: "t1", id: "n1", body: "  " }, api)).rejects.toThrow()
   })
 
   test("remove is destructive and drops exactly one note", async () => {
@@ -175,6 +204,27 @@ describe("review notes", () => {
       ["n1", 1000],
       ["late", undefined],
     ])
+  })
+
+  test("a second send for the same task while one is pending is refused, and the notes go out once", async () => {
+    const { run, notes } = setup()
+    await run("review.add", { taskId: "t1", filePath: "a", line: 1, body: "first" }, fakeApi({}).api)
+    const started = Promise.withResolvers<void>()
+    const delivered = Promise.withResolvers<{ delivered: boolean }>()
+    const slow = fakeApi({
+      ...task,
+      send: () => {
+        started.resolve()
+        return delivered.promise
+      },
+    })
+    const first = run("review.send", { taskId: "t1" }, slow.api)
+    await started.promise
+    await expect(run("review.send", { taskId: "t1" }, slow.api)).rejects.toThrow("already being sent")
+    delivered.resolve({ delivered: true })
+    expect(await first).toEqual({ sent: 1, delivered: true })
+    expect(slow.calls.filter((c) => c.name === "send")).toHaveLength(1)
+    expect(notes.data.get("t1")?.[0]?.sentAt).toBe(1000)
   })
 })
 

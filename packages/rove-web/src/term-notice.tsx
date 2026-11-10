@@ -1,0 +1,159 @@
+/**
+ * The strip over a terminal that has nothing running in it: a session that ended, was restored, never
+ * started, failed to attach, or lost its engine inside a still-running shell. Each state carries the
+ * next step, so a dead pane is never a dead end.
+ */
+
+import { useState } from "react"
+import { t, useLocale } from "./i18n/index.ts"
+import type { AppModel } from "./model.ts"
+import { NewChatDialog } from "./new-chat-dialog.tsx"
+import { SettingsDialog } from "./settings-view.tsx"
+import type { Notice } from "./term-contract.ts"
+import { dialog, toast } from "./ui.ts"
+import { Button } from "./ui/button.tsx"
+import { termNotice } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
+
+/** The tab's engine ended while its fallback shell kept the session up (the daemon marked the tab dead). */
+export interface EngineExit {
+  readonly code: number | null
+  /** When the daemon marked it (ms epoch): a retry that dies again is a new exit. */
+  readonly since: number
+}
+
+function noticeText(notice: Notice): string {
+  switch (notice.kind) {
+    case "restored":
+      return t("workspace.restored")
+    case "notLive":
+      return t("workspace.tabNotLive")
+    case "exited":
+      return t("workspace.exited", { code: notice.code ?? "?" })
+    case "failed":
+      return t("workspace.attachFailed", { message: notice.message })
+    case "none":
+      return ""
+  }
+}
+
+export function TermNotice(props: {
+  readonly notice: Notice
+  readonly engineExit: EngineExit | null
+  readonly model: AppModel
+  readonly taskId: string
+  readonly revive: { readonly busy: boolean; readonly error: string | null }
+  /** The dead tab: its conversation is what "continue in another engine" carries over. */
+  readonly tabId?: string
+  /** Reopen the tab's own session; `true` also replaces a running one whose engine has exited. Absent for a split pane. */
+  readonly onReopen?: (restartExited: boolean) => void
+  /** Attach again after a failed attach. */
+  readonly onRetryAttach?: () => void
+  /** The engine's usage limit is reached: a strip offers the move to another engine. Dead/restored/failed notices win. */
+  readonly usageLimit?: boolean
+  /** Hide the usage-limit strip for this limit episode. */
+  readonly onDismissLimit?: () => void
+}) {
+  useLocale()
+  const { notice, engineExit, model, taskId, tabId, revive } = props
+  const lostEngine = notice.kind === "none" ? engineExit : null
+  const limited = notice.kind === "none" && !lostEngine && props.usageLimit === true && !revive.error
+  const [resuming, setResuming] = useState(false)
+  if (notice.kind === "none" && !lostEngine && !limited) return null
+  // The daemon already knows when it will retry; name it, and offer to not wait.
+  const resumeAt = limited
+    ? model.tasks.get()?.attention.find((row) => row.taskId === taskId && row.state === "rate_limited")?.resumeAt
+    : undefined
+
+  const reopenable = notice.kind === "notLive" || notice.kind === "restored" || notice.kind === "exited"
+  const gone = notice.kind === "exited" || lostEngine !== null
+  const text = revive.error
+    ? t("workspace.reopenFailed", { message: revive.error })
+    : lostEngine
+      ? t("workspace.engineExited", { code: lostEngine.code ?? "?" })
+      : limited
+        ? resumeAt
+          ? t("workspace.usageLimitUntil", {
+              time: new Date(resumeAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            })
+          : t("workspace.usageLimit")
+        : noticeText(notice)
+
+  return (
+    <div className={termNotice(notice.kind === "failed" || !!revive.error)}>
+      <span>{text}</span>
+      {props.onReopen && (reopenable || lostEngine) && (
+        <button
+          type="button"
+          className={LINK}
+          disabled={revive.busy}
+          onClick={() => props.onReopen?.(lostEngine !== null)}
+        >
+          {revive.busy ? t("workspace.reopening") : lostEngine ? t("workspace.retry") : t("workspace.reopen")}
+        </button>
+      )}
+      {notice.kind === "failed" && props.onRetryAttach && (
+        <button type="button" className={LINK} onClick={props.onRetryAttach}>
+          {t("workspace.retry")}
+        </button>
+      )}
+      {limited && (
+        <>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
+          <Button
+            variant="link"
+            hit="tight"
+            disabled={resuming}
+            onClick={() => {
+              setResuming(true)
+              model.client
+                .request("task.resumeQuota", { taskId })
+                .catch((err) => toast(err instanceof Error ? err.message : String(err), "error"))
+                .finally(() => setResuming(false))
+            }}
+          >
+            {resuming ? t("workspace.resumingQuota") : t("workspace.resumeQuota")}
+          </Button>
+          <Button variant="link" hit="tight" onClick={props.onDismissLimit}>
+            {t("workspace.dismiss")}
+          </Button>
+        </>
+      )}
+      {gone && (
+        <>
+          <button
+            type="button"
+            className={LINK}
+            onClick={() => dialog.set(<SettingsDialog model={model} section="engines" />)}
+          >
+            {t("workspace.engineSettings")}
+          </button>
+          <button
+            type="button"
+            className={LINK}
+            onClick={() => dialog.set(<NewChatDialog model={model} taskId={taskId} />)}
+          >
+            {t("menu.newChatPick")}
+          </button>
+          <Button
+            variant="link"
+            hit="tight"
+            onClick={() =>
+              dialog.set(<NewChatDialog model={model} taskId={taskId} context="continue" sourceTabId={tabId} />)
+            }
+          >
+            {t("menu.continueEngine")}
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}

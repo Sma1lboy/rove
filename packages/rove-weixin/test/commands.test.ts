@@ -28,6 +28,10 @@ function fakeOps(overrides: Partial<RoveOps> = {}): RoveOps {
     gates: async () => [],
     answerGate: mock(async () => ({ delivered: true })),
     clearReport: mock(async () => {}),
+    notifyingRoutineRuns: async () => [],
+    openAgentTask: async () => ({ taskId: "01AGENT" }),
+    newConversation: async () => ({ tab: "tab-1" }),
+    taskRunning: async () => false,
     ...overrides,
   }
 }

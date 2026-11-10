@@ -11,9 +11,10 @@ import { expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
-import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
+import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
@@ -25,12 +26,28 @@ const TABS: readonly TerminalTab[] = [
   { kind: "engine", id: "tab-3", title: null, ordinal: 3 },
 ]
 
+const SESSION = { alive: true, restored: false, tracked: true } as const
+
+/** The daemon's view (`row.status`): tab-2 runs, tab-3 errored. */
+function seedStatus(): void {
+  resetRowStatusForTests({
+    alpha: {
+      task: { kind: "attention", reason: "error", since: 1 },
+      tabs: {
+        "tab-2": { kind: "running", since: 1, state: "running", ...SESSION },
+        "tab-3": { kind: "attention", reason: "error", since: 1, state: "error", ...SESSION },
+      },
+    },
+  })
+}
+
 function strip(activeId: string) {
+  seedStatus()
   return (
     <TabStrip
+      taskId="alpha"
       tabs={TABS}
       activeId={activeId}
-      turnStates={new Map<string, ChatTabTurnState>([["tab-2", "running"]])}
       onSelect={() => {}}
       vendor="claude"
       liveTitles={new Map()}
@@ -85,7 +102,7 @@ test("desktop honours a stored `never`", async () => {
 
 test("narrow keeps each turn state its own tone, the way the wide strip does", async () => {
   // The narrow form used to paint the chip in `backgroundElement` — one
-  // colour for all seven states in `TURN_GLYPHS`, so `● running` and
+  // colour for every state, so `● running` and
   // `! error` differed only by glyph. Painting the tone ON the focusAccent
   // fill would not have fixed it either: error red lands at a 1.02 contrast
   // ratio there. The chip therefore sits outside the fill, on ambient.
@@ -95,16 +112,17 @@ test("narrow keeps each turn state its own tone, the way the wide strip does", a
     join(process.env.ROVE_HOME_DIR, ".config", "rove", "state.json"),
     JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
   )
-  const turns = new Map<string, ChatTabTurnState>([
-    ["tab-2", "running"],
-    ["tab-3", "error"],
-  ])
+  seedStatus()
+  const glyphs: Record<string, readonly string[]> = {
+    "tab-2": DEFAULT_GLYPHS.spinner,
+    "tab-3": [DEFAULT_GLYPHS.attention],
+  }
   async function chipFg(activeId: string) {
     const { spans } = await renderComponent(
       <TabStrip
+        taskId="alpha"
         tabs={TABS}
         activeId={activeId}
-        turnStates={turns}
         onSelect={() => {}}
         vendor="claude"
         liveTitles={new Map()}
@@ -112,8 +130,7 @@ test("narrow keeps each turn state its own tone, the way the wide strip does", a
       />,
       { width: 46, height: 4, providers: { kv: true } },
     )
-    const glyph = TURN_GLYPHS[turns.get(activeId) as ChatTabTurnState]
-    const span = (await spans()).lines[0]?.spans.find((s) => s.text.includes(glyph))
+    const span = (await spans()).lines[0]?.spans.find((s) => (glyphs[activeId] ?? []).some((g) => s.text.includes(g)))
     expect(span).toBeDefined()
     return span
   }

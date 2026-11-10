@@ -444,3 +444,44 @@ describe("read-output terminal tail shaping", () => {
     expect(shaped.truncated).toBe(false)
   })
 })
+
+describe("read-output in a directory several tasks share", () => {
+  // The newest session in the directory is a sibling's; the task's own is older.
+  const calls: string[] = []
+  const history = fakeHistory(
+    ["s-mine", "s-sibling"],
+    { "s-mine": [msg("mine")], "s-sibling": [msg("sibling")] },
+    calls,
+  )
+  const shared = { sharesWorkspace: true as const }
+
+  async function readShared(d: ReadOutputDeps, over: { source?: "auto" | "history" } = {}) {
+    return readTaskOutput({ taskId: "child", worktree: WORKTREE, source: over.source ?? "auto", ...shared }, d)
+  }
+
+  it("reads the task's own pinned conversation, not the directory's newest session", async () => {
+    const d = { ...deps(history, noTerminal()), ownHistory: () => ({ reader: history, sessionId: "s-mine" }) }
+    const page = await readShared(d)
+
+    expect(page.history?.sessionId).toBe("s-mine")
+    expect(texts(page)).toEqual(["mine"])
+    expect(calls).not.toContain("list")
+  })
+
+  it("falls back to its own terminal when it has no pinned conversation, never the sibling's transcript", async () => {
+    calls.length = 0
+    const term = fakeTerminal({ pid: 1, offset: 4, text: "own screen\n" })
+    const d = { ...deps(history, term.peek), ownHistory: () => "history_missing" as const }
+    const page = await readShared(d)
+
+    expect(page.source).toBe("terminal")
+    expect(page.fallbackReason).toBe("history_missing")
+    expect(calls).toEqual([])
+  })
+
+  it("keeps the directory's-newest rule for a task that has the directory to itself", async () => {
+    const page = await read(deps(history, noTerminal()))
+
+    expect(page.history?.sessionId).toBe("s-sibling")
+  })
+})

@@ -8,16 +8,26 @@
  * {@link coerceTask} writes fine and vanishes on the next daemon restart.
  */
 
+import { coerceAutoFix } from "@sma1lboy/rove-daemon/auto-fix-ci"
+import { SESSION_PR_CAP, canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
+import { pathSyntax, samePath } from "@sma1lboy/rove-daemon/path-identity"
+import { MAX_NOTES, coerceTodos } from "@sma1lboy/rove-daemon/task-notes"
+import { MULTI_REPO_CAP, REPO_NAME_RE } from "@sma1lboy/rove-daemon/task-tree"
+import { isWorkspaceBackendId } from "@sma1lboy/rove-daemon/workspace"
 import type {
   Task,
   TaskDeletionState,
   TaskDispatcher,
+  TaskExtraRepo,
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskRoutineLink,
+  TaskScheduledStart,
+  TaskSessionPr,
   TaskStatus,
   TaskWorkerReport,
+  TaskWorkspace,
 } from "../../types/task.ts"
 import { toTaskId } from "../../types/task.ts"
 import { coerceVendorId } from "../../types/vendor.ts"
@@ -50,13 +60,21 @@ export function coerceTask(value: unknown): Task | null {
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
   const scratch = kind === "dir" && v.scratch === true
+  const noProject = kind === "dir" && v.noProject === true
   const healedStatus: TaskStatus =
     kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
+  const scheduledStart = coerceScheduledStart(v.scheduledStart)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
+  const lineage = coerceLineage(v, kind)
   const routine = coerceRoutine(v.routine)
+  const extraRepos = coerceExtraRepos(v.extraRepos, v.repo)
+  const workspace = coerceWorkspace(v.workspace)
+  const sessionPrs = coerceSessionPrs(v.sessionPrs)
+  const todos = coerceTodos(v.todos)
+  const autoFixCi = coerceAutoFix(v.autoFixCi)
 
   const report = coerceWorkerReport(v.report)
   return {
@@ -67,8 +85,15 @@ export function coerceTask(value: unknown): Task | null {
     worktreePath: v.worktreePath,
     status: healedStatus,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
+    ...(v.kept === true ? { kept: true } : {}),
+    // The owner's own words and checklist: nothing else holds them.
+    ...(typeof v.notes === "string" && v.notes.length > 0 ? { notes: v.notes.slice(0, MAX_NOTES) } : {}),
+    ...(todos ? { todos } : {}),
+    // On/off and the attempt count: lost, a loop that was told to stop would start over.
+    ...(autoFixCi ? { autoFixCi } : {}),
     kind,
     ...(scratch ? { scratch: true } : {}),
+    ...(noProject ? { noProject: true } : {}),
     ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
     // Raw launch command; lost, the task falls back to its protocol's preset.
@@ -84,9 +109,12 @@ export function coerceTask(value: unknown): Task | null {
     ...(deletion ? { deletion } : {}),
     // A pending quota resume's durability rests on this timestamp being on disk.
     ...(quotaResume ? { quotaResume } : {}),
+    ...(scheduledStart ? { scheduledStart } : {}),
     ...(linkedWorkItem ? { linkedWorkItem } : {}),
     // Sub-task's route home in the collaboration loop; older records → undefined.
     ...(dispatcher ? { dispatcher } : {}),
+    ...lineage,
+    ...(v.deleteBranchPending === true ? { deleteBranchPending: true } : {}),
     // The only durable copy of the brief; the engine transcript dies with the engine.
     ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
     // Fork point: lost before the lazy worktree materialises, the branch is
@@ -95,13 +123,76 @@ export function coerceTask(value: unknown): Task | null {
     // Caller-chosen worktree dir; allocation is lazy, so losing it would hand
     // out a random name after the caller was told the path.
     ...(typeof v.worktreeName === "string" && v.worktreeName.trim().length > 0 ? { worktreeName: v.worktreeName } : {}),
+    // Lost, a moved row's delete/land would run against the project it was moved to, not the repo that owns its worktree.
+    ...(typeof v.gitRepo === "string" && v.gitRepo.trim().length > 0 ? { gitRepo: v.gitRepo } : {}),
+    // A secondary repo's worktree is only findable through this list: lost, it is an orphan nobody deletes.
+    ...(extraRepos ? { extraRepos } : {}),
+    // Lost, a cloned workspace reads as a plain worktree and loses its capabilities.
+    ...(workspace ? { workspace } : {}),
+    // PRs the session opened from other directories: the API is their only source, so a dropped list is unrecoverable.
+    ...(sessionPrs ? { sessionPrs } : {}),
     // Worker's outcome claim, read by `collect` long after the fact.
     ...(report ? { report } : {}),
     // Every send to this task owes a `rove api report`; lost, a loop quietly stops being held to it.
     ...(v.requireReport === true ? { requireReport: true } : {}),
+    // Unlisted under its parent; dropped, every checkout an agent cut for itself would show as a child session.
+    ...(v.worktreeOnly === true ? { worktreeOnly: true } : {}),
+    // Hidden from the sidebar; dropped, the row would reappear on its own.
+    ...(v.archived === true ? { archived: true } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
+}
+
+/** An unknown backend id (a newer daemon's) is dropped: the row falls back to the backend its `kind` implies. */
+function coerceWorkspace(value: unknown): TaskWorkspace | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const w = value as Record<string, unknown>
+  if (!isWorkspaceBackendId(w.backend)) return undefined
+  return { backend: w.backend, ...(typeof w.ref === "string" && w.ref.length > 0 ? { ref: w.ref } : {}) }
+}
+
+/**
+ * Secondary repos of a multi-repo task. A bad entry (unnamed, relative path,
+ * duplicate name or root, the primary again, past the cap) is dropped, never
+ * the row; none left → undefined.
+ */
+function coerceExtraRepos(value: unknown, primary: string): TaskExtraRepo[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out: TaskExtraRepo[] = []
+  for (const entry of value) {
+    if (out.length >= MULTI_REPO_CAP - 1) break
+    if (!entry || typeof entry !== "object") continue
+    const e = entry as Record<string, unknown>
+    if (typeof e.name !== "string" || !REPO_NAME_RE.test(e.name)) continue
+    if (typeof e.repo !== "string" || !pathSyntax(e.repo).isAbsolute(e.repo)) continue
+    const repo = e.repo
+    if (samePath(repo, primary) || out.some((o) => o.name === e.name || samePath(o.repo, repo))) continue
+    out.push({
+      name: e.name,
+      repo,
+      branch: typeof e.branch === "string" ? e.branch : "",
+      worktreePath: typeof e.worktreePath === "string" ? e.worktreePath : "",
+      ...(typeof e.baseRef === "string" && e.baseRef.trim().length > 0 ? { baseRef: e.baseRef } : {}),
+      ...(coercePRStatus(e.prStatus) ? { prStatus: coercePRStatus(e.prStatus) } : {}),
+    })
+  }
+  return out.length > 0 ? out : undefined
+}
+
+/** Attached session PRs; an entry without a GitHub PR url or an `addedAt` is dropped, never the row. */
+function coerceSessionPrs(value: unknown): TaskSessionPr[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out: TaskSessionPr[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue
+    const e = entry as Record<string, unknown>
+    const url = typeof e.url === "string" ? canonicalPrUrl(e.url) : undefined
+    if (!url || typeof e.addedAt !== "string" || out.some((o) => o.url === url)) continue
+    const status = coercePRStatus(e.status)
+    out.push({ url, addedAt: e.addedAt, ...(status ? { status } : {}) })
+  }
+  return out.length > 0 ? out.slice(-SESSION_PR_CAP) : undefined
 }
 
 /** A `update --report-*` claim; only its timestamp is required, so none → malformed. */
@@ -125,6 +216,38 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   return { taskId: v.taskId, tabId: v.tabId }
 }
 
+/** A task id pointing at the row itself is lineage corruption (a self-parent hides the row from every tree walk). */
+function coerceTaskRef(value: unknown, selfId: string): string | undefined {
+  return typeof value === "string" && value.length > 0 && value !== selfId ? value : undefined
+}
+
+/** Engine cwd below the worktree root: relative, no `..` segment, never escaping. */
+function coerceCwdSubpath(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0) return undefined
+  if (/^[/\\]|^[a-z]:/i.test(value)) return undefined
+  return value.split(/[/\\]/).includes("..") ? undefined : value
+}
+
+/**
+ * Tree lineage fields. `sharesWorkspaceOf` only means anything on a `dir`/`task`
+ * row (a sharer is never `main`), so it is dropped elsewhere rather than
+ * leaving a main row that the project coordinator would skip.
+ */
+function coerceLineage(v: Record<string, unknown>, kind: Task["kind"]): Partial<Task> {
+  const selfId = v.id as string
+  const parentTaskId = coerceTaskRef(v.parentTaskId, selfId)
+  const sharesWorkspaceOf = kind === "main" ? undefined : coerceTaskRef(v.sharesWorkspaceOf, selfId)
+  const cwdSubpath = coerceCwdSubpath(v.cwdSubpath)
+  // Same {taskId, tabId} session-pointer shape as the dispatcher.
+  const ptyAlias = coerceDispatcher(v.ptyAlias)
+  return {
+    ...(parentTaskId ? { parentTaskId: toTaskId(parentTaskId) } : {}),
+    ...(sharesWorkspaceOf ? { sharesWorkspaceOf: toTaskId(sharesWorkspaceOf) } : {}),
+    ...(cwdSubpath ? { cwdSubpath } : {}),
+    ...(ptyAlias ? { ptyAlias } : {}),
+  }
+}
+
 /** Routine back-pointer. No automation id → dropped, so the task reads as
  *  ordinary instead of folding behind an unresolvable routine section. */
 function coerceRoutine(value: unknown): TaskRoutineLink | undefined {
@@ -140,6 +263,14 @@ function coerceQuotaResume(value: unknown): TaskQuotaResumeState | undefined {
   if (typeof v.resumeAt !== "string" || v.resumeAt.length === 0) return undefined
   if (typeof v.requestedAt !== "string" || v.requestedAt.length === 0) return undefined
   return { resumeAt: v.resumeAt, requestedAt: v.requestedAt }
+}
+
+function coerceScheduledStart(value: unknown): TaskScheduledStart | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.at !== "string" || v.at.length === 0) return undefined
+  if (typeof v.prompt !== "string" || v.prompt.length === 0) return undefined
+  return { at: v.at, prompt: v.prompt }
 }
 
 function coerceLinkedWorkItem(value: unknown): TaskLinkedWorkItem | undefined {
@@ -187,9 +318,12 @@ function coercePRStatus(value: unknown): TaskPRStatus | undefined {
     ...(typeof v.number === "number" && Number.isFinite(v.number) ? { number: v.number } : {}),
     ...(typeof v.url === "string" ? { url: v.url } : {}),
     ...(typeof v.title === "string" ? { title: v.title } : {}),
+    ...(typeof v.additions === "number" && Number.isFinite(v.additions) ? { additions: v.additions } : {}),
+    ...(typeof v.deletions === "number" && Number.isFinite(v.deletions) ? { deletions: v.deletions } : {}),
     ...(typeof v.baseRef === "string" ? { baseRef: v.baseRef } : {}),
     ...(typeof v.reviewDecision === "string" ? { reviewDecision: v.reviewDecision } : {}),
     ...(typeof v.mergeable === "string" ? { mergeable: v.mergeable } : {}),
+    ...(typeof v.headSha === "string" ? { headSha: v.headSha } : {}),
     ...(typeof v.lastCheckedAt === "string" ? { lastCheckedAt: v.lastCheckedAt } : {}),
     ...(typeof v.lastError === "string" ? { lastError: v.lastError } : {}),
   }

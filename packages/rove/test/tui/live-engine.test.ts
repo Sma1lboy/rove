@@ -6,7 +6,7 @@
  * is released the moment that process is gone.
  */
 
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { TaskPtyLike } from "../../src/tui/panes/terminal/pty-types"
 import { createLiveEngines } from "../../src/tui/workspace/live-engine"
 
@@ -162,5 +162,42 @@ describe("createLiveEngines", () => {
     await store.probe()
     expect(store.get("a")).toBe("claude")
     store.dispose()
+  })
+
+  it("skips the ps walk on ticks where no tab printed, but still sees an engine that starts", async () => {
+    vi.useFakeTimers()
+    try {
+      let tree = IDLE
+      let lastOut: number | null = 1
+      let walks = 0
+      const tab = { shellPid: 100, lastOutputAtMs: () => lastOut } as unknown as TaskPtyLike
+      const store = createLiveEngines({
+        entries: () => [["a", tab]],
+        snapshot: async () => {
+          walks++
+          return tree
+        },
+        intervalMs: 1000,
+        maxQuietSkipMs: 5000,
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(walks).toBe(1)
+
+      // `claude` typed at the prompt: the echo and the engine's UI are output.
+      tree = TREE
+      lastOut = 2
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(walks).toBe(2)
+      expect(store.get("a")).toBe("claude")
+
+      // A silent change is still seen within maxQuietSkipMs.
+      tree = IDLE
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(walks).toBe(3)
+      store.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

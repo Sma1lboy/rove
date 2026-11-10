@@ -11,6 +11,8 @@ export const en = {
   /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
   chip: "↑ {version}",
   current: "current",
+  /** Settings › Updates result line when the registry has a newer release. */
+  available: "v{version} available",
   latest: "latest",
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
@@ -31,6 +33,11 @@ export const en = {
   updateComplete: "Rove update complete. Relaunch Rove to use the new version.",
   updateFailed: "Rove update failed with exit code {code}. Check the output above, then run `rove update` to retry.",
   pressAnyKey: "Press any key to close this update window.",
+  /** Web Update now: the installer runs on the computer serving the page, its output shown below. */
+  webRunning: "Running {command} …",
+  webInstalled:
+    "Installed. The daemon and this web bridge still run v{current}: run `rove daemon restart`, then restart `rove --web`. The page reloads itself once the bridge runs the new version.",
+  webStartFailed: "Could not start the updater: {error}",
   actions: {
     updateNow: "Update now",
     openRelease: "Open release",
@@ -102,6 +109,7 @@ export const zh: typeof en = {
   closeHint: "q / esc 关闭",
   chip: "↑ {version}",
   current: "当前",
+  available: "有新版本 v{version}",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",
   registryRetry: "请检查网络，然后关闭并重新打开更新页重试。",
@@ -116,6 +124,10 @@ export const zh: typeof en = {
   updateComplete: "Rove 更新完成。请重新启动 Rove 以使用新版本。",
   updateFailed: "Rove 更新失败，退出码为 {code}。请检查上方输出，再运行 `rove update` 重试。",
   pressAnyKey: "按任意键关闭此更新窗口。",
+  webRunning: "正在运行 {command} …",
+  webInstalled:
+    "已安装。daemon 和这个 web bridge 仍在跑 v{current}：先运行 `rove daemon restart`，再重启 `rove --web`。bridge 换到新版本后，页面会自动刷新。",
+  webStartFailed: "无法启动更新程序：{error}",
   actions: {
     updateNow: "立即更新",
     openRelease: "打开发布页",

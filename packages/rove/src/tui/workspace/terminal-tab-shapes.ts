@@ -79,12 +79,13 @@ export interface EngineTab extends TabBase {
    */
   readonly initialPrompt?: string | null
   /**
-   * Viewport onto another task's first engine session (kanban project chattab
-   * with its own worktree): attaches `<ptyTask.id>::tab-1`, cwd = that
-   * worktree, activity attributed to that task. Workspaces render one at a
-   * time, so both views never attach at once.
+   * Viewport onto another task's engine session: a kanban project chattab
+   * with its own worktree, or a migrated child whose conversation still runs
+   * in its parent's PTY. Attaches `<ptyTask.id>::<ptyTask.tabId ?? tab-1>`,
+   * cwd = that worktree, activity attributed to that task. Workspaces render
+   * one at a time, so both views never attach at once.
    */
-  readonly ptyTask?: { readonly id: string; readonly worktree: string }
+  readonly ptyTask?: { readonly id: string; readonly worktree: string; readonly tabId?: string }
 }
 
 /** Fixed argv (`openEditorTab`, the ctrl+e shell pick); closes and releases its PTY when the process exits. */

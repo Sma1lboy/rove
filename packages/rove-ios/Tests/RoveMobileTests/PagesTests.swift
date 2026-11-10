@@ -8,6 +8,16 @@ final class PagesTests: XCTestCase {
         try JSONDecoder().decode(T.self, from: Data(json.utf8))
     }
 
+    // MARK: First-party mods
+
+    func testModGateHidesUntilAnsweredShowsAllForAnOlderMacAndFollowsInstalls() throws {
+        let payload = try decode(#"{"mods":[{"id":"kanban","name":"Kanban","description":"","installed":true},{"id":"issues","name":"Issues","description":"","installed":false}]}"#, as: BuiltinModsPayload.self)
+        let loaded = ModGate.loaded(payload.mods)
+        XCTAssertEqual([ModGate.pending.shows("kanban"), ModGate.legacy.shows("issues")], [false, true])
+        XCTAssertEqual([loaded.shows("kanban"), loaded.shows("issues")], [true, false])
+        XCTAssertEqual([Route.board, .issues, .routines, .settings].filter(loaded.allows), [.board, .routines, .settings])
+    }
+
     // MARK: Issue store
 
     func testStoryWithAndWithoutLink() throws {
@@ -359,5 +369,31 @@ final class SettingsTests: XCTestCase {
         defaults.set(true, forKey: NotificationPrefs.key)
         XCTAssertTrue(NotificationPrefs.enabled(in: defaults))
         defaults.removePersistentDomain(forName: "rove.tests.notifications")
+    }
+
+    func testSearchMarksEveryCaseInsensitiveMatch() {
+        let parts = SearchLogic.segments("Refund the refund", needle: "refund")
+        XCTAssertEqual(parts.map(\.text), ["Refund", " the ", "refund"])
+        XCTAssertEqual(parts.map(\.hit), [true, false, true])
+    }
+}
+
+final class MachinesLogicTests: XCTestCase {
+    func testAMachineReadsItsStateAndTroubleInOneLine() {
+        func label(_ state: String, version: String? = nil) -> String {
+            MachinesLogic.label(MachineRow(alias: "a", hostLabel: "narwhal", state: state, version: version))
+        }
+        XCTAssertEqual(label("online", version: "0.9.1"), "narwhal · v0.9.1")
+        XCTAssertEqual(label("offline"), "narwhal · offline")
+        XCTAssertEqual(label("mismatch", version: "0.9.1"), "narwhal · ⚠ v0.9.1 (protocol mismatch)")
+        XCTAssertEqual(MachineRow(alias: "a", hostLabel: "", state: "online").alias, "a")
+    }
+
+    func testOnlyAMachinesOwnNonRoutineTasksShow() throws {
+        func row(_ json: String) throws -> TaskRow { try JSONDecoder().decode(TaskRow.self, from: Data(json.utf8)) }
+        let mine = try row(#"{"id":"1","title":"t","machine":{"id":"a"},"routine":false}"#)
+        let routine = try row(#"{"id":"2","title":"t","machine":{"id":"a"},"routine":true}"#)
+        let local = try row(#"{"id":"3","title":"t"}"#)
+        XCTAssertEqual(MachinesLogic.tasks([mine, routine, local], machine: "a").map(\.id), ["1"])
     }
 }

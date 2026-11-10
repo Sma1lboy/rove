@@ -12,18 +12,22 @@ brand:
 metadata_version: "1.0.0"
 product:
   category: "terminal developer tool"
-  positioning: "A local-first TUI for running parallel AI coding sessions as git worktrees, hosted engine sessions, and branches."
+  positioning: "All your coding agents, in one place. An agentic development environment (ADE) for the terminal: Claude Code, Codex, Copilot and more work side by side in isolated git worktrees and hand tasks to each other."
   audience:
     - "AI coding power users"
     - "developers who work inside terminals, tmux, SSH, and local devboxes"
   value_props:
+    - "every coding agent in one window"
+    - "when one agent hits its usage limit, another continues the task on the same branch"
+    - "agents hand tasks to each other and report back"
     - "parallel isolated worktrees"
     - "persistent hosted engine sessions"
     - "terminal-native task switching"
     - "local-first engine orchestration"
 voice:
-  tone: ["technical", "compressed", "confident", "terminal-native"]
-  avoid: ["generic AI glow", "glossy SaaS cards", "fake dashboards", "sports references"]
+  tone: ["plain", "concrete", "full sentences", "confident"]
+  # Promo copy names the reader's situation, then what happens: "Out of quota? Switch the task to another agent."
+  avoid: ["generic AI glow", "glossy SaaS cards", "fake dashboards", "sports references", "paired slogans that leave out who does what", "internal terms (worktree, PTY, daemon, fan-out) in promo copy"]
 visual_direction:
   accepted_styles:
     - "real TUI panes as the main subject"

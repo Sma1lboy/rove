@@ -10,62 +10,73 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
+import { isUnlistedCheckout } from "@/lib/worktree-only"
 import type { Task } from "@/types/task"
 import {
-  type LabelledRepo,
+  type LabelledProject,
+  type ProjectKeyOf,
   type TaskSortMode,
   compareName,
-  compareRecent,
+  compareNewest,
+  isNoProjectTask,
   sidebarProjectKeyOfTask,
-  sidebarProjectLabel,
+  sidebarProjectKeyResolver,
+  sidebarRepoLabel,
 } from "./groups"
 import { compareTaskGroup } from "./task-group-view"
 import { SCRATCH_SECTION_ID } from "./tree-ids"
 
-/** The label the scratch section carries; the renderer translates it. */
-const SCRATCH_SECTION_LABEL = "Scratch"
+/** The label the Ungrouped section carries; the renderer translates it. */
+const UNGROUPED_SECTION_LABEL = "Ungrouped"
 
-/**
- * One sidebar section: a project, or the single scratch bench. `tasks` is the
- * whole visible membership; how much of the routine tail each surface draws
- * is presentation, not membership.
- */
+/** One sidebar section: a project, or the single scratch bench. */
 export interface SidebarGroup {
   /** Project key, or `SCRATCH_SECTION_ID` for the scratch bench. */
   readonly key: string
-  /** The repo path the header names; `""` for scratch. */
+  /** The HOME checkout's repo path (see `sidebarProjectKeyResolver`); `""` for scratch. */
   readonly repo: string
   /** Header text, already disambiguated against every other VISIBLE group —
    *  so `~/work/api` and `~/oss/api` never both render as `api`. */
   readonly label: string
-  /** Which machine's checkout this is; `"local"` for this computer. */
+  /** The home checkout's machine — what a project action on the header acts
+   *  on; `"local"` when the repo is checked out on this computer. Its tasks
+   *  may live on any machine (each keeps its own `origin`). */
   readonly machineId: string
-  /** Every visible task, in render order: the user's own, then routines. */
+  /** Every visible task, in render order. */
   readonly tasks: readonly Task[]
-  /** How many of the TRAILING `tasks` are routine sessions. */
-  readonly routineCount: number
 }
 
 export interface SidebarGroupInput {
   readonly tasks: readonly Task[]
   /** Tabs per task id, read only for size, as a tri-state: absent = "never
-   *  mounted since restart" (every task on a fresh TUI), not "has no tabs". */
+   *  mounted since restart" (every task on a fresh TUI), not "has no tabs" —
+   *  unless {@link tabsDaemonBacked}, which reads absent as none for a main row. */
   readonly tabsByTask: ReadonlyMap<string, { readonly length: number }>
+  /** `tabsByTask` is the daemon's tab store (or on its way from it): it holds a
+   *  record for every task with tabs, so a main row with no entry has no tabs,
+   *  as a fresh `rove api add --repo` main. Absent from a TUI with no daemon
+   *  store, where no entry only says "never opened". */
+  readonly tabsDaemonBacked?: boolean
   /** Task sort applied within each group. Defaults to input order. */
   readonly sortMode?: TaskSortMode
   /** Live activity per task id — read only by `attention` sort, which ranks by
    *  the derived task group and so needs the entry, not just its state. */
   readonly activityOf?: (taskId: string) => TaskEngineState | undefined
+  /** Tasks a tabless main row stays listed for: the selection, and the project
+   *  whose Reorder is on. Any other main with known-empty tabs and no child
+   *  task is not a row (see {@link idleMainIds}). */
+  readonly keepTaskIds?: ReadonlySet<string>
 }
 
-/** True for a task the sidebar sorts to the end of its project. */
-function isRoutineTask(task: Task): boolean {
-  return task.routine !== undefined
-}
-
-/** True for a task that belongs to the scratch bench rather than a project. */
-function isScratchTask(task: Task): boolean {
-  return task.kind === "dir" && task.scratch === true
+/** One project while it is being gathered: the home checkout plus every machine's tasks. */
+interface ProjectEntry {
+  repo: string
+  repoId?: string
+  machineId: string
+  /** The home checkout's main has been seen (it heads `mains`). */
+  homeMain: boolean
+  mains: Task[]
+  rest: Task[]
 }
 
 /**
@@ -88,16 +99,63 @@ function isClosedDownProject(tasks: readonly Task[], tabsByTask: SidebarGroupInp
   return tabsByTask.get(only.id)?.length === 0
 }
 
-/** The host a group's header displays under — undefined for the local
- *  machine, so a machine-free sidebar carries no host anywhere. */
-function hostLabelOf(task: Task | undefined): string | undefined {
-  const origin = task?.origin
-  if (!origin || origin.machineId === "local") return undefined
-  return origin.hostLabel || origin.machineId
+/**
+ * Main rows with nothing to show: no tabs, not selected or held open, and no
+ * child task nested under them. Hidden, not deleted — the main still anchors
+ * the project (header, order, `rove api send`), and the row is back the moment
+ * it has a tab, a child or the selection.
+ *
+ * "No tabs" is a known-empty entry, or — for a task on this computer, against
+ * the daemon's store, which keeps a record for every task that has tabs — no
+ * entry at all. Without that store an absent entry is "never mounted since
+ * restart" and never hides, as in {@link isClosedDownProject}; a task on
+ * another machine is never in the daemon's store here, so absent never hides it.
+ * Before `tabs.list` lands the daemon-backed reading already holds, so a main
+ * row never shows and then vanishes at boot.
+ *
+ * Way back to a hidden main row: New task → Existing → "the project itself"
+ * (selects it), or the header's Reorder, which holds it open while moving.
+ */
+function idleMainIds(input: SidebarGroupInput, tasks: readonly Task[]): ReadonlySet<string> {
+  const parents = new Set<string>()
+  for (const task of tasks)
+    if (task.parentTaskId !== undefined && task.routine === undefined) parents.add(task.parentTaskId)
+  const idle = new Set<string>()
+  for (const task of tasks) {
+    if (task.kind !== "main" || input.keepTaskIds?.has(task.id) || parents.has(task.id)) continue
+    const tabs = input.tabsByTask.get(task.id)
+    const local = (task.origin?.machineId ?? "local") === "local"
+    if (tabs ? tabs.length === 0 : local && input.tabsDaemonBacked === true) idle.add(task.id)
+  }
+  return idle
+}
+
+/** Not on its way out (a queued or running delete leaves every list at once) and not a bare checkout under its parent. */
+function isListed(task: Task): boolean {
+  const phase = task.deletion?.phase
+  return phase !== "queued" && phase !== "running" && !isUnlistedCheckout(task)
+}
+
+/**
+ * The tasks the sidebar hides as archived, in input order, for the Archived
+ * fold. Same deletion rule as the sections.
+ */
+export function archivedTasks(tasks: readonly Task[]): Task[] {
+  return tasks.filter((task) => task.archived === true && isListed(task) && !isRoutineRun(task))
+}
+
+/** A routine's run: it lives on the Routines page, not in the sidebar (the web rail's rule). */
+function isRoutineRun(task: Task): boolean {
+  return task.routine !== undefined
 }
 
 /**
  * Build the sidebar's sections.
+ *
+ * ONE list of projects from every machine (Claude Desktop's sidebar, the web
+ * rail): checkouts of the same repo (`repoId`) on several machines are one
+ * project, its tasks from every machine under it; which machine a row lives
+ * on is the row's business (`task.origin`), not a section of its own.
  *
  * Projects follow their MAIN task's stored order (the partition `moveTask`
  * reorders, so project move-mode visibly moves the header); keying on any
@@ -116,39 +174,56 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // before that write — so nothing hides for a delete that didn't happen.
   // `error` stays visible: the failed task returning (with its `delete failed`
   // caption) is the only thing that corrects the vanished row.
-  const tasks = input.tasks.filter((task) => {
-    const phase = task.deletion?.phase
-    return phase !== "queued" && phase !== "running"
-  })
+  // Archived tasks leave too (they live in the Archived fold, `archivedTasks`),
+  // so a project left with only its main folds like any idle project; so do
+  // routine runs, so a project with only scheduled output folds the same way.
+  const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true && !isRoutineRun(task))
   const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
   // `default` keeps orchestrator order and sorts nothing.
   const compare =
     sortMode === "recent"
-      ? compareRecent
+      ? compareNewest
       : sortMode === "attention"
         ? compareTaskGroup(input.activityOf ?? (() => undefined))
         : sortMode === "name"
           ? compareName
           : null
 
-  // Scratch tasks never mint a project header — their cwd is temporary, so it
-  // would name a home they don't have. One Scratch section above all projects.
-  const scratchTasks = tasks.filter(isScratchTask)
+  // No-project tasks never mint a project header — their cwd is temporary or
+  // synthetic, so it would name a home they don't have. One section above all projects.
+  const scratchTasks = tasks.filter(isNoProjectTask)
   if (compare) scratchTasks.sort(compare)
 
-  const byProject = new Map<string, { repo: string; tasks: Task[] }>()
+  const keyOf = sidebarProjectKeyResolver(tasks)
+  const byProject = new Map<string, ProjectEntry>()
   for (const task of tasks) {
-    if (isScratchTask(task)) continue
-    const key = sidebarProjectKeyOfTask(task)
-    const entry = byProject.get(key) ?? { repo: task.repo, tasks: [] }
-    // Main's `repo` wins, keeping the header stable if they ever disagree.
-    if (task.kind === "main") {
-      entry.repo = task.repo
-      entry.tasks.unshift(task)
-    } else {
-      entry.tasks.push(task)
+    if (isNoProjectTask(task)) continue
+    const key = keyOf(task)
+    const entry = byProject.get(key) ?? {
+      repo: task.repo,
+      machineId: task.origin?.machineId ?? "local",
+      homeMain: false,
+      mains: [],
+      rest: [],
     }
+    if (!entry.repoId && task.repoId) entry.repoId = task.repoId
+    // The header names the HOME checkout (the one the key came from), its
+    // main's `repo` winning so the header stays stable if they disagree.
+    const home = sidebarProjectKeyOfTask(task) === key
+    if (home && !entry.homeMain) {
+      entry.repo = task.repo
+      entry.machineId = task.origin?.machineId ?? "local"
+      entry.homeMain = task.kind === "main"
+      // The home main heads the project; other machines' mains follow it.
+      if (entry.homeMain) {
+        entry.mains.unshift(task)
+        byProject.set(key, entry)
+        continue
+      }
+    }
+    if (task.kind === "main") entry.mains.push(task)
+    else entry.rest.push(task)
     byProject.set(key, entry)
   }
 
@@ -157,7 +232,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   const seen = new Set<string>()
   for (const task of tasks) {
     if (task.kind !== "main") continue
-    const key = sidebarProjectKeyOfTask(task)
+    const key = keyOf(task)
     if (!seen.has(key)) {
       seen.add(key)
       orderedKeys.push(key)
@@ -170,55 +245,53 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     }
   }
 
-  if (compare) {
-    for (const entry of byProject.values()) {
-      entry.tasks.sort((a, b) => {
-        // Main stays first; only regular worktrees reorder.
-        if (a.kind === "main" && b.kind !== "main") return -1
-        if (b.kind === "main" && a.kind !== "main") return 1
-        return compare(a, b)
-      })
-    }
+  // Mains stay first; only regular worktrees reorder.
+  const ordered = new Map<string, Task[]>()
+  for (const [key, entry] of byProject) {
+    if (compare) entry.rest.sort(compare)
+    ordered.set(key, [...entry.mains, ...entry.rest])
   }
 
   // Labels disambiguate against every other VISIBLE project (`~/work/api` vs
   // `~/oss/api` must not both read `api`). Hidden projects are dropped first
   // so they can't influence that.
+  const idle = idleMainIds(input, tasks)
   const visibleKeys = orderedKeys.filter((key) => {
-    const entry = byProject.get(key)
-    return entry ? !isClosedDownProject(entry.tasks, tabsByTask) : false
+    const list = ordered.get(key)
+    return list ? !isClosedDownProject(list, tabsByTask) : false
   })
-  const projectRepos: LabelledRepo[] = visibleKeys.map((key) => {
+  const labelled = new Map<string, LabelledProject>()
+  for (const key of visibleKeys) {
     const entry = byProject.get(key)
-    return { repo: entry?.repo ?? "", hostLabel: hostLabelOf(entry?.tasks[0]) }
-  })
+    if (entry) labelled.set(key, { repo: entry.repo, ...(entry.repoId ? { repoId: entry.repoId } : {}) })
+  }
+  const projects = [...labelled.values()]
 
   const groups: SidebarGroup[] = []
   if (scratchTasks.length > 0) {
     groups.push({
       key: SCRATCH_SECTION_ID,
       repo: "",
-      label: SCRATCH_SECTION_LABEL,
+      label: UNGROUPED_SECTION_LABEL,
       machineId: "local",
       tasks: scratchTasks,
-      // Never a routine: a schedule files output under the repo it ran in.
-      routineCount: 0,
     })
   }
   for (const key of visibleKeys) {
     const entry = byProject.get(key)
-    if (!entry) continue
-    // Routines go last so a schedule's output never pushes the user's own
-    // tasks down the pane.
-    const own = entry.tasks.filter((task) => !isRoutineTask(task))
-    const routines = entry.tasks.filter(isRoutineTask)
+    const list = ordered.get(key)
+    const project = labelled.get(key)
+    if (!entry || !list || !project) continue
+    // A project left with no row at all keeps its main: closing it down is `isClosedDownProject`'s call, on
+    // known-empty tabs only, so a repo that was just saved never vanishes on an absent entry.
+    const kept = list.filter((task) => !idle.has(task.id))
+    const shown = kept.length > 0 ? kept : list
     groups.push({
       key,
       repo: entry.repo,
-      label: sidebarProjectLabel(entry.repo, projectRepos, hostLabelOf(entry.tasks[0])),
-      machineId: entry.tasks[0]?.origin?.machineId ?? "local",
-      tasks: [...own, ...routines],
-      routineCount: routines.length,
+      label: sidebarRepoLabel(project, projects),
+      machineId: entry.machineId,
+      tasks: shown,
     })
   }
   return groups
@@ -230,10 +303,11 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
  * caller names keys, it doesn't render rows.
  */
 export function projectKeysOf(tasks: readonly Task[]): string[] {
+  const keyOf = sidebarProjectKeyResolver(tasks)
   const keys: string[] = []
   const seen = new Set<string>()
   for (const task of tasks) {
-    const key = ownerProjectKey(task)
+    const key = ownerProjectKey(task, keyOf)
     if (key === null || seen.has(key)) continue
     seen.add(key)
     keys.push(key)
@@ -241,18 +315,11 @@ export function projectKeysOf(tasks: readonly Task[]): string[] {
   return keys
 }
 
-/** The project a task belongs to — exported for `tree-search`, which prunes by
- *  the same grouping this module builds with. A `dir` task's project is its
- *  directory; a scratch task's is the one shared bench. */
-export function ownerProjectKey(task: Task): string | null {
-  if (isScratchTask(task)) return SCRATCH_SECTION_ID
-  return sidebarProjectKeyOfTask(task)
-}
-
-/**
- * A group's own tasks, minus the routine tail. Both surfaces hide that tail at
- * rest, so this — not `group.tasks` — is "the tasks on screen".
- */
-export function ownTasks(group: SidebarGroup): readonly Task[] {
-  return group.tasks.slice(0, group.tasks.length - group.routineCount)
+/** The project a task belongs to. A `dir` task's project is its directory; a
+ *  scratch task's is the one shared bench. `keyOf` is the list's
+ *  {@link sidebarProjectKeyResolver} — without it a task on another machine
+ *  answers its own checkout, not the merged project. */
+export function ownerProjectKey(task: Task, keyOf: ProjectKeyOf = sidebarProjectKeyOfTask): string | null {
+  if (isNoProjectTask(task)) return SCRATCH_SECTION_ID
+  return keyOf(task)
 }

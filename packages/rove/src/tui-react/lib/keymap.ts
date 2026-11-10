@@ -128,18 +128,33 @@ function bumpStackVersion(): void {
   for (const listener of stackListeners) listener()
 }
 
+/** Keyed by the table itself: the terminal pane hands over the same ~850 entries on every output frame. */
+const bindingTableSignatures = new WeakMap<readonly Binding[], string>()
+
 function bindingReachabilitySignature(config: BindingsConfig): string {
-  const bindings = config.bindings
-    .map((binding) =>
-      [
-        binding.id ?? "",
-        binding.key,
-        binding.prefix === true ? "p" : "d",
-        binding.passthrough === true ? "i" : "u",
-      ].join(":"),
-    )
-    .join("|")
+  let bindings = bindingTableSignatures.get(config.bindings)
+  if (bindings === undefined) {
+    bindings = config.bindings
+      .map((binding) =>
+        [
+          binding.id ?? "",
+          binding.key,
+          binding.prefix === true ? "p" : "d",
+          binding.passthrough === true ? "i" : "u",
+        ].join(":"),
+      )
+      .join("|")
+    bindingTableSignatures.set(config.bindings, bindings)
+  }
   return `${config.enabled === false ? "off" : "on"};${config.modal === true ? "modal" : "plain"};${bindings}`
+}
+
+/** Listen for registration/reachability changes without re-rendering. */
+export function subscribeBindingStack(listener: () => void): () => void {
+  stackListeners.add(listener)
+  return () => {
+    stackListeners.delete(listener)
+  }
 }
 
 /** Re-render when registrations or their current reachability change. */

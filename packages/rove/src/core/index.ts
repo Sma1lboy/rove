@@ -2,6 +2,7 @@
 
 import { homedir } from "node:os"
 import { readRoveHomeDirEnv } from "@sma1lboy/rove-daemon/compat-env"
+import { teardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import {
   auditDeletionBranchKept,
   auditDeletionResidue,
@@ -35,12 +36,16 @@ export async function createRoveCore(options: RoveCoreOptions = {}): Promise<Rov
     worktrees,
     // These three go to daemon.log's deletion audit trail, where TROUBLESHOOTING
     // sends users; the task row is gone by then, so it's the only record.
-    onSalvage: (taskId, salvage) =>
-      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo, salvage.uncaptured),
+    onSalvage: (taskId, salvage, repo) =>
+      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, repo, salvage.uncaptured),
     onWorktreeResidue: (taskId, residue) => auditDeletionResidue(String(taskId), residue.path, residue.reason),
     onBranchKept: (taskId, kept) => auditDeletionBranchKept(String(taskId), kept.branch, kept.reason),
-    // Tear down before a landed worktree is unlinked, as task deletion does.
-    tearDownSession: (taskId) => tearDownTaskSessionAdapter(String(taskId)),
+    // Tear down before a landed worktree is unlinked, as task deletion does; children keep their aliased PTYs.
+    tearDownSession: (taskId) =>
+      tearDownTaskSessionAdapter(
+        String(taskId),
+        teardownScope(store.list(), String(taskId), new Set([String(taskId)])),
+      ),
   })
 
   // Older rove rows are in the sidebar but not the picker. Idempotent, once per boot.

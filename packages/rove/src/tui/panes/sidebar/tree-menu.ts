@@ -2,32 +2,38 @@
  * The tree sidebar's right-click menu per row.
  *
  * Rule: **a row's menu is what that row's KEYBOARD already does** — every
- * entry routes to an existing callback. Tab rows list per-task verbs because
- * the chords already walk up from a tab to its worktree (`withCursorTask`).
+ * entry routes to an existing callback.
  *
- * Exceptions (`setStatus`, `copyId`, `copyTab`, `closeOtherTabs`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
- * `runAgain`, `moveToTop`) are menu-only until the owner agrees a chord (AGENTS.md,
+ * Exceptions (`newTaskFromBranch`, `setStatus`, `copyId`, `copyBranch`, `copyPath`, `land`, `fieldNotes`,
+ * `runAgain`, `moveToTop`, `toggleFold`, `resolveConflicts`, `archive`) are menu-only until the owner agrees a chord (AGENTS.md,
  * "Keybindings"); then the entry mirrors it like the rest.
  *
  * "New chat" routes to the row's workspace ctrl+e picker, like pressing the
- * chord there. No Expand/Collapse entries: projects don't fold (the routines
- * row is toggled by opening it).
+ * chord there. A task with children offers Collapse/Expand; projects don't
+ * fold, and the routines row is toggled by opening it.
  *
  * Labels are i18n KEYS; the renderer runs them through `t()`.
  */
 
+import { rollupPr } from "@/orchestrator/task-tree"
+import { isRemoteRepoKey } from "@/state/repos"
 import type { Task } from "@/types/task"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
+  | "moveToProject"
   | "open"
+  | "toggleFold"
   | "forgetProject"
   | "fieldNotes"
-  | "closeTab"
-  | "closeOtherTabs"
   | "newChat"
   | "newShell"
+  | "continueEngine"
+  | "newScratchChat"
+  | "newScratchShell"
   | "newTask"
+  | "newTaskFromBranch"
   | "rename"
   | "pin"
   | "reorder"
@@ -35,7 +41,6 @@ export type TreeMenuAction =
   | "runAgain"
   | "setStatus"
   | "copyId"
-  | "copyTab"
   | "copyBranch"
   | "copyPath"
   | "openEditor"
@@ -44,7 +49,9 @@ export type TreeMenuAction =
   | "fixChecks"
   | "rerunChecks"
   | "syncBase"
+  | "resolveConflicts"
   | "land"
+  | "archive"
   | "delete"
 
 export interface TreeMenuItem {
@@ -61,12 +68,14 @@ export interface TreeMenuItem {
 }
 
 export interface TreeMenuContext {
-  /** Tabs on the row's worktree. Closing the LAST is allowed (the task re-opens on ⏎ / ctrl+e). */
-  readonly tabCount?: number
   /** Project rows: it has a `main` checkout, the handle every project move goes through. */
   readonly projectMovable?: boolean
   /** Project rows: already the topmost movable project, so "Move to top" would be dead. */
   readonly projectFirst?: boolean
+  /** Task rows: the worktree has a merge/rebase/cherry-pick/revert stopped on conflicts. */
+  readonly operationPaused?: boolean
+  /** Project rows: the Scratch section header, which stands for no repo. */
+  readonly scratchSection?: boolean
 }
 
 /** The ctrl+e picker, plus a direct shell tab (what the picker's "shell" choice mints). */
@@ -75,14 +84,43 @@ function newTabVerbs(): TreeMenuItem[] {
     { action: "newChat", labelKey: "tasks.menu.newChat", bindingId: "chat.tab.chooseEngine" },
     // No id: "shell" is a row inside the picker, not a chord.
     { action: "newShell", labelKey: "tasks.menu.newShell" },
+    { action: "continueEngine", labelKey: "tasks.menu.continueEngine", bindingId: "chat.tab.fork" },
   ]
+}
+
+/**
+ * A new task cut from this task's branch, so it stacks on the work in progress.
+ * Single-repo, local, materialised managed tasks only: the base must resolve in this repo.
+ */
+function stackVerbs(task: Task): TreeMenuItem[] {
+  const stackable =
+    workspaceCapabilities(task).ownsBranch &&
+    task.branch !== "" &&
+    !task.sharesWorkspaceOf &&
+    !task.extraRepos?.length &&
+    (task.origin?.machineId ?? "local") === "local" &&
+    !isRemoteRepoKey(task.repo)
+  return stackable ? [{ action: "newTaskFromBranch", labelKey: "tasks.menu.newTaskFromBranch" }] : []
+}
+
+/** Rows `update --project` accepts: top-level, local, single-repo, not a project or routine session. */
+function canMoveToProject(task: Task): boolean {
+  return (
+    task.kind !== "main" &&
+    !task.routine &&
+    !task.parentTaskId &&
+    !task.sharesWorkspaceOf &&
+    !task.extraRepos?.length &&
+    (task.origin?.machineId ?? "local") === "local" &&
+    !isRemoteRepoKey(task.repo)
+  )
 }
 
 /**
  * Per-task verbs for worktree and tab rows. Rule throughout: no entry beats a
  * dead entry — e.g. no pin on `main` (always pinned; `setPinned` no-ops).
  */
-function taskVerbs(task: Task): TreeMenuItem[] {
+function taskVerbs(task: Task, ctx: TreeMenuContext): TreeMenuItem[] {
   const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename", bindingId: "sidebar.rename" }]
   if (task.kind !== "main") {
     verbs.push({
@@ -97,6 +135,8 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Otherwise status is only settable via `rove api update --status`. Not danger-toned.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // Menu-only. Top-level, local, single-repo rows only: the rest refuse (`rove api update --project`).
+  if (canMoveToProject(task)) verbs.push({ action: "moveToProject", labelKey: "tasks.menu.moveToProject" })
   // The id `rove api ... --task-id` takes; recorded at creation, so always offered.
   verbs.push({ action: "copyId", labelKey: "tasks.menu.copyId" })
   // Copies need the string recorded: `main`/`dir` store `branch === ""`
@@ -113,29 +153,50 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine", bindingId: "tasks.cycleEngine" })
   // Feed the failing CI log to the engine; only `failing` has a log. Chord
   // `ctrl+a k` is proposed, not signed off (docs/design/keybinding-decisions.md).
-  if (task.prStatus?.checkState === "failing") {
+  // The rolled-up PR (any repo failing). The verbs act on the primary's PR number.
+  if (rollupPr(task)?.checkState === "failing") {
     verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks", bindingId: "files.fixChecks" })
     // Menu-only: for a red the user reads as flaky, not caused by the change.
     verbs.push({ action: "rerunChecks", labelKey: "tasks.menu.rerunChecks" })
   }
   // Merge base INTO the worktree (the `↓N` chip's action); gated like `land`.
   // Chord `ctrl+a u` is proposed, not signed off.
-  if (task.kind === "task" && task.branch !== "") {
+  if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase", bindingId: "files.syncBase" })
   }
+  // Menu-only: hand the paused operation's conflicts to the engine.
+  if (ctx.operationPaused === true) verbs.push({ action: "resolveConflicts", labelKey: "tasks.menu.resolveConflicts" })
   // Menu-only (landing's chord is the Worktrees page `l`). `landTask` throws
   // for `main`/`dir`; an unmaterialised task has no branch.
-  if (task.kind === "task" && task.branch !== "") {
+  if (workspaceCapabilities(task).ownsBranch && task.branch !== "") {
     verbs.push({ action: "land", labelKey: "tasks.menu.land" })
   }
-  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true, bindingId: "sidebar.delete" })
+  // Menu-only. Hides the row and its children; a project's main is the project itself.
+  if (task.kind !== "main") {
+    verbs.push({ action: "archive", labelKey: task.archived === true ? "tasks.menu.unarchive" : "tasks.menu.archive" })
+  }
+  // Say what goes: a `dir` task is a conversation in a folder the user owns; a project's main row ends its
+  // conversation and stays listed (Remove project lives on the project header).
+  verbs.push({
+    action: "delete",
+    labelKey: "tasks.menu.delete",
+    danger: true,
+    bindingId: "sidebar.delete",
+  })
   return verbs
 }
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
+  if (row.kind === "project" && ctx.scratchSection === true) {
+    // The Scratch section is no repo: only the two ways to start a task with no folder.
+    return [
+      { action: "newScratchChat", labelKey: "tasks.menu.newScratchChat" },
+      { action: "newScratchShell", labelKey: "tasks.menu.newShell" },
+    ]
+  }
   if (row.kind === "project") {
-    // `d` already forgets a project (behind a confirm). Field notes are
-    // menu-only; agents file them with `rove api note`.
+    // Remove project is menu-only (`d` on the main row ends its conversation instead). Field notes are
+    // menu-only too; agents file them with `rove api note`.
     const items: TreeMenuItem[] = [{ action: "newTask", labelKey: "tasks.menu.newTask", bindingId: "task.new" }]
     if (ctx.projectMovable) {
       if (!ctx.projectFirst) items.push({ action: "moveToTop", labelKey: "tasks.menu.moveToTop" })
@@ -144,26 +205,20 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     }
     items.push(
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
-      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true, bindingId: "sidebar.delete" },
+      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
     )
     return items
   }
   if (row.kind === "worktree") {
-    return [
-      { action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" },
-      ...newTabVerbs(),
-      ...taskVerbs(row.task),
-    ]
+    const items: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.open", bindingId: "sidebar.select" }]
+    if (row.fold) {
+      items.push({
+        action: "toggleFold",
+        labelKey: row.fold.collapsed ? "tasks.menu.expandChildren" : "tasks.menu.collapseChildren",
+      })
+    }
+    return [...items, ...newTabVerbs(), ...stackVerbs(row.task), ...taskVerbs(row.task, ctx)]
   }
-  // Routines/machine rows have no task for any verb to act on.
-  if (row.kind === "routines" || row.kind === "machine") return []
-  const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab", bindingId: "sidebar.select" }]
-  if ((ctx.tabCount ?? 0) > 0)
-    tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab", bindingId: "chat.tab.close" })
-  // Ends every sibling's session, so danger-toned and confirmed by the host.
-  if ((ctx.tabCount ?? 0) > 1)
-    tabItems.push({ action: "closeOtherTabs", labelKey: "tasks.menu.closeOtherTabs", danger: true })
-  // The `--task-id … --tab …` pair `rove api send` / `read-output` take to reach THIS tab.
-  tabItems.push({ action: "copyTab", labelKey: "tasks.menu.copyTab" })
-  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task)]
+  // Routines and "recent" rows have no task for any verb to act on.
+  return []
 }

@@ -4,7 +4,6 @@ import { ensureGlobalRoveHooks } from "../cli/hook-cmd.ts"
 import { enforceResetGate } from "../cli/reset-gate.ts"
 import { takeWelcome } from "../cli/welcome.ts"
 import { takeWhatsNew } from "../cli/whats-new.ts"
-import { maybeHintSkillInstall } from "../lib/skill-install.ts"
 import { publishRoveTerminalTitle } from "./lib/outer-terminal-title.ts"
 
 export async function startTui(): Promise<void> {
@@ -23,11 +22,6 @@ export async function startTui(): Promise<void> {
   // packaged runtime name ("node").
   publishRoveTerminalTitle()
 
-  // Before the screen takeover: hint once if the agent skill is absent, or
-  // prompt yes/no/don't-notify-this-version if stale. Best-effort; the reliable
-  // check is `rove skill status`.
-  await maybeHintSkillInstall()
-
   // Finish the idempotent settings merge before any engine launches, so its
   // first activity events are observable.
   await ensureGlobalRoveHooks()
@@ -36,6 +30,10 @@ export async function startTui(): Promise<void> {
   // surface sees them from the first frame.
   const { loadPluginEngines } = await import("../engine/plugin-engines.ts")
   loadPluginEngines()
+
+  // Here, not on mount: render tests must not read the operator's engine homes.
+  const { startSkillStatus } = await import("../tui-react/workspace/skill-status.ts")
+  startSkillStatus()
 
   const { startWorkspaceHost } = await import("../tui-react/workspace/start-workspace.tsx")
   await startWorkspaceHost({ whatsNewFrom, welcome })

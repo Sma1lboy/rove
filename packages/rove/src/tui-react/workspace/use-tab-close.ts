@@ -50,6 +50,7 @@ export interface TabClose {
   readonly closeById: (id: string) => void
   readonly closeExited: (id: string) => void
   readonly handleActiveExit: (info?: { deadOnAttach?: boolean }) => void
+  readonly retryActive: () => void
 }
 
 export function useTabClose(deps: TabCloseDeps): TabClose {
@@ -105,6 +106,14 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     releaseClosedTabPtys(taskId(), closing, closedId)
   }
 
+  /** The user's Retry on a dead engine: the corpse-on-attach resume, on demand. */
+  function retryActive(): void {
+    const active = deps.active
+    deps.resumeTriedRef.current.delete(active.id)
+    getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
+    deps.bumpResetToken()
+  }
+
   function handleActiveExit(info?: { deadOnAttach?: boolean }): void {
     const active = deps.active
     // Possibly the echo of an intentional ctrl+w (the killed PTY's onExit hits
@@ -132,6 +141,12 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
       deps.onScratchExit()
       return
     }
+    // A shell's last tab ending leaves the row open and empty (⏎ starts a fresh shell) rather than
+    // conjuring an engine nobody asked for; the task is never deleted here.
+    if (active.kind === "command") {
+      closeById(active.id)
+      return
+    }
     // Last tab exited: recycle in place as a fresh engine tab (new session)
     // instead of freezing on the exit banner; `recycleTabs` keeps the title.
     getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
@@ -140,5 +155,5 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     deps.updateRef.current(deps.pinSession(recycleTabs(deps.stateRef.current, active), undefined))
   }
 
-  return { closeActive, closeById, closeExited, handleActiveExit }
+  return { closeActive, closeById, closeExited, handleActiveExit, retryActive }
 }

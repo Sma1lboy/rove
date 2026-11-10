@@ -44,7 +44,9 @@ vi.mock("../../src/tui/panes/sidebar/worktree-changes.ts", () => ({
 }))
 
 vi.mock("../../src/lib/feedback.ts", () => ({
-  DEFAULT_FEEDBACK_CATEGORY_SLUG: "feedback",
+  DEFAULT_FEEDBACK_KIND: "bug",
+  FEEDBACK_KINDS: ["bug", "idea", "question"],
+  isFeedbackKind: (value: string) => ["bug", "idea", "question"].includes(value),
   submitFeedback: mocks.submitFeedback,
 }))
 
@@ -92,7 +94,7 @@ beforeEach(() => {
   mocks.resolveMainRepoRoot.mockReset().mockResolvedValue("/repo/main")
   mocks.getPersistedString.mockReset().mockReturnValue(undefined)
   mocks.readWorktreeChanges.mockReset().mockResolvedValue({ added: 3, deleted: 1 })
-  mocks.submitFeedback.mockReset().mockReturnValue({ url: "https://github.com/d/1", number: 1 })
+  mocks.submitFeedback.mockReset().mockReturnValue({ filed: true, url: "https://github.com/d/1", number: 1 })
   mocks.interactiveEngineCommand.mockReset().mockReturnValue(["claude", "--continue"])
   mocks.closePtyHost.mockReset()
   mocks.ensurePtyHost.mockReset().mockResolvedValue({ rpc: { request: vi.fn() }, close: mocks.closePtyHost })
@@ -181,6 +183,7 @@ describe("defaultApiRuntime", () => {
         vendor: null,
         liveVendor: null,
         lastTitle: "boot",
+        liveTitle: null,
         autoTitle: null,
         alive: false,
         engineAlive: false,
@@ -193,6 +196,7 @@ describe("defaultApiRuntime", () => {
         vendor: null,
         liveVendor: "claude",
         lastTitle: null,
+        liveTitle: null,
         autoTitle: null,
         alive: true,
         // These rows carry no pid, so nothing walked them: `null` is
@@ -220,9 +224,10 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.defaultVendor()).resolves.toBeUndefined()
   })
 
-  it("tearDownSession kills every hosted task key and closes the probe client", async () => {
-    await defaultApiRuntime.tearDownSession("t1")
-    expect(mocks.taskKeys).toHaveBeenCalledWith(expect.any(Array), "t1")
+  it("tearDownSession kills every hosted task key, honouring the alias scope, and closes the probe client", async () => {
+    const scope = { spare: ["t1::tab-2"], also: [] }
+    await defaultApiRuntime.tearDownSession("t1", scope)
+    expect(mocks.taskKeys).toHaveBeenCalledWith(expect.any(Array), "t1", scope)
     expect(mocks.killTaskSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1", "t1::tab-2"])
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
   })
@@ -235,7 +240,8 @@ describe("defaultApiRuntime", () => {
 
 describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
   const client: DaemonRpc = {
-    request: async () => {
+    request: async (name: string) => {
+      if (name === "task.list") return { tasks: [{ id: "kid", ptyAlias: { taskId: "t1", tabId: "tab-3" } }] } as never
       throw new Error("no RPC expected — the target already has a worktree")
     },
     subscribe: async () => ({}),
@@ -268,11 +274,12 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
     )
     expect(mocks.deliverHostedPrompt).toHaveBeenCalledWith(
       expect.anything(),
-      { id: "t1", engineBin: "claude" },
+      // The parent is told which of its keys a migrated child's conversation owns.
+      { id: "t1", engineBin: "claude", scope: { claimed: ["t1::tab-3"] } },
       "/wt/t1",
       "go",
       expect.objectContaining({ key: "t1::tab-1" }),
-      expect.objectContaining({ forceNew: false }),
+      expect.objectContaining({ retryArgs: ["api", "send", "--task-id", "t1", "--plain", "--prompt", "go"] }),
     )
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
     expect(result).toEqual({
@@ -295,13 +302,19 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
 })
 
 describe("feedback verb", () => {
-  it("submits title/body through the gh seam and wraps the discussion result", async () => {
-    const result = await invokeVerb("feedback", ["--title", "Love it", "--body", "Details"], { client: null })
-    expect(mocks.submitFeedback).toHaveBeenCalledWith({
-      title: "Love it",
-      body: "Details",
-      categorySlug: undefined,
+  it("submits title/body/kind through the gh seam and returns the flat result", async () => {
+    const result = await invokeVerb("feedback", ["--title", "Love it", "--body", "Details", "--kind", "idea"], {
+      client: null,
     })
-    expect(result).toEqual({ ok: true, discussion: { url: "https://github.com/d/1", number: 1 } })
+    expect(mocks.submitFeedback).toHaveBeenCalledWith({ title: "Love it", body: "Details", kind: "idea" })
+    expect(result).toEqual({ ok: true, filed: true, url: "https://github.com/d/1", number: 1 })
+  })
+
+  it("defaults the kind to bug and rejects an unknown one", async () => {
+    await invokeVerb("feedback", ["--title", "T", "--body", "B"], { client: null })
+    expect(mocks.submitFeedback).toHaveBeenLastCalledWith({ title: "T", body: "B", kind: "bug" })
+    await expect(
+      invokeVerb("feedback", ["--title", "T", "--body", "B", "--kind", "rant"], { client: null }),
+    ).rejects.toThrow("--kind must be one of")
   })
 })

@@ -42,7 +42,12 @@ const POLL_MS = 5_000
 export function scratchOwnerTasks(tasks: readonly Task[]): ScratchOwnerTask[] {
   return tasks
     .filter((task) => !task.deletion && task.scratch !== true && task.worktreePath !== "")
-    .map((task) => ({ id: task.id, kind: task.kind ?? "task", dir: canonPath(task.worktreePath) }))
+    .map((task) => ({
+      id: task.id,
+      kind: task.kind ?? "task",
+      dir: canonPath(task.worktreePath),
+      ...(task.sharesWorkspaceOf ? { sharesWorkspaceOf: task.sharesWorkspaceOf } : {}),
+    }))
 }
 
 export function useScratchAdopt(deps: {

@@ -7,9 +7,9 @@
  * `sidebar-state-matrix.ts`; this file only pins its output.
  *
  * The point of a golden here rather than more prose assertions: the row view
- * is a PRIORITY LADDER (deletion > materializing job > activity word > branch)
- * whose rungs are individually reasonable and collectively easy to reorder by
- * accident. A hand-written case proves the rung its author was thinking about.
+ * maps every daemon status to a glyph and tone, and its subtitle is a PRIORITY
+ * LADDER (deletion > materializing job > branch) whose rungs are individually
+ * reasonable and collectively easy to reorder by accident. A hand-written case proves the rung its author was thinking about.
  * A committed table proves all of them at once — and turns any change into a
  * reviewable diff instead of a silent behavior shift.
  *
@@ -34,10 +34,10 @@ import { prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
-  activityCrossProduct,
-  completionGraceBlock,
+  loadingAgreementBlock,
   mainRowBlock,
   spinnerBlock,
+  statusCrossProduct,
   statusVsActivityBlock,
   subagentBlock,
   subtitleBudgetBlock,
@@ -60,18 +60,15 @@ afterAll(() => {
 
 test("sidebar row state matrix matches the committed golden", () => {
   const document = goldenDocument("sidebar row state — buildSidebarRowView over its full input space", [
-    {
-      title: "activity x completionSeen x job x deletion x transcript (claude cross product)",
-      lines: activityCrossProduct(),
-    },
+    { title: "daemon row status x deletion (claude cross product)", lines: statusCrossProduct() },
     { title: "vendor-sensitive subtitles", lines: vendorBlock() },
     { title: "project (main) rows — branch resolved from the repo checkout", lines: mainRowBlock() },
     { title: "engine-owned spinner frame sets + withSpinnerFrame overlay", lines: spinnerBlock() },
-    { title: "turn-complete ignores directory transcript timestamps", lines: completionGraceBlock() },
+    { title: "rowIsLoading agrees with the view's own loading", lines: loadingAgreementBlock() },
     { title: "subagent marks ride the animation only", lines: subagentBlock() },
     { title: "subtitle truncation budget", lines: subtitleBudgetBlock() },
     {
-      title: "persisted TaskStatus x runtime activity — status must not reach the row",
+      title: "persisted TaskStatus x daemon row status — board status must not reach the row",
       lines: statusVsActivityBlock(),
     },
     { title: "PR chip — conflict > failing > passing, else nothing", lines: prChipBlock() },
@@ -145,7 +142,7 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
   // glyph that falls back oversized overruns the label exactly like a state
   // glyph would.
   const rendered = new Set<string>([NO_STATE_GLYPH, ATTENTION_GLYPH])
-  for (const line of activityCrossProduct()) {
+  for (const line of statusCrossProduct()) {
     const glyph = / glyph=(\S+)/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }
@@ -161,7 +158,7 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
 test("every row the matrix produces has a non-empty glyph and subtitle", () => {
   // A blank cell renders as a hole in the rail rather than a state, and the
   // golden would happily record the hole. Cheap structural floor under it.
-  for (const line of activityCrossProduct()) {
+  for (const line of statusCrossProduct()) {
     expect(line).toMatch(/ glyph=\S/)
     expect(line).toMatch(/ title=\S/)
     expect(line).toMatch(/ sub=\S/)

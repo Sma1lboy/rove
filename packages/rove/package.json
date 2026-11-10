@@ -1,12 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@sma1lboy/rove",
-  "version": "0.9.257",
-  "description": "Rove — the agent multiplexer for your terminal. Run coding agents on parallel tasks with isolated worktrees and persistent sessions.",
+  "version": "0.9.284",
+  "description": "Rove: all your coding agents, in one place. An agentic development environment (ADE) for your terminal: Claude Code, Codex, Copilot and more, side by side in isolated worktrees, handing tasks to each other.",
   "keywords": [
     "terminal",
     "tui",
     "cli",
+    "ade",
+    "agentic-development-environment",
     "multiplexer",
     "ai-agents",
     "coding-agent",
@@ -30,6 +32,7 @@
     "dist/web",
     "dist/web-ui",
     "dist/skills",
+    "dist/voice",
     "dist/*.wav",
     "README.md",
     "LICENSE"
@@ -60,6 +63,7 @@
     "check-i18n": "bun run scripts/check-i18n.ts",
     "test": "bun run test:fast && bun run test:socket",
     "perf:golden": "bun scripts/perf-golden.ts",
+    "rove-bench": "bun --conditions=browser scripts/rove-bench.ts",
     "pty:soak": "bun scripts/pty-soak.ts",
     "test:fast": "vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8",
     "test:socket": "ROVE_INCLUDE_SOCKET=1 vitest run test/daemon --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests",
@@ -91,7 +95,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@sma1lboy/rove-daemon": "0.7.22",
+    "@sma1lboy/rove-daemon": "0.7.23",
     "@tsconfig/bun": "1.0.11",
     "@types/bun": "1.3.14",
     "@types/node": "25.6.2",
@@ -99,8 +103,8 @@
     "@vitest/coverage-v8": "2.1.9",
     "knip": "^6.14.2",
     "react-devtools-core": "^7.0.1",
-    "rove-bridge": "0.0.18",
-    "rove-weixin": "0.0.18",
+    "rove-bridge": "0.0.45",
+    "rove-weixin": "0.0.45",
     "typescript": "5.8.2",
     "vitest": "2.1.9"
   },

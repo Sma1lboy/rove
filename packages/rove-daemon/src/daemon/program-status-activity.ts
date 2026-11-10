@@ -10,11 +10,15 @@ export function programStatusActivity(
   taskExists: (id: string) => boolean,
   inbox?: Pick<AttentionInboxStore, "record" | "deleteEpisode">,
   deliveries?: DeliveryDeps,
+  /** The task a PTY's conversation belongs to (a migrated child owns its parent-keyed PTY); default the key's task. */
+  ownerOf: (taskId: string, tabId: string) => string = (id) => id,
 ): (event: ProgramStatusEvent) => Promise<void> {
   const seen = new Map<string, { event: ProgramStatusEvent; owns?: () => boolean }>()
   return async (event) => {
-    const [taskId, tabId, extra] = event.key.split("::")
-    if (!taskId || !tabId || extra !== undefined || !/^tab-\d+$/.test(tabId) || !taskExists(taskId)) return
+    const [keyTask, tabId, extra] = event.key.split("::")
+    if (!keyTask || !tabId || extra !== undefined || !/^tab-\d+$/.test(tabId)) return
+    const taskId = ownerOf(keyTask, tabId)
+    if (!taskExists(taskId)) return
     const previous = seen.get(event.key)
     if (previous?.event.generation === event.generation && previous.event.revision >= event.revision) return
     if (previous && previous.event.generation !== event.generation && previous.event.at > event.at) return
@@ -37,8 +41,9 @@ export function programStatusActivity(
     if (!ownClaim && activity.hasHookSince(taskId, tabId, event.at)) return
     const report = statusActivity(event.status)
     next.owns = activity.reportProgramStatus(taskId, tabId, report.kind, report.detail, undefined, event.at)
+    // Tracked first: a turn that closed a routine delivery raises no `turn_complete` row.
+    const closed = deliveries ? await trackDeliveryTurn(deliveries, taskId, tabId, report.kind, report.detail) : false
     if (event.status.state === "idle") await inbox?.deleteEpisode(taskId, tabId)
-    else await inbox?.record(taskId, report.kind, report.detail, tabId)
-    if (deliveries) await trackDeliveryTurn(deliveries, taskId, tabId, report.kind, report.detail)
+    else if (!closed) await inbox?.record(taskId, report.kind, report.detail, tabId)
   }
 }

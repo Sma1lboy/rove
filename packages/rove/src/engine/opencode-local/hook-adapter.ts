@@ -17,14 +17,16 @@
  */
 
 import { existsSync } from "node:fs"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { rm } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { roveHookInvocation } from "../../cli/invocation.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { isTransientFailureText } from "../failure-text.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import type { HookEditOutcome } from "../json-hooks.ts"
+import { writeIfChanged } from "../write-if-changed.ts"
 import { renderOpencodePluginSource } from "./plugin-source.ts"
 
 /** The OpenCode-family vendors this adapter serves. */
@@ -70,6 +72,7 @@ function opencodeFailureDetail(payload: Record<string, unknown>): EngineActivity
       return "billing"
     }
     if (/rate.?limit|too many requests|\b429\b|overloaded|capacity/.test(message)) return "rate_limit"
+    if (isTransientFailureText(message)) return "transient"
     return "other"
   })()
   return { failure, ...(note ? { note } : {}) }
@@ -139,21 +142,5 @@ export class OpencodeFamilyHookAdapter implements EngineHookAdapter {
 
   async removeWorktreeWatchHook(): Promise<void> {
     /* ...nor the PostToolUse(Bash) watch hook. */
-  }
-}
-
-/**
- * Write `content` only when it differs, so a reinstall on every launch leaves
- * the file's mtime alone — a rewrite per launch would make every watcher
- * re-read a file whose bytes never changed.
- */
-async function writeIfChanged(file: string, content: string): Promise<void> {
-  try {
-    const current = await readFile(file, "utf8").catch(() => undefined)
-    if (current === content) return
-    await mkdir(path.dirname(file), { recursive: true })
-    await writeFile(file, content)
-  } catch {
-    /* best-effort — never block launch */
   }
 }

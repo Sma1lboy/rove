@@ -26,7 +26,6 @@ const initial = {
   focusAccent: "primary",
   "appearance.splitStyle": "box",
   "sidebar.foldStyle": "glyphs",
-  "sidebar.tabRowHeight": 1,
 }
 
 async function setup(width = 120, height = 48) {
@@ -60,8 +59,7 @@ describe("appearance choices", () => {
     { row: 2, key: "activeTheme", next: "conductor", label: "Theme" },
     { row: 4, key: "transparentBackground", next: true, label: "Transparent background" },
     { row: 7, key: "sidebar.foldStyle", next: "initials", label: "Folded task rail" },
-    { row: 8, key: "sidebar.tabRowHeight", next: 2, label: "Tab row height" },
-    { row: 10, key: "appearance.taskColors", next: "off", label: "Task colors" },
+    { row: 9, key: "appearance.taskColors", next: "off", label: "Task colors" },
   ]
   for (const example of cases) {
     it(`${example.label}: preview and cancel do not persist; Enter applies exactly one field`, async () => {

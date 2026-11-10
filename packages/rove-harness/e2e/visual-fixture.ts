@@ -1,5 +1,6 @@
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { isProcessAlive } from "@sma1lboy/rove-daemon/daemon/lifecycle"
+import { BUILTIN_MOD_IDS, setBuiltinModInstalled } from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { basename, join, relative, resolve, sep } from "node:path"
 import {
   assertFixtureIsolation,
@@ -165,6 +166,8 @@ async function seedStartupState(): Promise<void> {
   const stateDir = join(XDG_CONFIG_HOME, "rove")
   await mkdir(stateDir, { recursive: true })
   await writeFile(join(stateDir, "state.json"), `${JSON.stringify(state, null, 2)}\n`)
+  // Journeys photograph the Kanban and Issues pages, which are first-party mods.
+  for (const id of BUILTIN_MOD_IDS) setBuiltinModInstalled(id, true, VISUAL_HOME)
 }
 
 /** Pid a runtime pidfile names right now, or null when absent/unreadable. */

@@ -93,7 +93,6 @@ function ChordHost({ spies }: { spies: Spies }) {
     <SidebarTree
       tasks={[A, B]}
       selectedId={A.id}
-      selectedTabId={null}
       onSelect={() => {}}
       focused={focus.focused === "sidebar"}
       width={28}

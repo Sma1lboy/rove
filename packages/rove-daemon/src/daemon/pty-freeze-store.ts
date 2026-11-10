@@ -21,6 +21,7 @@ import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
+import { KittyTransmits } from "./kitty-transmits.ts"
 import {
   OWNER_ONLY_DIR_MODE,
   OWNER_ONLY_FILE_MODE,
@@ -31,7 +32,13 @@ import { defaultPtyFreezeDir } from "./paths.ts"
 import type { PtySessionExit } from "./protocol.ts"
 import type { PtySessionState } from "./pty-host-types.ts"
 import { DEFAULT_TERMINAL_COLORS } from "./terminal-colors.ts"
-import { type TerminalModeTrack, freshModeTrack, normalizeTerminalModes, scanTerminalModes } from "./terminal-modes.ts"
+import {
+  type TerminalModeTrack,
+  freshModeTrack,
+  normalizeTerminalModes,
+  replayStart,
+  scanTerminalModes,
+} from "./terminal-modes.ts"
 
 /** Record format version — unknown versions read as absent (forward-safe). */
 const FREEZE_VERSION = 1
@@ -79,8 +86,9 @@ export interface FreezeableSession {
   readonly ringModes?: TerminalModeTrack
 }
 
-/** Session state → its durable record. Pure. */
+/** Session state → its durable record. Pure. The ring starts outside any string escape, so a thaw needs no string state. */
 export function freezeSession(session: FreezeableSession, now = new Date()): FrozenPtySession {
+  const ring = Buffer.concat(session.chunks as Buffer[])
   return {
     v: FREEZE_VERSION,
     key: session.key,
@@ -91,7 +99,7 @@ export function freezeSession(session: FreezeableSession, now = new Date()): Fro
     title: session.title,
     totalBytes: session.totalBytes,
     exit: session.exit,
-    ringB64: Buffer.concat(session.chunks as Buffer[]).toString("base64"),
+    ringB64: ring.subarray(session.ringModes ? replayStart(session.ringModes, ring) : 0).toString("base64"),
     ...(session.ringModes ? { ringModes: session.ringModes.modes } : {}),
     updatedAt: now.toISOString(),
   }
@@ -121,9 +129,10 @@ export function thawRing(
 }
 
 /**
- * Record → a restored session state: dead, ring intact, marked `restored`
- * so the host's next `open` respawns the child in place instead of treating
- * it as a view-only corpse. Null for a malformed ring.
+ * Record → a restored session state: dead, ring intact. A host-death casualty
+ * (`exit` null) is marked `restored`, so the host's next `open` respawns the
+ * child in place; a child that already exited on its own stays an ordinary
+ * view-only corpse. Null for a malformed ring.
  */
 export function thawSession(record: FrozenPtySession, cap: number): PtySessionState | null {
   const ring = thawRing(record, cap)
@@ -149,12 +158,14 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     defaultColors: DEFAULT_TERMINAL_COLORS,
     modes,
     ringModes: ring.ringModes,
+    // Not persisted: a restored ring keeps its placeholders, drawn as empty frames.
+    kitty: new KittyTransmits(),
     sinks: new Map(),
     emulatorSinks: new Set(),
     parked: false,
     parkedScreenBytes: 0,
     exit: record.exit,
-    restored: true,
+    restored: record.exit === null,
     lastFreezeAtMs: 0,
   }
 }
@@ -345,8 +356,8 @@ export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
 }
 
 /**
- * Wipe every frozen session — `rove reset`'s graceful pty-host stop only, so
- * the next host comes up empty.
+ * Wipe every frozen session. Only `rove reset` calls this, after the host is
+ * gone; the host itself never wipes, whatever stops it.
  */
 export function clearFrozenSessions(dir = defaultPtyFreezeDir()): void {
   try {

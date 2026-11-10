@@ -7,7 +7,7 @@
  * schema knows about plugins (docs/design/plugins.md §Panes).
  */
 
-import { resolveLoginShell } from "../daemon/platform-shell.js"
+import { resolveSessionShell } from "../daemon/platform-shell.js"
 import { buildPluginEnv } from "./env.ts"
 import { type PluginPane, currentPluginPlatform, readPluginManifest, supportsPlatform } from "./manifest.ts"
 import { loadPluginRegistry } from "./registry.ts"
@@ -59,7 +59,7 @@ export function buildPaneArgv(
   const command = pane.command.map((a) => a.replace(/\$\{?(?:ROVE|ROVE)_PLUGIN_ROOT\}?/g, pluginRoot))
   const script = `exec env ${pairs.map(([k, v]) => shq(`${k}=${v}`)).join(" ")} ${command.map(shq).join(" ")}`
   // Interactive login shell, as the engine tab (session-launch.ts), for the same PATH/exports.
-  return [resolveLoginShell(), "-ilc", script]
+  return [resolveSessionShell(), "-ilc", script]
 }
 
 /** Every pane of every ENABLED plugin that runs on this platform, launch-ready. */

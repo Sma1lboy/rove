@@ -1,17 +1,17 @@
 /**
- * Settings → General, in the TUI's order: language, appearance, notifications, keyboard hints,
- * zen, editor, worktree location, terminal. Every row reads and writes the TUI's own state.json
- * key through `prefs.set`; the daemon notice is the page's own.
+ * Settings → General: language and the interface, where files and worktrees go, the terminal. Every row
+ * reads and writes the TUI's own state.json key through `prefs.set`. Notifications, appearance, updates and
+ * the browser's sign-out have their own sections.
  */
 
 import { useEffect, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
-import { allowDesktopNotices, chime } from "./notify.ts"
-import { type PrefKey, type Prefs, choicesOf, nextChoice, prefsStore, setPref, usePrefs } from "./prefs.ts"
-import { AppearanceGroup } from "./settings-appearance.tsx"
+import type { AppModel } from "./model.ts"
+import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
-import { Chips, CycleRow, Group, ReadOnlyRow, Toggle } from "./settings-rows.tsx"
+import { Choice, Group, Row, Toggle } from "./settings-rows.tsx"
+import { SETTINGS_NUMBER } from "./ui/settings.ts"
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -24,123 +24,66 @@ const WORKTREE_LABEL = {
   custom: "general.worktreeKindCustom",
 } as const
 
-export function GeneralSection({ client }: { client: BridgeClient }) {
+export function GeneralSection({ model }: { model: AppModel }) {
+  const { client } = model
   const state = usePrefs()
   const { prefs, info } = state
-  // A cycle row reads the store at press time: two quick presses step twice before React re-renders.
-  const latest = () => prefsStore.get().prefs
   const set = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
-  const [daemon, setDaemon] = useState<{ daemonVersion?: string; stale?: boolean } | null>(null)
-  useEffect(() => {
-    void client.request<typeof daemon>("daemon.info").then(setDaemon, () => setDaemon(null))
-  }, [client])
-
-  // TUI cycle: default → next to project → the remembered custom base (skipped when none) → default.
-  const nextWorktree = (): Prefs["worktreeBase"] => {
-    const current = latest().worktreeBase
-    return current === "default"
-      ? "nextToProject"
-      : current === "nextToProject" && info.worktreeCustomPath
-        ? "custom"
-        : "default"
-  }
-
+  // `custom` is offered once a custom base is remembered, as the TUI's cycle skips it until then.
+  const kinds: Prefs["worktreeBase"][] = ["default", "nextToProject"]
+  if (info.worktreeCustomPath || prefs.worktreeBase === "custom") kinds.push("custom")
+  const worktreeKinds = kinds.map((value) => ({ value, label: ts(WORKTREE_LABEL[value]) }))
   return (
     <>
-      <Chips
-        label={ts("general.language")}
-        hint={t("prefs.languageHint")}
-        value={prefs.locale}
-        picks={LANGUAGES}
-        onPick={(next) => set("locale", next)}
-      />
-      <AppearanceGroup client={client} />
-      <Group title={ts("general.notifications")} hint={ts("general.notificationsHint")}>
-        <Toggle
-          label={ts("general.toast")}
-          hint={t("prefs.toastHint")}
-          checked={prefs.toast}
-          onChange={(next) => set("toast", next)}
+      <Group title={t("settings.general.groupInterface")}>
+        <Choice
+          label={ts("general.language")}
+          hint={t("prefs.languageHint")}
+          value={prefs.locale}
+          picks={LANGUAGES}
+          onPick={(next) => set("locale", next)}
         />
-        <Toggle
-          label={ts("general.sound")}
-          hint={t("prefs.soundHint")}
-          checked={prefs.sound}
-          onChange={(next) => {
-            if (next) allowDesktopNotices()
-            set("sound", next)
-          }}
-        />
-        <CycleRow
-          label={ts("general.soundVolume", { percent: Math.round(prefs.soundVolume * 100) })}
-          hint={t("prefs.soundVolumeHint")}
-          onCycle={() => {
-            const next = nextChoice(choicesOf(state, "soundVolume") as number[], latest().soundVolume)
-            // Hearing the next level is how you pick it, as in the TUI.
-            if (latest().sound) chime(next)
-            set("soundVolume", next)
-          }}
-        />
-        <Toggle
-          label={ts("general.crossTask")}
-          hint={ts("general.crossTaskHint")}
-          checked={prefs.crossTask}
-          onChange={(next) => set("crossTask", next)}
-        />
-      </Group>
-      <Group title={ts("general.keyHints")} hint={t("prefs.keyHintsHint")}>
         <Toggle
           label={ts("general.keyHintsShow")}
-          hint={ts("general.keyHintsShowHint")}
+          hint={ts("general.keyHintsHint")}
           checked={prefs.keyHints}
           onChange={(next) => set("keyHints", next)}
         />
-      </Group>
-      <Group title={ts("general.zen")} hint={t("prefs.zenHint")}>
-        <Toggle label={ts("general.zenDefaultOn")} checked={prefs.zen} onChange={(next) => set("zen", next)} />
-      </Group>
-      <Group title={ts("general.editor")} hint={ts("general.editorHint")}>
-        <CycleRow
-          label={ts("general.editorRow", { kind: prefs.editorKind })}
-          hint={ts("general.editorRowHint")}
-          onCycle={() => set("editorKind", nextChoice(choicesOf(state, "editorKind") as string[], latest().editorKind))}
+        <Toggle
+          label={ts("general.zenDefaultOn")}
+          hint={t("prefs.zenHint")}
+          checked={prefs.zen}
+          onChange={(next) => set("zen", next)}
         />
-        <ReadOnlyRow
-          label={ts("general.editorCustom", {
-            cmd: info.editorCustomSet ? t("prefs.editorCustomSet") : ts("general.editorCustomUnset"),
-          })}
-          note={t("prefs.editInTui")}
-        />
-      </Group>
-      <Group title={ts("general.worktree")} hint={ts("general.worktreeHint")}>
-        <CycleRow
-          label={ts("general.worktreeBase", { kind: ts(WORKTREE_LABEL[prefs.worktreeBase]) })}
-          hint={ts("general.worktreeBaseHint")}
-          onCycle={() => set("worktreeBase", nextWorktree())}
-        />
-        <ReadOnlyRow
-          label={ts("general.worktreeCustom", { path: info.worktreeCustomPath || ts("general.worktreeCustomUnset") })}
-          note={t("prefs.editInTui")}
+        <Choice
+          label={t("settings.general.tabStrip")}
+          value={prefs.tabStrip}
+          picks={(choicesOf(state, "tabStrip") as Prefs["tabStrip"][]).map((value) => ({
+            value,
+            label: ts(`general.tabStripMode.${value}`),
+          }))}
+          onPick={(next) => set("tabStrip", next)}
         />
       </Group>
-      <Group title={ts("general.terminal")} hint={ts("general.terminalHint")}>
+      <Group title={t("settings.general.groupFiles")}>
+        <Choice
+          label={ts("general.editor")}
+          hint={t("settings.general.editorNote")}
+          value={prefs.editorKind}
+          picks={(choicesOf(state, "editorKind") as string[]).map((value) => ({ value, label: value }))}
+          onPick={(next) => set("editorKind", next)}
+        />
+        <Choice
+          label={ts("general.worktree")}
+          hint={ts("general.worktreeHint")}
+          value={prefs.worktreeBase}
+          picks={worktreeKinds}
+          onPick={(next) => set("worktreeBase", next)}
+        />
+      </Group>
+      <Group title={t("settings.general.groupTerminal")} hint={ts("general.terminalHint")}>
         <ScrollbackRow client={client} />
-        <CycleRow
-          label={ts("general.tabStripRow", { mode: ts(`general.tabStripMode.${prefs.tabStrip}`) })}
-          onCycle={() =>
-            set("tabStrip", nextChoice(choicesOf(state, "tabStrip") as Prefs["tabStrip"][], latest().tabStrip))
-          }
-        />
       </Group>
-      {daemon?.daemonVersion && (
-        <Group title={t("settings.general.daemon")}>
-          <p className={`mono ${daemon.stale ? "tone-warning" : "muted"}`}>
-            {t(daemon.stale ? "settings.general.daemonStale" : "settings.general.daemonCurrent", {
-              version: daemon.daemonVersion,
-            })}
-          </p>
-        </Group>
-      )}
     </>
   )
 }
@@ -164,18 +107,16 @@ function ScrollbackRow({ client }: { client: BridgeClient }) {
     else setDraft(String(clamped))
   }
   return (
-    <label className="pref-row">
-      <span className="pref-label">{ts("general.scrollbackTitle")}</span>
+    <Row label={t("settings.general.scrollback")} hint={ts("general.scrollbackRowHint")}>
       <input
-        className="input pref-number"
+        className={SETTINGS_NUMBER}
         inputMode="numeric"
         value={draft}
-        aria-label={ts("general.scrollbackField")}
+        aria-label={ts("general.scrollbackTitle")}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={save}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
-      <span className="pref-hint muted">{ts("general.scrollbackRowHint")}</span>
-    </label>
+    </Row>
   )
 }

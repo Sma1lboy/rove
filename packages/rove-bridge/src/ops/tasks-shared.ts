@@ -4,7 +4,11 @@
  * reach a `rove api` argv, a daemon RPC or a git process.
  */
 
-import { getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
+import { execFile } from "node:child_process"
+import { statSync } from "node:fs"
+import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
+import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
+import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
   cloneRepo,
   deriveFolderName,
@@ -13,7 +17,8 @@ import {
   validateCloneTarget,
   validateGitUrl,
 } from "@sma1lboy/rove/src/tui/component/new-task-dialog/clone.ts"
-import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot.ts"
+import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot-async.ts"
+import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath } from "./args.ts"
 import type { Args, OpContext } from "./types.ts"
@@ -22,17 +27,46 @@ import type { Args, OpContext } from "./types.ts"
  * Everything the task ops touch outside `ctx.api`: sync git helpers, the saved-repo list and
  * the clone spawn. One object so tests replace them without a real git remote.
  */
+// Keyed by the main checkout, as the TUI's picks are; a path git cannot read keeps its given spelling.
+function projectKey(path: string): string {
+  try {
+    return resolveMainRepoRoot(path)
+  } catch {
+    return path
+  }
+}
+
 export const taskOpDeps = {
   savedRepos: (): readonly string[] => getSavedRepos(),
-  listLocalBranches,
-  getCurrentBranch,
-  validateRepoPath,
+  /** The engine a project was last started on, as the TUI's picks record it: "New conversation" there follows it. */
+  rememberEngine: (repo: string, engine: string): void => {
+    setRepoLastActiveVendor(projectKey(repo), engine as VendorId)
+  },
+  /** What a picker preselects: the project's last engine, else Settings' default, else the first enabled one. */
+  preferredEngine: (repo?: string): string => resolvePreferredVendor(repo === undefined ? undefined : projectKey(repo)),
+  // Async: a synchronous git here held every browser's frames for as long as it ran. A test may stub a plain value.
+  listLocalBranches: listLocalBranches as (repo: string) => string[] | Promise<string[]>,
+  getCurrentBranch: getCurrentBranch as (repo: string) => string | null | Promise<string | null>,
+  validateRepoPath: validateRepoPath as (repo: string) => string | null | Promise<string | null>,
+  /** A folder that is no usable git repo still opens: as a directory session, with no worktree or branch. */
+  isDirectory: (path: string): boolean => {
+    try {
+      return statSync(path).isDirectory()
+    } catch {
+      return false
+    }
+  },
   cloneRepo,
   validateGitUrl,
   validateCloneTarget,
   resolveCloneTarget,
   findAvailableFolderName,
   deriveFolderName,
+  gh: runGh,
+  /** `github.com/owner/name` for a checkout, from its `origin`; undefined when it has none. */
+  repoId: (path: string): string | undefined => repoIdOf(path),
+  /** Fetches one pull request's head into `refs/rove/pr/<number>` of `repo`: the commit a review worktree starts from. */
+  fetchPullHead,
 }
 
 const GIT_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/
@@ -131,13 +165,94 @@ export async function checkAgentEngines(plan: ReadonlyArray<{ id: string }>, ctx
   }
 }
 
-/** Absolute repo path that Rove already knows: a saved project or one with tasks (the `repos.list` set). */
+/** Absolute repo path that Rove already knows: a saved project or one with tasks. */
 export async function knownRepo(args: Args, ctx: OpContext, name = "repo"): Promise<string> {
   const repo = absPath(args, name)
   if (taskOpDeps.savedRepos().includes(repo)) return repo
   const { tasks } = await ctx.api.rpc<{ tasks: ReadonlyArray<{ repo: string }> }>("task.list")
   if (!tasks.some((t) => t.repo === repo)) throw new BridgeError("UNKNOWN_REPO", `${repo} is not a known project`)
   return repo
+}
+
+/** What a `gh` run gave back; `reason` is a short code the app words itself: `missing`, `unauthenticated` or `failed`. */
+export type GhResult = { ok: true; stdout: string } | { ok: false; reason: "missing" | "unauthenticated" | "failed" }
+
+/** The machine's own `gh`, with its own login; never prompts. A timeout or any failure is a result, not a throw. */
+function runGh(args: readonly string[], timeoutMs: number): Promise<GhResult> {
+  const { promise, resolve } = Promise.withResolvers<GhResult>()
+  execFile(
+    "gh",
+    [...args],
+    { timeout: timeoutMs, maxBuffer: 8_000_000, env: { ...process.env, GH_PROMPT_DISABLED: "1", NO_COLOR: "1" } },
+    (err, stdout, stderr) => {
+      if (!err) return resolve({ ok: true, stdout })
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return resolve({ ok: false, reason: "missing" })
+      const signedOut = /gh auth login|not logged in|authentication/i.test(stderr)
+      resolve({ ok: false, reason: signedOut ? "unauthenticated" : "failed" })
+    },
+  )
+  return promise
+}
+
+/**
+ * `git fetch` of GitHub's `refs/pull/<n>/head` (the same for a branch of this repo and for a fork) into a ref of ours.
+ * Fixed argv, a validated integer, never a shell. Resolves to the ref, or the git error text.
+ */
+function fetchPullHead(
+  repo: string,
+  number: number,
+): Promise<{ ok: true; ref: string } | { ok: false; error: string }> {
+  const { promise, resolve } = Promise.withResolvers<{ ok: true; ref: string } | { ok: false; error: string }>()
+  const ref = `refs/rove/pr/${number}`
+  execFile(
+    "git",
+    ["-C", repo, "fetch", "--no-tags", "--quiet", "origin", `+refs/pull/${number}/head:${ref}`],
+    { timeout: 60_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
+    (err, _stdout, stderr) =>
+      resolve(err ? { ok: false, error: stderr.trim() || String(err.message) } : { ok: true, ref }),
+  )
+  return promise
+}
+
+/** `owner/repo`: GitHub's own name rules, one slash, never a path (`.`/`~`/`/` lead, extra segments). */
+const SHORTHAND = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/
+
+/** The clone URL for `owner/repo`: ssh when `gh` is set to use it, https otherwise (or when `gh` is absent). */
+export async function githubCloneUrl(shorthand: string): Promise<string> {
+  const name = shorthand.replace(/\.git$/i, "")
+  const protocol = await taskOpDeps.gh(["config", "get", "git_protocol"], 3000)
+  return protocol.ok && protocol.stdout.trim() === "ssh"
+    ? `git@github.com:${name}.git`
+    : `https://github.com/${name}.git`
+}
+
+/** `args.url` as a checked clone URL; a bare `owner/repo` is resolved through {@link githubCloneUrl} first. */
+export async function cloneSource(args: Args): Promise<string> {
+  const raw = typeof args.url === "string" ? args.url.trim() : ""
+  if (SHORTHAND.test(raw) && !/\/\.+(git)?$/i.test(raw)) return cloneUrl({ url: await githubCloneUrl(raw) })
+  return cloneUrl(args)
+}
+
+/** `owner/repo` or `host/owner/name` (the host has a dot; GitLab subgroups add segments): a repo id the target machine's `add` resolves. */
+const REPO_ID =
+  /^(?:[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._-]+){2,}|[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100})$/
+
+/**
+ * `--repo` of a task on another machine: a path there (absolute), or a repo id its own `add` resolves to its
+ * checkout — `owner/name`, `host/owner/name` or a clone URL (under the same allowlist as {@link cloneUrl}).
+ */
+export function remoteRepoRef(args: Args, name = "repo"): string {
+  const v = args[name]
+  if (typeof v === "string" && v.startsWith("/")) return absPath(args, name)
+  if (typeof v === "string" && REPO_ID.test(v)) return v
+  try {
+    return cloneUrl(args, name)
+  } catch {
+    throw new BridgeError(
+      "BAD_ARGS",
+      `${name} must be an absolute path or a repo id (owner/name, host/owner/name, or a clone URL)`,
+    )
+  }
 }
 
 /** Clone URL allowlist: https/http/ssh/git, or scp-form `user@host:path`. Never a leading `-`, `ext::`, `fd::` or `file:`. */

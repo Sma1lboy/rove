@@ -2,24 +2,29 @@
 /**
  * Tab row above the embedded terminal. Owns the turn chip and the
  * running→done pulse (chip and title flash for a few frames as a landing cue).
+ * The chip is the daemon's status for the tab (`row-status-sync.ts`) through
+ * `rowStatusGlyph`, the same glyph and tone as the tab's sidebar row.
  * Engines whose visible OSC title already shows activity omit the chip.
  * `tabTitle` is re-exported for `TerminalTabs.tsx`'s non-render uses (rename
  * prefill, notification titles).
  */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type BoxRenderable, MouseButton, TextAttributes } from "@opentui/core"
+import type { TabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useEffect, useRef, useState } from "react"
-import type { ChatTabTurnState } from "../../engine/turn-detector"
 import { approxCharCells, displayWidth } from "../../lib/display-width"
+import { rowStatusGlyph } from "../../lib/row-status-glyph"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
   TAB_STRIP_MODE_KEY,
   resolveTabStripMode,
   tabStripVisible,
 } from "../../state/tab-strip"
-import { DEFAULT_GLYPHS, type GlyphSet } from "../../tui/lib/glyphs"
+import { breathGlyph } from "../../tui/lib/breathe"
+import type { GlyphSet } from "../../tui/lib/glyphs"
 import { truncateEndCells } from "../../tui/lib/truncate"
-import { DONE_PULSE_MS } from "../../tui/panes/sidebar/row-view"
+import { DONE_PULSE_MS, sidebarTone } from "../../tui/panes/sidebar/row-view"
+import { toneColor } from "../../tui/panes/sidebar/view-core"
 import { type TerminalTab, tabTitle, visibleNativeStatus } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { useKV } from "../context/kv"
@@ -27,49 +32,29 @@ import { type Theme, useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useGlyphs } from "../lib/use-glyphs"
 import { useTerminalSize } from "../lib/use-terminal-size"
+import { useSpinnerFrame } from "../panes/sidebar/row-cards"
+import { useRowStatusMap } from "./row-status-sync"
 
 export { tabTitle }
 
-/** Turn-state glyphs mirrored on the tab strip, in the given preset. */
-export function turnGlyphs(glyphs: GlyphSet): Record<ChatTabTurnState, string> {
-  return {
-    running: glyphs.running,
-    done: glyphs.done,
-    error: glyphs.attention,
-    // Same marks as the Inbox: a limit that clears itself vs a gone engine
-    // process. Distinct because they demand opposite actions.
-    rate_limited: glyphs.rateLimited,
-    dead: glyphs.dead,
-    // Hook-only "blocked on the user", paired like the sidebar's
-    // permission_needed badge. `unknown` is never rendered, so no collision.
-    needs_input: glyphs.needsInput,
-    unknown: glyphs.needsInput,
-    idle: glyphs.idle,
-  }
+/** A turn just ended on this tab: running before, not running now, and it finished. */
+function landed(prev: TabStatus | undefined, next: TabStatus | undefined): boolean {
+  if (prev?.kind !== "running" || next === undefined || next.kind === "running") return false
+  return next.kind === "unseen" || next.state === "turn_complete"
 }
 
-/** The default preset's turn glyphs. */
-export const TURN_GLYPHS: Record<ChatTabTurnState, string> = turnGlyphs(DEFAULT_GLYPHS)
-
 /**
- * Semantic activity color, never `focusAccent`: several tabs can run at once
- * and the focus orange means only "you are here".
+ * The chip's glyph and ink for one tab's daemon status. Semantic tones, never
+ * `focusAccent`: several tabs can run at once and the focus orange means only
+ * "you are here".
  */
-function turnColor(theme: Theme, turn: ChatTabTurnState) {
-  switch (turn) {
-    case "running":
-      return theme.info
-    case "done":
-      return theme.success
-    case "error":
-    case "dead":
-      return theme.error
-    case "needs_input":
-    case "rate_limited":
-      return theme.warning
-    default:
-      return theme.textMuted
-  }
+function chipOf(theme: Theme, glyphs: GlyphSet, status: TabStatus | undefined, frame: number) {
+  const mark = rowStatusGlyph(status, glyphs)
+  // The strip's one departure from the rail's palette: its accent is `info`,
+  // because the active tab's frame is drawn in `focusAccent` (the rail's
+  // `primary` by default) and a running chip in it would read as "you are here".
+  const fg = mark.tone === "accent" ? theme.info : toneColor(theme, sidebarTone(mark.tone))
+  return { glyph: mark.spinning ? breathGlyph(glyphs.spinner, frame) : mark.glyph, fg }
 }
 
 /** 2 cells of frame + 2 of padding + the strip's 1-cell left padding. */
@@ -80,48 +65,58 @@ const MIN_TAB_TITLE_CELLS = 6
 /** Active tab: three sides, so the missing bottom edge reads as a notch. */
 const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
-export function TabStrip(props: {
+export interface TabStripProps {
+  /** The task whose tabs these are: the key into the daemon's row status. */
+  taskId: string
   tabs: readonly TerminalTab[]
   activeId: string
-  turnStates: ReadonlyMap<string, ChatTabTurnState>
   onSelect: (tabId: string) => void
+  /** Right-click on a tab, in screen cells. */
+  onContextMenu?: (tabId: string, x: number, y: number) => void
   /** Task-level engine — the default-name fallback for unpinned tabs. */
   vendor: VendorId
   /** tabId → live process display name (see `useTurnPolls().liveTitles`). */
   liveTitles: ReadonlyMap<string, string>
   /** tabId → resolved live engine identity (see `useTurnPolls().turnVendors`). */
   turnVendors: ReadonlyMap<string, VendorId>
-  /**
-   * Tabs whose CURRENT completion was seen (the durable record the sidebar
-   * lamp reads); their `done` chip rests at `○`. Omitted = nothing seen.
-   */
-  seenTabs?: ReadonlySet<string>
-}) {
-  const themeCtx = useTheme()
-  const { theme } = themeCtx
+}
+
+/**
+ * The gate. Off by default (the sidebar tree already lists every worktree's
+ * tabs), and while it is off this renders nothing BEFORE subscribing to the
+ * row-status map or arming the pulse — hidden used to build every chip first.
+ */
+export function TabStrip(props: TabStripProps) {
   const kv = useKV()
-  const glyphs = turnGlyphs(useGlyphs())
-  const dims = useTerminalSize()
-  // Off by default: the sidebar tree already lists every worktree's tabs.
-  // Late bail so hooks run in the same order.
+  const size = useTerminalSize()
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
   // Narrow mode overrides the setting: the sidebar tree isn't on screen there.
-  const narrow = isNarrowWidth(dims.width)
-  const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
+  const narrow = isNarrowWidth(size.width)
+  if (!narrow && !tabStripVisible(stripMode, props.tabs.length)) return null
+  return <TabStripBody {...props} narrow={narrow} dimsWidth={size.width} />
+}
 
-  /* Pulse: a running→done tab id sits in `pulsing` for DONE_PULSE_MS. The
-   * effect re-runs per turnStates identity (the caller always writes a new Map). */
-  const prevTurns = useRef(new Map<string, ChatTabTurnState>())
+function TabStripBody(props: TabStripProps & { readonly narrow: boolean; readonly dimsWidth: number }) {
+  const { theme } = useTheme()
+  const glyphs = useGlyphs()
+  const statuses = useRowStatusMap()[props.taskId]?.tabs
+  const narrow = props.narrow
+  const dims = { width: props.dimsWidth }
+
+  /* Pulse: a tab whose turn just ended sits in `pulsing` for DONE_PULSE_MS.
+   * The effect re-runs per daemon snapshot of this task. */
+  const prevTurns = useRef(new Map<string, TabStatus>())
   const [pulsing, setPulsing] = useState<ReadonlySet<string>>(new Set())
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
   useEffect(() => {
-    for (const [tabId, turn] of props.turnStates) {
+    const now = statuses ?? {}
+    for (const [tabId, status] of Object.entries(now)) {
       const prev = prevTurns.current.get(tabId)
-      prevTurns.current.set(tabId, turn)
-      if (turn !== "done" || prev !== "running") continue
+      prevTurns.current.set(tabId, status)
+      if (!landed(prev, status)) continue
       setPulsing((cur) => new Set(cur).add(tabId))
       const timer = setTimeout(() => {
         timers.current.delete(timer)
@@ -133,8 +128,8 @@ export function TabStrip(props: {
       }, DONE_PULSE_MS)
       timers.current.add(timer)
     }
-    for (const id of [...prevTurns.current.keys()]) if (!props.turnStates.has(id)) prevTurns.current.delete(id)
-  }, [props.turnStates])
+    for (const id of [...prevTurns.current.keys()]) if (!(id in now)) prevTurns.current.delete(id)
+  }, [statuses])
   useEffect(() => {
     const pending = timers.current
     return () => {
@@ -146,14 +141,15 @@ export function TabStrip(props: {
    * marginLeft scrolls) so many tabs don't overdraw the pane's right border.
    * Scrolls per cell, only as far as keeps the ACTIVE tab fully visible.
    * Widths use display-width so CJK counts 2 cells. */
+  const spinning = props.tabs.some((tab) => rowStatusGlyph(statuses?.[tab.id], glyphs).spinning)
+  const frame = useSpinnerFrame(spinning)
   const entries = props.tabs.map((tab) => {
-    const raw = props.turnStates.get(tab.id) ?? "idle"
-    // Seen means consumed (docs/TUI.md); the ACTIVE tab is exempt.
-    const turn: ChatTabTurnState =
-      raw === "done" && tab.id !== props.activeId && props.seenTabs?.has(tab.id) === true ? "idle" : raw
+    const status = statuses?.[tab.id]
+    const chip = chipOf(theme, glyphs, status, frame)
     const liveTitle = props.liveTitles.get(tab.id)
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
-    const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
+    // A tab the daemon has never reported on has nothing to say yet.
+    const chipShown = !nativeStatusVisible && status !== undefined
     // Cap a tab at its pane: the box clips, so a long name would be cut with
     // no ellipsis. Truncate BEFORE `cells` so the scroll math measures what's drawn.
     const title = truncateEndCells(
@@ -162,7 +158,7 @@ export function TabStrip(props: {
       approxCharCells,
     )
     // 2 frame + 2 padding; the scroll math must see the drawn width.
-    return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
+    return { tab, chip, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
   })
   const stripRef = useRef<BoxRenderable | null>(null)
   // Strip width minus the 1-cell left padding; 0 until first layout.
@@ -188,8 +184,6 @@ export function TabStrip(props: {
   }
   offsetRef.current = offset
 
-  if (hidden) return null
-
   /* Narrow (phone-SSH) form: only the ACTIVE tab plus a right-stuck `2/3`
    * counter, which is what tells you the others exist. */
   if (narrow) {
@@ -206,14 +200,24 @@ export function TabStrip(props: {
     return (
       // No row background: transparent mode forces panel backgrounds to alpha-0
       // (applyDisplayOverlay); only the active tab's fill paints.
-      <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
+      <box
+        flexDirection="row"
+        flexShrink={0}
+        paddingLeft={1}
+        paddingRight={1}
+        gap={1}
+        overflow="hidden"
+        onMouseUp={(evt: { button: number; x: number; y: number }) => {
+          if (evt.button === MouseButton.RIGHT) props.onContextMenu?.(active.tab.id, evt.x, evt.y)
+        }}
+      >
         {/* Chip OUTSIDE the fill, for the reason the wide branch dropped its
             own fill: on `focusAccent` the error red lands at a 1.02 contrast
             ratio, so every tone collapses into the orange. On the ambient
             surface all seven states stay tellable apart. */}
         {active.chipShown ? (
-          <text fg={turnColor(theme, active.turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
-            {glyphs[active.turn]}
+          <text fg={active.chip.fg} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
+            {active.chip.glyph}
           </text>
         ) : null}
         <box flexDirection="row" flexShrink={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.focusAccent}>
@@ -241,7 +245,7 @@ export function TabStrip(props: {
       onSizeChange={() => setAvailCells(Math.max(0, (stripRef.current?.width ?? 0) - 1))}
     >
       <box flexDirection="row" gap={0} flexShrink={0} marginLeft={-offset}>
-        {entries.map(({ tab, turn, chipShown, title }) => {
+        {entries.map(({ tab, chip, chipShown, title }) => {
           const pulse = pulsing.has(tab.id)
           const active = tab.id === props.activeId
           return (
@@ -257,19 +261,22 @@ export function TabStrip(props: {
               border={active ? ACTIVE_TAB_SIDES : true}
               borderStyle="rounded"
               borderColor={active ? theme.focusAccent : theme.borderActive}
-              onMouseUp={() => props.onSelect(tab.id)}
+              onMouseUp={(evt: { button: number; x: number; y: number }) => {
+                // Right-click opens the menu and never falls through to select.
+                if (evt.button === MouseButton.RIGHT && props.onContextMenu) props.onContextMenu(tab.id, evt.x, evt.y)
+                else props.onSelect(tab.id)
+              }}
             >
-              {/* Turn chip — tmux CHAT_TAB_STATUS_FORMAT's ●/✓/!/?/○. Shown
-                  only once the turn detector has an actionable reading for the
-                  tab. We deliberately skip absent and "unknown" readings: both
-                  are placeholders with no information, so let the real state
-                  (or the engine's native title) speak. Hidden while an
+              {/* Turn chip: the daemon's status for the tab, the sidebar
+                  row's glyph and tone. Shown once the daemon has a record of
+                  the tab; before that there is nothing to say, so let the
+                  engine's native title speak. Hidden while an
                   engine-owned live title is visibly carrying the same status.
                   No fill behind the chip anymore — the active tab is an open
                   frame, so tone colors survive on every tab. */}
               {chipShown ? (
-                <text fg={turnColor(theme, turn)} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
-                  {`${glyphs[turn]} `}
+                <text fg={chip.fg} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
+                  {`${chip.glyph} `}
                 </text>
               ) : null}
               <text

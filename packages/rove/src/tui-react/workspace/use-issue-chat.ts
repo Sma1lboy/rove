@@ -19,18 +19,17 @@
 import { userFacingErrorMessage } from "@/lib/error-message"
 import type { Issue } from "@sma1lboy/rove-daemon/daemon/issues-store"
 import { roveApiInvocation } from "../../engine/interactive-command"
+import type { SpawnChildInput } from "../../orchestrator/spawn-child"
+import { taskCwd } from "../../orchestrator/task-tree"
 import { type IssueChatPlacement, issueChatTaskTitle, issueProjectPrompt } from "../../state/issue-chat"
 import { addSavedRepo } from "../../state/repos"
 import { setRepoLastActiveVendor } from "../../state/vendor-prefs"
-import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { buildIssueChatBackgroundSpawn, buildIssueTabSpawn } from "../../tui/workspace/issue-chat-spawn"
+import { buildIssueChatBackgroundSpawn } from "../../tui/workspace/issue-chat-spawn"
 import type { EngineTab } from "../../tui/workspace/terminal-tabs-core"
 import type { Task, VendorId } from "../../types/task"
-import { useKV } from "../context/kv"
 import { useT } from "../i18n"
-import { terminalTabsKey } from "./terminal-tabs-persist"
-import { appendBackgroundEngineTab } from "./terminal-tabs-shared"
+import { appendBackgroundEngineTab, setTaskTabs } from "./terminal-tabs-shared"
 
 export interface IssueChatStart {
   readonly repoRoot: string
@@ -45,7 +44,7 @@ export interface IssueChatOrchestrator {
   createTask(input: { repo: string; title?: string; vendor?: VendorId }): Promise<Task>
   ensureMainTask(repo: string): Promise<Task>
   ensureWorktree(id: string): Promise<string>
-  setVendor(id: string, vendor: VendorId, effort?: string): Promise<void>
+  spawnChildTask(input: SpawnChildInput): Promise<{ readonly task: Task }>
   mutateIssue(repoRoot: string, op: unknown): Promise<unknown>
 }
 
@@ -66,7 +65,6 @@ export function useIssueChat(
   },
 ): UseIssueChatResult {
   const t = useT()
-  const kv = useKV()
 
   async function enter(taskId: string): Promise<void> {
     hooks.closeKanban()
@@ -79,32 +77,35 @@ export function useIssueChat(
     else hooks.notifyInfo(t("kanban.detail.startedBackground", { title: issueChatTaskTitle(request.issue) }))
   }
 
-  /** `project` placement: a story chattab on the MAIN workspace's checkout. */
+  /** `project` placement: a story session sharing the MAIN workspace's checkout, as a child of the main task. */
   async function startProjectTab(request: IssueChatStart, api: string): Promise<void> {
     const { repoRoot, issue, vendor } = request
     const main = await orch.ensureMainTask(repoRoot)
-    await orch.setVendor(main.id, vendor)
     await orch.mutateIssue(repoRoot, { type: "setStatus", id: issue.id, status: "doing" }).catch((err: unknown) => {
       // Best-effort (must not strand the chat), but said: otherwise the card
       // silently stays in Backlog while its session runs.
       console.error("[rove kanban] issue setStatus failed:", err)
       hooks.notifyError(t("kanban.statusFailed", { id: String(issue.id), error: userFacingErrorMessage(err) }))
     })
-    const { tab } = appendBackgroundEngineTab(kv, main.id, defaultShell(), { vendor })
-    const spawn = buildIssueTabSpawn({
-      taskId: main.id,
+    const { task: child } = await orch.spawnChildTask({ parentTaskId: main.id, worktree: false, vendor })
+    const spawn = buildIssueChatBackgroundSpawn({
+      issue,
+      taskId: child.id,
       repoRoot,
-      worktreePath: main.worktreePath,
-      tab,
+      worktreePath: taskCwd(child),
       vendor,
+      api,
+      kind: child.kind,
       prompt: issueProjectPrompt(issue, api),
     })
-    getDefaultPtyRegistry().acquire(spawn.ptyKey, main.worktreePath, {
+    getDefaultPtyRegistry().acquire(spawn.ptyKey, taskCwd(child), {
       command: spawn.command,
+      initialInput: spawn.initialInput,
       firstMessage: spawn.firstMessage,
       engineBin: spawn.engineBin,
     })
-    await finish(request, main.id)
+    setTaskTabs(child.id, spawn.tabsSnapshot)
+    await finish(request, child.id)
   }
 
   /** Shared by both worktree placements. */
@@ -130,7 +131,7 @@ export function useIssueChat(
       firstMessage: spawn.firstMessage,
       engineBin: spawn.engineBin,
     })
-    kv.set(terminalTabsKey(task.id), spawn.tabsSnapshot)
+    setTaskTabs(task.id, spawn.tabsSnapshot)
     return { task, worktreePath, tab: spawn.tabsSnapshot.tabs[0] as EngineTab }
   }
 
@@ -146,7 +147,7 @@ export function useIssueChat(
         // Same PTY key, worktree as cwd. Workspaces render one at a time, so
         // the two views attach sequentially.
         const main = await orch.ensureMainTask(request.repoRoot)
-        appendBackgroundEngineTab(kv, main.id, defaultShell(), {
+        await appendBackgroundEngineTab(main.id, {
           vendor: request.vendor,
           sessionId: tab.sessionId ?? null,
           ptyTask: { id: task.id, worktree: worktreePath },

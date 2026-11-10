@@ -82,6 +82,21 @@ export type EngineUsageSnapshot = {
   readonly context_tokens_approximate?: boolean
   /** Model context window, when known. */
   readonly context_window_tokens?: number
+  /** What `context_tokens` is made of, when the engine records it (`system`: prompt + tools; `messages`); the parts not `deferred` sum to it. */
+  readonly context_parts?: readonly ContextPart[]
+}
+
+export type ContextPart = {
+  readonly key: string
+  readonly tokens: number
+  /** The engine's own name for the part, for a key no catalog words. */
+  readonly label?: string
+  /** The largest things in the part (memory files, tools, skills), biggest first. */
+  readonly items?: readonly { readonly name: string; readonly tokens: number }[]
+  /** How many things the part holds, when `items` lists only the largest. */
+  readonly itemCount?: number
+  /** Loaded on demand: listed for its size, in no window and no total. */
+  readonly deferred?: true
 }
 
 /** What `engine/<vendor>/history.ts` returns: messages plus the session's aggregate usage. */

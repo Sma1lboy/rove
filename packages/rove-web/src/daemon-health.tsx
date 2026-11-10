@@ -9,10 +9,13 @@
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
+import { everyVisible } from "./every-visible.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { createStore, useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { dialog, toast } from "./ui.ts"
+import { DAEMON_BANNER } from "./ui/shell.ts"
+import { LINK } from "./ui/text.ts"
 import { prefixHint, userKeys } from "./user-keys.ts"
 
 interface DaemonHealth {
@@ -41,10 +44,10 @@ async function check(client: BridgeClient): Promise<boolean> {
 export function useDaemonHealth(client: BridgeClient): void {
   useEffect(() => {
     const off = client.onOpen(() => void check(client))
-    const timer = window.setInterval(() => void check(client), POLL_MS)
+    const stop = everyVisible(POLL_MS, () => void check(client))
     return () => {
       off()
-      window.clearInterval(timer)
+      stop()
     }
   }, [client])
 }
@@ -84,10 +87,10 @@ export function DaemonBanner({ onRefresh }: { onRefresh: () => void }) {
     keys: prefixHint("app.refresh"),
   })
   return (
-    <div className="daemon-banner mono" role="alert">
+    <div className={`mono ${DAEMON_BANNER}`} role="alert">
       <b>{tc("update", "skew.title")}</b>
       <span>{hint}</span>
-      <button type="button" className="link" onClick={onRefresh}>
+      <button type="button" className={LINK} onClick={onRefresh}>
         {tc("update", "refresh.confirmLabel")}
       </button>
     </div>

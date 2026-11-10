@@ -253,7 +253,6 @@ describe("Rove package distribution", () => {
       "packages/rove-landing/themes/solarized.json",
       "packages/rove/scripts/build.ts",
       "packages/rove/src/cli/theme.ts",
-      "packages/rove/src/lib/skill-install.ts",
       "packages/rove/src/tui/context/theme/theme.schema.json",
       "scripts/release.sh",
     ]

@@ -90,6 +90,21 @@ export function resolveLoginShell(options = {}) {
   return resolved
 }
 
+/**
+ * The shell every hosted session launches into: engine tabs, shell tabs, the
+ * host's own default. One fallback for the TUI, CLI, daemon and PTY host, so a
+ * tab relaunched from another process (a TUI reattach after the first launch
+ * came from `rove api`) lands in the shell the first launch used. A shell
+ * function such as a `claudecpa` preset exists only in that shell's rc, and
+ * the processes disagree only when `$SHELL` is unset.
+ *
+ * @param {object} [options] As {@link resolveLoginShell}, minus `fallback`.
+ * @returns {string}
+ */
+export function resolveSessionShell(options = {}) {
+  return resolveLoginShell({ ...options, fallback: "/bin/zsh" })
+}
+
 function resolveUncached(fallback, platform, env, exists) {
   const explicit = env.SHELL?.trim()
   if (platform !== "win32") {

@@ -17,7 +17,15 @@ const DENIED: DiscoverFailure = {
 const NO_ROVE: DiscoverFailure = { ok: false, code: "NO_ROVE", message: "Rove is not installed on otter" }
 const OK: DiscoverResult = {
   ok: true,
-  status: { socketPath: "/s", ptySocketPath: "/p", homeDir: "/h", hostname: "otter", roveVersion: "1", daemonPid: 1 },
+  status: {
+    socketPath: "/s",
+    ptySocketPath: "/p",
+    homeDir: "/h",
+    hostname: "otter",
+    roveVersion: "1",
+    daemonPid: 1,
+    relayPreamble: true,
+  },
 }
 
 /** A runtime whose `exec` records argv and creates the key a real ssh-keygen would. */
@@ -79,6 +87,29 @@ describe("establishMachine", () => {
     expect(await establishMachine("otter", CONFIG, rt)).toMatchObject({ ok: false, failure: { code: "NO_ROVE" } })
     expect(ran).toHaveLength(1)
     expect(ran[0]?.at(-1)).toBe("curl -fsSL https://rove.run/install.sh | sh")
+  })
+
+  it("on a Windows sshd, makes the hub key and prints where it goes instead of running sh there", async () => {
+    const out: string[] = []
+    const { rt, ran } = runtime(
+      [
+        { ...DENIED, windows: true },
+        { ...DENIED, windows: true },
+      ],
+      { out: (line) => out.push(line) },
+    )
+    expect((await establishMachine("otter", CONFIG, rt)).ok).toBe(false)
+    expect(ran.map((argv) => argv[0])).toEqual(["ssh-keygen"])
+    const printed = out.join("\n")
+    expect(printed).toContain("administrators_authorized_keys")
+    expect(printed).toContain("'ssh-ed25519 AAAA rove-hub@test'")
+    expect(printed).toContain(`--identity ${hubKeyPath()}`)
+  })
+
+  it("installs Rove on Windows with npm, not the sh install script", async () => {
+    const { rt, ran } = runtime([{ ...NO_ROVE, windows: true }, NO_ROVE])
+    await establishMachine("otter", CONFIG, rt)
+    expect(ran[0]?.at(-1)).toBe("npm install -g @sma1lboy/rove")
   })
 })
 

@@ -126,3 +126,13 @@ enum class NotificationAccess {
             if (enabled) Granted else if (canPrompt && !asked) Prompt else Denied
     }
 }
+
+/** `info: null` means the Mac could not look (offline, a dev build), never "up to date". */
+@kotlinx.serialization.Serializable data class UpdateCheck(val current: String = "", val info: UpdateInfo? = null, val notes: List<ReleaseNotes> = emptyList()) {
+    val upToDate get() = info?.hasUpdate == false
+}
+@kotlinx.serialization.Serializable data class UpdateInfo(val latest: String = "", val hasUpdate: Boolean = false)
+@kotlinx.serialization.Serializable data class ReleaseNotes(val version: String = "", val body: String = "", val url: String? = null)
+
+/** The two `prefs.get` keys Settings › About shows; `latest` is the channel called stable. */
+@Serializable data class UpdatePrefs(val updateChannel: String = "latest", val updateNotify: Boolean = true)

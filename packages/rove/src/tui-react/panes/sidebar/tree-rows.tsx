@@ -1,109 +1,226 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tree rows: project header flush, worktrees one cell in, tab rows at the
- * SAME column as their worktree (the state glyph carries the hierarchy). A
- * worktree row is `[job spinner] · label` plus the right-edge cluster and
- * stays ONE cell tall: a dozen worktrees must fit the rail.
+ * Tree rows: project header and its tasks' state glyphs flush, each generation
+ * of child tasks two cells deeper (the state glyph carries the hierarchy). A task
+ * row is `[status] label` plus the right-edge cluster and stays ONE cell
+ * tall: a dozen tasks must fit the rail.
  *
- * An AGENT tab row can opt in to a second cell naming the live engine
- * (`state/tab-row-height.ts`, off by default: it roughly halves how many rows
- * fit). Non-agent tabs stay one cell.
+ * A task is one conversation, so its row carries that conversation's status:
+ * the daemon's row status (`row-status-sync.ts`) drawn through `rowStatusGlyph`.
+ * A folded task also names how many children it hides and the most urgent
+ * state among them.
  */
 
-import { type TaskEngineState, type TaskJobState, liveRowTokens } from "@/client/remote-orchestrator"
+import { type TaskEngineState, liveRowTokens } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { TextAttributes } from "@opentui/core"
+import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { useMemo } from "react"
-import { engineDisplayName } from "../../../engine/interactive-command"
-import { engineEntry } from "../../../engine/registry"
 import { charWidth, displayWidth } from "../../../lib/display-width"
 import { relativeAge } from "../../../lib/relative-time"
+import { rowStatusGlyph } from "../../../lib/row-status-glyph"
 import { DEFAULT_RUNNING_TITLE, RUNNING_TITLE_KEY, normalizeRunningTitle } from "../../../state/running-title"
-import { TAB_ROW_HEIGHT_KEY, normalizeTabRowHeight } from "../../../state/tab-row-height"
-import { breathColor, breathGlyph, mixInk } from "../../../tui/lib/breathe"
-import { effortMark } from "../../../tui/lib/effort-glyph"
+import { breathColor, breathGlyph } from "../../../tui/lib/breathe"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { prChip } from "../../../tui/panes/sidebar/row-chips"
-import { buildSidebarRowView, isAttentionActivity, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
-import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
+import { remoteMarkLive, remoteRowCaption } from "../../../tui/panes/sidebar/machine-layer"
+import { sidebarPrChip } from "../../../tui/panes/sidebar/row-chips"
+import {
+  type SidebarRowView,
+  buildSidebarRowView,
+  sidebarTone,
+  withSpinnerFrame,
+} from "../../../tui/panes/sidebar/row-view"
+import {
+  type RemoteMark,
+  type TreeFold,
+  childMarkerOf,
+  rowLiveBranchPath,
+  tabRowActivity,
+  worktreeRowLabel,
+} from "../../../tui/panes/sidebar/tree-core"
 import { rowTokenTone, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import { useOptionalKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ShimmerLabel } from "../../lib/shimmer-label"
 import { useGlyphs } from "../../lib/use-glyphs"
-import { useTaskColor } from "../../lib/use-task-color"
-import {
-  ChangeStats,
-  UNKNOWN_CHANGES_MARK,
-  completionSeenFor,
-  completionStampOf,
-  useChanges,
-  useClockTick,
-  useDonePulse,
-  useDurableCompletionSeen,
-  usePollOnClock,
-  useSpinnerFrame,
-} from "./row-cards"
+import { useTabRowStatus, useTaskRowStatus } from "../../workspace/row-status-sync"
+import { useMostUrgentStatus } from "./fold-summary"
+import { completionStampOf, useClockTick, useDonePulse, usePollOnClock, useSpinnerFrame } from "./row-cards"
 import { MoveChip, RowShell, type TreeRowShared, clusterCells, treeLabelBudget } from "./tree-row-shell"
+
+/** Cells of the title a remote row's cursor caption must leave standing. */
+const REMOTE_TITLE_CELLS = 12
+
+/** Fixed terminal glyphs, the routines twisty's exception: a child's directory is shared (`⑂`) or its own (`⎇`). */
+export const SHARED_MARK = "⑂"
+export const WORKTREE_MARK = "⎇"
+const FOLD_OPEN = "▾"
+const FOLD_CLOSED = "▸"
 
 /**
  * Age in the current state (`12m`) for WORKING or STOPPED rows only; null
  * otherwise, or every idle tab would wear a number. A row showing one
  * re-renders on the poll clock (`useClockTick`).
  */
-function activityAgeLabel(activity: TaskEngineState | undefined, loading: boolean): string | null {
-  if (activity === undefined) return null
-  if (!loading && !isAttentionActivity(activity.state)) return null
+function statusAgeLabel(status: RowStatus | undefined): string | null {
+  if (!status || status.since <= 0) return null
+  if (status.kind !== "running" && status.kind !== "attention" && status.kind !== "needs-input") return null
   // `relativeAge` clamps a clock skewed ahead of the daemon to `0s`.
-  return relativeAge(activity.at)
+  return relativeAge(status.since)
 }
 
 /**
- * A worktree row carries NO engine state glyph (that lives on the tab row);
- * only worktree-level facts: branch, pin, PR chip, ±stats, and
- * materializing/deleting.
+ * The tab ledger entry for this task's conversation: a migrated child's
+ * aliased tab, else the freshest entry of its own tabs (one engine tab; a
+ * stale shell entry never outranks a newer one).
+ */
+function conversationActivity(
+  task: Task,
+  tabStates: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>> | undefined,
+): TaskEngineState | undefined {
+  const alias = task.ptyAlias
+  const tabs = tabStates?.get(alias?.taskId ?? task.id)
+  if (!tabs) return undefined
+  if (alias) return tabRowActivity({ tabId: alias.tabId, tabActivities: tabs })
+  let latest: TaskEngineState | undefined
+  for (const activity of tabs.values()) if (!latest || activity.at > latest.at) latest = activity
+  return latest
+}
+
+/**
+ * A state cell's view, spinner frame, landing pulse and colour for one status.
+ * The landing flash keys on the engine's completion stamp, so a turn that ends
+ * while you watch still flashes and a re-render of a read one does not.
+ */
+function useStateCell(args: {
+  readonly task: Task
+  readonly status: RowStatus | undefined
+  readonly lifecycle: { readonly subagents: number } | undefined
+  readonly activity: TaskEngineState | undefined
+}) {
+  const { theme } = useTheme()
+  const baseView = useTabRowBaseView({ task: args.task, status: args.status, lifecycle: args.lifecycle })
+  const frame = useSpinnerFrame(baseView.loading)
+  const rowView = withSpinnerFrame(baseView, () => frame)
+  const pulsing = useDonePulse(completionStampOf(args.activity))
+  const fg = pulsing
+    ? theme.success
+    : rowView.loading && rowView.tone === "primary"
+      ? breathColor(theme.primary, theme.textMuted, frame)
+      : toneColor(theme, rowView.tone)
+  return { rowView, fg, pulsing, frame }
+}
+
+/**
+ * The task's state cell: the daemon's status for its conversation. A migrated
+ * child's conversation is still its parent's tab, so it reads that tab; a
+ * task-level job or deletion (the rollup's `busy`) shows over either.
+ */
+function useTaskStateCell(task: Task, shared: TreeRowShared) {
+  const alias = task.ptyAlias
+  const rollup = useTaskRowStatus(task.id)
+  const aliased = useTabRowStatus(alias?.taskId ?? task.id, alias?.tabId ?? "")
+  const status = alias && rollup?.kind !== "busy" ? aliased : rollup
+  const cell = useStateCell({
+    task,
+    status,
+    lifecycle: shared.engineLifecycle?.get(task.id),
+    activity: conversationActivity(task, shared.engineTabState),
+  })
+  return { status, ...cell }
+}
+
+/** `▸ 3 ●` on a folded task: the fold, how many descendants it hides, and the most urgent of them. */
+function FoldCluster(props: { readonly task: Task; readonly fold: TreeFold; readonly shared: TreeRowShared }) {
+  const { theme } = useTheme()
+  const glyphs = useGlyphs()
+  const { fold } = props
+  const urgent = useMostUrgentStatus(fold.descendantIds, fold.collapsed)
+  const mark = rowStatusGlyph(urgent, glyphs)
+  const frame = useSpinnerFrame(fold.collapsed && mark.spinning)
+  return (
+    <box
+      flexDirection="row"
+      gap={1}
+      flexShrink={0}
+      onMouseUp={(evt: { stopPropagation(): void }) => {
+        evt.stopPropagation()
+        props.shared.onToggleFold?.(props.task.id)
+      }}
+    >
+      <text fg={theme.textMuted} wrapMode="none">
+        {fold.collapsed ? FOLD_CLOSED : FOLD_OPEN}
+      </text>
+      {fold.collapsed ? (
+        <text fg={theme.textMuted} wrapMode="none">
+          {String(fold.count)}
+        </text>
+      ) : null}
+      {fold.collapsed && urgent ? (
+        <text fg={toneColor(theme, sidebarTone(mark.tone))} wrapMode="none">
+          {mark.spinning ? breathGlyph(glyphs.spinner, frame) : mark.glyph}
+        </text>
+      ) : null}
+    </box>
+  )
+}
+
+/**
+ * A task row: `[state] label`, then its facts (pin, PR chip, ±stats, a
+ * deletion or checkout in flight) and, on a child, the marker for where it
+ * runs plus a level number once the indent stops growing.
  *
- * Both jobs must show HERE: a materializing task has no tab rows yet (a tab
- * is recorded only once delivery succeeds), and `TaskDeletionCoordinator`
- * sweeps PTYs before touching the worktree, so a failed deletion has no tab
- * or activity to carry a `!`.
- *
- * Reads `taskJobs` DIRECTLY, not `buildSidebarRowView`'s `loading`, which
- * folds in engine activity and would leak the task rollup onto this row. A
- * job is task-scoped (one per taskId, one worktree per task).
+ * A task on ANOTHER machine (`remote`) wears a cloud at the row's right edge — muted
+ * while that machine is online, warning-toned (and the title greyed) while it
+ * is offline, connecting or mismatched. Under the cursor the cloud also says
+ * where: `on <host> · <state>`. Machines are not sections; this mark is the
+ * only place a row says it lives elsewhere.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
   readonly flatIndex: number
   readonly task: Task
-  /** Tree depth — 1 at rest, one deeper under a machine header. */
+  /** Tree depth — 1 at rest. */
   readonly depth?: number
+  /** The real generation of a row past the indent cap (`TreeRow.level`). */
+  readonly level?: number
+  /** Set on a task with children. */
+  readonly fold?: TreeFold
+  /** The engine conversation's own name (`TreeRow.title`), when it has one. */
+  readonly title?: string
+  /** Set when the task lives on another machine (`applyMachineLayer`). */
+  readonly remote?: RemoteMark
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
   const t = useT()
   const glyphs = useGlyphs()
+  const kv = useOptionalKV()
   const shared = props.shared
   const task = props.task
-  const changes = useChanges(shared, task)
-  const chip = prChip(task, glyphs)
-  // Named by BRANCH (`worktreeRowLabel`). Main checkouts and directory/scratch
-  // tasks store none and move freely, so they poll their own HEAD.
+  const chip = sidebarPrChip(task, glyphs)
+  // Named by its conversation (`worktreeRowLabel`). Main checkouts and directory/scratch
+  // tasks store no branch and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
   usePollOnClock(livePath, pollCurrentBranch)
-  const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
+  const label = worktreeRowLabel(task, {
+    liveTitle: props.title,
+    ...(livePath ? { liveBranch: currentBranch(livePath) } : {}),
+  })
   const moving = shared.movingRowId === props.rowId
-  // Presence in the map IS "running" — the daemon removes the entry on both
-  // terminal phases (see `TaskJobState`).
-  const materializing = shared.taskJobs?.get(task.id) !== undefined
-  // Task-scoped like `taskJobs`, so read directly.
+  const { status, rowView, fg, pulsing, frame } = useTaskStateCell(task, shared)
+  const age = statusAgeLabel(status)
+  useClockTick(age !== null)
+  // The deletion WORD is a task fact; the glyph is the daemon's.
   const deletionPhase = task.deletion?.phase
   const deleting = deletionPhase === "queued" || deletionPhase === "running"
   const deleteFailed = deletionPhase === "error"
-  const spinning = materializing || deleting
-  const frame = useSpinnerFrame(spinning)
+  // A slow checkout says how far it got, beside its spinner.
+  const checkoutPercent =
+    status?.kind === "busy" && status.reason === "job" ? shared.taskJobs?.get(task.id)?.progress : undefined
+  const checkoutText = checkoutPercent === undefined ? null : `${checkoutPercent}%`
   // Rides beside the branch label, not in place of it: a failed deletion
   // leaves the branch, and rows all reading "delete failed" are unusable.
   const deletionWord =
@@ -111,42 +228,70 @@ export function WorktreeTreeRow(props: {
   // Expired plugin tokens drop at RENDER time too, before the daemon's republish.
   useClockTick((shared.rowTokens?.get(task.id)?.length ?? 0) > 0)
   const tokens = liveRowTokens(shared.rowTokens, task.id, Date.now())
+  const remote = props.remote
+  const remoteLive = remote ? remoteMarkLive(remote) : true
+  const caption = remote && shared.cursorIndex === props.flatIndex ? remoteRowCaption(remote, t) : null
+  const marker = childMarkerOf(task)
+  // A task over several repos is listed once, under its primary, with how many more it spans.
+  const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
+  const fold = props.fold
   const reserved =
-    // The glyph column exists only while a job runs.
-    (spinning ? 2 : 0) +
+    // The state-glyph column, and the child indent (`indentOf` in tree-row-shell).
+    2 +
+    2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.
     tokens.reduce((cells, token) => cells + clusterCells(token.text), 0) +
     (deletionWord ? clusterCells(deletionWord) : 0) +
+    (checkoutText ? clusterCells(checkoutText) : 0) +
+    (age ? clusterCells(age) : 0) +
+    (props.level !== undefined ? clusterCells(String(props.level)) : 0) +
+    (marker ? clusterCells(SHARED_MARK) : 0) +
+    (extraRepoText ? clusterCells(extraRepoText) : 0) +
+    (fold
+      ? clusterCells(fold.collapsed ? FOLD_CLOSED : FOLD_OPEN) +
+        (fold.collapsed ? clusterCells(String(fold.count)) + clusterCells(glyphs.idle) : 0)
+      : 0) +
+    (remote ? clusterCells(glyphs.remote) : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
-    // The unknown mark replaces the whole ↑/+/−/↓ cluster.
-    (changes === null ? clusterCells(UNKNOWN_CHANGES_MARK) : 0) +
-    ((changes?.ahead ?? 0) > 0 ? clusterCells(`↑${changes?.ahead}`) : 0) +
-    ((changes?.added ?? 0) > 0 ? clusterCells(`+${changes?.added}`) : 0) +
-    ((changes?.deleted ?? 0) > 0 ? clusterCells(`−${changes?.deleted}`) : 0) +
-    ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
-  const mark = useTaskColor(task.id)
+  // The cursor's caption takes what the title leaves (the title keeps up to
+  // REMOTE_TITLE_CELLS), clipped with `…`, so a narrow rail never loses the branch.
+  const budget = treeLabelBudget(shared, reserved)
+  const captionCells = caption ? Math.max(0, budget - Math.min(displayWidth(label), REMOTE_TITLE_CELLS) - 1) : 0
+  const remoteText = remote
+    ? captionCells > 2
+      ? `${glyphs.remote} ${truncateEndCells(caption ?? "", captionCells, charWidth)}`
+      : glyphs.remote
+    : null
+  const shimmer =
+    rowView.loading &&
+    !pulsing &&
+    normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
+  const clipped = truncateEndCells(label, budget - (remoteText ? displayWidth(remoteText) - 1 : 0), charWidth)
   return (
-    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared} mark={mark}>
-      {spinning ? (
-        <text fg={breathColor(theme.primary, theme.textMuted, frame)} wrapMode="none" width={2} flexShrink={0}>
-          {`${breathGlyph(glyphs.spinner, frame)} `}
-        </text>
-      ) : null}
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={props.depth ?? 1} shared={shared}>
+      <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
+        {`${rowView.stateGlyph} `}
+      </text>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         {/* A row from an unreachable machine is the LAST KNOWN state, not a
             live one — it keeps its place and drops to muted rather than
             disappearing, which would erase the only record of where the work
             is. */}
         <text
-          fg={task.origin?.stale ? theme.textMuted : theme.text}
+          fg={task.origin?.stale || !remoteLive ? theme.textMuted : theme.text}
+          attributes={pulsing ? TextAttributes.BOLD : undefined}
           wrapMode="none"
           flexBasis={0}
           flexGrow={1}
           flexShrink={1}
         >
-          {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}
+          {shimmer ? (
+            <ShimmerLabel label={clipped} tick={frame} muted={theme.textMuted} accent={theme.primary} />
+          ) : (
+            clipped
+          )}
         </text>
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
@@ -168,215 +313,73 @@ export function WorktreeTreeRow(props: {
             {token.text}
           </text>
         ))}
-        <ChangeStats changes={changes} />
         {deletionWord ? (
           <text fg={deleteFailed ? theme.error : theme.textMuted} wrapMode="none" flexShrink={0}>
             {deletionWord}
           </text>
         ) : null}
         <MoveChip rowId={props.rowId} shared={shared} />
-      </box>
-    </RowShell>
-  )
-}
-
-/**
- * The tab row's `buildSidebarRowView`, memoized on the real inputs so the
- * ~10Hz spinner tick doesn't re-derive idle rows. Exported for its memo test.
- */
-export function useTabRowBaseView(args: {
-  readonly task: Task
-  readonly activity: TaskEngineState | undefined
-  readonly lifecycle: { readonly subagents: number } | undefined
-  readonly job: TaskJobState | undefined
-  readonly completionSeen: boolean
-}): ReturnType<typeof buildSidebarRowView> {
-  const t = useT()
-  const glyphs = useGlyphs()
-  const { task, activity, lifecycle, job, completionSeen } = args
-  return useMemo(() => {
-    // Rebuild on language change: buildSidebarRowView reads the global `t`.
-    void t
-    return buildSidebarRowView({
-      task,
-      activity,
-      lifecycle,
-      job,
-      spinnerFrame: 0,
-      subtitleBudget: 0,
-      truncateBranch: truncateBranchLabel,
-      completionSeen,
-      glyphs,
-    })
-  }, [task, activity, lifecycle, job, completionSeen, t, glyphs])
-}
-
-/**
- * A tab's state cell — glyph and colour — as the tree's tab row draws it. The
- * folded rail colours its tab digit from the same hook, so fold and tree agree.
- */
-export function useTabStateCell(args: {
-  readonly task: Task
-  readonly tab: TreeTab
-  readonly tabStates: ReadonlyMap<string, TaskEngineState> | undefined
-  readonly lifecycle: { readonly subagents: number } | undefined
-  readonly job: TaskJobState | undefined
-  /** This tab is on screen: sitting in it digests ● to ✓. */
-  readonly viewing: boolean
-}) {
-  const { theme } = useTheme()
-  const glyphs = useGlyphs()
-  const { task, tab, viewing } = args
-  // Only an AGENT tab with daemon-reported activity wears a live state glyph.
-  const isAgent = tab.engine === true
-  const activity = isAgent ? tabRowActivity({ tabId: tab.id, tabActivities: args.tabStates }) : undefined
-  // Own activity only; counting "is the active tab" would leak the task rollup.
-  const carriesState = activity !== undefined
-  // ONLY a row carrying activity may run the completion bookkeeping: a
-  // sibling's state=undefined would wipe the bit the active row just recorded
-  // (✓ → ● flip on task switch). The durable half survives a restart, as the
-  // daemon's activity entry does.
-  const durableSeen = useDurableCompletionSeen(
-    task.id,
-    tab.id,
-    carriesState ? completionStampOf(activity) : undefined,
-    viewing,
-  )
-  const completionSeen = carriesState
-    ? completionSeenFor(task.id, activity?.state, viewing, tab.id, durableSeen)
-    : false
-  const baseView = useTabRowBaseView({
-    task,
-    activity,
-    lifecycle: carriesState ? args.lifecycle : undefined,
-    job: carriesState ? args.job : undefined,
-    completionSeen,
-  })
-  const frame = useSpinnerFrame(carriesState && baseView.loading)
-  const rowView = withSpinnerFrame(baseView, () => frame)
-  // A freeze-restored tab's process is dead and OPENING it re-runs the launch
-  // command, first prompt and all. It must not read `○` ("nothing to do");
-  // it takes the dead-engine `!`.
-  const restored = tab.restored === true
-  // No daemon signal rests at the same `○` as known-idle.
-  const glyph = restored ? glyphs.attention : isAgent && carriesState ? rowView.stateGlyph : glyphs.idle
-  // Gated on `carriesState`, or a sibling would flash for another tab's turn.
-  const pulsing = useDonePulse(carriesState ? completionStampOf(activity) : undefined)
-  const fg = pulsing
-    ? theme.success
-    : restored
-      ? theme.error
-      : carriesState
-        ? rowView.loading && rowView.tone === "primary"
-          ? breathColor(theme.primary, theme.textMuted, frame)
-          : toneColor(theme, rowView.tone)
-        : theme.textMuted
-  return { activity, carriesState, rowView, glyph, fg, pulsing, frame }
-}
-
-export function TabTreeRow(props: {
-  readonly rowId: string
-  readonly flatIndex: number
-  readonly task: Task
-  readonly tab: TreeTab
-  /** Tree depth — 1 at rest, one deeper under a machine header. */
-  readonly depth?: number
-  readonly shared: TreeRowShared
-}) {
-  const { theme } = useTheme()
-  const t = useT()
-  const shared = props.shared
-  const { activity, carriesState, rowView, glyph, fg, pulsing, frame } = useTabStateCell({
-    task: props.task,
-    tab: props.tab,
-    tabStates: shared.engineTabState?.get(props.task.id),
-    lifecycle: shared.engineLifecycle?.get(props.task.id),
-    job: shared.taskJobs?.get(props.task.id),
-    viewing: shared.selectedTaskId === props.task.id && props.tab.active === true,
-  })
-  const age = carriesState ? activityAgeLabel(activity, rowView.loading) : null
-  useClockTick(age !== null)
-  // Second line, agent tabs only: the engine RUNNING, probed from the pty's
-  // process tree (`TreeTab.liveVendor`), not task config (usually unset).
-  // No answer → no second line. No KV provider → default height.
-  const kv = useOptionalKV()
-  const twoCell = normalizeTabRowHeight(kv?.get(TAB_ROW_HEIGHT_KEY, 1)) === 2
-  const liveVendor = props.tab.liveVendor ?? null
-  const modelLine = props.tab.engine === true && twoCell && liveVendor ? engineDisplayName(liveVendor) : null
-  const mark = useTaskColor(props.task.id)
-  const label = truncateEndCells(
-    props.tab.label,
-    // + the 2-cell state-glyph column.
-    treeLabelBudget(
-      shared,
-      2 +
-        (age ? clusterCells(age) : 0) +
-        (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
-    ),
-    charWidth,
-  )
-  const shimmer =
-    rowView.loading &&
-    !pulsing &&
-    normalizeRunningTitle(kv?.get(RUNNING_TITLE_KEY, DEFAULT_RUNNING_TITLE)) === "shimmer"
-  // The task's pinned level rides along only when the live engine declares
-  // it (the launch path drops any other), and only if the whole line fits.
-  const level = props.task.modelEffort?.trim() ?? ""
-  const effort = modelLine && liveVendor ? effortMark(engineEntry(liveVendor).effortLevels, level) : null
-  const captionBudget = treeLabelBudget(shared, 2)
-  const showEffort = effort !== null && displayWidth(`${modelLine} · ${effort.glyph} ${level}`) <= captionBudget
-  return (
-    <RowShell
-      rowId={props.rowId}
-      flatIndex={props.flatIndex}
-      depth={props.depth ?? 1}
-      shared={props.shared}
-      mark={mark}
-    >
-      <text fg={fg} attributes={pulsing ? TextAttributes.BOLD : undefined} wrapMode="none" width={2} flexShrink={0}>
-        {`${glyph} `}
-      </text>
-      <box flexDirection="column" flexGrow={1}>
-        <box flexDirection="row" paddingRight={1} gap={1}>
-          <text
-            fg={pulsing ? theme.text : theme.textMuted}
-            attributes={pulsing ? TextAttributes.BOLD : undefined}
-            wrapMode="none"
-            flexBasis={0}
-            flexGrow={1}
-            flexShrink={1}
-          >
-            {shimmer ? (
-              <ShimmerLabel label={label} tick={frame} muted={theme.textMuted} accent={theme.primary} />
-            ) : (
-              label
-            )}
+        {checkoutText ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {checkoutText}
           </text>
-          {age ? (
-            <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
-              {age}
-            </text>
-          ) : null}
-          <MoveChip rowId={props.rowId} shared={shared} />
-        </box>
-        {modelLine ? (
-          // Flush with the title (owner call): the pair reads as one block.
-          // DIM on spans, not the text: span attributes OR into the parent's,
-          // and the level glyph brightens toward the accent undimmed.
-          <text fg={theme.textMuted} wrapMode="none" paddingRight={1}>
-            <span attributes={TextAttributes.DIM}>
-              {truncateEndCells(modelLine, captionBudget, charWidth)}
-              {showEffort ? " · " : ""}
-            </span>
-            {showEffort ? (
-              <span fg={mixInk(theme.primary, theme.textMuted, effort.fraction)}>{effort.glyph}</span>
-            ) : null}
-            {showEffort ? <span attributes={TextAttributes.DIM}>{` ${level}`}</span> : null}
+        ) : null}
+        {age ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
+            {age}
+          </text>
+        ) : null}
+        {props.level !== undefined ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {String(props.level)}
+          </text>
+        ) : null}
+        {extraRepoText ? (
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+            {extraRepoText}
+          </text>
+        ) : null}
+        {marker ? (
+          <text fg={marker === "shared" ? theme.info : theme.textMuted} wrapMode="none" flexShrink={0}>
+            {marker === "shared" ? SHARED_MARK : WORKTREE_MARK}
+          </text>
+        ) : null}
+        {fold ? <FoldCluster task={task} fold={fold} shared={shared} /> : null}
+        {remoteText ? (
+          <text fg={remoteLive ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={0}>
+            {remoteText}
           </text>
         ) : null}
       </box>
     </RowShell>
   )
+}
+
+/**
+ * The row view of a conversation's status, memoized on the real inputs so the
+ * ~10Hz spinner tick doesn't re-derive idle rows. Exported for its memo test.
+ */
+export function useTabRowBaseView(args: {
+  readonly task: Task
+  readonly status: RowStatus | undefined
+  readonly lifecycle: { readonly subagents: number } | undefined
+}): SidebarRowView {
+  const t = useT()
+  const glyphs = useGlyphs()
+  const { task, status, lifecycle } = args
+  return useMemo(() => {
+    // Rebuild on language change: buildSidebarRowView reads the global `t`.
+    void t
+    return buildSidebarRowView({
+      task,
+      status,
+      lifecycle,
+      spinnerFrame: 0,
+      subtitleBudget: 0,
+      truncateBranch: truncateBranchLabel,
+      glyphs,
+    })
+  }, [task, status, lifecycle, t, glyphs])
 }
 
 /** Narrow mode's "↩ Recent: <task>" row: ⏎ re-enters that task; no menu, no verbs. */

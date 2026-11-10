@@ -42,13 +42,15 @@ vi.mock("../../src/engine/hosted-session.ts", async (original) => ({
 
 import { defaultApiRuntime } from "../../src/cli/api/runtime.ts"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core.ts"
+import { type TabsDaemon, tabsDaemon } from "./tabs-daemon-fake.ts"
 
 let home: string
 let wt: string
 const statePath = (): string => join(home, ".config/rove/state.json")
-const saved = (taskId = "t"): TabsState => JSON.parse(readFileSync(statePath(), "utf8"))[`terminalTabs.${taskId}`]
 const ENGINE = { kind: "engine", id: "tab-1", title: null, ordinal: 1 }
-const seed = (state: Record<string, unknown>): void => writeFileSync(statePath(), JSON.stringify(state))
+/** The daemon's tab store, seeded with the task's one engine tab; the tabs never go through state.json. */
+let daemon: TabsDaemon
+const saved = (taskId = "t"): TabsState => daemon.tabs(taskId) as TabsState
 const opened = (): Array<Record<string, unknown>> =>
   host.calls.filter((c) => c.name === "pty.open").map((c) => c.payload)
 
@@ -60,13 +62,17 @@ beforeEach(() => {
   host.calls = []
   host.editor = true
   mkdirSync(join(home, ".config/rove"), { recursive: true })
-  seed({
-    "terminalTabs.t": { tabs: [ENGINE], activeId: "tab-1", nextOrdinal: 2 },
-  })
+  writeFileSync(statePath(), "{}")
+  daemon = tabsDaemon({ seed: { t: { tabs: [ENGINE], activeId: "tab-1", nextOrdinal: 2 } } })
 })
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+  vi.unstubAllEnvs()
+  // Every row went through the daemon; state.json still holds no tabs.
+  expect(readFileSync(statePath(), "utf8")).toBe("{}")
+})
 
-const editor = (file: string) => defaultApiRuntime.launchTab({ kind: "editor", taskId: "t", worktree: wt, file })
+const editor = (file: string) =>
+  defaultApiRuntime.launchTab(daemon.client, { kind: "editor", taskId: "t", worktree: wt, file })
 
 it("an editor tab runs the Settings editor on the file, in an editor-purpose command row", async () => {
   writeFileSync(join(wt, "a.txt"), "hi")
@@ -94,7 +100,7 @@ it("a second file names the first editor tab as the one to close, after its own 
 
 it("--line reaches the editor command and the launch reports it was taken", async () => {
   writeFileSync(join(wt, "a.txt"), "1\n2\n3")
-  const launched = await defaultApiRuntime.launchTab({
+  const launched = await defaultApiRuntime.launchTab(daemon.client, {
     kind: "editor",
     taskId: "t",
     worktree: wt,
@@ -128,15 +134,13 @@ it("a file outside the worktree, a directory, a missing file or a missing editor
 })
 
 it("a viewport tab is a spawned engine row onto the other task's first session, and starts nothing", async () => {
-  seed({
-    "terminalTabs.t": { tabs: [ENGINE], activeId: "tab-1", nextOrdinal: 2 },
-    "terminalTabs.c": {
-      tabs: [{ ...ENGINE, vendor: "codex", sessionId: "sess-1" }],
-      activeId: "tab-1",
-      nextOrdinal: 2,
+  daemon = tabsDaemon({
+    seed: {
+      t: { tabs: [ENGINE], activeId: "tab-1", nextOrdinal: 2 },
+      c: { tabs: [{ ...ENGINE, vendor: "codex", sessionId: "sess-1" }], activeId: "tab-1", nextOrdinal: 2 },
     },
   })
-  const launched = await defaultApiRuntime.launchTab({
+  const launched = await defaultApiRuntime.launchTab(daemon.client, {
     kind: "viewport",
     taskId: "t",
     view: { id: "c", worktree: "/wt/c" },
@@ -170,7 +174,7 @@ function installPane(placement: "split" | "tab"): void {
   )
 }
 const pane = (name: string, hostTab?: string) =>
-  defaultApiRuntime.launchTab({ kind: "pane", taskId: "t", worktree: wt, pane: name, hostTab })
+  defaultApiRuntime.launchTab(daemon.client, { kind: "pane", taskId: "t", worktree: wt, pane: name, hostTab })
 
 it("a split pane joins the tab's split tree as a titled leaf running the plugin's argv", async () => {
   installPane("split")

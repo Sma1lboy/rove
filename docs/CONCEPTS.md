@@ -24,13 +24,18 @@ the same directory. Only managed tasks get Rove-created branch/worktree
 isolation; project-main and directory tasks deliberately reuse directories you
 already own.
 
+A **New shell** from a Task row is not a Scratch shell: it is a child Task sharing the row's directory, listed under it, whose `tab-1` is the login shell. When that shell exits the row stays, empty, and is never deleted for it.
+
 **Scratch shells** are directory Tasks with an unsettled home: press `tab` in
 the `ctrl+e` new-conversation dialog until the destination reads "new scratch
 task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 `$HOME` with that engine already running. It
-lives in the sidebar's Scratch section above every project, and follows a
+lives in the sidebar's **Ungrouped** group above every project, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
-confirm; nothing on disk is touched). A scratch row earns a permanent place
+confirm; nothing on disk is touched). Routines created with **Ungrouped**
+run in their own directory under `.rove/routines/` and their sessions open from
+the Routines page, not the sidebar; they are not scratch shells and are never
+auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's
 settled directory and quietly migrates the row into that repository's project
@@ -45,7 +50,9 @@ menu (**Set status**) or with `rove api update --status`. It is a label and noth
 more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
-`in_review` when it finishes; everything past that is yours. The sidebar row
+`in_review` when it finishes, unless another Rove session handed it the work
+(then its `report` or outcome message is the signal); everything past that is
+yours. The sidebar row
 does not draw it: the one mark in that cell is the PR's, and the status is
 something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
@@ -99,16 +106,24 @@ checkout or directory. Use a managed Task when you want isolation.
 The worktree outlives everything else. Killing a session, quitting the TUI,
 dropping SSH, restarting the daemon: none of them touch it.
 
-> **One thing to watch:** Terminal Tabs inside the same managed Task share one worktree,
-> and Rove does not coordinate their writes. Two tabs editing the same file
-> at once will conflict. If you need real isolation, open a new task.
+> **One thing to watch:** a child that shares its parent's directory shares its
+> worktree, and Rove does not coordinate their writes. Two conversations editing
+> the same file at once will conflict. If you need real isolation, open a new
+> task or `add --parent <this task>` a child with its own worktree.
 
 ## Terminal Tabs and engine sessions
 
-A Task owns N Terminal Tabs. An engine tab runs an engine inside an interactive
-shell and can resume an engine-owned conversation. Other tabs can be shells,
-fixed commands/editors, or read-only file/diff content; those are not engine
-conversations. Splits add more shell leaves inside a tab.
+A Task is one engine conversation: its `tab-1`. A second conversation is a
+**child task**, shown under its parent in the sidebar. A child either shares
+the parent's directory (`ctrl+t`, `ctrl+e`, `send --tab new`,
+`add --no-worktree`) or gets its own worktree cut from the parent's branch tip
+(`add` from a task's own session). Deleting a parent promotes its children; `delete --cascade` removes
+the subtree.
+
+A Task owns its Terminal Tabs. The engine tab runs an engine inside an
+interactive shell and can resume an engine-owned conversation. Other tabs can be
+shells, fixed commands/editors, or read-only file/diff content; those are not
+engine conversations. Splits add more shell leaves inside a tab.
 
 Tabs let you ask a side question or open a shell without changing directories.
 Close a tab when you're done; the Task's directory stays. Exiting the engine
@@ -117,18 +132,21 @@ only when that wrapping shell exits or Rove explicitly closes it.
 
 **Closing the last tab is "done for now", not "forget".** Close every tab of a
 managed Task and its row stays in the sidebar; entering it again opens a fresh
-tab in the same worktree. Close every tab of a project whose only row is its
-main checkout (or of a directory Task) and the whole project leaves the
-sidebar, header and row together. Nothing is deleted: the main Task record and
-the saved repository both stay on disk. To bring it back, open New task
+tab in the same worktree. A project's main checkout row is listed only while it
+has a tab open, is selected, or has child Tasks under it: a tabless main row is
+not a row, and a project whose only row it was (or a directory Task with no tab)
+leaves the sidebar, header and row together. The project header and its other
+Tasks stay. Nothing is deleted: the main Task record and the saved repository
+both stay on disk, and `rove api send` to the main Task still works (its first
+tab brings the row back). To bring it back, open New task
 (`n`), pick the same repository, and choose "the project itself" instead of a
 new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
 (`d` on its row) is the separate, un-saving gesture.
 
-Each engine tab may pin its own engine; otherwise it inherits the Task's engine,
-so tabs in one Task can use different vendors. A Task-level reasoning-effort
-choice is forwarded when that engine supports it. The embedded engine CLI owns
-its own model and permission controls.
+A Task-level reasoning-effort choice is forwarded when the engine supports it.
+A child task runs the engine it was started with, so conversations in one
+directory can use different vendors. The embedded engine CLI owns its own model
+and permission controls.
 
 Conversation history belongs to the engine, not to Rove (Claude Code, for
 example, keeps JSONL transcripts under `~/.claude/projects/**`). Hosted

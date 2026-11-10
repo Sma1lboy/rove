@@ -1,0 +1,100 @@
+/** The terminal's WebGL renderer: loading it, keeping its canvas painted, and giving its context back. */
+
+import { WebglAddon } from "@xterm/addon-webgl"
+import type { Terminal } from "@xterm/xterm"
+
+/** The private corner of xterm 6's RenderService that paints rows now instead of on the next frame. */
+type RenderServiceInternals = {
+  readonly _isPaused?: boolean
+  _renderRows?(start: number, end: number): void
+}
+
+let fontsTrimmed = false
+
+/**
+ * Electron 45's Chromium rejects a canvas font with leading whitespace and keeps `10px sans-serif`; addon-webgl
+ * 0.19 writes ` normal 26px …` for every upright glyph, so its atlas draws them tiny. Trim where the parser does.
+ */
+function trimCanvasFonts(): void {
+  if (fontsTrimmed) return
+  fontsTrimmed = true
+  const probe = document.createElement("canvas").getContext("2d")
+  if (!probe) return
+  probe.font = " 12px monospace"
+  if (probe.font.startsWith("12px")) return
+  const font = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, "font")
+  const { get, set } = font ?? {}
+  if (!font || !get || !set) return
+  Object.defineProperty(CanvasRenderingContext2D.prototype, "font", {
+    ...font,
+    set(value: string) {
+      set.call(this, typeof value === "string" ? value.trim() : value)
+    },
+  })
+}
+
+/** Load the WebGL renderer on an opened terminal; without WebGL the DOM renderer stays. Dispose after `term.dispose()`. */
+export function loadWebgl(term: Terminal): { dispose(): void } {
+  let webgl: WebglAddon | null = null
+  let glCanvas: HTMLCanvasElement | null = null
+  try {
+    trimCanvasFonts()
+    const before = new Set(term.element?.querySelectorAll("canvas"))
+    const addon = new WebglAddon()
+    addon.onContextLoss(() => {
+      addon.dispose()
+      webgl = null
+    })
+    // A full atlas merges its pages, and rows drawn from a dropped page are never redrawn: blank or garbled until
+    // they change. Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The event fires mid-merge,
+    // so a refresh then can still draw from the stale page: rebuild the atlas on the next frame instead.
+    let rebuild = 0
+    addon.onRemoveTextureAtlasCanvas(() => {
+      if (rebuild) return
+      rebuild = requestAnimationFrame(() => {
+        rebuild = 0
+        webgl?.clearTextureAtlas()
+        term.refresh(0, term.rows - 1)
+      })
+    })
+    term.loadAddon(addon)
+    webgl = addon
+    glCanvas =
+      [...(term.element?.querySelectorAll("canvas") ?? [])].find(
+        (c) => !before.has(c) && !c.classList.contains("xterm-link-layer"),
+      ) ?? null
+  } catch {
+    // The DOM renderer is slower but complete.
+  }
+  // addon-webgl 0.19 snaps its canvas to the device-pixel box in a ResizeObserver that runs after the frame's
+  // render, which clears it until xterm 6's next rAF: a blank frame per resize. This observer runs after that
+  // one, before paint; xterm has no public synchronous render.
+  const repaint = new ResizeObserver(() => {
+    const renderer = (term as unknown as { _core?: { _renderService?: RenderServiceInternals } })._core?._renderService
+    if (webgl && renderer && !renderer._isPaused && typeof renderer._renderRows === "function") {
+      renderer._renderRows(0, term.rows - 1)
+    }
+  })
+  if (glCanvas) {
+    try {
+      repaint.observe(glCanvas, { box: "device-pixel-content-box" })
+    } catch {
+      // Without the device-pixel box the addon never re-sizes its canvas after a render.
+    }
+  }
+  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives.
+  const onFontLoaded = () => {
+    if (!webgl) return
+    webgl.clearTextureAtlas()
+    term.refresh(0, term.rows - 1)
+  }
+  document.fonts.addEventListener("loadingdone", onFontLoaded)
+  return {
+    dispose() {
+      document.fonts.removeEventListener("loadingdone", onFontLoaded)
+      repaint.disconnect()
+      // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
+      glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
+    },
+  }
+}

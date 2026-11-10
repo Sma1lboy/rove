@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 import run.rove.mobile.R
 import run.rove.mobile.data.InboxVisits
 import run.rove.mobile.data.dismissAttention
+import run.rove.mobile.data.dismissRoutineEpisode
 import run.rove.mobile.domain.*
 import java.util.Locale
 
@@ -47,6 +48,10 @@ import java.util.Locale
     // A decision is answered, never dismissed: an open one opens its answer sheet, an answered one just opens the task.
     fun openItem(item: Attention) {
         lastJumpKey = InboxLogic.key(item)
+        InboxLogic.routineEpisode(item)?.let { id ->
+            model.action { model.repository.dismissRoutineEpisode(id); model.refresh() }
+            return open(Route.Routines)
+        }
         val taskId = item.taskId ?: return open(Route.Routines)
         if (item.gateId != null) {
             if (InboxLogic.gate(item, tasks.gates)?.isOpen == true) answering = item.gateId
@@ -56,6 +61,12 @@ import java.util.Locale
         visits = visitLog.record(taskId, item.tabId)
         if (InboxLogic.clearsOnVisit(item)) model.action { model.repository.dismissAttention(taskId, item.tabId, item.deliveryId); model.refresh() }
         open(Route.Task(taskId, item.tabId))
+    }
+
+    suspend fun dismiss(item: Attention) {
+        val routine = InboxLogic.routineEpisode(item)
+        if (routine != null) model.repository.dismissRoutineEpisode(routine)
+        else item.taskId?.let { model.repository.dismissAttention(it, item.tabId, item.deliveryId) }
     }
 
     var refreshing by remember { mutableStateOf(false) }
@@ -78,7 +89,15 @@ import java.util.Locale
                     containerColor = Rove.c.surface, color = Rove.c.accent)
             }) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-                item(key = "h:attention") { SectionHeader(stringResource(R.string.inbox_attention), pending.size) }
+                item(key = "h:attention") {
+                    val clearable = pending.filter(InboxLogic::clearable)
+                    SectionHeader(stringResource(R.string.inbox_attention), pending.size) {
+                        // A failed row stops the walk; the refresh still shows the ones that cleared.
+                        if (clearable.isNotEmpty()) TileLabel(stringResource(R.string.inbox_ack_all), tint = Rove.c.accent, size = 12) {
+                            model.action { try { clearable.forEach { dismiss(it) } } finally { model.refresh() } }
+                        }
+                    }
+                }
                 if (pending.isEmpty()) item(key = "e:attention") {
                     EmptyState(stringResource(R.string.inbox_attention_empty), stringResource(R.string.inbox_attention_empty_detail),
                         Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
@@ -87,9 +106,7 @@ import java.util.Locale
                     val title = item.taskId?.let { titles[it] } ?: item.label ?: item.taskId ?: unknownRoutine
                     val gate = InboxLogic.gate(item, tasks.gates)
                     AttentionRow(item, title, now, gate, { openItem(item) }) {
-                        item.taskId?.let { id ->
-                            model.action { model.repository.dismissAttention(id, item.tabId, item.deliveryId); model.refresh() }
-                        }
+                        model.action { dismiss(item); model.refresh() }
                     }
                 }
                 item(key = "h:recent") { SectionHeader(stringResource(R.string.inbox_recent), recent.size) }
@@ -112,9 +129,11 @@ import java.util.Locale
     }
 }
 
-@Composable private fun SectionHeader(name: String, count: Int) {
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+@Composable private fun SectionHeader(name: String, count: Int, action: @Composable () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Kicker(name, Modifier.weight(1f))
+        action()
         Text(String.format(Locale.ROOT, "%02d", count), color = Rove.c.muted, maxLines = 1, style = Rove.mono(11))
     }
 }
@@ -151,7 +170,7 @@ import java.util.Locale
                 Text(TaskAge.label(now - item.at), color = Rove.c.muted, style = Rove.mono(12))
             }
         }
-        if (item.taskId != null && item.gateId == null) {
+        if (InboxLogic.clearable(item)) {
             val label = stringResource(R.string.inbox_dismiss_label)
             Box(Modifier.heightIn(min = 44.dp).pressable(onClick = onDismiss).padding(horizontal = 10.dp).semantics { contentDescription = label },
                 contentAlignment = Alignment.Center) {

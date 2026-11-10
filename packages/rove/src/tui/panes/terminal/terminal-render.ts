@@ -26,6 +26,13 @@ function cloneChunk(c: Chunk, text: string, attrs = c.attributes ?? 0): Chunk {
   }
 }
 
+/** Grid cells a chunk's text covers, by xterm's own column rule. */
+export function chunkCellWidth(text: string): number {
+  let w = 0
+  for (const ch of text) w += cellWidth(ch)
+  return w
+}
+
 function chunkCells(chars: readonly string[]): number {
   let w = 0
   for (const ch of chars) w += cellWidth(ch)

@@ -7,13 +7,12 @@
 
 import type { RoveOrchestrator } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
-import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessionHost } from "@/engine/hosted-session"
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
-import { dirtyRefusalReason } from "@/orchestrator/errors"
 import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
+import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 
 export interface TaskActionLogger {
   error(message?: unknown, ...optionalParams: unknown[]): void
@@ -27,6 +26,15 @@ export interface ConfirmPrompt {
   readonly confirmLabel: string
   /** Dialog starts focused on Cancel with an error-colored confirm, so a stray Enter can't commit. */
   readonly danger?: boolean
+}
+
+/** The one dialog behind deleting a task with children (it replaces the plain confirm). */
+export interface ChildrenPrompt {
+  readonly title: string
+  readonly body: string
+  readonly promoteLabel: string
+  readonly cascadeLabel: string
+  readonly cancelLabel: string
 }
 
 /** Optional labels for {@link TaskActionContext.promptText} (RenameTaskDialog reuses). */
@@ -66,6 +74,8 @@ export interface TaskActionContext {
   readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
   /** Engine picker behind {@link pickVendorFlow}; absent → no-op. Host uses `EnginePickerDialog.show`. */
   readonly pickEngine?: (opts: EnginePickOpts) => Promise<EnginePick | undefined>
+  /** Project picker behind {@link moveToProjectFlow}: the other projects to choose from; `undefined` = cancel. Absent → no-op. */
+  readonly pickProject?: (projects: readonly string[]) => Promise<string | undefined>
   /** Clipboard writer behind {@link copyTaskFieldFlow}; only the workspace host has a renderer for OSC52. Absent → no-op. */
   readonly copyText?: (text: string) => Promise<boolean>
   readonly logger: TaskActionLogger
@@ -81,143 +91,19 @@ export interface TaskActionContext {
   readonly updateActiveTask?: boolean
   /** Post-delete cursor move; selection is host-owned. The Tasks pane uses `nextTask`, the monitor recomputes. */
   readonly onTaskDeleted?: (taskId: string, nextTask: Task | undefined) => void
+  /** A project main's conversation ended: the host closes every tab of the task, which ends their sessions. The row stays. */
+  readonly onConversationEnded?: (taskId: string) => void
   /** `worktree.deleteBranch` opt-in; absent → a deleted task's branch always stays. */
   readonly deleteBranchOnDelete?: () => boolean
+  /**
+   * Replaces the delete confirm when the task has children: `promote` keeps
+   * them (the default, focused), `cascade` deletes the subtree, `undefined`
+   * aborts. Absent → the plain confirm, and the children are promoted.
+   */
+  readonly pickChildren?: (prompt: ChildrenPrompt) => Promise<"promote" | "cascade" | undefined>
 }
 
-export function nextActiveTask(tasks: readonly Task[], excludeId: string): Task | undefined {
-  return tasks.find((t) => t.id !== excludeId)
-}
-
-async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefix: string): Promise<void> {
-  const host = await openHostedSessionHost()
-  if (!host) return
-  try {
-    await killHostedSessions(host.rpc, hostedTaskKeys(await listHostedSessions(host.rpc), taskId))
-  } catch (err) {
-    logger.error(`${logPrefix} kill hosted session failed:`, err)
-  } finally {
-    host.close()
-  }
-}
-
-/**
- * Deleting a BACKGROUND task must not steal focus from the active one. A bare
- * test mock without `activeTaskSignal()` counts as active.
- */
-function removedTaskIsActive(orch: RoveOrchestrator, taskId: string): boolean {
-  const read = (orch as { activeTaskSignal?: () => () => string | null }).activeTaskSignal
-  if (typeof read !== "function") return true
-  return read.call(orch)() === taskId
-}
-
-export async function finishDeletedTaskFlow(opts: {
-  readonly orch?: RoveOrchestrator
-  readonly tasks: readonly Task[]
-  readonly taskId: string
-  readonly logger: TaskActionLogger
-  readonly logPrefix: string
-  readonly updateActiveTask?: boolean
-}): Promise<{ nextTask?: Task }> {
-  const nextTask = nextActiveTask(opts.tasks, opts.taskId)
-  if (opts.updateActiveTask && opts.orch && removedTaskIsActive(opts.orch, opts.taskId)) {
-    await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
-  }
-  await stopHostedTask(opts.taskId, opts.logger, opts.logPrefix)
-  return { nextTask }
-}
-
-/**
- * The first attempt is non-force: the orchestrator refuses a worktree with
- * uncommitted/untracked work (DIRTY_WORKTREE), and only then do we ask for an
- * explicit force. A failed/declined delete leaves everything in place.
- */
-export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
-  if (!ctx.orch) return
-  const task = ctx.tasks().find((t) => t.id === taskId)
-  if (!task) return
-  // A `kind: "main"` project row has no worktree and `deleteTask` refuses it
-  // (CannotDeleteMainTaskError). Forget the project instead: the repo and any
-  // real tasks under it stay on disk.
-  if (task.kind === "main") {
-    const ok = await ctx.confirm({
-      title: t("tasks.confirm.forgetProjectTitle", { title: task.title }),
-      body: t("tasks.confirm.forgetProjectBody"),
-      cancelLabel: t("tasks.confirm.cancel"),
-      confirmLabel: t("tasks.confirm.forgetProjectConfirm"),
-    })
-    if (!ok) return
-    try {
-      await ctx.orch.forgetProject(task.repo)
-    } catch (err) {
-      ctx.logger.error(`${ctx.logPrefix} forget project failed:`, err)
-      ctx.notifyError?.(t("tasks.toast.forgetProjectFailed", { error: errorMessage(err) }))
-      return
-    }
-    await ctx.reload?.()
-    return
-  }
-  // `-d` only: the forced retry below never deletes the branch, so an
-  // unmerged branch can't vanish behind a dirty-worktree confirm.
-  const deleteBranch = task.kind !== "dir" && ctx.deleteBranchOnDelete?.() === true
-  const ok = await ctx.confirm({
-    title: t("tasks.confirm.deleteTitle", { title: task.title }),
-    // A `dir` task pins the user's own directory; only the entry is dropped.
-    body: t(
-      task.kind === "dir"
-        ? "tasks.confirm.deleteBodyDir"
-        : deleteBranch
-          ? "tasks.confirm.deleteBodyTaskBranch"
-          : "tasks.confirm.deleteBodyTask",
-    ),
-    cancelLabel: t("tasks.confirm.cancel"),
-    confirmLabel: t("tasks.confirm.deleteConfirm"),
-    danger: true,
-  })
-  if (!ok) return
-  let deleted = false
-  try {
-    await (deleteBranch ? ctx.orch.deleteTask(taskId, { deleteBranch: true }) : ctx.orch.deleteTask(taskId))
-    deleted = true
-  } catch (err) {
-    const reason = dirtyRefusalReason(err)
-    if (reason !== null) {
-      const forceOk = await ctx.confirm({
-        title: t("tasks.confirm.forceDeleteTitle", { title: task.title }),
-        // Shared with the worktrees page's force-remove; it names the salvage
-        // snapshot every force path takes, and the refusal names the files.
-        // The title above already names the task; its raw id is noise here.
-        body: `${t("worktrees.delete.forceBody", { branch: task.branch || task.title })}\n\n${t("worktrees.delete.forceReason", { reason: reason.replace(`task ${taskId} `, "") })}`,
-        cancelLabel: t("tasks.confirm.cancel"),
-        confirmLabel: t("tasks.confirm.forceDeleteConfirm"),
-        danger: true,
-      })
-      if (forceOk) {
-        try {
-          await ctx.orch.deleteTask(taskId, { force: true })
-          deleted = true
-        } catch (forceErr) {
-          ctx.logger.error(`${ctx.logPrefix} force delete failed:`, forceErr)
-          ctx.notifyError?.(t("tasks.toast.deleteFailed", { title: task.title, error: errorMessage(forceErr) }))
-        }
-      }
-    } else {
-      ctx.logger.error(`${ctx.logPrefix} delete failed:`, err)
-      ctx.notifyError?.(t("tasks.toast.deleteFailed", { title: task.title, error: errorMessage(err) }))
-    }
-  }
-  if (!deleted) return
-  const { nextTask } = await finishDeletedTaskFlow({
-    orch: ctx.orch,
-    tasks: ctx.tasks(),
-    taskId,
-    logger: ctx.logger,
-    logPrefix: ctx.logPrefix,
-    updateActiveTask: ctx.updateActiveTask,
-  })
-  await ctx.reload?.()
-  ctx.onTaskDeleted?.(taskId, nextTask)
-}
+export { deleteTaskFlow, finishDeletedTaskFlow, forgetProjectFlow, nextActiveTask } from "./task-actions-delete"
 
 /**
  * The branch follows the title only for not-yet-materialised tasks; an
@@ -355,6 +241,11 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
 
 export type TaskCopyField = "branch" | "path" | "id" | "tab"
 
+/** The flags `rove api send` / `read-output` take to reach one terminal tab. */
+export function tabAddress(taskId: string, tabId: string): string {
+  return `--task-id ${taskId} --tab ${tabId}`
+}
+
 const COPIED_TOAST: Record<TaskCopyField, string> = {
   branch: "tasks.toast.copiedBranch",
   path: "tasks.toast.copiedPath",
@@ -386,7 +277,7 @@ export async function copyTaskFieldFlow(
       : field === "path"
         ? task.worktreePath
         : field === "tab"
-          ? `--task-id ${task.id} --tab ${tabId}`
+          ? tabAddress(task.id, tabId ?? "")
           : task.id
   if (text === "") return
   if (!(await ctx.copyText(text))) {
@@ -394,4 +285,33 @@ export async function copyTaskFieldFlow(
     return
   }
   ctx.notifyInfo?.(t(COPIED_TOAST[field], { text }))
+}
+
+/**
+ * Regroup the task (and its children) under another saved project. Only the rows move: the
+ * PTYs, cwd, worktree and branch stay, so a running engine keeps its conversation.
+ */
+export async function moveToProjectFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+  const task = ctx.tasks().find((candidate) => candidate.id === taskId)
+  if (!task || !ctx.orch || !ctx.pickProject) return
+  const projects = ctx
+    .tasks()
+    .filter((candidate) => candidate.kind === "main" && (candidate.origin?.machineId ?? "local") === "local")
+    .map((candidate) => candidate.repo)
+    .filter((repo) => !samePath(repo, task.repo))
+  if (projects.length === 0) {
+    ctx.notifyInfo?.(t("tasks.moveToProject.empty"))
+    return
+  }
+  const repo = await ctx.pickProject(projects)
+  if (!repo) return
+  try {
+    await ctx.orch.moveTaskToProject(taskId, repo)
+  } catch (err) {
+    ctx.logger.error(`${ctx.logPrefix} task.moveToProject failed:`, err)
+    ctx.notifyError?.(t("tasks.toast.moveToProjectFailed", { error: errorMessage(err) }))
+    return
+  }
+  ctx.notifyInfo?.(t("tasks.toast.movedToProject", { project: repo }))
+  await ctx.reload?.()
 }

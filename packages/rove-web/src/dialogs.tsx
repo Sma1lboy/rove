@@ -6,8 +6,12 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
-import "./taskops.css"
 import { closeDialog } from "./ui.ts"
+import { buttonClass } from "./ui/button.tsx"
+import { CHOICES, TEXTAREA } from "./ui/form.ts"
+import { DIALOG_BODY, DIALOG_CLOSE, DIALOG_HEAD, DIALOG_TITLE, OVERLAY, dialogClass } from "./ui/overlay.ts"
+import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
+import { ACTIONS, INPUT, LINK } from "./ui/text.ts"
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
@@ -29,9 +33,20 @@ export function DialogShell(props: { title: string; children: ReactNode; wide?: 
     return () => window.removeEventListener("keydown", onKey)
   }, [])
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
-      <dialog ref={ref} tabIndex={-1} open className={`dialog ${props.wide ? "is-wide" : ""}`} aria-label={props.title}>
-        <h1 className="kicker">{props.title}</h1>
+    <div className={OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
+      <dialog ref={ref} tabIndex={-1} open className={dialogClass(props.wide)} aria-label={props.title}>
+        <div className={DIALOG_HEAD}>
+          <h1 className={DIALOG_TITLE}>{props.title}</h1>
+          <button
+            type="button"
+            className={DIALOG_CLOSE}
+            aria-label={t("dialog.close")}
+            title={t("dialog.close")}
+            onClick={closeDialog}
+          >
+            ×
+          </button>
+        </div>
         {props.children}
       </dialog>
     </div>
@@ -63,6 +78,8 @@ export function TextDialog(props: {
   submitLabel: string
   /** A blank value is a valid answer (a rename that clears back to the default name). */
   allowEmpty?: boolean
+  /** A text area: Enter adds a line, Ctrl/Cmd+Enter or the button submits. */
+  multiline?: boolean
   onSubmit: (value: string) => Promise<void>
 }) {
   const [value, setValue] = useState(props.initial ?? "")
@@ -70,22 +87,42 @@ export function TextDialog(props: {
   return (
     <DialogShell title={props.title}>
       <form
-        className="dialog-body"
+        className={DIALOG_BODY}
         onSubmit={(e) => {
           e.preventDefault()
           if (value.trim() || props.allowEmpty) void submit(() => props.onSubmit(value.trim()))
         }}
       >
-        <input
-          className="input"
-          // biome-ignore lint/a11y/noAutofocus: a dialog's only field
-          autoFocus
-          spellCheck={false}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        {error && <p className="error">{error}</p>}
+        {props.multiline ? (
+          <textarea
+            className={`${INPUT} ${TEXTAREA}`}
+            aria-label={props.title}
+            // biome-ignore lint/a11y/noAutofocus: a dialog's only field
+            autoFocus
+            rows={4}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault()
+                e.currentTarget.form?.requestSubmit()
+              }
+            }}
+            onFocus={(e) => e.currentTarget.setSelectionRange(value.length, value.length)}
+          />
+        ) : (
+          <input
+            className={INPUT}
+            aria-label={props.title}
+            // biome-ignore lint/a11y/noAutofocus: a dialog's only field
+            autoFocus
+            spellCheck={false}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        )}
+        {error && <p className="text-error">{error}</p>}
         <DialogActions busy={busy} submitLabel={props.submitLabel} />
       </form>
     </DialogShell>
@@ -97,11 +134,14 @@ export function ConfirmDialog(props: {
   body: string
   confirmLabel: string
   onConfirm: () => Promise<void>
+  /** A second way to confirm, shown beside the first (delete with its children); a refusal escalates with `run(true)`. */
+  secondary?: { readonly label: string; readonly onConfirm: () => Promise<void> }
   /** A refusal that can be retried harder (dirty worktree → force). `title`/`body` replace the dialog's own once it fires. */
   escalate?: {
     readonly when: (err: unknown) => boolean
     readonly label: string
-    readonly run: () => Promise<void>
+    /** `secondary`: the refused attempt was the secondary action's, so the harder retry keeps it. */
+    readonly run: (secondary: boolean) => Promise<void>
     readonly title?: string
     readonly body?: (err: unknown) => string
   }
@@ -109,38 +149,46 @@ export function ConfirmDialog(props: {
   const { busy, error, setError, submit } = useSubmit()
   const [escalated, setEscalated] = useState(false)
   const [refusal, setRefusal] = useState<unknown>(null)
+  const [viaSecondary, setViaSecondary] = useState(false)
   const confirm = useRef<HTMLButtonElement>(null)
   useEffect(() => confirm.current?.focus(), [])
+  const go = (secondary: boolean) =>
+    void submit(async () => {
+      try {
+        if (escalated && props.escalate) await props.escalate.run(viaSecondary)
+        else await (secondary && props.secondary ? props.secondary.onConfirm() : props.onConfirm())
+      } catch (err) {
+        if (!escalated && props.escalate?.when(err)) {
+          setEscalated(true)
+          setRefusal(err)
+          setViaSecondary(secondary)
+          setError(errorText(err))
+        }
+        throw err
+      }
+    })
   return (
     <DialogShell title={(escalated && props.escalate?.title) || props.title}>
-      <div className="dialog-body">
-        <p className="muted taskops-body">
+      <div className={DIALOG_BODY}>
+        <p className="whitespace-pre-line text-muted">
           {escalated && props.escalate?.body ? props.escalate.body(refusal) : props.body}
         </p>
-        {error && !(escalated && props.escalate?.body) && <p className="error">{error}</p>}
-        <div className="actions">
-          <button type="button" className="link" onClick={closeDialog}>
+        {error && !(escalated && props.escalate?.body) && <p className="text-error">{error}</p>}
+        <div className={ACTIONS}>
+          <button type="button" className={LINK} onClick={closeDialog}>
             {t("dialog.cancel")}
           </button>
+          {props.secondary && !escalated && (
+            <button type="button" className={buttonClass({ danger: true })} disabled={busy} onClick={() => go(true)}>
+              {props.secondary.label}
+            </button>
+          )}
           <button
             ref={confirm}
             type="button"
-            className="button is-danger"
+            className={buttonClass({ danger: true })}
             disabled={busy}
-            onClick={() =>
-              void submit(async () => {
-                try {
-                  await (escalated && props.escalate ? props.escalate.run() : props.onConfirm())
-                } catch (err) {
-                  if (!escalated && props.escalate?.when(err)) {
-                    setEscalated(true)
-                    setRefusal(err)
-                    setError(errorText(err))
-                  }
-                  throw err
-                }
-              })
-            }
+            onClick={() => go(false)}
           >
             {escalated && props.escalate ? props.escalate.label : props.confirmLabel}
           </button>
@@ -184,25 +232,25 @@ export function ChoiceDialog(props: {
   })
   return (
     <DialogShell title={props.title}>
-      <div className="dialog-body">
-        <ul className="choices">
+      <div className={DIALOG_BODY}>
+        <ul className={CHOICES}>
           {props.choices.map((choice, i) => (
             <li key={choice.value}>
               <button
                 type="button"
                 aria-pressed={choice.value === props.current}
                 disabled={busy}
-                className={`row ${i === index ? "is-selected" : ""}`}
+                className={rowClass({ selected: i === index })}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => pick(choice.value)}
               >
-                <span className="glyph tone-accent">{choice.value === props.current ? "●" : " "}</span>
-                <span className="row-title">{choice.label}</span>
+                <span className={`${GLYPH} text-accent`}>{choice.value === props.current ? "●" : " "}</span>
+                <span className={ROW_TITLE}>{choice.label}</span>
               </button>
             </li>
           ))}
         </ul>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="text-error">{error}</p>}
       </div>
     </DialogShell>
   )
@@ -210,11 +258,11 @@ export function ChoiceDialog(props: {
 
 export function DialogActions({ busy, submitLabel }: { busy: boolean; submitLabel: string }) {
   return (
-    <div className="actions">
-      <button type="button" className="link" onClick={closeDialog}>
+    <div className={ACTIONS}>
+      <button type="button" className={LINK} onClick={closeDialog}>
         {t("dialog.cancel")}
       </button>
-      <button type="submit" className="button" disabled={busy}>
+      <button type="submit" className={buttonClass()} disabled={busy}>
         {submitLabel}
       </button>
     </div>

@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import {
   type BehaviorEnv,
   DIST_ROVE_CLI,
+  applyTabOps,
   closeTui,
   loadNodePty,
   makeBehaviorEnv,
@@ -73,14 +74,18 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
     // DIFFERENT tab while the engine keeps running under tab-1 — what a tab
     // closed while its task was unmounted (the kill never reached the host)
     // leaves behind. The session is alive and no row names it.
+    // Set through the daemon, which owns the tabs: drop the record and seed it without tab-1. A
+    // `close` would tombstone tab-1, and a closed id is refused on purpose; this is the record
+    // simply not knowing the session, as one left over from before the daemon owned tabs.
     const state = await readState()
     expect(state[key]).toBeDefined()
-    state[key] = {
-      tabs: [{ kind: "engine", id: "tab-9", title: null, ordinal: 9 }],
-      activeId: "tab-9",
-      nextOrdinal: 10,
-    }
-    await writeFile(statePath, JSON.stringify(state))
+    await applyTabOps(env, taskId, [
+      { op: "forget" },
+      {
+        op: "seed",
+        state: { tabs: [{ kind: "engine", id: "tab-9", title: null, ordinal: 9 }], activeId: "tab-9", nextOrdinal: 10 },
+      },
+    ])
 
     // The host-session poll is off under a test RUNNER (`use-host-sessions`
     // must not pin a shared client inside bun-test), and this child inherits

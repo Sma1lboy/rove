@@ -76,11 +76,13 @@ object RowSearch {
 }
 
 object TaskListLogic {
+    fun visible(rows: List<TaskRow>) = rows.filterNot { it.routine }
+
     fun attentionCount(items: List<Attention>) = items.count { it.unread }
 
-    fun repos(rows: List<TaskRow>) = rows.map { it.repo }.filter { it.isNotEmpty() }.distinct().sorted()
+    fun repos(rows: List<TaskRow>) = visible(rows).map { it.repo }.filter { it.isNotEmpty() }.distinct().sorted()
 
-    fun filtered(rows: List<TaskRow>, repo: String?) = if (repo == null) rows else rows.filter { it.repo == repo }
+    fun filtered(rows: List<TaskRow>, repo: String?) = visible(rows).filter { repo == null || it.repo == repo }
 
     /**
      * Rows in display order: search score first (only with a query), then `main`, pinned, the rest, then the mode's

@@ -33,6 +33,7 @@ export function FeedbackSettingsSection(
     body: string
     setBody: (v: string) => void
     status: string
+    statusWarn: boolean
     onTitleSubmit: () => void
     submit: () => void
   },
@@ -118,7 +119,7 @@ export function FeedbackSettingsSection(
         </box>
       </box>
       {props.status ? (
-        <text fg={props.status.startsWith("error:") ? theme.warning : theme.success} wrapMode="word">
+        <text fg={props.statusWarn ? theme.warning : theme.success} wrapMode="word">
           {props.status}
         </text>
       ) : null}

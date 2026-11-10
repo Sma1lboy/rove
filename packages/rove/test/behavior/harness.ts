@@ -120,7 +120,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
         const isolationError = teardownIsolationError(env, home)
         if (isolationError) throw new Error(`behavior harness refusing destructive teardown: ${isolationError}`)
         await stopDaemonProcess(defaultDaemonSocketPath(home), defaultDaemonPidPath(home))
-        await stopDaemonProcess(defaultPtyHostSocketPath(home), defaultPtyHostPidPath(home))
+        await stopDaemonProcess(defaultPtyHostSocketPath(home), defaultPtyHostPidPath(home), { force: true })
       } finally {
         await rm(home, { recursive: true, force: true })
       }
@@ -230,5 +230,24 @@ export async function loadNodePty(): Promise<typeof import("node-pty") | null> {
   } catch {
     console.warn("[behavior] node-pty cannot spawn in this environment — skipping the PTY-driven suites")
     return null
+  }
+}
+
+/**
+ * Change a task's tabs the way every client must: through the daemon's tab store, which outlives
+ * the TUI and is the only writer of `terminalTabs.*` (an edit of state.json behind its back is
+ * overwritten). Ops as `tabs.apply` takes them (`rove-daemon/src/daemon/tabs-ops.ts`).
+ */
+export async function applyTabOps(
+  env: BehaviorEnv,
+  taskId: string,
+  ops: readonly Record<string, unknown>[],
+): Promise<void> {
+  const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
+  const daemon = new RoveDaemonClient(defaultDaemonSocketPath(env.home))
+  try {
+    await daemon.request("tabs.apply", { taskId, ops })
+  } finally {
+    daemon.close()
   }
 }

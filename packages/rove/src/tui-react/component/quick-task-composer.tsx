@@ -49,6 +49,12 @@ export interface QuickTaskResult {
   readonly attachments: readonly string[]
   /** How many siblings to fan this prompt out to. `1` is the plain fork. */
   readonly attempts: number
+  /** Engine fields a caller other than this composer (the new-task dialog) chose; the composer itself sets none. */
+  readonly modelEffort?: string
+  readonly model?: string
+  readonly tier?: string
+  /** More repos the task spans, in pick order (the new-task dialog's "also include"). */
+  readonly extraRepos?: readonly string[]
 }
 
 /** The choices the ATTEMPTS row offers. See the file header for why it stops at 5. */

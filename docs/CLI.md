@@ -34,27 +34,34 @@ and `~/.config/rove/state.json`.
 ```bash
 rove update            # newest build on the channel you follow
 rove update 0.7.90     # pin a version
+rove update --next     # install the newest build of main and follow it (also: next, --channel next)
 rove update --nightly  # install the nightly preview and follow it (also: nightly, --channel nightly)
 rove update --stable   # go back to stable releases (also: latest, stable)
 rove update list       # browse recent versions (also: --list)
 rove update dry-run    # print the command without running it (also: --dry-run)
 ```
 
-There are two channels. `latest` is the stable line — batched, reviewed
-releases. `nightly` is an automated daily cut from `main`: it passes the same
-test gates, but its contents haven't been reviewed as a set, so expect rough
-edges in exchange for changes landing days earlier.
+There are three channels. `latest` is the stable line — batched, reviewed
+releases, cut by hand. `next` is published on every merge to `main` after the
+fast checks (lint, typecheck, unit tests, build) only. `nightly` is an automated
+daily cut from `main` behind the full suite. Neither `next` nor `nightly` has
+been reviewed as a set, so expect rough edges in exchange for changes landing
+days (nightly) or minutes (next) earlier.
 
 The channel you pick is remembered in `~/.config/rove/state.json`
-(`update.channel`) once its install succeeds, so a bare `rove update` and the
-update check keep following it. Settings → General → Updates shows the same
-choice, with a button that installs the other channel's newest build. Until you
-pick, Rove follows the channel of the build you are running. A pinned version
-never changes the setting.
+(`update.channel`), so a bare `rove update` and the update check keep following
+it. `rove update --next` and friends remember it once their install succeeds;
+Settings → General → Updates (and Settings → About on the web) sets it the
+moment you pick stable / next / nightly, with a "notify me about new versions"
+checkbox (`update.notify`) and a `[ check for updates ]` button that asks npm
+about the chosen channel right away. Picking a channel installs nothing: run
+`rove update`, or open the Update page the check offers. Until you pick, Rove
+follows the channel of the build you are running. A pinned version never changes
+the setting.
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
-`npm install -g @sma1lboy/rove@latest` (or `@nightly`).
+`npm install -g @sma1lboy/rove@latest` (or `@next`, `@nightly`).
 
 The update script is POSIX shell. On Windows, Rove runs it through Git for
 Windows' bash — the same shell every engine and terminal tab launches through
@@ -111,14 +118,14 @@ Commands:
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
   machine <verb>          Other computers running Rove (add|doctor|remove|list)
-  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny)
+  weixin <verb>           Talk to Rove from WeChat (login|logout|status|allow|deny|send|agent)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
   theme <verb>            Manage user themes (list|add|remove)
   skill <verb>            Install the rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
-  feedback                Send feedback to GitHub Discussions
+  feedback                File a GitHub issue on the Rove repo
   update [version|channel|list]   Self-update rove, switch channel, or list versions
 
 Options:
@@ -277,25 +284,27 @@ no flag clears both.
 ## skill
 
 ```bash
-rove skill install [--global|-g | --project|-p] [--agent NAME]…
+rove skill install [--agent ENGINE]…
 rove skill status
-rove skill command [--global|-g | --project|-p] [--agent NAME]…
-                                                   # print, don't run
 rove skill print                                 # print the SKILL.md itself
 ```
 
 Installs the Rove agent skill, which teaches a coding agent to drive
-`rove api`. Installs are **global** (user-level) by default: the skill
-drives a machine-wide daemon, so one copy per machine keeps one staleness
-lifecycle; `--project` / `-p` installs into the current project instead.
-`--global` / `-g` restates the default explicitly. With no `--agent` it
-detects your installed agents and asks. To name them yourself, repeat the flag
-(`--agent claude-code --agent codex`; `--agent=codex` also works); a
-comma-joined list is rejected rather than silently using only the first.
+`rove api`. Settings → Engines in the TUI and web shows the same per-engine
+state with an Install button; this verb is the shell route. Rove copies the SKILL.md bundled with this build into the
+user-level skills dir of every engine set up on this machine (Claude Code,
+Codex, Copilot, Pi, OpenCode, Cursor, and the others whose skills dir Rove
+knows). No Node or network needed. `--agent` takes a Rove engine id
+(`claude`, `codex`, …) and may repeat to narrow the set.
 
-The SKILL.md ships inside the npm package, so no repo clone is needed; the
-install itself still runs `npx skills add` (which falls back to a repo clone
-only if the bundled copy is missing).
+`status` lists each engine with its own state (current, out of date, or not
+installed). Copies that are already installed refresh themselves when the
+daemon starts after an upgrade; Rove never adds a copy you didn't ask for.
+With the Rove Claude Code plugin enabled, Claude is skipped: the plugin ships
+its own copy.
+
+For an agent Rove doesn't know, save the skill yourself:
+`rove --skill > <skills dir>/rove/SKILL.md`.
 
 `rove --skill` (top-level flag) is shorthand for `rove skill print`: it dumps
 the bundled SKILL.md to stdout so an agent can learn the `rove api` surface in
@@ -306,8 +315,9 @@ tasks``, no pre-installed skill required.
 
 ```text
 rove plugin install <owner/repo[/subdir]> [--yes] [--ref <rev>]
+rove plugin install kanban | issues            install a first-party mod
 rove plugin link <dir>                         register a local directory (dev)
-rove plugin list                               installed + linked plugins
+rove plugin list                               first-party mods, installed + linked plugins
 rove plugin search [query]                     browse the marketplace
 rove plugin outdated                           check installs against upstream
 rove plugin update <id…> | --all [--yes]       reinstall stale plugins
@@ -468,6 +478,8 @@ rove weixin status          # binding, allowed senders, reply windows, undeliver
 rove weixin allow <user-id> # let another WeChat user send commands
 rove weixin deny <user-id>
 rove weixin logout          # remove the binding and its credentials
+rove weixin send "text"     # message the owner from a script or agent (--file, --subject, stdin; --attach <path> for a picture or file)
+rove weixin agent           # the WeChat agent and its conversations; `agent <task-id>` uses an existing task
 ```
 
 Lets you ask for task status, message a task's agent and start tasks from
@@ -477,11 +489,21 @@ messaging. See [WeChat](./WEIXIN.md).
 ## feedback
 
 ```bash
-rove feedback --title <text> (--body <text> | --body-file <path>) [--category <slug>]
+rove feedback --title <text> (--body <text> | --body-file <path>) [--kind bug|idea|question]
 ```
 
-Opens a GitHub Discussion via the `gh` CLI (needs `gh auth login`).
-`--body-file -` reads from stdin. `--category` defaults to `feedback`.
+Files a GitHub issue on the Rove repo via `gh issue create` (needs `gh auth login`)
+and prints its number and URL. `--kind` picks the label: `bug` (default),
+`idea` (`enhancement`) or `question`. Rove appends an environment block to the
+body: its version, OS and architecture, install kind and default engine.
+`--body-file -` reads the body from stdin.
+
+When `gh` is missing, signed out or cannot create the issue, nothing is lost:
+the command prints why and a prefilled new-issue link to open in a browser,
+and the hint to run `gh auth login`.
+
+To have an agent interview you and file it, use **Report a problem** in the
+command palette (TUI and web) or Settings → Feedback in the web UI.
 
 ## Internal subcommands
 

@@ -99,14 +99,17 @@ export async function runTranscriptActivity(
 
 /**
  * Worktree → vendor for tasks with a non-empty LOCAL worktree (`ssh://` repo
- * or path excluded). Tasks sharing a path collapse; the FIRST in list order
- * picks the vendor, keeping the vendor-specific completion marker stable. A
- * task with no vendor gets `defaultVendor` — required so it can't diverge
+ * or path excluded). Tasks sharing a path collapse onto one entry (the probe
+ * is per directory); the directory's OWNER picks the vendor, not whichever
+ * child is listed first, keeping the vendor-specific completion marker stable.
+ * A task with no vendor gets `defaultVendor` — required so it can't diverge
  * from rove's `DEFAULT_TASK_VENDOR`, which the runtime adapter injects.
  */
 export function trackedWorktrees(tasks: readonly Task[], defaultVendor: VendorId): Map<string, VendorId> {
   const map = new Map<string, VendorId>()
-  for (const task of tasks) {
+  // Owners first: a sharer only fills a path whose owner is not in the list.
+  const ownersFirst = [...tasks].sort((a, b) => Number(!!a.sharesWorkspaceOf) - Number(!!b.sharesWorkspaceOf))
+  for (const task of ownersFirst) {
     if (!task.worktreePath) continue
     if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
     if (map.has(task.worktreePath)) continue

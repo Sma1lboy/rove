@@ -4,7 +4,7 @@
  * refusals included.
  */
 
-import type { Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
+import type { Automation, AutomationRun, Gate } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { loadContext } from "@sma1lboy/rove/src/cli/api/handlers-context.ts"
@@ -72,6 +72,40 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
         by: "weixin",
       })
       return { delivered: res.delivered === true }
+    },
+
+    notifyingRoutineRuns: async () => {
+      const { automations } = await client.request<{ automations: Automation[] }>("automation.list")
+      return await Promise.all(
+        automations
+          .filter((a) => a.notify)
+          .map(async (a) => {
+            const { runs } = await client.request<{ runs: AutomationRun[] }>("automation.runs", { id: a.id })
+            return { id: a.id, name: a.name, runs }
+          }),
+      )
+    },
+
+    openAgentTask: async (dir, title) => {
+      // The preferred engine is resolved by `task.openDir`, as for `rove .`.
+      const { taskId } = await client.request<{ taskId: string }>("task.openDir", { dir })
+      await client.request("task.rename", { taskId, title })
+      await client.request("task.pin", { taskId, pinned: true })
+      return { taskId }
+    },
+
+    newConversation: async (taskId, prompt) => {
+      const result = await invokeVerb("send", ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", prompt], {
+        client,
+      })
+      const tab = stringField(result, "session")?.split("::")[1]
+      if (!tab) throw new Error("send --tab new returned no tab")
+      return { tab }
+    },
+
+    taskRunning: async (taskId) => {
+      const { payload } = await loadContext(client, defaultApiRuntime, { repo: null, limit: STATUS_TASK_LIMIT })
+      return payload.tasks.find((t) => t.taskId === taskId)?.activity?.state === "running"
     },
 
     clearReport: async (deliveryId) => {

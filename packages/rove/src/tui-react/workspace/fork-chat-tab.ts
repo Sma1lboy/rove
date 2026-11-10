@@ -4,89 +4,18 @@
  * Only the join: fork flags live in `engineForkArgv`, tab state in `terminal-tabs-core`.
  */
 
-import { engineCanFork, getEngineProtocol, protocolEntry } from "@/engine/engine-presets"
-import { engineDisplayName } from "@/engine/interactive-command"
-import { buildHandoffPrompt } from "@/engine/session-handoff"
+import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
 import type { VendorId } from "@/types/vendor"
 import {
+  type EngineTab,
   type TabsState,
   type TerminalTab,
   addTab,
+  initialTabs,
   setTabEngineCommand,
   setTabForkFrom,
   setTabInitialPrompt,
 } from "../../tui/workspace/terminal-tabs-core"
-
-/** What the chord can do; the caller notifies on refusals rather than opening a blank tab. */
-export type ChatForkPlan =
-  /** Same engine, native fork: it reopens its own conversation and branches. */
-  | { readonly kind: "fork"; readonly sessionId: string }
-  /** Different engine: starts fresh, briefed to read the source transcript. */
-  | { readonly kind: "handoff"; readonly prompt: string }
-  /** Nothing to continue from — this tab has no conversation yet. */
-  | { readonly kind: "no-session" }
-  /** Its engine keeps no transcript rove can name (kimi, copilot, custom). */
-  | { readonly kind: "no-transcript"; readonly engine: string }
-
-/**
- * The protocol the active tab's engine actually SPEAKS. A preset without
- * `engineProtocol.<id>` resolves to an empty entry (no transcript, no fork),
- * so fall back to the process-walk's `EngineTab.liveVendor`. A declared
- * protocol always wins; a live vendor with no protocol of its own adds nothing.
- */
-export function liveSourceProtocol(active: TerminalTab, tabVendor: VendorId): VendorId {
-  if (getEngineProtocol(tabVendor)) return tabVendor
-  const live = active.kind === "engine" ? active.liveVendor : undefined
-  return live && getEngineProtocol(live) ? live : tabVendor
-}
-
-/**
- * "Continue this chat in `target`": same engine that can branch → native
- * fork; else a HANDOFF, a fresh session briefed with the source transcript's
- * path (`session-handoff.ts`). Transcripts are never converted.
- */
-export async function planChatContinuation(
-  active: TerminalTab,
-  source: VendorId,
-  target: VendorId,
-  worktree: string,
-): Promise<ChatForkPlan> {
-  const sessionId = await forkSourceSessionId(active, source, worktree)
-  if (!sessionId) return { kind: "no-session" }
-  if (target === source && engineCanFork(source)) return { kind: "fork", sessionId }
-  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
-  if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
-  return {
-    kind: "handoff",
-    prompt: buildHandoffPrompt({ fromEngine: engineDisplayName(source), transcriptPath, worktree }),
-  }
-}
-
-/** Continue into a child task: native forks are keyed to the source cwd, so
- *  this is ALWAYS a handoff (or refusal). The brief names the source worktree. */
-export async function planWorktreeHandoff(
-  active: TerminalTab,
-  source: VendorId,
-  worktree: string,
-): Promise<ChatForkPlan> {
-  const sessionId = await forkSourceSessionId(active, source, worktree)
-  if (!sessionId) return { kind: "no-session" }
-  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
-  if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
-  return {
-    kind: "handoff",
-    prompt: buildHandoffPrompt({ fromEngine: engineDisplayName(source), transcriptPath, worktree }),
-  }
-}
-
-/** The tab's pinned session id, else the engine's newest for this worktree
- *  (unpinned tabs, e.g. codex). `listSessionIdsForWorktree` is oldest-first. */
-async function forkSourceSessionId(active: TerminalTab, vendor: VendorId, worktree: string): Promise<string | null> {
-  if (active.kind !== "engine") return null
-  if (active.sessionId) return active.sessionId
-  const ids = await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)
-  return ids.at(-1) ?? null
-}
 
 /**
  * New tab that LAUNCHES `pick` but speaks `protocol`, forking `sourceSessionId`.
@@ -103,4 +32,73 @@ export function addForkTab(state: TabsState, pick: VendorId, protocol: VendorId,
 export function addHandoffTab(state: TabsState, vendor: VendorId, prompt: string): TabsState {
   const next = addTab(state, vendor)
   return setTabInitialPrompt(next, next.activeId, prompt)
+}
+
+/**
+ * The handoff for a source whose engine is DEAD: the new engine takes that tab's slot (same task, same
+ * tab id) instead of a child task. The tab keeps its place and title; the old conversation's identity
+ * (session, fork point, launch override, live engine) is dropped so the respawn starts fresh on the brief.
+ */
+export function replaceTabWithHandoff(state: TabsState, tabId: string, vendor: VendorId, prompt: string): TabsState {
+  return {
+    ...state,
+    activeId: tabId,
+    tabs: state.tabs.map((tab): TerminalTab => {
+      if (tab.id !== tabId || tab.kind !== "engine") return tab
+      const { sessionId, spawned, forkFrom, engineCommand, liveVendor, lastTitle, autoTitle, ...kept } = tab
+      return { ...kept, vendor, initialPrompt: prompt }
+    }),
+  }
+}
+
+/** A child task's `tab-1` forking `sourceSessionId`: {@link addForkTab}'s tab, as the first one. */
+export function forkFirstTab(pick: VendorId, protocol: VendorId, sourceSessionId: string): TabsState {
+  const { sessionId } = withPinnedSessionId(engineLaunchArgv({ vendor: protocol }), protocol)
+  const seed = initialTabs()
+  return {
+    ...seed,
+    tabs: seed.tabs.map(
+      (tab): TerminalTab =>
+        tab.kind === "engine"
+          ? {
+              ...tab,
+              vendor: protocol,
+              ...(pick === protocol ? {} : { engineCommand: pick }),
+              forkFrom: sourceSessionId,
+              ...(sessionId ? { sessionId } : {}),
+            }
+          : tab,
+    ),
+  }
+}
+
+/**
+ * Whether the task's own conversation already runs: an engine tab that spawned
+ * (a transcript exists), or its canonical (first) engine tab holding a live PTY
+ * even before a transcript (the engine may sit at a first-run prompt).
+ */
+export function engineStarted(state: TabsState, isLive: (tab: EngineTab) => boolean): boolean {
+  const engines = state.tabs.filter((tab): tab is EngineTab => tab.kind === "engine")
+  return engines.some((tab) => tab.spawned) || (engines[0] !== undefined && isLive(engines[0]))
+}
+
+/**
+ * The task's own engine tab when no conversation ever ran in it. A pick
+ * there is the task's first conversation, not a second one.
+ */
+export function unstartedEngineTab(state: TabsState, isLive: (tab: EngineTab) => boolean): EngineTab | undefined {
+  if (engineStarted(state, isLive)) return undefined
+  return state.tabs.find((tab): tab is EngineTab => tab.kind === "engine")
+}
+
+/** Point a never-started engine tab at `vendor` with a fresh pinned session, and show it. */
+export function retargetUnstartedEngine(state: TabsState, tabId: string, vendor: VendorId): TabsState {
+  const { sessionId } = withPinnedSessionId(engineLaunchArgv({ vendor }), vendor)
+  return {
+    ...state,
+    activeId: tabId,
+    tabs: state.tabs.map(
+      (tab): TerminalTab => (tab.id === tabId && tab.kind === "engine" ? { ...tab, vendor, sessionId } : tab),
+    ),
+  }
 }

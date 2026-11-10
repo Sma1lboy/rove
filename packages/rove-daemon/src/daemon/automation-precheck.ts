@@ -17,7 +17,8 @@
 
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import type { AutomationPrecheck, AutomationPrecheckResult } from "./contracts.ts"
+import type { Automation, AutomationPrecheck, AutomationPrecheckResult } from "./contracts.ts"
+import { logOncePerChange } from "./log-once.ts"
 import { resolveLoginShell } from "./platform-shell.js"
 
 /** Per-stream capture cap. Kept small — this is a decision signal, not a log. */
@@ -53,8 +54,10 @@ function killGroup(child: ReturnType<typeof spawn>): void {
  *
  * `set +m` disables job control so the watchdog neither prints `[1] 12345`
  * into stderr nor gets its own process group (escaping the group kill). The
- * EXIT trap reaps it when the command finishes first; POSIX keeps a trap from
- * changing the exit status.
+ * EXIT trap reaps it when the command finishes first, with SIGKILL: an
+ * interactive bash (`-i`, the macOS `/bin/sh`) ignores SIGTERM, and that
+ * subshell holds a copy of the captured pipe on fd 255 for the whole sleep.
+ * POSIX keeps a trap from changing the exit status.
  *
  * The watchdog gets its own stdio: otherwise it holds the captured pipes, Node
  * fires `close` only when every writer lets go, and a fast precheck would wait
@@ -65,7 +68,7 @@ export function withWatchdog(command: string, timeoutSeconds: number): string {
     "set +m 2>/dev/null",
     `{ sleep ${timeoutSeconds} && { kill -9 -$$ 2>/dev/null || kill -9 $$ ; } ; } >/dev/null 2>&1 </dev/null &`,
     "__rove_watchdog=$!",
-    `trap 'kill "$__rove_watchdog" 2>/dev/null' EXIT`,
+    `trap 'kill -9 "$__rove_watchdog" 2>/dev/null' EXIT`,
     command,
   ].join("\n")
 }
@@ -91,6 +94,8 @@ export function runAutomationPrecheck(
   precheck: AutomationPrecheck,
   cwd: string,
   shell = resolveLoginShell({ fallback: "/bin/sh" }),
+  /** Added to the daemon's env, e.g. what fired a webhook run. */
+  env?: Readonly<Record<string, string>>,
 ): Promise<AutomationPrecheckResult> {
   const startedAt = Date.now()
   const timeoutMs = Math.min(Math.max(precheck.timeoutSeconds, 1), MAX_TIMEOUT_SECONDS) * 1000
@@ -139,6 +144,7 @@ export function runAutomationPrecheck(
       // +1s so a live daemon's timer wins and reports a timeout, not a bare signal death.
       child = spawn(shell, ["-ilc", withWatchdog(precheck.command, timeoutMs / 1000 + 1)], {
         cwd,
+        ...(env ? { env: { ...process.env, ...env } } : {}),
         stdio: ["ignore", "pipe", "pipe"],
         // Own process group, so a timeout kills the command's children too.
         detached: process.platform !== "win32",
@@ -174,4 +180,26 @@ export function formatPrecheckSkip(result: AutomationPrecheckResult): string {
   if (result.timedOut) return `precheck timed out after ${result.durationMs}ms`
   if (result.exitCode === null) return `precheck could not run: ${result.stderr.trim() || "unknown error"}`
   return `precheck exited ${result.exitCode}`
+}
+
+/**
+ * The scheduled-run gate. Returns what to record when the precheck did not
+ * pass, and logs it once per distinct reason — a routine whose precheck fails
+ * every tick used to be the single loudest line in daemon.log. A passing
+ * precheck clears the key so the next failure speaks again.
+ */
+export async function precheckSkip(
+  routine: Pick<Automation, "id" | "name">,
+  precheck: NonNullable<Automation["precheck"]>,
+  cwd: string,
+  env: Readonly<Record<string, string>> | undefined,
+): Promise<{ readonly precheckResult: AutomationPrecheckResult; readonly reason: string } | undefined> {
+  const result = await runAutomationPrecheck(precheck, cwd, undefined, env)
+  if (precheckPassed(result)) {
+    logOncePerChange(`precheck:${routine.id}`, "automation", undefined)
+    return undefined
+  }
+  const reason = formatPrecheckSkip(result)
+  logOncePerChange(`precheck:${routine.id}`, "automation", `skip ${routine.name}: ${reason}`)
+  return { precheckResult: result, reason }
 }

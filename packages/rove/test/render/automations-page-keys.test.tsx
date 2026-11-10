@@ -217,3 +217,35 @@ test("a bound routine shows its exact target in the detail box", async () => {
   expect(text).toContain("My existing task / tab-2")
   expect(text).toContain("tab-2")
 })
+
+test("a click on an older run opens that run's task, not the latest", async () => {
+  // The sidebar lists no routine runs, so this click is the only way back to an older one.
+  const run = (n: number, taskId: string) => ({
+    id: `run-${n}`,
+    runNumber: n,
+    status: "dispatched",
+    trigger: "scheduled",
+    at: new Date(NOW - (3 - n) * 60_000).toISOString(),
+    taskId,
+  })
+  const orch = {
+    ...orchestrator([AUTOMATION]),
+    automationRuns: async () => ({ runs: [run(2, "newer"), run(1, "older")] }),
+  }
+  const opened: string[] = []
+  const { frame, mockMouse } = await renderComponent(
+    <AutomationsPage
+      orchestrator={orch as never}
+      focused={true}
+      onClose={() => {}}
+      onOpenTask={(id) => opened.push(id)}
+    />,
+    { width: 110, height: 28, providers: { dialog: true, notifications: true } },
+  )
+  await new Promise((r) => setTimeout(r, 150))
+  const lines = (await frame()).split("\n")
+  const y = lines.findIndex((line) => line.includes("#1 "))
+  expect(y).toBeGreaterThan(0)
+  await mockMouse.click((lines[y] ?? "").indexOf("#1 ") + 1, y)
+  expect(opened).toEqual(["older"])
+})

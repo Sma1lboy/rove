@@ -13,6 +13,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { readRoveEnv } from "@sma1lboy/rove-daemon/compat-env"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { remoteChanges, remoteFiles } from "../../../machines/remote-worktree.ts"
 import { cachedFileList, rememberFileList } from "../../../tui/panes/filetree/file-list-cache"
 import {
   type GitScope,
@@ -56,6 +57,8 @@ export type FileTreeProps = {
    *  the preferred base for Branch (vs-base) scope. Absent falls back to the
    *  repo's default branch (`resolveBase`). */
   prBaseRef?: string
+  /** A task on another machine: read its worktree there (forwarded verbs), not from this disk. */
+  remote?: { readonly machine: string; readonly taskId: string }
   /** Fires when the user activates a row (enter / click); worktree-relative path. */
   onOpenFile: (relPath: string) => void
   /** `d` — open the current file's read-only diff in a workspace content tab.
@@ -104,6 +107,7 @@ export function FileTree(props: FileTreeProps) {
   const scopeManualRef = useLatest(scopeManual)
   const onOpenFileRef = useLatest(props.onOpenFile)
   const fetchSeq = useRef(0)
+  const remoteRef = useLatest(props.remote)
 
   /** Fetch a tab's data. The other tab's cache is wiped only on worktree
    *  change, so tab switches are cache-first. */
@@ -118,16 +122,19 @@ export function FileTree(props: FileTreeProps) {
       }
       setError(null)
       try {
+        const remote = remoteRef.current
         if (currentTab === "all") {
-          const files = await listFiles(path, signal)
+          const files = remote ? await remoteFiles(remote.machine, remote.taskId) : await listFiles(path, signal)
           if (signal?.aborted || seq !== fetchSeq.current || pathRef.current !== path) return
-          rememberFileList(path, files)
+          rememberFileList(cacheKey(path, remote), files)
           setAllFiles((prev) => (sameFileList(prev, files) ? prev : files))
         } else if (currentTab === "changes") {
           const wantBranch = scopeRef.current === "branch" && baseRef.current != null
-          const entries = wantBranch
-            ? await statusFilesBranch(path, baseRef.current as string, signal)
-            : await statusFiles(path, signal)
+          const entries = remote
+            ? (await remoteChanges(remote.machine, remote.taskId, wantBranch ? "branch" : "working")).entries
+            : wantBranch
+              ? await statusFilesBranch(path, baseRef.current as string, signal)
+              : await statusFiles(path, signal)
           if (signal?.aborted || seq !== fetchSeq.current || pathRef.current !== path) return
           // Auto-fallback to Branch scope (needs a base); the scope effect refetches.
           if (!wantBranch && entries.length === 0 && !scopeManualRef.current && baseRef.current != null) {
@@ -152,7 +159,7 @@ export function FileTree(props: FileTreeProps) {
   // elsewhere it stays null so the tab effect refetches on the way back.
   useEffect(() => {
     const path = props.worktreePath
-    setAllFiles(path != null && tabRef.current === "all" ? cachedFileList(path) : null)
+    setAllFiles(path != null && tabRef.current === "all" ? cachedFileList(cacheKey(path, remoteRef.current)) : null)
     setChanges(null)
     setError(null)
     setCursorIndex(0)
@@ -173,7 +180,12 @@ export function FileTree(props: FileTreeProps) {
     }
     let disposed = false
     const controller = new AbortController()
-    void resolveBase(path, props.prBaseRef, controller.signal)
+    const remote = remoteRef.current
+    void (
+      remote
+        ? remoteChanges(remote.machine, remote.taskId, "branch").then((r) => r.base)
+        : resolveBase(path, props.prBaseRef, controller.signal)
+    )
       .then((b) => {
         if (!disposed) setBase(b)
       })
@@ -202,8 +214,10 @@ export function FileTree(props: FileTreeProps) {
     const path = props.worktreePath
     if (path == null) return
     if (readRoveEnv("FILETREE_WATCH") === "0") return
+    // Another machine's worktree is not on this disk to watch; `r` refreshes it.
+    if (props.remote) return
     return watchWorktree(path, () => setRefreshTick((n) => n + 1))
-  }, [props.worktreePath])
+  }, [props.worktreePath, props.remote])
 
   // Tab change: cache-first, and the only place the cursor resets — a
   // refresh of the SAME tab must not yank it to the top.
@@ -389,4 +403,9 @@ export function FileTree(props: FileTreeProps) {
       ) : null}
     </box>
   )
+}
+
+/** The file-list cache key: two machines can hold the same worktree path. */
+function cacheKey(path: string, remote: { readonly machine: string } | undefined): string {
+  return remote ? `${remote.machine}:${path}` : path
 }

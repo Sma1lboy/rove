@@ -6,19 +6,27 @@
 
 import { ingestAgentTurnsBestEffort } from "./agent-turns-ingest.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { findAdoptableWorktree, matchTaskByCwd } from "./cwd-task.ts"
+import { findAdoptableWorktree, matchTaskByCwd, resolvePtyOwner } from "./cwd-task.ts"
 import { trackDeliveryTurn } from "./delivery-ops.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
-import type { DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { scheduleQuotaResume } from "./quota-resume.ts"
+
+/** Best-effort: a lost stamp costs one elided prompt until the every-20th-run backstop. */
+async function markCompacted(ctx: DaemonHandlerContext, taskId: string, tabId: string | null): Promise<void> {
+  await ctx.automations
+    .markSessionCompacted(taskId, tabId)
+    .catch((err: unknown) => logDaemonError("automation-compacted", err))
+}
 
 export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
   name: "engine.reportEvent",
   async handle(payload, ctx) {
     if (payload.source === "screen") {
-      const taskId = requireString(payload, "taskId")
       const tabId = requireString(payload, "tabId")
+      // The PTY's env names its (parent) task; a migrated child aliased to that session owns the screen.
+      const taskId = resolvePtyOwner(ctx.orch.listTasks(), requireString(payload, "taskId"), tabId)
       if (typeof payload.blocked !== "boolean") throw new Error("blocked must be a boolean")
       if (ctx.activity.reportScreen(taskId, tabId, payload.blocked)) {
         await ctx.inbox.record(taskId, payload.blocked ? "awaiting-input" : "turn-start", undefined, tabId)
@@ -31,8 +39,12 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // `CODE: ` message prefix so a mistyped kind reads BAD_EVENT_KIND, not a
     // bare RPC_ERROR. `rove api engine-report` rejects it earlier, at the flag.
     if (!ctx.runtime.isEngineActivityKind(kind)) throw new Error(`BAD_EVENT_KIND: unknown engine event kind: ${kind}`)
-    // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`.
-    const explicitId = optionalString(payload, "taskId")
+    // The inherited ROVE_TAB_ID.
+    const tabId = optionalString(payload, "tabId")
+    // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`. A migrated
+    // child's PTY still carries its parent's id: the aliased tab says whose it is.
+    const rawId = optionalString(payload, "taskId")
+    const explicitId = rawId ? resolvePtyOwner(ctx.orch.listTasks(), rawId, tabId) : undefined
     const cwd = optionalString(payload, "cwd")
     // A session starting in an unadopted worktree under a tracked repo's
     // managed root is auto-adopted so the cwd maps below. `session-start`
@@ -50,27 +62,46 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     const taskId = explicitId ?? (cwd ? matchTaskByCwd(ctx.orch.listTasks(), cwd) : undefined)
     if (!taskId) return {} // unmatched cwd → drop
     const detail = optionalActivityDetail(payload)
-    // The inherited ROVE_TAB_ID.
-    const tabId = optionalString(payload, "tabId")
     // From the hook payload; an old hook omits it.
     const sessionId = optionalString(payload, "sessionId")
     const transcriptPath = optionalString(payload, "transcriptPath")
+    // The hook's `--engine` tag: the liveness probe must ask the engine that
+    // reported (a custom wrapper id as task.vendor has no transcript store).
+    const vendor = optionalString(payload, "engine")
+    // An engine tab only learns its session id from the hook when no TUI mounted
+    // it (headless, CLI-opened); `spawned` rides along so a revive can resume it.
+    // Only the tab's own engine may name it: a nested engine of another vendor
+    // inherits ROVE_TAB_ID, and its id would make a revive resume the wrong CLI.
+    if (explicitId && tabId && sessionId && vendor) {
+      const row = ctx.tabs?.get(taskId).state?.tabs.find((t) => t.id === tabId)
+      if (row?.kind === "engine" && (row.sessionId !== sessionId || row.spawned !== true)) {
+        // A new conversation (`/clear`, a resume elsewhere) no longer holds a standing routine's prompt.
+        if (row.sessionId && row.sessionId !== sessionId) await markCompacted(ctx, taskId, tabId)
+        const owner = row.vendor ?? ctx.orch.getTask(taskId)?.vendor
+        if (
+          ctx.runtime.sessionProtocol(vendor) ===
+          ctx.runtime.sessionProtocol(typeof owner === "string" ? owner : undefined)
+        ) {
+          ctx.tabs?.apply(taskId, [{ op: "patch", id: tabId, set: { sessionId, spawned: true } }])
+        }
+      }
+    }
     const session = sessionId ? { id: sessionId, transcriptPath } : undefined
     // Lifecycle-only kinds (tool/compact/subagent) skip badge + inbox, or every
     // tool call would broadcast to every client. They still reach plugins.
     const isStateKind = ctx.runtime.affectsActivityState(kind)
-    // The hook's `--engine` tag: the liveness probe must ask the engine that
-    // reported (a custom wrapper id as task.vendor has no transcript store).
-    const vendor = optionalString(payload, "engine")
     if (isStateKind) {
       ctx.activity.report(taskId, kind, detail, tabId, session, vendor)
       // No tab id still records at TASK level (bare-shell engines). Only an
       // explicit id records: a cwd-matched task is a guess, not an identity.
       if (explicitId) {
-        await ctx.inbox
-          .record(taskId, kind, detail, tabId ?? null)
-          .catch((err) => logDaemonError("attention-inbox-record", err))
-        await trackDeliveryTurn(deliveryDepsOf(ctx), taskId, tabId ?? null, kind, detail)
+        // Tracked first: a turn that closed a routine delivery raises no `turn_complete` row.
+        const closed = await trackDeliveryTurn(deliveryDepsOf(ctx), taskId, tabId ?? null, kind, detail)
+        if (!closed) {
+          await ctx.inbox
+            .record(taskId, kind, detail, tabId ?? null)
+            .catch((err) => logDaemonError("attention-inbox-record", err))
+        }
       }
     }
     ctx.engineEvents?.append(taskId, {
@@ -80,6 +111,7 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
       ...(detail ? { detail } : {}),
       at: Date.now(),
     })
+    if (kind === "pre-compact" || kind === "post-compact") await markCompacted(ctx, taskId, tabId ?? null)
     if (kind === "pre-compact" || kind === "post-compact" || kind === "subagent-start" || kind === "subagent-stop") {
       ctx.bus.publish("engine.lifecycle", { taskId, kind, ...(tabId ? { tabId } : {}), at: Date.now() })
     }
@@ -114,10 +146,24 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
           ),
       )
     }
+    // File-only undo point of the finished turn, under the workspace owner's id
+    // (a shared child's turn lands in its owner's history). Fire-and-forget
+    // through the per-owner queue: git on a big tree must not delay the hook
+    // reply, and an unchanged tree is skipped inside.
+    if (kind === "turn-complete" && ctx.orch.canCheckpoint(taskId)) {
+      ctx.checkpoints.schedule(ctx.orch.checkpointScope(taskId).ownerId, () =>
+        ctx.orch.takeCheckpoint(taskId, tabId ? { tabId } : undefined),
+      )
+    }
     // A turn starting on a backlog task advances it to in_progress (opt-in
     // state.json flag, checked inside maybeAutoStart). in_review is the
     // agent's own self-report, not a daemon rule.
     if (kind === "turn-start") {
+      // Work has been handed to a bare checkout: from here it is a session to list.
+      // ponytail: an engine that reports no turns (or a shell tab) leaves the row unlisted; clear on tab open if that bites.
+      if (ctx.orch.getTask(taskId)?.worktreeOnly) {
+        ctx.orch.setWorktreeOnly(taskId, false).catch(() => {})
+      }
       ctx.runtime
         .maybeAutoStart(ctx.orch, taskId)
         .then((result) => {

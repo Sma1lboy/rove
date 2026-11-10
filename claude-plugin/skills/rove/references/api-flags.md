@@ -46,7 +46,6 @@ Four flag names that have actually been guessed wrong here, and what they are:
 
 | Gone | Now |
 |---|---|
-| `archive` | `delete` (task + worktree go; the git branch survives unless `--delete-branch`) |
 | `fan-out` | `add --count N` / `add --agents claude:2,codex:1` |
 | `task-list` | `list` |
 | `send-tab` | `send --tab tab-N` |
@@ -71,7 +70,7 @@ see both.
 
 <!-- generated:begin read -->
 ```text
-list                --repo --status <S1,S2> --activity <A1,A2>
+list                --repo --status <S1,S2> --activity <A1,A2> --archived --fields <F1,F2>
 get-task            --task-id(REQ)
 pty-list            (none)
 collect             --task-ids <a,b,c> --group --repo
@@ -80,13 +79,22 @@ digest              --repo(REQ) --since-days(7)
 agent-turns         --task-id --repo --since-days(7) --limit(200)
 inspect             --task-id
 read-output         --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit
+queue-list          --task-id
+search              --query(REQ) --repo --limit(20)
 watch               --task-ids <a,b,c> --group --until(REQ) <STATE[,STATE]> --timeout
+ports               --task-id --all
+viewers             --task-id
+review-comments     --task-id(REQ)
 worktree-files      --task-id(REQ)
+worktree-file       --task-id(REQ) --path(REQ)
 worktree-diff       --task-id(REQ)
-worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working}(REQ)
+worktree-diff-file  --task-id(REQ) --path(REQ) --scope{branch|working|task}(REQ) --base
+                    --ignore-whitespace
+worktree-refs       --task-id(REQ)
 deliveries          --task-id(REQ) --limit
 should-run          --task-id(REQ) --tab
 gates               --repo --task-id --status{open|answered|withdrawn|all}(open)
+github-status       (none)
 ```
 <!-- generated:end -->
 
@@ -127,10 +135,14 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send               --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
-                   --allow-empty --expect-report --if-runnable
+send               --task-id --prompt|--prompt-file --tab --command --handoff-from
+                   --replace --respawn --plain --allow-empty --expect-report --if-runnable
+                   --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-interrupt          --task-id(REQ) --tab
+interrupt          --task-id --group --all --tab
+resume-quota       --task-id --all
+queue-edit         --id(REQ) --prompt|--prompt-file(REQ)
+queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
 note-list          --repo(REQ)
 note-delete        --repo(REQ) --id(REQ)
@@ -140,9 +152,11 @@ pane-close         --task-id --title(REQ) --tab
 pane-graphics      --task-id --tab(REQ) --image-id
 tab-close          --task-id(REQ) --tab(REQ)
 tab-new            --task-id(REQ) --kind{shell|engine|editor|pane|viewport}(REQ) --command
-                   --file --line --pane --tab --view-task
+                   --latest --file --line --pane --tab --view-task --type
 tab-split          --task-id(REQ) --tab(REQ) --action{open|close|rename|reset}(REQ)
                    --direction{right|down}(right) --leaf --title --cols --rows
+tab-revive         --task-id(REQ) --tab(REQ) --restart-exited
+panel-show         --task-id --view{browser|files|diff}(REQ) --url --path
 notify             --title(REQ) --body --kind(done) --task-id --source
 prompt             --title(REQ) --placeholder --initial --timeout
 engine-report      --task-id
@@ -152,7 +166,7 @@ row-token          --task-id(REQ) --text --ttl(60) --key(default)
                    --tone{info|success|warning|error|muted} --clear
 set-active         --task-id --none
 report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
-                   --next --json
+                   --next --allow-empty --json
 attention-dismiss  --delivery(REQ)
 gate-raise         --task-id(REQ) --tab --question(REQ) --option --recommend --context
 gate-answer        --gate(REQ) --option --text
@@ -167,13 +181,15 @@ dead PTY, no engine process — and each has its own code below.
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
-(every future session on this repo starts with them) AND relayed to the
-dispatcher. Read them back with `note-list --repo`. This is the right home for
+(every future session on this repo starts with them); it starts no turn in
+any running session. Read them back with `note-list --repo`. This is the right home for
 a resolved gotcha; an issue is for work that still needs doing.
 
-`send --allow-empty` is the escape hatch for a `succeeded:` report from a task
-that legitimately produced no commits (an investigation, a review, a question
-answered); without it such a report is refused with `EMPTY_SUCCESS_REPORT`.
+`send --allow-empty` (and `report --allow-empty`) is the escape hatch for a
+`succeeded:` send or a `report --outcome done` on a `send` delivery from a
+task that legitimately produced no commits (an investigation, a review, a
+question answered); without it such a claim is refused with
+`EMPTY_SUCCESS_REPORT`.
 
 **`send --expect-report` asks for a report.** The reply carries `deliveryId`
 (`d-<n>`) and the pasted prompt ends with a `[ROVE] When this turn ends,
@@ -213,6 +229,17 @@ and ends that tab's hosted PTYs. It accepts engine, shell/command, and content
 tabs; closing the last tab leaves the task open with no session. A missing or
 already-closed id returns `TAB_NOT_FOUND` and points back to `get-task`.
 
+`tab-revive` reopens one tab's own session when no PTY runs in it — a dead or
+freeze-restored tab, or one the PTY host lost. Engine tabs resume the
+recorded conversation (`resumed: true`) or start fresh without a first
+message; shell tabs rerun their login shell. It never replays the task's
+original prompt, and a running tab answers `revived: false, alive: true`.
+`--restart-exited` also closes and relaunches an engine tab whose session is
+up but whose engine is gone (`engineAlive: false`, the fallback shell's
+`Engine exited (code N)` banner); a running engine is still left alone.
+Split leaves are `BAD_FLAG` (use `tab-split --action reset`); previews and
+viewport tabs are `TAB_NOT_REVIVABLE`.
+
 `engine-report` is the engine adapter's own channel for reporting a session
 event (`--kind`) back to the daemon — not a verb you reach for by hand.
 
@@ -223,17 +250,33 @@ clear the shared active task.
 
 <!-- generated:begin create,edit,lifecycle -->
 ```text
-add     --repo(REQ) --title --branch --base-branch --worktree-name --command --effort
-        --tier{swift|standard|deep|auto} --model --count --agents <claude:2,codex:1>
-        --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-        --require-report --expect-report --activate(false) --prompt|--prompt-file
-update  --task-id(REQ) --title --tab --branch --command --model --effort --pinned
-        --require-report{on|off}
-        --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
-        --report-pr --report-summary
-land    --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
-        --remove-worktree(true)
-delete  --task-id --group --force --delete-branch --delete-remote --wait
+publish        --task-id(REQ) --remote
+pr-attach      --url(REQ) --task-id
+add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --parent
+               --no-parent --no-worktree --isolate-in --title --branch --base-branch
+               --base-for --worktree-name --command --effort
+               --tier{swift|standard|deep|auto} --model --count
+               --agents <claude:2,codex:1>
+               --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+               --require-report --expect-report --activate(false) --worktree-only --start
+               --prompt|--prompt-file
+update         --task-id --title --tab --branch --parent --project --group --command
+               --model --effort --pinned --kept --require-report{on|off}
+               --auto-fix-ci{on|off}
+               --status{backlog|in_progress|in_review|done|canceled|error} --report-branch
+               --report-pr --report-summary
+todo           --task-id --add --check --uncheck --edit --text --remove --notes
+               --clear-notes
+land           --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
+               --remove-worktree(true) --repo
+sync           --task-id(REQ) --repo
+delete         --task-id --group --cascade --force --delete-branch --delete-remote --wait
+archive        --task-id(REQ) --force
+unarchive      --task-id(REQ)
+github-login   --cancel
+github-logout  (none)
+github-sync    --to(REQ)
+github-apply   --token(REQ)
 ```
 <!-- generated:end -->
 
@@ -263,6 +306,11 @@ returns before the worktree is gone.
 ```text
 ensure-worktree     --task-id(REQ)
 remove-worktree     --task-id(REQ) --force
+checkpoint-list     --task-id(REQ)
+checkpoint          --task-id(REQ)
+rewind              --task-id(REQ) --to(REQ) --force
+export-branch       --task-id(REQ)
+worktree-usage      --task-id
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```
@@ -291,7 +339,7 @@ own store. These are the INBOUND user reports; Rove issues are the backlog.
 <!-- generated:begin workitems -->
 ```text
 workitem-list   --repo(REQ) --state{open|closed|all}(open) --limit(20) --search --assignee
-                --label
+                --author --label
 workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi|pi|omp|bob}
                 --base-branch
 ```
@@ -304,7 +352,7 @@ link back to the issue. Note it takes `--vendor` (an engine enum), not
 
 ## routines (scheduled prompts)
 
-A cron rule + a prompt + a repo, owned by the daemon. By default each firing
+A cron rule + a prompt + a repo (or none, `--no-repo`), owned by the daemon. By default each firing
 creates a FRESH task — worktree, engine, delivered prompt. With
 `--persistent-session` every firing lands in ONE standing task as the next
 turn of the same conversation (a Claude Code-style routine: one window, one
@@ -314,13 +362,15 @@ it fires with no TUI attached.
 <!-- generated:begin routine -->
 ```text
 routine-list     (none)
-routine-create   --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
+routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(REQ)
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
-                 --base-branch --precheck --precheck-timeout(120) --grace(60)
-                 --persistent-session --target-task --target-tab --disabled
+                 --base-branch --precheck --precheck-timeout(120) --script
+                 --script-timeout(120) --notify --webhook --grace(60) --persistent-session
+                 --target-task --target-tab --disabled
 routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
-                 --effort --base-branch --precheck --precheck-timeout(120) --grace(60)
-                 --persistent-session --target-task --target-tab --enabled
+                 --effort --base-branch --precheck --precheck-timeout(120) --script
+                 --script-timeout(120) --notify --webhook --grace(60) --persistent-session
+                 --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file
@@ -334,6 +384,14 @@ the engine starts — non-zero exit skips the run without spawning an agent,
 which is the cheap way to not burn a turn on "nothing to do". `--grace` is how
 late a missed occurrence may still run after the daemon was down; only the
 most recent missed occurrence ever runs.
+
+`routine-create` takes exactly one of `--repo PATH` or `--no-repo` (neither is
+an error, so a forgotten `--repo` never silently becomes a repo-less routine).
+`--no-repo` is for a prompt that belongs to no project: each run works in its
+own directory, `<home>/.rove/routines/<id>/`, as a plain directory session (no
+worktree, no branch) that shows in the sidebar's "Ungrouped" group. It takes
+no `--base-branch`, and a routine can't switch between a repo and no project
+after it is saved.
 
 Pick the mode by what the prompt DOES. A routine that EDITS code wants the
 default: each run is its own branch you can review and land; a week of runs
@@ -358,13 +416,15 @@ and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
 A delivered routine prompt starts with `[ROVE ROUTINE] "<name>" run #<n> — when
-done, report with: … rove api report --delivery d-<n> …`. When you received
-one, finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
+done, report with: … rove api report --delivery d-<n> … (only if something
+happened or you are blocked)`. When the run found something or you are stuck,
+finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
 --summary …`): lead with the conclusion, markdown welcome, 32,000 characters
 max. Reporting again replaces the answer. `routine-respond --run <runId>
 --text …` still works; it is `report --outcome done` on the same delivery.
-Nothing is inferred if you skip it; the run shows "no response" and the
-delivery goes `missing`.
+With nothing to report, just stop: the delivery goes `quiet`, with no Inbox
+row. In a standing session, a run whose prompt you already have says the
+instructions are unchanged; follow the earlier run's prompt again.
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
 respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
@@ -376,7 +436,9 @@ respawned — files kept, conversation did not), `skipped_precheck` (nothing to 
 ```text
 schema       --verb --group --all
 engine-list  (none)
-feedback     --title(REQ) --body(REQ) --category(feedback)
+repo-match   --origin --root --allow-fork
+repo-list    (none)
+feedback     --title(REQ) --body(REQ) --kind(bug)
 ```
 <!-- generated:end -->
 
@@ -384,9 +446,23 @@ Bare `schema` is the compact index; `--verb <name>` drills into one verb,
 `--group <g>` lists one group, `--all` dumps everything. `engine-list` is the
 ids + RAW launch command + protocol.
 
-`feedback` opens a GitHub Discussion in the Rove repo through `gh` — Rove's own
-product feedback channel, not a way to file work for another project (that is
-a `send` to their main task; see SKILL.md).
+`--repo` takes a repo id as well as a path: `owner/name` (GitHub),
+`host/owner/name`, or a remote URL. An id resolves to the checkout on the
+machine that runs the verb (its `rove machine primary`, else a clean one).
+`add --repo <id> --clone` clones it into `~/.rove/repos/<host>/<owner>/<name>`
+when that machine has none; `--allow-fork` accepts a checkout there under
+another origin. Forwarded with `--machine`, a missing checkout is
+`NO_REMOTE_CHECKOUT` and a fork-only one is `FORK_MATCH`. `repo-match` answers which checkout an `--origin`/`--root`
+resolves to (`{ repo, fork?, checkouts, searched }`); `repo-list` lists a
+machine's repos by id (`{ repos: [{ id, primary, checkouts }] }`) — pass
+`--machine <alias>` to ask another machine.
+
+`feedback` files a GitHub issue on the Rove repo through `gh` (`--kind` picks the
+label: bug, idea → enhancement, question) and appends an environment block.
+It returns `{ filed: true, url, number }`; with no usable `gh` it returns
+`{ filed: false, url, hint }` where `url` is a prefilled new-issue link — hand
+it to the user. Rove's own product feedback channel, not a way to file work
+for another project (that is a `send` to their main task; see SKILL.md).
 
 ## Error codes
 
@@ -404,14 +480,17 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
-| `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
+| `EMPTY_SUCCESS_REPORT` | `succeeded:` or `report --outcome done` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |
+| `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task not waiting on a quota reset | `collect` for its `.activity.state` |
 | `WATCH_TIMEOUT` | `watch` hit --timeout before any --until state | nothing happened yet, not "nothing will" — `collect --task-ids` |
 | `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
 | `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |
 | `INVALID_WORKTREE_NAME` | `--worktree-name` is not one plain path segment | letters/digits/`.`/`_`/`-`, not starting with `.` |
+| `NO_LOCAL_CHECKOUT` | `add --repo <id>`, and this machine has no checkout of it | `--clone`, or `--repo` with a checkout's path |
+| `CLONE_FAILED` | `--clone` could not `git clone` the repo | check `git ls-remote <url>` there, or clone by hand and pass the path |
 
 Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
 `MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the

@@ -1,7 +1,8 @@
 /**
  * The TUI's new-task dialog (`tui-react/component/new-task-dialog`): three modes (Existing,
  * New Repo, Adopt Worktree) in one frame, Ctrl+[ / Ctrl+] switch the mode, Ctrl+E cycles the
- * engine. Copy comes from the TUI's own `newTask` catalog.
+ * engine. Copy comes from the TUI's own `newTask` catalog. This machine's disk only: another
+ * machine's task starts from the composer.
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -19,9 +20,14 @@ import {
   splitRepoRow,
 } from "./new-task-paths.ts"
 import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { SuggestField, type Suggestion, focusField } from "./suggest-field.tsx"
 import { EnginePicker, useEngineChoice } from "./task-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
+import { openNewSession } from "./ui.ts"
+import { FIELD } from "./ui/form.ts"
+import { DIALOG_BODY } from "./ui/overlay.ts"
+import { HINT, KICKER } from "./ui/text.ts"
 
 const TABS = ["existing", "clone", "adopt"] as const
 export type NewTaskTab = (typeof TABS)[number]
@@ -30,6 +36,8 @@ export interface ProbeResult {
   readonly ok: boolean
   readonly repo: string
   readonly reason?: string
+  /** `false`: a folder git cannot use; it opens in place, with no worktree or branch. */
+  readonly git?: false
   readonly branches?: readonly string[]
   readonly current?: string | null
   readonly worktrees?: readonly AdoptableRow[]
@@ -65,17 +73,21 @@ interface Browse {
 }
 
 function useRepoField(model: AppModel, initial: string | undefined): RepoField {
-  const [saved, setSaved] = useState<readonly string[]>([])
-  const [home, setHome] = useState("")
-  const [text, setTextState] = useState("")
+  const lastSaved = lastReply<{ repos: string[] }>(model, "repos.list")?.repos
+  const [saved, setSaved] = useState<readonly string[]>(lastSaved ?? [])
+  const [home, setHome] = useState(() => lastReply<{ home: string }>(model, "fs.subdirs", { path: "~/" })?.home ?? "")
+  const [text, setTextState] = useState(() => {
+    const start = initial ?? lastSaved?.[0]
+    return start ? nameOrPath(start, lastSaved ?? []) : ""
+  })
   const [picked, setPicked] = useState(false)
   const [browse, setBrowse] = useState<Browse | null>(null)
   const [probe, setProbe] = useState<ProbeResult | null>(null)
 
   useEffect(() => {
     void Promise.all([
-      model.client.request<{ repos: string[] }>("repos.list"),
-      model.client.request<{ home: string }>("fs.subdirs", { path: "~/" }),
+      requestRemembered<{ repos: string[] }>(model, "repos.list"),
+      requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
     ])
       .then(([repos, fs]) => {
         setSaved(repos.repos)
@@ -187,7 +199,7 @@ function useRepoField(model: AppModel, initial: string | undefined): RepoField {
   }
 }
 
-interface TabProps {
+export interface TabProps {
   readonly model: AppModel
   readonly engine: string
   readonly busy: boolean
@@ -235,14 +247,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         model.selectWhenListed(res.taskId)
         return
       }
-      const base = (ref ?? baseRef).trim()
-      const res = await model.client.request<{ taskIds: string[] }>("task.spawn", {
-        repo: fresh.repo,
-        ...(props.engine ? { engine: props.engine } : {}),
-        ...(base ? { baseBranch: base } : {}),
-      })
-      const created = res.taskIds[0]
-      if (created) model.selectWhenListed(created)
+      // A task is born by its first prompt: the composer takes the project and branch from here.
+      openNewSession(fresh.repo, (ref ?? baseRef).trim())
     })
 
   const enterBranch = (index: number) => {
@@ -253,14 +259,14 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
 
   return (
     <form
-      className="dialog-body"
+      className={DIALOG_BODY}
       onSubmit={(e) => {
         e.preventDefault()
         void create()
       }}
     >
-      <div className="field">
-        <span className="kicker">{tc("newTask", "field.repo")}</span>
+      <div className={FIELD}>
+        <span className={`${KICKER} text-muted`}>{tc("newTask", "field.repo")}</span>
         <SuggestField
           field="repo"
           value={repo.text}
@@ -273,8 +279,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         />
       </div>
       {canOpenProject && (
-        <div className="field">
-          <span className="kicker">{tc("newTask", "field.opens")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.opens")}</span>
           <ChipRow
             label={tc("newTask", "field.opens")}
             field="intent"
@@ -288,8 +294,8 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
         </div>
       )}
       {!(intent === "project" && canOpenProject) && (
-        <div className="field">
-          <span className="kicker">{tc("newTask", "field.fromBranch")}</span>
+        <div className={FIELD}>
+          <span className={`${KICKER} text-muted`}>{tc("newTask", "field.fromBranch")}</span>
           <SuggestField
             field="branch"
             value={baseRef}
@@ -313,13 +319,13 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
             onEnter={() => void create()}
           />
           {filtered.length === 0 && props.error == null && (
-            <span className="muted">
+            <span className="text-muted">
               {tc("newTask", branches.length === 0 ? "hint.noBranchesFound" : "hint.noMatchBranch")}
             </span>
           )}
         </div>
       )}
-      {props.error && <p className="error">※ {props.error}</p>}
+      {props.error && <p className="text-error">※ {props.error}</p>}
       <DialogActions busy={props.busy} submitLabel={tc("newTask", "button.create")} />
     </form>
   )
@@ -327,11 +333,11 @@ function ExistingTab(props: TabProps & { repo: RepoField }) {
 
 export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; repo?: string }) {
   useLocale()
-  const choice = useEngineChoice(model)
   const [tab, setTab] = useState<NewTaskTab>("existing")
   const { busy, error, setError, submit } = useSubmit()
   const selected = model.selection.get().taskId
   const fallback = model.tasks.get()?.tasks.find((task) => task.id === selected)?.repo
+  const choice = useEngineChoice(model, initialRepo ?? fallback)
   const repo = useRepoField(model, initialRepo ?? fallback)
   const root = useRef<HTMLDivElement>(null)
   const first = useRef(true)
@@ -372,9 +378,9 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
           e.stopPropagation()
         }}
       >
-        <div className="dialog-body">
-          <div className="field">
-            <span className="kicker">{tc("newTask", "field.mode")}</span>
+        <div className={DIALOG_BODY}>
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.mode")}</span>
             <ChipRow
               label={tc("newTask", "field.mode")}
               field="mode"
@@ -383,8 +389,8 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
               choices={TABS.map((id) => ({ id, label: tc("newTask", `tabs.${id}`) }))}
             />
           </div>
-          <div className="field">
-            <span className="kicker">{tc("newTask", "field.engine")}</span>
+          <div className={FIELD}>
+            <span className={`${KICKER} text-muted`}>{tc("newTask", "field.engine")}</span>
             <EnginePicker engines={choice.engines} value={choice.engine} onChange={choice.setEngine} />
           </div>
         </div>
@@ -397,7 +403,9 @@ export function NewTaskDialog({ model, repo: initialRepo }: { model: AppModel; r
         <div hidden={tab !== "adopt"}>
           <AdoptTab {...common} repo={repo} active={tab === "adopt"} />
         </div>
-        <p className="muted newtask-legend">{tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}</p>
+        <p className={`keys-only mx-0 mt-2 mb-0 ${HINT}`}>
+          {tc("newTask", "legend", { enter: tc("newTask", "enterNext") })}
+        </p>
       </div>
     </DialogShell>
   )

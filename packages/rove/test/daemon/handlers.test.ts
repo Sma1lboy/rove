@@ -3,6 +3,7 @@ import { EngineEventLog } from "@sma1lboy/rove-daemon/daemon/engine-events-log"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { PromptBroker } from "@sma1lboy/rove-daemon/daemon/prompt-broker"
 import type { DaemonHandlerContext } from "@sma1lboy/rove-daemon/daemon/server"
+import { TabsStore } from "@sma1lboy/rove-daemon/daemon/tabs-store"
 import { describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
@@ -363,6 +364,79 @@ describe("daemon handler registry", () => {
         "unknown engine event kind: explode",
       )
       await expect(dispatch("engine.reportEvent", { cwd: "/x" }, ctx)).rejects.toThrow("kind is required")
+    })
+
+    describe("persists the hook's session id onto the reporting engine tab", () => {
+      const seeded = (taskId: string, rows: Array<Record<string, unknown>>, orch: Record<string, unknown> = {}) => {
+        const made = fakeCtx(orch)
+        const tabs = new TabsStore(undefined, made.ctx.bus)
+        const ctx: DaemonHandlerContext = { ...made.ctx, tabs }
+        tabs.apply(taskId, [{ op: "seed", state: { tabs: rows as never, nextOrdinal: 9, activeId: "tab-1" } }])
+        return { ctx, rec: made.rec, tabs }
+      }
+      const report = (ctx: DaemonHandlerContext, payload: Record<string, unknown>) =>
+        dispatch("engine.reportEvent", { kind: "turn-start", ...payload }, ctx)
+
+      it("fills an absent id, follows a changed one, and leaves an unchanged one alone", async () => {
+        const { ctx, rec, tabs } = seeded("t1", [{ id: "tab-1", ordinal: 1, kind: "engine" }])
+        await report(ctx, { taskId: "t1", tabId: "tab-1", sessionId: "s-1", engine: "claude" })
+        expect(tabs.get("t1").state?.tabs[0]).toMatchObject({ sessionId: "s-1", spawned: true })
+
+        const rev = tabs.get("t1").rev
+        const published = rec.published.length
+        await report(ctx, { taskId: "t1", tabId: "tab-1", sessionId: "s-1", engine: "claude" })
+        expect(tabs.get("t1").rev).toBe(rev)
+        expect(rec.published.length).toBe(published)
+
+        await report(ctx, { taskId: "t1", tabId: "tab-1", sessionId: "s-2", engine: "claude" })
+        expect(tabs.get("t1").state?.tabs[0]).toMatchObject({ sessionId: "s-2", spawned: true })
+      })
+
+      it("never creates a row, and never writes a shell tab or a cwd-matched guess", async () => {
+        const { ctx, tabs } = seeded(
+          "t1",
+          [
+            { id: "tab-1", ordinal: 1, kind: "engine" },
+            { id: "tab-2", ordinal: 2, kind: "shell" },
+          ],
+          { listTasks: () => [{ id: "t1", worktreePath: "/repo" }] },
+        )
+        await report(ctx, { taskId: "t1", tabId: "tab-7", sessionId: "s-1", engine: "claude" })
+        await report(ctx, { taskId: "t1", tabId: "tab-2", sessionId: "s-1", engine: "claude" })
+        await report(ctx, { cwd: "/repo", tabId: "tab-1", sessionId: "s-1", engine: "claude" })
+        const rows = tabs.get("t1").state?.tabs ?? []
+        expect(rows.map((r) => r.id)).toEqual(["tab-1", "tab-2"])
+        expect(rows.some((r) => "sessionId" in r)).toBe(false)
+      })
+
+      it("ignores a report from another vendor's engine nested in the tab, and an untagged one", async () => {
+        const { ctx, tabs } = seeded("t1", [
+          { id: "tab-1", ordinal: 1, kind: "engine" },
+          { id: "tab-2", ordinal: 2, kind: "engine", vendor: "codex" },
+        ])
+        await report(ctx, { taskId: "t1", tabId: "tab-1", sessionId: "codex-id", engine: "codex" })
+        await report(ctx, { taskId: "t1", tabId: "tab-1", sessionId: "legacy-id" })
+        await report(ctx, { taskId: "t1", tabId: "tab-2", sessionId: "claude-id", engine: "claude" })
+        expect(tabs.get("t1").state?.tabs.some((r) => "sessionId" in r)).toBe(false)
+
+        await report(ctx, { taskId: "t1", tabId: "tab-2", sessionId: "codex-id", engine: "codex" })
+        expect(tabs.get("t1").state?.tabs[1]).toMatchObject({ sessionId: "codex-id", spawned: true })
+      })
+
+      it("lands on the migrated child that owns the parent-keyed PTY, not the parent", async () => {
+        const { ctx, tabs } = seeded("child", [{ id: "tab-3", ordinal: 3, kind: "engine" }], {
+          listTasks: () => [
+            { id: "parent", worktreePath: "/p" },
+            { id: "child", worktreePath: "/p", ptyAlias: { taskId: "parent", tabId: "tab-3" } },
+          ],
+        })
+        tabs.apply("parent", [
+          { op: "seed", state: { tabs: [{ id: "tab-3", ordinal: 3, kind: "engine" }] as never, nextOrdinal: 4 } },
+        ])
+        await report(ctx, { taskId: "parent", tabId: "tab-3", sessionId: "s-9", engine: "claude" })
+        expect(tabs.get("child").state?.tabs[0]).toMatchObject({ sessionId: "s-9", spawned: true })
+        expect(tabs.get("parent").state?.tabs[0]).not.toHaveProperty("sessionId")
+      })
     })
   })
 

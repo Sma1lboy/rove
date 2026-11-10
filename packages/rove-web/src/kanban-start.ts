@@ -1,10 +1,10 @@
 /**
  * Story → engine session, sequenced from bridge atoms the way the TUI's `use-issue-chat.ts`
  * does it: `worktree` makes the story's task and links the issue (the link moves the card to
- * In progress); `project` runs a new engine tab on the main checkout and flips the story to
- * `doing`. `projectWorktree` is the `worktree` task plus a viewport tab onto its session in the
- * project's workspace (`tab.openViewport`). A link or status refusal is reported but never
- * strands a session that is running.
+ * In progress); `project` runs a new engine as a child task of the main checkout (sharing its
+ * directory) and flips the story to `doing`. `projectWorktree` is the `worktree` task plus a
+ * viewport tab onto its session in the project's workspace (`tab.openViewport`). A link or status
+ * refusal is reported but never strands a session that is running.
  */
 
 import type { BridgeClient } from "./bridge.ts"
@@ -61,9 +61,10 @@ export async function startStory(client: BridgeClient, req: StartRequest): Promi
     })
     return { taskId: main.taskId, tabId: view.tabId, warnings }
   }
-  const { taskId } = await client.request<{ taskId: string }>("task.openMain", { repo: req.repo })
-  const { tabId } = await client.request<{ tabId: string }>("tab.new", {
-    taskId,
+  const { taskId: mainTaskId } = await client.request<{ taskId: string }>("task.openMain", { repo: req.repo })
+  // The session is a child task of the main checkout, sharing its directory, not a second tab on it.
+  const { tabId, taskId = mainTaskId } = await client.request<{ tabId: string; taskId?: string }>("tab.new", {
+    taskId: mainTaskId,
     kind: "engine",
     engine: req.engine,
     prompt,

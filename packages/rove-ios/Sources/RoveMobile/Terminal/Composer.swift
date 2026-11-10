@@ -7,7 +7,11 @@ import UniformTypeIdentifiers
 struct Composer: View {
     var session: TerminalSession
     var engineName: String?
+    /// An engine tab sends whole messages with `tab.send`; a shell takes the line as keystrokes.
+    var isEngine = false
     @State private var text = ""
+    @State private var sending = false
+    @State private var queue = HeldPrompts()
     @State private var showPhotos = false
     @State private var showFiles = false
     @State private var photo: PhotosPickerItem?
@@ -23,6 +27,7 @@ struct Composer: View {
                     .lineLimit(2).padding(.horizontal, 14)
                     .accessibilityIdentifier("attachError")
             }
+            if isEngine { HeldPromptChips(session: session, queue: queue) }
             HStack(spacing: 8) {
                 attachMenu
                 FieldBox {
@@ -49,7 +54,7 @@ struct Composer: View {
                                     in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                 }
                 .buttonStyle(.pressable)
-                .disabled(text.isEmpty)
+                .disabled(text.isEmpty || sending)
                 .accessibilityIdentifier("sendButton")
             }
             .padding(.horizontal, 12)
@@ -57,6 +62,7 @@ struct Composer: View {
         .padding(.top, 6)
         .padding(.bottom, 8)
         .background(Theme.paper)
+        .task(id: isEngine) { if isEngine { await queue.poll(session: session) } }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composerBar")
         .photosPicker(isPresented: $showPhotos, selection: $photo, matching: .images)
@@ -90,10 +96,32 @@ struct Composer: View {
     }
 
     private func send() {
-        guard !text.isEmpty else { return }
-        session.reply(text)
-        text = ""
+        guard !text.isEmpty, !sending else { return }
         error = nil
+        guard isEngine else {
+            session.reply(text)
+            text = ""
+            return
+        }
+        sending = true
+        let message = text
+        Task {
+            defer { sending = false }
+            do {
+                let answer = try await session.sendToEngine(message)
+                if answer.delivered || answer.queued {
+                    if text == message { text = "" }
+                    if let position = answer.position, answer.queued {
+                        session.flash(String(localized: "queued · position \(position)"))
+                        await queue.load(session: session)
+                    }
+                } else {
+                    error = String(localized: "not sent: \(answer.reason ?? "")")
+                }
+            } catch let refused as BridgeError where refused.code == "AWAITING_PERMISSION" {
+                error = String(localized: "The engine is at a menu: answer it with the keys above.")
+            } catch { self.error = error.localizedDescription }
+        }
     }
 
     private static func read(_ url: URL) throws -> Data {

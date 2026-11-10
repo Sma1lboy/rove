@@ -39,15 +39,6 @@ export function renderGates(gates: readonly Gate[], titles: ReadonlyMap<string, 
   return lines.join("\n")
 }
 
-/** One push for decisions that just opened. */
-export function renderGateArrivals(gates: readonly Gate[], titles: ReadonlyMap<string, string>): string {
-  const lines = ["Decision needed:"]
-  for (const gate of gates) lines.push(...gateLines(gate, titles))
-  const first = gates[0]
-  if (first) lines.push(`Reply: answer ${first.id} ${first.options[0]?.key ?? "<text>"}`)
-  return lines.join("\n")
-}
-
 /** `g-12`, `G-12` or bare `12` → `g-12`; anything else is not a gate reference. */
 function gateId(ref: string): string | null {
   const m = /^(?:g-?)?(\d{1,9})$/i.exec(ref)

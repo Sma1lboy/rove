@@ -27,8 +27,9 @@ export interface AutomationPrecheck {
 export interface Automation {
   readonly id: string
   readonly name: string
-  /** Absolute repo root; resolved once at create time. */
-  readonly repo: string
+  /** Absolute repo root; resolved once at create time. Absent = projectless:
+   *  runs execute in `routineDir(id)` and their tasks are `noProject` dir tasks. */
+  readonly repo?: string
   /** Delivered as the engine's launch-time first message. */
   readonly prompt: string
   readonly vendor?: VendorId
@@ -39,6 +40,11 @@ export interface Automation {
   /** Five-field cron, evaluated in the daemon host's local time. */
   readonly schedule: string
   readonly precheck?: AutomationPrecheck
+  /** Script routine: run this command instead of an engine. `prompt` is empty,
+   *  and non-empty stdout becomes the run's response. */
+  readonly script?: AutomationPrecheck
+  /** Hand each run's response, and runs that need a human, to a bound chat channel's agent (WeChat). */
+  readonly notify?: boolean
   readonly baseRef?: string
   /**
    * Re-deliver into ONE standing task instead of a fresh worktree per firing.
@@ -48,6 +54,9 @@ export interface Automation {
   readonly persistentSession?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: { readonly kind: "existing-tab"; readonly taskId: string; readonly tabId: string }
+  /** Webhook trigger: a POST to `/hooks/routines/<id>` signed with this secret
+   *  (GitHub's `X-Hub-Signature-256`) fires one run, precheck included. */
+  readonly webhook?: { readonly secret: string }
   /** The standing task {@link persistentSession} delivers into. Set on the
    *  first firing; cleared when that task or its worktree is gone, so the next
    *  firing rebuilds. */
@@ -84,6 +93,10 @@ export type AutomationRunStatus =
   | "skipped_missed"
   | "skipped_unavailable"
   | "dispatch_failed"
+  /** A script routine's command exited 0. */
+  | "ran"
+  /** A script routine's command exited non-zero, timed out or could not start. */
+  | "script_failed"
 
 /**
  * Outcomes that repeat every firing until a human intervenes
@@ -93,7 +106,7 @@ export type AutomationRunStatus =
  * routines are broken.
  */
 export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
-  return status === "dispatch_failed" || status === "skipped_unavailable"
+  return status === "dispatch_failed" || status === "skipped_unavailable" || status === "script_failed"
 }
 
 export interface AutomationPrecheckResult {
@@ -104,6 +117,9 @@ export interface AutomationPrecheckResult {
   readonly durationMs: number
 }
 
+/** `manual` (run-now) skips the precheck; `webhook` runs it, like `scheduled`. */
+export type AutomationTrigger = "scheduled" | "manual" | "webhook"
+
 export interface AutomationRun {
   readonly id: string
   readonly automationId: string
@@ -112,7 +128,9 @@ export interface AutomationRun {
   /** When this occurrence was SUPPOSED to run — not when it actually did. */
   readonly scheduledFor: string
   readonly status: AutomationRunStatus
-  readonly trigger: "scheduled" | "manual"
+  readonly trigger: AutomationTrigger
+  /** What fired a `webhook` run, one line (`issues.opened Sma1lboy/rove#12 <url>`). */
+  readonly event?: string
   readonly taskId?: string
   readonly tabId?: string
   readonly precheckResult?: AutomationPrecheckResult
@@ -125,6 +143,12 @@ export interface AutomationRun {
    *  response: `response` and `deliveryStatus` are read from it, never stored
    *  twice. */
   readonly deliveryId?: string
+  /** `routinePromptHash` of the prompt this run delivered; a standing session's next run sends it again only when it changed. */
+  readonly promptHash?: string
+  /** This run sent only the header: the session already held the prompt. */
+  readonly promptElided?: true
+  /** ISO-8601: the session's engine compacted or changed conversation after this run was delivered. */
+  readonly compactedAt?: string
   /** What the agent reported for THIS run. Never inferred from a transcript:
    *  no report, no response. Projected from the linked delivery by
    *  `automation.runs`; stored only on runs that predate deliveries. */
@@ -147,7 +171,7 @@ export const ROUTINE_RESPONSE_WINDOW_MS = 2 * 60 * 60_000
 
 /**
  * Where a run stands on its response. `null` for a run that never delivered a
- * prompt (nothing to respond to).
+ * prompt, or whose turn ended with nothing to report (`quiet`).
  */
 export function routineRunResponseState(
   run: Pick<AutomationRun, "status" | "at" | "response" | "deliveryStatus">,
@@ -155,6 +179,7 @@ export function routineRunResponseState(
 ): "responded" | "awaiting" | "missing" | null {
   if (run.response) return "responded"
   if (run.status !== "dispatched" && run.status !== "revived") return null
+  if (run.deliveryStatus === "quiet") return null
   // A delivery knows whether the turn ended unreported; the window is only
   // the fallback for runs that predate deliveries.
   if (run.deliveryStatus === "missing") return "missing"
@@ -171,12 +196,16 @@ export interface AutomationPatch {
   readonly modelEffort?: string | null
   readonly schedule?: string
   readonly precheck?: AutomationPrecheck | null
+  readonly script?: AutomationPrecheck | null
+  readonly notify?: boolean
   readonly baseRef?: string | null
   readonly enabled?: boolean
   readonly missedRunGraceMinutes?: number
   readonly persistentSession?: boolean
   /** Exact user-owned conversation. Never creates or revives a task or tab. */
   readonly target?: Automation["target"] | null
+  /** `null` turns the webhook trigger off. */
+  readonly webhook?: Automation["webhook"] | null
   /** `null` clears the standing session link; absent leaves it untouched. */
   readonly sessionTaskId?: string | null
 }

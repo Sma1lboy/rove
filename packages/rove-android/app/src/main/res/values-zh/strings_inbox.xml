@@ -22,4 +22,5 @@
     <string name="inbox_state_report_missing">未回报</string>
     <string name="inbox_state_decision">待决策</string>
     <string name="inbox_state_decision_answered">已回答 · 引擎未运行</string>
+    <string name="inbox_ack_all">全部已阅</string>
 </resources>

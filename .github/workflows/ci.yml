@@ -1,9 +1,9 @@
-# Main-branch CI.
-#
-# Runs on every push to main, and by hand (workflow_dispatch) on any branch.
-# Pull requests start no cloud runs: `bun run pre-pr` runs these suites
-# locally before `gh pr create` (docs/agents/dev-loop.md "Before opening a
-# PR"). This stays as the post-merge check and for the OSes a laptop lacks.
+# The full suite. It runs:
+#   - on main every two hours, as a batch over whatever merged since
+#     (the owner's PRs merge on `bun run pre-pr`'s fast tier, not on this);
+#   - before every release (scripts/ci-run-for-sha.sh dispatches it);
+#   - on pull requests from anyone but the owner;
+#   - by hand on any branch (`gh workflow run ci.yml --ref <branch>`).
 #
 # Behavior tests (test/behavior/) run in their own `behavior` job: they
 # drive the BUILT rove CLI black-box in a temp home with isolated daemon and
@@ -26,20 +26,23 @@
 # `paths` filter — it ran on every PR and cost ~60s on changes that could not
 # affect it. GitHub only supports that filter at the workflow level.
 #
-# The PR-only gates (changeset-cap, file-size-cap, UI evidence) run in
-# `bun run pre-pr`; pr-gates.yml can still run the last two by hand.
+# The PR-only gates (changeset-cap, file-size-cap, UI evidence) live in
+# pr-gates.yml.
 
 name: CI
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "17 */2 * * *"
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
-# Cancel in-flight CI for older pushes on the same branch — saves
-# minutes when several commits land back-to-back.
+# Keyed by event too: a scheduled batch must never cancel the run a release
+# dispatched and is waiting on.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -48,6 +51,8 @@ permissions:
 
 jobs:
   typecheck-and-test:
+    # The owner's PRs merge on pre-pr's fast tier; main's batch covers them.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -100,6 +105,10 @@ jobs:
         # bun:test, not vitest: the bridge's server is Bun.serve.
         run: bun --filter rove-bridge test
 
+      - name: Harness tests (rove-harness)
+        # vitest, not `bun test`: the wrong runner reads as 21 broken tests.
+        run: bun --filter rove-harness test
+
       - name: WeChat channel tests (rove-weixin)
         run: bun --filter rove-weixin test
 
@@ -116,6 +125,7 @@ jobs:
     #
     # Four ways, not eight: at ~23s a shard the fixed cost (checkout + install,
     # ~10s warm) starts to dominate, so more slices buy less each time.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -138,18 +148,47 @@ jobs:
         working-directory: packages/rove
         run: bun x vitest run --passWithNoTests --minWorkers=1 --maxWorkers=8 --shard=${{ matrix.shard }}/4
 
-  behavior:
-    # Black-box behavior suite: the BUILT CLI in a temp ROVE_HOME with an
-    # isolated daemon + hosted PTY engine. Catches packaged-path and session
-    # lifecycle regressions unit mocks cannot see.
-    #
-    # Two shards: these were 49s of the 87s that made this job the wall
-    # clock's long pole once the render track was sharded (run 35456145607).
+  daemon-tests:
+    # The socket suite (test/daemon) drove a real daemon + PTY host over unix
+    # sockets and ran ONLY in release.yml: a PR could break the daemon protocol
+    # and every gate still went green. Two shards (~45s locally at 4 workers).
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Daemon socket tests (shard ${{ matrix.shard }}/2)
+        # Same flags as `test:socket`, plus vitest's own --shard.
+        working-directory: packages/rove
+        env:
+          ROVE_INCLUDE_SOCKET: "1"
+        run: bun x vitest run test/daemon --pool forks --minWorkers=1 --maxWorkers=4 --passWithNoTests --shard=${{ matrix.shard }}/2
+
+  behavior:
+    # Black-box behavior suite: the BUILT CLI in a temp ROVE_HOME with an
+    # isolated daemon + hosted PTY engine. Catches packaged-path and session
+    # lifecycle regressions unit mocks cannot see.
+    #
+    # Three shards: at two, shard 2 ran ~45s of tests and set the wall clock.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -166,21 +205,17 @@ jobs:
       - name: Build (rove package)
         run: bun run build
 
-      - name: Bridge tests (rove-bridge)
-        # bun:test, not vitest: the bridge's server is Bun.serve.
-        run: bun --filter rove-bridge test
-
-      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/2)
+      - name: Behavior tests (Rove package, shard ${{ matrix.shard }}/3)
         # Same flags as `test:behavior`, plus vitest's --shard. The serial
         # pool and the retry stay INSIDE each shard: these drive the built
         # CLI black-box and are not safe to run concurrently with each
         # other, but separate runners are separate machines, so slicing
-        # across jobs is. Verified locally: 6 + 5 = 11 files, the whole set.
+        # across jobs is.
         working-directory: packages/rove
         run: |
           ROVE_INCLUDE_BEHAVIOR=1 bun x vitest run test/behavior \
             --pool forks --minWorkers=1 --maxWorkers=1 --retry=2 \
-            --passWithNoTests --shard=${{ matrix.shard }}/2
+            --passWithNoTests --shard=${{ matrix.shard }}/3
 
   render-track:
     # OpenTUI's native renderer runs under Bun, not Vitest's Node worker.
@@ -198,6 +233,7 @@ jobs:
     # (run 35453490576) passed 545 of 546 tests — so Linux takes the bulk at
     # eight shards, and `render-track-macos` runs only what Linux cannot pass
     # (test/render-linux-known-failing.txt) plus the PTY half.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -225,7 +261,8 @@ jobs:
     # one macOS slot. The PTY files are deliberately never sharded — they are
     # the one part of this suite that has deadlocked CI, and they keep their
     # own process and deadlock ceiling (PTY_TIMEOUT_MS in render-track.mjs).
-    runs-on: macos-14
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -247,6 +284,7 @@ jobs:
     # The hosted macOS images reject node-pty's POSIX PTY spawn before the
     # child starts. Linux compiles node-pty from source and exercises the same
     # browser → xterm → PTY → real OpenTUI contract.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -315,6 +353,7 @@ jobs:
     # with no C/C++ toolchain (a fresh WSL distro, a `rove machine add`
     # target), then one real PTY session through it. The other jobs run from
     # the workspace, where bun already installed and compiled everything.
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -340,6 +379,7 @@ jobs:
             bash -c 'bash /s/clean-linux-install.sh /pkg/*.tgz'
 
   harness-windows-lifetime:
+    if: github.event_name != 'pull_request' || github.event.pull_request.author_association != 'OWNER'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -349,8 +389,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Only the harness's closure: the whole workspace is ~2000 packages and
+      # took ~95s to link on Windows, against 360 in ~6s.
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --filter rove-harness
       - name: Verify console cleanup and detached service survival
         working-directory: packages/rove-harness
         run: bun run test test/pty-session-lifecycle.test.ts test/pty-sidecar-shutdown.test.mjs

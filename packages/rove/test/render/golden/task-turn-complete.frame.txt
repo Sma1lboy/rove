@@ -1,0 +1,26 @@
+# sidebar frame: task-turn-complete
+# unread completion lamp on the task that finished: the daemon says unseen
+# 30x22
+# GENERATED — do not hand-edit. Regenerate: ROVE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+| ● alpha                      |
+|▌○ bravo                      |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

@@ -3,6 +3,7 @@
 
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { legendCap } from "../../../tui/lib/help-groups"
+import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
@@ -21,11 +22,7 @@ export function SectionHeader(props: {
   onPress?: () => void
   /** Right-click, with the click's screen cell (the tree's project menu). */
   onContextMenu?: (x: number, y: number) => void
-  /** Drop the label's BOLD — how an offline machine section reads as inactive
-   *  without inventing a colour the theme does not define. */
-  muted?: boolean
-  /** Tree depth. Non-zero indents the header, so a project sitting under a
-   *  machine header reads as belonging to it. */
+  /** Tree depth. Non-zero indents the header. */
   depth?: number
 }) {
   const { theme, transparentBackground } = useTheme()
@@ -61,12 +58,7 @@ export function SectionHeader(props: {
             {props.prefix}
           </text>
         ) : null}
-        <text
-          fg={theme.textMuted}
-          attributes={props.muted ? undefined : TextAttributes.BOLD}
-          wrapMode="none"
-          flexShrink={0}
-        >
+        <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
           {props.label}
         </text>
         <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
@@ -108,6 +100,25 @@ export function SidebarSearchInput(props: { query: string; matchCount: number; t
           {props.matchCount}/{props.totalCount}
         </text>
       )}
+    </box>
+  )
+}
+
+/** The active task order, so a different order is never a mystery (`t` cycles it). */
+export function SidebarSortLine(props: { mode: TaskSortMode }) {
+  const { theme } = useTheme()
+  const t = useT()
+  const mode = {
+    default: t("tasks.sort.modes.default"),
+    recent: t("tasks.sort.modes.recent"),
+    attention: t("tasks.sort.modes.attention"),
+    name: t("tasks.sort.modes.name"),
+  }[props.mode]
+  return (
+    <box flexShrink={0} paddingLeft={1}>
+      <text fg={theme.textMuted} wrapMode="none">
+        {t("tasks.sort.label", { mode })}
+      </text>
     </box>
   )
 }

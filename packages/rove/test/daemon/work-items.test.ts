@@ -1,3 +1,6 @@
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import type { DaemonRpcClient } from "../../../rove-daemon/src/client/rpc.ts"
 import type { DaemonTask } from "../../../rove-daemon/src/daemon/contracts.ts"
@@ -6,7 +9,7 @@ import {
   startWorkItem,
   workItemTaskTitle,
 } from "../../../rove-daemon/src/daemon/work-item-start.ts"
-import { type WorkItem, WorkItemCache, type fetchWorkItems } from "../../../rove-daemon/src/daemon/work-items.ts"
+import { type WorkItem, WorkItemCache, fetchWorkItems } from "../../../rove-daemon/src/daemon/work-items.ts"
 
 function item(overrides: Partial<WorkItem> = {}): WorkItem {
   return {
@@ -159,8 +162,9 @@ describe("WorkItemCache", () => {
     await cache.list({ cwd: "/repo", state: "closed" })
     await cache.list({ cwd: "/repo", search: "crash" })
     await cache.list({ cwd: "/repo", assignee: "@me" })
+    await cache.list({ cwd: "/repo", author: "@me" })
     await cache.list({ cwd: "/other" })
-    expect(fetch).toHaveBeenCalledTimes(5)
+    expect(fetch).toHaveBeenCalledTimes(6)
   })
 
   it("treats label order as the same query", async () => {
@@ -169,5 +173,25 @@ describe("WorkItemCache", () => {
     await cache.list({ cwd: "/repo", labels: ["bug", "ui"] })
     await cache.list({ cwd: "/repo", labels: ["ui", "bug"] })
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("fetchWorkItems", () => {
+  it("asks gh for only the issues the given author opened", async () => {
+    const bin = mkdtempSync(join(tmpdir(), "rove-fake-gh-"))
+    const argvFile = join(bin, "argv")
+    writeFileSync(join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$@" > "${argvFile}"\necho '[]'\n`)
+    chmodSync(join(bin, "gh"), 0o755)
+    const path = process.env.PATH
+    process.env.PATH = `${bin}:${path}`
+    try {
+      await fetchWorkItems({ cwd: bin, author: "@me", assignee: "octocat" })
+      const argv = readFileSync(argvFile, "utf8").trim().split("\n")
+      expect(argv[argv.indexOf("--author") + 1]).toBe("@me")
+      expect(argv[argv.indexOf("--assignee") + 1]).toBe("octocat")
+    } finally {
+      process.env.PATH = path
+      rmSync(bin, { recursive: true, force: true })
+    }
   })
 })

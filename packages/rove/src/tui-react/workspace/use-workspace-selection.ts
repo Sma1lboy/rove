@@ -5,6 +5,7 @@
  * this hook owns only the reactivity.
  */
 
+import { aliasedKeys, isUnderKey } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
@@ -13,7 +14,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
-import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
+import type { TabsSnapshotKv } from "./terminal-tabs-persist"
 import { forgetTaskTabs, knownTaskTabs, reviveEmptiedTabs } from "./terminal-tabs-shared"
 import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
 
@@ -56,6 +57,8 @@ export function useWorkspaceSelection(args: {
   const focusRestoredRef = useRef(false)
   const userPickedRef = useRef(false)
   const bootFocusRef = useRef(false)
+  // The selected id while it was listed (not archived, not deleting); null otherwise.
+  const liveSelectedRef = useRef<string | null>(null)
   // Adopt the daemon's first restored focus, but never let later sibling-client
   // events yank a task the local user already selected.
   useEffect(() => {
@@ -73,6 +76,20 @@ export function useWorkspaceSelection(args: {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
+    // Archiving the open task moves off it, as a delete does. Opening an
+    // archived task from the fold is no change, so that one stays open.
+    const selected = selectedId ? tasks.find((task) => task.id === selectedId) : undefined
+    const wasLive = selectedId !== null && liveSelectedRef.current === selectedId
+    liveSelectedRef.current = selected && selected.archived !== true && !selected.deletion ? selectedId : null
+    if (wasLive && selected?.archived === true) {
+      setSelectedId(
+        firstSelectableTask(
+          tasks.filter((task) => task.archived !== true),
+          null,
+        )?.id ?? null,
+      )
+      return
+    }
     // A deleting task is NOT selectable: keeping it selected keeps its
     // Terminal mounted, which answers the sweep's kill with a dead-on-attach RESUME.
     if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
@@ -80,25 +97,6 @@ export function useWorkspaceSelection(args: {
     // while disk knows the real one.
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
-
-  // Orphan sweep of `terminalTabs.*` on EVERY task-list change: a sibling
-  // client's delete only arrives as a changed list (forgetTaskTabs covers this
-  // client's deletes alone), and orphans tax every kv write. Idempotent and
-  // cheap; a live task's id is always in the list.
-  //
-  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT: the list only
-  // comes from the daemon's index (`hello.tasks` / `task.snapshot`), a corrupt
-  // manifest recovers to EMPTY not truncated, and a foreign-home daemon is
-  // rejected first. So non-empty is authoritative. Empty is exactly what a
-  // pre-connection render and a corrupt-manifest recovery look like; sweeping
-  // on it would wipe every live snapshot. Don't relax it.
-  useEffect(() => {
-    if (tasks.length === 0) return
-    sweepOrphanTabsSnapshots(
-      kv,
-      tasks.map((task) => task.id),
-    )
-  }, [tasks, kv])
 
   // The one place tab shells die with their task: tab PTYs are keyed
   // `taskId::tabId` in the default registry, invisible once the pane unmounts,
@@ -113,8 +111,13 @@ export function useWorkspaceSelection(args: {
   useEffect(() => {
     const next = new Set<string>(tasks.filter((task) => !task.deletion).map((task) => task.id))
     const registry = getDefaultPtyRegistry()
+    // A surviving child's conversation may still be keyed under the task that left.
+    const aliased = aliasedKeys(tasks.filter((task) => !task.deletion))
     for (const id of liveTaskIdsRef.current) {
-      if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
+      if (next.has(id)) continue
+      registry.releaseWhere(
+        (key) => (key === id || key.startsWith(`${id}::`)) && !aliased.some((base) => isUnderKey(key, base)),
+      )
     }
     liveTaskIdsRef.current = next
     // Tabs die WITH their worktree: a worktree removed elsewhere clears

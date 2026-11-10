@@ -37,7 +37,6 @@ export function addTaskTab(kv: TabsSnapshotKv, taskId: string, tab: EngineTab | 
   const next = absorbTab(state, tab)
   if (next === state && known) return
   setTaskTabs(taskId, next)
-  kv.set(terminalTabsKey(taskId), next)
   // A real open: otherwise the tab's `tab.closed` is the first a plugin hears of it.
   reportTabsDelta(taskId, state.tabs, next.tabs)
 }

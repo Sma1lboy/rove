@@ -46,7 +46,7 @@ A generic "command failed" would send the user hunting through all three.
 ## Caching
 
 A 60s in-memory cache keyed on every field that changes the result set (repo,
-state, limit, search, assignee, sorted labels). In memory only — this is a view
+state, limit, search, assignee, author, sorted labels). In memory only — this is a view
 of someone else's data, and a stale copy surviving a daemon restart is worse
 than refetching.
 
@@ -108,6 +108,7 @@ the page should say which one you need rather than "could not load".
 ```bash
 rove api workitem-list --repo . --limit 10
 rove api workitem-list --repo . --assignee @me --label bug
+rove api workitem-list --repo . --author @me --state all
 rove api workitem-list --repo . --search "crash on windows" --state all
 
 rove api workitem-start --repo . --number 362

@@ -6,7 +6,7 @@
 
 import { errorMessage } from "@/lib/error-message"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { BUNDLED_PLUGINS, isBundledPluginEnabled, setBundledPluginEnabled } from "../../../bundled-plugins"
+import { BUNDLED_PLUGINS, isBundledPluginInstalled, setBundledPluginInstalled } from "../../../bundled-plugins"
 import { type PluginInstallPreview, preparePluginInstall } from "../../../cli/plugin-install"
 import { type MarketEntry, fetchMarketplace } from "../../../cli/plugin-search"
 import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
@@ -93,7 +93,7 @@ function builtInPlugins(): BuiltInPluginInfo[] {
     id: plugin.id,
     description: plugin.description,
     pages: plugin.pages.length,
-    enabled: isBundledPluginEnabled(plugin.id),
+    enabled: isBundledPluginInstalled(plugin.id),
   }))
 }
 
@@ -122,8 +122,13 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
     toggle: (id: string) => {
       const row = rows.find((p) => p.id === id)
       if (!row) return
-      if (row.builtIn) {
-        setBundledPluginEnabled(id, !row.enabled)
+      const bundled = BUNDLED_PLUGINS.find((plugin) => plugin.id === id)
+      if (row.builtIn && bundled) {
+        try {
+          setBundledPluginInstalled(bundled.id, !row.enabled)
+        } catch {
+          // builtin-mods.json unwritable — the re-read leaves the row as disk has it.
+        }
         registerBundledPlugins()
         setRows(readPluginRows(builtInPlugins()))
         return

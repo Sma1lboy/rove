@@ -20,6 +20,8 @@ built-in engine registers an entry exposing:
   `rove doctor`).
 - `createHookAdapter` — installs activity hooks into the engine's own config
   file so sessions report normalized events.
+- `skillsDir` — the user-level dir the engine loads agent skills from, or null
+  when the engine isn't set up here; `rove skill install` copies into it.
 - `createTurnDetector` — turn-completion detection for the chat tab.
 - `defaultCommand` / `displayName` / `effortLevels` / `terminalTitle` /
   `quotaUsage` — launch argv, labels, reasoning-effort flags, OSC title
@@ -307,15 +309,26 @@ nothing".
 
 Rove never converts one vendor's transcript into another's format — every
 engine can read a JSONL file, and a converter would rot on both sides' format
-changes. Instead the target engine starts a FRESH session whose first prompt
-names the previous engine, the worktree, and the absolute path of that
-session's transcript, and tells it to read what it needs from there
-(`src/engine/session-handoff.ts`).
+changes. Instead the target engine starts a FRESH session in the same
+directory whose first prompt names the task, the previous engine, the worktree,
+and the absolute path of that session's transcript, and tells it to read what
+it needs from there (`src/engine/session-handoff.ts`).
 
-The brief also marks the transcript as untrusted historical data (it contains
-arbitrary tool output), makes the working tree authoritative, and asks the new
-session to state where the old one stopped — that sentence is how you verify
-the handoff landed.
+The prompt also carries the user's last request and a bounded excerpt (about
+8 KB, oldest turns dropped first, the newest always kept) of the latest
+user/assistant text. That excerpt comes from the neutral
+`EngineHistoryReader.readHistory` messages, never from the vendor file, so the
+first prompt already holds the context even if the new engine never opens the
+transcript. Tool calls and their output stay out of it.
+
+The brief also marks the transcript and excerpt as untrusted historical data
+(they contain arbitrary tool output), makes the working tree authoritative, and
+asks the new session to state where the old one stopped — that sentence is how
+you verify the handoff landed.
+
+Entry points, all running `planWorktreeHandoff`: "Continue in another engine…"
+on the tab and row menus (web and TUI) and on the dead-engine notice, `ctrl+a c`,
+and `rove api send --tab new --command <engine> --handoff-from tab-N`.
 
 A handoff needs the source engine to expose a transcript path
 (`EngineHistoryReader.transcriptPath`).

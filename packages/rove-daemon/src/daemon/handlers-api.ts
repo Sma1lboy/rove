@@ -37,6 +37,7 @@ export const API_HANDLERS: readonly DaemonRequestHandler[] = [
       return ctx.runtime.invokeApi(verb, params as ApiParams, ctx.daemon.socketPath, {
         machine: optionalString(payload, "machine"),
         forwarded: optionalBoolean(payload, "forwarded"),
+        from: optionalString(payload, "from"),
       })
     },
   },

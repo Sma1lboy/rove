@@ -1,24 +1,24 @@
 /**
  * The daemon-side WeChat channel: long-polls iLink for messages from allowed
- * senders, answers them through {@link handleCommand}, and pushes task-group
- * arrivals (needs you / ready for review / ready to merge) and newly opened decisions.
+ * senders and answers them through {@link handleCommand} or the WeChat agent.
+ * The bridge itself never messages anyone unprompted: what appears in WeChat
+ * is a reply to the owner or something the agent chose to send. A `--notify`
+ * routine's report goes to the agent, which decides whether to pass it on.
  *
  * The binding is re-read from disk every cycle, so `rove weixin login` /
- * `logout` take effect without a daemon restart. Pushes respect the reply
- * window: a peer that has not written in {@link REPLY_WINDOW_MS} is not
- * messaged; the push goes to `undelivered.jsonl` and the daemon log instead.
+ * `logout` take effect without a daemon restart.
  */
 
+import { randomUUID } from "node:crypto"
+import { join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
-import { type RoveOps, handleCommand } from "./commands.ts"
-import { toBubbles } from "./format.ts"
-import { renderGateArrivals } from "./gates.ts"
+import { createAgentControl } from "./agent.ts"
+import { type RoveOps, handleInbound as routeInbound } from "./commands.ts"
 import {
   type FetchFn,
   ILINK_BASE_URL,
   IlinkClient,
   type IlinkMessage,
-  type IlinkStatus,
   LONG_POLL_TIMEOUT_MS,
   type UpdatesResponse,
   classifyIlink,
@@ -26,8 +26,11 @@ import {
   isDirectUserMessage,
   messageText,
 } from "./ilink.ts"
-import { GateTracker, GroupTracker, renderArrivals } from "./notify.ts"
+import { saveInboundMedia } from "./media.ts"
+import { RoutineTracker, renderRoutineRuns } from "./routines.ts"
+import { sendBubbles } from "./send.ts"
 import { type WeixinAccount, type WeixinRuntimeState, type WeixinStore, isAllowedSender } from "./store.ts"
+import { type TypingHandle, type TypingTimings, startTyping } from "./typing.ts"
 
 /** Bot-initiated messages are only accepted within a day of the peer's last message. */
 export const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -36,7 +39,6 @@ const RETRY_MS = 2_000
 const BACKOFF_MS = 30_000
 const MAX_CONSECUTIVE_FAILURES = 3
 const EXPIRED_PAUSE_MS = 10 * 60 * 1000
-const BUBBLE_GAP_MS = 300
 const DEFAULT_NOTIFY_TICK_MS = 20_000
 /** Inbound message ids remembered for dedup (iLink redelivers on hiccups). */
 const SEEN_CAP = 256
@@ -50,6 +52,7 @@ export interface WeixinBridgeDeps {
   readonly onUnbound?: () => void
   readonly notifyTickMs?: number
   readonly pollTimeoutMs?: number
+  readonly typingTimings?: TypingTimings
   readonly now?: () => number
 }
 
@@ -72,8 +75,17 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
   let client: IlinkClient | null = null
   let state: WeixinRuntimeState | null = null
   const seen = new Set<string>()
-  const tracker = new GroupTracker()
-  const gateTracker = new GateTracker()
+  const routineTracker = new RoutineTracker()
+  const agent = createAgentControl({
+    ops: deps.ops,
+    dir: join(deps.store.dir, "agent"),
+    override: () => deps.store.readAccount()?.agent ?? null,
+    read: () => state?.agent,
+    write: (next) => {
+      if (state) saveState({ ...state, agent: next })
+    },
+    now,
+  })
 
   // Unref'd: a pending retry must never hold the daemon process open.
   const sleep = (ms: number) => delay(ms, undefined, { ref: false })
@@ -121,49 +133,39 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     deps.log("weixin", `push to ${redact(to)} not delivered: ${reason}`)
   }
 
-  /**
-   * Send `text` as bubbles. A stale context token gets one tokenless retry
-   * (iLink's degraded path), a rate limit one delayed retry; anything else
-   * lands in the undelivered log. Returns whether every bubble went out.
-   */
+  /** One indicator per peer; a message while one is live just rides it. */
+  const typing = new Map<string, TypingHandle>()
+  function showTyping(to: string, taskId: string): void {
+    if (!client || !state || typing.has(to)) return
+    const ilink = client
+    const contextToken = state.peers[to]?.contextToken ?? null
+    let ticket: Promise<string> | null = null
+    const handle = startTyping(
+      {
+        send: async (on) => {
+          ticket ??= ilink.typingTicket(to, contextToken)
+          const t = await ticket
+          if (t) await ilink.sendTyping(to, t, on)
+        },
+        isRunning: () => deps.ops.taskRunning(taskId),
+        sleep,
+        now,
+        log: (message) => deps.log("weixin", message),
+      },
+      deps.typingTimings,
+    )
+    typing.set(to, handle)
+    void handle.done.finally(() => {
+      if (typing.get(to) === handle) typing.delete(to)
+    })
+  }
+
+  /** Send `text` as bubbles ({@link sendBubbles}); what fails lands in the undelivered log. */
   async function deliver(to: string, text: string): Promise<boolean> {
     if (!client || !state) return false
-    const bubbles = toBubbles(text)
-    for (let i = 0; i < bubbles.length; i++) {
-      const bubble = bubbles[i] ?? ""
-      let token: string | null = state.peers[to]?.contextToken ?? null
-      let retried = false
-      for (;;) {
-        let resp: IlinkStatus
-        try {
-          resp = await client.sendText(to, bubble, token)
-        } catch (err) {
-          recordUndelivered(
-            to,
-            `network: ${err instanceof Error ? err.message : String(err)}`,
-            bubbles.slice(i).join("\n"),
-          )
-          return false
-        }
-        const outcome = classifyIlink(resp)
-        if (outcome === "ok") break
-        if (!retried && outcome === "session-expired" && token) {
-          retried = true
-          token = null
-          continue
-        }
-        if (!retried && outcome === "rate-limited") {
-          retried = true
-          await sleep(RETRY_MS)
-          continue
-        }
-        const hint = outcome === "session-expired" ? " — they need to message the bot first" : ""
-        recordUndelivered(to, `iLink refused: ${describeIlink(resp)}${hint}`, bubbles.slice(i).join("\n"))
-        return false
-      }
-      if (i < bubbles.length - 1) await sleep(BUBBLE_GAP_MS)
-    }
-    return true
+    const result = await sendBubbles(client, to, text, state.peers[to]?.contextToken ?? null, sleep)
+    if (!result.ok) recordUndelivered(to, result.reason, result.rest)
+    return result.ok
   }
 
   async function handleInbound(message: IlinkMessage): Promise<void> {
@@ -193,8 +195,21 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
       },
     })
     const text = messageText(message)
-    const reply = text ? await handleCommand(text, deps.ops) : "Text messages only. Send help for commands."
-    await deliver(from, reply)
+    const stem = `${new Date(now()).toISOString().slice(0, 10)}-${(id || randomUUID()).replace(/[^\w-]/g, "_")}`
+    const media = await saveInboundMedia(message, join(deps.store.dir, "inbox"), stem, deps.fetch ?? fetch)
+    for (const miss of media.failed) deps.log("weixin", `${miss.kind} from ${redact(from)} not saved: ${miss.reason}`)
+    // The agent opens attachments by path, so they ride the text as `[image: <path>]` lines.
+    const body = [text, ...media.saved.map((m) => `[${m.kind}: ${m.path}]`)].filter(Boolean).join("\n")
+    const missed = media.failed.map((miss) => `Could not download your ${miss.kind} (${miss.reason}); send it again.`)
+    const result = body
+      ? await routeInbound(body, deps.ops, agent)
+      : {
+          reply:
+            missed.length > 0 ? "" : "Could not read this message (a voice note without a transcript?). Send /help.",
+        }
+    const reply = [...missed, result.reply].filter(Boolean).join("\n")
+    if (reply) await deliver(from, reply)
+    if (result.agentTaskId) showTyping(from, result.agentTaskId)
   }
 
   async function pollLoop(): Promise<void> {
@@ -241,22 +256,10 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     }
   }
 
-  /** Recipients with an open reply window; the rest are logged as undelivered. */
-  async function push(text: string): Promise<void> {
-    if (!account || !state) return
-    const targets = [...new Set([account.ownerUserId, ...account.allow].filter(Boolean))]
-    for (const to of targets) {
-      const last = state.peers[to]?.lastInboundAt
-      if (last === undefined || now() - last > REPLY_WINDOW_MS) {
-        recordUndelivered(
-          to,
-          last === undefined ? "no message from this user yet" : "reply window closed (>24h since their last message)",
-          text,
-        )
-        continue
-      }
-      await deliver(to, text)
-    }
+  /** A routine's report goes to the WeChat agent, never straight to WeChat. */
+  async function handToAgent(text: string): Promise<void> {
+    const { agent: live, created } = await agent.current(text)
+    if (!created) await deps.ops.send(live.taskId, live.tab, text)
   }
 
   let notifying = false
@@ -264,15 +267,10 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     if (notifying || stopped || !account) return
     notifying = true
     try {
-      const snapshot = await deps.ops.status(null)
-      const arrivals = tracker.observe(snapshot.tasks)
-      if (arrivals.length > 0) await push(renderArrivals(arrivals))
-      const decisions = gateTracker.observe(snapshot.gatesUnreadable ? null : snapshot.gates)
-      if (decisions.length > 0) {
-        await push(renderGateArrivals(decisions, new Map(snapshot.tasks.map((t) => [t.taskId, t.title]))))
-      }
+      const runs = routineTracker.observe(await deps.ops.notifyingRoutineRuns())
+      for (const text of renderRoutineRuns(runs)) await handToAgent(text)
     } catch (err) {
-      deps.log("weixin", `notify tick failed: ${err instanceof Error ? err.message : String(err)}`)
+      deps.log("weixin", `routine hand-off failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       notifying = false
     }
@@ -289,6 +287,7 @@ export function startWeixinBridge(deps: WeixinBridgeDeps): WeixinBridge {
     isBound: () => account !== null,
     stop: () => {
       stopped = true
+      for (const handle of typing.values()) handle.stop()
       clearInterval(notifyTimer)
     },
   }

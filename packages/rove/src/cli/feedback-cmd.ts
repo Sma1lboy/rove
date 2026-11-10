@@ -1,22 +1,24 @@
 import { readFileSync } from "node:fs"
-import { submitFeedback } from "../lib/feedback.ts"
+import { FEEDBACK_KINDS, type FeedbackKind, isFeedbackKind, submitFeedback } from "../lib/feedback.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
 const FEEDBACK_USAGE = [
-  `Usage: ${CLI_NAME} feedback --title <text> (--body <text> | --body-file <path>) [--category <slug>]`,
+  `Usage: ${CLI_NAME} feedback --title <text> (--body <text> | --body-file <path>) [--kind bug|idea|question]`,
   "",
-  "Create a GitHub Discussion in the Rove repository using the GitHub CLI.",
+  "File a GitHub issue on the Rove repository using the GitHub CLI. Rove appends its",
+  "version, OS, install kind and default engine to the body.",
   "",
   "Requires:",
   "  gh auth login",
+  "Without a signed-in gh, prints a prefilled new-issue link to open instead.",
   "",
   "Options:",
-  "  --title <text>       Discussion title",
-  "  --body <text>        Discussion body",
-  "  --body-file <path>   Read the Discussion body from a file; use - for stdin",
-  "  --category <slug>    Discussion category slug (default: feedback)",
+  "  --title <text>       Issue title",
+  "  --body <text>        Issue body",
+  "  --body-file <path>   Read the issue body from a file; use - for stdin",
+  "  --kind <kind>        bug (default, label bug), idea (enhancement) or question",
   "  -h, --help           Print this help",
   "",
 ].join("\n")
@@ -26,7 +28,7 @@ type ParsedFeedbackArgs = {
   title?: string
   body?: string
   bodyFile?: string
-  category?: string
+  kind?: string
 }
 
 function usageError(message: string): never {
@@ -59,9 +61,10 @@ export function parseFeedbackArgs(args: readonly string[]): ParsedFeedbackArgs {
       if (parsed.bodyFile === undefined) usageError("--body-file requires a value")
       continue
     }
-    if (arg === "--category") {
-      parsed.category = args[++i]
-      if (parsed.category === undefined) usageError("--category requires a value")
+    if (arg === "--kind") {
+      parsed.kind = args[++i]
+      if (parsed.kind === undefined) usageError("--kind requires a value")
+      if (!isFeedbackKind(parsed.kind)) usageError(`--kind must be one of ${FEEDBACK_KINDS.join(", ")}`)
       continue
     }
     usageError(`unexpected argument "${arg}"`)
@@ -81,10 +84,10 @@ export async function runFeedbackSubcommand(args: readonly string[]): Promise<vo
   const body = parsed.bodyFile ? readBodyFile(parsed.bodyFile) : parsed.body
   if (!body) usageError("--body or --body-file is required")
 
-  const result = submitFeedback({
-    title: parsed.title,
-    body,
-    categorySlug: parsed.category,
-  })
-  console.log(`created Discussion #${result.number}: ${result.url}`)
+  const result = submitFeedback({ title: parsed.title, body, kind: parsed.kind as FeedbackKind | undefined })
+  if (result.filed) {
+    console.log(`filed issue #${result.number}: ${result.url}`)
+    return
+  }
+  console.log(`not filed: ${result.hint}\n${result.url}`)
 }

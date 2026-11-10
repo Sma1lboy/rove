@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from "vitest"
 import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
-import { tabTitle, tabTitleStable } from "../../src/tui/workspace/terminal-tab-split"
+import { conversationTitle, tabTitle, tabTitleStable } from "../../src/tui/workspace/terminal-tab-split"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 
 const engineTab = (over: Partial<TerminalTab> = {}): TerminalTab =>
@@ -174,5 +174,29 @@ describe("tabTitleStable over the real foreground walk", () => {
 
   it("and a contrib tab whose engine really quit still demotes", () => {
     expect(tabTitleStable(tab, "opencode", probe(200))).toBe("shell 1")
+  })
+})
+
+describe("conversationTitle", () => {
+  it("prefers a rename, then the host's live title, then the recording", () => {
+    const tab = engineTab({ lastTitle: "recorded", liveVendor: "claude" })
+    expect(conversationTitle({ ...tab, title: "mine" }, "claude", "live")).toBe("mine")
+    expect(conversationTitle(tab, "claude", "✳ live name")).toBe("live name")
+    expect(conversationTitle(tab, "claude", "")).toBe("recorded")
+  })
+
+  it("is absent — not 'claude 1' — until the engine has named the session", () => {
+    expect(conversationTitle(engineTab({ liveVendor: "claude" }), "claude")).toBeNull()
+  })
+
+  it("does not take the engine's own product name for a conversation name", () => {
+    expect(conversationTitle(engineTab({ liveVendor: "claude" }), "claude", "✳ Claude Code")).toBeNull()
+  })
+
+  it("strips the status of the engine that wrote the title, not the one the tab was launched as", () => {
+    // A claude tab whose engine exited, with omp started by hand in the shell left behind.
+    const tab = engineTab({ vendor: "claude" })
+    expect(conversationTitle(tab, "claude", "π ⠸ Resume Claude Session")).toBe("Resume Claude Session")
+    expect(conversationTitle(tab, "claude", "π > Resume Claude Session")).toBe("Resume Claude Session")
   })
 })

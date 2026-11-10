@@ -55,6 +55,9 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
   readonly taskKind: "main" | "task" | "dir" | undefined
   /** Remote host of the worktree: the path means nothing locally, so the pane names the machine instead. */
   readonly remoteHost?: string
+  /** A reachable task on another machine: its tree is read there. Absent while the machine is
+   *  unreachable, which keeps the "files are on <host>" notice. */
+  readonly remote?: { readonly machine: string; readonly taskId: string }
 }) {
   const { theme } = useTheme()
   const t = useT()
@@ -73,7 +76,7 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
         onMouseUp={() => focus.setFocused("files")}
       >
         <PaneErrorBoundary region="files" resetKeys={[props.worktree]}>
-          {props.remoteHost ? (
+          {props.remoteHost && !props.remote ? (
             <box flexDirection="column" padding={1} gap={1}>
               <text fg={theme.textMuted} wrapMode="word">
                 {t("tasks.machine.filesElsewhere", { host: props.remoteHost })}
@@ -87,6 +90,7 @@ export const HostFilesPane = memo(function HostFilesPane(props: {
               worktreePath={props.worktree}
               paneWidth={width - 2 /* box border */}
               prBaseRef={props.prBaseRef}
+              remote={props.remote}
               focused={props.focused}
               onOpenFile={props.actions.onOpenFile}
               onOpenDiff={props.actions.onOpenDiff}

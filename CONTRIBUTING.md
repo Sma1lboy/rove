@@ -1,6 +1,6 @@
 # Contributing to Rove
 
-Thanks for your interest in contributing! Rove is a local-first terminal UI for running many AI coding sessions at once — each task is a git worktree + hosted engine session + branch.
+Thanks for your interest in contributing! Rove is an agentic development environment (ADE) for the terminal: it runs Claude Code, Codex, Copilot and other coding agents side by side. Each task is a git worktree + hosted engine session + branch.
 
 This guide covers the mechanics of contributing. The design rationale lives in `docs/` — when this file and those docs disagree, the docs win.
 

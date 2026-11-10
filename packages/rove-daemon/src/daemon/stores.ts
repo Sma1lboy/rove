@@ -1,15 +1,21 @@
 /** Constructs every daemon-owned store plus the per-task teardown chain. */
 
+import { hasFrozenPtySessions, listPtyHostSessions } from "../client/pty-process.ts"
 import { readActivityLiveness } from "./activity-liveness.ts"
 import { type ActivityLivenessProbe, DaemonActivityRegistry } from "./activity-registry.ts"
 import { AgentTurnsStore, defaultAgentTurnsPath } from "./agent-turns-store.ts"
+import { AliasKeeper } from "./alias-keeper.ts"
 import { AttentionInboxStore, defaultAttentionInboxPath } from "./attention-inbox.ts"
 import { initAutomationsStore } from "./automation-wiring.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { DeliveriesStore } from "./deliveries-store.ts"
+import { DispatchLedger } from "./dispatch-ledger.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
+import { migrateEngineTabs } from "./engine-tab-migration.ts"
+import { ownEngineTabs } from "./engine-tabs.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
@@ -18,6 +24,7 @@ import { defaultDeliveriesPath } from "./paths.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { TabsStore } from "./tabs-store.ts"
 import { TaskDeletionRunner } from "./task-deletion-runner.ts"
 import { WorkItemCache } from "./work-items.ts"
 
@@ -28,6 +35,7 @@ export interface DaemonStores {
   readonly inbox: AttentionInboxStore
   readonly agentTurns: AgentTurnsStore
   readonly deletions: TaskDeletionRunner
+  readonly checkpoints: CheckpointQueue
   readonly issues: IssuesStore
   readonly notes: NotesStore
   readonly automations: AutomationsStore
@@ -36,6 +44,9 @@ export interface DaemonStores {
   readonly quotaUsage: QuotaUsageCache
   readonly engineEvents: EngineEventLog
   readonly rowTokens: RowTokenStore
+  readonly tabs: TabsStore
+  readonly dispatches: DispatchLedger
+  readonly aliases: AliasKeeper
 }
 
 /**
@@ -76,6 +87,24 @@ export async function initDaemonStores(
   // In memory on purpose: restoring a token whose author is gone is the stale
   // state its TTL exists to prevent.
   const rowTokens = new RowTokenStore(bus)
+  // Sole writer of every task's terminal tabs; clients send it operations.
+  const tabs = new TabsStore(runtime.tabsPersistence, bus)
+  tabs.init()
+  tabs.sweep((taskId) => orch.getTask(taskId) !== undefined, orch.listTasks().length > 0)
+  const aliases = new AliasKeeper({ orch, tabs })
+  // Extra engine tabs become child tasks and dead aliases are released before any client reads the index.
+  const tasks = orch.listTasks()
+  if (tasks.some((t) => t.ptyAlias || ownEngineTabs(tabs.get(t.id).state?.tabs ?? []).length > 1)) {
+    try {
+      const listed = await listPtyHostSessions(homeDir)
+      // No host but frozen records: those conversations return as corpses when it starts, so wait for it.
+      const sessions = listed?.length === 0 && (await hasFrozenPtySessions(homeDir)) ? null : listed
+      await migrateEngineTabs({ orch, tabs }, sessions)
+      if (sessions) await aliases.reconcile(sessions)
+    } catch (err) {
+      logDaemonError("tabs-migration", err)
+    }
+  }
   const clearTaskState = (taskId: string) =>
     gates
       .withdrawTask(taskId)
@@ -86,6 +115,7 @@ export async function initDaemonStores(
       .finally(() => activity.clearTask(taskId))
       // Else the map keeps republishing tokens for a row nothing renders.
       .finally(() => rowTokens.clearTask(taskId))
+      .finally(() => tabs.forget(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState, bus)
   // Keyed by git common-dir.
   const issues = new IssuesStore(defaultIssuesStorePath(homeDir))
@@ -103,6 +133,7 @@ export async function initDaemonStores(
     inbox,
     agentTurns,
     deletions,
+    checkpoints: new CheckpointQueue(),
     issues,
     notes,
     automations,
@@ -111,5 +142,8 @@ export async function initDaemonStores(
     quotaUsage,
     engineEvents,
     rowTokens,
+    tabs,
+    dispatches: new DispatchLedger(bus),
+    aliases,
   }
 }

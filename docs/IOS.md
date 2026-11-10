@@ -33,7 +33,9 @@ Plain `ws://` on a LAN (`--host <LAN address>`) still works, but it is not a sup
 | `--cf-team`, `--cf-aud` | Cloudflare Access team and application AUD tag; also readable from `<ROVE_HOME>/.rove/bridge/config.json`. |
 | `--host <addr>` | Without a preset: an explicit listen address. Repeatable. |
 | `--port <n>` | TCP port, default `7878`. |
-| `--rotate-token` | Mint a new token. Every paired phone must pair again. |
+| `--rotate-token` | Mint a new token and drop every `--device` token. Every paired phone must pair again. |
+| `--device <name>` | Print a link carrying that device's own token (minted on first use) instead of the shared one. |
+| `--list-devices`, `--revoke-device <name>` | List the per-device tokens, or revoke one without touching the others. See [WEB.md](WEB.md#security). |
 | `--no-qr` | Print the URL without the QR code. |
 
 ## Pair the phone
@@ -48,10 +50,13 @@ The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bri
 ## What the app does
 
 - **Tasks.** Every task across repos with its title, branch, engine and group — `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown` — sorted so what needs you is on top. The groups are computed by the same code as `rove api context`. A badge counts unread attention-inbox items. Pull to refresh; changes also arrive live.
-- **Terminal.** Each Terminal Tab of a task attaches to the hosted session in the PTY Host — the same session the TUI shows, so both see the output and both can type. A key row under the terminal (always visible, no keyboard needed) sends Esc, Tab, Shift-Tab, a sticky Ctrl, arrows, Enter and Ctrl-C; typing into the terminal goes through keystroke by keystroke; the composer sends a line, then Enter. **Fit** (default) resizes the shared session to the phone's screen, so the TUI pane re-wraps to the phone's width until it next resizes; **Watch** leaves the size alone and scales the font instead.
+- **Terminal.** Each Terminal Tab of a task attaches to the hosted session in the PTY Host — the same session the TUI shows, so both see the output and both can type. A key row under the terminal (always visible, no keyboard needed) sends Esc, Tab, Shift-Tab, a sticky Ctrl, arrows, Enter and Ctrl-C, and leads with 1–4 and Enter while the tab waits at a menu; typing into the terminal goes through keystroke by keystroke; the composer sends an engine tab the whole message through `tab.send`, held until the turn ends when the engine is busy (held messages show above the field, each with a × that takes it back), and sends a shell tab a line, then Enter. **Fit** (default) resizes the shared session to the phone's screen, so the TUI pane re-wraps to the phone's width until it next resizes; **Watch** leaves the size alone and scales the font instead.
+- **Archive.** A row's menu archives a task: the row moves to the Archived fold at the end of the list, and the worktree, branch and sessions stay as they are. A busy task asks first. Unarchive is in the same menu.
 - **New tab.** An engine tab with a first message is `rove api send --tab new`; without one (an idle engine, or a plain login shell) it is `rove api tab-new`.
+- **Sync with base.** A task row's menu merges the task's base branch into its worktree. A conflict or uncommitted changes show the files to deal with.
 - **Diff.** Files changed on the branch versus its base (same base rule as the TUI's changes pane) and uncommitted files, each with its unified diff.
 - **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land and delete ask twice; delete keeps the branch, as `rove api delete` does.
+- **Search.** Pages › search conversations finds what you and the agents wrote in any task, through `rove api search`. A hit opens its task on that tab.
 - **Notifications.** While the app is running, a task that moves into `waiting-on-you`, or from `working` to `ready-for-review`/`idle`, posts a local notification.
 - **Demo.** `try a demo` on the first screen runs the whole app against canned data bundled in the app (`Sources/RoveMobile/Demo/demo-fixture.json`, the same file `scripts/fixture-bridge.ts` serves to the UI tests): no Mac, no bridge, no network request. A strip on every screen says `demo · not connected to a mac`; `connect a mac` leaves it. Nothing about the demo is saved, so a cold launch starts on the pairing screen. It exists so App Store beta review can use the app without a Mac (`packages/rove-ios/docs/REVIEW_NOTES.md`).
 
@@ -100,29 +105,37 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `api.invoke` | `verb`, `params?` (keyed by flag name, as `rove api schema --verb` lists them) | the verb's result; a refusal is the verb's full error object ([API.md](API.md#one-contract-three-transports)) |
 | `tasks.subscribe` | — | `{tasks, attention, gates}`, then `tasks` pushes on change, and `tabs` pushes (`{taskIds}`) when only those tasks' Terminal Tabs changed (re-read them with `task.tabs`; older apps ignore it) |
 | `tasks.list` | — | `{tasks, attention, gates}` (fresh read) |
-| `engines.list` | — | `{engines: [{id, name, command, protocol, builtin}]}` |
+| `engines.list` | `repo?` (absolute) | `{engines: [{id, name, command, protocol, builtin}], preferred}`; `preferred` is the engine a picker opens on: the one `repo` was last started on, else Settings' default |
 | `repos.list` | — | `{repos}` (saved projects plus repos with tasks) |
 | `task.create` | `repo`, `engine?`, `prompt?`, `title?` | `{taskId}` |
-| `task.delete` | `taskId`, `force?` | `{status}` |
+| `task.delete` | `taskId`, `force?`, `cascade?` (also delete every descendant; absent, the task's children are promoted) | `{status}` |
 | `task.land` | `taskId`, `strategy?` (`merge`/`squash`) | `{landedOn, commit}` |
 | `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, liveEngine?, alive, engineAlive, split?}]}; `liveEngine` = the engine running in the tab right now (null when the probe has no answer; `engineName` falls back to the configured one)`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
 | `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`send --tab new`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
-| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?` | `{stream, alive, replay}` (base64 bytes) |
+| `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?`, `acks?` (see `term.ack`) | `{stream, alive, replay}` (base64 bytes) |
 | `term.input` | `stream`, `data` | `{}` |
 | `term.resize` | `stream`, `cols`, `rows` | `{}` |
 | `term.detach` | `stream` | `{}` |
+| `term.ack` | `stream`, `chars` | `{}`: for a stream attached with `acks: true`, the base64 chars of `term.data` / `term.reset` the client has parsed. Past ~1 MB unacked the bridge stops sending that stream's output; once all of it is acked it pushes `term.reset {stream, replay}` (reset the terminal, write the replay). Keeps Ctrl+C on a flood instant; without `acks` output flows as before. |
+| `term.revive` | `taskId`, `tabId` | `{revived, resumed}`: `tab-revive` for the tab `term.attach` would open (a viewport tab revives the session it shows); a running tab answers `revived: false`. Attach again afterwards. |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
-| `diff.file` | `taskId`, `path`, `scope` | `{kind, text?, message?}` |
+| `diff.file` | `taskId`, `path`, `scope` (`working`, `branch` or `task`: commits and uncommitted work since the base) | `{kind, text?, message?}` |
 | `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
+| `file.read` | `taskId`, `path` | `{path, mime, size, base64}` (markdown, HTML, SVG, image or PDF, at most 5 MB, confined to the worktree) |
 | `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
-| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `body` | `{note}` |
+| `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `code?`, `body` | `{note}`; `code` is the diff rows the note covers (sign + text per line), quoted in the prompt and compared later to flag a note whose code moved |
+| `review.edit` | `taskId`, `id`, `body` | `{note}`: rewrites one note's text in place; `NOT_FOUND` for an unknown id |
 | `review.remove` | `taskId`, `id` | `{removed}` (destructive) |
 | `review.send` | `taskId`, `tabId?` | `{sent, delivered, reason?}`; notes are marked sent only when delivery is confirmed |
 | `worktrees.list` | `network?` | `{projects: [{repo, worktrees: [{path, branch, dirty, branchOnRemote, verdict, verdictReason, taskId?, taskKind?, …}]}]}` |
 | `worktrees.remove` | `path`, `force` | `{removed, residue?}`; a dirty worktree is refused with code `DIRTY_WORKTREE` unless `force` (destructive) |
 | `attention.dismiss` | `taskId`, `tabId?`, `deliveryId?` | `{}`; refused with `GATE_NOT_DISMISSABLE` when `gateId` is named, or when the tab holds only a decision row |
 | `gate.answer` | `gateId`, `option?`, `text?` (at least one) | `{delivered}`; wraps daemon `gate.answer` with `by: "bridge"` |
+| `push.key` | — | `{publicKey}`: the bridge's VAPID key (base64url) a browser subscribes with; `UNAVAILABLE` when the bridge sends no push (no `--web`) |
+| `push.status` | `endpoint` | `{subscribed}`: whether this endpoint is stored under this connection's token |
+| `push.subscribe` | `subscription` (`PushSubscription.toJSON()`: `endpoint`, `keys.p256dh`, `keys.auth`) | `{}`; kept in `bridge/push.json` (0600) under this connection's token. Pushes go out only while no page is on screen, follow the cross-task switch, and stop when the token is revoked |
+| `push.unsubscribe` | `endpoint` | `{removed}` |
 
 ### Task area ops
 
@@ -135,7 +148,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `repo.branches` | `repo` | `{branches, current}` | `listLocalBranches` | |
 | `notes.list` | `repo` | `{notes}` | `note-list` | |
 | `worktree.adoptable` | `repo` | `{worktrees, unreadable}` | RPC `worktree.discoverAdoptable` | |
-| `task.spawn` | `repo`, `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?` | `{taskIds, groupId?}` | `add` | |
+| `task.spawn` | `repo` (an absolute path; with `machine`, also a repo id on that machine: `owner/name`, `host/owner/name` or a clone URL), `machine?` (a registered machine's alias: `add` runs in its daemon), `clone?` (with `machine` and a repo id: that machine clones a repo it lacks, with its own git and gh sign-in; `CLONE_FAILED` carries git's error), `engine?`, `title?`, `prompt?`, `branch?`, `baseBranch?`, `model?`, `effort?`, `count?` (1–10) or `agents?` (`id:N,…`), `status?`, `pin?`, `commandFrom?` (a local task id: the new task starts on that task's own launch command, read on this Mac, never typed by the client; needs `engine` to be the engine that task runs, and is refused with `machine`, `count` or `agents`) | `{taskIds, groupId?}` | `add` | |
 | `task.rename` | `taskId`, `title` | `{}` | `update --title` | |
 | `task.setBranch` | `taskId`, `branch` | `{}` | `update --branch` | |
 | `task.setCommand` | `taskId`, `engine` | `{protocol?}` | `update --command` | |
@@ -143,16 +156,22 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.setEffort` | `taskId`, `level` | `{}` | `update --effort` | |
 | `task.setStatus` | `taskId`, `status` (six) | `{}` | `update --status` | |
 | `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
+| `task.keep` | `taskId`, `kept` | `{}` | `update --kept` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `project.move` | `repo`, `target` (absolute project paths), `side` (`before`/`after`) | `{}`; every task of `repo` (main checkout or not, Scratch rows excluded) moves as one block before `target`'s project or after it | RPC `project.move` | |
+| `task.scheduleStart` | `taskId` (an unstarted task), `at` (ISO-8601, in the future), `prompt` | `{taskId, at}` | RPC `task.scheduleStart` | `ALREADY_STARTED` when the task has its first message |
+| `task.cancelScheduledStart` | `taskId` | `{}` | RPC `task.cancelScheduledStart` | |
+| `task.startScheduledNow` | `taskId` | `{outcome}` (`started`, `failed`, `dropped`) | RPC `task.startScheduledNow` | `NOT_SCHEDULED` |
 | `project.forget` | `repo` | `{}` | RPC `project.forget` | yes |
 | `notes.delete` | `repo`, `id` | `{deleted}` | `note-delete` | yes |
 | `task.openMain` | `repo` | `{taskId}` | RPC `task.ensureMain` | |
+| `task.openCheckout` | `repo` (a real git repo), `engine?`, `title?` | `{taskId}`; a new top-level session in the project's own checkout (no branch, no worktree), beside the project's main row rather than under it. Start its engine with `tab.new` on the returned task | RPC `task.ensureMain` then `task.openDir` on the project root | |
 | `worktree.adopt` | `repo`, `worktreePath` (must be adoptable), `branch?`, `title?`, `engine?` | `{taskId}` | RPC `worktree.adopt` | |
-| `repo.clone` | `url` (https/http/ssh/git/scp form), `parentDir`, `folder?` | `{path}`; streams `op.progress` lines while git runs | `cloneRepo` | |
+| `repo.clone` | `url` (https/http/ssh/git/scp form, or a GitHub `owner/repo` resolved to ssh when `gh config get git_protocol` is `ssh`, else https), `parentDir`, `folder?` | `{path}`; streams `op.progress` lines while git runs | `cloneRepo` | |
 | `task.ensureWorktree` | `taskId` | `{worktreePath}` | `ensure-worktree` | |
 | `task.removeWorktree` | `taskId`, `force?` | `{removed, worktreePath?, branch?}` | `remove-worktree` | yes |
 
-Task rows (`tasks` push and `tasks.list`) also carry optional `pinned`, `routine` (a scheduled routine's standing session; clients fold these behind a count row), `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, `noWorktree` (`true` when the task has no worktree on disk yet; call `task.ensureWorktree` before opening it), and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
+Task rows (`tasks` push and `tasks.list`) carry `label`, the name every client shows for the row: the engine's own conversation title when it has named the session (the live PTY title, status prefix stripped; the TUI's `worktreeRowLabel` rule), else the stored title, branch or path. The bridge computes it and re-pushes `tasks` within a few seconds of an engine retitle, so clients label, sort and search rows by it and never fetch tabs for naming. `title` stays the stored title, the one a rename edits. A row served by another machine, or from an older bridge, has no live title: `label` is the stored name, or absent, and the app falls back to `title`. Rows also carry optional `pinned`, `routine` (a task a scheduled routine's firing made, standing or fresh; clients fold these behind a count row or leave them to the Routines page), `order`, `createdAt`, `updatedAt`, `changes` (`{added, deleted, ahead?, behind?}` or `{unreadable: true}`, from the daemon's `worktree.changes` push; absent = not collected), `rowTokens` (`{text, tone?, source, expiresAt}`), `prChip` (`conflict`/`failing`/`passing`), `prChipStale`, `noWorktree` (`true` when the task has no worktree on disk yet; call `task.ensureWorktree` before opening it), and `pr.mergeable`. Engine rows carry optional `models`, `effortLevels` and `ready`. Older apps ignore them; the app decodes rows without them.
 
 ### Task-row verb ops
 
@@ -163,12 +182,17 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `task.landPreflight` | `taskId` | `{branch, landedOn, ahead?, refusal?, message?, baseDir}` (read-only) | RPC `task.landPreflight` |
 | `task.syncBase` | `taskId` | `{baseRef, alreadyCurrent}`; refusals carry `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` | RPC `task.syncBase` |
 | `task.fixChecks` | `taskId`, `tabId?` | `{outcome: "sent" \| "none" \| "unavailable", detail?}` | RPC `pr.failingChecks` + CI prompt + `send --plain` |
-| `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task | RPC `task.openDir` |
+| `task.openScratch` | `engine?` | `{taskId}`; always the Mac's `$HOME` as a Scratch task. No `engine` = the one Scratch was last started on; a picked one is remembered | RPC `task.openDir` |
 | `task.setEngine` | `taskId`, `engine`, `effort?`, `model?` (`""` clears) | `{}` | RPC `task.setVendor` |
 | `tab.move` | `taskId`, `tabId`, `direction` (`up`/`down`) | `{moved}` | `moveTab` on the persisted tab order |
 | `file.openExternal` | `taskId`, `path` (relative to the worktree) | `{}`; opens an image, audio, video, PDF or font in the Mac's own opener. Refused (`NOT_OPENABLE`) for anything else, anything executable, and any path or symlink that leaves the worktree | helper `openExternally` |
 | `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
 | `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
+| `github.repos` | none | `{repos: [{nameWithOwner, description, isPrivate}]}`, or `{repos: [], reason: "missing" \| "unauthenticated" \| "failed"}` when `gh` is absent, signed out or fails (read-only; never an error) | `gh repo list --limit 100` |
+| `github.status` | `machine?` | `{status}` (the `github-status` object), or `{status: null, reason: "offline" \| "outdated" \| "denied" \| "failed", message}` for a machine that cannot answer (read-only; never an error) | `github-status` (on `machine`) |
+| `github.login` | `machine?`, `cancel?` | `{ok: true, result: {state, code?, url?}}`, or `{ok: false, reason, message}`; `cancel` stops the pending device flow | `github-login` (on `machine`) |
+| `github.logout` | none | `{ok: true, result}` (the new status) or `{ok: false, reason, message}`; destructive: signs this machine's `gh` out | `github-logout` |
+| `github.sync` | `machine` | `{ok: true, result}` (that machine's new status) or `{ok: false, reason, message}`: this machine's GitHub account signed in on `machine` | `github-sync --to` |
 | `welcome.env` | — | `{engines: [{id, name}], signedOut: [{id, name}], git, start}` (read-only): the engines installed and signed in, those installed but signed out, git on PATH, and `start` = `{repo, label, baseRef, engine}` for the quick start on the repo `rove --web` was started in (`null` outside a repo, without git, or without a usable engine) | `probeableEngineIds` + `detectEngineStatuses`, `firstTaskRepo` |
 | `file.openInEditor` | `taskId`, `path` (relative to the worktree) | `{tabId}`; opens the file in the Mac's configured editor (`editor.kind` / custom command, else `$VISUAL`/`$EDITOR`) in the task's editor tab, replacing the previous one. Refused for a path that leaves the worktree (`BAD_FLAG`), a missing file, or no editor (`NO_EDITOR`) | `tab-new --kind editor` |
 | `plugin.panes` | — | `{panes: [{id: "<plugin>.<pane>", title, placement: "split" \| "tab"}]}` (read-only): panes of enabled plugins, never their commands | `listPaneLaunches` |
@@ -179,7 +203,7 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `keybindings.createFile` | — | `{path, created}`: writes the fixed, fully commented starter; `created: false` when a `.yaml`/`.yml` already exists (never overwritten) | `createKeybindingsFile` |
 | `plugin.chordAction` | `chord` | `{target}`; runs the plugin action the Mac's own `keybindings.yaml` binds to that chord, detached. `NOT_BOUND` for anything else | `rove plugin action invoke` |
 
-Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again); engine rows carry optional `acceptsModel`.
+Task rows also carry optional `hasPrompt` (a stored brief exists, for Run again), `startsAt` (ISO time an unstarted task starts by itself, `task.scheduleStart`); engine rows carry optional `acceptsModel`.
 
 ### Terminal-tab ops and the `notice` push
 
@@ -194,6 +218,10 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `tab.forkTask` | `repo`, `baseBranch`, `prompt`, `engine?`, `title?`, `count?` (1–5) | `{taskIds}` | `add --base-branch` (`--count` for attempts) |
 | `tab.handoff` | `taskId`, `tabId` | `{kind: "handoff", prompt}` or `{kind: "no-session" \| "no-transcript", engine?}` | `planWorktreeHandoff` |
 | `tab.requestPR` | `taskId`, `tabId?` | `{}` | `buildPRPrompt` + `send --plain` |
+| `tab.send` | `taskId`, `tabId?`, `prompt` (≤ 100k chars), `queue?` | `{delivered: true}`, `{delivered: false, queued: true, queueId, position}` (with `queue`, held for a busy tab until its turn ends) or `{delivered: false, reason}` | `send --plain [--queue]` |
+| `queue.list` | `taskId` | `{items: [{id, taskId, tabId, text, expectReport, at, lastError?}]}` | `queue-list` |
+| `queue.edit` | `id` (`q-N`), `text` | `{edited, item?, reason?}` | `queue-edit` |
+| `queue.cancel` | `id` (`q-N`) | `{cancelled}` | `queue-cancel` |
 | `attachment.put` | `mime` (png/jpeg/gif/webp/pdf), `data` (base64, ≤ 5 MB) | `{path, kind, bytes}` | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
 
 `attachment.put` checks the file's magic bytes against the declared type. A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
@@ -219,9 +247,19 @@ On connect and on every change the bridge pushes `{"event": "mods", "data": {"pa
 
 A plugin's `rove api prompt` arrives as `{"event": "prompt", "data": {promptId, title, placeholder?, initial?, at}}`, once per prompt and only to clients connected when it was asked. Answer with `ui.promptReply` (`promptId`, `value?`) → `{}`; leave out `value` to cancel. The first answer from any client (TUI, web, phone) wins; a later one gets `PROMPT_GONE`.
 
-Additive fields and events, ignored by an app that predates them: `gates` itself, `attention[].gateId`, `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
+### The side panel: `ui.viewing` fields, the `panel` push and `browser.probe`
+
+`ui.viewing` (`taskId` or `null`, `tabId?`) takes optional layout fields, which the daemon lists for `rove api viewers`: `panel` (this page has a side panel: web desktop only), `panelOpen`, `narrow`. A page sends no `surface` or `local`: the bridge decides both when the socket upgrades, from the request and never the page (`surface`: the web subprotocol means a browser page, otherwise the phone app; `local`: a loopback peer with no tunnel header, no Access, no `--public-host` origin), and adds them to the report. `hello` answers `peer: {surface, local}` so a page knows where it is. A client that sends none of the fields still registers.
+
+`rove api panel-show` arrives as `{"event": "panel", "data": {taskId, view, url?, path?, at}}` (`view` is `browser`, `files` or `diff`; `url` an absolute http(s) URL; `path` relative to the task's worktree), to every connected client, once per request (a replay older than 10 s, or seen already, is dropped). A page remembers the view for `taskId`; one that is on that task with a side panel brings it up, without stealing focus or switching task.
+
+`browser.probe` (`url`, `origin?`) → `{reachable, frameable, status?, reason?}`: can that page sit in an iframe? One `HEAD` over HTTPS to a public address (a private, loopback, link-local or unique-local one is refused after resolving the name), no redirect followed, 3 seconds, reading only `X-Frame-Options` and CSP `frame-ancestors` (pass the page's own `origin` so `frame-ancestors` naming it counts). `localhost` URLs are not probed (`frameable: true`; reachability is the page's own `local`), and plain `http` elsewhere is `frameable: false`.
+
+Additive fields and events, ignored by an app that predates them: `gates` itself, `attention[].gateId`, `attention[].resumeAt` (a rate-limited task's scheduled auto-resume, ISO time), `attention[].label` (a routine episode's name) and `attention[].automationId` (that routine's id, for `attention.dismissRoutine` and for opening the Routines page on it); `tasks[].machine` (`{id, label, stale?}`, set only on a row served by another registered machine, `rove machine add`; `id` is the machine alias, `stale` means it is unreachable and the row is its last known state; absent on this Mac's rows); `tasks[].repoId` (the repo across machines: the serving daemon's normalized `origin`, `github.com/me/rove`, else `root:<first commit sha>`; absent outside a repo; group by it, else by `repo`). Remote rows carry no live activity, changes or tabs, and every op that takes a `taskId` refers to this Mac's daemon, so a client lists them read-only. The push `{"event": "notice", "data": {title, body?, kind, taskId?, source?, at}}` for `rove api notify`. The bridge drops a notice whose `at` it already sent or that is older than 10 seconds, so a daemon replay on reconnect is not shown twice.
 
 ### Board, routines, GitHub issues and settings ops
+
+The Board needs the Mac's Kanban mod and GitHub issues its Issues mod. The app reads `builtinMods.list` on every connect and when it comes back to the front, offers only the installed pages in the Pages menu, and lists both mods with install / uninstall in Settings → Plugins. A Mac whose bridge predates the op shows both pages, as before.
 
 Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in `ops/index.ts`). Each wraps one `rove api` verb, daemon RPC or Rove helper and validates its own arguments; ops marked **destructive** are logged with their ids, and the app asks for a second confirmation before sending them.
 
@@ -242,38 +280,56 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `routine.runNow` | `id` | `routine-run-now` | — |
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |
-| `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`/`routine_responded`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
+| `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
+| `pr.checks` | `taskId`, `fresh?` | `gh pr view <n> --json statusCheckRollup,mergeable,mergeStateStatus,reviewDecision,isDraft` in the task's worktree, cached 30 s: `{outcome: "ok", total, checks[{name, state: fail\|pending\|pass\|skipped, durationMs, startedAt, completedAt, url, runId}] (times are epoch ms or null) (failures first, at most 60), mergeable, mergeState, review, draft}`, `none` (no PR yet) or `unavailable` + `detail` | — |
+| `pr.checkLog` | `taskId`, `runId` (digits), `job` | `gh run view <runId> --log-failed`, cached 60 s per run: `{outcome: "ok", tail}` (last 40 lines / 4000 chars of that job), `none` or `unavailable` | — |
+| `run.status` | `taskId` | `get-task` + `pty-list` + `ports --all`: `{script, running, port, listening, url}`. `script` = the worktree has a non-empty `.rove/run.sh`; `running` = the run tab's session is alive; `listening` = something listens on the task's port | — |
+| `run.start` | `taskId` | `tab-new --kind shell --type "env PORT=<port> ROVE_PORT=<port> sh .rove/run.sh"` (the repo's own file; the client sends no command). The port is the task's own from `run.portBase`/`run.portCount` in `state.json`, held in `run.tasks`; `NO_RUN_SCRIPT`, `NO_PORT` refusals. Same answer as `run.status` | — |
+| `run.stop` | `taskId` | `tab-close` on the run tab (ends the script), then `archive` on the empty `shell` row `run.start` made; the task keeps its port. Same answer as `run.status` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |
+| `review.queue` | `refresh?` | `{prs, other, reason?}`: open PRs that ask for your review in the projects this Mac knows (`repo`, `nameWithOwner`, `number`, `title`, `url`, `author?`, `isDraft`, `createdAt`, `updatedAt`, `additions`, `deletions`, `headRef`, `baseRef`, `fork`, `checks?`); `other` counts those in unknown projects; `reason` (`missing`, `unauthenticated`, `failed`) when `gh` could not be read. One fixed read-only `gh api graphql` search, cached 60 s (`refresh` skips it) | — |
+| `review.prepare` | `repo` (a known project), `number` | `{ref}`: `git fetch origin +refs/pull/<n>/head:refs/rove/pr/<n>`, local refs only; `ref` is what a review task's worktree starts from (`task.spawn` `baseBranch`). `FETCH_FAILED` carries git's text | — |
 | `usage.get` | `taskId?`, `tabId?` | the orchestrator's `usageSnapshotSignal()`; `{usage: null}` until the daemon reports. With `taskId`+`tabId`, also `context`: that session's `contextUsageSignal()` reading, or `null` | — |
-| `update.check` | `force?` | `checkLatestVersion` + `fetchReleaseNotesRange`: `{current, info, notes}`; `info: null` = could not look, never "up to date" | — |
-| `release.notes` | `version` (`x.y.z`) | `fetchReleaseNotes`: `{notes}` (GitHub release body, or `null`) | — |
-| `machines.list` | — | the bridge's `MachineHub.machinesSignal()`: `{machines: [{alias, hostLabel, state, version}]}`; read-only | — |
+| `update.check` | `force?`, `locale?` (`en`/`zh`) | `checkLatestVersion` + `fetchReleaseNotesRange`: `{current, info, notes}`; `info: null` = could not look, never "up to date". With `locale: "zh"`, each release's notes come from its `release-notes.zh.md` asset when it has one | — |
+| `release.notes` | `version` (`x.y.z`), `locale?` (`en`/`zh`) | `fetchReleaseNotes`: `{notes}` (GitHub release body, or its Chinese asset in `zh`; `null` on failure) | — |
+| `machines.list` | — | the bridge's `MachineHub.machinesSignal()`: `{machines: [{alias, hostLabel, state, version, reason}]}`; `reason` is null while online, else a class (`refused`, `unresolved`, `timeout`, `auth-denied`, `host-key-changed`, `host-key-unverified`, `ssh-failed`, `no-rove`, `no-daemon`, `bad-status`, `handshake`, `no-forwarding`, `lost`), never ssh's text; read-only | — |
+| `machines.repos` | `machine` (a registered machine's alias) | `{repos: [{id, primary, checkouts}]}` (that machine's repos by id: `host/owner/name`, or `root:<sha>` with no origin), or `{repos: [], reason: "offline" \| "outdated" \| "denied" \| "failed", message}` for a machine that is not online or cannot answer (read-only; never an error, and a machine the hub knows is down is not tried) | `repo-list` (on `machine`) |
 | `daemon.info` | — | RPC `daemon.status` + `isDaemonVersionStale` against the bridge's build | — |
 | `plugins.list` | — | the Plugins section's `readPluginRows` | — |
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
-| `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
+| `builtinMods.list` | — | `builtin-mods.json`: `{mods: [{id, name, description, installed}]}` for Kanban and Issues | — |
+| `builtinMod.setInstalled` | `id` (`kanban`/`issues`), `installed` | `setBuiltinModInstalled`; uninstalling keeps the mod's data | — |
+| `feedback.send` | `title`, `body`, `kind?` (`bug`/`idea`/`question`) | `feedback` (a public GitHub issue; the reply carries `filed`, `url`, `number?`) | yes |
 | `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
 | `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |
 | `engine.setDefault` | `id` | state.json `defaultVendor` | yes |
 | `engine.rename` | `id`, `name` | state.json `engineName.<id>` | yes |
 | `engine.reset` | `id` | state.json `engineCommand`/`engineName`/`engineProtocol`/`customEngineIds` | yes |
+| `skill.install` | — | `installSkillErrors`: copies the Rove agent skill into each engine set up on the Mac that lacks a current copy; `{error}` (null on success) | yes |
+| `skill.missing` | — | `missingSkillNames`: `{engines}` Rove can run on the Mac (CLI on PATH) with no skill copy (drives the persistent skill banner) | — |
 | `output.read` | `taskId`, `tab?`, `source?`, `cursor?`, `limit?` | `read-output` | — |
 | `repo.digest` | `repo`, `sinceDays?` | `digest` | — |
 | `turns.list` | `taskId?`, `repo?`, `sinceDays?`, `limit?` | `agent-turns` | — |
+| `sessions.search` | `query`, `repo?`, `limit?` | `search` | — |
 
 What the phone cannot do, because each would make the Mac run a command the phone wrote: set a routine's precheck, edit an engine's launch command, change a plugin's manifest settings, install a plugin from the marketplace, set the custom editor command. Engine rows never carry account emails or the launch command's arguments.
 
 ### Settings preferences
 
-`prefs.get` returns every Settings knob the TUI keeps in state.json, already run through the TUI's normalizers, so a client never restates a default: `prefs` (current values by wire key), `options` (the choices of each enum key, `{min, max}` for `scrollbackRows`), `info` (`editorCustomSet`, `worktreeCustomPath`: read-only facts), `glyphSets` (the TUI's three state-glyph presets) and `themes` (every bundled and user theme resolved to `#rrggbb` for `dark` and `light`, including the colorblind diff pair from the TUI's own `diffInks`). `prefs.set` writes one key per call; the value must be one of `options` (a boolean for flags, an integer in range for `scrollbackRows`), and the reply carries the full `prefs` as the TUI will now read them. Keys: `locale`, `theme`, `themeMode`, `transparent`, `focusAccent`, `splitStyle`, `railFold`, `tabRowHeight`, `workingBorder`, `taskColors`, `glyphSet`, `colorblind`, `runningTitle`, `toast`, `sound`, `soundVolume`, `crossTask`, `keyHints`, `zen`, `editorKind`, `worktreeBase` (`default`, `nextToProject`, or `custom` only when the TUI already remembers a custom base), `scrollbackRows`, `tabStrip`, `prefixTap`, `remoteProjects`, `autoStatus`, `dispatcher`. A running TUI follows theme, mode, transparency, accent and language at once (the daemon's ui-prefs watcher); it reads the rest the next time it starts.
+`prefs.get` returns every Settings knob the TUI keeps in state.json, already run through the TUI's normalizers, so a client never restates a default: `prefs` (current values by wire key), `options` (the choices of each enum key, `{min, max}` for `scrollbackRows`), `info` (`editorCustomSet`, `worktreeCustomPath`: read-only facts), `glyphSets` (the TUI's three state-glyph presets) and `themes` (every bundled and user theme resolved to `#rrggbb` for `dark` and `light`, including the colorblind diff pair from the TUI's own `diffInks`). `prefs.set` writes one key per call; the value must be one of `options` (a boolean for flags, an integer in range for `scrollbackRows`), and the reply carries the full `prefs` as the TUI will now read them. Keys: `locale`, `theme`, `themeMode`, `transparent`, `focusAccent`, `splitStyle`, `railFold`, `tabRowHeight`, `workingBorder`, `taskColors`, `glyphSet`, `colorblind`, `runningTitle`, `toast`, `sound`, `soundVolume`, `crossTask`, `finishedAlerts`, `keyHints`, `zen`, `editorKind`, `worktreeBase` (`default`, `nextToProject`, or `custom` only when the TUI already remembers a custom base), `scrollbackRows`, `tabStrip`, `prefixTap`, `remoteProjects`, `autoStatus`, `dispatcher`. A running TUI follows every key at once (the daemon's `state` push).
 
 | Op | Args | Wraps | Destructive |
 |---|---|---|---|
 | `prefs.get` | — | state.json Settings keys + resolved theme palettes + glyph sets | — |
 | `prefs.set` | `key`, `value` | one allowlisted state.json key | — |
+| `snippets.get` | — | `prompt.snippets` in state.json: `[{name, text}]`, the saved `@name` prompts every client shares | — |
+| `snippets.save` | `name` (letters, digits, `-`, `_`, ≤32), `text` (≤8000) | adds or replaces (name is case-insensitive); at most 100; replies with the full list | — |
+| `snippets.remove` | `name` | drops that snippet; replies with the full list | — |
 | `theme.taskColors` | `theme`, `mode` (`dark`/`light`), `taskIds` (≤500) | the TUI's `taskColor(taskId, theme)` | — |
+| `theme.hosted` | — | the rove.run catalogue, each theme resolved for `dark` and `light`, plus `installed`; names that could not be fetched come back in `unavailable`; `dir` is the user themes directory | — |
+| `theme.install` | `name` (a catalogue name only) | `rove theme add https://rove.run/themes/<name>.json`; never overwrites, `installed:false` when already present | — |
 | `autoRouting.get` | — | tiers (`readAutoRoutingTable` + `tierBlock` verdict), pickable engines (effort levels, takes-model), classifier mode/host/key source | — |
 | `autoRouting.setTier` | `tier` (`swift`/`standard`/`deep`), `engine`, `model?`, `effort?` | state.json `autoRouting.<tier>.engine\|model\|effort` | yes |
 | `autoRouting.setClassifier` | `mode` (`off`/`jev`/`custom`) | state.json `autoRouting.classifier`; `custom` only restores the endpoint the TUI remembered | yes |
@@ -296,11 +352,20 @@ xcodebuild -scheme RoveMobile -destination 'platform=iOS Simulator,name=iPhone 1
 
 Running on a physical iPhone needs your own signing team in Xcode; the repo ships no signing configuration.
 
+## Pending iOS features
+
+These features are not available in the app yet. The following PRs track their implementation:
+
+- Inbox **ack all** and routine-failure dismissal: [#1811](https://github.com/Sma1lboy/rove/pull/1811).
+- **Fix failing checks** and Land preflight with destination and commit count: [#1812](https://github.com/Sma1lboy/rove/pull/1812).
+- **Reopen session** for a tab whose process has exited: [#1813](https://github.com/Sma1lboy/rove/pull/1813).
+- A **Machines** page with machine status and tasks: [#1814](https://github.com/Sma1lboy/rove/pull/1814).
+
 ## Not done yet
 
 - Push notifications (APNs). Notifications fire only while the app is running.
 - TestFlight / App Store distribution.
 - A chat view of the conversation; the app shows the raw terminal.
 - End-to-end encryption between the phone and the bridge (Orca pins a desktop key); today the tunnel or tailnet is trusted.
-- Per-device tokens with a device list and per-device revoke; today one token is shared and rotation revokes all.
+- A device list and per-device revoke inside the app; the bridge CLI has them (`--list-devices`, `--revoke-device`), the app does not show them.
 - Restoring the TUI's terminal size when a phone leaves Fit mode.

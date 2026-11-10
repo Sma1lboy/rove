@@ -10,7 +10,11 @@ import { simpleRpc } from "./handler-helpers.ts"
 import { PANE_GRAPHICS_VERB } from "./handlers-graphics.ts"
 import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
+import { PANEL_SHOW_VERB } from "./handlers-panel.ts"
+import { QUEUE_CANCEL_VERB, QUEUE_EDIT_VERB } from "./handlers-queue.ts"
+import { RESUME_QUOTA_VERB } from "./handlers-resume-quota.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
+import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import { ApiError, helpStep } from "./types.ts"
 import type { VerbSpec } from "./types.ts"
@@ -23,7 +27,10 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. The prompt is pasted into the target composer and submitted; delivery is refused only when there is physically nothing to write to (no such tab, dead PTY, no engine process). A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits. `delivered: true` means the bytes landed, nothing more: when the target session was already in `error` or `dead`, the reply carries `targetState` (+ `targetDetail`) — read it before waiting on an answer.",
     flags: [
       F.taskId(false),
-      F.prompt(true, "Text pasted + submitted into the engine pane."),
+      F.prompt(
+        false,
+        "Text pasted + submitted into the engine pane. One of --prompt / --prompt-file is required, except with --handoff-from.",
+      ),
       F.promptFile(),
       {
         name: "tab",
@@ -31,12 +38,27 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         placeholder: "TAB",
         description:
-          'Tab addressing: "new" spawns the prompt in a fresh engine tab; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
+          'Tab addressing: "new" sends the prompt to a new conversation: `tab-1` of the target itself while it has none yet, else a shared child task of the target (same directory) — the reply then adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
       },
       {
         ...F.command(),
         description:
-          "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later `update --command` on the task. Only valid with --tab new.",
+          "Engine launch command for the child `--tab new` creates — the API twin of the TUI's ctrl+e pick. Lets one directory run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; stored on the child, so it survives restarts. Only valid with --tab new.",
+      },
+      {
+        name: "handoff-from",
+        type: "string",
+        required: false,
+        placeholder: "TAB",
+        description:
+          "Continue another tab's conversation in the new one (`--tab new`, usually with --command naming the other engine): the prompt becomes a handoff brief — the task title, the source engine's transcript path, the user's last request and a bounded excerpt of the latest turns — followed by --prompt when given, so --prompt is optional. Same directory and branch; the source tab is only read. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT).",
+      },
+      {
+        name: "replace",
+        type: "bool",
+        required: false,
+        description:
+          "With --handoff-from tab-N: put the new engine in that tab's own slot instead of a shared child task. Only for a source whose engine is dead or exited (`get-task` .tabs[]: `alive: false`, or `engineAlive: false` = only the fallback shell is left); a running engine is refused (TAB_ALIVE) and keeps the child. Same task, same tab id, same worktree: the tab is repointed at the --command engine with a fresh conversation (the old session is left untouched on disk), launched, and handed the brief. The reply adds `replacedTab`. The shipped UIs pass this exact rule on their own; a script chooses it.",
       },
       {
         name: "respawn",
@@ -72,16 +94,26 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         description:
           "Send only when `should-run` says the task can use a tick. The check, the delivery claim and the paste share one decision, so two ticks arriving together cannot both pass. When it refuses, nothing is pasted and the reply is `{skipped: {run:false, reason, detail?, until?, gateIds?}}` with exit 3 (a skip recorded as a `skipped` delivery when the send would have owed a report). A skip is dropped, never held for later. See `should-run`.",
       },
+      {
+        name: "queue",
+        type: "bool",
+        required: false,
+        description:
+          "Wait for a running turn instead of landing in it. A tab that is idle takes the prompt now, as without the flag; one that is working, waiting on a permission menu or rate-limited has it held by the daemon and pasted when its turn ends, one held prompt per turn, in order. The reply is then `{queued:true, queueId, position, tabId}`. Without it a prompt sent mid-turn lands in that turn: Codex drops the work in flight, Claude Code folds it in. A report (`--expect-report`) is armed when the prompt is pasted, not when it is held. See `queue-list`, `queue-edit`, `queue-cancel`; a daemon restart drops held prompts.",
+      },
     ],
     handler: send,
   },
   DISPATCH_VERB,
   INTERRUPT_VERB,
+  RESUME_QUOTA_VERB,
+  QUEUE_EDIT_VERB,
+  QUEUE_CANCEL_VERB,
   {
     name: "note",
     group: "drive",
     summary:
-      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store (every future session on this repo starts with it) and forwarded to the dispatcher session for live relay (docs/design/dispatcher.md).",
+      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store: every future session on this repo starts with it in its system prompt. It starts no turn in any running session (docs/design/dispatcher.md).",
     flags: [
       F.taskId(true),
       {
@@ -119,6 +151,8 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   TAB_CLOSE_VERB,
   TAB_NEW_VERB,
   TAB_SPLIT_VERB,
+  TAB_REVIVE_VERB,
+  PANEL_SHOW_VERB,
   {
     name: "notify",
     group: "drive",

@@ -1,11 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The RUN HISTORY half of the Routines page: a read-only projection of the
- * daemon's run records, with no actions and no state of its own. Exports the
- * block, not the box — the page owns the shared detail frame and the order.
+ * The RUN HISTORY half of the Routines page: a projection of the daemon's run
+ * records with no state of its own; its one action is a click opening a run's
+ * task. Exports the block, not the box — the page owns the shared detail frame and the order.
  */
 
-import { type RGBA, TextAttributes } from "@opentui/core"
+import { MouseButton, type RGBA, TextAttributes } from "@opentui/core"
 import { type AutomationRun, routineRunResponseState } from "@sma1lboy/rove-daemon/daemon/contracts"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
@@ -27,6 +27,8 @@ const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   skipped_missed: "warning",
   skipped_unavailable: "warning",
   dispatch_failed: "error",
+  ran: "success",
+  script_failed: "error",
 }
 
 /** A run's tone as a colour; shared with the list so glyph and history line agree. */
@@ -110,8 +112,13 @@ function PrecheckDetail(props: { run: AutomationRun | undefined }): ReactNode {
 
 /**
  * Recent runs newest-first, then why the top one did not run (when it didn't).
+ * A click on a run that made a task opens it: the sidebar lists no routine runs.
  */
-export function RunHistory(props: { runs: readonly AutomationRun[]; now: number }): ReactNode {
+export function RunHistory(props: {
+  runs: readonly AutomationRun[]
+  now: number
+  onOpenTask?: (taskId: string) => void
+}): ReactNode {
   const { theme } = useTheme()
   const t = useT()
   const runs = props.runs
@@ -132,10 +139,18 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
               : pending === "missing"
                 ? ` · ${t("automations.responseMissing")}`
                 : ""
+          const taskId = run.taskId
           return (
-            <text key={run.id} fg={pending === "missing" ? theme.warning : runToneColor(run.status, theme)}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}${note}  ${formatWhen(run.at, props.now)}`}
-            </text>
+            <box
+              key={run.id}
+              onMouseUp={(evt: { button: number }) => {
+                if (evt.button === MouseButton.LEFT && taskId) props.onOpenTask?.(taskId)
+              }}
+            >
+              <text fg={pending === "missing" ? theme.warning : runToneColor(run.status, theme)}>
+                {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.tabId ? ` · ${run.tabId}` : ""}${run.error ? ` \u2014 ${run.error}` : ""}${note}  ${formatWhen(run.at, props.now)}`}
+              </text>
+            </box>
           )
         })
       )}

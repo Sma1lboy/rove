@@ -1,33 +1,43 @@
 /**
- * `rove weixin <login|logout|status|allow|deny>` — bind a WeChat (微信) bot to
- * this Rove. The daemon does the talking (bridge.ts); this command only edits
- * the binding on disk, which the daemon re-reads every cycle.
+ * `rove weixin <login|logout|status|allow|deny|send|agent>` — bind a WeChat
+ * (微信) bot to this Rove. The daemon does the talking (bridge.ts); these
+ * commands edit the binding on disk, which the daemon re-reads every cycle.
+ * `send` is the exception: it pushes one message itself, so a script or
+ * agent can reach the owner without going through the daemon.
  */
+import { readFileSync, statSync } from "node:fs"
+import { basename, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { connectIfRunning } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { SUBCOMMAND_VERBS } from "@sma1lboy/rove/src/cli/subcommands.ts"
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/rove/src/product.ts"
 import qrcode from "qrcode-terminal"
 import { REPLY_WINDOW_MS } from "./bridge.ts"
-import { resolveIlinkBaseUrl } from "./ilink.ts"
+import { ILINK_BASE_URL, IlinkClient, resolveIlinkBaseUrl } from "./ilink.ts"
 import { runQrLogin } from "./login.ts"
+import { sendAttachment, sendBubbles } from "./send.ts"
 import { WeixinStore } from "./store.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
 const WEIXIN_USAGE = [
-  `Usage: ${CLI_NAME} weixin <login|logout|status|allow|deny>`,
+  `Usage: ${CLI_NAME} weixin <login|logout|status|allow|deny|send|agent>`,
   "",
-  "Talk to Rove from WeChat (微信): ask for status, message a task's agent,",
-  "start a task, and get pinged when a task needs you. The daemon must be",
-  "running for messages to flow.",
+  "Talk to Rove from WeChat (微信): chat with your WeChat agent, ask for status,",
+  "message a task's agent, start a task. Rove never messages you on its own;",
+  "only the agent does. The daemon must be running for messages to flow.",
   "",
   "Commands:",
   "  login               Show a QR code; scan it in WeChat to bind (re-run to re-bind)",
   "  logout              Remove the binding and its credentials",
-  "  status              Binding, allowed senders, reply windows, undelivered pushes",
+  "  status              Binding, allowed senders, reply windows, undelivered messages",
   "  allow <user-id>     Let another WeChat user command Rove (ids: see status)",
   "  deny <user-id>      Revoke a user added with allow",
+  "  send [text]         Message the owner (routines, scripts, agents). Text from the",
+  "                      arguments, --file <path>, or stdin; --subject <line> prepends a header;",
+  "                      --attach <path> (repeatable) sends a picture, video or any file",
+  "  agent [<task-id> [tab-N]]  Show the WeChat agent and its conversations, or use an",
+  "                      existing task for it; `agent off` returns to the WeChat project",
   "",
 ].join("\n")
 
@@ -68,6 +78,10 @@ export async function runWeixinCli(argv: readonly string[]): Promise<void> {
     case "allow":
     case "deny":
       return editAllow(store, verb, arg)
+    case "send":
+      return await send(store, argv.slice(1))
+    case "agent":
+      return await bindAgent(store, argv.slice(1))
     default:
       usageError(`"${verb}" has no handler`)
   }
@@ -86,7 +100,7 @@ async function login(store: WeixinStore): Promise<void> {
   if (!result.ok) fail(`login failed: ${result.reason}`)
   process.stdout.write(
     [
-      "Bound. Send the bot `help` from WeChat to try it.",
+      "Bound. Send the bot `/help` from WeChat to try it.",
       `Credentials: ${store.accountPath} (owner-only)`,
       (await daemonRunning())
         ? "The running daemon picks this up within seconds."
@@ -131,10 +145,136 @@ async function status(store: WeixinStore): Promise<void> {
   const undelivered = store.readUndelivered()
   if (undelivered.length > 0) {
     const last = undelivered[undelivered.length - 1]
-    lines.push(`Undelivered pushes: ${undelivered.length} (${store.undeliveredPath})`)
+    lines.push(`Undelivered messages: ${undelivered.length} (${store.undeliveredPath})`)
     if (last) lines.push(`  latest ${last.at}: ${last.reason}`)
   }
   process.stdout.write(`${lines.join("\n")}\n`)
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = []
+  for await (const chunk of process.stdin) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk)
+  return Buffer.concat(chunks).toString("utf8")
+}
+
+/** `send [--subject S] [--file F | -] [--attach P]… [text…]` → the owner, within the reply window. */
+async function send(store: WeixinStore, args: readonly string[]): Promise<void> {
+  let subject: string | undefined
+  let file: string | undefined
+  const attachments: string[] = []
+  const words: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i] ?? ""
+    if (a === "--subject" || a === "-s") subject = args[++i]
+    else if (a === "--file" || a === "-f") file = args[++i]
+    else if (a === "--attach" || a === "-a") {
+      const path = args[++i]
+      if (path === undefined) usageError("--attach needs a path")
+      attachments.push(path)
+    } else words.push(a)
+  }
+  if ((subject === undefined && args.includes("--subject")) || (file === undefined && args.includes("--file")))
+    usageError("--subject and --file need a value")
+  if (file !== undefined && words.length > 0) usageError("pass the text or --file, not both")
+  for (const path of attachments)
+    if (!statSync(path, { throwIfNoEntry: false })?.isFile()) fail(`no such file: ${path}`)
+  const body = (
+    file === "-" || (file === undefined && words.length === 0 && attachments.length === 0)
+      ? await readStdin()
+      : file !== undefined
+        ? readFileSync(file, "utf8")
+        : words.join(" ")
+  ).trim()
+  if (!body && !subject && attachments.length === 0) usageError("nothing to send")
+  const text = subject ? (body ? `${subject}\n${body}` : subject) : body
+  // How the undelivered log keeps the part of a message that never went out.
+  const unsent = (rest: string, paths: readonly string[]) =>
+    [rest, ...paths.map((path) => `[attachment: ${resolve(path)}]`)].filter(Boolean).join("\n")
+
+  const account = store.readAccount()
+  if (!account) fail(`not bound — run \`${CLI_NAME} weixin login\` first`)
+  const to = account.ownerUserId
+  if (!to) fail(`the binding has no owner id — re-run \`${CLI_NAME} weixin login\``)
+  const peer = store.readState(account.accountId).peers[to]
+  const now = Date.now()
+  if (!peer || now - peer.lastInboundAt > REPLY_WINDOW_MS) {
+    const reason = peer ? "reply window closed (>24h since their last message)" : "no message from the owner yet"
+    store.appendUndelivered({ at: new Date(now).toISOString(), to, reason, text: unsent(text, attachments) })
+    fail(`not sent: ${reason}. WeChat only lets the bot write within a day of your last message to it.`)
+  }
+  const client = new IlinkClient(account.baseUrl || ILINK_BASE_URL, account.token)
+  const token = peer.contextToken ?? null
+  if (text) {
+    const result = await sendBubbles(client, to, text, token, (ms) => delay(ms))
+    if (!result.ok) {
+      store.appendUndelivered({
+        at: new Date().toISOString(),
+        to,
+        reason: result.reason,
+        text: unsent(result.rest, attachments),
+      })
+      fail(`not sent: ${result.reason}`)
+    }
+  }
+  for (const [i, path] of attachments.entries()) {
+    const reason = await sendAttachment(client, to, path, token, (ms) => delay(ms))
+    if (reason) {
+      store.appendUndelivered({ at: new Date().toISOString(), to, reason, text: unsent("", attachments.slice(i)) })
+      fail(`${basename(path)} not sent: ${reason}`)
+    }
+  }
+  process.stdout.write("Sent.\n")
+}
+
+/** `agent` shows, `agent off` clears, `agent <task-id> [tab-N]` binds. */
+async function bindAgent(store: WeixinStore, args: readonly string[]): Promise<void> {
+  const account = store.readAccount()
+  if (!account) fail(`not bound — run \`${CLI_NAME} weixin login\` first`)
+  const [ref, tab] = args
+  if (!ref) {
+    const live = store.readState(account.accountId).agent
+    const lines = [
+      account.agent
+        ? `Using task ${account.agent.taskId}${account.agent.tab ? ` ${account.agent.tab}` : ""} (set with \`agent <task-id>\`).`
+        : "Using the WeChat project Rove creates on the first plain message.",
+    ]
+    if (live) {
+      lines.push(`Live conversation: ${live.taskId} ${live.tab}`, `Conversations (${live.conversations.length}):`)
+      for (const c of live.conversations) lines.push(`  ${c.tab}  started ${new Date(c.startedAt).toISOString()}`)
+    }
+    process.stdout.write(`${lines.join("\n")}\n`)
+    return
+  }
+  if (ref === "off") {
+    const { agent: _dropped, ...rest } = account
+    store.writeAccount(rest)
+    process.stdout.write(
+      account.agent ? "Back to the WeChat project Rove manages.\n" : "Already using the WeChat project Rove manages.\n",
+    )
+    return
+  }
+  if (tab !== undefined && !/^tab-[A-Za-z0-9-]+$/.test(tab)) usageError(`expected a tab id like tab-2, got "${tab}"`)
+  const taskId = await resolveTaskId(ref)
+  store.writeAccount({ ...account, agent: { taskId, ...(tab ? { tab } : {}) } })
+  process.stdout.write(
+    `Plain WeChat messages now go to ${taskId}${tab ? ` ${tab}` : ""}; commands need a leading / (/status), /new opens a new tab.
+`,
+  )
+}
+
+/** A full id, or a unique suffix as `status` prints it. Needs the daemon. */
+async function resolveTaskId(ref: string): Promise<string> {
+  const client = await connectIfRunning().catch(() => null)
+  if (!client) fail(`the daemon is not running — start it with \`${CLI_NAME} daemon start\``)
+  try {
+    const { tasks } = await client.request<{ tasks: { id: string }[] }>("task.list")
+    const needle = ref.toLowerCase()
+    const hits = tasks.filter((t) => t.id.toLowerCase() === needle || t.id.toLowerCase().endsWith(needle))
+    if (hits.length === 1 && hits[0]) return hits[0].id
+    fail(hits.length === 0 ? `no task matches "${ref}"` : `"${ref}" matches ${hits.length} tasks; use more characters`)
+  } finally {
+    client.close()
+  }
 }
 
 function editAllow(store: WeixinStore, verb: "allow" | "deny", userId: string | undefined): void {

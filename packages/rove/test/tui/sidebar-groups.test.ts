@@ -58,13 +58,13 @@ describe("sidebar task ordering", () => {
     expect(ids(rows)).toEqual(["project", "pinned", "regular-a", "regular-b"])
   })
 
-  it("orders each section by recent use in recent mode", () => {
+  it("orders each section newest-created first in recent mode, whatever was touched since", () => {
     const rows = buildRows(
       [
-        task({ id: "old", title: "old", updatedAt: "2026-01-01T00:00:00.000Z" }),
-        task({ id: "new", title: "new", updatedAt: "2026-01-03T00:00:00.000Z" }),
-        task({ id: "pinned-old", title: "pinned old", pinned: true, updatedAt: "2026-01-02T00:00:00.000Z" }),
-        task({ id: "pinned-new", title: "pinned new", pinned: true, updatedAt: "2026-01-04T00:00:00.000Z" }),
+        task({ id: "old", title: "old", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z" }),
+        task({ id: "new", title: "new", createdAt: "2026-01-03T00:00:00.000Z" }),
+        task({ id: "pinned-old", title: "pinned old", pinned: true, createdAt: "2026-01-02T00:00:00.000Z" }),
+        task({ id: "pinned-new", title: "pinned new", pinned: true, createdAt: "2026-01-04T00:00:00.000Z" }),
       ],
       "",
       "recent",
@@ -148,9 +148,9 @@ describe("sidebar task ordering", () => {
   it("composes project filtering with recent task ordering", () => {
     const rows = buildRows(
       [
-        task({ id: "rove-old", title: "old", repo: "/repo/rove", updatedAt: "2026-01-01T00:00:00.000Z" }),
-        task({ id: "pochi-new", title: "other", repo: "/repo/pochi", updatedAt: "2026-01-05T00:00:00.000Z" }),
-        task({ id: "rove-new", title: "new", repo: "/repo/rove", updatedAt: "2026-01-03T00:00:00.000Z" }),
+        task({ id: "rove-old", title: "old", repo: "/repo/rove", createdAt: "2026-01-01T00:00:00.000Z" }),
+        task({ id: "pochi-new", title: "other", repo: "/repo/pochi", createdAt: "2026-01-05T00:00:00.000Z" }),
+        task({ id: "rove-new", title: "new", repo: "/repo/rove", createdAt: "2026-01-03T00:00:00.000Z" }),
       ],
       "",
       "recent",

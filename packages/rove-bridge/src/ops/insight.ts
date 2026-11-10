@@ -4,6 +4,7 @@
  * built from validated values.
  */
 
+import { vendorsWithTurnReader } from "@sma1lboy/rove/src/engine/registry.ts"
 import { BridgeError, optInt } from "../protocol.ts"
 import { absPath, flag, optOneOf, optText, tabId, taskId } from "./args.ts"
 import type { Args, OpTable } from "./types.ts"
@@ -56,7 +57,7 @@ export const insightOps: OpTable = {
     kind: "read",
     destructive: false,
     wraps: "rove api agent-turns",
-    run(args, { api }) {
+    async run(args, { api }) {
       const argv: string[] = []
       if (given(args, "taskId")) argv.push(flag("task-id", taskId(args)))
       if (given(args, "repo")) argv.push(flag("repo", absPath(args, "repo")))
@@ -64,7 +65,24 @@ export const insightOps: OpTable = {
       if (days !== undefined) argv.push(flag("since-days", days))
       const limit = optInt(args, "limit", 1, 500)
       if (limit !== undefined) argv.push(flag("limit", limit))
-      return api.verb("agent-turns", argv)
+      // `readers` names the engines that record turns at all: an engine outside it has no turns because it has no
+      // reader, not because it did no work, and a page must be able to say so.
+      const res = await api.verb<Record<string, unknown>>("agent-turns", argv)
+      return { ...res, readers: vendorsWithTurnReader() }
+    },
+  },
+  "sessions.search": {
+    kind: "read",
+    destructive: false,
+    wraps: "rove api search (user and assistant prose in every task's engine history)",
+    run(args, { api }) {
+      const query = optText(args, "query", 200)?.trim()
+      if (!query) throw new BridgeError("BAD_ARGS", "query is required")
+      const argv = [flag("query", query)]
+      if (given(args, "repo")) argv.push(flag("repo", absPath(args, "repo")))
+      const limit = optInt(args, "limit", 1, 100)
+      if (limit !== undefined) argv.push(flag("limit", limit))
+      return api.verb("search", argv)
     },
   },
 }

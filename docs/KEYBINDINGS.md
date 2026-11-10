@@ -42,7 +42,9 @@ timeout, pane scope, and cancellation rules.
 Open the command palette with `ctrl+a /`. Type a human-readable action name
 or chord, use ↑/↓ to select, and Enter to run. Escape cancels. It lists typed
 commands available in the current pane; scope checks still apply when you run
-one. Event-dependent navigation bindings remain in help as references.
+one. The same input also lists matching tasks by title and,
+from two characters, what was said in any task's conversations (Enter opens that
+task on the tab that said it), in the TUI and the web client. Event-dependent navigation bindings remain in help as references.
 
 Inside `F1` help, press `/` to filter the same keymap by name or chord. Clear
 the input to restore all sections. Both searches use case-insensitive fuzzy
@@ -56,16 +58,16 @@ shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
-| `ctrl+a` `/` | Search commands by action name, see their chords, and run a selected action |
+| `ctrl+a` `/` | Command palette: search commands (see their chords, run one), tasks by title, and what was said in any conversation |
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch. Its ATTEMPTS row fans one prompt out to a round of up to 5 |
-| `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
+| `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new child task sharing the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `n` | New task |
 | `ctrl+a` `w` | Close the active split, otherwise the tab — the prefix twin of `ctrl+w` |
-| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their built-in plugins are on) |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues (Kanban and Issues while their first-party mods are installed) |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` (`P` is the same key) | Create a PR — for the active task, or for the row under the cursor while the sidebar has focus ([the focus rule](#sidebar-and-files)) |
@@ -115,7 +117,7 @@ This guide needs a terminal that reports modifier press and release events
 through the kitty keyboard protocol. Unsupported terminals ignore Rove's
 request, so the guide stays unavailable and existing typing and shortcuts keep
 their old behavior. See
-[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-one-press-shortcut-guide)
+[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-direct-shortcut-guide)
 for terminal support.
 
 ## One-press keys
@@ -124,8 +126,8 @@ for terminal support.
 |---|---|
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
-| `ctrl+t` | New engine tab |
-| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (new tab here → fork a child task → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
+| `ctrl+t` | New conversation: a child task under this one, sharing its directory, on the engine this project used last |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` cycles the destination (child task here → fork a child task in a new worktree → new Scratch task in `$HOME`) and `ctrl+f` the context (fresh ⇄ continue this chat). A plugin pane opens as a tab of this Task; a shell opens as a child task sharing this directory. A Scratch destination starts the picked engine, or a bare shell when `shell` is picked |
 | `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
 | `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` opens the engine chooser there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
@@ -138,7 +140,7 @@ for terminal support.
 | `F5` | Confirm and reset the active terminal |
 | `F7` | Jump to the next Inbox item across all projects |
 
-Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine; Ctrl+E starts the chosen engine and pins its command on the tab. The sidebar's New conversation and New shell actions also start these tasks directly. Managed worktree tasks and scratch tasks keep starting automatically.
+Project and directory tasks that have never opened a session wait on the empty pane. Enter starts their configured engine (the empty pane names it: "press ⏎ to start Claude"; after a shell child's last shell exits it offers a shell instead); Ctrl+E starts the chosen engine and pins its command on the tab. The sidebar's New conversation and New shell actions also start these tasks directly. Managed worktree tasks and scratch tasks keep starting automatically.
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
@@ -196,7 +198,7 @@ is active.
 | `l` / `space` | Open the row under the cursor | | `v` | Change engine |
 | `o` | Open Task directory in your editor | | `s` | Settings |
 | `u` | Update page — version check + release notes | | `/` | Search |
-| `d` | Delete Task / forget project | | `x` | Worktrees page |
+| `d` | Delete Task / end a project's conversation | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
 | `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Cycle task sort (default → recent → attention → name) |
@@ -236,17 +238,16 @@ orphaned.
 
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
-chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
-engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
+chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
+does: a child task sharing the worktree) and **New shell** (a child task sharing the worktree whose `tab-1` is a login shell) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-These entries have no chord of their own. **Set status** opens a picker over
+These entries have no chord of their own. **New task from this branch**, on a
+managed Task with a branch, opens the New task dialog on that Task's repo with
+its branch as the base, so the new Task stacks on the unmerged work (menu-only;
+not offered on multi-repo or another machine's Tasks). **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the
 id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
-<id>`) on the clipboard, and is offered on every Task row. A tab row also
-offers **Copy tab address**, which copies `--task-id <id> --tab <tab>`, the
-flags `rove api send` and `read-output` take to reach that one tab, and, when
-the Task has more than one tab, **Close other tabs**, which asks first and then
-closes every other tab of that Task, ending their sessions. **Copy branch name** and
+<id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
 **Copy path** put the Task's branch or recorded worktree path on the system
 clipboard (local clipboard command plus OSC 52, so it also works over SSH);
 copying never creates the worktree, and a project-main or directory row, whose
@@ -262,6 +263,15 @@ the engine entry opens a picker over your available engines instead of
 cycling, and Rename branch follows the same empty-branch rule as Copy branch
 name. (If right-click opens your *terminal's* menu
 instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
+
+Right-click a tab in the workspace tab strip for that tab's menu; it makes the
+tab active first, and `j`/`k`, `⏎` and `esc` drive it the same way. It offers
+**Rename tab** (`F2`) and **Close tab** (`ctrl+w`), **Copy tab address**, which
+copies `--task-id <id> --tab <tab>`, the flags `rove api send` and
+`read-output` take to reach that one tab (not offered on a preview or diff
+tab), and, when the Task has more than one tab, **Close other tabs**, which
+asks first and then closes every other tab, ending their sessions. Copy and
+Close other tabs have no chord of their own.
 
 ## Terminal scrollback
 
@@ -304,31 +314,6 @@ requires a terminal that speaks the kitty keyboard protocol — without it a
 terminal sends `ctrl+shift+c` and `ctrl+c` as the same byte, and the
 selection-aware `ctrl+c` above is what answers.
 
-### Searching it
-
-`ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
-and each new query parks on the newest occurrence — a scrollback is read
-backwards, so the hit you want is nearly always the last one.
-
-Pasting while the query row is focused adds to the query; it does not send
-input to the terminal child. Line breaks in pasted queries become spaces.
-Switching terminal sessions clears the query, selection and local scroll
-position. The session's process and buffered output stay available when you
-return. Resizing the same session keeps its query open.
-
-| Key | Action |
-|---|---|
-| `ctrl+a` `/` | Open the query row |
-| `return` or `up` | Walk to the older match (wraps at the top) |
-| `down` | Walk to the newer match |
-| `escape` | Close the row and return to the scroll position you opened it at |
-
-Every hit on screen is highlighted; the one you are parked on is painted in
-the accent colour. The search covers Rove's own scrollback only — while a
-full-screen app (an engine, `vim`, `less`) is on the alternate screen it owns
-its buffer, and the row says so instead of searching one screen of somebody
-else's redraw.
-
 ## Inbox
 
 `ctrl+a` `i` opens it. What the sections mean and how items clear:
@@ -338,7 +323,8 @@ else's redraw.
 |---|---|
 | `j` / `k` (or arrows) | Select |
 | `enter` | Open the target task and its exact tab when present, then clear the item |
-| `d` | Clear an ATTENTION item without navigating |
+| `d` | Ack (clear) an ATTENTION item without navigating |
+| `D` | Ack every ATTENTION item (PROPOSED) |
 | `esc` | Close |
 
 ## Diff review
@@ -370,6 +356,7 @@ active only while the page has focus.
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
+| Settings → Engines | `j`/`k` move; `space` switches the focused engine on or off; `r` renames its display label; `d` makes it the global default; `x` resets a built-in engine (or removes a custom one) |
 
 In the Kanban story drawer, `tab` / `shift+tab` walks fields and `ctrl+enter`
 activates its primary action: start an unlinked story or open the linked Task.
@@ -420,6 +407,10 @@ plugins:
 ```
 
 See [design/plugins.md](./design/plugins.md).
+
+An agent can make these edits for you: Settings → Keybindings → **Change them
+with an agent** in the web client opens a Scratch session for it. See
+[What an agent may edit](./CONFIGURATION.md#what-an-agent-may-edit).
 
 ---
 

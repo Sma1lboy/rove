@@ -1,21 +1,25 @@
 /**
- * The built-in plugins and their on/off switch. Enabled unless the user turned
- * one off in Settings → Plugins (`state.json` `plugins.bundled.<id>.enabled`).
+ * The first-party mods compiled into Rove. None is on until installed (`rove
+ * plugin install <id>` or Settings → Plugins), which writes the daemon-side
+ * `builtin-mods.json` every surface reads, so the TUI, the web and `rove api`
+ * agree on what is present.
  */
 
-import { getPersistedBool, setPersistedBool } from "../state/store"
+import {
+  type BuiltinModId,
+  isBuiltinModInstalled,
+  setBuiltinModInstalled,
+} from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { issuesPlugin } from "./issues/plugin"
 import { kanbanPlugin } from "./kanban/plugin"
 import type { BundledPlugin } from "./types"
 
 export const BUNDLED_PLUGINS: readonly BundledPlugin[] = [kanbanPlugin, issuesPlugin]
 
-const enabledKey = (id: string) => `plugins.bundled.${id}.enabled`
-
-export function isBundledPluginEnabled(id: string): boolean {
-  return getPersistedBool(enabledKey(id), true)
+export function isBundledPluginInstalled(id: BuiltinModId): boolean {
+  return isBuiltinModInstalled(id)
 }
 
-export function setBundledPluginEnabled(id: string, enabled: boolean): void {
-  setPersistedBool(enabledKey(id), enabled)
+export function setBundledPluginInstalled(id: BuiltinModId, installed: boolean): void {
+  setBuiltinModInstalled(id, installed)
 }

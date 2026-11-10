@@ -63,7 +63,7 @@ async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: reado
     <Harness repo={dir} saved={saved} mainRepos={mainRepos} onSubmit={(v) => submitted.push(v)} />,
     {
       width: 100,
-      height: 50,
+      height: 64,
       providers: { kv: true, dialog: true },
     },
   )
@@ -85,13 +85,14 @@ test("a repo with no project checkout does not", async () => {
  * built for a field list that included depth, model and effort; when those
  * left in 2026-09 every count pointed one field past where it meant.
  */
-function stopsTo(target: Field, opts: { intentVisible?: boolean } = {}): number {
+function stopsTo(target: Field, opts: { intentVisible?: boolean; extrasVisible?: boolean } = {}): number {
   let field: Field = "tabs"
   for (let i = 1; i <= 24; i++) {
     field = nextField(field, "existing", {
       intentVisible: opts.intentVisible ?? false,
-      effortVisible: false,
-      modelVisible: false,
+      extrasVisible: opts.extrasVisible ?? false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
     if (field === target) return i
@@ -108,24 +109,25 @@ function stopsFromTo(
   const step = (f: Field): Field =>
     nextField(f, "existing", {
       intentVisible: opts.intentVisible ?? false,
-      effortVisible: false,
-      modelVisible: false,
+      effortVisible: true,
+      modelVisible: true,
       tierVisible: false,
     })
   let field: Field = from
   for (let i = 1; i <= 24; i++) {
     field = step(field)
-    // `advanceField` skips the branch field under the project intent, because
-    // it is not on screen there; mirror that or the count runs one long.
-    if (opts.skipBaseRef && field === "baseRef") field = step(field)
+    // `advanceField` skips the branch and first-message fields under the
+    // project intent, because neither is on screen there; mirror that or the
+    // count runs long.
+    if (opts.skipBaseRef) while (field === "baseRef" || field === "prompt") field = step(field)
     if (field === target) return i
   }
   throw new Error(`the focus chain never reaches ${target} from ${from}`)
 }
 
 /** Tab from the opening focus (`tabs`) to the intent row. */
-async function tabToIntent(mockInput: { pressTab: () => void }): Promise<void> {
-  for (let i = 0; i < stopsTo("intent", { intentVisible: true }); i++) {
+async function tabToIntent(mockInput: { pressTab: () => void }, extrasVisible = false): Promise<void> {
+  for (let i = 0; i < stopsTo("intent", { intentVisible: true, extrasVisible }); i++) {
     await act(async () => {
       mockInput.pressTab()
     })
@@ -187,7 +189,8 @@ test("picking a different repo resets the intent back to a task worktree", async
   const b = repo()
   const { frame, mockInput } = await mount(a, new Set([a, b]), [a, b])
 
-  await tabToIntent(mockInput)
+  // Two saved repos: the other one is offered as an extra, which is a stop before the intent row.
+  await tabToIntent(mockInput, true)
   await act(async () => {
     mockInput.pressArrow("right")
   })

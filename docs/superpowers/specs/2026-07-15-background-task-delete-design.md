@@ -1,5 +1,7 @@
 # Background Task Deletion Design
 
+> **Historical: frozen design record** (July 2026), written before the work it describes. Current behavior lives in `docs/` and the code; see the [plans README](../plans/README.md).
+
 ## Goal
 
 Make task deletion return control to the TUI immediately after safety checks,

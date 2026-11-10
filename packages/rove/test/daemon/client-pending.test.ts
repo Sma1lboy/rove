@@ -207,3 +207,75 @@ describe("RoveDaemonClient emit isolates a throwing handler", () => {
     client.close()
   })
 })
+
+describe("RoveDaemonClient error data", () => {
+  it("hands the wire error's structured data to the rejected request", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-clientdata-"))
+    const socketPath = join(dir, "daemon.sock")
+    const server = createServer((socket) => {
+      socket.on("error", () => {})
+      socket.on("data", (chunk) => {
+        const req = JSON.parse(chunk.toString().split("\n")[0] ?? "{}") as { id: number; name: string }
+        const error = { message: "LAND_CONFLICT: x", name: "LandStoppedError", data: { repos: [{ name: "api" }] } }
+        socket.write(`${JSON.stringify({ type: "response", id: req.id, name: req.name, error })}\n`)
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(socketPath, resolve))
+    const client = new RoveDaemonClient(socketPath)
+    try {
+      await client.connect()
+      const failure = await client.request("task.land", { taskId: "t1" }).catch((err: unknown) => err)
+      expect(failure).toMatchObject({
+        message: "LAND_CONFLICT: x",
+        name: "LandStoppedError",
+        data: { repos: [{ name: "api" }] },
+      })
+    } finally {
+      client.close()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe("RoveDaemonClient task.list coalescing", () => {
+  let dir: string
+  let server: Server
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it("a burst of task.list sends one request; a request in between starts a fresh read", async () => {
+    dir = mkdtempSync(join(tmpdir(), "rove-clientlist-"))
+    const socketPath = join(dir, "daemon.sock")
+    const seen: string[] = []
+    server = createServer((socket) => {
+      let buf = ""
+      socket.on("data", (chunk) => {
+        buf += chunk
+        const lines = buf.split("\n")
+        buf = lines.pop() ?? ""
+        for (const line of lines) {
+          const req = JSON.parse(line) as { id: string; name: string }
+          seen.push(req.name)
+          socket.write(`${JSON.stringify({ type: "response", id: req.id, payload: { n: seen.length } })}\n`)
+        }
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(socketPath, () => resolve()))
+    const client = new RoveDaemonClient(socketPath)
+
+    const burst = await Promise.all(Array.from({ length: 100 }, () => client.request<{ n: number }>("task.list")))
+    expect(seen).toEqual(["task.list"])
+    expect(new Set(burst.map((r) => r.n))).toEqual(new Set([1]))
+
+    const before = client.request("task.list")
+    const write = client.request("daemon.status")
+    const after = client.request<{ n: number }>("task.list")
+    await Promise.all([before, write])
+    expect((await after).n).toBe(4)
+    client.close()
+  })
+})

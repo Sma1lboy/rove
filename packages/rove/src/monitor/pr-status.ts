@@ -17,7 +17,8 @@ import type { PrViewErrorKind } from "@sma1lboy/rove-daemon/daemon/pr-status-col
 export type { PrViewErrorKind }
 
 /** The `--json` field set the collector requests from `gh pr list`. */
-export const GH_PR_VIEW_FIELDS = "number,url,title,state,baseRefName,reviewDecision,mergeable,statusCheckRollup"
+export const GH_PR_VIEW_FIELDS =
+  "number,url,title,state,baseRefName,headRefOid,reviewDecision,mergeable,statusCheckRollup,additions,deletions"
 
 /**
  * One entry of `gh`'s `statusCheckRollup`. GitHub returns a heterogeneous
@@ -42,9 +43,12 @@ export interface GhPrView {
   readonly title?: string
   readonly state?: string
   readonly baseRefName?: string
+  readonly headRefOid?: string
   readonly reviewDecision?: string
   readonly mergeable?: string
   readonly statusCheckRollup?: readonly GhCheckEntry[]
+  readonly additions?: number
+  readonly deletions?: number
 }
 
 /** Map `gh`'s PR `state` (+ review decision) to a neutral lifecycle. */
@@ -63,8 +67,11 @@ export function lifecycleFromState(state: string | undefined, reviewDecision: st
   }
 }
 
-/** Reduce a check entry to one of the four headline states. */
-function entryCheckState(entry: GhCheckEntry): PRCheckState {
+/**
+ * Reduce a check entry to a headline state, or `cancelled`: a run someone (or a
+ * newer run) stopped has no verdict, so it never turns a PR red.
+ */
+function entryCheckState(entry: GhCheckEntry): PRCheckState | "cancelled" {
   // CheckRun: prefer conclusion once COMPLETED, else it's still running.
   const status = (entry.status ?? "").toUpperCase()
   const conclusion = (entry.conclusion ?? "").toUpperCase()
@@ -73,7 +80,8 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
   if (status && status !== "COMPLETED") return "pending" // QUEUED / IN_PROGRESS / WAITING / PENDING
   if (conclusion) {
     if (conclusion === "SUCCESS" || conclusion === "NEUTRAL" || conclusion === "SKIPPED") return "passing"
-    return "failing" // FAILURE | CANCELLED | TIMED_OUT | ACTION_REQUIRED | STARTUP_FAILURE | STALE
+    if (conclusion === "CANCELLED") return "cancelled"
+    return "failing" // FAILURE | TIMED_OUT | ACTION_REQUIRED | STARTUP_FAILURE | STALE
   }
   // StatusContext path.
   if (contextState === "SUCCESS") return "passing"
@@ -87,6 +95,7 @@ function entryCheckState(entry: GhCheckEntry): PRCheckState {
  * **any** failing → failing; else any pending → pending; else `passing` ONLY
  * when every entry passed; an empty rollup is `none`; any `unknown` entry makes
  * the headline `unknown`, so an unclassifiable check never hides under green.
+ * Cancelled entries are left out; a rollup of only cancelled runs is `none`.
  * Well-formed `gh` output never yields `unknown` ({@link entryCheckState}
  * covers every state); this guards malformed / partial payloads.
  */
@@ -94,15 +103,18 @@ export function checkStateFromRollup(rollup: readonly GhCheckEntry[] | undefined
   if (!rollup || rollup.length === 0) return "none"
   let sawPending = false
   let sawUnknown = false
+  let sawVerdict = false
   for (const entry of rollup) {
     const s = entryCheckState(entry)
     if (s === "failing") return "failing"
+    if (s === "cancelled") continue
+    sawVerdict = true
     if (s === "pending") sawPending = true
     else if (s === "unknown") sawUnknown = true
   }
   if (sawPending) return "pending"
   if (sawUnknown) return "unknown"
-  return "passing"
+  return sawVerdict ? "passing" : "none"
 }
 
 /**
@@ -119,9 +131,12 @@ export function mapGhPrView(view: GhPrView | null | undefined, at: string): Task
     number: view.number,
     url: view.url,
     title: view.title,
+    ...(typeof view.additions === "number" ? { additions: view.additions } : {}),
+    ...(typeof view.deletions === "number" ? { deletions: view.deletions } : {}),
     baseRef: view.baseRefName,
     reviewDecision: view.reviewDecision || undefined,
     mergeable: view.mergeable || undefined,
+    ...(view.headRefOid ? { headSha: view.headRefOid } : {}),
     lastCheckedAt: at,
   }
 }
@@ -141,9 +156,12 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
     a.number === b.number &&
     a.url === b.url &&
     a.title === b.title &&
+    a.additions === b.additions &&
+    a.deletions === b.deletions &&
     a.baseRef === b.baseRef &&
     a.reviewDecision === b.reviewDecision &&
-    a.mergeable === b.mergeable
+    a.mergeable === b.mergeable &&
+    a.headSha === b.headSha
   )
 }
 
@@ -161,6 +179,8 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
 export interface GhFailureSignals {
   /** The child failed to spawn (e.g. ENOENT) — and it was NOT our abort. */
   readonly spawnError?: boolean
+  /** The spawn failed because its cwd (the worktree) is gone, not because `gh` is. */
+  readonly cwdMissing?: boolean
   /** Our timeout aborted the run. */
   readonly timedOut?: boolean
   /** Exit code when the process actually ran (null on spawn error / abort). */
@@ -215,6 +235,7 @@ function matchesAny(haystack: string, needles: readonly string[]): boolean {
 export function classifyGhFailure(s: GhFailureSignals): { kind: "error"; error: PrViewErrorKind } {
   if (s.parseError) return { kind: "error", error: "parse" }
   if (s.timedOut) return { kind: "error", error: "timeout" }
+  if (s.cwdMissing) return { kind: "error", error: "worktree-missing" }
   if (s.spawnError) return { kind: "error", error: "missing-binary" }
   const err = (s.stderr ?? "").toLowerCase()
   if (matchesAny(err, NO_REMOTE_PATTERNS)) return { kind: "error", error: "no-remote" }
@@ -259,7 +280,8 @@ export interface PrPollDecision {
  * Decide when a task may next be polled, given the latest outcome and its prior
  * failure streak. Pure (inject `rand` for tests):
  *   - success / empty → reset the streak, jittered base cadence.
- *   - `no-remote` → reset the streak, long idle cadence (never a GitHub PR).
+ *   - `no-remote` / `worktree-missing` → reset the streak, long idle cadence
+ *     (retrying sooner cannot change the answer).
  *   - any other error → grow the streak, exponential backoff capped at
  *     `failureCapMs`.
  * Every delay is jittered so tasks due together (e.g. after a reconnect) don't
@@ -279,7 +301,7 @@ export function nextPrPoll(
   if (outcome.kind === "empty") {
     return { nextAllowedAt: at(cfg.noPrMs), failures: 0 }
   }
-  if (outcome.error === "no-remote") {
+  if (outcome.error === "no-remote" || outcome.error === "worktree-missing") {
     return { nextAllowedAt: at(cfg.noRemoteMs), failures: 0 }
   }
   const failures = prevFailures + 1

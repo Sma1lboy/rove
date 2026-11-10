@@ -1,15 +1,31 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, statSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
+import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
+import { addSavedRepo } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
-import { type EngineRow, createRoveOps, engineFor, newTabInvocation, tabRows, taskRows } from "../src/rove-ops.ts"
+import { taskOpDeps } from "../src/ops/tasks-shared.ts"
+import type { BridgeApi } from "../src/ops/types.ts"
+import {
+  type EngineRow,
+  createRoveOps,
+  engineFor,
+  newTabInvocation,
+  remoteRowStatus,
+  taskRows,
+} from "../src/rove-ops.ts"
+import { isolateTaskOpDeps } from "./task-ops-harness.ts"
+
+isolateTaskOpDeps()
 
 const ENGINES: EngineRow[] = [
-  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true },
-  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false },
+  { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
+  { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false, enabled: true },
 ]
 
 function task(over: Partial<SerializedTask> & { id: string }): SerializedTask {
@@ -25,6 +41,15 @@ function task(over: Partial<SerializedTask> & { id: string }): SerializedTask {
   return { ...base, ...over } as SerializedTask
 }
 
+function tab(over: Partial<TabStatus> & Pick<TabStatus, "kind" | "since">): TabStatus {
+  return { alive: true, restored: false, tracked: true, ...over }
+}
+
+/** A task whose one tab is the rollup. */
+function daemonStatus(rollup: RowStatus): TaskStatus {
+  return { task: rollup, tabs: { "tab-1": tab(rollup) } }
+}
+
 describe("task rows", () => {
   const now = 10_000_000
 
@@ -32,11 +57,13 @@ describe("task rows", () => {
     const rows = taskRows(
       [task({ id: "busy" }), task({ id: "blocked" }), task({ id: "main", kind: "main" }), task({ id: "dark" })],
       {
-        busy: { state: "running", at: now - 1000 },
-        blocked: { state: "permission_needed", at: now - 1000 },
-        main: { state: "idle", at: now - 1000 },
+        tasks: {
+          busy: daemonStatus({ kind: "running", state: "running", since: now - 1000 }),
+          blocked: daemonStatus({ kind: "needs-input", state: "permission_needed", since: now - 1000 }),
+          main: daemonStatus({ kind: "idle", state: "idle", since: now - 1000 }),
+        },
+        liveness: true,
       },
-      new Set(["busy", "blocked", "main"]),
       ENGINES,
       now,
     )
@@ -49,10 +76,57 @@ describe("task rows", () => {
     ])
   })
 
+  test("each row carries the daemon's rollup and its tabs' statuses as row.status sent them", () => {
+    const tabs = {
+      "tab-1": tab({ kind: "attention", reason: "rate_limited", state: "rate_limited", since: now - 5 }),
+      "tab-2": tab({ kind: "running", state: "running", since: now - 9 }),
+    }
+    const rollup = { kind: "attention", reason: "rate_limited", state: "rate_limited", since: now - 5 } as const
+    const [row, dark] = taskRows(
+      [task({ id: "a" }), task({ id: "b" })],
+      { tasks: { a: { task: rollup, tabs } }, liveness: true },
+      ENGINES,
+      now,
+    )
+    expect(row?.rowStatus).toEqual(rollup)
+    expect(row?.tabStatus).toEqual(tabs)
+    // The engine state clients still read is the rollup's, not a separate reading.
+    expect(row?.activity).toEqual({ state: "rate_limited", forMs: 5, since: now - 5 })
+    expect(dark).not.toHaveProperty("rowStatus")
+    expect(dark).not.toHaveProperty("tabStatus")
+  })
+
+  test("a task whose tabs the daemon reports dead waits on you once the death settles", () => {
+    const at = now - 120_000
+    const [row] = taskRows(
+      [task({ id: "a" })],
+      {
+        tasks: {
+          a: {
+            task: { kind: "idle", state: "turn_complete", since: at },
+            tabs: { "tab-1": tab({ kind: "idle", state: "turn_complete", since: at, alive: false }) },
+          },
+        },
+        liveness: true,
+      },
+      ENGINES,
+      now,
+    )
+    expect(row?.group).toBe("waiting-on-you")
+    // Another machine's statuses say nothing about liveness, so the same reading is only finished work.
+    const [far] = taskRows(
+      [task({ id: "a" })],
+      remoteRowStatus(new Map([["a", { state: "turn_complete", at }]])),
+      ENGINES,
+      now,
+    )
+    expect(far?.group).toBe("ready-for-review")
+    expect(far?.rowStatus).toMatchObject({ kind: "idle", state: "turn_complete" })
+  })
+
   test("a task being deleted is flagged so the phone can grey it out", () => {
     const [row] = taskRows(
       [task({ id: "gone", deletion: { phase: "running" } as SerializedTask["deletion"] })],
-      null,
       null,
       ENGINES,
       now,
@@ -69,6 +143,45 @@ describe("engine identity", () => {
     })
     expect(engineFor(task({ id: "b", vendor: "alpha" } as never), ENGINES)).toEqual({ id: "alpha", name: "Alpha" })
     expect(engineFor(task({ id: "c", vendor: "zeta" } as never), ENGINES)).toEqual({ id: null, name: "zeta" })
+  })
+
+  test("a task on an engine switched off still shows that engine's name", () => {
+    const off = ENGINES.map((e) => (e.id === "alpha-fast" ? { ...e, enabled: false } : e))
+    expect(engineFor(task({ id: "d", vendor: "alpha", command: "alpha --fast" } as never), off)).toEqual({
+      id: "alpha-fast",
+      name: "Alpha Fast",
+    })
+  })
+})
+
+describe("engines.list enabled flag", () => {
+  test("follows Settings → Engines at once, though the engine scan itself is cached", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "bridge-engines-"))
+    const switchOff = (ids: string[]) => {
+      mkdirSync(dirname(kvStatePath()), { recursive: true })
+      writeFileSync(kvStatePath(), JSON.stringify({ disabledEngineIds: ids }))
+    }
+    let scans = 0
+    const api: BridgeApi = {
+      verb: async <T>() => {
+        scans++
+        return { engines: [{ id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: false }] } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    try {
+      const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      switchOff(["alpha"])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([false])
+      switchOff([])
+      expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
+      expect(scans).toBe(1)
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
   })
 })
 
@@ -87,7 +200,6 @@ describe("task row extras", () => {
         task({ id: "a", pinned: false, createdAt: "c1", updatedAt: "u1" } as never),
         task({ id: "b", pinned: true, createdAt: "c2", updatedAt: "u2" } as never),
       ],
-      null,
       null,
       ENGINES,
       now,
@@ -118,7 +230,6 @@ describe("task row extras", () => {
         task({ id: "new", worktreePath: "/w/new" }),
       ],
       null,
-      null,
       ENGINES,
       now,
       extras,
@@ -130,7 +241,7 @@ describe("task row extras", () => {
     expect(by("bad")?.changes).toEqual({ unreadable: true })
     expect(by("new")).not.toHaveProperty("changes")
     // The daemon has not supplied the channel at all.
-    const none = taskRows([task({ id: "ok", worktreePath: "/w/ok" })], null, null, ENGINES, now, {
+    const none = taskRows([task({ id: "ok", worktreePath: "/w/ok" })], null, ENGINES, now, {
       changes: null,
       tokens: new Map(),
     })
@@ -149,7 +260,7 @@ describe("task row extras", () => {
       ],
       ["b", [{ source: "plug", key: "k", text: "old", expiresAt: now - 10 }]],
     ])
-    const rows = taskRows([task({ id: "a" }), task({ id: "b" })], null, null, ENGINES, now, { changes: null, tokens })
+    const rows = taskRows([task({ id: "a" }), task({ id: "b" })], null, ENGINES, now, { changes: null, tokens })
     expect(rows.find((r) => r.id === "a")?.rowTokens).toEqual([
       { text: "live", tone: "info", source: "plug", expiresAt: now + 5000 },
       { text: "plain", source: "cli", expiresAt: now + 1 },
@@ -159,7 +270,7 @@ describe("task row extras", () => {
 
   test("pr chip follows the sidebar rules: conflict beats failing beats passing; stale on lastError", () => {
     const chipOf = (prStatus: unknown) => {
-      const [row] = taskRows([task({ id: "x", prStatus } as never)], null, null, ENGINES, now)
+      const [row] = taskRows([task({ id: "x", prStatus } as never)], null, ENGINES, now)
       return [row?.prChip, row?.prChipStale]
     }
     expect(chipOf(pr({ mergeable: "CONFLICTING", checkState: "passing" }))).toEqual(["conflict", false])
@@ -173,13 +284,27 @@ describe("task row extras", () => {
     const [row] = taskRows(
       [task({ id: "x", prStatus: pr({ mergeable: "MERGEABLE", number: 4 }) } as never)],
       null,
-      null,
       ENGINES,
       now,
     )
     expect(row?.pr).toEqual({ number: 4, lifecycle: "open", checkState: "pending", mergeable: "MERGEABLE" })
-    const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, null, ENGINES, now)
+    const [bare] = taskRows([task({ id: "y", prStatus: pr({}) } as never)], null, ENGINES, now)
     expect(bare?.pr).not.toHaveProperty("mergeable")
+  })
+
+  test("session PRs ride the row: polled ones like pr, unpolled ones unknown with the number from the URL", () => {
+    const url = (n: number) => `https://github.com/o/r/pull/${n}`
+    const sessionPrs = [
+      { url: url(7), addedAt: "2026-10-27T00:00:00.000Z" },
+      { url: url(8), addedAt: "2026-10-27T00:00:00.000Z", status: pr({ number: 8, checkState: "failing" }) },
+    ]
+    const [row] = taskRows([task({ id: "m", sessionPrs } as never)], null, ENGINES, now)
+    expect(row?.sessionPrs).toEqual([
+      { number: 7, url: url(7), lifecycle: "unknown", checkState: "unknown" },
+      { number: 8, url: url(8), lifecycle: "open", checkState: "failing" },
+    ])
+    const [none] = taskRows([task({ id: "n" })], null, ENGINES, now)
+    expect(none).not.toHaveProperty("sessionPrs")
   })
 
   test("a row another machine served names it; this Mac's rows carry no machine at all", () => {
@@ -192,7 +317,6 @@ describe("task row extras", () => {
         task({ id: "far-offline", origin: origin(true) }),
       ],
       null,
-      null,
       ENGINES,
       now,
     )
@@ -201,6 +325,27 @@ describe("task row extras", () => {
     expect(machineOf("stamped-local")).toBeUndefined()
     expect(machineOf("far")).toEqual({ id: "narwhal", label: "narwhal" })
     expect(machineOf("far-offline")).toEqual({ id: "narwhal", label: "narwhal", stale: true })
+  })
+
+  test("the serving daemon's repo id reaches local and remote rows alike; none stays absent", () => {
+    const remote = { machineId: "narwhal", hostLabel: "narwhal" }
+    const rows = taskRows(
+      [
+        task({ id: "mine", repoId: "github.com/me/rove" }),
+        task({ id: "far", repoId: "github.com/me/rove", origin: remote }),
+        task({ id: "bare" }),
+      ],
+      null,
+      ENGINES,
+      now,
+    )
+    const row = (id: string) => rows.find((r) => r.id === id)
+    expect([row("mine")?.repoId, row("far")?.repoId, row("far")?.machine?.id]).toEqual([
+      "github.com/me/rove",
+      "github.com/me/rove",
+      "narwhal",
+    ])
+    expect("repoId" in (row("bare") ?? {})).toBe(false)
   })
 })
 
@@ -216,19 +361,108 @@ describe("diff file path", () => {
 })
 
 describe("tab.new verb choice", () => {
-  test("a prompt rides `send` unchanged; no prompt opens the tab empty through `tab-new`", () => {
-    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" })).toEqual({
-      verb: "send",
-      argv: ["--task-id", "T1", "--tab", "new", "--plain", "--prompt", "hi", "--command", "codex"],
+  test("a prompt rides `send`; no prompt opens the tab empty through `tab-new`", () => {
+    expect(newTabInvocation("T1", { kind: "engine", prompt: "hi", engine: "codex" }).verb).toBe("send")
+    const empty = newTabInvocation("T1", { kind: "shell" })
+    expect(empty.verb).toBe("tab-new")
+    expect(argvToParams(empty.verb, empty.argv)).toEqual({ "task-id": "T1", kind: "shell" })
+  })
+
+  test("`latest` asks for the project's last engine; a named engine wins", () => {
+    expect(newTabInvocation("T1", { kind: "engine", latest: true }).argv).toContain("--latest")
+    expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
+  })
+
+  test("an engine tab is a child task: the reply names it so a client can open it", async () => {
+    const verbs: Array<{ name: string; reply: unknown }> = [
+      { name: "send", reply: { taskId: "T1", childTaskId: "KID", session: "KID::tab-1" } },
+      { name: "tab-new", reply: { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" } },
+    ]
+    for (const { name, reply } of verbs) {
+      const api: BridgeApi = {
+        verb: async <T>() => reply as T,
+        rpc: () => Promise.reject(new Error("unused")),
+      }
+      const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+      const request = name === "send" ? { kind: "engine" as const, prompt: "go" } : { kind: "engine" as const }
+      expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
+    }
+  })
+
+  test("a picked engine becomes this machine's project default; another machine's task leaves it alone", async () => {
+    const remembered: Array<[string, string]> = []
+    taskOpDeps.rememberEngine = (repo, engine) => void remembered.push([repo, engine])
+    const api = (remote: boolean): BridgeApi => ({
+      verb: async <T>(name: string) =>
+        (name === "get-task" ? { task: task({ id: "T1", repo: "/repos/app" }) } : { tabId: "tab-2" }) as T,
+      rpc: () => Promise.reject(new Error("unused")),
+      machineOf: () => (remote ? "mac" : undefined),
     })
-    expect(newTabInvocation("T1", { kind: "shell" })).toEqual({
-      verb: "tab-new",
-      argv: ["--task-id", "T1", "--kind", "shell"],
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", engine: "codex" })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(false)).newTab("T1", { kind: "engine", latest: true })
+    await createRoveOps({} as RoveDaemonClient, undefined, api(true)).newTab("T1", { kind: "engine", engine: "omp" })
+    expect(remembered).toEqual([["/repos/app", "codex"]])
+  })
+})
+
+describe("phone text that starts with --", () => {
+  test("reaches the verb as the value, not a flag", async () => {
+    const calls: { name: string; argv: readonly string[] }[] = []
+    const api: BridgeApi = {
+      async verb<T>(name: string, argv: readonly string[]) {
+        calls.push({ name, argv })
+        return { taskId: "T2", tabId: "tab-2" } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+    await ops.newTab("T1", { kind: "engine", prompt: "--force-push is broken" })
+    await ops.createTask({ repo: "/r", title: "--help", prompt: "--yes, do it" })
+    expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({ prompt: "--force-push is broken", tab: "new" })
+    expect(argvToParams(calls[1].name, calls[1].argv)).toMatchObject({ title: "--help", prompt: "--yes, do it" })
+  })
+})
+
+describe("repos.list", () => {
+  test("lists saved projects only; a No folder session's or routine's cwd is not offered as a project", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    const home = mkdtempSync(join(tmpdir(), "rove-bridge-repos-"))
+    process.env.ROVE_HOME_DIR = home
+    try {
+      addSavedRepo("/work/app", { skipGate: true })
+      const tasks = [
+        task({ id: "m", kind: "main", repo: "/work/app" }),
+        task({ id: "nf", kind: "dir", repo: home, noProject: true }),
+        task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
+      ]
+      const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
+      expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
+  })
+})
+
+describe("task.delete children", () => {
+  test("`cascade` rides the delete verb; without it the daemon promotes the children", async () => {
+    const calls: { name: string; argv: readonly string[] }[] = []
+    const api: BridgeApi = {
+      async verb<T>(name: string, argv: readonly string[]) {
+        calls.push({ name, argv })
+        return { queued: true } as T
+      },
+      rpc: () => Promise.reject(new Error("unused")),
+    }
+    const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
+    await ops.deleteTask("T1", true, true)
+    await ops.deleteTask("T1", false)
+    expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({
+      "task-id": "T1",
+      force: "true",
+      cascade: "true",
     })
-    expect(newTabInvocation("T1", { kind: "engine", engine: "codex" })).toEqual({
-      verb: "tab-new",
-      argv: ["--task-id", "T1", "--kind", "engine", "--command", "codex"],
-    })
+    expect(argvToParams(calls[1].name, calls[1].argv)).not.toHaveProperty("cascade")
   })
 })
 
@@ -242,39 +476,5 @@ describe("pairing token", () => {
     const rotated = loadOrCreateToken(path, true)
     expect(rotated).not.toBe(first)
     expect(readFileSync(path, "utf8").trim()).toBe(rotated)
-  })
-})
-
-describe("tab rows", () => {
-  // Fixture: only the fields the mapping reads.
-  const row = (over: Record<string, unknown>) =>
-    ({
-      id: "tab-1",
-      kind: "engine",
-      title: null,
-      lastTitle: null,
-      autoTitle: null,
-      vendor: null,
-      liveVendor: null,
-      alive: true,
-      engineAlive: true,
-      ...over,
-    }) as unknown as Parameters<typeof tabRows>[0][number]
-
-  test("liveEngine names the engine running in an alive engine tab, from the probe only", () => {
-    const [live, configured] = tabRows([row({ liveVendor: "codex" }), row({ id: "tab-2", vendor: "codex" })])
-    expect(live?.liveEngine).toBe(live?.engineName)
-    expect(live?.liveEngine).toBeTruthy()
-    // The configured engine still names the tab, but the caption stays empty without a live answer.
-    expect(configured?.engineName).toBeTruthy()
-    expect(configured?.liveEngine).toBeNull()
-  })
-
-  test("a shell tab or a dead engine tab has no liveEngine", () => {
-    const rows = tabRows([
-      row({ id: "tab-3", kind: "command", liveVendor: "codex" }),
-      row({ id: "tab-4", alive: false, liveVendor: "codex" }),
-    ])
-    expect(rows.map((r) => r.liveEngine)).toEqual([null, null])
   })
 })

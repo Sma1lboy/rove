@@ -37,7 +37,7 @@ export const helpText = (key: string, params?: Record<string, string | number>):
 export const hintText = (key: string, params?: Record<string, string | number>): string =>
   fill(lookup(pick(hintsEn, hintsZh), key) ?? lookup(hintsEn, key) ?? key, params)
 
-/** `terminal.*` (scrollback overlay, search row, reset confirm). */
+/** `terminal.*` (scrollback overlay, reset confirm). */
 export const terminalText = (key: string, params?: Record<string, string | number>): string =>
   fill(lookup(pick(terminalEn, terminalZh), key) ?? lookup(terminalEn, key) ?? key, params)
 

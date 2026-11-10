@@ -7,8 +7,10 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { hostname as osHostname } from "node:os"
 import { join } from "node:path"
+import { RelayAgent } from "@hsinsekai-nanami/agent"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { ensureDaemonReachable } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { ensurePtyHostReachable } from "@sma1lboy/rove-daemon/client/pty-process"
@@ -19,30 +21,48 @@ import { executeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { REMOTE_CALLER } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { RemoteOrchestrator } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { ensurePluginEnginesLoaded } from "@sma1lboy/rove/src/engine/plugin-engines.ts"
+import { MachineFeed } from "@sma1lboy/rove/src/machines/feed.ts"
 import { forwardVerb, invokeRouted, machineDaemonSocket, requireMachine } from "@sma1lboy/rove/src/machines/forward.ts"
-import { MachineHub } from "@sma1lboy/rove/src/machines/hub.ts"
 import { localPtySocketPath } from "@sma1lboy/rove/src/machines/ssh-args.ts"
+import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import { terminalTabsKey } from "@sma1lboy/rove/src/state/tabs-persistence.ts"
+import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { CURRENT_VERSION } from "@sma1lboy/rove/src/version.ts"
-import { renderUnicodeCompact } from "uqr"
-import { loadOrCreateToken, pairingUrl, webUrl } from "./auth.ts"
+import { addDevice, deviceOf, listDevices, loadOrCreateToken, revokeDevice, startupCredentials } from "./auth.ts"
+import { printBanner } from "./banner.ts"
 import { createAccessVerifier } from "./cf-access.ts"
 import { type BridgeArgs, type BridgeConfig, type TailscaleInfo, parseBridgeArgs } from "./cli-args.ts"
+import { CredentialSockets } from "./credential-sockets.ts"
+import { DispatchFeed } from "./dispatch-feed.ts"
 import { TaskFeed } from "./feed.ts"
+import { LOCAL_CREDENTIAL, plainLocalRun } from "./local-access.ts"
 import { NoticeFeed } from "./notices.ts"
 import { createBridgeApi } from "./ops/api.ts"
 import { machineStore } from "./ops/machines.ts"
+import { PREF_DEFS } from "./ops/prefs-defs.ts"
+import { PanelFeed } from "./panels.ts"
+import { runPasswordAction } from "./password-cmd.ts"
 import { PromptFeed } from "./prompts.ts"
 import { BridgeError } from "./protocol.ts"
+import { PushHub, sharedCredential } from "./push.ts"
 import { createRoveOps } from "./rove-ops.ts"
+import { RowStatusFeed } from "./row-status.ts"
 import { type BridgeDeps, startBridgeServer } from "./server.ts"
+import { SessionTitles } from "./session-titles.ts"
+import { createSignIn } from "./sign-in.ts"
 import { TabFeed } from "./tab-feed.ts"
 import { usageStore } from "./usage-store.ts"
+import { createWebLogin, loginDeviceName } from "./web-login.ts"
 import type { WebRoot } from "./web-static.ts"
 
 /** Re-read the list at least this often: group rules have time windows. */
 const TICK_MS = 15_000
 /** The TUI rewrites state.json in bursts; one diff per burst. */
 const TABS_DEBOUNCE_MS = 200
+
+/** Wait before reopening the row-status socket after the daemon dropped it. */
+const STATUS_RECONNECT_MS = 1_000
+const STATUS_RECONNECT_MAX_MS = 30_000
 
 /** The Mac App Store build ships its CLI inside the app bundle. */
 const TAILSCALE_BINARIES = ["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
@@ -76,7 +96,12 @@ function readConfig(path: string): BridgeConfig {
     const v = fields.get(k)
     return typeof v === "string" && v.trim() ? v.trim() : undefined
   }
-  return { cfTeam: pick("cfTeam"), cfAud: pick("cfAud"), publicHost: pick("publicHost") }
+  return {
+    cfTeam: pick("cfTeam"),
+    cfAud: pick("cfAud"),
+    publicHost: pick("publicHost"),
+    relayServer: pick("relayServer"),
+  }
 }
 
 export interface RunBridgeOptions {
@@ -107,7 +132,55 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   Reflect.deleteProperty(process.env, "ROVE_TAB_ID")
   ensurePluginEnginesLoaded()
 
-  const token = loadOrCreateToken(join(bridgeDir, "token"), args.rotateToken)
+  const devicesPath = join(bridgeDir, "devices.json")
+  if (args.action === "list-devices") {
+    const devices = listDevices(devicesPath)
+    console.log(devices.length ? devices.map((d) => `${d.name}  since ${d.createdAt}`).join("\n") : "no device tokens")
+    return
+  }
+  if (args.action === "revoke-device") {
+    const name = args.device ?? ""
+    console.log(revokeDevice(devicesPath, name) ? `revoked ${name}` : `no device named ${name}`)
+    return
+  }
+  if (args.action === "setup") {
+    printSetup(args.port)
+    return
+  }
+  // The relay page boots the browser client, which only `rove --web` serves.
+  if ((args.action === "relay-shell" || args.preset === "relay") && !opts.web) {
+    console.error(`${opts.name}: the relay is for the browser client; run it as \`rove --web\``)
+    process.exit(2)
+  }
+  if (args.action === "relay-shell" && opts.web) {
+    const shell = join(opts.web.root, "relay", "index.html")
+    if (!existsSync(shell)) {
+      console.error(`${opts.name}: ${shell} is missing; build the web client first`)
+      process.exit(1)
+    }
+    const dir = args.relayShellDir ?? "."
+    mkdirSync(dir, { recursive: true })
+    copyFileSync(shell, join(dir, "index.html"))
+    console.log(`wrote ${join(dir, "index.html")}`)
+    return
+  }
+  if (args.action === "set-password" || args.action === "clear-password" || args.action === "unlock") {
+    try {
+      process.exitCode = await runPasswordAction(args.action, bridgeDir)
+    } catch (err) {
+      console.error(`${opts.name}: ${err instanceof Error ? err.message : String(err)}`)
+      process.exitCode = 1
+    }
+    return
+  }
+  const { sharedToken, token, revoked } = startupCredentials({
+    tokenPath: join(bridgeDir, "token"),
+    devicesPath,
+    rotate: args.rotateToken,
+    device: args.device,
+  })
+  if (revoked > 0) console.log(`${opts.name}: --rotate-token signed out ${revoked} device token(s)`)
+  // `--device` prints that device's own link; the bridge still accepts every valid token.
 
   const daemonSocket = await ensureDaemonReachable(undefined, "autospawn")
   await ensurePtyHostReachable()
@@ -118,9 +191,8 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     graphicsOut: () => {},
   })
   await orchestrator.init()
-  // Other machines (`rove machine add`), as the TUI's sidebar: `attach()` is a no-op with none registered.
-  const hub = new MachineHub(orchestrator)
-  hub.attach()
+  // Other machines (`rove machine add`), as the daemon's hub publishes them.
+  const hub = new MachineFeed(orchestrator)
   const machines = hub.machinesSignal()
   machineStore.set(machines.get())
   machines.subscribe(() => machineStore.set(machines.get()))
@@ -136,10 +208,41 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     const alias = task?.origin?.machineId
     return alias && alias !== "local" ? alias : undefined
   }
+  // The daemon's row status gets its own socket too: `ui.viewing` is keyed by connection, and the
+  // daemon clears a connection's reports when it closes, so this one lives as long as the bridge.
+  const statusClient = new RoveDaemonClient(daemonSocket)
+  const rowStatus = new RowStatusFeed(statusClient)
+  // Same socket: like row status, it is a whole snapshot to resync after the daemon comes back.
+  const dispatches = new DispatchFeed(statusClient)
+  // `rove api panel-show`: an event, not a snapshot, so a replay after a reconnect is dropped by age.
+  const panels = new PanelFeed()
+  statusClient.onChannel("panel.show", (panel) => panels.push(panel))
+  let statusRetryMs = STATUS_RECONNECT_MS
+  const syncStatus = async (): Promise<void> => {
+    try {
+      await statusClient.subscribe({
+        channels: ["row.status", "dispatch.snapshot", "panel.show", "tabs.changed"],
+        role: "pane",
+      })
+      await rowStatus.resync()
+      await dispatches.resync()
+      statusRetryMs = STATUS_RECONNECT_MS
+    } catch {
+      // Daemon mid-restart: try again, backing off while it stays away.
+      statusClient.forceDisconnect()
+      setTimeout(() => void syncStatus(), statusRetryMs)
+      statusRetryMs = Math.min(statusRetryMs * 2, STATUS_RECONNECT_MAX_MS)
+    }
+  }
+  statusClient.onLifecycle("close", () => {
+    setTimeout(() => void syncStatus(), STATUS_RECONNECT_MS)
+  })
+  await syncStatus()
   const api = createBridgeApi(verbClient, {
     machineOf,
     forward: (alias, verb, params) => forwardVerb(requireMachine(alias), verb, params),
   })
+  const sessionTitles = new SessionTitles(() => new RoveDaemonClient(defaultPtyHostSocketPath()))
   const ops = createRoveOps(
     verbClient,
     {
@@ -152,18 +255,26 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
           .get()
           .filter((task) => task.origin && task.origin.machineId !== "local")
           .map((task) => ({ ...task, kind: task.kind ?? "task", pinned: task.pinned ?? false })),
+      remoteLive: () => hub.liveSignal().get(),
+      rowStatus: () => rowStatus.current(),
+      titleSources: async () => {
+        const sessions = await sessionTitles.current()
+        const state = loadStateFile()
+        return { sessions, tabs: (taskId) => state[terminalTabsKey(taskId)] as TabsState | undefined }
+      },
     },
     api,
   )
   const feed = new TaskFeed(() => ops.tasks())
   for (const signal of [
     orchestrator.tasksSignal(),
-    orchestrator.engineStateSignal(),
+    rowStatus,
     orchestrator.attentionInboxSignal(),
     orchestrator.worktreeChangesSignal(),
     orchestrator.rowTokensSignal(),
     orchestrator.gatesSignal(),
     hub.tasksSignal(),
+    hub.liveSignal(),
   ]) {
     signal.subscribe(() => feed.poke())
   }
@@ -175,6 +286,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   usageStore.setContext(context())
   context.subscribe(() => usageStore.setContext(context()))
   setInterval(() => feed.poke(), TICK_MS)
+  // A retitle (the engine's OSC title) changes no task record; poll the PTY host while a client listens.
+  sessionTitles.watch(
+    () => feed.active,
+    () => feed.poke(),
+  )
   const notices = new NoticeFeed()
   const noticeStore = orchestrator.noticeStore()
   noticeStore.subscribe(() => notices.push(noticeStore.get()))
@@ -196,23 +312,62 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
   }
   const tabs = new TabFeed(readState)
+  // The daemon announces a tab change with state.json already written; the file watch covers the rest.
+  statusClient.onChannel("tabs.changed", () => {
+    tabs.check()
+    feed.poke()
+  })
   startFileWatchTrigger({
     filePath: statePath,
     debounceMs: TABS_DEBOUNCE_MS,
-    onTrigger: () => tabs.check(),
+    onTrigger: () => {
+      tabs.check()
+      // A tab rename in state.json renames the row.
+      feed.poke()
+    },
     // Best-effort: the next write re-checks.
     onError: () => {},
   })
 
   const ptySocket = defaultPtyHostSocketPath()
+  // Closed pages hear about tasks by Web Push; only a browser page (served over https) can subscribe.
+  const push = opts.web
+    ? new PushHub({
+        path: join(bridgeDir, "push.json"),
+        feed,
+        crossTask: () => PREF_DEFS.crossTask.read(readState()) === true,
+        credentialValid: (credential) =>
+          credential === sharedCredential(token) || listDevices(devicesPath).some((d) => d.name === credential),
+        log: (line) => console.error(line),
+      })
+    : null
+  const sockets = new CredentialSockets()
+  const signIn = opts.web
+    ? createSignIn({
+        bridgeDir,
+        configPath: join(bridgeDir, "config.json"),
+        plain: plainLocalRun(args),
+        leaveOpen: () => {
+          // The sessions that got in without a token end once the reply is out.
+          setTimeout(() => sockets.closeCredential(LOCAL_CREDENTIAL), 1000)
+          return addDevice(devicesPath, loginDeviceName(devicesPath, new Date()))
+        },
+      })
+    : null
   const deps: BridgeDeps = {
-    token,
+    // The shared token, never the `--device` one: that device is recognized (and audited) by `deviceOf`.
+    token: sharedToken,
+    sockets,
     ops,
     feed,
     notices,
     prompts,
+    panels,
     mods,
     tabs,
+    rowStatus,
+    dispatches,
+    deviceOf: (presented) => deviceOf(devicesPath, presented),
     openPty: () => new RoveDaemonClient(ptySocket),
     openMachinePty: async (alias) => {
       const entry = requireMachine(alias)
@@ -238,7 +393,28 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),
+    ...(signIn ? { signIn } : {}),
+    ...(opts.web
+      ? {
+          login: createWebLogin({
+            enabled: () => signIn?.mode() === "password",
+            bridgeDir,
+            devicesPath,
+            publicHost: args.publicHost,
+            trustForwardedIp: args.preset === "cf" || (args.preset === "none" && args.publicHost !== null),
+            log: (line) => console.error(line),
+            // The servers start below; the registry is shared and already live.
+            onRevoked: (device) => {
+              const closed = sockets.closeCredential(device)
+              if (closed > 0) console.error(`[rove-bridge] closed ${closed} socket(s) of signed-out device ${device}`)
+            },
+          }),
+        }
+      : {}),
+    publicHost: args.publicHost,
+    ...(push ? { push } : {}),
   }
+  const relay = args.relayServer ? startRelay(deps, args.relayServer, bridgeDir, args.rotateRelay) : null
   const servers = args.hosts.map((hostname) => {
     try {
       return startBridgeServer(deps, { hostname, port: args.port })
@@ -251,27 +427,74 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
   })
 
-  console.log(`${opts.name} ${CURRENT_VERSION} — Rove home ${home}`)
-  for (const server of servers) {
-    const host = server.hostname ?? "127.0.0.1"
-    const port = server.port ?? args.port
-    console.log(`listening on ${host}:${port}${args.preset === "none" ? "" : ` (preset ${args.preset})`}`)
-    if (host === "0.0.0.0" || host === "::") {
-      console.log("  WARNING: all interfaces, plain ws:// — prefer --preset tailscale or --preset cf")
-    }
-    const publicHost = args.publicHost ?? host
-    if (opts.web) console.log(`\nopen: ${webUrl({ host: publicHost, port, token, tls: args.tls })}`)
-    const url = pairingUrl({ host: publicHost, port, token, tls: args.tls, preset: args.preset })
-    console.log(`${opts.web ? "" : "\n"}pair: ${url}`)
-    if (args.qr && !opts.web) console.log(renderUnicodeCompact(url))
+  printBanner({
+    name: opts.name,
+    web: opts.web !== undefined,
+    home,
+    bridgeDir,
+    args,
+    token,
+    servers,
+    signIn: signIn?.mode() ?? null,
+    relayCode: relay?.code ?? null,
+  })
+}
+
+/**
+ * `--preset relay`: a second loopback listener that only the relay agent dials. The agent opens its
+ * sockets with no headers, so this one listener takes the token from `?token=`; the bearer token
+ * is still required, the relay's E2E layer is on top of it.
+ */
+function startRelay(deps: BridgeDeps, server: string, bridgeDir: string, rotate: boolean): { code: string } {
+  // Same shape as relay-kit's generateCode (32 random bytes, base64url), owner-only like the token.
+  const code = loadOrCreateToken(join(bridgeDir, "relay-code"), rotate)
+  // Shares `deps.login` (and its lockout): under this preset it already trusts no forwarded IP.
+  const ingress = startBridgeServer({ ...deps, tokenInQuery: true }, { hostname: "127.0.0.1", port: 0 })
+  const agent = new RelayAgent({ serverUrl: server, code, localPort: ingress.port ?? 0, deviceName: osHostname() })
+  agent.start()
+  return { code }
+}
+
+/**
+ * `--setup`: what reaching this bridge from a phone takes, checked against this machine. It only
+ * reads (`tailscale status`, `cloudflared --version`) and prints commands; it exposes nothing.
+ */
+function printSetup(port: number): void {
+  const has = (cmd: string, args: readonly string[]) => {
+    const res = spawnSync(cmd, args, { encoding: "utf8" })
+    return res.status === 0 ? (res.stdout ?? "").trim() : null
   }
-  if (args.cloudflare) {
-    console.log(
-      `\nCloudflare Access: team ${args.cloudflare.teamDomain}, every connection needs a valid JWT for this AUD.`,
+  const ts = has("tailscale", ["status", "--json"])
+  const cf = has("cloudflared", ["--version"])
+  const lines = ["Reaching this bridge from another device:", ""]
+  if (ts) {
+    lines.push(
+      "  Tailscale is up here. Private to your tailnet:",
+      `    rove --web --preset tailscale --port ${port}`,
+      "  With HTTPS on your MagicDNS name (needed for a phone browser):",
+      `    tailscale serve --bg ${port}   then   rove --web --preset tailscale --public-host <this-machine>.<tailnet>.ts.net`,
     )
-    console.log(`Point the tunnel at http://127.0.0.1:${args.port} (e.g. ingress service for ${args.publicHost}).`)
-  }
-  console.log(
-    `\nThe ${opts.web ? "links are passwords" : "pairing URL is a password"}. \`--rotate-token\` revokes every paired phone${opts.web ? " and browser" : ""}.`,
+  } else lines.push("  Tailscale: not running here (https://tailscale.com/download), the simplest private path.")
+  lines.push("")
+  if (cf) {
+    lines.push(
+      `  cloudflared is installed (${cf.split("\n")[0]}). Behind Cloudflare Access:`,
+      `    cloudflared tunnel --url http://127.0.0.1:${port}   (or a named tunnel to your hostname)`,
+      "    rove --web --preset cf --public-host <hostname> --cf-team <team> --cf-aud <aud>",
+    )
+  } else lines.push("  cloudflared: not installed; only needed to publish through Cloudflare Access.")
+  lines.push(
+    "",
+    "  Relay, end-to-end encrypted (no VPN, no Access; the relay sees only ciphertext). Deploy",
+    "  relay-kit's Worker to your own Cloudflare account once, with this machine's page on it:",
+    "    git clone https://github.com/nanami-0713/relay-kit && cd relay-kit/workers/relay",
+    "    rove --web --relay-shell public",
+    `    printf '\\n[assets]\\ndirectory = "public"\\n' >> wrangler.toml`,
+    "    npx wrangler login && npx wrangler deploy",
+    "    rove --web --preset relay --relay-server https://<worker>.<account>.workers.dev",
+    "  *.workers.dev is blocked on many mainland China networks: bind a custom domain (wrangler.toml).",
+    "  Redo --relay-shell + deploy only when the page changes; the app itself loads from this machine.",
   )
+  lines.push("", "  Give each phone its own token: rove --web --device <name>; revoke one with --revoke-device <name>.")
+  console.log(lines.join("\n"))
 }

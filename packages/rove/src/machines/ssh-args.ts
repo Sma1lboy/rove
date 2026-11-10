@@ -62,17 +62,22 @@ function controlPath(alias: string, home = homeDir()): string {
 export function machineSshArgs(
   alias: string,
   config: MachineConfig,
-  opts: { readonly home?: string; readonly batch?: boolean } = {},
+  opts: { readonly home?: string; readonly batch?: boolean; readonly mux?: boolean } = {},
 ): string[] {
   const argv = ["ssh"]
   if (opts.batch !== false) argv.push("-o", "BatchMode=yes")
+  // OpenSSH for Windows has no connection multiplexing: a ControlPath there fails the session.
+  if (opts.mux !== false && process.platform !== "win32") {
+    argv.push(
+      "-o",
+      "ControlMaster=auto",
+      "-o",
+      `ControlPath=${controlPath(alias, opts.home)}`,
+      "-o",
+      `ControlPersist=${CONTROL_PERSIST_SECONDS}`,
+    )
+  }
   argv.push(
-    "-o",
-    "ControlMaster=auto",
-    "-o",
-    `ControlPath=${controlPath(alias, opts.home)}`,
-    "-o",
-    `ControlPersist=${CONTROL_PERSIST_SECONDS}`,
     // TOFU: accept an unknown host key on first connect, reject a CHANGED one.
     "-o",
     "StrictHostKeyChecking=accept-new",

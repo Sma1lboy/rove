@@ -16,6 +16,7 @@ import {
   engineCanFork,
   engineForkArgv,
   engineLaunchArgv,
+  listEnginePresets,
   resolveCommandProtocol,
 } from "../../src/engine/engine-presets.ts"
 
@@ -43,6 +44,15 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
+describe("listEnginePresets", () => {
+  it("lists a built-in engine once even when a stale customEngineIds entry names it again", () => {
+    writeState({ customEngineIds: ["omp", "mine"] })
+    const ids = listEnginePresets().map((p) => p.id)
+    expect(ids.filter((id) => id === "omp")).toHaveLength(1)
+    expect(ids).toContain("mine")
+  })
+})
+
 describe("engineLaunchArgv", () => {
   it("runs a raw command line verbatim", () => {
     expect(engineLaunchArgv({ command: "aider --model sonnet" })).toEqual(["aider", "--model", "sonnet"])
@@ -65,6 +75,8 @@ describe("engineLaunchArgv", () => {
       "model_reasoning_effort=high",
       "-c",
       'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
     ])
   })
 
@@ -85,6 +97,8 @@ describe("engineLaunchArgv", () => {
       "model_reasoning_effort=high",
       "-c",
       'tui.terminal_title=["activity","thread-title"]',
+      "-c",
+      "check_for_update_on_startup=false",
     ])
   })
 

@@ -1,25 +1,36 @@
 /** The extended op allowlist: area tables, merged. An op not named here (or in core `OPS`) is UNKNOWN_OP. */
 
 import { BridgeError } from "../protocol.ts"
+import { contextOps } from "./context.ts"
 import { devOps } from "./dev.ts"
 import { filesOps } from "./files.ts"
 import { GATE_OPS } from "./gates.ts"
+import { githubAuthOps } from "./github-auth.ts"
+import { githubOps } from "./github.ts"
 import { insightOps } from "./insight.ts"
 import { keybindingsOps } from "./keybindings.ts"
 import { launchOps } from "./launch.ts"
 import { machineOps } from "./machines.ts"
 import { modsOps } from "./mods.ts"
 import { pagesOps } from "./pages.ts"
+import { panelOps } from "./panel.ts"
+import { PR_CHECKS_OPS } from "./pr-checks.ts"
 import { prefsOps } from "./prefs.ts"
 import { promptOps } from "./prompts.ts"
+import { reviewOps } from "./review-queue.ts"
 import { routingOps } from "./routing.ts"
+import { RUN_OPS } from "./run-script.ts"
 import { engineOps } from "./settings-engines.ts"
 import { settingsOps } from "./settings.ts"
+import { snippetOps } from "./snippets.ts"
 import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
+import { hostedThemeOps } from "./theme-hosted.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
+import { voiceSetupOps } from "./voice-setup.ts"
+import { voiceOps } from "./voice.ts"
 import { welcomeOps } from "./welcome.ts"
 import { WORKSPACE_OPS } from "./workspace.ts"
 
@@ -48,6 +59,7 @@ export const AREA_OPS: OpTable = mergeOpTables(
   machineOps,
   devOps,
   prefsOps,
+  hostedThemeOps,
   routingOps,
   TASKOPS_OPS,
   WORKSPACE_OPS,
@@ -56,4 +68,14 @@ export const AREA_OPS: OpTable = mergeOpTables(
   launchOps,
   modsOps,
   promptOps,
+  snippetOps,
+  panelOps,
+  githubOps,
+  reviewOps,
+  githubAuthOps,
+  PR_CHECKS_OPS,
+  RUN_OPS,
+  contextOps,
+  voiceOps,
+  voiceSetupOps,
 )

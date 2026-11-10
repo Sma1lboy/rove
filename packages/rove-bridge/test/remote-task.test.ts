@@ -81,6 +81,19 @@ describe("verbs for a task on another machine", () => {
     expect(api.machineOf?.("far")).toBe("mac")
   })
 
+  test("a verb aimed at a machine by name runs there with no task id to route by", async () => {
+    const forwarded: string[] = []
+    const api = createBridgeApi(client, {
+      machineOf: () => undefined,
+      forward: async (alias, verb) => {
+        forwarded.push(`${alias}:${verb}`)
+        return { apiVersion: 1, ok: true, result: { taskId: "N1" } } as never
+      },
+    })
+    expect(await api.verb<{ taskId: string }>("add", ["--repo", "/Users/me/app"], "mac")).toEqual({ taskId: "N1" })
+    expect(forwarded).toEqual(["mac:add"])
+  })
+
   test("a refusal there keeps its code", async () => {
     const api = createBridgeApi(client, {
       machineOf: () => "mac",

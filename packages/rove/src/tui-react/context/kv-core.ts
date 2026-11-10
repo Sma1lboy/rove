@@ -2,8 +2,8 @@
  * Framework-free KV core (data + persistence) behind the React `KVProvider`.
  *
  *   - Hydrates synchronously from `state.json` at creation, so the first
- *     render has persisted values. Snapshot-only: another process's later
- *     writes and hand edits are not seen until `reload()` or restart.
+ *     render has persisted values, then follows the daemon's `state` push
+ *     (`follow`), so another process's writes and hand edits show up live.
  *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
@@ -11,11 +11,19 @@
  *     including other processes' keys.
  */
 
+import { logClientError } from "@sma1lboy/rove-daemon/client/client-log"
+import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watcher"
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
+import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
 import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
+import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
+import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
 const WRITE_DEBOUNCE_MS = 250
+
+/** Per-window layout: another window folding its rail must not fold this one. The file keeps the last write, for the next launch. */
+const PER_WINDOW_KEYS: ReadonlySet<string> = new Set([SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY, ZEN_ACTIVE_KEY])
 
 /** A debounced or exit flush that did not reach disk. */
 export interface KvWriteFailure {
@@ -43,7 +51,7 @@ export interface KvCore {
   set(key: string, value: unknown): void
   /**
    * `set` without a new snapshot: `get` and disk see it, subscribers don't
-   * re-render. For write-often keys no render reads (the inbox visit log).
+   * re-render. For write-often keys whose local writes need no render (the inbox visit log).
    */
   setQuiet(key: string, value: unknown): void
   /**
@@ -64,6 +72,11 @@ export interface KvCore {
    */
   reload(): KvReloadResult
   /**
+   * Adopt the daemon's `state` push (every key but `isUnpublishedStateKey`), the
+   * way `reload` adopts the file: unflushed local keys win until they land.
+   */
+  follow(shared: Readonly<Record<string, unknown>>): void
+  /**
    * Subscribe to flushes that did not reach disk. The debounced write is
    * fire-and-forget and `set()` already updated the snapshot, so without this
    * a failed write shows fine all session and reverts next launch
@@ -77,7 +90,7 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
-  /** `setQuiet` values, read over the snapshot until the next `set` of the key. */
+  /** `setQuiet` values, read over the snapshot until `set` or a changed remote value. */
   const quiet = new Map<string, unknown>()
   /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
   const seeded = new Map<string, unknown>()
@@ -131,6 +144,39 @@ export function createKvCore(): KvCore {
     }, WRITE_DEBOUNCE_MS)
   }
 
+  /**
+   * Adopt `fresh` as the snapshot, keeping this process's unflushed keys and seeded defaults. Returns the keys that moved.
+   * `keepQuiet` suppresses identical echoes of flushed quiet writes; changed remote values notify readers.
+   */
+  function merge(fresh: Record<string, unknown>, keepQuiet: boolean): number {
+    const before = store.get()
+    const next: Record<string, unknown> = { ...fresh }
+    for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
+    for (const key of dirtyKeys) {
+      if (before[key] === undefined) delete next[key]
+      else next[key] = before[key]
+    }
+    let quietChanged = false
+    for (const key of [...quiet.keys()]) {
+      if (dirtyKeys.has(key)) continue
+      if (!keepQuiet || JSON.stringify(quiet.get(key)) !== JSON.stringify(fresh[key])) {
+        quietChanged = true
+        quiet.delete(key)
+        continue
+      }
+      if (before[key] === undefined) delete next[key]
+      else next[key] = before[key]
+    }
+    if (dirtyKeys.size > 0) scheduleWrite()
+    let changed = 0
+    for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
+      if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
+    }
+    // A remote value can equal the snapshot while differing from the quiet overlay.
+    if (changed > 0 || quietChanged) store.set(next)
+    return changed
+  }
+
   return {
     snapshot: store.get,
     subscribe: store.subscribe,
@@ -138,6 +184,12 @@ export function createKvCore(): KvCore {
       return (quiet.has(key) ? quiet.get(key) : store.get()[key]) ?? defaultValue
     },
     set(key, value) {
+      // The daemon is the only writer of terminal tabs (`tabs-store.ts`); a whole-key write from
+      // here would be the multi-writer race it exists to end.
+      if (key.startsWith(TERMINAL_TABS_PREFIX)) {
+        logClientError("kv", new Error(`refused a local write of ${key}: tabs go through the daemon`))
+        return
+      }
       quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
@@ -187,25 +239,19 @@ export function createKvCore(): KvCore {
         readStateFileStrict()
         cancelTimer()
         writeNow("reload flush")
-        const fresh = readStateFileStrict()
-        const before = store.get()
-        const next: Record<string, unknown> = { ...fresh }
-        for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
-        for (const key of dirtyKeys) {
-          if (before[key] === undefined) delete next[key]
-          else next[key] = before[key]
-        }
-        for (const key of [...quiet.keys()]) if (!dirtyKeys.has(key)) quiet.delete(key)
-        if (dirtyKeys.size > 0) scheduleWrite()
-        let changed = 0
-        for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
-          if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
-        }
-        if (changed > 0) store.set(next)
-        return { ok: true, changed }
+        return { ok: true, changed: merge(readStateFileStrict(), false) }
       } catch (error) {
         return { ok: false, error }
       }
+    },
+    follow(shared) {
+      // The push leaves out the unpublished keys; keep ours.
+      const next: Record<string, unknown> = { ...shared }
+      for (const key of PER_WINDOW_KEYS) delete next[key]
+      for (const [key, value] of Object.entries(store.get())) {
+        if (isUnpublishedStateKey(key) || PER_WINDOW_KEYS.has(key)) next[key] = value
+      }
+      merge(next, true)
     },
     onWriteError(listener) {
       errorListeners.add(listener)

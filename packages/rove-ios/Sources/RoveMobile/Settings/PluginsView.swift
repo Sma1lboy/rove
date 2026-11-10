@@ -21,6 +21,7 @@ struct PluginsView: View {
                 ErrorLine(text: message)
             case .loaded(let payload):
                 if let reloadError { ErrorLine(text: reloadError) }
+                BuiltinModsTile()
                 if payload.plugins.isEmpty {
                     EmptyState(title: String(localized: "no plugins"), detail: String(localized: "none are installed on the mac"))
                 } else {
@@ -32,7 +33,7 @@ struct PluginsView: View {
                     }
                     .tile()
                 }
-                Hint(text: String(localized: "installing and configuring plugins runs their own commands, so it stays on the mac (rove plugin …)"))
+                Hint(text: String(localized: "installing and configuring other plugins runs their own commands, so it stays on the mac (rove plugin …)"))
             }
         }
         .task { await load() }
@@ -56,10 +57,70 @@ struct PluginsView: View {
     private func load() async {
         do {
             state = .loaded(try await model.client.request("plugins.list", as: PluginsPayload.self))
+            await model.mods.refresh()
             reloadError = nil
         } catch {
             if state.value == nil { state = .failed(error.localizedDescription) } else { reloadError = error.localizedDescription }
         }
+    }
+}
+
+/// Kanban and Issues: installing one runs nothing on the Mac, so the phone may do it.
+private struct BuiltinModsTile: View {
+    @Environment(AppModel.self) private var model
+    @State private var error: String?
+
+    var body: some View {
+        let mods = model.mods.mods
+        if !mods.isEmpty {
+            if let error { ErrorLine(text: error) }
+            VStack(spacing: 0) {
+                ForEach(Array(mods.enumerated()), id: \.element.id) { index, mod in
+                    if index > 0 { SettingsDivider() }
+                    BuiltinModRow(mod: mod) { toggle(mod) }
+                }
+            }
+            .tile()
+        }
+    }
+
+    private func toggle(_ mod: BuiltinMod) {
+        Task {
+            do {
+                try await model.mods.setInstalled(mod.id, !mod.installed)
+                error = nil
+            } catch {
+                self.error = error.localizedDescription
+            }
+        }
+    }
+}
+
+private struct BuiltinModRow: View {
+    var mod: BuiltinMod
+    var toggle: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(mod.name).font(Theme.mono(14, .medium)).foregroundStyle(mod.installed ? Theme.ink : Theme.muted)
+                Text(mod.installed ? String(localized: "first-party mod, installed") : String(localized: "first-party mod, not installed"))
+                    .font(Theme.mono(11)).foregroundStyle(mod.installed ? Theme.success : Theme.muted)
+                Text(mod.description).font(Theme.mono(12)).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button(action: toggle) {
+                Text(mod.installed ? String(localized: "uninstall") : String(localized: "install")).font(Theme.mono(12, .medium))
+                    .foregroundStyle(Theme.ink).padding(.horizontal, 10).frame(minHeight: 36).tile()
+            }
+            .buttonStyle(.pressable)
+            .accessibilityIdentifier("modToggle-\(mod.id)")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("modRow-\(mod.id)")
     }
 }
 

@@ -96,6 +96,7 @@ const MODULES = [
           ["MACHINES.md", "rove/machines"],
           ["IOS.md", "rove/ios"],
           ["WEB.md", "rove/web"],
+          ["DESKTOP.md", "rove/desktop"],
           ["WEIXIN.md", "rove/weixin"],
           ["themes.md", "rove/themes"],
           ["SESSIONS.md", "rove/sessions"],
@@ -112,7 +113,14 @@ const MODULES = [
       },
       {
         title: "Help",
-        pages: [["TROUBLESHOOTING.md", "rove/troubleshooting"]],
+        pages: [
+          ["TROUBLESHOOTING.md", "rove/troubleshooting"],
+          ["PRIVACY.md", "rove/privacy"],
+        ],
+      },
+      {
+        title: "Project",
+        pages: [["ROADMAP.md", "rove/roadmap"]],
       },
     ],
   },

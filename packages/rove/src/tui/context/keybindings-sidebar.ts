@@ -29,7 +29,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // The tree never folds, so `l` means "go in": on a tab row, enter its chat.
+    // `l` means "go in": open the row. Folding a parent is the row menu's `toggleFold` or a click on its glyph.
     id: "sidebar.tree.open",
     scope: "sidebar",
     keys: ["l", "space"],
@@ -88,7 +88,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
     scope: "sidebar",
     keys: ["d"],
     category: "Sidebar",
-    description: "Delete task (with confirm)",
+    description: "Remove session (with confirm)",
     hint: { keys: "d" },
   },
   {

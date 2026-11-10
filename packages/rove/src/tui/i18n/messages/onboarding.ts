@@ -19,7 +19,7 @@ export const en = {
   engineLegend: "enter continue · esc skip optional setup",
   quickStart: "Start a task with a prompt",
   quickIntent: "Creates an isolated worktree and branch. Use {key} for the full task dialog.",
-  tabShared: "Tabs share this task’s files",
+  tabShared: "New conversations share this task’s files",
   tabIsolated: "{key}: new task, isolated worktree",
 
   /** Dialog header */
@@ -27,21 +27,28 @@ export const en = {
   /** One-liner under the header: what Rove actually does, before any question. */
   subtitle: "Managed tasks get isolated worktrees and branches. Directory and project tasks reuse existing files.",
   /** Step 1 question; {shell} is the detected shell name (zsh/bash/fish) */
-  completionsQuestion: "Optional: install shell completions for {shell}?",
+  completionsLabel: "Shell completions for {shell}",
   /** Step 1 explanation */
   completionsExplain: "Tab-completes rove subcommands. One line is added to your shell config.",
   /** Step 2 question */
-  skillQuestion: "Optional: install the Rove agent skill?",
+  skillLabel: "Rove agent skill",
   /** Step 2 explanation */
   skillExplain:
-    "Not needed for your first tasks. After your first result, run `rove skill install` anytime. Choosing Yes queues installation until you quit Rove.",
+    "Lets the coding agents on this machine drive Rove themselves: start tasks, read other sessions, message them.",
   /** Recommended option */
-  optionYes: "Yes",
+  optionYes: "Install",
+  /** Muted tag beside the skill step's Install option */
+  recommended: "recommended",
+  /** Step position beside the active question's title */
+  stepCounter: "{n} / {total}",
   /** Decline option */
   optionNo: "Not now",
   queued: "Queued — installs when you quit Rove",
+  /** Answered skill step, installed on the spot: {engines} lists where */
+  skillInstalled: "Installed for {engines}",
+  skillFailed: "Install failed: {reason}",
+  skillNoEngines: "No coding agent here takes the skill",
   skipped: "Skipped",
-  skillSucceeded: "✓ Rove agent skill installed",
   installFailed: "! {item} failed: {reason}. Retry: {command} (or quit Rove again).",
   /** Key legend at the bottom of the dialog */
   legend: "↑↓ select · enter confirm · esc close",
@@ -63,13 +70,6 @@ export const en = {
   appliedCompletions: "✓ completions hooked into {path} (takes effect in new shells)",
   /** Deferred install / `completions --install`: {path} already had a completions block — nothing written */
   keptCompletions: "· {path} already has a completions block — left untouched",
-  /** Deferred install: about to run the skill installer; {command} is the npx command */
-  installingSkill: "installing the Rove agent skill ({command})…",
-  /** Deferred install: skill installer failed; {command} retries it */
-  skillFailed: "! skill install failed — retry with `{command}`",
-  /** Deferred install: the skill installer needs Node/npx, which isn't installed */
-  skillNeedsNode:
-    "! agent skill needs `npx` (part of Node.js) — install Node from https://nodejs.org, then run `{command}`",
 }
 
 export const zh: typeof en = {
@@ -85,20 +85,24 @@ export const zh: typeof en = {
   engineLegend: "enter 继续 · esc 跳过可选设置",
   quickStart: "输入提示词开始任务",
   quickIntent: "创建独立 worktree 和分支。按 {key} 打开完整任务对话框。",
-  tabShared: "标签页共享当前任务的文件",
+  tabShared: "新对话共享当前任务的文件",
   tabIsolated: "{key}：新建任务，使用独立 worktree",
 
   title: "欢迎使用 Rove",
   subtitle: "托管任务使用独立的 worktree 和分支；目录与项目任务复用现有文件。",
-  completionsQuestion: "可选：为 {shell} 安装 shell 补全吗？",
+  completionsLabel: "{shell} 的 shell 补全",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
-  skillQuestion: "可选：安装 Rove agent skill 吗？",
-  skillExplain: "首次任务无需安装。得到第一个结果后，可随时运行 `rove skill install`。选择安装后将在退出 Rove 时执行。",
+  skillLabel: "Rove agent skill",
+  skillExplain: "让本机的编码 agent 自己操作 Rove：开任务、读其他会话、给它们发消息。",
   optionYes: "安装",
+  recommended: "推荐",
+  stepCounter: "{n} / {total}",
   optionNo: "跳过",
   queued: "已排队 — 退出 Rove 后安装",
+  skillInstalled: "已为 {engines} 安装",
+  skillFailed: "安装失败：{reason}",
+  skillNoEngines: "这台机器上没有能装 skill 的编码 agent",
   skipped: "已跳过",
-  skillSucceeded: "✓ Rove agent skill 已安装",
   installFailed: "! {item} 安装失败：{reason}。重试：{command}（或再次退出 Rove）。",
   legend: "↑↓ 选择 · enter 确认 · esc 关闭",
   keysTitle: "键盘基础",
@@ -110,8 +114,4 @@ export const zh: typeof en = {
   keysLegend: "enter 完成",
   appliedCompletions: "✓ 补全已写入 {path}（新开的 shell 生效）",
   keptCompletions: "· {path} 里已有补全配置 — 未改动",
-  installingSkill: "正在安装 Rove agent skill（{command}）…",
-  skillFailed: "! skill 安装失败 — 可用 `{command}` 重试",
-  skillNeedsNode:
-    "! agent skill 需要 `npx`（Node.js 的一部分）— 请从 https://nodejs.org 安装 Node，然后运行 `{command}`",
 }

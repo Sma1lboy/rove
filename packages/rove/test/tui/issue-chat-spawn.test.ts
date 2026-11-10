@@ -79,6 +79,23 @@ describe("buildIssueChatBackgroundSpawn", () => {
     expect(spawn.command[2]).toContain(`--session-id ${tab.sessionId}`)
   })
 
+  it("a child of the main task launches with the project prompt, not the worktree one", () => {
+    const spawn = buildIssueChatBackgroundSpawn({
+      issue: story,
+      taskId: "kid-1",
+      repoRoot: "/repo",
+      worktreePath: "/repo",
+      vendor: "claude",
+      api: "rove api",
+      kind: "dir",
+      prompt: "Work on the project checkout: story #7",
+      shell: "/bin/zsh",
+    })
+    expect(spawn.ptyKey).toBe("kid-1::tab-1")
+    expect(spawn.command[2] ?? "").toContain("Work on the project checkout: story #7")
+    expect(spawn.command[2] ?? "").not.toContain("Work on user story #7: Fix the flaky poll")
+  })
+
   // Issue #25: kimi's positional CLI slot is a subcommand, so the story
   // prompt in the argv kills the launch (`Unknown command`). For a
   // paste-delivery vendor the composition must surface the prompt as

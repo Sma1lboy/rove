@@ -12,8 +12,13 @@
 import { installedEngineIds } from "@sma1lboy/rove/src/engine/account-detect.ts"
 import { type EngineStatus, detectEngineStatuses } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { type EngineIntegration, engineIntegrations } from "@sma1lboy/rove/src/engine/integration-status.ts"
-import { defaultEngineCommand, engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { type StateSnapshot, loadStateFile, patchStateFile } from "@sma1lboy/rove/src/state/store.ts"
+import {
+  defaultEngineCommand,
+  engineDisplayName,
+  engineRenamedFrom,
+} from "@sma1lboy/rove/src/engine/interactive-command.ts"
+import { installSkillErrors, missingSkillNames } from "@sma1lboy/rove/src/lib/skill-install.ts"
+import { type StateSnapshot, loadStateFile, updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { ALL_VENDORS, isBuiltinVendor } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { bool, text } from "./args.ts"
@@ -23,26 +28,41 @@ const NAME_MAX = 60
 
 export interface EngineDeps {
   readonly load: () => StateSnapshot
-  /** `undefined` values delete their key (patchStateFile's contract). */
-  readonly patch: (patch: StateSnapshot) => void
+  /**
+   * Locked fresh read, then the patch `compute` derives from it (`undefined` deletes a key).
+   * A write built from an earlier `load` would erase what another client just switched.
+   */
+  readonly update: (compute: (fresh: StateSnapshot) => StateSnapshot) => void
   /** Contrib engines whose CLI is on PATH and plugin-registered engines. */
   readonly installed: () => Promise<readonly string[]>
   readonly statuses: (ids: readonly string[]) => Promise<readonly EngineStatus[]>
   readonly integrations: (ids: readonly string[]) => readonly EngineIntegration[]
   readonly engineName: (id: string) => string
   readonly defaultCommand: (id: string) => readonly string[]
+  /** Copy the Rove skill where it is missing; the failure line, or null. */
+  readonly installSkill: () => string | null
+  /** Display names of engines Rove can run here with no skill copy. */
+  readonly skillMissing: () => Promise<readonly string[]>
 }
 
 export const realDeps: EngineDeps = {
   load: loadStateFile,
-  patch: (patch) => {
-    patchStateFile(patch)
+  update: (compute) => {
+    updateStateFile((state) => {
+      for (const [key, value] of Object.entries(compute(state))) {
+        if (value === undefined) delete state[key]
+        else state[key] = value
+      }
+      return undefined
+    })
   },
   installed: installedEngineIds,
   statuses: detectEngineStatuses,
   integrations: engineIntegrations,
   engineName: engineDisplayName,
   defaultCommand: defaultEngineCommand,
+  installSkill: () => installSkillErrors(),
+  skillMissing: async () => missingSkillNames(await installedEngineIds()),
 }
 
 function strings(state: StateSnapshot, key: string): string[] {
@@ -127,6 +147,8 @@ export function createEngineOps(deps: EngineDeps): OpTable {
               // The program only: arguments may carry keys.
               binary: command[0] ?? null,
               customized: override.length > 0 || trimmed(state, `engineName.${id}`).length > 0,
+              // The registry's name when the user renamed this engine, for a muted subtitle.
+              renamedFrom: engineRenamedFrom(id, trimmed(state, `engineName.${id}`)) ?? null,
               protocol: trimmed(state, `engineProtocol.${id}`) || null,
               binaryFound: status ? status.binary.found : null,
               binaryPath: status?.binary.found ? (status.binary.path ?? null) : null,
@@ -141,9 +163,28 @@ export function createEngineOps(deps: EngineDeps): OpTable {
               markers: integration?.markers ?? false,
               screen: integration?.screen ?? false,
               ...(integration?.configIssue ? { configIssue: integration.configIssue } : {}),
+              // "unsupported": not set up here, or the engine takes no skill.
+              skill: integration?.skillDir ? integration.skillState : "unsupported",
             }
           }),
         }
+      },
+    },
+    "skill.install": {
+      kind: "write",
+      // Writes into each engine's own config dir, like the hooks install.
+      destructive: true,
+      wraps: "installSkillErrors (lib/skill-install.ts), as Settings → Engines Rove agent skill",
+      async run() {
+        return { error: deps.installSkill() }
+      },
+    },
+    "skill.missing": {
+      kind: "read",
+      destructive: false,
+      wraps: "missingSkillNames (lib/skill-install.ts): runnable engines with no skill copy, for the persistent banner",
+      async run() {
+        return { engines: await deps.skillMissing() }
       },
     },
     "engine.setEnabled": {
@@ -155,13 +196,12 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         const ids = await engineIds(deps, state)
         const id = listedId(args, ids)
         const enabled = bool(args, "enabled")
-        const off = strings(state, "disabledEngineIds")
-        if (enabled) {
-          deps.patch({ disabledEngineIds: without(off, id) })
-        } else if (!off.includes(id)) {
-          const handoff = afterLeaving(state, ids, id, off)
-          deps.patch({ disabledEngineIds: [...off, id], ...handoff })
-        }
+        deps.update((fresh) => {
+          const off = strings(fresh, "disabledEngineIds")
+          if (enabled) return { disabledEngineIds: without(off, id) }
+          if (off.includes(id)) return {}
+          return { disabledEngineIds: [...off, id], ...afterLeaving(fresh, ids, id, off) }
+        })
         return { id, enabled }
       },
     },
@@ -176,9 +216,11 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         if (!canBeDefault(state, id)) {
           throw new BridgeError("BAD_ARGS", `${id} cannot be the default; only built-in and custom engines can`)
         }
-        const off = strings(state, "disabledEngineIds")
         // A switched-off default would never be offered, so choosing it switches it back on.
-        deps.patch({ defaultVendor: id, ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}) })
+        deps.update((fresh) => {
+          const off = strings(fresh, "disabledEngineIds")
+          return { defaultVendor: id, ...(off.includes(id) ? { disabledEngineIds: without(off, id) } : {}) }
+        })
         return { id }
       },
     },
@@ -194,7 +236,7 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         if (raw.length > NAME_MAX || /[\u0000-\u001f\u007f]/.test(raw)) {
           throw new BridgeError("BAD_ARGS", `name must be at most ${NAME_MAX} printable characters`)
         }
-        deps.patch({ [`engineName.${id}`]: raw.length > 0 ? raw : undefined })
+        deps.update(() => ({ [`engineName.${id}`]: raw.length > 0 ? raw : undefined }))
         return { id, name: raw.length > 0 ? raw : deps.engineName(id) }
       },
     },
@@ -207,22 +249,23 @@ export function createEngineOps(deps: EngineDeps): OpTable {
         const ids = await engineIds(deps, state)
         const id = listedId(args, ids)
         const clear = { [`engineCommand.${id}`]: undefined, [`engineName.${id}`]: undefined }
-        const custom = strings(state, "customEngineIds")
-        if (!custom.includes(id)) {
+        let removed = false
+        deps.update((fresh) => {
+          const custom = strings(fresh, "customEngineIds")
           // Built-in and detected engines only ever lose their overrides.
-          deps.patch(clear)
-          return { id, removed: false }
-        }
-        const off = strings(state, "disabledEngineIds")
-        const handoff = off.includes(id) ? {} : afterLeaving(state, ids, id, off)
-        deps.patch({
-          ...clear,
-          [`engineProtocol.${id}`]: undefined,
-          customEngineIds: without(custom, id),
-          disabledEngineIds: without(off, id),
-          ...handoff,
+          if (!custom.includes(id)) return clear
+          removed = true
+          const off = strings(fresh, "disabledEngineIds")
+          const handoff = off.includes(id) ? {} : afterLeaving(fresh, ids, id, off)
+          return {
+            ...clear,
+            [`engineProtocol.${id}`]: undefined,
+            customEngineIds: without(custom, id),
+            disabledEngineIds: without(off, id),
+            ...handoff,
+          }
         })
-        return { id, removed: true }
+        return { id, removed }
       },
     },
   }

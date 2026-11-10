@@ -310,10 +310,10 @@ export function tabPtyKey(taskId: string, tabId: string): string {
 }
 
 /** A tab's actual PTY key: a viewport tab (see {@link EngineTab.ptyTask})
- *  attaches to the referenced task's FIRST engine session; every other tab
- *  keys under its own task. */
+ *  attaches to the referenced task's engine session (its `tab-1` unless the
+ *  reference names a tab); every other tab keys under its own task. */
 export function tabPtyKeyFor(taskId: string, tab: TerminalTab): string {
-  if (tab.kind === "engine" && tab.ptyTask) return tabPtyKey(tab.ptyTask.id, "tab-1")
+  if (tab.kind === "engine" && tab.ptyTask) return tabPtyKey(tab.ptyTask.id, tab.ptyTask.tabId ?? "tab-1")
   return tabPtyKey(taskId, tab.id)
 }
 

@@ -6,17 +6,19 @@
  */
 
 import { connectOrStartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { CHANNEL_NAMES } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { queryCellPixelSize } from "../../tui/lib/cell-pixel-size"
 import { createTerminalGraphics, installTerminalGraphics } from "../../tui/lib/terminal-graphics"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { bootPaneHost } from "../lib/host-boot"
-import { registerBundledPlugins } from "../pages/bundled-pages"
+import { followBundledPlugins, registerBundledPlugins } from "../pages/bundled-pages"
 import { registerCorePages } from "../pages/core-pages"
 import { loadPluginPages } from "../pages/load-plugin-pages"
 import { registerModsPage } from "../pages/mods-pages"
 import { WorkspaceRoot } from "./host"
 import type { BootDialogs } from "./host-pages"
+import { followRemoteActivity } from "./row-status-sync"
 
 export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> {
   await bootPaneHost({
@@ -28,7 +30,10 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
       // (the daemon ignores a pane's).
       const cellPixelSize = await queryCellPixelSize({ stdin: process.stdin, stdout: process.stdout })
       const client = await connectOrStartDaemon()
-      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize })
+      // No `state`: UiPrefsSync's own connection follows it, and every quiet KV
+      // flush (one per task switch) would otherwise also land here unread.
+      const channels = CHANNEL_NAMES.filter((name) => name !== "state")
+      const orchestrator = new RemoteOrchestrator(client, { role: "gui", cellPixelSize, channels })
       await orchestrator.init()
       process.env.ROVE_DAEMON_SOCKET_PATH = client.socketPath
       // Pane emulators read this lazily: the cell size answers `CSI 16 t`, and the
@@ -41,17 +46,18 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           write: (data) => orchestrator.writeGraphics(data),
         }),
       )
-      // Other machines running Rove. `attach()` is sync and a no-op when none
-      // are registered; lazy imports keep machine-free installs from loading any of it.
-      const { MachineHub } = await import("../../machines/hub.ts")
+      // Other machines running Rove, as the daemon's hub publishes them.
+      const { MachineFeed } = await import("../../machines/feed.ts")
       const { setMachineHub } = await import("../../machines/hub-singleton.ts")
-      const machines = new MachineHub(orchestrator)
-      machines.attach()
+      const machines = new MachineFeed(orchestrator)
       setMachineHub(machines)
+      // Other machines' tasks have no row status here; build it from the hub's relay.
+      const stopRemoteStatus = followRemoteActivity(machines.liveSignal())
       // Rail pages: the host's own now, installed plugins' as their modules load.
       registerCorePages()
       const stopModsPage = registerModsPage(orchestrator)
       registerBundledPlugins()
+      const stopBundledPlugins = followBundledPlugins()
       void loadPluginPages()
       return {
         root: () => (
@@ -62,7 +68,9 @@ export async function startWorkspaceHost(opts: BootDialogs = {}): Promise<void> 
           />
         ),
         onDestroy: () => {
+          stopBundledPlugins()
           stopModsPage()
+          stopRemoteStatus()
           setMachineHub(null)
           machines.dispose()
           orchestrator.dispose()

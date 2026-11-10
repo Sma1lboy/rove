@@ -51,12 +51,17 @@ export type LiveEngineOpts = {
    * ON is immediate: a vendor needs positive argv evidence.
    */
   releaseAfterMisses?: number
+  /** Longest a quiet tick may skip the walk; see `walkIsCurrent`. */
+  maxQuietSkipMs?: number
+  now?: () => number
 }
 
 export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
   const entries = opts.entries ?? (() => getDefaultPtyRegistry().entries())
   const snapshot = opts.snapshot ?? descendantSnapshot
   const releaseAfterMisses = Math.max(1, opts.releaseAfterMisses ?? 2)
+  const maxQuietSkipMs = opts.maxQuietSkipMs ?? 10_000
+  const now = opts.now ?? Date.now
   const vendors = new Map<string, VendorId>()
   /** Consecutive engine-free walks per lit key — the OFF-edge debounce. */
   const misses = new Map<string, number>()
@@ -66,26 +71,60 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
   let auxPids: ReadonlyMap<string, number> = new Map()
   const listeners = new Set<() => void>()
   let disposed = false
+  /** The last successful walk: when, which pids, and each PTY's output stamp before it. */
+  let lastWalk: { at: number; pids: Map<string, number>; out: Map<string, number | null> } | null = null
 
   const emit = (): void => {
     for (const l of listeners) l()
   }
 
+  /** Output stamp per registry key; null when that PTY can't report one. */
+  const outputStamps = (): Map<string, number | null> => {
+    const out = new Map<string, number | null>()
+    for (const [key, pty] of entries()) out.set(key, pty.lastOutputAtMs ? pty.lastOutputAtMs() : null)
+    return out
+  }
+
+  /** Every key to walk and its pid; `live` also holds keys with no walkable pid yet. */
+  const collectPids = (): { pids: Map<string, number>; live: Set<string> } => {
+    const pids = new Map<string, number>()
+    const live = new Set<string>()
+    for (const [key, pid] of auxPids) {
+      live.add(key)
+      pids.set(key, pid)
+    }
+    for (const [key, pty] of entries()) {
+      live.add(key)
+      const pid = pty.shellPid ?? null
+      // Registry pid outranks the host's, but a null (unspawned) one must not erase it.
+      if (pid !== null) pids.set(key, pid)
+    }
+    return { pids, live }
+  }
+
+  /**
+   * An engine that starts or exits under a shell prints, so a walk is still
+   * current while the same pids printed nothing since. Keys with no output
+   * stamp (aux-only hosted tabs, stamp-less backends) and a pending OFF-edge
+   * miss always re-walk; `maxQuietSkipMs` bounds a silent start.
+   */
+  const walkIsCurrent = (): boolean => {
+    if (!lastWalk || misses.size > 0 || now() - lastWalk.at >= maxQuietSkipMs) return false
+    const { pids } = collectPids()
+    if (pids.size !== lastWalk.pids.size) return false
+    for (const [key, pid] of pids) if (lastWalk.pids.get(key) !== pid) return false
+    const registry = new Map(entries())
+    for (const key of pids.keys()) {
+      const pty = registry.get(key)
+      if (!pty?.lastOutputAtMs || pty.lastOutputAtMs() !== lastWalk.out.get(key)) return false
+    }
+    return true
+  }
+
   const store: LiveEngineStore = {
     async probe() {
       if (disposed) return
-      const pids = new Map<string, number>()
-      const live = new Set<string>()
-      for (const [key, pid] of auxPids) {
-        live.add(key)
-        pids.set(key, pid)
-      }
-      for (const [key, pty] of entries()) {
-        live.add(key)
-        const pid = pty.shellPid ?? null
-        // Registry pid outranks the host's, but a null (unspawned) one must not erase it.
-        if (pid !== null) pids.set(key, pid)
-      }
+      const { pids, live } = collectPids()
       let changed = false
       // No walkable pid → no identity and no answer ("can't look", not "empty").
       for (const key of [...vendors.keys()]) {
@@ -98,15 +137,18 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
         if (live.has(key) && pids.has(key)) continue
         answered.delete(key)
       }
+      const out = outputStamps()
       if (pids.size > 0) {
         let rows: ReturnType<typeof parsePsSnapshot>
         try {
           rows = parsePsSnapshot(await snapshot([...pids.values()]))
         } catch {
+          lastWalk = null
           if (changed) emit()
           return // an identity we can't read leaves the last one standing
         }
         if (disposed) return
+        lastWalk = { at: now(), pids, out }
         for (const [key, pid] of pids) {
           const vendor = foregroundEngineIn(rows, pid)?.vendor ?? null
           answered.add(key)
@@ -159,7 +201,7 @@ export function createLiveEngines(opts: LiveEngineOpts = {}): LiveEngineStore {
   }
 
   const handle = setInterval(() => {
-    void store.probe()
+    if (!walkIsCurrent()) void store.probe()
   }, opts.intervalMs ?? 2000)
   handle.unref?.()
 

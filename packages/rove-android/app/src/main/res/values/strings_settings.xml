@@ -73,8 +73,8 @@
     <string name="settings_feedback_hint">it is posted publicly in the rove repo, using the github login on your mac</string>
     <string name="settings_feedback_send">send feedback</string>
     <string name="settings_feedback_confirm_title">post this feedback?</string>
-    <string name="settings_feedback_confirm_prose">Posts a public GitHub Discussion in the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
-    <string name="settings_feedback_post">post discussion</string>
+    <string name="settings_feedback_confirm_prose">Files a public GitHub issue on the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
+    <string name="settings_feedback_post">file issue</string>
     <string name="settings_feedback_sent">sent</string>
     <string name="settings_feedback_again">write another</string>
 
@@ -84,9 +84,25 @@
     <string name="settings_tasks">tasks</string>
     <string name="settings_about_language">language follows android settings</string>
     <string name="settings_about_mac_side">restarting the daemon, resetting ui state and plugin installs are mac-side actions — the phone talks to the daemon through the bridge and has no way back if it goes down</string>
+    <string name="settings_privacy">privacy policy</string>
     <string name="settings_licenses">licenses</string>
     <string name="settings_license_maple" translatable="false">Maple Mono</string>
     <string name="settings_license_jetbrains" translatable="false">JetBrains Mono</string>
     <string name="settings_license_xterm" translatable="false">xterm.js</string>
     <string name="settings_license_addon_fit" translatable="false">xterm addon-fit</string>
+    <string name="settings_updates">updates</string>
+    <string name="settings_update_check">check for updates</string>
+    <string name="settings_update_checking">checking…</string>
+    <string name="settings_update_available">v%1$s available</string>
+    <string name="settings_update_current">No newer release. Nothing to install.</string>
+    <string name="settings_update_unknown">The Mac could not reach the registry. Check its connection, then retry.</string>
+    <string name="settings_update_command">Run `rove update` on the Mac to install it.</string>
+    <string name="settings_update_open_release">open release</string>
+    <string name="settings_channel">release channel</string>
+    <string name="settings_channel_latest">stable</string>
+    <string name="settings_channel_next">next</string>
+    <string name="settings_channel_nightly">nightly</string>
+    <string name="settings_channel_hint">Stable is the default channel; next previews the coming release; nightly is built from main every day.</string>
+    <string name="settings_update_notify">notify on updates</string>
+    <string name="settings_update_notify_hint">New versions on this channel. Off hides the update chip; checking by hand still reports.</string>
 </resources>

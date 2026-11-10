@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { AccessDenied, type AccessVerifier } from "../src/cf-access.ts"
 import { TaskFeed } from "../src/feed.ts"
 import { GATE_OPS } from "../src/ops/gates.ts"
@@ -7,7 +6,17 @@ import type { OpTable } from "../src/ops/types.ts"
 import type { TasksPayload } from "../src/protocol.ts"
 import type { RoveOps } from "../src/rove-ops.ts"
 import { TabFeed } from "../src/tab-feed.ts"
-import { AUTH, ROWS, TOKEN, connect, fakeOps, start, stopServers, upgradeStatus } from "./server-harness.ts"
+import {
+  AUTH,
+  type FakePty,
+  ROWS,
+  TOKEN,
+  connect,
+  fakeOps,
+  start,
+  stopServers,
+  upgradeStatus,
+} from "./server-harness.ts"
 
 afterEach(stopServers)
 describe("auth", () => {
@@ -54,43 +63,6 @@ describe("cloudflare access layer", () => {
   })
 })
 
-describe("api.invoke", () => {
-  test("serves the verb contract: hello names its version, a refusal keeps its recovery data, a destructive verb is audited", async () => {
-    const lines: string[] = []
-    const invoked: Array<[string, unknown]> = []
-    const h = start({
-      log: (line) => lines.push(line),
-      invoke: async (verb, params) => {
-        invoked.push([verb, params])
-        if (verb === "land") {
-          return {
-            apiVersion: ROVE_API_VERSION,
-            ok: false,
-            error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
-          }
-        }
-        return { apiVersion: ROVE_API_VERSION, ok: true, result: { tasks: [] } }
-      },
-    })
-    const c = await connect(h.url, AUTH)
-    lines.length = 0
-    expect((await c.call("hello")).result).toMatchObject({ apiVersion: ROVE_API_VERSION })
-    expect(await c.call("api.invoke", { verb: "list", params: { repo: "/r" } })).toMatchObject({
-      ok: true,
-      result: { tasks: [] },
-    })
-    expect(await c.call("api.invoke", { verb: "land", params: { "task-id": "T1" } })).toMatchObject({
-      ok: false,
-      error: { code: "LAND_CONFLICT", message: "conflict", hint: "rebase first", files: ["a.ts"] },
-    })
-    expect(invoked).toEqual([
-      ["list", { repo: "/r" }],
-      ["land", { "task-id": "T1" }],
-    ])
-    expect(lines).toEqual(["[rove-bridge] api.invoke land task-id=T1"])
-  })
-})
-
 describe("op allowlist", () => {
   test("an op outside the allowlist is refused by name, not passed to the daemon", async () => {
     const h = start()
@@ -107,35 +79,6 @@ describe("op allowlist", () => {
     c.ws.send("{not json")
     expect(JSON.parse(await bad.promise).error.code).toBe("BAD_FRAME")
     expect((await c.call("hello")).ok).toBe(true)
-  })
-
-  test("a registered area op runs on the authenticated socket; a destructive one is audited by id, never the token", async () => {
-    const lines: string[] = []
-    const calls: string[] = []
-    const areaOps: OpTable = {
-      "demo.read": { kind: "read", destructive: false, wraps: "test", run: async () => ({ ok: 1 }) },
-      "demo.remove": {
-        kind: "write",
-        destructive: true,
-        wraps: "test",
-        run: async (args) => {
-          calls.push(String(args.taskId))
-          return {}
-        },
-      },
-    }
-    const h = start({ areaOps, log: (line) => lines.push(line) })
-    expect(await upgradeStatus(h.url)).toBe(401)
-    const c = await connect(h.url, AUTH)
-    lines.length = 0 // drop the refused-upgrade line above
-    expect((await c.call("demo.read")).result).toEqual({ ok: 1 })
-    expect(lines).toHaveLength(0)
-    await c.call("demo.remove", { taskId: "T7", secret: "s3cret" })
-    expect(calls).toEqual(["T7"])
-    expect(lines).toEqual(["[rove-bridge] demo.remove taskId=T7"])
-    expect(lines.join("\n")).not.toContain(TOKEN)
-    expect(lines.join("\n")).not.toContain("s3cret")
-    expect((await c.call("demo.other")).error?.code).toBe("UNKNOWN_OP")
   })
 })
 
@@ -202,10 +145,11 @@ describe("task feed", () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     const first = await c.call("tasks.subscribe")
-    expect(first.result).toEqual(ROWS)
+    expect(first.result).toEqual({ ...ROWS, rev: 1 })
     const row = {
       id: "T1",
       title: "t",
+      label: "t",
       branch: "b",
       repo: "/r",
       kind: "task",
@@ -240,6 +184,7 @@ describe("task feed", () => {
     const row = {
       id: "T1",
       title: "t",
+      label: "t",
       branch: "b",
       repo: "/r",
       kind: "task",
@@ -324,13 +269,97 @@ describe("terminal forwarding", () => {
     expect(h.pty.calls.find(([n]) => n === "pty.open")?.[1]).toMatchObject({ key: "T1::tab-1", cwd: "/wt/shown" })
   })
 
-  test("attach never spawns: an unknown tab is refused and a restored corpse is only peeked", async () => {
+  test("revive reopens the tab's own session, or the one a viewport tab shows, and never spawns through the PTY connection", async () => {
+    const revived: Array<[string, string]> = []
+    const ops = {
+      ...fakeOps(),
+      viewedSession: (taskId: string, tabId: string) =>
+        taskId === "MAIN" && tabId === "tab-2" ? { taskId: "T1", tabId: "tab-1", cwd: "/wt/shown" } : null,
+      reviveTab: async (taskId: string, tabId: string) => {
+        revived.push([taskId, tabId])
+        return { revived: true, resumed: true }
+      },
+    }
+    const h = start({ ops })
+    const c = await connect(h.url, AUTH)
+
+    expect((await c.call("term.revive", { taskId: "T1", tabId: "tab-3" })).result).toEqual({
+      revived: true,
+      resumed: true,
+    })
+    await c.call("term.revive", { taskId: "MAIN", tabId: "tab-2" })
+
+    expect(revived).toEqual([
+      ["T1", "tab-3"],
+      ["T1", "tab-1"],
+    ])
+    expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
+  })
+
+  test("revive with restartExited asks for a relaunch of a session whose engine is gone", async () => {
+    const asked: Array<boolean | undefined> = []
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (_taskId: string, _tabId: string, restartExited?: boolean) => {
+        asked.push(restartExited)
+        return { revived: true, resumed: false }
+      },
+    }
+    const c = await connect(start({ ops }).url, AUTH)
+
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1", restartExited: true })
+    await c.call("term.revive", { taskId: "T1", tabId: "tab-1" })
+
+    expect(asked).toEqual([true, false])
+  })
+
+  test("attach reopens a gone or frozen tab before attaching it live, as a TUI attach does", async () => {
+    const revived: string[] = []
+    const host: { pty?: FakePty } = {}
+    const ops = {
+      ...fakeOps(),
+      reviveTab: async (taskId: string, tabId: string) => {
+        const key = `${taskId}::${tabId}`
+        revived.push(key)
+        const pty = host.pty as FakePty
+        pty.sessions = [...pty.sessions.filter((s) => s.key !== key), { key, alive: true }]
+        return { revived: true, resumed: true }
+      },
+    }
+    const h = start({ ops })
+    host.pty = h.pty
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).result).toMatchObject({
+      stream: "T1::tab-9",
+      alive: true,
+    })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })).result).toMatchObject({ alive: true })
+    // A live tab is never revived; a split pane attaches as it is.
+    await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-7", leafId: "leaf-2" })).error?.code).toBe(
+      "TAB_NOT_LIVE",
+    )
+    expect(revived).toEqual(["T1::tab-9", "T1::tab-2"])
+  })
+
+  test("when the reopen fails, attach falls back: an unknown tab is refused and a restored corpse is only peeked", async () => {
     const h = start()
     const c = await connect(h.url, AUTH)
     expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-9" })).error?.code).toBe("TAB_NOT_LIVE")
     const frozen = await c.call("term.attach", { taskId: "T1", tabId: "tab-2" })
-    expect(frozen.result).toMatchObject({ alive: false, replay: Buffer.from("frozen").toString("base64") })
+    expect(frozen.result).toMatchObject({
+      alive: false,
+      restored: true,
+      replay: Buffer.from("frozen").toString("base64"),
+    })
     expect(h.pty.calls.some(([n]) => n === "pty.open")).toBe(false)
+  })
+
+  test("with no PTY host process every tab is not live, so a client can offer to reopen it", async () => {
+    const h = start()
+    h.pty.hostDown = true
+    const c = await connect(h.url, AUTH)
+    expect((await c.call("term.attach", { taskId: "T1", tabId: "tab-1" })).error?.code).toBe("TAB_NOT_LIVE")
   })
 
   test("fit-to-phone attach carries the phone's size; closing the socket releases the PTY connection", async () => {

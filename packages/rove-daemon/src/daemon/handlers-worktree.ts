@@ -10,11 +10,12 @@
  * remote (`ssh://…`) project would need the git/fs calls over its `ExecHost`.
  */
 
+import { workspaceCapabilities } from "../workspace.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { matchTaskByWorktreePath } from "./cwd-task.ts"
+import { tasksAtWorktreePath } from "./cwd-task.ts"
 import { optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
-import { serializeTask } from "./protocol.ts"
+import { serializeTask } from "./serialize-task.ts"
 
 /**
  * Sentinel in `worktree.remove`'s kind refusal. Callers discriminate on the
@@ -22,6 +23,9 @@ import { serializeTask } from "./protocol.ts"
  * in the CLI parses the `CODE: rest` shape.
  */
 export const NOT_A_ROVE_WORKTREE_CODE = "NOT_A_ROVE_WORKTREE"
+
+/** Sentinel in `worktree.remove`'s refusal to unlink a directory that more than one task runs in. */
+export const WORKTREE_SHARED_CODE = "WORKTREE_SHARED"
 
 export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -78,22 +82,32 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // Ordering, not gating: the page's delete is optimistic, and a dead
       // session throws like a stuck one. Logged, then the removal proceeds.
       const tasks = ctx.orch ? ctx.orch.listTasks() : []
-      const taskId = matchTaskByWorktreePath(tasks, path)
+      // The owner first, then every child sharing the directory.
+      const holderIds = tasksAtWorktreePath(tasks, path)
+      const taskId = holderIds[0]
       // A `dir` task's path is the user's own directory and a `main` task's
       // the project checkout; removing either deletes files Rove never made.
       // Sibling destructive paths refuse these kinds too (`deleteTask`,
       // `ensureWorktree`, `land`), and `clearWorktreePath` skips them.
-      const kind = taskId ? tasks.find((t) => t.id === taskId)?.kind : undefined
-      if (kind === "dir" || kind === "main") {
+      const borrowed = holderIds
+        .map((id) => tasks.find((t) => t.id === id))
+        .find((t) => t && !workspaceCapabilities(t).ownsDirectory)
+      if (borrowed) {
         throw new Error(
           `${NOT_A_ROVE_WORKTREE_CODE}: ${path} is ${
-            kind === "dir" ? "a directory task's own directory" : "the project's own checkout"
+            borrowed.kind === "dir" ? "a directory task's own directory" : "the project's own checkout"
           }, not a Rove-created worktree — refusing to delete it`,
         )
       }
-      if (taskId) {
+      // Children still live in it: removing the directory would pull it out from under their engines.
+      if (holderIds.length > 1 && !force) {
+        throw new Error(
+          `${WORKTREE_SHARED_CODE}: ${path} is the directory of ${holderIds.length} tasks (${holderIds.join(", ")}) — delete the children first, or force the removal`,
+        )
+      }
+      for (const id of holderIds) {
         await ctx.runtime
-          .tearDownTaskSession(taskId)
+          .tearDownTaskSession(id)
           .catch((err) => logDaemonError("worktree-remove-session-teardown", err))
       }
       const residue = await ctx.runtime.removeWorktree(path, force)

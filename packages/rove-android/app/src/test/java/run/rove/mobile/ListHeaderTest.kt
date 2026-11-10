@@ -7,6 +7,16 @@ import org.junit.Test
 import run.rove.mobile.domain.*
 
 class ListHeaderTest {
+    @Test fun routineRunsStayOffTheListAndProjectFilter() {
+        val task = row("task", "/work/project")
+        val routine = row("routine", "/work/nightly").copy(routine = true)
+        val rows = listOf(task, routine)
+        assertEquals(listOf("/work/project"), TaskListLogic.repos(rows))
+        assertEquals(listOf(task), TaskListLogic.filtered(rows, null))
+        assertEquals(emptyList<TaskRow>(), TaskListLogic.filtered(rows, routine.repo))
+        assertEquals(TaskListEmpty.Welcome, TaskListLogic.emptiness(true, TaskListLogic.visible(listOf(routine)).size, 0))
+    }
+
     private fun row(id: String, repo: String, title: String = id, kind: String = "task", group: String = "idle",
                     rank: Double = 0.0, order: Int? = null, branch: String = "") =
         TaskRow(id = id, title = title, repo = repo, kind = kind, group = group, rank = rank, order = order, branch = branch)

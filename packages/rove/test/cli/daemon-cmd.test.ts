@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   daemonRequest: vi.fn(),
   daemonClose: vi.fn(),
   connectOrStartDaemon: vi.fn(),
+  restartDaemon: vi.fn(),
   probeDaemonSocket: vi.fn(),
   stopDaemonProcess: vi.fn(),
   installDaemonCrashHandlers: vi.fn(),
@@ -33,7 +34,12 @@ vi.mock("@sma1lboy/rove-daemon/client/daemon-process", async (importOriginal) =>
   // `daemonSpawnReason` stays REAL: it reads the env the spawner stamped, and
   // a stub would make the boot-line assertions test nothing.
   const actual = await importOriginal<typeof import("@sma1lboy/rove-daemon/client/daemon-process")>()
-  return { ...actual, connectOrStartDaemon: mocks.connectOrStartDaemon, probeDaemonSocket: mocks.probeDaemonSocket }
+  return {
+    ...actual,
+    connectOrStartDaemon: mocks.connectOrStartDaemon,
+    probeDaemonSocket: mocks.probeDaemonSocket,
+    restartDaemon: mocks.restartDaemon,
+  }
 })
 
 vi.mock("@sma1lboy/rove-daemon/daemon/crash-log", () => ({
@@ -128,7 +134,7 @@ describe("rove daemon status", () => {
     mocks.daemonRequest.mockResolvedValue({ daemonPid: 7, taskCount: 2 })
     await runDaemonSubcommand(["status"])
     expect(mocks.daemonRequest).toHaveBeenCalledWith("daemon.status")
-    expect(JSON.parse(output())).toEqual({ daemonPid: 7, taskCount: 2 })
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7, taskCount: 2, relayPreamble: true })
     expect(mocks.daemonClose).toHaveBeenCalledTimes(1)
     expect(process.exitCode).toBeUndefined()
   })
@@ -136,7 +142,7 @@ describe("rove daemon status", () => {
   it("accepts --json, which another machine's `machine add` sends", async () => {
     mocks.daemonRequest.mockResolvedValue({ daemonPid: 7 })
     await runDaemonSubcommand(["status", "--json"])
-    expect(JSON.parse(output())).toEqual({ daemonPid: 7 })
+    expect(JSON.parse(output())).toEqual({ daemonPid: 7, relayPreamble: true })
     expect(process.exitCode).toBeUndefined()
   })
 
@@ -169,30 +175,12 @@ describe("rove daemon stop", () => {
 })
 
 describe("rove daemon restart", () => {
-  it("stops the old daemon, respawns detached, and closes the probe client", async () => {
-    const next = { close: vi.fn() }
-    mocks.connectOrStartDaemon.mockResolvedValue(next)
+  it("restarts in one step that owns the respawn, and says so", async () => {
+    // Stop-then-connect left the respawn to whichever client reconnected first: `restartDaemon` holds the spawn lock across both.
+    mocks.restartDaemon.mockResolvedValue(undefined)
     await runDaemonSubcommand(["restart"])
-    expect(mocks.stopDaemonProcess).toHaveBeenCalledTimes(1)
-    // The stop is labelled a RESTART, which the outgoing daemon relays to
-    // every attached TUI: that frame is how a running client learns its own
-    // build is about to be the stale one, before the socket even drops. An
-    // unlabelled stop here would leave it inferring that from a reconnect.
-    expect(mocks.stopDaemonProcess).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
-      reason: "restart",
-    })
-    expect(mocks.connectOrStartDaemon).toHaveBeenCalledTimes(1)
-    expect(next.close).toHaveBeenCalledTimes(1)
+    expect(mocks.restartDaemon).toHaveBeenCalledTimes(1)
     expect(output()).toContain("restarted, listening on")
-  })
-
-  it("tags the respawn so the new daemon's boot line can say it was an explicit restart", async () => {
-    // Restart and a client's autospawn share `connectOrStartDaemon`, so
-    // without the tag both daemons write the same boot line and "did my
-    // restart end those sessions?" has no answer in daemon.log.
-    mocks.connectOrStartDaemon.mockResolvedValue({ close: vi.fn() })
-    await runDaemonSubcommand(["restart"])
-    expect(mocks.connectOrStartDaemon).toHaveBeenCalledWith("explicit-restart")
   })
 })
 

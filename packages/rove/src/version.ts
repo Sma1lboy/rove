@@ -7,11 +7,14 @@
  *   versions); async and capped at 3s so startup never waits on npm.
  * - Every failure returns `null`: worst case is no update chip this session.
  * - Informational only: we render a chip, the user runs the install command.
+ * - `minAgeHours` holds the chip until the newest release is that old; its
+ *   publish time needs the full packument, so it is fetched only then.
  */
 
 import { fileURLToPath } from "node:url"
 import pkg from "../package.json" with { type: "json" }
 import { isDev } from "./env.ts"
+import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel, channelFor } from "./release-channels.ts"
 
 /** Current build's version, read from package.json at compile time. */
 export const CURRENT_VERSION: string = pkg.version
@@ -83,21 +86,15 @@ export function breakingVersionsCrossed(
 }
 
 const FETCH_TIMEOUT_MS = 3_000
-
-/** npm dist-tag an install follows; `nightly` is the automated cut from `main` (`.github/workflows/nightly.yml`). */
-export type ReleaseChannel = "latest" | "nightly"
-
-export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["latest", "nightly"]
-
-export const DEFAULT_RELEASE_CHANNEL: ReleaseChannel = "latest"
+/** The full packument is MBs, not the tag manifest's KBs; it only runs from the daemon's background poll. */
+const PACKUMENT_TIMEOUT_MS = 15_000
 
 /**
- * Channel derived from the RUNNING version (`-nightly.*` tail → nightly), so
+ * Channel derived from the RUNNING version (`-nightly.*` / `-next.*` tail), so
  * no stored preference can drift. Switching channels IS installing from the other.
  */
 export function channelOf(version: string = CURRENT_VERSION): ReleaseChannel {
-  const pre = prereleaseOf(version)
-  return pre?.split(".")[0] === "nightly" ? "nightly" : DEFAULT_RELEASE_CHANNEL
+  return channelFor(version)
 }
 
 export type UpdateInfo = {
@@ -122,6 +119,28 @@ async function fetchLatestFromRegistry(packageName: string, channel: ReleaseChan
     const body = (await res.json()) as { version?: unknown }
     if (typeof body.version !== "string") return null
     return body.version
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** When `version` was published, in epoch ms; null when the registry can't say. */
+async function fetchPublishedAt(packageName: string, version: string): Promise<number | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), PACKUMENT_TIMEOUT_MS)
+  try {
+    const encoded = packageName.replace("/", "%2F")
+    const res = await fetch(`https://registry.npmjs.org/${encoded}`, {
+      signal: ctrl.signal,
+      headers: { accept: "application/json" },
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as { time?: Record<string, unknown> }
+    const stamp = body.time?.[version]
+    const ms = typeof stamp === "string" ? Date.parse(stamp) : Number.NaN
+    return Number.isFinite(ms) ? ms : null
   } catch {
     return null
   } finally {
@@ -203,9 +222,12 @@ export function compareSemver(aVersion: string, bVersion: string): number {
  *
  * @param opts.force — bypass dev-mode suppression.
  * @param opts.channel — dist-tag to check; defaults to the running build's channel.
+ * @param opts.minAgeHours — report no update while the newest release is younger
+ *   than this; an unknown publish time reports it, so a failed lookup never hides updates.
+ * @param opts.now — clock for the age check.
  */
 export async function checkLatestVersion(
-  opts: { force?: boolean; channel?: ReleaseChannel } = {},
+  opts: { force?: boolean; channel?: ReleaseChannel; minAgeHours?: number; now?: () => number } = {},
 ): Promise<UpdateInfo | null> {
   const channel = opts.channel ?? channelOf()
   // Debug hook, bypasses dev suppression and the network to exercise the update
@@ -220,12 +242,14 @@ export async function checkLatestVersion(
 
   const latest = await fetchLatestFromRegistry(PACKAGE_NAME, channel)
   if (!latest) return null
-  return {
-    current: CURRENT_VERSION,
-    latest,
-    hasUpdate: isNewerSemver(latest, CURRENT_VERSION),
-    channel,
+  let hasUpdate = isNewerSemver(latest, CURRENT_VERSION)
+  const minAgeMs = (opts.minAgeHours ?? 0) * 3_600_000
+  if (hasUpdate && minAgeMs > 0) {
+    const publishedAt = await fetchPublishedAt(PACKAGE_NAME, latest)
+    const now = (opts.now ?? Date.now)()
+    if (publishedAt !== null && now - publishedAt < minAgeMs) hasUpdate = false
   }
+  return { current: CURRENT_VERSION, latest, hasUpdate, channel }
 }
 
 /* Release notes for the update dialog. */
@@ -254,12 +278,36 @@ function versionFromTagName(tagName: unknown): string | null {
   return match?.[1] ?? null
 }
 
+/** The languages release notes come in; English is the release body itself. */
+export type NotesLocale = "en" | "zh"
+
+/** The release asset `release.yml` attaches with the notes in Chinese (`scripts/translate-release-notes.mjs`). */
+export const ZH_NOTES_ASSET = "release-notes.zh.md"
+
+type ReleaseJson = { tag_name?: unknown; html_url?: unknown; body?: unknown; assets?: unknown }
+
+/** `release`'s notes in `locale`, or its English body when that translation is missing or unreadable. */
+async function notesBody(release: ReleaseJson & { body: string }, locale: NotesLocale, signal: AbortSignal) {
+  if (locale !== "zh" || !Array.isArray(release.assets)) return release.body
+  const asset = (release.assets as { name?: unknown; browser_download_url?: unknown }[]).find(
+    (a) => a.name === ZH_NOTES_ASSET,
+  )
+  if (typeof asset?.browser_download_url !== "string") return release.body
+  try {
+    const res = await fetch(asset.browser_download_url, { signal })
+    const text = res.ok ? await res.text() : ""
+    return text.trim() ? text : release.body
+  } catch {
+    return release.body
+  }
+}
+
 /**
- * GitHub release body for `vX.Y.Z`. Anonymous (60/hr/IP) and uncached: the
- * dialog opens on demand, not per launch. Null on failure so the caller falls
+ * GitHub release notes for `vX.Y.Z`, in `locale` when the release carries that translation. Anonymous
+ * (60/hr/IP) and uncached: the dialog opens on demand, not per launch. Null on failure so the caller falls
  * back to a release-page link.
  */
-export async function fetchReleaseNotes(version: string): Promise<ReleaseNotes | null> {
+export async function fetchReleaseNotes(version: string, locale: NotesLocale = "en"): Promise<ReleaseNotes | null> {
   const slug = repoSlug()
   if (!slug) return null
   const tag = `v${version}`
@@ -274,9 +322,9 @@ export async function fetchReleaseNotes(version: string): Promise<ReleaseNotes |
       },
     })
     if (!res.ok) return null
-    const body = (await res.json()) as { body?: unknown; html_url?: unknown }
+    const body = (await res.json()) as ReleaseJson
     if (typeof body.body !== "string" || typeof body.html_url !== "string") return null
-    return { body: body.body, url: body.html_url, version }
+    return { body: await notesBody({ ...body, body: body.body }, locale, ctrl.signal), url: body.html_url, version }
   } catch {
     return null
   } finally {
@@ -289,6 +337,7 @@ export async function fetchReleaseNotesRange(args: {
   current: string
   latest: string
   limit?: number
+  locale?: NotesLocale
 }): Promise<ReleaseNotesRangeItem[]> {
   const slug = repoSlug()
   if (!slug) return []
@@ -304,17 +353,22 @@ export async function fetchReleaseNotesRange(args: {
       },
     })
     if (!res.ok) return []
-    const body = (await res.json()) as { tag_name?: unknown; html_url?: unknown; body?: unknown }[]
+    const body = (await res.json()) as ReleaseJson[]
     if (!Array.isArray(body)) return []
-    return body
-      .map((release) => {
-        const version = versionFromTagName(release.tag_name)
-        if (!version || typeof release.html_url !== "string" || typeof release.body !== "string") return null
-        if (compareSemver(version, args.current) <= 0) return null
-        if (compareSemver(version, args.latest) > 0) return null
-        return { version, url: release.html_url, body: release.body }
-      })
-      .filter((release): release is ReleaseNotesRangeItem => release !== null)
+    const inRange = body.flatMap((release) => {
+      const version = versionFromTagName(release.tag_name)
+      if (!version || typeof release.html_url !== "string" || typeof release.body !== "string") return []
+      if (compareSemver(version, args.current) <= 0) return []
+      if (compareSemver(version, args.latest) > 0) return []
+      return [{ version, url: release.html_url, release: { ...release, body: release.body } }]
+    })
+    return await Promise.all(
+      inRange.map(async ({ version, url, release }) => ({
+        version,
+        url,
+        body: await notesBody(release, args.locale ?? "en", ctrl.signal),
+      })),
+    )
   } catch {
     return []
   } finally {

@@ -1,4 +1,4 @@
-import { serializeTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { serializeTask } from "@sma1lboy/rove-daemon/daemon/serialize-task"
 import { describe, expect, it } from "vitest"
 import { deserializeTask } from "../../src/client/remote-orchestrator-payloads.ts"
 import type { Task } from "../../src/types/task.ts"

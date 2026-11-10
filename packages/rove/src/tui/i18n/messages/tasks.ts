@@ -1,3 +1,4 @@
+import { en as confirmEn, zh as confirmZh } from "./tasks-confirm"
 import { en as toastEn, zh as toastZh } from "./tasks-toast"
 
 /**
@@ -15,23 +16,39 @@ export const en = {
   },
   /** Section headers */
   header: {
-    scratch: "SCRATCH",
+    scratch: "Ungrouped",
   },
   /** Search bar */
   search: {
     placeholder: "fuzzy filter",
+  },
+  /** Sort mode line; `{mode}` is one of `sort.modes`. The web rail reads the same copy. */
+  sort: {
+    label: "sort: {mode}",
+    hint: "Change the order (manual → newest → attention → name)",
+    reorderSwitched: "Reorder needs manual order — switched",
+    modes: {
+      default: "manual",
+      recent: "newest",
+      attention: "attention",
+      name: "name",
+    },
   },
   /** Tree sidebar right-click menu. Each entry mirrors a chord the row
    *  already answers to, so the menu is a second route rather than a second
    *  set of rules. */
   menu: {
     open: "Open",
-    openTab: "Open tab",
-    closeTab: "Close tab",
-    closeOtherTabs: "Close other tabs",
+    /** A task with children: fold or unfold them. Menu-only (no chord yet). */
+    collapseChildren: "Collapse children",
+    expandChildren: "Expand children",
     newChat: "New conversation",
     newShell: "New shell",
+    continueEngine: "Continue in another engine…",
+    /** Scratch section header: a new Scratch task in $HOME on the preferred engine. */
+    newScratchChat: "New conversation (no folder)",
     newTask: "New task",
+    newTaskFromBranch: "New task from this branch",
     /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
     forgetProject: "Remove project",
     /** Project row: read the repo's durable field notes (`rove api note`). */
@@ -49,9 +66,10 @@ export const en = {
     /** Menu-only, like `runAgain`, `land`, `fieldNotes` and the two copies —
      *  status has no key yet, so the menu is its only route. */
     setStatus: "Set status",
+    /** Regroup the task under another project; nothing on disk moves. Menu-only. */
+    moveToProject: "Move to project…",
     /** Also chord-less: put the row's task id / branch / worktree path on the clipboard. */
     copyId: "Copy task ID",
-    copyTab: "Copy tab address",
     copyBranch: "Copy branch name",
     copyPath: "Copy path",
     /** The `o` / `b` / `v` chords' menu routes. */
@@ -65,8 +83,13 @@ export const en = {
     rerunChecks: "Re-run failed checks",
     /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
     syncBase: "Sync with base",
+    /** Only while a merge/rebase/cherry-pick/revert is paused in the worktree. */
+    resolveConflicts: "Resolve conflicts",
     land: "Land into base branch",
-    delete: "Delete",
+    /** Hide the task and its children from the sidebar; nothing is stopped or removed. Menu-only. */
+    archive: "Archive",
+    unarchive: "Unarchive",
+    delete: "Remove session",
   },
   /** The six `TaskStatus` values, for the set-status picker and its row chip.
    *  A LABEL on the board — nothing here stops a session or removes a
@@ -86,6 +109,12 @@ export const en = {
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
   },
+  moveToProject: {
+    title: "Move to project",
+    /** Shown when there is no other project to move to. */
+    empty: "No other project yet — add one first, or run `rove api update --project PATH`",
+    footer: "↑↓ choose · enter move · esc cancel",
+  },
   /** "Sync with base" outcomes. The conflict and dirty cases are attention,
    *  not error: nothing broke, a human is needed next. */
   sync: {
@@ -94,6 +123,16 @@ export const en = {
     conflict: "Merge conflict — resolve then commit: {files}",
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
+  },
+  /** Row menu "Archive" / "Unarchive". Archive only hides: the copy must not read like teardown. */
+  archive: {
+    done: "Archived {title}. Its worktree, branch and sessions are untouched",
+    restored: "Restored {title}",
+    busyTitle: "Archive while it's working?",
+    busyBody: "An engine in {title} is still working or waiting on you. Archiving hides the row without stopping it.",
+    busyConfirm: "Archive anyway",
+    failed: "Couldn't archive: {error}",
+    restoreFailed: "Couldn't restore: {error}",
   },
   /** Row menu "Re-run failed checks" outcomes. */
   rerun: {
@@ -168,23 +207,7 @@ export const en = {
   /** The destructive confirms on a task row (`d` on the tasks pane). Every
    *  body says what SURVIVES, because that is the fact that decides whether
    *  a user should press enter. */
-  confirm: {
-    cancel: "cancel",
-    /** A project row is a saved repo, not a worktree — `d` un-saves it. */
-    forgetProjectTitle: 'Remove project "{title}"?',
-    forgetProjectBody:
-      "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
-    forgetProjectConfirm: "remove",
-    deleteTitle: 'Delete "{title}"?',
-    /** A `dir` task pins the user's own directory; deletion never touches it. */
-    deleteBodyDir: "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped.",
-    deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
-    deleteBodyTaskBranch:
-      "Removes the task entry, its worktree, and its git branch if it is merged. An unmerged branch stays. Its hosted sessions are stopped.",
-    deleteConfirm: "delete",
-    forceDeleteTitle: '"{title}" has uncommitted changes',
-    forceDeleteConfirm: "force delete",
-  },
+  confirm: confirmEn,
   /** Bare text prompt behind `b` on hosts without the branch picker. */
   renameBranch: {
     title: "Rename branch",
@@ -194,8 +217,8 @@ export const en = {
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
-  /** The fold row standing in for a project's routine sessions */
-  routinesRow: "{count} routine sessions",
+  /** The fold row at the end of the sidebar holding archived tasks */
+  archivedRow: "Archived · {count}",
   /** Machine section headers — another computer running its own Rove daemon */
   machine: {
     connecting: "connecting…",
@@ -204,7 +227,11 @@ export const en = {
     mismatch: "protocol mismatch",
     /** Files/diff placeholder for a task whose worktree is on another machine */
     filesElsewhere: "on {host}",
-    filesHint: "This task's worktree lives on {host}. Opening remote files arrives in a later release.",
+    filesHint: "{host} is unreachable right now; its files show here again when it reconnects.",
+    /** Workspace placeholder for a task on another machine, until its terminals can be opened here */
+    terminalElsewhere: "This task runs on {host}, which is unreachable right now.",
+    runsOn: "on {host}",
+    noTabs: "No tabs on {host} yet — prefix t opens one there.",
   },
   /** Empty-state messages */
   empty: {
@@ -271,19 +298,32 @@ export const zh: typeof en = {
     mods: "Mods",
   },
   header: {
-    scratch: "临时",
+    scratch: "未分组",
   },
   search: {
     placeholder: "模糊搜索",
   },
+  sort: {
+    label: "排序：{mode}",
+    hint: "切换排序（手动 → 最新 → 关注 → 名称）",
+    reorderSwitched: "调整顺序需手动排序，已切换",
+    modes: {
+      default: "手动",
+      recent: "最新",
+      attention: "关注",
+      name: "名称",
+    },
+  },
   menu: {
     open: "打开",
-    openTab: "打开该标签页",
-    closeTab: "关闭该标签页",
-    closeOtherTabs: "关闭其他标签页",
+    collapseChildren: "折叠子任务",
+    expandChildren: "展开子任务",
     newChat: "新建会话",
     newShell: "新建终端",
+    continueEngine: "换个引擎继续…",
+    newScratchChat: "新建会话（无文件夹）",
     newTask: "新建任务",
+    newTaskFromBranch: "基于此分支新建任务",
     forgetProject: "移除项目",
     fieldNotes: "现场笔记",
     rename: "重命名",
@@ -294,8 +334,8 @@ export const zh: typeof en = {
     reorderProject: "调整项目顺序",
     runAgain: "重新运行",
     setStatus: "设置状态",
+    moveToProject: "移到其他项目…",
     copyId: "复制任务 ID",
-    copyTab: "复制标签页地址",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
     openEditor: "在编辑器中打开",
@@ -304,8 +344,11 @@ export const zh: typeof en = {
     fixChecks: "修复失败的检查",
     rerunChecks: "重新运行失败的检查",
     syncBase: "同步基础分支",
+    resolveConflicts: "让 agent 解决冲突",
     land: "合入基础分支",
-    delete: "删除",
+    archive: "归档",
+    unarchive: "取消归档",
+    delete: "移除会话",
   },
   status: {
     backlog: "待办",
@@ -320,12 +363,26 @@ export const zh: typeof en = {
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
   },
+  moveToProject: {
+    title: "移到其他项目",
+    empty: "还没有其他项目——先添加一个，或运行 `rove api update --project PATH`",
+    footer: "↑↓ 选择 · enter 移动 · esc 取消",
+  },
   sync: {
     done: "已把 {base} 合并进该工作树",
     alreadyCurrent: "已经和 {base} 同步",
     conflict: "合并冲突——解决后提交：{files}",
     dirty: "请先提交工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
+  },
+  archive: {
+    done: "已归档 {title}。工作树、分支和会话都保持原样",
+    restored: "已恢复 {title}",
+    busyTitle: "它还在工作，仍要归档？",
+    busyBody: "{title} 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。",
+    busyConfirm: "仍要归档",
+    failed: "归档失败：{error}",
+    restoreFailed: "恢复失败：{error}",
   },
   rerun: {
     started: "正在重新运行失败的检查",
@@ -369,21 +426,7 @@ export const zh: typeof en = {
     confirm: "重新运行",
     footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
   },
-  confirm: {
-    cancel: "取消",
-    forgetProjectTitle: "从列表中移除项目「{title}」？",
-    forgetProjectBody:
-      "只是把它从项目列表里忘掉。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
-    forgetProjectConfirm: "移除",
-    deleteTitle: "删除「{title}」？",
-    deleteBodyDir: "只删除任务条目。目录本身会留在磁盘上。它的托管会话会被停止。",
-    deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
-    deleteBodyTaskBranch:
-      "删除任务条目、它的 worktree，以及已合并的 git 分支。未合并的分支会保留。它的托管会话会被停止。",
-    deleteConfirm: "删除",
-    forceDeleteTitle: "「{title}」有未提交的改动",
-    forceDeleteConfirm: "强制删除",
-  },
+  confirm: confirmZh,
   renameBranch: {
     title: "重命名分支",
     fieldLabel: "分支",
@@ -401,14 +444,17 @@ export const zh: typeof en = {
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
-  routinesRow: "{count} 个 routine 会话",
+  archivedRow: "已归档 · {count}",
   machine: {
     connecting: "连接中…",
     offline: "离线",
     unsupported: "不支持",
     mismatch: "协议不兼容",
     filesElsewhere: "在 {host} 上",
-    filesHint: "这个任务的 worktree 在 {host} 上。读取远端文件会在后续版本提供。",
+    filesHint: "{host} 暂时连不上；重新连上后这里会再显示它的文件。",
+    terminalElsewhere: "这个任务跑在 {host} 上，暂时连不上。",
+    runsOn: "在 {host} 上",
+    noTabs: "{host} 上还没有 tab——按 prefix t 在那里新开一个。",
   },
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",

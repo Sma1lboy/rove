@@ -102,7 +102,7 @@ describe("buildSidebarRowView", () => {
   bench("running task row", () => {
     buildSidebarRowView({
       task: benchTask,
-      activity: { state: "running", at: 1 },
+      status: { kind: "running", since: 1, state: "running" },
       spinnerFrame: 0,
       subtitleBudget: 80,
       truncateBranch: (b) => b,

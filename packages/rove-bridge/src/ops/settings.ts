@@ -3,13 +3,22 @@
  * feedback. Engines live in `settings-engines.ts`.
  *
  * Deliberately absent, because each would let the phone make the Mac run something it authored:
- *  - plugin install / marketplace: installing runs the repo's own build commands;
+ *  - plugin install / marketplace: installing runs the repo's own build commands (a first-party
+ *    mod's install runs nothing, so `builtinMod.setInstalled` is here);
  *  - plugin manifest settings: stored values become env vars of plugin-authored commands.
  */
 
 import { isDaemonVersionStale } from "@sma1lboy/rove-daemon/daemon/protocol"
+import {
+  BUILTIN_MODS,
+  type BuiltinModId,
+  installedBuiltinMods,
+  isBuiltinModId,
+  setBuiltinModInstalled,
+} from "@sma1lboy/rove-daemon/plugins/builtin-mods"
 import { loadPluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
+import { FEEDBACK_KINDS, isFeedbackKind } from "@sma1lboy/rove/src/lib/feedback.ts"
 import {
   type PluginRowView,
   readPluginRows,
@@ -22,7 +31,6 @@ import { bool, flag, optText, tabId, taskId, text } from "./args.ts"
 import type { OpTable } from "./types.ts"
 
 const PLUGIN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-const CATEGORY = /^[a-z0-9][a-z0-9-]{0,39}$/
 
 export interface SettingsDeps {
   readonly usage: UsageStore
@@ -33,6 +41,8 @@ export interface SettingsDeps {
   readonly listPlugins: () => readonly PluginRowView[]
   readonly pluginIds: () => readonly string[]
   readonly setPluginEnabled: (id: string, enabled: boolean) => void
+  readonly installedMods: () => readonly BuiltinModId[]
+  readonly setModInstalled: (id: BuiltinModId, installed: boolean) => void
 }
 
 const realDeps: SettingsDeps = {
@@ -42,6 +52,8 @@ const realDeps: SettingsDeps = {
   listPlugins: () => readPluginRows(),
   pluginIds: () => loadPluginRegistry().plugins.map((p) => p.id),
   setPluginEnabled: (id, enabled) => setPluginEnabled(id, enabled),
+  installedMods: () => installedBuiltinMods(),
+  setModInstalled: (id, installed) => setBuiltinModInstalled(id, installed),
 }
 
 interface DaemonStatus {
@@ -123,17 +135,47 @@ export function createSettingsOps(deps: SettingsDeps): OpTable {
         return { id, enabled }
       },
     },
+    "builtinMods.list": {
+      kind: "read",
+      destructive: false,
+      wraps: "builtin-mods.json: the first-party mods (Kanban, Issues) and which are installed",
+      async run() {
+        const installed = new Set(deps.installedMods())
+        return {
+          mods: BUILTIN_MODS.map((mod) => ({
+            id: mod.id,
+            name: mod.name,
+            description: mod.description,
+            installed: installed.has(mod.id),
+          })),
+        }
+      },
+    },
+    "builtinMod.setInstalled": {
+      kind: "write",
+      // Uninstalling only hides the feature; its data stays and a reinstall picks it up.
+      destructive: false,
+      wraps: "builtin-mods.json (the TUI, the daemon and `rove api` read the same file)",
+      async run(args) {
+        const id = text(args, "id", 64)
+        if (!isBuiltinModId(id)) throw new BridgeError("BAD_ARGS", `${id} is not a first-party mod`)
+        const installed = bool(args, "installed")
+        deps.setModInstalled(id, installed)
+        return { id, installed }
+      },
+    },
     "feedback.send": {
       kind: "write",
-      // A public GitHub Discussion cannot be unsent.
+      // A GitHub issue is public and cannot be unsent.
       destructive: true,
-      wraps: "rove api feedback (GitHub Discussion in the Rove repo's Feedback category, via gh)",
+      wraps: "rove api feedback (GitHub issue on the Rove repo via gh; a prefilled new-issue link when gh cannot file)",
       run(args, { api }) {
         const argv = [flag("title", text(args, "title", 200).trim()), flag("body", text(args, "body", 10_000))]
-        const category = optText(args, "category", 40)
-        if (category !== undefined) {
-          if (!CATEGORY.test(category)) throw new BridgeError("BAD_ARGS", "category is not a category slug")
-          argv.push(flag("category", category))
+        const kind = optText(args, "kind", 16)
+        if (kind !== undefined) {
+          if (!isFeedbackKind(kind))
+            throw new BridgeError("BAD_ARGS", `kind must be one of ${FEEDBACK_KINDS.join(", ")}`)
+          argv.push(flag("kind", kind))
         }
         return api.verb("feedback", argv)
       },

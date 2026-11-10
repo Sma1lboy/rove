@@ -1,10 +1,10 @@
-import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
-import type { TaskActivityState } from "@/engine/hook-events"
+import { type RowTone, rowStatusGlyph } from "@/lib/row-status-glyph"
 import { t } from "@/tui/i18n"
 import { breathGlyph } from "@/tui/lib/breathe"
 import { DEFAULT_GLYPHS, type GlyphSet } from "@/tui/lib/glyphs"
 import type { Task } from "@/types/task"
 import { isBuiltinVendor } from "@/types/vendor"
+import type { RowStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { repoBasename } from "./groups"
 
 export type SidebarTone = "success" | "warning" | "primary" | "textMuted" | "error"
@@ -23,13 +23,20 @@ export interface SidebarRowView {
   readonly materializing: boolean
 }
 
-/** Attention tone; beats `loading`'s `primary` so a spinning row that needs a human stays coloured. */
-function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
-  if (!ATTENTION_STATES.has(state)) return null
-  // Amber for a quota wall or a waiting prompt, red for states that stay
-  // broken until you act — same split as `tab-strip.tsx` `turnColor` and the
-  // Inbox `itemColor`, so one tab reads the same colour everywhere.
-  return state === "rate_limited" || state === "permission_needed" ? "warning" : "error"
+/**
+ * `rowStatusGlyph`'s tones in the TUI palette. Amber for a wait you can clear
+ * (a rate limit, a question), red for what stays broken until you act: the
+ * split the web rail and the Inbox draw too.
+ */
+const TONES: Readonly<Record<RowTone, SidebarTone>> = {
+  accent: "primary",
+  warning: "warning",
+  error: "error",
+  muted: "textMuted",
+}
+
+export function sidebarTone(tone: RowTone): SidebarTone {
+  return TONES[tone]
 }
 
 export const SPINNER_FRAME_MS = 80
@@ -40,35 +47,21 @@ export const SPINNER_TICK_CYCLE = 600
 /** Post-turn emphasis; shared by the tab strip and sidebar tab rows so one landing reads as one event. */
 export const DONE_PULSE_MS = 600
 
-/**
- * The rail's states (braille glyphs; the preset is `GlyphSet`); `?` and `!`
- * ask the reader to act:
+/*
+ * The rail's states (braille glyphs; the preset is `GlyphSet`), all decided by
+ * the daemon (`rove-daemon/src/daemon/row-status.ts`) and drawn through
+ * `rowStatusGlyph`; `?` and `!` ask the reader to act:
  *
- *   spinner  working
- *   `?`      blocked on your answer (permission prompt or question dialog),
- *            the same glyph the tab strip and Inbox use for it
- *   `!`      needs you (rate limit, error, dead engine, failed deletion)
- *   `●`      a turn finished and you have not looked
+ *   spinner  working: an engine turn, or a task-level job or deletion
+ *   `?`      blocked on your answer (permission prompt or question dialog)
+ *   `!`      needs you (rate limit, error, dead engine, restored session,
+ *            failed deletion)
+ *   `●`      a turn finished and nobody has looked
  *   `○`      quiet (idle, unobserved, shell tab, untracked custom engine)
  *
  * `!` and `○` are one cell in every monospace font; `◌` (U+25CC, oversized
  * fallback) and `✕` (U+2715, dingbat block) are not.
  */
-const ATTENTION_STATES: ReadonlySet<TaskActivityState | undefined> = new Set([
-  "rate_limited",
-  "permission_needed",
-  "error",
-  "dead",
-])
-
-/** Whether the rail marks this `?`/`!` (stopped until somebody acts); lets renderers skip re-listing the states. */
-export function isAttentionActivity(state: TaskActivityState | undefined): boolean {
-  return ATTENTION_STATES.has(state)
-}
-
-// The `attention` comparator lives in `task-group-view.ts`: it ranks by the
-// derived task group, whose glyphs are defined from the constants here, so
-// the import must run that way.
 
 /** Called at render time so `t()` is reactive. */
 function noTrackingSubtitle(): string {
@@ -97,27 +90,13 @@ function isCustomEngineTask(task: Task): boolean {
   return task.vendor !== undefined && !isBuiltinVendor(task.vendor)
 }
 
-/** The loading subset of `buildSidebarRowView`'s options. */
-export interface RowLoadingInputs {
-  readonly task: Task
-  readonly activity?: TaskEngineState
-  readonly job?: TaskJobState
-}
-
 /**
  * Sole source of the row `loading` decision (`buildSidebarRowView` calls it),
- * so a spin check built on it can't drift from what rows render — a drift
+ * so a spin check built on it can't drift from what rows render: a drift
  * would freeze a genuinely-loading row's spinner.
  */
-export function rowIsLoading(opts: RowLoadingInputs): boolean {
-  const { task } = opts
-  const activityState = opts.activity?.state
-  const hasActivity = activityState !== undefined
-  const untrackedCustomEngine = isCustomEngineTask(task) && !hasActivity
-  const materializing = opts.job !== undefined
-  const deleting = task.deletion?.phase === "queued" || task.deletion?.phase === "running"
-  const working = activityState === "running"
-  return deleting || materializing || (!untrackedCustomEngine && working)
+export function rowIsLoading(status: RowStatus | undefined): boolean {
+  return rowStatusGlyph(status, DEFAULT_GLYPHS).spinning
 }
 
 /**
@@ -125,81 +104,48 @@ export function rowIsLoading(opts: RowLoadingInputs): boolean {
  * interval runs on `spinner-frame-store` subscriber count; only its
  * agreement test uses this.
  */
-export function anyRowLoading(
-  tasks: readonly Task[],
-  reads: {
-    activity(taskId: string): TaskEngineState | undefined
-    job(taskId: string): TaskJobState | undefined
-  },
-): boolean {
-  return tasks.some((task) =>
-    rowIsLoading({
-      task,
-      activity: reads.activity(task.id),
-      job: reads.job(task.id),
-    }),
-  )
+export function anyRowLoading(tasks: readonly Task[], status: (taskId: string) => RowStatus | undefined): boolean {
+  return tasks.some((task) => rowIsLoading(status(task.id)))
 }
 
 export function buildSidebarRowView(opts: {
   readonly task: Task
-  readonly activity?: TaskEngineState
+  /**
+   * The daemon's status for this row (`row.status`): the task rollup, or one
+   * tab's. Absent = the daemon reported nothing, which reads as quiet.
+   */
+  readonly status?: RowStatus
   /** Transient lifecycle marks (`engine.lifecycle` channel): a `◇N`
    *  subagent prefix ahead of the branch. */
   readonly lifecycle?: { readonly subagents: number }
-  /**
-   * In-flight daemon job from `task.jobs` (e.g. `ensureWorktree`); presence
-   * means running, in every attached pane. Outranks other signals: the
-   * worktree doesn't exist yet.
-   */
-  readonly job?: TaskJobState
   readonly spinnerFrame: number
   readonly subtitleBudget: number
   readonly truncateBranch: (branch: string, budget: number) => string
   /** Checked-out branch of a `main` row's repo root (its `task.branch` is always `""`). */
   readonly mainBranch?: string
-  /**
-   * Selected since the current `turn_complete` fired; the `●` badge then
-   * drops back to quiet. Callers track it; absent means unseen.
-   */
-  readonly completionSeen?: boolean
   /** The glyph preset; braille when absent. */
   readonly glyphs?: GlyphSet
 }): SidebarRowView {
-  const { task } = opts
+  const { task, status } = opts
   const isMain = task.kind === "main"
   const branch = isMain ? (opts.mainBranch ?? "") : task.branch
-  const activityState = opts.activity?.state
-  const hasActivity = activityState !== undefined
   const glyphs = opts.glyphs ?? DEFAULT_GLYPHS
-  const activityBadge = activityBadgeFor(activityState, opts.completionSeen === true, glyphs)
-  const activityTone = activityToneFor(activityState)
-  // No activity for a custom engine means untracked, not idle: a spinner
-  // would lie. Hook-driven states are engine-agnostic, so any that fired
-  // still count.
-  const untrackedCustomEngine = isCustomEngineTask(task) && !hasActivity
-  // A daemon job outranks even that fallback: it's a daemon-side fact, not
-  // engine telemetry.
-  const materializing = opts.job !== undefined
+  const mark = rowStatusGlyph(status, glyphs)
+  // A custom engine nobody reports on is untracked, not idle: the subtitle
+  // says so, or the row would read as stuck.
+  const untrackedCustomEngine = isCustomEngineTask(task) && status?.state === undefined && !mark.spinning
+  // A daemon job (worktree add) is the rollup's `busy`.
+  const materializing = status?.kind === "busy" && status.reason === "job"
+  // The deletion WORD is a task fact (the subtitle); its glyph is the daemon's.
   const deleting = task.deletion?.phase === "queued" || task.deletion?.phase === "running"
   const deleteFailed = task.deletion?.phase === "error"
-  const loading = rowIsLoading({
-    task,
-    activity: opts.activity,
-    job: opts.job,
-  })
+  const loading = mark.spinning
   const spinnerFrames = glyphs.spinner
-  const spinner = breathGlyph(spinnerFrames, opts.spinnerFrame)
-  const tone = deleteFailed
-    ? "error"
-    : deleting || materializing
-      ? "primary"
-      : untrackedCustomEngine
-        ? "textMuted"
-        : (activityTone ?? (loading ? "primary" : (activityBadge?.tone ?? "textMuted")))
-  // Subtitle priority: deletion/materializing word, branch, "no tracking"
-  // (untracked custom engine, so it doesn't read as stuck), dash. Activity
-  // is carried by the glyph, not here; task lifecycle belongs to the board.
+  // The breath, not a flat frame index: every spinner in the TUI inhales on the shared tick.
+  const stateGlyph = loading ? breathGlyph(spinnerFrames, opts.spinnerFrame) : mark.glyph
+  // Subtitle priority: deletion/materializing word, branch, "no tracking",
+  // dash. Activity is carried by the glyph, not here; task lifecycle belongs
+  // to the board.
   const fallbackSubtitle = untrackedCustomEngine ? noTrackingSubtitle() : "—"
   // `◇N` subagent prefix only while spinning, so a mark whose end event never
   // arrived can't caption a quiet row. No compaction word: its end event is
@@ -214,15 +160,13 @@ export function buildSidebarRowView(opts: {
         : branchWithMarks.length > 0
           ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
           : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
-  // The client drops `idle` entries, so absence means quiet.
-  const restGlyph = deleteFailed ? glyphs.attention : (activityBadge?.glyph ?? glyphs.idle)
   return {
     isMain,
     titleText: isMain ? repoBasename(task.repo) : task.title,
     subtitleText,
     loading,
-    stateGlyph: loading ? spinner : restGlyph,
-    tone,
+    stateGlyph,
+    tone: sidebarTone(mark.tone),
     spinnerFrames,
     materializing,
   }
@@ -240,21 +184,4 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
   const spinner = breathGlyph(frames, frame())
   if (spinner === view.stateGlyph) return view
   return { ...view, stateGlyph: spinner }
-}
-
-/**
- * `?` blocked on an answer, `!` needs a human, `●` unseen completion, null quiet. A seen completion is
- * consumed: back to quiet, no lingering ✓. Tone comes from
- * {@link activityToneFor} so the attention test has one copy.
- */
-function activityBadgeFor(
-  state: TaskActivityState | undefined,
-  completionSeen: boolean,
-  glyphs: GlyphSet,
-): { glyph: string; tone: SidebarTone } | null {
-  const attention = activityToneFor(state)
-  if (attention !== null)
-    return { glyph: state === "permission_needed" ? glyphs.needsInput : glyphs.attention, tone: attention }
-  if (state === "turn_complete" && !completionSeen) return { glyph: glyphs.unseen, tone: "primary" }
-  return null
 }

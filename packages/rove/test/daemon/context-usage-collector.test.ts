@@ -7,7 +7,8 @@ import { ContextUsageCollector, contextUsageTargets } from "@sma1lboy/rove-daemo
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { describe, expect, test } from "vitest"
 
-const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0 }
+// durationFactor 0: these tests tick again at once, and a run that took 1 ms must not decline that tick.
+const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0, durationFactor: 0 }
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
 }

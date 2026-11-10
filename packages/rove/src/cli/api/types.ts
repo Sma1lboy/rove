@@ -3,12 +3,22 @@
  * (`ApiRuntime`, `PromptDeliveryOps`) — importable without the dispatcher.
  */
 
+import type { AliasTask, PtyScope, TeardownScope } from "@sma1lboy/rove-daemon/daemon/pty-alias"
+import {
+  type BuiltinModId,
+  MOD_NOT_INSTALLED,
+  builtinModMissingMessage,
+  isBuiltinModInstalled,
+} from "@sma1lboy/rove-daemon/plugins/builtin-mods"
+import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { ListeningSocket } from "./listening-ports.ts"
 import type { LaunchSpec, Launched } from "./tab-launch.ts"
 import type { NewTabKind, OpenedTab } from "./tab-new.ts"
 import type { RestoredTabRef } from "./tab-respawn.ts"
+import type { RevivedTab } from "./tab-revive.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 import type { SplitEdit, SplitOutcome } from "./tab-split.ts"
 
@@ -91,6 +101,15 @@ export interface ApiCaller {
   readonly cli: boolean
   /** Base for relative path flags; absent over a transport, where only absolute paths mean anything. */
   readonly cwd?: string
+  /** Running inside the daemon process: the one place state that outlives a call (a login child) may live. */
+  readonly daemon?: true
+  /** The call arrived from another machine's hub (`api.invoke` with `forwarded: true`). */
+  readonly forwarded?: true
+}
+
+/** The daemon running a verb for a socket or bridge caller, or for another machine's hub. */
+export function daemonCaller(forwarded: boolean): ApiCaller {
+  return { cli: false, daemon: true, ...(forwarded ? { forwarded: true as const } : {}) }
 }
 
 /** The CLI process itself, read at call time (tests chdir). */
@@ -147,6 +166,23 @@ export interface VerbSpec {
   readonly handler: VerbHandler
 }
 
+/** Verb groups a first-party mod owns: absent from help and refused until that mod is installed. */
+export const GROUP_MOD: Partial<Readonly<Record<VerbGroup, BuiltinModId>>> = { issues: "kanban", workitems: "issues" }
+
+export function verbInstalled(verb: VerbSpec): boolean {
+  const mod = GROUP_MOD[verb.group]
+  return mod === undefined || isBuiltinModInstalled(mod)
+}
+
+export function requireVerbInstalled(verb: VerbSpec): void {
+  const mod = GROUP_MOD[verb.group]
+  if (mod === undefined || isBuiltinModInstalled(mod)) return
+  throw new ApiError(`${verb.name}: ${builtinModMissingMessage(mod)}`, MOD_NOT_INSTALLED, {
+    hint: `install the ${mod} mod, then retry`,
+    nextCommandArgs: ["plugin", "install", mod],
+  })
+}
+
 // ── Prompt delivery (shared by add / send) ───────────────────────────────────
 
 export interface PromptTarget {
@@ -161,17 +197,15 @@ export interface PromptTarget {
   readonly model?: string
   readonly repo?: string
   /**
-   * `send --tab`: `"new"` spawns an engine in the next tab-N; `"tab-N"` targets
-   * that exact alive tab (TAB_NOT_FOUND otherwise). Undefined = canonical tab.
+   * The task has extra repos (`Task.extraRepos`): a launch reads their paths
+   * from the daemon and exposes them. Unset costs a one-repo task no RPC.
+   */
+  readonly multiRepo?: boolean
+  /**
+   * `send --tab tab-N`: targets that exact alive tab (TAB_NOT_FOUND
+   * otherwise). Undefined = canonical tab.
    */
   readonly tab?: string
-  /**
-   * Engine PROTOCOL pinned on a `--tab new` tab, recorded like the TUI's ctrl+e
-   * pick so it survives restarts and a later task `update --command`.
-   */
-  readonly tabVendor?: VendorId
-  /** Raw launch command for a `--tab new` tab — the command half of {@link tabVendor}. */
-  readonly tabCommand?: string
   /**
    * FIRST prompt of a just-created task (`add --prompt`, single or `--count`):
    * gets the branch-rename coda (`PromptDeliveryIntent`'s `new-task`). `send`
@@ -185,6 +219,11 @@ export interface PromptTarget {
    * first prompt — so it is never inferred.
    */
   readonly respawn?: boolean
+  /**
+   * `send --tab new` on a task whose engine never started: this prompt IS its first conversation, so
+   * live shell tabs beside the unstarted engine tab do not make the canonical spawn ambiguous.
+   */
+  readonly firstConversation?: boolean
 }
 
 export interface DeliveredPrompt {
@@ -254,7 +293,8 @@ export function promptMayHaveLanded(delivered: DeliveredPrompt): boolean {
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
-  deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
+  /** `client` is the daemon the tab rows go through (`tabs.apply`). */
+  deliverHosted(client: DaemonRpc, target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
 }
 
 /**
@@ -272,7 +312,7 @@ type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
  */
 export interface ApiRuntime {
   /** {@link taskTabs}'s `.running`, for callers that need nothing else. */
-  isTaskRunning(taskId: string, engineArgv?: readonly string[]): Promise<boolean | null>
+  isTaskRunning(taskId: string, engineArgv?: readonly string[], scope?: PtyScope): Promise<boolean | null>
   /**
    * Persisted terminal tabs joined with session liveness, plus `.running`,
    * from one host round-trip.
@@ -283,34 +323,60 @@ export interface ApiRuntime {
    *
    * Pass `engineArgv` (`engineLaunchArgv({command, vendor})`): without it a
    * custom wrapper engine reads as "no engine" and the task as stopped.
+   * Pass `scope` (`ptyScopeOf`) so a migrated child reads the PTY its conversation lives in and its
+   * parent does not count that PTY as its own.
    */
   taskTabs(
     taskId: string,
     engineArgv?: readonly string[],
+    scope?: PtyScope,
   ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /**
    * Task ids with a LIVE session, from one fleet-wide `pty.list` (not one
-   * round-trip per task). `null` = no pty host to ask, never "nothing running".
+   * round-trip per task). `tasks` say whose a migrated child's aliased PTY is.
+   * `null` = no pty host to ask, never "nothing running".
    */
-  liveTaskIds(): Promise<ReadonlySet<string> | null>
-  /** Close one exact Terminal Tab without a mounted TUI. */
-  closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
+  liveTaskIds(tasks: readonly AliasTask[]): Promise<ReadonlySet<string> | null>
+  /** Close one exact Terminal Tab without a mounted TUI (the row goes through the daemon's `tabs.apply`). */
+  closeTerminalTab(
+    client: DaemonRpc,
+    taskId: string,
+    tabId: string,
+  ): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /**
    * Open a tab with no first message (`tab-new`): a login shell or an empty
    * engine. Persists the row, spawns the session, and returns the row as saved.
+   * `home` makes a shell the task's own `tab-1` (a fresh shell task) rather than a later tab.
+   * `type` is typed into a new shell once it is up, Enter included.
    */
-  openTab(client: DaemonRpc, target: PromptTarget, kind: NewTabKind): Promise<OpenedTab>
+  openTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    kind: NewTabKind,
+    opts?: { readonly home?: boolean; readonly type?: string },
+  ): Promise<OpenedTab>
   /** Open a tab that runs something Rove resolves itself (`tab-new --kind editor|pane|viewport`). */
-  launchTab(spec: LaunchSpec): Promise<Launched>
+  launchTab(client: DaemonRpc, spec: LaunchSpec): Promise<Launched>
   /** Edit a tab's split panes (`tab-split`); split shells spawn in `worktree`. */
-  splitTab(taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  splitTab(client: DaemonRpc, taskId: string, tabId: string, worktree: string, edit: SplitEdit): Promise<SplitOutcome>
+  /** Reopen a tab's own session when no PTY runs in it (`tab-revive`); a live one is left alone unless `replaceExited` (its engine is gone: only the fallback shell runs). `awaitEngine` returns only once the relaunched engine is a running process, failing when it never shows up. */
+  reviveTab(
+    client: DaemonRpc,
+    target: PromptTarget,
+    tabId: string,
+    worktree: string,
+    opts?: { readonly replaceExited?: boolean; readonly awaitEngine?: boolean },
+  ): Promise<RevivedTab>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
   /** Can a worktree be cut from this repo? On the seam so handler tests need no
    *  real repo. Remote (`ssh://…`) keys answer true; remote-add validates them. */
   isUsableRepo(absPath: string): Promise<boolean>
+  /** {@link resolveRepoRoot} plus {@link isUsableRepo} from one git call: what
+   *  a repo filter needs per stored repo, without two spawns each. */
+  inspectRepo(absPath: string): Promise<{ readonly root: string; readonly usable: boolean }>
   /** `git check-ref-format` verdict, on the seam so handler tests don't spawn git. */
   isValidBranchName(branch: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
@@ -333,7 +399,12 @@ export interface ApiRuntime {
   }>
   /**
    * Stop a task's hosted sessions, only after `task.delete` succeeded. Never
-   * throws: teardown must not fail the already-committed RPC.
+   * throws: teardown must not fail the already-committed RPC. `scope` spares
+   * the aliased PTYs of surviving children and adds the task's own.
    */
-  tearDownSession(taskId: string): Promise<void>
+  tearDownSession(taskId: string, scope?: TeardownScope): Promise<void>
+  /** TCP listeners on this machine with each owner's cwd (`ports`); `null` = could not scan. */
+  listeningPorts(): Promise<readonly ListeningSocket[] | null>
+  /** Disk a checkout takes, local or remote (`worktree-usage`). */
+  measureCheckout(path: string): Promise<CheckoutUsage>
 }

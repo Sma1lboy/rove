@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
 import { useNewTaskViewModel } from "../../src/tui-react/component/new-task-dialog/view-model"
 import { useDialog } from "../../src/tui-react/ui/dialog"
-import type { DialogTab, Field } from "../../src/tui/component/new-task-dialog/state"
+import { type DialogTab, type Field, nextField } from "../../src/tui/component/new-task-dialog/state"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 const ENGINES = ["claude", "codex", "kimi", "claudex --dangerously-skip-permissions", "opencode"]
@@ -130,9 +130,9 @@ for (const { width, height } of [{ width: 200, height: 60 }]) {
 
 for (const mode of ["existing", "adopt"] as const) {
   test(`${mode}: wrapped chips and picker rows stay inside the modal`, async () => {
-    // 48 rows, not 40: the depth and model rows pushed FROM BRANCH below a
+    // 64 rows, not 40: the model and effort rows pushed FROM BRANCH below a
     // 40-row fold at open, and this test is about wrapping, not scrolling.
-    const h = await mount(120, 48)
+    const h = await mount(120, 64)
     if (mode === "adopt") {
       await press(h, "right")
       await press(h, "right")
@@ -161,15 +161,17 @@ for (const mode of ["existing", "adopt"] as const) {
 }
 
 test("a focused last field remains visible after narrowing and shortening the terminal", async () => {
-  const h = await mount(200, 60)
+  const h = await mount(200, 72)
   await press(h, "right")
-  // Tab to the clone form's LAST field. Counting presses ("7 tabs") broke
-  // when three fields were removed, and waiting for the label to appear is
-  // circular: the label showing up is the very thing this test checks, so a
-  // scroll that fails to follow focus would just spin here instead of
-  // failing. Press a fixed number past the end — extra Tabs wrap around the
-  // cycle harmlessly — then assert the focused field is on screen.
-  for (let i = 0; i < 5; i++) await press(h, "tab")
+  // Tab to the clone form's LAST field, counted from the focus chain (the
+  // fixture engine shows model and effort rows).
+  let last: Field = "tabs"
+  let stops = 0
+  do {
+    last = nextField(last, "clone", { modelVisible: true, effortVisible: true })
+    stops++
+  } while (last !== "cloneBaseRef")
+  for (let i = 0; i < stops; i++) await press(h, "tab")
   act(() => h.resize(64, 40))
   await settle()
   let frame = await h.frame()
@@ -244,16 +246,14 @@ for (const { width, height } of [
 }
 
 /**
- * Creating a task asks WHERE, WITH WHICH ENGINE, and OPENING WHAT — not about
- * depth, model or reasoning level (owner 2026-09-19). Depth and effort belong
- * to auto-routing, which owns that decision in Settings; a pinned model is a
- * per-task exception. All three stay settable after the fact.
+ * Creating a task asks WHERE, WITH WHICH ENGINE (and model and effort, for engines that declare
+ * them), and OPENING WHAT — not about depth, which stays auto-routing's (docs/DESIGN.md).
  *
  * Driven through the REAL view model's `advanceFrom`, not through `nextField`
  * with hand-written flags. Two earlier versions of this test could never
  * fail: one checked the frame for "EFFORT" (that block only renders when the
- * engine declares levels, and this fixture's does not), and one passed its
- * own `effortVisible: false` into `nextField` — testing its own argument.
+ * engine declares levels), and one passed its
+ * own `effortVisible: true` into `nextField` — testing its own argument.
  * What matters is what the dialog PASSES, which is only observable here.
  *
  * Why it is a keyboard bug and not a cosmetic one: view-model.ts warns three
@@ -285,7 +285,7 @@ function FocusWalk(props: { tab: DialogTab; onDone: (seen: readonly Field[]) => 
   return <text>walk</text>
 }
 
-test("Tab never stops on a field this dialog no longer renders", async () => {
+test("Tab stops only on rows the dialog renders: engine, model and declared effort yes, depth never", async () => {
   for (const tab of ["existing", "clone", "adopt"] as const) {
     let seen: readonly Field[] = []
     await renderComponent(
@@ -302,9 +302,10 @@ test("Tab never stops on a field this dialog no longer renders", async () => {
       },
     )
     await settle()
-    for (const gone of ["tier", "model", "effort"] as const) {
-      expect([...seen], `${tab}: Tab still stops on the removed ${gone} row`).not.toContain(gone)
-    }
+    expect([...seen], `${tab}: Tab stops on the depth row, which this dialog does not render`).not.toContain("tier")
+    // The fixture engine declares levels and a model flag, so both rows are stops.
+    expect([...seen], `${tab}: Tab no longer reaches the effort row`).toContain("effort")
+    expect([...seen], `${tab}: Tab no longer reaches the model row`).toContain("model")
     expect([...seen], `${tab}: Tab no longer reaches the engine row`).toContain("engine")
   }
 })

@@ -24,11 +24,11 @@ vi.mock("../../src/engine/foreground.ts", async (original) => ({
 vi.mock("../../src/engine/trust-worktree.ts", () => ({ trustEngineWorktree() {} }))
 
 import { deliverPrompt } from "../../src/cli/api/runtime.ts"
-import type { DaemonRpc } from "../../src/cli/daemon-session.ts"
+import { tabsDaemon } from "./tabs-daemon-fake.ts"
 
 afterEach(() => vi.unstubAllEnvs())
 
-it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --tab %s", async (tab) => {
+it("enforces the persisted cap through the runtime for --tab tab-2", async () => {
   const home = mkdtempSync(join(tmpdir(), "rove-api-admission-"))
   vi.stubEnv("ROVE_HOME_DIR", home)
   fixture.opens = 0
@@ -44,24 +44,19 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
     { key: "other::tab-1", pid: 123, alive: true, command: ["claude"], title: "" },
     { key: "t::tab-2", pid: null, alive: false, restored: true, command: ["codex"], title: "" },
   ]
-  const daemon: DaemonRpc = {
-    subscribe: async () => ({}),
-    onChannel: () => () => {},
-    request: async () => {
-      throw new Error("unexpected daemon request")
-    },
-  }
+  // The daemon's tab store holds the same tabs the file shows (it is the file's one writer).
+  const daemon = tabsDaemon({ seed: { t: tabs } })
   await expect(
     deliverPrompt(
-      daemon,
+      daemon.client,
       {
         id: "t",
         kind: "task",
         worktreePath: home,
         repo: home,
         vendor: "claude",
-        tab,
-        ...(tab === "new" ? { tabCommand: "codex --model chosen", tabVendor: "codex" } : { respawn: true }),
+        tab: "tab-2",
+        respawn: true,
       },
       "isolated prompt",
     ),
@@ -74,8 +69,8 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
         "--task-id",
         "t",
         "--tab",
-        tab,
-        ...(tab === "new" ? ["--command", "codex --model chosen"] : ["--respawn"]),
+        "tab-2",
+        "--respawn",
         "--plain",
         "--prompt",
         "isolated prompt",
@@ -83,5 +78,7 @@ it.each(["new", "tab-2"])("enforces the persisted cap through the runtime for --
     },
   })
   expect(fixture.opens).toBe(0)
+  // A refusal leaves the tabs and state.json as they were.
+  expect(daemon.tabs("t")?.tabs).toEqual(tabs.tabs)
   expect(JSON.parse(readFileSync(statePath, "utf8"))["terminalTabs.t"].tabs).toEqual(tabs.tabs)
 })
