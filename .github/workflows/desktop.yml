@@ -1,6 +1,8 @@
 # The desktop app (packages/rove-desktop) on Linux and Windows: package it, then open the packaged app
 # against a bridge from this checkout and check the page loaded (`ROVE_DESKTOP_SMOKE`). The installers
-# are uploaded as workflow artifacts; nothing is published. macOS is built and checked locally.
+# are uploaded as workflow artifacts, and a push to main also puts them on the rolling `desktop` release
+# that rove.run links to. macOS is built, signed and notarized by scripts/release-mac.sh on a Mac that
+# holds the Developer ID certificate.
 
 name: Desktop
 
@@ -98,3 +100,23 @@ jobs:
             packages/rove-desktop/smoke.log
             ${{ runner.temp }}/desktop-smoke.png
           if-no-files-found: warn
+
+  publish:
+    needs: package
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: rove-desktop-*
+      - name: Upload to the desktop release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view desktop --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create desktop --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+              --title "Rove desktop" --notes "Installers for the desktop app. This release is updated in place; see docs/DESKTOP.md."
+          find artifacts \( -name '*.AppImage' -o -name '*.exe' \) -print0 | xargs -0 gh release upload desktop --repo "$GITHUB_REPOSITORY" --clobber

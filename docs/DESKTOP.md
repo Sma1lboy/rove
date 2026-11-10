@@ -20,6 +20,27 @@ The app is a shell — the Rove it drives is the one your TUI and phones drive, 
 upgrading Rove upgrades the app's backend, and a task started here is in the TUI
 the moment you switch.
 
+## Download
+
+| Platform | File |
+|---|---|
+| macOS, Apple silicon | [Rove-mac-arm64.dmg](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-arm64.dmg) |
+| macOS, Intel | [Rove-mac-x64.dmg](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-mac-x64.dmg) |
+| Windows | [Rove-win-x64.exe](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-win-x64.exe) |
+| Linux | [Rove-linux-x86_64.AppImage](https://github.com/Sma1lboy/rove/releases/download/desktop/Rove-linux-x86_64.AppImage) |
+
+Install the Rove CLI first: the app starts the `rove` it finds on this machine. The macOS
+build is signed with a Developer ID and notarized. The Windows installer is not signed, so
+SmartScreen asks once: **More info › Run anyway**.
+
+These files live on one release, `desktop`, that is updated in place. A push to `main`
+that touches `packages/rove-desktop` replaces the Windows and Linux files from CI. The
+macOS files are replaced by hand, on a Mac that holds the Developer ID certificate:
+
+```sh
+ASC_KEY_ID=… ASC_ISSUER_ID=… packages/rove-desktop/scripts/release-mac.sh
+```
+
 ## Build it
 
 ```sh
@@ -34,15 +55,16 @@ bun run dist:win   # NSIS installer
 `bun install` at the repo root downloads the Electron runtime
 (`scripts/setup-electron.mjs`; Bun does not run Electron's own postinstall).
 
-The packaged build is ad-hoc signed, not notarized: macOS quarantines a downloaded
-copy, so either right-click the app and choose **Open**, or
+A build you package yourself with `bun run dist` is ad-hoc signed, not notarized: macOS
+quarantines a copy of it that was downloaded, so either right-click the app and choose
+**Open**, or
 
 ```sh
 xattr -d com.apple.quarantine /Applications/Rove.app
 ```
 
-The `Desktop` workflow packages the Linux and Windows builds and opens each packaged
-app against a bridge on the runner. On Windows the app looks for `rove.exe` or
+The `Desktop` workflow packages the Linux and Windows builds, opens each packaged
+app against a bridge on the runner, and on `main` uploads them to the `desktop` release. On Windows the app looks for `rove.exe` or
 `rove.cmd` on `PATH`, in `%APPDATA%\npm` and in `~\.bun\bin`.
 
 ## Finding Rove
