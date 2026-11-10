@@ -50,8 +50,8 @@ width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
 its first letter and a rule, such as `r──` or `w──`; the Ungrouped group is `u──`. The fold shows the
 same projects the expanded rail shows and hides the same ones — a project you
-have closed down to nothing is absent from both, and so are the routine
-sessions the expanded rail folds behind its count row — and a section's letter
+have closed down to nothing is absent from both, and neither lists routine
+runs (open those from the Routines page) — and a section's letter
 comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
 `a──` twice.

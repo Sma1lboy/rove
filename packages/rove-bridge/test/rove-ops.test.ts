@@ -7,6 +7,7 @@ import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { RowStatus, TabStatus, TaskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { kvStatePath } from "@sma1lboy/rove/src/env.ts"
+import { addSavedRepo } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadOrCreateToken } from "../src/auth.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import type { BridgeApi } from "../src/ops/types.ts"
@@ -419,6 +420,27 @@ describe("phone text that starts with --", () => {
     await ops.createTask({ repo: "/r", title: "--help", prompt: "--yes, do it" })
     expect(argvToParams(calls[0].name, calls[0].argv)).toMatchObject({ prompt: "--force-push is broken", tab: "new" })
     expect(argvToParams(calls[1].name, calls[1].argv)).toMatchObject({ title: "--help", prompt: "--yes, do it" })
+  })
+})
+
+describe("repos.list", () => {
+  test("lists saved projects only; a No folder session's or routine's cwd is not offered as a project", async () => {
+    const prev = process.env.ROVE_HOME_DIR
+    const home = mkdtempSync(join(tmpdir(), "rove-bridge-repos-"))
+    process.env.ROVE_HOME_DIR = home
+    try {
+      addSavedRepo("/work/app", { skipGate: true })
+      const tasks = [
+        task({ id: "m", kind: "main", repo: "/work/app" }),
+        task({ id: "nf", kind: "dir", repo: home, noProject: true }),
+        task({ id: "rt", kind: "dir", repo: join(home, ".rove", "routines", "r1"), noProject: true }),
+      ]
+      const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
+      expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
+    } finally {
+      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+      else process.env.ROVE_HOME_DIR = prev
+    }
   })
 })
 

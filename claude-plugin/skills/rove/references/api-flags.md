@@ -256,7 +256,7 @@ add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --pa
                --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-               --require-report --expect-report --activate(false) --start
+               --require-report --expect-report --activate(false) --worktree-only --start
                --prompt|--prompt-file
 update         --task-id --title --tab --branch --parent --project --group --command
                --model --effort --pinned --kept --require-report{on|off}

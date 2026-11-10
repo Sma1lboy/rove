@@ -100,9 +100,8 @@ Exactly one of `--repo` and `--no-repo` is required, so a forgotten `--repo` is
 an error, not a quiet repo-less routine. Every run works in the routine's own
 directory, `<home>/.rove/routines/<id>/` (made when you save it, and again
 before a run if it went missing), and its session is a directory task: no
-worktree, no branch, nothing to land. Those sessions sit in the sidebar's
-**Ungrouped** group, next to your Scratch shells, and fold behind that group's
-routines row like a project's. The precheck and `--script`
+worktree, no branch, nothing to land. Like every routine run's session, it
+stays out of the sidebar; open it from the Routines page. The precheck and `--script`
 run in the same directory. There is no `--base-branch`, there is no
 switching a routine between a repo and no project after it is saved (create
 a replacement), and `--target-task` still works: it only needs the task to
@@ -153,11 +152,11 @@ closes the page.
 
 Deleting removes the routine and its run history. **Tasks it already created are
 untouched.** They outlive the schedule that made them — but they are not quite
-ordinary: each carries a `routine` marker of its own, and the sidebar folds
-marked tasks behind the `N routine sessions` row and skips them in the
-cold-start "which task to open" fallback. Deleting a `--persistent-session`
-routine therefore leaves its standing task folded behind an orphan row forever;
-delete the task too, or open it explicitly.
+ordinary: each carries a `routine` marker of its own, and the sidebar leaves
+marked tasks out and skips them in the cold-start "which task to open"
+fallback. Deleting a `--persistent-session` routine therefore leaves its
+standing task with no row and no Routines page entry; delete the task too, or
+open it from the Inbox or `rove api list`.
 
 To find them — a routine that has been firing for weeks has a task per run —
 read the ids off its history before deleting it, since deleting takes the
@@ -443,22 +442,16 @@ one branch is a branch nobody can merge.
 
 ### Where its output goes
 
-A routine's tasks do not sit in your sidebar as more rows: the standing task, and
-every fresh run's task. They rest behind a
-**`N routine sessions`** count row under its project — press `enter` on that row
-to open it and see them, `enter` again to close. Seven daily routines would
+A routine's tasks do not sit in your sidebar: not the standing task, not any
+fresh run's task, in the TUI or on the web. Seven daily routines would
 otherwise be forty-nine rows a week competing with the handful of tasks you
-opened yourself. The web rail leaves them out entirely; open a run from its
-Routines page, where a click on a recent run opens its session.
+opened yourself. Open a run from the Routines page: `enter` opens the latest
+run's task, and a click on any recent run opens its session.
 
-Hidden at rest is not hidden: the task is still found by `/` search, still opens
-from the Routines page (`enter` on the routine), and still raises an **Inbox**
-entry when its turn finishes or it needs you. That entry is how you learn what
-last night's routine said — you do not go looking for it.
-While the row is closed, it also names how many of those sessions are blocked on
-you (`3 routine sessions · needs you: 1`): a permission prompt, a quota wall that
-will not clear itself, or an error that has settled. A stalled routine makes no
-progress until you answer it, so the fold never hides that.
+Out of the sidebar is not out of reach: a run still raises an **Inbox** entry
+when its turn finishes or it needs you. That entry is how you learn what last
+night's routine said, and how a routine stuck on a permission prompt or a quota
+wall reaches you — you do not go looking for it.
 
 It also never wins the "which task should I open?" fallback on a cold start. A
 routine that fired at 03:00 is genuinely the most recently touched task in the

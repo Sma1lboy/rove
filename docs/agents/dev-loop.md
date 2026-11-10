@@ -75,6 +75,7 @@ The owner's machine only. The owner's live web is the test build: rove-web.sma1l
 3. Kill only the bun child listening on 7890 (`kill $(lsof -tiTCP:7890 -sTCP:LISTEN)`), never the `run.sh` loop: it relaunches the bridge on the new code within 3s.
 4. Changed daemon/orchestrator/engine code? `bun src/cli/rove.ts daemon restart` from that checkout's `packages/rove`, then check `ps -o command= -p $(cat ~/.rove/daemon.pid)` shows the checkout path (a release client can win the respawn).
 5. Verify: the `assets/index-*.js` name in `curl -s https://rove-web.sma1lboy.me/` equals the one in the local `dist/assets/`. Then tell the owner to refresh.
+6. Nothing lives only on `web/preview`. A commit picked there has an open PR, opened in the same turn, and that PR is merged or closed before the work is called done. `git diff --stat origin/main web/preview -- packages docs` must list only files of PRs still open: anything else is a change users never got.
 
 ## Diagrams in `docs/`
 

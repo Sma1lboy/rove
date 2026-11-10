@@ -359,10 +359,10 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   setWorktreeOnly(id: string, on: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>
+  moveProject(repo: string, target: string, side: "before" | "after"): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
-  /** Record what the worker says it delivered (`update --report-*`).
-   *  Separate from `setStatus` because a report on an already-`done` task is
-   *  ordinary, and `setStatus` returns early when the status is unchanged. */
+  /** What the worker says it delivered (`update --report-*`). Apart from `setStatus`, which returns
+   *  early on an unchanged status: a report on an already-`done` task is ordinary. */
   setWorkerReport(id: string, report: Omit<TaskWorkerReport, "at">): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null, repoName?: string): Promise<void>
   /** Attach a PR the session opened (dedup by `url`, newest last, oldest dropped past a cap). */

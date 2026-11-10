@@ -164,7 +164,7 @@ export async function checkAgentEngines(plan: ReadonlyArray<{ id: string }>, ctx
   }
 }
 
-/** Absolute repo path that Rove already knows: a saved project or one with tasks (the `repos.list` set). */
+/** Absolute repo path that Rove already knows: a saved project or one with tasks. */
 export async function knownRepo(args: Args, ctx: OpContext, name = "repo"): Promise<string> {
   const repo = absPath(args, name)
   if (taskOpDeps.savedRepos().includes(repo)) return repo

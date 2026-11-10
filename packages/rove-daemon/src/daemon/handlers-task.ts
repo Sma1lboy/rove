@@ -367,9 +367,8 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.worktreeOnly",
     async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
       if (typeof payload.on !== "boolean") throw new Error("on must be a boolean")
-      await ctx.orch.setWorktreeOnly(taskId, payload.on)
+      await ctx.orch.setWorktreeOnly(requireString(payload, "taskId"), payload.on)
       return {}
     },
   },
@@ -390,6 +389,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (direction === "top") await ctx.orch.moveTaskToTop(taskId)
       else if (direction === "up" || direction === "down") await ctx.orch.moveTask(taskId, direction === "up" ? -1 : 1)
       else throw new Error("direction must be up, down or top")
+      return {}
+    },
+  },
+  {
+    name: "project.move",
+    async handle(payload, ctx) {
+      const repo = requireString(payload, "repo")
+      const target = requireString(payload, "target")
+      const side = requireString(payload, "side")
+      if (side !== "before" && side !== "after") throw new Error("side must be before or after")
+      await ctx.orch.moveProject(repo, target, side)
       return {}
     },
   },

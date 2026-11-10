@@ -13,8 +13,8 @@ import { isSharedChild } from "@/orchestrator/task-tree"
 import type { Task } from "@/types/task"
 import type { VendorId } from "../../../types/vendor"
 import { sidebarProjectKeyOfTask } from "./groups"
-import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups, ownTasks } from "./project-groups"
-import { ARCHIVED_ROW_ID, RECENT_ROW_ID, routinesRowId } from "./tree-ids"
+import { type SidebarGroup, type SidebarGroupInput, buildSidebarGroups } from "./project-groups"
+import { ARCHIVED_ROW_ID, RECENT_ROW_ID } from "./tree-ids"
 
 // Re-exported so callers name the whole tree vocabulary from one module.
 export { filterTreeRows } from "./tree-search"
@@ -23,7 +23,6 @@ export {
   RECENT_ROW_ID,
   SCRATCH_SECTION_ID,
   parseRowId,
-  projectKeyOfRoutinesRow,
   tabRowId,
 } from "./tree-ids"
 export { conversationTitleOf, rowLiveBranchPath, worktreeRowLabel } from "./tree-labels"
@@ -88,21 +87,6 @@ export type TreeRow =
     }
   | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: number }
   /**
-   * One row folding a project's routine session tasks (7 daily routines =
-   * 49 rows a week). Opening reveals them; they're never removed from data.
-   */
-  | {
-      readonly kind: "routines"
-      readonly id: string
-      /** Project key these routines belong to — the row sits under it. */
-      readonly projectKey: string
-      readonly count: number
-      /** The routine sessions behind the row, so a closed fold can still flag one that needs you. */
-      readonly tasks: readonly Task[]
-      readonly expanded: boolean
-      readonly depth: number
-    }
-  /**
    * The one fold at the end of the tree holding every archived task
    * (`rove api archive`). Opening it lists them as ordinary rows, where the
    * menu offers Unarchive.
@@ -149,8 +133,6 @@ export function childMarkerOf(task: Task): ChildMarker | null {
 }
 
 export interface TreeInput extends SidebarGroupInput {
-  /** Project keys whose routine row is open; absent = all closed. */
-  readonly expandedRoutines?: ReadonlySet<string>
   /** Task ids whose children are folded away; absent = no folding at all (search, the icon rail). */
   readonly collapsedTasks?: ReadonlySet<string>
   /** Task ids the user opened: they stay open past {@link AUTO_FOLD_CHILDREN}. */
@@ -168,7 +150,6 @@ export interface TreeRowsInput {
   readonly archived?: readonly Task[]
   /** The Archived fold is open. */
   readonly archivedExpanded?: boolean
-  readonly expandedRoutines?: ReadonlySet<string>
   readonly collapsedTasks?: ReadonlySet<string>
   /** Task ids the user opened: they stay open past {@link AUTO_FOLD_CHILDREN}. */
   readonly openedTasks?: ReadonlySet<string>
@@ -196,7 +177,7 @@ function loopsBack(task: Task, byId: ReadonlyMap<string, Task>): boolean {
 /**
  * Children nest under their parent wherever it sits, another project's
  * included. One whose parent is not on screen (or whose lineage loops) stays
- * top-level; routine sessions stay in their fold. Children keep list order.
+ * top-level. Children keep list order.
  */
 function indexChildren(groups: readonly SidebarGroup[]): ChildIndex {
   const byId = new Map<string, Task>()
@@ -205,7 +186,7 @@ function indexChildren(groups: readonly SidebarGroup[]): ChildIndex {
   const nested = new Set<string>()
   for (const task of byId.values()) {
     const parent = task.parentTaskId
-    if (parent === undefined || task.routine !== undefined || !byId.has(parent) || loopsBack(task, byId)) continue
+    if (parent === undefined || !byId.has(parent) || loopsBack(task, byId)) continue
     nested.add(task.id)
     const siblings = children.get(parent)
     if (siblings) siblings.push(task)
@@ -273,11 +254,9 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
   }
   const rows: TreeRow[] = []
   for (const group of input.groups) {
-    // Routine sessions are the TAIL of `group.tasks`; the count row sits at the seam.
-    const ownCount = group.tasks.length - group.routineCount
-    const top = ownTasks(group).filter((task) => !ctx.nested.has(task.id))
+    const top = group.tasks.filter((task) => !ctx.nested.has(task.id))
     // Every task here hangs under a parent elsewhere: a bare header would read as an empty project.
-    if (top.length === 0 && group.routineCount === 0) continue
+    if (top.length === 0) continue
     // Scratch reuses the project-row shape; its id (SCRATCH_SECTION_ID) can't
     // be a repo path, and the renderer translates the label.
     rows.push({
@@ -289,20 +268,6 @@ export function buildRowsFromGroups(input: TreeRowsInput): TreeRow[] {
       depth: 0,
     })
     for (const task of top) pushTask(rows, task, 0, ctx)
-    if (group.routineCount > 0) {
-      const expanded = input.expandedRoutines?.has(group.key) === true
-      const routines = group.tasks.slice(ownCount)
-      rows.push({
-        kind: "routines",
-        id: routinesRowId(group.key),
-        projectKey: group.key,
-        count: group.routineCount,
-        tasks: routines,
-        expanded,
-        depth: 1,
-      })
-      if (expanded) for (const task of routines) pushTask(rows, task, 0, ctx)
-    }
   }
   pushArchived(rows, input)
   return rows
@@ -325,7 +290,6 @@ function pushArchived(rows: TreeRow[], input: TreeRowsInput): void {
     label: "",
     machineId: "local",
     tasks: archived,
-    routineCount: 0,
   }
   const ctx: PushContext = {
     ...indexChildren([group]),
@@ -341,7 +305,6 @@ function pushArchived(rows: TreeRow[], input: TreeRowsInput): void {
 export function buildTreeRows(input: TreeInput): TreeRow[] {
   return buildRowsFromGroups({
     groups: buildSidebarGroups(input),
-    expandedRoutines: input.expandedRoutines,
     collapsedTasks: input.collapsedTasks,
     openedTasks: input.openedTasks,
     selectedTaskId: input.selectedTaskId,
@@ -356,7 +319,6 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
 export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   const ids: string[] = []
   for (const row of rows) {
-    // The routines row IS navigable: opening it is its whole point.
     if (row.kind !== "project") ids.push(row.id)
   }
   return ids

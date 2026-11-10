@@ -27,6 +27,7 @@ import type { Args, OpContext, OpSpec, OpTable } from "./types.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
 const DIRECTIONS = ["up", "down", "top"] as const
+const SIDES = ["before", "after"] as const
 const PROMPT_MAX = 100_000
 
 /** `extraRepos`: the task's other repos in pick order (the first `repo` is the primary), each with an optional base ref. */
@@ -248,6 +249,15 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),
+  ),
+  "project.move": write("rpc project.move (the whole project, main or not, beside another)", (a, c) =>
+    done(
+      c.api.rpc("project.move", {
+        repo: absPath(a, "repo"),
+        target: absPath(a, "target"),
+        side: oneOf(a, "side", SIDES),
+      }),
+    ),
   ),
   "project.forget": write(
     "rpc project.forget",

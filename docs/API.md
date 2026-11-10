@@ -1840,8 +1840,8 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 
 **`--persistent-session`** keeps ONE task per routine and delivers each firing
 into it, so a daily check can build on yesterday. Every routine task, standing or
-one fresh run's, is folded behind the sidebar's `N routine sessions` count row
-(still findable by search, still Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
+one fresh run's, stays out of the sidebar; it opens from the Routines page and
+still raises Inbox entries. Leave it off for a routine that edits code: a week of runs on
 one branch is a branch nobody can land. One extra run status comes with it —
 `revived` (the engine had exited, so it was respawned in the same worktree; the
 files carried over, the conversation did not).

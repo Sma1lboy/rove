@@ -119,14 +119,12 @@ lost its worktree resolves to null, and the firing rebuilds and relinks. Without
 that, one deleted task would wedge the routine forever — and a wedged schedule
 looks exactly like a quiet one.
 
-**In the sidebar.** Every task a firing makes, standing or fresh, carries `Task.routine`, which folds it behind
-a per-project `N routine sessions` count row (the web rail lists none; its Routines page opens them)
-([`tree-core.ts`](../../packages/rove/src/tui/panes/sidebar/tree-core.ts)). This
-is the one fold in a tree that otherwise has none (owner call 2026-08-01, round
-5), scoped so the rule it bends still holds: it hides only what a SCHEDULE
-created, never a task a human opened. A folded task stays findable by `/` (the
-search builds the tree fully expanded), openable from the Routines page, and
-reachable from the Inbox — hiding a ROW, not a task.
+**In the sidebar.** Every task a firing makes, standing or fresh, carries `Task.routine`, and neither the
+TUI sidebar nor the web rail lists it ([`project-groups.ts`](../../packages/rove/src/tui/panes/sidebar/project-groups.ts),
+web `railRows`): schedule output never competes with tasks a human opened. A run's task stays openable
+from the Routines page (`enter` opens the latest run, a click opens any recent one) and reachable from the
+Inbox — hiding a ROW, not a task. A project left with only its idle main checkout once the runs are
+gone closes down like any other.
 
 ## Scheduling
 

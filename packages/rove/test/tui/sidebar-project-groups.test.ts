@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
+import { archivedTasks, buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { SCRATCH_SECTION_ID } from "../../src/tui/panes/sidebar/tree-ids"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
@@ -85,19 +85,6 @@ describe("grouping", () => {
     expect(result[0]?.tasks.map((t) => t.id)).toEqual(["d1", "s1"])
   })
 
-  test("a standing routine session in Ungrouped folds into the group's routine tail", () => {
-    const standing = task("r1", {
-      kind: "dir",
-      repo: "/home/.rove/routines/a1",
-      noProject: true,
-      routine: { automationId: "a1" },
-    })
-    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
-    const result = groups([standing, scratch])
-    expect(result[0]?.tasks.map((t) => t.id)).toEqual(["s1", "r1"])
-    expect(result[0]?.routineCount).toBe(1)
-  })
-
   test("headers disambiguate against the other VISIBLE projects", () => {
     const result = groups([main("a", "/work/api"), main("b", "/oss/api")])
     expect(result.map((g) => g.label)).toEqual(["work/api", "oss/api"])
@@ -156,16 +143,29 @@ describe("what never reaches either surface", () => {
   })
 })
 
-describe("routine sessions", () => {
-  const routine = (id: string) => task(id, { repo: "/work/api", routine: { automationId: "nightly" } })
+describe("routine runs", () => {
+  const routine = (id: string, over: Partial<Task> = {}) =>
+    task(id, { repo: "/work/api", routine: { automationId: "nightly" }, ...over })
 
-  test("sort to the tail of their project, counted so the tree knows the seam", () => {
+  test("are never listed; they open from the Routines page", () => {
     const result = groups([routine("r1"), task("own", { repo: "/work/api" }), routine("r2")])
-    expect(result[0]?.tasks.map((t) => t.id)).toEqual(["own", "r1", "r2"])
-    expect(result[0]?.routineCount).toBe(2)
+    expect(result.flatMap((g) => g.tasks.map((t) => t.id))).toEqual(["own"])
   })
 
-  test("a project with no routines reports none", () => {
-    expect(groups([task("own", { repo: "/work/api" })])[0]?.routineCount).toBe(0)
+  test("a projectless run leaves Ungrouped too", () => {
+    const home = "/home/.rove/routines/a1"
+    const run = routine("r1", { kind: "dir", repo: home, worktreePath: home, noProject: true })
+    const scratch = task("s1", { kind: "dir", repo: "/tmp/s", scratch: true })
+    expect(groups([run, scratch])[0]?.tasks.map((t) => t.id)).toEqual(["s1"])
+  })
+
+  test("a project whose only other row is its idle main closes down", () => {
+    const result = groups([main("m", "/work/api"), routine("r1")], tabs({ m: 0 }))
+    expect(result).toEqual([])
+  })
+
+  test("an archived run stays out of the Archived fold", () => {
+    const archived = archivedTasks([routine("r1", { archived: true }), task("a1", { archived: true })])
+    expect(archived.map((t) => t.id)).toEqual(["a1"])
   })
 })
