@@ -26,6 +26,7 @@ import { StatusBar } from "./status-bar.tsx"
 import { useStore } from "./store.ts"
 import { layoutMoving, newSession, openNewSessionFromLink, page, zen } from "./ui.ts"
 import { APP_SHELL, RAIL_PEEK_EDGE, appClass } from "./ui/shell.ts"
+import { maybeAskToUpdate } from "./update-prompt.tsx"
 import { checkForUpdate, maybeShowWhatsNew } from "./update-view.tsx"
 import { useUserKeys } from "./user-keys.ts"
 import { followTaskLinks } from "./web-push.ts"
@@ -56,8 +57,12 @@ function Shell({ model }: { model: AppModel }) {
   // Once per connection: the rail's update chip and the once-per-upgrade What's New.
   useEffect(() => {
     if (!hello) return
-    void checkForUpdate(model.client)
     maybeShowWhatsNew(model.client, hello.roveVersion)
+    // A page left open for days still hears about a release: ask the registry again each hour.
+    const check = () => void checkForUpdate(model.client).then(maybeAskToUpdate)
+    check()
+    const hourly = window.setInterval(check, 3_600_000)
+    return () => window.clearInterval(hourly)
   }, [hello, model.client])
   usePluginChords(model)
   useWorkspaceKeys(model)
