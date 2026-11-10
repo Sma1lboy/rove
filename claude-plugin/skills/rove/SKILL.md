@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 112 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 113 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -691,14 +691,16 @@ real message (you wrote the code; you write its message). A worker that ran
 everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
 
-Rove checks this at the moment you claim it: a `succeeded:` report from a
-managed task whose branch has **0 commits** is refused with
-`EMPTY_SUCCESS_REPORT` and never reaches the coordinator. Commit, then send.
+Rove checks this at the moment you claim it: a `succeeded:` send, or a
+`report --outcome done` on a delivery a `send` armed, from a managed task
+whose branch has **0 commits** is refused with `EMPTY_SUCCESS_REPORT` and
+never reaches the coordinator. Commit, then send or report.
 When the task genuinely produced no commits — an investigation, a review, a
 question answered — say so explicitly with `--allow-empty`:
 
 ```bash
 rove api send --allow-empty --prompt "succeeded: no bug — root cause is upstream, see notes"
+rove api report --allow-empty --delivery d-41 --outcome done --summary "no bug — root cause is upstream"
 ```
 
 **"CI is green" means `checkState: passing`.** A local test run is not CI: it

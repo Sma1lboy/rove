@@ -264,7 +264,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
 | `DISPATCHER_UNREACHABLE` | A bare `send` whose dispatcher tab is dead and whose task has no live engine. |
 | `NOT_DELIVERED` | The task was created but the prompt never reached its engine. |
-| `EMPTY_SUCCESS_REPORT` | A `succeeded:` report from a branch with 0 commits; commit, or pass `--allow-empty`. |
+| `EMPTY_SUCCESS_REPORT` | A `succeeded:` send, or `report --outcome done` on a `send` delivery, from a branch with 0 commits; commit, or pass `--allow-empty`. |
 | `SESSION_FAILED` | A hosted engine session could not be started or written to. |
 | `ENGINE_LIMIT` | Starting a session would pass `engine.maxLiveSessions`; nothing was started. |
 | `ENGINE_ADMISSION_UNAVAILABLE` | The running PTY host predates atomic admission; update and restart it before a capped launch. |
@@ -1587,6 +1587,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   and cannot be mixed with the individual flags; use it for text with quotes
   or backticks. An unknown id is `DELIVERY_NOT_FOUND`. Run it as the last
   step of the turn.
+
+  `--outcome done` on a `send` delivery gets the same check as a `succeeded:`
+  send: from a verified managed task whose branch has 0 commits it is refused
+  with `EMPTY_SUCCESS_REPORT` and nothing is recorded. Pass `--allow-empty`
+  when the task genuinely produced no commits. Routine and gate-answer
+  deliveries, and the outcomes `partial`, `blocked` and `failed`, are never
+  refused.
 
   Reporting again replaces the earlier report. A report on a `missing`
   delivery flips it to `reported` and clears its `report_missing` Inbox
