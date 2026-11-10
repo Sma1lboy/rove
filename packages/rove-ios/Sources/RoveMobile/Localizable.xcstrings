@@ -7080,12 +7080,12 @@
         }
       }
     },
-    "rove keeps all your coding agents in one place — one writes, another reviews, and every task gets its own git worktree and branch." : {
+    "rove keeps all your coding agents in one place — when one runs out of quota, switch to another, and every task gets its own git worktree and branch." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "rove 把所有编程 agent 放在一个地方：一个写，一个查，每个任务都有独立的 git worktree 和分支。"
+            "value" : "rove 把所有编程 agent 放在一个地方：一个额度用完了，换另一个接着干，每个任务都有独立的 git worktree 和分支。"
           }
         }
       }

@@ -20,7 +20,7 @@ struct TaskWelcomeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Theme.kicker(String(localized: "welcome"), color: Theme.accent)
-            Text("rove keeps all your coding agents in one place — one writes, another reviews, and every task gets its own git worktree and branch.")
+            Text("rove keeps all your coding agents in one place — when one runs out of quota, switch to another, and every task gets its own git worktree and branch.")
                 .font(Theme.mono(13)).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if !engines.isEmpty {

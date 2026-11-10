@@ -101,7 +101,7 @@ h1 .thin,h1 .acc{font-weight:400;color:var(--ink-2)}
 .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:48px;padding:24px 0 8px;align-items:start}
 .hero-l{min-width:0}
 .hero-r{min-width:0}
-.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:var(--ink)}
+.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#FAF8F5;border:1px solid var(--rule)}
 
 /* install --------------------------------------------------------------- */
 .install-wrap{max-width:600px}

@@ -15,7 +15,7 @@ export const PromoSocial: React.FC = () => (
       All your coding agents, <span style={{ color: P.accentText }}>in one place.</span>
     </div>
     <div style={{ position: "absolute", left: 80, top: 346, fontFamily: SANS, fontSize: 27, color: P.ink2 }}>
-      One writes, another reviews. When one runs out of quota, the next takes over.
+      Out of quota? Switch to another agent. They talk to each other directly.
     </div>
     <div
       style={{
