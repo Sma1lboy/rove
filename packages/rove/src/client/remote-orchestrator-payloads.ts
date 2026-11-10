@@ -140,6 +140,7 @@ type ContextUsagePart = {
   readonly label?: string
   readonly items?: readonly ContextUsageItem[]
   readonly itemCount?: number
+  readonly deferred?: true
 }
 /** A part off the wire, keeping what it is made of when that is well formed. */
 function contextPart(p: Record<string, unknown>): ContextUsagePart {
@@ -152,6 +153,7 @@ function contextPart(p: Record<string, unknown>): ContextUsagePart {
     ...(typeof p.label === "string" ? { label: p.label } : {}),
     ...(items.length > 0 ? { items: items.map(({ name, tokens }) => ({ name, tokens })) } : {}),
     ...(typeof p.itemCount === "number" ? { itemCount: p.itemCount } : {}),
+    ...(p.deferred === true ? { deferred: true as const } : {}),
   }
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>

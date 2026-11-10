@@ -21,6 +21,7 @@ const COLOURS: Readonly<Record<string, string>> = {
   system_prompt: "var(--info)",
   system_tools: "var(--success)",
   mcp_tools: "var(--warning)",
+  mcp_instructions: "var(--warning)",
   custom_agents: "var(--ink)",
   memory_files: "var(--merged)",
   skills: "var(--muted)",
@@ -40,6 +41,7 @@ interface ContextRow {
   readonly label?: string
   readonly items?: readonly ContextItem[]
   readonly itemCount?: number
+  readonly deferred?: true
 }
 interface ContextMeter {
   readonly percent: number | null
@@ -132,7 +134,7 @@ export function ContextView({ model, task, active }: { model: AppModel; task: Ta
         ))}
       </div>
       <ul className={s.CTX_ROWS}>
-        {meter.rows.map((row) => {
+        {meter.rows.map((row, index) => {
           const key = `context.part.${row.key}`
           const label = t(key) === key ? (row.label ?? row.key) : t(key)
           const swatch = colour(row)
@@ -146,11 +148,14 @@ export function ContextView({ model, task, active }: { model: AppModel; task: Ta
                 {row.items && <span className={s.CTX_CHEVRON}>›</span>}
               </span>
               <span className={s.CTX_VALUE}>{tokens(row.tokens)}</span>
-              <span className={s.CTX_PCT}>{percentText((row.tokens / (meter.window ?? meter.used)) * 100)}</span>
+              <span className={s.CTX_PCT}>
+                {row.deferred ? "—" : percentText((row.tokens / (meter.window ?? meter.used)) * 100)}
+              </span>
             </>
           )
-          // What is left over sits apart from what is used.
-          const gap = row.share === undefined ? s.CTX_GAP : undefined
+          // What is left over sits apart from what is used, and what loads on demand apart from both.
+          const opens = row.deferred ? !meter.rows[index - 1]?.deferred : row.share === undefined
+          const gap = opens ? s.CTX_GAP : undefined
           if (!row.items) {
             return (
               <li key={row.key} className={gap}>
