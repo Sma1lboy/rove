@@ -11,6 +11,8 @@ files:
   - dist/**
   - package.json
 asar: true
+# No version in the name: the landing page links to these files on the rolling `desktop` release.
+artifactName: Rove-${os}-${arch}.${ext}
 npmRebuild: false
 mac:
   category: public.app-category.developer-tools
