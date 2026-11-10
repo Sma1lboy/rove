@@ -358,16 +358,15 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       wraps: "helpers validateRepoPath + listLocalBranches + getCurrentBranch (+ rpc worktree.discoverAdoptable)",
       async run(a, { api }) {
         const repo = stripTrailingSlash(expandHome(typedPath(a, "path")))
-        const reason = taskOpDeps.validateRepoPath(repo)
+        const reason = await taskOpDeps.validateRepoPath(repo)
         // Not a git repo (or no commit yet) but a real folder: it opens in place, without worktrees.
         if (reason && taskOpDeps.isDirectory(repo)) return { ok: true, repo, git: false, branches: [], current: null }
         if (reason) return { ok: false, repo, reason }
-        const out: Record<string, unknown> = {
-          ok: true,
-          repo,
-          branches: taskOpDeps.listLocalBranches(repo),
-          current: taskOpDeps.getCurrentBranch(repo),
-        }
+        const [branches, current] = await Promise.all([
+          taskOpDeps.listLocalBranches(repo),
+          taskOpDeps.getCurrentBranch(repo),
+        ])
+        const out: Record<string, unknown> = { ok: true, repo, branches, current }
         if (a.adoptable === true) {
           const found = await api.rpc<{ worktrees?: readonly unknown[] }>("worktree.discoverAdoptable", { repo })
           out.worktrees = found.worktrees ?? []
