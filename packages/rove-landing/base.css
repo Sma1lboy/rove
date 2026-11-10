@@ -142,6 +142,9 @@ section{position:relative}
 .note.wide .txt-col{padding-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 48px}
 .note.wide .txt-col>*{max-width:60ch}
 .fig-col,.txt-col{min-width:0}
+.can{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px 48px;margin:0}
+.can dt{font-weight:600;margin:0 0 4px}
+.can dd{margin:0;color:var(--ink-2);max-width:40ch}
 .txt-col p{margin:0 0 16px;max-width:56ch}
 .txt-col p:last-child{margin-bottom:0}
 .txt-col p,.t-note{overflow-wrap:anywhere}
