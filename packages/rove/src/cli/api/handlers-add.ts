@@ -64,6 +64,14 @@ export async function add(ctx: VerbContext): Promise<unknown> {
       helpStep("add"),
     )
   }
+  const worktreeOnly = args.bool("worktree-only") === true
+  if (worktreeOnly && (parallel || args.promptText() || args.bool("start") || args.bool("no-worktree"))) {
+    throw new ApiError(
+      "--worktree-only cuts a checkout and starts no engine: it conflicts with --prompt/--prompt-file, --start, --count/--agents and --no-worktree",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
   // Validate with git before anything is created: an unusable name otherwise
   // fails only at `ensure-worktree` as a raw RPC_ERROR, leaving a row that
   // can never materialize. Skipped for a parallel round, which refuses
@@ -204,6 +212,13 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
   // to classify, so a note and an absent prompt cannot coexist.
   if (!prompt) {
+    if (args.bool("worktree-only")) {
+      // The checkout exists before the mark, so a failed cut leaves an ordinary, visible backlog row.
+      await daemon.request("task.ensureWorktree", { taskId })
+      await daemon.request("task.worktreeOnly", { taskId, on: true })
+      task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
+      return { taskId, task, worktreePath: task.worktreePath, home: homeDir(), ...placed, started: false, ...warned }
+    }
     if (!args.bool("start")) {
       return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
     }

@@ -108,6 +108,11 @@ top-level task. `--no-parent` is the unrelated top-level task cut from the repo
 default, `--parent ID` nests under another task, and a bare `send` from the
 child reports back to you.
 
+Only need a separate checkout to edit in yourself? `add --repo "$PWD"
+--worktree-only` cuts the worktree (`worktreePath` in the reply) and starts no
+engine. It is not a session, so nothing lists it under you until you `send` it
+work. Delete it when you are done.
+
 The distinction that decides every routing call: **a shared child uses the
 parent's worktree and branch; only a new task (`add`) gets its own.**
 Two conversations in one directory edit the same files, so they can collide —

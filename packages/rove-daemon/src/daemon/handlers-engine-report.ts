@@ -146,6 +146,11 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // state.json flag, checked inside maybeAutoStart). in_review is the
     // agent's own self-report, not a daemon rule.
     if (kind === "turn-start") {
+      // Work has been handed to a bare checkout: from here it is a session to list.
+      // ponytail: an engine that reports no turns (or a shell tab) leaves the row unlisted; clear on tab open if that bites.
+      if (ctx.orch.getTask(taskId)?.worktreeOnly) {
+        ctx.orch.setWorktreeOnly(taskId, false).catch(() => {})
+      }
       ctx.runtime
         .maybeAutoStart(ctx.orch, taskId)
         .then((result) => {

@@ -67,3 +67,36 @@ describe("add --start", () => {
     expect(client.requestNames).toEqual([])
   })
 })
+
+describe("add --worktree-only", () => {
+  it("cuts the checkout, marks it, and starts no engine", async () => {
+    const client = new FakeClient({
+      "task.create": created,
+      "task.ensureWorktree": () => ({ worktreePath: "/wt/made" }),
+      "task.worktreeOnly": () => ({}),
+      "task.get": () => ({ task: taskFixture({ worktreePath: "/wt/made", worktreeOnly: true }) }),
+    })
+    const result = await invokeVerb("add", ["--repo", "/repo/x", "--worktree-only"], {
+      client,
+      runtime: stubRuntime({
+        openTab: async () => {
+          throw new Error("--worktree-only must not start an engine")
+        },
+      }),
+    })
+
+    expect(client.requestNames).toEqual(["task.create", "task.ensureWorktree", "task.worktreeOnly", "task.get"])
+    expect(result).toMatchObject({ taskId: "t1", started: false, worktreePath: "/wt/made" })
+  })
+
+  it("refuses --worktree-only beside --start", async () => {
+    const client = new FakeClient({ "task.create": created })
+    const err = await invokeVerb("add", ["--repo", "/repo/x", "--worktree-only", "--start"], {
+      client,
+      runtime: stubRuntime({}),
+    }).catch((e: unknown) => e)
+
+    expect(err).toMatchObject({ code: "CONFLICTING_FLAGS" })
+    expect(client.requestNames).toEqual([])
+  })
+})

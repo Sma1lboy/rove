@@ -139,6 +139,7 @@ export type DaemonRequestName =
   | "task.ensureWorktree"
   | "task.setActive"
   | "task.requireReport"
+  | "task.worktreeOnly"
   | "issue.list"
   // Repo roots the issue store holds a record for — a board section means
   // "this repo has a backlog", which the task index cannot answer.
@@ -448,6 +449,8 @@ export interface SerializedTask {
   readonly ptyAlias?: DaemonTask["ptyAlias"]
   /** Every prompt sent to this task must end in `rove api report`. */
   readonly requireReport?: DaemonTask["requireReport"]
+  /** A checkout cut by `add --worktree-only`: no engine of its own, unlisted while it has a parent. */
+  readonly worktreeOnly?: DaemonTask["worktreeOnly"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */

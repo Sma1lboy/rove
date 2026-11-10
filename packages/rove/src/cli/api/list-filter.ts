@@ -121,6 +121,7 @@ const TASK_FIELDS = {
   cwdSubpath: true,
   ptyAlias: true,
   requireReport: true,
+  worktreeOnly: true,
   prompt: true,
   baseRef: true,
   worktreeName: true,

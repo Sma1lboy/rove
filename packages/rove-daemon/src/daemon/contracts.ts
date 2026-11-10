@@ -248,6 +248,7 @@ export interface DaemonTask {
   readonly ptyAlias?: TaskPtyAlias
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
+  readonly worktreeOnly?: boolean
   /** The `add --prompt` brief as delivered, verbatim, never truncated; outlives
    *  the engine transcript. Absent until delivered. */
   readonly prompt?: string
@@ -355,6 +356,7 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
   /** Archive or restore ONE task row; the cascade over its descendants is the caller's. */
   setArchived(id: string, archived: boolean): Promise<void>
   setRequireReport(id: string, required: boolean): Promise<void>
+  setWorktreeOnly(id: string, on: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
   moveTaskToTop(id: string): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>

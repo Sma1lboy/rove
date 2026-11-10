@@ -10,6 +10,7 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
+import { isUnlistedCheckout } from "@/lib/worktree-only"
 import type { Task } from "@/types/task"
 import {
   type LabelledProject,
@@ -140,10 +141,10 @@ function idleMainIds(input: SidebarGroupInput, tasks: readonly Task[]): Readonly
   return idle
 }
 
-/** Not on its way out: a queued or running delete leaves every list at once. */
+/** Not on its way out (a queued or running delete leaves every list at once) and not a bare checkout under its parent. */
 function isListed(task: Task): boolean {
   const phase = task.deletion?.phase
-  return phase !== "queued" && phase !== "running"
+  return phase !== "queued" && phase !== "running" && !isUnlistedCheckout(task)
 }
 
 /**
