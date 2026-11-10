@@ -8,7 +8,7 @@
 import { legendCap } from "@sma1lboy/rove/src/tui/lib/help-groups.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { ChoiceDialog, ConfirmDialog, TextDialog } from "./dialogs.tsx"
-import { ChangeEngineDialog } from "./engine-dialog.tsx"
+import { ChangeEngineDialog, type EngineCurrent } from "./engine-dialog.tsx"
 import { t } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
@@ -332,7 +332,24 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       rare: true,
       // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
       ...bound("tasks.cycleEngine"),
-      run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
+      run: () =>
+        dialog.set(
+          <ChangeEngineDialog
+            model={model}
+            current={async () =>
+              (await model.client.request<{ task: EngineCurrent }>("task.get", { taskId: task.id })).task
+            }
+            onSet={async (pick) => {
+              await model.client.request("task.setEngine", {
+                taskId: task.id,
+                engine: pick.engine.id,
+                ...(pick.effort === undefined ? {} : { effort: pick.effort }),
+                ...(pick.model === undefined ? {} : { model: pick.model }),
+              })
+              toast(tc("tasks", "toast.engineSwitched", { engine: pick.engine.name }))
+            }}
+          />,
+        ),
     })
   }
 

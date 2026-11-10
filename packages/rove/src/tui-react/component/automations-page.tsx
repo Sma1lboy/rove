@@ -6,8 +6,8 @@
  *
  * `n` composes via {@link AutomationComposer}; on the cursor row `e`
  * pauses/resumes, `s` runs now, `d` deletes, `enter` opens the latest run's
- * task. Prechecks, grace windows and standing-session mode stay CLI-only
- * (`rove api routine-update`).
+ * task. A routine's engine shows here; changing it, prechecks, grace windows
+ * and standing-session mode stay CLI-only (`rove api routine-update`).
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -20,8 +20,10 @@ import {
 import { pathSyntax } from "@sma1lboy/rove-daemon/path-identity"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { engineDisplayName } from "../../engine/interactive-command"
 import { errorMessage } from "../../lib/error-message"
 import { getSavedRepos } from "../../state/repos"
+import { routineEngineText } from "../../tui/component/automation-engine-core"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { isNoProjectTask } from "../../tui/panes/sidebar/groups"
 import { useNotifications } from "../context/notifications"
@@ -286,6 +288,9 @@ export function AutomationsPage(props: {
   }))
 
   const now = Date.now()
+  const engineOf = (automation: Automation) =>
+    routineEngineText(automation, engineDisplayName, t("automations.engineDefault"))
+  const selectedEngine = selected ? engineOf(selected) : null
 
   return (
     <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={2} paddingRight={2}>
@@ -365,7 +370,13 @@ export function AutomationsPage(props: {
                   {dividerRule(dims.width)}
                 </text>
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-                  {`${automation.repo ? repoLabel(automation.repo) : t("automations.noProject")} · ${automation.schedule}`}
+                  {[
+                    automation.repo ? repoLabel(automation.repo) : t("automations.noProject"),
+                    automation.schedule,
+                    engineOf(automation)?.short,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </text>
                 {/* Paused reads as a state, not a missing feature. */}
                 {automation.enabled ? null : (
@@ -439,6 +450,7 @@ export function AutomationsPage(props: {
                     })
                   : t(selected.persistentSession ? "automations.targetStanding" : "automations.targetFresh")}
               </text>
+              {selectedEngine ? <text fg={theme.textMuted}>{selectedEngine.full}</text> : null}
               {selected.precheck ? (
                 <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
               ) : null}

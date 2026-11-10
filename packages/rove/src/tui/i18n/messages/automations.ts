@@ -105,6 +105,11 @@ export const en = {
   loadFailed: "Could not read the routines: {message}",
   emptyHint: "Press n to create one.",
   precheck: "precheck: {command}",
+  /** A routine that stores no engine: its runs launch the default one. */
+  engineDefault: "default engine",
+  engineChanged: "{name} now runs on {engine}.",
+  engineChangedNewSession:
+    "{name} now runs on {engine}. Its next run starts a new session; the earlier one stays as a task.",
   /** The newest failure among the recent runs; `{when}` is relative ("3h ago"). */
   lastFailed: "last failed {when}: {reason}",
   recentRuns: "RECENT RUNS",
@@ -225,6 +230,9 @@ export const zh: typeof en = {
   loadFailed: "读不到例行任务：{message}",
   emptyHint: "按 n 新建一条。",
   precheck: "预检：{command}",
+  engineDefault: "默认引擎",
+  engineChanged: "{name} 已改用 {engine}。",
+  engineChangedNewSession: "{name} 已改用 {engine}。下次运行会新开会话，原来的会话保留为任务。",
   lastFailed: "上次失败（{when}）：{reason}",
   recentRuns: "最近执行",
   /** 最近一次执行的预检详情标题。`{exit}` 为“退出码 1”或“超时”。 */

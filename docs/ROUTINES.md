@@ -35,11 +35,13 @@ The example throughout this page is the one in the screenshot: *every morning at
 
 ![The New routine composer: name, repo picker and prompt above five labelled cron cells, with the hour cell selected and the schedule restated underneath as "weekdays at 12:00 · in 2d · Mon 12:00"](assets/routines-composer.png)
 
-There is no in-page editing: recreate the routine, or use `rove api
-routine-update`. The composer carries name, repo, delivery target, prompt, schedule and the
-confirm step; everything else is CLI-only — `--precheck` (below),
-`--precheck-timeout`, `--vendor`, `--model`, `--effort`, `--base-branch`, `--grace`,
-`--persistent-session` and `--disabled`.
+There is no in-page editing of the name, prompt or schedule: recreate the
+routine, or use `rove api routine-update`. The composer carries name, repo,
+delivery target, prompt, schedule and the confirm step. The web page's detail
+has `[ change ]` beside the engine, which sets the engine, model and effort;
+everything else is CLI-only — `--precheck` (below), `--precheck-timeout`,
+`--base-branch`, `--grace`, `--persistent-session` and `--disabled`, and in
+the TUI `--vendor`, `--model` and `--effort` too.
 
 The page end to end: walking the schedules, pausing one, then composing a
 routine whose next fire time is restated in plain words as the cron cells
@@ -144,8 +146,8 @@ Full flag list: `rove api schema --group routine`, or [rove api](API.md).
 | Where | What it tells you |
 |---|---|
 | Header, right | Whether an enabled routine is **keeping the daemon awake** right now |
-| Row | Name, repo, five-field schedule, and the next run in relative time (`in 5h`), or `paused` |
-| Detail box | The selected routine's prompt, its precheck if any, and **RECENT RUNS** with their outcomes |
+| Row | Name, repo, five-field schedule, the model its runs launch on (the engine's name when none is pinned), and the next run in relative time (`in 5h`), or `paused` |
+| Detail box | The selected routine's prompt, what its runs launch on (engine, model, effort), its precheck if any, and **RECENT RUNS** with their outcomes |
 | `[ run now ]` | The same thing `s` does; try it without waiting for the schedule |
 
 Keys: `j`/`k` move, `n` creates, `e` pauses or resumes, `s` runs now, `d`

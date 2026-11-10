@@ -277,6 +277,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `routine.create` | `repo`, `name`, `prompt`, `schedule`, `targetTask?` + `targetTab?` (both or neither: deliver into that existing engine tab) | `routine-create` | — |
 | `routine.update` | `id`, `name?`, `prompt?`, `schedule?` | `routine-update` | — |
 | `routine.setEnabled` | `id`, `enabled` | `routine-update --enabled` | — |
+| `routine.setEngine` | `id`, `engine`, `model?`, `effort?` (absent or `""` clears that pin) | `routine-update --vendor --model --effort` | — |
 | `routine.runNow` | `id` | `routine-run-now` | — |
 | `routine.runs` | `id` | `routine-runs` | — |
 | `routine.delete` | `id` | `routine-delete` | yes |
