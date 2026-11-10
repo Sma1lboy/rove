@@ -136,17 +136,22 @@ a sidecar on this machine together with the conversation it is dictated into; th
 inserted at the caret and sent only when you slide up to send.
 
 Nothing in Rove bundles a model, and the mic stays hidden until dictation is set up. **Settings →
-Voice** does it from the page:
+Voice** does it from the page with one choice, **Dictation**:
 
-- **Local model** — shown with an Install button only on an Apple Silicon Mac with
+- **Off** — no mic, and no sidecar running. The default until something is set up.
+- **On this Mac** — Whisper large-v3 on the Mac's GPU. Install shows only on an Apple Silicon Mac with
   [uv](https://docs.astral.sh/uv/) and ~3.5 GB free; otherwise the row says which is missing. Install is
   a detached job on the Mac (`uv sync --frozen --extra local`, then the model download), so a phone
-  that sleeps or reconnects mid-download does not stop it; the page shows its latest line.
-- **Cloud endpoint** — base URL, model and API key. The key is written to
-  `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+  that sleeps or reconnects mid-download does not stop it; the page shows its latest line. **Uninstall**
+  removes the model from the Hugging Face cache and, unless a cloud endpoint is in use, the sidecar's
+  environment, and turns dictation off. Your dictionary and learned terms stay.
+- **Cloud** — base URL, model and API key of any OpenAI-compatible `/audio/transcriptions` service. The
+  key is written to `<ROVE_HOME>/.rove/voice/config.json` (mode 0600) and never sent back to the page.
+  The endpoint is kept when you switch to another choice, so coming back needs nothing retyped;
+  **Forget** removes it and its key.
 
-Once either is set up, the bridge starts the sidecar whenever it is not answering (`voice.status`) and
-restarts it when the endpoint changes. The sidecar's environment lives in
+Once local or cloud is chosen and set up, the bridge starts the sidecar whenever it is not answering
+(`voice.status`) and restarts it when the choice or the endpoint changes. The sidecar's environment lives in
 `<ROVE_HOME>/.rove/voice/venv`; its code is `scripts/voice/` in a checkout and `dist/voice/` in a
 release, one environment described by `pyproject.toml` and `uv.lock`. By hand:
 
