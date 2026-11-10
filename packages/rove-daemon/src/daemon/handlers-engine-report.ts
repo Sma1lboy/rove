@@ -10,8 +10,15 @@ import { findAdoptableWorktree, matchTaskByCwd, resolvePtyOwner } from "./cwd-ta
 import { trackDeliveryTurn } from "./delivery-ops.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
-import type { DaemonRequestHandler } from "./handlers.ts"
+import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { scheduleQuotaResume } from "./quota-resume.ts"
+
+/** Best-effort: a lost stamp costs one elided prompt until the every-20th-run backstop. */
+async function markCompacted(ctx: DaemonHandlerContext, taskId: string, tabId: string | null): Promise<void> {
+  await ctx.automations
+    .markSessionCompacted(taskId, tabId)
+    .catch((err: unknown) => logDaemonError("automation-compacted", err))
+}
 
 export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
   name: "engine.reportEvent",
@@ -68,6 +75,8 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     if (explicitId && tabId && sessionId && vendor) {
       const row = ctx.tabs?.get(taskId).state?.tabs.find((t) => t.id === tabId)
       if (row?.kind === "engine" && (row.sessionId !== sessionId || row.spawned !== true)) {
+        // A new conversation (`/clear`, a resume elsewhere) no longer holds a standing routine's prompt.
+        if (row.sessionId && row.sessionId !== sessionId) await markCompacted(ctx, taskId, tabId)
         const owner = row.vendor ?? ctx.orch.getTask(taskId)?.vendor
         if (
           ctx.runtime.sessionProtocol(vendor) ===
@@ -102,6 +111,7 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
       ...(detail ? { detail } : {}),
       at: Date.now(),
     })
+    if (kind === "pre-compact" || kind === "post-compact") await markCompacted(ctx, taskId, tabId ?? null)
     if (kind === "pre-compact" || kind === "post-compact" || kind === "subagent-start" || kind === "subagent-stop") {
       ctx.bus.publish("engine.lifecycle", { taskId, kind, ...(tabId ? { tabId } : {}), at: Date.now() })
     }

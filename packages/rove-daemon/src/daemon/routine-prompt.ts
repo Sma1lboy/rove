@@ -9,19 +9,29 @@ export function routinePromptHash(prompt: string): string {
   return createHash("sha256").update(prompt).digest("hex").slice(0, 16)
 }
 
+/** A standing session gets the full prompt at least this often, for engines that never report compaction. */
+export const FULL_PROMPT_EVERY_RUNS = 20
+
 /**
- * True when a standing session already holds this exact prompt: its newest delivered run
- * went to the same task, into a live engine (`fresh` false), with the same hash.
+ * True when a standing session still holds this exact prompt: a live engine (`fresh` false) on
+ * the same task, whose last full-prompt run had the same hash, has not compacted or changed
+ * conversation since, and is fewer than {@link FULL_PROMPT_EVERY_RUNS} runs back.
  * `runs` is newest first; a pruned history reads as "not held", the safe side.
  */
 export function sessionHoldsPrompt(
   automation: Pick<Automation, "persistentSession" | "sessionTaskId" | "prompt">,
-  runs: readonly Pick<AutomationRun, "status" | "taskId" | "promptHash">[],
+  runs: readonly Pick<AutomationRun, "status" | "taskId" | "promptHash" | "promptElided" | "compactedAt">[],
   target: { taskId: string; fresh: boolean },
 ): boolean {
   if (!automation.persistentSession || target.fresh || automation.sessionTaskId !== target.taskId) return false
-  const last = runs.find((r) => (r.status === "dispatched" || r.status === "revived") && r.taskId === target.taskId)
-  return last?.promptHash === routinePromptHash(automation.prompt)
+  const delivered = runs.filter(
+    (r) => (r.status === "dispatched" || r.status === "revived") && r.taskId === target.taskId,
+  )
+  const sinceFull = delivered.findIndex((r) => !r.promptElided)
+  const full = delivered[sinceFull]
+  if (!full || full.promptHash !== routinePromptHash(automation.prompt)) return false
+  if (sinceFull >= FULL_PROMPT_EVERY_RUNS - 1) return false
+  return !delivered.slice(0, sinceFull + 1).some((r) => r.compactedAt)
 }
 
 /**

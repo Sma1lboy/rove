@@ -179,6 +179,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       delete: async () => false,
       recordRun: async (input: unknown) => input,
       advanceNextRun: async () => null,
+      markSessionCompacted: async () => {},
     } as unknown as AutomationsStore,
     // Never hits `gh`: work-item behavior has its own suite.
     workItems: { list: async () => [], clear: () => {} } as unknown as WorkItemCache,

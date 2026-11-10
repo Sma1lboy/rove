@@ -266,7 +266,7 @@ needed:
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_blocked` | The task cannot use a tick right now (`blocked.reason`): an open decision gate, an unreported earlier run, a rate limit, a permission prompt, or a turn still running. The cause is already in the Inbox. Healthy as a status |
 | `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
-| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
+| `skipped_unavailable` | The routine's repo no longer exists (checked before the precheck, so a missing repo is never a quiet `skipped_precheck`), or the dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
 | `dispatch_failed` | The prompt did not reach an engine — the engine process never started — or should-run refused a bound tab whose engine is dead or in a sticky error (`blocked.reason` `engine-dead` / `engine-error`), which no Inbox row covers. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
@@ -322,8 +322,11 @@ unchanged:
 
 A standing session already has your prompt in its conversation, so it gets
 the full text only on its first run, on a run whose engine was just created
-or revived, and on the first run after you edit the prompt. Every other run
-gets the header and one line saying the instructions are unchanged.
+or revived, on the first run after you edit the prompt, after the engine
+compacts its conversation or switches to a new one (`/clear`, a resume),
+and at least every 20th run for engines that never report compaction.
+Every other run gets the header and one line saying the instructions are
+unchanged.
 
 The agent reports when the run found something or is stuck:
 

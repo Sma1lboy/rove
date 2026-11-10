@@ -18,6 +18,7 @@
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchOutcome, type DispatchRunnability, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, precheckSkip, runAutomationPrecheck } from "./automation-precheck.ts"
+import { routineRepoMissing } from "./automation-repo-check.ts"
 import { type WebhookEvent, webhookPrecheckEnv } from "./automation-webhook.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import {
@@ -287,6 +288,7 @@ export async function runAutomationOnce(
       error?: string
       deliveryId?: string
       promptHash?: string
+      promptElided?: true
       precheckResult?: Awaited<ReturnType<typeof runAutomationPrecheck>>
       blocked?: SkipVerdict
       response?: AutomationRunResponse
@@ -318,6 +320,10 @@ export async function runAutomationOnce(
       error: "routine disabled, changed, deleted or runner stopped before delivery",
     })
 
+  // Before the precheck: its "could not run" would record a missing repo as a quiet `skipped_precheck`.
+  if (await routineRepoMissing(automation.repo))
+    return await record("skipped_unavailable", { error: `repo does not exist: ${automation.repo}` })
+
   if (args.trigger !== "manual" && automation.precheck) {
     const skipped = await precheckSkip(automation, automation.precheck, await ensureRoutineCwd(automation), env)
     if (skipped)
@@ -335,6 +341,7 @@ export async function runAutomationOnce(
   // Armed against the task the prompt lands in, BEFORE the paste: a failed
   // turn can fire its hook within milliseconds of it.
   let deliveryId: string | undefined
+  let elided = false
   const settleDelivery = async (delivered: { tabId?: string } | null): Promise<void> => {
     if (!deliveryId) return
     const id = deliveryId
@@ -368,14 +375,9 @@ export async function runAutomationOnce(
             promptHead: automation.prompt,
           })
         ).id
-        return withRoutineRunHeader(
-          automation,
-          reserved,
-          deps.runtime.roveApiInvocation?.() ?? "rove api",
-          deliveryId,
-          args.event,
-          sessionHoldsPrompt(automation, deps.store.runsFor(automation.id), target),
-        )
+        elided = sessionHoldsPrompt(automation, deps.store.runsFor(automation.id), target)
+        const api = deps.runtime.roveApiInvocation?.() ?? "rove api"
+        return withRoutineRunHeader(automation, reserved, api, deliveryId, args.event, elided)
       },
     )
   } catch (err) {
@@ -416,6 +418,7 @@ export async function runAutomationOnce(
     ...(outcome.error ? { error: outcome.error } : {}),
     ...(outcome.blocked ? { blocked: outcome.blocked } : {}),
     ...(deliveryId ? { deliveryId, promptHash: routinePromptHash(automation.prompt) } : {}),
+    ...(deliveryId && elided ? { promptElided: true as const } : {}),
   })
 }
 

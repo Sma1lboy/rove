@@ -145,6 +145,10 @@ export interface AutomationRun {
   readonly deliveryId?: string
   /** `routinePromptHash` of the prompt this run delivered; a standing session's next run sends it again only when it changed. */
   readonly promptHash?: string
+  /** This run sent only the header: the session already held the prompt. */
+  readonly promptElided?: true
+  /** ISO-8601: the session's engine compacted or changed conversation after this run was delivered. */
+  readonly compactedAt?: string
   /** What the agent reported for THIS run. Never inferred from a transcript:
    *  no report, no response. Projected from the linked delivery by
    *  `automation.runs`; stored only on runs that predate deliveries. */
