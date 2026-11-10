@@ -1,9 +1,8 @@
 /** `rove daemon <command>` — daemon lifecycle. `argv` is already trimmed of the `daemon` verb. */
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { connectOrStartDaemon, daemonSpawnReason } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { daemonSpawnReason, restartDaemon } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { installDaemonCrashHandlers, logDaemonError, logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
-import { stopDaemonProcess } from "@sma1lboy/rove-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/rove-daemon/daemon/log-rotate"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/rove-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
@@ -128,10 +127,8 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     // Respawn as a detached child, not in-process, or restart blocks the shell.
     // Reason `restart` is relayed to every attached TUI, so a client learns its
     // build is about to be stale before the socket drops.
-    await stopDaemonProcess(socketPath, pidPath, { reason: "restart" })
-    // Tagged so the new daemon's boot line tells restart from autospawn.
-    const next = await connectOrStartDaemon("explicit-restart")
-    next.close()
+    // One step holding the spawn lock: no other client's build can take the respawn.
+    await restartDaemon()
     console.log(`${CLI_NAME} daemon: restarted, listening on ${socketPath}`)
     return
   }
