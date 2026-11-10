@@ -415,51 +415,51 @@ checkState=none          mergeable=<absent>       stale=0  chip=<none>
 checkState=none          mergeable=<absent>       stale=1  chip=<none>
 checkState=none          mergeable=MERGEABLE      stale=0  chip=<none>
 checkState=none          mergeable=MERGEABLE      stale=1  chip=<none>
-checkState=none          mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=none          mergeable=CONFLICTING    stale=0  chip=≠ (warning)
 checkState=none          mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
 checkState=none          mergeable=UNKNOWN        stale=0  chip=<none>
 checkState=none          mergeable=UNKNOWN        stale=1  chip=<none>
-checkState=none          mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=none          mergeable=conflicting    stale=0  chip=≠ (warning)
 checkState=none          mergeable=conflicting    stale=1  chip=≠ (textMuted)
 checkState=unknown       mergeable=<absent>       stale=0  chip=<none>
 checkState=unknown       mergeable=<absent>       stale=1  chip=<none>
 checkState=unknown       mergeable=MERGEABLE      stale=0  chip=<none>
 checkState=unknown       mergeable=MERGEABLE      stale=1  chip=<none>
-checkState=unknown       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=unknown       mergeable=CONFLICTING    stale=0  chip=≠ (warning)
 checkState=unknown       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
 checkState=unknown       mergeable=UNKNOWN        stale=0  chip=<none>
 checkState=unknown       mergeable=UNKNOWN        stale=1  chip=<none>
-checkState=unknown       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=unknown       mergeable=conflicting    stale=0  chip=≠ (warning)
 checkState=unknown       mergeable=conflicting    stale=1  chip=≠ (textMuted)
 checkState=passing       mergeable=<absent>       stale=0  chip=✓ (success)
 checkState=passing       mergeable=<absent>       stale=1  chip=✓ (textMuted)
 checkState=passing       mergeable=MERGEABLE      stale=0  chip=✓ (success)
 checkState=passing       mergeable=MERGEABLE      stale=1  chip=✓ (textMuted)
-checkState=passing       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=passing       mergeable=CONFLICTING    stale=0  chip=≠ (warning)
 checkState=passing       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
 checkState=passing       mergeable=UNKNOWN        stale=0  chip=✓ (success)
 checkState=passing       mergeable=UNKNOWN        stale=1  chip=✓ (textMuted)
-checkState=passing       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=passing       mergeable=conflicting    stale=0  chip=≠ (warning)
 checkState=passing       mergeable=conflicting    stale=1  chip=≠ (textMuted)
 checkState=failing       mergeable=<absent>       stale=0  chip=✗ (error)
 checkState=failing       mergeable=<absent>       stale=1  chip=✗ (textMuted)
 checkState=failing       mergeable=MERGEABLE      stale=0  chip=✗ (error)
 checkState=failing       mergeable=MERGEABLE      stale=1  chip=✗ (textMuted)
-checkState=failing       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=failing       mergeable=CONFLICTING    stale=0  chip=≠ (warning)
 checkState=failing       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
 checkState=failing       mergeable=UNKNOWN        stale=0  chip=✗ (error)
 checkState=failing       mergeable=UNKNOWN        stale=1  chip=✗ (textMuted)
-checkState=failing       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=failing       mergeable=conflicting    stale=0  chip=≠ (warning)
 checkState=failing       mergeable=conflicting    stale=1  chip=≠ (textMuted)
 checkState=pending       mergeable=<absent>       stale=0  chip=<none>
 checkState=pending       mergeable=<absent>       stale=1  chip=<none>
 checkState=pending       mergeable=MERGEABLE      stale=0  chip=<none>
 checkState=pending       mergeable=MERGEABLE      stale=1  chip=<none>
-checkState=pending       mergeable=CONFLICTING    stale=0  chip=≠ (error)
+checkState=pending       mergeable=CONFLICTING    stale=0  chip=≠ (warning)
 checkState=pending       mergeable=CONFLICTING    stale=1  chip=≠ (textMuted)
 checkState=pending       mergeable=UNKNOWN        stale=0  chip=<none>
 checkState=pending       mergeable=UNKNOWN        stale=1  chip=<none>
-checkState=pending       mergeable=conflicting    stale=0  chip=≠ (error)
+checkState=pending       mergeable=conflicting    stale=0  chip=≠ (warning)
 checkState=pending       mergeable=conflicting    stale=1  chip=≠ (textMuted)
 
 ## board status never reaches the rail
