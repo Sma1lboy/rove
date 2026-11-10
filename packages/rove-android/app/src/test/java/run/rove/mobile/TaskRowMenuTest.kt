@@ -9,11 +9,11 @@ import run.rove.mobile.domain.RowMenuItem.*
 
 class TaskRowMenuTest {
     @Test fun aProjectsMainRowCannotBePinnedOrArchived() {
-        assertEquals(listOf(NewConversation, NewShell, Rename, SetStatus), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
+        assertEquals(listOf(NewConversation, NewShell, Rename, SetStatus, Copy, ChangeEngine), TaskRowMenuLogic.items(TaskRow("m", kind = "main")))
     }
     @Test fun aTaskRowOffersTheOppositeOfItsCurrentState() {
-        assertEquals(listOf(NewConversation, NewShell, Rename, Pin, SetStatus, SyncBase, RenameBranch, Archive), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))
-        assertEquals(listOf(NewConversation, NewShell, Rename, Unpin, SetStatus, Unarchive), TaskRowMenuLogic.items(TaskRow("t", pinned = true, archived = true)))
+        assertEquals(listOf(NewConversation, NewShell, Rename, Pin, SetStatus, Land, Copy, MoveToProject, ChangeEngine, SyncBase, RenameBranch, Archive, Remove), TaskRowMenuLogic.items(TaskRow("t", branch = "b")))
+        assertEquals(listOf(NewConversation, NewShell, Rename, Unpin, SetStatus, Copy, MoveToProject, ChangeEngine, Unarchive, Remove), TaskRowMenuLogic.items(TaskRow("t", pinned = true, archived = true)))
     }
     @Test fun aTabIsAtAMenuOnlyWhenTheDaemonSaysItNeedsInput() {
         val row = wireJson.decodeFromJsonElement<TaskRow>(wireJson.parseToJsonElement(
@@ -38,5 +38,19 @@ class TaskRowMenuTest {
         val tasks = wireJson.decodeFromJsonElement<Tasks>(wireJson.parseToJsonElement(
             """{"tasks":[],"archived":[{"id":"a","archived":true},{"id":"r","archived":true,"routine":true}]}"""))
         assertEquals(listOf("a"), TaskRowMenuLogic.archivedFold(tasks.archived).map { it.id })
+    }
+    @Test fun aTaskOnAnotherMachineCannotMoveOrChangeEngine() {
+        val items = TaskRowMenuLogic.items(TaskRow("t", branch = "b", machine = TaskMachine("mini")))
+        assertEquals(false, MoveToProject in items || ChangeEngine in items)
+        assertEquals(true, Land in items)
+    }
+    @Test fun moveToProjectIsOnlyForAPlainTopLevelRow() {
+        assertEquals(false, MoveToProject in TaskRowMenuLogic.items(TaskRow("t", parentTaskId = "p")))
+        assertEquals(false, MoveToProject in TaskRowMenuLogic.items(TaskRow("t", extraRepoCount = 1)))
+    }
+    @Test fun moveTargetsLeaveOutTheTasksOwnProjectAndSpellOutSharedNames() {
+        val mains = listOf("/a/one", "/a/app", "/b/app").map { TaskRow(it, kind = "main", repo = it) } + TaskRow("x", kind = "main", repo = "/c/far", machine = TaskMachine("mini"))
+        assertEquals(listOf(MoveTarget("/a/app", "/a/app"), MoveTarget("/b/app", "/b/app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/one"), mains))
+        assertEquals(listOf(MoveTarget("/a/one", "one"), MoveTarget("/b/app", "app")), TaskRowMenuLogic.moveTargets(TaskRow("t", repo = "/a/app"), mains))
     }
 }

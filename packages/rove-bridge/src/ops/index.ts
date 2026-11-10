@@ -1,6 +1,7 @@
 /** The extended op allowlist: area tables, merged. An op not named here (or in core `OPS`) is UNKNOWN_OP. */
 
 import { BridgeError } from "../protocol.ts"
+import { contextOps } from "./context.ts"
 import { devOps } from "./dev.ts"
 import { filesOps } from "./files.ts"
 import { GATE_OPS } from "./gates.ts"
@@ -26,9 +27,10 @@ import { TASKOPS_OPS } from "./taskops.ts"
 import { TASK_OPS } from "./tasks.ts"
 import { TERMINAL_OPS } from "./terminal.ts"
 import { hostedThemeOps } from "./theme-hosted.ts"
-import { TIMELINE_OPS } from "./timeline.ts"
 import type { OpTable } from "./types.ts"
 import { updateOps } from "./update.ts"
+import { voiceSetupOps } from "./voice-setup.ts"
+import { voiceOps } from "./voice.ts"
 import { welcomeOps } from "./welcome.ts"
 import { WORKSPACE_OPS } from "./workspace.ts"
 
@@ -71,7 +73,9 @@ export const AREA_OPS: OpTable = mergeOpTables(
   githubOps,
   reviewOps,
   githubAuthOps,
-  TIMELINE_OPS,
   PR_CHECKS_OPS,
   RUN_OPS,
+  contextOps,
+  voiceOps,
+  voiceSetupOps,
 )

@@ -97,6 +97,7 @@ final class PagesFixtureTests: XCTestCase {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
         pair(url)
+        log.clear()
         let fold = waitFor(element("archivedFold"), "archived fold")
         XCTAssertFalse(text("Spike a ledger rewrite").exists)
         element("task-T-IDLE").press(forDuration: 1.2)
@@ -108,6 +109,8 @@ final class PagesFixtureTests: XCTestCase {
         fold.tap()
         waitFor(text("Spike a ledger rewrite"), "archived row")
         checkpoint("fx-archived-fold")
+        // The fold exposes accessibility elements before its context-menu interaction has settled.
+        Thread.sleep(forTimeInterval: 1)
         element("task-T-OLD").press(forDuration: 1.2)
         waitFor(button("Unarchive"), "unarchive item").tap()
         let back = NSPredicate { _, _ in
@@ -141,6 +144,30 @@ final class PagesFixtureTests: XCTestCase {
     }
 
     /// The row menu merges the task's base in and says what happened.
+    func testFixFailingChecksFromTheRowMenu() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-FAIL"), "failing row").press(forDuration: 1.2)
+        let item = waitFor(element("actionFixChecks"), "fix item")
+        checkpoint("fx-fix-checks")
+        item.tap()
+        waitFor(element("actionBanner"), "fix result", timeout: 5)
+        XCTAssertTrue(log.entries().contains { $0.op == "task.fixChecks" && $0.args["taskId"] as? String == "T-FAIL" })
+    }
+
+    func testLandAsksTheBridgeBeforeConfirming() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").tap()
+        waitFor(element("landButton"), "land button").tap()
+        let summary = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "(2 commits)")).firstMatch
+        waitFor(summary, "land summary", timeout: 8)
+        checkpoint("fx-land-preflight")
+        XCTAssertTrue(log.entries().contains { $0.op == "task.landPreflight" && $0.args["taskId"] as? String == "T-IDLE" })
+    }
+
     func testSyncWithBaseFromTheRowMenu() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
@@ -151,6 +178,22 @@ final class PagesFixtureTests: XCTestCase {
         item.tap()
         waitFor(element("actionBanner"), "sync result", timeout: 5)
         XCTAssertTrue(log.entries().contains { $0.op == "task.syncBase" && $0.args["taskId"] as? String == "T-IDLE" })
+    }
+
+    func testFixtureInboxAcksAll() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        log.clear()
+        waitFor(element("inboxButton"), "inbox").tap()
+        let ackAll = waitFor(element("ackAll"), "ack all")
+        checkpoint("fx-inbox-ack-all")
+        ackAll.tap()
+        let sent = { log.entries().filter { $0.op.hasPrefix("attention.dismiss") } }
+        let deadline = Date().addingTimeInterval(5)
+        while sent().count < 3, Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(sent().contains { $0.op == "attention.dismissRoutine" && $0.args["automationId"] as? String == "r-bad" })
+        XCTAssertEqual(sent().filter { $0.op == "attention.dismiss" }.count, 2)
     }
 
     func testFixtureRoutinesAndIssues() throws {
@@ -180,6 +223,24 @@ final class PagesFixtureTests: XCTestCase {
     }
 
     /// A word finds what was said in any task; a hit opens that task; a miss says so.
+    func testAnExitedTabReopens() throws {
+        let url = try fixture()
+        let log = try XCTUnwrap(FixtureLog(socketURL: url))
+        pair(url)
+        waitFor(element("task-T-IDLE"), "task row").tap()
+        waitFor(element("tab-tab-3"), "dead tab").tap()
+        let reopen = waitFor(element("reviveTab"), "reopen")
+        Thread.sleep(forTimeInterval: 0.6)
+        checkpoint("fx-revive-tab")
+        log.clear()
+        reopen.tap()
+        let deadline = Date().addingTimeInterval(5)
+        func saw(_ op: String) -> Bool { log.entries().contains { $0.op == op && $0.args["tabId"] as? String == "tab-3" } }
+        while !saw("term.attach"), Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(saw("term.revive"))
+        XCTAssertTrue(saw("term.attach"), "reopening attaches to the new session")
+    }
+
     func testSearchFindsAConversationAndOpensIt() throws {
         let url = try fixture()
         let log = try XCTUnwrap(FixtureLog(socketURL: url))
@@ -196,6 +257,16 @@ final class PagesFixtureTests: XCTestCase {
         hit.tap()
         waitFor(element("composerField"), "the hit's task")
         XCTAssertTrue(text("Verify refund webhook signatures").exists)
+    }
+
+    func testMachinesShowStateAndWhyTheyAreOff() throws {
+        pair(try fixture())
+        openPage("machines")
+        waitFor(element("machine-narwhal"), "machines")
+        XCTAssertTrue(text("studio.lan · v0.9.282").exists)
+        XCTAssertTrue(text("narwhal · offline").exists)
+        XCTAssertTrue(text("ssh was refused (nothing is listening or a firewall is in the way)").exists)
+        checkpoint("fx-machines")
     }
 
     func testFixtureSettings() throws {

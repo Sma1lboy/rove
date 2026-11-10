@@ -276,6 +276,25 @@ async function pairRename(
 
 /** Past this many untracked files the combined diff stops adding them (one git spawn each). */
 const UNTRACKED_DIFF_LIMIT = 200
+const UNTRACKED_SPAWNS = 8
+/**
+ * In a combined diff git shows a file over this size as `Binary files … differ`: one generated
+ * or recorded file (a 21 MB JSON) otherwise turned the whole-worktree reply into 30 MB of text.
+ */
+const COMBINED_BIG_FILE = ["-c", "core.bigFileThreshold=512k"]
+/** Untracked text past this total keeps each file's header but not its lines. */
+const UNTRACKED_TEXT_BUDGET = 1024 * 1024
+
+/** A new-file patch cut to its header, shown like git shows a file it does not diff. */
+function headerOnly(patch: string): string {
+  const out: string[] = []
+  for (const line of patch.split("\n")) {
+    if (line.startsWith("--- ")) continue
+    if (line.startsWith("+++ ")) return `${out.join("\n")}\nBinary files /dev/null and ${line.slice(4)} differ\n`
+    out.push(line)
+  }
+  return patch
+}
 
 /**
  * Untracked, not-ignored files under `relPath` as new-file patches: `git diff HEAD` never lists
@@ -293,13 +312,32 @@ async function untrackedAdditions(worktree: string, relPath: string): Promise<st
   ])
   if (listed.status !== 0) return ""
   const files = listed.stdout.split("\0").filter(Boolean).slice(0, UNTRACKED_DIFF_LIMIT)
-  let out = ""
-  for (const file of files) {
-    // `--no-index` exits 1 when the files differ, which they always do here.
-    const added = await runWorktreeGit(worktree, ["diff", "--no-index", "--", "/dev/null", file])
-    if (added.status === 0 || added.status === 1) out += added.stdout
+  const patches: string[] = new Array(files.length).fill("")
+  let next = 0
+  const worker = async () => {
+    while (next < files.length) {
+      const i = next++
+      const file = files[i] as string
+      // `--no-index` exits 1 when the files differ, which they always do here.
+      const added = await runWorktreeGit(worktree, [
+        ...COMBINED_BIG_FILE,
+        "diff",
+        "--no-index",
+        "--",
+        "/dev/null",
+        file,
+      ])
+      if (added.status === 0 || added.status === 1) patches[i] = added.stdout
+    }
   }
-  return out
+  await Promise.all(Array.from({ length: Math.min(UNTRACKED_SPAWNS, files.length) }, worker))
+  let total = 0
+  return patches
+    .map((patch) => {
+      total += patch.length
+      return total > UNTRACKED_TEXT_BUDGET ? headerOnly(patch) : patch
+    })
+    .join("")
 }
 
 /**
@@ -338,6 +376,7 @@ export async function loadPreviewData(
     spec = sha
   }
   const res = await runWorktreeGit(worktree, [
+    ...(isCombinedPathspec(relPath) ? COMBINED_BIG_FILE : []),
     "--literal-pathspecs",
     "diff",
     ...(opts.ignoreWhitespace ? ["-w"] : []),
@@ -371,6 +410,14 @@ export async function loadPreviewData(
     return { kind: "diff", text: diff, ...(origPath ? { origPath } : {}) }
   }
   if (isCombinedPathspec(relPath)) return { kind: "empty" }
+  return loadFileContent(worktree, relPath)
+}
+
+/** The file as it is on disk, whatever its diff: a `code` view, or the `binary`/`error` card (images by extension, null bytes). */
+export async function loadFileContent(worktree: string, relPath: string): Promise<PreviewData> {
+  if (isImagePath(relPath)) {
+    return { kind: "binary", image: true, sizeBytes: await worktreeFileSize(worktree, relPath) }
+  }
   const text = await readWorktreeFile(worktree, relPath)
   if (text === null) return { kind: "error", message: t("ops.preview.readFailed", { path: relPath }) }
   if (looksBinaryText(text)) {

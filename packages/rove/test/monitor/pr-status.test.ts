@@ -54,6 +54,13 @@ describe("checkStateFromRollup", () => {
       ]),
     ).toBe("passing")
   })
+  test("a cancelled run is not a failure: the rest decide, and only-cancelled has no verdict", () => {
+    const cancelled = { __typename: "CheckRun", status: "COMPLETED", conclusion: "CANCELLED" }
+    expect(checkStateFromRollup([cancelled, { status: "COMPLETED", conclusion: "SUCCESS" }])).toBe("passing")
+    expect(checkStateFromRollup([cancelled, { status: "IN_PROGRESS" }])).toBe("pending")
+    expect(checkStateFromRollup([cancelled, { status: "COMPLETED", conclusion: "TIMED_OUT" }])).toBe("failing")
+    expect(checkStateFromRollup([cancelled, cancelled])).toBe("none")
+  })
   test("legacy StatusContext entries are read via state", () => {
     expect(checkStateFromRollup([{ __typename: "StatusContext", state: "SUCCESS" }])).toBe("passing")
     expect(checkStateFromRollup([{ __typename: "StatusContext", state: "PENDING" }])).toBe("pending")
@@ -130,6 +137,12 @@ describe("classifyGhFailure", () => {
     expect(classifyGhFailure({ timedOut: true, stderr: "anything" })).toEqual({ kind: "error", error: "timeout" })
     expect(classifyGhFailure({ spawnError: true })).toEqual({ kind: "error", error: "missing-binary" })
   })
+  test("a spawn failure whose cwd is gone is the worktree's fault, not a missing gh", () => {
+    expect(classifyGhFailure({ spawnError: true, cwdMissing: true })).toEqual({
+      kind: "error",
+      error: "worktree-missing",
+    })
+  })
   test("no-remote / auth / network stderr map to their kinds", () => {
     expect(classifyGhFailure({ exitCode: 1, stderr: "none of the git remotes point to a GitHub host" })).toEqual({
       kind: "error",
@@ -198,6 +211,13 @@ describe("nextPrPoll", () => {
 
   test("no-remote is deterministic: settles to the long idle cadence, no streak", () => {
     expect(nextPrPoll({ kind: "error", error: "no-remote" }, 9, 0, cfg, noJitter)).toEqual({
+      nextAllowedAt: 1_800_000,
+      failures: 0,
+    })
+  })
+
+  test("worktree-missing is deterministic like no-remote: long idle cadence, no streak", () => {
+    expect(nextPrPoll({ kind: "error", error: "worktree-missing" }, 7, 0, cfg, noJitter)).toEqual({
       nextAllowedAt: 1_800_000,
       failures: 0,
     })

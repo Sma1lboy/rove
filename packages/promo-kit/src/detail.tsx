@@ -10,6 +10,7 @@ import {
   copy,
   fmtDur,
   fmtSize,
+  fmtTime,
   linkBtn,
   logEvent,
   postJson,
@@ -73,7 +74,14 @@ export function Detail({ item, me, onChange }: { item: Item; me: string; onChang
     <>
       <h1 className="text-display font-semibold">{item.title}</h1>
       <p className="mt-1 mb-2 font-mono text-meta text-subtle">
-        {[fmtDur(item.video.duration), fmtSize(item.video.size)].filter(Boolean).join(" · ")}
+        {[
+          fmtDur(item.video.duration),
+          fmtSize(item.video.size),
+          item.created && `创建 ${fmtTime(item.created)}`,
+          item.updated && `更新 ${fmtTime(item.updated)}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       <SendStatus sends={item.sends} me={me} />
 

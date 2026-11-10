@@ -50,6 +50,9 @@ export const OPS = [
   "push.status",
   "push.subscribe",
   "push.unsubscribe",
+  // How a browser gets in (`sign-in.ts`): the mode and the ones this run offers, and changing it ({mode, password?}).
+  "auth.status",
+  "auth.setMode",
 ] as const
 
 export type Op = (typeof OPS)[number]
@@ -198,6 +201,10 @@ export interface TaskRow {
   readonly baseRef?: string
   /** A child running in that task's directory; absent on a child = it has its own worktree. */
   readonly sharesWorkspaceOf?: string
+  /** The directory the task runs in, on its machine; tasks sharing one share its diff. */
+  readonly workspace?: string
+  /** Backend owns a host-resolvable branch; absent on older bridges, so clients must fail closed. */
+  readonly ownsBranch?: boolean
   /** No worktree on disk yet (a task created without a first message); selecting it materializes one with `task.ensureWorktree`, as the TUI does. */
   readonly noWorktree?: true
 }
@@ -248,6 +255,8 @@ export interface GateRow {
 }
 
 export interface TasksPayload {
+  /** Counts the list's changes; a `tasks.patch` push names the one it starts from. Absent from an older bridge. */
+  readonly rev?: number
   readonly tasks: readonly TaskRow[]
   readonly attention: readonly AttentionRow[]
   /** Pushed on change like `attention`. Absent from an older bridge: treat as none. */

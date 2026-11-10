@@ -508,6 +508,16 @@
         }
       }
     },
+    "ack all" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部已阅"
+          }
+        }
+      }
+    },
     "already up to date with %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -624,6 +634,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "让引擎创建 PR？"
+          }
+        }
+      }
+    },
+    "asked the agent to fix the failing checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请 agent 修复失败的检查"
           }
         }
       }
@@ -808,6 +828,16 @@
         }
       }
     },
+    "connecting…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接中…"
+          }
+        }
+      }
+    },
     "Connection lost" : {
       "localizations" : {
         "zh-Hans" : {
@@ -854,6 +884,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "复制路径"
+          }
+        }
+      }
+    },
+    "could not reopen this session: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法重新打开这个会话：%@"
           }
         }
       }
@@ -1108,6 +1148,16 @@
         }
       }
     },
+    "Fix failing checks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修复失败的检查"
+          }
+        }
+      }
+    },
     "Force remove — discard changes" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1178,6 +1228,16 @@
         }
       }
     },
+    "gh could not read this PR's checks: %@. Run `gh auth status`, then retry." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gh 读不到这个 PR 的检查状态：%@。请运行 `gh auth status`，然后重试。"
+          }
+        }
+      }
+    },
     "Info" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1218,12 +1278,72 @@
         }
       }
     },
+    "it answered with something rove could not read" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它返回了 rove 读不懂的内容"
+          }
+        }
+      }
+    },
+    "its hostname does not resolve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的主机名解析不了"
+          }
+        }
+      }
+    },
+    "its rove daemon is not running" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的 rove 守护进程没在运行"
+          }
+        }
+      }
+    },
+    "its ssh host key changed; check it, then update known_hosts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它的 ssh 主机密钥变了；确认无误后更新 known_hosts"
+          }
+        }
+      }
+    },
+    "its ssh host key is not known yet; connect once by hand to trust it" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还不认识它的 ssh 主机密钥；先手动连一次以信任它"
+          }
+        }
+      }
+    },
     "Keeps the task and its branch." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "保留任务及其分支。"
+          }
+        }
+      }
+    },
+    "Land failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合入失败：%@"
           }
         }
       }
@@ -1268,22 +1388,22 @@
         }
       }
     },
-    "Lands %@ into the main branch, then removes its worktree." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "把 %@ 合入主分支，然后移除其 worktree。"
-          }
-        }
-      }
-    },
     "Live" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "实时"
+          }
+        }
+      }
+    },
+    "machines" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "机器"
           }
         }
       }
@@ -1334,6 +1454,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "合并"
+          }
+        }
+      }
+    },
+    "Merge \"%@\" into %@ (%@ commits), then remove this worktree? The branch is kept. Conflicts abort with a file list." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 \"%1$@\" 合入 %2$@（%3$@ 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。"
+          }
+        }
+      }
+    },
+    "Merge \"%@\" into %@ (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把 \"%1$@\" 合入 %2$@（1 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。"
           }
         }
       }
@@ -1508,12 +1648,32 @@
         }
       }
     },
+    "No failing check logs to read — the run may have expired, or the checks are no longer red" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的"
+          }
+        }
+      }
+    },
     "No pull request for this task yet." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "此任务还没有拉取请求。"
+          }
+        }
+      }
+    },
+    "no tasks" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有任务"
           }
         }
       }
@@ -1554,6 +1714,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "only this machine" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只有这台机器"
           }
         }
       }
@@ -1678,12 +1848,12 @@
         }
       }
     },
-    "Posts a public GitHub Discussion in the rove repo, from your mac's gh login. It can't be unsent." : {
+    "Files a public GitHub issue on the rove repo, from your mac's gh login. It can't be unsent." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以 Mac 上的 gh 登录身份，在 rove 仓库发布一条公开的 GitHub Discussion。发布后无法撤回。"
+            "value" : "以 Mac 上的 gh 登录身份，在 rove 仓库提交一个公开的 GitHub issue。发布后无法撤回。"
           }
         }
       }
@@ -1714,6 +1884,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "项目操作"
+          }
+        }
+      }
+    },
+    "protocol mismatch" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "协议不兼容"
           }
         }
       }
@@ -1978,6 +2158,16 @@
         }
       }
     },
+    "reopening…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新打开…"
+          }
+        }
+      }
+    },
     "Request timed out" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2028,6 +2218,16 @@
         }
       }
     },
+    "rove is not installed there" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "那里没有安装 rove"
+          }
+        }
+      }
+    },
     "Rove stops listing it. The repo and its tasks stay on disk." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2044,6 +2244,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rove 不再跟踪这个项目。仓库及其任务仍保留在磁盘上，再次添加该文件夹即可恢复。"
+          }
+        }
+      }
+    },
+    "run `rove machine add` to add one" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 `rove machine add` 添加一台"
           }
         }
       }
@@ -2228,6 +2438,56 @@
         }
       }
     },
+    "ssh failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 失败"
+          }
+        }
+      }
+    },
+    "ssh forwarding is disabled there" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "那里禁用了 ssh 端口转发"
+          }
+        }
+      }
+    },
+    "ssh refused the login (no key or password accepted)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 拒绝了登录（没有被接受的密钥或密码）"
+          }
+        }
+      }
+    },
+    "ssh timed out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 超时"
+          }
+        }
+      }
+    },
+    "ssh was refused (nothing is listening or a firewall is in the way)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ssh 被拒绝（没有进程在监听，或被防火墙挡住）"
+          }
+        }
+      }
+    },
     "Start rove-bridge on your Mac, then scan the QR code it shows or paste the link it prints." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2388,6 +2648,16 @@
         }
       }
     },
+    "The base checkout has uncommitted changes — commit them, then land. Never `git stash` here: the stash stack lives in the repo's common dir and is shared by every linked worktree, so a stash can entangle other tasks' work." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础检出有未提交改动——请先提交再合入。绝不要在这里 `git stash`：stash 栈存放在仓库的 common dir 中，该仓库所有 linked worktree 共享，一次 stash 可能纠缠其他任务的工作。"
+          }
+        }
+      }
+    },
     "The Cloudflare preset needs a wss:// URL." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2424,6 +2694,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "议题正文会作为首条提示词，并标记为不可信的报告。不会向 GitHub 写回任何内容。"
+          }
+        }
+      }
+    },
+    "the link came up but the handshake failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路通了但握手失败"
+          }
+        }
+      }
+    },
+    "the link dropped; reconnecting" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路断了；正在重连"
           }
         }
       }
@@ -2544,6 +2834,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "story 中未保存的改动会先保存。"
+          }
+        }
+      }
+    },
+    "unsupported" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不支持"
           }
         }
       }
@@ -6250,12 +6550,12 @@
         }
       }
     },
-    "post discussion" : {
+    "file issue" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "发布 discussion"
+            "value" : "提交 issue"
           }
         }
       }
@@ -6780,12 +7080,12 @@
         }
       }
     },
-    "rove runs coding agents side by side — every task gets its own git worktree and branch." : {
+    "rove keeps all your coding agents in one place — when one runs out of quota, switch to another, and every task gets its own git worktree and branch." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "rove 并行运行多个编码 agent，每个任务都有独立的 git worktree 和分支。"
+            "value" : "rove 把所有编程 agent 放在一个地方：一个额度用完了，换另一个接着干，每个任务都有独立的 git worktree 和分支。"
           }
         }
       }

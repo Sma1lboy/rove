@@ -17,7 +17,7 @@ private const val MESSAGE_MAX = 10_000
 
 private class Sent(val url: String?)
 
-/** A public GitHub Discussion in the rove repo, posted from the mac's `gh` login. */
+/** A public GitHub issue on the rove repo, posted from the mac's `gh` login. */
 @Composable fun FeedbackSettings(model: AppModel, back: () -> Unit) {
     var title by rememberSaveable { mutableStateOf("") }
     var message by rememberSaveable { mutableStateOf("") }

@@ -11,14 +11,6 @@ export const en = {
     extraRepos: "{count} more repos in this task",
     todos: "{done} of {total} todos done",
     startsAt: "Starts {time}",
-    recap: {
-      since: "since {time}",
-      finished: "{count} finished",
-      needs: "{count} needs you",
-      failed: "{count} failed",
-      merged: "{count} merged",
-      dismiss: "Dismiss",
-    },
     pr: {
       state: { open: "open", merged: "merged", closed: "closed" },
       many: "{count} PRs in this task and its children",
@@ -35,7 +27,8 @@ export const en = {
   },
   inbox: {
     title: "inbox",
-    hints: "↑↓ move · enter open · d clear · esc close",
+    hints: "↑↓ move · enter open · d ack · esc close",
+    ackAll: "[ ack all ]",
     attention: "attention",
     recent: "recent",
     empty: "no pending attention",
@@ -54,6 +47,7 @@ export const en = {
       dead: "engine exited",
       routineFailed: "routine needs you",
       decision: "needs a decision",
+      reportMissing: "report missing",
     },
   },
 }
@@ -70,14 +64,6 @@ export const zh: typeof en = {
     extraRepos: "这个任务还含 {count} 个仓库",
     todos: "{done}/{total} 条待办已完成",
     startsAt: "{time} 启动",
-    recap: {
-      since: "自 {time}",
-      finished: "{count} 个已完成",
-      needs: "{count} 个等你处理",
-      failed: "{count} 个失败",
-      merged: "{count} 个已合并",
-      dismiss: "关闭",
-    },
     pr: {
       state: { open: "进行中", merged: "已合并", closed: "已关闭" },
       many: "这个任务及子任务共 {count} 个 PR",
@@ -89,7 +75,8 @@ export const zh: typeof en = {
   },
   inbox: {
     title: "收件箱",
-    hints: "↑↓ 移动 · enter 打开 · d 清除 · esc 关闭",
+    hints: "↑↓ 移动 · enter 打开 · d 已阅 · esc 关闭",
+    ackAll: "[ 全部已阅 ]",
     attention: "待处理",
     recent: "最近使用",
     empty: "暂无待处理",
@@ -108,6 +95,7 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       routineFailed: "例行任务需要处理",
       decision: "等你决定",
+      reportMissing: "未回报",
     },
   },
 }

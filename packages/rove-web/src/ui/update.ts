@@ -6,6 +6,9 @@ export const UPDATE_ACTIONS = "my-2.5 flex flex-col"
 export const updateActionClass = (cursor: boolean): string =>
   `flex gap-3 rounded-sm px-2 py-1 text-left text-[length:var(--fs-body)] ${cursor ? "bg-menu" : ""}`
 export const UPDATE_LABEL = "min-w-[14ch]"
+/** The installer's output tail while Update now runs. */
+export const UPDATE_OUTPUT =
+  "my-2 max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-anywhere rounded-sm bg-inset p-2 font-mono text-[length:var(--fs-meta)]"
 /** The rail's ↑ chip; the version drops when the rail is narrow. */
 export const UPDATE_CHIP = "whitespace-nowrap text-[length:var(--fs-meta)] text-warning"
 export const UPDATE_CHIP_VERSION = "rail-tight:hidden"

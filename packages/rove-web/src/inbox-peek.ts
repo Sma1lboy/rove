@@ -1,6 +1,6 @@
 /**
  * The Inbox's peek-and-reply: what a waiting tab shows and the three ways an answer reaches it. A message
- * rides `tab.send` (the engine's own composer, queued behind a busy turn); a menu takes keys, never a paste;
+ * rides `tab.send` (the engine's own composer, which queues behind a busy turn itself); a menu takes keys, never a paste;
  * a decision gate takes `gate.answer`.
  */
 
@@ -8,8 +8,8 @@ import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { t } from "./i18n/index.ts"
 import { PEEK_LINES, type TerminalReply, tailOf } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
+import { streamKey } from "./term-contract.ts"
 import { termFor } from "./term-control.ts"
-import { streamKey } from "./term-mount.ts"
 import { hasParked } from "./term-pool.ts"
 import { toast } from "./ui.ts"
 
@@ -22,20 +22,17 @@ export async function readTail(client: BridgeClient, taskId: string, tabId: stri
 
 interface SendReply {
   readonly delivered: boolean
-  readonly queued?: boolean
-  readonly position?: number
   readonly reason?: string
 }
 
-/** Types `prompt` into the tab like the terminal composer does. True once the engine took it or the daemon holds it. */
+/** Types `prompt` into the tab like the terminal composer does. True once the engine took it. */
 export async function sendReply(model: AppModel, taskId: string, tabId: string, prompt: string): Promise<boolean> {
   try {
-    const res = await model.client.request<SendReply>("tab.send", { taskId, tabId, prompt, queue: true })
-    if (!res.delivered && !res.queued) {
+    const res = await model.client.request<SendReply>("tab.send", { taskId, tabId, prompt })
+    if (!res.delivered) {
       toast(t("layout.composerNotSent", { reason: res.reason ?? "" }), "error")
       return false
     }
-    if (res.queued) toast(t("layout.composerQueued", { position: res.position ?? 1 }))
     return true
   } catch (err) {
     const code = err instanceof BridgeRequestError ? err.code : undefined

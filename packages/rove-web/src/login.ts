@@ -42,6 +42,17 @@ export async function passwordLoginOn(fetchFn: Fetch = bridgeFetch): Promise<boo
   }
 }
 
+/** True when the bridge runs on this computer and asks its own browser for no token. */
+export async function openWithoutToken(fetchFn: Fetch = bridgeFetch): Promise<boolean> {
+  try {
+    const res = await fetchFn("/auth", { headers: { Accept: "application/json" }, cache: "no-store" })
+    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("application/json")) return false
+    return ((await res.json()) as { open?: unknown }).open === true
+  } catch {
+    return false
+  }
+}
+
 export async function submitPassword(password: string, fetchFn: Fetch = bridgeFetch): Promise<LoginOutcome> {
   try {
     const res = await fetchFn("/login", {

@@ -10,13 +10,11 @@
 import { spawnSync } from "node:child_process"
 import { updaterShell, updaterShellFailureHint } from "../lib/updater-shell.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
+import { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, type ReleaseChannel } from "../release-channels.ts"
 import { preferredReleaseChannel, rememberReleaseChannel } from "../state/update-channel.ts"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
-  DEFAULT_RELEASE_CHANNEL,
-  RELEASE_CHANNELS,
-  type ReleaseChannel,
   UPDATE_COMMAND,
   UPDATE_SCRIPT_URL,
   breakingVersionsCrossed,
@@ -74,6 +72,7 @@ function isReleaseChannel(value: string): value is ReleaseChannel {
 /** Shorthand flags; `stable` is what users call `latest`. */
 const CHANNEL_FLAGS: Readonly<Record<string, ReleaseChannel>> = {
   "--nightly": "nightly",
+  "--next": "next",
   "--stable": "latest",
   "--latest": "latest",
   stable: "latest",
@@ -152,14 +151,16 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
       "  dry-run   Print the command without running it",
       "",
       "Flags:",
+      "  --next             Install the newest build of main and stay on it",
       "  --nightly          Install the nightly preview and stay on it",
       "  --stable           Go back to stable releases and stay there",
       "  --channel <name>   The same, by channel name. The bare name works",
-      "                     too: `update nightly`",
+      "                     too: `update next`",
       "",
       "Channels:",
       "  latest    Stable releases (default; also spelled `stable`)",
-      "  nightly   Automated nightly cut from main — newer, less baked",
+      "  next      Every merge to main — newest, gated by the fast checks only",
+      "  nightly   Automated daily cut from main, behind the full suite",
       "",
       `Running: ${channelOf()} build. Following: ${preferredReleaseChannel()}`,
       "",

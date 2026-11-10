@@ -31,6 +31,8 @@ export interface TabsChangedPayload {
 /** Closed ids remembered per task: enough to outlast any stale copy or a slow orphan poll. */
 const TOMBSTONE_CAP = 256
 const SAVE_DEBOUNCE_MS = 250
+/** A failed save is retried on its own this soon, not only when the next tab changes. */
+const SAVE_RETRY_MS = 2_000
 /** Probe caches every mounted TUI refreshes as an engine's title changes. */
 const VOLATILE_FIELDS: ReadonlySet<string> = new Set(["lastTitle", "liveVendor"])
 
@@ -123,11 +125,15 @@ export class TabsStore {
     this.timer = null
     if (this.dirty.size === 0 || !this.persistence) return
     const changes = Object.fromEntries(this.dirty)
-    this.dirty.clear()
     try {
       this.persistence.save(changes)
+      // Only the values this save carried: a commit made DURING the save stays dirty.
+      for (const id of Object.keys(changes)) if (this.dirty.get(id) === changes[id]) this.dirty.delete(id)
     } catch (err) {
+      // Clearing `dirty` first lost the write outright. Keep it and try again:
+      // the next commit flushes immediately, and this timer covers a quiet store.
       logDaemonError("tabs-save", err)
+      this.timer ??= setTimeout(() => this.flush(), SAVE_RETRY_MS)
     }
   }
 

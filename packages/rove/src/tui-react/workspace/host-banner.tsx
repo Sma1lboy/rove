@@ -9,11 +9,13 @@ import type { ColorInput } from "@opentui/core"
 import { type ReactNode, useState } from "react"
 import { type SelfRefreshInputs, planSelfRefresh } from "../../cli/self-relaunch.ts"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { UPDATE_NOTIFY_KEY, updateNotifyEnabled } from "../../state/update-channel.ts"
 import { findBinding } from "../../tui/context/keybindings"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { CURRENT_VERSION } from "../../version.ts"
 import { SkillBanner, StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
+import { useKV } from "../context/kv"
 import { useAccessor } from "../lib/use-accessor"
 import { installSkillNow, skillMissing } from "./skill-status"
 
@@ -27,7 +29,7 @@ export interface HostBanner {
     /** The facts `selfRefreshAction` needs, snapshotted this render. */
     readonly inputs: SelfRefreshInputs
   }
-  /** Daemon-polled npm check, for the passive update chip (`u` / click opens the page). */
+  /** Daemon-polled npm check for the passive update chip (`u` / click opens the page); null while `update.notify` is off. */
   readonly update: { readonly hasUpdate: boolean; readonly latest: string } | null
 }
 
@@ -44,6 +46,8 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
   const daemonStale = useAccessor(orch.daemonStaleSignal())
   const daemonVersion = useAccessor(orch.daemonVersionSignal())
   const update = useAccessor(orch.updateSignal())
+  // `update.notify` off hides the passive chip only; Settings' explicit check still reports.
+  const notify = updateNotifyEnabled(useKV().get(UPDATE_NOTIFY_KEY))
   const staleInstall = useAccessor(orch.staleInstallSignal())
   const daemonRestarting = useAccessor(orch.daemonRestartingSignal())
   const missingSkill = useAccessor(skillMissing)
@@ -74,7 +78,7 @@ export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBann
       />
     </>
   )
-  return { element, update, refresh: { available, inputs } }
+  return { element, update: notify ? update : null, refresh: { available, inputs } }
 }
 
 /** The live `app.refresh` chord, resolved every render so rebinds show.

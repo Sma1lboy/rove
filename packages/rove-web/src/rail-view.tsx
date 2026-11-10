@@ -4,7 +4,6 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
-import { AwayRecap } from "./away-recap-view.tsx"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -23,8 +22,8 @@ import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
 import { mostUrgentStatus } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
-import { dropIdleMains } from "./rail-idle.ts"
-import { useRailFilters, useRailKeys } from "./rail-keys.ts"
+import { dropIdleMains, useIdleTabs } from "./rail-idle.ts"
+import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
 import { repoLabel } from "./rail-labels.ts"
 import { peekRail, railFolded, railPeek } from "./rail-layout.ts"
 import { PaneRowView, openPane } from "./rail-pane-row.tsx"
@@ -41,7 +40,7 @@ import { StartsChip } from "./starts-chip.tsx"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, menu } from "./ui.ts"
+import { type MenuItem, dialog, menu, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
@@ -84,6 +83,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const tasks = payload?.tasks ?? []
   const unread = payload?.attention.filter((row) => row.unread).length ?? 0
   const selectedId = selection.taskId
+  const idleTabs = useIdleTabs(tasks, tabs, tabsSettled)
   const byId = new Map([...tasks, ...remoteTasks].map((task) => [task.id, task]))
 
   const filters = useRailFilters()
@@ -107,7 +107,10 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     ? built.rows
     : withArchived(
         foldProjects(
-          withPanes(withStateCounts(dropIdleMains(built.rows, tabs, selection.taskId, tabsSettled, reordering)), tabs),
+          withPanes(
+            withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
+            tabs,
+          ),
           filters.collapsed,
         ),
         payload?.archived ?? [],
@@ -124,7 +127,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     label: repoLabel(repo),
     first: repo === firstMovable,
   })
-  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default", projectInfo)
+  const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
   const place = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
@@ -188,7 +191,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
           onChange={(query) => filters.setSearch((s) => ({ ...s, query }))}
         />
       )}
-      <AwayRecap model={model} />
       <PageNav model={model} />
       <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
@@ -272,10 +274,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
-                if (row.kind === "task") {
-                  model.select(row.task.id)
-                  enterWorkspace()
-                }
+                if (row.kind === "task") openTaskRow(model, row.task.id)
               }}
               onMenu={(e) => {
                 // Another machine's project has no checkout here, so its header has no menu; its
@@ -298,11 +297,14 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                 keys.setCursor(row.id)
                 openMenu(
                   e,
-                  withSplitEntries(
-                    withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
-                      filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                  tuckRare(
+                    withSplitEntries(
+                      withFoldEntry(taskMenu(model, row.task, null), row.fold, () =>
+                        filters.toggleTaskFold(row.id, row.fold?.collapsed === true),
+                      ),
+                      taskSplitItems(model, row.task.id),
                     ),
-                    taskSplitItems(model, row.task.id),
+                    t("menu.more"),
                   ),
                 )
               }}
@@ -356,7 +358,7 @@ function RailRow(props: {
   if (row.kind === "project" || row.kind === "state") {
     return (
       <h2
-        className={projectHead({ moving: props.moving, dragging: props.dragging })}
+        className={projectHead({ moving: props.moving, dragging: props.dragging, grab: props.drag !== undefined })}
         onContextMenu={props.onMenu}
         {...props.place}
         {...props.drag}
@@ -403,7 +405,7 @@ function RailRow(props: {
     <button
       type="button"
       ref={tip.ref}
-      className={`${rowClass({ selected: props.selected, moving: props.moving || props.dragging })} ${cursor}`}
+      className={`${rowClass({ selected: props.selected, moving: props.moving, lifted: props.dragging, grab: props.drag !== undefined })} ${cursor}`}
       onClick={props.onClick}
       onContextMenu={props.onMenu}
       onPointerEnter={tip.onPointerEnter}
@@ -411,7 +413,6 @@ function RailRow(props: {
       {...props.place}
       {...props.drag}
     >
-      {tip.tip}
       {props.guides && (
         <span className={CHILD_INDENT} aria-hidden="true">
           {props.guides.map((guide, i) => (
@@ -485,6 +486,7 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
   const entry: MenuItem = {
     label: tc("tasks", fold.collapsed ? "menu.expandChildren" : "menu.collapseChildren"),
     section: "open",
+    rare: true,
     run: toggle,
   }
   const at = items.map((item) => item.section).lastIndexOf("open")
@@ -494,5 +496,5 @@ function withFoldEntry(items: MenuItem[], fold: RowFold | undefined, toggle: () 
 /** Split right / down on the task's tab sit right after what opens the task: the tab strip is hidden by default, so this is the mouse route. */
 function withSplitEntries(items: MenuItem[], entries: readonly MenuItem[]): MenuItem[] {
   const at = items.map((item) => item.section).lastIndexOf("open")
-  return [...items.slice(0, at + 1), ...entries, ...items.slice(at + 1)]
+  return [...items.slice(0, at + 1), ...entries.map((entry) => ({ ...entry, rare: true })), ...items.slice(at + 1)]
 }

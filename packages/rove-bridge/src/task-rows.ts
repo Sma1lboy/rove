@@ -9,6 +9,7 @@ import type { AttentionInboxItem, TaskPRStatus } from "@sma1lboy/rove-daemon/dae
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type TaskStatus, tabStatus, taskStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
 import { rollupPr } from "@sma1lboy/rove-daemon/task-tree"
+import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
 import { type ActivityEntry, buildContext } from "@sma1lboy/rove/src/cli/api/context-view.ts"
 import {
   type RowTokenMap,
@@ -211,6 +212,7 @@ export function taskRows(
         title: task.title,
         label: extras?.labels?.get(task.id) ?? task.title,
         branch: task.branch,
+        ownsBranch: workspaceCapabilities(task).ownsBranch,
         repo: task.repo,
         kind: task.kind ?? "task",
         status: task.status,
@@ -255,7 +257,7 @@ export function taskRows(
         ...(task.prompt !== undefined ? { hasPrompt: true } : {}),
         ...(task.scheduledStart ? { startsAt: task.scheduledStart.at } : {}),
         prChipStale: chip !== null && pr?.lastError !== undefined,
-        ...(task.worktreePath ? {} : { noWorktree: true as const }),
+        ...(task.worktreePath ? { workspace: task.worktreePath } : { noWorktree: true as const }),
       },
     ]
   })

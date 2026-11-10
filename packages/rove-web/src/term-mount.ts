@@ -14,6 +14,7 @@ import { type BridgeClient, BridgeRequestError } from "./bridge.ts"
 import { terminalTheme } from "./prefs-theme.ts"
 import { prefsStore } from "./prefs.ts"
 import { markScrolling } from "./scroll-reveal.ts"
+import { type Notice, type TermHandle, streamKey } from "./term-contract.ts"
 import { createCover } from "./term-cover.ts"
 import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
@@ -25,21 +26,11 @@ import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
 import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
 import { attachTouchScroll } from "./term-touch.ts"
 import { loadWebgl } from "./term-webgl.ts"
-import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
-import { activeStream, layoutMoving } from "./ui.ts"
-
-/** `DEFAULT_PAGE_SIZE`: lines per `ctrl+pgup` / `ctrl+pgdown`. */
-export const SCROLL_PAGE_LINES = 10
 
 /** Width of xterm's overlay scrollbar (its default is 14); it floats over the last column (`term-fit.ts`). */
 const SCROLLBAR_WIDTH = 8
-
-export type Notice =
-  | { readonly kind: "none" }
-  | { readonly kind: "restored" }
-  | { readonly kind: "notLive" }
-  | { readonly kind: "exited"; readonly code: number | null }
-  | { readonly kind: "failed"; readonly message: string }
+import { createAcks, decode, resetPayload, streamPayload } from "./term-wire.ts"
+import { activeStream, layoutMoving } from "./ui.ts"
 
 export interface MountOpts {
   readonly client: BridgeClient
@@ -64,26 +55,6 @@ export interface MountOpts {
   readonly snapshot?: string
   /** The first replay is on screen (or the attach failed): what the view showed before can go. */
   readonly onPainted?: () => void
-}
-
-export interface TermHandle {
-  readonly term: Terminal
-  readonly stream: string
-  /** User scrolls (keys, the scroll chips): negative = toward older output. */
-  scrollLines(lines: number): void
-  scrollToTop(): void
-  scrollToBottom(): void
-  /** The next single key typed reaches the engine as its Ctrl chord; `onUsed` fires when it does. `null` disarms. */
-  armCtrl(onUsed: (() => void) | null): void
-  /** Attach again (a reset respawned the session under the same key). */
-  reattach(): Promise<void>
-  /** The visible screen as HTML, for a later mount of the same stream to show while it reattaches. */
-  snapshot(): string
-  dispose(): void
-}
-
-export function streamKey(taskId: string, tabId: string, leafId?: string): string {
-  return leafId && leafId !== "leaf-1" ? `${taskId}::${tabId}::${leafId}` : `${taskId}::${tabId}`
 }
 
 /** Copy chords the browser would not make on its own inside xterm's textarea: Cmd+C, Ctrl+Shift+C, and Ctrl+C with a selection. */
@@ -187,11 +158,30 @@ export function mountTerminal(o: MountOpts): TermHandle {
     o.onExit(p.code ?? null)
   })
 
-  // Once the first replay is parsed and drawn (or the attach failed) the view can let go of what it showed before.
+  // Once the screen shows something (or the attach failed) the view can let go of what it showed before. A replay
+  // that starts mid-repaint parses to an empty screen: that is not it yet, the engine's redraw is.
   let paintedOnce = false
+  let awaitingInk: { dispose(): void } | null = null
+  const hasInk = () => {
+    const buffer = term.buffer.active
+    for (let row = 0; row < term.rows; row++)
+      if (
+        buffer
+          .getLine(buffer.viewportY + row)
+          ?.translateToString(true)
+          .trim()
+      )
+        return true
+    return false
+  }
   const painted = (drawn: boolean) => {
     if (paintedOnce) return
+    if (drawn && !hasInk()) {
+      awaitingInk ??= term.onWriteParsed(() => painted(true))
+      return
+    }
     paintedOnce = true
+    awaitingInk?.dispose()
     if (drawn) requestAnimationFrame(() => requestAnimationFrame(() => o.onPainted?.()))
     else o.onPainted?.()
   }

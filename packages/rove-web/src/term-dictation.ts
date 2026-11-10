@@ -4,7 +4,8 @@
  * xterm.js forwards only what a new `input` event inserts and ignores deletions and replacements, so the
  * PTY keeps the old text and gets the new on top. Its hidden textarea does hold the text typed so far and
  * the browser edits it as asked, so each edit of it is turned into the backspaces and text that make the
- * PTY's line match. Plain appends, keys, paste and keyboard IMEs stay with xterm.
+ * PTY's line match. Plain appends, keys, paste and keyboard IMEs stay with xterm. A tool may also paste
+ * its transcript and later select it and paste the improved one: a pasted phrase stays part of the run.
  */
 
 import type { Terminal } from "@xterm/xterm"
@@ -27,6 +28,19 @@ export function editBytes(before: string, after: string): string {
   while (kept < old.length && kept < next.length && old[kept] === next[kept]) kept++
   const floor = old.map((c) => /[\r\n]/.test(c)).lastIndexOf(true) + 1
   return DEL.repeat(old.length - Math.max(kept, floor)) + next.slice(kept).join("")
+}
+
+// ponytail: one fixed length for every engine; an engine that folds a shorter paste into a placeholder
+// needs its own limit from the engine contract.
+const PASTED_RUN_MAX = 500
+
+/**
+ * A paste that can still be edited: one line, short enough that an engine keeps it in its input as typed
+ * text. A long or multi-line paste may be folded into a placeholder, where a DEL per character erases more
+ * than the paste.
+ */
+export function pasteStaysEditable(text: string): boolean {
+  return text.length > 0 && text.length <= PASTED_RUN_MAX && !/[\r\n]/.test(text)
 }
 
 /**
@@ -77,9 +91,9 @@ export function attachDictationGuard(term: Terminal, send: (data: string) => voi
   const onInput = (e: Event) => {
     const ev = e as InputEvent
     if (ev.target !== area) return
-    // The text was pasted whole; it is not a run to edit later.
-    if (ev.inputType === "insertFromPaste") area.value = ""
-    else if (!ev.isComposing && !imeKeyDown) {
+    if (ev.inputType === "insertFromPaste") {
+      if (!pasteStaysEditable(area.value)) area.value = ""
+    } else if (!ev.isComposing && !imeKeyDown) {
       const bytes = inputFix(ev.inputType, ev.data, before, area.value)
       if (bytes !== null) {
         ev.stopImmediatePropagation()

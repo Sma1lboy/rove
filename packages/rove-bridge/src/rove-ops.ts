@@ -15,10 +15,11 @@ import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
+import { isUnlistedCheckout } from "@sma1lboy/rove/src/lib/worktree-only.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
-import { loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
+import { loadFileContent, loadPreviewData } from "@sma1lboy/rove/src/tui/ops/preview-core.ts"
 import { resolveBase } from "@sma1lboy/rove/src/tui/panes/filetree/git.ts"
 import { conversationTitle } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-split.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
@@ -67,6 +68,7 @@ export interface EngineRow {
 export interface RoveOps {
   tasks(): Promise<TasksPayload>
   engines(): Promise<readonly EngineRow[]>
+  /** Saved projects, as the TUI picker lists them. Not task repos: a No folder session's or routine's cwd is no project. */
   repos(): Promise<readonly string[]>
   createTask(input: { repo: string; engine?: string; prompt?: string; title?: string }): Promise<{ taskId: string }>
   /** `cascade` also removes every descendant; absent, the task's children are promoted. */
@@ -97,6 +99,8 @@ export interface RoveOps {
     scope: PreviewScope,
     ignoreWhitespace?: boolean,
     base?: string,
+    /** The file itself, never its diff (`scope` working only; another machine's task still answers with the diff). */
+    content?: boolean,
   ): Promise<unknown>
   diffRefs(taskId: string): Promise<DiffRefs>
   dismissAttention(taskId: string, tabId?: string, deliveryId?: string): Promise<void>
@@ -296,7 +300,8 @@ export function createRoveOps(
       const remoteExtras = pushed ? { changes: pushed.changes, tokens: pushed.tokens, labels } : undefined
       // Archived rows are grouped on their own, so a hidden task never ranks or folds the visible ones.
       const rowsOf = (archived: boolean): TaskRow[] => {
-        const pick = (list: readonly SerializedTask[]) => list.filter((t) => (t.archived === true) === archived)
+        const pick = (list: readonly SerializedTask[]) =>
+          list.filter((t) => (t.archived === true) === archived && !isUnlistedCheckout(t))
         const local = taskRows(pick(tasks), localStatus, engineRows ?? [], now, localExtras)
         const remote = taskRows(pick(remoteTasks), remoteStatus, engineRows ?? [], now, remoteExtras).map((row) => ({
           ...row,
@@ -316,8 +321,7 @@ export function createRoveOps(
     engines,
 
     async repos() {
-      const { tasks } = await client.request<{ tasks: SerializedTask[] }>("task.list")
-      return [...new Set([...getSavedRepos(), ...tasks.map((t) => t.repo)])].sort()
+      return [...getSavedRepos()].sort()
     },
 
     async createTask({ repo, engine, prompt, title }) {
@@ -417,7 +421,7 @@ export function createRoveOps(
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
       return worktreeRefs(task.worktreePath)
     },
-    async diffFile(taskId, path, scope, ignoreWhitespace, ref) {
+    async diffFile(taskId, path, scope, ignoreWhitespace, ref, content) {
       // git scopes the diff to the worktree, but a `code` preview reads the
       // file itself: refuse anything that could name a file outside it.
       if (isAbsolute(path) || normalize(path).split(/[\\/]/).includes("..")) {
@@ -437,6 +441,7 @@ export function createRoveOps(
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
       const opts = { ignoreWhitespace: ignoreWhitespace === true }
+      if (scope === "working" && content) return loadFileContent(task.worktreePath, path)
       if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)
       let base: string | null
       if (ref !== undefined) {

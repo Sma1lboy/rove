@@ -241,7 +241,10 @@ anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (what `ctrl+t`
 does: a child task sharing the worktree) and **New shell** (a child task sharing the worktree whose `tab-1` is a login shell) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-These entries have no chord of their own. **Set status** opens a picker over
+These entries have no chord of their own. **New task from this branch**, on a
+managed Task with a branch, opens the New task dialog on that Task's repo with
+its branch as the base, so the new Task stacks on the unmerged work (menu-only;
+not offered on multi-repo or another machine's Tasks). **Set status** opens a picker over
 the six Task statuses and writes the one you choose. **Copy task ID** puts the
 id `rove api` Task verbs take (`read-output --task-id <id>`, `land --task-id
 <id>`) on the clipboard, and is offered on every Task row. **Copy branch name** and
@@ -320,7 +323,8 @@ selection-aware `ctrl+c` above is what answers.
 |---|---|
 | `j` / `k` (or arrows) | Select |
 | `enter` | Open the target task and its exact tab when present, then clear the item |
-| `d` | Clear an ATTENTION item without navigating |
+| `d` | Ack (clear) an ATTENTION item without navigating |
+| `D` | Ack every ATTENTION item (PROPOSED) |
 | `esc` | Close |
 
 ## Diff review
@@ -352,6 +356,7 @@ active only while the page has focus.
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
+| Settings → Engines | `j`/`k` move; `space` switches the focused engine on or off; `r` renames its display label; `d` makes it the global default; `x` resets a built-in engine (or removes a custom one) |
 
 In the Kanban story drawer, `tab` / `shift+tab` walks fields and `ctrl+enter`
 activates its primary action: start an unlinked story or open the linked Task.

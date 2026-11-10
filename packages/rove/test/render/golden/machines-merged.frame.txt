@@ -8,15 +8,15 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
 | rove ─────────────────────── |
-|▌ ○ alpha                     |
-|  ○ charlie                 ☁ |
-|  ○ delta                   ☁ |
+|▌○ alpha                      |
+| ○ charlie                  ☁ |
+| ○ delta                    ☁ |
 |                              |
 | api ──────────────────────── |
-|  ○ echo                      |
+| ○ echo                       |
+|                              |
 |                              |
 |                              |
 |                              |

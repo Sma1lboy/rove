@@ -7,7 +7,9 @@
 
 import { type ModPaneView, parseModUiPayload } from "@sma1lboy/rove/src/tui/panes/mods/mods-core.ts"
 import type { TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { applyTasksPatch, isTasksPatch } from "rove-bridge/tasks-patch"
 import type { BridgeClient } from "./bridge.ts"
+import { type TasksEdit, taskEdit } from "./optimistic.ts"
 import { type Store, createStore } from "./store.ts"
 import { toast } from "./ui.ts"
 
@@ -19,8 +21,8 @@ export interface Selection {
 const SELECTION_KEY = "rove.web.selection"
 /** `ui.viewing`'s key for "shows no task". */
 const NOTHING_SHOWN = "null"
-/** Pushes arrive in bursts while engines work; one tab sweep per burst is enough. */
-const TAB_REFRESH_DEBOUNCE_MS = 300
+/** The least time between two sweeps of tab reads; a lone change does not wait for it. */
+const TAB_READ_GAP_MS = 300
 
 function loadSelection(): Selection {
   try {
@@ -32,6 +34,13 @@ function loadSelection(): Selection {
     // A corrupt entry is just no selection.
   }
   return { taskId: null, tabId: null }
+}
+
+/** The `tabs` push names the tasks whose tab list changed. */
+function changedTaskIds(data: unknown): readonly string[] | undefined {
+  if (!data || typeof data !== "object" || !("taskIds" in data)) return undefined
+  const ids = (data as { taskIds?: unknown }).taskIds
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : undefined
 }
 
 function isTasksPayload(data: unknown): data is TasksPayload {
@@ -98,9 +107,18 @@ export class AppModel {
   /** Newest first; the Inbox's RECENT section (the TUI keeps its own the same way, per client). */
   readonly visits: Store<readonly Visit[]> = createStore(loadVisits())
   private tabTimer: number | null = null
-  private tabsLoaded = false
-  /** Bumped per sweep; a sweep resolving after a newer one started commits nothing. */
-  private tabSweep = 0
+  private tabsReadAt = Number.NEGATIVE_INFINITY
+  /** The tasks whose tabs the next read covers; null = every task. */
+  private tabScope: Set<string> | null = new Set()
+  /** The tab ids the daemon last reported per task, as one string: a change is what re-reads that task's tabs. */
+  private readonly tabSets = new Map<string, string>()
+  /** The latest `task.tabs` read per task; an older reply is dropped. */
+  private readonly tabReads = new Map<string, number>()
+  private syncing: Promise<void> | null = null
+  /** The daemon's last list, before this page's own edits. */
+  private served: TasksPayload | null = null
+  /** Edits drawn ahead of the daemon; true once its request succeeded, so the next push replaces it. */
+  private readonly edits = new Map<TasksEdit, boolean>()
   /** A task just created here: select it once the feed lists it. */
   private pendingSelect: string | null = null
   /** Bumped by every user selection; a worktree reply selects only if no newer one happened since. */
@@ -115,7 +133,7 @@ export class AppModel {
 
   constructor(readonly client: BridgeClient) {
     client.onOpen(() => {
-      void client.request<TasksPayload>("tasks.subscribe").then((payload) => this.acceptTasks(payload))
+      void this.resync()
       // The bridge forgot what a closed socket showed.
       this.viewingSent = NOTHING_SHOWN
       this.reportViewing()
@@ -135,9 +153,27 @@ export class AppModel {
     client.on("tasks", (data) => {
       if (isTasksPayload(data)) this.acceptTasks(data)
     })
+    // The rows that changed. A patch that does not start from the list held here means one was missed: ask again.
+    client.on("tasks.patch", (data) => {
+      const base = this.served
+      if (base && isTasksPatch(data) && data.from === base.rev) this.acceptTasks(applyTasksPatch(base, data))
+      else void this.resync()
+    })
     // Tab-only changes (a rename, a tab the TUI opened) leave the task rows alone, so no `tasks` push comes.
-    client.on("tabs", () => this.scheduleTabRefresh())
+    client.on("tabs", (data) => this.scheduleTabRefresh(changedTaskIds(data)))
     client.on("mods", (data) => this.mods.set(parseModUiPayload(data) ?? []))
+  }
+
+  /** Take the whole list, asking for patches from then on (an older bridge keeps sending the list). */
+  private resync(): Promise<void> {
+    this.syncing ??= this.client
+      .request<TasksPayload>("tasks.subscribe", { patches: true })
+      .then((payload) => this.acceptTasks(payload))
+      .catch(() => {})
+      .finally(() => {
+        this.syncing = null
+      })
+    return this.syncing
   }
 
   async refreshMods(): Promise<void> {
@@ -185,7 +221,7 @@ export class AppModel {
     localStorage.setItem(VISITS_KEY, JSON.stringify(visits))
     this.reportViewing()
     // An archived task's tabs are read only once it is open (`tabbedTasks`).
-    if (!(taskId in this.tabs.get())) this.scheduleTabRefresh()
+    if (!(taskId in this.tabs.get())) this.scheduleTabRefresh([taskId])
   }
 
   /**
@@ -244,9 +280,9 @@ export class AppModel {
     return tab?.kind === "engine" ? { taskId, tabId: tab.id } : { taskId }
   }
 
-  /** After a tab was opened or closed here: don't wait for the next push. */
-  async refreshTabsNow(): Promise<void> {
-    await this.refreshTabs(this.tabbedTasks())
+  /** After a tab of `taskId` was opened, closed or renamed here: don't wait for the next push. */
+  async refreshTabsNow(taskId: string): Promise<void> {
+    await this.refreshTabs([taskId])
   }
 
   /** Every task whose tabs can be read: this machine's, and those of the other machines that answer. */
@@ -261,7 +297,77 @@ export class AppModel {
     ]
   }
 
-  private acceptTasks(payload: TasksPayload): void {
+  /**
+   * Send an op that changes the task list. One that `optimistic.ts` can predict is drawn on the
+   * click; every such op is sent from here, so none waits a round trip to show.
+   */
+  act<T = unknown>(op: string, args: Readonly<Record<string, unknown>>): Promise<T> {
+    const edit = taskEdit(op, args)
+    const send = () => this.client.request<T>(op, args)
+    return edit ? this.optimistic(edit, send) : send()
+  }
+
+  /** The tab leaves the strip on the click; the daemon's own list follows, and puts it back if the close failed. */
+  closeTab(taskId: string, tabId: string): Promise<void> {
+    return this.tabAct(taskId, "tab.close", { taskId, tabId }, (tabs) => tabs.filter((tab) => tab.id !== tabId))
+  }
+
+  renameTab(taskId: string, tabId: string, title: string): Promise<void> {
+    return this.tabAct(taskId, "tab.rename", { taskId, tabId, title }, (tabs) =>
+      tabs.map((tab) => (tab.id === tabId ? { ...tab, title } : tab)),
+    )
+  }
+
+  private async tabAct(
+    taskId: string,
+    op: string,
+    args: Readonly<Record<string, unknown>>,
+    edit: (tabs: readonly TabRow[]) => readonly TabRow[],
+  ): Promise<void> {
+    const shown = this.tabs.get()[taskId]
+    if (shown) {
+      // A read already on its way predates the edit: drop its reply.
+      this.tabReads.set(taskId, (this.tabReads.get(taskId) ?? 0) + 1)
+      this.tabs.set({ ...this.tabs.get(), [taskId]: edit(shown) })
+      this.reselectIfClosed(taskId)
+    }
+    try {
+      await this.client.request(op, args)
+    } finally {
+      await this.refreshTabs([taskId])
+    }
+  }
+
+  /**
+   * Draw `edit` now and send `request`. A failure puts the daemon's list back. A success keeps the
+   * edit until the next push, which carries the same change.
+   */
+  async optimistic<T>(edit: TasksEdit, request: () => Promise<T>): Promise<T> {
+    this.edits.set(edit, false)
+    const open = this.selection.get()
+    if (this.served) this.acceptTasks(this.served, true)
+    try {
+      const result = await request()
+      // ponytail: a push read before the daemon applied the change undoes the edit until the next one; track a revision if that flicker shows.
+      if (this.edits.has(edit)) this.edits.set(edit, true)
+      return result
+    } catch (err) {
+      this.edits.delete(edit)
+      if (this.served) this.acceptTasks(this.served, true)
+      // The edit moved the selection off a row that never left.
+      const back = open.taskId !== null && this.selection.get().taskId !== open.taskId
+      if (back && selectedRow(this.tasks.get(), open.taskId)) this.commitSelection(open.taskId as string, open.tabId)
+      throw err
+    }
+  }
+
+  private acceptTasks(served: TasksPayload, redraw = false): void {
+    this.served = served
+    let payload = served
+    for (const [edit, confirmed] of this.edits) {
+      if (confirmed && !redraw) this.edits.delete(edit)
+      else payload = edit(payload)
+    }
     const before = [...(this.tasks.get()?.tasks ?? []), ...this.remote.get()]
     this.remote.set(payload.tasks.filter((task) => task.machine))
     this.tasks.set({ ...payload, tasks: payload.tasks.filter((task) => !task.machine) })
@@ -276,44 +382,62 @@ export class AppModel {
       this.select(this.pendingSelect)
       this.pendingSelect = null
     }
-    this.scheduleTabRefresh()
+    const listed = this.tabbedTasks()
+    const kept = new Set(listed.map((task) => task.id))
+    const known = this.tabs.get()
+    if (Object.keys(known).some((id) => !kept.has(id))) {
+      this.tabs.set(Object.fromEntries(Object.entries(known).filter(([id]) => kept.has(id))))
+    }
+    for (const id of this.tabSets.keys()) if (!kept.has(id)) this.tabSets.delete(id)
+    // A push comes for every token count; tabs are read again only where the daemon's set of tabs changed.
+    const changed = listed.filter((task) => {
+      const set = Object.keys(task.tabStatus ?? {})
+        .sort()
+        .join(" ")
+      if (this.tabSets.get(task.id) === set) return false
+      this.tabSets.set(task.id, set)
+      return true
+    })
+    if (changed.length > 0) this.scheduleTabRefresh(changed.map((task) => task.id))
   }
 
-  private scheduleTabRefresh(): void {
+  /** `taskIds` names the tasks to read; without it (a bridge that names none) every task is read. */
+  private scheduleTabRefresh(taskIds?: readonly string[]): void {
+    if (!taskIds) this.tabScope = null
+    else for (const id of taskIds) this.tabScope?.add(id)
     if (this.tabTimer !== null) return
-    // The first load reads tabs at once; the debounce only batches later pushes.
-    const delay = this.tabsLoaded ? TAB_REFRESH_DEBOUNCE_MS : 0
-    this.tabsLoaded = true
+    // A change with no read just before it is read at once; the gap only batches a run of them.
+    const delay = Math.max(0, this.tabsReadAt + TAB_READ_GAP_MS - Date.now())
     this.tabTimer = window.setTimeout(() => {
       this.tabTimer = null
-      void this.refreshTabs(this.tabbedTasks())
+      this.tabsReadAt = Date.now()
+      const scope = this.tabScope
+      this.tabScope = new Set()
+      void this.refreshTabs(scope ? [...scope] : this.tabbedTasks().map((task) => task.id))
     }, delay)
   }
 
-  private async refreshTabs(tasks: readonly TaskRow[]): Promise<void> {
-    const sweep = ++this.tabSweep
-    const live = tasks.filter((task) => !task.deleting)
+  private async refreshTabs(taskIds: readonly string[]): Promise<void> {
     // Each reply lands on its own, so one slow task doesn't hold back the selected one's terminal.
     await Promise.all(
-      live.map(async (task) => {
+      taskIds.map(async (taskId) => {
+        const read = (this.tabReads.get(taskId) ?? 0) + 1
+        this.tabReads.set(taskId, read)
         let tabs: readonly TabRow[]
         try {
-          tabs = (await this.client.request<{ tabs: TabRow[] }>("task.tabs", { taskId: task.id })).tabs
+          tabs = (await this.client.request<{ tabs: TabRow[] }>("task.tabs", { taskId })).tabs
         } catch {
           return
         }
-        if (sweep !== this.tabSweep) return
-        this.tabs.set({ ...this.tabs.get(), [task.id]: tabs })
-        this.reselectIfClosed(task.id)
+        // A newer read of this task is on its way, or already landed.
+        if (this.tabReads.get(taskId) !== read) return
+        this.tabs.set({ ...this.tabs.get(), [taskId]: tabs })
+        this.reselectIfClosed(taskId)
       }),
     )
-    if (sweep !== this.tabSweep) return
     if (!this.tabsSettled.get()) this.tabsSettled.set(true)
-    const kept = new Set(live.map((task) => task.id))
-    this.tabs.set(Object.fromEntries(Object.entries(this.tabs.get()).filter(([id]) => kept.has(id))))
   }
 
-  /** A selected tab that closed falls back to the task's first live one, like the TUI. */
   private reselectIfClosed(taskId: string): void {
     const selected = this.selection.get()
     if (selected.taskId !== taskId) return

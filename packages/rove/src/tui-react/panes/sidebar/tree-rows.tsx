@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tree rows: project header flush, a task one cell in, each generation of
- * child tasks one cell deeper (the state glyph carries the hierarchy). A task
+ * Tree rows: project header and its tasks' state glyphs flush, each generation
+ * of child tasks two cells deeper (the state glyph carries the hierarchy). A task
  * row is `[status] label` plus the right-edge cluster and stays ONE cell
  * tall: a dozen tasks must fit the rail.
  *
@@ -236,7 +236,7 @@ export function WorktreeTreeRow(props: {
   const extraRepoText = task.extraRepos?.length ? `+${task.extraRepos.length}` : null
   const fold = props.fold
   const reserved =
-    // The state-glyph column, and the indent past the first level `treeLabelBudget` assumes.
+    // The state-glyph column, and the child indent (`indentOf` in tree-row-shell).
     2 +
     2 * ((props.depth ?? 1) - 1) +
     // A plugin can crowd the branch name but never overflow the row.

@@ -114,12 +114,15 @@ export type DaemonRequestName =
   | "task.scheduleStart"
   | "task.cancelScheduledStart"
   | "task.startScheduledNow"
+  // Continue rate-limited tasks now rather than at their quota reset.
+  | "task.resumeQuota"
   // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).
   | "task.checkpointList"
   | "task.checkpoint"
   | "task.rewind"
   | "task.exportBranch"
   | "task.move"
+  | "project.move"
   | "task.status"
   // Record the brief only AFTER confirmed delivery; the engine transcript isn't
   // durable, so this copy is what survives engine/context loss.
@@ -137,6 +140,7 @@ export type DaemonRequestName =
   | "task.ensureWorktree"
   | "task.setActive"
   | "task.requireReport"
+  | "task.worktreeOnly"
   | "issue.list"
   // Repo roots the issue store holds a record for — a board section means
   // "this repo has a backlog", which the task index cannot answer.
@@ -235,6 +239,9 @@ export type DaemonRequestName =
   | "pr.reviewComments"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
+  // One engine session's context reading, fresh from the engine's reader;
+  // `probe: true` first has the engine refresh its own breakdown (may start a process).
+  | "engine.contextUsage"
   // Turn store read side; written only by hook ingest on `turn-complete`.
   | "agentTurn.list"
   // `rove api inspect`: RAW activity-registry entries (probe vendor, armed
@@ -272,8 +279,7 @@ export type DaemonRequestName =
   // space is the terminal's) and parses nothing.
   | "graphics.write"
   // Field note (docs/design/dispatcher.md): APPEND a one-line gotcha to the
-  // per-repo notes store, then forward it to the repo's main session over
-  // `session.deliver`. `note.list` seeds each fresh worktree session.
+  // per-repo notes store. `note.list` seeds each fresh session's system prompt.
   | "note.file"
   | "note.list"
   // The newest notes are injected into every fresh session, so a stale one
@@ -337,6 +343,8 @@ export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonReque
   "automation.runNow",
   // Materializes the worktree and starts the engine.
   "task.startScheduledNow",
+  // One serial paste per rate-limited task.
+  "task.resumeQuota",
   // Rollup lookup followed by serial gh reruns, each with its own subprocess budget.
   "pr.rerunFailedChecks",
   // Serial thread/comment pages each have their own gh subprocess budget.
@@ -444,6 +452,8 @@ export interface SerializedTask {
   readonly ptyAlias?: DaemonTask["ptyAlias"]
   /** Every prompt sent to this task must end in `rove api report`. */
   readonly requireReport?: DaemonTask["requireReport"]
+  /** A checkout cut by `add --worktree-only`: no engine of its own, unlisted while it has a parent. */
+  readonly worktreeOnly?: DaemonTask["worktreeOnly"]
   /** The task brief: the full delivered `add --prompt` text (never truncated). */
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */

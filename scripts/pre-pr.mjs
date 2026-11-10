@@ -188,6 +188,15 @@ function heavyJobs(touched) {
     ...renderShards,
     job("render track PTY half", [bun(["scripts/render-track.mjs", ...renderArgs, "--half=pty"], ROVE)]),
     job("rove unit tests", [bun(["x", "vitest", "run", "--passWithNoTests", "--minWorkers=1", "--maxWorkers=8"], ROVE)]),
+    // The socket suite (test/daemon) only ever ran in release.yml; a PR could
+    // break the daemon protocol and every gate still went green.
+    ...[1, 2].map((i) =>
+      job(`daemon socket ${i}/2`, [
+        bun(["x", "vitest", "run", "test/daemon", "--pool", "forks", "--minWorkers=1", "--maxWorkers=4", "--passWithNoTests", `--shard=${i}/2`], ROVE, {
+          ROVE_INCLUDE_SOCKET: "1",
+        }),
+      ]),
+    ),
     // Serial within a shard, as test:behavior is; each file isolates its own ROVE_HOME, so shards can overlap.
     ...[1, 2, 3].map((i) =>
       job(`behavior ${i}/3`, [
@@ -293,7 +302,7 @@ async function main() {
       for (const e of errors) console.error(e)
       return errors.length === 0
     })
-    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs", "scripts/web-ui-gate.test.mjs"]))
+    step("script tests", () => run("node", ["--test", "scripts/scan-plugins.test.mjs", "scripts/ui-evidence.test.mjs", "scripts/pre-pr.test.mjs", "scripts/web-ui-gate.test.mjs", "scripts/next-version.test.mjs"]))
     const distro = process.platform === "win32" && opts.wsl ? wslDistro() : null
     if (process.platform === "win32" && opts.wsl && !distro) console.warn("warning: no WSL distro found; running the POSIX suites natively (many fail on Windows)")
     process.stdout.write(`\n▶ ${opts.full ? "full" : "fast"} tier, suites in parallel (--jobs ${opts.jobs}), logs in ${LOGS}\n`)

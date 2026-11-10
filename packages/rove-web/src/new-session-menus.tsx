@@ -31,9 +31,16 @@ export function ChipPopover(props: {
   title: string
   field: string
   disabled?: boolean
+  /** Runs whenever the popover shuts, however it shut. */
+  onClose?: () => void
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const onClose = useRef(props.onClose)
+  onClose.current = props.onClose
+  useEffect(() => {
+    if (!open) onClose.current?.()
+  }, [open])
   const root = useRef<HTMLSpanElement>(null)
   const button = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
@@ -112,7 +119,8 @@ export function SearchList(props: {
   extra?: PickRow | null
   more?: readonly PickRow[]
   moreLabel?: string
-  onPick: (key: string) => void
+  /** `add`: picked with ⌘ / Ctrl held, for a list that can hold several. */
+  onPick: (key: string, add: boolean) => void
 }) {
   const [cursor, setCursor] = useState(0)
   const all = [...(props.extra ? [props.extra] : []), ...props.rows, ...(props.more ?? [])]
@@ -143,7 +151,7 @@ export function SearchList(props: {
           } else if (e.key === "Enter") {
             e.preventDefault()
             const row = all[at]
-            if (row) props.onPick(row.key)
+            if (row) props.onPick(row.key, e.metaKey || e.ctrlKey)
           }
         }}
       />
@@ -160,7 +168,7 @@ export function SearchList(props: {
               title={row.title}
               className={rowClass({ cursor: i === at })}
               onMouseMove={() => setCursor(i)}
-              onClick={() => props.onPick(row.key)}
+              onClick={(e) => props.onPick(row.key, e.metaKey || e.ctrlKey)}
             >
               <span className={CHECK}>{row.checked ? "✓" : ""}</span>
               <span className={NAME}>{row.text}</span>

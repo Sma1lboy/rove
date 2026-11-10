@@ -41,6 +41,9 @@ final class TerminalSession {
     static let attachingStatus = String(localized: "Attaching…")
     private(set) var status = TerminalSession.attachingStatus
     private(set) var exited = false
+    private(set) var reviving = false
+    /// Why the last `revive()` failed; cleared by the next try.
+    private(set) var reviveError: String?
     /// Total terminal bytes fed to the view (exposed to UI tests as the terminal's accessibility value).
     private(set) var bytesReceived = 0
     private(set) var keys = KeyMapper()
@@ -99,6 +102,19 @@ final class TerminalSession {
     private func detachCurrent() {
         if let s = stream { client.fire("term.detach", ["stream": s]) }
         stream = nil; sentSize = nil; inFlight = false
+    }
+
+    /// Starts the tab's own session again and attaches to it.
+    func revive() async {
+        guard !reviving else { return }
+        reviving = true; reviveError = nil
+        defer { reviving = false }
+        do {
+            _ = try await client.request("term.revive", ["taskId": taskId, "tabId": tabId], as: EmptyResult.self)
+            detachCurrent()
+            generation += 1
+            attach()
+        } catch { reviveError = error.localizedDescription }
     }
 
     private func switchMode() {

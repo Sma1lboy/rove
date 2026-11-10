@@ -21,7 +21,7 @@ import { type TreeRow, worktreeRowLabel } from "./tree-core"
 function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
   if (row.kind === "project") return [row.label]
   // A translated count, and dropped from searches anyway (see `filterTreeRows`).
-  if (row.kind === "routines" || row.kind === "archived") return []
+  if (row.kind === "archived") return []
   const task = row.task
   // A `dir` task's title is hidden on screen, so it must not match either.
   const title = task.kind === "dir" ? "" : task.title
@@ -83,7 +83,7 @@ export function filterTreeRows(
     if (!matchesRow(q, row, liveBranch)) continue
     selfMatch.add(row.id)
     keep.add(row.id)
-    if (row.kind === "project" || row.kind === "routines" || row.kind === "archived") continue
+    if (row.kind === "project" || row.kind === "archived") continue
     const project = projectOf.get(row.id)
     if (project !== undefined) keep.add(project)
     for (let up = parentRowId(row); up !== undefined && !keep.has(up); ) {
@@ -111,10 +111,8 @@ export function filterTreeRows(
       if (keep.has(row.id)) out.push(row)
       continue
     }
-    // Search shows matching routine sessions directly (folded rows must stay
-    // findable), so the fold toggle would have nothing under it.
     // The sidebar leaves the Archived fold out of a search (`use-tree-state.ts`); a stray one never matches.
-    if (row.kind === "routines" || row.kind === "archived") continue
+    if (row.kind === "archived") continue
     const project = projectOf.get(row.id)
     const underMatchedProject = project !== undefined && selfMatch.has(project)
     if (underMatchedProject || keep.has(row.id) || underMatchedParent(row)) out.push(row)

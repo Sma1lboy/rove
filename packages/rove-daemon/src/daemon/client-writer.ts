@@ -7,8 +7,13 @@ export interface BackpressureSocket {
 
 export interface ClientWriterOptions {
   readonly highWaterMark?: number
-  /** Observe overflow and disconnect. Defaults to socket.destroy(). */
-  readonly onOverflow?: () => void
+  /** Observe overflow and disconnect. The numbers are the queue's state at the
+   *  moment it tipped, so the overflow log can name what piled up. */
+  readonly onOverflow?: (info: {
+    readonly queuedBytes: number
+    readonly frames: number
+    readonly frameBytes: number
+  }) => void
 }
 
 export const DEFAULT_WRITE_HIGH_WATER_MARK = 8 * 1024 * 1024
@@ -21,7 +26,7 @@ interface QueuedFrame {
 
 export class ClientWriter {
   private readonly highWaterMark: number
-  private readonly onOverflow: () => void
+  private readonly onOverflow: NonNullable<ClientWriterOptions["onOverflow"]>
   private readonly queue = new Map<number, QueuedFrame>()
   private readonly snapshots = new Map<string, number>()
   private sequence = 0
@@ -74,11 +79,13 @@ export class ClientWriter {
     this.queuedBytes += frame.bytes
     if (this.queuedBytes <= this.highWaterMark) return
     // A latest snapshot cannot be discarded: there may never be another publish.
+    const queuedBytes = this.queuedBytes
+    const frames = this.queue.size
     this.overflowed = true
     this.queue.clear()
     this.snapshots.clear()
     this.queuedBytes = 0
-    this.onOverflow()
+    this.onOverflow({ queuedBytes, frames, frameBytes: frame.bytes })
   }
 
   private dequeue(id: number): void {

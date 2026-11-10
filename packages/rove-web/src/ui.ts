@@ -19,7 +19,19 @@ export interface MenuItem {
   readonly children?: readonly MenuItem[]
   /** The current pick in a choice list: drawn with a check. */
   readonly checked?: boolean
+  /** Seldom used: `tuckRare` moves it into the menu's `More ›` instead of the top level. */
+  readonly rare?: boolean
   readonly run?: () => void
+}
+
+/** The rare entries, in their order, as one `More ›` ahead of the danger section; only a level deep, so an entry with its own `children` stays put. */
+export function tuckRare(items: readonly MenuItem[], label: string): MenuItem[] {
+  const rare = items.filter((item) => item.rare && !item.children)
+  if (rare.length === 0) return [...items]
+  const rest = items.filter((item) => !rare.includes(item))
+  const more: MenuItem = { label, section: "more", children: rare.map(({ section: _, ...item }) => item) }
+  const at = rest.findIndex((item) => item.section === "danger")
+  return at < 0 ? [...rest, more] : [...rest.slice(0, at), more, ...rest.slice(at)]
 }
 
 /** The entry a rail key runs, wherever it sits in the menu tree. */
@@ -46,8 +58,15 @@ export interface Toast {
   readonly id: number
   readonly text: string
   readonly tone: "info" | "error"
+  /** A second thing to do about it (undo); the card stays longer and only this button acts. */
+  readonly action?: ToastAction
   /** Fading out; gone after {@link LEAVE_MS}. */
   readonly leaving?: boolean
+}
+
+export interface ToastAction {
+  readonly label: string
+  readonly run: () => void
 }
 
 export const menu = createStore<MenuState | null>(null)
@@ -75,6 +94,8 @@ export interface Preview {
   readonly taskId: string
   readonly path: string
   readonly scope: DiffScope
+  /** Show the file itself, its diff a toggle away; absent = the diff. */
+  readonly file?: true
 }
 
 export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "compare" | "usage"
@@ -108,8 +129,31 @@ export interface NewSessionStart {
   readonly retryOf?: { readonly id: string; readonly label: string }
 }
 
-/** The prompt-first New session composer in the workspace pane; null = closed. */
-export const newSession = createStore<NewSessionStart | null>(null)
+const NEW_SESSION_KEY = "rove.web.newSession"
+
+function loadNewSession(): NewSessionStart | null {
+  try {
+    const raw: unknown = JSON.parse(sessionStorage.getItem(NEW_SESSION_KEY) ?? "null")
+    return raw && typeof raw === "object" ? (raw as NewSessionStart) : null
+  } catch {
+    // Storage blocked or a corrupt entry: the page opens on the last task.
+    return null
+  }
+}
+
+/** The prompt-first New session composer in the workspace pane; null = closed. A reload of this browser tab comes back to it. */
+export const newSession = createStore<NewSessionStart | null>(loadNewSession())
+newSession.subscribe(() => {
+  try {
+    const start = newSession.get()
+    if (!start) return sessionStorage.removeItem(NEW_SESSION_KEY)
+    // A link's prompt seeds the composer once; after a reload the unsent draft is the truth.
+    const { prompt: _prompt, ...kept } = start
+    sessionStorage.setItem(NEW_SESSION_KEY, JSON.stringify(kept))
+  } catch {
+    // Storage blocked: the composer just does not survive a reload.
+  }
+})
 
 export function openNewSession(
   repo?: string,
@@ -152,13 +196,15 @@ export function openNewSessionFromLink(): void {
 
 let nextToast = 1
 const TOAST_MS = 4000
+/** Long enough to read the card and reach its button with a thumb. */
+const ACTION_TOAST_MS = 8000
 /** The TUI's overlay shows the newest three. */
 const TOASTS_SHOWN = 3
 
-export function toast(text: string, tone: Toast["tone"] = "info"): void {
+export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction): void {
   const id = nextToast++
-  toasts.set([...toasts.get(), { id, text, tone }].slice(-TOASTS_SHOWN))
-  window.setTimeout(() => dismissToast(id), TOAST_MS)
+  toasts.set([...toasts.get(), { id, text, tone, ...(action ? { action } : {}) }].slice(-TOASTS_SHOWN))
+  window.setTimeout(() => dismissToast(id), action ? ACTION_TOAST_MS : TOAST_MS)
 }
 
 /** How long a disappearing overlay fades. */

@@ -55,6 +55,8 @@ export type NewTaskDialogProps = {
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
   /** Repos that already have a project checkout — gates the intent choice. */
   mainRepos?: ReadonlySet<string>
+  /** Seeds the base branch and keeps it through repo auto-sync. */
+  initialBaseRef?: string
 }
 
 /** Stable default for `mainRepos` — a per-render `new Set()` defeats memos. */
@@ -138,6 +140,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     expandedRepo,
     pickerRows,
     defaultRepo: props.defaultRepo,
+    initialBaseRef: props.initialBaseRef,
     onResolved: () => setField("prompt"),
     onPicked: () => setField("prompt"),
   })

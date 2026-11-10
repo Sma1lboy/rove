@@ -12,7 +12,7 @@ struct FeedbackResult: Decodable {
     }
 }
 
-/// A public GitHub Discussion in the rove repo, posted from the mac's `gh` login.
+/// A public GitHub issue on the rove repo, posted from the mac's `gh` login.
 struct FeedbackView: View {
     @Environment(AppModel.self) private var model
     @State private var title = ""
@@ -45,8 +45,8 @@ struct FeedbackView: View {
         }
         .sheet(isPresented: $confirming) {
             SettingsConfirmSheet(title: String(localized: "post this feedback?"), kicker: String(localized: "feedback"),
-                         prose: String(localized: "Posts a public GitHub Discussion in the rove repo, from your mac's gh login. It can't be unsent."),
-                         label: String(localized: "post discussion"), run: {
+                         prose: String(localized: "Files a public GitHub issue on the rove repo, from your mac's gh login. It can't be unsent."),
+                         label: String(localized: "file issue"), run: {
                 sent = try await model.client.request(
                     "feedback.send", ["title": trimmedTitle, "body": message], as: FeedbackResult.self)
             })

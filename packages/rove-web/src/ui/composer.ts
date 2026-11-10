@@ -6,13 +6,18 @@ export const NEW_SESSION =
 export const HERO = "flex flex-1 flex-col items-center justify-center gap-1.5 text-center"
 
 /** The prompt card on top; the toolbar of picks sits under it, outside the card. */
-export const COMPOSER = "mx-auto flex w-full max-w-[104ch] flex-col gap-2"
+export const COMPOSER = "relative mx-auto flex w-full max-w-[104ch] flex-col gap-2"
+/** Errors and clone progress float above the card: in flow they would push the bottom-pinned composer up. */
+export const NOTE = "pointer-events-none absolute bottom-full left-0 mb-2 flex flex-col gap-1"
 export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
 export const GROW = "flex-1"
+/** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. */
+export const cardIcon = (on = false): string =>
+  `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
 
@@ -25,6 +30,11 @@ export const chipClass = (on = false): string =>
   }`
 /** Only the toggle dims when disabled. */
 export const TOGGLE_DISABLED = "disabled:cursor-default disabled:opacity-60"
+/** The dictate chip: wide enough that `Stop 0:12` does not resize it while recording. */
+export const dictateChip = (recording: boolean): string =>
+  `${chipClass(recording)} min-w-[9ch] justify-center ${TOGGLE_DISABLED}`
+/** Holding to talk: no scroll, text selection or iOS callout steals the press. */
+export const DICTATE_PRESS = "touch-none select-none [-webkit-touch-callout:none]"
 
 /** `group/chip`: the bar's last popover opens leftward from its chip's right edge. */
 export const CHIP_WRAP = "group/chip relative inline-flex"
@@ -50,9 +60,7 @@ export const NAME = "flex-none whitespace-nowrap"
 export const EMPTY_NOTE = "mx-2 my-1"
 export const GROUP = "mx-2 mt-2 mb-0.5"
 
-/** Same text position on touch, taller tap target. */
-export const MORE =
-  "mt-2 self-center px-1.5 py-0.5 text-subtle focus-visible:text-ink touch:mt-0.5 touch:py-2 [&:hover]:text-ink"
-
 export const FIELD = "flex flex-col gap-0.5 px-1.5 py-0.5"
 export const BRANCHES = "min-w-[36ch]"
+/** The Later popover: the time field and its confirm on one line. */
+export const LATER = "flex items-center gap-1.5 p-1.5"

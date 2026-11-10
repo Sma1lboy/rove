@@ -20,6 +20,7 @@ import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { HitEntry, Note, SectionHead, TaskEntry, useConversationHits } from "./palette-search.tsx"
 import { repoLabel } from "./rail-labels.ts"
+import { reportProblem } from "./report-problem.ts"
 import { type IssuesSource, issuesSource } from "./review-queue.ts"
 import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
@@ -45,6 +46,7 @@ type Entry =
   | { readonly kind: "task"; readonly task: TaskRow }
   | { readonly kind: "hit"; readonly hit: Hit }
   | { readonly kind: "machines"; readonly name: string }
+  | { readonly kind: "report"; readonly name: string }
 
 /** One row per id, most local first (the TUI walks its binding stack top-down); a direct chord beats the prefix form of the same id. */
 export function paletteRows(model: AppModel, surface: Surface | null): PaletteRow[] {
@@ -100,6 +102,10 @@ function PaletteDialog({
   const machineEntries = (machines.length > 0 ? [{ name: t("machines.title") }] : []).filter((entry) =>
     matchesHelpAction(query, entry.name, ""),
   )
+  // Chordless, like Machines: an agent-led Rove issue report, always on offer.
+  const reportEntries = [{ name: t("settings.feedback.report") }].filter((entry) =>
+    matchesHelpAction(query, entry.name, ""),
+  )
   const q = query.trim()
   // The rail's own filter: title, branch or project; a routine's run stays on the Routines page.
   const tasks =
@@ -127,6 +133,7 @@ function PaletteDialog({
     ...shown.map((row): Entry => ({ kind: "command", row })),
     ...pages.map((entry): Entry => ({ kind: "page", ...entry })),
     ...machineEntries.map((entry): Entry => ({ kind: "machines", ...entry })),
+    ...reportEntries.map((entry): Entry => ({ kind: "report", ...entry })),
     ...tasks.map((task): Entry => ({ kind: "task", task })),
     ...hits.map((hit): Entry => ({ kind: "hit", hit })),
   ]
@@ -147,6 +154,10 @@ function PaletteDialog({
     }
     closeDialog()
     origin?.focus()
+    if (entry.kind === "report") {
+      reportProblem(model).catch(() => toast(t("settings.feedback.reportFailed"), "error"))
+      return
+    }
     if (entry.kind === "command") {
       // Re-check: the state may have moved while the palette was open.
       if (entry.row.command.live?.(model) === false) toast(helpText("unavailable"), "error")
@@ -236,6 +247,21 @@ function PaletteDialog({
                 title={entry.name}
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => open({ kind: "machines", ...entry })}
+              >
+                <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${entry.name}`}</span>
+              </Button>
+            )
+          })}
+          {reportEntries.map((entry) => {
+            const i = next()
+            return (
+              <Button
+                variant="row"
+                key="report"
+                className={paletteRow(i === index)}
+                title={entry.name}
+                onMouseEnter={() => setSelected(i)}
+                onClick={() => open({ kind: "report", ...entry })}
               >
                 <span className={PALETTE_NAME}>{`${i === index ? "› " : "  "}${entry.name}`}</span>
               </Button>

@@ -31,7 +31,7 @@ async function fire(model: AppModel, binding: PluginChord): Promise<void> {
       pane: binding.target,
       ...(tabId ? { tabId } : {}),
     })
-    await model.refreshTabsNow()
+    await model.refreshTabsNow(taskId)
     model.select(taskId, opened.tabId)
   } catch (err) {
     toast(errorText(err), "error")

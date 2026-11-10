@@ -10,6 +10,7 @@
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
+import { isUnlistedCheckout } from "@/lib/worktree-only"
 import type { Task } from "@/types/task"
 import {
   type LabelledProject,
@@ -28,11 +29,7 @@ import { SCRATCH_SECTION_ID } from "./tree-ids"
 /** The label the Ungrouped section carries; the renderer translates it. */
 const UNGROUPED_SECTION_LABEL = "Ungrouped"
 
-/**
- * One sidebar section: a project, or the single scratch bench. `tasks` is the
- * whole visible membership; how much of the routine tail each surface draws
- * is presentation, not membership.
- */
+/** One sidebar section: a project, or the single scratch bench. */
 export interface SidebarGroup {
   /** Project key, or `SCRATCH_SECTION_ID` for the scratch bench. */
   readonly key: string
@@ -45,10 +42,8 @@ export interface SidebarGroup {
    *  on; `"local"` when the repo is checked out on this computer. Its tasks
    *  may live on any machine (each keeps its own `origin`). */
   readonly machineId: string
-  /** Every visible task, in render order: the user's own, then routines. */
+  /** Every visible task, in render order. */
   readonly tasks: readonly Task[]
-  /** How many of the TRAILING `tasks` are routine sessions. */
-  readonly routineCount: number
 }
 
 export interface SidebarGroupInput {
@@ -82,11 +77,6 @@ interface ProjectEntry {
   homeMain: boolean
   mains: Task[]
   rest: Task[]
-}
-
-/** True for a task the sidebar sorts to the end of its project. */
-function isRoutineTask(task: Task): boolean {
-  return task.routine !== undefined
 }
 
 /**
@@ -140,10 +130,10 @@ function idleMainIds(input: SidebarGroupInput, tasks: readonly Task[]): Readonly
   return idle
 }
 
-/** Not on its way out: a queued or running delete leaves every list at once. */
+/** Not on its way out (a queued or running delete leaves every list at once) and not a bare checkout under its parent. */
 function isListed(task: Task): boolean {
   const phase = task.deletion?.phase
-  return phase !== "queued" && phase !== "running"
+  return phase !== "queued" && phase !== "running" && !isUnlistedCheckout(task)
 }
 
 /**
@@ -151,7 +141,12 @@ function isListed(task: Task): boolean {
  * fold. Same deletion rule as the sections.
  */
 export function archivedTasks(tasks: readonly Task[]): Task[] {
-  return tasks.filter((task) => task.archived === true && isListed(task))
+  return tasks.filter((task) => task.archived === true && isListed(task) && !isRoutineRun(task))
+}
+
+/** A routine's run: it lives on the Routines page, not in the sidebar (the web rail's rule). */
+function isRoutineRun(task: Task): boolean {
+  return task.routine !== undefined
 }
 
 /**
@@ -180,8 +175,9 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // `error` stays visible: the failed task returning (with its `delete failed`
   // caption) is the only thing that corrects the vanished row.
   // Archived tasks leave too (they live in the Archived fold, `archivedTasks`),
-  // so a project left with only its main folds like any idle project.
-  const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true)
+  // so a project left with only its main folds like any idle project; so do
+  // routine runs, so a project with only scheduled output folds the same way.
+  const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true && !isRoutineRun(task))
   const { tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
   // `default` keeps orchestrator order and sorts nothing.
@@ -273,15 +269,12 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
 
   const groups: SidebarGroup[] = []
   if (scratchTasks.length > 0) {
-    const own = scratchTasks.filter((task) => !isRoutineTask(task))
-    const routines = scratchTasks.filter(isRoutineTask)
     groups.push({
       key: SCRATCH_SECTION_ID,
       repo: "",
       label: UNGROUPED_SECTION_LABEL,
       machineId: "local",
-      tasks: [...own, ...routines],
-      routineCount: routines.length,
+      tasks: scratchTasks,
     })
   }
   for (const key of visibleKeys) {
@@ -293,17 +286,12 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
     // known-empty tabs only, so a repo that was just saved never vanishes on an absent entry.
     const kept = list.filter((task) => !idle.has(task.id))
     const shown = kept.length > 0 ? kept : list
-    // Routines go last so a schedule's output never pushes the user's own
-    // tasks down the pane.
-    const own = shown.filter((task) => !isRoutineTask(task))
-    const routines = shown.filter(isRoutineTask)
     groups.push({
       key,
       repo: entry.repo,
       label: sidebarRepoLabel(project, projects),
       machineId: entry.machineId,
-      tasks: [...own, ...routines],
-      routineCount: routines.length,
+      tasks: shown,
     })
   }
   return groups
@@ -334,12 +322,4 @@ export function projectKeysOf(tasks: readonly Task[]): string[] {
 export function ownerProjectKey(task: Task, keyOf: ProjectKeyOf = sidebarProjectKeyOfTask): string | null {
   if (isNoProjectTask(task)) return SCRATCH_SECTION_ID
   return keyOf(task)
-}
-
-/**
- * A group's own tasks, minus the routine tail. Both surfaces hide that tail at
- * rest, so this — not `group.tasks` — is "the tasks on screen".
- */
-export function ownTasks(group: SidebarGroup): readonly Task[] {
-  return group.tasks.slice(0, group.tasks.length - group.routineCount)
 }

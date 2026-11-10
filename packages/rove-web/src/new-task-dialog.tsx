@@ -36,6 +36,8 @@ export interface ProbeResult {
   readonly ok: boolean
   readonly repo: string
   readonly reason?: string
+  /** `false`: a folder git cannot use; it opens in place, with no worktree or branch. */
+  readonly git?: false
   readonly branches?: readonly string[]
   readonly current?: string | null
   readonly worktrees?: readonly AdoptableRow[]

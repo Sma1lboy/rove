@@ -23,7 +23,8 @@ function chipOf(pr: TaskPRStatus | undefined, glyphs: GlyphSet): { glyph: string
   if (!pr) return null
   const stale = pr.lastError !== undefined
   if ((pr.mergeable ?? "").toUpperCase() === "CONFLICTING")
-    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "error" }
+    // Amber: a wait the task can clear (rebase), where red is checks that failed.
+    return { glyph: glyphs.conflict, tone: stale ? "textMuted" : "warning" }
   if (pr.checkState === "failing") return { glyph: glyphs.checksFailing, tone: stale ? "textMuted" : "error" }
   if (pr.checkState === "passing") return { glyph: glyphs.checksPassing, tone: stale ? "textMuted" : "success" }
   return null

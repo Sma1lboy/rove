@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { runAutomationOnce, sweepAutomations } from "../../../rove-daemon/src/daemon/automation-runner.ts"
 import { HOUR, NOW, REPO, automation, fakeDeps, tempStore } from "./automation-runner-fixtures.ts"
@@ -24,6 +25,20 @@ describe("routine failures in the Inbox", () => {
     // per-minute schedule.
     expect(episodes.size).toBe(1)
     expect(episodes.get(a.id)).toMatchObject({ name: "audit", status: "dispatch_failed" })
+  })
+
+  it("a precheck routine whose repo is gone records skipped_unavailable and keeps one episode", async () => {
+    const store = await tempStore()
+    const { deps, episodes } = fakeDeps({ store })
+    const a = await store.create(
+      automation({ repo: join(REPO, "no-such-dir"), precheck: { command: "true", timeoutSeconds: 5 } }),
+    )
+    for (let tick = 0; tick < 2; tick += 1) {
+      await runAutomationOnce(deps as never, a, { scheduledFor: NOW, trigger: "scheduled" })
+    }
+    expect(store.runsFor(a.id).map((r) => r.status)).toEqual(["skipped_unavailable", "skipped_unavailable"])
+    expect(episodes.size).toBe(1)
+    expect(episodes.get(a.id)).toMatchObject({ status: "skipped_unavailable" })
   })
 
   it("clears the episode once the routine runs cleanly again", async () => {

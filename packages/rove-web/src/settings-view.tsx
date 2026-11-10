@@ -45,6 +45,7 @@ import {
   settingsNavItemClass,
 } from "./ui/settings.ts"
 import { UsageChips } from "./usage-view.tsx"
+import { VoiceSection } from "./voice/settings-voice.tsx"
 
 const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   general: (m) => <GeneralSection model={m} />,
@@ -54,10 +55,11 @@ const BODY: Record<SettingsSection, (model: AppModel) => ReactNode> = {
   keys: (m) => <KeysSection model={m} />,
   engines: (m) => <EnginesSection client={m.client} />,
   autoRouting: (m) => <RoutingSection client={m.client} />,
+  voice: (m) => <VoiceSection client={m.client} />,
   connectors: (m) => <ConnectorsSection model={m} />,
   plugins: (m) => <PluginsSection model={m} />,
   about: (m) => <AboutSection client={m.client} />,
-  feedback: (m) => <FeedbackSection client={m.client} />,
+  feedback: (m) => <FeedbackSection model={m} />,
   dev: (m) => <DevSection client={m.client} />,
 }
 
@@ -163,7 +165,7 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
           />
         )}
         {/* The rail's foot has no room for them on a phone: the quota readings sit under the section list, and open Usage. */}
-        {narrow && showList && <UsageChips client={model.client} taskId={null} tabId={null} inset={false} />}
+        {narrow && showList && <UsageChips client={model.client} inset={false} />}
         {showSection && (
           <div key={view.section} className={SETTINGS_SCROLL}>
             <div className={SETTINGS_COLUMN}>

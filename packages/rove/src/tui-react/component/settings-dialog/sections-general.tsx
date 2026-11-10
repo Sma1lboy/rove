@@ -7,12 +7,10 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { useRenderer } from "@opentui/react"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
 import { displayWidth } from "../../../lib/display-width"
-import { tryOutChannel } from "../../../state/update-channel"
 import {
   type NavLevel,
   SECTIONS,
@@ -29,13 +27,13 @@ import { useKV } from "../../context/kv"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useTerminalSize } from "../../lib/use-terminal-size"
-import { useDialog, useDialogPaddingX } from "../../ui/dialog"
-import { confirmTryChannel } from "./actions"
+import { useDialogPaddingX } from "../../ui/dialog"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { AppearanceSettingsSection } from "./sections-appearance"
 import { usageRows } from "./usage-core"
 import type { AppearanceSettings } from "./use-appearance-settings"
 import type { SettingsPrefs } from "./use-settings-prefs"
+import type { UpdateCheck } from "./use-update-check"
 
 export function SettingsSectionSidebar(props: {
   level: NavLevel
@@ -115,7 +113,7 @@ export function GeneralSettingsSection(
     appearance: AppearanceSettings
     currentLocale: LocaleId
     selectLanguage: (locale: LocaleId) => void
-    onCheckUpdate?: () => void
+    updateCheck: UpdateCheck
     usage?: UsageSnapshotMap | null
   },
 ) {
@@ -125,8 +123,6 @@ export function GeneralSettingsSection(
   const t = useT()
   // Keyboard-hints state lives in keyboard-hints.ts, not prefs, to stay vitest-testable.
   const kv = useKV()
-  const dialog = useDialog()
-  const renderer = useRenderer()
   // A row's body index is its position in the registry: look up by id, never compute.
   const rows = useMemo(() => generalRows(), [])
   const rowIdx = (id: string) => rowIndex(rows, id)
@@ -156,9 +152,24 @@ export function GeneralSettingsSection(
   const keyHintsRow = rowIdx("key-hints")
   const zenDefaultOnRow = rowIdx("zen-default-on")
   const updateChannelRow = rowIdx("update-channel")
-  const updateTryRow = rowIdx("update-try")
   const updateCheckRow = rowIdx("update-check")
-  const tryChannel = tryOutChannel()
+  const updateNotifyRow = rowIdx("update-notify")
+  const { info: checked, state: checkState } = props.updateCheck
+  const checkLabelKey =
+    checkState === "checking"
+      ? "settings.general.updateChecking"
+      : checked?.hasUpdate
+        ? "settings.general.updateOpenPageRow"
+        : "settings.general.updateCheck"
+  // `done` with no info = the registry could not be reached; never painted as up to date.
+  const checkResult =
+    checkState !== "done"
+      ? null
+      : checked === null
+        ? { text: t("update.latestUnknown"), fg: theme.textMuted }
+        : checked.hasUpdate
+          ? { text: t("update.available", { version: checked.latest }), fg: theme.warning }
+          : { text: t("update.upToDate"), fg: theme.success }
   const editorKindRow = rowIdx("editor-kind")
   const editorCustomRow = rowIdx("editor-custom")
   const worktreeBaseRow = rowIdx("worktree-base")
@@ -267,7 +278,7 @@ export function GeneralSettingsSection(
           <Row
             cursor={isBodyCursor(updateChannelRow)}
             rowRef={props.rowRef(updateChannelRow)}
-            onMouseUp={activate(updateChannelRow, prefs.toggleUpdateChannel)}
+            onMouseUp={activate(updateChannelRow, prefs.cycleUpdateChannel)}
             fg={theme.accent}
             bold={true}
             hint={hint("settings.general.updateChannelHint")}
@@ -279,25 +290,26 @@ export function GeneralSettingsSection(
             )}
           </Row>
           <Row
-            cursor={isBodyCursor(updateTryRow)}
-            rowRef={props.rowRef(updateTryRow)}
-            onMouseUp={activate(updateTryRow, () => void confirmTryChannel(dialog, renderer, tryChannel))}
-            fg={theme.text}
-            bold={isBodyCursor(updateTryRow)}
-            hint={hint("settings.general.updateTryHint")}
+            cursor={isBodyCursor(updateNotifyRow)}
+            rowRef={props.rowRef(updateNotifyRow)}
+            onMouseUp={activate(updateNotifyRow, prefs.toggleUpdateNotify)}
+            fg={prefs.updateNotify() ? theme.accent : theme.textMuted}
+            bold={true}
+            hint={hint("settings.general.updateNotifyHint")}
           >
-            {pad(t(`settings.general.updateTry.${tryChannel}`))}
+            {pad(`${check(prefs.updateNotify())} ${t("settings.general.updateNotify")}`)}
           </Row>
           <Row
             cursor={isBodyCursor(updateCheckRow)}
             rowRef={props.rowRef(updateCheckRow)}
-            onMouseUp={activate(updateCheckRow, () => props.onCheckUpdate?.())}
+            onMouseUp={activate(updateCheckRow, props.updateCheck.press)}
             fg={theme.text}
             bold={isBodyCursor(updateCheckRow)}
             hint={hint("settings.general.updateCheckHint")}
           >
-            {pad(t("settings.general.updateCheck"))}
+            {pad(t(checkLabelKey))}
           </Row>
+          {checkResult ? <text fg={checkResult.fg}>{checkResult.text}</text> : null}
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>
           <Row

@@ -112,6 +112,7 @@ describe("pr.checks", () => {
   test("a legacy status and a skipped run read as the right states", () => {
     expect(checkState({ state: "SUCCESS" })).toBe("pass")
     expect(checkState({ status: "COMPLETED", conclusion: "SKIPPED" })).toBe("skipped")
+    expect(checkState({ status: "COMPLETED", conclusion: "CANCELLED" })).toBe("skipped")
     expect(checkState({ status: "COMPLETED", conclusion: "TIMED_OUT" })).toBe("fail")
     expect(checkState({ status: "QUEUED" })).toBe("pending")
   })

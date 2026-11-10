@@ -34,7 +34,8 @@ function task(id: string): Task {
 }
 
 /** Cadence with a zero floor, so only the quiet backoff can hold a tick off. */
-const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0 }
+// durationFactor 0: these tests tick again at once, and a run that took 1 ms must not decline that tick.
+const FAST = { timeoutMs: 1_000, slowRetryMs: 1_000, minIntervalMs: 0, durationFactor: 0 }
 const QUIET_MS = 10_000
 
 async function settle(): Promise<void> {

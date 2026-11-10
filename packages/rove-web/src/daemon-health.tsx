@@ -9,6 +9,7 @@
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
+import { everyVisible } from "./every-visible.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { createStore, useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
@@ -43,10 +44,10 @@ async function check(client: BridgeClient): Promise<boolean> {
 export function useDaemonHealth(client: BridgeClient): void {
   useEffect(() => {
     const off = client.onOpen(() => void check(client))
-    const timer = window.setInterval(() => void check(client), POLL_MS)
+    const stop = everyVisible(POLL_MS, () => void check(client))
     return () => {
       off()
-      window.clearInterval(timer)
+      stop()
     }
   }, [client])
 }

@@ -8,15 +8,15 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { AttachPicker, AttachmentChips, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
 import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
+import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
-import { ClipIcon, FolderIcon } from "./new-session-icons.tsx"
-import { LaterControl } from "./new-session-later.tsx"
+import { FolderIcon } from "./new-session-icons.tsx"
 import {
   MachineChip,
   remoteEmpty,
@@ -26,6 +26,8 @@ import {
   useRemoteRepos,
 } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
+import { ComposerMore } from "./new-session-more.tsx"
+import { NewSessionPlate } from "./new-session-plate.tsx"
 import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
@@ -38,7 +40,7 @@ import {
   startUngrouped,
   toggleRepo,
 } from "./new-session.ts"
-import { NewTaskDialog, type ProbeResult } from "./new-task-dialog.tsx"
+import type { ProbeResult } from "./new-task-dialog.tsx"
 import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
@@ -47,9 +49,11 @@ import { formatStartsAt, scheduleCreated } from "./schedule-start.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
-import { type NewSessionStart, dialog, newSession, openNewSession, toast } from "./ui.ts"
+import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
+import { ClipGlyph, MicFace } from "./ui/term-composer.tsx"
+import { DictationButton } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {
@@ -62,9 +66,6 @@ export function startNewUngrouped(): void {
 }
 
 const WORKTREE_KEY = "rove.web.newSession.worktree"
-
-// The unsent prompt outlives the view: picking a task unmounts the composer, as switching chats does on claude.ai.
-let promptDraft = ""
 
 export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSessionStart }) {
   const initialRepo = seed.repo
@@ -103,11 +104,11 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [repoQuery, setRepoQuery] = useState("")
   // A link's `?prompt=` lands here as a draft to read and edit; nothing starts until Start is pressed.
   const [prompt, setPromptState] = useState(() => {
-    if (seed.prompt !== undefined) promptDraft = seed.prompt
-    return promptDraft
+    if (seed.prompt !== undefined) keepDraft(seed.prompt)
+    return promptDraft()
   })
   const setPrompt = (text: string): void => {
-    promptDraft = text
+    keepDraft(text)
     setPromptState(text)
   }
   const [pickedModel, setPickedModel] = useState("")
@@ -120,8 +121,22 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setWorktreeState(on)
   }
   const [error, setError] = useState<string | null>(null)
-  const { attachments, attach, remove, clear } = useAttachments(model, setError)
+  const { attachments, attach, remove, ready, clear } = useAttachments(model, setError, ATTACHMENTS_KEY)
   const area = useRef<HTMLTextAreaElement>(null)
+
+  // Dictation lands at the caret and never submits: you read it before it goes anywhere.
+  const insertDictated = (text: string) => {
+    const el = area.current
+    const at = el?.selectionStart ?? prompt.length
+    const end = el?.selectionEnd ?? prompt.length
+    const glue = at > 0 && !/\s$/.test(prompt.slice(0, at)) ? " " : ""
+    setPrompt(`${prompt.slice(0, at)}${glue}${text}${prompt.slice(end)}`)
+    const caret = at + glue.length + text.length
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(caret, caret)
+    })
+  }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
@@ -152,8 +167,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       .catch(() => {})
   }, [model, initialRepo])
 
-  // Several repos always get worktrees: one checkout can't hold a multi-repo task.
-  const inPlace = !remote && !worktree && repos.length === 1
+  // Several repos always get worktrees: one checkout can't hold a multi-repo task. A folder without git has none.
+  const plain = repos.some((path) => probes[path]?.git === false)
+  const inPlace = !remote && (!worktree || plain) && repos.length === 1
   const primary = repos[0] ?? ""
   // Each repo is reread once per open, when first picked.
   useEffect(() => {
@@ -227,7 +243,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         begin,
         baseRef: remoteBase,
       })
-      promptDraft = ""
+      keepDraft("")
       newSession.set(null)
       if (created) model.selectWhenListed(created)
       if (seed.retryOf && created) offerArchiveOriginal(model, seed.retryOf)
@@ -247,17 +263,19 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
     if ((begin || at) && !prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
-    const first = withRefs(prompt.trim(), attachments)
+    const first = withRefs(prompt.trim(), await ready())
     try {
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
       const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
       const bad = fresh.find((res) => !res.ok)
       if (bad) throw new Error(bad.reason ?? bad.repo)
+      const plainNow = fresh.some((res) => res.git === false)
+      if (plainNow && fresh.length > 1) throw new Error(t("newSession.plainMulti"))
       let created: string | undefined
       let compared: string | undefined
       if (ungrouped)
         created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
-      else if (inPlace)
+      else if (inPlace || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
           fresh[0]?.repo ?? primary,
@@ -289,7 +307,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           .then(() => toast(t("newSession.laterSet", { time: formatStartsAt(at) })))
           .catch((err) => toast(startError(err), "error"))
       }
-      promptDraft = ""
+      keepDraft("")
       clear()
       newSession.set(null)
       if (compared) openCompare(compared)
@@ -299,7 +317,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const round = partialRoundId(err)
       if (round) {
         // Some attempts did start: show them, with the failure, instead of leaving them unseen in the rail.
-        promptDraft = ""
+        keepDraft("")
         clear()
         newSession.set(null)
         toast(err instanceof Error ? err.message : String(err), "error")
@@ -312,9 +330,19 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
 
+  const pickMachine = (alias: string): void => {
+    setMachine(alias)
+    setRemotePick(null)
+    setRemoteBase("")
+    setRepoQuery("")
+    setError(null)
+    setUngrouped(false)
+  }
+
   return (
     <div className={C.NEW_SESSION}>
       <div className={C.HERO}>
+        <NewSessionPlate />
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
         <p className="m-0 text-muted">{t("newSession.tagline")}</p>
       </div>
@@ -326,6 +354,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         }}
       >
         <div className={C.CARD} {...targets?.drop}>
+          {!remote && <AttachmentThumbs attachments={attachments} onRemove={remove} />}
           <textarea
             ref={area}
             className={C.PROMPT}
@@ -339,36 +368,35 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           />
           {snippets.list}
           <div className={C.CARD_ACTIONS}>
-            {!remote && !ungrouped && !picks.comparing && (
-              <LaterControl disabled={busy} onSchedule={(at) => void start(false, at)} onInvalid={setError} />
+            {targets && (
+              <AttachPicker
+                className={C.cardIcon(attachments.length > 0)}
+                title={t("newSession.attachHint")}
+                disabled={busy}
+                onFiles={attach}
+              >
+                <span className="sr-only">{t("newSession.attach")}</span>
+                <ClipGlyph />
+              </AttachPicker>
             )}
-            <button
-              type="button"
-              className={C.chipClass()}
-              disabled={busy || picks.comparing}
-              title={picks.comparing ? t("compare.needsPrompt") : undefined}
-              onClick={() => void start(false)}
-            >
-              {t("newSession.createOnly")}
-            </button>
+            <DictationButton
+              client={model.client}
+              context={() => ({
+                draft: [prompt.slice(-300), primary, branchName, remotePick?.ref ?? ""].filter(Boolean).join("\n"),
+              })}
+              onText={insertDictated}
+              disabled={busy}
+              look={C.cardIcon}
+              face={(state) => <MicFace state={state} />}
+            />
+            <span className={C.GROW} />
             <button type="submit" className={buttonClass()} disabled={busy}>
               {t("newSession.start")}
             </button>
           </div>
         </div>
         <div className={C.BAR}>
-          <MachineChip
-            machines={machines}
-            value={machine}
-            onPick={(alias) => {
-              setMachine(alias)
-              setRemotePick(null)
-              setRemoteBase("")
-              setRepoQuery("")
-              setError(null)
-              setUngrouped(false)
-            }}
-          />
+          {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
           <ChipPopover
             field="repo"
             title={
@@ -378,7 +406,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               <>
                 <FolderIcon />
                 {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t(ungrouped ? "rail.noProject" : "newSession.repo")}
+                  t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
                 {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
               </>
             }
@@ -392,12 +420,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 home={remote ? "" : home}
                 query={repoQuery}
                 onQuery={setRepoQuery}
-                onToggle={(path) => {
+                onToggle={(path, add) => {
                   // "Pick a project first" is answered by this pick.
                   setError(null)
                   if (!remote) {
                     setUngrouped(false)
-                    return setRepos((now) => toggleRepo(now, path))
+                    if (add) return setRepos((now) => toggleRepo(now, path))
+                    setRepos([path])
+                    return close()
                   }
                   setRemotePick({ ref: path, clone: false })
                   close()
@@ -424,6 +454,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             onRemoteBase={setRemoteBase}
             ungrouped={ungrouped}
             inPlace={inPlace}
+            plain={plain}
             onToggleWorktree={() => setWorktree(!worktree)}
             repos={repos}
             probes={probes}
@@ -432,17 +463,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             branchName={branchName}
             onBranchName={setBranchName}
           />
-          {targets && (
-            <AttachPicker
-              className={`${C.chipClass(attachments.length > 0)} cursor-pointer`}
-              title={t("newSession.attachHint")}
-              disabled={busy}
-              onFiles={(files) => void attach(files)}
-            >
-              <ClipIcon />
-              {t("newSession.attach")}
-            </AttachPicker>
-          )}
           <span className={C.GROW} />
           <EngineChip choice={choice} picks={picks} available={compareAvailable} />
           {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
@@ -455,25 +475,24 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               onEffort={setPickedEffort}
             />
           )}
+          <ComposerMore
+            busy={busy}
+            onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(false, at) : undefined}
+            onInvalid={setError}
+            onCreateOnly={picks.comparing ? undefined : () => void start(false)}
+          />
         </div>
-        {!remote && <AttachmentChips attachments={attachments} onRemove={remove} />}
-        {busy && progress && (
-          <p className="text-muted" data-field="clone-progress">
-            {progress}
-          </p>
+        {((busy && progress) || error) && (
+          <div className={C.NOTE}>
+            {busy && progress && (
+              <p className="m-0 text-muted" data-field="clone-progress">
+                {progress}
+              </p>
+            )}
+            {error && <p className="m-0 text-error">※ {error}</p>}
+          </div>
         )}
-        {error && <p className="text-error">※ {error}</p>}
       </form>
-      {/* The rarer ways in sit under the card, out of the composer's own controls; clone and adopt read this machine's disk. */}
-      {!remote && (
-        <button
-          type="button"
-          className={C.MORE}
-          onClick={() => dialog.set(<NewTaskDialog model={model} repo={primary || undefined} />)}
-        >
-          {t("newSession.moreWays")}
-        </button>
-      )}
     </div>
   )
 }

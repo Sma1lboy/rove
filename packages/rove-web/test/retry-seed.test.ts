@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { spawnArgs } from "../src/new-session.ts"
-import { retryCommandFrom, retrySeed, seededBases, seededRepos } from "../src/retry-seed.ts"
+import { composerKey, retryCommandFrom, retrySeed, seededBases, seededRepos } from "../src/retry-seed.ts"
 
 const ROW = {
   id: "T1",
@@ -45,6 +45,21 @@ describe("retrySeed", () => {
   test("with no starting project nothing is seeded", () => {
     expect(seededRepos(undefined, retrySeed(ROW, BRIEF))).toEqual([])
     expect(seededBases(undefined, retrySeed(ROW, BRIEF))).toEqual({})
+  })
+})
+
+describe("the open composer", () => {
+  test("takes the base and worktree of a second branch seed for the same repo", () => {
+    const plain = { repo: "/w/app" }
+    const fromA = { repo: "/w/app", baseBranch: "feat-a", worktree: true }
+    const fromB = { repo: "/w/app", baseBranch: "feat-b", worktree: true }
+    // A new key remounts the composer, which reads the seed only as it mounts.
+    expect(composerKey(fromB)).not.toBe(composerKey(fromA))
+    expect(composerKey(fromB)).not.toBe(composerKey(plain))
+    expect(composerKey({ ...fromB, worktree: false })).not.toBe(composerKey(fromB))
+    expect(seededBases("/w/app", fromB)).toEqual({ "/w/app": "feat-b" })
+    // The same seed again (a reload restores it) keeps the composer and what was typed into it.
+    expect(composerKey({ ...fromB })).toBe(composerKey(fromB))
   })
 })
 

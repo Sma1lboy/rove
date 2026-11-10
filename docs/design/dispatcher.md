@@ -59,13 +59,23 @@ flowchart LR
 | `readFieldNotes` | `rove/src/state/field-notes.ts` | Sync launch-path reader (matches on `repoRoot`). A missing or corrupt store is "no notes" — recall must never block a session from starting. |
 | `noteRecallProtocol` | `engine/interactive-command.ts` | Renders the newest `NOTE_INJECTION_CAP` (15) into the worktree session's existing `--append-system-prompt`, as **claims with provenance, not instructions** — a stale note must lose to what the session observes. |
 
-Recall rides the same `experimental.dispatcher` switch and the same single injection point as note filing; the main session is excluded because it gets notes pushed live.
+Recall rides the same `experimental.dispatcher` switch and the same single injection point as note filing.
+
+## v3 — notes are stored only, never relayed (2026-11-09)
+
+The live relay cost 1+N turns per note: one on the main session, then a `dispatch "[dispatcher] FYI from …"` to each task the dispatcher picked. The launch-time recall already carries every note to the next session, so v3 drops the relay:
+
+- `note.file` persists and returns `{ ok, persisted }`. It publishes nothing on `session.deliver` and starts no turn anywhere. The plugin `note.filed` event loses its `routed` field.
+- The main session gets the same recall block as worktree sessions, appended to its `dispatcherProtocol`.
+- `dispatcherProtocol` no longer mentions field notes or relaying. It keeps `collect`, `dispatch` (no fallback to `send`), no conflict actions and no git in other worktrees.
+
+The v1/v2 tables above describe the relay as it was; where they disagree with this section, this section holds.
 
 **Why full injection rather than retrieval:** a repo's note count is bounded at 50 by the store and 15 by the prompt. At that size, filtering costs more than it saves. The upgrade path if a repo genuinely outgrows it is filtering by touched path — not a vector store.
 
 ## Known limits
 
-- **Live delivery requires an open dashboard** (the SPA is the forwarder). Persistence is unaffected — an undelivered note still reaches the next session.
+- **A note reaches only sessions launched after it.** A session already running never sees it.
 - **Claude-only injection**, same as the status protocol.
 - **No board rail for notes** — `rove api note-list` is the only reader UI.
 - **No dedup on filing**: the recall block asks the agent not to re-file a note that restates an existing one; nothing enforces it.

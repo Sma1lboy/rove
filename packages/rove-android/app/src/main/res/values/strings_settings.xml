@@ -73,8 +73,8 @@
     <string name="settings_feedback_hint">it is posted publicly in the rove repo, using the github login on your mac</string>
     <string name="settings_feedback_send">send feedback</string>
     <string name="settings_feedback_confirm_title">post this feedback?</string>
-    <string name="settings_feedback_confirm_prose">Posts a public GitHub Discussion in the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
-    <string name="settings_feedback_post">post discussion</string>
+    <string name="settings_feedback_confirm_prose">Files a public GitHub issue on the rove repo, from your mac\'s gh login. It can\'t be unsent.</string>
+    <string name="settings_feedback_post">file issue</string>
     <string name="settings_feedback_sent">sent</string>
     <string name="settings_feedback_again">write another</string>
 
@@ -98,4 +98,11 @@
     <string name="settings_update_unknown">The Mac could not reach the registry. Check its connection, then retry.</string>
     <string name="settings_update_command">Run `rove update` on the Mac to install it.</string>
     <string name="settings_update_open_release">open release</string>
+    <string name="settings_channel">release channel</string>
+    <string name="settings_channel_latest">stable</string>
+    <string name="settings_channel_next">next</string>
+    <string name="settings_channel_nightly">nightly</string>
+    <string name="settings_channel_hint">Stable is the default channel; next previews the coming release; nightly is built from main every day.</string>
+    <string name="settings_update_notify">notify on updates</string>
+    <string name="settings_update_notify_hint">New versions on this channel. Off hides the update chip; checking by hand still reports.</string>
 </resources>

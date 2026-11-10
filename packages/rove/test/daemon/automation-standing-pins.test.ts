@@ -22,78 +22,84 @@ describe("standing routine pin updates through daemon RPC", () => {
       initial: {},
       patch: { model: "gpt-5.4", persistentSession: false },
     },
-  ])("rejects $name after firing, including revival", async ({ initial, patch }) => {
-    let task: DaemonTask | undefined
-    let live = false
-    const launches: (readonly string[])[] = []
-    const h = await bootDaemonHarness({
-      orchestrator: fakeOrchestrator({
-        createTask: async (input: Partial<DaemonTask>) => {
-          task = {
-            title: "audit",
-            branch: "routine/audit",
-            status: "in_progress",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            ...input,
-            id: "standing",
-            repo: REPO,
-            worktreePath: REPO,
-          }
-          return task
-        },
-        getTask: () => task,
-      }),
-      server: {
-        runtime: {
-          ...daemonRuntime,
-          startTaskSessionWithPrompt: async () => {
-            if (!task) throw new Error("missing standing task")
-            launches.push(engineLaunchArgv({ vendor: task.vendor, model: task.model, effort: task.modelEffort }))
-            live = true
-            return { started: true }
+  ])(
+    "$name lets go of the standing task, and the next firing builds one on the new pins",
+    async ({ initial, patch }) => {
+      const tasks: DaemonTask[] = []
+      let live = false
+      const launches: (readonly string[])[] = []
+      const h = await bootDaemonHarness({
+        orchestrator: fakeOrchestrator({
+          createTask: async (input: Partial<DaemonTask>) => {
+            const task: DaemonTask = {
+              title: "audit",
+              branch: "routine/audit",
+              status: "in_progress",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              ...input,
+              id: `standing-${tasks.length + 1}`,
+              repo: REPO,
+              worktreePath: REPO,
+            }
+            tasks.push(task)
+            return task
           },
-          deliverPromptToLiveEngineDetailed: async () =>
-            live ? { outcome: "delivered", tabId: "tab-1" } : { outcome: "no-session" },
+          getTask: (id: string) => tasks.find((task) => task.id === id),
+        }),
+        server: {
+          runtime: {
+            ...daemonRuntime,
+            startTaskSessionWithPrompt: async (_link: unknown, taskId: string) => {
+              const task = tasks.find((candidate) => candidate.id === taskId)
+              if (!task) throw new Error("missing standing task")
+              launches.push(engineLaunchArgv({ vendor: task.vendor, model: task.model, effort: task.modelEffort }))
+              live = true
+              return { started: true }
+            },
+            deliverPromptToLiveEngineDetailed: async () =>
+              live ? { outcome: "delivered", tabId: "tab-1" } : { outcome: "no-session" },
+          },
         },
-      },
-    })
-    try {
-      const c = h.client()
-      const { automation: a } = await c.request<{ automation: Automation }>("automation.create", {
-        name: "audit",
-        repo: REPO,
-        prompt: "audit",
-        schedule: "0 9 * * *",
-        enabled: false,
-        persistentSession: true,
-        vendor: "codex",
-        ...initial,
       })
-      expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
-      const before = await c.request("automation.list", {})
-      for (const alive of [true, false]) {
-        live = alive
-        await expect(c.request("automation.update", { id: a.id, ...patch })).rejects.toThrow(
-          /standing task.*disable this routine and create a replacement/,
+      try {
+        const c = h.client()
+        const { automation: a } = await c.request<{ automation: Automation }>("automation.create", {
+          name: "audit",
+          repo: REPO,
+          prompt: "audit",
+          schedule: "0 9 * * *",
+          enabled: false,
+          persistentSession: true,
+          vendor: "codex",
+          ...initial,
+        })
+        expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
+        // Repeating the pins it already has is not a re-pin: the session stays.
+        const { automation: renamed } = await c.request<{ automation: Automation }>("automation.update", {
+          id: a.id,
+          name: "renamed",
+          vendor: "codex",
+          ...initial,
+        })
+        expect(renamed.sessionTaskId).toBe("standing-1")
+        const updated = await c.request<{ automation: Automation; releasedSessionTaskId?: string }>(
+          "automation.update",
+          { id: a.id, ...patch },
         )
-        expect(await c.request("automation.list", {})).toEqual(before)
+        expect(updated.releasedSessionTaskId).toBe("standing-1")
+        expect(updated.automation.sessionTaskId).toBeUndefined()
+        // A live engine on the old task is left alone, not reused.
+        expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
+        expect(tasks).toHaveLength(2)
+        const { vendor, model, modelEffort } = updated.automation
+        expect(launches[1]).toEqual(engineLaunchArgv({ vendor: vendor ?? "claude", model, effort: modelEffort }))
+        expect(launches[1]).not.toEqual(launches[0])
+      } finally {
+        await h.close()
       }
-      expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "revived" })
-      expect(launches).toHaveLength(2)
-      expect(launches[1]).toEqual(launches[0])
-      const { automation: renamed } = await c.request<{ automation: Automation }>("automation.update", {
-        id: a.id,
-        name: "renamed",
-        vendor: "codex",
-        ...initial,
-      })
-      expect(renamed.name).toBe("renamed")
-      expect(renamed.sessionTaskId).toBe("standing")
-    } finally {
-      await h.close()
-    }
-  })
+    },
+  )
 
   it("does not adopt a first-firing task whose pins were replaced while it was being created", async () => {
     const created: DaemonTask[] = []

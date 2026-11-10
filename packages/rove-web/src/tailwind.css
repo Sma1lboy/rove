@@ -87,8 +87,34 @@ body {
   overscroll-behavior: none;
 }
 
+/* Edge to edge (`viewport-fit=cover`): a Home Screen app runs under the status bar and the home indicator, so
+   the page keeps clear of them. An open keyboard already covers the indicator's strip. */
 #root {
+  box-sizing: border-box;
   height: var(--vvh, 100%);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+html[data-keyboard] #root {
+  padding-bottom: 0;
+}
+
+/* The desktop app on macOS draws no title bar (`rove-desktop` sets the attribute): its traffic lights sit over the
+   page's top-left corner, so the top-left bar steps right of them, and the empty strip above the panes moves the
+   window. Controls in that strip stay clickable. */
+html[data-shell="mac-inset"] {
+  --shell-inset-left: 72px;
+}
+html[data-shell="mac-inset"] .app::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 34px;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+html[data-shell="mac-inset"] :is(button, a, input, select, textarea, [role="button"], [contenteditable]) {
+  -webkit-app-region: no-drag;
 }
 
 body {
@@ -247,10 +273,10 @@ button:focus-visible {
   display: none;
 }
 
-/* The terminal's padding sits on `.xterm`, not its host: the fit addon subtracts this one. */
+/* No padding: the engine's rules and boxes run to the pane's edges. Any padding belongs on `.xterm`, not
+   its host: the fit addon subtracts this one. */
 .term-host .xterm {
   height: 100%;
-  padding: 6px 4px 4px 8px;
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -332,11 +358,11 @@ button:focus-visible {
       translate: -4px 0;
     }
   }
-  --animate-row-tip-in: row-tip-in 140ms ease-out;
-  @keyframes row-tip-in {
+  /* Fade only: the card sits on whichever side Floating UI picked, so it must not slide. */
+  --animate-tip-in: tip-in 120ms ease-out;
+  @keyframes tip-in {
     from {
       opacity: 0;
-      translate: -4px -50%;
     }
   }
 

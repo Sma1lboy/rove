@@ -179,6 +179,29 @@ describe("persistence", () => {
     expect(saved.at(-1)).toEqual({ t: null })
   })
 
+  it("keeps a change whose save failed and writes it on the retry", () => {
+    vi.useFakeTimers()
+    const saved: Record<string, SharedTabs | null>[] = []
+    let failNext = true
+    const tabs = new TabsStore(
+      {
+        load: () => ({}),
+        save: (changes) => {
+          if (failNext) {
+            failNext = false
+            throw new Error("EACCES state.json")
+          }
+          saved.push({ ...changes })
+        },
+      },
+      { publish: () => {} } as never,
+    )
+    tabs.apply("t", [{ op: "seed", state: state(["tab-1"]) }])
+    expect(saved).toHaveLength(0)
+    vi.advanceTimersByTime(2_100)
+    expect(saved).toEqual([{ t: state(["tab-1"]) }])
+  })
+
   it("sweeps records of tasks that are gone, but never against an empty task list", () => {
     const { tabs } = store()
     tabs.apply("live", [{ op: "seed", state: state(["tab-1"]) }])

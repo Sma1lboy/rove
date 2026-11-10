@@ -6,6 +6,7 @@
  * clients and replays `onOpen` hooks so subscriptions and terminals reattach.
  */
 
+import { forgetToken } from "./auth.ts"
 import { openBridgeSocket } from "./relay-transport.ts"
 import { type Store, createStore } from "./store.ts"
 
@@ -136,7 +137,8 @@ export class BridgeClient {
 
   private connect(): void {
     this.retryTimer = null
-    const ws = openBridgeSocket(this.url, ["rove.v1", `rove.bearer.${this.token}`])
+    // No token: this computer's own bridge lets its browser in without one.
+    const ws = openBridgeSocket(this.url, this.token ? ["rove.v1", `rove.bearer.${this.token}`] : ["rove.v1"])
     this.ws = ws
     this.armDeadline(ws, CONNECT_DEADLINE_MS)
     ws.onmessage = (ev) => this.receive(String(ev.data))
@@ -150,10 +152,10 @@ export class BridgeClient {
         () => this.lost(ws),
       )
     }
-    ws.onclose = () => this.lost(ws)
+    ws.onclose = (ev) => this.lost(ws, ev?.code)
   }
 
-  private lost(ws: WebSocket): void {
+  private lost(ws: WebSocket, code?: number): void {
     if (this.ws !== ws) return
     this.ws = null
     this.clearDeadline()
@@ -163,6 +165,15 @@ export class BridgeClient {
     ws.close()
     for (const p of this.pending.values()) p.reject(new BridgeRequestError("NOT_CONNECTED", "connection lost"))
     this.pending.clear()
+    // 4401: the bridge closed us because this token was revoked (see rove-bridge
+    // credential-sockets.ts). A browser-level constant, not a server import.
+    if (code === 4401) {
+      // The host revoked this token (Sign out, a device revoked): retrying cannot
+      // succeed. Forget it and land on the sign-in screen instead of backoff.
+      forgetToken()
+      this.conn.set({ state: "retrying", hello: null, failures: 2 })
+      return
+    }
     const failures = this.conn.get().failures + 1
     this.conn.set({ state: "retrying", hello: this.conn.get().hello, failures })
     const delay = BACKOFF_MS[Math.min(failures - 1, BACKOFF_MS.length - 1)]

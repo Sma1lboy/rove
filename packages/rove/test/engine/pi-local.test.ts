@@ -30,7 +30,7 @@ vi.mock("node:os", async (importOriginal) => {
 afterAll(() => {
   rmSync(tmpHome, { recursive: true, force: true })
 })
-import { parsePiSessionJsonl } from "../../src/engine/pi-local/history-parse.ts"
+import { parsePiSessionJsonl, parsePiSessionRaw } from "../../src/engine/pi-local/history-parse.ts"
 import {
   type PiHistoryDeps,
   latestTranscriptMtimeForWorktree,
@@ -214,6 +214,27 @@ describe("pi-family session parsing", () => {
     const messages = parsePiSessionJsonl(raw, "s1")
     expect(messages).toHaveLength(1)
     expect(messages[0]?.blocks).toEqual([{ type: "text", text: "one" }])
+  })
+
+  it("reads the context omp recorded for its last prompt, split into system and messages", () => {
+    const turn = (id: string, usage: object, contextSnapshot?: object) =>
+      JSON.stringify({ type: "message", id, message: { role: "assistant", content: "x", usage, contextSnapshot } })
+    const omp = [
+      turn("a1", { input: 2, output: 5, cacheWrite: 25714 }, { promptTokens: 25716, nonMessageTokens: 21927 }),
+      turn("a2", { input: 3, output: 9, cacheRead: 40000 }, { promptTokens: 86600, nonMessageTokens: 22000 }),
+    ].join("\n")
+    const usage = parsePiSessionRaw("f", omp, "s1").usageMetrics
+    expect(usage?.context_tokens).toBe(86600)
+    expect(usage?.context_tokens_approximate).toBeUndefined()
+    expect(usage?.context_parts).toEqual([
+      { key: "system", tokens: 22000 },
+      { key: "messages", tokens: 64600 },
+    ])
+    // pi records no snapshot: the last prompt's counters, marked approximate, and no split.
+    const pi = parsePiSessionRaw("f", turn("a1", { input: 100, output: 5, cacheRead: 900 }), "s1").usageMetrics
+    expect(pi?.context_tokens).toBe(1000)
+    expect(pi?.context_tokens_approximate).toBe(true)
+    expect(pi?.context_parts).toBeUndefined()
   })
 })
 

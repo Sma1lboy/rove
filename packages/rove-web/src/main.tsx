@@ -12,12 +12,13 @@ import { ConnectScreen } from "./connect-view.tsx"
 import { trapDialogFocus } from "./focus-trap.ts"
 import { watchLeaving } from "./leave.ts"
 import { LoginScreen } from "./login-view.tsx"
-import { passwordLoginOn } from "./login.ts"
+import { openWithoutToken, passwordLoginOn } from "./login.ts"
 import { longPressOpensMenus } from "./long-press.ts"
 import { AppModel } from "./model.ts"
 import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { revealScrollbarsOnScroll } from "./scroll-reveal.ts"
+import { installTooltips } from "./tooltip.ts"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
 // The one stylesheet: tokens, reset and the Tailwind theme.
@@ -29,13 +30,8 @@ longPressOpensMenus()
 revealScrollbarsOnScroll()
 watchLeaving()
 trapDialogFocus()
-const token = storedToken()
-if (!token) {
-  // With a password set on the host, a page without a token signs in instead of asking for the link.
-  void passwordLoginOn().then((password) =>
-    root.render(<StrictMode>{password ? <LoginScreen /> : <ConnectScreen />}</StrictMode>),
-  )
-} else {
+installTooltips()
+function start(token: string): void {
   const client = new BridgeClient(bridgeUrl(), token)
   const model = new AppModel(client)
   // A plugin's `rove api prompt`; the dialog is page UI, so it is wired here, not in the model.
@@ -52,4 +48,15 @@ if (!token) {
       <App model={model} />
     </StrictMode>,
   )
+}
+
+const token = storedToken()
+if (token) start(token)
+else {
+  // The bridge on this computer needs no token; elsewhere, with a password set on the host, the page
+  // signs in instead of asking for the link.
+  void Promise.all([openWithoutToken(), passwordLoginOn()]).then(([open, password]) => {
+    if (open) start("")
+    else root.render(<StrictMode>{password ? <LoginScreen /> : <ConnectScreen />}</StrictMode>)
+  })
 }

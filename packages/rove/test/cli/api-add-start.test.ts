@@ -67,3 +67,56 @@ describe("add --start", () => {
     expect(client.requestNames).toEqual([])
   })
 })
+
+describe("add --worktree-only", () => {
+  it("cuts the checkout, marks it, and starts no engine", async () => {
+    const client = new FakeClient({
+      "task.create": created,
+      "task.ensureWorktree": () => ({ worktreePath: "/wt/made" }),
+      "task.worktreeOnly": () => ({}),
+      "task.get": () => ({ task: taskFixture({ worktreePath: "/wt/made", worktreeOnly: true }) }),
+    })
+    const result = await invokeVerb("add", ["--repo", "/repo/x", "--worktree-only"], {
+      client,
+      runtime: stubRuntime({
+        openTab: async () => {
+          throw new Error("--worktree-only must not start an engine")
+        },
+      }),
+    })
+
+    // Marked in the create and again before the cut, so the row is never listed while git works.
+    expect(client.requestNames).toEqual(["task.create", "task.worktreeOnly", "task.ensureWorktree", "task.get"])
+    expect(client.requests[0]?.payload).toMatchObject({ worktreeOnly: true })
+    expect(result).toMatchObject({ taskId: "t1", started: false, worktreePath: "/wt/made" })
+  })
+
+  it("a cut that fails takes the mark off, leaving a row the user can see and delete", async () => {
+    const marks: unknown[] = []
+    const client = new FakeClient({
+      "task.create": created,
+      "task.worktreeOnly": (payload) => {
+        marks.push((payload as { on?: boolean }).on)
+        return {}
+      },
+      "task.ensureWorktree": () => {
+        throw new Error("git worktree add failed")
+      },
+    })
+    await expect(
+      invokeVerb("add", ["--repo", "/repo/x", "--worktree-only"], { client, runtime: stubRuntime({}) }),
+    ).rejects.toThrow("git worktree add failed")
+    expect(marks).toEqual([true, false])
+  })
+
+  it("refuses --worktree-only beside --start", async () => {
+    const client = new FakeClient({ "task.create": created })
+    const err = await invokeVerb("add", ["--repo", "/repo/x", "--worktree-only", "--start"], {
+      client,
+      runtime: stubRuntime({}),
+    }).catch((e: unknown) => e)
+
+    expect(err).toMatchObject({ code: "CONFLICTING_FLAGS" })
+    expect(client.requestNames).toEqual([])
+  })
+})

@@ -14,7 +14,7 @@ import { type WebCommand, allCommands, appliesOn, currentSurface, registerComman
 import { TextDialog } from "./dialogs.tsx"
 import { openHelp } from "./help-view.tsx"
 import { t } from "./i18n/index.ts"
-import { openRoutineEpisode } from "./inbox-open.ts"
+import { dismissEpisode, openRoutineEpisode } from "./inbox-open.ts"
 import { isRoutineState, nextAttention } from "./inbox.ts"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
@@ -60,8 +60,7 @@ function renameTab(model: AppModel): void {
       initial={tabLabel(tab)}
       submitLabel={t("dialog.save")}
       onSubmit={async (title) => {
-        await model.client.request("tab.rename", { taskId, tabId: tab.id, title })
-        await model.refreshTabsNow()
+        await model.renameTab(taskId, tab.id, title)
       }}
     />,
   )
@@ -193,7 +192,5 @@ export function jumpToNextAttention(model: AppModel): void {
   }
   if (row.taskId === null) return
   model.select(row.taskId, row.tabId)
-  void model.client
-    .request("attention.dismiss", { taskId: row.taskId, ...(row.tabId ? { tabId: row.tabId } : {}) })
-    .catch((err) => toast(String(err), "error"))
+  void dismissEpisode(model, row)
 }

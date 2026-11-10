@@ -13,7 +13,7 @@ async function archiveAttempts(model: AppModel, ids: readonly string[], force: b
   let done = 0
   try {
     for (const taskId of ids.filter((id) => live.has(id))) {
-      await model.client.request("task.archive", { taskId, archived: true, ...(force ? { force: true } : {}) })
+      await model.act("task.archive", { taskId, archived: true, ...(force ? { force: true } : {}) })
       done++
     }
   } catch (err) {
@@ -30,9 +30,9 @@ async function archiveAttempts(model: AppModel, ids: readonly string[], force: b
 export async function keepAttempt(model: AppModel, keep: TaskRow, round: readonly TaskRow[]): Promise<void> {
   try {
     for (const other of round) {
-      if (other.id !== keep.id && other.kept) await model.client.request("task.keep", { taskId: other.id, kept: false })
+      if (other.id !== keep.id && other.kept) await model.act("task.keep", { taskId: other.id, kept: false })
     }
-    await model.client.request("task.keep", { taskId: keep.id, kept: true })
+    await model.act("task.keep", { taskId: keep.id, kept: true })
   } catch (err) {
     toast(t("compare.keepFailed", { error: errorText(err) }), "error")
     return
@@ -59,7 +59,7 @@ export async function keepAttempt(model: AppModel, keep: TaskRow, round: readonl
 
 export async function unkeepAttempt(model: AppModel, row: TaskRow): Promise<void> {
   try {
-    await model.client.request("task.keep", { taskId: row.id, kept: false })
+    await model.act("task.keep", { taskId: row.id, kept: false })
     toast(t("compare.unkeptToast", { title: row.label }))
   } catch (err) {
     toast(t("compare.keepFailed", { error: errorText(err) }), "error")

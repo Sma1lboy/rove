@@ -2,7 +2,7 @@
 
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
-import { streamKey } from "./term-mount.ts"
+import { streamKey } from "./term-contract.ts"
 import { toast } from "./ui.ts"
 
 /** A bracketed paste: the engine's composer takes newlines as text, and Enter stays the person's. */

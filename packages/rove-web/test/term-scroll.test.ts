@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test"
 import {
   type CoastState,
+  appWheel,
   coastStep,
   edgeCarry,
   glideStep,
   isWheelNotch,
   linesFromBottom,
   scrollStep,
+  takeWholeLines,
   viewportAfterWrite,
   wheelDelta,
   wheelOwner,
@@ -149,4 +151,26 @@ test("a pause or a change of direction starts a new gesture", () => {
 
 test("momentum dithering around the floor does not read as a new push", () => {
   expect(coasted([40, 30, 20, 12, 8, 5, 3, 2, 3, 2, 3, 2])).toEqual([2, 2, 2])
+})
+
+test("an app-owned wheel sends one event per row of travel, in the protocol the app asked for", () => {
+  const tracked = { mouseTracking: true, applicationCursorKeys: false }
+  expect(appWheel(tracked, -2, 5, 9)).toBe("\x1b[<64;5;9M\x1b[<64;5;9M")
+  expect(appWheel(tracked, 1, 0, 0)).toBe("\x1b[<65;1;1M")
+  // No mouse reporting: arrow keys, as the TUI pane sends them.
+  expect(appWheel({ mouseTracking: false, applicationCursorKeys: false }, 1, 1, 1)).toBe("\x1b[B\x1b[B\x1b[B")
+  expect(appWheel({ mouseTracking: false, applicationCursorKeys: true }, -1, 1, 1)).toBe("\x1bOA\x1bOA\x1bOA")
+})
+
+test("a trackpad's small deltas add up to whole rows, and a turn the other way starts over", () => {
+  let carry = 0
+  let rows = 0
+  // Sixty 8px events over 19px rows: about 25 rows, where one report per event after damping gave 7.
+  for (let i = 0; i < 60; i++) {
+    const taken = takeWholeLines(carry, 8 / 19)
+    carry = taken.carry
+    rows += taken.lines
+  }
+  expect(rows).toBe(25)
+  expect(takeWholeLines(0.9, -0.3)).toEqual({ lines: 0, carry: -0.3 })
 })

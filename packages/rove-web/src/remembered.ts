@@ -9,6 +9,9 @@ type Source = BridgeClient | { readonly client: BridgeClient }
 
 const replies = new WeakMap<BridgeClient, Map<string, unknown>>()
 
+/** A page lives as long as its tab; full diffs and file lists are not free. */
+const MAX_REPLIES = 200
+
 const clientOf = (source: Source): BridgeClient => ("client" in source ? source.client : source)
 const keyOf = (op: string, params?: Record<string, unknown>): string =>
   params ? `${op} ${JSON.stringify(params)}` : op
@@ -21,7 +24,15 @@ export function lastReply<T>(source: Source, op: string, params?: Record<string,
 export function remember<T>(source: Source, op: string, params: Record<string, unknown> | undefined, value: T): T {
   const client = clientOf(source)
   const byKey = replies.get(client) ?? new Map<string, unknown>()
-  replies.set(client, byKey.set(keyOf(op, params), value))
+  const key = keyOf(op, params)
+  // Insertion order is access order for a Map, so the first key is the stalest.
+  byKey.delete(key)
+  byKey.set(key, value)
+  replies.set(client, byKey)
+  for (const oldest of byKey.keys()) {
+    if (byKey.size <= MAX_REPLIES) break
+    byKey.delete(oldest)
+  }
   return value
 }
 

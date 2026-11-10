@@ -13,6 +13,7 @@ extension KeyboardStateTests {
         sweepNewTask()
         openTask()
         sweepDetail()
+        sweepDetailSheets()
         back()
         sweepRoutines()
         sweepBoard()
@@ -98,11 +99,17 @@ extension KeyboardStateTests {
             self.waitFor(self.app.buttons["Find in scrollback"].firstMatch, "find item").tap()
         }, landmarks: lm)
         app.buttons["×"].firstMatch.tap()
+    }
 
+    func sweepDetailSheets() {
         sheetCheck("rename-task", menu: "Rename", field: "renameField", primary: "renameConfirm")
         sheetCheck("branch", menu: "Branch…", field: "branchField", primary: "branchConfirm")
         sheetCheck("model", menu: "Model & effort…", field: "modelField", primary: "modelEffortConfirm")
         sheetCheck("rename-tab", menu: "Rename tab", field: "renameField", primary: "rename")
+        checkNewSession()
+    }
+
+    func checkNewSession() {
         openMenu("New session…", until: el("startSessionButton"))
         check("new-session-prompt", { self.app.textViews.allElementsBoundByIndex.last { $0.isHittable } ?? self.app.textViews.firstMatch },
               landmarks: ["startSessionButton", "sheetClose"], whileUp: { self.assertReachable("startSessionButton") })
@@ -293,20 +300,21 @@ extension KeyboardStateTests {
         waitFor(until, id)
     }
 
-    /// The detail `…` menu item that opens `until`; the menu or the item tap is dropped while a sheet is still
-    /// closing, so both are retried.
+    /// Retry from a dismissed menu: a dropped item tap leaves the menu covering its own opener.
     private func openMenu(_ label: String, until: XCUIElement) {
         let item = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
         for _ in 0..<3 where !until.exists {
             Thread.sleep(forTimeInterval: 1)
             el("moreMenu").tap()
             if item.waitForExistence(timeout: 3) { item.tap() }
-            _ = until.waitForExistence(timeout: 6)
+            if until.waitForExistence(timeout: 6) { break }
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).tap()
+            XCTAssertTrue(item.waitForNonExistence(timeout: 3), "\(label): menu did not dismiss before retry")
         }
         waitFor(until, "\(label) sheet")
     }
 
-    private func sheetCheck(_ name: String, menu: String, field: String, primary: String) {
+    func sheetCheck(_ name: String, menu: String, field: String, primary: String) {
         openMenu(menu, until: el(primary))
         check(name, { self.input(field) }, landmarks: [primary, "sheetClose"], whileUp: { self.assertReachable(primary) })
         closeSheet()

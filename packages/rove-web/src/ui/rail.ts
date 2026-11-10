@@ -1,3 +1,4 @@
+import { GRIP } from "./row.ts"
 import { RAIL_FRAME } from "./shell.ts"
 
 /** Class recipes for the rail row's extras: the tree guides, the fold count, the PR chip and its card, the title tip. */
@@ -34,10 +35,6 @@ export const PR_LIST_GLYPH = "font-mono"
 export const PR_LIST_META = "overflow-hidden text-ellipsis whitespace-pre text-muted"
 export const PR_LIST_STATS = "ml-auto flex gap-1.5 pl-3 tabular-nums"
 
-/** A rail row's cut-off title in full, beside the row (Claude's sidebar tooltip). */
-export const ROW_TIP =
-  "pointer-events-none fixed z-35 max-w-80 -translate-y-1/2 animate-row-tip-in rounded-sm border-hairline border-line bg-inset px-2.5 py-1.5 text-meta leading-[1.4] whitespace-normal wrap-anywhere text-ink shadow-popover motion-reduce:animate-none"
-
 /** A task on another machine: a small cloud at the row's right edge. */
 export const CLOUD_MARK = "inline-flex flex-none items-center text-subtle"
 
@@ -46,21 +43,19 @@ export const RAIL = `group/rail rail @container row-1 flex min-h-0 flex-col focu
 /** One line, whatever the rail's width: the wordmark left, the inbox count and the update arrow right. */
 export const RAIL_HEAD = "flex min-w-0 items-center gap-2.5 overflow-hidden px-3.5 pt-3.5 pb-2.5 whitespace-nowrap"
 export const RAIL_SEARCH = "flex gap-1 px-3.5 pb-2 text-meta"
-/** The "while you were away" strip: wraps rather than clipping, so every count stays reachable in a narrow rail. */
-export const AWAY_RECAP = "flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-3.5 pb-2 font-mono text-meta"
 export const RAIL_SEARCH_FIELD =
   "min-w-0 flex-1 border-none bg-transparent p-0 text-ink [font:inherit] outline-none placeholder:text-subtle"
 /** The rail's note while no task exists; the workspace beside it carries the way forward. On the task rows' left edge. */
 export const RAIL_EMPTY = "m-0 px-2 py-3 font-mono text-meta text-subtle"
 /** The rail scrolls without a visible bar (the owner's call: the list reads cleaner without one). */
 export const railBody = (sorting: boolean): string =>
-  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none" : ""}`
+  `flex-1 overflow-y-auto px-1.5 pt-1 pb-3 scrollbar-none ${sorting ? "[&>[data-row]]:[transition:transform_150ms_ease-out,scale_150ms_ease-out,opacity_150ms_ease-out] motion-reduce:[&>[data-row]]:transition-none [&>[data-row]]:[box-shadow:none]! [&>[data-row]:not([data-lifted])]:opacity-45" : ""}`
 /** Keyboard cursor: shown only while the rail has focus, as the TUI sidebar's. */
 export const RAIL_CURSOR = "group-focus-within/rail:[box-shadow:inset_0_0_0_1px_var(--focus)]"
 
-/** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode and a drag wash it. */
-export const projectHead = (o: { moving: boolean; dragging: boolean }): string =>
-  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums text-subtle not-first:mt-4.5 ${o.moving || o.dragging ? "bg-accent-soft" : ""} ${o.moving ? "after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
+/** A project section header, as Claude's sidebar: the name and a chevron fold it; + starts a task in it. Move mode washes it; a drag brightens and pops its name. */
+export const projectHead = (o: { moving: boolean; dragging: boolean; grab: boolean }): string =>
+  `group/head mx-2 mt-1.5 mb-1 flex items-center gap-1 font-mono text-meta font-semibold normal-nums not-first:mt-4.5 ${o.dragging ? "origin-left scale-[1.03] cursor-grabbing text-ink motion-reduce:scale-none" : "text-subtle"} ${o.grab && !o.dragging ? `relative cursor-grab before:-left-1.5 [&>button:first-child]:cursor-grab ${GRIP}` : ""} ${o.moving ? "bg-accent-soft after:font-mono after:text-meta after:font-medium after:normal-nums after:text-accent after:content-['move']" : ""}`
 const HIT =
   "touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-inset-y-3 touch:after:content-['']"
 export const PROJECT_TOGGLE = `group/toggle -ml-1 inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xs border-none bg-transparent px-1 py-0.5 text-inherit [font:inherit] hover:text-ink ${HIT}`

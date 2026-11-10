@@ -374,6 +374,9 @@ export interface ApiRuntime {
   /** Can a worktree be cut from this repo? On the seam so handler tests need no
    *  real repo. Remote (`ssh://…`) keys answer true; remote-add validates them. */
   isUsableRepo(absPath: string): Promise<boolean>
+  /** {@link resolveRepoRoot} plus {@link isUsableRepo} from one git call: what
+   *  a repo filter needs per stored repo, without two spawns each. */
+  inspectRepo(absPath: string): Promise<{ readonly root: string; readonly usable: boolean }>
   /** `git check-ref-format` verdict, on the seam so handler tests don't spawn git. */
   isValidBranchName(branch: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */

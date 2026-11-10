@@ -17,7 +17,8 @@
 
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import type { AutomationPrecheck, AutomationPrecheckResult } from "./contracts.ts"
+import type { Automation, AutomationPrecheck, AutomationPrecheckResult } from "./contracts.ts"
+import { logOncePerChange } from "./log-once.ts"
 import { resolveLoginShell } from "./platform-shell.js"
 
 /** Per-stream capture cap. Kept small — this is a decision signal, not a log. */
@@ -179,4 +180,26 @@ export function formatPrecheckSkip(result: AutomationPrecheckResult): string {
   if (result.timedOut) return `precheck timed out after ${result.durationMs}ms`
   if (result.exitCode === null) return `precheck could not run: ${result.stderr.trim() || "unknown error"}`
   return `precheck exited ${result.exitCode}`
+}
+
+/**
+ * The scheduled-run gate. Returns what to record when the precheck did not
+ * pass, and logs it once per distinct reason — a routine whose precheck fails
+ * every tick used to be the single loudest line in daemon.log. A passing
+ * precheck clears the key so the next failure speaks again.
+ */
+export async function precheckSkip(
+  routine: Pick<Automation, "id" | "name">,
+  precheck: NonNullable<Automation["precheck"]>,
+  cwd: string,
+  env: Readonly<Record<string, string>> | undefined,
+): Promise<{ readonly precheckResult: AutomationPrecheckResult; readonly reason: string } | undefined> {
+  const result = await runAutomationPrecheck(precheck, cwd, undefined, env)
+  if (precheckPassed(result)) {
+    logOncePerChange(`precheck:${routine.id}`, "automation", undefined)
+    return undefined
+  }
+  const reason = formatPrecheckSkip(result)
+  logOncePerChange(`precheck:${routine.id}`, "automation", `skip ${routine.name}: ${reason}`)
+  return { precheckResult: result, reason }
 }

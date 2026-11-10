@@ -1,5 +1,6 @@
 package run.rove.mobile.ui
 
+import android.app.Application
 import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -72,17 +73,9 @@ import java.util.Locale
     var busy by remember { mutableStateOf(false) }
     val tabsError = stringResource(R.string.detail_tabs_error)
     var preflight by remember(taskId) { mutableStateOf<LandPreflight?>(null) }
-    val dirtyBase = stringResource(R.string.detail_land_dirty_base)
-    // A refusal replaces the dialog instead of following a confirm. A bridge without the op, or a task on another machine, keeps the plain dialog.
     val startLand: () -> Unit = {
         model.action {
-            val probe = if (task?.machine != null) null else try { model.repository.landPreflight(taskId) }
-            catch (e: BridgeFailure) { if (e.code == "UNKNOWN_OP") null else throw e }
-            when {
-                probe?.refusal == LandLogic.DIRTY_BASE -> model.error.value = dirtyBase
-                probe?.refusal != null -> model.error.value = probe.message ?: probe.refusal
-                else -> { preflight = probe; action = "land"; confirmation = 1 }
-            }
+            checkLand(model, taskId, task?.machine != null)?.let { preflight = it.preflight; action = "land"; confirmation = 1 }
         }
     }
     LaunchedEffect(taskId, connection, revision) {
@@ -316,7 +309,21 @@ private fun glyphOf(tab: TabRow, state: String?) = if (tab.alive == false) Glyph
 }
 
 /** Two-step confirmation for the destructive actions: what it does, then the explicit confirm. */
-@Composable private fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, preflight: LandPreflight?, onDismiss: () -> Unit, onContinue: () -> Unit) {
+/** What the land dialog opens with. */
+internal class LandGo(val preflight: LandPreflight?)
+
+/** Null after a refusal, which replaces the dialog. A bridge without the op, or a task on another machine, keeps the plain dialog. */
+internal suspend fun checkLand(model: AppModel, taskId: String, onMachine: Boolean): LandGo? {
+    val probe = if (onMachine) null else try { model.repository.landPreflight(taskId) }
+    catch (e: BridgeFailure) { if (e.code == "UNKNOWN_OP") null else throw e }
+    return when {
+        probe?.refusal == LandLogic.DIRTY_BASE -> { model.error.value = model.getApplication<Application>().getString(R.string.detail_land_dirty_base); null }
+        probe?.refusal != null -> { model.error.value = probe.message ?: probe.refusal; null }
+        else -> LandGo(probe)
+    }
+}
+
+@Composable internal fun ConfirmDialog(action: String, step: Int, busy: Boolean, task: TaskRow?, preflight: LandPreflight?, onDismiss: () -> Unit, onContinue: () -> Unit) {
     val delete = action == "delete"
     AlertDialog(onDismissRequest = onDismiss, containerColor = Rove.c.paper,
         title = {

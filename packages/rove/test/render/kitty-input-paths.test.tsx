@@ -4,22 +4,22 @@ import { expect, test } from "bun:test"
 import { useState } from "react"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
-import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
+import { type ScriptedPtyRegistry, createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import { act, renderComponent, settle } from "./harness"
 
 /**
- * Wait until `<Terminal>` has actually taken a pty out of the registry.
+ * Wait until `<Terminal>` holds a pty and has attached to it.
  *
  * One `await frame()` flushes a render pass, which is not the same thing: the
- * acquire happens in a mount effect, so a loaded machine can paint the first
- * frame with the registry still empty and `harness.last()` throws "scripted pty
- * registry: nothing acquired yet" — an error that reads like a broken fixture
- * rather than a race. Seen once in ten soak runs of the render track.
+ * acquire happens in a mount effect and the pane only holds the pty a render
+ * later, so on a loaded machine keys sent right after the acquire hit a pane
+ * with no pty and vanish. Attachment (the pane's data subscription) comes after
+ * that render.
  */
-async function acquiredPty(harness: ReturnType<typeof createScriptedPtyRegistry>, timeoutMs = 2_000) {
+async function acquiredPty(harness: ScriptedPtyRegistry, timeoutMs = 2_000) {
   const deadline = Date.now() + timeoutMs
-  while (harness.ptys.length === 0) {
-    if (Date.now() >= deadline) throw new Error(`no pty acquired within ${timeoutMs}ms`)
+  while (!harness.ptys.at(-1)?.attached) {
+    if (Date.now() >= deadline) throw new Error(`no pty attached within ${timeoutMs}ms`)
     await settle(10)
   }
   return harness.last()

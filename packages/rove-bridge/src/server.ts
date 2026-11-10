@@ -10,14 +10,16 @@ import { hostname as osHostname } from "node:os"
 import { type ApiEnvelope, type ApiParams, ROVE_API_VERSION } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { Server, ServerWebSocket } from "bun"
+import { admit } from "./admit.ts"
 import { DESTRUCTIVE_CORE, DESTRUCTIVE_VERBS, logDestructive, logDestructiveVerb } from "./audit.ts"
-import { WEB_SUBPROTOCOL, browserOriginAllowed, offersWebSubprotocol, presentedToken, tokenMatches } from "./auth.ts"
+import { WEB_SUBPROTOCOL, offersWebSubprotocol } from "./auth.ts"
 import type { AccessVerifier } from "./cf-access.ts"
+import type { CredentialSockets } from "./credential-sockets.ts"
 import type { DispatchFeed } from "./dispatch-feed.ts"
-import type { TaskFeed } from "./feed.ts"
+import { type TaskFeed, taskPusher } from "./feed.ts"
 import { dismissHitsOnlyGates } from "./gates.ts"
 import type { NoticeFeed } from "./notices.ts"
-import { absPath } from "./ops/args.ts"
+import { absPath, oneOf } from "./ops/args.ts"
 import { AREA_OPS } from "./ops/index.ts"
 import { taskOpDeps } from "./ops/tasks-shared.ts"
 import type { BridgeApi, OpTable } from "./ops/types.ts"
@@ -39,10 +41,11 @@ import {
   responseOk,
   str,
 } from "./protocol.ts"
-import { type Credential, type PushHub, sharedCredential } from "./push.ts"
+import type { Credential, PushHub } from "./push.ts"
 import { routineHook } from "./routine-hook.ts"
 import type { RoveOps } from "./rove-ops.ts"
 import type { RowStatusFeed } from "./row-status.ts"
+import { type SignIn, authOp } from "./sign-in.ts"
 import type { TabFeed } from "./tab-feed.ts"
 import { type AttachResult, type PtyHostClient, TerminalForwarder } from "./terminal.ts"
 import type { WebLogin } from "./web-login.ts"
@@ -52,6 +55,8 @@ export interface BridgeDeps {
   readonly token: string
   /** A per-device token's owner (`auth.ts` devices), or null; absent = only the shared token works. */
   readonly deviceOf?: (presented: string | null) => string | null
+  /** Live sockets per credential, so a sign-out ends the connection it holds. */
+  readonly sockets?: CredentialSockets
   readonly ops: RoveOps
   readonly feed: Pick<TaskFeed, "current" | "refresh" | "subscribe">
   /** `rove api notify` toasts, pushed to every connected phone as a `notice` event. */
@@ -91,6 +96,7 @@ export interface BridgeDeps {
   readonly web?: WebRoot
   /** `/login` and `/logout` for the browser client (`web-login.ts`). */
   readonly login?: WebLogin
+  readonly signIn?: SignIn // how a browser gets in; absent when no browser client is served
   /** The tunnel hostname (`--public-host`): a browser whose Origin is `https://<it>` is this page. */
   readonly publicHost?: string | null
   /** Web Push for closed pages (`push.ts`); absent = the `push.*` ops refuse. */
@@ -176,7 +182,7 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       // Snapshot first: subscribing before the read would also push it. Cached (only the
       // first subscriber pays a read), with `forMs` aged to now — see `TaskFeed.current`.
       const snapshot = await deps.feed.current()
-      conn.unsubscribeTasks ??= deps.feed.subscribe((payload) => ws.send(pushEvent("tasks", payload)))
+      conn.unsubscribeTasks ??= deps.feed.subscribe(taskPusher((frame) => ws.send(frame), a.patches === true))
       conn.unsubscribeTabs ??= deps.tabs?.subscribe((taskIds) => ws.send(pushEvent("tabs", { taskIds }))) ?? null
       return snapshot
     }
@@ -310,11 +316,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
     case "diff.files":
       return ops.diffFiles(str(a, "taskId"))
     case "diff.file": {
-      const scope = str(a, "scope")
-      if (scope !== "branch" && scope !== "working" && scope !== "task") {
-        throw new BridgeError("BAD_ARGS", "scope is branch|working|task")
-      }
-      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, optBool(a, "ignoreWhitespace"), optStr(a, "base"))
+      const scope = oneOf(a, "scope", ["branch", "working", "task"])
+      const flags = [optBool(a, "ignoreWhitespace"), optStr(a, "base"), optBool(a, "content")] as const
+      return ops.diffFile(str(a, "taskId"), str(a, "path"), scope, ...flags)
     }
     case "diff.refs":
       return ops.diffRefs(str(a, "taskId"))
@@ -333,6 +337,9 @@ async function handle(deps: BridgeDeps, ws: ServerWebSocket<Conn>, req: Request)
       await ops.dismissAttention(taskId, tabId, deliveryId)
       return {}
     }
+    case "auth.status":
+    case "auth.setMode":
+      return authOp(deps.signIn, req.op, a, conn.credential)
     case "push.key":
       return { publicKey: requirePush(deps).publicKey() }
     case "push.status":
@@ -394,6 +401,10 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
   return Bun.serve<Conn, never>({
     hostname: listen.hostname,
     port: listen.port,
+    // The only HTTP bodies are the routine webhook (1 MiB cap) and password
+    // login (4 KiB): reject anything larger before it is buffered, so a
+    // chunked POST cannot grow the bridge's RSS past the caps it checks later.
+    maxRequestBodySize: 2 * 1024 * 1024,
     async fetch(req, server) {
       const log = deps.log ?? ((line: string) => console.error(line))
       // Behind cloudflared every peer is 127.0.0.1; Cloudflare names the real client.
@@ -415,29 +426,23 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         const answer = await deps.login.handle(req, server.requestIP(req)?.address ?? "?")
         if (answer) return answer
       }
+      const peer = server.requestIP(req)?.address
+      const local = deps.signIn?.opens(req, peer) === true
+      // The page asks before it has a token whether to connect without one.
+      if (!upgrade && req.method === "GET" && new URL(req.url).pathname === "/auth") {
+        return Response.json({ open: local }, { headers: { "Cache-Control": "no-store" } })
+      }
       if (!upgrade && deps.web) {
         const file = await serveWebFile(deps.web, req)
         if (file) return file
       }
-      // Phones send no Origin. A browser always does; one from another site never gets a socket,
-      // even holding the token. Absent Origin still needs the token below.
-      const origin = req.headers.get("origin")
-      if (origin !== null && !browserOriginAllowed(origin, req.headers.get("host"), deps.publicHost ?? null)) {
-        log(`[rove-bridge] 403 from ${from}: cross-origin upgrade from ${origin}`)
-        return new Response("forbidden\n", { status: 403 })
-      }
-      const presented = presentedToken(req, deps.tokenInQuery === true)
-      const device = tokenMatches(deps.token, presented) ? null : (deps.deviceOf?.(presented) ?? undefined)
-      if (device === undefined) {
-        log(`[rove-bridge] 401 from ${from}: missing or wrong bearer token`)
-        return new Response("unauthorized\n", { status: 401 })
-      }
-      if (device) log(`[rove-bridge] ${new Date().toISOString()} device ${device} connected from ${from}`)
+      const who = admit(req, { local, from, log }, deps)
+      if (who instanceof Response) return who
       const data: Conn = {
-        peer: peerOf(req, server.requestIP(req)?.address, deps),
+        peer: peerOf(req, peer, deps),
         viewer: `bridge-${++nextViewer}`,
-        who: `device=${device ?? "shared-token"} from=${from}`,
-        credential: device ?? sharedCredential(deps.token),
+        who: `device=${who.name} from=${from}`,
+        credential: who.credential,
         terminal: null,
         machineTerminals: new Map(),
         streamOwner: new Map(),
@@ -456,6 +461,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
     },
     websocket: {
       open(ws) {
+        deps.sockets?.add(ws)
         ws.data.unsubscribeNotices = deps.notices?.subscribe((n) => ws.send(pushEvent("notice", n))) ?? null
         ws.data.unsubscribePrompts = deps.prompts?.subscribe((p) => ws.send(pushEvent("prompt", p))) ?? null
         ws.data.unsubscribePanels = deps.panels?.subscribe((p) => ws.send(pushEvent("panel", p))) ?? null
@@ -477,6 +483,7 @@ export function startBridgeServer(deps: BridgeDeps, listen: { hostname: string; 
         void onMessage(deps, ws, typeof message === "string" ? message : message.toString("utf8"))
       },
       close(ws) {
+        deps.sockets?.remove(ws)
         // What this screen showed is no longer looked at.
         deps.rowStatus?.setViewing(ws.data.viewer, null, null)
         deps.push?.setVisible(ws.data.viewer, false)

@@ -102,6 +102,7 @@ export const en = {
   },
 
   empty: "No routines scheduled.",
+  loadFailed: "Could not read the routines: {message}",
   emptyHint: "Press n to create one.",
   precheck: "precheck: {command}",
   /** The newest failure among the recent runs; `{when}` is relative ("3h ago"). */
@@ -221,6 +222,7 @@ export const zh: typeof en = {
   },
 
   empty: "还没有例行任务。",
+  loadFailed: "读不到例行任务：{message}",
   emptyHint: "按 n 新建一条。",
   precheck: "预检：{command}",
   lastFailed: "上次失败（{when}）：{reason}",

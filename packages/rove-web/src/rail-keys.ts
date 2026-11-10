@@ -12,6 +12,7 @@ import { enterWorkspace, openCompare, openPage } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { moveMode, moveRow, setMoveMode } from "./move-mode.ts"
 import { offeredEngines } from "./new-session.ts"
+import { focusActiveTerminal } from "./pane-focus.ts"
 import { railCursorTask } from "./rail-aim.ts"
 import { openPane } from "./rail-pane-row.tsx"
 import { cycleRailSort, railSort } from "./rail-sort.ts"
@@ -139,6 +140,14 @@ function railAction(candidates: readonly string[]): { id: RailId; slot: number }
   return null
 }
 
+/** A click on a task row. Another task's terminal takes the keyboard as it mounts; the open one is already mounted and the click left focus on the row, where Esc reaches no engine. */
+export function openTaskRow(model: AppModel, taskId: string): void {
+  const open = model.selection.get().taskId === taskId
+  model.select(taskId)
+  enterWorkspace()
+  if (open) focusActiveTerminal()
+}
+
 export function useRailKeys(
   model: AppModel,
   allRows: readonly NavRow[],
@@ -246,7 +255,7 @@ export function useRailKeys(
         open(row)
         break
       case "tasks.focusEngine":
-        document.querySelector<HTMLElement>(".term-slot:not(.is-hidden) textarea")?.focus()
+        focusActiveTerminal()
         break
       case "sidebar.rename":
       case "sidebar.pin":

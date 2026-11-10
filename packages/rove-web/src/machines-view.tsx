@@ -6,6 +6,7 @@
 
 import type { en as tasksEn } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
+import { everyVisible } from "./every-visible.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import type { NavRow } from "./rail.ts"
@@ -126,10 +127,10 @@ export function useMachines(model: AppModel): readonly MachineRow[] {
         () => {},
       )
     void load()
-    const timer = window.setInterval(load, POLL_MS)
+    const stop = everyVisible(POLL_MS, load)
     return () => {
       live = false
-      window.clearInterval(timer)
+      stop()
     }
   }, [model.client, conn.state, reachability])
   return rows

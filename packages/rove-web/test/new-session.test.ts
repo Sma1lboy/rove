@@ -44,11 +44,12 @@ describe("engines a picker offers", () => {
     expect(defaultEngineId([])).toBe("")
   })
 
-  test("the project's last engine is preselected when offered and ready; otherwise the first ready one", () => {
+  test("the preferred engine is preselected whenever offered, ready or not; a switched-off one falls to the first ready", () => {
     const offered = offeredEngines(list)
     expect(defaultEngineId(offered, "bob")).toBe("bob")
     expect(defaultEngineId(offered, "codex")).toBe("claude")
-    expect(defaultEngineId(offered, "pi")).toBe("claude")
+    // The probe can miss an engine the login shell launches fine (a shell function, an rc-only PATH).
+    expect(defaultEngineId(offered, "pi")).toBe("pi")
   })
 })
 

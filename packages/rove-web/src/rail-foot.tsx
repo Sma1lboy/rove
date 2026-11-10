@@ -4,23 +4,23 @@ import { ShortcutBadge } from "./prefix-guide.tsx"
 import { ts } from "./settings-copy.ts"
 import { skillMissing } from "./skill-status.ts"
 import { useStore } from "./store.ts"
-import { RAIL_FOOT, RAIL_NAV_CUE, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
+import { RAIL_FOOT, RAIL_FOOT_ROW, RAIL_NAV_CUE, RAIL_NAV_ICON, railNavRowClass } from "./ui/page.ts"
 import { UsageChips } from "./usage-view.tsx"
 
 /**
- * The rail's foot: the usage readings, then Settings, one left edge and one quiet voice. On a phone the
- * readings sit at the top of Settings instead, so only the entry is here. A missing Rove skill is named
- * in words beside Settings (the engines on hover); installing it is in Settings › Engines.
+ * The rail's foot, ruled off from the task list: the usage readings, then Settings, one left edge and one
+ * quiet voice, so the readings never read as a line of the last task. On a phone the readings sit at the
+ * top of Settings instead, so only the entry is here. A missing Rove skill is named in words beside
+ * Settings (the engines on hover); installing it is in Settings › Engines.
  */
 export function RailFoot({ model, narrow, onSettings }: { model: AppModel; narrow: boolean; onSettings: () => void }) {
   useLocale()
-  const selection = useStore(model.selection)
   const gap = useStore(skillMissing)
   const hint = ts("engines.skill.bannerHintWeb", { engines: gap.join(", ") })
   return (
-    <>
-      {!narrow && <UsageChips client={model.client} taskId={selection.taskId} tabId={selection.tabId} />}
-      <div className={RAIL_FOOT}>
+    <div className={RAIL_FOOT}>
+      {!narrow && <UsageChips client={model.client} />}
+      <div className={RAIL_FOOT_ROW}>
         <button type="button" className={`rail-nav-row ${railNavRowClass(false)}`} onClick={onSettings}>
           {/* Lucide `settings` (ISC). */}
           <svg className={RAIL_NAV_ICON} viewBox="0 0 24 24" aria-hidden="true">
@@ -36,6 +36,6 @@ export function RailFoot({ model, narrow, onSettings }: { model: AppModel; narro
         </button>
         <ShortcutBadge model={model} bindingId="settings.open" />
       </div>
-    </>
+    </div>
   )
 }

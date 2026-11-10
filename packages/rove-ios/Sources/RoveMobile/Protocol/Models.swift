@@ -42,11 +42,15 @@ struct TaskReport: Codable, Hashable {
     var at: String?
 }
 
+struct TaskMachine: Codable, Hashable { var id: String }
+
 struct TaskRow: Codable, Hashable, Identifiable {
     var id: String
     var title: String
     /// The name every client shows (`displayTitle`); `title` stays the stored one a rename edits. Absent from older bridges.
     var label: String?
+    /// Set on a row another registered machine serves. Absent = this Mac's, and from older bridges.
+    var machine: TaskMachine?
     var branch: String
     var repo: String
     var kind: String
@@ -91,6 +95,7 @@ struct TaskRow: Codable, Hashable, Identifiable {
         id = try c.decode(String.self, forKey: .id)
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         label = try c.decodeIfPresent(String.self, forKey: .label)
+        machine = try c.decodeIfPresent(TaskMachine.self, forKey: .machine)
         branch = try c.decodeIfPresent(String.self, forKey: .branch) ?? ""
         repo = try c.decodeIfPresent(String.self, forKey: .repo) ?? ""
         kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "task"
@@ -135,6 +140,8 @@ struct AttentionItem: Codable, Hashable {
     var deliveryId: String?
     /// `decision_needed` items: the gate id, the key into `TasksPayload.gates`. A decision is answered, never dismissed.
     var gateId: String?
+    /// `routine_failed` items: the routine, the only key that can dismiss one. Absent from older bridges.
+    var automationId: String?
 }
 
 struct GateOption: Codable, Hashable {

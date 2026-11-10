@@ -11,6 +11,9 @@ export const en = {
   filter: "/ filter actions",
   noResults: "No matching actions. Try another name or clear the filter.",
   run: "↑↓ select · enter run · esc cancel",
+  reportProblem: "Report a problem",
+  reportPrompt:
+    "You are helping the user report a problem with Rove itself (not their own project) as a GitHub issue. First ask what they were doing and what felt wrong: one to three short questions, one at a time. Then collect context: run `rove --version` and `rove daemon status`, and read the last ~50 lines of {logPath} only if the problem could involve the daemon. Draft an issue title and body (what happened, what they expected, steps, relevant output) and show it to the user. Only after they say OK, file it with a heredoc: `rove feedback --kind bug|idea|question --title \"...\" --body-file - <<'EOF'` followed by the body and `EOF`. Then share the issue URL. If it prints a prefilled link instead (gh missing or signed out), give the user that link and tell them to run `gh auth login`.",
   unavailable: "This action is no longer available. Close and reopen the palette.",
   /** Close / cancel hint */
   esc: "esc",
@@ -67,6 +70,9 @@ export const zh: typeof en = {
   filter: "/ 筛选操作",
   noResults: "没有匹配的操作。请换个名称或清空筛选。",
   run: "↑↓ 选择 · enter 执行 · esc 取消",
+  reportProblem: "报告问题",
+  reportPrompt:
+    "你在帮用户把 Rove 本身的问题（不是他们自己项目的问题）提成一个 GitHub issue。先问清楚他们当时在做什么、哪里不对劲：一到三个简短的问题，一次问一个。然后收集上下文：运行 `rove --version` 和 `rove daemon status`，只有问题可能和 daemon 有关时才读 {logPath} 的最后约 50 行。起草 issue 的标题和正文（发生了什么、期望什么、复现步骤、相关输出）并展示给用户。用户确认之后才提交，用 heredoc：`rove feedback --kind bug|idea|question --title \"...\" --body-file - <<'EOF'`，接正文，最后一行 `EOF`。然后把 issue 链接发给用户。如果输出的是预填链接（没装 gh 或没登录），把链接给用户，并告诉他运行 `gh auth login`。",
   unavailable: "此操作已不可用。请关闭并重新打开命令面板。",
   esc: "esc",
   scrollKeys: "↑↓ ⇞⇟ 滚动",

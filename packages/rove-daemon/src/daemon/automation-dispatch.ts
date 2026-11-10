@@ -21,7 +21,6 @@
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
-import { logDaemonInfo } from "./crash-log.ts"
 import { type GateLedger, carryOwedGateAnswers } from "./gate-handoff.ts"
 import { ptyScopeFor } from "./pty-alias.ts"
 import { ensureRoutineCwd, routineDir } from "./routine-dir.ts"
@@ -156,11 +155,18 @@ async function spawnWithPrompt(
   return { status, taskId }
 }
 
+/** Where a firing's prompt lands. `fresh`: a just-spawned engine, with no transcript of earlier runs. */
+export interface DispatchTarget {
+  readonly taskId: string
+  readonly tabId: string | null
+  readonly fresh: boolean
+}
+
 /** The prompt for a firing, built once the task (and tab, when known) it lands
  *  in exists, so a delivery can be armed against it before the paste. */
-export type DispatchPrompt = string | ((target: { taskId: string; tabId: string | null }) => Promise<string>)
+export type DispatchPrompt = string | ((target: DispatchTarget) => Promise<string>)
 
-async function resolvePrompt(prompt: DispatchPrompt, target: { taskId: string; tabId: string | null }) {
+async function resolvePrompt(prompt: DispatchPrompt, target: DispatchTarget) {
   return typeof prompt === "string" ? prompt : await prompt(target)
 }
 
@@ -198,7 +204,7 @@ export async function dispatchAutomation(
       tabId: target.tabId,
     })
     if (blocked) return blocked
-    const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId })
+    const text = await resolvePrompt(prompt, { taskId: task.id, tabId: target.tabId, fresh: false })
     const owed = carryOwedGateAnswers(deps.gates, task.id, target.tabId, text)
     const result = await deps.runtime.deliverPromptToLiveEngineTabDetailed(
       {
@@ -223,7 +229,7 @@ export async function dispatchAutomation(
     // A fresh task's first engine tab is always tab-1.
     return await spawnWithPrompt(
       deps,
-      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1", fresh: true }),
       task.id,
       "dispatched",
     )
@@ -237,7 +243,7 @@ export async function dispatchAutomation(
     const task = await createRunTask(deps, automation)
     const outcome = await spawnWithPrompt(
       deps,
-      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1" }),
+      await resolvePrompt(prompt, { taskId: task.id, tabId: "tab-1", fresh: true }),
       task.id,
       "dispatched",
     )
@@ -254,8 +260,8 @@ export async function dispatchAutomation(
   // `engine-dead` is not a skip here: the revive path below respawns it.
   const blocked = blockedOutcome(deps.runnability?.check(task.id, null, ["engine-dead"]), { taskId: task.id })
   if (blocked) return blocked
-  // Built once: the live attempt and the respawn below carry the same delivery.
-  const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null })
+  // The live attempt and the respawn below carry the same delivery; the respawn re-resolves for its empty transcript.
+  const text = await resolvePrompt(prompt, { taskId: task.id, tabId: null, fresh: false })
   const owed = carryOwedGateAnswers(deps.gates, task.id, null, text)
   const result = await deps.runtime.deliverPromptToLiveEngineDetailed(
     {
@@ -275,7 +281,8 @@ export async function dispatchAutomation(
   // the engine died between firings. Respawn in the SAME worktree as
   // `revived`. `no-engine` must land here, or the prompt gets typed into zsh
   // and RUN as shell commands.
-  return await spawnWithPrompt(deps, text, task.id, "revived")
+  const fullText = await resolvePrompt(prompt, { taskId: task.id, tabId: null, fresh: true })
+  return await spawnWithPrompt(deps, fullText, task.id, "revived")
 }
 
 async function liveDeliveryOutcome(
@@ -286,7 +293,6 @@ async function liveDeliveryOutcome(
 ): Promise<DispatchOutcome> {
   switch (result.outcome) {
     case "delivered":
-      logDaemonInfo("automation", `delivered ${automation.name} task=${taskId} tab=${result.tabId}`)
       return { status: "dispatched", taskId, tabId: result.tabId }
     case "no-engine":
     case "no-session":

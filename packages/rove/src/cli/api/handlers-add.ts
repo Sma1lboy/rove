@@ -64,6 +64,14 @@ export async function add(ctx: VerbContext): Promise<unknown> {
       helpStep("add"),
     )
   }
+  const worktreeOnly = args.bool("worktree-only") === true
+  if (worktreeOnly && (parallel || args.promptText() || args.bool("start") || args.bool("no-worktree"))) {
+    throw new ApiError(
+      "--worktree-only cuts a checkout and starts no engine: it conflicts with --prompt/--prompt-file, --start, --count/--agents and --no-worktree",
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
   // Validate with git before anything is created: an unusable name otherwise
   // fails only at `ensure-worktree` as a raw RPC_ERROR, leaving a row that
   // can never materialize. Skipped for a parallel round, which refuses
@@ -170,6 +178,8 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const fork = args.str("fork")
   const title = args.str("title") || (prompt && !fork ? deriveTitleFromPrompt(prompt) : "")
   if (title) payload.title = title
+  // Marked in the create itself: marking after the cut showed the row for as long as the cut took.
+  if (args.bool("worktree-only")) payload.worktreeOnly = true
   const branch = args.str("branch")
   if (branch) payload.branch = branch
   const baseRef = args.str("base-branch") ?? repoSet.primaryBaseRef
@@ -204,6 +214,19 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // No `tierNote` here on purpose: `--tier auto` refuses a create with nothing
   // to classify, so a note and an absent prompt cannot coexist.
   if (!prompt) {
+    if (args.bool("worktree-only")) {
+      // An older daemon ignores the create's mark: set it here too, before the cut.
+      await daemon.request("task.worktreeOnly", { taskId, on: true })
+      try {
+        await daemon.request("task.ensureWorktree", { taskId })
+      } catch (err) {
+        // A failed cut leaves an ordinary, visible backlog row.
+        await daemon.request("task.worktreeOnly", { taskId, on: false }).catch(() => {})
+        throw err
+      }
+      task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
+      return { taskId, task, worktreePath: task.worktreePath, home: homeDir(), ...placed, started: false, ...warned }
+    }
     if (!args.bool("start")) {
       return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
     }

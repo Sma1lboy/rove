@@ -30,7 +30,7 @@ import {
 } from "./task-flows.tsx"
 import { FieldNotesDialog, RunAgainDialog } from "./taskops-dialogs.tsx"
 import { tc } from "./tui-copy.ts"
-import { type MenuItem, dialog, toast } from "./ui.ts"
+import { type MenuItem, dialog, openNewSessionFrom, toast } from "./ui.ts"
 import { prefixHint } from "./user-keys.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
@@ -169,8 +169,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
             body={t("confirm.closeTabBody")}
             confirmLabel={t("menu.closeTab")}
             onConfirm={async () => {
-              await c.request("tab.close", { taskId: task.id, tabId: tab.id })
-              await model.refreshTabsNow()
+              await model.closeTab(task.id, tab.id)
             }}
           />,
         ),
@@ -188,12 +187,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
   items.push({
     label: t("menu.newChatPick"),
     section: "open",
+    rare: true,
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} />),
   })
   // Moves the conversation (tab-scoped from a tab's menu) to another engine in this directory.
   items.push({
     label: t("menu.continueEngine"),
     section: "open",
+    rare: true,
     ...bound("chat.tab.fork"),
     run: () => dialog.set(<NewChatDialog model={model} taskId={task.id} context="continue" sourceTabId={tab?.id} />),
   })
@@ -202,6 +203,22 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     section: "open",
     run: () => void openTab(model, task.id, { kind: "shell" }).catch((e) => toast(String(e), "error")),
   })
+  // Stacks a new task on this one's branch; only a single-repo managed branch on this machine resolves as a base here.
+  if (
+    task.kind === "task" &&
+    task.ownsBranch === true &&
+    task.branch &&
+    !task.sharesWorkspaceOf &&
+    !task.machine &&
+    !task.extraRepoCount
+  ) {
+    items.push({
+      label: tc("tasks", "menu.newTaskFromBranch"),
+      section: "open",
+      rare: true,
+      run: () => openNewSessionFrom({ repo: task.repo, baseBranch: task.branch, worktree: true }),
+    })
+  }
   if (task.startsAt) {
     items.push({
       label: t("menu.startNow"),
@@ -229,6 +246,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.retryEdit"),
       section: "open",
+      rare: true,
       run: () => void openRetry(model, task),
     })
   }
@@ -261,7 +279,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
           title={t("menu.rename")}
           initial={task.title}
           submitLabel={t("dialog.save")}
-          onSubmit={(title) => c.request("task.rename", { taskId: task.id, title }).then(() => {})}
+          onSubmit={(title) => model.act("task.rename", { taskId: task.id, title }).then(() => {})}
         />,
       ),
   })
@@ -271,13 +289,14 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
       section: "edit",
       ...bound("sidebar.pin"),
       run: () =>
-        void c.request("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
+        void model.act("task.pin", { taskId: task.id, pinned: !task.pinned }).catch((e) => toast(String(e), "error")),
     })
   }
   if (local) {
     items.push({
       label: tc("tasks", "menu.reorder"),
       section: "edit",
+      rare: true,
       ...bound("sidebar.localMerge"),
       run: () => enterMoveMode(),
     })
@@ -290,7 +309,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
         label: t(STATUS_KEYS[s]),
         checked: s === task.status,
         run: () =>
-          void c.request("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
+          void model.act("task.setStatus", { taskId: task.id, status: s }).catch((e) => toast(String(e), "error")),
       }),
     ),
   })
@@ -299,6 +318,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.moveToProject"),
       section: "edit",
+      rare: true,
       run: () => {
         const picker = moveToProjectDialog(model, task)
         if (picker) dialog.set(picker)
@@ -309,6 +329,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.changeEngine"),
       section: "edit",
+      rare: true,
       // The menu picks; the key cycles (TUI: `tasks.cycleEngine` hint on the picker entry).
       ...bound("tasks.cycleEngine"),
       run: () => dialog.set(<ChangeEngineDialog model={model} taskId={task.id} />),
@@ -329,6 +350,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: tc("tasks", "menu.syncBase"),
       section: "git",
+      rare: true,
       key: prefixHint("files.syncBase"),
       run: () => void syncBaseFlow(model, task.id),
     })
@@ -337,6 +359,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
     items.push({
       label: t("menu.renameBranch"),
       section: "git",
+      rare: true,
       ...bound("tasks.renameBranch"),
       run: () =>
         dialog.set(

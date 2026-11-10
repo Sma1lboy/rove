@@ -218,8 +218,10 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
       ...(snapshot.cache_creation_input_tokens === undefined
         ? {}
         : { cacheCreationTokens: snapshot.cache_creation_input_tokens }),
+      ...(snapshot.context_parts ? { parts: snapshot.context_parts } : {}),
     }
   },
+  probeEngineContext: async (vendor, sessionId) => protocolEntry(vendor).history.probeContext?.(sessionId),
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,

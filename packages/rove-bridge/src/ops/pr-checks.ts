@@ -54,7 +54,11 @@ export function checkState(entry: unknown): CheckState {
   const context = field(entry, "state").toUpperCase()
   if (status && status !== "COMPLETED") return "pending"
   if (conclusion)
-    return conclusion === "SUCCESS" ? "pass" : conclusion === "NEUTRAL" || conclusion === "SKIPPED" ? "skipped" : "fail"
+    return conclusion === "SUCCESS"
+      ? "pass"
+      : ["NEUTRAL", "SKIPPED", "CANCELLED"].includes(conclusion)
+        ? "skipped"
+        : "fail"
   if (context === "SUCCESS") return "pass"
   if (context === "FAILURE" || context === "ERROR") return "fail"
   return "pending"

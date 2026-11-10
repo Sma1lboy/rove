@@ -14,7 +14,7 @@ import * as usage from "../src/i18n/usage.ts"
 import * as workspace from "../src/i18n/workspace.ts"
 
 // The catalogs merge with a shallow Object.assign: a namespace two files both declare is silently replaced by the
-// later one, and every key of the earlier one then renders as its raw id (the Diff toolbar once showed `review.basePicker`).
+// later one, and every key of the earlier one then renders as its raw id (the Diff toolbar once showed `review.scopeMenu`).
 test("no two i18n files declare the same top-level namespace", () => {
   const parts = {
     rail,

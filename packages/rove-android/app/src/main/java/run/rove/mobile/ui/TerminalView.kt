@@ -32,8 +32,6 @@ import run.rove.mobile.R
 import run.rove.mobile.data.TerminalSession
 import run.rove.mobile.data.reviveTab
 import run.rove.mobile.domain.QueryReplyFilter
-import run.rove.mobile.domain.QueueLogic
-import run.rove.mobile.domain.SendOutcome
 import java.io.ByteArrayInputStream
 
 // iOS Terminal/TerminalPane.swift: the live terminal, a status banner while not live, the key row and the composer.
@@ -97,10 +95,8 @@ private const val ATTACHING = "connecting"
             if (sent) { attachments = 0; scope.launch { delay(150); input.input("\r") } }
         }
     }
-    var queueRevision by remember { mutableIntStateOf(0) }
     val atMenu = stringResource(R.string.detail_composer_at_menu)
     val notSent = stringResource(R.string.detail_composer_not_sent)
-    val queuedLine = stringResource(R.string.detail_composer_queued)
     // A shell tab has no turns to wait for, the demo has no daemon, and a pasted attachment path already sits in the engine's input line.
     val compose: suspend (String) -> Boolean = compose@{ text ->
         if (engineName == null || attachments > 0 || model.demo.value) return@compose reply(text)
@@ -112,11 +108,8 @@ private const val ATTACHING = "connecting"
                 else -> throw e
             }
         }
-        when (val outcome = QueueLogic.outcome(answer)) {
-            SendOutcome.Delivered -> true
-            is SendOutcome.Queued -> { queueRevision++; showFlash(queuedLine.format(outcome.position)); true }
-            is SendOutcome.NotSent -> throw IllegalStateException(notSent.format(outcome.reason))
-        }
+        if (!answer.delivered) throw IllegalStateException(notSent.format(answer.reason.orEmpty()))
+        true
     }
     LaunchedEffect(session, fit) { session.setFit(fit) }
     DisposableEffect(web) {
@@ -177,7 +170,6 @@ private const val ATTACHING = "connecting"
                 }
             },
             onReply = { scope.launch(start = CoroutineStart.UNDISPATCHED) { reply(it) } }, onDone = if (WindowInsets.isImeVisible) ({ keyboard?.hide() }) else null)
-        if (engineName != null) QueuedChips(model, taskId, tabId, queueRevision)
         Composer(engineName, compose) { prepared ->
             val put = model.repository.putAttachment(prepared.mime, prepared.data)
             if (input.input(PasteEncoding.paste(AttachmentLogic.ref(put.path, attachments))).await()) attachments++

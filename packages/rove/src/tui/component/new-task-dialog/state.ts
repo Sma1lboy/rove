@@ -85,6 +85,8 @@ export type NewTaskDialogOptions = {
    * the choice never appears.
    */
   mainRepos?: ReadonlySet<string>
+  /** Base branch to start from instead of the repo's current branch (a task's branch, to stack on it). */
+  initialBaseRef?: string
 }
 
 /** Active sub-tab; Ctrl+[ / Ctrl+] switch it while the dialog is open. */

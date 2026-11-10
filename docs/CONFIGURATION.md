@@ -376,12 +376,13 @@ Rove is ignored; nothing reads or writes it any more.
 ### Update channel
 
 Which release line `rove update` and the update check follow. Set it with
-`rove update --nightly` / `--stable` or Settings → General → Updates, whose
+`rove update --next` / `--nightly` / `--stable` or Settings → General → Updates, whose
 button also installs the other channel's newest build right away.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `update.channel` | `latest` \| `nightly` | the running build's channel | `latest` is stable releases; `nightly` is the daily preview built from `main`. Written after an install of that channel succeeds |
+| `update.channel` | `latest` \| `next` \| `nightly` | the running build's channel | `latest` is stable releases; `next` is every merge to `main` (fast checks only); `nightly` is the daily preview built from `main`. Set by Settings the moment you pick one, and by `rove update --next` / `--nightly` / `--stable` after the install succeeds. The update check, the Update page and a bare `rove update` follow it |
+| `update.notify` | boolean | `true` | Whether the update chip (TUI brand row, web rail) shows when the chosen channel has a newer build. Off hides the chip only; Settings' `[ check for updates ]`, the Update page and `rove update` still report |
 | `update.delayHours` | number | `0` | Hours a release must have been out before the update chip offers it. The check runs at daemon start and every six hours, and while the newest release is younger the chip stays hidden. If npm can't say when it was published, the chip shows. The Update page and `rove update` ignore it. Hand-edit only |
 
 ### Worktree location
@@ -504,7 +505,7 @@ Off by default. These can change without notice.
 |---|---|
 | `experimental.remoteProjects` | Lets `rove add --remote` register a NEW project over SSH. Gates that one command only: remote projects already registered keep working — worktree routing and engine launch never read the flag — so turning it off does not disable them |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
-| `experimental.dispatcher` | Per-repo routing of field notes between sessions |
+| `experimental.dispatcher` | Field notes: sessions file them, and every new session on the repo starts with them |
 | `experimental.layerfs` | Path to a LayerFS env file. Set, it lets `rove api add --workspace layerfs` create tasks whose files live in a LayerFS sandbox (Linux only, see [LayerFS tasks](./WORKTREES.md#layerfs-tasks-experimental)). No Settings toggle: edit state.json |
 
 ## Themes

@@ -4,12 +4,13 @@
  * next step, so a dead pane is never a dead end.
  */
 
+import { useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { NewChatDialog } from "./new-chat-dialog.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
-import type { Notice } from "./term-mount.ts"
-import { dialog } from "./ui.ts"
+import type { Notice } from "./term-contract.ts"
+import { dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { termNotice } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
@@ -57,7 +58,12 @@ export function TermNotice(props: {
   const { notice, engineExit, model, taskId, tabId, revive } = props
   const lostEngine = notice.kind === "none" ? engineExit : null
   const limited = notice.kind === "none" && !lostEngine && props.usageLimit === true && !revive.error
+  const [resuming, setResuming] = useState(false)
   if (notice.kind === "none" && !lostEngine && !limited) return null
+  // The daemon already knows when it will retry; name it, and offer to not wait.
+  const resumeAt = limited
+    ? model.tasks.get()?.attention.find((row) => row.taskId === taskId && row.state === "rate_limited")?.resumeAt
+    : undefined
 
   const reopenable = notice.kind === "notLive" || notice.kind === "restored" || notice.kind === "exited"
   const gone = notice.kind === "exited" || lostEngine !== null
@@ -66,7 +72,11 @@ export function TermNotice(props: {
     : lostEngine
       ? t("workspace.engineExited", { code: lostEngine.code ?? "?" })
       : limited
-        ? t("workspace.usageLimit")
+        ? resumeAt
+          ? t("workspace.usageLimitUntil", {
+              time: new Date(resumeAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            })
+          : t("workspace.usageLimit")
         : noticeText(notice)
 
   return (
@@ -97,6 +107,20 @@ export function TermNotice(props: {
             }
           >
             {t("menu.continueEngine")}
+          </Button>
+          <Button
+            variant="link"
+            hit="tight"
+            disabled={resuming}
+            onClick={() => {
+              setResuming(true)
+              model.client
+                .request("task.resumeQuota", { taskId })
+                .catch((err) => toast(err instanceof Error ? err.message : String(err), "error"))
+                .finally(() => setResuming(false))
+            }}
+          >
+            {resuming ? t("workspace.resumingQuota") : t("workspace.resumeQuota")}
           </Button>
           <Button variant="link" hit="tight" onClick={props.onDismissLimit}>
             {t("workspace.dismiss")}

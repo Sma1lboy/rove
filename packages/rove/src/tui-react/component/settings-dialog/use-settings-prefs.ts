@@ -6,6 +6,7 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
+import { RELEASE_CHANNELS, type ReleaseChannel } from "../../../release-channels.ts"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
 import { COLORBLIND_KEY, type ColorblindMode, DEFAULT_COLORBLIND, normalizeColorblind } from "../../../state/colorblind"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
@@ -33,7 +34,12 @@ import {
   resolveTabStripMode,
 } from "../../../state/tab-strip"
 import { DEFAULT_TASK_COLORS, TASK_COLORS_KEY, type TaskColors, normalizeTaskColors } from "../../../state/task-colors"
-import { UPDATE_CHANNEL_KEY, normalizeReleaseChannel } from "../../../state/update-channel"
+import {
+  UPDATE_CHANNEL_KEY,
+  UPDATE_NOTIFY_KEY,
+  normalizeReleaseChannel,
+  updateNotifyEnabled,
+} from "../../../state/update-channel"
 import {
   DEFAULT_WORKING_BORDER,
   WORKING_BORDER_KEY,
@@ -65,7 +71,7 @@ import {
   type PrefixTapPresentation,
   normalizePrefixTapPresentation,
 } from "../../../tui/lib/prefix-tap-presentation"
-import { type ReleaseChannel, channelOf } from "../../../version"
+import { channelOf } from "../../../version"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import {
@@ -143,8 +149,16 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function updateChannel(): ReleaseChannel {
     return normalizeReleaseChannel(kv.get(UPDATE_CHANNEL_KEY)) ?? channelOf()
   }
-  function toggleUpdateChannel(): void {
-    kv.set(UPDATE_CHANNEL_KEY, updateChannel() === "nightly" ? "latest" : "nightly")
+  /** Cycles stable → next → nightly (`RELEASE_CHANNELS` order). */
+  function cycleUpdateChannel(): void {
+    const at = RELEASE_CHANNELS.indexOf(updateChannel())
+    kv.set(UPDATE_CHANNEL_KEY, RELEASE_CHANNELS[(at + 1) % RELEASE_CHANNELS.length])
+  }
+  function updateNotify(): boolean {
+    return updateNotifyEnabled(kv.get(UPDATE_NOTIFY_KEY))
+  }
+  function toggleUpdateNotify(): void {
+    kv.set(UPDATE_NOTIFY_KEY, !updateNotify())
   }
 
   // Chat tab strip: never / 2+ tabs / always (state/tab-strip.ts); "off" is
@@ -360,7 +374,9 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     zenDefaultOn,
     toggleZenDefaultOn,
     updateChannel,
-    toggleUpdateChannel,
+    cycleUpdateChannel,
+    updateNotify,
+    toggleUpdateNotify,
     railFoldStyle,
     selectRailFoldStyle,
     workingBorder,

@@ -24,7 +24,7 @@ Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree (each opens a child Task listed under the row; a shell child's
-last shell exiting leaves the row empty, and `enter` starts a fresh shell), plus **Copy task ID**, **Copy branch name** and **Copy path**,
+last shell exiting leaves the row empty, and `enter` starts a fresh shell), **New task from this branch** (the New task dialog with the Task's branch as the base), plus **Copy task ID**, **Copy branch name** and **Copy path**,
 which put the Task's id, branch or worktree path on the system clipboard for a
 `rove api` call, a `git checkout` or a `cd` in another shell, and **Open in editor**, **Rename branch**, and
 **Change engine** for the row you clicked. Right-clicking a project header
@@ -50,8 +50,8 @@ width back when the window grows again. The fold has no draggable edge — its
 fixed width is the point of folding. Each folded project section starts with
 its first letter and a rule, such as `r──` or `w──`; the Ungrouped group is `u──`. The fold shows the
 same projects the expanded rail shows and hides the same ones — a project you
-have closed down to nothing is absent from both, and so are the routine
-sessions the expanded rail folds behind its count row — and a section's letter
+have closed down to nothing is absent from both, and neither lists routine
+runs (open those from the Routines page) — and a section's letter
 comes from the header the expanded rail prints, so two repos whose folders
 share a name (`work/api`, `oss/api`) fold to `w──` and `o──` rather than to
 `a──` twice.
@@ -267,8 +267,8 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
-item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
-nothing to drop). You rarely need `d`: **visiting
+item. `d` acks (clears) the one under the cursor without navigating (ATTENTION rows only;
+RECENT rows have nothing to drop), and `D` acks every ATTENTION row at once. You rarely need `d`: **visiting
 a target clears its item anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
@@ -532,7 +532,7 @@ left arrow to return to the section list, and `enter` to activate a row.
   GitHub was unreachable (it falls back to the first-party plugins).
 - **Keybindings** shows the active prefix, loaded YAML overrides and warnings.
   Edit the displayed YAML path; changes reload live.
-- **Feedback** submits a GitHub Discussion through an authenticated `gh` CLI.
+- **Feedback** files a GitHub issue on the Rove repo through an authenticated `gh` CLI; without one it shows a prefilled new-issue link. The command palette also has **Report a problem** (no chord): it opens a new scratch conversation on the default engine that interviews you, drafts the issue and files it with `rove feedback` once you agree.
 - **Dev** contains reset, a backend-exit action, **Reload settings** and
   experimental switches. Reload settings applies hand edits to `state.json` to
   this window without a restart. Reset

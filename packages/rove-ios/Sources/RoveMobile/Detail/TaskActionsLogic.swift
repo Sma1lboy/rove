@@ -221,6 +221,7 @@ enum TaskActionLogic {
     struct MenuPlan: Equatable {
         var branch: Bool
         var move: Bool
+        var fixChecks: Bool
         var syncBase: Bool
         var copyBranch: Bool
         var copyPath: Bool
@@ -232,6 +233,33 @@ enum TaskActionLogic {
 
         var showsCopyGroup: Bool { copyBranch || copyPath || runAgain != .hidden }
         var showsWorktreeGroup: Bool { createWorktree || removeWorktree }
+    }
+
+    /// What a `task.fixChecks` outcome says, and whether it failed.
+    static func fixChecksLine(_ r: FixChecksResult) -> (text: String, isError: Bool) {
+        switch r.outcome {
+        case "sent": (String(localized: "asked the agent to fix the failing checks"), false)
+        case "unavailable": (String(localized: "gh could not read this PR's checks: \(r.detail?.split(separator: "\n").first.map(String.init) ?? ""). Run `gh auth status`, then retry."), true)
+        default: (String(localized: "No failing check logs to read — the run may have expired, or the checks are no longer red"), true)
+        }
+    }
+
+    /// The line a refused land shows; nil when it can go ahead. A refusal replaces the confirmation.
+    static func landRefusal(_ probe: LandPreflight) -> String? {
+        guard let refusal = probe.refusal else { return nil }
+        if refusal == "MAIN_CHECKOUT_DIRTY" {
+            return String(localized: "The base checkout has uncommitted changes — commit them, then land. Never `git stash` here: the stash stack lives in the repo's common dir and is shared by every linked worktree, so a stash can entangle other tasks' work.")
+        }
+        return String(localized: "Land failed: \(probe.message ?? refusal)")
+    }
+
+    /// Names the destination and the commit count; `?` only when git printed a non-number.
+    static func landSummary(branch: String, _ probe: LandPreflight) -> String {
+        if probe.ahead == 1 {
+            return String(localized: "Merge \"\(branch)\" into \(probe.landedOn) (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list.")
+        }
+        let commits = probe.ahead.map(String.init) ?? "?"
+        return String(localized: "Merge \"\(branch)\" into \(probe.landedOn) (\(commits) commits), then remove this worktree? The branch is kept. Conflicts abort with a file list.")
     }
 
     /// The line a failed `task.syncBase` shows: the daemon's error text leads with its code.
@@ -247,7 +275,7 @@ enum TaskActionLogic {
     }
 
     /// Which items the menu shows. `detail` is the cached `task.get` (nil until fetched).
-    static func menu(kind: String, pinned: Bool, branch: String, detail: TaskDetail?) -> MenuPlan {
+    static func menu(kind: String, pinned: Bool, branch: String, checksFailing: Bool = false, detail: TaskDetail?) -> MenuPlan {
         let managed = kind != "main" && kind != "dir"
         let path = detail?.worktreePath.trimmingCharacters(in: .whitespaces)
         // Unknown worktree state offers both; the tap re-reads the truth.
@@ -255,6 +283,7 @@ enum TaskActionLogic {
         return MenuPlan(
             branch: managed,
             move: kind != "main",
+            fixChecks: checksFailing,
             syncBase: kind == "task" && !(detail?.branch ?? branch).isEmpty,
             copyBranch: !(detail?.branch ?? branch).isEmpty,
             copyPath: hasWorktree ?? true,

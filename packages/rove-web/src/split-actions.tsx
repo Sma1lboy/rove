@@ -12,8 +12,8 @@ import { type AppModel, preferredTab } from "./model.ts"
 import { tabLabel } from "./rail.ts"
 import { hasLivePane, hostsEngine, isSplit, leafNames, leafSignature, leavesOf } from "./split-model.ts"
 import { createStore } from "./store.ts"
+import { streamKey } from "./term-contract.ts"
 import { termFor } from "./term-control.ts"
-import { streamKey } from "./term-mount.ts"
 import { type MenuItem, dialog, toast } from "./ui.ts"
 import { prefixHint } from "./user-keys.ts"
 
@@ -57,7 +57,7 @@ export async function editSplit(
 ): Promise<void> {
   try {
     const reply = await model.client.request<SplitReply>("tab.split", args)
-    await model.refreshTabsNow()
+    if (typeof args.taskId === "string") await model.refreshTabsNow(args.taskId)
     after?.(reply)
   } catch (err) {
     toast(err instanceof Error ? err.message : String(err), "error")

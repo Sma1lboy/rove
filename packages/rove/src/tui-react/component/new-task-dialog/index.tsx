@@ -37,6 +37,7 @@ function show(
         availableVendors={options?.availableVendors}
         discoverAdoptable={options?.discoverAdoptable}
         mainRepos={options?.mainRepos}
+        initialBaseRef={options?.initialBaseRef}
         onSubmit={(v) => resolve(v)}
         onCancel={() => resolve(undefined)}
       />

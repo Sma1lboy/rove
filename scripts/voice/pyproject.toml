@@ -1,0 +1,28 @@
+# The dictation sidecar and its bench. Not a package: run the scripts through uv, which builds the
+# environment from this file and uv.lock (`uv run --project scripts/voice --extra local scripts/voice/asr_server.py`).
+[project]
+name = "rove-voice"
+version = "0"
+requires-python = ">=3.11"
+dependencies = [
+  "jellyfish",
+  "numpy",
+  "opencc-python-reimplemented",
+  "pypinyin",
+]
+
+[project.optional-dependencies]
+# The local recognizer: Apple Silicon only. A cloud-only setup syncs without it.
+local = ["mlx-whisper; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["asr_server", "engine", "fetch_model", "learn", "live", "phonetic", "polish", "vocab"]

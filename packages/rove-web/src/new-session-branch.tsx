@@ -17,6 +17,8 @@ export function BranchChips(props: {
   remote: boolean
   ungrouped: boolean
   inPlace: boolean
+  /** A picked folder has no git: no worktree to toggle. */
+  plain: boolean
   /** The Worktree toggle. */
   onToggleWorktree: () => void
   repos: readonly string[]
@@ -56,11 +58,13 @@ export function BranchChips(props: {
         type="button"
         className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
         aria-pressed={!inPlace}
-        disabled={repos.length > 1}
+        disabled={repos.length > 1 || props.plain}
         title={
-          repos.length > 1
-            ? t("newSession.worktreeMulti")
-            : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
+          props.plain
+            ? t("newSession.worktreeNoGit")
+            : repos.length > 1
+              ? t("newSession.worktreeMulti")
+              : t(inPlace ? "newSession.worktreeOff" : "newSession.worktreeOn")
         }
         onClick={props.onToggleWorktree}
       >

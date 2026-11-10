@@ -14,7 +14,7 @@ import {
  * launches of a known task with the relevant opt-in on; a custom command
  * that already sets the flag is never double-injected; worktree sessions
  * and the main (dispatcher) session get mutually exclusive protocols; and
- * the dispatcher takes no conflict action — it routes field notes only.
+ * the dispatcher takes no conflict action.
  */
 
 const on = () => true
@@ -120,7 +120,6 @@ describe("withDispatcherProtocol", () => {
     // (web-hosted sessions would get a duplicate tmux twin otherwise).
     expect(argv[2]).toContain("api dispatch --task-id <id>")
     expect(argv[2]).not.toContain("api send")
-    expect(argv[2]).toContain("[ROVE FIELD NOTE]")
   })
 
   it("leaves the argv alone when disabled, vendor isn't claude, or no task", () => {
@@ -131,7 +130,7 @@ describe("withDispatcherProtocol", () => {
 })
 
 describe("dispatcherProtocol", () => {
-  it("routes knowledge only — no status writes, no conflict actions, no git", () => {
+  it("no status writes, no conflict actions, no git", () => {
     const text = dispatcherProtocol("01HMAIN")
     expect(text).toContain("task 01HMAIN")
     expect(text).not.toContain("--status")
@@ -141,7 +140,5 @@ describe("dispatcherProtocol", () => {
     expect(text).not.toContain("merge-tree")
     expect(text).not.toContain("git merge")
     expect(text).not.toContain("rebase")
-    // Routing etiquette: provenance, no echo to author, no duplicates.
-    expect(text).toContain("Never relay a note back to its author")
   })
 })

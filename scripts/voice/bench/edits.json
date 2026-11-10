@@ -1,0 +1,22 @@
+[
+ {"id": "misheard", "base": "把 Jithub 的 pipeline 改一下", "sent": "把 GitHub 的 pipeline 改一下", "learns": [["GitHub", "Jithub"]]},
+ {"id": "casing", "base": "把 github 的 pipeline 改一下", "sent": "把 GitHub 的 pipeline 改一下", "learns": [["GitHub", "github"]]},
+ {"id": "acronym", "base": "这个 api 太慢了", "sent": "这个 API 太慢了", "learns": [["API", "api"]]},
+ {"id": "split", "base": "我们用 Graph QL 写 resolver", "sent": "我们用 GraphQL 写 resolver", "learns": [["GraphQL", "Graph QL"]]},
+ {"id": "joiner", "base": "rove web 改了", "sent": "rove-web 改了", "learns": [["rove-web", "rove web"]]},
+ {"id": "name", "base": "Cavin 说 iOS 有 bug", "sent": "Kevin 说 iOS 有 bug", "learns": [["Kevin", "Cavin"]]},
+ {"id": "cjk-heard", "base": "杰哈布 的 action 挂了", "sent": "GitHub 的 action 挂了", "learns": [["GitHub", "杰哈布"]]},
+ {"id": "two-fixes", "base": "Cubanetis 里的 Redus 挂了", "sent": "Kubernetes 里的 Redis 挂了", "learns": [["Kubernetes", "Cubanetis"], ["Redis", "Redus"]]},
+ {"id": "one-word-take", "base": "前缀 Jithub", "spans": [[3, 9]], "sent": "前缀 GitHub", "learns": [["GitHub", "Jithub"]]},
+ {"id": "sentence-case", "base": "the build is slow", "sent": "The build is slow", "learns": []},
+ {"id": "typography", "base": "今天 天气，很好 “OK”", "sent": "今天天气, 很好 \"OK\"", "learns": []},
+ {"id": "full-width", "base": "用 ＧｉｔＨｕｂ 吧", "sent": "用 GitHub 吧", "learns": []},
+ {"id": "plain-word", "base": "pipe line is slow", "sent": "pipeline is slow", "learns": []},
+ {"id": "cjk-fix", "base": "配置挂在路径变了", "sent": "配置挂载路径变了", "learns": []},
+ {"id": "rewrite", "base": "把 Jithub 的 pipeline 改一下", "sent": "我想换个说法完全重写这句话", "learns": []},
+ {"id": "rewrite-english", "base": "make the Jithub thing faster please", "sent": "Rewrite GitHub CI caching with Turborepo", "learns": []},
+ {"id": "too-many", "base": "aa bb cc dd ee ff gg hh ii jj kk ll", "sent": "Aa1 Bb1 Cc1 Dd1 Ee1 ff gg hh ii jj kk ll", "learns": []},
+ {"id": "outside-take", "base": "Jithub 前缀 后缀", "spans": [[10, 12]], "sent": "GitHub 前缀 后缀", "learns": []},
+ {"id": "added-after", "base": "把 Jithub 改一下", "spans": [[0, 11]], "sent": "把 Jithub 改一下, also bump Turborepo", "learns": []},
+ {"id": "unchanged", "base": "把 GitHub 的 pipeline 改一下", "sent": "把 GitHub 的 pipeline 改一下", "learns": []}
+]

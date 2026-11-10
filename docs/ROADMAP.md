@@ -10,7 +10,7 @@ same rail. This page says where that is going.
 Each milestone has a goal, what "done" means (something you can see or run), a
 status, and links to the docs, PRs and code that exist today. Status is one of
 **shipped**, **in progress** or **planned**. Planned means no work has started
-and no date is promised. Last checked against Rove 0.9.270 on 2026-10-26.
+and no date is promised. Last checked against Rove 0.9.282 on 2026-11-09.
 
 The order is the order of work: the nearest milestone is first.
 
@@ -101,7 +101,8 @@ canvases in Codex, ChatGPT and claude.ai; the layout is Rove's own.
 - The frame check reads only the first response, so a site that redirects
   (`https://iana.org`, 301) reads as frameable and can still show the browser's
   refusal page.
-- Other artifacts a task produces have no view yet.
+- Other artifacts a task produces have no view yet, beyond the file previews
+  the Files pane already renders (markdown, images, SVG, PDF, #1735).
 
 **See also.** [WEB.md](WEB.md), [web/PARITY.md](web/PARITY.md),
 [web/MEMO.md](web/MEMO.md).
@@ -259,7 +260,8 @@ Designed, but not part of a milestone above:
 
 - Checkpoints at each engine turn, rewind, and forking a task with its
   uncommitted work ([design/workspace-runner.md](design/workspace-runner.md),
-  phase 1).
+  phase 1). The daemon and `rove api` half exists (`checkpoint-save`,
+  `checkpoint-rewind`, `checkpoint-list`); no surface calls it yet.
 - Racing several engines on one task with an automatic judge. The race
   commands exist (`add --count`, `--agents`, `collect --group`); the judge does
   not ([design/fleet-direction.md](design/fleet-direction.md)).

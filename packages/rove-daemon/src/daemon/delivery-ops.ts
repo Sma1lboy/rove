@@ -169,6 +169,9 @@ export async function noteDeliveryTurnStart(deps: DeliveryDeps, taskId: string, 
  * A rate-limited failure marks the delivery without an Inbox row: the
  * engine's own `rate_limited` episode covers it and quota-resume continues
  * the turn, after which a late report still lands.
+ *
+ * True when a `turn-complete` closed a routine delivery (reported, or `quiet`):
+ * the caller records no `turn_complete` Inbox row for it.
  */
 export async function trackDeliveryTurn(
   deps: DeliveryDeps,
@@ -176,11 +179,22 @@ export async function trackDeliveryTurn(
   tabId: string | null,
   kind: EngineActivityKind,
   detail: EngineActivityDetail | undefined,
-): Promise<void> {
-  if (kind === "turn-start") await noteDeliveryTurnStart(deps, taskId, tabId)
-  else if (kind === "turn-complete") {
-    await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
-  } else if (kind === "turn-interrupted") {
+): Promise<boolean> {
+  if (kind === "turn-start") {
+    await noteDeliveryTurnStart(deps, taskId, tabId)
+    return false
+  }
+  if (kind === "turn-complete" || kind === "turn-interrupted" || kind === "session-end" || kind === "turn-failed") {
+    const reported = await deps.deliveries.endReportedTurns(taskId, tabId).catch((err: unknown) => {
+      logDaemonError("delivery-turn-end", err)
+      return []
+    })
+    if (kind === "turn-complete") {
+      const ended = await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
+      return [...reported, ...ended].some((d) => d.source === "routine")
+    }
+  }
+  if (kind === "turn-interrupted") {
     await markDeliveryMissing(deps, { taskId, tabId, cause: "interrupted", scope: "started" })
   } else if (kind === "session-end") {
     await markDeliveryMissing(deps, { taskId, tabId, cause: "session-end", scope: "started" })
@@ -199,6 +213,7 @@ export async function trackDeliveryTurn(
       ...(note ? { note } : {}),
     })
   }
+  return false
 }
 
 /**
@@ -243,12 +258,17 @@ async function markOneMissing(
   note: string | undefined,
   eventTab: string | null,
 ): Promise<Delivery | null> {
-  const missing = await deps.deliveries.markMissing(delivery.id, cause, note).catch((err: unknown) => {
+  // A routine turn that ends without a report had nothing to report.
+  const quiet = delivery.source === "routine" && cause === "turn-complete"
+  const missing = await (quiet
+    ? deps.deliveries.markQuiet(delivery.id)
+    : deps.deliveries.markMissing(delivery.id, cause, note)
+  ).catch((err: unknown) => {
     logDaemonError("delivery-missing", err)
     return undefined
   })
   if (!missing) return null
-  if (cause === "rate-limited") return missing
+  if (quiet || cause === "rate-limited") return missing
   await deps.inbox
     .recordReportMissing(
       missing.taskId,

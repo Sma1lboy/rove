@@ -15,7 +15,7 @@ export const KB_SINGLE = "flex min-h-0 flex-1 flex-col gap-2"
 export const KB_STRIP = `flex gap-4 ${MONO_META}`
 /** A lane name in the phone's strip: grows down, barely up (lanes sit 16px apart, the project name 8px above). */
 export const kbStripTabClass = (active: boolean): string =>
-  `touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-top-1 touch:after:-bottom-3 touch:after:content-[''] ${active ? "font-bold text-accent" : "text-muted"}`
+  `flex items-baseline gap-1.5 whitespace-nowrap touch:relative touch:after:absolute touch:after:-inset-x-1.5 touch:after:-top-1 touch:after:-bottom-3 touch:after:content-[''] ${active ? "font-bold text-accent" : "text-muted"}`
 
 const LANE_TONE = { in_progress: "text-accent", parked: "text-warning", done: "text-success" } as const
 export const kbLaneClass = (single: boolean): string =>

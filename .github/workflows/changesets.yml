@@ -14,7 +14,10 @@
 #   2. `bun run ci:version` — changeset version + lockfile refresh +
 #      lint:fix — then verify with `bun install --frozen-lockfile` and the
 #      lint gate, so the bookkeeping commit can't be the thing that breaks.
-#   3. Commit `chore: release — X.Y.Z`, push it to main, tag vX.Y.Z.
+#   3. Commit `chore: release — X.Y.Z`, tag it vX.Y.Z, push it to main. If
+#      main moved while step 1 ran, the commit is merged with main rather
+#      than refused: the tag stays on the tested commit, and what landed
+#      meanwhile waits for the next release.
 #   4. Dispatch release.yml on the tag (a GITHUB_TOKEN tag push never
 #      fires the tag trigger — GitHub's recursion guard; workflow_dispatch
 #      is the documented exception). release.yml re-runs every publish
@@ -107,7 +110,7 @@ jobs:
         if: steps.ci.outputs.green == 'true'
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.3.14
 
       - name: Version, verify, commit, tag
         if: steps.ci.outputs.green == 'true'
@@ -137,7 +140,25 @@ jobs:
           fi
           git commit -m "chore: release — $NEW"
           git tag "$TAG"
-          git push origin main
+          # ci.yml ran for ~20 minutes and main may have moved meanwhile. The tag stays on this
+          # commit, whose parent is what CI passed; the commit joins main by a merge. What landed
+          # meanwhile is not in this release and keeps its changesets for the next one.
+          landed=false
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              landed=true
+              break
+            fi
+            git fetch origin main
+            if ! git merge --no-edit -m "chore: release — $NEW (with main)" origin/main; then
+              echo "::error::main changed a file the release commit also changed (package.json, CHANGELOG.md, bun.lock or a consumed changeset). Nothing is tagged on origin; run this workflow again."
+              exit 1
+            fi
+          done
+          if [ "$landed" != "true" ]; then
+            echo "::error::main moved 5 times while the release commit was being pushed. Nothing is tagged on origin; run this workflow again."
+            exit 1
+          fi
           git push origin "$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 

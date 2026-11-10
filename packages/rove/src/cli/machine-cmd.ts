@@ -1,5 +1,5 @@
 /**
- * `rove machine <add|remove|list>`. Machines are reached by forwarding the
+ * `rove machine <verb>` (verbs: `SUBCOMMAND_VERBS.machine`). Machines are reached by forwarding the
  * daemon's unix socket over SSH — no ports, no own auth. The remote socket
  * path is always asked, never guessed.
  *
@@ -42,11 +42,12 @@ import { CURRENT_VERSION } from "../version.ts"
 import { argvHasFlag } from "./argv.ts"
 import { defaultFixRuntime } from "./doctor-fix.ts"
 import { machinePrimary } from "./machine-primary.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = ROVE_PRODUCT_NAME
 
 const MACHINE_USAGE = [
-  `Usage: ${CLI_NAME} machine <add|remove|list> [options]`,
+  `Usage: ${CLI_NAME} machine <${SUBCOMMAND_VERBS.machine.join("|")}> [options]`,
   "",
   "Manage the other computers running Rove. Each one is reached over SSH;",
   "its tasks appear in the sidebar under a row of its own.",
@@ -111,6 +112,8 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
     process.stdout.write(`${MACHINE_USAGE}\n`)
     return
   }
+  // Gate on the registry first: a verb dispatched below but missing there would not complete in the shell.
+  if (!SUBCOMMAND_VERBS.machine.includes(verb)) usageError(`unknown verb "${verb}"`)
   if (verb === "list") return list()
   if (verb === "add") return await add(rest)
   if (verb === "doctor") return await doctor(rest)

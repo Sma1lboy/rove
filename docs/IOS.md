@@ -158,6 +158,7 @@ Each wraps one `rove api` verb, daemon RPC or Rove helper; args are schema-check
 | `task.pin` | `taskId`, `pinned` | `{}` | `update --pinned` | |
 | `task.keep` | `taskId`, `kept` | `{}` | `update --kept` | |
 | `task.move` | `taskId`, `direction` (`up`/`down`/`top`) | `{}` | RPC `task.move` | |
+| `project.move` | `repo`, `target` (absolute project paths), `side` (`before`/`after`) | `{}`; every task of `repo` (main checkout or not, Scratch rows excluded) moves as one block before `target`'s project or after it | RPC `project.move` | |
 | `task.scheduleStart` | `taskId` (an unstarted task), `at` (ISO-8601, in the future), `prompt` | `{taskId, at}` | RPC `task.scheduleStart` | `ALREADY_STARTED` when the task has its first message |
 | `task.cancelScheduledStart` | `taskId` | `{}` | RPC `task.cancelScheduledStart` | |
 | `task.startScheduledNow` | `taskId` | `{outcome}` (`started`, `failed`, `dropped`) | RPC `task.startScheduledNow` | `NOT_SCHEDULED` |
@@ -300,7 +301,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `plugin.setEnabled` | `id`, `enabled` | `setPluginEnabled` | yes |
 | `builtinMods.list` | — | `builtin-mods.json`: `{mods: [{id, name, description, installed}]}` for Kanban and Issues | — |
 | `builtinMod.setInstalled` | `id` (`kanban`/`issues`), `installed` | `setBuiltinModInstalled`; uninstalling keeps the mod's data | — |
-| `feedback.send` | `title`, `body`, `category?` | `feedback` (a public GitHub Discussion) | yes |
+| `feedback.send` | `title`, `body`, `kind?` (`bug`/`idea`/`question`) | `feedback` (a public GitHub issue; the reply carries `filed`, `url`, `number?`) | yes |
 | `engines.settings` | — | engine registry + `detectEngineStatuses` + `engineIntegrations` + state.json switches | — |
 | `engine.setEnabled` | `id`, `enabled` | state.json `disabledEngineIds` (+ `defaultVendor` hand-off) | yes |
 | `engine.setDefault` | `id` | state.json `defaultVendor` | yes |
@@ -350,6 +351,15 @@ xcodebuild -scheme RoveMobile -destination 'platform=iOS Simulator,name=iPhone 1
 ```
 
 Running on a physical iPhone needs your own signing team in Xcode; the repo ships no signing configuration.
+
+## Pending iOS features
+
+These features are not available in the app yet. The following PRs track their implementation:
+
+- Inbox **ack all** and routine-failure dismissal: [#1811](https://github.com/Sma1lboy/rove/pull/1811).
+- **Fix failing checks** and Land preflight with destination and commit count: [#1812](https://github.com/Sma1lboy/rove/pull/1812).
+- **Reopen session** for a tab whose process has exited: [#1813](https://github.com/Sma1lboy/rove/pull/1813).
+- A **Machines** page with machine status and tasks: [#1814](https://github.com/Sma1lboy/rove/pull/1814).
 
 ## Not done yet
 

@@ -58,6 +58,10 @@ under 0.5px. Report numbers as before → after.
   puts an arbitrary value outside it. A line that must break the last two carries `ui-ok: <reason>`.
 - **No class merging.** A `className` passed to a `ui/` component may add placement but must not
   set what the component sets: with no `tailwind-merge`, which utility wins is stylesheet order.
+- **Other package UIs** (e.g. `promo-kit`) start from rove-web's stack (Vite + React + TypeScript +
+  Tailwind v4), Tailwind's theme mapped to `packages/branding/design-system/` `tokens.css` and its
+  README rules: no hand-written HTML pages, raw hex or invented sizes.
+- **All UI:** no secondary labels or descriptions the layout already explains.
 
 ## 1. Layout and alignment
 
@@ -170,6 +174,21 @@ Probe: `axe-scan` per theme (contrast), `theme-locale-matrix`.
   (probe `layout-shift`), or compare `r(container).height` before and after data lands.
 - **Scroll position survives updates.** A list or terminal does not snap to the bottom or top
   while the user reads. Check: scroll up, wait for a daemon update, and compare `scrollTop`.
+- **An action shows on the click.** A click that changes a task row or a tab strip is drawn before
+  the daemon answers and put back if it is refused. Send it through the model: `model.act(op, args)`
+  for a task op (what it changes is one entry in `EDITS`, `optimistic.ts`), `model.closeTab` /
+  `model.renameTab` for tabs. A raw `client.request("task.archive")` works and shows a round trip
+  plus the next push later: 258ms on localhost before this rule, 2ms after. A new op that changes a
+  row adds its `EDITS` entry in the same PR; `test/act-on-click.test.ts` fails a raw call to a listed
+  op (`// act-ok: <reason>` on the line above excuses one). A page that sends, then reloads
+  (`request` then `reload()`), pays two round trips: edit its own store first and revert on
+  failure, as `setPref` does. Check: time from the click to the row's first DOM change, under 50ms
+  on localhost.
+- **No fixed wait on the way to the screen.** A delay between a change and its draw is sized by
+  the cost it protects, and a change with nothing just before it goes at once. `TaskFeed` rests
+  four times what its last read took (a 2ms read: 8ms), capped at 250ms; a fixed 250ms there once
+  held every change a quarter second. Before adding a `_MS` constant on that path, measure the
+  cost it guards and write the number beside it.
 - **Every control has rest, hover, focus-visible, active and disabled states**, and each step
   is more prominent than rest. A disabled control says why (a title or an adjacent hint).
 
@@ -227,6 +246,8 @@ Probe: `viewport-stress`.
   (hover, menu highlight) changes instantly.
 - **Respect `prefers-reduced-motion`.** Gate new motion with Tailwind's `motion-safe:` /
   `motion-reduce:` variants on the element.
+- **Rail rows slide when the task list changes** (`rail-slide.ts`: 180ms, `transform`; a new row
+  fades in). Search, folding and theme changes redraw at once.
 - The rail spinner is a glyph frame from the daemon status, not a CSS animation. It ticks only
   while a row runs (`useSpinnerFrame`).
 
@@ -289,6 +310,12 @@ only last.
 - **A change on one client is not done** until the other matches or the gap is named in the PR
   and in `docs/web/PARITY.md`. The same goes for light ↔ dark, wide ↔ narrow ↔ phone, local ↔
   remote machine, and `en` ↔ `zh`.
+- **One definition, every layout.** What the wide and narrow layouts both offer (which panel kinds
+  the top bar opens, their names, their icons, which actions a menu has) is defined once and both
+  read it: `LAUNCHED_KINDS` in `panel-layout.ts`, names from `panel.*`, icons from `ICONS`. A
+  narrow-only list or label set is the bug even when it matches today: dropping Chat from the
+  desktop launcher once left it on the phone's switch for exactly that reason. Only the drawing
+  (size, icons vs text, placement) may differ per layout.
 
 ## Rove-specific
 
@@ -321,9 +348,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 - **Unknown is not empty:** nothing says "no sessions" before the first tab list arrives.
 - **Scrollbars are thin or hidden:** thin token-coloured pills everywhere, and none on the rail.
 - Hover is a neutral wash; the accent is for selection and focus.
-- **Web ↔ TUI parity** is part of done. **Preview-install locally** (`scripts/preview-install.sh`
-  in a clone, restart the daemon and web, hard-reload) before calling anything shipped; never
-  cut a release just so the owner can look.
+- **Web ↔ TUI parity** is part of done. A working rove-web change goes onto the owner's live web
+  (the 7890 bridge from `rove-local-test`) at once, merged or not, then the owner refreshes:
+  `docs/agents/dev-loop.md` § Live web preview. Never cut a release just so the owner can look.
 
 **Running a check.**
 
@@ -332,9 +359,9 @@ Machines, Usage). Overlays (dialogs, menus, toasts, the inbox) are recipes in `s
 2. Drive it with the rove browser tools only (`mcp__rove__chrome_navigate`, `_screenshot`,
    `_javascript`, `_read_page`, `_computer`). Don't use the built-in browser pane, and don't pop
    windows that steal focus while the owner works.
-3. **Never touch the owner's global rove:** no restart, upgrade or preview-install over the
-   daemon, and no use of `rove --web` on `127.0.0.1:7878` from a routine. Read it if you must;
-   don't change it.
+3. **The owner's live web on 7890 is the test build:** install there per dev-loop § Live web
+   preview. Leave the `7878` bridge and the installed npm release alone, and never run
+   `scripts/preview-install.sh` over the global install from a routine.
 4. Unit tests: `bun run test` in `packages/rove-web`. Before a PR, from the repo root: `bun run pre-pr -- --body-file <file>`.
 
 ## Workflow
@@ -398,7 +425,6 @@ All read on 2026-10-21. Paraphrased and condensed; no passages copied.
   (no numbering or eyebrows without meaning), spend boldness in one place, the quality floor
   (focus, reduced motion, responsive), and the copy rules (name by user task, one name per
   action, errors give direction).
-- Local: `~/.claude/skills/owner-align/SKILL.md` (the owner's corrections),
-  `.claude/routines/ui-polish-sweep.md`, `packages/rove-web/src/{styles,overlays,taskops}.css`,
-  `rail-view.tsx`, `app.tsx`, `layout.ts`, `prefs-theme.ts`,
-  `packages/rove/src/lib/row-status-glyph.ts`, and `docs/web/PARITY.md`.
+- Local: `packages/rove-web/src/tailwind.css`, `src/ui/`, `rail-view.tsx`, `app.tsx`,
+  `layout.ts`, `prefs-theme.ts`, `packages/rove/src/lib/row-status-glyph.ts`, and
+  `docs/web/PARITY.md`.

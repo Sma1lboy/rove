@@ -51,6 +51,8 @@ export interface CreateTaskInput {
   readonly groupId?: string
   /** The rove session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
+  /** A bare checkout (`add --worktree-only`): marked from its first write, so no client lists it even for a moment. */
+  readonly worktreeOnly?: boolean
   /** Tree lineage: the task this one is spawned from (`Task.parentTaskId`). */
   readonly parentTaskId?: TaskId
   /** Engine cwd below the worktree root (`Task.cwdSubpath`). */

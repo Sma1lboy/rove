@@ -225,6 +225,11 @@ export interface Task {
   /** Every prompt sent to this task arms a delivery that must end in `rove api report`. */
   readonly requireReport?: boolean
   /**
+   * A checkout `add --worktree-only` cut for the calling session to work in, with no engine of its own. While it has a
+   * parent the clients list no row for it; the first turn an engine starts in it clears the mark.
+   */
+  readonly worktreeOnly?: boolean
+  /**
    * The brief `add --prompt` delivered, recorded on the delivery path because
    * the engine transcript isn't durable. Verbatim, never truncated: the key
    * constraints often sit at the end of a long brief.

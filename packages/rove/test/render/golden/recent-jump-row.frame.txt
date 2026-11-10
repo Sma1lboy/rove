@@ -8,13 +8,13 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
-|  ↩ Recent: bravo             |
+| ↩ Recent: bravo              |
 |                              |
 | rove ─────────────────────── |
-|▌ ○ alpha                     |
-|  ○ bravo                     |
+|▌○ alpha                      |
+| ○ bravo                      |
+|                              |
 |                              |
 |                              |
 |                              |

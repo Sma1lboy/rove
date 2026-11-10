@@ -12,6 +12,7 @@ import { INTERRUPT_VERB } from "./handlers-interrupt.ts"
 import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB, TAB_NEW_VERB, TAB_SPLIT_VERB } from "./handlers-pane.ts"
 import { PANEL_SHOW_VERB } from "./handlers-panel.ts"
 import { QUEUE_CANCEL_VERB, QUEUE_EDIT_VERB } from "./handlers-queue.ts"
+import { RESUME_QUOTA_VERB } from "./handlers-resume-quota.ts"
 import { ROW_TOKEN_VERB } from "./handlers-row-token.ts"
 import { TAB_REVIVE_VERB } from "./handlers-tab-revive.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
@@ -105,13 +106,14 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   DISPATCH_VERB,
   INTERRUPT_VERB,
+  RESUME_QUOTA_VERB,
   QUEUE_EDIT_VERB,
   QUEUE_CANCEL_VERB,
   {
     name: "note",
     group: "drive",
     summary:
-      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store (every future session on this repo starts with it) and forwarded to the dispatcher session for live relay (docs/design/dispatcher.md).",
+      "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store: every future session on this repo starts with it in its system prompt. It starts no turn in any running session (docs/design/dispatcher.md).",
     flags: [
       F.taskId(true),
       {

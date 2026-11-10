@@ -21,6 +21,7 @@ import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isObject } from "../../lib/is-object.ts"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { vendorConfigHome } from "../vendor-home"
+import { probeContext, probedContext } from "./context-probe"
 import { foldSessionUsage, parseSessionRaw } from "./history-parse"
 
 export { parseJsonl } from "./history-parse"
@@ -195,7 +196,38 @@ export async function readUsageSnapshot(
     ...(cacheRead > 0 ? { cache_read_input_tokens: cacheRead } : {}),
     ...(cacheCreate > 0 ? { cache_creation_input_tokens: cacheCreate } : {}),
     ...(lastContext > 0 ? { context_tokens: lastContext, context_tokens_approximate: true } : {}),
+    ...(lastContext > 0 ? probedParts(sessionId, lastContext) : {}),
   }
+}
+
+/** The probe's fixed parts plus the conversation as the remainder, so the parts track every turn. */
+function probedParts(
+  sessionId: string,
+  context: number,
+): Pick<EngineUsageSnapshot, "context_parts" | "context_window_tokens"> {
+  const probe = probedContext(sessionId)
+  if (!probe) return {}
+  const counted = probe.parts.filter((part) => !part.deferred)
+  const fixed = counted.reduce((sum, part) => sum + part.tokens, 0)
+  // A compacted or cleared conversation can fall under the old fixed reading; one total is truer than a split.
+  if (fixed >= context) return {}
+  return {
+    context_parts: [
+      ...counted,
+      { key: "messages", tokens: context - fixed },
+      ...probe.parts.filter((part) => part.deferred),
+    ],
+    ...(probe.windowTokens && probe.windowTokens >= context ? { context_window_tokens: probe.windowTokens } : {}),
+  }
+}
+
+/** Ask Claude itself what fills `sessionId`'s window; later {@link readUsageSnapshot} reads carry the answer. */
+export async function probeSessionContext(
+  sessionId: string,
+  deps: HistoryDeps = defaultDeps,
+  run?: (sessionId: string, cwd: string, model?: string) => Promise<string>,
+): Promise<void> {
+  await probeContext(sessionId, async () => (await findSessionRaw(sessionId, deps))?.raw, run)
 }
 
 /**

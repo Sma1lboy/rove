@@ -8,6 +8,7 @@
 import { createStore, useStore } from "../store.ts"
 import * as artifact from "./artifact.ts"
 import * as compare from "./compare.ts"
+import * as context from "./context.ts"
 import * as dialogs from "./dialogs.ts"
 import * as machines from "./machines.ts"
 import * as panel from "./panel.ts"
@@ -18,6 +19,7 @@ import * as runLog from "./run-log.ts"
 import * as settings from "./settings.ts"
 import * as transcript from "./transcript.ts"
 import * as usage from "./usage.ts"
+import * as voice from "./voice.ts"
 import * as workspace from "./workspace.ts"
 
 export type Locale = "en" | "zh"
@@ -36,6 +38,8 @@ const parts = [
   machines,
   artifact,
   review,
+  context,
+  voice,
 ]
 
 /** English is the source of truth; `zh` must carry exactly these keys and `{placeholders}`. */
@@ -51,7 +55,9 @@ export const en = Object.assign({}, ...parts.map((part) => part.en)) as typeof r
   typeof transcript.en &
   typeof machines.en &
   typeof artifact.en &
-  typeof review.en
+  typeof review.en &
+  typeof context.en &
+  typeof voice.en
 export const zh: typeof en = Object.assign({}, ...parts.map((part) => part.zh))
 
 const CATALOGS: Record<Locale, typeof en> = { en, zh }

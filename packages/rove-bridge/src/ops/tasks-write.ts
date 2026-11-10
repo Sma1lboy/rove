@@ -27,6 +27,7 @@ import type { Args, OpContext, OpSpec, OpTable } from "./types.ts"
 
 const STATUSES = ["backlog", "in_progress", "in_review", "done", "canceled", "error"] as const
 const DIRECTIONS = ["up", "down", "top"] as const
+const SIDES = ["before", "after"] as const
 const PROMPT_MAX = 100_000
 
 /** `extraRepos`: the task's other repos in pick order (the first `repo` is the primary), each with an optional base ref. */
@@ -242,9 +243,21 @@ export const TASK_WRITE_OPS: OpTable = {
   "task.autoFixCi": write("verb update --task-id --auto-fix-ci", (a, c) =>
     done(c.api.verb("update", [flag("task-id", taskId(a)), flag("auto-fix-ci", bool(a, "enabled") ? "on" : "off")])),
   ),
+  "task.resumeQuota": write("rpc task.resumeQuota", (a, c) =>
+    done(c.api.rpc("task.resumeQuota", { taskId: taskId(a) })),
+  ),
   "task.archive": write("verb archive|unarchive --task-id [--force]", archive),
   "task.move": write("rpc task.move", (a, c) =>
     done(c.api.rpc("task.move", { taskId: taskId(a), direction: oneOf(a, "direction", DIRECTIONS) })),
+  ),
+  "project.move": write("rpc project.move (the whole project, main or not, beside another)", (a, c) =>
+    done(
+      c.api.rpc("project.move", {
+        repo: absPath(a, "repo"),
+        target: absPath(a, "target"),
+        side: oneOf(a, "side", SIDES),
+      }),
+    ),
   ),
   "project.forget": write(
     "rpc project.forget",
@@ -267,7 +280,7 @@ export const TASK_WRITE_OPS: OpTable = {
     const repo = absPath(a, "repo")
     // Opening a project's main task is how a fresh clone becomes a known project, so this
     // takes any real git repo rather than only a known one.
-    const problem = taskOpDeps.validateRepoPath(repo)
+    const problem = await taskOpDeps.validateRepoPath(repo)
     if (problem) throw new BridgeError("BAD_ARGS", problem)
     const res = await c.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo })
     return { taskId: res.task.id }
@@ -276,19 +289,20 @@ export const TASK_WRITE_OPS: OpTable = {
   // conversation of the main task: `tab.new` on a main that already runs one makes a child nested under it.
   "task.openCheckout": write("rpc task.ensureMain + task.openDir {dir: the project root}", async (a, c) => {
     const repo = absPath(a, "repo")
-    const problem = taskOpDeps.validateRepoPath(repo)
-    if (problem) throw new BridgeError("BAD_ARGS", problem)
+    const problem = await taskOpDeps.validateRepoPath(repo)
+    // A folder git cannot use is a standalone directory session (`rove <path>`'s shape): no project row.
+    if (problem && !taskOpDeps.isDirectory(repo)) throw new BridgeError("BAD_ARGS", problem)
     const title = optText(a, "title", 200)
     const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
     // The project row first: a dir task alone on a repo root is what a missing project row adopts.
-    const main = await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })
+    const dir = problem ? repo : (await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })).task.repo
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
-      dir: main.task.repo,
-      vendor: engine ?? taskOpDeps.preferredEngine(main.task.repo),
+      dir,
+      vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
     })
-    if (engine) taskOpDeps.rememberEngine(main.task.repo, engine)
+    if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),

@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 108 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 114 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -108,6 +108,11 @@ top-level task. `--no-parent` is the unrelated top-level task cut from the repo
 default, `--parent ID` nests under another task, and a bare `send` from the
 child reports back to you.
 
+Only need a separate checkout to edit in yourself? `add --repo "$PWD"
+--worktree-only` cuts the worktree (`worktreePath` in the reply) and starts no
+engine. It is not a session, so nothing lists it under you until you `send` it
+work. Delete it when you are done.
+
 The distinction that decides every routing call: **a shared child uses the
 parent's worktree and branch; only a new task (`add`) gets its own.**
 Two conversations in one directory edit the same files, so they can collide —
@@ -167,11 +172,14 @@ snapshot lost; it is addressable like any other.
 
 Once you know what the conversation is about, retitle your own task so the user can tell it from its siblings: `rove api update --title "short, specific title"` (no `--task-id` needed — it defaults to your task).
 
-### Coordinating others? Start every turn with `context`
+### Coordinating others? Read `context` when you lack the state
 
-If you spawned tasks, begin each turn with one read instead of your memory —
-between two of your turns a worker can finish, crash, stall on a permission
-prompt or get its PR approved, and you witnessed none of it:
+If you spawned tasks, read `context` at the start of a session and whenever
+you need state you do not have — between two of your turns a worker can
+finish, crash, stall on a permission prompt or get its PR approved, and you
+witnessed none of it. A turn started by a `[ROVE REPORT]` line or a peer
+message that already carries the outcome acts on that message; it does not
+re-read the fleet first:
 
 ```bash
 rove api context --repo "$PWD" --text
@@ -309,8 +317,10 @@ Find your section by what you were ASKED, not by Rove's noun for it:
 | a prompt ends `[ROVE] … report with: rove api report`; tick a task unattended and want proof it reported, or skip a tick the task can't use | drive (`report`, `send --expect-report`, `send --if-runnable`) / read (`deliveries`, `should-run`) |
 | make / rename / retarget / land / close a task | create / edit / lifecycle |
 | materialize or adopt a checkout | worktree |
-| which engines exist, send Rove product feedback | discover / feedback |
+| which engines exist, report a Rove problem or idea | discover / feedback |
 | an error code came back, `nextCommandArgs` | Error codes |
+
+When the user says anything in Rove itself is awkward, broken or missing, offer to file it right away: draft a short title and body, show it, and on their OK run `rove feedback --kind bug|idea|question --title … --body-file -` (body on stdin), then share the URL. If it prints a prefilled link instead, hand that over and say to run `gh auth login`. Only for Rove; another project's bug is a `send` to its main task.
 
 Reach for `schema` when the binary and that file disagree.
 
@@ -358,6 +368,7 @@ rove api send --task-id <id> --prompt-file - <<'EOF'              # anything els
 EOF
 
 # Reply home: no --task-id inside a dispatched task = the dispatcher's tab.
+# Not when your prompt ended with a `report --delivery` footer: `report` is then the only signal.
 rove api send --prompt "succeeded: <one line> (branch <final branch>)"
 
 # A task can hold several Terminal Tabs. `get-task` lists ONE task's tabs (the
@@ -645,13 +656,21 @@ solely to coordinate or review a small, reversible change.
 Outcomes are explicit, never inferred — and they travel as a MESSAGE to the
 spawning agent's engine tab, not as stored state nobody reads.
 
-**Worker side** — a task created from inside another Rove task records its
-dispatcher (the creating task + tab); when the work is finished, a bare
-`rove api send --prompt "<succeeded|failed>: <one line> (branch <final
-branch>)"` routes the outcome back to that exact tab. Include the final
-branch name — the spawner needs it to `land`. Use the BARE form: an explicit
-`--task-id <spawner>` skips dispatcher routing and lands on that task's
-canonical engine tab, which can be a different agent's session.
+**Worker side** — one outcome signal per finished piece of work:
+
+- Your prompt ended with a `[ROVE] … report --delivery d-<n>` footer? Run
+  `report` (below) and nothing else. Do NOT also send a `succeeded:`
+  message: Rove pastes one `[ROVE REPORT]` line with your outcome and summary
+  into your dispatcher's tab.
+- No footer, and another Rove task created yours? It recorded itself as your
+  dispatcher (task + tab); a bare `rove api send --prompt "<succeeded|failed>:
+  <one line> (branch <final branch>)"` routes the outcome back to that exact
+  tab. Include the final branch name — the spawner needs it to `land`. Use
+  the BARE form: an explicit `--task-id <spawner>` skips dispatcher routing
+  and lands on that task's canonical engine tab, which can be a different
+  agent's session.
+- Neither (the owner started you)? The board status is your signal: with
+  auto status on, Rove's system prompt tells you to set `in_review`.
 
 **Name your branch before you report it.** A new task starts on an
 auto-generated placeholder branch (`new-task`, `duck`, …); you are the only
@@ -672,14 +691,16 @@ real message (you wrote the code; you write its message). A worker that ran
 everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
 
-Rove checks this at the moment you claim it: a `succeeded:` report from a
-managed task whose branch has **0 commits** is refused with
-`EMPTY_SUCCESS_REPORT` and never reaches the coordinator. Commit, then send.
+Rove checks this at the moment you claim it: a `succeeded:` send, or a
+`report --outcome done` on a delivery a `send` armed, from a managed task
+whose branch has **0 commits** is refused with `EMPTY_SUCCESS_REPORT` and
+never reaches the coordinator. Commit, then send or report.
 When the task genuinely produced no commits — an investigation, a review, a
 question answered — say so explicitly with `--allow-empty`:
 
 ```bash
 rove api send --allow-empty --prompt "succeeded: no bug — root cause is upstream, see notes"
+rove api report --allow-empty --delivery d-41 --outcome done --summary "no bug — root cause is upstream"
 ```
 
 **"CI is green" means `checkState: passing`.** A local test run is not CI: it
@@ -699,8 +720,9 @@ Run `rove api pr-attach --url <url>` once so it shows on your task's row with
 live state. Idempotent; `rove api publish` already does it.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
-turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message
-with its task id. What arrives is the worker's claim, not Rove-verified —
+turn); each worker's outcome arrives in your chat with its task id: a
+`[ROVE REPORT]` line when you armed the prompt, else a `[ROVE PEER]` message.
+Neither needs an answer. What arrives is the worker's claim, not Rove-verified —
 verify the winner's actual diff before landing. Silence never proves a
 worker died (it may be mid-turn or stuck on a permission prompt): peek with
 `collect`/`get-task`, nudge with `send`, and never mark a silent task failed
@@ -716,7 +738,7 @@ a standing session, a scheduler ticking a task — Rove can also ask for a
 report: rove api report --delivery d-<n> …` (or opens with a
 `[ROVE ROUTINE] … report with: rove api report --delivery d-<n> …` line)
 is an armed delivery. Make `report` the LAST step of the turn, before you
-stop:
+stop. It is your only outcome signal: no `succeeded:` send as well.
 
 ```bash
 rove api report --delivery d-41 --outcome done \
@@ -728,7 +750,8 @@ rove api report --delivery d-41 --outcome done \
 `--outcome` is `done`, `partial`, `blocked` (you need the owner or an
 outside fix) or `failed` (you tried and could not). A turn that ends with no
 report is flagged `report_missing` in the owner's Inbox, and the delivery is
-marked `missing`. Reporting again replaces the report; a late report clears
+marked `missing`; a `[ROVE ROUTINE]` turn with nothing to report just stops
+(the delivery goes `quiet`, no Inbox row). Reporting again replaces the report; a late report clears
 the flag. For text with quotes or backticks use `--json -` (stdin) with
 `{delivery, outcome, summary, evidence?, next?}`. `routine-respond` is the
 same report as `--outcome done`.
@@ -736,7 +759,11 @@ same report as `--outcome done`.
 **Sending side.** Arm the prompt you send: `rove api send --expect-report
 …` (the reply carries `deliveryId`), or set it once with
 `add --require-report` / `update --require-report on` so every `send` to that
-task is armed. Read what recent ticks did with `rove api deliveries
+task is armed. When the worker reports, Rove pastes one line into the
+worker's dispatcher tab: `[ROVE REPORT] "<title>" (task <id>, branch <b>)
+<outcome>: <summary's first line>`. It goes to the task's recorded
+dispatcher, not to whoever sent the prompt, and is skipped while that tab is
+at a menu or has no live engine. Read what recent ticks did with `rove api deliveries
 --task-id <id> --limit 5` (newest first: outcome, summary, evidence, next,
 or why it went missing) instead of a growing notes file. Silence still never
 proves a worker is dead — `missing` says the turn ended or the engine died

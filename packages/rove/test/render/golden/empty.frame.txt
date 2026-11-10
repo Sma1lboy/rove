@@ -8,11 +8,11 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Search                       |
 |                              |
 |                              |
 | No active tasks — create one |
 | above.                       |
+|                              |
 |                              |
 |                              |
 |                              |

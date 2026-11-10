@@ -5,6 +5,7 @@
  */
 
 import { execFile } from "node:child_process"
+import { statSync } from "node:fs"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
@@ -16,7 +17,7 @@ import {
   validateCloneTarget,
   validateGitUrl,
 } from "@sma1lboy/rove/src/tui/component/new-task-dialog/clone.ts"
-import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot.ts"
+import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@sma1lboy/rove/src/tui/lib/git-snapshot-async.ts"
 import type { VendorId } from "@sma1lboy/rove/src/types/vendor.ts"
 import { BridgeError } from "../protocol.ts"
 import { absPath } from "./args.ts"
@@ -43,9 +44,18 @@ export const taskOpDeps = {
   },
   /** What a picker preselects: the project's last engine, else Settings' default, else the first enabled one. */
   preferredEngine: (repo?: string): string => resolvePreferredVendor(repo === undefined ? undefined : projectKey(repo)),
-  listLocalBranches,
-  getCurrentBranch,
-  validateRepoPath,
+  // Async: a synchronous git here held every browser's frames for as long as it ran. A test may stub a plain value.
+  listLocalBranches: listLocalBranches as (repo: string) => string[] | Promise<string[]>,
+  getCurrentBranch: getCurrentBranch as (repo: string) => string | null | Promise<string | null>,
+  validateRepoPath: validateRepoPath as (repo: string) => string | null | Promise<string | null>,
+  /** A folder that is no usable git repo still opens: as a directory session, with no worktree or branch. */
+  isDirectory: (path: string): boolean => {
+    try {
+      return statSync(path).isDirectory()
+    } catch {
+      return false
+    }
+  },
   cloneRepo,
   validateGitUrl,
   validateCloneTarget,
@@ -155,7 +165,7 @@ export async function checkAgentEngines(plan: ReadonlyArray<{ id: string }>, ctx
   }
 }
 
-/** Absolute repo path that Rove already knows: a saved project or one with tasks (the `repos.list` set). */
+/** Absolute repo path that Rove already knows: a saved project or one with tasks. */
 export async function knownRepo(args: Args, ctx: OpContext, name = "repo"): Promise<string> {
   const repo = absPath(args, name)
   if (taskOpDeps.savedRepos().includes(repo)) return repo

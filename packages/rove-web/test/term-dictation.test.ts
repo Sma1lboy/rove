@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { compositionFix, editBytes, inputFix } from "../src/term-dictation.ts"
+import { compositionFix, editBytes, inputFix, pasteStaysEditable } from "../src/term-dictation.ts"
 
 const DEL = "\x7f"
 
@@ -50,4 +50,13 @@ test("a line that was already submitted is never erased", () => {
   expect(editBytes("first\nsecond", "first\nsecond edited")).toBe(" edited")
   expect(editBytes("first\nsecond", "first\nsecant")).toBe(`${DEL.repeat(3)}ant`)
   expect(editBytes("first\nsecond", "other")).toBe(`${DEL.repeat(6)}other`)
+})
+
+test("a pasted phrase can be replaced by a later paste; a long or multi-line paste is left alone", () => {
+  const raw = "呃那个帮我把这个函数改一下"
+  expect(pasteStaysEditable(raw)).toBe(true)
+  // The tool selects the phrase and pastes over it: the selection is erased first, then xterm sends the paste.
+  expect(editBytes(raw, "")).toBe(DEL.repeat(13))
+  expect(pasteStaysEditable("line one\nline two")).toBe(false)
+  expect(pasteStaysEditable("x".repeat(501))).toBe(false)
 })

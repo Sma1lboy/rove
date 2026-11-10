@@ -101,7 +101,7 @@ h1 .thin,h1 .acc{font-weight:400;color:var(--ink-2)}
 .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:48px;padding:24px 0 8px;align-items:start}
 .hero-l{min-width:0}
 .hero-r{min-width:0}
-.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:var(--ink)}
+.demo video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#FAF8F5;border:1px solid var(--rule)}
 
 /* install --------------------------------------------------------------- */
 .install-wrap{max-width:600px}
@@ -114,7 +114,30 @@ select{
   background-repeat:no-repeat;background-position:right 10px center;background-size:12px 12px;
 }
 :root[data-theme="dark"] select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%237F9BBB' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
-.install-help{max-width:600px;color:var(--ink-2);margin:0 0 12px}
+.install-help{max-width:600px;color:var(--ink-2);margin:12px 0 0;font-size:14px}
+.seg-label{color:var(--ink-2)}
+.seg{display:inline-flex;border:var(--hair) solid var(--ink-3)}
+.seg button{background:none;border:0;border-left:var(--hair) solid var(--ink-3);padding:7px 14px;color:var(--ink-2);font:inherit}
+.seg button:first-child{border-left:0}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.sub{grid-column:1/-1;font-size:var(--fs-m);font-weight:600;margin:32px 0 12px}
+.note>h2+.sub{margin-top:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.card{margin:0;padding:20px 22px;border:var(--hair) solid var(--rule);background:var(--paper-2)}
+.card p{margin:0}
+.card .t-note{margin-top:12px}
+.dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px!important}
+.dl a{border:var(--hair) solid var(--ink);padding:8px 14px;text-decoration:none;color:var(--ink);background:var(--paper)}
+.dl a:hover{border-color:var(--accent-line);color:var(--accent-text)}
+.chan{border-top:var(--hair) solid var(--rule)}
+.chan-row{display:grid;grid-template-columns:260px minmax(0,1fr);gap:8px 24px;align-items:start;padding:12px 0;border-bottom:var(--hair) solid var(--rule)}
+.chan-n{grid-row:span 2}
+.chan-n b{display:block}
+.chan-n span{font-size:14px;color:var(--ink-2)}
+.chan .copy .cmd{padding:10px 12px;font-size:14px}
+.chan .copy .hint{padding:0 12px}
+.chan+.t-note{margin-top:12px}
 .copy{
   display:flex;align-items:stretch;width:100%;
   background:transparent;border:var(--hair) solid var(--ink);color:var(--ink);
@@ -142,6 +165,11 @@ section{position:relative}
 .note.wide .txt-col{padding-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 48px}
 .note.wide .txt-col>*{max-width:60ch}
 .fig-col,.txt-col{min-width:0}
+.can{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 32px;margin:0;counter-reset:can}
+.can>div{counter-increment:can;border-top:var(--hair) solid var(--rule);padding:16px 0 24px}
+.can dt{font-weight:600;margin:0 0 4px}
+.can dt::before{content:counter(can,decimal-leading-zero);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--accent-text);margin-right:10px}
+.can dd{margin:0;color:var(--ink-2);max-width:40ch}
 .txt-col p{margin:0 0 16px;max-width:56ch}
 .txt-col p:last-child{margin-bottom:0}
 .txt-col p,.t-note{overflow-wrap:anywhere}
@@ -194,6 +222,8 @@ footer .c{font-size:var(--fs-s);color:var(--ink-3)}
   .hero{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:900px){
+  .chan-row{grid-template-columns:minmax(0,1fr)}
+  .chan-n{grid-row:auto}
   .note{grid-template-columns:minmax(0,1fr);padding-top:56px}
   .fig-col{padding-bottom:24px}
 }
@@ -203,6 +233,8 @@ footer .c{font-size:var(--fs-s);color:var(--ink-3)}
   .head #langToggle{margin-left:auto}
   .head nav{order:1;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:20px;white-space:nowrap}
   .head nav::-webkit-scrollbar{display:none}
+  .chan-row{grid-template-columns:minmax(0,1fr)}
+  .chan-n{grid-row:auto}
   .copy{flex-wrap:wrap}
   .copy .cmd{flex:1 0 100%;padding:12px 14px}
   .copy .hint{flex:1 0 100%;padding:8px 14px;border-top:var(--hair) solid var(--rule)}

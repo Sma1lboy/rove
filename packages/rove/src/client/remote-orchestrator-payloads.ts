@@ -130,6 +130,31 @@ export interface ContextUsage {
   readonly outputTokens?: number
   readonly cacheReadTokens?: number
   readonly cacheCreationTokens?: number
+  /** What `contextTokens` is made of, when the engine records it. */
+  readonly parts?: readonly ContextUsagePart[]
+}
+type ContextUsageItem = { readonly name: string; readonly tokens: number }
+type ContextUsagePart = {
+  readonly key: string
+  readonly tokens: number
+  readonly label?: string
+  readonly items?: readonly ContextUsageItem[]
+  readonly itemCount?: number
+  readonly deferred?: true
+}
+/** A part off the wire, keeping what it is made of when that is well formed. */
+function contextPart(p: Record<string, unknown>): ContextUsagePart {
+  const items = Array.isArray(p.items)
+    ? p.items.filter((i): i is ContextUsageItem => typeof i?.name === "string" && typeof i?.tokens === "number")
+    : []
+  return {
+    key: p.key as string,
+    tokens: p.tokens as number,
+    ...(typeof p.label === "string" ? { label: p.label } : {}),
+    ...(items.length > 0 ? { items: items.map(({ name, tokens }) => ({ name, tokens })) } : {}),
+    ...(typeof p.itemCount === "number" ? { itemCount: p.itemCount } : {}),
+    ...(p.deferred === true ? { deferred: true as const } : {}),
+  }
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
@@ -148,6 +173,12 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
     const v = value as Record<string, unknown> | undefined
     if (typeof v?.contextTokens !== "number") return null
     if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    const parts = v.parts
+    if (
+      parts !== undefined &&
+      (!Array.isArray(parts) || !parts.every((p) => typeof p?.key === "string" && typeof p?.tokens === "number"))
+    )
+      return null
     const totals: Record<string, number> = {}
     for (const field of TOKEN_TOTAL_FIELDS) {
       const raw = v[field]
@@ -160,6 +191,7 @@ export function parseContextUsagePayload(payload: unknown): Map<string, ContextU
       ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
       ...(v.approximate === true ? { approximate: true } : {}),
       ...totals,
+      ...(Array.isArray(parts) ? { parts: parts.map(contextPart) } : {}),
     })
   }
   return map
@@ -175,7 +207,8 @@ export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boo
       other.contextTokens !== value.contextTokens ||
       other.contextWindowTokens !== value.contextWindowTokens ||
       other.approximate !== value.approximate ||
-      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field])
+      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field]) ||
+      JSON.stringify(other.parts) !== JSON.stringify(value.parts)
     )
       return false
   }
@@ -329,6 +362,7 @@ export function deserializeTask(s: SerializedTask): Task {
     ...(s.workspace ? { workspace: s.workspace } : {}),
     ...(s.sessionPrs?.length ? { sessionPrs: s.sessionPrs } : {}),
     requireReport: s.requireReport,
+    ...(s.worktreeOnly ? { worktreeOnly: true } : {}),
     prompt: s.prompt,
     baseRef: s.baseRef,
     worktreeName: s.worktreeName,

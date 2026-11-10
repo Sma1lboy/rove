@@ -106,6 +106,7 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
   cwdSubpath: "packages/app",
   ptyAlias: { taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB0", tabId: "tab-2" },
   requireReport: true,
+  worktreeOnly: true,
   prompt: "the full task brief — never truncated on the way to the wire",
   baseRef: "release/2.x",
   worktreeName: "probe-1",

@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react"
-import { AttachmentChips, useAttachments, withRefs } from "./attachments.tsx"
+import { AttachmentThumbs, useAttachments, withRefs } from "./attachments.tsx"
 import { ChipRow } from "./chip-row.tsx"
 import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
@@ -54,7 +54,7 @@ export function NewChatDialog(props: {
   const [attempts, setAttempts] = useState("1")
   const [baseRef, setBaseRef] = useState(task?.branch ?? "main")
   const { busy, error, setError, submit } = useSubmit()
-  const { attachments, attach, remove } = useAttachments(model, setError)
+  const { attachments, attach, remove, ready } = useAttachments(model, setError)
 
   // Shell rows exist for fresh tabs here and Scratch; a fork or a continued chat is an engine's.
   const shellOk = context === "fresh" && destination !== "fork"
@@ -99,7 +99,7 @@ export function NewChatDialog(props: {
       const replaceTab = context === "continue" && destination === "tab" && !shell && !pane && sourceDead()
       // A replacement's brief is built by the same `send --handoff-from` the CLI runs; only the message goes up here.
       const lead = context === "continue" && !replaceTab ? await handoff() : ""
-      const message = withRefs(prompt.trim(), attachments)
+      const message = withRefs(prompt.trim(), await ready())
       const first = [lead, message].filter(Boolean).join("\n\n")
       if (destination === "scratch") {
         const made = await model.client.request<{ taskId: string }>("task.openScratch", shell ? {} : { engine: pick })
@@ -142,7 +142,7 @@ export function NewChatDialog(props: {
           pane: paneIdOf(pick),
           ...(host ? { tabId: host } : {}),
         })
-        await model.refreshTabsNow()
+        await model.refreshTabsNow(taskId)
         model.select(taskId, opened.tabId)
       } else
         await openTab(model, taskId, {
@@ -280,7 +280,7 @@ export function NewChatDialog(props: {
             />
           </label>
         )}
-        <AttachmentChips attachments={attachments} onRemove={remove} />
+        <AttachmentThumbs attachments={attachments} onRemove={remove} />
         {isTouch() ? (
           <p className="text-muted">{t("pages.attachHintTouch")}</p>
         ) : (

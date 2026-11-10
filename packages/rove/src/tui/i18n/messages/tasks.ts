@@ -48,6 +48,7 @@ export const en = {
     /** Scratch section header: a new Scratch task in $HOME on the preferred engine. */
     newScratchChat: "New conversation (no folder)",
     newTask: "New task",
+    newTaskFromBranch: "New task from this branch",
     /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
     forgetProject: "Remove project",
     /** Project row: read the repo's durable field notes (`rove api note`). */
@@ -216,9 +217,6 @@ export const en = {
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
-  /** The fold row standing in for a project's routine sessions */
-  routinesRow: "{count} routine sessions",
-  routinesRowOne: "1 routine session",
   /** The fold row at the end of the sidebar holding archived tasks */
   archivedRow: "Archived · {count}",
   /** Machine section headers — another computer running its own Rove daemon */
@@ -325,6 +323,7 @@ export const zh: typeof en = {
     continueEngine: "换个引擎继续…",
     newScratchChat: "新建会话（无文件夹）",
     newTask: "新建任务",
+    newTaskFromBranch: "基于此分支新建任务",
     forgetProject: "移除项目",
     fieldNotes: "现场笔记",
     rename: "重命名",
@@ -445,8 +444,6 @@ export const zh: typeof en = {
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
-  routinesRow: "{count} 个 routine 会话",
-  routinesRowOne: "1 个 routine 会话",
   archivedRow: "已归档 · {count}",
   machine: {
     connecting: "连接中…",

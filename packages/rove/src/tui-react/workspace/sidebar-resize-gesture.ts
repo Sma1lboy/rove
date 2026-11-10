@@ -30,15 +30,18 @@ export interface SidebarResizeGesture {
 export function useSidebarResizeGesture(opts: {
   /** Every drag offsets from this. */
   readonly width: number
+  /** Live, per motion: show only, do not persist (a KV write per cell wakes every consumer). */
   readonly onResize: (width: number) => void
+  /** The drag ended: persist the width it reached. Absent = nothing to commit. */
+  readonly onRelease?: (width: number) => void
   /** Double-click on the grip: back to the terminal-derived width. */
   readonly onReset: () => void
 }): SidebarResizeGesture {
-  const armed = useRef<{ x: number; width: number; moved: boolean } | null>(null)
+  const armed = useRef<{ x: number; width: number; moved: boolean; at: number } | null>(null)
   const lastRelease = useRef(0)
   return {
     onGripDown: (event) => {
-      armed.current = { x: event.x, width: opts.width, moved: false }
+      armed.current = { x: event.x, width: opts.width, moved: false, at: opts.width }
     },
     onPaneDrag: (event) => {
       // Every workspace drag bubbles here (text selections too); unarmed = silent.
@@ -47,7 +50,8 @@ export function useSidebarResizeGesture(opts: {
       const delta = event.x - from.x
       if (delta === 0) return
       from.moved = true
-      opts.onResize(from.width + delta)
+      from.at = from.width + delta
+      opts.onResize(from.at)
     },
     onPaneRelease: () => {
       const from = armed.current
@@ -56,6 +60,7 @@ export function useSidebarResizeGesture(opts: {
       // A drag is never half of a double-click, or a second resize would reset the first.
       if (from.moved) {
         lastRelease.current = 0
+        opts.onRelease?.(from.at)
         return
       }
       const now = Date.now()

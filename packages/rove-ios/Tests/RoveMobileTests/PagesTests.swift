@@ -377,3 +377,23 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(parts.map(\.hit), [true, false, true])
     }
 }
+
+final class MachinesLogicTests: XCTestCase {
+    func testAMachineReadsItsStateAndTroubleInOneLine() {
+        func label(_ state: String, version: String? = nil) -> String {
+            MachinesLogic.label(MachineRow(alias: "a", hostLabel: "narwhal", state: state, version: version))
+        }
+        XCTAssertEqual(label("online", version: "0.9.1"), "narwhal · v0.9.1")
+        XCTAssertEqual(label("offline"), "narwhal · offline")
+        XCTAssertEqual(label("mismatch", version: "0.9.1"), "narwhal · ⚠ v0.9.1 (protocol mismatch)")
+        XCTAssertEqual(MachineRow(alias: "a", hostLabel: "", state: "online").alias, "a")
+    }
+
+    func testOnlyAMachinesOwnNonRoutineTasksShow() throws {
+        func row(_ json: String) throws -> TaskRow { try JSONDecoder().decode(TaskRow.self, from: Data(json.utf8)) }
+        let mine = try row(#"{"id":"1","title":"t","machine":{"id":"a"},"routine":false}"#)
+        let routine = try row(#"{"id":"2","title":"t","machine":{"id":"a"},"routine":true}"#)
+        let local = try row(#"{"id":"3","title":"t"}"#)
+        XCTAssertEqual(MachinesLogic.tasks([mine, routine, local], machine: "a").map(\.id), ["1"])
+    }
+}

@@ -80,11 +80,17 @@ function mainRoot(repo: string): string {
   }
 }
 
+/** Where a new task starts when the caller already knows: a task's repo and branch, to stack on it. */
+export interface CreateTaskSeed {
+  readonly repo: string
+  readonly baseRef: string
+}
+
 /** Default repo → dialog → persist vendor + repo → create / adopt / open → select and enter. */
-export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
+export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSeed): Promise<void> {
   const repos = getSavedRepos()
   // With no saved repos, cwd lets the user pick a path in-TUI instead of a shell `add`.
-  const defaultRepo = ctx.cursorRepo() ?? repos[0] ?? process.cwd()
+  const defaultRepo = seed?.repo ?? ctx.cursorRepo() ?? repos[0] ?? process.cwd()
   const defaultVendor = ctx.lastVendor(defaultRepo) ?? DEFAULT_TASK_VENDOR
   const availableVendors = await availableEngineIds()
   // No engine at all: otherwise the missing binary surfaces only as a raw shell
@@ -100,6 +106,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     // "Open the project" is offered only for these. From live tasks, not
     // savedRepos: a saved repo with no main row has no project to open.
     mainRepos: mainRepoSet(ctx.tasks()),
+    ...(seed ? { initialBaseRef: seed.baseRef } : {}),
   })
   if (!result) return
   // Auto-save keeps `add` optional. Use the returned git toplevel so a

@@ -13,8 +13,9 @@ import { hintText, tasksText, workspaceText } from "./keymap-text.ts"
 import { backToTasks, enterWorkspace } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { type NavPlace, go, isLive, navState, step } from "./nav-history.ts"
-import { PANEL_KINDS, narrowView } from "./panel-layout.ts"
+import { LAUNCHED_KINDS, narrowView } from "./panel-layout.ts"
 import { showPanel } from "./panel-state.ts"
+import { ICONS, Icon } from "./panel-tabs.tsx"
 import { usePrefs } from "./prefs.ts"
 import { needsPerson } from "./rail-glyphs.ts"
 import { clampRailWidth, peekRail, railFolded, railPeek, railWidth } from "./rail-layout.ts"
@@ -29,11 +30,12 @@ import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from ".
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
 
-/** The rail's right edge: drag to pin a width, double-click to go back to the automatic one. */
+/** The rail's right edge: drag to pin a width, click to fold the rail, double-click to go back to the automatic width. */
 export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }) {
   useLocale()
   const drag = useRef<{ x: number; width: number; moved: boolean } | null>(null)
   const lastUp = useRef(0)
+  const fold = useRef<number | null>(null)
   const down = (e: PointerEvent<HTMLDivElement>) => {
     drag.current = { x: e.clientX, width: rail.current?.getBoundingClientRect().width ?? 0, moved: false }
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -55,10 +57,16 @@ export function RailGrip({ rail }: { rail: React.RefObject<HTMLElement | null> }
       return
     }
     const now = Date.now()
+    if (fold.current !== null) window.clearTimeout(fold.current)
+    fold.current = null
     if (now - lastUp.current < DOUBLE_CLICK_MS) {
       lastUp.current = 0
       railWidth.set(null)
-    } else lastUp.current = now
+    } else {
+      lastUp.current = now
+      // A lone click folds once it can no longer be the first half of a double-click.
+      fold.current = window.setTimeout(() => railFolded.set(true), DOUBLE_CLICK_MS)
+    }
   }
   return (
     <ResizeGrip
@@ -140,13 +148,9 @@ export function RailBar({ model }: { model: AppModel }) {
   )
 }
 
-const NARROW_LABEL = {
-  terminal: "layout.narrowTerminal",
-  chat: "layout.narrowChat",
-  files: "layout.narrowFiles",
-  diff: "layout.narrowDiff",
-  browser: "layout.narrowBrowser",
-} as const
+const TERMINAL_ICON = (
+  <path d="M3 3.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM4.5 6.5 6.5 8l-2 1.5M8 10h3" />
+)
 
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
@@ -162,18 +166,23 @@ export function NarrowBackBar({ taskId }: { taskId?: string }) {
       </button>
       {taskId && (
         <span className={`mono ${NARROW_SWITCH}`} role="tablist">
-          {(["terminal", ...PANEL_KINDS] as const).map((id) => (
-            <button
-              type="button"
-              role="tab"
-              key={id}
-              aria-selected={view === id}
-              className={NARROW_TAB}
-              onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
-            >
-              {t(NARROW_LABEL[id])}
-            </button>
-          ))}
+          {(["terminal", ...LAUNCHED_KINDS] as const).map((id) => {
+            const name = id === "terminal" ? t("layout.narrowTerminal") : t(`panel.${id}`)
+            return (
+              <button
+                type="button"
+                role="tab"
+                key={id}
+                aria-selected={view === id}
+                aria-label={name}
+                title={name}
+                className={NARROW_TAB}
+                onClick={() => (id === "terminal" ? narrowView.set(id) : showPanel(taskId, id))}
+              >
+                <Icon>{id === "terminal" ? TERMINAL_ICON : ICONS[id]}</Icon>
+              </button>
+            )
+          })}
         </span>
       )}
     </div>

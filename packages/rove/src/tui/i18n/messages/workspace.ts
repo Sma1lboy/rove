@@ -27,7 +27,8 @@ export const en = {
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
     title: "Welcome to Rove",
-    tagline: "Run several AI coding sessions side by side — use managed tasks for isolated worktrees.",
+    tagline:
+      "All your coding agents in one place: when one runs out of quota, switch the task to another, and agents talk to each other directly.",
     /** The task kind determines the isolation boundary. */
     worktreeExplain:
       "Managed tasks create isolated worktrees and branches. Directory and project tasks reuse existing files; tabs within a task share its directory.",
@@ -54,7 +55,8 @@ export const en = {
     title: "INBOX",
     empty: "No pending attention",
     openHint: "enter open",
-    clearHint: "d clear",
+    clearHint: "d ack",
+    clearAllHint: "D ack all",
     /** Cards clipped past the visible window. `{count}` = hidden card count. */
     more: "+{count} more",
     section: {
@@ -99,7 +101,7 @@ export const zh: typeof en = {
   },
   welcome: {
     title: "欢迎使用 Rove",
-    tagline: "并行运行多个 AI 编码会话——使用托管任务获得独立的 worktree。",
+    tagline: "所有编程 agent 都在一个地方：一个额度用完了，换另一个接着干；agent 之间直接对话，不用你传话。",
     worktreeExplain: "托管任务创建独立的 worktree 和分支。目录与项目任务复用现有文件；同一任务内的标签页共享目录。",
     stepNew: "创建你的第一个任务——选仓库、基础分支和引擎",
     stepHelp: "查看当前焦点下的全部快捷键",
@@ -118,7 +120,8 @@ export const zh: typeof en = {
     title: "收件箱",
     empty: "暂无待处理",
     openHint: "enter 打开",
-    clearHint: "d 清除",
+    clearHint: "d 已阅",
+    clearAllHint: "D 全部已阅",
     more: "还有 {count} 条",
     section: {
       attention: "待处理",

@@ -18,14 +18,13 @@ rove add /path/to/repo
 rove
 ```
 
-The CLI runs on the Bun runtime. The published `rove` / `rove` bins are node
-launchers that re-exec through Bun, so an `npm install -g` or `npx` on a
-machine without Bun still ends up with a working Rove.
+The CLI runs on the Bun runtime. The published `rove` bin is a node launcher
+that re-execs through Bun, so an `npm install -g` or `npx` on a machine without
+Bun still ends up with a working Rove.
 
-The package also keeps `rove` as a compatibility alias. Both executable names
-copy supported legacy state into `~/.rove` and `~/.config/rove` without deleting
-or overwriting the old files; daemon-owned stores wait until the legacy writer
-has stopped.
+If you ran Rove before its rename, the first launch copies the supported old
+state into `~/.rove` and `~/.config/rove` without deleting or overwriting the
+old files; daemon-owned stores wait until the old writer has stopped.
 
 Plain `rove` launches one React/opentui Workspace Host. Interactive engine and
 shell processes are owned by the standalone PTY Host, so they survive TUI exits
@@ -44,7 +43,7 @@ rove daemon restart
 rove api --help
 ```
 
-Prompted API calls can run headlessly. `send`, prompted `add`, and `fan-out`
+Prompted API calls can run headlessly. `send` and prompted `add`
 ensure the task Worktree and canonical `<taskId>::tab-1` hosted engine session
 without requiring an open TUI.
 

@@ -1,6 +1,9 @@
 package run.rove.mobile.ui
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
@@ -25,11 +28,20 @@ internal sealed interface RowRequest {
     data class RenameBranch(val row: TaskRow) : RowRequest
     data class Status(val row: TaskRow) : RowRequest
     data class ArchiveBusy(val row: TaskRow) : RowRequest
+    data class Copy(val row: TaskRow) : RowRequest
+    data class Engine(val row: TaskRow) : RowRequest
+    data class Move(val row: TaskRow, val targets: List<MoveTarget>) : RowRequest
+    data class Confirm(val row: TaskRow, val action: String, val preflight: LandPreflight? = null) : RowRequest
 }
 
 @Composable internal fun TaskRowMenu(row: TaskRow, open: Boolean, onDismiss: () -> Unit, onPick: (RowMenuItem) -> Unit) {
+    var more by remember(open) { mutableStateOf(false) }
+    val items = TaskRowMenuLogic.items(row)
+    val firstRare = items.firstOrNull { it in TaskRowMenuLogic.RARE }
     RoveMenu(open, onDismiss) {
-        TaskRowMenuLogic.items(row).forEach { item ->
+        items.forEach { item ->
+            if (item == firstRare) RoveMenuItem(stringResource(R.string.rowmenu_more) + if (more) " ⌄" else " ›", tint = Rove.c.muted) { more = !more }
+            if (item in TaskRowMenuLogic.RARE && !more) return@forEach
             RoveMenuItem(stringResource(when (item) {
                 RowMenuItem.NewConversation -> R.string.rowmenu_new_conversation
                 RowMenuItem.NewShell -> R.string.rowmenu_new_shell
@@ -42,7 +54,12 @@ internal sealed interface RowRequest {
                 RowMenuItem.RenameBranch -> R.string.rowmenu_rename_branch
                 RowMenuItem.Archive -> R.string.rowmenu_archive
                 RowMenuItem.Unarchive -> R.string.rowmenu_unarchive
-            })) { onDismiss(); onPick(item) }
+                RowMenuItem.Land -> R.string.rowmenu_land
+                RowMenuItem.Copy -> R.string.rowmenu_copy
+                RowMenuItem.MoveToProject -> R.string.rowmenu_move_to_project
+                RowMenuItem.ChangeEngine -> R.string.rowmenu_change_engine
+                RowMenuItem.Remove -> R.string.rowmenu_remove
+            }), tint = if (item == RowMenuItem.Remove) Rove.c.error else Rove.c.ink) { onDismiss(); onPick(item) }
         }
     }
 }
@@ -57,6 +74,15 @@ internal fun runRowMenuItem(model: AppModel, row: TaskRow, item: RowMenuItem, on
         RowMenuItem.SetStatus -> onRequest(RowRequest.Status(row))
         RowMenuItem.SyncBase -> syncBase(model, row)
         RowMenuItem.FixChecks -> fixChecks(model, row)
+        RowMenuItem.Copy -> onRequest(RowRequest.Copy(row))
+        RowMenuItem.ChangeEngine -> onRequest(RowRequest.Engine(row))
+        RowMenuItem.Remove -> onRequest(RowRequest.Confirm(row, "delete"))
+        RowMenuItem.Land -> model.action { checkLand(model, row.id, row.machine != null)?.let { onRequest(RowRequest.Confirm(row, "land", it.preflight)) } }
+        RowMenuItem.MoveToProject -> {
+            val targets = TaskRowMenuLogic.moveTargets(row, model.tasks.value.tasks)
+            if (targets.isEmpty()) model.error.value = model.getApplication<Application>().getString(R.string.rowmenu_move_empty)
+            else onRequest(RowRequest.Move(row, targets))
+        }
         RowMenuItem.Pin, RowMenuItem.Unpin -> model.action { model.repository.pinTask(row.id, item == RowMenuItem.Pin); model.refresh() }
         RowMenuItem.Unarchive -> model.action { model.repository.archiveTask(row.id, archived = false); model.refresh() }
         RowMenuItem.Archive -> model.action {
@@ -98,6 +124,38 @@ private fun fixChecks(model: AppModel, row: TaskRow) {
     }
 }
 
+private fun copy(model: AppModel, text: String?) {
+    val app = model.getApplication<Application>()
+    if (text.isNullOrEmpty()) { model.error.value = app.getString(R.string.rowmenu_copy_nothing); return }
+    (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("rove", text))
+    Toast.makeText(app, app.getString(R.string.rowmenu_copied, text), Toast.LENGTH_SHORT).show()
+}
+
+@Composable private fun PickDialog(title: String, close: () -> Unit, note: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    AlertDialog(onDismissRequest = close, containerColor = Rove.c.paper,
+        title = { Text(title, color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
+        text = { Column { note?.let { Text(it, color = Rove.c.muted, style = Rove.mono(12)) }; content() } },
+        confirmButton = { TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close) })
+}
+
+/** The same two steps as task detail's land and delete. */
+@Composable private fun RowConfirm(model: AppModel, request: RowRequest.Confirm, close: () -> Unit) {
+    var step by remember(request) { mutableIntStateOf(1) }
+    var busy by remember(request) { mutableStateOf(false) }
+    ConfirmDialog(request.action, step, busy, request.row, request.preflight, onDismiss = { if (!busy) close() }) {
+        if (step == 1) step = 2
+        else if (!busy) {
+            busy = true
+            model.action {
+                try {
+                    if (request.action == "delete") model.repository.delete(request.row.id) else model.repository.land(request.row.id)
+                    close(); model.refresh()
+                } finally { busy = false }
+            }
+        }
+    }
+}
+
 @Composable internal fun RowSheets(model: AppModel, request: RowRequest?, onRequest: (RowRequest?) -> Unit) {
     val close = { onRequest(null) }
     when (request) {
@@ -121,6 +179,29 @@ private fun fixChecks(model: AppModel, row: TaskRow) {
                 }
             },
             confirmButton = { TileLabel(stringResource(R.string.rowmenu_cancel), onClick = close) })
+        is RowRequest.Confirm -> RowConfirm(model, request, close)
+        is RowRequest.Copy -> PickDialog(stringResource(R.string.rowmenu_copy), close) {
+            RoveMenuItem(stringResource(R.string.rowmenu_copy_id)) { close(); copy(model, request.row.id) }
+            if (request.row.branch.isNotEmpty()) RoveMenuItem(stringResource(R.string.rowmenu_copy_branch)) { close(); copy(model, request.row.branch) }
+            RoveMenuItem(stringResource(R.string.rowmenu_copy_path)) { close(); model.action { copy(model, model.repository.worktreePath(request.row.id)) } }
+        }
+        is RowRequest.Engine -> PickDialog(stringResource(R.string.rowmenu_change_engine), close, stringResource(R.string.rowmenu_engine_next_session)) {
+            val engines by model.engines.collectAsState()
+            engines.forEach { engine ->
+                RoveMenuItem(engine.name, selected = engine.id == request.row.engine?.id) {
+                    close()
+                    model.action { model.repository.setTaskEngine(request.row.id, engine.id); model.refresh() }
+                }
+            }
+        }
+        is RowRequest.Move -> PickDialog(stringResource(R.string.rowmenu_move_to_project), close) {
+            request.targets.forEach { target ->
+                RoveMenuItem(target.label) {
+                    close()
+                    model.action { model.repository.moveTaskToProject(request.row.id, target.repo); model.refresh() }
+                }
+            }
+        }
         is RowRequest.ArchiveBusy -> AlertDialog(onDismissRequest = close, containerColor = Rove.c.paper,
             title = { Text(stringResource(R.string.rowmenu_archive_busy_title), color = Rove.c.ink, style = Rove.face(17, FontWeight.SemiBold)) },
             text = { Text(stringResource(R.string.rowmenu_archive_busy_body, request.row.displayTitle), color = Rove.c.muted, style = Rove.mono(13)) },

@@ -275,4 +275,21 @@ final class TaskActionsTests: XCTestCase {
         XCTAssertFalse(L.menu(kind: "main", pinned: false, branch: "main", detail: nil).syncBase)
         XCTAssertTrue(L.menu(kind: "task", pinned: false, branch: "b", detail: nil).syncBase)
     }
+
+    func testFixChecksOnlyWhenChecksAreFailing() {
+        XCTAssertTrue(TaskActionLogic.menu(kind: "task", pinned: false, branch: "b", checksFailing: true, detail: nil).fixChecks)
+        XCTAssertFalse(TaskActionLogic.menu(kind: "task", pinned: false, branch: "b", detail: nil).fixChecks)
+    }
+
+    func testALandRefusalReplacesTheConfirmation() {
+        XCTAssertNil(TaskActionLogic.landRefusal(LandPreflight(landedOn: "main", ahead: 1)))
+        XCTAssertNotNil(TaskActionLogic.landRefusal(LandPreflight(landedOn: "main", refusal: "MAIN_CHECKOUT_DIRTY")))
+        XCTAssertTrue(TaskActionLogic.landRefusal(LandPreflight(landedOn: "main", refusal: "NOTHING", message: "no commits"))?.contains("no commits") == true)
+    }
+
+    func testTheLandSummaryNeverInventsACount() {
+        XCTAssertTrue(TaskActionLogic.landSummary(branch: "b", LandPreflight(landedOn: "main", ahead: 1)).contains("(1 commit)"))
+        XCTAssertTrue(TaskActionLogic.landSummary(branch: "b", LandPreflight(landedOn: "main", ahead: 3)).contains("(3 commits)"))
+        XCTAssertTrue(TaskActionLogic.landSummary(branch: "b", LandPreflight(landedOn: "main")).contains("(? commits)"))
+    }
 }

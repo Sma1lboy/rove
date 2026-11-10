@@ -86,7 +86,11 @@ extension AppModel {
             else if let taskId = item.taskId { path.append(item.tabId.map { Route.taskTab(taskId, $0) } ?? .task(taskId)) }
             return
         }
-        guard let taskId = item.taskId else { path.append(.routines); return }
+        guard let taskId = item.taskId else {
+            path.append(.routines)
+            Task { await store.dismissAttention(item) }
+            return
+        }
         path.append(item.tabId.map { Route.taskTab(taskId, $0) } ?? .task(taskId))
         if InboxLogic.clearsOnVisit(item) { Task { await store.dismissAttention(item) } }
     }

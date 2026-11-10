@@ -56,7 +56,7 @@ export async function moveTaskBy(model: AppModel, taskId: string, steps: number)
 export async function dropTask(model: AppModel, taskId: string, move: DropMove): Promise<void> {
   if (move.pin !== undefined) {
     try {
-      await model.client.request("task.pin", { taskId, pinned: move.pin })
+      await model.act("task.pin", { taskId, pinned: move.pin })
     } catch (err) {
       toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
       return

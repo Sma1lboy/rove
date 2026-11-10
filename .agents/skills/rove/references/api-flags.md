@@ -140,6 +140,7 @@ send               --task-id --prompt|--prompt-file --tab --command --handoff-fr
                    --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
+resume-quota       --task-id --all
 queue-edit         --id(REQ) --prompt|--prompt-file(REQ)
 queue-cancel       --id(REQ)
 note               --task-id(REQ) --text(REQ)
@@ -165,7 +166,7 @@ row-token          --task-id(REQ) --text --ttl(60) --key(default)
                    --tone{info|success|warning|error|muted} --clear
 set-active         --task-id --none
 report             --delivery --outcome{done|partial|blocked|failed} --summary --evidence
-                   --next --json
+                   --next --allow-empty --json
 attention-dismiss  --delivery(REQ)
 gate-raise         --task-id(REQ) --tab --question(REQ) --option --recommend --context
 gate-answer        --gate(REQ) --option --text
@@ -180,13 +181,15 @@ dead PTY, no engine process — and each has its own code below.
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
-(every future session on this repo starts with them) AND relayed to the
-dispatcher. Read them back with `note-list --repo`. This is the right home for
+(every future session on this repo starts with them); it starts no turn in
+any running session. Read them back with `note-list --repo`. This is the right home for
 a resolved gotcha; an issue is for work that still needs doing.
 
-`send --allow-empty` is the escape hatch for a `succeeded:` report from a task
-that legitimately produced no commits (an investigation, a review, a question
-answered); without it such a report is refused with `EMPTY_SUCCESS_REPORT`.
+`send --allow-empty` (and `report --allow-empty`) is the escape hatch for a
+`succeeded:` send or a `report --outcome done` on a `send` delivery from a
+task that legitimately produced no commits (an investigation, a review, a
+question answered); without it such a claim is refused with
+`EMPTY_SUCCESS_REPORT`.
 
 **`send --expect-report` asks for a report.** The reply carries `deliveryId`
 (`d-<n>`) and the pasted prompt ends with a `[ROVE] When this turn ends,
@@ -255,7 +258,7 @@ add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --pa
                --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
-               --require-report --expect-report --activate(false) --start
+               --require-report --expect-report --activate(false) --worktree-only --start
                --prompt|--prompt-file
 update         --task-id --title --tab --branch --parent --project --group --command
                --model --effort --pinned --kept --require-report{on|off}
@@ -413,13 +416,15 @@ and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
 A delivered routine prompt starts with `[ROVE ROUTINE] "<name>" run #<n> — when
-done, report with: … rove api report --delivery d-<n> …`. When you received
-one, finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
+done, report with: … rove api report --delivery d-<n> … (only if something
+happened or you are blocked)`. When the run found something or you are stuck,
+finish by reporting THAT delivery (`report --outcome done|partial|blocked|failed
 --summary …`): lead with the conclusion, markdown welcome, 32,000 characters
 max. Reporting again replaces the answer. `routine-respond --run <runId>
 --text …` still works; it is `report --outcome done` on the same delivery.
-Nothing is inferred if you skip it; the run shows "no response" and the
-delivery goes `missing`.
+With nothing to report, just stop: the delivery goes `quiet`, with no Inbox
+row. In a standing session, a run whose prompt you already have says the
+instructions are unchanged; follow the earlier run's prompt again.
 
 Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
 respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
@@ -433,7 +438,7 @@ schema       --verb --group --all
 engine-list  (none)
 repo-match   --origin --root --allow-fork
 repo-list    (none)
-feedback     --title(REQ) --body(REQ) --category(feedback)
+feedback     --title(REQ) --body(REQ) --kind(bug)
 ```
 <!-- generated:end -->
 
@@ -452,9 +457,12 @@ resolves to (`{ repo, fork?, checkouts, searched }`); `repo-list` lists a
 machine's repos by id (`{ repos: [{ id, primary, checkouts }] }`) — pass
 `--machine <alias>` to ask another machine.
 
-`feedback` opens a GitHub Discussion in the Rove repo through `gh` — Rove's own
-product feedback channel, not a way to file work for another project (that is
-a `send` to their main task; see SKILL.md).
+`feedback` files a GitHub issue on the Rove repo through `gh` (`--kind` picks the
+label: bug, idea → enhancement, question) and appends an environment block.
+It returns `{ filed: true, url, number }`; with no usable `gh` it returns
+`{ filed: false, url, hint }` where `url` is a prefilled new-issue link — hand
+it to the user. Rove's own product feedback channel, not a way to file work
+for another project (that is a `send` to their main task; see SKILL.md).
 
 ## Error codes
 
@@ -472,10 +480,11 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
-| `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
+| `EMPTY_SUCCESS_REPORT` | `succeeded:` or `report --outcome done` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
 | `UNSUPPORTED` | `interrupt` on an engine that never declared how it is interrupted | stop it by hand in its tab, or `tab-close` |
+| `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task not waiting on a quota reset | `collect` for its `.activity.state` |
 | `WATCH_TIMEOUT` | `watch` hit --timeout before any --until state | nothing happened yet, not "nothing will" — `collect --task-ids` |
 | `DAEMON_GONE` | the daemon died mid-`watch` | `rove daemon status`, then re-run the watch |
 | `WORKTREE_NAME_TAKEN` | `add --worktree-name` names a directory already in use | pick another name, or omit the flag for a generated one |

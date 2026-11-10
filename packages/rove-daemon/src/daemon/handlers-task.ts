@@ -143,6 +143,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         groupId: optionalString(payload, "groupId"),
         forkFrom: optionalString(payload, "forkFrom"),
         parentTaskId: optionalString(payload, "parentTaskId"),
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
         ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
         dispatcher,
       })
@@ -161,6 +162,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         parentTaskId,
         // A child gets its own worktree unless the caller says to share.
         worktree: optionalBoolean(payload, "worktree") ?? true,
+        ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
         baseRef: optionalString(payload, "baseRef"),
         isolateIn: optionalString(payload, "isolateIn"),
         title: optionalString(payload, "title"),
@@ -381,6 +383,17 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (direction === "top") await ctx.orch.moveTaskToTop(taskId)
       else if (direction === "up" || direction === "down") await ctx.orch.moveTask(taskId, direction === "up" ? -1 : 1)
       else throw new Error("direction must be up, down or top")
+      return {}
+    },
+  },
+  {
+    name: "project.move",
+    async handle(payload, ctx) {
+      const repo = requireString(payload, "repo")
+      const target = requireString(payload, "target")
+      const side = requireString(payload, "side")
+      if (side !== "before" && side !== "after") throw new Error("side must be before or after")
+      await ctx.orch.moveProject(repo, target, side)
       return {}
     },
   },

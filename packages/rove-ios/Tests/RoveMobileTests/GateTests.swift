@@ -78,4 +78,17 @@ final class GateTests: XCTestCase {
         XCTAssertTrue(InboxLogic.clearsOnVisit(try item("turn_complete")))
         XCTAssertTrue(InboxLogic.clearsOnVisit(try item("error")))
     }
+
+    func testADismissalNamesWhatTheEpisodeIsKeyedOn() {
+        func dismissal(_ item: AttentionItem) -> String? {
+            InboxLogic.dismissal(item).map { "\($0.op) \($0.args.sorted { $0.key < $1.key }.map(\.value))" }
+        }
+        var routine = AttentionItem(state: "routine_failed", unread: true, at: 1)
+        XCTAssertNil(dismissal(routine), "an older bridge sends no routine id")
+        routine.automationId = "r-1"
+        XCTAssertEqual(dismissal(routine), "attention.dismissRoutine [\"r-1\"]")
+        XCTAssertEqual(dismissal(AttentionItem(taskId: "T1", state: "report_missing", unread: true, at: 1, deliveryId: "d-1")),
+                       "attention.dismiss [\"d-1\", \"T1\"]")
+        XCTAssertNil(dismissal(AttentionItem(taskId: "T1", state: "decision_needed", unread: true, at: 1, gateId: "g-1")))
+    }
 }

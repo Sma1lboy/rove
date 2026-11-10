@@ -229,9 +229,8 @@ export interface ChannelPayloads {
   /**
    * Text to paste into a task's live engine session (docs/design/dispatcher.md).
    * The daemon never delivers: whichever front-end hosts the session does.
-   * Producers: `note.file` (`source: "note"`, to the repo's main-task
-   * dispatcher) and `session.deliver` (`rove api dispatch`,
-   * `source: "dispatcher"`). EVENT channel.
+   * Producer: `session.deliver` (`rove api dispatch`, `source: "dispatcher"`).
+   * EVENT channel.
    */
   "session.deliver": SessionDeliverPayload
   /**

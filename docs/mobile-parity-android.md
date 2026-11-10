@@ -2,47 +2,56 @@
 
 The web client at 390 wide (`packages/rove-web`, narrow layout below 560 px) is the reference for what `packages/rove-android` should offer. A routine updates this page each run; open `[routine] parity-android:` PRs carry the work in progress.
 
-Last run: run 2, 2026-11-05, `main` at `2a4c8a9c6`, web 0.9.276. Run 1 was 2026-11-03 at `966978834`. Between them the web and bridge changed only through #1637 (prefs writes), #1649 and #1651 (theme colors), so there are no new pages or ops; this run worked through what run 1 left missing. #1648, #1650 and #1653 change web phone pages and are still open: compare again once they merge.
+Last run: run 3, 2026-11-09, `main` at `2363c73e9`, web 0.9.282. Run 2 was 2026-11-05 at `2a4c8a9c6`. Since then the web gained the Machines overview, Usage page, Context panel, file previews, voice dictation, retry, compare rounds and task notes; it dropped the Search and Dispatch pages (#1673) and Rove's own message queue (#1781).
 
 ## How the pages were listed
 
-The web has no page-listing tool. The list comes from `PageId` in `packages/rove-web/src/ui.ts`, the rail, the Settings sections and the panel tabs in `panel-tabs.tsx`. Pages marked **opened** were opened at 390x844 with Playwright touch emulation against `rove --web --port 7979` in a throwaway `HOME`. **Read only** means the row comes from source because the fixture could not reach the page.
+The web has no page-listing tool. The list comes from `PageId` in `packages/rove-web/src/ui.ts`, the rail, `SECTION_GROUPS` in `settings-sections.ts` and the panel switch on the task page. Pages marked **opened** were opened at 390x844 with Playwright touch emulation against `rove --web` in a throwaway `HOME`. **Read only** means the row comes from source because the fixture could not reach the page.
 
-Android frames come from the allen emulator sized with `wm size 1024x2216` (390x844 dp), paired through `10.0.2.2` to a `rove --web` bound to allen's loopback in a throwaway `HOME`. A fake `claude` script stands in for the engine: a first send makes the tab busy, so a second send queues.
+Android frames come from the allen emulator `rove_test` sized with `wm size 1024x2216` (390x844 dp), paired through `10.0.2.2` to a `rove --web` bound to allen's loopback in a throwaway `HOME`. The web frames in this run's PRs load that same bridge through an SSH tunnel, so both clients show the same data. A fake `claude` script stands in for the engine.
 
-Run 2 seeded states on the same setup: `routine-run-now` with a failing `--script` for a failed routine in the Inbox, `engine-report --kind awaiting-input` for a tab at a menu, and `ROVE_FAKE_UPDATE` for an available update. Run 2 opened the task list, Inbox, row menu, terminal with key row, and Settings › Updates again; other rows keep run 1's result.
+States seeded in run 3: a failing `--script` routine run twice under one name for the Inbox, `engine-report --kind awaiting-input` for a tab at a menu, a second repo for move to project, and a commit on a task branch for land.
 
 ## Pages and states
 
 | Web phone page or state | How it opens | Checked | Android | Status |
 | --- | --- | --- | --- | --- |
 | Pair / log in | first load | read only | Pairing screen | has |
-| Task list: projects, tasks, marks, `↩ Recent` | home | opened | Task list | has, no Recent row; routine runs filtered since #1655 |
-| Row menu | long-press a row | opened | Rename, pin, status, rename branch, archive (#1642) | partial: #1663 sync, #1664 fix checks, #1665 new conversation and shell |
+| Welcome (first run) | first load, no projects | read only | none | missing |
+| Task list: projects, tasks, marks, `↩ Recent` | home | opened | Task list | has, no Recent row |
+| Row menu, `More` fold | long-press a row | opened | Row menu | #1818 adds land, copy, move, change engine, remove and the fold; retry, compare, continue in another engine, scheduled start still missing |
+| Project menu | long-press a project | opened on web, Android read only | Project menu | has: field notes, move, remove |
 | Archived fold | end of the list | read only | Archived fold | has |
-| New session composer | `New task` | opened | Create sheet | partial: no branch, clone, adopt, folder or machine picker |
-| Terminal, key row, message field | tap a task | opened | Task detail | has; #1661 keys at a menu, #1662 arrow mode, #1666 rename and close a tab, #1668 reopen |
-| Queued messages | send to a busy tab | opened | Queued chips | has |
-| Files panel: All / Changes, ask for PR | panel tab | opened | none | missing |
-| Diff panel | panel tab | opened | Diff screen | has, no review notes |
-| Browser panel | panel tab | opened, tab did not switch at 390 | none | not confirmed on phone |
-| Land dialog | row menu or `land` | opened | Two-step dialog with preflight | has |
-| Inbox | `inbox` | opened, failed routine row | Inbox | has; #1667 clears a failed routine |
-| Search | rail | opened | Search | has |
-| Routines | rail | opened, empty state | Routines | has |
-| Dispatch | rail | opened, idle state | none | missing |
-| Kanban, Issues | rail after install | install did not show them in this run; read only | Board, GitHub issues | has, gated on the same mods |
-| Mods, Machines | rail when present | read only, none in fixture | Mods as a gate only; no Machines | missing |
+| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine, `Later`, create without starting |
+| Terminal, key row | tap a task | opened | Task detail | has |
+| Message bar: hold to talk, type instead | engine tab | opened | Composer | typing has; voice missing |
+| Queued messages | | gone from the web (#1781) | none | gone since #1817; the engine queues input itself |
+| Context panel | panel switch | opened, no reading in the fixture | none | missing |
+| Files panel, create PR, file preview | panel switch | opened | none | missing |
+| Diff panel | panel switch | opened | Diff screen | has, no review notes or base picker |
+| Browser panel | panel switch | opened | none | undecided: it opens addresses on the Mac, which a phone may not reach |
+| Land dialog | row menu or `land` | Android opened | Two-step dialog with preflight | has |
+| Inbox | `inbox` | opened with rows | Inbox | #1816 adds ack all; web's in-place `[ reply ]` missing |
+| Routines | rail | opened | Routines | has, no run filters |
+| Kanban, Issues | rail after install | read only | Board, GitHub issues | has; review queue missing |
+| Mods | rail when present | read only, none in fixture | Mods as a gate only | missing |
+| Machines | rail when registered | read only, none in fixture | none | missing |
+| Usage page | usage chips, which a phone does not show | read only | Settings › Usage | has its own usage screen |
+| Update | Settings › About | control opened | Settings › About | #1819 adds channel and notify; `Update now` missing |
 | Worktrees | no phone rail entry | read only | Worktrees | Android has more than the phone rail |
-| Update | Settings › Check for updates | control opened, page not reached | none | #1669 in Settings › About |
-| Settings › General | Settings | opened | none | missing: language, theme, terminal |
-| Settings › Engines | Settings | opened | Engines | has |
-| Settings › Connectors | Settings | opened | none | missing: GitHub account |
+| Search | none since #1673 (command palette) | not on a phone | Search | Android keeps its page |
+| Dispatch | removed from the web (#1673) | gone | none | no longer a gap |
+| Settings › General, Appearance | Settings | opened | none | missing |
+| Settings › Notifications | Settings | opened | Notifications | has, Android's own permission flow |
+| Settings › Snippets | Settings | opened | none | missing |
+| Settings › Engines | Settings | opened | Engines | has, no skill install |
 | Settings › Auto routing | Settings | opened | none | missing |
+| Settings › Voice | Settings | opened | none | missing |
+| Settings › Connectors | Settings | opened | none | missing |
 | Settings › Plugins | Settings | opened | Plugins | has |
 | Settings › Keybindings, Dev | Settings | opened | none | not applicable: chords and desktop reset |
-| Settings › Feedback | Settings | opened | Feedback | has |
-| Usage line | top of Settings | read only | Usage | has |
+| Settings › About | Settings | opened | About | #1819 |
+| Settings › Feedback | Settings | opened | Feedback | has, no agent report entry |
 
 ## Still missing, by value on a phone
 
@@ -50,18 +59,24 @@ An op exists in `packages/rove-bridge/src/ops` for each unless the row says othe
 
 | Feature | Op | Size |
 | --- | --- | --- |
-| Row menu: change engine, copy id, branch or path | `task.setEngine`, `task.get` | S |
-| Worktree adopt | `worktree.adoptable`, `worktree.adopt` | S |
-| Retry an engine that died inside a live shell | `term.revive` with `restartExited` | S |
+| Inbox: reply in place | `tab.send` | S |
 | A task's other PRs on its row | row field `sessionPrs` | S |
-| Files browser and ask for PR | `files.list`, `tab.requestPR` | M |
-| Review notes on a diff | `review.add`, `review.list`, `review.send` | M |
+| Files browser, file preview, create PR | `files.list`, `file.read`, `tab.requestPR` | M |
+| Machines page | `machines.list`, `machines.repos` | M |
+| Context panel | `context.usage` | S |
+| Snippets, `@name` in the composer | `snippets.get`, `snippets.save`, `snippets.remove` | S |
+| Install the Rove skill from Engines | `skill.missing`, `skill.install` | S |
+| Change engine: model, effort, hide engines the Mac cannot start | `task.setEngine`, `engines.list` | S |
+| Retry an engine that died inside a live shell | `term.revive` with `restartExited` | S |
+| Retry with an edited prompt | `task.prompt`, `task.spawn` | M |
+| Continue in another engine | `tab.handoff`, `tab.forkTask` | M |
+| Review notes and base picker on a diff | `review.add`, `review.list`, `review.send`, `diff.refs` | M |
 | Connectors | `github.*` | M |
 | Auto routing | `autoRouting.get`, `autoRouting.setTier`, `autoRouting.setClassifier` | M |
 | Mods page | `mod.press`, `mod.submit` | M |
-| Install the Rove skill from Engines | `skill.missing`, `skill.install` | S |
-| New session: branch, clone, adopt, folder, machine | `repo.branches`, `repo.probe`, `repo.clone`, `fs.subdirs`, `machines.list`, `task.spawn` | L |
-| Settings › General | `prefs.get`, `prefs.set`, `theme.*` | L |
+| Voice dictation | `voice.*` | L |
+| New session: branch, folder, machine, `Later` | `repo.branches`, `fs.subdirs`, `machines.list`, `task.spawn` | L |
+| Settings › General and Appearance | `prefs.get`, `prefs.set`, `theme.*` | L |
 
 From reading the code, not run: the `+` sheet in task detail drops the `taskId` in the `tab.new` reply, so a prompt that starts a child task does not open that child.
 

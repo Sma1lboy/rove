@@ -159,7 +159,7 @@ export function KanbanView({ model }: { model: AppModel }) {
       if (choice.jump) {
         page.set(null)
         model.selectWhenListed(res.taskId)
-        if (res.tabId) await model.refreshTabsNow().then(() => model.select(res.taskId, res.tabId))
+        if (res.tabId) await model.refreshTabsNow(res.taskId).then(() => model.select(res.taskId, res.tabId))
       } else {
         toast(fill(kanban.detail.startedBackground, { title: `#${issue.id} ${issue.title}` }))
       }
@@ -350,18 +350,25 @@ export function KanbanView({ model }: { model: AppModel }) {
     columns.find((col) => col.issues.some((issue) => issue.id === selectedId)) ??
     columns.find((col) => col.issues.length > 0) ??
     columns[0]
+  // The desktop's lane header and the phone's lane tab say the same thing; the phone's strip has room only for `!N`.
+  const laneTitle = (col: IssueBoardColumn, compact = false) => {
+    const attention = fill(kanban.attention, { count: String(attentionCount) })
+    return (
+      <>
+        <span>
+          {laneLabel[col.key]} ({col.issues.length + col.hiddenCount})
+        </span>
+        {col.key === "in_progress" && attentionCount > 0 && (
+          <span className="text-warning" title={compact ? attention : undefined}>
+            {compact ? `!${attentionCount}` : attention}
+          </span>
+        )}
+      </>
+    )
+  }
   const lane = (col: IssueBoardColumn, header: boolean) => (
     <section key={col.key} className={kbLaneClass(!header)}>
-      {header && (
-        <h2 className={kbLaneHeadClass(col.key)}>
-          <span>
-            {laneLabel[col.key]} ({col.issues.length + col.hiddenCount})
-          </span>
-          {col.key === "in_progress" && attentionCount > 0 && (
-            <span className="text-warning">{fill(kanban.attention, { count: String(attentionCount) })}</span>
-          )}
-        </h2>
-      )}
+      {header && <h2 className={kbLaneHeadClass(col.key)}>{laneTitle(col)}</h2>}
       <div className={KB_CARDS}>
         {col.issues.map((issue) => (
           <Card
@@ -437,7 +444,7 @@ export function KanbanView({ model }: { model: AppModel }) {
                       if (first) setSelectedId(first.id)
                     }}
                   >
-                    {laneLabel[col.key]} ({col.issues.length + col.hiddenCount})
+                    {laneTitle(col, true)}
                   </button>
                 ))}
               </div>

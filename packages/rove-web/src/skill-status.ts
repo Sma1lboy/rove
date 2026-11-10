@@ -6,6 +6,7 @@
 import { useEffect } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { errorText } from "./dialogs.tsx"
+import { everyVisible } from "./every-visible.ts"
 import { ts } from "./settings-copy.ts"
 import { createStore } from "./store.ts"
 import { toast } from "./ui.ts"
@@ -26,10 +27,10 @@ export function checkSkill(client: BridgeClient): Promise<void> {
 export function useSkillStatus(client: BridgeClient): void {
   useEffect(() => {
     const off = client.onOpen(() => void checkSkill(client))
-    const timer = window.setInterval(() => void checkSkill(client), POLL_MS)
+    const stop = everyVisible(POLL_MS, () => void checkSkill(client))
     return () => {
       off()
-      window.clearInterval(timer)
+      stop()
     }
   }, [client])
 }

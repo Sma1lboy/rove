@@ -25,6 +25,7 @@ import type { AutomationsStore } from "./automations-store.ts"
 import type { ChannelName } from "./channels.ts"
 import type { CheckpointQueue } from "./checkpoint-queue.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
+import { logDaemonInfo } from "./crash-log.ts"
 import type { DeliveriesStore } from "./deliveries-store.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
@@ -43,6 +44,7 @@ import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
 import { QUEUE_HANDLERS } from "./handlers-queue.ts"
+import { QUOTA_RESUME_HANDLERS } from "./handlers-quota-resume.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
 import { RUNNABILITY_HANDLERS } from "./handlers-runnability.ts"
 import { TAB_HANDLERS } from "./handlers-tabs.ts"
@@ -311,6 +313,9 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
         // tells clients the code is being swapped. Anything else, unset or
         // unknown, is `stop`, so no caller can dress a shutdown as an upgrade.
         const reason = parseDaemonStopReason(payload.reason) === "restart" ? "restart" : "stop"
+        // 223 boots in 14 days with nothing naming who asked: a stop is a real
+        // lifecycle event, so the log carries the caller.
+        logDaemonInfo("lifecycle", `daemon.stop (${reason}) requested by client #${ctx.clientId}`)
         await ctx.daemon.stopSoon(reason)
         return {}
       },
@@ -320,6 +325,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
     ...SCHEDULE_HANDLERS,
+    ...QUOTA_RESUME_HANDLERS,
     ...FIELD_HANDLERS,
     ...CHECKPOINT_HANDLERS,
     ...SESSION_PR_HANDLERS,
@@ -365,6 +371,20 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
                 | undefined
             )?.context ?? null,
         }
+      },
+    },
+    {
+      name: "engine.contextUsage",
+      async handle(payload, ctx) {
+        const taskId = requireString(payload, "taskId")
+        const tabId = requireString(payload, "tabId")
+        const vendor = ctx.orch.getTask(taskId)?.vendor
+        const sessionId = ctx.activity
+          .liveSessions()
+          .find((state) => state.taskId === taskId && state.tabId === tabId)?.sessionId
+        if (!vendor || !sessionId) return { usage: null }
+        if (objectPayload(payload).probe === true) await ctx.runtime.probeEngineContext?.(vendor, sessionId)
+        return { usage: await ctx.runtime.readEngineContextUsage(vendor, sessionId) }
       },
     },
     {

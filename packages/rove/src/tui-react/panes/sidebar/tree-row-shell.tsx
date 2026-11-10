@@ -14,8 +14,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 
-/** Indent cells at `depth`: one, then two per level past the first, so a child's glyph sits under its parent's title. */
-const indentOf = (depth: number): string => (depth > 0 ? " ".repeat(1 + (depth - 1) * 2) : "")
+/** Indent cells at `depth`: none for a top-level task (its glyph sits under the project header), then two per level, so a child's glyph sits under its parent's title. */
+const indentOf = (depth: number): string => (depth > 1 ? " ".repeat((depth - 1) * 2) : "")
 
 export type TreeRowShared = {
   /** Rail width in cells; the label budget derives from it. */
@@ -39,8 +39,6 @@ export type TreeRowShared = {
   readonly onToggleFold?: (taskId: string) => void
   /** Bumps when a git poll lands a changed value; rows re-render to read it. */
   readonly branchTick: number
-  /** Task rollup activity; only the closed routines fold reads it, for rows it hides. */
-  readonly engineState?: ReadonlyMap<string, TaskEngineState>
   /** Per-tab activity (taskId → tabId → state), never the task rollup. */
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
@@ -57,8 +55,8 @@ export type TreeRowShared = {
  */
 export function treeLabelBudget(shared: TreeRowShared, reserved: number): number {
   const width = shared.width ?? SIDEBAR_WIDTH
-  // marker (1) + indent (1) + paddingRight (1) = 3 cells every row spends.
-  return Math.max(6, width - 3 - reserved)
+  // marker (1) + paddingRight (1) = 2 cells every row spends.
+  return Math.max(6, width - 2 - reserved)
 }
 
 /** Cells one right-cluster glyph occupies: itself plus the row's 1-cell gap. */
@@ -120,7 +118,7 @@ export function RowShell(props: {
       <text fg={selection.markerColor} wrapMode="none">
         {selection.marker}
       </text>
-      {props.depth > 0 ? (
+      {props.depth > 1 ? (
         <text wrapMode="none" flexShrink={0}>
           {indentOf(props.depth)}
         </text>

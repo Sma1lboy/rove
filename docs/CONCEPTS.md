@@ -33,8 +33,8 @@ task", pick an engine (or `shell` for a bare shell), and `enter` opens one in
 lives in the sidebar's **Ungrouped** group above every project, and follows a
 zero-ceremony lifecycle: its last tab exiting removes the row (no archive, no
 confirm; nothing on disk is touched). Routines created with **Ungrouped**
-run in their own directory under `.rove/routines/` and their sessions land in
-the same group, in its routines row; they are not scratch shells and are never
+run in their own directory under `.rove/routines/` and their sessions open from
+the Routines page, not the sidebar; they are not scratch shells and are never
 auto-removed. A scratch row earns a permanent place
 two ways: rename it (naming is the keep gesture), or start a coding harness
 inside a git repository. Rove detects the live harness plus the shell's
@@ -50,7 +50,9 @@ menu (**Set status**) or with `rove api update --status`. It is a label and noth
 more: `canceled` does not stop a session or remove a worktree, and `done` does
 not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
 when its engine starts a turn, and the system prompt asks the agent to set
-`in_review` when it finishes; everything past that is yours. The sidebar row
+`in_review` when it finishes, unless another Rove session handed it the work
+(then its `report` or outcome message is the signal); everything past that is
+yours. The sidebar row
 does not draw it: the one mark in that cell is the PR's, and the status is
 something you already know because you set it
 (see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).

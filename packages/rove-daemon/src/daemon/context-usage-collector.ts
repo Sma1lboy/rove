@@ -47,7 +47,8 @@ export function sameContextUsage(a: EngineContextUsage, b: EngineContextUsage): 
     a.inputTokens === b.inputTokens &&
     a.outputTokens === b.outputTokens &&
     a.cacheReadTokens === b.cacheReadTokens &&
-    a.cacheCreationTokens === b.cacheCreationTokens
+    a.cacheCreationTokens === b.cacheCreationTokens &&
+    JSON.stringify(a.parts) === JSON.stringify(b.parts)
   )
 }
 
