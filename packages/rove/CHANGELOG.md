@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.284
+
+### Patch Changes
+
+- [#1880](https://github.com/Sma1lboy/rove/pull/1880) [`f06e9f5`](https://github.com/Sma1lboy/rove/commit/f06e9f5956b17c0743e35db9dfa4b9b54bed565a) The web client is sent only the task rows that changed, not the whole task list on every change. With 10,000 tasks the list is 5.9 MB and it was pushed to every open browser each time anything moved; a change to one row is now a few hundred bytes. Phones and older web pages keep getting the whole list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1881](https://github.com/Sma1lboy/rove/pull/1881) [`f190756`](https://github.com/Sma1lboy/rove/commit/f19075637c8fc1984757d3506fa609350efeb8a1) A task's right-click menu in the TUI and the web now offers New task from this branch, which opens New task on that task's repo with its branch as the base, so follow-up work stacks on changes that have not landed yet. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1874](https://github.com/Sma1lboy/rove/pull/1874) [`39b32c5`](https://github.com/Sma1lboy/rove/commit/39b32c52698eb7b4978074a12f5ca9467523bc76) Agent sessions talk to each other less: a worker that reports on an armed prompt no longer also sends a "succeeded" message, because Rove now pastes one `[ROVE REPORT]` line with the outcome into its dispatcher's tab; coordinators read `context` when they need state instead of at every turn; and a field note is only handed to sessions that start later, so it no longer starts a turn on the repo's main session. A `report --outcome done` from a branch with no commits is now refused the same way an empty "succeeded" message is; pass `--allow-empty` for work that genuinely commits nothing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1876](https://github.com/Sma1lboy/rove/pull/1876) [`b29dc6b`](https://github.com/Sma1lboy/rove/commit/b29dc6b3e4e957f22c697bbd1782298c73568a1d) Routines are quieter: a standing-session routine sends its full prompt only when the session is new, revived or the prompt changed, a routine turn with nothing to report just ends without a "report missing" Inbox entry or holding the next run, and a routine turn that reported no longer adds a separate "turn finished" Inbox entry. A routine whose repo has been moved or deleted now shows up once in the Inbox as unavailable, instead of skipping every run silently when it has a precheck. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1875](https://github.com/Sma1lboy/rove/pull/1875) [`8a9b6c6`](https://github.com/Sma1lboy/rove/commit/8a9b6c645fbe0fbd532bc07e2e671d6e424fb6fe) A terminal pane uses about 30% less CPU when a program repaints the whole screen every frame, and a little less on a streaming reply. Each changed row used to be packed into a styled-text buffer and laid out again; it is now drawn straight into a one-row cell buffer, and rows that did not change are not touched. The pane also stops rebuilding its 850-entry keybinding signature on every output frame. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1873](https://github.com/Sma1lboy/rove/pull/1873) [`d2cae4e`](https://github.com/Sma1lboy/rove/commit/d2cae4e8c93105e5b12e8ee1b20557914e8d31e8) The web client's New session page no longer shows the side panel. The Files, Diff and Browser columns of the task that was open stayed on screen beside it, though they have nothing to do with the task being started. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1878](https://github.com/Sma1lboy/rove/pull/1878) [`3ebc6fe`](https://github.com/Sma1lboy/rove/commit/3ebc6fe99c9235c37a4c0c8af8d146ea604765e6) A checkout cut with `rove api add --worktree-only` no longer shows as a row for the seconds git takes to make it. The task was created first and marked hidden only after its worktree existed; it is now created already marked. A cut that fails takes the mark off, so the row it leaves can be seen and deleted. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.283
 
 ### Patch Changes
