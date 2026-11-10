@@ -12,11 +12,11 @@
  * ## Continuity
  *
  * Rests on the engine conversation in the PTY host, which lives OUTSIDE the
- * daemon (`pty-server.ts`) and survives `rove daemon restart`. When that PTY
- * is gone, a standing task is revived with a fresh engine in the same
- * worktree — files carry over, the transcript does NOT (`buildEngineSessionLaunch`
- * has no resume verb; `engineResumeArgv` is the TUI's path). Recorded as
- * `revived`, not `dispatched`, so run history tells the two apart.
+ * daemon (`pty-server.ts`) and survives `rove daemon restart`. A routine-owned
+ * task's engine is stopped when its run ends, so a standing task is usually
+ * revived: the engine starts again in the same worktree and the runtime reopens
+ * the conversation its tab row holds. Recorded as `revived`, not `dispatched`,
+ * so run history tells the two apart.
  */
 
 import { assertAutomationTargetTask, automationTarget } from "./automation-target.ts"

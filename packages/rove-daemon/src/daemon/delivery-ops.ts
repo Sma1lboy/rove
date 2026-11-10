@@ -28,6 +28,8 @@ export interface DeliveryDeps {
   readonly orch: Pick<DaemonOrchestrator, "getTask" | "setWorkerReport">
   readonly automations: Pick<AutomationsStore, "get" | "getRun">
   readonly now?: () => number
+  /** Stops the engine in one tab; absent where nothing may be stopped. */
+  readonly stopEngineTab?: (taskId: string, tabId: string) => Promise<void>
 }
 
 export type DeliveryReportInput = Omit<DeliveryReport, "at" | "evidence"> & { readonly evidence?: readonly string[] }
@@ -191,7 +193,10 @@ export async function trackDeliveryTurn(
     })
     if (kind === "turn-complete") {
       const ended = await markDeliveryMissing(deps, { taskId, tabId, cause: "turn-complete", scope: "started" })
-      return [...reported, ...ended].some((d) => d.source === "routine")
+      const closed = [...reported, ...ended].filter((d) => d.source === "routine")
+      const first = closed[0]
+      if (first) stopIdleRoutineEngine(deps, taskId, tabId ?? first.tabId ?? "tab-1")
+      return first !== undefined
     }
   }
   if (kind === "turn-interrupted") {
@@ -214,6 +219,19 @@ export async function trackDeliveryTurn(
     })
   }
   return false
+}
+
+/**
+ * A routine's own task keeps no engine between runs: the tab row holds the
+ * conversation and the next run resumes it. A routine bound to someone's tab
+ * runs in their task, which carries no routine mark and is left alone.
+ */
+function stopIdleRoutineEngine(deps: DeliveryDeps, taskId: string, tabId: string): void {
+  if (!deps.stopEngineTab || !deps.orch.getTask(taskId)?.routine) return
+  // A prompt still waiting on this tab would die with the engine.
+  if (deps.deliveries.awaitingOn(taskId, tabId).length > 0) return
+  // Not awaited: the engine's own hook is the caller, and it ends with the engine.
+  void deps.stopEngineTab(taskId, tabId).catch((err: unknown) => logDaemonError("routine-engine-stop", err))
 }
 
 /**

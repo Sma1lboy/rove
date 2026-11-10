@@ -1867,8 +1867,8 @@ into it, so a daily check can build on yesterday. Every routine task, standing o
 one fresh run's, stays out of the sidebar; it opens from the Routines page and
 still raises Inbox entries. Leave it off for a routine that edits code: a week of runs on
 one branch is a branch nobody can land. One extra run status comes with it —
-`revived` (the engine had exited, so it was respawned in the same worktree; the
-files carried over, the conversation did not).
+`revived` (the engine is stopped after every run, so it was started again in the
+same worktree; the conversation is reopened where the engine has a resume command).
 
 **`--webhook`** also fires the routine on a POST to the web server's
 `/hooks/routines/<id>` signed with `.webhook.secret` (GitHub's

@@ -39,7 +39,7 @@ import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolve
 import { PromptBroker } from "./prompt-broker.ts"
 import { PromptQueue } from "./prompt-queue.ts"
 import type { DaemonFrame } from "./protocol.ts"
-import { aliasedKeys } from "./pty-alias.ts"
+import { aliasedKeys, ptyScopeFor } from "./pty-alias.ts"
 import { type PtyOwnerResolver, startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { clearResidentMarker, residentMarkerPath, resolveResident, writeResidentMarker } from "./resident.ts"
@@ -147,7 +147,13 @@ async function startOwnedServer(
   // Spread wholesale into the handler context: `DaemonStores` IS its store half.
   const stores = await initDaemonStores(orch, runtime, bus, options.homeDir)
   const { activity, deletions, rowTokens, automations, deliveries, quotaUsage, inbox, gates } = stores
-  const deliveryDeps: DeliveryDeps = { deliveries, inbox, orch, automations }
+  const deliveryDeps: DeliveryDeps = {
+    deliveries,
+    inbox,
+    orch,
+    automations,
+    stopEngineTab: (taskId, tabId) => runtime.stopTaskEngineTab(taskId, tabId, ptyScopeFor(orch.listTasks(), taskId)),
+  }
   const runnability = createDispatchRunnability(
     { orch, activity, gates, deliveries },
     quotaUsage,

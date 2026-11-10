@@ -3,7 +3,8 @@ import { resolveSessionShell } from "@sma1lboy/rove-daemon/daemon/platform-shell
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { type PtyScope, type TeardownScope, hostedKeyFor } from "@sma1lboy/rove-daemon/daemon/pty-alias"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
-import { engineLaunchArgv } from "../engine/engine-presets.ts"
+import { markCliTabSession, publishCliTabSnapshot, readDaemonTabs } from "../cli/api/tab-snapshot.ts"
+import { engineLaunchArgv, engineResumeArgv, withPinnedSessionId } from "../engine/engine-presets.ts"
 import {
   awaitEngineProcess,
   deliverToHostedKey,
@@ -101,37 +102,48 @@ export async function startTaskSessionWithPromptAdapter(
   // So later Rove-injected text (e.g. timer-fired quota resume) matches the
   // user's language. Best-effort: must never block the session.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
-  // "new-task", not "explicit": callers just created the task, so the prompt
-  // gets the branch-rename coda like other new-worktree entry points.
-  const launch = taskEngineLaunch(
-    task,
-    worktreePath,
-    {
-      kind: "new-task",
-      prompt,
-    },
-    repos,
-  )
+  const base = engineLaunchArgv({
+    command: task.command,
+    vendor: task.vendor,
+    effort: task.modelEffort,
+    model: task.model,
+  })
+  // A task whose engine was stopped holds its conversation on the tab row: reopen that one.
+  const row = (await readDaemonTabs(link, taskId).catch(() => undefined))?.tabs.find((tab) => tab.id === "tab-1")
+  const held = row?.kind === "engine" && row.spawned && row.sessionId ? row.sessionId : null
+  const resumeArgv = held ? engineResumeArgv(base, task.vendor, held) : null
   const host = await ensureHostedSessionHost()
   try {
-    const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
-    if (!opened.alive) return { started: false, error: "hosted session did not open" }
-    const engineBin = engineLaunchArgv({
-      command: task.command,
-      vendor: task.vendor,
-      effort: task.modelEffort,
-      model: task.model,
-    })[0]
-    const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
-    // Paste-delivery vendor (kimi): a paste that never lands is not started.
-    if (launch.firstMessage) {
-      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, wait)
-      if (outcome !== null) return { started: true }
-      return { started: false, error: await startFailureReason(host.rpc, launch.key) }
+    const start = async (argv: readonly string[]): Promise<{ started: boolean; error?: string; key: string }> => {
+      // "new-task", not "explicit": callers just created the task, so the prompt
+      // gets the branch-rename coda like other new-worktree entry points.
+      const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt }, repos, argv)
+      const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
+      if (!opened.alive) return { started: false, error: "hosted session did not open", key: launch.key }
+      const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
+      // Paste-delivery vendor (kimi): a paste that never lands is not started.
+      const up = launch.firstMessage
+        ? await pastePromptWhenEngineUp(host.rpc, launch.key, base[0], launch.firstMessage, wait)
+        : // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
+          await awaitEngineProcess(host.rpc, launch.key, base[0], wait)
+      if (up !== null) return { started: true, key: launch.key }
+      return { started: false, error: await startFailureReason(host.rpc, launch.key), key: launch.key }
     }
-    // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
-    if ((await awaitEngineProcess(host.rpc, launch.key, engineBin, wait)) !== null) return { started: true }
-    return { started: false, error: await startFailureReason(host.rpc, launch.key) }
+    if (resumeArgv) {
+      const resumed = await start(resumeArgv)
+      if (resumed.started) return { started: true }
+      // A conversation the engine no longer has must not wedge the task: clear the
+      // failed launch's shell (an open would reattach to it) and start a new one.
+      await killHostedSessions(host.rpc, [resumed.key], { wait: true })
+    }
+    const pinned = withPinnedSessionId(base, task.vendor)
+    const { key: _key, ...fresh } = await start(pinned.argv)
+    if (fresh.started) {
+      // The row the next start resumes from; an engine that mints its own id reports it through its hook.
+      await publishCliTabSnapshot(link, taskId, pinned.sessionId)
+      await markCliTabSession(link, taskId, "tab-1", pinned.sessionId)
+    }
+    return fresh
   } finally {
     host.close()
   }
@@ -149,6 +161,12 @@ function taskEngineLaunch(
   worktreePath: string,
   promptIntent: PromptDeliveryIntent,
   repos: readonly TaskRepoView[] | undefined,
+  argv: readonly string[] = engineLaunchArgv({
+    command: task.command,
+    vendor: task.vendor,
+    effort: task.modelEffort,
+    model: task.model,
+  }),
 ) {
   // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
@@ -163,12 +181,7 @@ function taskEngineLaunch(
     },
     worktreePath,
     shell: resolveSessionShell(),
-    argv: engineLaunchArgv({
-      command: task.command,
-      vendor: task.vendor,
-      effort: task.modelEffort,
-      model: task.model,
-    }),
+    argv,
     promptIntent,
   })
 }
@@ -308,6 +321,18 @@ export async function tearDownTaskSessionAdapter(taskId: string, scope?: Teardow
     await killHostedSessions(host.rpc, keys, { wait: true })
   } catch {
     // Task mutation already committed; teardown remains best-effort.
+  } finally {
+    host.close()
+  }
+}
+
+/** Stop one tab's engine and forget its PTY; the tab row keeps the conversation a later start resumes. */
+export async function stopTaskEngineTabAdapter(taskId: string, tabId: string, scope?: PtyScope): Promise<void> {
+  const host = await openHostedSessionHost()
+  if (!host) return
+  try {
+    const key = hostedKeyFor(taskId, tabId, scope)
+    if (key) await killHostedSessions(host.rpc, [key], { wait: true })
   } finally {
     host.close()
   }
