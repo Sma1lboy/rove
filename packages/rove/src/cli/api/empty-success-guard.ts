@@ -1,4 +1,4 @@
-/** The `send` guard against a `succeeded:` report from a worker whose branch has no commits. */
+/** The `send` / `report` guard against a success report from a worker whose branch has no commits. */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { workspaceCapabilities } from "@sma1lboy/rove-daemon/workspace"
@@ -27,10 +27,60 @@ export async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext,
   if (ctx.args.bool("allow-empty")) return
   // Fullwidth colon too: a CJK IME types `succeeded：` without the agent noticing.
   if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
+  await refuseIfEmptyBranch(daemon, ctx, async () => true, [
+    "api",
+    "send",
+    ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
+    ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
+    "--allow-empty",
+    "--prompt",
+    prompt,
+  ])
+}
+
+/**
+ * The same refusal for `report --outcome done` on a `send` delivery: when work
+ * arrives armed, `report` is the worker's only success claim. Routine and gate
+ * deliveries are not a worker's hand-off and are never refused.
+ */
+export async function assertNotEmptyDoneReport(
+  daemon: DaemonRpc,
+  ctx: VerbContext,
+  report: { delivery: string; outcome: string; summary: string; evidence?: readonly string[]; next?: string },
+): Promise<void> {
+  if (ctx.args.bool("allow-empty") || report.outcome !== "done") return
+  const fromSend = async (taskId: string) => {
+    const { deliveries } = await daemon.request<{ deliveries: { id: string; source: string }[] }>("delivery.list", {
+      taskId,
+    })
+    return deliveries.find((d) => d.id === report.delivery)?.source === "send"
+  }
+  await refuseIfEmptyBranch(daemon, ctx, fromSend, [
+    "api",
+    "report",
+    "--delivery",
+    report.delivery,
+    "--outcome",
+    "done",
+    "--summary",
+    report.summary,
+    ...(report.evidence ?? []).flatMap((e) => ["--evidence", e]),
+    ...(report.next ? ["--next", report.next] : []),
+    "--allow-empty",
+  ])
+}
+
+async function refuseIfEmptyBranch(
+  daemon: DaemonRpc,
+  ctx: VerbContext,
+  applies: (selfTaskId: string) => Promise<boolean>,
+  nextCommandArgs: string[],
+): Promise<void> {
   const self = await ownSession(daemon)
   if (!self) return
   let sender: SerializedTask
   try {
+    if (!(await applies(self.taskId))) return
     sender = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })).task
   } catch {
     return // stale id / unreadable task — an unknown is never grounds to refuse
@@ -55,18 +105,10 @@ export async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext,
     {
       taskId: self.taskId,
       branch,
-      hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
+      hint: "commit your work with a real message and run it again — or, if this task genuinely produced no commits (an investigation or a review), re-run with --allow-empty to say so explicitly",
       // Carry the caller's target forward, or the verbatim retry re-resolves
       // via the active-task fallback and could land in a DIFFERENT task.
-      nextCommandArgs: [
-        "api",
-        "send",
-        ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
-        ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
-        "--allow-empty",
-        "--prompt",
-        prompt,
-      ],
+      nextCommandArgs,
     },
   )
 }

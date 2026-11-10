@@ -80,12 +80,14 @@ Ground rules that make rounds worth running:
 - **Don't fan out for a fix you'd accept from anyone.** One task is fine.
   Parallel rounds pay off when approaches genuinely differ.
 
-## Start every turn with `context`
+## Read `context` when you lack the state
 
 A coordinator that remembers is a coordinator that is wrong. Between two of
 its turns a worker can finish, crash, hit a permission prompt or have its PR
-approved — none of which the coordinator witnessed. So begin each turn with
-one read:
+approved — none of which the coordinator witnessed. So read `context` at the
+start of a session and whenever you need state you do not have. A turn
+started by a `[ROVE REPORT]` line or a peer message that already carries the
+outcome acts on that message instead of re-reading the fleet:
 
 ```bash
 rove api context --repo "$PWD" --text
@@ -121,8 +123,15 @@ ahead-count and diffstat.
 
 Rove's completion contract is a *message*, not stored state. When a task is
 created from inside another Rove session, the creator's task + tab are
-recorded as the new task's **dispatcher**. When the worker finishes, one
-bare `send` — no `--task-id` — routes its outcome back to that exact tab:
+recorded as the new task's **dispatcher**. A worker sends exactly one outcome
+signal when it finishes:
+
+- **Its prompt was armed** (`send --expect-report`, `add --require-report`):
+  `rove api report --delivery d-<n> …`, nothing else. Rove pastes one line
+  into the dispatcher's tab — `[ROVE REPORT] "<title>" (task <id>, branch <b>)
+  done: <summary's first line>` — so the worker sends no `succeeded:` message.
+- **Otherwise**, one bare `send` — no `--task-id` — routes its outcome back
+  to that exact tab:
 
 ```bash
 rove api send --prompt "succeeded: auth flow simplified (branch fix/auth-simplify)"
@@ -143,8 +152,9 @@ sequenceDiagram
 What makes this loop work:
 
 - **Coordinators don't poll.** Each outcome arrives in the coordinator's own
-  chat as a `[ROVE PEER]`-prefixed message carrying the sender's task id and
-  a ready-made reply command. Keep working, or end the turn; the messages
+  chat: a `[ROVE REPORT]` line for an armed prompt, else a
+  `[ROVE PEER]`-prefixed message carrying the sender's task id and a
+  ready-made reply command. Neither needs an answer. Keep working, or end the turn; the messages
   come to you. Every `send` costs the receiver a full engine turn, so a
   polling loop burns both sides' budgets for nothing.
 - **Workers report the branch name.** The coordinator needs it to `land`.
@@ -312,7 +322,8 @@ rove api delete --task-id <loser2> --wait
 ```
 
 The same round run *by an agent* differs only in step 2: the workers'
-`succeeded:`/`failed:` messages land in its chat unprompted, because its own
+outcomes (`succeeded:`/`failed:` messages, or `[ROVE REPORT]` lines for armed
+prompts) land in its chat unprompted, because its own
 task + tab were recorded as each worker's dispatcher at `add` time.
 
 ## See also
