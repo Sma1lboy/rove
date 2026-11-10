@@ -1,6 +1,6 @@
 /**
- * `task.pin` / `task.keep` / `task.autoFixCi` / `task.notes`: the small per-task settings a person flips
- * on a row: pin it, mark the kept attempt, opt in to auto-fix CI, keep notes and a checklist.
+ * `task.pin` / `task.keep` / `task.autoFixCi` / `task.notes` / `task.worktreeOnly`: the small per-task settings
+ * flipped on a row: pin it, mark the kept attempt, opt in to auto-fix CI, keep notes and a checklist, mark a bare checkout.
  */
 
 import { TodoRefusedError, parseTodoOps } from "../task-notes.ts"
@@ -8,6 +8,14 @@ import { optionalBoolean, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
 export const FIELD_HANDLERS: readonly DaemonRequestHandler[] = [
+  {
+    name: "task.worktreeOnly",
+    async handle(payload, ctx) {
+      if (typeof payload.on !== "boolean") throw new Error("on must be a boolean")
+      await ctx.orch.setWorktreeOnly(requireString(payload, "taskId"), payload.on)
+      return {}
+    },
+  },
   {
     name: "task.pin",
     async handle(payload, ctx) {

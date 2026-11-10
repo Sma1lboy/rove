@@ -85,8 +85,28 @@ describe("add --worktree-only", () => {
       }),
     })
 
-    expect(client.requestNames).toEqual(["task.create", "task.ensureWorktree", "task.worktreeOnly", "task.get"])
+    // Marked in the create and again before the cut, so the row is never listed while git works.
+    expect(client.requestNames).toEqual(["task.create", "task.worktreeOnly", "task.ensureWorktree", "task.get"])
+    expect(client.requests[0]?.payload).toMatchObject({ worktreeOnly: true })
     expect(result).toMatchObject({ taskId: "t1", started: false, worktreePath: "/wt/made" })
+  })
+
+  it("a cut that fails takes the mark off, leaving a row the user can see and delete", async () => {
+    const marks: unknown[] = []
+    const client = new FakeClient({
+      "task.create": created,
+      "task.worktreeOnly": (payload) => {
+        marks.push((payload as { on?: boolean }).on)
+        return {}
+      },
+      "task.ensureWorktree": () => {
+        throw new Error("git worktree add failed")
+      },
+    })
+    await expect(
+      invokeVerb("add", ["--repo", "/repo/x", "--worktree-only"], { client, runtime: stubRuntime({}) }),
+    ).rejects.toThrow("git worktree add failed")
+    expect(marks).toEqual([true, false])
   })
 
   it("refuses --worktree-only beside --start", async () => {

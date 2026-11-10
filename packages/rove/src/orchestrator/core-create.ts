@@ -102,6 +102,7 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
     ...(parentTaskId ? { parentTaskId } : {}),
+    ...(input.worktreeOnly ? { worktreeOnly: true } : {}),
     ...(input.cwdSubpath ? { cwdSubpath: input.cwdSubpath } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     // Persisted ON the task: `ensureWorktree` may run in a later daemon
