@@ -9,9 +9,9 @@
  */
 
 import { spawn } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, openSync, readFileSync, statfsSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statfsSync, writeFileSync } from "node:fs"
 import { arch, homedir, platform } from "node:os"
-import { delimiter, join, resolve } from "node:path"
+import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
 import { BridgeError } from "../protocol.ts"
@@ -66,13 +66,23 @@ function alive(pid: number | undefined): boolean {
   }
 }
 
+export type VoiceBackend = "off" | "local" | "cloud"
+
 export interface VoiceConfig {
-  readonly backend?: "local" | "cloud"
+  readonly backend?: VoiceBackend
+  /** The cloud endpoint while another backend is in use: `model` at the top level is then the local model's. */
+  readonly cloudSaved?: { readonly baseURL?: string; readonly model?: string }
   readonly model?: string
   readonly baseURL?: string
   readonly apiKey?: string
   readonly apiKeyEnv?: string
   readonly [key: string]: unknown
+}
+
+/** The cloud endpoint a config holds, whichever backend is in use. */
+function cloudEndpoint(config: VoiceConfig): { baseURL: string; model: string } {
+  const from = config.backend === "cloud" ? config : (config.cloudSaved ?? {})
+  return { baseURL: String(from.baseURL ?? ""), model: String(from.model ?? "") }
 }
 
 const configPath = () => join(voiceDir(), "config.json")
@@ -121,8 +131,9 @@ export interface VoiceSetup {
   /** The local model is downloaded (`installed.json`, written by `fetch_model.py`). */
   readonly localInstalled: boolean
   readonly install: InstallState
-  readonly backend: "local" | "cloud"
-  /** Never the key itself: only whether one is set. */
+  /** `off`: nothing chosen, so no sidecar runs and the page shows no mic. */
+  readonly backend: VoiceBackend
+  /** The saved endpoint, in use or not. Never the key itself: only whether one is set. */
   readonly cloud: { readonly baseURL: string; readonly model: string; readonly hasKey: boolean } | null
   /** Why no install button: missing uv, wrong machine, too little disk. */
   readonly blocked: string | null
@@ -144,6 +155,14 @@ export function voiceSetup(): VoiceSetup {
   const free = freeBytes()
   const localInstalled = existsSync(join(voiceDir(), "installed.json"))
   const hasKey = Boolean(config.apiKey || (config.apiKeyEnv && process.env[config.apiKeyEnv]))
+  // A config from before `off` existed names no backend: it meant local, which is off until installed.
+  const backend: VoiceBackend =
+    config.backend === "cloud" || config.backend === "off"
+      ? config.backend
+      : localInstalled || config.backend
+        ? "local"
+        : "off"
+  const endpoint = cloudEndpoint(config)
   const blocked = !voiceCodeDir()
     ? "this Rove build does not include the voice sidecar"
     : !uv
@@ -159,18 +178,15 @@ export function voiceSetup(): VoiceSetup {
     freeBytes: free,
     localInstalled,
     install: installState(),
-    backend: config.backend === "cloud" ? "cloud" : "local",
-    cloud:
-      config.backend === "cloud"
-        ? { baseURL: String(config.baseURL ?? ""), model: String(config.model ?? ""), hasKey }
-        : null,
+    backend,
+    cloud: endpoint.baseURL || hasKey ? { baseURL: endpoint.baseURL, model: endpoint.model, hasKey } : null,
     blocked,
   }
 }
 
 /** Set up enough that the sidecar should be running: the chosen backend has what it needs. */
 export const configured = (setup: VoiceSetup): boolean =>
-  setup.backend === "cloud" ? setup.cloud?.hasKey === true : setup.localInstalled
+  setup.backend === "cloud" ? setup.cloud?.hasKey === true : setup.backend === "local" && setup.localInstalled
 
 function uvEnv(): NodeJS.ProcessEnv {
   return {
@@ -207,12 +223,31 @@ export function startSidecar(force = false): boolean {
   return true
 }
 
-/** Stop the sidecar this machine runs, by its pidfile, and start it again on the current config. */
-async function restartSidecar(): Promise<void> {
+/** Stop the sidecar this machine runs, by its pidfile. */
+async function stopSidecar(): Promise<void> {
   const pid = Number(readJson<number>(join(voiceDir(), "sidecar.pid")) ?? 0)
-  if (alive(pid)) process.kill(pid, "SIGTERM")
+  // Nothing of ours to stop: a sidecar another Rove home runs on this port is not waited on.
+  if (!alive(pid)) return
+  process.kill(pid, "SIGTERM")
   for (let i = 0; i < 25 && (await voiceHealth()).up; i++) await sleep(200)
-  startSidecar(true)
+}
+
+/** Stop the sidecar and start it again on the current config; one that is not set up stays stopped. */
+async function restartSidecar(): Promise<void> {
+  await stopSidecar()
+  if (configured(voiceSetup())) startSidecar(true)
+}
+
+/**
+ * The Hugging Face repo directory the local model was downloaded into, from the snapshot path `fetch_model.py`
+ * recorded (`…/hub/models--<org>--<name>/snapshots/<rev>`). Null for anything that is not that shape: the
+ * uninstall removes this directory and must never be pointed anywhere else.
+ */
+export function modelRepoDir(snapshot: unknown): string | null {
+  if (typeof snapshot !== "string") return null
+  const repo = resolve(snapshot, "../..")
+  const shaped = basename(dirname(snapshot)) === "snapshots" && basename(repo).startsWith("models--")
+  return shaped && basename(dirname(repo)) === "hub" ? repo : null
 }
 
 function startInstall(local: boolean): void {
@@ -244,7 +279,9 @@ async function status(): Promise<VoiceStatus> {
   const health = await voiceHealth()
   const setup = voiceSetup()
   if (!health.up && configured(setup)) startSidecar()
-  return { ...health, port: voicePort(), available: health.up || configured(setup), setup }
+  // Off hides the mic even while a sidecar from before the change is still shutting down.
+  const available = setup.backend !== "off" && (health.up || configured(setup))
+  return { ...health, port: voicePort(), available, setup }
 }
 
 function httpUrl(raw: string): string {
@@ -260,6 +297,36 @@ const text = (a: Args, name: string): string | undefined => {
   if (value === undefined || value === "") return undefined
   if (typeof value !== "string" || value.length > TEXT_MAX) throw new BridgeError("BAD_ARGS", `${name} must be text`)
   return value.trim()
+}
+
+/** The config `voice.configure` writes for `a` ({backend, baseURL?, model?, apiKey?}) over `now`. */
+export function configuredAs(now: VoiceConfig, a: Args): VoiceConfig {
+  const backend = (["off", "local", "cloud"] as const).find((name) => name === a.backend)
+  if (!backend) throw new BridgeError("BAD_ARGS", "backend must be off, local or cloud")
+  const saved = cloudEndpoint(now)
+  const { baseURL: _b, model: _m, cloudSaved: _c, ...rest } = now
+  let next: VoiceConfig
+  if (backend === "cloud") {
+    // Nothing typed: back to the endpoint saved before another backend took over.
+    const baseURL = httpUrl(text(a, "baseURL") ?? saved.baseURL)
+    const model = text(a, "model") ?? saved.model
+    if (!model) throw new BridgeError("BAD_ARGS", "model is required")
+    // An empty key field keeps the saved one: the page never sees it to send it back.
+    const apiKey = text(a, "apiKey") ?? now.apiKey
+    if (!apiKey && !now.apiKeyEnv) throw new BridgeError("BAD_ARGS", "apiKey is required")
+    next = { ...rest, backend, baseURL, model, ...(apiKey ? { apiKey } : {}) }
+  } else {
+    next = { ...rest, backend, ...(saved.baseURL ? { cloudSaved: saved } : {}) }
+  }
+  return next
+}
+
+/** `now` without its cloud endpoint or key; a cloud backend in use goes off. */
+export function withoutCloud(now: VoiceConfig): VoiceConfig {
+  const { apiKey: _k, cloudSaved: _c, ...rest } = now
+  if (rest.backend !== "cloud") return rest
+  const { baseURL: _b, model: _m, ...kept } = rest
+  return { ...kept, backend: "off" }
 }
 
 export const voiceSetupOps: OpTable = {
@@ -285,26 +352,45 @@ export const voiceSetupOps: OpTable = {
     destructive: false,
     wraps: "write <ROVE_HOME>/.rove/voice/config.json (0600) and restart the sidecar on it",
     async run(a: Args) {
-      const backend = a.backend === "cloud" ? "cloud" : a.backend === "local" ? "local" : null
-      if (!backend) throw new BridgeError("BAD_ARGS", "backend must be local or cloud")
       const now = readConfig()
-      let next: VoiceConfig
-      if (backend === "cloud") {
-        const baseURL = httpUrl(text(a, "baseURL") ?? "")
-        const model = text(a, "model")
-        if (!model) throw new BridgeError("BAD_ARGS", "model is required")
-        // An empty key field keeps the saved one: the page never sees it to send it back.
-        const apiKey = text(a, "apiKey") ?? now.apiKey
-        if (!apiKey && !now.apiKeyEnv) throw new BridgeError("BAD_ARGS", "apiKey is required")
-        next = { ...now, backend, baseURL, model, ...(apiKey ? { apiKey } : {}) }
-      } else {
-        const { baseURL: _b, model: _m, ...rest } = now
-        next = { ...rest, backend }
-      }
+      const next = configuredAs(now, a)
+      const backend = next.backend
       writeConfig(next)
       // A cloud setup still needs the environment, without the local recognizer.
       if (backend === "cloud" && !existsSync(venvDir())) startInstall(false)
       else await restartSidecar()
+      return status()
+    },
+  },
+  "voice.uninstall": {
+    kind: "write",
+    destructive: true,
+    wraps: "remove the local model's Hugging Face repo and, unless a cloud endpoint is in use, the sidecar environment",
+    async run() {
+      if (installState().phase === "running") throw new BridgeError("VOICE_SETUP", "an install is still running")
+      const now = readConfig()
+      const cloud = voiceSetup().backend === "cloud"
+      // The cloud backend runs in the same environment: only the model goes.
+      if (!cloud) {
+        writeConfig({ ...now, backend: "off" })
+        await stopSidecar()
+        rmSync(venvDir(), { recursive: true, force: true })
+      }
+      const repo = modelRepoDir(readJson<{ path?: unknown }>(join(voiceDir(), "installed.json"))?.path)
+      if (repo) rmSync(repo, { recursive: true, force: true })
+      for (const file of ["installed.json", "install.json", "install.log"])
+        rmSync(join(voiceDir(), file), { force: true })
+      return status()
+    },
+  },
+  "voice.forgetCloud": {
+    kind: "write",
+    destructive: true,
+    wraps: "drop the cloud endpoint and its API key from <ROVE_HOME>/.rove/voice/config.json",
+    async run() {
+      const now = readConfig()
+      writeConfig(withoutCloud(now))
+      if (now.backend === "cloud") await stopSidecar()
       return status()
     },
   },
