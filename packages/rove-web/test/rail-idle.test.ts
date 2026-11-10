@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { dropIdleMains } from "../src/rail-idle.ts"
+import { dropIdleMains, rememberShownMains, shownMainsBefore } from "../src/rail-idle.ts"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -10,7 +10,7 @@ const run = task("daily-release", { routine: true })
 
 const shown = (
   tasks: TaskRow[],
-  tabs: Record<string, unknown[]>,
+  tabs: Record<string, readonly unknown[]>,
   selected: string | null = null,
   settled = true,
   keep: string | null = null,
@@ -22,6 +22,20 @@ const shown = (
 describe("idle main rows in the rail", () => {
   test("routine runs stay off the rail, so a project with only those and an idle main row is not listed", () => {
     expect(shown([main, run], { shop: [] })).toEqual([])
+  })
+
+  test("after a reload a main row that had a tab shows before the first sweep, and an idle one stays hidden", () => {
+    const kept = new Map<string, string>()
+    Object.assign(globalThis, {
+      localStorage: {
+        getItem: (k: string) => kept.get(k) ?? null,
+        setItem: (k: string, v: string) => void kept.set(k, v),
+      },
+    })
+    rememberShownMains([main, task("idle", { kind: "main", repo: "/r/blog" })], { shop: [{}], idle: [] })
+    const reloaded = shown([main, task("idle", { kind: "main", repo: "/r/blog" })], shownMainsBefore(), null, false)
+    expect(reloaded).toContain("shop")
+    expect(reloaded).not.toContain("idle")
   })
 
   test("the main row stays while it has a tab open or is selected", () => {
