@@ -11,6 +11,7 @@ import { NewSessionView } from "./new-session-view.tsx"
 import { PagesHost } from "./pages-host.tsx"
 import { narrowView } from "./panel-layout.ts"
 import { NarrowBackBar } from "./rail-chrome.tsx"
+import { composerKey } from "./retry-seed.ts"
 import { SidePanel } from "./side-panel.tsx"
 import { SplitPane } from "./split-view.tsx"
 import { StackStrip } from "./stack-strip.tsx"
@@ -82,12 +83,8 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
       <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
         {narrow && <NarrowBackBar />}
         <div className={PANE}>
-          {/* A different project's or machine's + remounts the composer so its chips follow; the prompt draft survives. */}
-          <NewSessionView
-            key={`${composing.machine ?? ""}\0${composing.repo ?? ""}\0${composing.ungrouped ? "u" : ""}\0${composing.retryOf?.id ?? ""}`}
-            model={model}
-            seed={composing}
-          />
+          {/* A different seed remounts the composer so its chips follow; the prompt draft survives. */}
+          <NewSessionView key={composerKey(composing)} model={model} seed={composing} />
         </div>
       </main>
     )

@@ -48,6 +48,18 @@ export function seededBases(
   }
 }
 
+/** The composer's mount identity: a seed that differs here remounts it, so its chips follow the new seed. */
+export function composerKey(seed: NewSessionStart): string {
+  return [
+    seed.machine ?? "",
+    seed.repo ?? "",
+    seed.ungrouped ? "u" : "",
+    seed.retryOf?.id ?? "",
+    seed.baseBranch ?? "",
+    seed.worktree === undefined ? "" : String(seed.worktree),
+  ].join("\0")
+}
+
 /** The task whose launch command the new one keeps: only while it still runs the engine that task ran. */
 export function retryCommandFrom(
   seed: Pick<NewSessionStart, "retryOf" | "engine">,
