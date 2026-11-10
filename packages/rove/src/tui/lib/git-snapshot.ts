@@ -81,8 +81,7 @@ function noCommitsReason(path: string): string {
  * a non-repo). Private for that reason; {@link validateRepoPath} checks first.
  */
 function hasNoCommits(repo: string): boolean {
-  const out = git(repo, ["rev-parse", "--verify", "HEAD"])
-  return out.spawned && !out.missing && out.status !== 0
+  return isUnborn(git(repo, ["rev-parse", "--verify", "HEAD"]))
 }
 
 /**
@@ -92,6 +91,17 @@ function hasNoCommits(repo: string): boolean {
  */
 export function validateRepoPath(repo: string): string | null {
   const trimmed = repo.trim()
+  const early = pathProblem(trimmed)
+  if (early !== undefined) return early
+  const repoCheck = git(trimmed, ["rev-parse", "--git-dir"])
+  // Unborn HEAD: nothing for `git worktree add <path> <baseRef>` to branch from.
+  return repoProblem(trimmed, repoCheck, () => hasNoCommits(trimmed))
+}
+
+export type GitAnswer = ReturnType<typeof git>
+
+/** What is wrong with the path before git is asked; undefined = ask git. */
+export function pathProblem(trimmed: string): string | null | undefined {
   if (!trimmed) return "repo path is required"
   let stat: fs.Stats
   try {
@@ -99,13 +109,19 @@ export function validateRepoPath(repo: string): string | null {
   } catch {
     return `path does not exist: ${trimmed}`
   }
-  if (!stat.isDirectory()) return `not a directory: ${trimmed}`
-  const repoCheck = git(trimmed, ["rev-parse", "--git-dir"])
+  return stat.isDirectory() ? undefined : `not a directory: ${trimmed}`
+}
+
+/** `rev-parse --git-dir`'s answer as a reason, or null; `unborn` is asked only of a real repo. */
+export function repoProblem(trimmed: string, repoCheck: GitAnswer, unborn: () => boolean): string | null {
   if (repoCheck.missing) return gitMissingReason()
   if (repoCheck.status !== 0) return notAGitRepoReason(trimmed)
-  // Unborn HEAD: nothing for `git worktree add <path> <baseRef>` to branch from.
-  if (hasNoCommits(trimmed)) return noCommitsReason(trimmed)
-  return null
+  return unborn() ? noCommitsReason(trimmed) : null
+}
+
+/** `rev-parse --verify HEAD`'s answer: the repo has no commit yet. */
+export function isUnborn(out: GitAnswer): boolean {
+  return out.spawned && !out.missing && out.status !== 0
 }
 
 /**
@@ -115,7 +131,10 @@ export function validateRepoPath(repo: string): string | null {
  */
 export function getCurrentBranch(repo: string): string | null {
   if (!repo) return null
-  const out = git(repo, ["rev-parse", "--abbrev-ref", "HEAD"])
+  return branchOf(git(repo, ["rev-parse", "--abbrev-ref", "HEAD"]))
+}
+
+export function branchOf(out: GitAnswer): string | null {
   if (out.status !== 0) return null
   const name = out.stdout.trim()
   return !name || name === "HEAD" ? null : name
@@ -124,7 +143,10 @@ export function getCurrentBranch(repo: string): string | null {
 /** Default branches first. [] on any error, so the picker degrades to free text. */
 export function listLocalBranches(repo: string): string[] {
   if (!repo) return []
-  const out = git(repo, ["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
+  return branchesOf(git(repo, ["for-each-ref", "--format=%(refname:short)", "refs/heads/"]))
+}
+
+export function branchesOf(out: GitAnswer): string[] {
   if (out.status !== 0) return []
   return out.stdout
     .split("\n")

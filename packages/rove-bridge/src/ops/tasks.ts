@@ -145,7 +145,8 @@ async function taskInfo(args: Args, ctx: OpContext): Promise<unknown> {
 
 async function repoBranches(args: Args, ctx: OpContext): Promise<unknown> {
   const repo = await knownRepo(args, ctx)
-  return { branches: taskOpDeps.listLocalBranches(repo), current: taskOpDeps.getCurrentBranch(repo) }
+  const [branches, current] = await Promise.all([taskOpDeps.listLocalBranches(repo), taskOpDeps.getCurrentBranch(repo)])
+  return { branches, current }
 }
 
 async function notesList(args: Args, ctx: OpContext): Promise<unknown> {
