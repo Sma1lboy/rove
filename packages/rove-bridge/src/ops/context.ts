@@ -20,6 +20,8 @@ export interface ContextRow {
   readonly label?: string
   /** The largest things in the part, biggest first. */
   readonly items?: readonly { readonly name: string; readonly tokens: number }[]
+  /** How many things the part holds, when `items` lists only the largest. */
+  readonly itemCount?: number
 }
 
 export interface ContextMeter {

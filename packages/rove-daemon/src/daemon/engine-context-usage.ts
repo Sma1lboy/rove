@@ -27,5 +27,7 @@ export interface EngineContextUsage {
     readonly tokens: number
     readonly label?: string
     readonly items?: readonly { readonly name: string; readonly tokens: number }[]
+    /** How many things the part holds, when `items` lists only the largest. */
+    readonly itemCount?: number
   }[]
 }

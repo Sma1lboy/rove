@@ -26,6 +26,8 @@ export interface ProbedContext {
 const PROBE_TIMEOUT_MS = 30_000
 /** The fixed parts move only when memory files, skills or MCP servers change. */
 const FRESH_MS = 5 * 60_000
+/** A probe that came back empty is not asked again sooner than this: callers poll. */
+const RETRY_MS = 60_000
 const MAX_ITEMS = 12
 const REQUEST = `${JSON.stringify({
   type: "control_request",
@@ -35,6 +37,7 @@ const REQUEST = `${JSON.stringify({
 
 const probed = new Map<string, ProbedContext>()
 const inFlight = new Map<string, Promise<void>>()
+const triedAt = new Map<string, number>()
 
 export function probedContext(sessionId: string): ProbedContext | undefined {
   return probed.get(sessionId)
@@ -42,8 +45,10 @@ export function probedContext(sessionId: string): ProbedContext | undefined {
 
 type Item = { readonly name: string; readonly tokens: number }
 
-function items(list: unknown, name: (row: Record<string, unknown>) => unknown): Item[] {
-  if (!Array.isArray(list)) return []
+type Items = { readonly items?: readonly Item[]; readonly itemCount?: number }
+
+function items(list: unknown, name: (row: Record<string, unknown>) => unknown): Items {
+  if (!Array.isArray(list)) return {}
   const home = homedir()
   const out: Item[] = []
   for (const row of list) {
@@ -52,16 +57,18 @@ function items(list: unknown, name: (row: Record<string, unknown>) => unknown): 
     if (typeof text !== "string" || !text) continue
     out.push({ name: text.startsWith(`${home}/`) ? `~${text.slice(home.length)}` : text, tokens: row.tokens })
   }
-  return out.sort((a, b) => b.tokens - a.tokens).slice(0, MAX_ITEMS)
+  if (out.length === 0) return {}
+  out.sort((a, b) => b.tokens - a.tokens)
+  return { items: out.slice(0, MAX_ITEMS), ...(out.length > MAX_ITEMS ? { itemCount: out.length } : {}) }
 }
 
 /** What each category is made of, where the reply lists it. */
-function itemsFor(id: string, reply: Record<string, unknown>): Item[] {
+function itemsFor(id: string, reply: Record<string, unknown>): Items {
   if (id === "memory_files") return items(reply.memoryFiles, (row) => row.path)
   if (id === "mcp_tools") return items(reply.mcpTools, (row) => (row.isLoaded === false ? undefined : row.name))
   if (id === "custom_agents") return items(reply.agents, (row) => row.agentType)
   if (id === "skills") return items(isObject(reply.skills) ? reply.skills.skillFrontmatter : undefined, (row) => row.name)
-  return []
+  return {}
 }
 
 /**
@@ -84,12 +91,11 @@ export function parseContextProbe(stdout: string, sessionModel: string | undefin
     for (const category of reply.categories) {
       if (!isObject(category) || category.kind !== "used" || category.id === "messages") continue
       if (typeof category.id !== "string" || typeof category.tokens !== "number" || category.tokens <= 0) continue
-      const list = itemsFor(category.id, reply)
       parts.push({
         key: category.id,
         tokens: category.tokens,
         ...(typeof category.name === "string" ? { label: category.name } : {}),
-        ...(list.length > 0 ? { items: list } : {}),
+        ...itemsFor(category.id, reply),
       })
     }
     if (parts.length === 0) return null
@@ -157,7 +163,8 @@ async function runClaude(sessionId: string, cwd: string, model?: string): Promis
 }
 
 /**
- * Probe `sessionId` unless a reading younger than {@link FRESH_MS} is held;
+ * Probe `sessionId` unless a reading younger than {@link FRESH_MS} is held or
+ * one was tried within {@link RETRY_MS}, so a caller may ask on every poll;
  * concurrent callers share one process. Never throws: no reading is the failure.
  */
 export function probeContext(
@@ -169,6 +176,8 @@ export function probeContext(
   if (held && Date.now() - held.at < FRESH_MS) return Promise.resolve()
   let pending = inFlight.get(sessionId)
   if (!pending) {
+    if (Date.now() - (triedAt.get(sessionId) ?? 0) < RETRY_MS) return Promise.resolve()
+    triedAt.set(sessionId, Date.now())
     pending = (async () => {
       const raw = await readRaw()
       const { cwd, model } = sessionCwdAndModel(raw ?? "")
