@@ -110,7 +110,7 @@ export const ACTIONS: readonly PrefixAction[] = [
       // No confirm: the TUI's `<prefix> w` closes the active tab outright.
       void model.client
         .request("tab.close", { taskId, tabId })
-        .then(() => model.refreshTabsNow())
+        .then(() => model.refreshTabsNow(taskId))
         .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
     },
   },

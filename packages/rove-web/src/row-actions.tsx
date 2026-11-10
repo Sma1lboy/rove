@@ -170,7 +170,7 @@ export function taskMenu(model: AppModel, task: TaskRow, tab: TabRow | null): Me
             confirmLabel={t("menu.closeTab")}
             onConfirm={async () => {
               await c.request("tab.close", { taskId: task.id, tabId: tab.id })
-              await model.refreshTabsNow()
+              await model.refreshTabsNow(task.id)
             }}
           />,
         ),
