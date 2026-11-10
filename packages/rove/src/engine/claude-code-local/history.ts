@@ -207,11 +207,16 @@ function probedParts(
 ): Pick<EngineUsageSnapshot, "context_parts" | "context_window_tokens"> {
   const probe = probedContext(sessionId)
   if (!probe) return {}
-  const fixed = probe.parts.reduce((sum, part) => sum + part.tokens, 0)
+  const counted = probe.parts.filter((part) => !part.deferred)
+  const fixed = counted.reduce((sum, part) => sum + part.tokens, 0)
   // A compacted or cleared conversation can fall under the old fixed reading; one total is truer than a split.
   if (fixed >= context) return {}
   return {
-    context_parts: [...probe.parts, { key: "messages", tokens: context - fixed }],
+    context_parts: [
+      ...counted,
+      { key: "messages", tokens: context - fixed },
+      ...probe.parts.filter((part) => part.deferred),
+    ],
     ...(probe.windowTokens && probe.windowTokens >= context ? { context_window_tokens: probe.windowTokens } : {}),
   }
 }

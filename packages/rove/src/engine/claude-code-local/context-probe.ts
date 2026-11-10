@@ -16,7 +16,7 @@ import { isObject } from "../../lib/is-object.ts"
 import { findClaudeBinary } from "./binary.ts"
 
 export interface ProbedContext {
-  /** Everything in the window except the conversation, which the transcript tracks per turn. */
+  /** Everything in the window except the conversation, which the transcript tracks per turn; then what loads on demand. */
   readonly parts: readonly ContextPart[]
   /** Absent when the probe ran on another model than the session's. */
   readonly windowTokens?: number
@@ -29,11 +29,11 @@ const FRESH_MS = 5 * 60_000
 /** A probe that came back empty is not asked again sooner than this: callers poll. */
 const RETRY_MS = 60_000
 const MAX_ITEMS = 12
-const REQUEST = `${JSON.stringify({
-  type: "control_request",
-  request_id: "rove-context",
-  request: { subtype: "get_context_usage" },
-})}\n`
+/** How long a probe waits for the session's MCP servers before asking anyway: their tools are part of the answer. */
+const MCP_WAIT_MS = 6_000
+const MCP_POLL_MS = 500
+const request = (subtype: string): string =>
+  `${JSON.stringify({ type: "control_request", request_id: subtype, request: { subtype } })}\n`
 
 const probed = new Map<string, ProbedContext>()
 const inFlight = new Map<string, Promise<void>>()
@@ -66,6 +66,10 @@ function items(list: unknown, name: (row: Record<string, unknown>) => unknown): 
 function itemsFor(id: string, reply: Record<string, unknown>): Items {
   if (id === "memory_files") return items(reply.memoryFiles, (row) => row.path)
   if (id === "mcp_tools") return items(reply.mcpTools, (row) => (row.isLoaded === false ? undefined : row.name))
+  if (id === "mcp_tools_deferred")
+    return items(reply.mcpTools, (row) => (row.isLoaded === false ? row.name : undefined))
+  if (id === "system_tools_deferred")
+    return items(reply.deferredBuiltinTools, (row) => (row.isLoaded === false ? row.name : undefined))
   if (id === "custom_agents") return items(reply.agents, (row) => row.agentType)
   if (id === "skills") return items(isObject(reply.skills) ? reply.skills.skillFrontmatter : undefined, (row) => row.name)
   return {}
@@ -89,16 +93,18 @@ export function parseContextProbe(stdout: string, sessionModel: string | undefin
     if (!isObject(reply) || !Array.isArray(reply.categories)) continue
     const parts: ContextPart[] = []
     for (const category of reply.categories) {
-      if (!isObject(category) || category.kind !== "used" || category.id === "messages") continue
+      if (!isObject(category) || category.id === "messages") continue
+      if (category.kind !== "used" && category.kind !== "deferred") continue
       if (typeof category.id !== "string" || typeof category.tokens !== "number" || category.tokens <= 0) continue
       parts.push({
         key: category.id,
         tokens: category.tokens,
         ...(typeof category.name === "string" ? { label: category.name } : {}),
         ...itemsFor(category.id, reply),
+        ...(category.kind === "deferred" ? { deferred: true as const } : {}),
       })
     }
-    if (parts.length === 0) return null
+    if (!parts.some((part) => !part.deferred)) return null
     const window = reply.rawMaxTokens
     const sameModel = typeof reply.model === "string" && bareModel(reply.model) === bareModel(sessionModel ?? "")
     return { parts, ...(sameModel && typeof window === "number" && window > 0 ? { windowTokens: window } : {}), at }
@@ -153,12 +159,26 @@ async function runClaude(sessionId: string, cwd: string, model?: string): Promis
       ],
       { cwd, stdio: ["pipe", "pipe", "ignore"], timeout: PROBE_TIMEOUT_MS, killSignal: "SIGKILL" },
     )
-    const chunks: Buffer[] = []
-    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk))
+    const startedAt = Date.now()
+    let out = ""
+    let seen = 0
+    child.stdout.on("data", (chunk: Buffer) => {
+      out += chunk.toString("utf8")
+      // Whole lines only: a reply can arrive split across chunks.
+      for (let end = out.indexOf("\n", seen); end >= 0; end = out.indexOf("\n", seen)) {
+        const line = out.slice(seen, end)
+        seen = end + 1
+        if (!line.includes('"control_response"')) continue
+        if (!line.includes('"request_id":"mcp_status"')) child.stdin.end()
+        else if (line.includes('"status":"pending"') && Date.now() - startedAt < MCP_WAIT_MS)
+          setTimeout(() => child.stdin.write(request("mcp_status")), MCP_POLL_MS)
+        else child.stdin.write(request("get_context_usage"))
+      }
+    })
     child.on("error", reject)
-    child.on("close", () => resolve(Buffer.concat(chunks).toString("utf8")))
+    child.on("close", () => resolve(out))
     child.stdin.on("error", () => {})
-    child.stdin.end(REQUEST)
+    child.stdin.write(request("mcp_status"))
   })
 }
 
@@ -182,7 +202,6 @@ export function probeContext(
       const raw = await readRaw()
       const { cwd, model } = sessionCwdAndModel(raw ?? "")
       if (!cwd) return
-      // ponytail: asked the moment the process is up, so MCP servers still connecting are missing from the reading.
       const reading = parseContextProbe(await run(sessionId, cwd, model), model, Date.now())
       if (reading) probed.set(sessionId, reading)
     })()
