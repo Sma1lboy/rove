@@ -220,7 +220,10 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
   let statusRetryMs = STATUS_RECONNECT_MS
   const syncStatus = async (): Promise<void> => {
     try {
-      await statusClient.subscribe({ channels: ["row.status", "dispatch.snapshot", "panel.show"], role: "pane" })
+      await statusClient.subscribe({
+        channels: ["row.status", "dispatch.snapshot", "panel.show", "tabs.changed"],
+        role: "pane",
+      })
       await rowStatus.resync()
       await dispatches.resync()
       statusRetryMs = STATUS_RECONNECT_MS
@@ -309,6 +312,11 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
     }
   }
   const tabs = new TabFeed(readState)
+  // The daemon announces a tab change with state.json already written; the file watch covers the rest.
+  statusClient.onChannel("tabs.changed", () => {
+    tabs.check()
+    feed.poke()
+  })
   startFileWatchTrigger({
     filePath: statePath,
     debounceMs: TABS_DEBOUNCE_MS,
