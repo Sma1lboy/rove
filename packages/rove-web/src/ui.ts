@@ -129,8 +129,31 @@ export interface NewSessionStart {
   readonly retryOf?: { readonly id: string; readonly label: string }
 }
 
-/** The prompt-first New session composer in the workspace pane; null = closed. */
-export const newSession = createStore<NewSessionStart | null>(null)
+const NEW_SESSION_KEY = "rove.web.newSession"
+
+function loadNewSession(): NewSessionStart | null {
+  try {
+    const raw: unknown = JSON.parse(sessionStorage.getItem(NEW_SESSION_KEY) ?? "null")
+    return raw && typeof raw === "object" ? (raw as NewSessionStart) : null
+  } catch {
+    // Storage blocked or a corrupt entry: the page opens on the last task.
+    return null
+  }
+}
+
+/** The prompt-first New session composer in the workspace pane; null = closed. A reload of this browser tab comes back to it. */
+export const newSession = createStore<NewSessionStart | null>(loadNewSession())
+newSession.subscribe(() => {
+  try {
+    const start = newSession.get()
+    if (!start) return sessionStorage.removeItem(NEW_SESSION_KEY)
+    // A link's prompt seeds the composer once; after a reload the unsent draft is the truth.
+    const { prompt: _prompt, ...kept } = start
+    sessionStorage.setItem(NEW_SESSION_KEY, JSON.stringify(kept))
+  } catch {
+    // Storage blocked: the composer just does not survive a reload.
+  }
+})
 
 export function openNewSession(
   repo?: string,
