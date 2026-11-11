@@ -335,7 +335,9 @@ from the page. Pick a machine and its project list is that machine's
 repositories", is offered as `Clone … on <machine>`, and Start sends
 `add --machine <alias> --repo <id> --clone`, so that machine clones with its
 own git and `gh` sign-in. A machine that is offline or too old is listed with
-its state and cannot be picked.
+its state and cannot be picked. An engine whose CLI is not installed on the
+picked machine reads `not installed` in the engine chip and cannot be picked;
+a machine whose Rove is too old to say gates nothing.
 
 ## A Windows machine
 

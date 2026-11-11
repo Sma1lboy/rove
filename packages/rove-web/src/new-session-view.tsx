@@ -22,6 +22,7 @@ import {
   remoteEmpty,
   spawnOnMachine,
   startError,
+  useMissingEngines,
   usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
@@ -145,6 +146,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const targets = remote ? null : fileTargets((files) => void attach(files))
   const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
   const remoteList = useRemoteRepos(model, machine)
+  const missingEngines = useMissingEngines(model, machine)
   usePrefetchRemoteRepos(model, machines)
   const [remotePick, setRemotePick] = useState<RemotePick | null>(null)
   const [remoteBase, setRemoteBase] = useState("")
@@ -228,6 +230,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const startRemote = async () => {
     if (!remotePick) return setError(t("newSession.needRepo"))
     if (!prompt.trim()) return setError(t("newSession.needPrompt"))
+    const lacks = missingEngines?.has(choice.engine) && (engine?.name ?? choice.engine)
+    if (lacks) return setError(t("newSession.engineMissingOn", { engine: lacks, machine: machineName }))
     setBusy(true)
     setProgress(
       remotePick.clone
@@ -457,7 +461,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             onBranchName={setBranchName}
           />
           <span className={C.GROW} />
-          <EngineChip choice={choice} picks={picks} available={compareAvailable} />
+          <EngineChip choice={choice} picks={picks} available={compareAvailable} missing={missingEngines} />
           {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
             <ModelChip
               models={models}

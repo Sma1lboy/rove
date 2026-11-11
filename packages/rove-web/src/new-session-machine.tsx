@@ -45,6 +45,29 @@ export function usePrefetchRemoteRepos(model: AppModel, machines: readonly Machi
   }, [model, online])
 }
 
+interface EnginesReply {
+  readonly engines: ReadonlyArray<{ readonly id: string; readonly installed?: boolean }>
+}
+
+/** The engine ids `machine` says are not installed there: none until it answers or when it cannot say. Undefined for this machine (""). */
+export function useMissingEngines(model: AppModel, machine: string): ReadonlySet<string> | undefined {
+  const [state, setState] = useState<{ readonly machine: string; readonly reply: EnginesReply } | null>(null)
+  useEffect(() => {
+    if (!machine) return
+    let stale = false
+    requestRemembered<EnginesReply>(model, "machines.engines", { machine })
+      .then((reply) => !stale && setState({ machine, reply }))
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [model, machine])
+  if (!machine) return undefined
+  const reply =
+    state?.machine === machine ? state.reply : lastReply<EnginesReply>(model, "machines.engines", { machine })
+  return new Set((reply?.engines ?? []).filter((e) => e.installed === false).map((e) => e.id))
+}
+
 /** `machine`'s repos by id, from the prefetched list while it rereads; nothing is asked for this machine (""). */
 export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   useLocale()

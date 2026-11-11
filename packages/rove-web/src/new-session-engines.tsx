@@ -53,6 +53,8 @@ export function EngineChip(props: {
   picks: EnginePicks
   /** Compare is offered; false = a plain single-engine chip. */
   available: boolean
+  /** Starting on another machine: the engines it has no CLI for. This machine's own readiness says nothing there. */
+  missing: ReadonlySet<string> | undefined
 }) {
   const { picks, choice } = props
   const engines = choice.engines
@@ -63,7 +65,15 @@ export function EngineChip(props: {
       {(close) => (
         <ChoiceMenu
           heading={t("newSession.engine")}
-          options={engines.map((e) => ({ id: e.id, label: e.name, dim: e.ready === false }))}
+          options={engines.map((e) => {
+            if (!props.missing) return { id: e.id, label: e.name, dim: e.ready === false }
+            const gone = props.missing.has(e.id)
+            return {
+              id: e.id,
+              label: gone ? t("newSession.engineMissing", { engine: e.name }) : e.name,
+              disabled: gone,
+            }
+          })}
           value={choice.engine}
           {...(picks.comparing ? { values: picks.ids } : {})}
           onPick={(id) => {

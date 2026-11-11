@@ -2,7 +2,8 @@
  * Registered machines (`rove machine add`) and their connection state, for the sidebar's machine
  * headers (TUI `machine-layer.ts`). The bridge reads the same daemon `machines` feed the TUI does
  * and `machines.list` reports its `machinesSignal`; adding or removing a machine stays on the CLI.
- * `machines.repos` reads one machine's repos by id, for the composer's project list there.
+ * `machines.repos` reads one machine's repos by id, for the composer's project list there;
+ * `machines.engines` reads which engines that machine can launch.
  */
 
 import type { MachineReason, MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
@@ -30,6 +31,23 @@ function repoRows(raw: unknown): MachineRepo[] {
             checkouts: row.checkouts.filter((c): c is string => typeof c === "string"),
           },
         ]
+      : [],
+  )
+}
+
+export interface MachineEngine {
+  readonly id: string
+  /** Its CLI is on that machine. Absent = that machine's Rove cannot say. */
+  readonly installed?: boolean
+}
+
+/** `engine-list --status` rows, keeping only well-formed ones. */
+function engineRows(raw: unknown): MachineEngine[] {
+  const rows = (raw as { engines?: unknown } | null)?.engines
+  if (!Array.isArray(rows)) return []
+  return rows.flatMap((row: { id?: unknown; installed?: unknown }) =>
+    typeof row?.id === "string"
+      ? [{ id: row.id, ...(typeof row.installed === "boolean" ? { installed: row.installed } : {}) }]
       : [],
   )
 }
@@ -92,6 +110,19 @@ export function createMachineOps(store: MachineStore = machineStore): OpTable {
         }
         const out = await attempt(ctx.api.verb<unknown>("repo-list", [], machine))
         return out.ok ? { repos: repoRows(out.result) } : { repos: [], reason: out.reason, message: out.message }
+      },
+    },
+    "machines.engines": {
+      kind: "read",
+      destructive: false,
+      wraps: "engine-list --status (on `machine`): the engines that machine lists, and whether each one's CLI is there",
+      async run(args, ctx) {
+        const machine = machineOf(args)
+        if (!machine) throw new BridgeError("BAD_ARGS", "machine must name a registered machine")
+        // No list is not "nothing installed": a machine that is down, or too old for --status, gates nothing.
+        if (store.get().find((row) => row.alias === machine)?.state !== "online") return { engines: [] }
+        const out = await attempt(ctx.api.verb<unknown>("engine-list", ["--status"], machine))
+        return { engines: out.ok ? engineRows(out.result) : [] }
       },
     },
   }

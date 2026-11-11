@@ -87,3 +87,28 @@ test("machines.repos needs a registered machine to name", async () => {
   await expect(reposOf(store, {}, {})).rejects.toMatchObject({ code: "BAD_ARGS" })
   await expect(reposOf(store, { machine: "local" }, {})).rejects.toMatchObject({ code: "BAD_ARGS" })
 })
+
+test("machines.engines says which engines a machine has installed, and nothing when it cannot answer", async () => {
+  const store = new MachineStore()
+  store.set([{ alias: "deck", hostLabel: "deck", state: "online", version: "0.9.285" }])
+  const run = (replies: Record<string, unknown>) => {
+    const { api, calls } = fakeApi(replies)
+    return createMachineOps(store)
+      ["machines.engines"]?.run({ machine: "deck" }, { api })
+      ?.then((result) => ({ result, calls }))
+  }
+  const out = await run({
+    "engine-list": { engines: [{ id: "claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }] },
+  })
+  expect(out?.calls).toEqual([{ verb: "engine-list", argv: ["--status"], machine: "deck" }])
+  expect(out?.result).toEqual({
+    engines: [{ id: "claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }],
+  })
+  // An older Rove there rejects --status.
+  const old = await run({
+    "engine-list": () => {
+      throw new BridgeError("BAD_FLAG", 'unknown flag --status for "engine-list"')
+    },
+  })
+  expect(old?.result).toEqual({ engines: [] })
+})
