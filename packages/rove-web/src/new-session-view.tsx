@@ -52,7 +52,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { ClipGlyph, HoldFace, MicFace, composerHold } from "./ui/term-composer.tsx"
+import { CardMicFace, ClipGlyph, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
@@ -379,13 +379,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               disabled={busy}
               look={talks ? composerHold : C.cardIcon}
               idle={talks ? t("voice.hold") : undefined}
-              face={(state) =>
-                talks ? (
-                  <HoldFace state={state} idle={t("voice.hold")} working={t("voice.working")} />
-                ) : (
-                  <MicFace state={state} />
-                )
-              }
+              face={(state) => (
+                <CardMicFace state={state} hold={talks} idle={t("voice.hold")} working={t("voice.working")} />
+              )}
             />
             {!talks && <span className={C.GROW} />}
             <button type="submit" className={buttonClass()} disabled={busy}>
@@ -394,95 +390,98 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
         </div>
         <div className={C.BAR}>
-          {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
-          {remote && <EngineThereToggle machine={machineName} on={engineThere} onToggle={at.toggleEngineThere} />}
-          <ChipPopover
-            field="repo"
-            title={
-              !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
-            }
-            label={
-              <>
-                <FolderIcon />
-                {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
-                  t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
-                {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
-              </>
-            }
-          >
-            {(close) => (
-              <RepoMenu
-                model={model}
-                saved={remote ? remoteList.repos.map(remoteRef) : saved}
-                picked={remote ? (remotePick ? [remotePick.ref] : []) : repos}
-                primary={remote ? "" : primary}
-                home={remote ? "" : home}
-                query={repoQuery}
-                onQuery={setRepoQuery}
-                onToggle={(path, add) => {
-                  // "Pick a project first" is answered by this pick.
-                  setError(null)
-                  if (!remote) {
-                    setUngrouped(false)
-                    if (add) return setRepos((now) => toggleRepo(now, path))
-                    setRepos([path])
-                    return close()
+          <div className={C.BAR_GROUP}>
+            {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
+            {remote && <EngineThereToggle machine={machineName} on={engineThere} onToggle={at.toggleEngineThere} />}
+            <ChipPopover
+              field="repo"
+              title={
+                !remote && repos.length > 1 ? t("newSession.repoCount", { count: repos.length }) : t("newSession.repo")
+              }
+              label={
+                <>
+                  <FolderIcon />
+                  {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
+                    t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
+                  {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
+                </>
+              }
+            >
+              {(close) => (
+                <RepoMenu
+                  model={model}
+                  saved={remote ? remoteList.repos.map(remoteRef) : saved}
+                  picked={remote ? (remotePick ? [remotePick.ref] : []) : repos}
+                  primary={remote ? "" : primary}
+                  home={remote ? "" : home}
+                  query={repoQuery}
+                  onQuery={setRepoQuery}
+                  onToggle={(path, add) => {
+                    // "Pick a project first" is answered by this pick.
+                    setError(null)
+                    if (!remote) {
+                      setUngrouped(false)
+                      if (add) return setRepos((now) => toggleRepo(now, path))
+                      setRepos([path])
+                      return close()
+                    }
+                    setRemotePick({ ref: path, clone: false })
+                    close()
+                  }}
+                  onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
+                  close={close}
+                  remote={
+                    remote
+                      ? {
+                          name: machineName,
+                          empty: remoteEmpty(machine, remoteList),
+                          blocked: remoteList.problem !== "",
+                        }
+                      : undefined
                   }
-                  setRemotePick({ ref: path, clone: false })
-                  close()
-                }}
-                onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
-                close={close}
-                remote={
-                  remote
-                    ? {
-                        name: machineName,
-                        empty: remoteEmpty(machine, remoteList),
-                        blocked: remoteList.problem !== "",
-                      }
-                    : undefined
-                }
-                ungrouped={remote ? undefined : { on: ungrouped, pick: pickUngrouped }}
-              />
-            )}
-          </ChipPopover>
-          <BranchChips
-            remote={remote}
-            remotePick={remotePick}
-            remoteBase={remoteBase}
-            onRemoteBase={setRemoteBase}
-            ungrouped={ungrouped}
-            inPlace={inPlace}
-            plain={plain}
-            onToggleWorktree={() => setWorktree(!worktree)}
-            repos={repos}
-            probes={probes}
-            bases={bases}
-            onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
-            branchName={branchName}
-            onBranchName={setBranchName}
-          />
-          <span className={C.GROW} />
-          <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
-          {!inPlace &&
-            !(remote && engineThere) &&
-            !ungrouped &&
-            !picks.comparing &&
-            (models.length > 0 || efforts.length > 0) && (
-              <ModelChip
-                models={models}
-                model={modelValue}
-                onModel={setPickedModel}
-                efforts={efforts}
-                effort={effortValue}
-                onEffort={setPickedEffort}
-              />
-            )}
-          <ComposerMore
-            busy={busy}
-            onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
-            onInvalid={setError}
-          />
+                  ungrouped={remote ? undefined : { on: ungrouped, pick: pickUngrouped }}
+                />
+              )}
+            </ChipPopover>
+            <BranchChips
+              remote={remote}
+              remotePick={remotePick}
+              remoteBase={remoteBase}
+              onRemoteBase={setRemoteBase}
+              ungrouped={ungrouped}
+              inPlace={inPlace}
+              plain={plain}
+              onToggleWorktree={() => setWorktree(!worktree)}
+              repos={repos}
+              probes={probes}
+              bases={bases}
+              onBase={(path, ref) => setBases((now) => ({ ...now, [path]: ref }))}
+              branchName={branchName}
+              onBranchName={setBranchName}
+            />
+          </div>
+          <div className={C.BAR_GROUP_END}>
+            <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
+            {!inPlace &&
+              !(remote && engineThere) &&
+              !ungrouped &&
+              !picks.comparing &&
+              (models.length > 0 || efforts.length > 0) && (
+                <ModelChip
+                  models={models}
+                  model={modelValue}
+                  onModel={setPickedModel}
+                  efforts={efforts}
+                  effort={effortValue}
+                  onEffort={setPickedEffort}
+                />
+              )}
+            <ComposerMore
+              busy={busy}
+              onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
+              onInvalid={setError}
+            />
+          </div>
         </div>
         {((busy && progress) || error) && (
           <div className={C.NOTE}>

@@ -16,6 +16,9 @@ export const CARD =
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
 export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
+/** Where the task runs, then how: the row breaks between the two, never inside one. On a phone both start at the left. */
+export const BAR_GROUP = "flex min-w-0 items-center gap-1.5"
+export const BAR_GROUP_END = `${BAR_GROUP} ml-auto narrow:ml-0`
 export const GROW = "flex-1"
 /** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. */
 export const cardIcon = (on = false): string =>
