@@ -2,6 +2,8 @@
 
 Rove is a local-first terminal UI for running many AI coding sessions at once, with git worktrees and local engine processes. A managed Task = git worktree + branch + terminal tabs; project-main and directory Tasks reuse an existing checkout or directory and own no worktree or branch. The TUI is the product; engine adapters (Claude Code default, Codex behind the same engine-owned contract) are execution backends.
 
+This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
+
 This file is boundaries and orientation only. Read what the task needs:
 - `HANDOFF.md` — last local handoff (gitignored, may be absent). Check its date: an old one describes shipped work.
 - `docs/DESIGN.md` decisions + stack lock-in · `docs/ARCHITECTURE.md` source map, ownership, `refs/` (§7) · `docs/HARNESS.md` self-test contract (**load-bearing**) · `docs/KEYBINDINGS.md` before any chord · `docs/agents/dev-loop.md` test runners, dev scripts, daemon, layout, file size, PR gate, live web preview · web: `rove-ui` skill, `docs/web/PARITY.md`.
@@ -15,7 +17,7 @@ Docs are the source of truth. **If docs and implementation disagree, surface the
 - **`packages/rove` has three test runners; the wrong one looks like a broken environment:** `test/render/**` → `bun test`, `test/daemon/**` → `bun run test:socket`, the rest → vitest (`vi.hoisted is not a function` = wrong runner). Other packages: their own `package.json` `test`. Details: dev-loop.
 - Develop with `dev:sandbox` (throwaway Rove state), never `dev`, which writes the real `~/.rove`.
 - Need a separate checkout? `rove api add --repo <repo> --worktree-only` (cleaned up with the task), never a hand-made `git worktree add`.
-- **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state.
+- **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. React is the only UI; orchestrator/client reactivity is framework-free observable state.
 - **One visual ground truth for the TUI:** fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Not Terminal screenshots, render-test output, or mocks. Live-state bugs: drive a REAL engine through the browser's xterm and read `rove api inspect`. A PR touching TUI/harness source keeps the template's **UI evidence** section with before/after harness screenshots, or `ui-evidence: none — <reason>` ([`docs/HARNESS.md`](./docs/HARNESS.md)). rove-web changes are checked in a real browser instead.
 - **The owner's live web is the test build:** a working rove-web change goes onto it at once (merging can happen alongside), so the owner always runs the newest web; no approval needed. Steps: dev-loop § Live web preview.
 - After editing daemon/orchestrator/engine code, `rove daemon restart` (no hot reload); debug from `<ROVE_HOME>/.rove/daemon.log` first.
@@ -32,7 +34,6 @@ No Linear. Backlog: daemon issue store (`rove api issue-*`, [`docs/WORK-TRACKING
 ### How work lands on `main`
 - **Default: PR → merge, no fresh approval needed.** Feature branch (`<area>/<slug>`, e.g. `web/usage-footer`; never a `claude/` prefix) → commits → `bun run pre-pr -- --body-file <body>` green → `gh pr create --body-file <body>` → `rove api pr-attach --url <url>` (else a branchless task's row never shows it) → `gh pr merge --squash --delete-branch` at once. Run `pre-pr` alone or under `set -o pipefail`: `pre-pr | tail && gh pr create` opens a PR on red. `gh pr merge` failed? Check `gh pr view <N> --json state` before retrying; its local half fails when another worktree holds `main`. The owner's PRs start no cloud CI: `pre-pr` IS the gate. Merges ship to npm `next` at once and `nightly` daily; a **stable release is cut only when the owner asks for it in that turn** ([`docs/RELEASING.md`](./docs/RELEASING.md)).
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried over. Same quality gates either way.
-- `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag.
 - `git fetch` before pushing. Force-push ONLY your own unmerged PR branch, with `--force-with-lease`; never `main`, a shared branch, or reviewed commits.
 
 ### Commits and releases
@@ -51,7 +52,7 @@ No Linear. Backlog: daemon issue store (`rove api issue-*`, [`docs/WORK-TRACKING
 - A file over ~500 lines is a refactor prompt: growing one means you own splitting it along a named seam (dev-loop § File size).
 
 ### Don't touch
-`refs/` (read-only forever), other agents' worktree slices (coordinate via the orchestrator), workspace-level config (`/Users/jacksonc/i/CLAUDE.md`, global git config).
+Other agents' worktree slices (coordinate via the orchestrator), workspace-level config (`/Users/jacksonc/i/CLAUDE.md`, global git config).
 
 ### Keybindings: every NEW or MOVED chord needs owner sign-off
 Ship it only as PROPOSED and surface it; record the decision in `docs/design/keybinding-decisions.md` and update `docs/KEYBINDINGS.md`.
