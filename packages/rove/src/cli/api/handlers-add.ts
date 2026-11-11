@@ -29,7 +29,7 @@ import {
 } from "./add-engine-fields.ts"
 import { addParallel } from "./add-parallel.ts"
 import { type Placement, parentFlags, placeAdd, placedRequest, resolveAddParent } from "./add-parent.ts"
-import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
+import { dispatcherEnvPayload, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
 import { ApiError, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
@@ -69,6 +69,16 @@ export async function add(ctx: VerbContext): Promise<unknown> {
     throw new ApiError(
       "--worktree-only cuts a checkout and starts no engine: it conflicts with --prompt/--prompt-file, --start, --count/--agents and --no-worktree",
       "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
+  // A session is an agent. From inside one, a task with nothing to run would sit in the sidebar
+  // as a row nobody is working in; the caller wanted either a session or just a checkout.
+  const startsNothing = !parallel && !args.promptText() && !args.bool("start") && !worktreeOnly
+  if (startsNothing && ctx.caller.cli && !ctx.caller.forwarded && (await verifiedSelfSession())) {
+    throw new ApiError(
+      "add from inside a session would create a task with no agent: pass --prompt/--prompt-file or --start to open a session, or --worktree-only for a checkout that is not one",
+      "EMPTY_SESSION",
       helpStep("add"),
     )
   }

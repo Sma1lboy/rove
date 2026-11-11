@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 115 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 116 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -112,6 +112,13 @@ Only need a separate checkout to edit in yourself? `add --repo "$PWD"
 --worktree-only` cuts the worktree (`worktreePath` in the reply) and starts no
 engine. It is not a session, so nothing lists it under you until you `send` it
 work. Delete it when you are done.
+
+A session is an agent, so never leave a task that has none. Do not `add`
+without `--prompt` or `--start` and then `ensure-worktree` it to get a
+directory: that puts a row in the user's sidebar with no session in it, and
+they will ask why you opened it. From inside a session that `add` is refused
+(`EMPTY_SESSION`). Several sessions may share one worktree (`send --tab new`,
+`add --no-worktree`); a worktree with no session is `--worktree-only`.
 
 The distinction that decides every routing call: **a shared child uses the
 parent's worktree and branch; only a new task (`add`) gets its own.**
@@ -518,7 +525,7 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `todo [--task-id ID] [--add TEXT] [--check ID] [--uncheck ID] [--edit ID --text T] [--remove ID] [--notes TEXT\|--clear-notes]` | Read or change the task's notes and checklist (the owner's review list; shown in the web Files panel's Notes tab and as `done/total` on the row). No flag lists them. Flags apply together as one call; a refused op (`TODO_NOT_FOUND`, `TODO_EMPTY`, `TODO_TOO_LONG`, `TODO_LIMIT`) changes nothing. Defaults to your own task |
 | `pr-attach --url URL\|N [--task-id ID]` | Show a PR on your task's row (live state). Run once after opening a PR from any directory; idempotent; `publish` does it for you |
 | `set-active --task-id ID` / `--none` | Change shared active task |
-| `ensure-worktree --task-id ID` | Materialize without starting an engine |
+| `ensure-worktree --task-id ID` | Materialize the worktree of a task that already exists, without starting an engine. Not how you get a checkout to work in: that is `add --worktree-only` |
 | `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |
 | `checkpoint-list --task-id ID` / `checkpoint --task-id ID` | File-only undo points of a task's worktree (`refs/rove/checkpoints/<owner>/<n>`): the daemon takes one when an engine turn completes (skipped if unchanged, newest 100 kept); `checkpoint` takes one now. Tracked + untracked files, minus gitignored; branch/HEAD/index untouched. They belong to the directory's owner: a child sharing its directory (`add --no-worktree`) acts on its owner's, named in `.workspaceTaskId` |
 | `rewind --task-id ID --to N [--force]` | Restore the worktree files to checkpoint N (files only: branch and conversation stay). Checkpoints the current state first and returns it as `undo.n`, so `rewind --to <undo.n>` goes back. `TASK_BUSY` while any engine sharing the directory (owner or child) is running/awaiting unless `--force` |
