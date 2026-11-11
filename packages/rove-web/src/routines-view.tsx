@@ -433,10 +433,7 @@ export function RoutinesView({ model }: { model: AppModel }) {
           <div className={RT_DETAIL} ref={detail}>
             {selected ? (
               <RoutineDetail
-                c={c}
-                tick={tick}
                 routine={selected}
-                routines={listed}
                 runs={runs}
                 busy={busy === selected.id}
                 project={repoName(selected.repo)}

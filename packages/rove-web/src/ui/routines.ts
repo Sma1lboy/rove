@@ -47,6 +47,3 @@ export const rtCronCellClass = (active: boolean): string =>
 export const RT_CRON_STEP = "hidden gap-2 px-1 pt-0.5 pb-1.5 touch:flex"
 export const RT_CRON_STEP_BUTTON =
   "h-8 w-11 touch-manipulation rounded-sm border-hairline border-line bg-inset font-mono text-display font-normal normal-nums text-ink"
-
-/** The routine's name on a run-log row that lists every routine: a bounded column. */
-export const RT_RUN_ROUTINE = "max-w-[20ch] truncate"

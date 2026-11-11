@@ -2,7 +2,6 @@
 
 import type { Automation, AutomationRun } from "@sma1lboy/rove/src/tui/component/automation-run-core.ts"
 import { describeCronWith } from "@sma1lboy/rove/src/tui/component/cron-core.ts"
-import type { BridgeClient } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { fill, useCopy, useCronTranslate } from "./pages-kit.ts"
 import { RunLog } from "./routine-run-log.tsx"
@@ -13,10 +12,7 @@ import { RT_HEAD, RT_META, RT_NAME, RT_PROMPT } from "./ui/routines.ts"
 import { KICKER, LINK } from "./ui/text.ts"
 
 export function RoutineDetail(props: {
-  c: BridgeClient
-  tick: number
   routine: Automation
-  routines: readonly Automation[]
   runs: readonly AutomationRun[]
   busy: boolean
   project: string
@@ -121,15 +117,7 @@ export function RoutineDetail(props: {
         </>
       )}
 
-      <RunLog
-        c={props.c}
-        tick={props.tick}
-        routines={props.routines}
-        followId={routine.id}
-        now={props.now}
-        when={when}
-        openRun={props.openRun}
-      />
+      <RunLog runs={props.runs} now={props.now} when={when} openRun={props.openRun} />
       <RoutineRuns runs={props.runs} when={when} />
     </>
   )
