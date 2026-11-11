@@ -387,12 +387,13 @@ from the page. Pick a machine and its project list is that machine's
 repositories", is offered as `Clone … on <machine>`, and Start sends
 `add --machine <alias> --repo <id> --clone`, so that machine clones with its
 own git and `gh` sign-in. The agent runs on this machine, so the engine,
-model and effort chips are this machine's; the `Engine there` chip next to the
-machine runs the engine on that machine instead. A machine that is offline or
+model and effort chips are this machine's; the `Agent here` chip next to the
+engine chip switches to `Agent on <machine>`, which runs the engine on that
+machine instead. A machine that is offline or
 too old is listed with its state and cannot be picked. Switching machines keeps the project: the
 same repo (by id) is picked on the new machine when it has a checkout, and
 offered as a clone there when it does not; a repo with no origin stays on its
-own machine. With `Engine there` on, the engine chip lists the picked
+own machine. With the agent on that machine, the engine chip lists the picked
 machine's engines: one it has and this machine does not offer is added, and
 one whose CLI is not installed there reads `not installed` and cannot be
 picked (the first engine it does have is picked instead). A machine whose Rove

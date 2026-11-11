@@ -18,7 +18,7 @@ import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
-  EngineThereToggle,
+  AgentPlaceChip,
   MachineChip,
   remoteEmpty,
   spawnOnMachine,
@@ -392,7 +392,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         <div className={C.BAR}>
           <div className={C.BAR_GROUP}>
             {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
-            {remote && <EngineThereToggle machine={machineName} on={engineThere} onToggle={at.toggleEngineThere} />}
             <ChipPopover
               field="repo"
               title={
@@ -461,6 +460,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             />
           </div>
           <div className={C.BAR_GROUP_END}>
+            {remote && <AgentPlaceChip machine={machineName} there={engineThere} onPick={at.setEngineThere} />}
             <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
             {!inPlace &&
               !(remote && engineThere) &&
