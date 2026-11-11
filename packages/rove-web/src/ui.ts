@@ -228,10 +228,11 @@ const ACTION_TOAST_MS = 8000
 /** The TUI's overlay shows the newest three. */
 const TOASTS_SHOWN = 3
 
-export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction): void {
+/** `ms` overrides how long the card stays (a notice that has to be read, not glanced at). */
+export function toast(text: string, tone: Toast["tone"] = "info", action?: ToastAction, ms?: number): void {
   const id = nextToast++
   toasts.set([...toasts.get(), { id, text, tone, ...(action ? { action } : {}) }].slice(-TOASTS_SHOWN))
-  window.setTimeout(() => dismissToast(id), action ? ACTION_TOAST_MS : TOAST_MS)
+  window.setTimeout(() => dismissToast(id), ms ?? (action ? ACTION_TOAST_MS : TOAST_MS))
 }
 
 /** How long a disappearing overlay fades. */
