@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import {
   type RemoteRepo,
+  carriedPick,
+  enginesThere,
   githubRepoHeld,
   remoteRef,
   remoteSpawnArgs,
@@ -27,6 +29,34 @@ describe("New session composer on another machine", () => {
     expect(seedRemotePick("/srv/other", [rove])).toEqual({ ref: "/srv/other", clone: false })
     expect(seedRemotePick("rove", [rove])).toBeNull()
     expect(seedRemotePick(undefined, [rove])).toBeNull()
+  })
+
+  test("a machine switch keeps the project: its checkout there, a clone when that machine lacks it, nothing without an origin", () => {
+    const here: RemoteRepo[] = [
+      { id: "github.com/me/dotfiles", primary: null, checkouts: ["/Users/me/dotfiles"] },
+      { id: "root:abc123", primary: null, checkouts: ["/Users/me/scratch"] },
+    ]
+    const there: RemoteRepo[] = [{ id: "github.com/me/dotfiles", primary: null, checkouts: ["/home/me/.dotfiles"] }]
+    expect(carriedPick("/Users/me/dotfiles", here, there)).toEqual({ ref: "github.com/me/dotfiles", clone: false })
+    expect(carriedPick("/Users/me/dotfiles", here, [])).toEqual({ ref: "github.com/me/dotfiles", clone: true })
+    expect(carriedPick("/Users/me/scratch", here, there)).toBeNull()
+    expect(carriedPick("/Users/me/unlisted", here, there)).toBeNull()
+  })
+
+  test("the engine chip lists that machine's engines: the ones it lacks marked, the ones only it has added", () => {
+    const here = [
+      { id: "claude", name: "Claude" },
+      { id: "codex", name: "Codex" },
+    ]
+    const out = enginesThere(here, [
+      { id: "claude", installed: true },
+      { id: "codex", installed: false },
+      { id: "pi", name: "Pi" },
+    ])
+    expect(out.rows.map((e) => e.name)).toEqual(["Claude", "Codex", "Pi"])
+    expect([...out.missing]).toEqual(["codex"])
+    // A machine that cannot say gates nothing.
+    expect(enginesThere(here, [])).toEqual({ rows: here, missing: new Set() })
   })
 
   test("a GitHub repo already on that machine is not offered for cloning there, whatever its folder is called", () => {

@@ -82,10 +82,11 @@ test("machines.repos is a reason, never a throw, for a machine that cannot answe
   expect((await reposOf(store, { machine: "old" }, {}))?.result).toMatchObject({ repos: [], reason: "outdated" })
 })
 
-test("machines.repos needs a registered machine to name", async () => {
+test("machines.repos needs a machine to name; `local` is this one", async () => {
   const store = new MachineStore()
   await expect(reposOf(store, {}, {})).rejects.toMatchObject({ code: "BAD_ARGS" })
-  await expect(reposOf(store, { machine: "local" }, {})).rejects.toMatchObject({ code: "BAD_ARGS" })
+  const here = await reposOf(store, { machine: "local" }, { "repo-list": { repos: [] } })
+  expect(here?.calls).toEqual([{ verb: "repo-list", argv: [], machine: undefined }])
 })
 
 test("machines.engines says which engines a machine has installed, and nothing when it cannot answer", async () => {
@@ -98,11 +99,13 @@ test("machines.engines says which engines a machine has installed, and nothing w
       ?.then((result) => ({ result, calls }))
   }
   const out = await run({
-    "engine-list": { engines: [{ id: "claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }] },
+    "engine-list": {
+      engines: [{ id: "claude", name: "Claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }],
+    },
   })
   expect(out?.calls).toEqual([{ verb: "engine-list", argv: ["--status"], machine: "deck" }])
   expect(out?.result).toEqual({
-    engines: [{ id: "claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }],
+    engines: [{ id: "claude", name: "Claude", installed: false }, { id: "codex", installed: true }, { id: "pi" }],
   })
   // An older Rove there rejects --status.
   const old = await run({

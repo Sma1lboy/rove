@@ -2,8 +2,8 @@
  * Registered machines (`rove machine add`) and their connection state, for the sidebar's machine
  * headers (TUI `machine-layer.ts`). The bridge reads the same daemon `machines` feed the TUI does
  * and `machines.list` reports its `machinesSignal`; adding or removing a machine stays on the CLI.
- * `machines.repos` reads one machine's repos by id, for the composer's project list there;
- * `machines.engines` reads which engines that machine can launch.
+ * `machines.repos` reads one machine's repos by id (`local` = this one), for the composer's project list
+ * there; `machines.engines` reads which engines that machine can launch.
  */
 
 import type { MachineReason, MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
@@ -37,6 +37,8 @@ function repoRows(raw: unknown): MachineRepo[] {
 
 export interface MachineEngine {
   readonly id: string
+  /** That machine's own name for it; absent on a row without one. */
+  readonly name?: string
   /** Its CLI is on that machine. Absent = that machine's Rove cannot say. */
   readonly installed?: boolean
 }
@@ -45,9 +47,15 @@ export interface MachineEngine {
 function engineRows(raw: unknown): MachineEngine[] {
   const rows = (raw as { engines?: unknown } | null)?.engines
   if (!Array.isArray(rows)) return []
-  return rows.flatMap((row: { id?: unknown; installed?: unknown }) =>
+  return rows.flatMap((row: { id?: unknown; name?: unknown; installed?: unknown }) =>
     typeof row?.id === "string"
-      ? [{ id: row.id, ...(typeof row.installed === "boolean" ? { installed: row.installed } : {}) }]
+      ? [
+          {
+            id: row.id,
+            ...(typeof row.name === "string" ? { name: row.name } : {}),
+            ...(typeof row.installed === "boolean" ? { installed: row.installed } : {}),
+          },
+        ]
       : [],
   )
 }
@@ -98,10 +106,11 @@ export function createMachineOps(store: MachineStore = machineStore): OpTable {
     "machines.repos": {
       kind: "read",
       destructive: false,
-      wraps: "repo-list (on `machine`): that machine's repos by id, with their checkouts",
+      wraps: "repo-list (on `machine`, or here for `local`): that machine's repos by id, with their checkouts",
       async run(args, ctx) {
         const machine = machineOf(args)
-        if (!machine) throw new BridgeError("BAD_ARGS", "machine must name a registered machine")
+        if (!machine && args.machine !== "local")
+          throw new BridgeError("BAD_ARGS", "machine must name a registered machine, or `local`")
         // A machine the hub already knows is not up is answered here: no ssh attempt for a list that cannot arrive.
         const state = store.get().find((row) => row.alias === machine)?.state
         if (state !== undefined && state !== "online") {

@@ -335,9 +335,13 @@ from the page. Pick a machine and its project list is that machine's
 repositories", is offered as `Clone … on <machine>`, and Start sends
 `add --machine <alias> --repo <id> --clone`, so that machine clones with its
 own git and `gh` sign-in. A machine that is offline or too old is listed with
-its state and cannot be picked. An engine whose CLI is not installed on the
-picked machine reads `not installed` in the engine chip and cannot be picked;
-a machine whose Rove is too old to say gates nothing.
+its state and cannot be picked. Switching machines keeps the project: the
+same repo (by id) is picked on the new machine when it has a checkout, and
+offered as a clone there when it does not; a repo with no origin stays on its
+own machine. The engine chip lists the picked machine's engines: one it has
+and this machine does not offer is added, and one whose CLI is not installed
+there reads `not installed` and cannot be picked (the first engine it does
+have is picked instead). A machine whose Rove is too old to say gates nothing.
 
 ## A Windows machine
 
