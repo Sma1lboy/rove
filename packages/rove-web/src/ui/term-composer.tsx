@@ -10,8 +10,8 @@ import type { DictationFace } from "../voice/dictation-button.tsx"
 
 /**
  * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach and one wide
- * control that is held to talk and tapped to type; a draft, or the tap, turns it into attach, a message field, a
- * mic and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
+ * control that is held to talk and tapped to type; a draft, or the tap, turns it into attach, a message field with
+ * the mic inside it, and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
  * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
  * rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS zooms the page into
  * any smaller field it focuses.
@@ -20,9 +20,12 @@ const BAR = "relative hidden [border-top:var(--hairline)_solid_var(--line)] bg-s
 const CHIPS = "absolute inset-x-3 bottom-full z-5 mb-1"
 const SUGGEST = "absolute inset-x-3 bottom-full z-6 mb-1"
 const ROW = "flex min-w-0 flex-1 items-center gap-2.5"
+/** The field's box: the mic sits inside it, at its right end. */
+const FIELD_BOX =
+  "flex h-11 min-w-0 flex-1 items-center rounded-[12px] border-hairline border-line bg-inset focus-within:border-focus has-[textarea:disabled]:opacity-60"
 /** One line as tall as the box: a longer draft scrolls a whole line at a time, so no half line peeks in below. */
 const FIELD =
-  "h-11 min-w-0 flex-1 resize-none rounded-[12px] border-hairline border-line bg-inset px-3.5 py-0 font-sans text-display leading-[42px] text-ink outline-none focus:border-focus disabled:opacity-60"
+  "h-full min-w-0 flex-1 resize-none bg-transparent py-0 pr-3.5 pl-3.5 font-sans text-display leading-[42px] text-ink outline-none [border:0] has-[+button]:pr-0"
 /** A pressed control gives a little under the finger; no motion when the system asks for none. */
 const PRESS =
   "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
@@ -33,7 +36,7 @@ const SEND = `flex size-11 shrink-0 items-center justify-center rounded-[12px] b
 const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] touch-manipulation active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
-/** A side key: attach, the keyboard switch, the mic beside the field. */
+/** A side key: attach, and the mic inside the field. */
 export const COMPOSER_ATTACH = `${KEY} text-muted`
 export const composerMic = (recording: boolean): string => `${KEY} ${recording ? "text-accent" : "text-muted"}`
 
@@ -170,11 +173,17 @@ export function HoldFace(props: {
   )
 }
 
-/** Inside the mic beside the field: the glyph, or the take's time while it records. */
+/** Inside the mic in the field: the glyph, or the take's time while it records. */
 export function MicFace({ state }: { state: DictationFace }) {
   if (state.phase === "recording") return <span className="font-mono text-meta normal-nums">{state.time}</span>
   if (state.phase === "transcribing") return <span className="font-mono text-meta">…</span>
   return <Glyph d={MIC} />
+}
+
+/** The New session card's mic: the hold control's face on a phone that talks first, the icon's elsewhere. */
+export function CardMicFace(props: { state: DictationFace; hold: boolean; idle: string; working: string }) {
+  if (!props.hold) return <MicFace state={props.state} />
+  return <HoldFace state={props.state} idle={props.idle} working={props.working} />
 }
 
 export function TermComposerBar(props: {
@@ -188,7 +197,7 @@ export function TermComposerBar(props: {
   attached?: ReactNode
   /** The file picker, boxed in `COMPOSER_ATTACH`. */
   attach: ReactNode
-  /** The mic beside the field, boxed in `composerMic`; it fills the field and never sends. */
+  /** The mic inside the field, boxed in `composerMic`; it fills the field and never sends. */
   dictate?: ReactNode
   /** The voice row (the hold-to-talk control); while set it stands in for the field, the mic and Send. */
   voice?: ReactNode
@@ -219,21 +228,23 @@ export function TermComposerBar(props: {
         {props.attach}
         {props.voice ?? (
           <>
-            <textarea
-              ref={props.fieldRef}
-              className={FIELD}
-              rows={1}
-              value={props.value}
-              placeholder={props.placeholder}
-              disabled={props.busy}
-              enterKeyHint="send"
-              onChange={props.onChange}
-              onSelect={props.onSelect}
-              onKeyDown={props.onKeyDown}
-              onPaste={props.onPaste}
-              onBlur={props.onBlur}
-            />
-            {props.dictate}
+            <div className={FIELD_BOX}>
+              <textarea
+                ref={props.fieldRef}
+                className={FIELD}
+                rows={1}
+                value={props.value}
+                placeholder={props.placeholder}
+                disabled={props.busy}
+                enterKeyHint="send"
+                onChange={props.onChange}
+                onSelect={props.onSelect}
+                onKeyDown={props.onKeyDown}
+                onPaste={props.onPaste}
+                onBlur={props.onBlur}
+              />
+              {props.dictate}
+            </div>
             <SendButton label={props.sendLabel} disabled={props.busy || !props.ready} />
           </>
         )}
