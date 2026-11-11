@@ -366,11 +366,11 @@ routine-create   --repo --no-repo --name(REQ) --prompt|--prompt-file --schedule(
                  --vendor{claude|codex|copilot|kimi|pi|omp|bob} --model --effort
                  --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
-                 --target-task --target-tab --disabled
+                 --new-conversation --target-task --target-tab --disabled
 routine-update   --id(REQ) --name --prompt|--prompt-file --schedule --vendor --model
                  --effort --base-branch --precheck --precheck-timeout(120) --script
                  --script-timeout(120) --notify --webhook --grace(60) --persistent-session
-                 --target-task --target-tab --enabled
+                 --new-conversation --target-task --target-tab --enabled
 routine-delete   --id(REQ)
 routine-run-now  --id(REQ)
 routine-respond  --run(REQ) --text --prompt-file
@@ -400,10 +400,13 @@ same question every day (a trend check, a digest, "what changed since
 yesterday?") is worthless from zero each morning — give it
 `--persistent-session`. Its standing task is folded behind the sidebar's
 `N routine sessions` row, raises an Inbox entry when a turn finishes, and
-never wins the cold-start "which task to open" fallback. If the engine process
-is gone when the next firing arrives (an overnight gap usually means it is),
-the daemon respawns it in the SAME worktree — files and branch carry over, the
-conversation does not — and records that run as `revived`, not `dispatched`.
+never wins the cold-start "which task to open" fallback. The daemon stops a
+routine task's engine when each run's turn ends; the next firing starts it again
+in the SAME worktree and reopens the same conversation where the engine can
+resume one, and records that run as `revived`, not `dispatched`. A routine that
+works a queue and needs no memory of earlier runs adds `--new-conversation`:
+same standing task and worktree, a new conversation every run, so the
+transcript does not grow.
 
 A bare `--enabled` means true, so pausing a routine is
 `routine-update --id <id> --enabled=false` (the same `=false` spelling
@@ -426,8 +429,8 @@ With nothing to report, just stop: the delivery goes `quiet`, with no Inbox
 row. In a standing session, a run whose prompt you already have says the
 instructions are unchanged; follow the earlier run's prompt again.
 
-Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
-respawned — files kept, conversation did not), `skipped_precheck` (nothing to do),
+Run statuses from `routine-runs`: `dispatched`, `revived` (standing session's
+engine started again for this run, same worktree and conversation), `skipped_precheck` (nothing to do),
 `skipped_missed`, `skipped_unavailable`, `dispatch_failed`.
 
 ## discover / feedback
