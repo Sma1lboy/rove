@@ -10,6 +10,7 @@ import type { PtySessionInfo } from "@sma1lboy/rove-daemon/daemon/pty-host"
 import { terminalRows } from "@sma1lboy/rove-daemon/daemon/terminal-rows"
 import type { VendorId } from "../types/vendor.ts"
 import type { PsSnapshot } from "./foreground.ts"
+import { awaitUnblockedScreen } from "./hosted-screen-readiness.ts"
 import {
   type HostedPromptDeliveryOpts,
   type HostedSessionRpc,
@@ -17,6 +18,7 @@ import {
   awaitPasteReady,
   writeHostedPromptIfLive,
 } from "./hosted-session.ts"
+import { engineEntry } from "./registry.ts"
 import { enginePresence } from "./session-engine-presence.ts"
 import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS, initMarkerSaysFinished } from "./session-launch.ts"
 
@@ -134,6 +136,16 @@ export async function pastePromptWhenEngineUp(
     if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
       await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
     }
+    const manifest = engine.vendor ? engineEntry(engine.vendor).screenManifest : undefined
+    if (
+      manifest &&
+      !(await awaitUnblockedScreen(rpc, key, manifest, {
+        timeoutMs: opts.timeoutMs ?? FIRST_MESSAGE_ENGINE_TIMEOUT_MS,
+        intervalMs: opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS,
+        sleep,
+      }))
+    )
+      return null
     return await writeHostedPromptIfLive(rpc, key, prompt, { ...opts, vendor: engine.vendor })
   }
   return null

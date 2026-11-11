@@ -365,7 +365,7 @@ export class PtyHost {
    */
   peek(key: string, sinceOffset?: number, preamble = false): PtyPeekResult {
     const session = this.sessions.get(key)
-    const peek = peekRing(session, sinceOffset)
+    const peek = { ...peekRing(session, sinceOffset), cols: session?.cols, rows: session?.rows }
     if (!preamble || !session || sinceOffset !== undefined) return peek
     return { ...peek, data: fullReplay(session, Buffer.from(peek.data, "base64")).toString("base64") }
   }
