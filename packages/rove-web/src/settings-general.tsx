@@ -67,13 +67,6 @@ export function GeneralSection({ model }: { model: AppModel }) {
       </Group>
       <Group title={t("settings.general.groupFiles")}>
         <Choice
-          label={ts("general.editor")}
-          hint={t("settings.general.editorNote")}
-          value={prefs.editorKind}
-          picks={(choicesOf(state, "editorKind") as string[]).map((value) => ({ value, label: value }))}
-          onPick={(next) => set("editorKind", next)}
-        />
-        <Choice
           label={ts("general.worktree")}
           hint={ts("general.worktreeHint")}
           value={prefs.worktreeBase}
