@@ -69,6 +69,9 @@ export const remoteBinDir = (dir: string): string => join(dir, "bin")
 
 export const rxPath = (dir: string): string => join(remoteBinDir(dir), "rx")
 
+/** In a generated sh script: makes a value safe inside the single quotes of the command line sent over ssh. */
+const SED_QUOTE = `sed "s/'/'\\\\\\\\''/g"`
+
 /**
  * `rx '<command>'`: the command runs in the worktree through that machine's login shell (its PATH), with
  * stdin, output and the exit code passed through.
@@ -76,16 +79,41 @@ export const rxPath = (dir: string): string => join(remoteBinDir(dir), "rx")
  * needs its own transport.
  */
 export function rxScript(sshArgv: readonly string[], path: string): string {
-  const quoted = `sed "s/'/'\\\\\\\\''/g"`
   return [
     "#!/bin/sh",
     "# Rove: run one command in this task's workspace on another machine.",
     `dir=${quoteShellArg(path)}`,
-    `d=$(printf '%s' "$dir" | ${quoted})`,
-    `c=$(printf '%s' "$1" | ${quoted})`,
+    `d=$(printf '%s' "$dir" | ${SED_QUOTE})`,
+    `c=$(printf '%s' "$1" | ${SED_QUOTE})`,
     `exec ${quoteShellArgv(sshArgv)} "cd '$d' && exec \\"\\\${SHELL:-sh}\\" -lc '$c'"`,
     "",
   ].join("\n")
+}
+
+/** `rsh`: an interactive login shell in the worktree, for a shell tab. */
+export function rshScript(sshArgv: readonly string[], path: string): string {
+  const [ssh = "ssh", ...rest] = sshArgv
+  return [
+    "#!/bin/sh",
+    "# Rove: open a shell in this task's workspace on another machine.",
+    `dir=${quoteShellArg(path)}`,
+    `d=$(printf '%s' "$dir" | ${SED_QUOTE})`,
+    `exec ${quoteShellArgv([ssh, "-t", ...rest])} "cd '$d' && exec \\"\\\${SHELL:-sh}\\" -l"`,
+    "",
+  ].join("\n")
+}
+
+export const rshPath = (dir: string): string => join(remoteBinDir(dir), "rsh")
+
+/** Typed into a fresh shell tab of a link directory: the tab becomes a shell in the worktree. "" elsewhere. */
+export function remoteShellInput(dir: string): string {
+  return existsSync(rshPath(dir)) ? ` exec ${quoteShellArg(rshPath(dir))}\r` : ""
+}
+
+/** The worktree task a link directory stands for, as the file readers address a task on another machine. */
+export function linkedWorktree(dir: string | undefined): { machine: string; taskId: string } | undefined {
+  const ws = dir ? readRemoteWorkspace(dir) : null
+  return ws ? { machine: ws.machine, taskId: ws.taskId } : undefined
 }
 
 /** AGENTS.md: the way every engine can work there, with no wiring of its own. */
@@ -128,6 +156,8 @@ export function createRemoteLink(input: LinkInput, home = homeDir()): string {
   writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), `${JSON.stringify(ws, null, 2)}\n`)
   writeFileSync(rxPath(dir), rxScript(input.sshArgv, ws.path))
   chmodSync(rxPath(dir), 0o755)
+  writeFileSync(rshPath(dir), rshScript(input.sshArgv, ws.path))
+  chmodSync(rshPath(dir), 0o755)
   const probe = spawnSync(
     rxPath(dir),
     [`uname -sm; echo ${MARK}; cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null`],

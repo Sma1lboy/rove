@@ -25,6 +25,7 @@ import type { VendorId } from "@/types/vendor"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
+import { linkedWorktree, remoteShellInput } from "../../machines/remote-workspace.ts"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
@@ -284,7 +285,12 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           // user-typed engine's hooks report tab-precise events. Editor and
           // one-off command tabs skip it.
           ...(active.purpose !== "editor" && active.command.length === 1 && active.command[0] === defaultShell()
-            ? { initialInput: shellIdentityInput(props.taskId, active.id, props.repos && repoEnv(props.repos)) }
+            ? {
+                // A workspace on another machine: the shell is opened there.
+                initialInput:
+                  shellIdentityInput(props.taskId, active.id, props.repos && repoEnv(props.repos)) +
+                  remoteShellInput(props.worktree),
+              }
             : {}),
         }
       : active.kind === "content"
@@ -456,7 +462,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           worktree={props.worktree}
           relPath={active.relPath}
           base={active.base}
-          remote={remoteOf(props.taskId)}
+          remote={remoteOf(props.taskId) ?? linkedWorktree(props.worktree)}
           focused={props.focused}
           onClose={() => tabClose.closeExited(active.id)}
           // Per-task, kv-persisted notes, sent over the PTY paste path.

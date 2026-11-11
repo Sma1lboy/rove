@@ -4,6 +4,7 @@
  * (`state.json` key `diffComments.<taskId>`), read and written through the TUI's own helpers.
  */
 
+import { isRemoteWorkspace } from "@sma1lboy/rove/src/machines/remote-workspace.ts"
 import { updateStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import {
   type DiffComment,
@@ -115,10 +116,10 @@ export function createFilesOps(deps: FilesDeps = defaultDeps): OpTable {
       wraps: "listFiles(worktree) — tracked + untracked-not-ignored files",
       async run(args, { api }) {
         const id = taskId(args)
-        // Another machine's worktree is listed there, next to its files.
-        const all = api.machineOf?.(id)
-          ? (await api.verb<{ files: string[] }>("worktree-files", [flag("task-id", id)])).files
-          : await deps.listFiles(await worktreeOf(api, id))
+        // Another machine's worktree is listed there, and so is a workspace on one (a link directory here).
+        const viaVerb = async () => (await api.verb<{ files: string[] }>("worktree-files", [flag("task-id", id)])).files
+        const local = api.machineOf?.(id) ? undefined : await worktreeOf(api, id)
+        const all = !local || isRemoteWorkspace(local) ? await viaVerb() : await deps.listFiles(local)
         const truncated = all.length > MAX_FILES
         return { files: truncated ? all.slice(0, MAX_FILES) : all, truncated }
       },
