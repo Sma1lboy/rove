@@ -82,6 +82,8 @@ describe("fetchClaudeQuotaUsage keychain lookup", () => {
   // subject.
   it.runIf(process.platform === "darwin")("queries the keychain by account as well as service", async () => {
     spawnCapture.mockResolvedValue({ status: 1, stdout: "", stderr: "" })
+    // A machine with ~/.claude/.credentials.json falls back to that login: keep it off the network.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")))
     const { fetchClaudeQuotaUsage } = await import("../../src/engine/claude-code-local/quota.ts")
 
     expect(await fetchClaudeQuotaUsage()).toBeNull()
@@ -90,5 +92,6 @@ describe("fetchClaudeQuotaUsage keychain lookup", () => {
     expect(args).toContain("-a")
     expect(args[args.indexOf("-a") + 1]).toBe(userInfo().username)
     expect(args[args.indexOf("-s") + 1]).toBe("Claude Code-credentials")
+    vi.unstubAllGlobals()
   })
 })
