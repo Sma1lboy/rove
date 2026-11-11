@@ -10,7 +10,10 @@ const settings = (event: string, command: string) => ({
 
 const invocations = [
   ["rove"],
-  ["rove"],
+  ["kobe"],
+  ["/usr/local/bin/kobe"],
+  ["bun", "--conditions=browser", "/old checkout/packages/kobe/src/cli/kobe.ts"],
+  ["node", "/old checkout/packages/kobe/dist/cli/kobe.js"],
   ["/usr/local/bin/rove"],
   ["/path with spaces/it's/bin/rove"],
   ["bun", "--conditions=browser", new URL("../../src/cli/rove.ts", import.meta.url).pathname],
