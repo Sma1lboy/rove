@@ -28,6 +28,7 @@ import {
   useSelectedRepo,
   useTaskRepos,
 } from "./pages-kit.ts"
+import { PendingStarts } from "./pending-starts.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { RoutineComposer } from "./routine-composer.tsx"
 import { RoutineDetail } from "./routine-detail.tsx"
@@ -363,6 +364,8 @@ export function RoutinesView({ model }: { model: AppModel }) {
           </button>
         </span>
       </div>
+
+      <PendingStarts client={c} tick={tick} reload={reload} />
 
       {reply === null ? (
         <p className="text-muted">{common.loading}</p>

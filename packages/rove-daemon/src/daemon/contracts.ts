@@ -311,8 +311,6 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     forkFrom?: string
     parentTaskId?: string // nest under this task, stored as its top-level ancestor
     workspace?: TaskWorkspace
-    /** Due agent start, written with the row: the only way a task may exist with no engine yet. */
-    scheduledStart?: TaskScheduledStart
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`).
@@ -328,8 +326,6 @@ export interface DaemonOrchestrator extends CheckpointOrchestrator {
     model?: string
     modelEffort?: string
     routine?: TaskRoutineLink
-    /** Due agent start, written with the row. */
-    scheduledStart?: TaskScheduledStart
   }): Promise<DaemonTask>
   /** Migrate a scratch task into `repo` and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>

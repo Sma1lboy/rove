@@ -114,6 +114,10 @@ export type DaemonRequestName =
   | "task.scheduleStart"
   | "task.cancelScheduledStart"
   | "task.startScheduledNow"
+  // "Later": a start that creates its task, engine and prompt when due; nothing exists before then.
+  | "pendingStart.add"
+  | "pendingStart.list"
+  | "pendingStart.cancel"
   // Continue rate-limited tasks now rather than at their quota reset.
   | "task.resumeQuota"
   // File-only undo points of a managed task's worktree (refs/rove/checkpoints/<task>/<n>).

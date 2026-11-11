@@ -21,6 +21,7 @@ import { GatesStore, defaultGatesStorePath } from "./gates-store.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 import { defaultDeliveriesPath } from "./paths.ts"
+import { PendingStartsStore, defaultPendingStartsPath } from "./pending-starts-store.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import { RowTokenStore } from "./row-tokens.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -47,6 +48,7 @@ export interface DaemonStores {
   readonly tabs: TabsStore
   readonly dispatches: DispatchLedger
   readonly aliases: AliasKeeper
+  readonly pendingStarts: PendingStartsStore
 }
 
 /**
@@ -127,6 +129,8 @@ export async function initDaemonStores(
   // Sole caller of the (rate-limited) vendor quota probes.
   const quotaUsage = new QuotaUsageCache(runtime, bus)
   const engineEvents = new EngineEventLog()
+  const pendingStarts = new PendingStartsStore(defaultPendingStartsPath(homeDir))
+  await pendingStarts.init()
   return {
     activity,
     gates,
@@ -145,5 +149,6 @@ export async function initDaemonStores(
     tabs,
     dispatches: new DispatchLedger(bus),
     aliases,
+    pendingStarts,
   }
 }

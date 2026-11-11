@@ -1,22 +1,32 @@
 /**
- * One-shot delayed start of an unstarted task: `Task.scheduledStart` holds the time and the first message,
- * and a ticker starts the engine when it is due. The time is an absolute on-disk timestamp, never an
- * in-memory timer, so a restart needs no re-arm pass and a schedule that came due while the daemon was
- * down starts on its first tick (same shape as `quota-resume.ts`).
+ * One-shot delayed starts. A pending start (`pending-starts-store.ts`, the web's "Later") creates its task,
+ * engine and prompt when due; nothing exists before then. A task that already carries `Task.scheduledStart`
+ * (written by older builds, or `task.scheduleStart` on an existing task) has its engine started instead.
+ * Times are absolute on-disk timestamps, never in-memory timers, so a restart needs no re-arm pass and a
+ * start that came due while the daemon was down runs on its first tick (same shape as `quota-resume.ts`).
  */
 
+import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-plugin-sdk/contract"
 import type { DaemonRpcClient } from "../client/rpc.ts"
 import type { DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import type { PendingStart, PendingStartsStore } from "./pending-starts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
 
 export const DEFAULT_SCHEDULED_START_TICK_MS = 15_000
 
 export interface ScheduledStartDeps {
-  readonly orch: Pick<DaemonOrchestrator, "listTasks" | "getTask" | "setScheduledStart" | "setPrompt">
+  readonly orch: Pick<
+    DaemonOrchestrator,
+    "listTasks" | "getTask" | "setScheduledStart" | "setPrompt" | "ensureMainTask" | "openDirectoryTask"
+  >
   readonly runtime: Pick<DaemonRuntimeAdapter, "startTaskSessionWithPrompt">
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
+  /** Absent in tests that only exercise task-carried schedules. */
+  readonly pending?: PendingStartsStore
+  /** Runs a `rove api` verb in this daemon (the `add` a pending start was recorded as). */
+  readonly invoke?: (verb: string, params: ApiParams) => Promise<ApiEnvelope>
 }
 
 /** Tasks whose armed start is due at `nowMs`. An unparseable time counts as due, so it is cleared rather than stuck. */
@@ -53,6 +63,41 @@ export async function startScheduledNow(deps: ScheduledStartDeps, taskId: string
   return outcome.started ? "started" : "failed"
 }
 
+/**
+ * Create a pending start's task with its engine and prompt. Removed BEFORE it runs, so an overlapping tick
+ * can't create it twice; a failure puts it back with the error and it is not tried again.
+ */
+export async function firePendingStart(deps: ScheduledStartDeps, start: PendingStart): Promise<ScheduledStartOutcome> {
+  if (!deps.pending || !(await deps.pending.remove(start.id))) return "dropped"
+  const error = await createPendingStart(deps, start).catch((err: unknown) =>
+    err instanceof Error ? err.message : String(err),
+  )
+  logDaemonInfo("scheduled-start", `pending start=${start.id} ${error ? `failed: ${error}` : "started"}`)
+  if (!error) return "started"
+  await deps.pending.fail(start, error)
+  return "failed"
+}
+
+/** The failure, in words; undefined when the task and its engine are up with the prompt. */
+async function createPendingStart(deps: ScheduledStartDeps, start: PendingStart): Promise<string | undefined> {
+  const { create } = start
+  if (create.via === "add") {
+    if (!deps.invoke) return "this daemon cannot run verbs"
+    const envelope = await deps.invoke("add", { ...create.params, prompt: start.prompt })
+    return envelope.ok ? undefined : `${envelope.error.code}: ${envelope.error.message}`
+  }
+  const dir = create.project ? (await deps.orch.ensureMainTask(create.dir)).repo : create.dir
+  const task = await deps.orch.openDirectoryTask({
+    dir,
+    ...(create.vendor ? { vendor: create.vendor as DaemonTask["vendor"] } : {}),
+    ...(start.title ? { title: start.title } : {}),
+  })
+  await deps.orch.setPrompt(task.id, start.prompt)
+  const link = typeof deps.link === "function" ? deps.link() : deps.link
+  const outcome = await deps.runtime.startTaskSessionWithPrompt(link, task.id, start.prompt)
+  return outcome.started ? undefined : (outcome.error ?? "engine session did not start")
+}
+
 /** Stateless per tick, so persisted schedules need no re-arm after restart. */
 export function startScheduledStartRunner(
   deps: ScheduledStartDeps,
@@ -67,6 +112,9 @@ export function startScheduledStartRunner(
     run: async () => {
       for (const task of dueScheduledStarts(deps.orch.listTasks(), now())) {
         await startScheduledNow(deps, task.id).catch((err) => logDaemonError("scheduled-start", err))
+      }
+      for (const start of deps.pending?.due(now()) ?? []) {
+        await firePendingStart(deps, start).catch((err) => logDaemonError("scheduled-start", err))
       }
     },
   })

@@ -299,7 +299,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         created = res.taskIds[0]
         compared = res.groupId
       }
-      if (at && created) toast(t("newSession.laterSet", { time: formatStartsAt(at) }))
+      if (at) toast(t("newSession.laterSet", { time: formatStartsAt(at) }))
       keepDraft("")
       clear()
       newSession.set(null)

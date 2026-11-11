@@ -58,6 +58,8 @@ export interface CreateTaskContext extends TaskActionContext {
    * dropped and the task is created empty.
    */
   readonly startWithPrompt?: (repo: string, start: FirstPromptStart) => void
+  /** Open the created task's engine tab before it is entered. Absent → the pane spawns it on mount. */
+  readonly openEngine?: (taskId: string) => Promise<void>
 }
 
 /** Repo roots with a `main` task, trailing slashes trimmed as the sidebar groups them. */
@@ -198,6 +200,12 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
       ctx.notifyError?.(t("tasks.toast.createFailed", { error: errorMessage(err) }))
       return
     }
+    // The engine starts with the create, not when the row is entered. A failed start keeps the row: its empty
+    // pane ("press ⏎ to start") is the retry.
+    await ctx.openEngine?.(createdId).catch((err: unknown) => {
+      ctx.logger.error(`${ctx.logPrefix} engine start failed:`, err)
+      ctx.notifyError?.(t("tasks.toast.engineStartFailed", { error: errorMessage(err) }))
+    })
   }
   await ctx.reload?.()
   if (createdId) {

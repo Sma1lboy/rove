@@ -303,6 +303,8 @@ async function startOwnedServer(
       gates,
       runnability,
       dispatches: stores.dispatches,
+      pendingStarts: stores.pendingStarts,
+      socketPath,
     },
     activity,
     inbox,

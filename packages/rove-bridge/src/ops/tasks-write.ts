@@ -5,6 +5,8 @@
  */
 
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
+import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
 import { commandFromTask } from "./tasks-command-from.ts"
@@ -45,7 +47,7 @@ function extraRepos(args: Args): Array<{ repo: string; baseRef?: string }> {
   })
 }
 
-/** `scheduleAt` + `schedulePrompt`: a due first message, checked here so a bad time refuses before any row exists. */
+/** `scheduleAt` + `schedulePrompt`: "Later", checked here so a bad time is refused before anything is recorded. */
 function scheduledStart(args: Args): { at: string; prompt: string } | undefined {
   if (args.scheduleAt === undefined || args.scheduleAt === null || args.scheduleAt === "") return undefined
   const at = text(args, "scheduleAt", 40)
@@ -91,7 +93,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const parallel = count !== undefined || agentsGiven
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
   if (parallel && !prompt) throw new BridgeError("BAD_ARGS", "count/agents need a prompt")
-  // "Later": the first message waits for its time, written with the row so the task is never agentless and unscheduled.
+  // "Later": the daemon records what to create and creates it, engine and prompt, when the time comes.
   const later = scheduledStart(args)
   // An idle engine for a person to type into (a freshly cloned repo); never a row with no agent.
   const start = optBool(args, "start")
@@ -128,12 +130,22 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (pin) argv.push(flag("pin", "true"))
   if (prompt) argv.push(flag("prompt", prompt))
   if (start) argv.push(flag("start", "true"))
+  if (later) {
+    const pending = await ctx.api.rpc<{ id: string }>("pendingStart.add", {
+      ...later,
+      title: title ?? deriveTitleFromPrompt(later.prompt),
+      repo,
+      create: { via: "add", params: argvToParams("add", argv) },
+    })
+    if (engine) taskOpDeps.rememberEngine(repo, engine)
+    return { taskIds: [], pendingStartId: pending.id }
+  }
 
   const res = await ctx.api.verb<{
     taskId?: string
     groupId?: string
     tasks?: ReadonlyArray<{ taskId?: string }>
-  }>("add", argv, machine, later ? { scheduledStart: later } : undefined)
+  }>("add", argv, machine)
   // The project's next "New conversation" follows the engine this one was started on.
   if (engine && !machine) taskOpDeps.rememberEngine(repo, engine)
   if (Array.isArray(res.tasks)) {
@@ -253,6 +265,16 @@ export const TASK_WRITE_OPS: OpTable = {
     if (!Number.isFinite(Date.parse(at))) throw new BridgeError("BAD_ARGS", "at must be an ISO-8601 time")
     return c.api.rpc("task.scheduleStart", { taskId: taskId(a), at, prompt: text(a, "prompt", PROMPT_MAX) })
   }),
+  // "Later" starts the daemon holds, soonest first; a failed one stays listed with its error until cancelled.
+  "pendingStart.list": {
+    kind: "read",
+    destructive: false,
+    wraps: "rpc pendingStart.list",
+    run: (_a, c) => c.api.rpc("pendingStart.list"),
+  },
+  "pendingStart.cancel": write("rpc pendingStart.cancel", (a, c) =>
+    done(c.api.rpc("pendingStart.cancel", { id: text(a, "id", 64) })),
+  ),
   "task.cancelScheduledStart": write("rpc task.cancelScheduledStart", (a, c) =>
     done(c.api.rpc("task.cancelScheduledStart", { taskId: taskId(a) })),
   ),
@@ -314,14 +336,25 @@ export const TASK_WRITE_OPS: OpTable = {
     const title = optText(a, "title", 200)
     const engineGiven = a.engine !== undefined && a.engine !== null && a.engine !== ""
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
+    const later = scheduledStart(a)
+    if (later) {
+      // Nothing is created now, the project row included: the daemon opens both when the start is due.
+      const vendor = engine ?? taskOpDeps.preferredEngine(repo)
+      const pending = await c.api.rpc<{ id: string }>("pendingStart.add", {
+        ...later,
+        title: title ?? deriveTitleFromPrompt(later.prompt),
+        repo,
+        create: { via: "dir", dir: repo, project: !problem, ...(vendor ? { vendor } : {}) },
+      })
+      if (engine) taskOpDeps.rememberEngine(repo, engine)
+      return { pendingStartId: pending.id }
+    }
     // The project row first: a dir task alone on a repo root is what a missing project row adopts.
     const dir = problem ? repo : (await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })).task.repo
-    const later = scheduledStart(a)
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
       dir,
       vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
-      ...(later ? { scheduledStart: later } : {}),
     })
     if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }

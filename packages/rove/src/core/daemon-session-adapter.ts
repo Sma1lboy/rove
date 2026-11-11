@@ -125,12 +125,19 @@ export async function startTaskSessionWithPromptAdapter(
       const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
       if (!opened.alive) return { started: false, error: "hosted session did not open", key: launch.key }
       const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
-      // Paste-delivery vendor (kimi): a paste that never lands is not started.
-      const up = launch.firstMessage
-        ? await pastePromptWhenEngineUp(host.rpc, launch.key, base[0], launch.firstMessage, wait)
+      // A reattach to a live tab ran none of this launch, so a prompt on its argv never reached the engine there.
+      const reattached = opened.created === false && opened.respawned !== true
+      // Paste-delivery vendor (kimi), or a reattach: a paste that never lands is not started.
+      const paste = launch.firstMessage ?? (reattached ? text : undefined)
+      const up = paste
+        ? await pastePromptWhenEngineUp(host.rpc, launch.key, base[0], paste, wait)
         : // Argv-delivery vendor: prompt is on the command line, but confirm the engine runs.
           await awaitEngineProcess(host.rpc, launch.key, base[0], wait)
       if (up !== null) return { started: true, key: launch.key }
+      if (reattached) {
+        const error = "NOT_DELIVERED: tab-1 was already open and the prompt could not be pasted into its engine"
+        return { started: false, error, key: launch.key }
+      }
       return { started: false, error: await startFailureReason(host.rpc, launch.key), key: launch.key }
     }
     if (resumeArgv) {

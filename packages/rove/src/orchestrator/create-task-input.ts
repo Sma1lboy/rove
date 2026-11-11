@@ -4,14 +4,7 @@
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"
-import type {
-  TaskDispatcher,
-  TaskId,
-  TaskRoutineLink,
-  TaskScheduledStart,
-  TaskWorkspace,
-  VendorId,
-} from "../types/task.ts"
+import type { TaskDispatcher, TaskId, TaskRoutineLink, TaskWorkspace, VendorId } from "../types/task.ts"
 import type { ExtraRepoInput } from "./multi-repo.ts"
 
 /** Input to {@link Orchestrator.createTask}. */
@@ -60,8 +53,6 @@ export interface CreateTaskInput {
   readonly dispatcher?: TaskDispatcher
   /** A bare checkout (`add --worktree-only`): marked from its first write, so no client lists it even for a moment. */
   readonly worktreeOnly?: boolean
-  /** Due agent start, written with the row: the only way a task may exist with no engine yet. */
-  readonly scheduledStart?: TaskScheduledStart
   /** Tree lineage: the task this one is spawned from (`Task.parentTaskId`). */
   readonly parentTaskId?: TaskId
   /** Engine cwd below the worktree root (`Task.cwdSubpath`). */

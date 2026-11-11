@@ -119,18 +119,4 @@ describe("a bare add", () => {
     expect((err as Error).message).toMatch(/--prompt.*--start.*--worktree-only/)
     expect(client.requestNames).toEqual([])
   })
-
-  it("is allowed with nothing to run only when the in-process caller brings a scheduled start, written with the row", async () => {
-    const client = new FakeClient({ "task.create": created })
-    const scheduledStart = { at: "2026-11-11T09:00:00.000Z", prompt: "nightly sweep" }
-    const result = await invokeVerb("add", ["--repo", "/repo/x"], {
-      client,
-      runtime: stubRuntime(),
-      caller: { cli: false, scheduledStart },
-    })
-
-    expect(client.requestNames).toEqual(["task.create"])
-    expect(client.requests[0]?.payload).toMatchObject({ scheduledStart })
-    expect(result).toMatchObject({ taskId: "t1", started: false })
-  })
 })

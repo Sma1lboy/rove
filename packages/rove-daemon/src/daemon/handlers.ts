@@ -121,6 +121,8 @@ export interface DaemonHandlerContext {
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
   readonly notes?: NotesStore
+  /** "Later" starts that create their task when due (absent in older tests). */
+  readonly pendingStarts?: import("./pending-starts-store.ts").PendingStartsStore
   /** Short-TTL cache over external tracker items (read-only view). */
   readonly workItems: WorkItemCache
   /** Daemon-owned scheduled automations + their run history. */
