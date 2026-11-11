@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.9.286
+
+### Patch Changes
+
+- [#1955](https://github.com/Sma1lboy/rove/pull/1955) [`0b50627`](https://github.com/Sma1lboy/rove/commit/0b5062732cc7c1a88a819616c90d8d77c1c6c120) A task on another machine now runs its agent on this machine by default, with only its files and commands on that one, so that machine needs no engine installed or signed in. `rove api add --machine <alias>` and the web New task composer both do this. In the composer the engine, model and effort are this machine's, and an `Engine there` chip next to the machine runs the engine on that machine as before; on the command line that is `--engine-there`. Requests the new mode cannot serve (`--count`, `--agents`, `--fork`, `--worktree-only` and a Windows machine among them) still run on that machine. In the web sidebar such a task sits under its project. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1950](https://github.com/Sma1lboy/rove/pull/1950) [`cec702e`](https://github.com/Sma1lboy/rove/commit/cec702e54059827ec32e66d48707a2501d80a5dc) `rove api add --workspace-on <machine>` runs the agent on this machine and keeps its files and commands on another registered machine. That machine cuts the worktree, so it needs Rove and git, but no engine and no engine sign-in. Every engine reaches the worktree through an `rx '<command>'` on its PATH; Claude Code's Bash tool runs there as it is, and it gets read, write and edit tools for that machine's files. Deleting the task removes the worktree there too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1957](https://github.com/Sma1lboy/rove/pull/1957) [`30964de`](https://github.com/Sma1lboy/rove/commit/30964dee6a61e11c737cf5a18b9e7431c383d1de) Web: the swipe back to the task list now moves with your finger. The task slides right over the list, and goes back when you let go a third of the way across or flick; a shorter drag springs back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1949](https://github.com/Sma1lboy/rove/pull/1949) [`5f92faa`](https://github.com/Sma1lboy/rove/commit/5f92faa8a32645ea396e586c7063d0c5d7b0d318) Web: in Settings → Connectors the GitHub mark now stands beside its name and description, so both start on one edge. Bordered buttons in Settings ("Disconnect", "Check again") match the drop-downs and joined options in background and height. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1960](https://github.com/Sma1lboy/rove/pull/1960) [`9ae7382`](https://github.com/Sma1lboy/rove/commit/9ae7382aa0c356ea402c6b8fbf9560a91354e0a4) Web: on a phone with dictation set up, New task has a wide Hold to talk control beside Start, like the bar under a terminal, instead of a small mic icon. The mic also no longer goes missing when the page asked about dictation before it had connected. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1954](https://github.com/Sma1lboy/rove/pull/1954) [`2fe72c2`](https://github.com/Sma1lboy/rove/commit/2fe72c2245f4910e5acd4571e3cf71274e10c8a6) Fix the web's Files panel opening by itself when you switch tasks. Each task now keeps its own side panel: a task you never opened one in shows none, and closing the panel in one task no longer closes it in the others. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1952](https://github.com/Sma1lboy/rove/pull/1952) [`9620e53`](https://github.com/Sma1lboy/rove/commit/9620e5396e8d0ef1f32035e00055170f711c24dc) Web: `rove api panel-show --path <file>` for the file already open in the File or Diff column now reads it again, so an agent that rewrites a file and pushes it again shows the new version instead of the first one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1961](https://github.com/Sma1lboy/rove/pull/1961) [`f7f1fc7`](https://github.com/Sma1lboy/rove/commit/f7f1fc755af3017cec3d885cebb9598856b05048) Web, on a phone: New task keeps its prompt, Start and options above the keyboard instead of leaving them under it, and opens with the keyboard down when dictation is set up. The bar under a terminal is one control: hold it to talk, tap it to type. While you hold, the words and "slide up to send" show in a bubble above it. Attaching a file no longer switches the bar to the text field. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1962](https://github.com/Sma1lboy/rove/pull/1962) [`27a2340`](https://github.com/Sma1lboy/rove/commit/27a2340228172842e36ce32adcc57886ddd18529) Web, on a phone: the mic sits inside the message field under a terminal, at its right end, instead of beside it. New task's options no longer leave a lone chip on a second line: where the task runs is one line, the engine, model and more menu the next. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1958](https://github.com/Sma1lboy/rove/pull/1958) [`ea72da0`](https://github.com/Sma1lboy/rove/commit/ea72da09ab4b05b11a3255d85b020b904755784b) Web: on a phone, Settings has its way out at the top left, like every other page, instead of an × at the top right. Swiping right works there too: from a section back to the list, and from the list out of Settings. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1951](https://github.com/Sma1lboy/rove/pull/1951) [`f920615`](https://github.com/Sma1lboy/rove/commit/f920615c209d659ace039571a5e7b86077aed417) Web: dragging a task in the list no longer puts an outline on a different task. The outline now follows the task you press, and is hidden while you drag. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1956](https://github.com/Sma1lboy/rove/pull/1956) [`3d4fe60`](https://github.com/Sma1lboy/rove/commit/3d4fe60ba95eb46e643eed9d57ba9a8693be5680) Web: on a phone, swipe right across a task or a page to go back to the task list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1953](https://github.com/Sma1lboy/rove/pull/1953) [`1f70cca`](https://github.com/Sma1lboy/rove/commit/1f70cca8f0ba2cc30491a9a26c801e9cf4b8b773) A task started with `add --workspace-on <machine>` now shows that machine's files and diff in the Files pane (web and terminal), and a new shell tab in it opens a shell in the worktree there. Before, both looked at the empty link directory on this machine. `rove api worktree-files`, `worktree-diff`, `worktree-diff-file`, `worktree-file` and `worktree-refs` read the worktree there for such a task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.285
 
 ### Patch Changes
