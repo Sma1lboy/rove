@@ -156,6 +156,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   // The git-worktree op has no other feedback once the dialog vanishes.
   ctx.notifyInfo?.("Creating task…")
   let createdId: string | undefined
+  let engineFailed = false
   if (result.mode === "adopt") {
     // Adopts are independent: report N/M so a later failure can't hide the
     // ones that DID persist behind a generic error. Focus the last success.
@@ -200,9 +201,10 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
       ctx.notifyError?.(t("tasks.toast.createFailed", { error: errorMessage(err) }))
       return
     }
-    // The engine starts with the create, not when the row is entered. A failed start keeps the row: its empty
-    // pane ("press ⏎ to start") is the retry.
+    // The engine starts with the create, not when the row is entered. A failed start keeps the row, selected
+    // but not entered: entering respawns the engine, so ⏎ on the row is the retry, never an unasked one.
     await ctx.openEngine?.(createdId).catch((err: unknown) => {
+      engineFailed = true
       ctx.logger.error(`${ctx.logPrefix} engine start failed:`, err)
       ctx.notifyError?.(t("tasks.toast.engineStartFailed", { error: errorMessage(err) }))
     })
@@ -210,6 +212,6 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
   await ctx.reload?.()
   if (createdId) {
     ctx.selectTask?.(createdId)
-    await ctx.enterTask?.(createdId)
+    if (!engineFailed) await ctx.enterTask?.(createdId)
   }
 }

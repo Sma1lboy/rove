@@ -169,7 +169,7 @@ describe("createTaskFlow — adopt summary", () => {
 })
 
 describe("createTaskFlow — create mode + guards", () => {
-  test("the engine starts with the create, before the row is entered; a failed start keeps the row to retry from", async () => {
+  test("the engine starts with the create, before the row is entered; a failed start keeps the row, selected, to retry from", async () => {
     const promptNewTask = vi.fn(async () => ({
       mode: "create" as const,
       repo: "/repo",
@@ -190,7 +190,8 @@ describe("createTaskFlow — create mode + guards", () => {
       },
     })
     expect(failed.notifyError).toHaveBeenCalledWith(expect.stringContaining("ENGINE_LIMIT"))
-    expect(failed.enterTask).toHaveBeenCalledWith("new-id")
+    expect(failed.selectTask).toHaveBeenCalledWith("new-id")
+    expect(failed.enterTask).not.toHaveBeenCalled()
   })
 
   test("create mode: calls task.create, remembers the vendor, saves the repo, lands on the new task", async () => {
