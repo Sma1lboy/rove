@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { attachableFiles, putAttachment } from "./kanban-attach.ts"
+import { putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
@@ -50,11 +50,9 @@ export interface TerminalViewProps {
   readonly composer?: boolean
 }
 
-/** A dropped image or PDF is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
+/** A dropped file is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
 async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]): Promise<void> {
-  const ok = attachableFiles(files)
-  if (ok.length < files.length) toast(t("layout.dropUnsupported"), "error")
-  for (const file of ok) {
+  for (const file of files) {
     try {
       handle.term.paste(`${await putAttachment(client, file)} `)
     } catch (err) {
@@ -75,7 +73,7 @@ async function clipboardFiles(): Promise<File[]> {
       }
     }
   }
-  return attachableFiles(files)
+  return files
 }
 
 /**
@@ -291,12 +289,12 @@ export function TerminalView(props: TerminalViewProps) {
         e.preventDefault()
         void dropFiles(client, handle, Array.from(e.dataTransfer.files))
       }}
-      // A pasted image goes the way of a dropped one; xterm only pastes text, so it never sees it.
+      // A pasted file goes the way of a dropped one; xterm only pastes text, so it never sees it.
       // An empty text paste would reach the engine as an empty bracketed paste, which makes it read the
       // rove machine's clipboard: read the browser's instead.
       onPasteCapture={(e) => {
         if (!handle) return
-        const files = attachableFiles(e.clipboardData.files)
+        const files = Array.from(e.clipboardData.files)
         if (files.length === 0 && e.clipboardData.getData("text/plain") !== "") return
         e.preventDefault()
         e.stopPropagation()

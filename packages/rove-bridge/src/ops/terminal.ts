@@ -1,6 +1,6 @@
 /**
  * Terminal-tab ops: per-tab state, rename, interrupt, handoff/fork, "ask the engine for a PR",
- * and image/PDF attachments. Each op wraps one `rove api` verb, one daemon RPC or one pure
+ * and file attachments. Each op wraps one `rove api` verb, one daemon RPC or one pure
  * Rove helper; the helpers that touch the filesystem or the engine transcripts are injected
  * so tests can fake them.
  */
@@ -27,7 +27,7 @@ import { absPath, flag, optText, sendReason, tabId, taskId, text } from "./args.
 import { taskOpDeps } from "./tasks-shared.ts"
 import type { Args, OpTable } from "./types.ts"
 
-/** What an attachment is worth to an engine: raw bytes on disk, named by magic number. */
+/** The types an engine reads as an image or a PDF: stored only when the bytes start like one. Any other file is stored as it is. */
 const ATTACHMENT_TYPES = {
   "image/png": { ext: "png", kind: "image", magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   "image/jpeg": { ext: "jpg", kind: "image", magic: [0xff, 0xd8, 0xff] },
@@ -111,6 +111,18 @@ async function worktreeOf(api: { verb<T>(n: string, a: readonly string[]): Promi
   const res = await api.verb<{ task: SerializedTask }>("get-task", [flag("task-id", id)])
   if (!res.task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${id} has no worktree yet`)
   return { task: res.task, worktree: res.task.worktreePath }
+}
+
+/** The extension a file keeps on disk: its own when it is a plain one, never a path. */
+function plainExt(name: string | undefined): string {
+  return /\.([A-Za-z0-9]{1,10})$/.exec(name ?? "")?.[1]?.toLowerCase() ?? "bin"
+}
+
+/** The image/PDF type a file claims, by its mime or else its extension. */
+function claimedType(mime: string | undefined, ext: string): AttachmentMime | undefined {
+  if (mime !== undefined && Object.hasOwn(ATTACHMENT_TYPES, mime)) return mime as AttachmentMime
+  const wanted = ext === "jpeg" ? "jpg" : ext
+  return (Object.keys(ATTACHMENT_TYPES) as AttachmentMime[]).find((m) => ATTACHMENT_TYPES[m].ext === wanted)
 }
 
 /** Does `bytes` start like the declared type? A phone's label is not evidence. */
@@ -306,11 +318,9 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       destructive: false,
       wraps: "writes ~/.rove/attachments/<generated name> (tui/lib/attachments.ts layout)",
       async run(a) {
-        const mime = str(a, "mime")
-        if (!Object.hasOwn(ATTACHMENT_TYPES, mime)) {
-          throw new BridgeError("BAD_ARGS", `mime must be one of ${Object.keys(ATTACHMENT_TYPES).join("|")}`)
-        }
-        const type = ATTACHMENT_TYPES[mime as AttachmentMime]
+        const ext = plainExt(optStr(a, "name"))
+        const claimed = claimedType(optStr(a, "mime"), ext)
+        const type = claimed ? ATTACHMENT_TYPES[claimed] : { ext, kind: "file" as const }
         const encoded = str(a, "data")
         // Bound the work before decoding: base64 is 4 bytes per 3.
         if (encoded.length > Math.ceil((MAX_ATTACHMENT_BYTES * 4) / 3) + 4) {
@@ -321,7 +331,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
         if (bytes.length > MAX_ATTACHMENT_BYTES) {
           throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_ATTACHMENT_BYTES} bytes`)
         }
-        if (!matchesMagic(mime as AttachmentMime, bytes)) {
+        if (claimed && !matchesMagic(claimed, bytes)) {
           throw new BridgeError("BAD_ARGS", `data is not a ${type.ext} file`)
         }
         const stamp = deps.now().toISOString().slice(0, 10).replaceAll("-", "")
