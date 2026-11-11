@@ -22,7 +22,7 @@ export function useStatusMarkNotice(model: AppModel, taskCount: number | undefin
   useEffect(() => {
     if (!owed || taskCount === undefined) return
     void setPref(model.client, "statusMarkNoticeSeen", true)
-    if (taskCount === 0 || style !== "engine") return
+    if (taskCount === 0 || style === "dots") return
     toast(
       t("rail.markNotice"),
       "info",

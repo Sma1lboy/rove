@@ -109,7 +109,7 @@ const DEFAULTS: Prefs = {
   glyphSet: "braille",
   colorblind: "off",
   runningTitle: "shimmer",
-  statusMark: "engine",
+  statusMark: "both",
   // True until the daemon says otherwise: a cache from before the key must not raise the notice.
   statusMarkNoticeSeen: true,
   toast: true,
