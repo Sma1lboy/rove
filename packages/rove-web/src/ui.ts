@@ -98,13 +98,34 @@ export interface Preview {
   readonly file?: true
 }
 
-export type PageId = "worktrees" | "update" | "kanban" | "routines" | "issues" | "mods" | "compare" | "usage"
-/** A full page over the workspace (TUI rail pages); `q`/Esc closes it. */
-export const page = createStore<PageId | null>(null)
+const PAGE_IDS = ["worktrees", "update", "kanban", "routines", "issues", "mods", "compare", "usage"] as const
+export type PageId = (typeof PAGE_IDS)[number]
+
+/** A store a reload of this browser tab comes back to (`sessionStorage`); blocked storage or a corrupt entry starts empty. */
+function keptAcrossReload<T>(key: string, valid: (raw: unknown) => T | null) {
+  let initial: T | null = null
+  try {
+    initial = valid(JSON.parse(sessionStorage.getItem(key) ?? "null"))
+  } catch {}
+  const store = createStore<T | null>(initial)
+  store.subscribe(() => {
+    try {
+      const now = store.get()
+      if (now === null) sessionStorage.removeItem(key)
+      else sessionStorage.setItem(key, JSON.stringify(now))
+    } catch {}
+  })
+  return store
+}
+
+/** A full page over the workspace (TUI rail pages); `q`/Esc closes it. A reload comes back to it. */
+export const page = keptAcrossReload<PageId>("rove.web.page", (raw) => PAGE_IDS.find((id) => id === raw) ?? null)
 /** The routine the Inbox sent the Routines page to; the page puts its cursor there once and clears this. */
 export const routineFocus = createStore<string | null>(null)
-/** The parallel round (`groupId`) the Compare page shows. */
-export const compareGroup = createStore<string | null>(null)
+/** The parallel round (`groupId`) the Compare page shows; kept with the page, which is empty without it. */
+export const compareGroup = keptAcrossReload<string>("rove.web.compareGroup", (raw) =>
+  typeof raw === "string" ? raw : null,
+)
 /** The terminal stream this page has attached (`task::tab`); Files `a` pastes into it. */
 export const activeStream = createStore<string | null>(null)
 /** Zen hides the Files pane (TUI prefix z), on until the stored pref says otherwise. `prefs-apply.ts` keeps it in step with the TUI's `zen.active`. */
