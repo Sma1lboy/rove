@@ -189,7 +189,12 @@ describe("createTaskFlow — create mode + guards", () => {
         throw new Error("ENGINE_LIMIT: 4 engines are running")
       },
     })
-    expect(failed.notifyError).toHaveBeenCalledWith(expect.stringContaining("ENGINE_LIMIT"))
+    // Same slot as "Creating task…", so the failure replaces the ✓ instead of sitting under it.
+    expect(failed.notifyError).toHaveBeenCalledWith(expect.any(String), {
+      key: "task-create",
+      hint: expect.stringContaining("ENGINE_LIMIT"),
+    })
+    expect(failed.notifyInfo).toHaveBeenCalledWith("Creating task…", { key: "task-create" })
     expect(failed.selectTask).toHaveBeenCalledWith("new-id")
     expect(failed.enterTask).not.toHaveBeenCalled()
   })
@@ -312,7 +317,10 @@ describe("createTaskFlow — create mode + guards", () => {
 
     await createTaskFlow(ctx)
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't create the task — nothing was created: git worktree add failed")
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't create the task — nothing was created: git worktree add failed",
+      { key: "task-create" },
+    )
     expect(reload).not.toHaveBeenCalled()
     expect(selectTask).not.toHaveBeenCalled()
   })

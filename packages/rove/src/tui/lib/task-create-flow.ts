@@ -62,6 +62,9 @@ export interface CreateTaskContext extends TaskActionContext {
   readonly openEngine?: (taskId: string) => Promise<void>
 }
 
+/** "Creating task…" and the failure that ends it share one toast slot, so a failure never sits under a ✓. */
+const CREATE_TOAST = "task-create"
+
 /** Repo roots with a `main` task, trailing slashes trimmed as the sidebar groups them. */
 function mainRepoSet(tasks: readonly Task[]): ReadonlySet<string> {
   const out = new Set<string>()
@@ -154,7 +157,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     return
   }
   // The git-worktree op has no other feedback once the dialog vanishes.
-  ctx.notifyInfo?.("Creating task…")
+  ctx.notifyInfo?.("Creating task…", { key: CREATE_TOAST })
   let createdId: string | undefined
   let engineFailed = false
   if (result.mode === "adopt") {
@@ -198,7 +201,7 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
       createdId = task.id
     } catch (err) {
       ctx.logger.error(`${ctx.logPrefix} task.create failed:`, err)
-      ctx.notifyError?.(t("tasks.toast.createFailed", { error: errorMessage(err) }))
+      ctx.notifyError?.(t("tasks.toast.createFailed", { error: errorMessage(err) }), { key: CREATE_TOAST })
       return
     }
     // The engine starts with the create, not when the row is entered. A failed start keeps the row, selected
@@ -206,7 +209,10 @@ export async function createTaskFlow(ctx: CreateTaskContext, seed?: CreateTaskSe
     await ctx.openEngine?.(createdId).catch((err: unknown) => {
       engineFailed = true
       ctx.logger.error(`${ctx.logPrefix} engine start failed:`, err)
-      ctx.notifyError?.(t("tasks.toast.engineStartFailed", { error: errorMessage(err) }))
+      ctx.notifyError?.(t("tasks.toast.engineStartFailed"), {
+        key: CREATE_TOAST,
+        hint: t("tasks.toast.engineStartRetry", { error: errorMessage(err) }),
+      })
     })
   }
   await ctx.reload?.()

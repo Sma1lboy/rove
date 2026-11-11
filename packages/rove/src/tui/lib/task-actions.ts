@@ -10,6 +10,7 @@ import { availableEngineIds } from "@/engine/account-detect"
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
 import { t } from "@/tui/i18n"
+import type { ToastOptions } from "@/tui/lib/notify-state"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
@@ -82,9 +83,9 @@ export interface TaskActionContext {
   /** `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
   readonly logPrefix: string
   /** Failure toast (a bare console.error is invisible in the TUI). The outer monitor omits it: log-only. */
-  readonly notifyError?: (message: string) => void
-  /** Neutral info toast; same split as `notifyError`. */
-  readonly notifyInfo?: (message: string) => void
+  readonly notifyError?: (message: string, opts?: ToastOptions) => void
+  /** Neutral info toast; same split as `notifyError`. A shared `key` lets a later toast replace this one. */
+  readonly notifyInfo?: (message: string, opts?: ToastOptions) => void
   /** Force a tasks.json re-read after a mutation; the Tasks pane's poll fallback needs it. */
   readonly reload?: () => Promise<void>
   /** Publish shared active-task focus after delete. Tasks pane only; the outer monitor keeps not doing it. */

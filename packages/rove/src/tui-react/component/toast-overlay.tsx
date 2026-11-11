@@ -8,7 +8,6 @@
 
 import { TextAttributes } from "@opentui/core"
 import { charWidth, displayWidth } from "../../lib/display-width"
-import type { Toast } from "../../tui/lib/notify-state"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -18,11 +17,6 @@ import { useTerminalSize } from "../lib/use-terminal-size"
 const MAX_VISIBLE = 3
 const CARD_WIDTH = 44
 const RIGHT_MARGIN = 2
-const BOTTOM_MARGIN = 2
-/** Rows per card incl. the stack gap: accent-bar card is 1 or 2 rows + 1 gap. */
-function cardRows(toast: Toast, hintRows: number): number {
-  return (toast.body ? 2 : 1) + 1 + (toast.kind === "error" ? hintRows : 0)
-}
 
 export function ToastOverlay() {
   const { theme } = useTheme()
@@ -36,17 +30,17 @@ export function ToastOverlay() {
   // Absolute, bottom-right; `zIndex` above panes, below the dialog backdrop (3000).
   // Clamp so a narrow terminal doesn't push the card across the neighbour pane.
   const cardWidth = Math.min(CARD_WIDTH, Math.max(12, dims.width - RIGHT_MARGIN * 2))
-  const hint = t("common.toastFailureHint")
-  const hintRows = Math.ceil(displayWidth(hint) / Math.max(1, cardWidth - 3))
-  const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast, hintRows), 0)
+  const generic = t("common.toastFailureHint")
+  const rowsOf = (hint: string) => Math.ceil(displayWidth(hint) / Math.max(1, cardWidth - 3))
   const left = Math.max(0, dims.width - cardWidth - RIGHT_MARGIN)
-  const top = Math.max(0, dims.height - BOTTOM_MARGIN - stackRows)
   // Inner text budget: accent bar (1) + card padding (2) = 3; the title row
   // spends 2 more on its glyph, the body row 2 on its indent — same number.
   const textBudget = cardWidth - 5
 
   return (
-    <box position="absolute" zIndex={2500} left={left} top={top} width={cardWidth} flexDirection="column" gap={1}>
+    // Anchored to the bottom of the pane row it is mounted in, one row above the footer. A `top` from the terminal
+    // height overshot by whatever sits above that row (a banner) and pushed the last card under the status line.
+    <box position="absolute" zIndex={2500} left={left} bottom={1} width={cardWidth} flexDirection="column" gap={1}>
       {visibleToasts.map((toast) => {
         const accent =
           toast.kind === "needs_input" ? theme.warning : toast.kind === "error" ? theme.error : theme.success
@@ -93,8 +87,8 @@ export function ToastOverlay() {
                 </box>
               ) : null}
               {toast.kind === "error" ? (
-                <text fg={theme.warning} wrapMode="char" height={hintRows} flexShrink={0}>
-                  {hint}
+                <text fg={theme.warning} wrapMode="word" height={rowsOf(toast.hint ?? generic)} flexShrink={0}>
+                  {toast.hint ?? generic}
                 </text>
               ) : null}
             </box>
