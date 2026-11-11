@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { DiffComment } from "@sma1lboy/rove/src/tui/ops/diff-comments.ts"
 import { type NoteStore, createFilesOps } from "../src/ops/files.ts"
 import type { BridgeApi, OpTable } from "../src/ops/types.ts"
@@ -77,6 +80,17 @@ describe("files.list", () => {
     const { api, calls } = fakeApi(task)
     expect(await run("files.list", { taskId: "t1" }, api)).toEqual({ files: ["a", "b"], truncated: false })
     expect(calls[0]).toEqual({ kind: "verb", name: "get-task", payload: ["--task-id=t1"] })
+  })
+
+  test("a workspace on another machine is listed by the verb, which reads it there, not from its link directory", async () => {
+    const link = mkdtempSync(join(tmpdir(), "rove-link-"))
+    writeFileSync(join(link, ".rove-remote.json"), JSON.stringify({ machine: "deck", taskId: "r1", path: "/w" }))
+    const { run } = setup(["the-link-dir-listing"])
+    const { api } = fakeApi({
+      "get-task": () => ({ task: { worktreePath: link } }),
+      "worktree-files": () => ({ files: ["there.ts"] }),
+    })
+    expect(await run("files.list", { taskId: "t1" }, api)).toEqual({ files: ["there.ts"], truncated: false })
   })
 
   test("a task without a worktree is refused and a flag-like id never reaches the verb", async () => {
