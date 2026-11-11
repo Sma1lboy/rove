@@ -18,11 +18,13 @@ function ops(info: { current: string; latest: string; hasUpdate: boolean; channe
     },
     notes: async () => notes,
     install: () => ({ display: "sh update.sh" }),
+    restart: () => {},
   })
   return { table, ranges, asked }
 }
 
 function installer() {
+  let restarts = 0
   const runs: { output: (chunk: string) => void; exit: (code: number) => void }[] = []
   const table = createUpdateOps({
     current: "1.0.0",
@@ -33,9 +35,12 @@ function installer() {
       runs.push({ output, exit })
       return { display: "sh update.sh" }
     },
+    restart: () => {
+      restarts++
+    },
   })
   const status = async () => (await table["update.status"]?.run({}, {} as never)) as { status: unknown }
-  return { table, runs, status }
+  return { table, runs, status, restarts: () => restarts }
 }
 
 describe("update ops", () => {
@@ -79,6 +84,15 @@ describe("update ops", () => {
     await table["update.run"]?.run({}, {} as never)
     expect(runs).toHaveLength(2)
     expect((await status()).status).toMatchObject({ running: true, output: "" })
+  })
+
+  test("update.restart waits for a running installer", async () => {
+    const { table, runs, restarts } = installer()
+    await table["update.run"]?.run({}, {} as never)
+    await expect(table["update.restart"]?.run({}, {} as never)).rejects.toMatchObject({ code: "BUSY" })
+    runs[0]?.exit(0)
+    await table["update.restart"]?.run({}, {} as never)
+    expect(restarts()).toBe(1)
   })
 
   test("release.notes refuses anything but x.y.z", async () => {
