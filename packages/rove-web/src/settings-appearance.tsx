@@ -11,6 +11,7 @@ import { RAIL_GROUPS, type RailGroup, railGroup, setRailGroup } from "./rail-gro
 import { ts } from "./settings-copy.ts"
 import { Choice, Group, Toggle } from "./settings-rows.tsx"
 import { ThemeGallery } from "./settings-theme-gallery.tsx"
+import { STATUS_MARKS, type StatusMarkStyle, setStatusMarkStyle, statusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { useMode } from "./task-colors.ts"
 
@@ -50,6 +51,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
   const state = usePrefs()
   const mode = useMode()
   const grouping = useStore(railGroup)
+  const mark = useStore(statusMarkStyle)
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
 
   const choice = (key: EnumKey, label: string, hint?: string) => (
@@ -107,6 +109,18 @@ export function AppearanceSection({ model }: { model: AppModel }) {
             label: t(value === "state" ? "settings.appearance.railGroupState" : "settings.appearance.railGroupProject"),
           }))}
           onPick={setRailGroup}
+        />
+        <Choice<StatusMarkStyle>
+          label={t("settings.appearance.statusMark")}
+          hint={t("settings.appearance.statusMarkNote")}
+          value={mark}
+          picks={STATUS_MARKS.map((value) => ({
+            value,
+            label: t(
+              value === "engine" ? "settings.appearance.statusMarkEngine" : "settings.appearance.statusMarkDots",
+            ),
+          }))}
+          onPick={setStatusMarkStyle}
         />
       </Group>
       <Group title={t("settings.appearance.groupTerminal")} hint={t("prefs.terminalOnly")}>

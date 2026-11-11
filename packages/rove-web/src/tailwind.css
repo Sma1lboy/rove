@@ -376,6 +376,12 @@ button:focus-visible {
       background-position: -100% 0;
     }
   }
+  --animate-mark-pulse: mark-pulse 1.6s ease-in-out infinite;
+  @keyframes mark-pulse {
+    50% {
+      opacity: 0.3;
+    }
+  }
   --animate-flow-border: flow-border 3s linear infinite;
   @keyframes flow-border {
     from {

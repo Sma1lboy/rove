@@ -74,6 +74,11 @@ export const en = {
       railGroup: "Task list",
       railGroupProject: "By project",
       railGroupState: "By state",
+      statusMark: "Task status",
+      statusMarkNote:
+        "The engine icon pulses while a task works and dims at rest; Dots keeps the dot mark at the end of the row.",
+      statusMarkEngine: "Engine icon",
+      statusMarkDots: "Dots",
     },
     notifications: {
       toastNote: "A popup in the corner of this page.",
@@ -305,6 +310,10 @@ export const zh: typeof en = {
       railGroup: "任务列表",
       railGroupProject: "按项目",
       railGroupState: "按状态",
+      statusMark: "任务状态",
+      statusMarkNote: "引擎图标在任务工作时闪动、空闲时变暗；点阵则保留行尾的点阵标记。",
+      statusMarkEngine: "引擎图标",
+      statusMarkDots: "点阵",
     },
     notifications: {
       toastNote: "本页角落里的弹出提示。",
