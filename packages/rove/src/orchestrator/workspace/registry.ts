@@ -3,6 +3,7 @@ import { BorrowedBackend } from "./borrowed.ts"
 import { CowCloneBackend, type CowCloneDeps } from "./cow-clone.ts"
 import { GitWorktreeBackend } from "./git-worktree.ts"
 import { LayerfsBackend } from "./layerfs.ts"
+import { RemoteBackend } from "./remote.ts"
 import type { WorkspaceBackend, WorkspaceBackendId } from "./types.ts"
 
 /** Backends by id. A task whose backend is not registered here (a newer daemon's) is an error, not a guess. */
@@ -27,5 +28,6 @@ export function createWorkspaceRegistry(worktrees: GitWorktreeManager, cowClone?
     new BorrowedBackend(),
     new CowCloneBackend(plain, cowClone),
     new LayerfsBackend(),
+    new RemoteBackend(),
   ])
 }

@@ -4,6 +4,7 @@ import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { worktreeInitMarkerPath } from "../env.ts"
 import { remoteKeyForRepo } from "../exec/resolve.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
+import { isRemoteWorkspace, remoteBinDir } from "../machines/remote-workspace.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -213,6 +214,8 @@ export interface EngineSessionLaunchInput {
   readonly readNotes?: (repoRoot: string) => readonly { text: string; author: string }[]
   /** Which engine TAB this session is (defaults to tab-1, the key's tab). */
   readonly tabId?: string
+  /** Is `worktreePath` the link directory of a workspace on another machine? Defaults to reading it (tests inject). */
+  readonly isRemoteWorkspace?: (dir: string) => boolean
   /**
    * Override the registry's first-message delivery. Spawners leave it unset (a
    * "paste" vendor like kimi gets `firstMessage` back to paste post-spawn);
@@ -296,9 +299,12 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     const extraDirs = repos.filter((r) => !r.primary).map((r) => r.worktreePath)
     argv = protocolEntry(input.task.vendor).addDirArgv?.(argv, extraDirs) ?? argv
   }
+  const protocol = protocolEntry(input.task.vendor)
+  // A workspace on another machine: the engine's own wiring where it has one; `rx` on PATH for every engine.
+  const remote = (input.isRemoteWorkspace ?? isRemoteWorkspace)(input.worktreePath)
+  if (remote) argv = protocol.remoteWorkspace?.argv(argv, input.worktreePath) ?? argv
   // Paste-delivery vendors (kimi) read the positional slot as a subcommand, so
   // the first message stays out of argv; the spawner pastes it instead.
-  const protocol = protocolEntry(input.task.vendor)
   const delivery = input.firstMessageDelivery ?? protocol.firstMessageDelivery ?? "argv"
   const firstText =
     launchInit.firstMessage && repos
@@ -320,7 +326,8 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   const imageEnv = input.inlineImages ? protocolEntry(input.task.vendor).capabilities?.inlineImageEnv : undefined
   const imageExports = Object.entries(imageEnv ?? {}).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
   const repoExports = (repos ? repoEnv(repos) : []).map(([name, value]) => ` ${name}=${quoteShellArg(value)}`)
-  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}${repoExports.join("")}\n`
+  const rxExport = remote ? ` PATH=${quoteShellArg(remoteBinDir(input.worktreePath))}:"$PATH"` : ""
+  const identity = `export ROVE_TASK_ID=${taskId} ROVE_TAB_ID=${tabId}${imageExports.join("")}${repoExports.join("")}${rxExport}\n`
   return {
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],

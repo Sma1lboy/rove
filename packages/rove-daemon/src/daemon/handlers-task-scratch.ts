@@ -14,6 +14,10 @@ export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
         vendor: optionalVendor(payload, "vendor"),
         scratch: optionalBoolean(payload, "scratch"),
         title: optionalString(payload, "title"),
+        model: optionalString(payload, "model"),
+        modelEffort: optionalString(payload, "effort"),
+        // The link directory of a workspace on another machine (`add --workspace-on`).
+        ...(optionalBoolean(payload, "remote") ? { workspace: { backend: "remote" as const } } : {}),
       })
       return { taskId: task.id, task: serializeTask(task) }
     },

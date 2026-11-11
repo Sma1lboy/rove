@@ -15,6 +15,7 @@
 
 import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import type { RemoteNotesFile } from "../machines/remote-workspace.ts"
 import type {
   BobAccount,
   ClaudeAccount,
@@ -133,6 +134,16 @@ export interface EngineRegistryEntry {
    * variadic, so a spaced `--add-dir <dir>` would swallow the positional prompt.
    */
   readonly addDirArgv?: (base: readonly string[], dirs: readonly string[]) => readonly string[]
+  /**
+   * How this engine works in a workspace on another machine (`machines/remote-workspace.ts`), launched
+   * from its link directory: `argv` sends its shell tool there and swaps its file tools for the workspace
+   * ones, and `notes` is the instruction file it reads from its cwd. Absent = it works there through `rx`
+   * and AGENTS.md alone.
+   */
+  readonly remoteWorkspace?: {
+    readonly argv: (base: readonly string[], linkDir: string) => readonly string[]
+    readonly notes: RemoteNotesFile
+  }
   /**
    * Rewrites every hosted interactive launch's full argv so the engine opens
    * straight to its composer: a blocking startup screen of its own (an update
@@ -260,6 +271,11 @@ export function engineEntry(vendor: VendorId): EngineRegistryEntry {
   const custom = customEngineEntry(vendor)
   // Contrib engines: the empty entry overlaid with catalog identity + screen manifest.
   return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
+}
+
+/** Every wired engine's instruction file for a workspace on another machine. */
+export function remoteNotesFiles(): readonly RemoteNotesFile[] {
+  return BUILTIN_VENDORS.flatMap((id) => BUILTIN_ENGINES[id].remoteWorkspace?.notes ?? [])
 }
 
 /**

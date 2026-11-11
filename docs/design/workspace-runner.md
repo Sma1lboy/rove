@@ -16,6 +16,12 @@
 > [WORKTREES](../WORKTREES.md#checkpoints)), gated by the `checkpoint`
 > workspace capability. Phase 4 has an experimental `layerfs` backend on Linux
 > Runners (`add --workspace layerfs`, see "LayerFS backend" below).
+> A `remote` backend has landed (`add --workspace-on`, see
+> [MACHINES](../MACHINES.md#run-the-agent-here-keep-the-work-there)): the
+> agent runs on the hub and only the worktree and its commands live on the
+> Runner. The owner chose this (2026-11-10) as the direction for work on
+> another machine, over "every Runner runs its own engines" below: a Runner
+> then needs Rove but no engine and no engine login.
 > Decisions marked **OPEN** need the owner.
 
 ## Why

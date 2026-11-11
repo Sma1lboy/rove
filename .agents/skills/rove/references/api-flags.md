@@ -252,9 +252,9 @@ clear the shared active task.
 ```text
 publish        --task-id(REQ) --remote
 pr-attach      --url(REQ) --task-id
-add            --repo(REQ) --clone --fork --workspace{layerfs} --allow-fork --parent
-               --no-parent --no-worktree --isolate-in --title --branch --base-branch
-               --base-for --worktree-name --command --effort
+add            --repo(REQ) --clone --fork --workspace{layerfs} --workspace-on --allow-fork
+               --parent --no-parent --no-worktree --isolate-in --title --branch
+               --base-branch --base-for --worktree-name --command --effort
                --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
