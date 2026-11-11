@@ -6,7 +6,7 @@
  * failure mode a snapshot of the row list would miss.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -15,6 +15,13 @@ import { useKV } from "../../src/tui-react/context/kv"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
+
+// Each case points ROVE_HOME_DIR at a temp home with renamed engines; later files must not read it.
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
 
 /** The on/off mark on an engine's row: the line naming it with a status dot. */
 function markOf(frame: string, name: string): string | undefined {
