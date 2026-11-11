@@ -4,7 +4,9 @@ import {
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
+  useEffect,
   useRef,
+  useState,
 } from "react"
 import type { DictationFace } from "../voice/dictation-button.tsx"
 
@@ -40,13 +42,13 @@ const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-
 export const COMPOSER_ATTACH = `${KEY} text-muted`
 export const composerMic = (recording: boolean): string => `${KEY} ${recording ? "text-accent" : "text-muted"}`
 
-/** The voice row's hold-to-talk control: the only filled box in the row, lit while recording, tinted once slid up to send. */
+/** The voice row's hold-to-talk control: the only filled box in the row, tinted while recording, solid accent once slid up to send. */
 export const composerHold = (recording: boolean, armed: boolean): string =>
   `relative flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[12px] border-hairline px-3.5 font-sans touch-manipulation disabled:opacity-60 ${PRESS_WIDE} ${
     armed
-      ? "border-accent bg-accent-soft text-accent"
+      ? "border-accent bg-accent text-paper"
       : recording
-        ? "border-accent bg-paper text-accent"
+        ? "border-accent bg-accent-soft text-accent"
         : "border-line bg-inset text-ink"
   }`
 
@@ -75,30 +77,24 @@ export function SendButton(props: { label: string; disabled: boolean }) {
   )
 }
 
-/** Over the hold control while it is held: the words so far, and where to slide to send them. */
-const BUBBLE =
-  "pointer-events-none absolute inset-x-0 bottom-full z-6 mb-2 flex flex-col gap-1.5 rounded-[12px] border-hairline bg-surface px-3.5 py-2.5 text-left shadow-popover transition-colors duration-150 motion-safe:animate-rise-in"
-function HoldBubble(props: { words: string; hint: string; armed: boolean }) {
-  return (
-    <span className={`${BUBBLE} ${props.armed ? "border-accent" : "border-line"}`}>
-      {props.words && (
-        // The newest words stay in view; the start of a long take scrolls off the top.
-        <span className="flex max-h-[4.5em] flex-col justify-end overflow-hidden text-body leading-[1.5] text-ink">
-          {props.words}
-        </span>
-      )}
-      <span className={`flex items-center gap-1 text-meta ${props.armed ? "font-semibold text-accent" : "text-muted"}`}>
-        <svg
-          viewBox="0 0 16 16"
-          className="size-3.5 flex-none fill-none stroke-current stroke-[1.5]"
-          aria-hidden="true"
-        >
-          <path d={UP} />
-        </svg>
-        {props.hint}
-      </span>
-    </span>
-  )
+/** What it last held, kept for `ms` after it is gone, so a bubble leaves the way it came instead of vanishing. */
+function useLinger<T>(value: T | null, ms: number): { shown: T | null; leaving: boolean } {
+  const last = useRef(value)
+  if (value !== null) last.current = value
+  const absent = value === null
+  const [gone, setGone] = useState(absent)
+  useEffect(() => {
+    if (!absent) return setGone(false)
+    const timer = window.setTimeout(() => setGone(true), ms)
+    return () => window.clearTimeout(timer)
+  }, [absent, ms])
+  return { shown: value ?? (gone ? null : last.current), leaving: absent && !gone }
+}
+
+/** Words, so each new one can fade in by itself; the browser's own word breaking where it has one (no spaces in Chinese). */
+function words(text: string): string[] {
+  if (typeof Intl.Segmenter !== "function") return text.split(/(\s+)/)
+  return [...new Intl.Segmenter(undefined, { granularity: "word" }).segment(text)].map((part) => part.segment)
 }
 
 /** Bars of the last few seconds' loudness, newest at the right; one bar per recorder tick. */
@@ -117,13 +113,74 @@ function Wave({ level, seconds }: { level: number; seconds: number }) {
         <i
           // biome-ignore lint/suspicious/noArrayIndexKey: a bar is its position in the strip
           key={i}
-          className="block w-[2.5px] flex-none rounded-full bg-current"
-          style={{ height: `${Math.max(3, Math.round(Math.min(1, value * 10) * 22))}px` }}
+          // Scaled, not resized: the bars glide to their next height.
+          className="block h-full w-[2.5px] flex-none rounded-full bg-current transition-transform duration-100 ease-linear motion-reduce:transition-none"
+          style={{ transform: `scaleY(${Math.max(0.12, Math.min(1, value * 10))})` }}
         />
       ))}
     </span>
   )
 }
+
+interface Bubble {
+  readonly text: string
+  readonly hint: string
+  /** The hint is where to slide, so it carries the arrow. */
+  readonly slide: boolean
+  readonly armed: boolean
+  /** In the words' place until the first one is heard. */
+  readonly listening: string
+}
+
+/**
+ * Over the hold control from the press until the text lands: the words as they are heard, and under them where
+ * to slide to send. It grows out of the control and sinks back when the take is done.
+ */
+const BUBBLE =
+  "pointer-events-none absolute inset-x-0 bottom-full z-6 mb-2.5 flex origin-bottom flex-col gap-2.5 rounded-[16px] border-hairline bg-surface px-4 pt-3.5 pb-3 text-left shadow-dialog transition-colors duration-150"
+function HoldBubble({ bubble, leaving }: { bubble: Bubble; leaving: boolean }) {
+  return (
+    <span
+      className={`${BUBBLE} ${leaving ? "motion-safe:animate-sink-out" : "motion-safe:animate-bubble-in"} ${bubble.armed ? "border-accent" : "border-line"}`}
+    >
+      {bubble.text ? (
+        // Two lines tall from the first word, so the box does not jump; the newest words stay in view.
+        <span className="flex max-h-[5.8em] min-h-[2.9em] flex-col justify-end overflow-hidden font-sans text-display leading-[1.45] text-ink">
+          <span>
+            {words(bubble.text).map((word, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a word is its place in the take; only new ones mount
+              <span key={i} className="motion-safe:animate-fade-in">
+                {word}
+              </span>
+            ))}
+          </span>
+        </span>
+      ) : (
+        <span className="flex min-h-[2.9em] items-end font-sans text-display leading-[1.45] text-subtle">
+          {bubble.listening}
+        </span>
+      )}
+      <span
+        key={bubble.hint}
+        className={`flex items-center justify-center gap-1.5 text-body motion-safe:animate-fade-in ${bubble.armed ? "font-semibold text-accent" : "text-muted"}`}
+      >
+        {bubble.slide && (
+          <svg
+            viewBox="0 0 16 16"
+            className="size-4 flex-none fill-none stroke-current stroke-[1.5]"
+            aria-hidden="true"
+          >
+            <path d={UP} />
+          </svg>
+        )}
+        {bubble.hint}
+      </span>
+    </span>
+  )
+}
+
+/** Each face fades in as it takes the control over: the label at rest, the take while recording, the wait after. */
+const FACE = "flex min-w-0 flex-1 items-center gap-2.5 motion-safe:animate-fade-in"
 
 /** Inside the hold control: the label at rest; while recording a level dot, the time and the waveform. */
 export function HoldFace(props: {
@@ -133,42 +190,68 @@ export function HoldFace(props: {
   /** Where to slide and what letting go there does; left out where a take is never sent from the hold. */
   slide?: string
   release?: string
+  listening?: string
 }) {
   const { state } = props
-  if (state.phase === "transcribing") return <span className="flex-1 text-center text-meta">{props.working}</span>
-  if (state.phase !== "recording") {
+  const recording = state.phase === "recording"
+  const held = recording && state.held
+  // Where a slide sends, every take is a hold: the bubble is up from the press until the text lands.
+  const heard = useRef("")
+  if (recording) heard.current = state.partial
+  const live: Bubble | null =
+    props.slide !== undefined && (recording || state.phase === "transcribing")
+      ? {
+          text: heard.current,
+          hint: (held ? (state.armed ? props.release : props.slide) : props.working) ?? "",
+          slide: held,
+          armed: held && state.armed,
+          listening: props.listening ?? "",
+        }
+      : null
+  const { shown, leaving } = useLinger(live, 140)
+  const bubble = shown && <HoldBubble bubble={shown} leaving={leaving} />
+  if (state.phase === "transcribing") {
     return (
-      <span className="flex flex-1 items-center justify-center gap-2 text-display font-medium">
-        <Glyph d={MIC} />
-        {props.idle}
-      </span>
+      <>
+        {bubble}
+        <span key="working" className={`${FACE} justify-center text-body`}>
+          {props.working}
+        </span>
+      </>
     )
   }
-  // Held where a slide sends: the words and the way to send them go in a bubble above, the bar keeps the waveform.
-  const bubble = state.held && props.slide !== undefined
+  if (!recording) {
+    return (
+      <>
+        {bubble}
+        <span key="idle" className={`${FACE} justify-center gap-2 text-display`}>
+          <span className="flex text-muted">
+            <Glyph d={MIC} />
+          </span>
+          {props.idle}
+        </span>
+      </>
+    )
+  }
   return (
     <>
-      {bubble && (
-        <HoldBubble
-          words={state.partial}
-          hint={(state.armed ? props.release : props.slide) ?? ""}
-          armed={state.armed}
+      {bubble}
+      <span key="take" className={FACE}>
+        {/* Opacity carries the level: the dot never resizes and never pushes the time around. */}
+        <span
+          className="size-2 flex-none rounded-full bg-current"
+          style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
         />
-      )}
-      {/* Opacity carries the level: the dot never resizes and never pushes the time around. */}
-      <span
-        className="size-1.75 flex-none rounded-full bg-current"
-        style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
-      />
-      <span className="flex-none font-mono text-meta normal-nums">{state.time}</span>
-      {state.partial && !bubble ? (
-        // The newest words at the right edge, where the waveform was; the start of a long take scrolls off left.
-        <span className="flex min-w-0 flex-1 justify-end overflow-hidden whitespace-nowrap text-meta">
-          {state.partial}
-        </span>
-      ) : (
-        <Wave level={state.level} seconds={state.seconds} />
-      )}
+        <span className="flex-none font-mono text-body normal-nums">{state.time}</span>
+        {state.partial && props.slide === undefined ? (
+          // The newest words at the right edge, where the waveform was; the start of a long take scrolls off left.
+          <span className="flex min-w-0 flex-1 justify-end overflow-hidden whitespace-nowrap text-meta">
+            {state.partial}
+          </span>
+        ) : (
+          <Wave level={state.level} seconds={state.seconds} />
+        )}
+      </span>
     </>
   )
 }

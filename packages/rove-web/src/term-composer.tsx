@@ -153,6 +153,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
                   working={t("voice.working")}
                   slide={t("voice.slideToSend")}
                   release={t("voice.tipSend")}
+                  listening={t("voice.listening")}
                 />
               )}
             />
