@@ -102,8 +102,9 @@ export function HoldFace(props: {
   state: DictationFace
   idle: string
   working: string
-  slide: string
-  release: string
+  /** Where to slide and what letting go there does; left out where a take is never sent from the hold. */
+  slide?: string
+  release?: string
 }) {
   const { state } = props
   if (state.phase === "transcribing") return <span className="flex-1 text-center text-meta">{props.working}</span>
@@ -131,7 +132,7 @@ export function HoldFace(props: {
       ) : (
         <Wave level={state.level} seconds={state.seconds} />
       )}
-      {state.held && (
+      {state.held && props.slide && (
         <span className={`flex flex-none items-center gap-1 text-meta ${state.armed ? "font-semibold" : "text-muted"}`}>
           <svg viewBox="0 0 16 16" className="size-3.5 fill-none stroke-current stroke-[1.5]" aria-hidden="true">
             <path d={UP} />
