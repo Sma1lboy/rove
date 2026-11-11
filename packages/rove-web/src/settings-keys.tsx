@@ -32,7 +32,7 @@ export function KeysSection({ model }: { model: AppModel }) {
   const prefixChanged = keys.prefix.firstStrokes.join() !== defaultPrefix.join()
   return (
     <>
-      <Group>
+      <Group hint={t("keys.editHint")}>
         <Choice
           label={ts("keybindings.tapPresentation")}
           hint={ts("keybindings.tapPresentationHint")}
@@ -62,24 +62,6 @@ export function KeysSection({ model }: { model: AppModel }) {
           />
         </Row>
       </Group>
-      <Group title={ts("keybindings.configFile")} hint={`${t("keys.editHint")} ${t("prefs.keysYaml")}`}>
-        <Row
-          label={
-            <span className="font-mono break-all">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</span>
-          }
-        />
-        <Row label={t("keys.agent")} hint={askFailed ? t("keys.agentFailed") : t("keys.agentHint")}>
-          <Button
-            variant="action"
-            onClick={() => {
-              setAskFailed(false)
-              askAgent(model, t("keys.agentPrompt", { path: keys.path })).catch(() => setAskFailed(true))
-            }}
-          >
-            {t("keys.agent")}
-          </Button>
-        </Row>
-      </Group>
       {keys.warnings.length > 0 && (
         <Group title={ts("keybindings.warnings")}>
           {keys.warnings.map((w) => (
@@ -99,6 +81,25 @@ export function KeysSection({ model }: { model: AppModel }) {
           ))}
         </Group>
       )}
+      {/* Last: where the keys are stored and the agent that edits them, after the keys themselves. */}
+      <Group title={ts("keybindings.configFile")} hint={t("prefs.keysYaml")}>
+        <Row
+          label={
+            <span className="font-mono break-all">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</span>
+          }
+          hint={askFailed ? t("keys.agentFailed") : t("keys.agentHint")}
+        >
+          <Button
+            variant="action"
+            onClick={() => {
+              setAskFailed(false)
+              askAgent(model, t("keys.agentPrompt", { path: keys.path })).catch(() => setAskFailed(true))
+            }}
+          >
+            {t("keys.agent")}
+          </Button>
+        </Row>
+      </Group>
     </>
   )
 }
