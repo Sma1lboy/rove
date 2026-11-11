@@ -10,6 +10,7 @@
  * {@link HookEventSpec}[]. Pure (no I/O).
  */
 
+import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { roveHookInvocation } from "../cli/invocation.ts"
 import { isObject } from "../lib/is-object.ts"
 import { type QuoteShellArgvOptions, quoteShellArgv } from "../lib/shell-command.ts"
@@ -100,8 +101,10 @@ const ROVE_HOOK_FLAGS: Readonly<Record<string, RegExp>> = {
   "--hook-version": /^\d+$/,
 }
 
+const CLI_ENTRY = new RegExp(`(?:^|/)(?:src|dist)/cli/(?:rove|${OLD})\\.(?:ts|js)$`)
+
 /**
- * Is this hook entry a recognized `rove hook <verb>` (or legacy `kobe`) invocation? Ownership,
+ * Is this hook entry a recognized `rove hook <verb>` (or pre-rename) invocation? Ownership,
  * not string equality: a dev checkout spells it `bun /…/src/cli/rove.ts hook …`,
  * and literal matching would leave a duplicate instead of replacing it.
  *
@@ -125,9 +128,9 @@ export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
   if (executable === "bun" || executable === "node") {
     if (argv[offset] === "--conditions=browser") offset++
     const entry = argv[offset] ?? ""
-    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|kobe)\.(?:ts|js)$/.test(entry)) return false
+    if (!CLI_ENTRY.test(entry)) return false
     offset++
-  } else if (executable !== "rove" && executable !== "kobe") {
+  } else if (executable !== "rove" && executable !== OLD) {
     return false
   }
   if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false

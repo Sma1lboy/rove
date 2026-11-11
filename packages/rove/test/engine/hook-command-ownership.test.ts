@@ -1,3 +1,4 @@
+import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, it } from "vitest"
 import { mergeWorktreeSyncHook } from "../../src/engine/claude-code-local/hook-adapter.ts"
 import { hasRoveActivityHooks, mergeActivityHooks, removeWorktreeWatchHook } from "../../src/engine/json-hooks.ts"
@@ -10,10 +11,10 @@ const settings = (event: string, command: string) => ({
 
 const invocations = [
   ["rove"],
-  ["kobe"],
-  ["/usr/local/bin/kobe"],
-  ["bun", "--conditions=browser", "/old checkout/packages/kobe/src/cli/kobe.ts"],
-  ["node", "/old checkout/packages/kobe/dist/cli/kobe.js"],
+  [OLD],
+  [`/usr/local/bin/${OLD}`],
+  ["bun", "--conditions=browser", `/old checkout/packages/${OLD}/src/cli/${OLD}.ts`],
+  ["node", `/old checkout/packages/${OLD}/dist/cli/${OLD}.js`],
   ["/usr/local/bin/rove"],
   ["/path with spaces/it's/bin/rove"],
   ["bun", "--conditions=browser", new URL("../../src/cli/rove.ts", import.meta.url).pathname],

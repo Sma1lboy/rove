@@ -315,7 +315,7 @@ be inferred from the terminal title.
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design: Rove writes the hook
 definition but never bypasses the trust prompt for you. On launch, Rove replaces
-legacy `kobe hook` entries with current `rove hook` entries and removes duplicate
+hook entries written before the rename with current `rove hook` entries and removes duplicate
 Rove groups, preserving your own hooks. After this cleanup, approve the changed
 hooks once in Codex; Rove does not rewrite hook trust hashes in `config.toml`.
 
