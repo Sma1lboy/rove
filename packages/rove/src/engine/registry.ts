@@ -183,6 +183,13 @@ export interface EngineRegistryEntry {
    */
   readonly firstMessageDelivery?: "argv" | "paste"
   /**
+   * Argv that carries the first message when the CLI wants it behind a flag
+   * rather than as a bare positional (copilot: `-i <prompt>`; a positional is
+   * "Invalid command format"). Absent = `[...argv, text]`. Only consulted for
+   * "argv" delivery.
+   */
+  readonly firstMessageArgv?: (argv: readonly string[], text: string) => readonly string[]
+  /**
    * Extra `ps` basenames beyond `defaultCommand[0]`, for binaries that rewrite
    * argv[0] (kimi's launcher becomes `kimi-co`). Without them the foreground
    * walk (`engine/foreground.ts`) sees a plain shell and delivery refuses

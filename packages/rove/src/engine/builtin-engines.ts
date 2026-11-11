@@ -239,6 +239,9 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     displayName: "Copilot",
     icon: COPILOT_ICON,
     defaultCommand: ["copilot"],
+    // Copilot CLI 1.0 rejects a bare positional prompt ("Invalid command
+    // format"); `-i` starts interactive mode and runs it. `-p` would exit.
+    firstMessageArgv: (argv, text) => [...argv, "-i", text],
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
     createHookAdapter: () => new CopilotHookAdapter(),
