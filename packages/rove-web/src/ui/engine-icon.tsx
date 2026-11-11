@@ -1,7 +1,8 @@
 /**
- * An engine's brand mark at a row's start, in its brand colours (the row's ink where the brand is black or white);
- * a ring for an engine that declares none. Given a `status` it is also the row's status mark: it pulses while the
- * engine works, dims at rest, and gives way to `?` / `!` when the row needs a person.
+ * An engine's brand mark at a row's start; a ring for an engine that declares none. Alone it is drawn in its brand
+ * colours (the row's ink where the brand is black or white). Given a `status` it is the row's status mark: the shape
+ * says which engine, the colour says the state (dim at rest, green for an unseen finish, the accent breathing while
+ * it works), and it gives way to `?` / `!` when the row needs a person.
  */
 
 import type { StatusMark } from "../rail-glyphs.ts"
@@ -15,14 +16,8 @@ export interface EngineIconData {
 // 1px below the box centre: the title's lowercase sits 1.5px under it, its capitals 0.3px.
 const CELL = "block size-3.5 flex-none translate-y-px"
 
-/** Reduced motion slows the pulse instead of freezing it, as the dots do. */
-const LOOK: Readonly<Record<StatusMark["look"], string>> = {
-  working: "animate-mark-pulse motion-reduce:[animation-duration:4.8s]",
-  done: "",
-  idle: "opacity-45",
-  waiting: "",
-  error: "",
-}
+/** Reduced motion slows the breath instead of freezing it, as the dots do. */
+const BREATH = "animate-mark-pulse motion-reduce:[animation-duration:4.8s]"
 
 export function EngineIcon(props: {
   readonly icon: EngineIconData | undefined
@@ -41,9 +36,11 @@ export function EngineIcon(props: {
       </span>
     )
   }
+  // A resting mark is the muted ink, as an idle dot mark: one step stronger than the muted tone elsewhere.
+  const tone = props.status && (look === "idle" ? "text-muted" : TONE_CLASS[props.status.tone])
   return (
     <svg
-      className={`${CELL} ${props.icon ? "text-ink" : "text-muted"} ${look ? LOOK[look] : ""}`}
+      className={`${CELL} ${tone ?? (props.icon ? "text-ink" : "text-muted")} ${look === "working" ? BREATH : ""}`}
       viewBox={props.icon?.viewBox ?? "0 0 14 14"}
       role={props.name ? "img" : undefined}
       aria-label={props.name}
@@ -54,7 +51,7 @@ export function EngineIcon(props: {
           <path
             key={path.d}
             d={path.d}
-            fill={path.fill ?? "currentColor"}
+            fill={tone ? "currentColor" : (path.fill ?? "currentColor")}
             fillRule={path.evenodd ? "evenodd" : undefined}
           />
         ))
