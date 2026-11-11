@@ -7,6 +7,7 @@ import "@fontsource/jetbrains-mono/700.css"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app.tsx"
+import { swipeBackToTasks } from "./back-swipe.ts"
 import { BridgeClient, bridgeUrl } from "./bridge.ts"
 import { ConnectScreen } from "./connect-view.tsx"
 import { trapDialogFocus } from "./focus-trap.ts"
@@ -27,6 +28,7 @@ import "./tailwind.css"
 const root = createRoot(document.getElementById("root") as HTMLElement)
 followVisualViewport()
 longPressOpensMenus()
+swipeBackToTasks()
 revealScrollbarsOnScroll()
 watchLeaving()
 trapDialogFocus()
