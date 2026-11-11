@@ -23,6 +23,9 @@ export interface Prefs {
   readonly glyphSet: "braille" | "starburst" | "ascii"
   readonly colorblind: "on" | "off"
   readonly runningTitle: "shimmer" | "still"
+  readonly statusMark: "engine" | "both" | "dots"
+  /** The "task rows changed" notice was shown, or was not owed (`status-mark-notice.ts`). */
+  readonly statusMarkNoticeSeen: boolean
   readonly toast: boolean
   readonly sound: boolean
   readonly soundVolume: number
@@ -106,6 +109,9 @@ const DEFAULTS: Prefs = {
   glyphSet: "braille",
   colorblind: "off",
   runningTitle: "shimmer",
+  statusMark: "engine",
+  // True until the daemon says otherwise: a cache from before the key must not raise the notice.
+  statusMarkNoticeSeen: true,
   toast: true,
   sound: true,
   soundVolume: 0.4,

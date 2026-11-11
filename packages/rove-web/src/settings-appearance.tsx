@@ -13,7 +13,7 @@ import { ts } from "./settings-copy.ts"
 import { RunningTitleSample, StatusMarkSample, WorkingBorderSample } from "./settings-preview.tsx"
 import { Choice, Group, Toggle } from "./settings-rows.tsx"
 import { ThemeGallery } from "./settings-theme-gallery.tsx"
-import { STATUS_MARKS, type StatusMarkStyle, setStatusMarkStyle, statusMarkStyle } from "./status-mark.ts"
+import { STATUS_MARKS, type StatusMarkStyle, setStatusMarkStyle, useStatusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { useMode } from "./task-colors.ts"
 
@@ -59,7 +59,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
   const state = usePrefs()
   const mode = useMode()
   const grouping = useStore(railGroup)
-  const mark = useStore(statusMarkStyle)
+  const mark = useStatusMarkStyle()
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
 
   const choice = (key: EnumKey, label: string, hint?: string, sample?: ReactNode) => (
@@ -132,7 +132,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
             value,
             label: t(STATUS_MARK_LABEL[value]),
           }))}
-          onPick={setStatusMarkStyle}
+          onPick={(next) => setStatusMarkStyle(client, next)}
         />
       </Group>
       <Group title={t("settings.appearance.groupTerminal")} hint={t("prefs.terminalOnly")}>

@@ -34,6 +34,12 @@ import {
   normalizeSoundVolume,
 } from "@sma1lboy/rove/src/state/sound-volume.ts"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "@sma1lboy/rove/src/state/split-style.ts"
+import {
+  STATUS_MARKS,
+  STATUS_MARK_KEY,
+  STATUS_MARK_NOTICE_KEY,
+  normalizeStatusMark,
+} from "@sma1lboy/rove/src/state/status-mark.ts"
 import type { StateSnapshot } from "@sma1lboy/rove/src/state/store.ts"
 import {
   TAB_STRIP_HIDE_SINGLE_KEY,
@@ -174,6 +180,9 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   runningTitle: choice(RUNNING_TITLE_KEY, appearance("runningTitle"), (raw) =>
     normalizeRunningTitle(raw ?? DEFAULT_RUNNING_TITLE),
   ),
+  // Web only: the TUI's sidebar rows carry no engine mark.
+  statusMark: choice(STATUS_MARK_KEY, STATUS_MARKS, normalizeStatusMark),
+  statusMarkNoticeSeen: bool(STATUS_MARK_NOTICE_KEY, false),
   toast: bool("notifications.toast.enabled", true),
   sound: bool("notifications.sound.enabled", true),
   soundVolume: choice(SOUND_VOLUME_KEY, SOUND_VOLUME_STEPS, (raw) => normalizeSoundVolume(raw ?? DEFAULT_SOUND_VOLUME)),
