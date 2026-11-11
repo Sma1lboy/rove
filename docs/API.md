@@ -219,7 +219,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `NO_REMOTE_CHECKOUT` | `--repo` names a checkout here or a repo id, and the target machine has no checkout of that repo (`repo-match`). Pass `--clone` to have the target clone it. |
 | `FORK_MATCH` | The target machine's only checkout of the `--repo` shares its history under another origin (a fork). Pass `--allow-fork` to use it, or `--clone` with the repo id. |
 | `NO_LOCAL_CHECKOUT` | `add --repo` names a repo id and this machine has no checkout of it. Pass `--clone`, or `--repo` with a checkout's path. |
-| `CLONE_FAILED` | `add --clone` could not `git clone` the repo id into `~/.rove/repos/<host>/<owner>/<name>`; the message carries git's error. |
+| `CLONE_FAILED` | `add --clone` could not `git clone` the repo id into `~/.rove/repos/<host>/<owner>/<name>`; the message carries git's error. On a full disk the hint says to free space and run the same command again. |
 | `UNPUSHED_BASE` | `--base-branch` has commits no remote has; the target machine could not base a task on it. |
 | `INBOUND_DENIED` | The target machine's inbound policy refuses this verb's class from other machines (`rove machine inbound`). |
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
@@ -853,7 +853,9 @@ edits (`set-vendor`, `rename`,
   starts the engine, and delivers the prompt. With `--start` and no prompt the
   engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
   `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
-  `taskId`. `--start` beside `--prompt`, `--count` or `--agents` is
+  `taskId`. A `--prompt` start that fails because the disk is full (git's
+  `No space left on device`) removes the task it had just created: nothing was
+  cut or started, so the same `add` works once there is space. `--start` beside `--prompt`, `--count` or `--agents` is
   `CONFLICTING_FLAGS`. A bare `add` is refused for every caller
   (`EMPTY_SESSION`): `add` sends an agent to do something, so say what —
   `--prompt` for work, `--start` for an idle engine a person will type into,

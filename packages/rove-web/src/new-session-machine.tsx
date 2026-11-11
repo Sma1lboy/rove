@@ -1,5 +1,6 @@
 /** The New session composer's other-machine parts: the machine chip, that machine's project list, a branch chip that takes a typed ref, and Start there. */
 
+import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
 import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messages/tasks.ts"
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
@@ -19,7 +20,8 @@ import {
 } from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
-import { EMPTY_NOTE, ICON } from "./ui/composer.ts"
+import { Button } from "./ui/button.tsx"
+import { EMPTY_NOTE, ICON, NOTE } from "./ui/composer.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
 const REASON_COPY: Readonly<Record<string, string>> = {
@@ -314,6 +316,35 @@ export function RemoteBranchChip(props: { value: string; onPick: (ref: string) =
 export async function spawnOnMachine(model: AppModel, input: RemoteStartInput): Promise<string | undefined> {
   const res = await model.client.request<{ taskIds: string[] }>("task.spawn", remoteSpawnArgs(input))
   return res.taskIds[0]
+}
+
+/** Clone progress and the last failure, floating over the composer. A full disk gets its own words and a Retry of the clone or start that failed: the fix is outside Rove. */
+export function ComposerNote(props: {
+  progress: string | null
+  error: string | null
+  busy: boolean
+  onRetry: () => void
+}) {
+  const { progress, error } = props
+  if (!progress && !error) return null
+  return (
+    <div className={NOTE}>
+      {progress && (
+        <p className="m-0 text-muted" data-field="clone-progress">
+          {progress}
+        </p>
+      )}
+      {error && !isDiskFull(error) && <p className="m-0 text-error">※ {error}</p>}
+      {error && isDiskFull(error) && (
+        <p className="pointer-events-auto m-0 text-error" data-field="no-disk-space">
+          ※ {tc("tasks", "toast.noDiskSpace")}{" "}
+          <Button hit="tight" disabled={props.busy} onClick={props.onRetry}>
+            {t("newSession.retry")}
+          </Button>
+        </p>
+      )}
+    </div>
+  )
 }
 
 /** A refusal in the composer's slot: git error's own words for a failed clone, the machine's message otherwise. */

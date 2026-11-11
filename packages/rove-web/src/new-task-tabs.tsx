@@ -1,5 +1,6 @@
 /** The new-task dialog's "For New Repo" and "Adopt Worktree" modes (TUI `tab-clone.tsx`, `tab-adopt.tsx`). */
 
+import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { DialogActions } from "./dialogs.tsx"
@@ -72,6 +73,7 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
           setProgress,
         )
       } catch (err) {
+        if (isDiskFull(err)) throw new Error(tc("tasks", "toast.noDiskSpace"))
         if (err instanceof BridgeRequestError && err.code === "CLONE_FAILED") {
           throw new Error(tc("newTask", "error.cloneFailed", { error: err.message }))
         }

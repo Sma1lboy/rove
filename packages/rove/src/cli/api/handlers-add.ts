@@ -12,6 +12,7 @@
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { homeDir } from "../../env.ts"
+import { isDiskFull } from "../../lib/error-message.ts"
 import { taskCwd } from "../../orchestrator/task-tree.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
@@ -270,7 +271,11 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // died" from "it never routed at all" without a second round-trip.
   const delivered = await withTierNote(tierNote, () =>
     deliverArmed(ctx, daemon, taskId, deliveryTarget(task, true), brief),
-  )
+  ).catch(async (err: unknown) => {
+    // A full disk cut no worktree and started nothing: drop the row, so the same `add` after a cleanup is not a second task.
+    if (isDiskFull(err)) await daemon.request("task.delete", { taskId }).catch(() => undefined)
+    throw err
+  })
   // The task IS created, so carry the taskId in the error.
   if (!delivered.delivered) {
     throw new ApiError(

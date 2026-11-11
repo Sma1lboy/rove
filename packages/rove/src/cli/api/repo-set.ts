@@ -7,7 +7,7 @@
 
 import { samePath } from "@sma1lboy/rove-daemon/path-identity"
 import { MULTI_REPO_CAP, repoNameOf, uniqueRepoName } from "@sma1lboy/rove-daemon/task-tree"
-import { errorMessage } from "../../lib/error-message.ts"
+import { errorMessage, isDiskFull } from "../../lib/error-message.ts"
 import { cloneDirFor, cloneRepo, parseRepoRef } from "../../machines/repo-ref.ts"
 import { addSavedRepo, isRemoteRepoKey } from "../../state/repos.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
@@ -46,7 +46,9 @@ export async function resolveRepoFlag(ctx: VerbContext, raw: string): Promise<st
     return dir
   } catch (err) {
     throw new ApiError(`could not clone ${ref.cloneUrl}: ${errorMessage(err)}`, "CLONE_FAILED", {
-      hint: "check this machine can fetch it (`git ls-remote <url>`), or clone it yourself and pass its path",
+      hint: isDiskFull(err)
+        ? "the disk is full: free some space, then run the same command again"
+        : "check this machine can fetch it (`git ls-remote <url>`), or clone it yourself and pass its path",
     })
   }
 }

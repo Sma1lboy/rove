@@ -8,7 +8,7 @@ import { spawn } from "node:child_process"
 import * as fs from "node:fs"
 import * as path from "node:path"
 import type { Readable } from "node:stream"
-import { errorMessage } from "@/lib/error-message"
+import { errorMessage, isDiskFull } from "@/lib/error-message"
 import { t } from "@/tui/i18n"
 import { expandHome } from "../../lib/path-helpers"
 
@@ -119,7 +119,7 @@ export type CloneProgress = (line: string) => void
 /**
  * Async on purpose: a clone can run for minutes, and `spawnSync` would freeze
  * the renderer (esc, mouse, everything). Streams stderr to `onProgress`; on
- * failure resolves with the last non-empty stderr line.
+ * failure resolves with the last non-empty stderr line, or the line that names a full disk.
  */
 export function cloneRepo(url: string, target: string, onProgress?: CloneProgress): Promise<CloneResult> {
   return new Promise<CloneResult>((resolve) => {
@@ -150,12 +150,9 @@ export function cloneRepo(url: string, target: string, onProgress?: CloneProgres
           resolve({ ok: true, path: target })
           return
         }
-        const tail =
-          stderrBuf
-            .split(/[\r\n]+/)
-            .filter((s) => s.trim().length > 0)
-            .pop() ?? `git clone exited with ${code}`
-        resolve({ ok: false, error: tail })
+        const lines = stderrBuf.split(/[\r\n]+/).filter((s) => s.trim().length > 0)
+        // A full disk is named mid-output; git's last line is only "checkout failed".
+        resolve({ ok: false, error: lines.find(isDiskFull) ?? lines.pop() ?? `git clone exited with ${code}` })
       })
     } catch (err) {
       resolve({ ok: false, error: errorMessage(err) })
