@@ -127,6 +127,21 @@ describe("hosted engine session launch", () => {
     expect(launch.firstMessage).toBeUndefined()
   })
 
+  test("copilot carries the first message behind -i, never as a bare positional", () => {
+    // Copilot CLI 1.0 exits "Invalid command format" on `copilot 'fix it'`.
+    const launch = buildEngineSessionLaunch({
+      task: { id: "task-1", kind: "task", vendor: "copilot", repo: "/repo" },
+      worktreePath: "/repo/.worktrees/task-1",
+      shell: "/bin/zsh",
+      argv: ["copilot"],
+      promptIntent: { kind: "explicit", prompt: "fix it" },
+      protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
+    })
+
+    expect(launch.command[2]).toContain("copilot -i 'fix it'")
+    expect(launch.firstMessage).toBeUndefined()
+  })
+
   test("is owned by the engine layer without importing the retiring tmux runtime", () => {
     const source = fs.readFileSync(new URL("../../src/engine/session-launch.ts", import.meta.url), "utf8")
     expect(source).not.toMatch(/from ["'][^"']*tmux/)

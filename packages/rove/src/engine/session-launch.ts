@@ -298,13 +298,14 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   }
   // Paste-delivery vendors (kimi) read the positional slot as a subcommand, so
   // the first message stays out of argv; the spawner pastes it instead.
-  const delivery = input.firstMessageDelivery ?? protocolEntry(input.task.vendor).firstMessageDelivery ?? "argv"
+  const protocol = protocolEntry(input.task.vendor)
+  const delivery = input.firstMessageDelivery ?? protocol.firstMessageDelivery ?? "argv"
   const firstText =
     launchInit.firstMessage && repos
       ? `${multiRepoNote(repos)}\n\n${launchInit.firstMessage.text}`
       : launchInit.firstMessage?.text
   const pasteFirstMessage = delivery === "paste" ? firstText : undefined
-  if (firstText && !pasteFirstMessage) argv = [...argv, firstText]
+  if (firstText && !pasteFirstMessage) argv = protocol.firstMessageArgv?.(argv, firstText) ?? [...argv, firstText]
   const markerPath = launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined
   const initTimeoutMs = resolveRepoInitTimeoutSeconds(input.initTimeoutSeconds) * 1000
   const script = engineLaunchLine(quoteShellArgv(argv, { bareSafe: true }), {

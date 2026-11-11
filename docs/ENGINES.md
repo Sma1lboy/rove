@@ -74,6 +74,11 @@ positional and discards a stray one without an error. Account detection
 reports whether you are signed in, not who — Bob keeps only an opaque token,
 and Rove does not decode credential material.
 
+**GitHub Copilot takes its first message behind `-i`.** Copilot CLI 1.0 rejects a
+bare prompt on its command line (`error: Invalid command format`), so Rove launches
+`copilot -i <prompt>`: interactive mode that runs the prompt and keeps the session
+open. `-p` would exit after one turn.
+
 **Plugins can contribute engines too**: a plugin manifest's `[[engines]]`
 entries register engines with a display name, launch command, screen
 manifest, and identity. Unlike the contrib catalog, plugin engines are
