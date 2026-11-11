@@ -6,7 +6,7 @@
 import { type BrowserColumn, closeTab } from "./browser-tabs.ts"
 import { isNarrow } from "./layout.ts"
 import { type PanelPush, applyPlan, planPanelPush } from "./panel-contract.ts"
-import { narrowView, panelOpen } from "./panel-layout.ts"
+import { narrowView, panelExpanded, panelOpen } from "./panel-layout.ts"
 import {
   type PanelKind,
   type TaskPanel,
@@ -14,7 +14,6 @@ import {
   columnOf,
   editBrowser,
   launch,
-  newPanel,
   showBrowser,
   showDiff,
   showFile,
@@ -41,21 +40,29 @@ function readPanels(): Record<string, TaskPanel> {
 }
 
 const panels = createStore(readPanels())
-/** A task never seen: Files alone. */
-const FRESH = newPanel()
+/** A task whose panel was never opened has none: another task's open panel must not hand it a Files column. */
+const FRESH: TaskPanel = { columns: [], weights: {} }
 
 export function useTaskPanel(taskId: string): TaskPanel {
   return useStore(panels)[taskId] ?? FRESH
 }
 
 /**
- * Whether the panel is on screen for this task (null = no local task, e.g. a remote one): it is open
- * only while the task has a column, whatever another task left the shared open flag at.
+ * Whether the panel is on screen for this task (null = no local task, e.g. a remote one). Each task's
+ * panel is its own: it shows while that task has a column, whatever any other task opened or closed.
  */
 export function usePanelShown(taskId: string | null): boolean {
   const panel = useTaskPanel(taskId ?? "")
   return useStore(panelOpen) && (taskId === null || panel.columns.length > 0)
 }
+
+/** `usePanelShown` outside a component (what the page reports to the daemon). */
+export function panelShown(taskId: string | null): boolean {
+  return panelOpen.get() && (taskId === null || (panels.get()[taskId] ?? FRESH).columns.length > 0)
+}
+
+/** Runs `fn` whenever any task's columns change. */
+export const onPanelsChange = (fn: () => void): (() => void) => panels.subscribe(fn)
 
 /** Apply an edit to a task's panel and keep it; the task becomes the newest remembered. */
 export function editPanel(taskId: string, edit: (panel: TaskPanel) => TaskPanel): void {
@@ -79,7 +86,9 @@ export function launchPanel(taskId: string, kind: PanelKind): void {
   const open = panelOpen.get()
   const next = launch(panels.get()[taskId] ?? FRESH, open && !zen.get(), kind, !open)
   editPanel(taskId, () => next.panel)
-  panelOpen.set(next.open)
+  // Closing this task's last column closes its panel only: the flag stays, so another task keeps its own.
+  if (next.open) panelOpen.set(true)
+  else panelExpanded.set(false)
   if (next.open && zen.get()) zen.set(false)
 }
 
@@ -109,12 +118,12 @@ export function openBrowser(taskId: string, url: string): void {
 }
 
 /**
- * After a column went: the panel goes with its last one; the phone's panel always shows something,
+ * After a column went: this task's panel goes with its last one (and stops covering the terminal); the phone's panel always shows something,
  * so it falls back to Files when its kind is gone.
  */
 function settleClosed(taskId: string, kind: PanelKind): void {
   const left = panels.get()[taskId] ?? FRESH
-  if (!isNarrow() && left.columns.length === 0) panelOpen.set(false)
+  if (!isNarrow() && left.columns.length === 0) panelExpanded.set(false)
   if (isNarrow() && narrowView.get() === kind && !columnOf(left, kind)) showPanel(taskId, "files")
 }
 
