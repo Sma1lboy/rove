@@ -5,6 +5,8 @@
  * belong here.
  */
 
+import { remoteShellInput } from "../../machines/remote-workspace.ts"
+
 /** What a tab's PTY should spawn: an argv, plus optional bytes typed into
  *  it right after spawn (`TaskPtyOpts.initialInput`). */
 export interface TabSpawn {
@@ -56,6 +58,16 @@ export function shellSpawn(argv: readonly string[], shell: string, env?: Readonl
  * flashes before the clear; upgrade path = an `env` field on PtySpawnSpec with
  * a skip-spare rule if cosmetics matter.
  */
+/** What a fresh bare shell tab is typed: its identity, then (in a workspace on another machine) the shell there. */
+export function shellTabInput(
+  taskId: string,
+  tabId: string,
+  worktree: string,
+  extraEnv?: readonly (readonly [name: string, value: string])[],
+): string {
+  return shellIdentityInput(taskId, tabId, extraEnv) + remoteShellInput(worktree)
+}
+
 export function shellIdentityInput(
   taskId: string,
   tabId: string,

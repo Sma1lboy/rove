@@ -15,10 +15,9 @@ import type { HostedSessionRpc } from "../../engine/hosted-session.ts"
 import { launchReposOf, repoEnv, trustExtraRepos } from "../../engine/multi-repo-launch.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
-import { remoteShellInput } from "../../machines/remote-workspace.ts"
 import { persistedMaxLiveEngines } from "../../state/engine-limit.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
-import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn.ts"
+import { shellTabInput } from "../../tui/workspace/terminal-tab-spawn.ts"
 import type { TerminalTab } from "../../tui/workspace/terminal-tabs-core.ts"
 import { openAdmittedEngine } from "./engine-admission.ts"
 import { ensureHostFor, sessionFailed } from "./session-failed.ts"
@@ -88,10 +87,7 @@ async function openShell(
     }
     // The TUI types this once, on the spawn it creates; a mounted tab attaching later sees `created: false`.
     const repos = multiRepo ? await launchReposOf(client, taskId) : undefined
-    await rpc.request("pty.write", { key, data: shellIdentityInput(taskId, tab.id, repos && repoEnv(repos)) })
-    // A workspace on another machine: the shell is opened there.
-    const there = remoteShellInput(cwd)
-    if (there) await rpc.request("pty.write", { key, data: there })
+    await rpc.request("pty.write", { key, data: shellTabInput(taskId, tab.id, cwd, repos && repoEnv(repos)) })
     if (type !== undefined) await rpc.request("pty.write", { key, data: `${type}\r` })
   } finally {
     await rpc.request("pty.detach", { key }).catch(() => {})
