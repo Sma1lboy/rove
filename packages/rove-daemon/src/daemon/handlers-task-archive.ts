@@ -1,5 +1,5 @@
 /**
- * `task.archive`: hide or restore a task and its descendants. Nothing is
+ * `task.archive`: hide or restore a task and its descendants, Inbox rows included. Nothing is
  * stopped or removed; the only guards are a busy engine and a project's `main`.
  */
 
@@ -32,6 +32,8 @@ export const ARCHIVE_HANDLERS: readonly DaemonRequestHandler[] = [
         }
       }
       for (const id of ids) await ctx.orch.setArchived(id, archived)
+      // The Inbox leaves out archived tasks' rows.
+      ctx.inbox.publish()
       return { archived: ids }
     },
   },

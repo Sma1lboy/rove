@@ -245,4 +245,18 @@ describe("daemon attention inbox", () => {
 
     await expect(store.deleteTaskBestEffort("task-1")).resolves.toBeUndefined()
   })
+
+  it("leaves out a hidden task's stored and projected rows until the task is back", async () => {
+    const { store } = await create()
+    await store.record("gone", "turn-complete", undefined, "tab-1")
+    await store.record("here", "turn-complete", undefined, "tab-1")
+    const gate = { taskId: "gone", tabId: "tab-1", state: "decision_needed", unread: true, at: 1 } as const
+    store.setProjection(() => [gate])
+    let archived = true
+    store.setHidden((taskId) => archived && taskId === "gone")
+
+    expect(store.snapshot().map((item) => item.taskId)).toEqual(["here"])
+    archived = false
+    expect(store.snapshot().map((item) => item.taskId)).toEqual(["gone", "gone", "here"])
+  })
 })
