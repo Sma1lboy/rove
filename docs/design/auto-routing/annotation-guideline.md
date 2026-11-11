@@ -86,7 +86,7 @@
 > `quill transcirbe没办法打断但是 mic很容易误触 就导致经常不小心录制一秒导致之前的transcrbe被打断`
 > → **swift**。行为描述死了，复现一次就知道改哪。标注时写的理由是「需求明确、有用户行为、复现就好」。
 
-> `https://github.com/CodeFox-Repo/wisp/pull/276/changes 先检查这个 看看有没有问题 我觉得cmt太长了 处理下吧`
+> `https://github.com/acme/notes/pull/276/changes 先检查这个 看看有没有问题 我觉得cmt太长了 处理下吧`
 > → **swift**。给了具体的 PR 链接和具体的意见（commit message 太长），照做即可。
 
 > `[FR] take if syntax is not mapped -> take one by symlink's target` + 两行 shell 复现
@@ -145,7 +145,7 @@
 > `这个仓库还有什么值得做的优化` / `整个仓库现在有什么方向值得探索和完善的`
 > → **deep**。标注时写的理由是「探索性质，依赖高级模型」。
 
-> `你检查一下现在wisp线上版本的memory 感觉有点太多太杂了。。 根本搜不到有用信息 和claudecode的memory实现完全不一样`
+> `你检查一下现在线上版本的memory 感觉有点太多太杂了。。 根本搜不到有用信息 和claudecode的memory实现完全不一样`
 > → **deep**。「太多太杂」不是一个可执行的目标，得先搞清楚问题到底是什么。
 
 > `有一个branchmerge了什么导致 rove 最新分支直接挂了 我本地挂了 crash pane打不开了`
