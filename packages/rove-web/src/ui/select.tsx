@@ -3,7 +3,7 @@ import { menu } from "../ui.ts"
 import { Chevron } from "./chevron.tsx"
 
 /**
- * A one-of-N choice in a drop-down: a field-like button that opens the app's own menu under it, at least as wide
+ * A one-of-N choice in a drop-down: a button on the segmented control's ground (so the two read as one family) that opens the app's own menu under it, at least as wide
  * as the button, with the current pick checked and highlighted. Names itself with `label`.
  */
 export function Select<T extends string | number>({
@@ -47,7 +47,7 @@ export function Select<T extends string | number>({
       type="button"
       aria-label={`${label}: ${picks.find((pick) => pick.value === value)?.label ?? value}`}
       aria-haspopup="menu"
-      className="relative inline-flex max-w-full min-w-0 items-center rounded-sm border-hairline border-line bg-paper py-1.25 pr-7 pl-2.5 text-left font-sans text-meta text-ink hover:border-line-active focus-visible:border-line-active focus-visible:outline-none data-menu-open:border-line-active touch:min-h-10"
+      className="relative inline-flex max-w-full min-w-0 items-center rounded-sm border-hairline border-line bg-inset py-1.5 pr-7 pl-2.5 text-left font-sans text-meta text-ink hover:border-line-active focus-visible:border-line-active focus-visible:outline-none data-menu-open:border-line-active touch:min-h-10"
       onMouseDown={(e) => {
         wasOpen.current = e.currentTarget.hasAttribute("data-menu-open")
       }}
