@@ -236,11 +236,8 @@ export const en = {
     tapPresentationGuide: "Complete guide only",
     /** Shown as the {prefix} value when the user disabled the prefix in YAML */
     prefixDisabled: "disabled",
-    /** Trailing note listing non-rebindable ids; hidden when there are none */
-    fixed: "Fixed (not rebindable): {ids}.",
-    createHint:
-      "No overrides file yet. Rove can write one for you, fully commented — nothing is rebound until you uncomment a line.",
-    createFile: "[enter] Create keybindings.yaml",
+    /** Label of the row that rebinds the first stroke of the command layer */
+    prefixKey: "Prefix key",
     /** Shown in place of a binding's chords while it waits for the new key */
     recording: "press the new key… (esc cancels)",
     /** After the prefix key was pressed while recording; {prefix} is that key */
@@ -455,9 +452,7 @@ export const zh: typeof en = {
     tapPresentationLocal: "屏幕入口 + 完整指南（默认）",
     tapPresentationGuide: "仅完整指南",
     prefixDisabled: "已禁用",
-    fixed: "固定（不可重绑定）：{ids}。",
-    createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
-    createFile: "[enter] 创建 keybindings.yaml",
+    prefixKey: "Prefix 键",
     recording: "按下新的键…（esc 取消）",
     recordingPrefix: "{prefix}，然后…（esc 取消）",
     recordingSlot: "按下「{slot}」对应的键…（esc 取消）",

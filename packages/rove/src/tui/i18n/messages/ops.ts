@@ -52,7 +52,7 @@ export const en = {
        *  notes on THIS one, so a lone task-wide total read as a claim about
        *  this file — a file with none said "1 notes · 1 unsent". */
       countElsewhere: "notes: {here} here · {total} in task · {unsent} unsent",
-      keysHint: "j/k line · v range · c note · x drop · s send · r reload",
+      keysHint: "{move} line · {range} range · {note} note · {drop} drop · {send} send · {reload} reload",
       /** Shown instead of the chord list while the pane is unfocused — every
        *  key in that list is inert until it is. */
       focusHint: "ctrl+q to focus, then j/k · c note · s send",
@@ -93,7 +93,7 @@ export const zh: typeof en = {
       notePlaceholder: "希望 agent 在这里改什么？",
       count: "备注：{total} · 未发送 {unsent}",
       countElsewhere: "备注：本文件 {here} · 本任务 {total} · 未发送 {unsent}",
-      keysHint: "j/k 行 · v 范围 · c 备注 · x 删除 · s 发送 · r 重载",
+      keysHint: "{move} 行 · {range} 范围 · {note} 备注 · {drop} 删除 · {send} 发送 · {reload} 重载",
       focusHint: "ctrl+q 聚焦后可用：j/k · c 备注 · s 发送",
       /** `s` 有备注要发但这个任务没有会话时的错误 toast。 */
       sendNoEngine: "这个任务没有引擎会话——备注仍未发送。用 ctrl+t 开一个。",

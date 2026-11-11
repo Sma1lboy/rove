@@ -1,5 +1,8 @@
 /** One binding being recorded in Settings → Keybindings: the strokes so far and what the next one means. */
 
+/** The `id` of the row that rebinds the prefix key itself (`prefix.key`), not a keymap binding. */
+export const PREFIX_KEY_ID = "prefix.key"
+
 export type Recording = {
   id: string
   /** Direct chords to collect before the recording is done. */

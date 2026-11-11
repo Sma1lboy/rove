@@ -13,6 +13,7 @@ import { errorMessage } from "../../lib/error-message"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import { remotePreview } from "../../machines/remote-worktree.ts"
+import { bindByIds } from "../../tui/context/keybindings"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import {
   type PatchNote,
@@ -139,8 +140,8 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     // never shadows anything else the rest of the time.
     bindings: [
       ...pageCloseBindings(onClose),
-      // `r` matches the Files pane's refresh key.
-      { key: "r", id: "diff.review.reload", cmd: () => setReloadTick((tick) => tick + 1) },
+      // `r` by default, matching the Files pane's refresh key.
+      ...bindByIds({ "diff.review.reload": () => setReloadTick((tick) => tick + 1) }),
       ...(canSystemOpen
         ? [
             {

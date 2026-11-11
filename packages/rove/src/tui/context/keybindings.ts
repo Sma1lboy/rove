@@ -39,6 +39,7 @@ export function defaultKeymapCopy(): Array<
       id: row.id,
       scope: row.scope,
       category: row.category,
+      ...(row.bareKeys ? { bareKeys: true } : {}),
       keys: [...(def?.keys ?? [])],
       ...(def?.prefixKeys ? { prefixKeys: [...def.prefixKeys] } : {}),
       ...(def?.hint ? { hint: { ...def.hint } } : {}),

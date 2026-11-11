@@ -21,6 +21,7 @@ import type { VendorId } from "../../../types/vendor"
 // theme-core (not ../../context/theme): this module is shared with the
 // React port, which must not reference the Solid .tsx even type-only.
 import { LOCALES, type LocaleId } from "../../i18n/catalog"
+import { PREFIX_KEY_ID } from "../../lib/chord-recorder"
 import { editableBindings } from "../../lib/editable-bindings"
 import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
 import { APPEARANCE_SETTINGS, type AppearanceSetting } from "./appearance"
@@ -77,7 +78,6 @@ export type SettingsRow =
   | { id: "auto-routing-endpoint"; kind: "autoRoutingClassifierEndpoint" }
   | { id: "auto-routing-threshold"; kind: "autoRoutingClassifierThreshold" }
   | { id: "auto-routing-key"; kind: "autoRoutingClassifierKey" }
-  | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "keybinding"; bindingId: string }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
@@ -132,7 +132,6 @@ export type SettingsRowsInput = {
   marketplace: readonly string[]
   hasDaemon: boolean
   /** False while `keybindings.yaml` is absent — the section then offers to write it. */
-  keybindingsFileExists: boolean
 }
 
 /** A plugin's toggle row plus the `[[settings]]` keys nested under it. */
@@ -261,7 +260,8 @@ export function feedbackRows(): SettingsRow[] {
 
 export const keybindingRowId = (bindingId: string): string => `key:${bindingId}`
 
-export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
+/** The prefix-tap choices, the prefix key, then every rebindable binding. */
+export function keybindingRows(): SettingsRow[] {
   return [
     ...PREFIX_TAP_PRESENTATIONS.map(
       (presentation): SettingsRow => ({
@@ -270,9 +270,8 @@ export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
         presentation,
       }),
     ),
-    ...(keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" } as const]),
-    ...editableBindings().map(
-      (row): SettingsRow => ({ id: keybindingRowId(row.id), kind: "keybinding", bindingId: row.id }),
+    ...[PREFIX_KEY_ID, ...editableBindings().map((row) => row.id)].map(
+      (bindingId): SettingsRow => ({ id: keybindingRowId(bindingId), kind: "keybinding", bindingId }),
     ),
   ]
 }
@@ -303,7 +302,7 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
     case "autoRouting":
       return autoRoutingRows()
     case "keys":
-      return keybindingRows(input.keybindingsFileExists)
+      return keybindingRows()
     case "plugins":
       return pluginRows(input.plugins)
     case "marketplace":

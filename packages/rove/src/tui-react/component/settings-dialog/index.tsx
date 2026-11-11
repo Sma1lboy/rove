@@ -119,7 +119,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   // The tier targets, gated against the same account probe the cards read.
   const autoRouting = useAutoRoutingSettings(props.kv, dialog, engines.engineList, engineStatuses)
   const classifier = useClassifierSettings(props.kv, dialog, section === "autoRouting")
-  const keyEditor = useKeybindingEditor(() => setBodyRow((row) => Math.max(0, row - 1)))
+  const keyEditor = useKeybindingEditor()
   const plugins = usePluginSettings(section, dialog)
   const marketplace = useMarketplace(section, dialog, plugins)
 
@@ -134,7 +134,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
       marketplace: marketplace.rows.map((r) => r.ref),
       hasDaemon,
-      keybindingsFileExists: keyEditor.fileExists,
     })
   }
 
@@ -236,7 +235,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     autoRoutingClassifierEndpoint: () => void classifier.editEndpoint(),
     autoRoutingClassifierThreshold: () => void classifier.editThreshold(),
     autoRoutingClassifierKey: () => void classifier.editKey(),
-    keysCreate: () => keyEditor.createFile(),
     keybinding: (row) => keyEditor.record(row.bindingId),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),

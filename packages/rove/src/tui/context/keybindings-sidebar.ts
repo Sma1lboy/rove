@@ -56,7 +56,7 @@ export const SIDEBAR_BINDINGS: readonly RoveBinding[] = [
   },
   {
     // Explicit shift+m chord: an evt.shift gate in the handler would make the
-    // id un-rebindable (FIXED_BINDING_IDS).
+    // id un-rebindable.
     id: "sidebar.localMerge",
     scope: "sidebar",
     keys: ["shift+m"],

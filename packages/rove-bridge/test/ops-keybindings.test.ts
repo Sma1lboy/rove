@@ -141,8 +141,14 @@ describe("keybindings.set", () => {
     ])
   })
 
+  test("takes the prefix key as its own id", async () => {
+    expect(await setWith({ id: "prefix.key", direct: ["ctrl+b"] })).toEqual([
+      { id: "prefix.key", mode: "direct", keys: ["ctrl+b"] },
+    ])
+  })
+
   test("refuses an id Settings cannot rebind, a malformed chord, and an empty change", async () => {
-    await expect(setWith({ id: "diff.review.send", direct: ["x"] })).rejects.toThrow("not rebindable")
+    await expect(setWith({ id: "chat.send", direct: ["ctrl+m"] })).rejects.toThrow("not rebindable")
     await expect(setWith({ id: "chat.tab.new", direct: ["ctrl+"] })).rejects.toThrow()
     await expect(setWith({ id: "chat.tab.new" })).rejects.toThrow("nothing to change")
   })

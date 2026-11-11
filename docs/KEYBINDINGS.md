@@ -341,7 +341,8 @@ In the read-only diff tab, with the workspace focused:
 | `s` | Send all unsent notes to the engine |
 | `r` | Reload the diff from disk |
 
-These are fixed and can't be rebound. A send with no engine session in the
+These are the defaults; each can be changed in Settings → Keybindings like any
+other binding, and the diff's footer names the keys you set. A send with no engine session in the
 Task leaves the notes unsent and says so. The workflow:
 [The TUI → Diff review](TUI.md#diff-review).
 
@@ -372,12 +373,14 @@ Open Settings → Keybindings (`ctrl+a` `,`). Every binding you can change is a
 row. Press `enter` on one, then press the key you want. To put the action
 behind the prefix, press the prefix key first and then the stroke. A binding
 that takes a pair of keys, such as move down / up, asks for each in turn.
-`backspace` restores the default and `x` unbinds. A key that cannot work, such
+`backspace` restores the default and `x` unbinds. The **Prefix key** row
+changes the prefix key itself the same way. A key that cannot work, such
 as a bare letter on a binding that is live while you type, is refused with the
 reason and nothing is saved.
 
-The web client has the same rows in its Settings → Keybindings, with
-**Record**, **Default** and **Unbind** buttons.
+The web client has the same rows in its Settings → Keybindings. Each binding
+shows its keys as keycaps: click one to record a new key, click the `×` inside
+it to remove that key, and **Reset** under the name to restore the default.
 
 Each change is written to `~/.rove/settings/keybindings.yaml` and applies at
 once. You can also edit that file by hand; it reloads live, no restart, and
