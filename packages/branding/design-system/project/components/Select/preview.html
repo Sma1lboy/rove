@@ -1,0 +1,19 @@
+<!-- @dsCard group="Inputs" height=190 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Select</title></head>
+<body>
+<div class="rv-stage" style="align-items:flex-start">
+  <button class="rv-select" aria-haspopup="menu">Braille<span class="rv-select-chevron" aria-hidden="true"></span></button>
+  <div class="rv-select-open">
+    <button class="rv-select is-open" aria-haspopup="menu" aria-expanded="true">Starburst<span class="rv-select-chevron" aria-hidden="true"></span></button>
+    <div class="rv-menu" role="menu">
+      <button class="rv-item" role="menuitemradio" aria-checked="false">Braille</button>
+      <button class="rv-item is-selected" role="menuitemradio" aria-checked="true">Starburst<span class="rv-check" aria-hidden="true">✓</span></button>
+      <button class="rv-item" role="menuitemradio" aria-checked="false">ASCII</button>
+    </div>
+  </div>
+  <span class="rv-hint">closed · open, the current pick checked and highlighted</span>
+</div>
+</body>
+</html>

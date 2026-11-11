@@ -8,4 +8,5 @@ Static rendition hand-written from `menuClass`, `menuItemClass`, `menuKeyClass` 
 - Item: `fs-body`, 5×10px padding (10px vertical on touch), `radius-xs`. Label and key share a baseline. The highlight is the neutral `hover` wash.
 - Key: mono meta in `subtle` (`muted` when highlighted), hidden on touch.
 - Danger items are `error` text. Highlighted, they fill `error` with a `paper` label.
+- A choice list marks the current pick with an `accent` check in the key's place. A Select opens this same menu under its button.
 - Separators run full-bleed to the menu's border. Group by separator, not by heading.
