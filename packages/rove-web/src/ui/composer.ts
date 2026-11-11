@@ -3,10 +3,12 @@
 /** Everything below inherits this font: no recipe here sets `text-meta`, which would reset line-height to normal. */
 export const NEW_SESSION =
   "flex min-h-0 min-w-0 flex-1 flex-col p-4 font-mono text-meta leading-[1.5] font-normal not-italic normal-nums"
-export const HERO = "flex flex-1 flex-col items-center justify-center gap-1.5 text-center"
+/** Gives its room to the composer: clipped on a short pane, gone while the soft keyboard is up. */
+export const HERO =
+  "flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 overflow-hidden text-center keyboard:hidden"
 
 /** The prompt card on top; the toolbar of picks sits under it, outside the card. */
-export const COMPOSER = "relative mx-auto flex w-full max-w-[104ch] flex-col gap-2"
+export const COMPOSER = "relative mx-auto flex w-full max-w-[104ch] flex-none flex-col gap-2 keyboard:mt-auto"
 /** Errors and clone progress float above the card: in flow they would push the bottom-pinned composer up. */
 export const NOTE = "pointer-events-none absolute bottom-full left-0 mb-2 flex flex-col gap-1"
 export const CARD =

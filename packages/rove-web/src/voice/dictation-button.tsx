@@ -101,6 +101,8 @@ export function DictationButton(props: {
   readonly onText: (text: string) => void
   /** Where a hold slid up sends the transcript; without it the slide does nothing. */
   readonly onSend?: (text: string) => void
+  /** A press too short to be a hold. Without it a tap starts a take and the next tap stops it. */
+  readonly onTap?: () => void
   readonly disabled?: boolean
   /** The box, by recording state and whether a hold is slid up to send; defaults to a composer-bar chip. */
   readonly look?: (recording: boolean, armed: boolean) => string
@@ -118,6 +120,7 @@ export function DictationButton(props: {
   const view = useStore(dictation.current.view)
   const hosted = useVoiceHosted(props.client)
   const press = useRef<Press | null>(null)
+  const afterHold = useRef(false)
   const [hold, setHold] = useState<{ armed: boolean } | null>(null)
 
   useEffect(
@@ -166,7 +169,9 @@ export function DictationButton(props: {
     press.current = null
     if (!p) return
     window.clearTimeout(p.timer)
-    if (!p.held) return toggle()
+    // With `onTap` the click that follows is the tap; the one after a hold is not.
+    afterHold.current = p.held
+    if (!p.held) return latest.current.onTap ? undefined : toggle()
     setHold(null)
     await p.started
     deliver((await dictation.current?.stop()) ?? null, p.armed)
@@ -205,8 +210,14 @@ export function DictationButton(props: {
       onPointerUp={() => void up()}
       onPointerCancel={() => void cancel()}
       onContextMenu={(e) => e.preventDefault()}
-      // Pointer presses are handled above; a click with no pointer behind it is Enter or Space.
-      onClick={(e) => e.detail === 0 && toggle()}
+      // Pointer presses are handled above; a click with no pointer behind it is Enter or Space. `onTap` runs
+      // here, not on pointerup: iOS raises the keyboard only for a focus made inside the click.
+      onClick={(e) => {
+        const held = afterHold.current
+        afterHold.current = false
+        if (props.onTap) return held ? undefined : props.onTap()
+        if (e.detail === 0) toggle()
+      }}
     >
       {props.face ? (
         props.face({

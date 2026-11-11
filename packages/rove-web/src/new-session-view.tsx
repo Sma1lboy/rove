@@ -53,7 +53,7 @@ import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
 import { ClipGlyph, HoldFace, MicFace, composerHold } from "./ui/term-composer.tsx"
-import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
+import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {
@@ -125,7 +125,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const area = useRef<HTMLTextAreaElement>(null)
   const voiceHosted = useVoiceHosted(model.client)
 
-  // A phone talks first: the mic is the wide hold-to-talk control the terminal's bar has, not an icon.
   const talks = isTouch() && voiceHosted === true
   // Dictation lands at the caret and never submits: you read it before it goes anywhere.
   const insertDictated = (text: string) => {
@@ -136,7 +135,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setPrompt(`${prompt.slice(0, at)}${glue}${text}${prompt.slice(end)}`)
     const caret = at + glue.length + text.length
     requestAnimationFrame(() => {
-      el?.focus()
+      if (!talks) el?.focus()
       el?.setSelectionRange(caret, caret)
     })
   }
@@ -181,7 +180,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     }
   }, [model, repos])
 
-  useEffect(() => area.current?.focus(), [])
+  // A phone that talks first opens with the keyboard down, and keeps it down after a take.
+  useEffect(() => {
+    if (!talksFirst(model.client)) area.current?.focus()
+  }, [model.client])
 
   // One attempt per engine needs a worktree each, on this machine, in a project.
   const compareAvailable = !remote && !ungrouped && !inPlace
