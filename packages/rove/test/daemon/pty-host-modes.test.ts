@@ -54,6 +54,13 @@ function scrollStartupOut(child: QuietChild): void {
 }
 
 describe("PtyHost terminal modes", () => {
+  it("reports resized dimensions for read-only screen replay without attaching", () => {
+    const h = harness()
+    h.host.open(KEY, SPEC, {}, () => {})
+    h.host.resize(KEY, 120, 40)
+    expect(h.host.peek(KEY, undefined, true)).toMatchObject({ cols: 120, rows: 40, alive: true })
+  })
+
   it("a reattach after the ring trimmed the engine's startup still has its mouse tracking", async () => {
     const h = harness()
     h.host.open(KEY, SPEC, {}, () => {})

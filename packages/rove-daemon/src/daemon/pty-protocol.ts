@@ -69,6 +69,9 @@ export type PtyCheckedOpenResult = { kind: "changed" } | { kind: "opened"; open:
 /** `pty.peek` response — read-only ring snapshot; never attaches, spawns or
  *  resizes, so safe for observation (`rove api read-output` fallback). */
 export interface PtyPeekResult {
+  /** Current terminal dimensions, for read-only screen replay (absent on older hosts). */
+  readonly cols?: number
+  readonly rows?: number
   /** False when no session exists under the key (nothing was spawned). */
   readonly exists: boolean
   readonly alive: boolean

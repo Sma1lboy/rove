@@ -14,6 +14,7 @@ export const GEMINI: EngineScreenManifest = {
 // interrupt`, a resting one `enter send`. `esc to interrupt` covers older builds.
 export const OPENCODE: EngineScreenManifest = {
   rules: [
+    { state: "blocked", all: ["update available", "would you like to update now?", "skip", "confirm"] },
     { state: "blocked", any: ["△ permission required"] },
     { state: "blocked", all: ["esc dismiss"], any: ["enter confirm", "enter submit", "enter toggle"] },
     { state: "working", any: ["esc interrupt", "esc to interrupt", "ctrl+c to interrupt", "esc again to interrupt"] },
