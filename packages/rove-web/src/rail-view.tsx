@@ -20,7 +20,7 @@ import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
 import { RailFoot } from "./rail-foot.tsx"
-import { mostUrgentStatus } from "./rail-glyphs.ts"
+import { mostUrgentStatus, statusMark } from "./rail-glyphs.ts"
 import { railGroup } from "./rail-group.ts"
 import { dropIdleMains, useIdleTabs } from "./rail-idle.ts"
 import { openTaskRow, useRailFilters, useRailKeys } from "./rail-keys.ts"
@@ -37,6 +37,7 @@ import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { StartsChip } from "./starts-chip.tsx"
+import { statusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
@@ -382,6 +383,8 @@ function RailRow(props: {
   const task = row.task
   const running = task.rowStatus?.kind === "running"
   const count = todoCount(task)
+  const byEngine = useStore(statusMarkStyle) === "engine"
+  const status = row.fold?.collapsed ? props.rollup : task.rowStatus
   return (
     <button
       type="button"
@@ -402,7 +405,7 @@ function RailRow(props: {
           ))}
         </span>
       )}
-      <EngineIcon icon={props.engineIcon} name={task.engine?.name} />
+      <EngineIcon icon={props.engineIcon} name={task.engine?.name} status={byEngine ? statusMark(status) : undefined} />
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
         {row.attempt ?? task.label}
       </span>
@@ -430,7 +433,7 @@ function RailRow(props: {
         {/* The PR list opens where the title tip sits; only one card at a time. */}
         <PrChip tasks={props.prTasks ?? [task]} onOpen={tip.hide} />
         {/* The right edge, as Claude Desktop's list: the row's state, then the cloud of a task elsewhere. */}
-        <StatusDots status={row.fold?.collapsed ? props.rollup : task.rowStatus} />
+        {!byEngine && <StatusDots status={status} />}
         {props.cloud && <CloudMark label={props.cloud} />}
       </span>
     </button>
