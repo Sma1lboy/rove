@@ -1,6 +1,7 @@
 /**
- * Narrow layout: dragging the content panel right is the `‹ Tasks` button. The panel rides the finger
- * over the list, then slides off or springs back. Anywhere on the panel, not only its left edge, which
+ * Narrow layout: dragging a panel right is its back button. The content panel goes back to the task list;
+ * a full-screen dialog names its own panels with `backPanel`. The panel rides the finger over what is
+ * under it, then slides off or springs back. Anywhere on the panel, not only its left edge, which
  * belongs to the browser's own history swipe.
  */
 
@@ -9,11 +10,31 @@ import { createStore } from "./store.ts"
 
 const SLOP_PX = 10
 const SETTLE_MS = 200
-/** What a sideways drag already means something in: a caret, a dialog over the panel. */
-const OWN = "input, textarea, select, [contenteditable], dialog"
+/** What a sideways drag already means something in: a caret. */
+const OWN = "input, textarea, select, [contenteditable]"
+const PANEL = "[data-back-panel]"
 
-/** A back swipe is on screen: the list shows under the panel (`narrow-back`). */
-export const backSwiping = createStore(false)
+/** A back swipe is on screen, and whose: the app's content panel (`narrow-back`) or a `backPanel`. */
+export const backSwiping = createStore<"app" | "panel" | null>(null)
+
+/** A ref for a panel a back swipe drags; `onBack` runs once it has slid off. */
+export const backPanel = (onBack: () => void) => (el: HTMLElement | null) => {
+  if (!el) return
+  el.dataset.backPanel = ""
+  el.addEventListener("backswipe", onBack)
+  return () => {
+    delete el.dataset.backPanel
+    el.removeEventListener("backswipe", onBack)
+  }
+}
+
+/** The panel a touch on `target` would drag: the nearest `backPanel`, else the content panel when nothing covers it. */
+function panelFor(target: Element): HTMLElement | null {
+  const marked = target.closest<HTMLElement>(PANEL)
+  if (marked) return marked
+  if (target.closest("dialog") || narrowPane.get() !== "workspace") return null
+  return document.querySelector<HTMLElement>(".app > main")
+}
 
 /** Past the slop, only a mostly rightward drag takes the panel; anything else stays a scroll or a tap. */
 export const startsBack = (dx: number, dy: number): boolean => dx > 0 && dx > Math.abs(dy)
@@ -30,20 +51,18 @@ function scrollsSideways(from: Element): boolean {
 }
 
 export function swipeBackToTasks(): void {
-  let drag: { x: number; y: number; at: number; dx: number; on: boolean } | null = null
-  const shell = () => document.querySelector<HTMLElement>(".app")
+  let drag: { panel: HTMLElement; x: number; y: number; at: number; dx: number; on: boolean } | null = null
 
-  const settle = (dx: number, back: boolean) => {
-    const app = shell()
-    const panel = app?.querySelector<HTMLElement>(":scope > main")
+  const settle = (panel: HTMLElement, dx: number, back: boolean) => {
     const done = () => {
-      if (back) backToTasks()
-      backSwiping.set(false)
-      app?.style.removeProperty("--back-x")
+      if (!back) panel.style.removeProperty("--back-x")
+      else if (panel.matches(PANEL)) panel.dispatchEvent(new Event("backswipe"))
+      else backToTasks()
+      backSwiping.set(null)
     }
-    if (!app || !panel) return done()
+    // Gone back, the panel keeps its place off screen: a dialog still fades out there.
     const to = back ? panel.offsetWidth : 0
-    app.style.setProperty("--back-x", `${to}px`)
+    panel.style.setProperty("--back-x", `${to}px`)
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     panel
       .animate(
@@ -57,16 +76,12 @@ export function swipeBackToTasks(): void {
     "touchstart",
     (e) => {
       const { target } = e
+      drag = null
       // A panel still sliding is not grabbed again.
-      const mine =
-        !backSwiping.get() &&
-        e.touches.length === 1 &&
-        isNarrow() &&
-        narrowPane.get() === "workspace" &&
-        target instanceof Element &&
-        !target.closest(OWN) &&
-        !scrollsSideways(target)
-      drag = mine ? { x: e.touches[0].clientX, y: e.touches[0].clientY, at: e.timeStamp, dx: 0, on: false } : null
+      if (backSwiping.get() || e.touches.length !== 1 || !isNarrow() || !(target instanceof Element)) return
+      if (target.closest(OWN) || scrollsSideways(target)) return
+      const panel = panelFor(target)
+      if (panel) drag = { panel, x: e.touches[0].clientX, y: e.touches[0].clientY, at: e.timeStamp, dx: 0, on: false }
     },
     { passive: true },
   )
@@ -85,12 +100,12 @@ export function swipeBackToTasks(): void {
           return
         }
         drag.on = true
-        backSwiping.set(true)
+        backSwiping.set(drag.panel.matches(PANEL) ? "panel" : "app")
       }
       e.preventDefault()
       e.stopPropagation()
       drag.dx = Math.max(0, dx)
-      shell()?.style.setProperty("--back-x", `${drag.dx}px`)
+      drag.panel.style.setProperty("--back-x", `${drag.dx}px`)
     },
     { capture: true, passive: false },
   )
@@ -98,7 +113,8 @@ export function swipeBackToTasks(): void {
     const last = drag
     drag = null
     if (!last?.on) return
-    settle(last.dx, e.type === "touchend" && completesBack(last.dx, window.innerWidth, e.timeStamp - last.at))
+    const back = e.type === "touchend" && completesBack(last.dx, window.innerWidth, e.timeStamp - last.at)
+    settle(last.panel, last.dx, back)
   }
   document.addEventListener("touchend", end)
   document.addEventListener("touchcancel", end)

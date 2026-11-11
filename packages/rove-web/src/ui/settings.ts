@@ -8,12 +8,18 @@ import { OVERLAY } from "./overlay.ts"
 export const SETTINGS_OVERLAY = `${OVERLAY} w-narrow:pt-0`
 /** A fixed height, so switching sections never moves the box; the section scrolls inside it. */
 export const SETTINGS_DIALOG =
-  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
+  "dialog relative m-0 flex h-[min(640px,80vh)] w-[min(880px,calc(100vw-32px))] overflow-hidden rounded-md border-hairline border-line bg-surface text-inherit shadow-dialog focus:outline-none motion-safe:animate-rise-in [.is-leaving_&]:animate-sink-out w-narrow:h-dvh w-narrow:w-screen w-narrow:flex-col w-narrow:rounded-none w-narrow:border-0 w-narrow:pt-[env(safe-area-inset-top)] w-narrow:translate-x-[var(--back-x,0px)] w-narrow:pb-[env(safe-area-inset-bottom)] short:h-[calc(100dvh-24px)]"
 export const SETTINGS_CLOSE =
   "absolute top-3 right-3 z-1 grid size-7 place-items-center rounded-sm text-display leading-none text-muted hover:bg-inset hover:text-ink focus-visible:bg-inset focus-visible:text-ink touch:size-10"
-/** A phone's way from an open section back to the list. */
-export const SETTINGS_BACK =
-  "hidden flex-none items-center px-4 py-3 pr-12 text-left font-mono text-meta font-bold text-accent w-narrow:flex touch:min-h-11"
+/** A phone's way back: from the list out of Settings, from an open section to the list. */
+/** Starts on the title under it: the list's sits one step further in than a section's. */
+export const settingsBackClass = (list: boolean): string =>
+  `hidden flex-none items-center ${list ? "px-5" : "px-4"} py-3 text-left font-mono text-meta font-bold text-accent w-narrow:flex touch:min-h-11`
+/** The open section. Mid back swipe it rides the finger (`--back-x`) over the list, inside the dialog's own padding. */
+export const settingsPageClass = (swiping: boolean): string =>
+  `flex min-h-0 min-w-0 flex-1 flex-col ${
+    swiping ? "absolute inset-0 z-1 translate-x-(--back-x) bg-surface [padding:inherit] shadow-dialog" : ""
+  }`
 
 export const SETTINGS_NAV =
   "flex w-56 flex-none flex-col gap-5 overflow-y-auto scrollbar-none [border-right:var(--hairline)_solid_var(--line)] px-2.5 py-4 w-narrow:w-full w-narrow:flex-1 w-narrow:[border-right:none] w-narrow:px-3 w-narrow:py-3"
@@ -32,7 +38,7 @@ export const SETTINGS_SCROLL = "min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar
 /** The section: its title, then groups spaced twice as far as their rows. */
 export const SETTINGS_COLUMN =
   "flex w-full flex-col gap-7 px-8 pt-7 pb-10 w-narrow:gap-6 w-narrow:px-4 w-narrow:pt-1 w-narrow:pb-10"
-export const SETTINGS_HEAD = "flex flex-col gap-1 pr-8"
+export const SETTINGS_HEAD = "flex flex-col gap-1 pr-8 w-narrow:pr-0"
 export const SETTINGS_TITLE = "m-0 font-sans text-display font-semibold normal-nums text-ink"
 export const SETTINGS_DESC = "m-0 text-body text-muted"
 export const SETTINGS_BODY = "flex flex-col gap-7 w-narrow:gap-6"

@@ -6,8 +6,10 @@
  */
 
 import { type ReactNode, useEffect, useState } from "react"
+import { backPanel, backSwiping } from "./back-swipe.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import { useNarrow } from "./layout.ts"
+import { workspaceText } from "./keymap-text.ts"
+import { narrowPane, useNarrow } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { AboutSection } from "./settings-about.tsx"
 import { AppearanceSection } from "./settings-appearance.tsx"
@@ -23,11 +25,11 @@ import { PluginsSection } from "./settings-plugins.tsx"
 import { RoutingSection } from "./settings-routing.tsx"
 import { SECTION_GROUPS, type SettingsSection, backFrom, initialView } from "./settings-sections.ts"
 import { SnippetsSection } from "./settings-snippets.tsx"
+import { useStore } from "./store.ts"
 import { closeDialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import {
-  SETTINGS_BACK,
   SETTINGS_BODY,
   SETTINGS_CLOSE,
   SETTINGS_COLUMN,
@@ -42,7 +44,9 @@ import {
   SETTINGS_OVERLAY,
   SETTINGS_SCROLL,
   SETTINGS_TITLE,
+  settingsBackClass,
   settingsNavItemClass,
+  settingsPageClass,
 } from "./ui/settings.ts"
 import { UsageChips } from "./usage-view.tsx"
 import { VoiceSection } from "./voice/settings-voice.tsx"
@@ -124,11 +128,14 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   })
-  const showList = !narrow || !view.drilled
+  // Mid back swipe the list is already under the section the finger drags.
+  const swiping = useStore(backSwiping) === "panel" && narrow && view.drilled
+  const showList = !narrow || !view.drilled || swiping
   const showSection = !narrow || view.drilled
   return (
     <div className={SETTINGS_OVERLAY} onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
       <dialog
+        ref={narrow && !view.drilled ? backPanel(closeDialog) : undefined}
         tabIndex={-1}
         open
         className={SETTINGS_DIALOG}
@@ -143,18 +150,22 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
           }
         }}
       >
-        <Button
-          variant="row"
-          className={SETTINGS_CLOSE}
-          aria-label={t("dialog.close")}
-          title={t("dialog.close")}
-          onClick={closeDialog}
-        >
-          ×
-        </Button>
-        {narrow && view.drilled && (
-          <Button variant="row" className={SETTINGS_BACK} onClick={back}>
-            {`‹ ${t("settings.title")}`}
+        {/* A phone's way out is the top-left back, as on every other page. */}
+        {narrow ? (
+          showList && (
+            <Button variant="row" className={settingsBackClass(true)} onClick={closeDialog}>
+              {`‹ ${narrowPane.get() === "sidebar" ? workspaceText("narrowBack") : t("dialog.close")}`}
+            </Button>
+          )
+        ) : (
+          <Button
+            variant="row"
+            className={SETTINGS_CLOSE}
+            aria-label={t("dialog.close")}
+            title={t("dialog.close")}
+            onClick={closeDialog}
+          >
+            ×
           </Button>
         )}
         {showList && (
@@ -167,13 +178,20 @@ export function SettingsDialog({ model, section: opening }: { model: AppModel; s
         {/* The rail's foot has no room for them on a phone: the quota readings sit under the section list, and open Usage. */}
         {narrow && showList && <UsageChips client={model.client} inset={false} />}
         {showSection && (
-          <div key={view.section} className={SETTINGS_SCROLL}>
-            <div className={SETTINGS_COLUMN}>
-              <header className={SETTINGS_HEAD}>
-                <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>
-                <p className={SETTINGS_DESC}>{t(`settings.pages.${view.section}`)}</p>
-              </header>
-              <div className={SETTINGS_BODY}>{BODY[view.section](model)}</div>
+          <div ref={narrow ? backPanel(back) : undefined} className={settingsPageClass(swiping)}>
+            {narrow && (
+              <Button variant="row" className={settingsBackClass(false)} onClick={back}>
+                {`‹ ${t("settings.title")}`}
+              </Button>
+            )}
+            <div key={view.section} className={SETTINGS_SCROLL}>
+              <div className={SETTINGS_COLUMN}>
+                <header className={SETTINGS_HEAD}>
+                  <h1 className={SETTINGS_TITLE}>{sectionName(view.section)}</h1>
+                  <p className={SETTINGS_DESC}>{t(`settings.pages.${view.section}`)}</p>
+                </header>
+                <div className={SETTINGS_BODY}>{BODY[view.section](model)}</div>
+              </div>
             </div>
           </div>
         )}
