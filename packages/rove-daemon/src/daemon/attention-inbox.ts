@@ -92,6 +92,7 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
   private projection: () => AttentionInboxItem[] = () => []
+  private hidden: (taskId: string) => boolean = () => false
   /** False until one read SUCCEEDED; {@link commit} refuses to write before that. */
   private loaded = false
 
@@ -111,9 +112,19 @@ export class AttentionInboxStore {
     })
   }
 
-  /** Stored episodes plus the projected rows ({@link setProjection}), oldest first. */
+  /** Stored episodes plus the projected rows ({@link setProjection}), less hidden tasks' ({@link setHidden}), oldest first. */
   snapshot(): AttentionInboxItem[] {
-    return [...this.items.values(), ...this.projection()].sort(compareItems)
+    return [...this.items.values(), ...this.projection()]
+      .filter((item) => item.taskId === null || !this.hidden(item.taskId))
+      .sort(compareItems)
+  }
+
+  /**
+   * Tasks whose rows no snapshot or push carries (archived ones). The rows stay stored, so they
+   * are back once the task is; whoever changes the answer calls {@link publish}.
+   */
+  setHidden(hidden: (taskId: string) => boolean): void {
+    this.hidden = hidden
   }
 
   /**

@@ -2070,6 +2070,8 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   session stay as they are, and every verb that takes `--task-id` (`send`,
   `read-output`, `get-task`, `context`, `collect`, `digest`, `delete`) keeps
   working on the task by id. `list --archived` lists only archived tasks.
+  The Inbox leaves out an archived task's rows, an open decision gate
+  included; they are kept and show again after `unarchive`.
   Both verbs act on the task and every descendant (child tasks,
   recursively) together, and return `{ taskId, archived, ids }`, where `ids`
   is every task they changed. A child unarchived on its own while its parent

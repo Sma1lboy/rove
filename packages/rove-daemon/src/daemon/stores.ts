@@ -77,6 +77,8 @@ export async function initDaemonStores(
   const gates = new GatesStore(defaultGatesStorePath(homeDir))
   // Gate rows ride the Inbox as a projection; any gate change republishes both.
   inbox.setProjection(() => gates.inboxItems())
+  // An archived task is off every list; its rows would name a task nothing shows.
+  inbox.setHidden((taskId) => orch.getTask(taskId)?.archived === true)
   gates.setOnChange(() => {
     bus.publish("gates", { gates: gates.active() })
     inbox.publish()
