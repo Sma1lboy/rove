@@ -9,8 +9,8 @@ import { resolveRoveSpawn } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { RemoteWorkspaceNote } from "../../machines/remote-workspace.ts"
 
-/** The MCP server name: its tools are `mcp__workspace__read`, `__write` and `__edit`. */
-const SERVER = "workspace"
+/** The MCP server name (`workspace` is reserved by the engine and silently not loaded): its tools are `mcp__rove-files__read`, `__write` and `__edit`. */
+const SERVER = "rove-files"
 
 const LOCAL_FILE_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit"]
 
