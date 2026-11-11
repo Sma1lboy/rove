@@ -52,6 +52,12 @@ export interface MenuState {
   readonly target?: Element
   /** Opened from the keyboard (Shift+F10, the menu key): the first entry starts highlighted, as in a native menu. */
   readonly fromKeyboard?: boolean
+  /** A drop-down's menu: at least as wide as its button (px). */
+  readonly minWidth?: number
+  /** A drop-down's menu: its right edge sits here instead of its left at `x`, so a wide list grows leftward from a right-aligned button. */
+  readonly right?: number
+  /** A drop-down's menu: the entry that starts highlighted (the current pick). */
+  readonly start?: number
 }
 
 export interface Toast {

@@ -81,6 +81,13 @@ button:focus-visible { outline: var(--hairline) solid var(--focus); outline-offs
 .rv-item.is-selected .rv-key { color: var(--muted); }
 .rv-item--danger.is-selected .rv-key { color: inherit; }
 .rv-sep { margin: 4px -4px; height: 1px; border: none; background: var(--line); }
+
+/* Select — ui/select.tsx: a field-like button over the Menu */
+.rv-select { position: relative; display: inline-flex; align-items: center; border-radius: var(--radius-sm); border: var(--hairline) solid var(--line); background: var(--paper); padding: 5px 28px 5px 10px; text-align: left; font: var(--fs-meta) var(--font-sans); color: var(--ink); }
+.rv-select:hover, .rv-select:focus-visible, .rv-select.is-open { border-color: var(--line-active); outline: none; }
+.rv-select-chevron { position: absolute; top: 50%; right: 11px; width: 5px; height: 5px; border-right: 1.3px solid var(--subtle); border-bottom: 1.3px solid var(--subtle); transform: translateY(-70%) rotate(45deg); }
+.rv-select-open { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.rv-check { font: var(--fs-meta) var(--font-mono); color: var(--accent); }
 .rv-toast { max-width: 420px; border-radius: var(--radius-sm); border: var(--hairline) solid var(--line); background: var(--inset); padding: 6px 12px; text-align: left; font: var(--fs-meta) var(--font-sans); color: var(--ink); }
 .rv-toast.is-error { color: var(--error); }
 

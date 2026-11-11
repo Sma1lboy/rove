@@ -79,11 +79,13 @@ function ContextMenu() {
   useLayoutEffect(() => {
     if (!state || !ref.current) return
     // A pointer-opened menu highlights nothing until the pointer or a key picks an entry.
-    setIndex(state.fromKeyboard ? 0 : -1)
+    setIndex(state.start ?? (state.fromKeyboard ? 0 : -1))
     setSub(null)
     setInSub(false)
     const { width, height } = ref.current.getBoundingClientRect()
-    setPos({ x: flip(state.x, width, window.innerWidth), y: flip(state.y, height, window.innerHeight) })
+    // offsetWidth, not the rect: the opening scale shrinks the rect and would leave the right edges apart.
+    const x = state.right === undefined ? state.x : Math.max(state.right - ref.current.offsetWidth, 0)
+    setPos({ x: flip(x, width, window.innerWidth), y: flip(state.y, height, window.innerHeight) })
     const target = state.target
     target?.setAttribute("data-menu-open", "")
     return () => target?.removeAttribute("data-menu-open")
@@ -182,7 +184,7 @@ function ContextMenu() {
   }
   return (
     <>
-      <div ref={ref} className={menuClass()} role="menu" style={{ left: pos.x, top: pos.y }}>
+      <div ref={ref} className={menuClass()} role="menu" style={{ left: pos.x, top: pos.y, minWidth: state.minWidth }}>
         {state.items.map((item, i) => (
           <Fragment key={item.label}>
             {i > 0 && item.section !== state.items[i - 1]?.section && <hr className={MENU_SEP} />}
