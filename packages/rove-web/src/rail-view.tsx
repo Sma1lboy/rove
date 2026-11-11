@@ -125,7 +125,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
     first: repo === firstMovable,
   })
   const drag = useRowDrag(model, tasks, !filters.search.active && !byState, filters.sort === "default")
-  const place = drag.places(rows)
+  const { place, dragging } = drag.places(rows)
   const openSettings = () => dialog.set(<SettingsDialog model={model} />)
   const keys = useRailKeys(model, rows, filters, { selectedId, onNewTask: startNewTask, onSettings: openSettings })
   // Header Reorder lists the main it moves; the cursor goes to it so j/k drag its project.
@@ -189,7 +189,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         />
       )}
       <PageNav model={model} />
-      <div data-rail-body className={railBody(drag.dragging !== null)} {...drag.body}>
+      <div data-rail-body className={railBody(dragging !== null)} {...drag.body}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
           <p className={RAIL_EMPTY}>{t("rail.empty")}</p>
@@ -238,7 +238,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               stale={row.machine !== undefined && offline.has(row.machine)}
               collapsed={(row.kind === "project" || row.kind === "state") && filters.collapsed.has(row.id)}
               drag={drag.props(row)}
-              dragging={drag.dragging === row.id}
+              dragging={dragging === row.id}
               place={place(row)}
               onNewTask={
                 row.kind === "project"

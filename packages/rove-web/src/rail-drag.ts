@@ -197,7 +197,9 @@ export function useRowDrag(
         }
       } else land.current = () => setDrag(null)
       // The preview stays until the daemon's new order has arrived, so the row doesn't jump back first.
-      const settle = () => setLanding(latest.current)
+      // That order can arrive before the move returns: then nothing newer is coming to wait for.
+      const dropped = latest.current
+      const settle = () => (latest.current === dropped ? setLanding(dropped) : land.current())
       if (now.project) {
         if (now.toRow === now.fromRow) return land.current()
         const args = { repo: now.from.repo, target: now.to.repo, side: now.side === "above" ? "before" : "after" }
@@ -229,7 +231,7 @@ export function useRowDrag(
     )
   }
   // Each row's shift from where it is drawn to where the drop would leave it.
-  const shifts = (rows: readonly NavRow[]): ReadonlyMap<string, number> => {
+  const shifts = (rows: readonly NavRow[], drag: Drag | null): ReadonlyMap<string, number> => {
     shown.current = drag ? previewDrop(rows, drag.fromRow, drag.toRow, drag.side) : rows
     const out = new Map<string, number>()
     if (!drag) return out
@@ -249,19 +251,26 @@ export function useRowDrag(
   return {
     props,
     body,
-    dragging: drag?.fromRow ?? null,
-    /** Call once per render with the rows in drawn order; returns each row's place. */
+    /** Call once per render with the rows in drawn order; returns the dragged row and each row's place. */
     places: (rows: readonly NavRow[]) => {
-      const by = shifts(rows)
-      const from = drag ? rows.findIndex((row) => row.id === drag.fromRow) : -1
+      // Once the list is drawn in another order than the drag measured, its preview is over: the rows
+      // are drawn as they are, with no slide from shifts that belonged to the old order.
+      const measured = [...slots.current.keys()]
+      const shown = drag && rows.length === measured.length && rows.every((row, i) => row.id === measured[i])
+      const now = shown ? drag : null
+      const by = shifts(rows, now)
+      const from = now ? rows.findIndex((row) => row.id === now.fromRow) : -1
       const lifted = new Set(from < 0 ? [] : rows.slice(from, blockEnd(rows, from)).map((row) => row.id))
-      return (row: NavRow): RowPlace => {
-        const dy = by.get(row.id)
-        return {
-          "data-row": row.id,
-          ...(lifted.has(row.id) ? { "data-lifted": "" as const } : {}),
-          ...(dy ? { style: { transform: `translateY(${dy}px)` } } : {}),
-        }
+      return {
+        dragging: now?.fromRow ?? null,
+        place: (row: NavRow): RowPlace => {
+          const dy = by.get(row.id)
+          return {
+            "data-row": row.id,
+            ...(lifted.has(row.id) ? { "data-lifted": "" as const } : {}),
+            ...(dy ? { style: { transform: `translateY(${dy}px)` } } : {}),
+          }
+        },
       }
     },
   }
