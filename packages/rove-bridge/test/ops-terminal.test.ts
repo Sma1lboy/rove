@@ -316,7 +316,7 @@ describe("attachment.put", () => {
       kind: "file",
     })
     expect((await run("attachment.put", { ...csv, name: "../../.ssh/authorized_keys" })).result).toMatchObject({
-      path: "/home/.rove/attachments/attach-20261005-deadbeef-ssh-authorized_keys.bin",
+      path: "/home/.rove/attachments/attach-20261005-deadbeef-authorized_keys.bin",
     })
   })
 

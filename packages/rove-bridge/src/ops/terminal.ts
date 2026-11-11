@@ -121,6 +121,7 @@ function plainExt(name: string | undefined): string {
 /** The file's own name without its extension, cut down to what is safe in a path and needs no quoting in a shell. */
 function plainStem(name: string | undefined): string {
   return (name ?? "")
+    .replace(/^.*[\\/]/, "")
     .replace(/\.[^.]*$/, "")
     .replace(/[^\p{L}\p{N}_-]+/gu, "-")
     .replace(/^-+|-+$/g, "")
