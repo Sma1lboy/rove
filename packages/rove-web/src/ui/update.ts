@@ -1,8 +1,12 @@
 /** The update page, What's New and the release notes they share; the Worktrees page. */
 
+import { PAGE } from "./page.ts"
+
 export const PAGE_HEAD = "flex items-baseline justify-between"
 export const UPDATE_VERSIONS = "[&_b]:mr-2.5"
-export const UPDATE_ACTIONS = "my-2.5 flex items-center gap-3.5"
+/** The page scrolls above its actions, which stay at the bottom. */
+export const UPDATE_PAGE = `${PAGE} flex flex-col overflow-hidden`
+export const UPDATE_SCROLL = "min-h-0 flex-1 overflow-y-auto"
 /** The installer's output tail while Update now runs. */
 export const UPDATE_OUTPUT =
   "my-2 max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-anywhere rounded-sm bg-inset p-2 font-mono text-[length:var(--fs-meta)]"
