@@ -7,6 +7,8 @@
 import { execFile } from "node:child_process"
 import { statSync } from "node:fs"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
+import { listMachines } from "@sma1lboy/rove/src/machines/registry.ts"
+import { isWindowsMachine } from "@sma1lboy/rove/src/machines/windows-remote.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
 import {
@@ -67,6 +69,11 @@ export const taskOpDeps = {
   repoId: (path: string): string | undefined => repoIdOf(path),
   /** Fetches one pull request's head into `refs/rove/pr/<number>` of `repo`: the commit a review worktree starts from. */
   fetchPullHead,
+  /** A registered machine running native Windows, which `--workspace-on` cannot reach: its tasks run in its own daemon. */
+  isWindowsMachine: (alias: string): boolean => {
+    const entry = listMachines().find((m) => m.alias === alias)
+    return entry !== undefined && isWindowsMachine(entry)
+  },
 }
 
 const GIT_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/

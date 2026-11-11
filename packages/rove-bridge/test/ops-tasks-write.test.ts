@@ -43,6 +43,18 @@ describe("task.spawn", () => {
     ])
   })
 
+  test("a Windows machine runs the engine there: rx cannot reach it, so the workspace cannot be split off", async () => {
+    taskOpDeps.isWindowsMachine = (alias) => alias === "pc"
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "github.com/me/app", machine: "pc", engine: "only-on-pc", prompt: "p" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([
+      { verb: "add", argv: ["--repo=github.com/me/app", "--command=only-on-pc", "--prompt=p"], machine: "pc" },
+    ])
+  })
+
   test("a repo id with clone has that machine fetch it with its own credentials", async () => {
     const { calls } = await run(
       "task.spawn",

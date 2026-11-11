@@ -911,7 +911,8 @@ edits (`set-vendor`, `rename`,
   [Run the agent here, keep the work there](./MACHINES.md#run-the-agent-here-keep-the-work-there).
   It conflicts with `--count`, `--agents`, `--fork`, `--workspace`,
   `--no-worktree`, `--isolate-in`, `--worktree-only`, `--tier` and a second
-  `--repo` (`CONFLICTING_FLAGS`).
+  `--repo` (`CONFLICTING_FLAGS`). A Windows machine, which `rx` cannot reach, is refused
+  before it cuts anything (`UNSUPPORTED`).
 
   `--workspace layerfs` (experimental, Linux only) puts the task's files in a
   LayerFS Workspace inside a Docker sandbox of its own instead of a git

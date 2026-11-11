@@ -11,6 +11,7 @@ import { errorMessage } from "../../lib/error-message.ts"
 import { forwardVerb, requireMachine } from "../../machines/forward.ts"
 import { createRemoteLink, removeRemoteLink } from "../../machines/remote-workspace.ts"
 import { machineSshArgs } from "../../machines/ssh-args.ts"
+import { isWindowsMachine } from "../../machines/windows-remote.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
@@ -43,6 +44,14 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
     )
   }
   const entry = requireMachine(alias)
+  // `rx` is sh over ssh: refused before that machine cuts a worktree it would only take back down.
+  if (isWindowsMachine(entry)) {
+    throw new ApiError(
+      `--workspace-on cannot reach "${alias}", a Windows machine: run the engine there with --machine ${alias} --engine-there`,
+      "UNSUPPORTED",
+      helpStep("add"),
+    )
+  }
   const title = args.str("title") || (prompt ? deriveTitleFromPrompt(prompt) : "")
   const pass = (flag: string): ApiParams => {
     const value = args.str(flag)
