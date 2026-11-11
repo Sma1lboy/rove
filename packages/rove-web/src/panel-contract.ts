@@ -71,9 +71,9 @@ export function planPanelPush(push: PanelPush, here: { taskId: string | null; na
   }
 }
 
-/** The panel after a push: an address finds or opens its Browser tab, a path retargets the File or Diff column, a kind alone opens its column. */
-export function applyPlan(panel: TaskPanel, plan: PanelPlan): TaskPanel {
+/** The panel after a push (sent `at`): an address finds or opens its Browser tab, a path retargets the File or Diff column (read again if already on it), a kind alone opens its column. */
+export function applyPlan(panel: TaskPanel, plan: PanelPlan, at: number): TaskPanel {
   if (plan.url) return showBrowser(panel, plan.url)
-  if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path) : showDiff(panel, plan.path, "working")
+  if (plan.path) return plan.tab === "file" ? showFile(panel, plan.path, at) : showDiff(panel, plan.path, "working", at)
   return showKind(panel, plan.tab)
 }

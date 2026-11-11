@@ -139,7 +139,7 @@ export function closeBrowserTab(taskId: string, id: string): void {
  */
 export function applyPanelPush(push: PanelPush, hereTaskId: string | null): void {
   const plan = planPanelPush(push, { taskId: hereTaskId, narrow: isNarrow() })
-  editPanel(push.taskId, (panel) => applyPlan(panel, plan))
+  editPanel(push.taskId, (panel) => applyPlan(panel, plan, push.at))
   if (plan.show) {
     panelOpen.set(true)
     // Zen hides the panel, and showing it is what was asked for: leave zen, as the panel's own button does.

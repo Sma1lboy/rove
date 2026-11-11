@@ -143,7 +143,7 @@ export function ColumnView({
       {column.kind === "quota" && <ContextView model={model} task={task} active />}
       {column.kind === "file" && (
         <PreviewHost
-          key={`${task.id}:file:${column.path}`}
+          key={`${task.id}:file:${column.path}:${column.at ?? ""}`}
           model={model}
           view={{ taskId: task.id, path: column.path, scope: "working", file: true }}
           active
@@ -153,7 +153,7 @@ export function ColumnView({
       )}
       {column.kind === "diff" && (
         <PreviewHost
-          key={`${task.id}:${column.path}:${column.scope}`}
+          key={`${task.id}:${column.path}:${column.scope}:${column.at ?? ""}`}
           model={model}
           view={{ taskId: task.id, path: column.path, scope: column.scope }}
           active
