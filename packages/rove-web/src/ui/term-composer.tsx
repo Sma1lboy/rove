@@ -9,8 +9,8 @@ import {
 import type { DictationFace } from "../voice/dictation-button.tsx"
 
 /**
- * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, a wide
- * hold-to-talk control and a keyboard key; a draft, or the keyboard key, turns it into attach, a message field, a
+ * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach and one wide
+ * control that is held to talk and tapped to type; a draft, or the tap, turns it into attach, a message field, a
  * mic and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
  * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
  * rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS zooms the page into
@@ -28,7 +28,7 @@ const PRESS =
   "transition-transform duration-100 active:scale-94 motion-reduce:transition-none motion-reduce:active:scale-none"
 /** The hold control stays pressed for the whole take: it gives less, or the row would look shrunk. */
 const PRESS_WIDE =
-  "transition-transform duration-100 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
+  "transition-[scale,background-color,border-color,color] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-none"
 const SEND = `flex size-11 shrink-0 items-center justify-center rounded-[12px] border-hairline border-accent text-accent touch-manipulation disabled:border-line disabled:text-muted disabled:opacity-60 ${PRESS}`
 const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] touch-manipulation active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
@@ -39,7 +39,7 @@ export const composerMic = (recording: boolean): string => `${KEY} ${recording ?
 
 /** The voice row's hold-to-talk control: the only filled box in the row, lit while recording, tinted once slid up to send. */
 export const composerHold = (recording: boolean, armed: boolean): string =>
-  `flex h-11 min-w-0 flex-1 items-center gap-2.5 overflow-hidden rounded-[12px] border-hairline px-3.5 font-sans touch-manipulation disabled:opacity-60 ${PRESS_WIDE} ${
+  `relative flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[12px] border-hairline px-3.5 font-sans touch-manipulation disabled:opacity-60 ${PRESS_WIDE} ${
     armed
       ? "border-accent bg-accent-soft text-accent"
       : recording
@@ -63,13 +63,38 @@ export function ClipGlyph() {
   return <Glyph d="M10.5 4.5 5.8 9.2a1.4 1.4 0 0 0 2 2l5-5a2.8 2.8 0 0 0-4-4l-5.2 5.2a4.2 4.2 0 0 0 6 6L13 9" />
 }
 
-/** The voice row's switch to typing. */
-export function KeysButton(props: { label: string; onClick: () => void }) {
+export function SendButton(props: { label: string; disabled: boolean }) {
   return (
-    <button type="button" className={COMPOSER_ATTACH} title={props.label} onClick={props.onClick}>
+    <button type="submit" className={SEND} title={props.label} disabled={props.disabled}>
       <span className="sr-only">{props.label}</span>
-      <Glyph d="M2.5 4h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 6.5h1M7 6.5h1M10 6.5h2M5 9.5h6" />
+      <Glyph d={UP} />
     </button>
+  )
+}
+
+/** Over the hold control while it is held: the words so far, and where to slide to send them. */
+const BUBBLE =
+  "pointer-events-none absolute inset-x-0 bottom-full z-6 mb-2 flex flex-col gap-1.5 rounded-[12px] border-hairline bg-surface px-3.5 py-2.5 text-left shadow-popover transition-colors duration-150 motion-safe:animate-rise-in"
+function HoldBubble(props: { words: string; hint: string; armed: boolean }) {
+  return (
+    <span className={`${BUBBLE} ${props.armed ? "border-accent" : "border-line"}`}>
+      {props.words && (
+        // The newest words stay in view; the start of a long take scrolls off the top.
+        <span className="flex max-h-[4.5em] flex-col justify-end overflow-hidden text-body leading-[1.5] text-ink">
+          {props.words}
+        </span>
+      )}
+      <span className={`flex items-center gap-1 text-meta ${props.armed ? "font-semibold text-accent" : "text-muted"}`}>
+        <svg
+          viewBox="0 0 16 16"
+          className="size-3.5 flex-none fill-none stroke-current stroke-[1.5]"
+          aria-hidden="true"
+        >
+          <path d={UP} />
+        </svg>
+        {props.hint}
+      </span>
+    </span>
   )
 }
 
@@ -97,7 +122,7 @@ function Wave({ level, seconds }: { level: number; seconds: number }) {
   )
 }
 
-/** Inside the hold control: the label at rest; while recording a level dot, the time, the waveform and (held) where to slide. */
+/** Inside the hold control: the label at rest; while recording a level dot, the time and the waveform. */
 export function HoldFace(props: {
   state: DictationFace
   idle: string
@@ -116,30 +141,30 @@ export function HoldFace(props: {
       </span>
     )
   }
+  // Held where a slide sends: the words and the way to send them go in a bubble above, the bar keeps the waveform.
+  const bubble = state.held && props.slide !== undefined
   return (
     <>
+      {bubble && (
+        <HoldBubble
+          words={state.partial}
+          hint={(state.armed ? props.release : props.slide) ?? ""}
+          armed={state.armed}
+        />
+      )}
       {/* Opacity carries the level: the dot never resizes and never pushes the time around. */}
       <span
         className="size-1.75 flex-none rounded-full bg-current"
         style={{ opacity: 0.3 + Math.min(1, state.level * 10) * 0.7 }}
       />
       <span className="flex-none font-mono text-meta normal-nums">{state.time}</span>
-      {state.partial ? (
+      {state.partial && !bubble ? (
         // The newest words at the right edge, where the waveform was; the start of a long take scrolls off left.
         <span className="flex min-w-0 flex-1 justify-end overflow-hidden whitespace-nowrap text-meta">
           {state.partial}
         </span>
       ) : (
         <Wave level={state.level} seconds={state.seconds} />
-      )}
-      {state.held && props.slide && (
-        <span className={`flex flex-none items-center gap-1 text-meta ${state.armed ? "font-semibold" : "text-muted"}`}>
-          <svg viewBox="0 0 16 16" className="size-3.5 fill-none stroke-current stroke-[1.5]" aria-hidden="true">
-            <path d={UP} />
-          </svg>
-          {/* Once words show they need the room; the arrow alone still says where to slide. */}
-          {state.armed ? props.release : state.partial ? <span className="sr-only">{props.slide}</span> : props.slide}
-        </span>
       )}
     </>
   )
@@ -165,10 +190,11 @@ export function TermComposerBar(props: {
   attach: ReactNode
   /** The mic beside the field, boxed in `composerMic`; it fills the field and never sends. */
   dictate?: ReactNode
-  /** The voice row (hold-to-talk and the keyboard key); while set it stands in for the field, the mic and Send. */
+  /** The voice row (the hold-to-talk control); while set it stands in for the field, the mic and Send. */
   voice?: ReactNode
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
   onPaste: (e: ClipboardEvent) => void
+  onBlur?: () => void
   onSelect?: (e: { currentTarget: HTMLTextAreaElement }) => void
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   fieldRef?: RefObject<HTMLTextAreaElement | null>
@@ -205,12 +231,10 @@ export function TermComposerBar(props: {
               onSelect={props.onSelect}
               onKeyDown={props.onKeyDown}
               onPaste={props.onPaste}
+              onBlur={props.onBlur}
             />
             {props.dictate}
-            <button type="submit" className={SEND} title={props.sendLabel} disabled={props.busy || !props.ready}>
-              <span className="sr-only">{props.sendLabel}</span>
-              <Glyph d={UP} />
-            </button>
+            <SendButton label={props.sendLabel} disabled={props.busy || !props.ready} />
           </>
         )}
       </div>

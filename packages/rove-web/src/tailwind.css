@@ -465,6 +465,9 @@ button:focus-visible {
 @custom-variant rail-peek (:where(.app.is-rail-peek) &);
 @custom-variant panel-expanded (:where(.app.is-panel-expanded) &);
 
+/* The soft keyboard is up (viewport.ts): what is left of the screen goes to the field being typed in. */
+@custom-variant keyboard (html[data-keyboard] &);
+
 /* The phone layout (app.tsx `is-narrow`). */
 @custom-variant narrow (:where(.app.is-narrow) &);
 

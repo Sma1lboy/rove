@@ -19,8 +19,8 @@ import {
   COMPOSER_ATTACH,
   ClipGlyph,
   HoldFace,
-  KeysButton,
   MicFace,
+  SendButton,
   TermComposerBar,
   composerHold,
   composerMic,
@@ -42,7 +42,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
   const [busy, setBusy] = useState(false)
   const { attachments, attach, remove, ready, clear } = useAttachments(model, (message) => toast(message, "error"))
   const field = useRef<HTMLTextAreaElement>(null)
-  // Talking comes first on a phone: the field shows only for a draft, an attachment, or the keyboard key.
+  // Talking comes first on a phone: the field shows only for a draft or a tap on the hold control.
   const hosted = useVoiceHosted(model.client)
   const [typing, setTyping] = useState(false)
   const snippets = useSnippetSuggest({
@@ -115,7 +115,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
     onText: (spoken: string) => void insertDictated(spoken),
     disabled: busy,
   }
-  const voiceFirst = hosted === true && !typing && text === "" && attachments.length === 0
+  // Attaching keeps the voice row: what is said next goes with the files.
+  const voiceFirst = hosted === true && !typing && text === ""
   const toKeys = () => {
     // Synchronously, inside the tap: iOS raises the keyboard only for a focus the gesture itself made.
     flushSync(() => setTyping(true))
@@ -143,18 +144,19 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
               {...talk}
               onSend={sendDictated}
               look={composerHold}
-              idle={t("voice.hold")}
+              onTap={toKeys}
+              idle={t("voice.holdOrType")}
               face={(state) => (
                 <HoldFace
                   state={state}
-                  idle={t("voice.hold")}
+                  idle={t("voice.holdOrType")}
                   working={t("voice.working")}
                   slide={t("voice.slideToSend")}
                   release={t("voice.tipSend")}
                 />
               )}
             />
-            <KeysButton label={t("voice.type")} onClick={toKeys} />
+            {attachments.length > 0 && <SendButton label={t("layout.composerSend")} disabled={busy} />}
           </>
         ) : undefined
       }
@@ -163,6 +165,8 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       suggest={snippets.list}
       {...snippets.field}
       onPaste={fileTargets(onFiles).onPaste}
+      // An empty field left alone is the hold control again.
+      onBlur={() => text === "" && setTyping(false)}
       onSend={() => void send()}
     />
   )
