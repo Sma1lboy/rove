@@ -40,14 +40,16 @@ export const RAIL_PEEK_EDGE = "absolute inset-y-0 left-0 z-5 col-1 row-1 w-2.5"
  * the left edge as a floating card that a hover slides in (Claude Desktop's folded sidebar).
  */
 export const RAIL_FRAME = [
-  "relative narrow-content:hidden touch:select-none touch:touch-callout-none",
+  "relative narrow-content:hidden narrow-back:col-1 narrow-back:row-1 touch:select-none touch:touch-callout-none",
   "wide:overflow-x-clip wide:pt-8.5 wide:[&>:not([data-grip])]:min-w-(--rail-open-w)",
   "rail-folded:absolute rail-folded:inset-y-1.5 rail-folded:left-1.5 rail-folded:z-6 rail-folded:col-1 rail-folded:row-1 rail-folded:box-border rail-folded:w-(--rail-open-w) rail-folded:-translate-x-[calc(100%+12px)] rail-folded:rounded-md rail-folded:border-hairline rail-folded:border-line rail-folded:bg-surface rail-folded:shadow-none rail-folded:transition-[translate] rail-folded:duration-200 rail-folded:ease-snap rail-folded:motion-reduce:transition-none rail-folded:[&>:not([data-grip])]:min-w-0",
   "rail-peek:translate-none rail-peek:shadow-dialog",
 ].join(" ")
 
 /** Out of flow, the folded rail no longer claims column 1. Expanded, the panel spans the terminal's column, which keeps its size underneath. */
-export const WORKSPACE_FRAME = "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden"
+/** Mid back swipe it rides the finger (`--back-x`) over the list. */
+export const WORKSPACE_FRAME =
+  "rail-folded:col-2 panel-expanded:invisible panel-expanded:col-2 narrow-sidebar:hidden narrow-back:z-1 narrow-back:col-1 narrow-back:translate-x-(--back-x) narrow-back:bg-paper narrow-back:shadow-dialog"
 export const SIDE_PANEL_FRAME =
   "rail-folded:col-3 panel-expanded:z-2 panel-expanded:col-[2/-1] panel-expanded:bg-paper panel-expanded:pl-2"
 

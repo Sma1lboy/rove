@@ -457,6 +457,8 @@ button:focus-visible {
 @custom-variant wide (:where(.app:not(.is-narrow)) &);
 @custom-variant narrow-content (:where(.app.narrow-content) &);
 @custom-variant narrow-sidebar (:where(.app.narrow-sidebar) &);
+/* A back swipe in progress: the list shows under the content panel the finger is dragging. */
+@custom-variant narrow-back (:where(.app.narrow-back) &);
 
 /* Under the folded rail: the workspace's top bar clears the floating rail buttons. */
 @custom-variant rail-folded (:where(.app.is-rail-folded) &);
