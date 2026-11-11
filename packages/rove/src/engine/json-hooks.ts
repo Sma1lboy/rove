@@ -101,7 +101,7 @@ const ROVE_HOOK_FLAGS: Readonly<Record<string, RegExp>> = {
 }
 
 /**
- * Is this hook entry a recognized `rove hook <verb>` invocation? Ownership,
+ * Is this hook entry a recognized `rove hook <verb>` (or legacy `kobe`) invocation? Ownership,
  * not string equality: a dev checkout spells it `bun /…/src/cli/rove.ts hook …`,
  * and literal matching would leave a duplicate instead of replacing it.
  *
@@ -125,9 +125,9 @@ export function isRoveHook(hook: unknown, verbs: readonly string[]): boolean {
   if (executable === "bun" || executable === "node") {
     if (argv[offset] === "--conditions=browser") offset++
     const entry = argv[offset] ?? ""
-    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|rove)\.(?:ts|js)$/.test(entry)) return false
+    if (!/(?:^|\/)(?:src|dist)\/cli\/(?:rove|kobe)\.(?:ts|js)$/.test(entry)) return false
     offset++
-  } else if (executable !== "rove" && executable !== "rove") {
+  } else if (executable !== "rove" && executable !== "kobe") {
     return false
   }
   if (argv[offset] !== "hook" || !verbs.includes(argv[offset + 1])) return false
