@@ -103,7 +103,8 @@ function words(text: string): string[] {
 
 /** Bars of the last few seconds' loudness, newest at the right; one bar per recorder tick. `wide` fills a bubble. */
 function Wave({ level, seconds, wide }: { level: number; seconds: number; wide?: boolean }) {
-  const count = wide ? 46 : 40
+  // More bars than any phone is wide: the strip is right-aligned and clipped at the left, so it always spans its box.
+  const count = wide ? 120 : 80
   const bars = useRef<number[]>([])
   const seen = useRef(-1)
   // Each recorder tick moves `seconds`; any other render keeps the bars where they are.
@@ -172,7 +173,7 @@ function HoldBubble({ bubble, leaving }: { bubble: Bubble; leaving: boolean }) {
         <span
           key="words"
           // Greyed once the finger lifts: they are not final until they land in the field.
-          className={`flex max-h-[5.8em] flex-1 flex-col justify-end overflow-hidden font-sans text-display leading-[1.45] transition-colors duration-150 motion-safe:animate-fade-in ${bubble.waiting ? "text-muted" : "text-ink"}`}
+          className={`flex max-h-[5.8em] min-w-0 flex-1 flex-col justify-end overflow-hidden font-sans text-display leading-[1.45] transition-colors duration-150 motion-safe:animate-fade-in ${bubble.waiting ? "text-muted" : "text-ink"}`}
         >
           <span>
             {words(bubble.text).map((word, i) => (
@@ -184,7 +185,7 @@ function HoldBubble({ bubble, leaving }: { bubble: Bubble; leaving: boolean }) {
           </span>
         </span>
       ) : (
-        <span key="wave" className="flex flex-1 text-accent">
+        <span key="wave" className="flex min-w-0 flex-1 text-accent">
           <Wave level={bubble.level} seconds={bubble.seconds} wide />
         </span>
       )}
