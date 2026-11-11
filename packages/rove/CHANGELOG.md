@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.287
+
+### Patch Changes
+
+- [#1964](https://github.com/Sma1lboy/rove/pull/1964) [`7d64156`](https://github.com/Sma1lboy/rove/commit/7d6415615d83838c4c1310c3d1fa6d3c5d0208e6) Web, on a phone: holding to talk has a larger bubble that grows out of the control, with each word fading in as it is heard, and it stays until the text lands before sinking back. The control tints while recording and turns solid once slid up to send; its label, the take and the wait fade in instead of popping. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1963](https://github.com/Sma1lboy/rove/pull/1963) [`9626995`](https://github.com/Sma1lboy/rove/commit/96269951af635b7c0b8b02db1986f61fa39d1acb) Web, on a phone: an open task shows its name in the top bar, next to the back arrow. The key row under a terminal is taller (40px, was 32px). The "session ended" strip keeps each action on one line and wraps between them, instead of breaking every label into three or four lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.286
 
 ### Patch Changes
