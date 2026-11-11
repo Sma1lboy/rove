@@ -92,6 +92,8 @@
     "yaml": "^2.9.0"
   },
   "optionalDependencies": {
+    "@sma1lboy/opentui-rove-darwin-arm64": "0.8.4-rove.1",
+    "@sma1lboy/opentui-rove-linux-x64": "0.8.4-rove.1",
     "node-pty": "^1.1.0"
   },
   "devDependencies": {

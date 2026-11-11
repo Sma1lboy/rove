@@ -48,6 +48,18 @@ and uses the next one it finds, or you can name it with `ROVE_BUN=/path/to/bun`.
 `ROVE_SKIP_BUN_CHECK=1` runs on the old Bun anyway; it is unsupported and the
 terminals stay blank, so use it only to reach `rove doctor` or `rove update`.
 
+## Rove will not start, or the screen is garbled, on an Apple silicon Mac or 64-bit Intel Linux
+
+On those two platforms Rove draws through its own build of OpenTUI's native library (`@sma1lboy/opentui-rove-darwin-arm64`, `@sma1lboy/opentui-rove-linux-x64`). It is the stock library with a frame encoder that writes fewer bytes, which mostly matters over SSH. Every other platform uses OpenTUI's stock library.
+
+To rule that build out, start Rove with the stock library:
+
+```sh
+ROVE_STOCK_OPENTUI=1 rove
+```
+
+If that fixes it, please report it with your terminal and its version. Rove also falls back to the stock library by itself when the installed build was made for a different OpenTUI version.
+
 ## Windows opens Rove, but engine and terminal tabs never start
 
 Windows needs three separate runtimes:

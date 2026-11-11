@@ -81,6 +81,8 @@
         "vitest": "2.1.9",
       },
       "optionalDependencies": {
+        "@sma1lboy/opentui-rove-darwin-arm64": "0.8.4-rove.1",
+        "@sma1lboy/opentui-rove-linux-x64": "0.8.4-rove.1",
         "node-pty": "^1.1.0",
       },
     },
@@ -982,6 +984,10 @@
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
 
     "@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
+
+    "@sma1lboy/opentui-rove-darwin-arm64": ["@sma1lboy/opentui-rove-darwin-arm64@0.8.4-rove.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-fQfJG87t5jLf6++LrcQ/ghEZXPfZ+2S5uJHsv9QskyPOtrp5lTlwHmqohUng2OLGUwYNdhvc7WE0dI7Jdc/OXw=="],
+
+    "@sma1lboy/opentui-rove-linux-x64": ["@sma1lboy/opentui-rove-linux-x64@0.8.4-rove.1", "", { "os": "linux", "cpu": "x64" }, "sha512-u7FRn6GCdIlUW3tgKg5eDcP6J2dQTjO//YKexmJY/9PgORmCP5aWVv4fRCOk4sxcsOduFRInW5iWkWK7iCe27g=="],
 
     "@sma1lboy/rove": ["@sma1lboy/rove@workspace:packages/rove"],
 
