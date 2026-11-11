@@ -5,18 +5,22 @@ import {
   type Event,
   type Item,
   MOBILE,
+  type Media,
   type Version,
   actionBtn,
   copy,
-  fmtDur,
+  extOf,
   fmtSize,
   fmtTime,
   linkBtn,
   logEvent,
+  mediaLabel,
+  mediaOf,
+  mediaWarnings,
+  mimeOf,
   postJson,
   primaryBtn,
   toast,
-  videoWarnings,
   vurl,
 } from "./lib.ts"
 import { X_MAX, xLength } from "./xcount.ts"
@@ -29,7 +33,8 @@ export function Detail({ item, me, onChange }: { item: Item; me: string; onChang
   const [viewing, setViewing] = useState(-1)
   const [saving, setSaving] = useState(false)
   const [dims, setDims] = useState<{ w: number; h: number }>()
-  const warns = videoWarnings(item.video, dims)
+  const media = mediaOf(item)
+  const warns = mediaWarnings(media, dims)
   const versions = history.versions
   const current = versions[versions.length - 1].posts
   const dirty = JSON.stringify(posts) !== JSON.stringify(current)
@@ -75,8 +80,8 @@ export function Detail({ item, me, onChange }: { item: Item; me: string; onChang
       <h1 className="text-display font-semibold">{item.title}</h1>
       <p className="mt-1 mb-2 font-mono text-meta text-subtle">
         {[
-          fmtDur(item.video.duration),
-          fmtSize(item.video.size),
+          mediaLabel(media),
+          fmtSize(media.reduce((sum, m) => sum + m.size, 0)),
           item.created && `创建 ${fmtTime(item.created)}`,
           item.updated && `更新 ${fmtTime(item.updated)}`,
         ]
@@ -87,18 +92,38 @@ export function Detail({ item, me, onChange }: { item: Item; me: string; onChang
 
       <div className="mt-5 grid gap-6 xl:grid-cols-2 xl:items-start">
         <section>
-          <video
-            className="block max-h-[60vh] w-full rounded-md bg-inset"
-            src={vurl(item.video.key)}
-            poster={item.cover && vurl(item.cover)}
-            controls
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={(e) => setDims({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })}
-          />
+          <div className={media.length > 1 ? "grid gap-2 sm:grid-cols-2" : ""}>
+            {media.map((m, i) =>
+              m.kind === "video" ? (
+                <video
+                  key={m.key}
+                  className="block max-h-[60vh] w-full rounded-md bg-inset"
+                  src={vurl(m.key)}
+                  poster={i === 0 && item.cover ? vurl(item.cover) : undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  onLoadedMetadata={(e) => {
+                    // Read now: the event's target is gone by the time the updater runs.
+                    const frame = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }
+                    setDims((d) => d ?? frame)
+                  }}
+                />
+              ) : (
+                <a key={m.key} href={vurl(m.key)} target="_blank" rel="noreferrer" className="block">
+                  <img
+                    className="block w-full rounded-md border border-line bg-inset"
+                    src={vurl(m.key)}
+                    alt=""
+                    loading="lazy"
+                  />
+                </a>
+              ),
+            )}
+          </div>
           {warns.length > 0 && (
             <ul className="mt-3 rounded-sm border border-line px-3 py-2 text-meta text-warning">
-              <li className="text-muted">X 可能不收这个视频：</li>
+              <li className="text-muted">X 可能不收这条素材：</li>
               {warns.map((w) => (
                 <li key={w}>! {w}</li>
               ))}
@@ -115,7 +140,7 @@ export function Detail({ item, me, onChange }: { item: Item; me: string; onChang
                 index={i}
                 total={posts.length}
                 text={p}
-                duration={i === 0 ? item.video.duration : undefined}
+                attach={i === 0 ? mediaLabel(media) : undefined}
                 onCopy={() => act("copy", i)}
                 onChange={(v) => setPosts((ps) => ps.map((x, j) => (j === i ? v : x)))}
               />
@@ -150,7 +175,8 @@ function Post(props: {
   index: number
   total: number
   text: string
-  duration?: number
+  /** What rides on this post: "0:42", "3 张图". */
+  attach?: string
   onCopy: () => void
   onChange: (v: string) => void
 }) {
@@ -191,13 +217,16 @@ function Post(props: {
           aria-label={`第 ${index + 1} 条文案`}
           className="-mx-2 block w-[calc(100%+16px)] resize-none rounded-sm bg-transparent px-2 py-1 text-title leading-relaxed text-ink outline-none hover:bg-hover focus:bg-hover touch:text-display"
         />
-        {props.duration !== undefined && (
+        {props.attach && (
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 font-mono text-meta text-muted">
-            ▶ 视频 {fmtDur(props.duration)}
+            {/^\d/.test(props.attach) && props.attach.includes(":") ? `▶ 视频 ${props.attach}` : props.attach}
           </div>
         )}
         <div className="mt-2 flex items-center justify-end gap-4">
-          <span className={`font-mono text-meta ${n > X_MAX ? "text-error" : "text-subtle"}`} title="按 X 规则：中文 2，链接 23">
+          <span
+            className={`font-mono text-meta ${n > X_MAX ? "text-error" : "text-subtle"}`}
+            title="按 X 规则：中文 2，链接 23"
+          >
             {n}/{X_MAX}
           </span>
           <button type="button" className={linkBtn} onClick={onCopy}>
@@ -209,27 +238,35 @@ function Post(props: {
   )
 }
 
-// navigator.share must run inside the tap, so on phones the video is fetched ahead of time.
-function useVideoFile(item: Item, enabled: boolean) {
-  const [state, setState] = useState<{ file?: File; pct: number; failed?: boolean }>({ pct: 0 })
+const fileName = (item: Item, m: Media, i: number, n: number) => `${item.id}${n > 1 ? `-${i + 1}` : ""}.${extOf(m.key)}`
+
+// navigator.share must run inside the tap, so on phones every attachment is fetched ahead of time.
+function useMediaFiles(item: Item, enabled: boolean) {
+  const [state, setState] = useState<{ files?: File[]; pct: number; failed?: boolean }>({ pct: 0 })
   useEffect(() => {
     if (!enabled) return
     const ac = new AbortController()
+    const list = mediaOf(item)
+    const total = list.reduce((sum, m) => sum + m.size, 0) || 1
     ;(async () => {
-      const r = await fetch(vurl(item.video.key), { signal: ac.signal })
-      if (!r.ok || !r.body) throw new Error(String(r.status))
-      const reader = r.body.getReader()
-      const chunks: BlobPart[] = []
+      const files: File[] = []
       let got = 0
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        chunks.push(value as BlobPart)
-        got += value.length
-        const pct = Math.round((got / item.video.size) * 100)
-        setState((s) => (s.pct === pct ? s : { pct }))
+      for (const [i, m] of list.entries()) {
+        const r = await fetch(vurl(m.key), { signal: ac.signal })
+        if (!r.ok || !r.body) throw new Error(String(r.status))
+        const reader = r.body.getReader()
+        const chunks: BlobPart[] = []
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          chunks.push(value as BlobPart)
+          got += value.length
+          const pct = Math.min(99, Math.round((got / total) * 100))
+          setState((s) => (s.pct === pct ? s : { pct }))
+        }
+        files.push(new File(chunks, fileName(item, m, i, list.length), { type: mimeOf(m.key) }))
       }
-      setState({ file: new File(chunks, `${item.id}.mp4`, { type: "video/mp4" }), pct: 100 })
+      setState({ files, pct: 100 })
     })().catch(() => {
       if (!ac.signal.aborted) setState({ pct: 0, failed: true })
     })
@@ -240,42 +277,61 @@ function useVideoFile(item: Item, enabled: boolean) {
 
 function SendBar(props: { item: Item; text: string; thread: boolean; onAction: (a: Action) => void }) {
   const { item, text, thread } = props
-  const media = useVideoFile(item, MOBILE)
-  const file = `${item.id}.mp4`
-  const dl = `${vurl(item.video.key)}?dl=${encodeURIComponent(file)}`
+  const list = mediaOf(item)
+  const ready = useMediaFiles(item, MOBILE)
+  const noun = list.every((m) => m.kind === "video") ? "视频" : list.every((m) => m.kind === "image") ? "图片" : "素材"
+  const links = list.map((m, i) => {
+    const file = fileName(item, m, i, list.length)
+    return { file, href: `${vurl(m.key)}?dl=${encodeURIComponent(file)}` }
+  })
+  const download = () => {
+    for (const { file, href } of links) {
+      const a = document.createElement("a")
+      a.href = href
+      a.download = file
+      a.click()
+    }
+  }
 
   const send = async () => {
-    if (MOBILE && media.file) {
+    if (MOBILE && ready.files) {
       const copied = copy(text) // same tap as share; not awaited so share keeps the gesture
       try {
-        await navigator.share({ files: [media.file], text })
+        await navigator.share({ files: ready.files, text })
         props.onAction("send") // only once the share sheet handed it off, not on cancel
         toast((await copied) ? "文案已复制，X 里没带上文字就粘贴" : "X 里没带上文字的话，回来点「复制」", 6000)
       } catch (e) {
-        if ((e as Error).name !== "AbortError") toast(`分享失败：${(e as Error).message}。先下载视频再手动发`, 6000)
+        if ((e as Error).name !== "AbortError") toast(`分享失败：${(e as Error).message}。先下载${noun}再手动发`, 6000)
       }
       return
     }
     props.onAction("send")
-    const a = document.createElement("a")
-    a.href = dl
-    a.download = file
-    a.click()
+    download()
     window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, "_blank", "noopener")
-    toast(thread ? "视频在下载。拖进 X 发帖框发出，再在下面逐条回复后几条" : "视频在下载。拖进 X 发帖框，检查后再发", 7000)
+    toast(
+      thread ? `${noun}在下载。拖进 X 发帖框发出，再在下面逐条回复后几条` : `${noun}在下载。拖进 X 发帖框，检查后再发`,
+      7000,
+    )
   }
 
-  const waiting = MOBILE && !media.file
-  const label = !waiting ? "发到 X" : media.failed ? "视频加载失败，先下载" : `准备视频 ${media.pct}%`
+  const waiting = MOBILE && !ready.files
+  const label = !waiting ? "发到 X" : ready.failed ? `${noun}加载失败，先下载` : `准备${noun} ${ready.pct}%`
 
   return (
     <div className="sticky bottom-0 flex items-center gap-4 rounded-b-md border-t border-line bg-surface px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] lg:static lg:pb-3">
       <button type="button" className={`${primaryBtn} touch:flex-1`} disabled={waiting} onClick={send}>
         {label}
       </button>
-      <a className={linkBtn} href={dl} download={file} onClick={() => props.onAction("download")}>
-        下载视频
-      </a>
+      <button
+        type="button"
+        className={linkBtn}
+        onClick={() => {
+          download()
+          props.onAction("download")
+        }}
+      >
+        下载{noun}
+      </button>
     </div>
   )
 }

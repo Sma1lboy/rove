@@ -40,7 +40,9 @@ export function TokenPage() {
         ← 全部素材
       </a>
       <h1 className="mt-3 text-display font-semibold">上传令牌</h1>
-      <p className="mt-1 text-meta text-muted">把生成的 prompt 交给你的 agent，它会把令牌写进 ~/.env。令牌只显示一次，重新生成后旧的作废。</p>
+      <p className="mt-1 text-meta text-muted">
+        把生成的 prompt 交给你的 agent，它会把令牌写进 ~/.env。令牌只显示一次，重新生成后旧的作废。
+      </p>
       <button type="button" className={`${primaryBtn} mt-4`} disabled={busy} onClick={mint}>
         {prompt ? "重新生成" : "生成我的令牌"}
       </button>

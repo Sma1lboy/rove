@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
 import { Detail } from "./detail.tsx"
-import { type Item, SORTS, type Sort, VIEW_KEY, type View, applyView, fmtDay, fmtDur, loadView, videoWarnings, vurl } from "./lib.ts"
+import {
+  type Item,
+  SORTS,
+  type Sort,
+  VIEW_KEY,
+  type View,
+  applyView,
+  fmtDay,
+  loadView,
+  mediaLabel,
+  mediaOf,
+  mediaWarnings,
+  vurl,
+} from "./lib.ts"
 import { TokenPage } from "./token.tsx"
 
 const subscribe = (cb: () => void) => {
@@ -113,14 +126,24 @@ function Sidebar({
       </a>
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         <div className="flex items-center justify-between gap-1 px-2 pt-2 pb-1">
-          <select aria-label="排序" className={select} value={view.sort} onChange={(e) => setView({ ...view, sort: e.target.value as Sort })}>
+          <select
+            aria-label="排序"
+            className={select}
+            value={view.sort}
+            onChange={(e) => setView({ ...view, sort: e.target.value as Sort })}
+          >
             {Object.entries(SORTS).map(([k, label]) => (
               <option key={k} value={k}>
                 {label}
               </option>
             ))}
           </select>
-          <select aria-label="类型" className={select} value={view.kind} onChange={(e) => setView({ ...view, kind: e.target.value })}>
+          <select
+            aria-label="类型"
+            className={select}
+            value={view.kind}
+            onChange={(e) => setView({ ...view, kind: e.target.value })}
+          >
             <option value="">全部类型</option>
             {kinds.map((k) => (
               <option key={k} value={k}>
@@ -128,7 +151,12 @@ function Sidebar({
               </option>
             ))}
           </select>
-          <select aria-label="语言" className={select} value={view.lang} onChange={(e) => setView({ ...view, lang: e.target.value as View["lang"] })}>
+          <select
+            aria-label="语言"
+            className={select}
+            value={view.lang}
+            onChange={(e) => setView({ ...view, lang: e.target.value as View["lang"] })}
+          >
             <option value="">全部语言</option>
             <option value="zh">中</option>
             <option value="en">EN</option>
@@ -152,16 +180,18 @@ function Sidebar({
                 <div className="truncate text-title text-ink">{it.title}</div>
                 <div className="mt-0.5 flex gap-2 font-mono text-meta text-subtle">
                   <span>{fmtDay(it[field])}</span>
-                  <span>{fmtDur(it.video.duration)}</span>
+                  <span>{mediaLabel(mediaOf(it))}</span>
                   {it.posts.length > 1 && <span>{it.posts.length} 条</span>}
                   {mine ? <span className="text-success">✓ 你已发</span> : people > 0 && <span>{people} 人已发</span>}
-                  {videoWarnings(it.video).length > 0 && <span className="text-warning">!</span>}
+                  {mediaWarnings(mediaOf(it)).length > 0 && <span className="text-warning">!</span>}
                 </div>
               </div>
             </a>
           )
         })}
-        {items.length === 0 && <p className="px-2 text-meta text-subtle">{total ? "没有符合筛选的素材" : "还没有素材"}</p>}
+        {items.length === 0 && (
+          <p className="px-2 text-meta text-subtle">{total ? "没有符合筛选的素材" : "还没有素材"}</p>
+        )}
       </nav>
       <div className="flex flex-none items-center gap-3 border-t border-line px-4 py-3 text-meta">
         <span className="min-w-0 flex-1 truncate text-subtle">{me}</span>
@@ -173,6 +203,9 @@ function Sidebar({
   )
 }
 
+/** The card picture: the cover, else the first image; a video-only item shows a frame of the video. */
+const thumbOf = (it: Item) => it.cover ?? mediaOf(it).find((m) => m.kind === "image")?.key
+
 function Home({ items }: { items: Item[] }) {
   useEffect(() => {
     document.title = "Rove 宣发包"
@@ -180,17 +213,17 @@ function Home({ items }: { items: Item[] }) {
   return (
     <>
       <h1 className="text-display font-semibold">挑一条，用你自己的 X 发出去</h1>
-      <p className="mt-1 text-meta text-muted">视频和文案都调好了。网站不碰你的 X 账号，只把东西交给你的 X。</p>
+      <p className="mt-1 text-meta text-muted">视频、图片和文案都调好了。网站不碰你的 X 账号，只把东西交给你的 X。</p>
       <div className="mt-6 grid gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((it) => (
           <a key={it.id} href={`#/${it.id}`} className="group block min-w-0 hover:no-underline">
             <div className="relative aspect-video overflow-hidden rounded-md border border-line bg-inset group-hover:border-line-active">
-              {it.cover ? (
-                <img className="size-full object-cover" src={vurl(it.cover)} alt="" loading="lazy" />
+              {thumbOf(it) ? (
+                <img className="size-full object-cover" src={vurl(thumbOf(it) as string)} alt="" loading="lazy" />
               ) : (
                 <video
                   className="size-full object-cover"
-                  src={`${vurl(it.video.key)}#t=0.5`}
+                  src={`${vurl(mediaOf(it)[0]?.key ?? "")}#t=0.5`}
                   preload="metadata"
                   muted
                   playsInline

@@ -44,7 +44,8 @@ const baseEnv = () => ({
 test("only a valid, unexpired Access JWT for our AUD gets through; no token is a 403", async () => {
   const env = baseEnv()
   const hit = async (jwt?: string) =>
-    (await worker.fetch(new Request("https://kit/", { headers: jwt ? { "cf-access-jwt-assertion": jwt } : {} }), env)).status
+    (await worker.fetch(new Request("https://kit/", { headers: jwt ? { "cf-access-jwt-assertion": jwt } : {} }), env))
+      .status
   expect(await hit()).toBe(403)
   expect(await hit(await sign({ aud: ["aud1"], exp }))).toBe(200)
   expect(await hit(await sign({ aud: ["other"], exp }))).toBe(403)
@@ -59,7 +60,8 @@ test("a logged-in member mints an upload token; minting again revokes the old on
   const mint = (headers: Record<string, string>) =>
     worker.fetch(new Request("https://kit/api/token", { method: "POST", headers }), env)
   const items = async (t: string) =>
-    (await worker.fetch(new Request("https://kit/api/items", { headers: { authorization: `Bearer ${t}` } }), env)).status
+    (await worker.fetch(new Request("https://kit/api/items", { headers: { authorization: `Bearer ${t}` } }), env))
+      .status
 
   const t1 = (await (await mint({ cookie })).json()).token
   expect(await items(t1)).toBe(200)
@@ -99,16 +101,27 @@ test("members save copy versions and log sends; the list shows who sent it", asy
   expect(list.items[0].sends.map((e: { by: string }) => e.by)).toEqual(["bob@x.com"])
 
   expect((await call("/api/items/a/versions", {}, { posts: ["x"] })).status).toBe(403)
-  expect((await call("/api/items/a/events", { ...bob, "sec-fetch-site": "cross-site" }, { action: "send" })).status).toBe(403)
+  expect(
+    (await call("/api/items/a/events", { ...bob, "sec-fetch-site": "cross-site" }, { action: "send" })).status,
+  ).toBe(403)
 })
 
 test("an item keeps its created stamp across re-pushes; older items get it from their first version", async () => {
   const env = baseEnv()
   const writer = { authorization: "Bearer w", "content-type": "application/json" }
-  await env.BUCKET.put("index.json", JSON.stringify({ items: [{ id: "old", title: "O", posts: ["p"], updated: "2026-11-06T00:00:00.000Z" }] }))
-  await env.BUCKET.put("meta:versions/old", JSON.stringify([{ posts: ["p"], by: "上传", at: "2026-11-01T00:00:00.000Z" }]))
+  await env.BUCKET.put(
+    "index.json",
+    JSON.stringify({ items: [{ id: "old", title: "O", posts: ["p"], updated: "2026-11-06T00:00:00.000Z" }] }),
+  )
+  await env.BUCKET.put(
+    "meta:versions/old",
+    JSON.stringify([{ posts: ["p"], by: "上传", at: "2026-11-01T00:00:00.000Z" }]),
+  )
   const put = (body: object) =>
-    worker.fetch(new Request("https://kit/api/items/new", { method: "PUT", headers: writer, body: JSON.stringify(body) }), env)
+    worker.fetch(
+      new Request("https://kit/api/items/new", { method: "PUT", headers: writer, body: JSON.stringify(body) }),
+      env,
+    )
   const item = { title: "N", video: { key: "new/a.mp4", size: 1 }, posts: ["x"] }
 
   const first = await (await put(item)).json()
@@ -123,4 +136,30 @@ test("an item keeps its created stamp across re-pushes; older items get it from 
     new: first.created,
     old: "2026-11-01T00:00:00.000Z",
   })
+})
+
+test("an item can carry images, or images and a video; one with no attachment is refused", async () => {
+  const env = baseEnv()
+  const writer = { authorization: "Bearer w", "content-type": "application/json" }
+  const put = (id: string, body: object) =>
+    worker.fetch(
+      new Request(`https://kit/api/items/${id}`, { method: "PUT", headers: writer, body: JSON.stringify(body) }),
+      env,
+    )
+  const images = [
+    { key: "pics/1.png", size: 10, kind: "image" },
+    { key: "pics/2.png", size: 12, kind: "image" },
+  ]
+
+  expect((await put("pics", { title: "P", media: images, posts: ["x"] })).status).toBe(200)
+  expect((await put("none", { title: "P", posts: ["x"] })).status).toBe(400)
+  expect(
+    (await put("bad", { title: "P", media: [{ key: "bad/1.pdf", size: 1, kind: "document" }], posts: ["x"] })).status,
+  ).toBe(400)
+
+  // A video item re-pushed as images drops the old video instead of showing both.
+  await put("swap", { title: "S", video: { key: "swap/video.mp4", size: 1 }, posts: ["x"] })
+  const swapped = await (await put("swap", { title: "S", media: images, posts: ["x"] })).json()
+  expect(swapped.video).toBeUndefined()
+  expect(swapped.media).toHaveLength(2)
 })
