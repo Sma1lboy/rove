@@ -254,36 +254,34 @@ export function MachineChip(props: {
   )
 }
 
-/** Where the agent runs for a task on `machine`: this machine (the default; only the work is there) or `machine` itself. */
-export function AgentPlaceChip(props: { machine: string; there: boolean; onPick: (there: boolean) => void }) {
+export interface AgentPlace {
+  /** The picked machine's name. */
+  readonly machine: string
+  /** The engine runs on `machine`; false (the default) = the agent is this machine's and only the work is there. */
+  readonly there: boolean
+  readonly onPick: (there: boolean) => void
+}
+
+/** Where the agent runs for a task on another machine, one step down in the composer's `⋯`. */
+export function AgentPlaceMenu(props: AgentPlace & { onBack: () => void }) {
   const { machine } = props
   return (
-    <ChipPopover
-      field="agent-place"
-      title={t("newSession.agentPlace")}
-      label={t(props.there ? "newSession.agentThere" : "newSession.agentHere", { machine })}
-    >
-      {(close) => (
-        <ChoiceMenu
-          heading={t("newSession.agentPlace")}
-          options={[
-            { id: "", label: t("newSession.thisMachine") },
-            { id: "there", label: machine },
-          ]}
-          value={props.there ? "there" : ""}
-          digits
-          onPick={(id) => {
-            props.onPick(id !== "")
-            close()
-          }}
-          footer={
-            <p className={`${EMPTY_NOTE} text-muted`}>
-              {t(props.there ? "newSession.agentThereNote" : "newSession.agentHereNote", { machine })}
-            </p>
-          }
-        />
-      )}
-    </ChipPopover>
+    <ChoiceMenu
+      heading={t("newSession.agentPlace")}
+      options={[
+        { id: "", label: t("newSession.thisMachine") },
+        { id: "there", label: machine },
+      ]}
+      value={props.there ? "there" : ""}
+      digits
+      onBack={props.onBack}
+      onPick={(id) => props.onPick(id !== "")}
+      footer={
+        <p className={`${EMPTY_NOTE} text-muted`}>
+          {t(props.there ? "newSession.agentThereNote" : "newSession.agentHereNote", { machine })}
+        </p>
+      }
+    />
   )
 }
 
