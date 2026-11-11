@@ -22,7 +22,9 @@ import { Button } from "./ui/button.tsx"
 import { Keycap } from "./ui/keycap.tsx"
 import { type UserKeys, loadUserKeys, userKeys } from "./user-keys.ts"
 
-const GROUPS = groupBindings(editableBindings())
+/** Keys a page can never run (PARITY 11, 13: quitting the app, redrawing a corrupted terminal): rebound in the TUI. */
+const TERMINAL_ONLY: ReadonlySet<string> = new Set(["app.quit", "view.redraw"])
+const GROUPS = groupBindings(editableBindings().filter((binding) => !TERMINAL_ONLY.has(binding.id)))
 
 type Keys = readonly string[] | "default"
 type Change = { direct?: Keys; prefix?: Keys }

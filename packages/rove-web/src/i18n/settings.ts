@@ -58,9 +58,8 @@ export const en = {
     },
     general: {
       groupInterface: "Interface",
-      groupFiles: "Files and worktrees",
+      groupFiles: "Worktrees",
       groupTerminal: "Terminal",
-      editorNote: "Opens files from the file tree. auto follows $VISUAL / $EDITOR, else nvim / vim / emacs / nano.",
       tabStrip: "Tab strip",
       scrollback: "Scrollback",
     },
@@ -297,9 +296,8 @@ export const zh: typeof en = {
     },
     general: {
       groupInterface: "界面",
-      groupFiles: "文件与 worktree",
+      groupFiles: "Worktree",
       groupTerminal: "终端",
-      editorNote: "从文件树打开文件时用它。auto 跟随 $VISUAL / $EDITOR，否则依次尝试 nvim / vim / emacs / nano。",
       tabStrip: "标签栏",
       scrollback: "回滚行数",
     },
