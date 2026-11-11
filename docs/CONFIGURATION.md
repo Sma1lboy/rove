@@ -687,7 +687,9 @@ task. It runs only once the removal is going ahead: a delete refused for
 uncommitted work leaves it unrun. It is best-effort: a script that fails or
 runs longer than 60 seconds is logged to `daemon.log` and the removal goes on.
 It should not leave new files in the worktree, which would make git refuse the
-removal. Main and directory tasks own no worktree, so it never runs for them.
+removal. Force-removing an orphan whose owning repository is gone also runs
+the surviving script, after the managed-path safety checks pass. Main and
+directory tasks own no worktree, so it never runs for them.
 
 Files under `.rove/` win over per-user overrides set with `rove repo set`.
 For `init.sh`, the file only has to exist, even if empty. Prompt files must

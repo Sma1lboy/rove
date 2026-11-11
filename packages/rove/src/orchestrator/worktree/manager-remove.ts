@@ -254,6 +254,8 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // No salvage: it needs `git` in the worktree, and reaching this point
     // means git cannot resolve one.
     opts?.onSalvage?.(null)
+    const teardown = await runRepoTeardown(exec, worktreePath)
+    if (teardown.kind === "failed") console.error(`[rove] teardown.sh in ${worktreePath} failed (${teardown.reason})`)
     await exec.run(["rm", "-rf", worktreePath])
     // Post-condition: `rm -rf` can exit 0 having deleted only what it could.
     // Also where a retried residue converges when git unlinked the `.git`

@@ -8,7 +8,7 @@
  */
 
 import { execSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -93,10 +93,14 @@ describe("remove() / currentBranch() edges", () => {
     const wt = join(managedRoot, "orphaned")
     await manager.create(owner, "rove/orphaned", wt)
     writeFileSync(join(wt, "output.txt"), "work")
+    const marker = join(root, "orphan-teardown")
+    mkdirSync(join(wt, ".rove"), { recursive: true })
+    writeFileSync(join(wt, ".rove", "teardown.sh"), `pwd > ${JSON.stringify(marker)}\n`)
     rmSync(join(owner, ".git"), { recursive: true, force: true }) // upstream dies
 
     await expect(manager.remove(wt, { force: true })).resolves.toBeUndefined()
     expect(existsSync(wt)).toBe(false)
+    expect(readFileSync(marker, "utf8").trim()).toBe(wt)
   })
 
   it("remove() without force still refuses an orphaned worktree", async () => {
@@ -108,9 +112,13 @@ describe("remove() / currentBranch() edges", () => {
     execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
     const wt = join(managedRoot, "orphaned-keep")
     await manager.create(owner, "rove/orphaned-keep", wt)
+    const marker = join(root, "refused-orphaned-keep")
+    mkdirSync(join(wt, ".rove"), { recursive: true })
+    writeFileSync(join(wt, ".rove", "teardown.sh"), `touch ${JSON.stringify(marker)}\n`)
     rmSync(join(owner, ".git"), { recursive: true, force: true })
 
     await expect(manager.remove(wt)).rejects.toThrow(/is not a git worktree/)
+    expect(existsSync(marker)).toBe(false)
     expect(existsSync(wt)).toBe(true)
   })
 
@@ -138,9 +146,13 @@ describe("remove() / currentBranch() edges", () => {
     execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
     const wt = join(root, "outside-managed") // NOT under a managed root
     await manager.create(owner, "rove/outside", wt)
+    const marker = join(root, "refused-outside-managed")
+    mkdirSync(join(wt, ".rove"), { recursive: true })
+    writeFileSync(join(wt, ".rove", "teardown.sh"), `touch ${JSON.stringify(marker)}\n`)
     rmSync(join(owner, ".git"), { recursive: true, force: true })
 
     await expect(manager.remove(wt, { force: true })).rejects.toThrow(/not under a Rove worktrees root/)
+    expect(existsSync(marker)).toBe(false)
     expect(existsSync(wt)).toBe(true)
   })
 
