@@ -383,7 +383,8 @@ function RailRow(props: {
   const task = row.task
   const running = task.rowStatus?.kind === "running"
   const count = todoCount(task)
-  const byEngine = useStore(statusMarkStyle) === "engine"
+  const markStyle = useStore(statusMarkStyle)
+  const byEngine = markStyle === "engine"
   const status = row.fold?.collapsed ? props.rollup : task.rowStatus
   return (
     <button
@@ -405,7 +406,13 @@ function RailRow(props: {
           ))}
         </span>
       )}
-      <EngineIcon icon={props.engineIcon} name={task.engine?.name} status={byEngine ? statusMark(status) : undefined} />
+      {markStyle !== "dots" && (
+        <EngineIcon
+          icon={props.engineIcon}
+          name={task.engine?.name}
+          status={byEngine ? statusMark(status) : undefined}
+        />
+      )}
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
         {row.attempt ?? task.label}
       </span>

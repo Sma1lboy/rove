@@ -4,12 +4,13 @@
  * (transparent background, split-pane style): they are grouped apart and still written, so the TUI changes.
  */
 
+import type { ReactNode } from "react"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
 import { RAIL_GROUPS, type RailGroup, railGroup, setRailGroup } from "./rail-group.ts"
 import { ts } from "./settings-copy.ts"
-import { TaskRowsPreview } from "./settings-preview.tsx"
+import { RunningTitleSample, StatusMarkSample, WorkingBorderSample } from "./settings-preview.tsx"
 import { Choice, Group, Toggle } from "./settings-rows.tsx"
 import { ThemeGallery } from "./settings-theme-gallery.tsx"
 import { STATUS_MARKS, type StatusMarkStyle, setStatusMarkStyle, statusMarkStyle } from "./status-mark.ts"
@@ -44,6 +45,12 @@ const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
   runningTitle: { shimmer: "appearance.titleShimmer", still: "appearance.titleStill" },
 }
 
+const STATUS_MARK_LABEL: Record<StatusMarkStyle, string> = {
+  engine: "settings.appearance.statusMarkEngine",
+  both: "settings.appearance.statusMarkBoth",
+  dots: "settings.appearance.statusMarkDots",
+}
+
 type EnumKey = keyof typeof CHOICE_LABEL & PrefKey
 type FlagKey = "transparent" | "taskColors" | "colorblind"
 
@@ -55,10 +62,11 @@ export function AppearanceSection({ model }: { model: AppModel }) {
   const mark = useStore(statusMarkStyle)
   const pick = <K extends PrefKey>(key: K, value: Prefs[K]) => void setPref(client, key, value)
 
-  const choice = (key: EnumKey, label: string, hint?: string) => (
+  const choice = (key: EnumKey, label: string, hint?: string, sample?: ReactNode) => (
     <Choice
       label={ts(label)}
       hint={hint}
+      sample={sample}
       value={state.prefs[key] as string}
       picks={choicesOf(state, key).map((value) => ({
         value: value as string,
@@ -97,9 +105,14 @@ export function AppearanceSection({ model }: { model: AppModel }) {
         {flag("taskColors", "general.taskColors", t("settings.appearance.taskColorsNote"))}
         {flag("colorblind", "general.colorblind", t("settings.appearance.colorblindNote"))}
       </Group>
-      <Group title={t("settings.appearance.groupTasks")} lead={<TaskRowsPreview model={model} />}>
-        {choice("workingBorder", "general.workingBorder", t("settings.appearance.workingBorderNote"))}
-        {choice("runningTitle", "general.runningTitle")}
+      <Group title={t("settings.appearance.groupTasks")}>
+        {choice(
+          "workingBorder",
+          "general.workingBorder",
+          t("settings.appearance.workingBorderNote"),
+          <WorkingBorderSample />,
+        )}
+        {choice("runningTitle", "general.runningTitle", undefined, <RunningTitleSample />)}
         {choice("glyphSet", "general.glyphSet")}
         {choice("railFold", "general.railFold", ts("general.railFoldHint"))}
         <Choice<RailGroup>
@@ -113,13 +126,11 @@ export function AppearanceSection({ model }: { model: AppModel }) {
         />
         <Choice<StatusMarkStyle>
           label={t("settings.appearance.statusMark")}
-          hint={t("settings.appearance.statusMarkNote")}
+          sample={<StatusMarkSample model={model} />}
           value={mark}
           picks={STATUS_MARKS.map((value) => ({
             value,
-            label: t(
-              value === "engine" ? "settings.appearance.statusMarkEngine" : "settings.appearance.statusMarkDots",
-            ),
+            label: t(STATUS_MARK_LABEL[value]),
           }))}
           onPick={setStatusMarkStyle}
         />
