@@ -1,7 +1,7 @@
 import { basename, dirname, join } from "node:path"
 
 // Only for reattaching pre-rename live hosts and moving their state; delete in the next minor.
-const LEGACY_PRE_RENAME_RUNTIME_NAME = "kobe"
+export const LEGACY_PRE_RENAME_RUNTIME_NAME = "kobe"
 
 /** The version field a pre-rename daemon's `daemon.status` reports. */
 export const PRE_RENAME_VERSION_KEY = `${LEGACY_PRE_RENAME_RUNTIME_NAME}Version`

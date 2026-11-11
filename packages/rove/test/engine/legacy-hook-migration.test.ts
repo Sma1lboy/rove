@@ -1,3 +1,4 @@
+import { LEGACY_PRE_RENAME_RUNTIME_NAME as OLD } from "@sma1lboy/rove-daemon/daemon/pre-rename-runtime"
 import { describe, expect, it } from "vitest"
 import { mergeActivityHooks, roveHookArgs } from "../../src/engine/json-hooks.ts"
 
@@ -12,8 +13,8 @@ describe("legacy hook migration", () => {
     const migrated = merge({
       hooks: {
         SessionStart: [
-          group("kobe hook session-start --engine codex --hook-version 1"),
-          group("kobe hook session-start --engine codex"),
+          group(`${OLD} hook session-start --engine codex --hook-version 1`),
+          group(`${OLD} hook session-start --engine codex`),
           current,
         ],
       },
@@ -24,16 +25,16 @@ describe("legacy hook migration", () => {
 
   it("preserves user commands and group metadata alongside legacy hooks", () => {
     const userHooks = [
-      { type: "command", command: "kobe hook session-start && echo user" },
-      { type: "command", command: "kobe hook session-start --custom-option" },
-      { type: "command", command: "node /user/kobe.js hook session-start" },
+      { type: "command", command: `${OLD} hook session-start && echo user` },
+      { type: "command", command: `${OLD} hook session-start --custom-option` },
+      { type: "command", command: `node /user/${OLD}.js hook session-start` },
       { type: "command", command: "echo user", timeout: 10 },
     ]
     expect(
       merge({
         extra: true,
         hooks: {
-          SessionStart: [{ matcher: "*", hooks: [...group("kobe hook session-start").hooks, ...userHooks] }],
+          SessionStart: [{ matcher: "*", hooks: [...group(`${OLD} hook session-start`).hooks, ...userHooks] }],
         },
       }),
     ).toEqual({ extra: true, hooks: { SessionStart: [{ matcher: "*", hooks: userHooks }, current] } })
