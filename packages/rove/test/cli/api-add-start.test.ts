@@ -1,7 +1,8 @@
 /** `add --start` without a `--prompt`: the task's engine boots idle in its own tab-1, where a bare `add` only creates the row. */
 
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
+import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const created = () => ({ taskId: "t1", task: taskFixture() })
@@ -118,5 +119,31 @@ describe("add --worktree-only", () => {
 
     expect(err).toMatchObject({ code: "CONFLICTING_FLAGS" })
     expect(client.requestNames).toEqual([])
+  })
+})
+
+describe("add from inside a session", () => {
+  afterEach(() => resetVerifiedSelfSession())
+
+  const inSession = () =>
+    verifiedSelfSession(
+      { ROVE_TASK_ID: "worker-1", ROVE_TAB_ID: "tab-1" },
+      {
+        sessions: async () => [{ key: "worker-1::tab-1", pid: 100, alive: true }],
+        ps: async () => "  100     1 /bin/zsh -il\n  500   100 bun rove api add",
+        pid: 500,
+      },
+    )
+
+  it("refuses a task that would have no agent, before anything is created", async () => {
+    await inSession()
+    const client = new FakeClient({ "task.create": created })
+    const err = await invokeVerb("add", ["--repo", "/repo/x", "--title", "scratch"], {
+      client,
+      runtime: stubRuntime(),
+    }).catch((e: unknown) => e)
+
+    expect(err).toMatchObject({ code: "EMPTY_SESSION" })
+    expect(client.requestNames).not.toContain("task.create")
   })
 })

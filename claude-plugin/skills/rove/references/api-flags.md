@@ -477,6 +477,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 |---|---|---|
 | `BAD_FLAG` | flag not on that verb | check the table above, then `schema --verb <v>` |
 | `TASK_NOT_FOUND` | id deleted or mistyped | `rove api list` |
+| `EMPTY_SESSION` | `add` from inside a session with nothing to run: it would be a task with no agent | add `--prompt` or `--start` for a session, `--worktree-only` for a checkout |
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery | copy the id from the prompt's `[ROVE]` line; `deliveries --task-id <id>` |
 | `DIRTY_WORKTREE` | `delete` on a worktree with uncommitted files | send the worker back to commit, or `delete --force` to discard |
 | `ISSUE_NOT_FOUND` | no issue with that number in this repo | `rove api issue-list --repo <path>` |
