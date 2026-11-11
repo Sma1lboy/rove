@@ -1,8 +1,7 @@
 /** `rail`, `inbox` messages. English is the source of truth; `zh: typeof en` keeps the shapes locked together. */
 export const en = {
   rail: {
-    markNotice:
-      "Task rows now show the engine's icon, and its colour is the state. Change it in Settings → Appearance.",
+    markNotice: "Task rows now start with the engine's icon. Change it in Settings → Appearance.",
     markNoticeUndo: "Old look",
     inbox: "inbox {count}",
     empty: "no tasks yet",
@@ -57,7 +56,7 @@ export const en = {
 
 export const zh: typeof en = {
   rail: {
-    markNotice: "任务行现在显示引擎图标，颜色表示状态。可在设置 → 外观里更改。",
+    markNotice: "任务行现在以引擎图标开头。可在设置 → 外观里更改。",
     markNoticeUndo: "换回旧样式",
     inbox: "收件箱 {count}",
     empty: "还没有任务",

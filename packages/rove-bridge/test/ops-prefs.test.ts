@@ -53,7 +53,7 @@ describe("prefs.get", () => {
       railFold: "glyphs",
       taskColors: "on",
       runningTitle: "shimmer",
-      statusMark: "engine",
+      statusMark: "both",
       statusMarkNoticeSeen: false,
       workingBorder: "flow",
       toast: true,

@@ -14,7 +14,7 @@ export interface EngineIconData {
 }
 
 // 1px below the box centre: the title's lowercase sits 1.5px under it, its capitals 0.3px.
-const CELL = "block size-3.5 flex-none translate-y-px"
+const CELL = "block size-4 flex-none translate-y-px"
 
 /** Reduced motion slows the breath instead of freezing it, as the dots do. */
 const BREATH = "animate-mark-pulse motion-reduce:[animation-duration:4.8s]"
@@ -29,7 +29,7 @@ export function EngineIcon(props: {
   if (look === "waiting" || look === "error") {
     return (
       <span
-        className={`${CELL} text-center font-mono text-meta leading-3.5 font-semibold ${TONE_CLASS[props.status?.tone ?? "muted"]}`}
+        className={`${CELL} text-center font-mono text-meta leading-4 font-semibold ${TONE_CLASS[props.status?.tone ?? "muted"]}`}
         aria-hidden="true"
       >
         {look === "waiting" ? "?" : "!"}
