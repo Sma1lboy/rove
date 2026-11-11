@@ -169,6 +169,36 @@ describe("createTaskFlow — adopt summary", () => {
 })
 
 describe("createTaskFlow — create mode + guards", () => {
+  test("the engine starts with the create, before the row is entered; a failed start keeps the row, selected, to retry from", async () => {
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const order: string[] = []
+    const started = makeCreateCtx({ createTask: async () => ({ id: "new-id" }), promptNewTask })
+    started.enterTask.mockImplementation(async (id: string) => void order.push(`enter:${id}`))
+    await createTaskFlow({ ...started.ctx, openEngine: async (id) => void order.push(`engine:${id}`) })
+    expect(order).toEqual(["engine:new-id", "enter:new-id"])
+
+    const failed = makeCreateCtx({ createTask: async () => ({ id: "new-id" }), promptNewTask })
+    await createTaskFlow({
+      ...failed.ctx,
+      openEngine: async () => {
+        throw new Error("ENGINE_LIMIT: 4 engines are running")
+      },
+    })
+    // Same slot as "Creating task…", so the failure replaces the ✓ instead of sitting under it.
+    expect(failed.notifyError).toHaveBeenCalledWith(expect.any(String), {
+      key: "task-create",
+      hint: expect.stringContaining("ENGINE_LIMIT"),
+    })
+    expect(failed.notifyInfo).toHaveBeenCalledWith("Creating task…", { key: "task-create" })
+    expect(failed.selectTask).toHaveBeenCalledWith("new-id")
+    expect(failed.enterTask).not.toHaveBeenCalled()
+  })
+
   test("create mode: calls task.create, remembers the vendor, saves the repo, lands on the new task", async () => {
     const promptNewTask = vi.fn(async () => ({
       mode: "create" as const,
@@ -287,7 +317,10 @@ describe("createTaskFlow — create mode + guards", () => {
 
     await createTaskFlow(ctx)
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't create the task — nothing was created: git worktree add failed")
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't create the task — nothing was created: git worktree add failed",
+      { key: "task-create" },
+    )
     expect(reload).not.toHaveBeenCalled()
     expect(selectTask).not.toHaveBeenCalled()
   })

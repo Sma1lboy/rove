@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     async (): Promise<{ pid: number; vendor: "claude" } | null> => ({ pid: 4242, vendor: "claude" }),
   ),
   failureLine: vi.fn(async () => "⚠ Engine exited (code 127)."),
+  paste: vi.fn(async (): Promise<{ bytes: number } | null> => ({ bytes: 1 })),
   buildLaunch: vi.fn(
     (input: {
       task: { id: string }
@@ -46,6 +47,7 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   deliverToHostedKey: mocks.deliver,
   awaitEngineProcess: mocks.awaitEngineProcess,
   hostedSessionFailureLine: mocks.failureLine,
+  pastePromptWhenEngineUp: mocks.paste,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
 vi.mock("../../src/engine/session-engine-presence.ts", () => ({ enginePresence: mocks.enginePresence }))
@@ -130,6 +132,26 @@ describe("daemon session adapter", () => {
       error: "engine process never started; last session output: ⚠ Engine exited (code 127).",
     })
     expect(mocks.awaitEngineProcess).toHaveBeenCalled()
+  })
+
+  // `pty.open` on a key that is already live reattaches: the launch argv, and the prompt on it, never ran.
+  it("pastes the prompt into a tab-1 that was already live, and fails loudly when it cannot", async () => {
+    mocks.ensureEngine.mockResolvedValueOnce({ alive: true, created: false })
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: true,
+    })
+    expect(mocks.paste).toHaveBeenCalledWith(
+      expect.anything(),
+      "task-1::tab-1",
+      "claude",
+      "do the thing",
+      expect.anything(),
+    )
+
+    mocks.ensureEngine.mockResolvedValueOnce({ alive: true, created: false })
+    mocks.paste.mockResolvedValueOnce(null)
+    const failed = await startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")
+    expect(failed).toMatchObject({ started: false, error: expect.stringMatching(/^NOT_DELIVERED/) })
   })
 
   const launchedArgv = (call: number) => mocks.buildLaunch.mock.calls[call]?.[0].argv ?? []

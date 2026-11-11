@@ -35,6 +35,12 @@ function deps(tasks: DaemonTask[], started = true) {
       getTask: (id) => tasks.find((t) => t.id === id),
       setScheduledStart: async (id) => void calls.push(`clear:${id}`),
       setPrompt: async (id, p) => void calls.push(`prompt:${id}:${p}`),
+      ensureMainTask: async () => {
+        throw new Error("no pending start in this test")
+      },
+      openDirectoryTask: async () => {
+        throw new Error("no pending start in this test")
+      },
     },
     runtime: {
       startTaskSessionWithPrompt: vi.fn(async (_link, id, p) => {

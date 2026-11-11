@@ -14,6 +14,10 @@ export interface Toast {
   readonly title: string
   /** Optional context line under the title (task title, project…). */
   readonly body?: string
+  /** See {@link NotifyInput.key}. */
+  readonly key?: string
+  /** See {@link NotifyInput.hint}. */
+  readonly hint?: string
 }
 
 export interface NotifyInput {
@@ -30,7 +34,14 @@ export interface NotifyInput {
   /** An agent's turn ending, from a turn-state notifier, not an informational toast. A `done` turn
    *  end is what {@link FINISHED_ALERTS_KEY} mutes. */
   readonly turnEnd?: boolean
+  /** A toast with the same key replaces the shown one: a progress line ("Creating task…") gives way to its outcome. */
+  readonly key?: string
+  /** An error card's next-step line, shown whole (it wraps); absent = the generic "run rove doctor". */
+  readonly hint?: string
 }
+
+/** What a toast caller may add to its message. */
+export type ToastOptions = Pick<NotifyInput, "key" | "hint">
 
 export const TOAST_DURATION_MS = 4500
 

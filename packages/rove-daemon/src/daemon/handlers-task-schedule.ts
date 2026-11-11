@@ -1,10 +1,13 @@
 /**
- * `task.scheduleStart` / `task.cancelScheduledStart` / `task.startScheduledNow`: the one-shot delayed start
- * of an unstarted task (`scheduled-start.ts` owns the clock). Scheduling never starts anything.
+ * `pendingStart.*`: a start that creates its task when due ("Later"). `task.scheduleStart` /
+ * `task.cancelScheduledStart` / `task.startScheduledNow`: the delayed start of a task that already exists.
+ * `scheduled-start.ts` owns the clock for both; scheduling never starts anything.
  */
 
-import { requireString } from "./handler-validators.ts"
+import type { ApiParams } from "@sma1lboy/rove-plugin-sdk/contract"
+import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
+import type { PendingStartCreate, PendingStartsStore } from "./pending-starts-store.ts"
 import { startScheduledNow } from "./scheduled-start.ts"
 
 /** Longest first message accepted, in characters. */
@@ -21,7 +24,64 @@ export function parseScheduledStart(raw: unknown): { at: string; prompt: string 
   return { at: new Date(when).toISOString(), prompt }
 }
 
+/** What a pending start creates: `add` flags (never a prompt, which the start carries) or a directory session. */
+function parseCreate(raw: unknown): PendingStartCreate {
+  const create = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {}
+  if (create.via === "dir") {
+    const vendor = optionalString(create, "vendor")
+    return {
+      via: "dir",
+      dir: requireString(create, "dir"),
+      project: optionalBoolean(create, "project") === true,
+      ...(vendor ? { vendor } : {}),
+    }
+  }
+  if (create.via !== "add") throw new Error("create.via must be add or dir")
+  const params = create.params
+  if (typeof params !== "object" || params === null || Array.isArray(params))
+    throw new Error("create.params must be an object")
+  const flags = params as Record<string, unknown>
+  for (const [flag, value] of Object.entries(flags)) {
+    const scalar = typeof value === "string" || typeof value === "boolean" || typeof value === "number"
+    if (!scalar && !(Array.isArray(value) && value.every((v) => typeof v === "string")))
+      throw new Error(`create.params.${flag} must be a string, number, boolean or string list`)
+  }
+  // The start delivers its own prompt; anything that would run something else now is not a pending start.
+  const runsNow = ["prompt", "prompt-file", "start", "worktree-only", "count", "agents"].find((f) => f in flags)
+  if (runsNow) throw new Error(`create.params.${runsNow} does not belong in a pending start`)
+  return { via: "add", params: flags as ApiParams }
+}
+
+function pendingOf(ctx: { readonly pendingStarts?: PendingStartsStore }): PendingStartsStore {
+  if (!ctx.pendingStarts) throw new Error("this daemon keeps no pending starts")
+  return ctx.pendingStarts
+}
+
 export const SCHEDULE_HANDLERS: readonly DaemonRequestHandler[] = [
+  {
+    name: "pendingStart.add",
+    async handle(payload, ctx) {
+      const { at, prompt } = parseScheduledStart(payload)
+      const create = parseCreate(payload.create)
+      const title = (optionalString(payload, "title") ?? "").slice(0, 200)
+      const start = await pendingOf(ctx).add({ at, prompt, title, repo: requireString(payload, "repo"), create })
+      return { id: start.id, at: start.at }
+    },
+  },
+  {
+    name: "pendingStart.list",
+    async handle(_payload, ctx) {
+      return { starts: ctx.pendingStarts?.list() ?? [] }
+    },
+  },
+  {
+    name: "pendingStart.cancel",
+    async handle(payload, ctx) {
+      const id = requireString(payload, "id")
+      if (!(await pendingOf(ctx).remove(id))) throw new Error(`NOT_SCHEDULED: no pending start ${id}`)
+      return {}
+    },
+  },
   {
     name: "task.scheduleStart",
     async handle(payload, ctx) {

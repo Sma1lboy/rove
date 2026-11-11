@@ -52,15 +52,7 @@ import {
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
 import { ApiError, requireVerbInstalled, verbInstalled } from "./api/types.ts"
-import type {
-  ApiCaller,
-  ApiRuntime,
-  DeliveredPrompt,
-  ParsedArgs,
-  PromptDeliveryOps,
-  PromptTarget,
-  VerbSpec,
-} from "./api/types.ts"
+import type { ApiRuntime, DeliveredPrompt, ParsedArgs, PromptDeliveryOps, PromptTarget, VerbSpec } from "./api/types.ts"
 import { API_VERBS, VERBS, VERB_GROUPS, findVerb, unknownVerbError } from "./api/verbs.ts"
 import { argvHasFlag } from "./argv.ts"
 import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
@@ -116,7 +108,7 @@ const USAGE_ERROR_CODES: ReadonlySet<string> = new Set([
 export async function invokeVerb(
   verbName: string,
   argv: readonly string[],
-  deps: { client: DaemonRpc | null; runtime?: ApiRuntime; caller?: ApiCaller },
+  deps: { client: DaemonRpc | null; runtime?: ApiRuntime },
 ): Promise<unknown> {
   return runVerb(verbName, { argv }, deps)
 }

@@ -74,15 +74,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   }
   // `add` sends an agent to do something, so the caller says what. A task with nothing to run would sit in the
   // sidebar as a row nobody works in, and a silent engine launch from an old script is worse than this refusal.
-  const scheduled = ctx.caller.scheduledStart
-  if (scheduled && (parallel || args.promptText() || args.bool("start") || worktreeOnly || args.str("fork"))) {
-    throw new ApiError(
-      "a scheduled start carries the first message itself: it conflicts with --prompt/--prompt-file, --start, --worktree-only, --fork and --count/--agents",
-      "CONFLICTING_FLAGS",
-      helpStep("add"),
-    )
-  }
-  if (!scheduled && !parallel && !args.promptText() && !args.bool("start") && !worktreeOnly) {
+  if (!parallel && !args.promptText() && !args.bool("start") && !worktreeOnly) {
     throw new ApiError(
       "add would create a task with no agent: pass --prompt/--prompt-file for work, --start for an idle engine to type into, or --worktree-only for a checkout that is not a session",
       "EMPTY_SESSION",
@@ -208,13 +200,7 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName
 
-  const scheduled = ctx.caller.scheduledStart
-  if (scheduled) payload.scheduledStart = scheduled
   const request = placedRequest(placement, payload)
-  // Only `task.create` writes the schedule with the row; anywhere else the row would land with neither.
-  if (scheduled && request.method !== "task.create") {
-    throw new ApiError("a scheduled start creates a top-level task only", "CONFLICTING_FLAGS", helpStep("add"))
-  }
   const res = await daemon.request<{
     taskId: string
     task: SerializedTask
@@ -249,9 +235,6 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
       }
       task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
       return { taskId, task, worktreePath: task.worktreePath, home: homeDir(), ...placed, started: false, ...warned }
-    }
-    if (scheduled) {
-      return { taskId, task, engine: launchedEngine(task), home: homeDir(), ...placed, started: false, ...warned }
     }
     // `--start` (the only way here, EMPTY_SESSION refused the rest): no first message, but the engine boots idle in the task's own tab-1. The task IS created, so a failure names it.
     try {

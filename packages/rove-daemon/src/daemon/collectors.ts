@@ -82,6 +82,9 @@ export interface AutomationCollectorDeps {
   /** Should-run for the routine runner and quota-resume. */
   readonly runnability?: DispatchRunnability
   readonly dispatches?: import("./automation-runner.ts").RunnerDeps["dispatches"]
+  readonly pendingStarts?: import("./pending-starts-store.ts").PendingStartsStore
+  /** This daemon's socket, which an in-process verb (a pending start's `add`) is run against. */
+  readonly socketPath?: string
 }
 
 /**
@@ -319,9 +322,17 @@ export function startDaemonCollectors(
   )
 
   // Ungated, and it needs the self link only a full daemon has (the same one routines start sessions through).
+  const invokeApi = runtime.invokeApi?.bind(runtime)
+  const socketPath = automations?.socketPath
   const stopScheduledStartRunner = automations
     ? startScheduledStartRunner(
-        { orch, runtime, link: automations.link },
+        {
+          orch,
+          runtime,
+          link: automations.link,
+          ...(automations.pendingStarts ? { pending: automations.pendingStarts } : {}),
+          ...(invokeApi && socketPath ? { invoke: (verb, params) => invokeApi(verb, params, socketPath) } : {}),
+        },
         options.scheduledStartTickMs ?? DEFAULT_SCHEDULED_START_TICK_MS,
       )
     : async () => {}

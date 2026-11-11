@@ -185,7 +185,8 @@ export async function startUngrouped(request: Request, engine: string, prompt: s
  * Start a session in the project's own checkout (Worktree off): a top-level row of that project, titled
  * from `prompt`. It is never a conversation opened on the project's main task, which would nest it there.
  * `message` is what the engine receives (the prompt plus attachment refs); it defaults to the prompt.
- * With `at` the message waits for that time, written with the row, and no engine opens before then.
+ * With `at` nothing is created now: the daemon opens the session with the message at that time (the Routines
+ * page lists it), so there is no task id to return.
  */
 export async function startInCheckout(
   request: Request,
@@ -194,15 +195,16 @@ export async function startInCheckout(
   prompt: string,
   message: string = prompt.trim(),
   at?: Date,
-): Promise<string> {
+): Promise<string | undefined> {
   const pick = engine ? { engine } : {}
   const title = prompt.trim() ? deriveTitleFromPrompt(prompt) : ""
-  const { taskId } = await request<{ taskId: string }>("task.openCheckout", {
+  const { taskId } = await request<{ taskId?: string }>("task.openCheckout", {
     repo,
     ...pick,
     ...(title ? { title } : {}),
     ...(at ? { scheduleAt: at.toISOString(), schedulePrompt: message } : {}),
   })
-  if (!at) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message })
+  if (at || !taskId) return undefined
+  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message })
   return taskId
 }

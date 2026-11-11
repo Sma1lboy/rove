@@ -3,9 +3,8 @@ import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError, invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
-import { cliCaller } from "@sma1lboy/rove/src/cli/api/types.ts"
 import { BridgeError } from "../protocol.ts"
-import type { BridgeApi, LocalVerbOptions } from "./types.ts"
+import type { BridgeApi } from "./types.ts"
 
 /** Rethrow with the refusal's stable `code` and its recovery data kept on the wire. */
 function asBridgeError(err: unknown, fallback: string): BridgeError {
@@ -42,7 +41,7 @@ function taskIdOf(argv: readonly string[]): string | undefined {
 export function createBridgeApi(client: RoveDaemonClient, remote?: RemoteVerbs): BridgeApi {
   return {
     machineOf: (taskId) => remote?.machineOf(taskId),
-    async verb<T>(name: string, argv: readonly string[], machine?: string, local?: LocalVerbOptions): Promise<T> {
+    async verb<T>(name: string, argv: readonly string[], machine?: string): Promise<T> {
       if (machine !== undefined && machine !== "local" && !remote) {
         throw new BridgeError("UNKNOWN_MACHINE", `this bridge serves no machine named "${machine}"`)
       }
@@ -66,8 +65,7 @@ export function createBridgeApi(client: RoveDaemonClient, remote?: RemoteVerbs):
       }
       try {
         // In-process result of a `rove api` verb whose shape docs/API.md pins.
-        const caller = local?.scheduledStart ? { ...cliCaller(), scheduledStart: local.scheduledStart } : undefined
-        return (await invokeVerb(name, argv, { client, ...(caller ? { caller } : {}) })) as T
+        return (await invokeVerb(name, argv, { client })) as T
       } catch (err) {
         throw asBridgeError(err, "RPC_ERROR")
       }

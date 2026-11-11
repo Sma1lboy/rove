@@ -7,6 +7,7 @@
  * nothing reads the unread map), so host toasts carry the selected task and "".
  */
 
+import type { ToastOptions } from "../../tui/lib/notify-state"
 import type { NotificationKind, NotificationsContext } from "../context/notifications"
 import type { WorktreeGoneEvent } from "./use-workspace-selection"
 
@@ -16,9 +17,9 @@ export interface HostNotifiers {
    * the daemon log, so a failed key press would look like a no-op. Call sites
    * KEEP their `console.error` for forensics.
    */
-  readonly notifyError: (message: string) => void
+  readonly notifyError: (message: string, opts?: ToastOptions) => void
   /** Green "this happened" confirmation (engine cycled, creating task, already up to date). */
-  readonly notifyInfo: (message: string) => void
+  readonly notifyInfo: (message: string, opts?: ToastOptions) => void
   /** Amber "over to you": stopped on something only the user can settle
    *  (land conflict, dirty base, kept worktree). */
   readonly notifyNeedsInput: (message: string) => void
@@ -34,12 +35,12 @@ export function useHostNotifiers(args: {
   readonly selectedId: () => string | null
 }): HostNotifiers {
   const { notif, t, selectedId } = args
-  const post = (kind: NotificationKind, title: string): void => {
-    notif.notify({ kind, taskId: selectedId() ?? "", tabId: "", title })
+  const post = (kind: NotificationKind, title: string, opts?: ToastOptions): void => {
+    notif.notify({ kind, taskId: selectedId() ?? "", tabId: "", title, ...opts })
   }
   return {
-    notifyError: (message) => post("error", message),
-    notifyInfo: (message) => post("done", message),
+    notifyError: (message, opts) => post("error", message, opts),
+    notifyInfo: (message, opts) => post("done", message, opts),
     notifyNeedsInput: (message) => post("needs_input", message),
     notifyWorktreeGone: (event) =>
       notif.notify({

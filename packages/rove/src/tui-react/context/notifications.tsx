@@ -92,7 +92,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
       const toastEnabled = (prefs["notifications.toast.enabled"] as boolean | undefined) !== false
       if (shouldShowToast(input.kind, toastEnabled)) {
         const id = ++counter.current
-        setToasts((prev) => [...prev, { id, ...input }])
+        setToasts((prev) => [...prev.filter((t) => input.key === undefined || t.key !== input.key), { id, ...input }])
         const timer = setTimeout(() => {
           timers.current.delete(timer)
           dismiss(id)

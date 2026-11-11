@@ -7,7 +7,7 @@
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
 import { isRemoteRepoKey } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type { Task, TaskId, TaskRoutineLink, TaskScheduledStart, VendorId } from "../types/task.ts"
+import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../types/task.ts"
 import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
@@ -48,8 +48,6 @@ export interface OpenDirectoryTaskInput {
   readonly modelEffort?: string
   /** Standing session of a routine, folded behind its group's routine row. */
   readonly routine?: TaskRoutineLink
-  /** Due agent start, written with the row: the only way a task may exist with no engine yet. */
-  readonly scheduledStart?: TaskScheduledStart
 }
 
 /** The stored parent of a child nested under `id`: its top-level ancestor, since children never nest. */
@@ -105,7 +103,6 @@ export async function createTaskRow(deps: CreateDeps, input: CreateTaskInput): P
     ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
     ...(parentTaskId ? { parentTaskId } : {}),
     ...(input.worktreeOnly ? { worktreeOnly: true } : {}),
-    ...(input.scheduledStart ? { scheduledStart: input.scheduledStart } : {}),
     ...(input.cwdSubpath ? { cwdSubpath: input.cwdSubpath } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
     // Persisted ON the task: `ensureWorktree` may run in a later daemon
@@ -142,7 +139,6 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     ...(input.routine ? { routine: input.routine } : {}),
     ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
     ...(input.model?.trim() ? { model: input.model.trim() } : {}),
-    ...(input.scheduledStart ? { scheduledStart: input.scheduledStart } : {}),
     vendor: input.vendor ?? resolvePreferredVendor(),
   })
 }

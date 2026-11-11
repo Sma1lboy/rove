@@ -14,6 +14,8 @@ describe("op table", () => {
         "task.info",
         "repo.branches",
         "notes.list",
+        "pendingStart.cancel",
+        "pendingStart.list",
         "worktree.adoptable",
         "task.spawn",
         "task.rename",

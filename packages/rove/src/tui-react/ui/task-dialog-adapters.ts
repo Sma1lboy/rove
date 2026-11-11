@@ -7,6 +7,7 @@
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { isDeleteBranchOnTaskDeleteEnabled } from "../../state/task-delete-branch.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs.ts"
+import { openTaskEngine } from "../../tui/lib/open-task-engine"
 import type { ChildrenPrompt, ConfirmPrompt, TextPromptOpts } from "../../tui/lib/task-actions"
 import type { CreateTaskContext } from "../../tui/lib/task-create-flow"
 import type { Task, VendorId } from "../../types/task.ts"
@@ -105,5 +106,7 @@ export function buildBaseCreateTaskContext(deps: BaseCreateTaskContextDeps): Cre
     selectTask: (id) => deps.setSelectedId(id),
     // Then enter it: `n` lands in the new task's engine pane.
     enterTask: (id) => deps.enterTask(id),
+    // A daemon runs the engine; with no daemon there is no task to start it in.
+    ...(deps.orch ? { openEngine: openTaskEngine } : {}),
   }
 }
