@@ -1,8 +1,7 @@
 /** File attachments for a message: stored on the Mac by `attachment.put`, referenced like the TUI composer does. */
 
 import { type ClipboardEvent, type DragEvent, type ReactNode, useRef, useState } from "react"
-import { t } from "./i18n/index.ts"
-import { MAX_ATTACHMENT_BYTES } from "./kanban-attach.ts"
+import { storeAttachment } from "./kanban-attach.ts"
 import type { AppModel } from "./model.ts"
 import { AttachThumbs } from "./ui/attach-thumbs.tsx"
 
@@ -74,13 +73,6 @@ export function withRefs(prompt: string, attachments: readonly Attachment[]): st
   return `${prompt}\n\n${refs}`
 }
 
-async function toBase64(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  let binary = ""
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return btoa(binary)
-}
-
 /** Twice the 56px block, for a dense screen. */
 const THUMB_PX = 112
 
@@ -133,16 +125,11 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
     }
   }
   const upload = async (file: File): Promise<void> => {
-    if (file.size > MAX_ATTACHMENT_BYTES) return onError(t("pages.attachTooLarge", { name: file.name }))
     const id = `${Date.now()}-${nextId++}`
     const thumb = await thumbOf(file)
     update((now) => [...now, { id, name: file.name, size: file.size, mime: file.type, ...(thumb ? { thumb } : {}) }])
     try {
-      const res = await model.client.request<{ path: string; kind: string }>("attachment.put", {
-        mime: file.type,
-        name: file.name,
-        data: await toBase64(file),
-      })
+      const res = await storeAttachment(model.client, file)
       update((now) => now.map((a) => (a.id === id ? { ...a, path: res.path, kind: res.kind } : a)))
     } catch (err) {
       update((now) => now.filter((a) => a.id !== id))

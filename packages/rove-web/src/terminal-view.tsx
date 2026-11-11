@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "./bridge.ts"
 import { ConfirmDialog } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
-import { putAttachment } from "./kanban-attach.ts"
+import { PART_BYTES, putAttachment } from "./kanban-attach.ts"
 import { terminalText } from "./keymap-text.ts"
 import type { AppModel } from "./model.ts"
 import { beginReset, endReset, exitIsReset } from "./reset-guard.ts"
@@ -53,6 +53,8 @@ export interface TerminalViewProps {
 /** A dropped file is stored on the Mac (`attachment.put`) and its path typed into the terminal, as a terminal emulator pastes a dropped file's path. */
 async function dropFiles(client: BridgeClient, handle: TermHandle, files: File[]): Promise<void> {
   for (const file of files) {
+    // A file sent in parts takes a while, and the terminal shows nothing until its path lands.
+    if (file.size > PART_BYTES) toast(t("layout.dropUploading", { name: file.name }))
     try {
       handle.term.paste(`${await putAttachment(client, file)} `)
     } catch (err) {

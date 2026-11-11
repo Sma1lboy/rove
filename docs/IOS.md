@@ -226,8 +226,9 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `queue.edit` | `id` (`q-N`), `text` | `{edited, item?, reason?}` | `queue-edit` |
 | `queue.cancel` | `id` (`q-N`) | `{cancelled}` | `queue-cancel` |
 | `attachment.put` | `data` (base64, ≤ 5 MB), `mime?`, `name?` | `{path, kind, bytes}` (`kind`: `image`, `pdf` or `file`) | writes `~/.rove/attachments/attach-<date>-<nonce>[-<name>].<ext>` |
+| `attachment.part` | `data` (base64, ≤ 5 MB a part), `offset`, `upload?` (absent on the first part), `done?`, `mime?`, `name?` | `{upload, bytes}`; the last part: `{path, kind, bytes}` | appends to `~/.rove/attachments/upload-<id>.part`, renamed as `attachment.put` names a file; ≤ 500 MB in all |
 
-`attachment.put` takes any file. One that claims to be png/jpeg/gif/webp/pdf, by `mime` or by the extension of `name`, must start with that type's magic bytes; any other keeps the extension of `name` (`bin` without one). A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
+`attachment.put` takes any file that fits one frame; `attachment.part` takes a bigger one a part at a time, each part's `offset` being the bytes already sent. Both apply the same check: a file that claims to be png/jpeg/gif/webp/pdf, by `mime` or by the extension of `name`, must start with that type's magic bytes; any other keeps the extension of `name` (`bin` without one). A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
 
 ### Decisions
 
