@@ -1,7 +1,7 @@
 /**
- * Settings → Appearance: the TUI's appearance settings. Each pick is written to the TUI's own state.json key and
- * shows on this page at once; the theme tiles also preview on hover. Two have nothing to draw on a page
- * (transparent background, split-pane style): they are grouped apart and still written, so the TUI changes.
+ * Settings → Appearance: the appearance settings this page can draw. Each pick is written to its state.json key
+ * and shows on this page at once; the theme tiles also preview on hover. A setting only the terminal app can draw
+ * (transparent background, the state glyph set) is not listed: it is set in the TUI.
  */
 
 import type { ReactNode } from "react"
@@ -37,11 +37,6 @@ const CHOICE_LABEL: Partial<Record<PrefKey, Record<string, string>>> = {
     hairline: "general.railFoldHairline",
   },
   workingBorder: { flow: "appearance.borderFlow", still: "appearance.borderStill" },
-  glyphSet: {
-    braille: "appearance.glyphsBraille",
-    starburst: "appearance.glyphsStarburst",
-    ascii: "appearance.glyphsAscii",
-  },
   runningTitle: { shimmer: "appearance.titleShimmer", still: "appearance.titleStill" },
 }
 
@@ -52,7 +47,7 @@ const STATUS_MARK_LABEL: Record<StatusMarkStyle, string> = {
 }
 
 type EnumKey = keyof typeof CHOICE_LABEL & PrefKey
-type FlagKey = "transparent" | "taskColors" | "colorblind"
+type FlagKey = "taskColors" | "colorblind"
 
 export function AppearanceSection({ model }: { model: AppModel }) {
   const { client } = model
@@ -83,8 +78,8 @@ export function AppearanceSection({ model }: { model: AppModel }) {
     <Toggle
       label={ts(label)}
       hint={hint}
-      checked={key === "transparent" ? state.prefs.transparent : state.prefs[key] === "on"}
-      onChange={(next) => pick(key, (key === "transparent" ? next : next ? "on" : "off") as never)}
+      checked={state.prefs[key] === "on"}
+      onChange={(next) => pick(key, next ? "on" : "off")}
     />
   )
 
@@ -113,7 +108,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
           <WorkingBorderSample />,
         )}
         {choice("runningTitle", "general.runningTitle", undefined, <RunningTitleSample />)}
-        {choice("glyphSet", "general.glyphSet")}
+        {choice("splitStyle", "general.splitStyle")}
         {choice("railFold", "general.railFold", ts("general.railFoldHint"))}
         <Choice<RailGroup>
           label={t("settings.appearance.railGroup")}
@@ -134,10 +129,6 @@ export function AppearanceSection({ model }: { model: AppModel }) {
           }))}
           onPick={(next) => setStatusMarkStyle(client, next)}
         />
-      </Group>
-      <Group title={t("settings.appearance.groupTerminal")} hint={t("prefs.terminalOnly")}>
-        {flag("transparent", "general.transparent")}
-        {choice("splitStyle", "general.splitStyle")}
       </Group>
     </>
   )
