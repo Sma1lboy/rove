@@ -16,7 +16,7 @@
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
-import { machineOfTask } from "../../machines/hub-singleton.ts"
+import { remoteTaskOf } from "../../machines/hub-singleton.ts"
 
 import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
@@ -25,6 +25,7 @@ import type { VendorId } from "@/types/vendor"
 import type { TaskRepoView } from "@sma1lboy/rove-daemon/task-tree"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { repoEnv } from "../../engine/multi-repo-launch"
+import { linkedWorktree } from "../../machines/remote-workspace.ts"
 import type { SectionId } from "../../tui/component/settings-dialog/model"
 import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { terminalDrawsKitty } from "../../tui/lib/terminal-graphics"
@@ -32,7 +33,7 @@ import { buildDiffReview } from "../../tui/ops/diff-comments"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { shellIdentityInput } from "../../tui/workspace/terminal-tab-spawn"
+import { shellTabInput } from "../../tui/workspace/terminal-tab-spawn"
 import {
   type EngineTab,
   type TabSpawn,
@@ -284,7 +285,14 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           // user-typed engine's hooks report tab-precise events. Editor and
           // one-off command tabs skip it.
           ...(active.purpose !== "editor" && active.command.length === 1 && active.command[0] === defaultShell()
-            ? { initialInput: shellIdentityInput(props.taskId, active.id, props.repos && repoEnv(props.repos)) }
+            ? {
+                initialInput: shellTabInput(
+                  props.taskId,
+                  active.id,
+                  props.worktree,
+                  props.repos && repoEnv(props.repos),
+                ),
+              }
             : {}),
         }
       : active.kind === "content"
@@ -330,7 +338,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     activeLeafSize,
     onChooseEngine: props.onChooseEngine,
     // A remote task has no local directory to share, so its conversations stay tabs.
-    onSpawnChild: remoteOf(props.taskId) ? undefined : props.onSpawnChild,
+    onSpawnChild: remoteTaskOf(props.taskId) ? undefined : props.onSpawnChild,
     onQuickFork: props.onQuickFork,
     onOpenScratch: props.onOpenScratch,
     notifyError: (title) => notif.notify({ kind: "error", taskId: props.taskId, tabId: active.id, title }),
@@ -456,7 +464,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           worktree={props.worktree}
           relPath={active.relPath}
           base={active.base}
-          remote={remoteOf(props.taskId)}
+          remote={remoteTaskOf(props.taskId) ?? linkedWorktree(props.worktree)}
           focused={props.focused}
           onClose={() => tabClose.closeExited(active.id)}
           // Per-task, kv-persisted notes, sent over the PTY paste path.
@@ -489,10 +497,4 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       {tabMenu.overlay}
     </box>
   )
-}
-
-/** The preview's remote source, when this task lives on another machine. */
-function remoteOf(taskId: string): { machine: string; taskId: string } | undefined {
-  const machine = machineOfTask(taskId)
-  return machine ? { machine, taskId } : undefined
 }

@@ -291,9 +291,12 @@ Deleting the task deletes the worktree's task on that machine with the same
 reached, the delete is refused unless forced, and a forced delete leaves the
 worktree there.
 
-Not there yet: the Files pane and the diff of such a task (the link directory
-has no files), a shell tab that opens on that machine, a Windows machine, and
-a machine without Rove.
+The Files pane and the diff of such a task read that machine's worktree, as
+they do for a task that lives there (`worktree-files`, `worktree-diff` and the
+other `worktree-*` verbs take this task's id and run there). A new shell tab
+opens a login shell in the worktree on that machine.
+
+Not there yet: a Windows machine, and a machine without Rove.
 
 ## Working on a remote task
 

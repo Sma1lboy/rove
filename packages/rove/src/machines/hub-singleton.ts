@@ -49,3 +49,9 @@ export function machineOfTask(taskId: string | null | undefined): string | null 
   const alias = task?.origin?.machineId
   return alias && alias !== "local" ? alias : null
 }
+
+/** A task that lives on another machine, as the file readers address it there. */
+export function remoteTaskOf(taskId: string): { machine: string; taskId: string } | undefined {
+  const machine = machineOfTask(taskId)
+  return machine ? { machine, taskId } : undefined
+}

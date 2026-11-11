@@ -9,6 +9,7 @@
 import { useRenderer } from "@opentui/react"
 import { isValidElement, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { linkedWorktree } from "../../machines/remote-workspace.ts"
 import { DEFAULT_WORKING_BORDER, WORKING_BORDER_KEY, normalizeWorkingBorder } from "../../state/working-border"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
@@ -469,7 +470,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           remote={
             selectedTask?.origin && selectedTask.origin.machineId !== "local" && !selectedTask.origin.stale
               ? { machine: selectedTask.origin.machineId, taskId: String(selectedTask.id) }
-              : undefined
+              : linkedWorktree(selectedTask?.worktreePath)
           }
         />
       ) : null}

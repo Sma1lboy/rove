@@ -9,7 +9,9 @@ import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
 import {
   REMOTE_WORKSPACE_FILE,
   createRemoteLink,
+  linkedWorktree,
   readRemoteWorkspace,
+  remoteShellInput,
   remoteWorkspaceDir,
   removeRemoteLink,
   rxScript,
@@ -51,6 +53,12 @@ describe("a workspace on another machine", () => {
     expect(readRemoteWorkspace(dir)).toEqual(ws)
     expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toMatch(/rx '<command>'[\s\S]*Use tabs\./)
     expect(readFileSync(join(dir, "CLAUDE.md"), "utf8")).toMatch(/^wired on deck\n[\s\S]*Use tabs\./)
+
+    // The file readers address the worktree's task there; a fresh shell tab is told to open there.
+    expect(linkedWorktree(dir)).toEqual({ machine: "deck", taskId: "T1" })
+    expect(linkedWorktree(worktree)).toBeUndefined()
+    expect(remoteShellInput(dir)).toBe(` exec '${join(dir, "bin", "rsh")}'\r`)
+    expect(remoteShellInput(worktree)).toBe("")
 
     // A directory that is not a link, or sits outside the links root, is never removed.
     removeRemoteLink(worktree, home)

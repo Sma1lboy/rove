@@ -16,6 +16,7 @@ import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
 import { type EngineIcon, engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { isUnlistedCheckout } from "@sma1lboy/rove/src/lib/worktree-only.ts"
+import { isRemoteWorkspace } from "@sma1lboy/rove/src/machines/remote-workspace.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
 import { terminalTabsKey } from "@sma1lboy/rove/src/tui-react/workspace/terminal-tabs-persist.ts"
@@ -415,6 +416,9 @@ export function createRoveOps(
       }
       const task = await getTask(taskId)
       if (!task.worktreePath) return { base: null, files: [] }
+      // A workspace on another machine: the verb reads it there.
+      if (isRemoteWorkspace(task.worktreePath))
+        return api.verb<WorktreeDiff>("worktree-diff", [flag("task-id", taskId)])
       return worktreeDiff(task.worktreePath, task.prStatus?.baseRef)
     },
 
@@ -422,6 +426,7 @@ export function createRoveOps(
       if (api.machineOf?.(taskId)) return api.verb<DiffRefs>("worktree-refs", [flag("task-id", taskId)])
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
+      if (isRemoteWorkspace(task.worktreePath)) return api.verb<DiffRefs>("worktree-refs", [flag("task-id", taskId)])
       return worktreeRefs(task.worktreePath)
     },
     async diffFile(taskId, path, scope, ignoreWhitespace, ref, content) {
@@ -432,17 +437,18 @@ export function createRoveOps(
       }
       if (ref !== undefined && scope !== "task")
         throw new BridgeError("BAD_ARGS", "base only applies to the task scope")
-      if (api.machineOf?.(taskId)) {
-        return api.verb<unknown>("worktree-diff-file", [
+      const viaVerb = () =>
+        api.verb<unknown>("worktree-diff-file", [
           flag("task-id", taskId),
           flag("path", path),
           flag("scope", scope),
           ...(ref !== undefined ? [flag("base", ref)] : []),
           ...(ignoreWhitespace ? ["--ignore-whitespace"] : []),
         ])
-      }
+      if (api.machineOf?.(taskId)) return viaVerb()
       const task = await getTask(taskId)
       if (!task.worktreePath) throw new BridgeError("NO_WORKTREE", `task ${taskId} has no worktree yet`)
+      if (isRemoteWorkspace(task.worktreePath)) return viaVerb()
       const opts = { ignoreWhitespace: ignoreWhitespace === true }
       if (scope === "working" && content) return loadFileContent(task.worktreePath, path)
       if (scope === "working") return loadPreviewData(task.worktreePath, path, undefined, opts)

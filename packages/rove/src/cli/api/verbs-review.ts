@@ -6,7 +6,9 @@
  * task id like any verb, and the git reads happen next to the files.
  */
 
-import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import type { ApiParams, SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { forwardVerb, requireMachine } from "../../machines/forward.ts"
+import { linkedWorktree } from "../../machines/remote-workspace.ts"
 import { readPreviewFile } from "../../worktree/file-read.ts"
 import { worktreeDiff, worktreeDiffFile, worktreeFiles, worktreeRefs } from "../../worktree/review-read.ts"
 import { F } from "./flags.ts"
@@ -25,6 +27,33 @@ async function taskWorktree(ctx: VerbContext): Promise<{ path: string; prBaseRef
   return { path: task.worktreePath, prBaseRef: task.prStatus?.baseRef }
 }
 
+type Worktree = Awaited<ReturnType<typeof taskWorktree>>
+
+/**
+ * Run a read where the files are. A workspace on another machine (`add --workspace-on`) is a link
+ * directory here, so the same verb runs on its worktree task there, with the `pass` flags as given.
+ */
+async function readWorktree<T>(
+  ctx: VerbContext,
+  verb: string,
+  pass: readonly string[],
+  here: (wt: Worktree) => T | Promise<T>,
+): Promise<T> {
+  const wt = await taskWorktree(ctx)
+  const there = linkedWorktree(wt.path)
+  if (!there) return here(wt)
+  const given = pass.flatMap((name) => {
+    const value = ctx.args.str(name)
+    return value === undefined ? [] : [[name, value] as const]
+  })
+  const params: ApiParams = { "task-id": there.taskId, ...Object.fromEntries(given) }
+  const envelope = await forwardVerb(requireMachine(there.machine), verb, params)
+  if (!envelope.ok) {
+    throw new ApiError(envelope.error.message, envelope.error.code, envelope.error.data as Record<string, unknown>)
+  }
+  return envelope.result as T
+}
+
 export const REVIEW_VERBS: readonly VerbSpec[] = [
   {
     name: "worktree-files",
@@ -32,7 +61,7 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     summary:
       "List a task's worktree files: tracked plus untracked-not-ignored, worktree-relative. Returns { files }. Runs where the worktree lives, so it reads a task on another registered machine too.",
     flags: [F.taskId()],
-    handler: async (ctx) => ({ files: await worktreeFiles((await taskWorktree(ctx)).path) }),
+    handler: (ctx) => readWorktree(ctx, "worktree-files", [], async (wt) => ({ files: await worktreeFiles(wt.path) })),
   },
   {
     name: "worktree-file",
@@ -49,7 +78,8 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
         description: "Worktree-relative file path; absolute or `..` paths are refused.",
       },
     ],
-    handler: async (ctx) => readPreviewFile((await taskWorktree(ctx)).path, ctx.args.require("path")),
+    handler: (ctx) =>
+      readWorktree(ctx, "worktree-file", ["path"], (wt) => readPreviewFile(wt.path, ctx.args.require("path"))),
   },
   {
     name: "worktree-diff",
@@ -57,10 +87,7 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     summary:
       "A task's changed files: committed on its branch against the base (`scope: branch`, PR base first), then uncommitted (`scope: working`). Returns { base, files[{ path, status, added, deleted, scope }] }; `base` is null when none resolves.",
     flags: [F.taskId()],
-    handler: async (ctx) => {
-      const wt = await taskWorktree(ctx)
-      return worktreeDiff(wt.path, wt.prBaseRef)
-    },
+    handler: (ctx) => readWorktree(ctx, "worktree-diff", [], (wt) => worktreeDiff(wt.path, wt.prBaseRef)),
   },
   {
     name: "worktree-diff-file",
@@ -97,15 +124,15 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
         description: "Diff with `git diff -w`: whitespace-only changes drop out. Off by default.",
       },
     ],
-    handler: async (ctx) => {
-      const wt = await taskWorktree(ctx)
-      const asked = ctx.args.require("scope")
-      const scope = asked === "branch" || asked === "task" ? asked : "working"
-      return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef, {
-        ignoreWhitespace: ctx.args.bool("ignore-whitespace") === true,
-        ...(ctx.args.str("base") ? { base: ctx.args.str("base") as string } : {}),
-      })
-    },
+    handler: (ctx) =>
+      readWorktree(ctx, "worktree-diff-file", ["path", "scope", "base", "ignore-whitespace"], (wt) => {
+        const asked = ctx.args.require("scope")
+        const scope = asked === "branch" || asked === "task" ? asked : "working"
+        return worktreeDiffFile(wt.path, ctx.args.require("path"), scope, wt.prBaseRef, {
+          ignoreWhitespace: ctx.args.bool("ignore-whitespace") === true,
+          ...(ctx.args.str("base") ? { base: ctx.args.str("base") as string } : {}),
+        })
+      }),
   },
   {
     name: "worktree-refs",
@@ -113,6 +140,6 @@ export const REVIEW_VERBS: readonly VerbSpec[] = [
     summary:
       "What a task's diff can be compared against: its repository's local branches, remote branches and tags, plus the worktree branch's recent commits. Returns { branches, remotes, tags, commits[{ sha, subject }] }.",
     flags: [F.taskId()],
-    handler: async (ctx) => worktreeRefs((await taskWorktree(ctx)).path),
+    handler: (ctx) => readWorktree(ctx, "worktree-refs", [], (wt) => worktreeRefs(wt.path)),
   },
 ]
