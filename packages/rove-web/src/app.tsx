@@ -93,7 +93,7 @@ function Shell({ model }: { model: AppModel }) {
   const peek = useStore(railPeek)
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
-  const backing = useStore(backSwiping)
+  const backing = useStore(backSwiping) === "app"
   const panelPinned = useStore(panelWidth)
   const panelWide = useStore(panelExpanded)
   const pageOn = useStore(page)
