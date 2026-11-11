@@ -282,6 +282,11 @@ describe("activation failures map onto user-visible copy", () => {
     expect(activationErrorMessage(err, translate)).toBe("tasks.toast.worktreeErrorNotGit")
   })
 
+  test("a full disk asks for space and another try, not git's words", () => {
+    const err = new Error("git worktree add /w exited with code 128: fatal: write error: No space left on device")
+    expect(activationErrorMessage(err, translate)).toBe("tasks.toast.noDiskSpace")
+  })
+
   test("any other failure carries the underlying reason through", () => {
     const message = activationErrorMessage(new Error("worktree is locked"), translate)
     expect(message).toContain("tasks.toast.worktreeErrorGeneric")

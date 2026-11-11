@@ -14,6 +14,11 @@ export function errorMessage(err: unknown): string {
  */
 const THROW_SITE_PREFIX = /^(?:[a-z][A-Za-z0-9]*\(\)|[a-z][a-z0-9]*(?:[A-Z][A-Za-z0-9]*)+): /
 
+/** The disk or a quota ran out under git or the filesystem. Matched by text: these cross RPC as plain messages. */
+export function isDiskFull(err: unknown): boolean {
+  return /no space left on device|ENOSPC|disk quota exceeded/i.test(errorMessage(err))
+}
+
 export function userFacingErrorMessage(err: unknown): string {
   return errorMessage(err).replace(THROW_SITE_PREFIX, "")
 }

@@ -19,6 +19,7 @@ import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
   AgentPlaceChip,
+  ComposerNote,
   MachineChip,
   remoteEmpty,
   spawnOnMachine,
@@ -121,6 +122,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setWorktreeState(on)
   }
   const [error, setError] = useState<string | null>(null)
+  const lastTry = useRef<() => void>(() => {})
   const { attachments, attach, remove, ready, clear } = useAttachments(model, setError, ATTACHMENTS_KEY)
   const area = useRef<HTMLTextAreaElement>(null)
   const voiceHosted = useVoiceHosted(model.client)
@@ -197,6 +199,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const effortValue = efforts.some((e) => e.id === pickedEffort) ? pickedEffort : ""
 
   const cloneInto = async (source: string) => {
+    lastTry.current = () => void cloneInto(source)
     setError(null)
     setBusy(true)
     setProgress(t("newSession.cloning", { source }))
@@ -256,6 +259,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   // `at` holds the first message until then: the schedule is written with the task and the daemon starts it.
   const start = async (at?: Date) => {
+    lastTry.current = () => void start(at)
     setError(null)
     if (remote) return startRemote()
     if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
@@ -483,16 +487,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             />
           </div>
         </div>
-        {((busy && progress) || error) && (
-          <div className={C.NOTE}>
-            {busy && progress && (
-              <p className="m-0 text-muted" data-field="clone-progress">
-                {progress}
-              </p>
-            )}
-            {error && <p className="m-0 text-error">※ {error}</p>}
-          </div>
-        )}
+        <ComposerNote progress={busy ? progress : ""} error={error} busy={busy} onRetry={() => lastTry.current()} />
       </form>
     </div>
   )

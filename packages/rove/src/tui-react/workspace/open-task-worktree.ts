@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { userFacingErrorMessage } from "@/lib/error-message"
+import { isDiskFull, userFacingErrorMessage } from "@/lib/error-message"
 import { t } from "../../tui/i18n"
 import { detectWorktreeOpener, openWorktree } from "../../tui/lib/worktree-opener"
 import type { Task } from "../../types/task"
@@ -19,7 +19,11 @@ export async function requestTaskWorktreeOpen(id: string, deps: OpenTaskWorktree
     try {
       path = await deps.ensureWorktree(id)
     } catch (error) {
-      deps.notifyError(t("tasks.toast.worktreeErrorGeneric", { message: userFacingErrorMessage(error) }))
+      deps.notifyError(
+        isDiskFull(error)
+          ? t("tasks.toast.noDiskSpace")
+          : t("tasks.toast.worktreeErrorGeneric", { message: userFacingErrorMessage(error) }),
+      )
       return
     }
   }

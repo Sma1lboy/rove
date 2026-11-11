@@ -3,13 +3,13 @@
  * create-before-snapshot path is testable without mounting the full PTY host.
  */
 
-import { errorMessage, userFacingErrorMessage } from "../../lib/error-message.ts"
+import { errorMessage, isDiskFull, userFacingErrorMessage } from "../../lib/error-message.ts"
 import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
 import type { Task } from "../../types/task.ts"
 
 /**
  * Toast wording by failure shape: mid-delete ("wait"), no git repo
- * (`git init` fixes it), or the reason minus the worktree layer's
+ * (`git init` fixes it), a full disk (free space, try again), or the reason minus the worktree layer's
  * `create(): …` throw-site prefix. `TaskDeletingError` is matched by MESSAGE:
  * the daemon-side copy arrives over RPC as a plain `Error` (see
  * TASK_DELETING_CODE).
@@ -22,6 +22,7 @@ export function activationErrorMessage(
   if (message.includes(TASK_DELETING_CODE)) return translate("tasks.toast.worktreeErrorDeleting")
   if (/not a git repository|does not appear to be a git repo/i.test(message))
     return translate("tasks.toast.worktreeErrorNotGit")
+  if (isDiskFull(error)) return translate("tasks.toast.noDiskSpace")
   return translate("tasks.toast.worktreeErrorGeneric", { message: userFacingErrorMessage(error) })
 }
 

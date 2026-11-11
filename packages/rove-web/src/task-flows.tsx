@@ -5,6 +5,7 @@
  * `use-fix-ci.ts`), read from its own catalogs.
  */
 
+import { isDiskFull } from "@sma1lboy/rove/src/lib/error-message.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { BridgeRequestError } from "./bridge.ts"
 import { ConfirmDialog, errorText } from "./dialogs.tsx"
@@ -175,7 +176,12 @@ export async function openEditorFlow(model: AppModel, taskId: string): Promise<v
     else if (res.outcome === "failed")
       toast(tc("tasks", "toast.openWorktreeFailed", { label: res.label ?? "" }), "error")
   } catch (err) {
-    toast(tc("tasks", "toast.worktreeErrorGeneric", { message: errorText(err) }), "error")
+    toast(
+      isDiskFull(err)
+        ? tc("tasks", "toast.noDiskSpace")
+        : tc("tasks", "toast.worktreeErrorGeneric", { message: errorText(err) }),
+      "error",
+    )
   }
 }
 

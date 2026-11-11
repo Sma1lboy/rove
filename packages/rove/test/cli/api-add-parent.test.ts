@@ -39,6 +39,7 @@ function createClient(tasks: Record<string, unknown>[] = [root, kid], spawnTask?
       sharedLinks: [],
     }),
     "task.setPrompt": () => ({}),
+    "task.delete": () => ({}),
   })
 }
 
@@ -245,5 +246,18 @@ describe("add --no-worktree and --isolate-in", () => {
 
     await expectApiError(() => run(client, argv), "CONFLICTING_FLAGS")
     expect(client.requests).toEqual([])
+  })
+})
+
+describe("a full disk on the first start", () => {
+  it("removes the task it just created, so the same add after a cleanup is not a second row", async () => {
+    const client = createClient([])
+    const full = async () => {
+      throw new Error("git worktree add /w exited with code 128: fatal: write error: No space left on device")
+    }
+    await expect(run(client, ["--repo", "/work/web", "--no-parent", "--prompt", "go"], full)).rejects.toThrow(
+      /No space left/,
+    )
+    expect(client.requests.filter((r) => r.name === "task.delete").map((r) => r.payload)).toEqual([{ taskId: "c1" }])
   })
 })
