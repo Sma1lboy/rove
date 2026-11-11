@@ -183,7 +183,7 @@ function MachineLine(p: LineProps) {
 }
 
 function GithubCard({ model }: { model: AppModel }) {
-  const { machines, probes, refresh, probe, act } = useGithubConnector(model)
+  const { machines, probes, refreshing, refresh, probe, act } = useGithubConnector(model)
   const [busy, setBusy] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const local = probes[LOCAL]
@@ -241,9 +241,12 @@ function GithubCard({ model }: { model: AppModel }) {
                   {c("disconnect")}
                 </Button>
               </>
+            ) : !local ? (
+              // Not known yet: say so, rather than offer Connect to someone who may be signed in.
+              <span className="text-meta text-muted">{c("loading")}</span>
             ) : (
               !flowing && (
-                <Button variant="filled" disabled={busy !== null || !local} onClick={() => void login(LOCAL)}>
+                <Button variant="filled" disabled={busy !== null} onClick={() => void login(LOCAL)}>
                   {c("connect")}
                 </Button>
               )
@@ -269,8 +272,9 @@ function GithubCard({ model }: { model: AppModel }) {
           )}
         </div>
       </Group>
-      {rove && (
-        <Group title={c("machines")}>
+      {/* Listed from the start, each row "checking…", so nothing jumps in when the answers land; gone only once this machine is known to be signed out. */}
+      {(rove || !local) && (
+        <Group title={c("machines")} hint={c("machinesHint")}>
           <MachineLine
             name={c("thisMachine")}
             probe={local}
@@ -293,7 +297,9 @@ function GithubCard({ model }: { model: AppModel }) {
             />
           ))}
           <div className="py-2.5">
-            <Button onClick={() => void refresh()}>{c("refresh")}</Button>
+            <Button disabled={refreshing} onClick={() => void refresh()}>
+              {refreshing ? c("refreshing") : c("refresh")}
+            </Button>
           </div>
         </Group>
       )}
