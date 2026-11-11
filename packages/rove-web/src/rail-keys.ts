@@ -22,6 +22,7 @@ import { useStore } from "./store.ts"
 import { tc } from "./tui-copy.ts"
 import { findBinding, toast } from "./ui.ts"
 import { keysOf } from "./user-keys.ts"
+import { talksFirst } from "./voice/dictation-button.tsx"
 
 const COLLAPSED_KEY = "rove.collapsedProjects"
 const FOLDED_TASKS_KEY = "rove.foldedTasks"
@@ -140,7 +141,7 @@ export function openTaskRow(model: AppModel, taskId: string): void {
   const open = model.selection.get().taskId === taskId
   model.select(taskId)
   enterWorkspace()
-  if (open) focusActiveTerminal()
+  if (open && !talksFirst(model.client)) focusActiveTerminal()
 }
 
 export function useRailKeys(
