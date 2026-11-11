@@ -9,7 +9,7 @@ export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): stri
 
 /**
  * `link`: an accent text action (create PR, toggle scope). `filled`: the filled action of `buttonClass()` (an empty
- * state's "Start"). `danger`: the same in the error colour. `action`: a quiet bordered action beside a setting.
+ * state's "Start"). `danger`: the same in the error colour. `action`: a quiet bordered action beside a setting, on the ground and at the height of a Select or a segmented control.
  * `floating`: an action raised over content (a preview's
  * "ask in chat" beside a selection); the caller places it. `row`: a whole list row that opens something; the caller's
  * class paints it all, cursor included. `card`: a pickable tile (the theme gallery); the caller passes its
@@ -23,7 +23,7 @@ const VARIANT = {
   filled: buttonClass(),
   danger: buttonClass({ danger: true }),
   action:
-    "rounded-sm border-hairline border-line px-3 py-1.25 font-sans text-meta text-ink hover:border-line-active hover:bg-hover active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
+    "rounded-sm border-hairline border-line bg-inset px-3 py-1.5 font-sans text-meta text-ink hover:border-line-active hover:bg-menu active:scale-97 motion-reduce:active:scale-none disabled:cursor-default disabled:opacity-50 touch:min-h-10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
   floating:
     "whitespace-nowrap rounded-sm border-hairline border-line-active bg-surface px-2 py-0.5 font-mono text-meta text-ink shadow-popover",
   row: "",
