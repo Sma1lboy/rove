@@ -201,7 +201,7 @@ export const en = {
       "Change my Rove keybindings. Ask me first what I want changed, unless I already said. Edit {path} (create it if it is missing; keep existing entries and comments you were not asked to change). The format, every binding id and its default chord are in https://github.com/sma1lboy/rove/blob/main/docs/KEYBINDINGS.md (see Customizing). Only use binding ids listed there; a direct override replaces that binding's whole chord list, and null unbinds. The file must stay valid YAML: check it parses (for example with `ruby -ryaml -e 'YAML.load_file(ARGV[0])' {path}` or any YAML parser you have). Rove reloads it live, and unknown ids or invalid chords are ignored with a warning, so when you are done tell me what you changed and ask me to reopen Settings → Keybindings: it lists every applied override and every warning.",
   },
   pages: {
-    attachTooLarge: "{name} is larger than 5 MB",
+    attachTooLarge: "{name} is larger than 500 MB",
     new: "[ new ]",
     routinePause: "[ pause ]",
     routineEnable: "[ enable ]",
@@ -427,7 +427,7 @@ export const zh: typeof en = {
       "帮我改 Rove 的快捷键。先问我想改什么，除非我已经说过。编辑 {path}（不存在就新建；没让你改的条目和注释都保留）。格式、每个 binding id 及其默认按键见 https://github.com/sma1lboy/rove/blob/main/docs/KEYBINDINGS.md（Customizing 一节）。只用那里列出的 binding id；直接覆盖会替换该 binding 的整个按键列表，null 表示解绑。文件必须保持合法 YAML：确认它能解析（比如 `ruby -ryaml -e 'YAML.load_file(ARGV[0])' {path}`，或任何你有的 YAML 解析器）。Rove 会实时重新加载它，未知 id 或无效按键会被忽略并给出警告，所以改完后告诉我改了什么，并请我重新打开 设置 → 快捷键：那里会列出所有生效的覆盖和所有警告。",
   },
   pages: {
-    attachTooLarge: "{name} 超过 5 MB",
+    attachTooLarge: "{name} 超过 500 MB",
     new: "[ 新建 ]",
     routinePause: "[ 暂停 ]",
     routineEnable: "[ 启用 ]",

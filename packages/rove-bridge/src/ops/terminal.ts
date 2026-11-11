@@ -6,7 +6,18 @@
  */
 
 import { randomBytes } from "node:crypto"
-import { mkdirSync, writeFileSync } from "node:fs"
+import {
+  appendFileSync,
+  closeSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs"
 import { join } from "node:path"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import {
@@ -38,8 +49,14 @@ const ATTACHMENT_TYPES = {
 
 type AttachmentMime = keyof typeof ATTACHMENT_TYPES
 
-/** Raw bytes; base64 plus the frame stays well under the socket's 8 MiB cap. */
+/** Raw bytes of one frame; base64 plus the frame stays well under the socket's 8 MiB cap. */
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+
+/** A whole file sent in parts (`attachment.part`). */
+export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+
+/** An upload nobody finished: its part file goes when the next upload starts. */
+const STALE_PART_MS = 24 * 60 * 60 * 1000
 
 /** Same cap the TUI's attempts chip uses. */
 const MAX_ATTEMPTS = 5
@@ -141,6 +158,53 @@ export function matchesMagic(mime: AttachmentMime, bytes: Uint8Array): boolean {
   if (bytes.length < magic.length || !magic.every((b, i) => bytes[i] === b)) return false
   // RIFF is also WAV/AVI; WebP names itself at byte 8.
   return mime !== "image/webp" || Buffer.from(bytes.subarray(8, 12)).toString("ascii") === "WEBP"
+}
+
+/** Where a file is stored and what it claims to be, from its `name` and `mime`. */
+function attachmentTarget(a: Args, deps: TerminalOpDeps) {
+  const name = optStr(a, "name")
+  const ext = plainExt(name)
+  const stem = plainStem(name)
+  const claimed = claimedType(optStr(a, "mime"), ext)
+  const type = claimed ? ATTACHMENT_TYPES[claimed] : { ext, kind: "file" as const }
+  const stamp = deps.now().toISOString().slice(0, 10).replaceAll("-", "")
+  const path = join(deps.attachmentsDir(), `attach-${stamp}-${deps.nonce()}${stem ? `-${stem}` : ""}.${type.ext}`)
+  return { claimed, type, path }
+}
+
+/** The bytes of one frame's `data`. */
+function attachmentBytes(a: Args): Buffer {
+  const encoded = str(a, "data")
+  // Bound the work before decoding: base64 is 4 bytes per 3.
+  if (encoded.length > Math.ceil((MAX_ATTACHMENT_BYTES * 4) / 3) + 4) {
+    throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_ATTACHMENT_BYTES} bytes`)
+  }
+  const bytes = Buffer.from(encoded, "base64")
+  if (bytes.length === 0) throw new BridgeError("BAD_ARGS", "data is empty")
+  if (bytes.length > MAX_ATTACHMENT_BYTES) {
+    throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_ATTACHMENT_BYTES} bytes`)
+  }
+  return bytes
+}
+
+/** Enough of a file's start to read its magic number. */
+function headOf(path: string): Uint8Array {
+  const head = Buffer.alloc(16)
+  const fd = openSync(path, "r")
+  try {
+    return head.subarray(0, readSync(fd, head, 0, head.length, 0))
+  } finally {
+    closeSync(fd)
+  }
+}
+
+function removeStaleParts(dir: string, now: number): void {
+  for (const name of readdirSync(dir)) {
+    if (!/^upload-[0-9a-f]+\.part$/.test(name)) continue
+    const path = join(dir, name)
+    const at = statSync(path, { throwIfNoEntry: false })?.mtimeMs
+    if (at !== undefined && now - at > STALE_PART_MS) rmSync(path, { force: true })
+  }
 }
 
 export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
@@ -328,28 +392,52 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
       destructive: false,
       wraps: "writes ~/.rove/attachments/<generated name>-<the file's own name> (tui/lib/attachments.ts layout)",
       async run(a) {
-        const name = optStr(a, "name")
-        const ext = plainExt(name)
-        const stem = plainStem(name)
-        const claimed = claimedType(optStr(a, "mime"), ext)
-        const type = claimed ? ATTACHMENT_TYPES[claimed] : { ext, kind: "file" as const }
-        const encoded = str(a, "data")
-        // Bound the work before decoding: base64 is 4 bytes per 3.
-        if (encoded.length > Math.ceil((MAX_ATTACHMENT_BYTES * 4) / 3) + 4) {
-          throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_ATTACHMENT_BYTES} bytes`)
+        const target = attachmentTarget(a, deps)
+        const bytes = attachmentBytes(a)
+        if (target.claimed && !matchesMagic(target.claimed, bytes)) {
+          throw new BridgeError("BAD_ARGS", `data is not a ${target.type.ext} file`)
         }
-        const bytes = Buffer.from(encoded, "base64")
-        if (bytes.length === 0) throw new BridgeError("BAD_ARGS", "data is empty")
-        if (bytes.length > MAX_ATTACHMENT_BYTES) {
-          throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_ATTACHMENT_BYTES} bytes`)
+        deps.writeFile(target.path, bytes)
+        return { path: target.path, kind: target.type.kind, bytes: bytes.length }
+      },
+    },
+
+    "attachment.part": {
+      kind: "write",
+      destructive: false,
+      wraps: "appends to ~/.rove/attachments/upload-<id>.part; the last part renames it as attachment.put names a file",
+      async run(a) {
+        const dir = deps.attachmentsDir()
+        const offset = optInt(a, "offset", 0, MAX_UPLOAD_BYTES) ?? 0
+        const given = optStr(a, "upload")
+        if (given !== undefined && !/^[0-9a-f]{8,32}$/.test(given))
+          throw new BridgeError("BAD_ARGS", "upload is not an id")
+        const upload = given ?? deps.nonce()
+        const part = join(dir, `upload-${upload}.part`)
+        const bytes = attachmentBytes(a)
+        if (given === undefined) {
+          mkdirSync(dir, { recursive: true, mode: 0o700 })
+          removeStaleParts(dir, deps.now().getTime())
+          writeFileSync(part, "", { mode: 0o600, flag: "wx" })
         }
-        if (claimed && !matchesMagic(claimed, bytes)) {
-          throw new BridgeError("BAD_ARGS", `data is not a ${type.ext} file`)
+        const have = statSync(part, { throwIfNoEntry: false })?.size
+        if (have === undefined) throw new BridgeError("BAD_ARGS", "no such upload")
+        // A part sent twice, or out of turn, must not land in the file.
+        if (have !== offset) throw new BridgeError("BAD_ARGS", `the upload stands at ${have}, not ${offset}`)
+        const total = have + bytes.length
+        if (total > MAX_UPLOAD_BYTES) {
+          rmSync(part)
+          throw new BridgeError("TOO_LARGE", `attachment is larger than ${MAX_UPLOAD_BYTES} bytes`)
         }
-        const stamp = deps.now().toISOString().slice(0, 10).replaceAll("-", "")
-        const path = join(deps.attachmentsDir(), `attach-${stamp}-${deps.nonce()}${stem ? `-${stem}` : ""}.${type.ext}`)
-        deps.writeFile(path, bytes)
-        return { path, kind: type.kind, bytes: bytes.length }
+        appendFileSync(part, bytes)
+        if (a.done !== true) return { upload, bytes: total }
+        const target = attachmentTarget(a, deps)
+        if (target.claimed && !matchesMagic(target.claimed, headOf(part))) {
+          rmSync(part)
+          throw new BridgeError("BAD_ARGS", `data is not a ${target.type.ext} file`)
+        }
+        renameSync(part, target.path)
+        return { path: target.path, kind: target.type.kind, bytes: total }
       },
     },
   }

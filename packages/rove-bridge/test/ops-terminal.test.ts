@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { mkdtempSync, readFileSync, readdirSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { parseFlags } from "@sma1lboy/rove/src/cli/api/flags.ts"
 import type { TerminalTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
@@ -345,6 +348,44 @@ describe("attachment.put", () => {
     const big = Buffer.concat([PNG, Buffer.alloc(MAX_ATTACHMENT_BYTES)])
     await expect(put("image/png", big)).rejects.toMatchObject({ code: "TOO_LARGE" })
     expect(written).toHaveLength(0)
+  })
+})
+
+describe("attachment.part", () => {
+  const b64 = (text: string | Uint8Array) => Buffer.from(text).toString("base64")
+  const inTmp = () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-parts-"))
+    return { dir, part: (args: Record<string, unknown>) => run("attachment.part", args, { attachmentsDir: () => dir }) }
+  }
+
+  test("parts sent in turn become one file, named as attachment.put names it", async () => {
+    const { dir, part } = inTmp()
+    const first = (await part({ name: "big log.txt", offset: 0, data: b64("hello ") })).result as { upload: string }
+    expect(readdirSync(dir)).toEqual([`upload-${first.upload}.part`])
+    const last = await part({ name: "big log.txt", upload: first.upload, offset: 6, data: b64("world"), done: true })
+    expect(last.result).toEqual({ path: join(dir, "attach-20261005-deadbeef-big-log.txt"), kind: "file", bytes: 11 })
+    expect(readdirSync(dir)).toEqual(["attach-20261005-deadbeef-big-log.txt"])
+    expect(readFileSync(join(dir, "attach-20261005-deadbeef-big-log.txt"), "utf8")).toBe("hello world")
+  })
+
+  test("a part sent twice or out of turn is refused and leaves the upload as it was", async () => {
+    const { part } = inTmp()
+    const { upload } = (await part({ offset: 0, data: b64("abc") })).result as { upload: string }
+    await expect(part({ upload, offset: 0, data: b64("abc") })).rejects.toThrow("stands at 3")
+    await expect(part({ upload: "../../etc", offset: 3, data: b64("x") })).rejects.toThrow("not an id")
+    await expect(part({ upload: "0123456789abcdef", offset: 0, data: b64("x") })).rejects.toThrow("no such upload")
+    expect((await part({ upload, offset: 3, data: b64("d") })).result).toEqual({ upload, bytes: 4 })
+  })
+
+  test("a finished upload that is not the image it claims to be is removed", async () => {
+    const { dir, part } = inTmp()
+    await expect(part({ name: "shot.png", offset: 0, data: b64("not an image"), done: true })).rejects.toThrow(
+      "not a png",
+    )
+    expect(readdirSync(dir)).toEqual([])
+    expect((await part({ name: "shot.png", offset: 0, data: b64(PNG), done: true })).result).toMatchObject({
+      kind: "image",
+    })
   })
 })
 
