@@ -46,9 +46,8 @@ describe("vendorFromArgv", () => {
   })
 
   it("identifies kimi by its rewritten process title (registry processNames)", () => {
-    // Verbatim `ps -o args=` lines from two live kimi sessions:
-    // the Mach-O launcher rewrites argv[0] to `kimi-co`, and what follows is
-    // environ memory, not arguments.
+    expect(vendorFromArgv("kimi-code")).toBe("kimi")
+    // The truncated title can be followed by environment memory rather than arguments.
     expect(vendorFromArgv("kimi-co NVM_RC_VERSION=")).toBe("kimi")
     expect(vendorFromArgv("kimi-co SSH_AUTH_SOCK=/private/tmp/com.apple.launchd.x/Listeners")).toBe("kimi")
   })
@@ -61,6 +60,14 @@ describe("foregroundEngineIn", () => {
     const found = foregroundEngineIn(rows, 56070)
     expect(found?.vendor).toBe("claude")
     expect(found?.pid).toBe(56143)
+  })
+
+  it("finds kimi-code under the tab's zsh shell", () => {
+    const snapshot = parsePsSnapshot(`
+56357 20723 /bin/zsh -ilc kimi
+56598 56357 kimi-code
+`)
+    expect(foregroundEngineIn(snapshot, 56357)).toEqual({ vendor: "kimi", argv: "kimi-code", pid: 56598 })
   })
 
   it("is null for a shell sitting at its prompt", () => {

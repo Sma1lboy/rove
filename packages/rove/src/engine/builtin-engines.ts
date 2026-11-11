@@ -260,9 +260,8 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     // kimi's positional CLI slot is a subcommand (export/provider/acp/…),
     // not an initial prompt — argv delivery kills it.
     firstMessageDelivery: "paste",
-    // The installed Mach-O binary rewrites its process title to `kimi-co`
-    // after launch, so a live kimi session's argv[0] never reads `kimi`.
-    processNames: ["kimi-co"],
+    // Kimi rewrites its process title after launch; both titles identify a live session.
+    processNames: ["kimi-co", "kimi-code"],
     // `-m, --model <alias>` — an alias from the user's own config.toml, which
     // Rove cannot list; no `listModels`, so the picker is free text.
     modelArgv: (base, model) => [...base, "--model", model],
