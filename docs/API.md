@@ -347,7 +347,10 @@ edits (`set-vendor`, `rename`,
   reports its own id as its `protocol` — the plugin's manifest carries the
   screen rules and identity Rove drives it with, so it is not `generic`. What
   it prints is what a launch runs, so an entry can be copied into `--command`
-  verbatim or edited first. Returns `{ engines }`.
+  verbatim or edited first. `--status` probes each engine on this machine and
+  adds `installed` (its CLI is there) and `ready` (installed, and signed in
+  where Rove can read the login); with `--machine` it answers for that
+  machine. Returns `{ engines }`.
 - `repo-match (--origin URL | --root SHA) [--allow-fork]`: this machine's
   checkout of a repo, matched by identity: `--origin` (any git remote form,
   compared normalized as `host/owner/name`) or `--root` (its first commit).

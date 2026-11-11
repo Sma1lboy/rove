@@ -438,7 +438,7 @@ engine started again for this run, same worktree and conversation), `skipped_pre
 <!-- generated:begin discover,feedback -->
 ```text
 schema       --verb --group --all
-engine-list  (none)
+engine-list  --status
 repo-match   --origin --root --allow-fork
 repo-list    (none)
 feedback     --title(REQ) --body(REQ) --kind(bug)
