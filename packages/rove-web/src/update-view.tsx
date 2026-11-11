@@ -17,7 +17,7 @@ import { usePrefs } from "./prefs.ts"
 import { ReleaseNotes } from "./release-notes.tsx"
 import { createStore, useStore } from "./store.ts"
 import { dialog, page } from "./ui.ts"
-import { buttonClass } from "./ui/button.tsx"
+import { Button, buttonClass } from "./ui/button.tsx"
 import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
 import { HEAD_CHIP } from "./ui/shell.ts"
 import { ACTIONS, KICKER, LINK } from "./ui/text.ts"
@@ -27,12 +27,10 @@ import {
   UPDATE_ACTIONS,
   UPDATE_CHIP,
   UPDATE_CHIP_VERSION,
-  UPDATE_LABEL,
   UPDATE_OUTPUT,
   UPDATE_VERSIONS,
   WHATS_NEW_BODY,
   WHATS_NEW_KEYS,
-  updateActionClass,
 } from "./ui/update.ts"
 
 interface CheckReply {
@@ -90,6 +88,16 @@ export function UpdateChip() {
 
 type ActionId = "update" | "release" | "close"
 
+/** Each release in the range under its version, newest first as the bridge sends them. */
+export function NotesRange({ notes }: { notes: readonly ReleaseNotesRangeItem[] }) {
+  return notes.map((n) => (
+    <section key={n.version} className={RELEASE_NOTES}>
+      <h2 className="mono">v{n.version}</h2>
+      <ReleaseNotes body={n.body} />
+    </section>
+  ))
+}
+
 /** The bridge's last `update.run`; `null` = none since it started. */
 interface RunStatus {
   readonly running: boolean
@@ -131,7 +139,6 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const u = useCatalog()
   const state = useStore(updateState)
   const [checked, setChecked] = useState(false)
-  const [selected, setSelected] = useState<ActionId>("release")
   const [status, setStatus] = useState<string | null>(null)
   const { run, setRun, poll } = useUpdateRun(client)
   const host = useRef<HTMLDivElement>(null)
@@ -148,13 +155,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const upToDate = checked && info !== null && !hasUpdate
   const notes = state?.notes ?? []
   const url = notes[0]?.url ?? (latest ? releaseUrl(latest) : null)
-  const actions: readonly { id: ActionId; key: string; label: string; detail: string }[] = [
-    ...(hasUpdate && !run?.running
-      ? [{ id: "update" as const, key: "U", label: u.actions.updateNow, detail: "rove update" }]
-      : []),
-    { id: "release", key: "R", label: u.actions.openRelease, detail: url ?? u.releaseUrlUnavailable },
-    { id: "close", key: "Q", label: u.actions.close, detail: u.actions.closeDetail },
-  ]
+  const canUpdate = hasUpdate && !run?.running
   const activate = (id: ActionId) => {
     if (id === "close") return page.set(null)
     if (id === "update") {
@@ -187,11 +188,9 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       return activate("close")
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
-    const i = actions.findIndex((a) => a.id === selected)
-    if (e.key === "j" || e.key === "ArrowDown") setSelected(actions[(i + 1) % actions.length]?.id ?? "close")
-    else if (e.key === "k" || e.key === "ArrowUp")
-      setSelected(actions[(i - 1 + actions.length) % actions.length]?.id ?? "close")
-    else if (e.key === "Enter") activate(selected)
+    // Enter on a focused button or link is that control's own.
+    if (e.key === "Enter" && e.target === host.current) activate(canUpdate ? "update" : "release")
+    else if (e.key === "Enter") return
     else if (e.key === "u") activate("update")
     else if (e.key === "r") activate("release")
     else if (e.key === "q" || e.key === "Escape") activate("close")
@@ -221,18 +220,18 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       {latestUnknown && <p className="text-muted">{u.registryRetry}</p>}
       {upToDate && <p className="text-success">{u.upToDate}</p>}
       <div className={UPDATE_ACTIONS}>
-        {actions.map((a) => (
-          <button
-            type="button"
-            key={a.id}
-            className={updateActionClass(selected === a.id)}
-            onClick={() => activate(a.id)}
-          >
-            <span className="mono keys-only text-accent">[{a.key}]</span>
-            <span className={UPDATE_LABEL}>{a.label}</span>
-            <span className="text-muted">{a.detail}</span>
-          </button>
-        ))}
+        {canUpdate && (
+          <Button variant="filled" aria-keyshortcuts="u" onClick={() => activate("update")}>
+            {u.actions.updateNow}
+          </Button>
+        )}
+        {url ? (
+          <a className={LINK} href={url} target="_blank" rel="noopener noreferrer" aria-keyshortcuts="r">
+            {u.actions.openRelease}
+          </a>
+        ) : (
+          <span className="text-muted">{u.releaseUrlUnavailable}</span>
+        )}
       </div>
       {status && <p className="mono text-accent">{status}</p>}
       {run && (
@@ -250,12 +249,7 @@ export function UpdateView({ client }: { client: BridgeClient }) {
       {hasUpdate && <p className="mono text-muted">{fill(u.changesSectionHeader, { from: current, to: latest })}</p>}
       {!checked && <p className="text-muted">{u.loadingNotes}</p>}
       {checked && hasUpdate && notes.length === 0 && <p className="text-muted">{u.notesUnavailable}</p>}
-      {notes.map((n) => (
-        <section key={n.version} className={RELEASE_NOTES}>
-          <h2 className="mono">v{n.version}</h2>
-          <ReleaseNotes body={n.body} />
-        </section>
-      ))}
+      <NotesRange notes={notes} />
     </div>
   )
 }

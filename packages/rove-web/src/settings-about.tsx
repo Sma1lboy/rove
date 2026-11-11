@@ -1,9 +1,8 @@
 /**
  * Settings → About: the daemon's build, the release channel and update notice, a check for updates, and this
  * browser's sign-out. "Check for updates" asks the Mac's Rove build (`update.check`, forced) what the npm
- * registry holds for the chosen channel's dist-tag and shows it beside the running version. Installing stays a
- * command on that Mac: the bridge never runs the updater, so the action is the Update page (release notes,
- * link) and the `rove update` command.
+ * registry holds for the chosen channel's dist-tag and shows it beside the running version. Installing is the
+ * Update page's (release notes, Update now) or the `rove update` command.
  */
 
 import { RELEASE_CHANNELS } from "@sma1lboy/rove/src/release-channels.ts"

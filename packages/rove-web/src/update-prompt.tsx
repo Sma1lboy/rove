@@ -1,19 +1,21 @@
 /**
- * A new version asks once: Update, Not now, or Skip this version. Not now keeps quiet until the
+ * A new version asks once, with its release notes: Update, Not now, or Skip this version. Not now keeps quiet until the
  * page is loaded again; Skip keeps quiet about that version in this browser, and the next one asks
  * again. Settings' `update.notify` off silences it with the rail chip. The chip and the Update
  * page still show a skipped version.
  */
 
+import type { ReleaseNotesRangeItem } from "@sma1lboy/rove/src/version.ts"
 import { DialogShell } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import { openPage } from "./layout.ts"
 import { prefsStore } from "./prefs.ts"
+import { ReleaseNotes } from "./release-notes.tsx"
 import { closeDialog, dialog } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { DIALOG_BODY } from "./ui/overlay.ts"
 import { ACTIONS } from "./ui/text.ts"
-import { updateAutoRun, updateState } from "./update-view.tsx"
+import { NotesRange, updateAutoRun, updateState } from "./update-view.tsx"
 
 const SKIP_KEY = "rove.web.update.skipped"
 
@@ -41,14 +43,17 @@ export function maybeAskToUpdate(): void {
   })
   if (!latest || dialog.get() !== null) return
   asked = latest
-  dialog.set(<UpdatePrompt current={state?.current ?? ""} latest={latest} />)
+  dialog.set(<UpdatePrompt current={state?.current ?? ""} latest={latest} notes={state?.notes ?? []} />)
 }
 
-function UpdatePrompt(props: { current: string; latest: string }) {
+function UpdatePrompt(props: { current: string; latest: string; notes: readonly ReleaseNotesRangeItem[] }) {
+  const [only] = props.notes
   return (
-    <DialogShell title={t("updatePrompt.title", { version: props.latest })}>
+    <DialogShell title={t("updatePrompt.title", { version: props.latest })} wide={props.notes.length > 0}>
       <div className={DIALOG_BODY}>
         <p className="text-muted">{t("updatePrompt.body", { current: props.current })}</p>
+        {/* One release: the title already names it. */}
+        {props.notes.length === 1 && only ? <ReleaseNotes body={only.body} /> : <NotesRange notes={props.notes} />}
         <div className={ACTIONS}>
           <Button
             onClick={() => {
