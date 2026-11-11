@@ -8,6 +8,7 @@
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { DialogField, DialogSection } from "../../ui/dialog-parts"
+import { INPUT_SCROLL } from "../../ui/input-scroll"
 import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
@@ -35,6 +36,7 @@ export function AdoptTab({ vm }: { vm: NewTaskVm }) {
       >
         <DialogField focused={vm.field === "adoptFilter"}>
           <input
+            {...INPUT_SCROLL}
             value={vm.adoptFilter}
             placeholder={t("newTask.placeholder.adoptFilter")}
             focused={vm.field === "adoptFilter"}

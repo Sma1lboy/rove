@@ -26,6 +26,7 @@ import { dividerRule } from "../lib/rule-divider"
 import { useAccessor } from "../lib/use-accessor"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { FRAME } from "../ui/frame"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 
 type Theme = ReturnType<typeof useTheme>["theme"]
 
@@ -83,6 +84,7 @@ function ModTree(props: TreeProps): ReactNode {
     return (
       <box flexShrink={0} flexGrow={1} minWidth={12} backgroundColor={theme.backgroundElement}>
         <input
+          {...INPUT_SCROLL}
           // Remounted on a submit (empties it) or a new `value` from the mod; typing in
           // other fields survives because it is read back from `drafts`.
           key={`${node.value ?? ""}#${props.epoch}`}

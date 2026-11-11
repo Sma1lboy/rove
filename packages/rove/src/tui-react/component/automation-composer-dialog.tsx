@@ -37,6 +37,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogActions, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { FailureHint } from "./failure-hint"
 import { PickerList } from "./new-task-dialog/picker-list"
 
@@ -199,6 +200,7 @@ function AutomationComposerView(props: {
       <DialogSection label={t("automations.fieldName")} focused={field === "name"} onPress={() => setField("name")}>
         <DialogField focused={field === "name"}>
           <input
+            {...INPUT_SCROLL}
             value={draft.name}
             placeholder={t("automations.namePlaceholder")}
             focused={field === "name"}
@@ -248,6 +250,7 @@ function AutomationComposerView(props: {
         >
           <DialogField focused={field === "targetTab"}>
             <input
+              {...INPUT_SCROLL}
               value={draft.target.tabId}
               focused={field === "targetTab"}
               onMouseUp={() => setField("targetTab")}
@@ -267,6 +270,7 @@ function AutomationComposerView(props: {
       >
         <DialogField focused={field === "prompt"}>
           <input
+            {...INPUT_SCROLL}
             value={draft.prompt}
             placeholder={t("automations.promptPlaceholder")}
             focused={field === "prompt"}

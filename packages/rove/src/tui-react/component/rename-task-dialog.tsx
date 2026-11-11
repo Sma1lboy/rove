@@ -10,6 +10,7 @@ import { isBlankText, stripNewlines } from "../../tui/component/new-task-dialog/
 import { useT } from "../i18n"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 
 export function RenameTaskDialogView(props: {
   currentTitle: string
@@ -44,6 +45,7 @@ export function RenameTaskDialogView(props: {
       <DialogSection label={props.fieldLabel ?? t("common.rename.defaultFieldLabel")} focused={true}>
         <DialogField focused={true}>
           <input
+            {...INPUT_SCROLL}
             value={value}
             placeholder={props.placeholder ?? props.currentTitle}
             focused={true}

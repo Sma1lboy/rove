@@ -11,6 +11,7 @@ import { tKeys, useT } from "../i18n"
 import { currentPaletteActions, useBindings } from "../lib/keymap"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { type PaletteSearch, splitMarked, useMatchingTasks, useSaid } from "./palette-search"
 
 type Entry =
@@ -137,6 +138,7 @@ export function CommandPalette({
     <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={1}>
       <text fg={theme.accent}>{t("help.palette")}</text>
       <input
+        {...INPUT_SCROLL}
         focused
         value={query}
         placeholder={t("help.search")}

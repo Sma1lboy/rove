@@ -12,6 +12,7 @@ import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
 import { devRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { INPUT_SCROLL } from "../../ui/input-scroll"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import type { SettingsPrefs } from "./use-settings-prefs"
 
@@ -60,6 +61,7 @@ export function FeedbackSettingsSection(
             {t("settings.feedback.titleLabel")}
           </text>
           <input
+            {...INPUT_SCROLL}
             value={props.title}
             placeholder={t("settings.feedback.titlePlaceholder")}
             focused={titleFocused}

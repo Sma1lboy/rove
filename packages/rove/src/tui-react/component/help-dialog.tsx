@@ -26,6 +26,7 @@ import { tKeys, useT } from "../i18n"
 import { currentBindingReachability, useBindings } from "../lib/keymap"
 import { useGlyphs } from "../lib/use-glyphs"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 
 function displayCap(cap: string): string {
   return cap
@@ -142,6 +143,7 @@ export function HelpDialog(props: {
       </box>
       {filtering ? (
         <input
+          {...INPUT_SCROLL}
           focused
           value={query}
           placeholder={t("help.search")}

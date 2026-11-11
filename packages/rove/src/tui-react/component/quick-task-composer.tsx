@@ -24,6 +24,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { quickTaskBindings } from "./quick-task-bindings"
 
 export interface QuickTaskComposerOptions {
@@ -168,6 +169,7 @@ function QuickTaskComposerView(
         >
           <DialogField focused={field === "prompt"}>
             <input
+              {...INPUT_SCROLL}
               value={prompt}
               placeholder={t("quickTask.promptPlaceholder")}
               focused={field === "prompt"}
@@ -235,6 +237,7 @@ function QuickTaskComposerView(
         >
           <DialogField focused={field === "branch"}>
             <input
+              {...INPUT_SCROLL}
               value={baseRef}
               placeholder={props.defaultBaseRef}
               focused={field === "branch"}

@@ -9,6 +9,7 @@ import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { DialogField, DialogSection } from "../../ui/dialog-parts"
+import { INPUT_SCROLL } from "../../ui/input-scroll"
 import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
@@ -30,6 +31,7 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
       >
         <DialogField focused={vm.field === "cloneUrl"}>
           <input
+            {...INPUT_SCROLL}
             value={vm.cloneUrl}
             placeholder="https://github.com/user/repo.git"
             focused={vm.field === "cloneUrl"}
@@ -49,6 +51,7 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
       >
         <DialogField focused={vm.field === "cloneParent"}>
           <input
+            {...INPUT_SCROLL}
             value={vm.cloneParent}
             placeholder="~/"
             focused={vm.field === "cloneParent"}
@@ -82,6 +85,7 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
       >
         <DialogField focused={vm.field === "cloneFolder"}>
           <input
+            {...INPUT_SCROLL}
             value={vm.cloneFolder}
             placeholder={t("newTask.placeholder.folderName")}
             focused={vm.field === "cloneFolder"}
@@ -98,6 +102,7 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
       >
         <DialogField focused={vm.field === "cloneBaseRef"}>
           <input
+            {...INPUT_SCROLL}
             value={vm.cloneBaseRef}
             placeholder={DEFAULT_BASE_REF}
             focused={vm.field === "cloneBaseRef"}

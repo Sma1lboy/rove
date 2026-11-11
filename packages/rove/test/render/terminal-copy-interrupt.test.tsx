@@ -29,6 +29,10 @@ test.each(["win32", "darwin", "linux"] as const)("%s routes selected and unselec
       { width: 60, height: 12, exitOnCtrlC: false, providers: { dialog: true } },
     )
   })
+  // A pane learns its size on the frame after it mounts, and acquires its PTY then.
+  await act(async () => {
+    await mounted?.frame()
+  })
   if (!mounted) throw new Error("terminal did not mount")
   const handle = mounted
   try {
@@ -107,6 +111,9 @@ test.each([
       </box>,
       { width: 60, height: 12, exitOnCtrlC: false, providers: { dialog: true } },
     )
+  })
+  await act(async () => {
+    await mounted?.frame()
   })
   if (!mounted) throw new Error("terminal did not mount")
   const handle = mounted

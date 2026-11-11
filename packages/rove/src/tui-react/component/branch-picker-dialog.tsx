@@ -27,6 +27,7 @@ import { useBindings } from "../lib/keymap"
 import { useTerminalSize } from "../lib/use-terminal-size"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogField, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 export function BranchPickerDialogView(props: {
@@ -89,6 +90,7 @@ export function BranchPickerDialogView(props: {
       <DialogSection label={t("tasks.reBranch.fieldLabel")} focused={true}>
         <DialogField focused={true}>
           <input
+            {...INPUT_SCROLL}
             value={value}
             placeholder={props.currentBranch}
             focused={true}

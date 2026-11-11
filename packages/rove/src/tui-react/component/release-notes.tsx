@@ -10,38 +10,42 @@
  * `SyntaxStyle` holds a native handle — built once per theme, not per render.
  */
 
-import { SyntaxStyle } from "@opentui/core"
+import { type NativeResourceOwner, SyntaxStyle } from "@opentui/core"
+import { useRenderer } from "@opentui/react"
 import { useMemo } from "react"
 import type { Theme } from "../../tui/context/theme-core"
 import { useTheme } from "../context/theme"
 import { releaseNotesMarkdown } from "./release-notes-markdown"
 
-function buildReleaseNotesStyle(theme: Theme): SyntaxStyle {
+function buildReleaseNotesStyle(theme: Theme, owner: NativeResourceOwner): SyntaxStyle {
   const heading = { fg: theme.accent, bold: true }
   const code = { fg: theme.info }
-  return SyntaxStyle.fromStyles({
-    "markup.heading": heading,
-    "markup.heading.1": heading,
-    "markup.heading.2": heading,
-    "markup.heading.3": heading,
-    "markup.heading.4": heading,
-    "markup.heading.5": heading,
-    "markup.heading.6": heading,
-    "markup.strong": { fg: theme.text, bold: true },
-    "markup.italic": { italic: true },
-    "markup.strikethrough": { fg: theme.textMuted, dim: true },
-    "markup.raw": code,
-    "markup.raw.block": code,
-    "markup.list": { fg: theme.textMuted },
-    "markup.list.checked": { fg: theme.success },
-    "markup.list.unchecked": { fg: theme.textMuted },
-    "markup.quote": { fg: theme.textMuted, italic: true },
-    // Links keep their label and lose their address (see
-    // `release-notes-markdown.ts`); the label still reads as a reference.
-    "markup.link": { fg: theme.info },
-    "markup.link.label": { fg: theme.info },
-    "markup.link.url": { fg: theme.textMuted, dim: true },
-  })
+  return SyntaxStyle.fromStyles(
+    {
+      "markup.heading": heading,
+      "markup.heading.1": heading,
+      "markup.heading.2": heading,
+      "markup.heading.3": heading,
+      "markup.heading.4": heading,
+      "markup.heading.5": heading,
+      "markup.heading.6": heading,
+      "markup.strong": { fg: theme.text, bold: true },
+      "markup.italic": { italic: true },
+      "markup.strikethrough": { fg: theme.textMuted, dim: true },
+      "markup.raw": code,
+      "markup.raw.block": code,
+      "markup.list": { fg: theme.textMuted },
+      "markup.list.checked": { fg: theme.success },
+      "markup.list.unchecked": { fg: theme.textMuted },
+      "markup.quote": { fg: theme.textMuted, italic: true },
+      // Links keep their label and lose their address (see
+      // `release-notes-markdown.ts`); the label still reads as a reference.
+      "markup.link": { fg: theme.info },
+      "markup.link.label": { fg: theme.info },
+      "markup.link.url": { fg: theme.textMuted, dim: true },
+    },
+    owner,
+  )
 }
 
 export function ReleaseNotesBody(props: { body: string }) {
@@ -52,6 +56,7 @@ export function ReleaseNotesBody(props: { body: string }) {
 /** Markdown in the theme's release-notes styling; also routine responses. */
 export function MarkdownText(props: { content: string }) {
   const { theme } = useTheme()
-  const syntaxStyle = useMemo(() => buildReleaseNotesStyle(theme), [theme])
+  const renderer = useRenderer()
+  const syntaxStyle = useMemo(() => buildReleaseNotesStyle(theme, renderer.nativeScene), [theme, renderer])
   return <markdown content={props.content} syntaxStyle={syntaxStyle} fg={theme.text} />
 }

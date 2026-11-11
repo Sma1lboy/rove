@@ -18,6 +18,7 @@ import type { VendorId } from "../../types/vendor"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { DialogField, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /** Same lookup the effort row uses (`engineEntry` on the raw id). */
@@ -150,6 +151,7 @@ export function ModelSection(props: {
       >
         <DialogField focused={props.focused}>
           <input
+            {...INPUT_SCROLL}
             value={field.value}
             placeholder={t("tasks.engineModel.placeholder")}
             focused={props.focused}

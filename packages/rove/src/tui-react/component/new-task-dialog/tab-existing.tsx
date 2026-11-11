@@ -7,6 +7,7 @@ import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"
+import { INPUT_SCROLL } from "../../ui/input-scroll"
 import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
@@ -59,6 +60,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
         <DialogField focused={vm.field === "repo"}>
           <box flexDirection="row">
             <input
+              {...INPUT_SCROLL}
               value={vm.repo}
               placeholder={splitRepoRow(vm.defaultRepo).base}
               focused={vm.field === "repo"}
@@ -158,6 +160,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
         >
           <DialogField focused={vm.field === "baseRef"}>
             <input
+              {...INPUT_SCROLL}
               value={vm.baseRef}
               placeholder={DEFAULT_BASE_REF}
               focused={vm.field === "baseRef"}
@@ -195,6 +198,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
         >
           <DialogField focused={vm.field === "prompt"}>
             <input
+              {...INPUT_SCROLL}
               value={vm.prompt}
               placeholder={t("newTask.placeholder.prompt")}
               focused={vm.field === "prompt"}
