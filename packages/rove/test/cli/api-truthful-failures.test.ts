@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { protocolEntry } from "../../src/engine/engine-presets.ts"
 import { screenErrorLine } from "../../src/engine/screen-state.ts"
-import { FakeClient, recordingDelivery, stubRuntime, taskFixture, openedTab } from "./api-handler-fixtures.ts"
+import { FakeClient, openedTab, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const screen = vi.hoisted(() => ({ error: undefined as string | undefined }))
 vi.mock("../../src/cli/api/engine-screen.ts", async (importOriginal) => ({

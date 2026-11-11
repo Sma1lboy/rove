@@ -15,7 +15,9 @@ export const SCRATCH_HANDLERS: readonly DaemonRequestHandler[] = [
         vendor: optionalVendor(payload, "vendor"),
         scratch: optionalBoolean(payload, "scratch"),
         title: optionalString(payload, "title"),
-        ...(payload.scheduledStart === undefined ? {} : { scheduledStart: parseScheduledStart(payload.scheduledStart) }),
+        ...(payload.scheduledStart === undefined
+          ? {}
+          : { scheduledStart: parseScheduledStart(payload.scheduledStart) }),
       })
       return { taskId: task.id, task: serializeTask(task) }
     },

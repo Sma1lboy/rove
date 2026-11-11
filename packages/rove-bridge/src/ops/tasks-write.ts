@@ -96,7 +96,10 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   // An idle engine for a person to type into (a freshly cloned repo); never a row with no agent.
   const start = optBool(args, "start")
   if ((later || start) && (parallel || prompt || machine || (later && start))) {
-    throw new BridgeError("BAD_ARGS", "start and a scheduled start each take no prompt, count, agents, machine or each other")
+    throw new BridgeError(
+      "BAD_ARGS",
+      "start and a scheduled start each take no prompt, count, agents, machine or each other",
+    )
   }
   if (parallel && branch) throw new BridgeError("BAD_ARGS", "branch cannot be shared by parallel tasks")
   if (agentsGiven && engineGiven) throw new BridgeError("BAD_ARGS", "engine conflicts with agents")

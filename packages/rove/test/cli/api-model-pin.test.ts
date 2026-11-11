@@ -10,10 +10,10 @@ import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import {
   FakeClient,
   expectApiError,
+  openedTab,
   recordingDelivery,
   stubRuntime,
   taskFixture,
-  openedTab,
 } from "./api-handler-fixtures.ts"
 
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
