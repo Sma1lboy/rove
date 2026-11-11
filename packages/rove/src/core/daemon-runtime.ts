@@ -115,8 +115,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
             () => true,
             () => false,
           ),
-        runHere: (routed = params) =>
-          executeVerb(verb, { params: routed }, { client, caller: daemonCaller(route?.forwarded === true) }),
+        runHere: (p) => executeVerb(verb, { params: p }, { client, caller: daemonCaller(route?.forwarded === true) }),
       })
     } catch (err) {
       return errorEnvelope(err)

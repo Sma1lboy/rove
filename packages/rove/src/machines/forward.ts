@@ -425,10 +425,10 @@ export async function invokeRouted(args: {
   readonly forwarded?: boolean
   readonly isLocalTask: (taskId: string) => Promise<boolean>
   readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
-  /** Run the verb in this daemon; `params` replaces the call's own when routing rewrote them. */
-  readonly runHere: (params?: ApiParams) => Promise<ApiEnvelope>
+  /** Run the verb in this daemon with `params`: the call's own, or as routing rewrote them. */
+  readonly runHere: (params: ApiParams) => Promise<ApiEnvelope>
 }): Promise<ApiEnvelope> {
-  if (args.forwarded) return args.runHere()
+  if (args.forwarded) return args.runHere(args.params)
   const taskId = args.params["task-id"]
   let target: MachineEntry | null
   try {
@@ -443,7 +443,7 @@ export async function invokeRouted(args: {
     if (!(err instanceof ApiError)) throw err
     return failure(err.code, err.message, err.data ?? {})
   }
-  if (!target) return args.runHere()
+  if (!target) return args.runHere(args.params)
   if (addStaysHere(args.verb, args.params, target))
     return args.runHere({ ...args.params, "workspace-on": target.alias })
   return forwardVerb(target, args.verb, withoutEngineThere(args.params))

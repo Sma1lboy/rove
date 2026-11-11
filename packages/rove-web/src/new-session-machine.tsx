@@ -19,7 +19,8 @@ import {
 } from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
-import { ICON, chipClass } from "./ui/composer.ts"
+import { ComposerToggle } from "./ui/composer-toggle.tsx"
+import { ICON } from "./ui/composer.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
 const REASON_COPY: Readonly<Record<string, string>> = {
@@ -255,16 +256,14 @@ export function MachineChip(props: {
 /** Off (the default): the agent is this machine's and only the work is on `machine`. On: the engine runs there too. */
 export function EngineThereToggle(props: { machine: string; on: boolean; onToggle: () => void }) {
   return (
-    <button
-      type="button"
-      className={chipClass(props.on)}
+    <ComposerToggle
+      on={props.on}
       data-field="engine-there"
-      aria-pressed={props.on}
       title={t(props.on ? "newSession.engineThereOn" : "newSession.engineThereOff", { machine: props.machine })}
       onClick={props.onToggle}
     >
       {t("newSession.engineThere")}
-    </button>
+    </ComposerToggle>
   )
 }
 
