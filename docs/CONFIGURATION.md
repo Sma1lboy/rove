@@ -16,6 +16,7 @@ configured using Git-style forward slashes without creating a second entry.
 | `~/.rove/themes/*.json` | Installed themes | `rove theme add`, or drop files in |
 | `~/.rove/settings/keybindings.yaml` | Keybinding overrides | You only |
 | `<repo>/.rove/init.sh` + `init-prompt.md` | Per-repo worktree setup | You (committed to the repo) |
+| `<repo>/.rove/teardown.sh` | Per-repo cleanup before a task worktree is removed | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
 | `<repo>/.rove/clone-dirs` | Per-repo list of ignored directories to clone into new worktrees | You (committed to the repo) |
 | `<repo>/.rove/run.sh` | Per-repo dev server for the web `[ run ]` action (gets `$PORT`) | You (committed to the repo) |
@@ -677,6 +678,16 @@ shell that then execs the engine, with your account's privileges. That is the
 same level of trust you extend by running the repo's own build or test
 command, so it is worth a look at `.rove/init.sh` before you create the first
 task in a repository you did not write.
+
+A repo can also ship **`.rove/teardown.sh`**, the other end of `init.sh`. It
+runs in a task's worktree just before Rove removes that worktree (deleting the
+task, cleaning up after a land, `rove api remove-worktree`), so it can stop the
+containers, drop the database or release whatever `init.sh` set up for that
+task. It runs only once the removal is going ahead: a delete refused for
+uncommitted work leaves it unrun. It is best-effort: a script that fails or
+runs longer than 60 seconds is logged to `daemon.log` and the removal goes on.
+It should not leave new files in the worktree, which would make git refuse the
+removal. Main and directory tasks own no worktree, so it never runs for them.
 
 Files under `.rove/` win over per-user overrides set with `rove repo set`.
 For `init.sh`, the file only has to exist, even if empty. Prompt files must
