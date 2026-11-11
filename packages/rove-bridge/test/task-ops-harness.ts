@@ -58,6 +58,7 @@ export function isolateTaskOpDeps(): void {
     taskOpDeps.savedRepos = () => []
     taskOpDeps.rememberEngine = () => {}
     taskOpDeps.preferredEngine = () => "claude"
+    taskOpDeps.isWindowsMachine = () => false
   })
   afterEach(() => {
     Object.assign(taskOpDeps, saved)
