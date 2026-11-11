@@ -30,8 +30,8 @@ export const PG_GROW = "min-w-0 flex-1 truncate"
 
 /** The rail's page entries (New task, Kanban, …) and Settings pinned under the task list. */
 export const RAIL_NAV = "flex flex-col px-1.5 pb-2"
-/** A hairline above it: the usage readings and Settings are one group, apart from the task list. */
-export const RAIL_FOOT = "flex flex-col border-t-hairline border-t-line px-1.5 pt-0.5 pb-0.5"
+/** A hairline above it: the usage readings and Settings are one group, apart from the task list. Padded as the rail's sides are, so a hovered Settings row keeps the same clear band from the rule above and the window's edge below. */
+export const RAIL_FOOT = "flex flex-col border-t-hairline border-t-line px-1.5 py-1.5"
 export const RAIL_FOOT_ROW = "relative flex flex-col"
 /** `:hover` without the hover-capable media gate, as the sheet had: a tap leaves the row washed on a phone. */
 export const railNavRowClass = (active: boolean): string =>
