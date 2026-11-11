@@ -76,7 +76,7 @@ export const en = {
       railGroupState: "By state",
       statusMark: "Task status",
       statusMarkNote:
-        "The engine icon pulses while a task works and dims at rest; Dots keeps the dot mark at the end of the row.",
+        "Engine icon: its colour is the state. Dots: the icon keeps its own colours and a dot mark at the row's end is the state.",
       statusMarkEngine: "Engine icon",
       statusMarkDots: "Dots",
     },
@@ -311,7 +311,7 @@ export const zh: typeof en = {
       railGroupProject: "按项目",
       railGroupState: "按状态",
       statusMark: "任务状态",
-      statusMarkNote: "引擎图标在任务工作时闪动、空闲时变暗；点阵则保留行尾的点阵标记。",
+      statusMarkNote: "引擎图标：图标的颜色表示状态。点阵：图标保持自己的颜色，由行尾的点阵表示状态。",
       statusMarkEngine: "引擎图标",
       statusMarkDots: "点阵",
     },
