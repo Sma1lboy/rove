@@ -1,6 +1,7 @@
 /** Layout: Tasks rail | workspace (tab strip + terminal) | Files, over a one-line status footer, like the TUI. */
 
 import { type CSSProperties, useEffect, useState } from "react"
+import { backSwiping } from "./back-swipe.ts"
 import { ConnectScreen } from "./connect-view.tsx"
 import { DaemonBanner, refreshRove, useDaemonHealth } from "./daemon-health.tsx"
 import { DocumentTitle } from "./document-title.tsx"
@@ -92,6 +93,7 @@ function Shell({ model }: { model: AppModel }) {
   const peek = useStore(railPeek)
   const pinned = useStore(railWidth)
   const pane = useStore(narrowPane)
+  const backing = useStore(backSwiping)
   const panelPinned = useStore(panelWidth)
   const panelWide = useStore(panelExpanded)
   const pageOn = useStore(page)
@@ -128,7 +130,7 @@ function Shell({ model }: { model: AppModel }) {
           // The composer starts a task: the open task's Files and Browser are not about it.
           zen: zenOn || !panelShown || (!task && !remoteTask) || narrow || composing,
           expanded: panelWide && !zenOn && !narrow,
-          surface,
+          surface: surface && backing ? "back" : surface,
           folded: folded && !narrow,
           peek: folded && peek && !narrow,
           dragging,
