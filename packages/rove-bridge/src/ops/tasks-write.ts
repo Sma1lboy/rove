@@ -67,7 +67,8 @@ async function done(call: Promise<unknown>): Promise<Record<string, never>> {
 }
 
 async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
-  // Another registered machine: `add` runs in its daemon, against its paths and its engines.
+  // Another registered machine: its repo, its worktree. The agent is this machine's unless `engineThere`
+  // (or a round of attempts, which only that machine's `add` runs) puts the engine there too.
   const machine = optText(args, "machine", 64)
   const repo = machine ? remoteRepoRef(args, "repo") : absPath(args, "repo")
   const title = optText(args, "title", 200)
@@ -91,6 +92,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     throw new BridgeError("BAD_ARGS", "a multi-repo task must keep every repo on this machine")
 
   const parallel = count !== undefined || agentsGiven
+  const there = machine !== undefined && (optBool(args, "engineThere") === true || parallel) ? machine : undefined
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
   if (parallel && !prompt) throw new BridgeError("BAD_ARGS", "count/agents need a prompt")
   // "Later": the daemon records what to create and creates it, engine and prompt, when the time comes.
@@ -108,12 +110,13 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const plan = agentsGiven ? parseAgents(args) : undefined
   if (plan && !machine) await checkAgentEngines(plan, ctx)
   // This machine's engine list says nothing about another's; that machine's `add` validates it.
-  const engine = !engineGiven ? undefined : machine ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
+  const engine = !engineGiven ? undefined : there ? text(args, "engine", 64) : await engineId(args, "engine", ctx)
 
   // Retry: the source task's own launch command in place of the bare engine id.
   const carried = await commandFromTask(args, ctx, { engine, machine, parallel })
 
   const argv = [flag("repo", repo)]
+  if (machine && !there) argv.push(flag("workspace-on", machine))
   if (clone) argv.push(flag("clone", "true"))
   // Further `--repo`s are the extras; `--base-for REPO=REF` (REPO as a path) is each one's base.
   for (const extra of extras) argv.push(flag("repo", extra.repo))
@@ -145,7 +148,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     taskId?: string
     groupId?: string
     tasks?: ReadonlyArray<{ taskId?: string }>
-  }>("add", argv, machine)
+  }>("add", argv, there)
   // The project's next "New conversation" follows the engine this one was started on.
   if (engine && !machine) taskOpDeps.rememberEngine(repo, engine)
   if (Array.isArray(res.tasks)) {

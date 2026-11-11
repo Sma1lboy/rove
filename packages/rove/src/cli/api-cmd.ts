@@ -28,6 +28,7 @@ import { ensurePluginEnginesLoaded } from "../engine/plugin-engines.ts"
 import {
   AUTO_MACHINE,
   LOCAL_MACHINE,
+  addStaysHere,
   forwardVerb,
   pickMachine,
   repoHosts,
@@ -182,13 +183,22 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
         .join(", ")}${skipped})\n`,
     )
     const entry = picked.entry
-    if (entry) {
+    if (entry && !keepAddHere(verb, parsed, entry)) {
       await runForwarded(verb, parsed, async () => entry)
       return
     }
   } else if (machine !== undefined && machine !== LOCAL_MACHINE) {
-    await runForwarded(verb, parsed, async () => requireMachine(machine))
-    return
+    let entry: MachineEntry
+    try {
+      entry = requireMachine(machine)
+    } catch (err) {
+      const apiErr = toApiError(err)
+      fail(apiErr.message, apiErr.code, 2, apiErr.data)
+    }
+    if (!keepAddHere(verb, parsed, entry)) {
+      await runForwarded(verb, parsed, async () => entry)
+      return
+    }
   }
 
   let session: DaemonSession | null = null
@@ -235,6 +245,17 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   } finally {
     session?.close()
   }
+}
+
+/**
+ * `add --machine X` runs the agent here with its work on X (`forward.ts` `addStaysHere`): the flags gain
+ * `--workspace-on X` and the verb runs in this daemon. Otherwise `--engine-there` is dropped, being this side's word.
+ */
+function keepAddHere(verb: VerbSpec, parsed: ParsedArgs, entry: MachineEntry): boolean {
+  const stays = addStaysHere(verb.name, forwardParams(verb, parsed.flags), entry)
+  if (stays) parsed.flags.set("workspace-on", entry.alias)
+  parsed.flags.delete("engine-there")
+  return stays
 }
 
 async function machineHolding(taskId: string, client: DaemonRpc): Promise<MachineEntry | null> {

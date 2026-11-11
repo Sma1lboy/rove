@@ -7,14 +7,14 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, rmdirSync, writeFileSync } from "node:fs"
+import { basename, dirname, join } from "node:path"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
+import { REMOTE_WORKSPACE_FILE } from "@sma1lboy/rove-daemon/repo-id"
 import { homeDir } from "../env.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 
-/** In a link directory: which machine's worktree it stands for. */
-export const REMOTE_WORKSPACE_FILE = ".rove-remote.json"
+export { REMOTE_WORKSPACE_FILE }
 
 export interface RemoteWorkspace {
   /** The registered machine's alias. */
@@ -24,6 +24,8 @@ export interface RemoteWorkspace {
   /** The worktree's path there. */
   readonly path: string
   readonly branch?: string
+  /** The repo across machines, as that machine named it: what groups the task under its project here. */
+  readonly repoId?: string
 }
 
 /** What an instruction file is written from. */
@@ -43,8 +45,9 @@ export function remoteWorkspacesRoot(home = homeDir()): string {
   return join(home, ".rove", "remote-workspaces")
 }
 
-export function remoteWorkspaceDir(machine: string, taskId: string, home = homeDir()): string {
-  return join(remoteWorkspacesRoot(home), machine, taskId)
+/** The link directory. It ends in the repo's own folder name, which is what a sidebar shows for a directory. */
+export function remoteWorkspaceDir(machine: string, taskId: string, name: string, home = homeDir()): string {
+  return join(remoteWorkspacesRoot(home), machine, taskId, basename(name) || "workspace")
 }
 
 export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {
@@ -56,6 +59,7 @@ export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {
       taskId: raw.taskId,
       path: raw.path,
       ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}),
+      ...(typeof raw.repoId === "string" ? { repoId: raw.repoId } : {}),
     }
   } catch {
     return null
@@ -143,6 +147,8 @@ export interface LinkInput {
   readonly sshArgv: readonly string[]
   /** Each wired engine's instruction file. */
   readonly engineNotes: readonly RemoteNotesFile[]
+  /** The repo's folder on that machine: the link directory is named after it. */
+  readonly repo: string
 }
 
 /** Splits the probe's output: the system line, then the project's instructions. */
@@ -151,7 +157,7 @@ const MARK = "@@rove-workspace@@"
 /** Make the link directory and probe the worktree through it. Throws when that machine does not answer. */
 export function createRemoteLink(input: LinkInput, home = homeDir()): string {
   const { ws } = input
-  const dir = remoteWorkspaceDir(ws.machine, ws.taskId, home)
+  const dir = remoteWorkspaceDir(ws.machine, ws.taskId, input.repo, home)
   mkdirSync(remoteBinDir(dir), { recursive: true })
   writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), `${JSON.stringify(ws, null, 2)}\n`)
   writeFileSync(rxPath(dir), rxScript(input.sshArgv, ws.path))
@@ -182,4 +188,8 @@ export function createRemoteLink(input: LinkInput, home = homeDir()): string {
 export function removeRemoteLink(dir: string, home = homeDir()): void {
   if (!pathWithin(remoteWorkspacesRoot(home), dir) || !isRemoteWorkspace(dir)) return
   rmSync(dir, { recursive: true, force: true })
+  // The per-task directory that held it; left alone when anything else is in it.
+  try {
+    rmdirSync(dirname(dir))
+  } catch {}
 }

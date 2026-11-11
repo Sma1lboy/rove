@@ -389,7 +389,7 @@ export async function runBridge(argv: readonly string[], opts: RunBridgeOptions)
             () => true,
             () => false,
           ),
-        runHere: () => executeVerb(verb, { params }, { client: verbClient, caller: REMOTE_CALLER }),
+        runHere: (p) => executeVerb(verb, { params: p }, { client: verbClient, caller: REMOTE_CALLER }),
       }),
     ...(args.cloudflare ? { access: createAccessVerifier(args.cloudflare) } : {}),
     ...(opts.web ? { web: opts.web } : {}),

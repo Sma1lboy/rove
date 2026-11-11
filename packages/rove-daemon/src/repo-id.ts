@@ -4,7 +4,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 
 /**
  * `git@github.com:Me/Rove.git`, `https://github.com/me/rove`, `ssh://git@github.com/me/rove/`
@@ -26,8 +27,23 @@ function git(cwd: string, args: readonly string[]): string | null {
   return res.status === 0 ? res.stdout.trim() : null
 }
 
-/** Uncached: the normalized origin, else `root:<lowest root sha>`, else undefined (not a repo, or no commits). */
+/** In the link directory of a workspace on another machine (`add --workspace-on`): which worktree it stands for. */
+export const REMOTE_WORKSPACE_FILE = ".rove-remote.json"
+
+/** The repo a link directory's worktree belongs to, as that machine named it; undefined for any other directory. */
+function linkedRepoId(path: string): string | undefined {
+  try {
+    const id = (JSON.parse(readFileSync(join(path, REMOTE_WORKSPACE_FILE), "utf8")) as { repoId?: unknown }).repoId
+    return typeof id === "string" && id ? id : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Uncached: a link directory's repo, else the normalized origin, else `root:<lowest root sha>`, else undefined (not a repo, or no commits). */
 export function computeRepoId(path: string): string | undefined {
+  const linked = linkedRepoId(path)
+  if (linked) return linked
   const origin = git(path, ["remote", "get-url", "origin"])
   if (origin) return normalizeRemoteUrl(origin)
   const root = git(path, ["rev-list", "--max-parents=0", "HEAD"])?.split("\n").filter(Boolean).sort()[0]

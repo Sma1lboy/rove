@@ -92,11 +92,17 @@ export interface RemoteStartInput {
   readonly prompt: string
   /** The ref its worktree branches from; "" = that repo's current branch. */
   readonly baseRef: string
+  /** Run the engine on that machine too. Off: the agent is this machine's and only the work is there. */
+  readonly engineThere: boolean
+  /** This machine's model and effort for the agent; "" = the engine's default. Not sent with `engineThere`. */
+  readonly model: string
+  readonly effort: string
 }
 
 /**
- * The `task.spawn` args for Start on another machine. Its engine, model list and checkout are its own,
- * so only the engine id (that machine's `add` validates it) rides along, never a model or effort.
+ * The `task.spawn` args for Start on another machine. The agent is this machine's, so its engine, model and
+ * effort ride along. With `engineThere` the engine, model list and checkout are that machine's own: only
+ * the engine id (its `add` validates it) rides along, never a model or effort.
  */
 export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown> {
   return {
@@ -106,5 +112,8 @@ export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown
     ...(input.baseRef ? { baseBranch: input.baseRef } : {}),
     ...(input.prompt ? { prompt: input.prompt } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
+    ...(input.engineThere ? { engineThere: true } : {}),
+    ...(!input.engineThere && input.model ? { model: input.model } : {}),
+    ...(!input.engineThere && input.effort ? { effort: input.effort } : {}),
   }
 }

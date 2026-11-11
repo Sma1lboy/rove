@@ -13,7 +13,7 @@ import { createRemoteLink, removeRemoteLink } from "../../machines/remote-worksp
 import { machineSshArgs } from "../../machines/ssh-args.ts"
 import { deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { deliverArmed, persistPrompt } from "./add-delivery.ts"
+import { applyPostCreateFlags, deliverArmed, persistPrompt } from "./add-delivery.ts"
 import { effortFor, engineChoice, launchedEngine, modelFor } from "./add-engine-fields.ts"
 import { withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -68,7 +68,14 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
   let dir: string
   try {
     dir = createRemoteLink({
-      ws: { machine: alias, taskId: there.taskId, path: there.worktreePath, branch: there.task.branch },
+      ws: {
+        machine: alias,
+        taskId: there.taskId,
+        path: there.worktreePath,
+        branch: there.task.branch,
+        ...(there.task.repoId ? { repoId: there.task.repoId } : {}),
+      },
+      repo: there.task.repo,
       sshArgv: machineSshArgs(alias, entry),
       engineNotes: remoteNotesFiles(),
     })
@@ -100,6 +107,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
   }
   const taskId = task.id
   if (args.bool("activate")) await daemon.request("task.setActive", { taskId })
+  await applyPostCreateFlags(daemon, taskId, args)
   const target = {
     id: taskId,
     worktreePath: dir,

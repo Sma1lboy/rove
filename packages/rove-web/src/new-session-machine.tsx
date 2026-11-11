@@ -4,7 +4,7 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import { useEffect, useState } from "react"
 import { BridgeRequestError } from "./bridge.ts"
 import { t, useLocale } from "./i18n/index.ts"
-import { type MachineRow, machineLabel } from "./machines-view.tsx"
+import { type MachineRow, machineLabel, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ChipPopover, ChoiceMenu, SearchList } from "./new-session-menus.tsx"
 import {
@@ -15,9 +15,11 @@ import {
   carriedPick,
   enginesThere,
   remoteSpawnArgs,
+  seedRemotePick,
 } from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
+import { ComposerToggle } from "./ui/composer-toggle.tsx"
 import { ICON } from "./ui/composer.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
@@ -111,6 +113,53 @@ export function useCarriedPick(
   return (from, ref) => setCarry(from && ref ? { from, ref } : null)
 }
 
+/**
+ * The composer's other-machine state: which machine ("" = this one), its project list and the pick there,
+ * the ref to branch from, and whether the engine runs there too (off: the agent is this machine's).
+ */
+export function useRemoteTarget<E extends { readonly id: string; readonly name: string }>(
+  model: AppModel,
+  seed: { readonly machine?: string | undefined; readonly repo?: string | undefined },
+  choice: { readonly engines: readonly E[]; readonly engine: string; readonly setEngine: (id: string) => void },
+) {
+  const machines = useMachines(model)
+  const [machine, setMachine] = useState(seed.machine ?? "")
+  const remoteList = useRemoteRepos(model, machine)
+  const [engineThere, setEngineThere] = useState(false)
+  const shown = useEnginesOn(model, engineThere ? machine : "", choice)
+  usePrefetchRemoteRepos(model, machines)
+  const [pick, setPick] = useState<RemotePick | null>(null)
+  const [base, setBase] = useState("")
+  const carry = useCarriedPick(model, remoteList, (carried) => setPick((now) => now ?? carried))
+  // The project a rail row named on another machine is picked once that machine's list is in.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seeded once per list load; a later pick or machine switch stands
+  useEffect(() => {
+    if (!machine || !remoteList.loaded || machine !== seed.machine) return
+    setPick((now) => now ?? seedRemotePick(seed.repo, remoteList.repos))
+  }, [remoteList.loaded])
+  return {
+    machines,
+    machine,
+    remote: machine !== "",
+    machineName: machines.find((m) => m.alias === machine)?.hostLabel || machine,
+    remoteList,
+    engineThere,
+    toggleEngineThere: () => setEngineThere((on) => !on),
+    shown,
+    pick,
+    setPick,
+    base,
+    setBase,
+    /** Switch machines, carrying the project picked on the one left (`localPick` when that is this machine). */
+    switchTo(alias: string, localPick: string): void {
+      carry(alias && (machine || LOCAL), machine ? pick?.ref : localPick)
+      setMachine(alias)
+      setPick(null)
+      setBase("")
+    },
+  }
+}
+
 /** `machine`'s repos by id, from the prefetched list while it rereads; nothing is asked for this machine (""). */
 export function useRemoteRepos(model: AppModel, machine: string): RemoteRepos {
   useLocale()
@@ -201,6 +250,20 @@ export function MachineChip(props: {
         />
       )}
     </ChipPopover>
+  )
+}
+
+/** Off (the default): the agent is this machine's and only the work is on `machine`. On: the engine runs there too. */
+export function EngineThereToggle(props: { machine: string; on: boolean; onToggle: () => void }) {
+  return (
+    <ComposerToggle
+      on={props.on}
+      data-field="engine-there"
+      title={t(props.on ? "newSession.engineThereOn" : "newSession.engineThereOff", { machine: props.machine })}
+      onClick={props.onToggle}
+    >
+      {t("newSession.engineThere")}
+    </ComposerToggle>
   )
 }
 

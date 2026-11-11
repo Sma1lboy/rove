@@ -8,7 +8,7 @@ import { BranchesMenu, ChipPopover, SearchList } from "./new-session-menus.tsx"
 import type { RemotePick } from "./new-session-remote.ts"
 import type { ProbeResult } from "./new-task-dialog.tsx"
 import { filterText, splitRepoRow } from "./new-task-paths.ts"
-import * as C from "./ui/composer.ts"
+import { ComposerToggle } from "./ui/composer-toggle.tsx"
 
 export function BranchChips(props: {
   remotePick: RemotePick | null
@@ -54,10 +54,8 @@ export function BranchChips(props: {
   }))
   return (
     <>
-      <button
-        type="button"
-        className={`${C.chipClass(!inPlace)} ${C.TOGGLE_DISABLED}`}
-        aria-pressed={!inPlace}
+      <ComposerToggle
+        on={!inPlace}
         disabled={repos.length > 1 || props.plain}
         title={
           props.plain
@@ -70,7 +68,7 @@ export function BranchChips(props: {
       >
         <BranchIcon />
         {t("newSession.worktree")}
-      </button>
+      </ComposerToggle>
       {repos.length > 1 ? (
         <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>
           {() => (

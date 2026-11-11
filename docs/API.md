@@ -56,7 +56,10 @@ executes inside that machine's daemon: its git, its PTY host, its engine
 logins. This machine only routes.
 
 - `--machine <alias>` on any verb runs it there:
-  `rove api add --machine narwhal --repo /srv/rove --prompt "…"`. Over the
+  `rove api list --machine narwhal`. `add` is the exception: `add --machine
+  <alias>` keeps the agent on this machine and puts only its worktree and
+  commands there (`add --workspace-on`, see `add` below), unless
+  `--engine-there` is passed. Over the
   socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
   `params`. `local` names this machine. `auto` places the call: the machine with the
   fewest tasks in progress (this one wins a tie; a machine that does not
@@ -840,7 +843,7 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--workspace-on MACHINE] [--parent ID | --no-parent]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--workspace-on MACHINE] [--engine-there] [--parent ID | --no-parent]
   [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
@@ -893,6 +896,11 @@ edits (`set-vendor`, `rename`,
   `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
   multi-repo or remote task, or a worktree on a volume that cannot clone files;
   see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
+
+  `add --machine <machine>` is `add --workspace-on <machine>` unless
+  `--engine-there` is passed or the request is one `--workspace-on` cannot
+  serve (the conflicts below, or a Windows machine); those run in that
+  machine's daemon.
 
   `--workspace-on <machine>` runs the agent here and keeps its files and
   commands on that registered machine: it cuts the worktree (`--repo`,
