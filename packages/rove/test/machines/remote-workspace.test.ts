@@ -49,10 +49,15 @@ describe("a workspace on another machine", () => {
     writeFileSync(join(worktree, "AGENTS.md"), "Use tabs.\n")
     const ws = { machine: "deck", taskId: "T1", path: worktree, branch: "rove/x" }
     const dir = createRemoteLink(
-      { ws, sshArgv: LOCAL_SSH, engineNotes: [{ file: "CLAUDE.md", text: (w) => `wired on ${w.machine}\n` }] },
+      {
+        ws,
+        repo: "/srv/code/app",
+        sshArgv: LOCAL_SSH,
+        engineNotes: [{ file: "CLAUDE.md", text: (w) => `wired on ${w.machine}\n` }],
+      },
       home,
     )
-    expect(dir).toBe(remoteWorkspaceDir("deck", "T1", home))
+    expect(dir).toBe(join(home, ".rove", "remote-workspaces", "deck", "T1", "app"))
     expect(readRemoteWorkspace(dir)).toEqual(ws)
     expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toMatch(/rx '<command>'[\s\S]*Use tabs\./)
     expect(readFileSync(join(dir, "CLAUDE.md"), "utf8")).toMatch(/^wired on deck\n[\s\S]*Use tabs\./)
@@ -67,14 +72,16 @@ describe("a workspace on another machine", () => {
     removeRemoteLink(worktree, home)
     expect(existsSync(worktree)).toBe(true)
     removeRemoteLink(dir, home)
-    expect(existsSync(dir)).toBe(false)
+    expect(existsSync(join(home, ".rove", "remote-workspaces", "deck", "T1"))).toBe(false)
   })
 
   test("a machine that does not answer leaves no link behind", () => {
     const home = scratch()
     const ws = { machine: "gone", taskId: "T2", path: "/nowhere" }
-    expect(() => createRemoteLink({ ws, sshArgv: ["false"], engineNotes: [] }, home)).toThrow(/gone did not answer/)
-    expect(existsSync(join(remoteWorkspaceDir("gone", "T2", home), REMOTE_WORKSPACE_FILE))).toBe(false)
+    expect(() => createRemoteLink({ ws, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home)).toThrow(
+      /gone did not answer/,
+    )
+    expect(existsSync(join(remoteWorkspaceDir("gone", "T2", "/x", home), REMOTE_WORKSPACE_FILE))).toBe(false)
   })
 
   test("the shell hook sends a command through rx once, keeps the call's other fields, and decides no permission", () => {
@@ -155,7 +162,7 @@ describe("a workspace on another machine", () => {
   })
 
   test("add --machine keeps the agent here unless the engine is asked for there or only that machine can serve the request", () => {
-    const deck = { alias: "deck", host: "deck", auth: { kind: "agent" } } as MachineEntry
+    const deck: MachineEntry = { alias: "deck", host: "deck", auth: { kind: "key" } }
     const windows = { ...deck, alias: "pc", roveBin: "C:\\rove\\rove.exe" }
     expect(addStaysHere("add", { repo: "me/app", prompt: "p" }, deck)).toBe(true)
     expect(addStaysHere("add", { repo: "me/app", prompt: "p", "engine-there": true }, deck)).toBe(false)

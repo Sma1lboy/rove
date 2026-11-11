@@ -75,6 +75,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
         branch: there.task.branch,
         ...(there.task.repoId ? { repoId: there.task.repoId } : {}),
       },
+      repo: there.task.repo,
       sshArgv: machineSshArgs(alias, entry),
       engineNotes: remoteNotesFiles(),
     })
