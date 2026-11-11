@@ -51,17 +51,14 @@ describe("the routine run log", () => {
     ])
   })
 
-  test("filters by routine and outcome and lists newest first", () => {
-    const byRoutine = {
-      a: [
-        run("a1", { automationId: "a", at: "2026-11-06T00:01:00Z" }),
-        run("a2", { automationId: "a", status: "skipped_blocked", at: "2026-11-06T00:03:00Z" }),
-      ],
-      b: [run("b1", { automationId: "b", status: "dispatch_failed", at: "2026-11-06T00:02:00Z" })],
-    }
-    expect(filterRuns(byRoutine, null, null).map((r) => r.id)).toEqual(["a2", "b1", "a1"])
-    expect(filterRuns(byRoutine, "a", null).map((r) => r.id)).toEqual(["a2", "a1"])
-    expect(filterRuns(byRoutine, null, "failed").map((r) => r.id)).toEqual(["b1"])
-    expect(filterRuns(byRoutine, "b", "blocked")).toEqual([])
+  test("filters by outcome and lists newest first", () => {
+    const runs = [
+      run("a1", { at: "2026-11-06T00:01:00Z" }),
+      run("a2", { status: "skipped_blocked", at: "2026-11-06T00:03:00Z" }),
+      run("a3", { status: "dispatch_failed", at: "2026-11-06T00:02:00Z" }),
+    ]
+    expect(filterRuns(runs, null).map((r) => r.id)).toEqual(["a2", "a3", "a1"])
+    expect(filterRuns(runs, "failed").map((r) => r.id)).toEqual(["a3"])
+    expect(filterRuns(runs, "ok").map((r) => r.id)).toEqual(["a1"])
   })
 })

@@ -51,14 +51,9 @@ export function formatDuration(ms: number): string {
   return minutes % 60 === 0 ? `${hours}h` : `${hours}h ${minutes % 60}m`
 }
 
-/** `routine` null = every routine; `outcome` null = every outcome. Newest first. */
-export function filterRuns(
-  byRoutine: Readonly<Record<string, readonly AutomationRun[]>>,
-  routine: string | null,
-  outcome: Outcome | null,
-): AutomationRun[] {
-  const pool = routine === null ? Object.values(byRoutine).flat() : (byRoutine[routine] ?? [])
-  return pool
+/** `outcome` null = every outcome. Newest first. */
+export function filterRuns(runs: readonly AutomationRun[], outcome: Outcome | null): AutomationRun[] {
+  return runs
     .filter((run) => outcome === null || outcomeOf(run) === outcome)
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at) || b.runNumber - a.runNumber)
 }

@@ -1,6 +1,6 @@
 /**
- * The Routines page's run log: every routine's recent runs in one list, newest first, each with what fired it,
- * how long it took and how it ended (blocked, waiting on a person, is not failed). Chips filter by routine and
+ * The Routines page's run log: the selected routine's recent runs, newest first, each with what fired it,
+ * how long it took and how it ended (blocked, waiting on a person, is not failed). Chips filter by
  * outcome; a run that made a session opens it.
  */
 
@@ -14,8 +14,7 @@ import { OUTCOMES, type Outcome, SOURCES, filterRuns, formatDuration, runDuratio
 import { runErrorText } from "./routine-run-text.ts"
 import { TONE_CLASS, TONE_GLYPH, runTone } from "./routine-runs.tsx"
 import { Button } from "./ui/button.tsx"
-import { RT_GROW, RT_RUN, RT_RUN_ERROR, RT_RUN_LINE, RT_RUN_OPEN, RT_RUN_ROUTINE } from "./ui/routines.ts"
-import { Select } from "./ui/select.tsx"
+import { RT_GROW, RT_RUN, RT_RUN_ERROR, RT_RUN_LINE, RT_RUN_OPEN } from "./ui/routines.ts"
 import { KICKER } from "./ui/text.ts"
 
 /** How many runs the log lists before it says how many more there are. */
@@ -47,28 +46,16 @@ export function useRoutineRuns(c: BridgeClient, ids: readonly string[], tick: nu
 }
 
 export function RunLog(props: {
-  c: BridgeClient
-  tick: number
-  routines: readonly { readonly id: string; readonly name: string }[]
-  /** The routine the page's cursor is on: the log starts on it, and follows it. */
-  followId: string | undefined
+  /** The selected routine's runs: the page has one selection, and the log shows it. */
+  runs: readonly AutomationRun[]
   now: number
   when: (iso: string | undefined) => string
   openRun: (taskId: string) => void
 }) {
   useLocale()
   const { auto } = useCopy()
-  // `null` follows the cursor; "" is every routine.
-  const [routine, setRoutine] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the cursor moving is the trigger
-  useEffect(() => setRoutine(null), [props.followId])
-  const scope = routine === null ? (props.followId ?? "") : routine
-  // Only the routines in view are read: one, or every routine when the log is widened to all.
-  const read = scope === "" ? props.routines.map((r) => r.id) : [scope]
-  const runs = useRoutineRuns(props.c, read, props.tick)
-  const nameOf = new Map(props.routines.map((r) => [r.id, r.name]))
-  const shown = filterRuns(runs, scope === "" ? null : scope, outcome)
+  const shown = filterRuns(props.runs, outcome)
   const statusText = (run: AutomationRun): string => {
     if (run.status === "skipped_blocked") {
       const reason = run.blocked?.reason
@@ -86,25 +73,12 @@ export function RunLog(props: {
   return (
     <>
       <h2 className={`${KICKER} text-muted`}>{t("runLog.title")}</h2>
-      {props.routines.length > 1 && (
-        <Select
-          label={t("runLog.routine")}
-          value={scope}
-          picks={[
-            { value: "", label: t("runLog.allRoutines") },
-            ...props.routines.map((r) => ({ value: r.id, label: r.name })),
-          ]}
-          onPick={setRoutine}
-        />
-      )}
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {chip(t("runLog.all"), outcome === null, () => setOutcome(null), "all")}
         {OUTCOMES.map((o) => chip(t(`runLog.outcome.${o}`), outcome === o, () => setOutcome(o), o))}
       </div>
       {shown.length === 0 ? (
-        <p className="text-muted">
-          {filterRuns(runs, scope === "" ? null : scope, null).length === 0 ? auto.noRuns : t("runLog.empty")}
-        </p>
+        <p className="text-muted">{props.runs.length === 0 ? auto.noRuns : t("runLog.empty")}</p>
       ) : (
         shown.slice(0, SHOWN).map((run) => {
           const tone = runTone(run.status)
@@ -116,7 +90,6 @@ export function RunLog(props: {
             <>
               <span>{TONE_GLYPH[tone]}</span>
               <span>{`#${run.runNumber}`}</span>
-              {scope === "" && <span className={RT_RUN_ROUTINE}>{nameOf.get(run.automationId) ?? ""}</span>}
               <span className={RT_GROW}>{`${statusText(run)}${run.tabId ? `, ${run.tabId}` : ""}${note}`}</span>
               <span className="text-subtle">{t(`runLog.source.${SOURCES[run.trigger]}`)}</span>
               {duration !== null && <span className="text-muted">{formatDuration(duration)}</span>}
