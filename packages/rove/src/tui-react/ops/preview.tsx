@@ -7,6 +7,7 @@
  */
 
 import { type DiffRenderable, TextAttributes } from "@opentui/core"
+import { useRenderer } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { execHostForWorktreePath } from "../../exec/resolve"
 import { errorMessage } from "../../lib/error-message"
@@ -64,7 +65,8 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     removedBg: inks.removedBg,
   }
   const t = useT()
-  const style = useMemo(() => buildSyntaxStyle(theme), [theme])
+  const renderer = useRenderer()
+  const style = useMemo(() => buildSyntaxStyle(theme, renderer.nativeScene), [theme, renderer])
   // A directory / whole-worktree diff. `.` would render as a bare dot in the
   // header, so it gets a name; everything else IS its own name.
   const combined = isCombinedPathspec(props.relPath)

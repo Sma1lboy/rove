@@ -15,6 +15,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
+import { INPUT_SCROLL } from "../ui/input-scroll"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /** Context is the asking task's own prose; clip it so the dialog stays one screen. */
@@ -125,6 +126,7 @@ export function GateDecisionDialogView(props: {
       >
         <DialogField focused={field === "note"}>
           <input
+            {...INPUT_SCROLL}
             value={note}
             placeholder={t("gates.decision.notePlaceholder")}
             focused={field === "note"}

@@ -210,7 +210,8 @@ for (const { width, height } of [
     )!
     const lines = frame.split("\n")
     const create = lines.findIndex((line) => line.includes("[ Create ]"))
-    const legendEnd = lines.findIndex((line) => line.includes("esc cancel"))
+    // The legend wraps, and where it breaks is the renderer's call: its last line is the one that ends it.
+    const legendEnd = lines.findLastIndex((line, index) => index < create && /\bcancel\b/.test(line))
     expect(create).toBe(legendEnd + 1)
     if (height >= 34) {
       const wells = descendants(h.renderer.root).filter(

@@ -13,6 +13,10 @@ async function mount(ui: Parameters<typeof renderComponent>[0]): Promise<RenderH
   await act(async () => {
     handle = await renderComponent(ui, { width: 70, height: 16, providers: { dialog: true } })
   })
+  // A pane learns its size on the frame after it mounts, and acquires its PTY then.
+  await act(async () => {
+    await handle?.frame()
+  })
   if (!handle) throw new Error("terminal did not mount")
   return handle
 }
@@ -50,6 +54,8 @@ test("switching sessions releases the old listeners while retaining registry PTY
       select?.("bravo::tab-1")
       await settle()
     })
+    // The new session's pane sizes itself, and acquires its PTY, on the next frame.
+    await frame(handle)
     const bravo = fixture.last()
     expect(bravo).not.toBe(alpha)
     await act(async () => {
@@ -67,6 +73,7 @@ test("switching sessions releases the old listeners while retaining registry PTY
       await settle()
     })
     expect(fixture.ptys).toHaveLength(2)
+    await frame(handle)
     expect(await frame(handle)).toContain("ALPHA while hidden")
     await act(async () => {
       bravo.kill()

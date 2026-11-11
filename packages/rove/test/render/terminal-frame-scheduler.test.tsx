@@ -71,7 +71,7 @@ test("PTY data reaches the actual frame that requested its snapshot", async () =
     })
     await t.renderOnce()
     // Automatic draws stay suspended; one explicit pass is the assertion.
-    t.renderer.suspend()
+    t.renderer.pause()
     await pty.pump("first")
     await pty.pump(" latest")
     expect(t.captureCharFrame()).not.toContain("first latest")

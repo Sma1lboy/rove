@@ -53,6 +53,10 @@ const mountPane = async (taskId: string) => {
       { width: 60, height: 18, providers: { dialog: true } },
     )
   })
+  // A pane learns its size on the frame after it mounts, and acquires its PTY then.
+  await act(async () => {
+    await handle?.frame()
+  })
   if (!handle) throw new Error("terminal mount failed")
   const mounted = handle
   await act(async () => {

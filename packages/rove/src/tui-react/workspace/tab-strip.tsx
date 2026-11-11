@@ -194,8 +194,8 @@ function TabStripBody(props: TabStripProps & { readonly narrow: boolean; readonl
     const active = entries[activeIndex]
     if (!active) return null
     const counter = `${activeIndex + 1}/${entries.length}`
-    // Strip padding 2 + chip padding 2 + glyph 2 (if shown) + gap 1 + counter.
-    const titleCells = Math.max(4, dims.width - 5 - (active.chipShown ? 2 : 0) - counter.length)
+    // Strip padding 2 + chip padding 2 + glyph 2 (if shown) + a gap on each side of the spacer + counter.
+    const titleCells = Math.max(4, dims.width - 6 - (active.chipShown ? 2 : 0) - counter.length)
     const pulse = pulsing.has(active.tab.id)
     return (
       // No row background: transparent mode forces panel backgrounds to alpha-0
