@@ -307,6 +307,10 @@ only last.
 - **Same information on both clients.** For any surface that exists in both clients (the rail
   vs `tui-react/panes/sidebar`, the workspace vs `tui-react/workspace`, settings, the inbox,
   routines), list what each shows and diff the lists. The pixels differ; the facts must not.
+- **A setting is listed only where it can be drawn.** state.json holds one base set (`prefs-defs.ts`);
+  each client's Settings is its own selection from it. A setting only the terminal can draw
+  (transparent background, the glyph set) is not on the web, and a web-only one (Task status) is
+  not in the TUI. No "terminal only" group, and no row that changes nothing on the page it sits on.
 - **A change on one client is not done** until the other matches or the gap is named in the PR
   and in `docs/web/PARITY.md`. The same goes for light ↔ dark, wide ↔ narrow ↔ phone, local ↔
   remote machine, and `en` ↔ `zh`.

@@ -1,7 +1,9 @@
 /**
- * The allowlist behind `prefs.get` / `prefs.set`: every Settings knob the TUI keeps in
- * state.json as a flag, an enum or a bounded number, with the TUI's own normalizer reading it
- * and its own constant list bounding what may be written.
+ * The allowlist behind `prefs.get` / `prefs.set`: the base set of Settings knobs kept in
+ * state.json as a flag, an enum or a bounded number, each read by its own normalizer and bounded
+ * by its own constant list. Every client reads the whole set and lists only what it can draw:
+ * `transparent` and `glyphSet` are the terminal app's alone, `statusMark` and its notice flag the
+ * web's alone, and neither client shows the other's.
  *
  * Deliberately absent, because the value would be authored by the client and then run or
  * stored by the Mac: the custom editor command (`editor.customCommand`), the custom worktree

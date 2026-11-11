@@ -67,7 +67,6 @@ export const en = {
     appearance: {
       groupColours: "Colours",
       groupTasks: "Tasks and panes",
-      groupTerminal: "Terminal app only",
       taskColorsNote: "Gives each task its own hue on the working border and in the list.",
       colorblindNote: "Shows added and removed lines in blue and red instead of green and red.",
       workingBorderNote: "The pane's border while the selected task is working.",
@@ -151,7 +150,6 @@ export const en = {
     },
   },
   prefs: {
-    terminalOnly: "Terminal only: the TUI changes, this page has nothing to draw.",
     languageHint: "Display language, shared with the TUI.",
     soundHint: "chime, plus a desktop notification while this tab is in the background",
     soundVolumeHint: "Plays the new level when you pick it.",
@@ -308,7 +306,6 @@ export const zh: typeof en = {
     appearance: {
       groupColours: "颜色",
       groupTasks: "任务与面板",
-      groupTerminal: "仅终端应用",
       taskColorsNote: "让每个任务在工作边框和列表里有自己的色调。",
       colorblindNote: "新增和删除的行用蓝色和红色，而不是绿色和红色。",
       workingBorderNote: "所选任务工作时，面板边框的样子。",
@@ -392,7 +389,6 @@ export const zh: typeof en = {
     },
   },
   prefs: {
-    terminalOnly: "仅终端：TUI 会变化，网页没有可画的东西。",
     languageHint: "显示语言，与 TUI 共用同一设置。",
     soundHint: "提示音；本页在后台时另发桌面通知",
     soundVolumeHint: "选中后会播放新音量。",
