@@ -156,6 +156,8 @@ export interface DaemonHandlerContext {
      *  detects a daemon from a DIFFERENT home on its socket, whose empty task
      *  index would otherwise render as "you have no tasks". */
     readonly homeDir?: string
+    /** Where this home's PTY host listens. Not derivable from `homeDir`: an ambient home binds under `XDG_RUNTIME_DIR`. */
+    readonly ptySocketPath?: () => string
     /** Reported by `hello` / `daemon.status`. */
     readonly pid: number
     /** Started with `--resident`: no idle-stop. Absent in older test doubles. */
@@ -303,7 +305,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // `rove machine add` reads these over SSH instead of guessing: the
           // remote home may be another user, and `fitSocketPath` may shorten
           // either path for sun_path, so neither is derivable locally.
-          ptySocketPath: defaultPtyHostSocketPath(ctx.daemon.homeDir),
+          ptySocketPath: ctx.daemon.ptySocketPath?.() ?? defaultPtyHostSocketPath(ctx.daemon.homeDir),
           hostname: hostname(),
         }
       },

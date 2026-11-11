@@ -35,7 +35,13 @@ import { writeTextAtomic } from "./json-file.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
-import { defaultDaemonPidPath, defaultDaemonSocketPath, endpointPathFor, resolveDaemonHomeDir } from "./paths.ts"
+import {
+  defaultDaemonPidPath,
+  defaultDaemonSocketPath,
+  defaultPtyHostSocketPath,
+  endpointPathFor,
+  resolveDaemonHomeDir,
+} from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { PromptQueue } from "./prompt-queue.ts"
 import type { DaemonFrame } from "./protocol.ts"
@@ -391,6 +397,7 @@ async function startOwnedServer(
         startedAt,
         socketPath,
         homeDir,
+        ptySocketPath: () => defaultPtyHostSocketPath(options.homeDir),
         pid: process.pid,
         resident: lifetime.isResident(),
         guiCount: () => lifetime.guiCount(),
