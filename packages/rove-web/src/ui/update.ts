@@ -2,10 +2,7 @@
 
 export const PAGE_HEAD = "flex items-baseline justify-between"
 export const UPDATE_VERSIONS = "[&_b]:mr-2.5"
-export const UPDATE_ACTIONS = "my-2.5 flex flex-col"
-export const updateActionClass = (cursor: boolean): string =>
-  `flex gap-3 rounded-sm px-2 py-1 text-left text-[length:var(--fs-body)] ${cursor ? "bg-menu" : ""}`
-export const UPDATE_LABEL = "min-w-[14ch]"
+export const UPDATE_ACTIONS = "my-2.5 flex items-center gap-3.5"
 /** The installer's output tail while Update now runs. */
 export const UPDATE_OUTPUT =
   "my-2 max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-anywhere rounded-sm bg-inset p-2 font-mono text-[length:var(--fs-meta)]"
