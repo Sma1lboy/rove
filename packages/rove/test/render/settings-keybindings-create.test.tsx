@@ -1,8 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Keybindings WRITES the starter YAML rather than printing an
- * example for you to retype: one keypress, and the section flips from "not
- * created yet" to a real config it can report on.
+ * Settings → Keybindings needs no file to start from: the first saved change writes
+ * `keybindings.yaml` from the commented starter, with that one entry live in it.
  */
 
 import { expect, test } from "bun:test"
@@ -21,15 +20,11 @@ function Driver() {
   return <SettingsDialog kv={kv} onClose={NOOP} />
 }
 
-test("the Keybindings page writes the starter YAML on enter", async () => {
+test("the first saved binding creates keybindings.yaml from the starter", async () => {
   const home = mkdtempSync(join(tmpdir(), "rove-keys-create-"))
   process.env.ROVE_HOME_DIR = home
-  // `userKeybindingsReport()` memoizes the resolved path on first call, and
-  // bun runs every render test in ONE process — so any earlier test that
-  // mounted Settings already froze that path against ITS temp home, and the
-  // create action would write there instead of here. Dropping the cache
-  // after the env var is set makes this test isolated instead of dependent
-  // on being the first Settings mount in the run.
+  // The report memoizes its path on first call and bun runs every render test in one
+  // process: drop the cache once the env var is set, or the save lands in another test's home.
   reloadUserKeybindings()
   const yaml = join(home, ".rove", "settings", "keybindings.yaml")
   expect(existsSync(yaml)).toBe(false)
@@ -39,30 +34,31 @@ test("the Keybindings page writes the starter YAML on enter", async () => {
     height: 40,
     providers: { kv: true, dialog: true },
   })
-  const press = async (key: string): Promise<string> => {
-    act(() => mockInput.pressKey(key))
+  const press = async (key: string, mods?: { ctrl: boolean }): Promise<string> => {
+    act(() => mockInput.pressKey(key, mods))
     await settle()
     return await frame()
   }
 
-  // General → Engines → Auto routing → Plugins → Marketplace → Keybindings.
   for (let i = 0; i < 5; i++) await press("j") // → Keybindings
   expect(await frame()).toContain("not created yet")
-
-  await press("l") // into the body — prefix presentation rows come first
+  await press("l")
   await press("j")
-  await press("j") // → Create keybindings.yaml
-  // `pressEnter()`, not `pressKey("return")`: the mock's key NAMES are
-  // uppercase, so a lowercase one is typed as its six letters.
+  await press("j") // past the two prefix-tap rows → Prefix key
+  // `pressEnter()`: the mock's key names are uppercase, a lowercase one is typed as letters.
   act(() => mockInput.pressEnter())
   await settle()
-  const after = await frame()
+  const after = await press("b", { ctrl: true })
 
-  expect(existsSync(yaml)).toBe(true)
-  // Commented out end to end: creating the file must not rebind anything.
   const written = readFileSync(yaml, "utf8")
-  expect(written.split("\n").filter((l) => l.trim() && !l.trimStart().startsWith("#"))).toEqual([])
-  // The offer is gone and the section now reports on a real file.
+  expect(written).toContain("# Rove keybindings")
+  expect(written.split("\n").filter((l) => l.trim() && !l.trimStart().startsWith("#"))).toEqual([
+    "prefix:",
+    "  key: ctrl+b",
+  ])
   expect(after).not.toContain("not created yet")
-  expect(after).not.toContain("Create keybindings.yaml")
+  expect(after).toContain("Command layer (ctrl+b)")
+  // The live keymap is process-wide: hand the next test the defaults, not this file's prefix.
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-keys-clean-"))
+  reloadUserKeybindings()
 })

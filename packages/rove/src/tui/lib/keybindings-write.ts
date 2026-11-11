@@ -6,12 +6,14 @@
  */
 
 import { type Document, isMap, parseDocument } from "yaml"
+import { PREFIX_KEY_ID } from "./chord-recorder"
 import { resolveUserKeybindings } from "./keybindings-resolve"
+import { DEFAULT_PREFIX_CONFIGURATION, prefixFirstStrokes } from "./keymap-dispatch"
 import type { OverridableBinding } from "./keymap-overrides"
 
 export type KeybindingEdit = {
   id: string
-  /** `direct` = the binding's own chords; `prefix` = its second stroke after the prefix key. */
+  /** `direct` = the binding's own chords; `prefix` = its second stroke after the prefix key. Ignored for `PREFIX_KEY_ID`. */
   mode: "direct" | "prefix"
   /** The chords to bind, `[]` to unbind, or `"default"` to drop the override. */
   keys: readonly string[] | "default"
@@ -28,6 +30,7 @@ function platformSections(platform: NodeJS.Platform): string[] {
 /** Every place the file can set `id` for `mode` on this platform. */
 function pathsOf(doc: Document, edit: KeybindingEdit, platform: NodeJS.Platform): string[][] {
   const roots: string[][] = [[], ...platformSections(platform).map((name) => [name])]
+  if (edit.id === PREFIX_KEY_ID) return roots.map((root) => [...root, "prefix", "key"])
   const paths: string[][] = []
   for (const root of roots) {
     // A platform section may hold its ids directly, without a `bindings:` level.
@@ -51,10 +54,11 @@ function deleteAndPrune(doc: Document, path: string[]): void {
   }
 }
 
-/** An emptied root prints as `{}`; the file should go back to its comments alone. */
+/** A root with nothing in it prints as `{}` or `null`; the file should be its comments alone. */
 function printed(doc: Document): string {
   const text = doc.toString()
-  return isMap(doc.contents) && doc.contents.items.length === 0 ? text.replace(/\{\}\n$/, "") : text
+  const empty = doc.contents === null || (isMap(doc.contents) && doc.contents.items.length === 0)
+  return empty ? text.replace(/(\{\}|null)\n$/, "") : text
 }
 
 function edited(text: string, edit: KeybindingEdit, platform: NodeJS.Platform): string {
@@ -90,24 +94,29 @@ export function editKeybindingsYaml(
   keymap: readonly OverridableBinding[],
   platform: NodeJS.Platform,
 ): KeybindingEditResult {
+  const isPrefixKey = edit.id === PREFIX_KEY_ID
   const defaults = keymap.find((row) => row.id === edit.id)
-  if (!defaults) return { ok: false, reasons: [`${edit.id}: unknown binding id`] }
-  const wanted =
-    edit.keys === "default" ? [...((edit.mode === "direct" ? defaults.keys : defaults.prefixKeys) ?? [])] : edit.keys
+  if (!defaults && !isPrefixKey) return { ok: false, reasons: [`${edit.id}: unknown binding id`] }
+  const defaultKeys = isPrefixKey
+    ? prefixFirstStrokes(DEFAULT_PREFIX_CONFIGURATION)
+    : ((edit.mode === "direct" ? defaults?.keys : defaults?.prefixKeys) ?? [])
+  const wanted = edit.keys === "default" ? [...defaultKeys] : edit.keys
   let next: string
   try {
     next = edited(text, edit, platform)
   } catch (err) {
     return { ok: false, reasons: [err instanceof Error ? err.message : String(err)] }
   }
-  const { report } = resolveUserKeybindings(
+  const { report, prefix } = resolveUserKeybindings(
     { path: "", exists: true, doc: parseDocument(next).toJS(), warnings: [] },
     keymap,
     platform,
   )
-  const about = report.warnings.filter((w) => w.startsWith(`${edit.id}:`) || w.startsWith(`prefix.bindings.${edit.id}`))
+  const about = report.warnings.filter(
+    (w) => w.startsWith(`${edit.id}:`) || w.startsWith(`${edit.id} `) || w.startsWith(`prefix.bindings.${edit.id}`),
+  )
   const row = keymap.find((candidate) => candidate.id === edit.id)
-  const got = edit.mode === "direct" ? row?.keys : row?.prefixKeys
+  const got = isPrefixKey ? prefixFirstStrokes(prefix) : edit.mode === "direct" ? row?.keys : row?.prefixKeys
   if (!sameKeys(got, wanted)) return { ok: false, reasons: about.length > 0 ? about : [`${edit.id}: not applied`] }
   return { ok: true, text: next, warnings: about }
 }

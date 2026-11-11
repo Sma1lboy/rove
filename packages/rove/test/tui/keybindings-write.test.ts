@@ -44,6 +44,9 @@ describe("editKeybindingsYaml", () => {
     )
     expect(out).not.toContain("chat.tab.new")
     expect(out).not.toContain("{}")
+    // Restoring again, with only comments left, must not print an empty root either.
+    const again = textOf(edit(`# mine\n${out}`, { id: "chat.tab.new", mode: "prefix", keys: "default" }))
+    expect(again.split("\n").filter((line) => line && !line.startsWith("#"))).toEqual([])
   })
 
   it("unbinds with null", () => {
@@ -59,5 +62,13 @@ describe("editKeybindingsYaml", () => {
 
   it("refuses to touch a file that does not parse", () => {
     expect(edit("bindings: [", { id: "chat.tab.new", mode: "direct", keys: ["ctrl+g"] })).toMatchObject({ ok: false })
+  })
+
+  it("moves the prefix key, and refuses one without a modifier", () => {
+    const out = textOf(edit("", { id: "prefix.key", mode: "direct", keys: ["ctrl+b"] }))
+    expect(out).toMatch(/prefix:\n {2}key: ctrl\+b/)
+    expect(textOf(edit(out, { id: "prefix.key", mode: "direct", keys: "default" }))).not.toContain("ctrl+b")
+    const bare = edit("", { id: "prefix.key", mode: "direct", keys: ["b"] })
+    expect(!bare.ok && bare.reasons.join(" ")).toContain("modifier")
   })
 })

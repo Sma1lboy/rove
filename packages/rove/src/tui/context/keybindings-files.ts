@@ -137,12 +137,13 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
     description: "Merge the base branch into this task's worktree",
   },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
-  // Raw bindings registered by preview-review.tsx, live only in the diff tab
-  // so they can't shadow input or terminals. `keys: []` rows exist so F1 lists them.
+  // Registered by preview-review.tsx, live only in the focused diff tab, where
+  // nothing is typed: bare letters are safe there despite the workspace scope.
   {
     id: "diff.review.cursor",
     scope: "workspace",
-    keys: [],
+    keys: ["j", "k", "down", "up"],
+    bareKeys: true,
     category: "Diff review",
     description: "Move the line cursor over the diff",
     hint: { keys: "j/k" },
@@ -150,7 +151,8 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
   {
     id: "diff.review.range",
     scope: "workspace",
-    keys: [],
+    keys: ["v"],
+    bareKeys: true,
     category: "Diff review",
     description: "Toggle range anchor at the cursor",
     hint: { keys: "v" },
@@ -158,7 +160,8 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
   {
     id: "diff.review.note",
     scope: "workspace",
-    keys: [],
+    keys: ["c"],
+    bareKeys: true,
     category: "Diff review",
     description: "Add a review note at the cursor",
     hint: { keys: "c" },
@@ -166,17 +169,17 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
   {
     id: "diff.review.send",
     scope: "workspace",
-    keys: [],
+    keys: ["s"],
+    bareKeys: true,
     category: "Diff review",
     description: "Send all unsent review notes to the engine",
     hint: { keys: "s" },
   },
   {
-    // Registered in preview-review.tsx (`x`) and preview.tsx (`r`); rows here
-    // so F1 matches the six keys the diff footer names.
     id: "diff.review.drop",
     scope: "workspace",
-    keys: [],
+    keys: ["x"],
+    bareKeys: true,
     category: "Diff review",
     description: "Drop the review note the cursor sits inside",
     hint: { keys: "x" },
@@ -186,7 +189,8 @@ export const FILES_BINDINGS: readonly RoveBinding[] = [
     // too, hence "file", not "diff".
     id: "diff.review.reload",
     scope: "workspace",
-    keys: [],
+    keys: ["r"],
+    bareKeys: true,
     category: "Diff review",
     description: "Reload the previewed file from disk",
     hint: { keys: "r" },

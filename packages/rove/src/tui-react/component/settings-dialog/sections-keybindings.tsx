@@ -17,10 +17,15 @@ import {
 import { findBinding } from "../../../tui/context/keybindings"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { tKeys } from "../../../tui/i18n"
+import { PREFIX_KEY_ID } from "../../../tui/lib/chord-recorder"
 import { editableBindings } from "../../../tui/lib/editable-bindings"
 import { groupBindings } from "../../../tui/lib/help-groups"
-import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
-import { FIXED_BINDING_IDS, recordSlotLabels } from "../../../tui/lib/keymap-overrides"
+import {
+  DEFAULT_PREFIX_CONFIGURATION,
+  currentPrefixConfiguration,
+  prefixFirstStrokes,
+} from "../../../tui/lib/keymap-dispatch"
+import { recordSlotLabels } from "../../../tui/lib/keymap-overrides"
 import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentation"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
@@ -44,10 +49,9 @@ export function KeybindingsSettingsSection(
   // Re-read on live keymap reload so an open page stays truthful after a YAML edit.
   useKeymapVersion()
   const report = userKeybindingsReport()
-  const rows = keybindingRows(report.exists)
+  const rows = keybindingRows()
   const prefix = currentPrefixConfiguration()
   const prefixName = prefix.key ?? t("settings.keybindings.prefixDisabled")
-  const fixedIds = Object.keys(FIXED_BINDING_IDS).sort()
   const { recording, notice } = props.editor
   const select = (row: number, run: () => void) => () => {
     props.setLevel("body")
@@ -55,17 +59,46 @@ export function KeybindingsSettingsSection(
     run()
   }
 
-  /** The live chords of a binding as one line, the prefix stroke spelled after the prefix key. */
-  const chordsOf = (id: string): string => {
-    const live = findBinding(id)
-    const parts = [...(live?.keys ?? []), ...(live?.prefixKeys ?? []).map((stroke) => `${prefixName} ${stroke}`)]
-    return parts.length > 0 ? parts.join(" / ") : t("settings.keybindings.unbound")
-  }
+  const withPrefix = (strokes: readonly string[] = []) => strokes.map((stroke) => `${prefixName} ${stroke}`)
   const recordingText = (id: string): string => {
     if (recording?.prefixArmed) return t("settings.keybindings.recordingPrefix", { prefix: prefixName })
     const label = recordSlotLabels(id)[recording?.got.length ?? 0]
     return label ? t("settings.keybindings.recordingSlot", { slot: label }) : t("settings.keybindings.recording")
   }
+
+  /** One editable row: what it does, its live chords (or the recording prompt), and the default once changed. */
+  const keyRow = (id: string, label: string, chords: readonly string[], changedFrom: readonly string[] | null) => {
+    const row = rowIndex(rows, keybindingRowId(id))
+    const isRecording = recording?.id === id
+    return (
+      <box key={id} flexDirection="column" gap={0}>
+        <Row
+          cursor={props.level === "body" && props.bodyRow === row}
+          rowRef={props.rowRef(row)}
+          onMouseUp={select(row, () => props.editor.record(id))}
+          fg={changedFrom ? theme.accent : theme.text}
+          hint={
+            changedFrom && !isRecording
+              ? t("settings.keybindings.defaultKeys", { keys: changedFrom.join(" / ") })
+              : undefined
+          }
+        >
+          {`${clip(label).padEnd(DESCRIPTION_WIDTH)}  ${
+            isRecording ? recordingText(id) : chords.length > 0 ? chords.join(" / ") : t("settings.keybindings.unbound")
+          }`}
+        </Row>
+        {notice?.id === id
+          ? notice.lines.map((line) => (
+              <text key={line} fg={theme.warning} wrapMode="word">
+                {`  ! ${line}`}
+              </text>
+            ))
+          : null}
+      </box>
+    )
+  }
+  const defaultPrefix = prefixFirstStrokes(DEFAULT_PREFIX_CONFIGURATION)
+  const livePrefix = prefixFirstStrokes(prefix)
 
   return (
     <box flexDirection="column" gap={1}>
@@ -120,23 +153,13 @@ export function KeybindingsSettingsSection(
         <text fg={theme.textMuted} wrapMode="word">
           {t("settings.keybindings.prefixHint", { prefix: prefixName, timeout: prefix.timeoutMs })}
         </text>
+        {keyRow(
+          PREFIX_KEY_ID,
+          t("settings.keybindings.prefixKey"),
+          livePrefix,
+          livePrefix.join() === defaultPrefix.join() ? null : defaultPrefix,
+        )}
       </box>
-      {!report.exists ? (
-        <box flexDirection="column" gap={0}>
-          <text fg={theme.textMuted} wrapMode="word">
-            {t("settings.keybindings.createHint")}
-          </text>
-          <Row
-            cursor={props.level === "body" && props.bodyRow === rowIndex(rows, "keys-create")}
-            rowRef={props.rowRef(rowIndex(rows, "keys-create"))}
-            onMouseUp={select(rowIndex(rows, "keys-create"), props.editor.createFile)}
-            fg={theme.text}
-            idleBackground={theme.backgroundElement}
-          >
-            {t("settings.keybindings.createFile")}
-          </Row>
-        </box>
-      ) : null}
       {report.warnings.length > 0 ? (
         <box flexDirection="column" gap={0}>
           <text fg={theme.warning} attributes={TextAttributes.BOLD}>
@@ -149,47 +172,17 @@ export function KeybindingsSettingsSection(
           ))}
         </box>
       ) : null}
-      {fixedIds.length > 0 ? (
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.keybindings.fixed", { ids: fixedIds.join(", ") })}
-        </text>
-      ) : null}
       {groupBindings(editableBindings()).map((group) => (
         <box key={group.category} flexDirection="column" gap={0}>
           <text fg={theme.text} attributes={TextAttributes.BOLD}>
             {tKeys("category", group.category)}
           </text>
           {group.rows.map((binding) => {
-            const row = rowIndex(rows, keybindingRowId(binding.id))
+            const defaults = [...binding.keys, ...withPrefix(binding.prefixKeys)]
+            const live = findBinding(binding.id)
+            const chords = [...(live?.keys ?? []), ...withPrefix(live?.prefixKeys)]
             const changed = report.applied.some((o) => o.id === binding.id)
-            const isRecording = recording?.id === binding.id
-            const defaults = [...binding.keys, ...(binding.prefixKeys ?? []).map((stroke) => `${prefixName} ${stroke}`)]
-            return (
-              <box key={binding.id} flexDirection="column" gap={0}>
-                <Row
-                  cursor={props.level === "body" && props.bodyRow === row}
-                  rowRef={props.rowRef(row)}
-                  onMouseUp={select(row, () => props.editor.record(binding.id))}
-                  fg={changed ? theme.accent : theme.text}
-                  hint={
-                    changed && !isRecording
-                      ? t("settings.keybindings.defaultKeys", { keys: defaults.join(" / ") })
-                      : undefined
-                  }
-                >
-                  {`${clip(tKeys("desc", binding.id)).padEnd(DESCRIPTION_WIDTH)}  ${
-                    isRecording ? recordingText(binding.id) : chordsOf(binding.id)
-                  }`}
-                </Row>
-                {notice?.id === binding.id
-                  ? notice.lines.map((line) => (
-                      <text key={line} fg={theme.warning} wrapMode="word">
-                        {`  ! ${line}`}
-                      </text>
-                    ))
-                  : null}
-              </box>
-            )
+            return keyRow(binding.id, tKeys("desc", binding.id), chords, changed ? defaults : null)
           })}
         </box>
       ))}

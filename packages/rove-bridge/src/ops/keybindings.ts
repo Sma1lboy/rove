@@ -16,6 +16,7 @@ import {
   resetKeybindingsFileCache,
 } from "@sma1lboy/rove/src/state/keybindings-file.ts"
 import { RoveKeymap } from "@sma1lboy/rove/src/tui/context/keybindings-table.ts"
+import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/tui/lib/chord-recorder.ts"
 import { editableBindings } from "@sma1lboy/rove/src/tui/lib/editable-bindings.ts"
 import { resolveUserKeybindings } from "@sma1lboy/rove/src/tui/lib/keybindings-resolve.ts"
 import { type KeybindingSaveResult, writeKeybindingEdits } from "@sma1lboy/rove/src/tui/lib/keybindings-save.ts"
@@ -148,10 +149,11 @@ export function createKeybindingsOps(deps: KeybindingsDeps = realDeps): OpTable 
     "keybindings.set": {
       kind: "write",
       destructive: false,
-      wraps: "helper writeKeybindingEdits (the TUI's Settings → Keybindings save) for one rebindable binding id",
+      wraps:
+        "helper writeKeybindingEdits (the TUI's Settings → Keybindings save) for one rebindable binding id or the prefix key",
       async run(a: Args) {
         const id = str(a, "id")
-        if (!editableBindings().some((row) => row.id === id))
+        if (id !== PREFIX_KEY_ID && !editableBindings().some((row) => row.id === id))
           throw new BridgeError("BAD_ARGS", `${id} is not rebindable`)
         const edits: KeybindingEdit[] = []
         for (const mode of ["direct", "prefix"] as const) {

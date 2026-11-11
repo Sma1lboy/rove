@@ -13,6 +13,7 @@
 import type { DiffRenderable, RGBA } from "@opentui/core"
 import { CodeRenderable } from "@opentui/core"
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react"
+import { bindByIds, findBinding } from "../../tui/context/keybindings"
 import {
   type DiffReviewApi,
   type DiffRow,
@@ -25,12 +26,27 @@ import {
 } from "../../tui/ops/diff-comments"
 import { followScrollTop } from "../../tui/panes/filetree/pane-core"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
+import { useKeymapVersion } from "../context/keybindings"
 import { useNotifications } from "../context/notifications"
 import { type Theme, useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { useLatest } from "../lib/use-latest"
 import { useDialog } from "../ui/dialog"
+
+/** The review chords as the footer names them: the live first chord of each (down/up for the cursor). */
+function reviewKeyCaps(): Record<string, string> {
+  const first = (id: string, count = 1): string =>
+    (findBinding(`diff.review.${id}`)?.keys ?? []).slice(0, count).join("/") || "—"
+  return {
+    move: first("cursor", 2),
+    range: first("range"),
+    note: first("note"),
+    drop: first("drop"),
+    send: first("send"),
+    reload: first("reload"),
+  }
+}
 
 /** The DiffRenderable's scrollable code child, found via the child tree (the direct handle is TS-private). */
 function findCodeRenderable(diff: DiffRenderable): CodeRenderable | null {
@@ -78,6 +94,8 @@ export function useDiffReview(args: {
   const dialog = useDialog()
   const { theme } = useTheme()
   const t = useT()
+  // The footer names the live chords: re-render when the keymap reloads.
+  useKeymapVersion()
   // A refused send must toast: the alternate screen hides the console.
   const notif = useNotifications()
 
@@ -150,7 +168,7 @@ export function useDiffReview(args: {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: t("ops.preview.review.sendNoEngine") })
   }
 
-  /** `x` — drop the note the cursor sits inside. PROPOSED chord. */
+  /** Drop the note the cursor sits inside. */
   function dropNoteAtCursor(): void {
     const note = commentAtRow(rows, cursor, comments, args.relPath)
     if (note) args.review?.remove(note.id)
@@ -158,18 +176,14 @@ export function useDiffReview(args: {
 
   useBindings(() => ({
     enabled: enabled && args.focused,
-    bindings: [
-      // `id`s mirror RoveKeymap's doc-only `diff.review.*` rows (chords are
-      // fixed via FIXED_BINDING_IDS); they put the rows in F1's reachability scan.
-      { key: "j", id: "diff.review.cursor", cmd: () => moveCursor(1) },
-      { key: "down", id: "diff.review.cursor", cmd: () => moveCursor(1) },
-      { key: "k", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
-      { key: "up", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
-      { key: "v", id: "diff.review.range", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
-      { key: "c", id: "diff.review.note", cmd: () => void promptNote() },
-      { key: "x", id: "diff.review.drop", cmd: () => dropNoteAtCursor() },
-      { key: "s", id: "diff.review.send", cmd: () => sendAll() },
-    ],
+    // Even slots of the cursor chords move down, odd ones up (SLOT_CONTRACTS).
+    bindings: bindByIds({
+      "diff.review.cursor": (_evt, slot) => moveCursor((slot ?? 0) % 2 === 0 ? 1 : -1),
+      "diff.review.range": () => setAnchor((a) => (a == null ? cursor : null)),
+      "diff.review.note": () => void promptNote(),
+      "diff.review.drop": () => dropNoteAtCursor(),
+      "diff.review.send": () => sendAll(),
+    }),
   }))
 
   /* --------- footer --------- */
@@ -195,7 +209,7 @@ export function useDiffReview(args: {
         {/* The review chords need this pane focused; opening a diff
             deliberately does not steal focus, so until it has focus the hint
             says how to get there rather than listing keys that do nothing. */}
-        {args.focused ? t("ops.preview.review.keysHint") : t("ops.preview.review.focusHint")}
+        {args.focused ? t("ops.preview.review.keysHint", reviewKeyCaps()) : t("ops.preview.review.focusHint")}
       </text>
     </box>
   ) : null

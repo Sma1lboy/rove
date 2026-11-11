@@ -20,7 +20,6 @@
 
 import { describe, expect, test } from "vitest"
 import {
-  FIXED_BINDING_IDS,
   type OverridableBinding,
   applyKeymapOverrides,
   extractKeybindingOverrides,
@@ -174,49 +173,22 @@ describe("applyKeymapOverrides", () => {
     expect(row?.hint).toBeUndefined()
   })
 
-  test("unknown ids, fixed ids, and doc-only rows warn without applying", () => {
-    const keymap = makeKeymap()
-    // Exercise the injectable-map seam with a synthetic entry (the shipped
-    // map's own entries are pinned by the diff-review test below).
-    const fixedIds = { "fixed.example": "handled outside the keymap" }
-    const { applied, warnings } = applyKeymapOverrides(
-      keymap,
-      [
-        { id: "nope.nothing", keys: ["ctrl+x"] },
-        { id: "fixed.example", keys: ["ctrl+n"] },
-        { id: "chat.send", keys: ["ctrl+m"] }, // doc-only
-      ],
-      fixedIds,
-    )
+  test("unknown ids and doc-only rows warn without applying", () => {
+    const { applied, warnings } = applyKeymapOverrides(makeKeymap(), [
+      { id: "nope.nothing", keys: ["ctrl+x"] },
+      { id: "chat.send", keys: ["ctrl+m"] }, // doc-only
+    ])
     expect(applied).toEqual([])
-    expect(warnings).toHaveLength(3)
+    expect(warnings).toHaveLength(2)
     expect(warnings[0]).toMatch(/unknown binding id/)
-    expect(warnings[1]).toMatch(/not customizable/)
-    expect(warnings[2]).toMatch(/doc-only/)
-    expect(keymap.find((b) => b.id === "fixed.example")?.keys).toEqual(["j", "k"])
+    expect(warnings[1]).toMatch(/doc-only/)
   })
 
-  test("the shipped FIXED_BINDING_IDS rejects all four diff.review ids", () => {
-    // The diff-review chords are raw literal bindings registered by
-    // preview-review.tsx — the table rows exist so F1 lists them, but no
-    // handler reads the keymap. Before they were listed here, an override
-    // "applied" cleanly and changed nothing.
-    //
-    // The rows carry real `keys` on purpose: with the doc-only `keys: []`
-    // an unlisted id still warns (as doc-only) and the warning COUNT stays
-    // 4, so dropping an entry from the shipped map would not fail. Asserting
-    // the fixed-id reason per id is what actually pins all four.
-    const ids = ["diff.review.cursor", "diff.review.range", "diff.review.note", "diff.review.send"]
-    for (const id of ids) {
-      const keymap: OverridableBinding[] = [{ id, scope: "files", keys: ["j"], hint: { keys: "j/k" } }]
-      const { applied, warnings } = applyKeymapOverrides(keymap, [{ id, keys: ["w"] }])
-      expect(applied).toEqual([])
-      expect(warnings).toHaveLength(1)
-      expect(warnings[0]).toMatch(/not customizable/)
-      // The keys the raw binding owns are untouched by the rejected override.
-      expect(keymap[0]?.keys).toEqual(["j"])
-      expect(FIXED_BINDING_IDS[id]).toBeDefined()
-    }
+  test("a binding live only where nothing is typed takes a bare character on a workspace scope", () => {
+    const keymap: OverridableBinding[] = [{ id: "diff.review.note", scope: "workspace", keys: ["c"], bareKeys: true }]
+    const { warnings } = applyKeymapOverrides(keymap, [{ id: "diff.review.note", keys: ["n"] }])
+    expect(warnings).toEqual([])
+    expect(keymap[0]?.keys).toEqual(["n"])
   })
 
   test("boundary rule: bare characters are dropped on workspace/global scope, kept on sidebar/files", () => {

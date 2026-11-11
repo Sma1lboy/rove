@@ -25,27 +25,14 @@ export type OverridableBinding = {
   keys: readonly string[]
   prefixKeys?: readonly string[]
   hint?: OverridableHint
+  /** Exempt from the bare-character rule: the binding is live only where nothing is typed. */
+  bareKeys?: boolean
 }
 
 export type AppliedOverride = {
   id: string
   keys: readonly string[]
   defaultKeys: readonly string[]
-}
-
-/**
- * Ids a rebind can't express. The diff-review rows are raw literal bindings in
- * preview-review.tsx (docs/KEYBINDINGS.md "Diff review"); the rows exist only
- * so F1 lists them, so an override would apply and change nothing. Rejected by
- * `applyKeymapOverrides` and listed in Settings → Keybindings.
- */
-export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
-  "diff.review.cursor": "diff-review cursor is a fixed raw binding (j/k), not keymap-driven",
-  "diff.review.range": "diff-review range anchor is a fixed raw binding (v), not keymap-driven",
-  "diff.review.note": "diff-review note is a fixed raw binding (c), not keymap-driven",
-  "diff.review.send": "diff-review send is a fixed raw binding (s), not keymap-driven",
-  "diff.review.drop": "diff-review drop-note is a fixed raw binding (x), not keymap-driven",
-  "diff.review.reload": "preview reload is a fixed raw binding (r), not keymap-driven",
 }
 
 /**
@@ -81,6 +68,7 @@ const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "sidebar.goto": pairContract("top (double-tap)", "bottom"),
   "sidebar.nav": pairContract("down", "up"),
   "files.nav": pairContract("down", "up"),
+  "diff.review.cursor": pairContract("down", "up"),
   "sidebar.search.nav": pairContract("down", "up"),
   "files.hierarchy": pairContract("collapse", "expand"),
   "files.tab": pairContract("previous tab", "next tab"),
@@ -111,8 +99,6 @@ function scopesOverlap(a: string, b: string): boolean {
 export function applyKeymapOverrides(
   keymap: readonly OverridableBinding[],
   entries: readonly KeymapOverrideEntry[],
-  // Injectable so the fixed-id rejection is testable against a synthetic map.
-  fixedIds: Readonly<Record<string, string>> = FIXED_BINDING_IDS,
 ): { applied: AppliedOverride[]; warnings: string[] } {
   const warnings: string[] = []
   const applied: AppliedOverride[] = []
@@ -121,11 +107,6 @@ export function applyKeymapOverrides(
     const row = keymap.find((b) => b.id === entry.id)
     if (!row) {
       warnings.push(`${entry.id}: unknown binding id (press F1 in Rove for the full list)`)
-      continue
-    }
-    const fixedReason = fixedIds[entry.id]
-    if (fixedReason) {
-      warnings.push(`${entry.id}: not customizable — ${fixedReason}`)
       continue
     }
     if (row.keys.length === 0 && row.prefixKeys === undefined) {
@@ -147,7 +128,7 @@ export function applyKeymapOverrides(
     // scope steals input. `shift+<char>` is just the uppercase char, same rule.
     const keys = entry.keys.filter((chord) => {
       const typedChar = chord.length === 1 || (chord.startsWith("shift+") && chord.length === "shift+".length + 1)
-      if (typedChar && NO_BARE_LETTER_SCOPES.has(row.scope)) {
+      if (typedChar && !row.bareKeys && NO_BARE_LETTER_SCOPES.has(row.scope)) {
         warnings.push(
           `${entry.id}: "${chord}" dropped — a bare character on a ${row.scope}-scope binding would steal typed input (add a modifier)`,
         )

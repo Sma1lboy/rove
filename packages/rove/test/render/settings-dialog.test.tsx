@@ -80,9 +80,7 @@ describe("SettingsDialog", () => {
     expect(text).toContain("5000ms second-stroke window")
     expect(text).toContain("On-screen entries + complete guide (default)")
     expect(text).toContain("Complete guide only")
-    expect(text).toContain("Fixed (not rebindable)") // the four diff.review.* raw bindings
-    expect(text).toContain("diff.review.cursor")
-    expect(text).toContain("review.send") // the line wraps mid-id at this width
+    expect(text).toContain("Prefix key")
     text = await press("j") // → Feedback
     expect(text).toContain("GitHub issue")
     text = await press("j") // → Dev

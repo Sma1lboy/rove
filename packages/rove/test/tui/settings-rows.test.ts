@@ -47,7 +47,6 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
     ],
     marketplace: ["Sma1lboy/rove-plugins/notify", "you/rove-thing"],
     hasDaemon: true,
-    keybindingsFileExists: true,
     ...overrides,
   }
 }
@@ -165,18 +164,12 @@ describe("feedbackRows", () => {
 })
 
 describe("sectionRows / bodyRowCount", () => {
-  it("keys lists every rebindable binding after the fixed rows, and never a fixed or doc-only one", () => {
-    const kinds = (rows: ReturnType<typeof sectionRows>) =>
-      rows.filter((r) => r.kind !== "keybinding").map((r) => r.kind)
-    expect(kinds(sectionRows("keys", input()))).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
-    expect(kinds(sectionRows("keys", input({ keybindingsFileExists: false })))).toEqual([
-      "prefixTapPresentation",
-      "prefixTapPresentation",
-      "keysCreate",
-    ])
-    const ids = sectionRows("keys", input()).flatMap((r) => (r.kind === "keybinding" ? [r.bindingId] : []))
+  it("keys lists the prefix key and every rebindable binding, and never a fixed or doc-only one", () => {
+    const rows = sectionRows("keys", input())
+    expect(rows.slice(0, 2).map((r) => r.kind)).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
+    const ids = rows.flatMap((r) => (r.kind === "keybinding" ? [r.bindingId] : []))
+    expect(ids[0]).toBe("prefix.key")
     expect(ids).toContain("focus.sidebar")
-    expect(ids).not.toContain("diff.review.send")
     expect(ids).not.toContain("chat.send")
   })
 

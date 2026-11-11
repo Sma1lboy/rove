@@ -1,37 +1,23 @@
 /**
  * Settings → Keybindings (TUI `KeybindingsSettingsSection`): the prefix-tap guide mode, the
- * config file, every load warning, the starter-file action offered while the file is absent, a
+ * config file, every load warning, a
  * Scratch session whose agent edits the file, and every rebindable binding as a row to record,
  * restore or unbind (`settings-keys-editor.tsx`). The file is read and written on the Mac and
  * reread each time this opens.
  */
 
-import { FIXED_BINDING_IDS } from "@sma1lboy/rove/src/tui/lib/keymap-overrides.ts"
+import { PREFIX_KEY_ID } from "@sma1lboy/rove/src/tui/lib/chord-recorder.ts"
 import { useEffect, useState } from "react"
 import { askAgent } from "./ask-agent.ts"
-import type { BridgeClient } from "./bridge.ts"
-import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { setPref, usePrefs } from "./prefs.ts"
 import { ts } from "./settings-copy.ts"
-import { BindingsEditor } from "./settings-keys-editor.tsx"
+import { BindingCaps, BindingRows, bindingHint, useBindingEditor } from "./settings-keys-editor.tsx"
 import { Choice, Group, Row } from "./settings-rows.tsx"
 import { useStore } from "./store.ts"
-import { toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { SETTINGS_GROUP_HINT } from "./ui/settings.ts"
-import { loadUserKeys, userKeys } from "./user-keys.ts"
-
-async function createFile(client: BridgeClient): Promise<void> {
-  try {
-    const res = await client.request<{ created: boolean }>("keybindings.createFile")
-    if (!res.created) toast(t("keys.exists"), "error")
-    await loadUserKeys(client)
-  } catch (err) {
-    toast(errorText(err), "error")
-  }
-}
+import { DEFAULT_USER_KEYS, loadUserKeys, userKeys } from "./user-keys.ts"
 
 export function KeysSection({ model }: { model: AppModel }) {
   const { client } = model
@@ -41,7 +27,9 @@ export function KeysSection({ model }: { model: AppModel }) {
   // The file may have changed since the page loaded (an agent's edit, a hand edit); reading it is cheap.
   useEffect(() => void loadUserKeys(client), [client])
   const prefix = keys.prefix.key ?? ts("keybindings.prefixDisabled")
-  const fixed = Object.keys(FIXED_BINDING_IDS).sort()
+  const editor = useBindingEditor(client)
+  const defaultPrefix = DEFAULT_USER_KEYS.prefix.firstStrokes
+  const prefixChanged = keys.prefix.firstStrokes.join() !== defaultPrefix.join()
   return (
     <>
       <Group>
@@ -57,8 +45,22 @@ export function KeysSection({ model }: { model: AppModel }) {
         />
         <Row
           label={ts("keybindings.prefixTitle", { prefix })}
-          hint={ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs })}
-        />
+          hint={bindingHint(
+            editor,
+            PREFIX_KEY_ID,
+            prefixChanged ? defaultPrefix.join(" / ") : null,
+            ts("keybindings.prefixHint", { prefix, timeout: keys.prefix.timeoutMs }),
+          )}
+        >
+          <BindingCaps
+            editor={editor}
+            id={PREFIX_KEY_ID}
+            name={ts("keybindings.prefixKey")}
+            direct={keys.prefix.firstStrokes}
+            prefixName={prefix}
+            changed={prefixChanged}
+          />
+        </Row>
       </Group>
       <Group title={ts("keybindings.configFile")} hint={`${t("keys.editHint")} ${t("prefs.keysYaml")}`}>
         <Row
@@ -66,13 +68,6 @@ export function KeysSection({ model }: { model: AppModel }) {
             <span className="font-mono break-all">{keys.path + (keys.exists ? "" : ts("keybindings.notCreated"))}</span>
           }
         />
-        {!keys.exists && (
-          <Row label={t("keys.createFile")} hint={ts("keybindings.createHint")}>
-            <Button variant="action" onClick={() => void createFile(client)}>
-              {t("keys.createFile")}
-            </Button>
-          </Row>
-        )}
         <Row label={t("keys.agent")} hint={askFailed ? t("keys.agentFailed") : t("keys.agentHint")}>
           <Button
             variant="action"
@@ -92,7 +87,7 @@ export function KeysSection({ model }: { model: AppModel }) {
           ))}
         </Group>
       )}
-      <BindingsEditor client={client} />
+      <BindingRows editor={editor} keys={keys} />
       {keys.plugins.length > 0 && (
         <Group title={t("keys.pluginChords")}>
           {keys.plugins.map((p) => (
@@ -104,7 +99,6 @@ export function KeysSection({ model }: { model: AppModel }) {
           ))}
         </Group>
       )}
-      <p className={SETTINGS_GROUP_HINT}>{ts("keybindings.fixed", { ids: fixed.join(", ") })}</p>
     </>
   )
 }

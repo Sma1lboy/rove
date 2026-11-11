@@ -60,6 +60,8 @@ export type RoveBinding = {
   hint?: RoveBindingHint
   /** User-facing tier. Only the deliberately small Rove-owned direct set opts in. */
   presentation?: "onePress"
+  /** Live only where nothing is typed, so a bare character is a valid chord whatever the scope. */
+  bareKeys?: boolean
   /** Let an enabled PTY input binding win this direct chord. */
   yieldToPassthrough?: boolean
 }

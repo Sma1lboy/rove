@@ -951,3 +951,14 @@ records a new key for the focused binding, `backspace` restores its default,
 already resets the focused engine in Settings → Engines; the two never share a
 row. While a recording waits, every key goes to it, so `esc` cancels the
 recording instead of closing Settings.
+
+## Diff review keys and the prefix key are rebindable (2026-11-10, owner directive)
+
+The owner asked why some bindings could not be changed in Settings. The six
+diff review keys (`j`/`k`, `v`, `c`, `x`, `s`, `r`) were registered as literal
+keys; they now go through the keymap with the same defaults, so no chord
+moves. They keep bare letters although they sit in the workspace scope: they
+are live only in a focused, read-only diff tab, where nothing is typed. The
+prefix key itself gets a row in Settings → Keybindings (`prefix.key` in the
+YAML). The separate "Create keybindings.yaml" row is gone: the first saved
+change writes the file.
