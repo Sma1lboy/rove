@@ -39,6 +39,11 @@ export const SETTINGS_BODY = "flex flex-col gap-7 w-narrow:gap-6"
 
 /** A group: an optional name and note, then its rows between hairlines. */
 export const SETTINGS_GROUP = "flex flex-col"
+/** Sample task rows above a group's settings. The holder sticks to the top while the group scrolls, and its own fill keeps the rows passing under it clear of the box. */
+export const SETTINGS_PREVIEW_HOLD = "sticky top-0 z-1 bg-surface py-2"
+export const SETTINGS_PREVIEW =
+  "grid grid-cols-3 gap-x-4 rounded-md border-hairline border-line bg-paper px-2 py-1.5 w-narrow:grid-cols-2"
+export const SETTINGS_PREVIEW_ROW = "flex min-h-6.5 min-w-0 items-center gap-2 px-1"
 export const SETTINGS_GROUP_LABEL = "m-0 pb-1.5 font-sans text-meta font-medium normal-nums text-muted"
 export const SETTINGS_GROUP_HINT = "m-0 pb-2 text-meta text-subtle"
 export const SETTINGS_ROWS = "flex flex-col border-t-hairline border-t-line [&>*]:border-b-hairline [&>*]:border-b-line"

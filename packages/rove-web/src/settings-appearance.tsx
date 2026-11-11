@@ -9,6 +9,7 @@ import type { AppModel } from "./model.ts"
 import { type PrefKey, type Prefs, choicesOf, setPref, usePrefs } from "./prefs.ts"
 import { RAIL_GROUPS, type RailGroup, railGroup, setRailGroup } from "./rail-group.ts"
 import { ts } from "./settings-copy.ts"
+import { TaskRowsPreview } from "./settings-preview.tsx"
 import { Choice, Group, Toggle } from "./settings-rows.tsx"
 import { ThemeGallery } from "./settings-theme-gallery.tsx"
 import { STATUS_MARKS, type StatusMarkStyle, setStatusMarkStyle, statusMarkStyle } from "./status-mark.ts"
@@ -96,7 +97,7 @@ export function AppearanceSection({ model }: { model: AppModel }) {
         {flag("taskColors", "general.taskColors", t("settings.appearance.taskColorsNote"))}
         {flag("colorblind", "general.colorblind", t("settings.appearance.colorblindNote"))}
       </Group>
-      <Group title={t("settings.appearance.groupTasks")}>
+      <Group title={t("settings.appearance.groupTasks")} lead={<TaskRowsPreview model={model} />}>
         {choice("workingBorder", "general.workingBorder", t("settings.appearance.workingBorderNote"))}
         {choice("runningTitle", "general.runningTitle")}
         {choice("glyphSet", "general.glyphSet")}
