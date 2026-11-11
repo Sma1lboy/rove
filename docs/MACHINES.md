@@ -198,10 +198,15 @@ Ubuntu default).
 ## Run commands on a machine
 
 Every `rove api` verb takes `--machine <alias>` and runs in that machine's
-daemon, so its tasks, worktrees and engine sessions are created there:
+daemon. `add` is the exception: `add --machine <alias>` starts the agent on
+this machine and keeps only its files and commands on that one
+([below](#run-the-agent-here-keep-the-work-there)), so that machine needs no
+engine. `--engine-there` runs the engine in that machine's daemon instead,
+with the task, its worktree and its engine session all created there:
 
 ```console
 $ rove api add --machine narwhal --repo /home/nahuel/rove --prompt "fix the flaky test"
+$ rove api add --machine narwhal --engine-there --repo /home/nahuel/rove --prompt "fix the flaky test"
 ```
 
 A `--task-id` that belongs to another machine goes there on its own: `send`,
@@ -263,14 +268,24 @@ the CLI: `rove api github-status --machine <alias>`.
 
 ## Run the agent here, keep the work there
 
-`rove api add --workspace-on <alias> --repo <repo> --prompt "…"` starts the
-agent on this machine and keeps its files and commands on the other one. That
+`rove api add --machine <alias> --repo <repo> --prompt "…"` starts the agent
+on this machine and keeps its files and commands on the other one. That
 machine cuts the worktree, so it needs Rove and git. It needs no engine and no
 engine sign-in: the engine, its login and its conversation history stay here.
+This is what `add --machine` does by default; `--workspace-on <alias>` is the
+same thing said outright.
 
 ```sh
-rove api add --workspace-on deck --repo sma1lboy/rove --prompt "fix the flaky test"
+rove api add --machine deck --repo sma1lboy/rove --prompt "fix the flaky test"
 ```
+
+A request this cannot serve runs in that machine's daemon, engine and all, as
+with `--engine-there`: `--count`, `--agents`, `--fork`, `--tier`,
+`--worktree-only`, `--workspace`, `--no-worktree`, `--isolate-in`, several
+`--repo`, and any `add` to a Windows machine.
+
+In the sidebar of `rove --web` the task sits under its project, grouped by
+repo id like any other task of that repo.
 
 `--repo`, `--clone`, `--allow-fork`, `--branch` and `--base-branch` mean what
 they mean with `--machine`. The task is a row on this machine; its directory is
@@ -371,14 +386,17 @@ from the page. Pick a machine and its project list is that machine's
 `repo-list`; a typed `owner/repo` or URL, or a repo under "Your GitHub
 repositories", is offered as `Clone … on <machine>`, and Start sends
 `add --machine <alias> --repo <id> --clone`, so that machine clones with its
-own git and `gh` sign-in. A machine that is offline or too old is listed with
-its state and cannot be picked. Switching machines keeps the project: the
+own git and `gh` sign-in. The agent runs on this machine, so the engine,
+model and effort chips are this machine's; the `Engine there` chip next to the
+machine runs the engine on that machine instead. A machine that is offline or
+too old is listed with its state and cannot be picked. Switching machines keeps the project: the
 same repo (by id) is picked on the new machine when it has a checkout, and
 offered as a clone there when it does not; a repo with no origin stays on its
-own machine. The engine chip lists the picked machine's engines: one it has
-and this machine does not offer is added, and one whose CLI is not installed
-there reads `not installed` and cannot be picked (the first engine it does
-have is picked instead). A machine whose Rove is too old to say gates nothing.
+own machine. With `Engine there` on, the engine chip lists the picked
+machine's engines: one it has and this machine does not offer is added, and
+one whose CLI is not installed there reads `not installed` and cannot be
+picked (the first engine it does have is picked instead). A machine whose Rove
+is too old to say gates nothing.
 
 ## A Windows machine
 

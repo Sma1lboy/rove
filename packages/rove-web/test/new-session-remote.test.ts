@@ -59,6 +59,33 @@ describe("New session composer on another machine", () => {
     expect(enginesThere(here, [])).toEqual({ rows: here, missing: new Set() })
   })
 
+  test("by default the agent is this machine's, so its model and effort ride along; with the engine there they do not", () => {
+    const input = {
+      pick: { ref: "github.com/me/dotfiles", clone: false },
+      machine: "deck",
+      engine: "claude",
+      prompt: "fix it",
+      baseRef: "",
+      model: "opus",
+      effort: "high",
+    }
+    expect(remoteSpawnArgs({ ...input, engineThere: false })).toEqual({
+      repo: "github.com/me/dotfiles",
+      machine: "deck",
+      prompt: "fix it",
+      engine: "claude",
+      model: "opus",
+      effort: "high",
+    })
+    expect(remoteSpawnArgs({ ...input, engineThere: true })).toEqual({
+      repo: "github.com/me/dotfiles",
+      machine: "deck",
+      prompt: "fix it",
+      engine: "claude",
+      engineThere: true,
+    })
+  })
+
   test("a GitHub repo already on that machine is not offered for cloning there, whatever its folder is called", () => {
     const held = [remoteRef(rove), remoteRef(scratch)]
     expect(githubRepoHeld(held, "Sma1lboy/Rove", true)).toBe(true)
@@ -71,8 +98,16 @@ describe("New session composer on another machine", () => {
     expect(githubRepoHeld(["/Users/me/code/rove"], "sma1lboy/other", false)).toBe(false)
   })
 
-  test("Start sends the repo, the machine and clone only for a repo it has to fetch, and never a model or effort", () => {
-    const base = { machine: "wsl", engine: "claude", prompt: "fix it", baseRef: "" }
+  test("Start sends the repo, the machine and clone only for a repo it has to fetch", () => {
+    const base = {
+      machine: "wsl",
+      engine: "claude",
+      prompt: "fix it",
+      baseRef: "",
+      engineThere: false,
+      model: "",
+      effort: "",
+    }
     expect(remoteSpawnArgs({ ...base, pick: { ref: "github.com/sma1lboy/rove", clone: false } })).toEqual({
       repo: "github.com/sma1lboy/rove",
       machine: "wsl",

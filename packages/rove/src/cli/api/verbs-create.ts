@@ -54,6 +54,12 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
           "Run the agent HERE and keep its files and commands on that registered machine: it cuts the worktree (it needs Rove and git, no engine and no engine login), and the engine starts on this machine in a link directory. Every engine reaches the worktree with `rx '<command>'` (on the session's PATH; AGENTS.md there says how); an engine with its own wiring (claude) has its shell tool run there and gets read/write/edit tools for the files. --repo is resolved on that machine as with --machine (id, path there, --clone, --allow-fork); --branch and --base-branch apply there. Deleting the task deletes that worktree. Conflicts with --count, --agents, --fork, --workspace, --no-worktree, --isolate-in, --worktree-only, --tier and a second --repo (CONFLICTING_FLAGS). Returns { machine, remoteTaskId, remotePath } beside the usual fields.",
       },
       {
+        name: "engine-there",
+        type: "bool",
+        description:
+          "With --machine: run the engine itself on that machine, in its own daemon (the task is a row of that machine, and it needs the engine installed and signed in there). Without it, `add --machine X` is `add --workspace-on X`: the agent runs here and only its files and commands are on X. A request --workspace-on cannot serve (--count, --agents, --fork, --tier, --worktree-only, --workspace, --no-worktree, --isolate-in, several --repo, a Windows machine) runs on that machine as if this were set.",
+      },
+      {
         name: "allow-fork",
         type: "bool",
         description:

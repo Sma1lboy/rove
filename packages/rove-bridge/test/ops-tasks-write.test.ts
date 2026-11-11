@@ -16,10 +16,25 @@ const realRememberEngine = taskOpDeps.rememberEngine
 isolateTaskOpDeps()
 
 describe("task.spawn", () => {
-  test("on another machine: add runs there, and the engine is that machine's to check", async () => {
+  test("on another machine the agent stays here by default: add runs in this daemon with the workspace there", async () => {
     const { calls } = await run(
       "task.spawn",
-      { repo: "/Users/me/app", machine: "mac", engine: "only-on-mac", baseBranch: "main" },
+      { repo: "github.com/me/app", machine: "mac", prompt: "p", model: "opus" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(calls).toEqual([
+      {
+        verb: "add",
+        argv: ["--repo=github.com/me/app", "--workspace-on=mac", "--model=opus", "--prompt=p"],
+        machine: undefined,
+      },
+    ])
+  })
+
+  test("with the engine there: add runs on that machine, and the engine is that machine's to check", async () => {
+    const { calls } = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", machine: "mac", engineThere: true, engine: "only-on-mac", baseBranch: "main" },
       { add: { taskId: "N1", task: {} } },
     )
     // No engine-list read here: this machine's engines say nothing about the Mac's.
@@ -31,7 +46,7 @@ describe("task.spawn", () => {
   test("a repo id with clone has that machine fetch it with its own credentials", async () => {
     const { calls } = await run(
       "task.spawn",
-      { repo: "github.com/sma1lboy/rove", machine: "mac", clone: true, prompt: "p" },
+      { repo: "github.com/sma1lboy/rove", machine: "mac", engineThere: true, clone: true, prompt: "p" },
       { add: { taskId: "N1", task: {} } },
     )
     expect(calls).toEqual([
@@ -40,7 +55,7 @@ describe("task.spawn", () => {
     for (const repo of ["sma1lboy/rove", "git@github.com:sma1lboy/rove.git", "https://gitlab.com/g/s/p.git"]) {
       const spawned = await run(
         "task.spawn",
-        { repo, machine: "mac", clone: true },
+        { repo, machine: "mac", engineThere: true, clone: true },
         { add: { taskId: "N1", task: {} } },
       )
       expect(spawned.calls).toEqual([{ verb: "add", argv: [`--repo=${repo}`, "--clone=true"], machine: "mac" }])

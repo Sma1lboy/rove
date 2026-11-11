@@ -10,11 +10,11 @@ import { spawnSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
+import { REMOTE_WORKSPACE_FILE } from "@sma1lboy/rove-daemon/repo-id"
 import { homeDir } from "../env.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 
-/** In a link directory: which machine's worktree it stands for. */
-export const REMOTE_WORKSPACE_FILE = ".rove-remote.json"
+export { REMOTE_WORKSPACE_FILE }
 
 export interface RemoteWorkspace {
   /** The registered machine's alias. */
@@ -24,6 +24,8 @@ export interface RemoteWorkspace {
   /** The worktree's path there. */
   readonly path: string
   readonly branch?: string
+  /** The repo across machines, as that machine named it: what groups the task under its project here. */
+  readonly repoId?: string
 }
 
 /** What an instruction file is written from. */
@@ -56,6 +58,7 @@ export function readRemoteWorkspace(dir: string): RemoteWorkspace | null {
       taskId: raw.taskId,
       path: raw.path,
       ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}),
+      ...(typeof raw.repoId === "string" ? { repoId: raw.repoId } : {}),
     }
   } catch {
     return null

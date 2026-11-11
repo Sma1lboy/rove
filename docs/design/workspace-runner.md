@@ -21,7 +21,9 @@
 > agent runs on the hub and only the worktree and its commands live on the
 > Runner. The owner chose this (2026-11-10) as the direction for work on
 > another machine, over "every Runner runs its own engines" below: a Runner
-> then needs Rove but no engine and no engine login.
+> then needs Rove but no engine and no engine login. It is what
+> `add --machine` and the web composer do by default; `--engine-there` keeps
+> the federated mode.
 > Decisions marked **OPEN** need the owner.
 
 ## Why

@@ -2,10 +2,13 @@ import { spawnSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { computeRepoId } from "@sma1lboy/rove-daemon/repo-id"
 import { describe, expect, test } from "vitest"
 import { bashHookReply, callWorkspaceTool, mcpReply } from "../../src/cli/remote-workspace-cmd.ts"
 import { claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
+import { addStaysHere } from "../../src/machines/forward.ts"
+import type { MachineEntry } from "../../src/machines/registry.ts"
 import {
   REMOTE_WORKSPACE_FILE,
   createRemoteLink,
@@ -149,5 +152,27 @@ describe("a workspace on another machine", () => {
     expect(codex).toContain(`PATH='/links/t/bin':"$PATH"`)
     expect(codex).not.toContain("--mcp-config")
     expect(launch("claude", false)).not.toMatch(/links\/t\/bin|--mcp-config/)
+  })
+
+  test("add --machine keeps the agent here unless the engine is asked for there or only that machine can serve the request", () => {
+    const deck = { alias: "deck", host: "deck", auth: { kind: "agent" } } as MachineEntry
+    const windows = { ...deck, alias: "pc", roveBin: "C:\\rove\\rove.exe" }
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p" }, deck)).toBe(true)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p", "engine-there": true }, deck)).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p", count: "3" }, deck)).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", "worktree-only": true }, deck)).toBe(false)
+    expect(addStaysHere("add", { repo: ["me/app", "me/lib"], prompt: "p" }, deck)).toBe(false)
+    expect(addStaysHere("add", { repo: "me/app", prompt: "p" }, windows)).toBe(false)
+    expect(addStaysHere("send", { "task-id": "T" }, deck)).toBe(false)
+  })
+
+  test("a link directory answers with its worktree's repo id, so the task groups under its project", () => {
+    const dir = scratch()
+    writeFileSync(
+      join(dir, REMOTE_WORKSPACE_FILE),
+      JSON.stringify({ machine: "deck", taskId: "T", path: "/w", repoId: "github.com/me/app" }),
+    )
+    expect(computeRepoId(dir)).toBe("github.com/me/app")
+    expect(computeRepoId(scratch())).toBeUndefined()
   })
 })

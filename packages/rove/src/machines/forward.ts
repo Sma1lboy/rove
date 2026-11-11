@@ -26,6 +26,7 @@ import { type RepoIdentity, isLocalCheckout, repoIdentity, unpushedCommits } fro
 import { findCheckouts, parseRepoRef } from "./repo-ref.ts"
 import { localDaemonSocketPath, localPtySocketPath } from "./ssh-args.ts"
 import { ensureForwards } from "./tunnel.ts"
+import { isWindowsMachine } from "./windows-remote.ts"
 
 /** `--machine local` names this machine explicitly. */
 export const LOCAL_MACHINE = "local"
@@ -383,6 +384,36 @@ function failure(code: string, message: string, data: Record<string, unknown>): 
   return { apiVersion: ROVE_API_VERSION, ok: false, error: { message, code, ...data } }
 }
 
+/** What `--workspace-on` cannot serve: these stay requests for the machine's own daemon. */
+const NEEDS_ENGINE_THERE = [
+  "count",
+  "agents",
+  "fork",
+  "tier",
+  "worktree-only",
+  "workspace",
+  "no-worktree",
+  "isolate-in",
+]
+
+/**
+ * `add --machine X` runs the agent HERE and keeps the work on X (`add --workspace-on X`), so X needs no
+ * engine. It stays X's own `add` when `--engine-there` asks for that, when the request is one only that
+ * daemon serves (a round of attempts, a fork, a bare checkout, several repos), or when X is a Windows
+ * machine, which `rx` does not reach.
+ */
+export function addStaysHere(verb: string, params: ApiParams, entry: MachineEntry): boolean {
+  if (verb !== "add" || flagOn(params["engine-there"]) || isWindowsMachine(entry)) return false
+  if (NEEDS_ENGINE_THERE.some((name) => params[name] !== undefined)) return false
+  return !Array.isArray(params.repo) || params.repo.length <= 1
+}
+
+/** `params` as the machine's own daemon takes them: `--engine-there` is this side's word only. */
+function withoutEngineThere(params: ApiParams): ApiParams {
+  const { "engine-there": _, ...rest } = params
+  return rest
+}
+
 /**
  * The routing step every `api.invoke` server shares (daemon, bridge): forward
  * to the machine the call names or whose task it targets, else run here.
@@ -394,7 +425,8 @@ export async function invokeRouted(args: {
   readonly forwarded?: boolean
   readonly isLocalTask: (taskId: string) => Promise<boolean>
   readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
-  readonly runHere: () => Promise<ApiEnvelope>
+  /** Run the verb in this daemon; `params` replaces the call's own when routing rewrote them. */
+  readonly runHere: (params?: ApiParams) => Promise<ApiEnvelope>
 }): Promise<ApiEnvelope> {
   if (args.forwarded) return args.runHere()
   const taskId = args.params["task-id"]
@@ -411,7 +443,10 @@ export async function invokeRouted(args: {
     if (!(err instanceof ApiError)) throw err
     return failure(err.code, err.message, err.data ?? {})
   }
-  return target ? forwardVerb(target, args.verb, args.params) : args.runHere()
+  if (!target) return args.runHere()
+  if (addStaysHere(args.verb, args.params, target))
+    return args.runHere({ ...args.params, "workspace-on": target.alias })
+  return forwardVerb(target, args.verb, withoutEngineThere(args.params))
 }
 
 /** The local end of `alias`'s forwarded PTY-host socket, once its tunnel is up. */

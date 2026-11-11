@@ -11,27 +11,23 @@ import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import { openCompare } from "./layout.ts"
-import { useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
 import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
-  LOCAL,
+  EngineThereToggle,
   MachineChip,
   remoteEmpty,
   spawnOnMachine,
   startError,
-  useCarriedPick,
-  useEnginesOn,
-  usePrefetchRemoteRepos,
-  useRemoteRepos,
+  useRemoteTarget,
 } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
 import { ComposerMore } from "./new-session-more.tsx"
 import { NewSessionPlate } from "./new-session-plate.tsx"
-import { type RemotePick, remoteRef, seedRemotePick } from "./new-session-remote.ts"
+import { remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
   effortChoices,
@@ -141,19 +137,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     })
   }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
-  const machines = useMachines(model)
-  const [machine, setMachine] = useState(seed.machine ?? "")
-  const remote = machine !== ""
+  const at = useRemoteTarget(model, { machine: seed.machine, repo: initialRepo }, choice)
+  const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at
+  const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at
   // Files live on this Mac: another machine's task could not read them.
   const targets = remote ? null : fileTargets((files) => void attach(files))
-  const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
-  const remoteList = useRemoteRepos(model, machine)
-  const shown = useEnginesOn(model, machine, choice)
   const engineId = shown.engine
-  usePrefetchRemoteRepos(model, machines)
-  const [remotePick, setRemotePick] = useState<RemotePick | null>(null)
-  const [remoteBase, setRemoteBase] = useState("")
-  const carry = useCarriedPick(model, remoteList, (pick) => setRemotePick((now) => now ?? pick))
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
@@ -187,13 +176,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         .catch(() => {})
     }
   }, [model, repos])
-
-  // The project a rail row named on another machine is picked once that machine's list is in.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: seeded once per list load; a later pick or machine switch stands
-  useEffect(() => {
-    if (!remote || !remoteList.loaded || machine !== seed.machine) return
-    setRemotePick((now) => now ?? seedRemotePick(initialRepo, remoteList.repos))
-  }, [remoteList.loaded])
 
   useEffect(() => area.current?.focus(), [])
 
@@ -250,6 +232,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         engine: engineId,
         prompt: prompt.trim(),
         baseRef: remoteBase,
+        engineThere,
+        model: modelValue,
+        effort: effortValue,
       })
       keepDraft("")
       newSession.set(null)
@@ -333,10 +318,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
 
   const pickMachine = (alias: string): void => {
-    carry(alias && (machine || LOCAL), remote ? remotePick?.ref : primary)
-    setMachine(alias)
-    setRemotePick(null)
-    setRemoteBase("")
+    at.switchTo(alias, primary)
     setRepoQuery("")
     setError(null)
     setUngrouped(false)
@@ -400,6 +382,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         </div>
         <div className={C.BAR}>
           {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
+          {remote && <EngineThereToggle machine={machineName} on={engineThere} onToggle={at.toggleEngineThere} />}
           <ChipPopover
             field="repo"
             title={
@@ -468,16 +451,20 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           />
           <span className={C.GROW} />
           <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
-          {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
-            <ModelChip
-              models={models}
-              model={modelValue}
-              onModel={setPickedModel}
-              efforts={efforts}
-              effort={effortValue}
-              onEffort={setPickedEffort}
-            />
-          )}
+          {!inPlace &&
+            !(remote && engineThere) &&
+            !ungrouped &&
+            !picks.comparing &&
+            (models.length > 0 || efforts.length > 0) && (
+              <ModelChip
+                models={models}
+                model={modelValue}
+                onModel={setPickedModel}
+                efforts={efforts}
+                effort={effortValue}
+                onEffort={setPickedEffort}
+              />
+            )}
           <ComposerMore
             busy={busy}
             onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
