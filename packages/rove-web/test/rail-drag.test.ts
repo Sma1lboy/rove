@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { dragSteps, dropMove, dropSteps, opensProject, previewDrop } from "../src/rail-blocks.ts"
+import { dragSteps, dropSteps, dropsOn, previewDrop } from "../src/rail-blocks.ts"
 import { type NavRow, groupByProject } from "../src/rail.ts"
 
 const task = (id: string, repo: string, order: number, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -67,27 +67,10 @@ test("pinned tasks follow the project's main row in every sort, keeping their ow
   expect(ids("recent")).toEqual(["xm", "xp2", "xp1", "x2", "x1"])
 })
 
-test("a drop among the pinned rows or at the top of the project pins; one among the rest unpins", () => {
-  const m = task("m", "/p", 0, { kind: "main" })
+test("a drag stays among the tasks with its pin: it never pins or unpins", () => {
   const p = task("p", "/p", 1, { pinned: true })
   const t1 = task("t1", "/p", 2)
-  const t2 = task("t2", "/p", 3)
-  const t3 = task("t3", "/p", 4)
-  const list = [m, p, t1, t2, t3]
-  expect(dropMove(list, t3, p, "below", false)).toEqual({ pin: true, steps: 0 })
-  expect(dropMove(list, t3, p, "above", true)).toEqual({ pin: true, steps: -1 })
-  expect(dropMove(list, p, t2, "above", false)).toEqual({ pin: false, steps: 1 })
-  // No pinned task yet: the top of the project pins, and the task is the whole pinned section.
-  expect(dropMove([m, t1, t2, t3], t3, t1, "above", true)).toEqual({ pin: true, steps: 0 })
-  expect(dropMove(list, t1, t3, "below", false)).toEqual({ steps: 2 })
-  expect(dropMove(list, t1, task("q", "/q", 5), "above", true)).toBeNull()
-})
-
-test("the top of a project is the first task under its header, its main row and the main's children", () => {
-  const row = (id: string, kind: NavRow["kind"] = "task", depth = 1, taskKind = "task") =>
-    ({ id, kind, depth, task: { id, kind: taskKind } }) as NavRow
-  const rows = [row("P", "project", 0), row("main", "task", 1, "main"), row("kid", "task", 2), row("a"), row("b")]
-  expect(opensProject(rows, "b", "a")).toBe(true)
-  expect(opensProject(rows, "a", "b")).toBe(true)
-  expect(opensProject([...rows, row("c")], "c", "b")).toBe(false)
+  expect(dropsOn(t1, p)).toBe(false)
+  expect(dropsOn(p, t1)).toBe(false)
+  expect(dropsOn(t1, task("t2", "/p", 3))).toBe(true)
 })
