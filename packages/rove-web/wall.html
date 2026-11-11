@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" data-running-title="shimmer">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rove web components</title>
+    <style>
+      /* The opening: empty blocks arrive first, then what is inside them. */
+      @keyframes wall-in { from { opacity: 0; scale: 0.96; } }
+      @keyframes wall-fill { from { opacity: 0; } }
+      .wall-tile { animation: wall-in 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+      .wall-body { animation: wall-fill 380ms ease-out backwards; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/wall/main.tsx"></script>
+  </body>
+</html>
