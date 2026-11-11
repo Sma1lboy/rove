@@ -18,8 +18,8 @@ export type DiffScope = "working" | "branch" | "task"
 export type Column =
   | { readonly kind: "files" | "chat" | "quota" }
   /** A file read as itself, opened from Files; its diff is the Diff column's. */
-  | { readonly kind: "file"; readonly path: string }
-  | { readonly kind: "diff"; readonly path: string; readonly scope: DiffScope }
+  | { readonly kind: "file"; readonly path: string; readonly at?: number }
+  | { readonly kind: "diff"; readonly path: string; readonly scope: DiffScope; readonly at?: number }
   | BrowserColumn
 
 export interface TaskPanel {
@@ -69,19 +69,24 @@ export function showKind(panel: TaskPanel, kind: PanelKind): TaskPanel {
   return addColumn(panel, col)
 }
 
-/** A file read as itself: the File column, retargeted if it is open. */
-export function showFile(panel: TaskPanel, path: string): TaskPanel {
+/** A file read as itself: the File column, retargeted if it is open. `at`: a panel push's time; a new one reads the file again. */
+export function showFile(panel: TaskPanel, path: string, at?: number): TaskPanel {
+  const col: Column = at === undefined ? { kind: "file", path } : { kind: "file", path, at }
   const open = columnOf(panel, "file")
-  if (!open) return addColumn(panel, { kind: "file", path })
-  return open.kind === "file" && open.path === path ? panel : replaceColumn(panel, { kind: "file", path })
+  if (!open) return addColumn(panel, col)
+  return open.kind === "file" && open.path === path && (at === undefined || open.at === at)
+    ? panel
+    : replaceColumn(panel, col)
 }
 
-/** A file's diff (`.` = the whole worktree): the Diff column, retargeted if it is open. */
-export function showDiff(panel: TaskPanel, path: string, scope: DiffScope): TaskPanel {
-  const col: Column = { kind: "diff", path, scope }
+/** A file's diff (`.` = the whole worktree): the Diff column, retargeted if it is open. `at` as for `showFile`. */
+export function showDiff(panel: TaskPanel, path: string, scope: DiffScope, at?: number): TaskPanel {
+  const col: Column = at === undefined ? { kind: "diff", path, scope } : { kind: "diff", path, scope, at }
   const open = columnOf(panel, "diff")
   if (!open) return addColumn(panel, col)
-  return open.kind === "diff" && open.path === path && open.scope === scope ? panel : replaceColumn(panel, col)
+  return open.kind === "diff" && open.path === path && open.scope === scope && (at === undefined || open.at === at)
+    ? panel
+    : replaceColumn(panel, col)
 }
 
 /** An address: the Browser tab already on it, else a blank one, else a new tab; the column opens if closed. */

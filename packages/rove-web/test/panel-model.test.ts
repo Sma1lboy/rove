@@ -190,7 +190,8 @@ describe("sharing the width", () => {
 describe("rove api panel-show", () => {
   const push = (extra: Partial<PanelPush> = {}): PanelPush => ({ taskId: "T1", view: "browser", at: 1, ...extra })
   const here = { taskId: "T1", narrow: false }
-  const apply = (panel: TaskPanel, extra: Partial<PanelPush>) => applyPlan(panel, planPanelPush(push(extra), here))
+  const apply = (panel: TaskPanel, extra: Partial<PanelPush>) =>
+    applyPlan(panel, planPanelPush(push(extra), here), push(extra).at)
 
   test("an address opens the Browser column, or focuses the tab already on it", () => {
     const opened = apply(newPanel(), { url: "https://a.test/" })
@@ -202,11 +203,22 @@ describe("rove api panel-show", () => {
 
   test("a path opens the File column with Files asked for, the Diff column with Diff; another path retargets it", () => {
     const opened = apply(newPanel(), { view: "files", path: "src/a.ts" })
-    expect(columnOf(opened, "file")).toEqual({ kind: "file", path: "src/a.ts" })
+    expect(columnOf(opened, "file")).toMatchObject({ kind: "file", path: "src/a.ts" })
     expect(columnOf(opened, "diff")).toBeUndefined()
     const next = apply(apply(opened, { view: "diff", path: "src/a.ts" }), { view: "diff", path: "src/b.ts" })
     expect(next.columns.filter((col) => col.kind === "diff")).toHaveLength(1)
     expect(columnOf(next, "diff")).toMatchObject({ path: "src/b.ts" })
+  })
+
+  // A second push of the same path left the agent's first version of the file on screen.
+  test("pushing the path already open again reads it again; a replay of the same push does not", () => {
+    for (const view of ["files", "diff"] as const) {
+      const kind = view === "files" ? "file" : "diff"
+      const first = apply(newPanel(), { view, path: "a.md", at: 1 })
+      const again = apply(first, { view, path: "a.md", at: 2 })
+      expect(columnOf(again, kind)).not.toEqual(columnOf(first, kind))
+      expect(apply(again, { view, path: "a.md", at: 2 })).toBe(again)
+    }
   })
 
   test("a view alone opens its column if closed and never a second one", () => {
