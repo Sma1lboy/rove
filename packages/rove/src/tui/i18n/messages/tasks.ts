@@ -218,7 +218,8 @@ export const en = {
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
   /** The fold row at the end of the sidebar holding archived tasks */
-  archivedRow: "Archived · {count}",
+  /** An archived task among the palette's task matches; picking it unarchives it */
+  archivedHit: "{title} · archived, enter unarchives",
   /** Machine section headers — another computer running its own Rove daemon */
   machine: {
     connecting: "connecting…",
@@ -444,7 +445,7 @@ export const zh: typeof en = {
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
-  archivedRow: "已归档 · {count}",
+  archivedHit: "{title} · 已归档，回车恢复",
   machine: {
     connecting: "连接中…",
     offline: "离线",

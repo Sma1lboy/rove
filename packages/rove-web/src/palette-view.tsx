@@ -24,6 +24,7 @@ import { reportProblem } from "./report-problem.ts"
 import { type IssuesSource, issuesSource } from "./review-queue.ts"
 import { type Hit, MIN_CHARS } from "./search-hits.ts"
 import { useStore } from "./store.ts"
+import { archiveFlow } from "./task-flows.tsx"
 import { openTranscriptAt } from "./transcript-focus.ts"
 import { type PageId, closeDialog, dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
@@ -108,10 +109,11 @@ function PaletteDialog({
   )
   const q = query.trim()
   // The rail's own filter: title, branch or project; a routine's run stays on the Routines page.
+  // Archived tasks match too: the rail does not list them, so this is where one is brought back.
   const tasks =
     q === ""
       ? []
-      : [...(payload?.tasks ?? []), ...remote]
+      : [...(payload?.tasks ?? []), ...remote, ...(payload?.archived ?? [])]
           .filter(
             (task) =>
               !task.routine &&
@@ -169,6 +171,8 @@ function PaletteDialog({
       openPage(entry.id)
       return
     }
+    // Picking an archived task unarchives it first: the rail lists it again, selected.
+    if (entry.kind === "task" && entry.task.archived) void archiveFlow(model, entry.task)
     if (entry.kind === "task") model.select(entry.task.id)
     else model.select(entry.hit.taskId, entry.hit.tabId ?? null)
     enterWorkspace()
@@ -274,7 +278,7 @@ function PaletteDialog({
               <TaskEntry
                 key={task.id}
                 title={task.label}
-                repo={repoLabel(task.repo)}
+                repo={task.archived ? t("search.archived", { repo: repoLabel(task.repo) }) : repoLabel(task.repo)}
                 selected={i === index}
                 onHover={() => setSelected(i)}
                 onOpen={() => open({ kind: "task", task })}

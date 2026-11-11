@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, test } from "vitest"
-import { archivedTasks, buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
+import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { SCRATCH_SECTION_ID } from "../../src/tui/panes/sidebar/tree-ids"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
@@ -162,10 +162,5 @@ describe("routine runs", () => {
   test("a project whose only other row is its idle main closes down", () => {
     const result = groups([main("m", "/work/api"), routine("r1")], tabs({ m: 0 }))
     expect(result).toEqual([])
-  })
-
-  test("an archived run stays out of the Archived fold", () => {
-    const archived = archivedTasks([routine("r1", { archived: true }), task("a1", { archived: true })])
-    expect(archived.map((t) => t.id)).toEqual(["a1"])
   })
 })

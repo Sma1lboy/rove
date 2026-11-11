@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
-import { withArchived } from "../src/rail-archived.ts"
 import { railRows } from "../src/rail.ts"
 
 const task = (id: string, extra: Partial<TaskRow> = {}): TaskRow =>
@@ -21,13 +20,5 @@ describe("routine runs stay on the Routines page", () => {
       "project:/r/app",
       "kid",
     ])
-  })
-
-  test("the Archived fold neither counts nor lists archived runs", () => {
-    const archived = [task("old"), task("old-run", { routine: true })]
-    expect(withArchived([], archived, false)).toEqual([
-      { id: "~archived", kind: "archived", count: 1, expanded: false },
-    ])
-    expect(withArchived([], [task("old-run", { routine: true })], true)).toEqual([])
   })
 })

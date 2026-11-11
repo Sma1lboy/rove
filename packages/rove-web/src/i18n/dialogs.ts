@@ -148,6 +148,8 @@ export const en = {
   },
   search: {
     tasks: "Tasks",
+    /** A matched task that is archived; picking it unarchives it. {repo} is its project */
+    archived: "{repo} · archived, pick to unarchive",
     commands: "Commands",
     inConversations: "In conversations",
     searching: "searching…",
@@ -324,6 +326,7 @@ export const zh: typeof en = {
   },
   search: {
     tasks: "任务",
+    archived: "{repo} · 已归档，选中即恢复",
     commands: "命令",
     inConversations: "在对话里",
     searching: "搜索中…",

@@ -7,7 +7,6 @@
 import { fuzzyMatch } from "@sma1lboy/rove/src/tui/panes/sidebar/fuzzy.ts"
 import type { TabRow, TaskRow } from "rove-bridge/protocol"
 import { t } from "./i18n/index.ts"
-import type { ARCHIVED_ROW_ID } from "./rail-archived.ts"
 import { mergedLabel, repoLabel } from "./rail-labels.ts"
 import { attemptLabels, roundKey, roundTitle, roundsAmong } from "./rail-rounds.ts"
 import type { RailState } from "./rail-states.ts"
@@ -94,14 +93,6 @@ export type NavRow =
       readonly label: string
       readonly depth: number
     })
-  /** The fold at the end of the rail holding every archived task (`rail-archived.ts`). */
-  | {
-      readonly id: typeof ARCHIVED_ROW_ID
-      readonly kind: "archived"
-      readonly machine?: undefined
-      readonly count: number
-      readonly expanded: boolean
-    }
 
 /** A parent with more children than this starts folded (the TUI's `AUTO_FOLD_CHILDREN`). */
 export const AUTO_FOLD_CHILDREN = 5
@@ -248,7 +239,7 @@ function isFolded(id: string, childCount: number, descendants: readonly string[]
  * Flatten to navigable rows, pruned to `query` like `filterTreeRows`: each field
  * matched on its own; a project hit keeps its whole subtree, a task hit its
  * children, a child hit its parents and project. A folded task (`fold`) hides its children.
- * `base` is how many generations the group's top-level tasks already sit under (the Archived fold's).
+ * `base` is how many generations the group's top-level tasks already sit under.
  */
 export function navRows(
   groups: readonly ProjectGroup[],

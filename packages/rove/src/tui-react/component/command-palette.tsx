@@ -80,7 +80,7 @@ export function CommandPalette({
   const tasks: Entry[] = useMatchingTasks(search, query).map((task) => ({
     kind: "task",
     key: `t:${task.id}`,
-    name: task.title,
+    name: task.archived ? t("tasks.archivedHit", { title: task.title }) : task.title,
     taskId: task.id,
   }))
   const said = useSaid(search, query)
@@ -106,7 +106,12 @@ export function CommandPalette({
     flushSync(() => dialog.clear({ refocus: false }))
     if (row.kind === "command") {
       if (!row.action.run()) dialog.replace(() => <text fg={theme.warning}>{t("help.unavailable")}</text>)
-    } else search?.openTask(row.taskId, row.kind === "said" ? row.tabId : undefined)
+    } else {
+      // The sidebar does not list archived tasks: picking one here brings it back, then opens it.
+      const task = row.kind === "task" ? search?.tasks.find((candidate) => candidate.id === row.taskId) : undefined
+      if (task?.archived) void search?.orchestrator.archiveTask(task.id, false)
+      search?.openTask(row.taskId, row.kind === "said" ? row.tabId : undefined)
+    }
   }
   useBindings(() => ({
     bindings: [

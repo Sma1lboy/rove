@@ -15,7 +15,6 @@ import { startNewTask, startNewUngrouped } from "./new-session-view.tsx"
 import { PageNav } from "./pages-host.tsx"
 import { PrChip } from "./pr-chip.tsx"
 import { ShortcutBadge } from "./prefix-guide.tsx"
-import { withArchived } from "./rail-archived.ts"
 import { type TreeGuide, treeGuides } from "./rail-blocks.ts"
 import { PaneKeyHint, RailGrip, RecentRow } from "./rail-chrome.tsx"
 import { type DragProps, type RowPlace, useRowDrag } from "./rail-drag.ts"
@@ -102,20 +101,15 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const built = build(filters.search.active ? filters.search.query : "")
   const { groups } = built
   // A collapsed project keeps its header and hides what is under it; search shows everything.
-  // Archived tasks are only in the closing fold, which a search leaves out (as the TUI).
+  // Archived tasks are not listed: the palette finds them by title and brings one back.
   const rows = filters.search.active
     ? built.rows
-    : withArchived(
-        foldProjects(
-          withPanes(
-            withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
-            tabs,
-          ),
-          filters.collapsed,
+    : foldProjects(
+        withPanes(
+          withStateCounts(dropIdleMains(built.rows, idleTabs, selection.taskId, tabsSettled, reordering)),
+          tabs,
         ),
-        payload?.archived ?? [],
-        filters.archivedOpen,
-        { ...filters.hand, selectedId: selectedId ?? undefined },
+        filters.collapsed,
       )
   const stops = (all: readonly NavRow[]) =>
     all.filter((row) => row.kind !== "project" && row.kind !== "state" && row.kind !== "round")
@@ -268,11 +262,9 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               }
               onToggleFold={() => {
                 if (row.kind === "task") filters.toggleTaskFold(row.id, row.fold?.collapsed === true)
-                if (row.kind === "archived") filters.toggleArchived()
               }}
               onClick={() => {
                 keys.setCursor(row.id)
-                if (row.kind === "archived") filters.toggleArchived()
                 if (row.kind === "project" || row.kind === "state") filters.toggleProject(row.id)
                 if (row.kind === "task") openTaskRow(model, row.task.id)
               }}
@@ -292,7 +284,6 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
                   openMenu(e, projectMenu(model, row.repo, info))
                   return
                 }
-                // The Archived row names no task, so it has no menu (TUI `use-tree-menu`).
                 if (row.kind !== "task") return
                 keys.setCursor(row.id)
                 openMenu(
@@ -382,22 +373,6 @@ function RailRow(props: {
       </h2>
     )
   }
-  if (row.kind === "archived") {
-    return (
-      <button
-        type="button"
-        className={`${rowClass({ moving: props.moving || props.dragging })} ${cursor}`}
-        aria-expanded={row.expanded}
-        onClick={props.onClick}
-        {...props.place}
-      >
-        <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : "text-muted"}`}>
-          {tc("tasks", "archivedRow", { count: row.count })}
-        </span>
-      </button>
-    )
-  }
-
   const task = row.task
   const running = task.rowStatus?.kind === "running"
   const count = todoCount(task)

@@ -136,14 +136,6 @@ function isListed(task: Task): boolean {
   return phase !== "queued" && phase !== "running" && !isUnlistedCheckout(task)
 }
 
-/**
- * The tasks the sidebar hides as archived, in input order, for the Archived
- * fold. Same deletion rule as the sections.
- */
-export function archivedTasks(tasks: readonly Task[]): Task[] {
-  return tasks.filter((task) => task.archived === true && isListed(task) && !isRoutineRun(task))
-}
-
 /** A routine's run: it lives on the Routines page, not in the sidebar (the web rail's rule). */
 function isRoutineRun(task: Task): boolean {
   return task.routine !== undefined
@@ -174,7 +166,7 @@ export function buildSidebarGroups(input: SidebarGroupInput): SidebarGroup[] {
   // before that write — so nothing hides for a delete that didn't happen.
   // `error` stays visible: the failed task returning (with its `delete failed`
   // caption) is the only thing that corrects the vanished row.
-  // Archived tasks leave too (they live in the Archived fold, `archivedTasks`),
+  // Archived tasks leave too (the palette finds them by title),
   // so a project left with only its main folds like any idle project; so do
   // routine runs, so a project with only scheduled output folds the same way.
   const tasks = input.tasks.filter((task) => isListed(task) && task.archived !== true && !isRoutineRun(task))
