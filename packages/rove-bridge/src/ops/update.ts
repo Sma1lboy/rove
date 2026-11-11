@@ -2,10 +2,12 @@
  * Area ops behind the Update page and What's New (TUI `update-page.tsx`, `whats-new-dialog.tsx`):
  * the registry check and GitHub release notes the Mac's Rove build would show, and Update now:
  * `update.run` starts the same installer `rove update` runs (the stored channel, never a command
- * from the client), one at a time; `update.status` reports it while the page polls.
+ * from the client), one at a time; `update.status` reports it while the page polls;
+ * `update.restart` then puts the daemon and this bridge on the installed build.
  */
 
 import { spawn } from "node:child_process"
+import { relaunchSelf } from "@sma1lboy/rove/src/cli/self-relaunch.ts"
 import { updaterShell, updaterShellFailureHint } from "@sma1lboy/rove/src/lib/updater-shell.ts"
 
 import { DEFAULT_RELEASE_CHANNEL, type ReleaseChannel } from "@sma1lboy/rove/src/release-channels.ts"
@@ -40,6 +42,8 @@ export interface UpdateDeps {
   readonly notes: (version: string, locale: NotesLocale) => Promise<ReleaseNotesRangeItem | null>
   /** Starts the installer; `onOutput` gets its stdout and stderr, `onExit` its exit code (1 when it could not start). */
   readonly install: (onOutput: (chunk: string) => void, onExit: (code: number) => void) => { readonly display: string }
+  /** Restarts the daemon, then replaces this process with the build on disk. */
+  readonly restart: () => void
 }
 
 /** The installer's output kept for the page: the tail, where npm reports success or the error. */
@@ -61,6 +65,17 @@ function installLatest(onOutput: (chunk: string) => void, onExit: (code: number)
   return { display: command }
 }
 
+/** Startup flags that act once: replayed, they would sign every device out again. */
+const ONE_SHOT = new Set(["--rotate-token", "--rotate-relay"])
+
+async function restartOntoInstalled(): Promise<void> {
+  const { restartDaemon } = await import("@sma1lboy/rove-daemon/client/daemon-process")
+  // A daemon that would not restart must not keep the bridge on the old build: the page's banner offers it again.
+  await restartDaemon().catch(() => undefined)
+  const argv = process.argv.filter((arg) => !ONE_SHOT.has(arg))
+  relaunchSelf({ renderer: null, proc: { execPath: process.execPath, execArgv: process.execArgv, argv } })
+}
+
 const realDeps: UpdateDeps = {
   current: CURRENT_VERSION,
   // The preference is read per call, so a channel picked a moment ago applies to this check.
@@ -69,6 +84,7 @@ const realDeps: UpdateDeps = {
   notesRange: (current, latest, locale) => fetchReleaseNotesRange({ current, latest, locale }),
   notes: fetchReleaseNotes,
   install: installLatest,
+  restart: () => void restartOntoInstalled(),
 }
 
 interface UpdateRun {
@@ -124,6 +140,18 @@ export function createUpdateOps(deps: UpdateDeps = realDeps): OpTable {
           },
         ).display
         return { status: status() }
+      },
+    },
+    "update.restart": {
+      kind: "write",
+      destructive: true,
+      wraps:
+        "rove daemon restart, then this bridge re-run with its own arguments (open pages reconnect and reload; engine sessions live in the PTY host and keep running)",
+      async run() {
+        if (run?.code === null) throw new BridgeError("BUSY", "an update is still running")
+        // Not awaited: the restart outlives this reply.
+        deps.restart()
+        return {}
       },
     },
     "update.status": {

@@ -35,8 +35,9 @@ export const en = {
   pressAnyKey: "Press any key to close this update window.",
   /** Web Update now: the installer runs on the computer serving the page, its output shown below. */
   webRunning: "Running {command} …",
-  webInstalled:
-    "Installed. The daemon and this web bridge still run v{current}: run `rove daemon restart`, then restart `rove --web`. The page reloads itself once the bridge runs the new version.",
+  webInstalled: "Installed. Restart Rove to run v{latest}; this page reloads itself when it is back.",
+  webRestart: "Restart Rove",
+  webRestarting: "Restarting Rove… this page reloads itself when it is back.",
   webStartFailed: "Could not start the updater: {error}",
   actions: {
     updateNow: "Update now",
@@ -125,8 +126,9 @@ export const zh: typeof en = {
   updateFailed: "Rove 更新失败，退出码为 {code}。请检查上方输出，再运行 `rove update` 重试。",
   pressAnyKey: "按任意键关闭此更新窗口。",
   webRunning: "正在运行 {command} …",
-  webInstalled:
-    "已安装。daemon 和这个 web bridge 仍在跑 v{current}：先运行 `rove daemon restart`，再重启 `rove --web`。bridge 换到新版本后，页面会自动刷新。",
+  webInstalled: "已安装。重启 Rove 后运行 v{latest}；恢复后页面会自动刷新。",
+  webRestart: "重启 Rove",
+  webRestarting: "正在重启 Rove… 恢复后页面会自动刷新。",
   webStartFailed: "无法启动更新程序：{error}",
   actions: {
     updateNow: "立即更新",

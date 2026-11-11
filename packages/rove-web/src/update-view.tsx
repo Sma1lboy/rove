@@ -1,7 +1,8 @@
 /**
  * The Update page (TUI `update-page.tsx`) and What's New (`whats-new-dialog.tsx`), over the
  * bridge's `update.check` / `release.notes`, and Update now over `update.run` / `update.status`:
- * the installer runs on the computer serving the page, which polls it. Copy is the TUI's `update.*` catalog.
+ * the installer runs on the computer serving the page, which polls it, then Restart (`update.restart`)
+ * puts the daemon and the bridge on what it installed. Copy is the TUI's `update.*` catalog.
  */
 
 import type { ReleaseChannel } from "@sma1lboy/rove/src/release-channels.ts"
@@ -87,7 +88,7 @@ export function UpdateChip() {
   )
 }
 
-type ActionId = "update" | "release" | "close"
+type ActionId = "update" | "restart" | "release" | "close"
 
 /** Each release in the range under its version, newest first as the bridge sends them. */
 export function NotesRange({ notes }: { notes: readonly ReleaseNotesRangeItem[] }) {
@@ -156,11 +157,22 @@ export function UpdateView({ client }: { client: BridgeClient }) {
   const upToDate = checked && info !== null && !hasUpdate
   const notes = state?.notes ?? []
   const url = notes[0]?.url ?? (latest ? releaseUrl(latest) : null)
-  const canUpdate = hasUpdate && !run?.running
+  // Installed but not yet running: the old bridge still reports an update, and installing twice does nothing.
+  const installed = run?.code === 0
+  const [restarting, setRestarting] = useState(false)
+  const canUpdate = hasUpdate && !run?.running && !installed
   const activate = (id: ActionId) => {
     if (id === "close") return page.set(null)
+    if (id === "restart") {
+      if (!installed || restarting) return
+      setRestarting(true)
+      // A refusal re-arms the button; a dropped socket is the restart itself, and the reconnect reloads the page.
+      return void client
+        .request("update.restart", {})
+        .catch((err) => err instanceof BridgeRequestError && setRestarting(false))
+    }
     if (id === "update") {
-      if (!hasUpdate || run?.running) return
+      if (!canUpdate) return
       setStatus(null)
       return void client.request<{ status: RunStatus | null }>("update.run", {}).then(
         (r) => {
@@ -190,7 +202,8 @@ export function UpdateView({ client }: { client: BridgeClient }) {
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     // Enter on a focused button or link is that control's own.
-    if (e.key === "Enter" && e.target === host.current) activate(canUpdate ? "update" : "release")
+    if (e.key === "Enter" && e.target === host.current)
+      activate(installed ? "restart" : canUpdate ? "update" : "release")
     else if (e.key === "Enter") return
     else if (e.key === "u") activate("update")
     else if (e.key === "r") activate("release")
@@ -230,7 +243,9 @@ export function UpdateView({ client }: { client: BridgeClient }) {
               {run.running
                 ? fill(u.webRunning, { command: run.command })
                 : run.code === 0
-                  ? fill(u.webInstalled, { current })
+                  ? restarting
+                    ? u.webRestarting
+                    : fill(u.webInstalled, { latest })
                   : fill(u.updateFailed, { code: String(run.code) })}
             </p>
           </>
@@ -248,6 +263,11 @@ export function UpdateView({ client }: { client: BridgeClient }) {
           </a>
         ) : (
           <span className="text-muted">{u.releaseUrlUnavailable}</span>
+        )}
+        {installed && (
+          <Button variant="filled" disabled={restarting} onClick={() => activate("restart")}>
+            {u.webRestart}
+          </Button>
         )}
         {canUpdate && (
           <Button variant="filled" aria-keyshortcuts="u" onClick={() => activate("update")}>
