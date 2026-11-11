@@ -273,10 +273,11 @@ button:focus-visible {
   display: none;
 }
 
-/* No padding: the engine's rules and boxes run to the pane's edges. Any padding belongs on `.xterm`, not
-   its host: the fit addon subtracts this one. */
+/* A left gutter keeps the first column (status dots, prompts) off the pane's border, as the leftover
+   part-cell does on the right. Padding belongs on `.xterm`, not its host: the fit addon subtracts this one. */
 .term-host .xterm {
   height: 100%;
+  padding-left: 6px;
 }
 
 @media (hover: none) and (pointer: coarse) {
