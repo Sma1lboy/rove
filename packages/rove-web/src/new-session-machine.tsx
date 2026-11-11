@@ -19,8 +19,7 @@ import {
 } from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
-import { ComposerToggle } from "./ui/composer-toggle.tsx"
-import { ICON } from "./ui/composer.ts"
+import { EMPTY_NOTE, ICON } from "./ui/composer.ts"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
 const REASON_COPY: Readonly<Record<string, string>> = {
@@ -144,7 +143,7 @@ export function useRemoteTarget<E extends { readonly id: string; readonly name: 
     machineName: machines.find((m) => m.alias === machine)?.hostLabel || machine,
     remoteList,
     engineThere,
-    toggleEngineThere: () => setEngineThere((on) => !on),
+    setEngineThere,
     shown,
     pick,
     setPick,
@@ -253,17 +252,36 @@ export function MachineChip(props: {
   )
 }
 
-/** Off (the default): the agent is this machine's and only the work is on `machine`. On: the engine runs there too. */
-export function EngineThereToggle(props: { machine: string; on: boolean; onToggle: () => void }) {
+/** Where the agent runs for a task on `machine`: this machine (the default; only the work is there) or `machine` itself. */
+export function AgentPlaceChip(props: { machine: string; there: boolean; onPick: (there: boolean) => void }) {
+  const { machine } = props
   return (
-    <ComposerToggle
-      on={props.on}
-      data-field="engine-there"
-      title={t(props.on ? "newSession.engineThereOn" : "newSession.engineThereOff", { machine: props.machine })}
-      onClick={props.onToggle}
+    <ChipPopover
+      field="agent-place"
+      title={t("newSession.agentPlace")}
+      label={t(props.there ? "newSession.agentThere" : "newSession.agentHere", { machine })}
     >
-      {t("newSession.engineThere")}
-    </ComposerToggle>
+      {(close) => (
+        <ChoiceMenu
+          heading={t("newSession.agentPlace")}
+          options={[
+            { id: "", label: t("newSession.thisMachine") },
+            { id: "there", label: machine },
+          ]}
+          value={props.there ? "there" : ""}
+          digits
+          onPick={(id) => {
+            props.onPick(id !== "")
+            close()
+          }}
+          footer={
+            <p className={`${EMPTY_NOTE} text-muted`}>
+              {t(props.there ? "newSession.agentThereNote" : "newSession.agentHereNote", { machine })}
+            </p>
+          }
+        />
+      )}
+    </ChipPopover>
   )
 }
 
