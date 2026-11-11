@@ -5,7 +5,7 @@ Legend: ✅ same as TUI · 🟡 partial or different · ↔ different by design 
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 199 / 222 rows at ✅ (6 🟡, 2 ↔, 3 🚫, 12 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 200 / 223 rows at ✅ (6 🟡, 2 ↔, 3 🚫, 12 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -43,6 +43,7 @@ Score: 199 / 222 rows at ✅ (6 🟡, 2 ↔, 3 🚫, 12 ❌). Regenerate from th
 | # | Action | TUI trigger | Web | Bridge | Verify |
 |---|---|---|---|---|---|
 | — | See the task list: projects → tasks → tabs, with the TUI's status marks (`?` `!` `●` `○` spinner) and `+N` / `−N` / `↑N` / PR / pinned marks | always visible | ✅ | `tasks.subscribe`, `task.tabs` | Open the page: rows match `rove api list` for the sandbox; glyphs follow `tui/panes/sidebar/row-view.ts` (`!` for the two exited engines, `○` for the quiet main row). A main row with no tab, not selected and with no child tasks is not listed, in the rail and the TUI alike: the header and the project's other tasks stay, and Reorder from the header lists the row while it moves. |
+| — | See which engine a task runs on: its brand mark before the title, a ring for an engine with no mark (web-only; a TUI sidebar row carries no engine mark) | — | ✅ | `engines.list` (`icon`, from the engine registry) | Isolated `rove --web` at 1440×900 with one task each on Claude, Codex, Copilot, Kimi, Pi and a `bash` command: the first four draw their marks, Pi and the generic row a ring; mark and title share a vertical centre (0px); no overflow at 390px. The status dots at the right edge are unchanged. |
 | 25 | Navigate rows with keyboard | j/k, ↑/↓ (click is #26) | ✅ | local | r5: with the rail focused, `j`/`k` move the cursor (accent outline, shown only while focused) over task and tab rows; project headers are not stops, as the TUI's `treeFlatIds` (shot r5-01). |
 | 26 | Open task / tab / recent task | Enter, l/Space, click | ✅ | `tasks.list`, `task.tabs`, `term.attach` | r1: click a task row, then a tab row: the terminal attaches and replays. r5: Enter on the cursor's task opens it (tab strip title matches). |
 | 27 | Jump to top / bottom | gg / Shift+G | ✅ | local | r5: `G` lands on the last row, `gg` on the first. |

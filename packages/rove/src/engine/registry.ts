@@ -83,12 +83,20 @@ export interface EngineModel {
 /** Any built-in engine's account shape (each union already has a `none` arm). */
 type EngineAccount = BobAccount | ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
+/** A brand mark as filled paths; a client draws it in its own ink. */
+export interface EngineIcon {
+  readonly viewBox: string
+  readonly paths: readonly { readonly d: string; readonly evenodd?: true }[]
+}
+
 export interface EngineRegistryEntry {
   readonly vendor: VendorId
   /** True for the three first-party engines; false for user-added ids. */
   readonly builtin: boolean
   /** Built-in human label ("Claude"); a custom engine labels as its id. */
   readonly displayName: string
+  /** The engine's brand mark; absent = clients draw a neutral one. */
+  readonly icon?: EngineIcon
   /**
    * Built-in launch argv before any user `engineCommand.<id>` override.
    * Custom engines fall back to a bare binary named after the id.
