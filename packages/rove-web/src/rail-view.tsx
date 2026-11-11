@@ -192,7 +192,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
         />
       )}
       <PageNav model={model} />
-      <div data-rail-body className={railBody(dragging !== null)} {...drag.body}>
+      <div data-rail-body className={railBody(dragging !== null)} {...drag.body} onPointerDownCapture={keys.onPress}>
         {payload && tasks.length === 0 && remoteTasks.length === 0 && narrow && <WelcomePane model={model} />}
         {payload && tasks.length === 0 && remoteTasks.length === 0 && !narrow && (
           <p className={RAIL_EMPTY}>{t("rail.empty")}</p>
@@ -237,7 +237,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
               engineIcon={row.kind === "task" ? engineIcons.get(row.task.engine?.id ?? "") : undefined}
               selected={row.id === selectedId}
-              cursor={row.id === keys.cursor}
+              cursor={row.id === keys.cursor && dragging === null}
               stale={row.machine !== undefined && offline.has(row.machine)}
               collapsed={(row.kind === "project" || row.kind === "state") && filters.collapsed.has(row.id)}
               drag={drag.props(row)}

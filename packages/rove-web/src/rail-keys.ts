@@ -4,7 +4,7 @@
  * the right-click menu (`MenuItem.key`), so a key and its menu entry cannot differ.
  */
 
-import type { KeyboardEvent } from "react"
+import type { KeyboardEvent, PointerEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { chordCandidates } from "./chord.ts"
 import { t } from "./i18n/index.ts"
@@ -149,7 +149,13 @@ export function useRailKeys(
   allRows: readonly NavRow[],
   filters: RailFilters,
   opts: { onNewTask: (repo?: string, machine?: string) => void; onSettings: () => void; selectedId: string | null },
-): { cursor: string | null; setCursor: (id: string) => void; onKeyDown: (e: KeyboardEvent) => void } {
+): {
+  cursor: string | null
+  setCursor: (id: string) => void
+  onKeyDown: (e: KeyboardEvent) => void
+  /** A press on a row takes the cursor, as a click does: a drag never clicks, and would leave the ring on another row. */
+  onPress: (e: PointerEvent) => void
+} {
   const { search, setSearch } = filters
   const [cursor, setCursor] = useState<string | null>(null)
   const gAt = useRef(0)
@@ -292,5 +298,9 @@ export function useRailKeys(
     e.preventDefault()
   }
 
-  return { cursor, setCursor, onKeyDown }
+  const onPress = (e: PointerEvent) => {
+    const id = (e.target as Element).closest<HTMLElement>("[data-row]")?.dataset.row
+    if (id) setCursor(id)
+  }
+  return { cursor, setCursor, onKeyDown, onPress }
 }
