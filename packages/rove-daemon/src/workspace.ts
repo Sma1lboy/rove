@@ -5,9 +5,15 @@
  * testing `task.kind`.
  */
 
-export type WorkspaceBackendId = "git-worktree" | "borrowed" | "cow-clone" | "layerfs"
+export type WorkspaceBackendId = "git-worktree" | "borrowed" | "cow-clone" | "layerfs" | "remote"
 
-export const WORKSPACE_BACKEND_IDS: readonly WorkspaceBackendId[] = ["git-worktree", "borrowed", "cow-clone", "layerfs"]
+export const WORKSPACE_BACKEND_IDS: readonly WorkspaceBackendId[] = [
+  "git-worktree",
+  "borrowed",
+  "cow-clone",
+  "layerfs",
+  "remote",
+]
 
 export function isWorkspaceBackendId(value: unknown): value is WorkspaceBackendId {
   return typeof value === "string" && (WORKSPACE_BACKEND_IDS as readonly string[]).includes(value)
@@ -55,6 +61,15 @@ export const WORKSPACE_CAPABILITIES: Readonly<Record<WorkspaceBackendId, Workspa
   "cow-clone": { ...GIT_WORKTREE, fork: "with-uncommitted", cheapClone: true },
   // Lives inside a Linux sandbox container: no host reach, and its git branch exists only there until exported.
   layerfs: { ...GIT_WORKTREE, cheapClone: true, ownsBranch: false, interactive: false },
+  // A worktree on another machine behind a link directory here: its branch and files are that machine's.
+  remote: {
+    fork: "committed",
+    checkpoint: false,
+    cheapClone: false,
+    ownsBranch: false,
+    ownsDirectory: true,
+    interactive: false,
+  },
 }
 
 type WorkspaceTask = { readonly kind?: "main" | "task" | "dir"; readonly workspace?: TaskWorkspace }

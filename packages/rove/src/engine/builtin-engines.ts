@@ -25,6 +25,7 @@ import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabili
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { isRovePluginEnabled } from "./claude-code-local/plugin-migration.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
+import { claudeRemoteNotes, claudeRemoteWorkspaceArgv } from "./claude-code-local/remote-workspace.ts"
 import { trustClaudeWorktree } from "./claude-code-local/trust.ts"
 import { readClaudeTurns } from "./claude-code-local/turns.ts"
 import { codexCapabilities, codexIdentity } from "./codex-local/capabilities.ts"
@@ -87,6 +88,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     listModels: async () => CLAUDE_MODELS,
     modelArgv: (base, model) => [...base, "--model", model],
     addDirArgv: (base, dirs) => [...base, ...dirs.map((dir) => `--add-dir=${dir}`)],
+    remoteWorkspace: { argv: claudeRemoteWorkspaceArgv, notes: { file: "CLAUDE.md", text: claudeRemoteNotes } },
     // `--effort <level>` (`claude --help`).
     effortLevels: ["low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "--effort", level],

@@ -29,6 +29,7 @@ import {
 } from "./add-engine-fields.ts"
 import { addParallel } from "./add-parallel.ts"
 import { type Placement, parentFlags, placeAdd, placedRequest, resolveAddParent } from "./add-parent.ts"
+import { addOnMachine } from "./add-remote-workspace.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
@@ -36,6 +37,8 @@ import { ApiError, type PromptTarget, type VerbContext, helpStep } from "./types
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
+  const workspaceOn = args.str("workspace-on")
+  if (workspaceOn) return addOnMachine(ctx, workspaceOn)
   const daemon = daemonOf(ctx)
   const flags = parentFlags(ctx)
   const refs = args.list("repo")

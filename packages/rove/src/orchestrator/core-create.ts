@@ -5,6 +5,7 @@
  */
 
 import { lineageRootId } from "@sma1lboy/rove-daemon/task-tree"
+import type { TaskWorkspace } from "@sma1lboy/rove-daemon/workspace"
 import { isRemoteRepoKey } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskId, TaskRoutineLink, VendorId } from "../types/task.ts"
@@ -48,6 +49,8 @@ export interface OpenDirectoryTaskInput {
   readonly modelEffort?: string
   /** Standing session of a routine, folded behind its group's routine row. */
   readonly routine?: TaskRoutineLink
+  /** The backend that owns `dir`; absent = the user's own directory (`borrowed`). */
+  readonly workspace?: TaskWorkspace
 }
 
 /** The stored parent of a child nested under `id`: its top-level ancestor, since children never nest. */
@@ -137,6 +140,7 @@ export async function openDirectoryTaskRow(deps: StoreDeps, input: OpenDirectory
     ...(input.scratch ? { scratch: true } : {}),
     ...(input.noProject ? { noProject: true } : {}),
     ...(input.routine ? { routine: input.routine } : {}),
+    ...(input.workspace ? { workspace: input.workspace } : {}),
     ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
     ...(input.model?.trim() ? { model: input.model.trim() } : {}),
     vendor: input.vendor ?? resolvePreferredVendor(),

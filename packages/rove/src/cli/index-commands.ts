@@ -124,6 +124,14 @@ export const DYNAMIC_COMMANDS = new Map<string, CommandHandler>([
     },
   ],
   [
+    "remote-workspace",
+    async (args) => {
+      // Internal: an engine whose workspace is on another machine reaches it through this.
+      const { runRemoteWorkspaceSubcommand } = await import("./remote-workspace-cmd.ts")
+      await runRemoteWorkspaceSubcommand(args)
+    },
+  ],
+  [
     "hook",
     async (args) => {
       // Internal: engine hooks report activity events to the daemon.

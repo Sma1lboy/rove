@@ -47,6 +47,13 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
           "EXPERIMENTAL, Linux only: put the task's files in a LayerFS Workspace inside a per-task Docker sandbox instead of a git worktree (`experimental.layerfs` in state.json names its env file; Store calls need passwordless sudo). Terminals run inside the sandbox at the task's path; checkpoint/rewind use LayerFS commits; `export-branch` brings its git branch back for landing. Refused with LAYERFS_UNAVAILABLE / LAYERFS_NEEDS_ROOT — nothing created — when it cannot run here. Conflicts with --fork, --count, --agents, --no-worktree, --isolate-in and extra repos (CONFLICTING_FLAGS); inside a session it still nests under the caller, as its own layerfs task rather than a worktree cut from the parent.",
       },
       {
+        name: "workspace-on",
+        type: "string",
+        placeholder: "MACHINE",
+        description:
+          "Run the agent HERE and keep its files and commands on that registered machine: it cuts the worktree (it needs Rove and git, no engine and no engine login), and the engine starts on this machine in a link directory. Every engine reaches the worktree with `rx '<command>'` (on the session's PATH; AGENTS.md there says how); an engine with its own wiring (claude) has its shell tool run there and gets read/write/edit tools for the files. --repo is resolved on that machine as with --machine (id, path there, --clone, --allow-fork); --branch and --base-branch apply there. Deleting the task deletes that worktree. Conflicts with --count, --agents, --fork, --workspace, --no-worktree, --isolate-in, --worktree-only, --tier and a second --repo (CONFLICTING_FLAGS). Returns { machine, remoteTaskId, remotePath } beside the usual fields.",
+      },
+      {
         name: "allow-fork",
         type: "bool",
         description:

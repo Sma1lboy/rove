@@ -9,6 +9,7 @@ export { BorrowedBackend } from "./borrowed.ts"
 export { type CloneEntries, type CloneProbe, type CowCloneDeps, CowCloneBackend } from "./cow-clone.ts"
 export { GitWorktreeBackend } from "./git-worktree.ts"
 export { LAYERFS_CONFIG_KEY, LayerfsBackend } from "./layerfs.ts"
+export { RemoteBackend } from "./remote.ts"
 export { WorkspaceRegistry, createWorkspaceRegistry } from "./registry.ts"
 export type {
   DisposeTarget,
