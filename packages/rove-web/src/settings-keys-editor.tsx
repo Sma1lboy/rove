@@ -1,7 +1,7 @@
 /**
  * Settings → Keybindings' editing (TUI `KeybindingsSettingsSection`). A binding's chords are
  * keycaps: pressing one records the next key press as the new chord (the prefix key first makes
- * it a prefix stroke; a paired binding asks for each key), and its `×` removes them. The Mac
+ * it a prefix stroke; a paired binding asks for each key), and its `×` (shown on hover, or right after recording) removes them. The Mac
  * writes the YAML (`keybindings.set`) and refuses a chord its loader would drop.
  */
 
@@ -116,6 +116,7 @@ export function BindingCaps(props: {
     )
   }
   const tone = props.changed ? "changed" : "idle"
+  const justSaved = editor.notice?.id === id
   const prefix = props.prefix ?? []
   if (props.direct.length === 0 && prefix.length === 0) {
     return (
@@ -133,6 +134,7 @@ export function BindingCaps(props: {
           onPress={record}
           onRemove={() => editor.save(id, { direct: [] })}
           removeLabel={t("keys.removeFor", { name: props.name })}
+          removeShown={justSaved}
         >
           {props.direct.join(" / ")}
         </Keycap>
@@ -144,6 +146,7 @@ export function BindingCaps(props: {
           onPress={record}
           onRemove={() => editor.save(id, { prefix: [] })}
           removeLabel={t("keys.removeFor", { name: props.name })}
+          removeShown={justSaved}
         >
           {prefix.map((stroke) => `${props.prefixName} ${stroke}`).join(" / ")}
         </Keycap>
