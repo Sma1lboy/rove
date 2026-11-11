@@ -322,9 +322,9 @@ describe("attachment.put", () => {
 
   test("a file that claims an image or PDF type, by mime or by name, must start like one", async () => {
     written.length = 0
-    await expect(run("attachment.put", { name: "shot.png", data: Buffer.from("text").toString("base64") })).rejects.toThrow(
-      "not a png",
-    )
+    await expect(
+      run("attachment.put", { name: "shot.png", data: Buffer.from("text").toString("base64") }),
+    ).rejects.toThrow("not a png")
     await expect(put("application/pdf", PNG)).rejects.toThrow("not a pdf")
     await expect(put("image/png", Buffer.from("not an image"))).rejects.toThrow("not a png")
     // RIFF alone is not WebP.
