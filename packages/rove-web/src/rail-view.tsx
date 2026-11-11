@@ -4,6 +4,7 @@ import { en as tasksEn, zh as tasksZh } from "@sma1lboy/rove/src/tui/i18n/messag
 import type { MouseEvent } from "react"
 import { useEffect, useRef } from "react"
 import type { RowStatus, TabRow, TaskRow, TasksPayload } from "rove-bridge/protocol"
+import { useEngineIcons } from "./engine-icons.ts"
 import { markHintUsed } from "./hint-state.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
@@ -41,6 +42,7 @@ import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
 import { type MenuItem, dialog, menu, tuckRare } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
+import { EngineIcon, type EngineIconData } from "./ui/engine-icon.tsx"
 import { Legend } from "./ui/legend.tsx"
 import { INBOX_CHIP } from "./ui/overlay.ts"
 import {
@@ -77,6 +79,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const remoteTasks = useStore(model.remote)
   const machines = useMachines(model)
   const tabs = useStore(model.tabs)
+  const engineIcons = useEngineIcons(model)
   const tabsSettled = useStore(model.tabsSettled)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
@@ -229,6 +232,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
               cloud={rowCloud(row, machines, words)}
               repo={byState && row.kind === "task" && row.depth === 1 ? rowRepo(row.task) : undefined}
               tabs={row.kind === "task" ? tabs[row.task.id] : undefined}
+              engineIcon={row.kind === "task" ? engineIcons.get(row.task.engine?.id ?? "") : undefined}
               selected={row.id === selectedId}
               cursor={row.id === keys.cursor}
               stale={row.machine !== undefined && offline.has(row.machine)}
@@ -320,6 +324,8 @@ function RailRow(props: {
   cloud: string | null
   /** A task row's tabs: the engine's own name for its conversation shows in place of the task title. */
   tabs?: readonly TabRow[]
+  /** The task's engine's brand mark; absent = a neutral ring. */
+  engineIcon?: EngineIconData | undefined
   selected: boolean
   cursor: boolean
   moving: boolean
@@ -396,6 +402,7 @@ function RailRow(props: {
           ))}
         </span>
       )}
+      <EngineIcon icon={props.engineIcon} name={task.engine?.name} />
       <span className={`${ROW_TITLE_RAIL} ${props.stale ? "text-subtle" : ""} ${running ? ROW_TITLE_RUNNING : ""}`}>
         {row.attempt ?? task.label}
       </span>

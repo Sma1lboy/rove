@@ -36,6 +36,7 @@ import { readCodexTurns } from "./codex-local/turns.ts"
 import { CopilotHookAdapter } from "./copilot-local/hook-adapter.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import { trustCopilotWorktree } from "./copilot-local/trust.ts"
+import { CLAUDE_ICON, CODEX_ICON, COPILOT_ICON, KIMI_ICON } from "./engine-icons.ts"
 import {
   bobHistoryReader,
   claudeHistoryReader,
@@ -79,6 +80,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     builtin: true,
     // EngineIdentity owns name copy; neutral layers read engineDisplayName().
     displayName: claudeIdentity.shortName,
+    icon: CLAUDE_ICON,
     defaultCommand: ["claude"],
     // `--model <alias|full name>`; no list verb, so the suggestions are the
     // documented aliases (`model-lists.ts`).
@@ -125,6 +127,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     vendor: "codex",
     builtin: true,
     displayName: codexIdentity.shortName,
+    icon: CODEX_ICON,
     defaultCommand: ["codex"],
     // Per the API's own error: 'none', 'minimal', 'low', 'medium', 'high',
     // 'xhigh', 'max'. `minimal` is excluded — rejected on the default model
@@ -234,6 +237,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     vendor: "copilot",
     builtin: true,
     displayName: "Copilot",
+    icon: COPILOT_ICON,
     defaultCommand: ["copilot"],
     history: copilotHistoryReader,
     detectAccount: (deps) => detectCopilotAccount(deps),
@@ -248,6 +252,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     vendor: "kimi",
     builtin: true,
     displayName: "Kimi",
+    icon: KIMI_ICON,
     defaultCommand: ["kimi"],
     // kimi's positional CLI slot is a subcommand (export/provider/acp/…),
     // not an initial prompt — argv delivery kills it.

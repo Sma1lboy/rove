@@ -14,7 +14,7 @@ import type { TaskTabRow } from "@sma1lboy/rove/src/cli/api/tab-snapshot.ts"
 import type { ActiveGate, RowTokenMap, WorktreeChangesMap } from "@sma1lboy/rove/src/client/remote-orchestrator.ts"
 import { detectEngineStatus } from "@sma1lboy/rove/src/engine/engine-status.ts"
 import { engineDisplayName } from "@sma1lboy/rove/src/engine/interactive-command.ts"
-import { engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
+import { type EngineIcon, engineEntry } from "@sma1lboy/rove/src/engine/registry.ts"
 import { isUnlistedCheckout } from "@sma1lboy/rove/src/lib/worktree-only.ts"
 import { getDisabledEngineIds, getSavedRepos } from "@sma1lboy/rove/src/state/repos.ts"
 import { loadStateFile } from "@sma1lboy/rove/src/state/store.ts"
@@ -62,6 +62,8 @@ export interface EngineRow {
   readonly acceptsModel?: boolean
   /** Binary present and, where Rove can read the login, signed in (`engine-status.ts`). Absent = could not probe. */
   readonly ready?: boolean
+  /** The engine's brand mark from the registry; absent = it declares none. */
+  readonly icon?: EngineIcon
 }
 
 /** The bridge's whole view of Rove. Faked in tests. */
@@ -260,6 +262,7 @@ export function createRoveOps(
           models: models ?? null,
           effortLevels: [...(engineEntry(protocol).effortLevels ?? [])],
           acceptsModel: engineEntry(protocol).modelArgv !== undefined,
+          ...(engineEntry(protocol).icon ? { icon: engineEntry(protocol).icon } : {}),
           ...(status ? { ready: status.binary.found && status.account?.kind !== "none" } : {}),
         }
       }),
