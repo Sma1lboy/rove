@@ -277,7 +277,7 @@ button:focus-visible {
    part-cell does on the right. Padding belongs on `.xterm`, not its host: the fit addon subtracts this one. */
 .term-host .xterm {
   height: 100%;
-  padding-left: 6px;
+  padding-left: 3px;
 }
 
 @media (hover: none) and (pointer: coarse) {
