@@ -17,3 +17,21 @@ test("the open composer is remembered for a reload, without a link's one-shot pr
   newSession.set(null)
   expect(kept.has("rove.web.newSession")).toBe(false)
 })
+
+test("the open page is remembered for a reload, and forgotten once closed", async () => {
+  const kept = new Map<string, string>()
+  Object.assign(globalThis, {
+    sessionStorage: {
+      getItem: (key: string) => kept.get(key) ?? null,
+      setItem: (key: string, value: string) => void kept.set(key, value),
+      removeItem: (key: string) => void kept.delete(key),
+    },
+  })
+  const { page } = await import("../src/ui.ts")
+
+  page.set("routines")
+  expect(JSON.parse(kept.get("rove.web.page") ?? "null")).toBe("routines")
+
+  page.set(null)
+  expect(kept.has("rove.web.page")).toBe(false)
+})
