@@ -8,6 +8,7 @@
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import type { BridgeClient } from "../bridge.ts"
 import { t, useLocale } from "../i18n/index.ts"
+import { isTouch } from "../key-hints.ts"
 import { type Store, createStore, useStore } from "../store.ts"
 import * as C from "../ui/composer.ts"
 import { Dictation, type DictationPhase, type DictationResult, type DictationScope } from "./dictation.ts"
@@ -86,6 +87,9 @@ export function useVoiceHosted(client: BridgeClient): boolean | null {
   }, [client, store])
   return available
 }
+
+/** A phone with dictation set up talks first: opening a session must not raise the keyboard. Unasked counts as set up. */
+export const talksFirst = (client: BridgeClient): boolean => isTouch() && availableStore(client).get() !== false
 
 export function DictationButton(props: {
   readonly client: BridgeClient

@@ -27,6 +27,7 @@ import { dialog, toast } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
 import { TERM_BODY, TERM_HOST, TERM_PANE, TERM_QUOTE, TERM_SCROLLED } from "./ui/shell.ts"
 import { LINK } from "./ui/text.ts"
+import { talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 export interface TerminalViewProps {
   readonly client: BridgeClient
@@ -117,6 +118,11 @@ export function TerminalView(props: TerminalViewProps) {
   // Callbacks change every render; the mount (which runs once per session) reads the latest.
   const latest = useRef(props)
   latest.current = props
+  // The composer's mic is the way in there, so the pane leaves the keyboard down as it opens.
+  useVoiceHosted(client)
+  const quiet = props.composer === true && talksFirst(client)
+  const quietNow = useRef(quiet)
+  quietNow.current = quiet
 
   useEffect(() => {
     const el = host.current
@@ -131,7 +137,14 @@ export function TerminalView(props: TerminalViewProps) {
     const mount = () => {
       if (cancelled) return
       void leaseTerminal(
-        { client, host: el, taskId, tabId, leafId, focusOnMount: latest.current.focused !== false },
+        {
+          client,
+          host: el,
+          taskId,
+          tabId,
+          leafId,
+          focusOnMount: latest.current.focused !== false && !quietNow.current,
+        },
         {
           setNotice,
           onScrolled: setScrolled,
@@ -238,8 +251,8 @@ export function TerminalView(props: TerminalViewProps) {
 
   // An owner that moves focus to this pane (F3, a new split) lands the keyboard here.
   useEffect(() => {
-    if (props.focused && handle && document.activeElement !== handle.term.textarea) handle.term.focus()
-  }, [props.focused, handle])
+    if (props.focused && !quiet && handle && document.activeElement !== handle.term.textarea) handle.term.focus()
+  }, [props.focused, quiet, handle])
 
   // Only the tab's own session reopens: a split pane has no row of its own to relaunch from.
   const ownSession = !leafId || leafId === "leaf-1"
