@@ -91,7 +91,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   }
   return (
     <main className={`${WORKSPACE} ${WORKSPACE_FRAME}`}>
-      {narrow && <NarrowBackBar taskId={task?.id} />}
+      {narrow && <NarrowBackBar taskId={task?.id} title={task?.title} />}
       {task && <TabStrip model={model} task={task} tabs={tabs} narrow={narrow} />}
       {task && !task.groupId && <StackStrip model={model} taskId={task.id} />}
       {task?.groupId && <AttemptsStrip model={model} taskId={task.id} groupId={task.groupId} />}
