@@ -46,6 +46,26 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       ])
     })
 
+    it("task.create writes a scheduled start with the row, and a bad one creates nothing", async () => {
+      const inputs: Record<string, unknown>[] = []
+      const { ctx } = fakeCtx({
+        createTask: async (input: Record<string, unknown>) => {
+          inputs.push(input)
+          return TASK
+        },
+      })
+      await dispatch(
+        "task.create",
+        { repo: "/repo", scheduledStart: { at: "2026-11-11T09:00:00Z", prompt: "go" } },
+        ctx,
+      )
+      expect(inputs[0]?.scheduledStart).toEqual({ at: "2026-11-11T09:00:00.000Z", prompt: "go" })
+      await expect(
+        dispatch("task.create", { repo: "/repo", scheduledStart: { at: "soon", prompt: "go" } }, ctx),
+      ).rejects.toThrow("ISO-8601")
+      expect(inputs).toHaveLength(1)
+    })
+
     it("task.create without repo fails with the exact legacy wording", async () => {
       const { ctx } = fakeCtx({
         createTask: async () => {

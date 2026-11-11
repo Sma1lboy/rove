@@ -105,6 +105,11 @@ export interface ApiCaller {
   readonly daemon?: true
   /** The call arrived from another machine's hub (`api.invoke` with `forwarded: true`). */
   readonly forwarded?: true
+  /**
+   * In-process only, never a flag: an `add` with no prompt whose agent is due at `at` (the web's "Later"). The
+   * schedule rides on the create itself, so no task ever exists with neither an engine nor a due start.
+   */
+  readonly scheduledStart?: { readonly at: string; readonly prompt: string }
 }
 
 /** The daemon running a verb for a socket or bridge caller, or for another machine's hub. */

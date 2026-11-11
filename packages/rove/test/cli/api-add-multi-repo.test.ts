@@ -6,16 +6,23 @@
 
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import {
+  FakeClient,
+  expectApiError,
+  openedTab,
+  recordingDelivery,
+  stubRuntime,
+  taskFixture,
+} from "./api-handler-fixtures.ts"
 
 const createClient = () => new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
 
 describe("add --repo (repeatable)", () => {
   it("sends the first repo as the primary and the rest as extraRepos, in pick order", async () => {
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/work/web", "--repo", "/work/api", "--repo", "/work/docs"], {
+    await invokeVerb("add", ["--repo", "/work/web", "--repo", "/work/api", "--repo", "/work/docs", "--start"], {
       client,
-      runtime: stubRuntime(),
+      runtime: stubRuntime({ openTab: openedTab }),
     })
     const [create] = client.requests.filter((r) => r.name === "task.create")
     expect(create?.payload).toMatchObject({
@@ -27,9 +34,9 @@ describe("add --repo (repeatable)", () => {
   it("keys --base-for on a path by git root, so a symlinked spelling of the repo still matches", async () => {
     const client = createClient()
     const canonical = (p: string) => p.replace(/^\/link\//, "/real/")
-    await invokeVerb("add", ["--repo", "/link/web", "--repo", "/link/api", "--base-for", "/link/api=dev"], {
+    await invokeVerb("add", ["--repo", "/link/web", "--repo", "/link/api", "--base-for", "/link/api=dev", "--start"], {
       client,
-      runtime: stubRuntime({ resolveRepoRoot: async (p) => canonical(p) }),
+      runtime: stubRuntime({ openTab: openedTab, resolveRepoRoot: async (p) => canonical(p) }),
     })
     const [create] = client.requests.filter((r) => r.name === "task.create")
     expect(create?.payload).toMatchObject({ extraRepos: [{ repo: "/real/api", baseRef: "dev" }] })
@@ -39,8 +46,18 @@ describe("add --repo (repeatable)", () => {
     const client = createClient()
     await invokeVerb(
       "add",
-      ["--repo", "/work/web", "--repo", "/work/api", "--base-branch", "develop", "--base-for", "api=release/2"],
-      { client, runtime: stubRuntime() },
+      [
+        "--repo",
+        "/work/web",
+        "--repo",
+        "/work/api",
+        "--base-branch",
+        "develop",
+        "--base-for",
+        "api=release/2",
+        "--start",
+      ],
+      { client, runtime: stubRuntime({ openTab: openedTab }) },
     )
     const [create] = client.requests.filter((r) => r.name === "task.create")
     expect(create?.payload).toMatchObject({
@@ -65,11 +82,7 @@ describe("add --repo (repeatable)", () => {
   it("refuses more than 8 repos, a repeated root, a non-git extra and a remote extra without creating anything", async () => {
     const client = createClient()
     const run = (repos: string[], runtime = stubRuntime()) =>
-      invokeVerb(
-        "add",
-        repos.flatMap((r) => ["--repo", r]),
-        { client, runtime },
-      )
+      invokeVerb("add", [...repos.flatMap((r) => ["--repo", r]), "--start"], { client, runtime })
 
     await expectApiError(() => run(Array.from({ length: 9 }, (_, i) => `/work/r${i}`)), "TOO_MANY_REPOS")
     await expectApiError(() => run(["/work/web", "/work/api", "/work/api"]), "REPO_DUPLICATE", /\/work\/api/)
@@ -86,19 +99,23 @@ describe("add --repo (repeatable)", () => {
     const client = createClient()
     await expectApiError(
       () =>
-        invokeVerb("add", ["--repo", "/work/web", "--repo", "/work/api", "--base-for", "nope=x"], {
+        invokeVerb("add", ["--repo", "/work/web", "--repo", "/work/api", "--base-for", "nope=x", "--start"], {
           client,
-          runtime: stubRuntime(),
+          runtime: stubRuntime({ openTab: openedTab }),
         }),
       "BAD_FLAG",
       /no such repo.*web, api/,
     )
     await expectApiError(
       () =>
-        invokeVerb("add", ["--repo", "/work/web", "--repo", "/work/api", "--base-branch", "a", "--base-for", "web=b"], {
-          client,
-          runtime: stubRuntime(),
-        }),
+        invokeVerb(
+          "add",
+          ["--repo", "/work/web", "--repo", "/work/api", "--base-branch", "a", "--base-for", "web=b", "--start"],
+          {
+            client,
+            runtime: stubRuntime(),
+          },
+        ),
       "BAD_FLAG",
     )
     expect(client.requests).toEqual([])

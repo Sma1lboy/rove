@@ -45,7 +45,7 @@ import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-pa
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
 import { offerArchiveOriginal } from "./retry.tsx"
-import { formatStartsAt, scheduleCreated } from "./schedule-start.ts"
+import { formatStartsAt } from "./schedule-start.ts"
 import { useSnippetSuggest } from "./snippet-suggest.tsx"
 import { useStore } from "./store.ts"
 import { useEngineChoice } from "./task-dialogs.tsx"
@@ -225,9 +225,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   }
 
   // On another machine `add` runs there: it clones a repo it lacks first, with its own credentials.
-  const startRemote = async (begin: boolean) => {
+  const startRemote = async () => {
     if (!remotePick) return setError(t("newSession.needRepo"))
-    if (begin && !prompt.trim()) return setError(t("newSession.needPrompt"))
+    if (!prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     setProgress(
       remotePick.clone
@@ -240,7 +240,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         machine,
         engine: choice.engine,
         prompt: prompt.trim(),
-        begin,
         baseRef: remoteBase,
       })
       keepDraft("")
@@ -255,13 +254,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     }
   }
 
-  // `begin` false creates the task without running its engine: no prompt needed.
-  // `at` holds the first message until then: the task is created unstarted and the daemon starts it.
-  const start = async (begin = true, at?: Date) => {
+  // `at` holds the first message until then: the schedule is written with the task and the daemon starts it.
+  const start = async (at?: Date) => {
     setError(null)
-    if (remote) return startRemote(begin)
+    if (remote) return startRemote()
     if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
-    if ((begin || at) && !prompt.trim()) return setError(t("newSession.needPrompt"))
+    if (!prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     const first = withRefs(prompt.trim(), await ready())
     try {
@@ -274,15 +272,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       let created: string | undefined
       let compared: string | undefined
       if (ungrouped)
-        created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt, begin)
+        created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt)
       else if (inPlace || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
           fresh[0]?.repo ?? primary,
           choice.engine,
           prompt,
-          begin,
           first,
+          at,
         )
       else {
         const res = await model.client.request<{ taskIds: string[]; groupId?: string }>(
@@ -292,9 +290,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             branch: branchName.trim(),
             engine: choice.engine,
             commandFrom: retryCommandFrom(seed, choice.engine),
-            engines: begin ? picks.ids : [],
+            engines: at ? [] : picks.ids,
             prompt: first,
-            begin,
+            ...(at ? { at } : {}),
             model: modelValue,
             effort: effortValue,
           }),
@@ -302,11 +300,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         created = res.taskIds[0]
         compared = res.groupId
       }
-      if (at && created) {
-        await scheduleCreated(model.client, created, at, first)
-          .then(() => toast(t("newSession.laterSet", { time: formatStartsAt(at) })))
-          .catch((err) => toast(startError(err), "error"))
-      }
+      if (at && created) toast(t("newSession.laterSet", { time: formatStartsAt(at) }))
       keepDraft("")
       clear()
       newSession.set(null)
@@ -477,9 +471,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           )}
           <ComposerMore
             busy={busy}
-            onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(false, at) : undefined}
+            onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
             onInvalid={setError}
-            onCreateOnly={picks.comparing ? undefined : () => void start(false)}
           />
         </div>
         {((busy && progress) || error) && (

@@ -5,7 +5,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { homeDir } from "../../src/env.ts"
-import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import {
+  FakeClient,
+  expectApiError,
+  openedTab,
+  recordingDelivery,
+  stubRuntime,
+  taskFixture,
+} from "./api-handler-fixtures.ts"
 
 // Peer provenance AND dispatcher provenance both key off the caller's own
 // $ROVE_TASK_ID/$ROVE_TAB_ID — unset them file-wide so exact-payload
@@ -32,7 +39,10 @@ describe("add handler", () => {
   it("creates without stealing focus", async () => {
     const task = taskFixture()
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task }) })
-    const result = await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    const result = await invokeVerb("add", ["--repo", "/repo/x", "--start"], {
+      client,
+      runtime: stubRuntime({ openTab: openedTab }),
+    })
     expect(client.requestNames).toEqual(["task.create"])
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
     expect(result).toEqual({
@@ -40,7 +50,9 @@ describe("add handler", () => {
       task,
       engine: { vendor: "claude", command: null, model: null, effort: null },
       home: homeDir(),
-      started: false,
+      started: true,
+      tabId: "tab-1",
+      session: "t1::tab-1",
     })
   })
 
@@ -51,9 +63,9 @@ describe("add handler", () => {
     // when someone opened it and landed on an empty path.
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await expect(
-      invokeVerb("add", ["--repo", "/plain/dir"], {
+      invokeVerb("add", ["--repo", "/plain/dir", "--start"], {
         client,
-        runtime: stubRuntime({ isUsableRepo: async () => false }),
+        runtime: stubRuntime({ openTab: openedTab, isUsableRepo: async () => false }),
       }),
     ).rejects.toThrow(/not a git repository/)
     // Nothing was created.
@@ -69,9 +81,9 @@ describe("add handler", () => {
     for (const bad of ["a b", "-rf", "feat/x..y"]) {
       await expectApiError(
         () =>
-          invokeVerb("add", ["--repo", "/repo/x", "--branch", bad], {
+          invokeVerb("add", ["--repo", "/repo/x", "--branch", bad, "--start"], {
             client,
-            runtime: stubRuntime({ isValidBranchName: async () => false }),
+            runtime: stubRuntime({ openTab: openedTab, isValidBranchName: async () => false }),
           }),
         "INVALID_BRANCH",
       )
@@ -99,9 +111,9 @@ describe("add handler", () => {
     // no trace of the levels it climbed, so a typo'd path and an intended one
     // produced identical output.
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    const result = (await invokeVerb("add", ["--repo", "/repo/x/packages/app"], {
+    const result = (await invokeVerb("add", ["--repo", "/repo/x/packages/app", "--start"], {
       client,
-      runtime: stubRuntime({ resolveRepoRoot: async () => "/repo/x" }),
+      runtime: stubRuntime({ openTab: openedTab, resolveRepoRoot: async () => "/repo/x" }),
     })) as { repoResolvedFrom?: string }
     expect(result.repoResolvedFrom).toBe("/repo/x/packages/app")
     expect(client.requests[0].payload).toMatchObject({ repo: "/repo/x" })
@@ -112,22 +124,29 @@ describe("add handler", () => {
     // git, which reports the realpath, so `/tmp/x` comes back as
     // `/private/tmp/x` on macOS — a rewrite, not a climb, and not a prefix.
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    const exact = (await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })) as {
+    const exact = (await invokeVerb("add", ["--repo", "/repo/x", "--start"], {
+      client,
+      runtime: stubRuntime({ openTab: openedTab }),
+    })) as {
       repoResolvedFrom?: string
     }
     expect(exact.repoResolvedFrom).toBeUndefined()
-    const symlinked = (await invokeVerb("add", ["--repo", "/tmp/x"], {
+    const symlinked = (await invokeVerb("add", ["--repo", "/tmp/x", "--start"], {
       client,
-      runtime: stubRuntime({ resolveRepoRoot: async () => "/private/tmp/x" }),
+      runtime: stubRuntime({ openTab: openedTab, resolveRepoRoot: async () => "/private/tmp/x" }),
     })) as { repoResolvedFrom?: string }
     expect(symlinked.repoResolvedFrom).toBeUndefined()
   })
 
   it("canonicalizes repo and uses the configured default engine", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x/worktree"], {
+    await invokeVerb("add", ["--repo", "/repo/x/worktree", "--start"], {
       client,
-      runtime: stubRuntime({ resolveRepoRoot: async () => "/repo/x", defaultVendor: async () => "codex" }),
+      runtime: stubRuntime({
+        openTab: openedTab,
+        resolveRepoRoot: async () => "/repo/x",
+        defaultVendor: async () => "codex",
+      }),
     })
     // The default engine is a preset id, so it lands in BOTH fields: the raw
     // command to launch and the protocol it speaks.
@@ -144,8 +163,8 @@ describe("add handler", () => {
     })
     const result = (await invokeVerb(
       "add",
-      ["--repo", "/repo/x", "--status", "in_progress", "--pin", "--title", "My task"],
-      { client, runtime: stubRuntime() },
+      ["--repo", "/repo/x", "--status", "in_progress", "--pin", "--title", "My task", "--start"],
+      { client, runtime: stubRuntime({ openTab: openedTab }) },
     )) as { task: unknown }
     expect(client.requestNames).toEqual(["task.create", "task.status", "task.pin", "task.get"])
     expect(result.task).toEqual(fresh)
@@ -155,10 +174,10 @@ describe("add handler", () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     await invokeVerb(
       "add",
-      ["--repo", "/repo/x", "--branch", "feat/x", "--base-branch", "main", "--command", "codex"],
+      ["--repo", "/repo/x", "--branch", "feat/x", "--base-branch", "main", "--command", "codex", "--start"],
       {
         client,
-        runtime: stubRuntime(),
+        runtime: stubRuntime({ openTab: openedTab }),
       },
     )
     expect(client.requests[0].payload).toEqual({
@@ -172,9 +191,9 @@ describe("add handler", () => {
 
   it("records the generic protocol for a command naming no known engine", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "my-wrapper --go"], {
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "my-wrapper --go", "--start"], {
       client,
-      runtime: stubRuntime(),
+      runtime: stubRuntime({ openTab: openedTab }),
     })
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x", command: "my-wrapper --go", vendor: "generic" })
   })
@@ -252,9 +271,9 @@ describe("add handler", () => {
 
   it("keeps the spawn-task alias", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    const result = (await invokeVerb("spawn-task", ["--repo", "/repo/x"], {
+    const result = (await invokeVerb("spawn-task", ["--repo", "/repo/x", "--start"], {
       client,
-      runtime: stubRuntime(),
+      runtime: stubRuntime({ openTab: openedTab }),
     })) as { taskId: string }
     expect(result.taskId).toBe("t1")
   })

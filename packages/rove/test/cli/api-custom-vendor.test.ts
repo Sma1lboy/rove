@@ -29,7 +29,7 @@ import { verbSchema } from "../../src/cli/api/schema.ts"
 import { findVerb } from "../../src/cli/api/verbs.ts"
 import { GENERIC_PROTOCOL, resolveCommandProtocol } from "../../src/engine/engine-presets.ts"
 import { ALL_VENDORS } from "../../src/types/vendor.ts"
-import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { FakeClient, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 // `engine-list` attaches each engine's model list, and pi/omp answer that by
 // RUNNING their CLI (`model-lists.ts`: `pi --list-models`, `omp models --json`).
@@ -66,7 +66,7 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
-const runtime = stubRuntime()
+const runtime = stubRuntime({ openTab: openedTab })
 
 describe("engine-list", () => {
   it("shows every built-in with the command it actually launches", async () => {
@@ -160,7 +160,7 @@ describe("the dispatch face takes a command, not an engine enum", () => {
   it("`add --command` carries a registered preset id through to task.create", async () => {
     writeState({ customEngineIds: ["my-pi"], "engineCommand.my-pi": "my-pi", "engineProtocol.my-pi": "claude" })
     const client = new FakeClient({ "task.create": () => ({ taskId: "t9", task: taskFixture({ id: "t9" }) }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "my-pi"], { client, runtime })
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "my-pi", "--start"], { client, runtime })
     // The ID is recorded, not its expansion — so a later Settings edit of
     // `engineCommand.my-pi` still reaches this task.
     expect(client.requests[0]?.payload).toMatchObject({ command: "my-pi", vendor: "claude" })
@@ -169,7 +169,7 @@ describe("the dispatch face takes a command, not an engine enum", () => {
   it("`add --command` takes a raw command line no registry knows", async () => {
     writeState({})
     const client = new FakeClient({ "task.create": () => ({ taskId: "t9", task: taskFixture({ id: "t9" }) }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "aider --model sonnet"], { client, runtime })
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "aider --model sonnet", "--start"], { client, runtime })
     expect(client.requests[0]?.payload).toMatchObject({ command: "aider --model sonnet", vendor: GENERIC_PROTOCOL })
   })
 })

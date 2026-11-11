@@ -15,7 +15,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | 任务列表（rail） | 首页 | 项目分组、shell 行、`inbox N`、New task、Kanban、Routines、Issues、最近任务、Settings；Archived 折叠行；rail 上没有 Dispatch、Search | 打开过 |
 | 行菜单 / 项目菜单 | 长按行 / 项目标题 | New conversation、New shell、Open in editor、Rename、Pin、Set status、Fix failing checks（检查失败时）、Land、Copy、More（Reorder、Change engine、Move to project、Sync with base、Rename branch）、Archive、Remove session；项目：New task、Reorder、Field notes、Remove | 打开过 |
 | Inbox | `inbox N` | attention 列表、`[ ack all ]`、每行 `[ reply ]`、空态 | 打开过 |
-| New session | New task | 项目、机器、Worktree、分支、Attach、引擎；`⋯` 里有 Later（定时启动）、Create without starting；可以开没有 git 的目录 | 打开过 |
+| New session | New task | 项目、机器、Worktree、分支、Attach、引擎；`⋯` 里有 Later（定时启动）；没有首条提示词不能建任务；可以开没有 git 的目录 | 打开过 |
 | 任务页 · Terminal | 点行 | 无会话时 Start / New conversation；engine tab 有按住说话的消息栏和 key row；at menu 时 key row 以 1–4 开头；排队 chip；shell tab 没有 composer；退出的 tab 有 Reopen session | 打开过 |
 | 任务页 · Context / Files / Diff / Browser | 顶部图标切换（Terminal 之外四个） | Context：上下文用量；Files：`[ commit ]`、`[ create PR ]`、文件内容预览；Diff：基线菜单、viewed、下一文件；Browser：地址栏 | 打开过；Context 的 op 不在 fixture 里，只看到报错态 |
 | Routines | rail | 列表（NEEDS YOU / ACTIVE）、运行日志和筛选、新建 | 打开过列表 |

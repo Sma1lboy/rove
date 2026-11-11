@@ -10,7 +10,6 @@
     <string name="create_title_placeholder">可选，默认从提示词推导</string>
     <string name="create_first_prompt">首条提示词</string>
     <string name="create_first_message">首条消息</string>
-    <string name="create_prompt_placeholder_task">留空则只打开 worktree，不启动引擎</string>
     <string name="create_prompt_placeholder_session">这个会话要做什么</string>
     <string name="create_submit_task">创建任务</string>
     <string name="create_submit_session">打开标签页</string>

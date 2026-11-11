@@ -1,7 +1,7 @@
 /**
- * A checkout a session cut for itself with `add --worktree-only` is not a session: no client lists a row for it while
- * its parent is there to own it. Left without a parent it is listed, so its worktree never becomes invisible.
+ * A checkout cut with `add --worktree-only` is not a session: no client lists a row for it, parent or not, until an
+ * engine starts a turn in it. `rove api list` and the Worktrees page still show it, so its worktree never goes missing.
  */
-export function isUnlistedCheckout(task: { readonly worktreeOnly?: boolean; readonly parentTaskId?: string }): boolean {
-  return task.worktreeOnly === true && task.parentTaskId !== undefined
+export function isUnlistedCheckout(task: { readonly worktreeOnly?: boolean }): boolean {
+  return task.worktreeOnly === true
 }

@@ -63,6 +63,12 @@ export function taskFixture(overrides: Record<string, unknown> = {}): Record<str
   }
 }
 
+/** `add --start`'s engine tab, for tests about what the create carries rather than the engine. */
+export const openedTab: ApiRuntime["openTab"] = async (_client, target) => ({
+  tab: { kind: "engine", id: "tab-1", title: null, ordinal: 1 },
+  session: `${target.id}::tab-1`,
+})
+
 export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
   return {
     isTaskRunning: async () => false,

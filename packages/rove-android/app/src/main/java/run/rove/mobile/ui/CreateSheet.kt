@@ -37,8 +37,8 @@ import run.rove.mobile.data.BridgeFailure
     val engine = pickedEngine.takeIf { p -> engines.any { it.id == p } }
         ?: engines.firstOrNull { it.id == taskEngine }?.id ?: engines.firstOrNull()?.id.orEmpty()
     val isTask = taskId == null
-    // A task may open without a prompt; a new tab needs its first message.
-    val ready = !busy && engine.isNotEmpty() && if (isTask) repo.isNotEmpty() else prompt.isNotBlank()
+    // A task is an agent sent to do something, so it needs its first message, as a new tab does.
+    val ready = !busy && engine.isNotEmpty() && prompt.isNotBlank() && (!isTask || repo.isNotEmpty())
 
     fun submit() {
         busy = true; error = null
@@ -80,7 +80,7 @@ import run.rove.mobile.data.BridgeFailure
         }
         FormSection(stringResource(if (isTask) R.string.create_first_prompt else R.string.create_first_message)) {
             PromptEditor(prompt, { prompt = it },
-                stringResource(if (isTask) R.string.create_prompt_placeholder_task else R.string.create_prompt_placeholder_session))
+                stringResource(R.string.create_prompt_placeholder_session))
         }
         if (!isTask) Hint(stringResource(R.string.create_hint_tab) + " " + stringResource(R.string.create_hint_engines_only))
     }

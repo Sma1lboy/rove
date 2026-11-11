@@ -45,6 +45,14 @@ function extraRepos(args: Args): Array<{ repo: string; baseRef?: string }> {
   })
 }
 
+/** `scheduleAt` + `schedulePrompt`: a due first message, checked here so a bad time refuses before any row exists. */
+function scheduledStart(args: Args): { at: string; prompt: string } | undefined {
+  if (args.scheduleAt === undefined || args.scheduleAt === null || args.scheduleAt === "") return undefined
+  const at = text(args, "scheduleAt", 40)
+  if (!Number.isFinite(Date.parse(at))) throw new BridgeError("BAD_ARGS", "scheduleAt must be an ISO-8601 time")
+  return { at, prompt: text(args, "schedulePrompt", PROMPT_MAX) }
+}
+
 function write(wraps: string, run: OpSpec["run"], destructive = false): OpSpec {
   // `async` so a refused argument is always a rejection, never a synchronous throw.
   return { kind: "write", destructive, wraps, run: async (args, ctx) => run(args, ctx) }
@@ -83,6 +91,13 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const parallel = count !== undefined || agentsGiven
   if (count !== undefined && agentsGiven) throw new BridgeError("BAD_ARGS", "count and agents are exclusive")
   if (parallel && !prompt) throw new BridgeError("BAD_ARGS", "count/agents need a prompt")
+  // "Later": the first message waits for its time, written with the row so the task is never agentless and unscheduled.
+  const later = scheduledStart(args)
+  // An idle engine for a person to type into (a freshly cloned repo); never a row with no agent.
+  const start = optBool(args, "start")
+  if ((later || start) && (parallel || prompt || machine || (later && start))) {
+    throw new BridgeError("BAD_ARGS", "start and a scheduled start each take no prompt, count, agents, machine or each other")
+  }
   if (parallel && branch) throw new BridgeError("BAD_ARGS", "branch cannot be shared by parallel tasks")
   if (agentsGiven && engineGiven) throw new BridgeError("BAD_ARGS", "engine conflicts with agents")
   const plan = agentsGiven ? parseAgents(args) : undefined
@@ -109,12 +124,13 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   if (status) argv.push(flag("status", status))
   if (pin) argv.push(flag("pin", "true"))
   if (prompt) argv.push(flag("prompt", prompt))
+  if (start) argv.push(flag("start", "true"))
 
   const res = await ctx.api.verb<{
     taskId?: string
     groupId?: string
     tasks?: ReadonlyArray<{ taskId?: string }>
-  }>("add", argv, machine)
+  }>("add", argv, machine, later ? { scheduledStart: later } : undefined)
   // The project's next "New conversation" follows the engine this one was started on.
   if (engine && !machine) taskOpDeps.rememberEngine(repo, engine)
   if (Array.isArray(res.tasks)) {
@@ -297,10 +313,12 @@ export const TASK_WRITE_OPS: OpTable = {
     const engine = engineGiven ? await engineId(a, "engine", c) : undefined
     // The project row first: a dir task alone on a repo root is what a missing project row adopts.
     const dir = problem ? repo : (await c.api.rpc<{ task: { repo: string } }>("task.ensureMain", { repo })).task.repo
+    const later = scheduledStart(a)
     const res = await c.api.rpc<{ taskId: string }>("task.openDir", {
       dir,
       vendor: engine ?? taskOpDeps.preferredEngine(dir),
       ...(title ? { title } : {}),
+      ...(later ? { scheduledStart: later } : {}),
     })
     if (engine) taskOpDeps.rememberEngine(dir, engine)
     return { taskId: res.taskId }

@@ -17,6 +17,7 @@ import {
   requireString,
 } from "./handler-validators.ts"
 import { publishIssueSnapshot } from "./handlers-issues.ts"
+import { parseScheduledStart } from "./handlers-task-schedule.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { teardownScope } from "./pty-alias.ts"
 import { serializeTask } from "./serialize-task.ts"
@@ -145,6 +146,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         parentTaskId: optionalString(payload, "parentTaskId"),
         ...(payload.worktreeOnly === true ? { worktreeOnly: true } : {}),
         ...(optionalString(payload, "workspace") === "layerfs" ? { workspace: { backend: "layerfs" } } : {}),
+        ...(payload.scheduledStart === undefined ? {} : { scheduledStart: parseScheduledStart(payload.scheduledStart) }),
         dispatcher,
       })
       recordAddDispatch(ctx, dispatcher, task)

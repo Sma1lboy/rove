@@ -42,7 +42,7 @@ function seedShellTasks(): void {
   const repo = fixturePaths(fixture.VISUAL_ROOT, "fixture-repo").repo
   for (const [title, extra] of [["Perf A", ["--activate"]], ["Perf B", []]] as const) {
     const run = Bun.spawnSync(
-      ["node", fixture.ROVE_CLI, "api", "add", "--repo", repo, "--title", title, "--command", "bash --norc --noprofile -i", ...extra],
+      ["node", fixture.ROVE_CLI, "api", "add", "--repo", repo, "--title", title, "--command", "bash --norc --noprofile -i", "--start", ...extra],
       { env: fixture.VISUAL_ENV },
     )
     if (run.exitCode !== 0) throw new Error(`seeding ${title} failed: ${run.stderr.toString().slice(-400)}`)

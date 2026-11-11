@@ -3,7 +3,6 @@
  * asking the daemon to hold the first message until then (`task.scheduleStart`).
  */
 
-import type { BridgeClient } from "./bridge.ts"
 
 const MINUTE = 60_000
 
@@ -49,9 +48,4 @@ export function formatStartsAt(at: Date, now: Date = new Date()): string {
   const time = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   if (at.toDateString() === now.toDateString()) return time
   return `${at.toLocaleDateString([], { weekday: "short" })} ${time}`
-}
-
-/** Holds `prompt` for the task `taskId` (created unstarted) until `at`; the daemon starts it then, restarts included. */
-export async function scheduleCreated(client: BridgeClient, taskId: string, at: Date, prompt: string): Promise<void> {
-  await client.request("task.scheduleStart", { taskId, at: at.toISOString(), prompt })
 }

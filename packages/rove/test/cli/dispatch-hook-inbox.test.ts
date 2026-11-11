@@ -44,6 +44,7 @@ import { Orchestrator } from "../../src/orchestrator/core"
 import { TaskIndexStore } from "../../src/orchestrator/index/store"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager"
 import { fakeCtx } from "../daemon/handler-test-context"
+import { stubRuntime } from "./api-handler-fixtures"
 
 class SimulatedProvider implements PtyChild {
   readonly input: string[] = []
@@ -113,32 +114,36 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     onChannel: () => () => {},
   }
   try {
-    const a = (await invokeVerb("add", ["--repo", repo, "--title", "Dispatch A", "--command", "codex"], {
+    // `add --start` opens tab-1: its worktree is cut and the simulated engine comes up behind bracketed paste.
+    const runtime = stubRuntime({
+      openTab: async (_client, target) => {
+        const { worktreePath } = (await invokeVerb("ensure-worktree", ["--task-id", target.id], { client })) as {
+          worktreePath: string
+        }
+        await bridge.pty("pty.open", {
+          key: `${target.id}::tab-1`,
+          cwd: worktreePath,
+          command: ["codex"],
+          answersQueries: true,
+        })
+        children[children.length - 1]?.emit("\x1b[?2004h")
+        return { tab: { kind: "engine", id: "tab-1", title: null, ordinal: 1 }, session: `${target.id}::tab-1` }
+      },
+    })
+    const a = (await invokeVerb("add", ["--repo", repo, "--title", "Dispatch A", "--command", "codex", "--start"], {
       client,
+      runtime,
     })) as { taskId: string }
-    const b = (await invokeVerb("add", ["--repo", repo, "--title", "Dispatch B", "--command", "codex"], {
+    const b = (await invokeVerb("add", ["--repo", repo, "--title", "Dispatch B", "--command", "codex", "--start"], {
       client,
+      runtime,
     })) as { taskId: string }
-    for (const taskId of [a.taskId, b.taskId]) await invokeVerb("ensure-worktree", ["--task-id", taskId], { client })
     const pathA = orch.getTask(a.taskId)?.worktreePath
     const pathB = orch.getTask(b.taskId)?.worktreePath
     expect(pathA).toBeTruthy()
     expect(pathB).toBeTruthy()
     expect(pathA).not.toBe(pathB)
-    const missing = await invokeVerb("dispatch", ["--task-id", a.taskId, "--tab", "tab-1", "--prompt", "NO RECEIVER"], {
-      client,
-    })
-    expect(missing).toMatchObject({ delivered: false, reason: "broadcast" })
-    expect(children).toHaveLength(0)
-    for (const taskId of [a.taskId, b.taskId]) {
-      await bridge.pty("pty.open", {
-        key: `${taskId}::tab-1`,
-        cwd: orch.getTask(taskId)?.worktreePath,
-        command: ["codex"],
-        answersQueries: true,
-      })
-      children[children.length - 1]?.emit("\x1b[?2004h")
-    }
+    expect(children).toHaveLength(2)
     const prompt = "Inspect this task only. Reply DISPATCH_A_OK."
     const delivered = await invokeVerb("dispatch", ["--task-id", a.taskId, "--tab", "tab-1", "--prompt", prompt], {
       client,

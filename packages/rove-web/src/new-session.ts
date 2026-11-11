@@ -130,22 +130,21 @@ export interface StartInput {
   /** Two or more engines run the prompt as that many sibling attempts of one round; fewer use `engine`. */
   readonly engines?: readonly string[]
   readonly prompt: string
-  /** false: create the task without running its engine. */
-  readonly begin: boolean
+  /** "Later": the prompt waits for this time instead of going now; the schedule is written with the task. */
+  readonly at?: Date
   readonly model: string
   readonly effort: string
 }
 
 /**
  * The `task.spawn` args for Start: the session is born by this prompt, on the primary repo, with the other
- * picks as `extraRepos` in pick order. Without `begin` the engine stays off and the typed prompt names the
- * task instead of being lost. A compare round (`engines`) fans out as `agents`: each attempt gets its own worktree
+ * picks as `extraRepos` in pick order. With `at` the prompt is the scheduled first message and names the task. A compare round (`engines`) fans out as `agents`: each attempt gets its own worktree
  * and branch, so no shared branch, model or effort rides along.
  */
 export function spawnArgs(input: StartInput): Record<string, unknown> {
   const [primary, ...extras] = input.repos
   if (!primary) throw new Error("no repo")
-  const title = input.begin ? "" : deriveTitleFromPrompt(input.prompt)
+  const title = input.at ? deriveTitleFromPrompt(input.prompt) : ""
   const compare = (input.engines?.length ?? 0) > 1
   return {
     repo: primary.repo,
@@ -155,7 +154,11 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
       : {}),
     // The shared name is set in the Branches menu, which a lone repo does not have, so a stale one never rides along.
     ...(!compare && extras.length > 0 && input.branch ? { branch: input.branch } : {}),
-    ...(input.begin && input.prompt ? { prompt: input.prompt } : {}),
+    ...(input.at
+      ? { scheduleAt: input.at.toISOString(), schedulePrompt: input.prompt }
+      : input.prompt
+        ? { prompt: input.prompt }
+        : {}),
     ...(title ? { title } : {}),
     ...(compare ? { agents: (input.engines ?? []).map((id) => `${id}:1`).join(",") } : {}),
     ...(!compare && input.engine ? { engine: input.engine } : {}),
@@ -169,19 +172,16 @@ type Request = <T>(op: string, args?: Record<string, unknown>) => Promise<T>
 
 /**
  * Start an Ungrouped session (no project, in the home directory): the rail's Scratch row, then its
- * engine tab carrying the prompt. Without `begin` it stays unstarted, titled from the prompt.
+ * engine tab carrying the prompt.
  */
 export async function startUngrouped(
   request: Request,
   engine: string,
   prompt: string,
-  begin: boolean,
 ): Promise<string> {
   const pick = engine ? { engine } : {}
   const { taskId } = await request<{ taskId: string }>("task.openScratch", pick)
-  if (begin) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
-  // act-ok: the task was made a line ago and is not listed yet, so there is no row to edit.
-  else if (prompt.trim()) await request("task.rename", { taskId, title: deriveTitleFromPrompt(prompt) })
+  await request("tab.new", { taskId, kind: "engine", ...pick, prompt: prompt.trim() })
   return taskId
 }
 
@@ -189,14 +189,15 @@ export async function startUngrouped(
  * Start a session in the project's own checkout (Worktree off): a top-level row of that project, titled
  * from `prompt`. It is never a conversation opened on the project's main task, which would nest it there.
  * `message` is what the engine receives (the prompt plus attachment refs); it defaults to the prompt.
+ * With `at` the message waits for that time, written with the row, and no engine opens before then.
  */
 export async function startInCheckout(
   request: Request,
   repo: string,
   engine: string,
   prompt: string,
-  begin: boolean,
   message: string = prompt.trim(),
+  at?: Date,
 ): Promise<string> {
   const pick = engine ? { engine } : {}
   const title = prompt.trim() ? deriveTitleFromPrompt(prompt) : ""
@@ -204,7 +205,8 @@ export async function startInCheckout(
     repo,
     ...pick,
     ...(title ? { title } : {}),
+    ...(at ? { scheduleAt: at.toISOString(), schedulePrompt: message } : {}),
   })
-  if (begin) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message })
+  if (!at) await request("tab.new", { taskId, kind: "engine", ...pick, prompt: message })
   return taskId
 }

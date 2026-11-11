@@ -7,7 +7,14 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import {
+  FakeClient,
+  expectApiError,
+  recordingDelivery,
+  stubRuntime,
+  taskFixture,
+  openedTab,
+} from "./api-handler-fixtures.ts"
 
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
@@ -33,9 +40,9 @@ function createClient(): FakeClient {
 describe("add --model", () => {
   it("rides on task.create as `model` — wire key and record field agree", async () => {
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "pi", "--model", "cliproxy/claude-fable-5"], {
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "pi", "--model", "cliproxy/claude-fable-5", "--start"], {
       client,
-      runtime: stubRuntime(),
+      runtime: stubRuntime({ openTab: openedTab }),
     })
     expect(client.requests[0]?.name).toBe("task.create")
     expect(client.requests[0]?.payload).toMatchObject({ command: "pi", vendor: "pi", model: "cliproxy/claude-fable-5" })
@@ -45,9 +52,9 @@ describe("add --model", () => {
     const client = createClient()
     await expectApiError(
       () =>
-        invokeVerb("add", ["--repo", "/repo/x", "--command", "copilot", "--model", "gpt-5"], {
+        invokeVerb("add", ["--repo", "/repo/x", "--command", "copilot", "--model", "gpt-5", "--start"], {
           client,
-          runtime: stubRuntime(),
+          runtime: stubRuntime({ openTab: openedTab }),
         }),
       "BAD_MODEL",
       /engine copilot declares no model flag/,
