@@ -11,7 +11,7 @@
  */
 
 import { profileMark, profileTick, renderProfileOn } from "@/lib/render-profile"
-import { createCliRenderer } from "@opentui/core"
+import { createCliRenderer, setRenderLibPath } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import { installClientCrashHandlers, setClientLogContext } from "@sma1lboy/rove-daemon/client/client-log"
 import type { UiPrefsPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -31,6 +31,7 @@ import {
   installPaneExitBackstop,
 } from "../../tui/lib/host-render-options"
 import { createHostImeOutput } from "../../tui/lib/ime-anchor-output"
+import { installedRoveNativeLibPath } from "../../tui/lib/opentui-native"
 import { type PersistedUiPrefs, readPersistedUiPrefs } from "../../tui/lib/persisted-ui-prefs"
 import { installScreenSelfHeal } from "../../tui/lib/screen-refresh"
 import { FocusProvider } from "../context/focus"
@@ -198,6 +199,8 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
     imeOutput.flush()
     screen.onDestroy?.()
   }
+  const nativeLib = installedRoveNativeLibPath()
+  if (nativeLib) setRenderLibPath(nativeLib)
   const renderer = await createCliRenderer({
     ...(opts.inlineRows !== undefined ? inlineRenderOptions(opts.inlineRows, onDestroy) : hostRenderOptions(onDestroy)),
     ...imeOutput.rendererOptions,
