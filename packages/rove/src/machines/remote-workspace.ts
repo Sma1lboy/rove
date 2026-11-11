@@ -117,6 +117,9 @@ export interface LinkInput {
   readonly engineNotes: readonly RemoteNotesFile[]
 }
 
+/** Splits the probe's output: the system line, then the project's instructions. */
+const MARK = "@@rove-workspace@@"
+
 /** Make the link directory and probe the worktree through it. Throws when that machine does not answer. */
 export function createRemoteLink(input: LinkInput, home = homeDir()): string {
   const { ws } = input
@@ -127,19 +130,19 @@ export function createRemoteLink(input: LinkInput, home = homeDir()): string {
   chmodSync(rxPath(dir), 0o755)
   const probe = spawnSync(
     rxPath(dir),
-    ["uname -sm; echo ---; cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null"],
+    [`uname -sm; echo ${MARK}; cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null`],
     {
       encoding: "utf8",
       timeout: 30_000,
     },
   )
-  if (probe.status !== 0 && !probe.stdout.includes("---")) {
+  if (probe.status !== 0 && !probe.stdout.includes(MARK)) {
     removeRemoteLink(dir, home)
     throw new Error(`${ws.machine} did not answer at ${ws.path}: ${(probe.stderr || "ssh failed").trim()}`)
   }
-  const [system = "", ...rest] = probe.stdout.split("\n---\n")
+  const [system = "", ...rest] = probe.stdout.split(`\n${MARK}\n`)
   const note: RemoteWorkspaceNote = { ...ws, system: system.trim() }
-  const project = projectInstructions(rest.join("\n---\n"))
+  const project = projectInstructions(rest.join(`\n${MARK}\n`))
   writeFileSync(join(dir, "AGENTS.md"), remoteNotes(note) + project)
   for (const notes of input.engineNotes) writeFileSync(join(dir, notes.file), notes.text(note) + project)
   return dir

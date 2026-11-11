@@ -840,7 +840,7 @@ edits (`set-vendor`, `rename`,
 
 ## create
 
-- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--parent ID | --no-parent]
+- `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--workspace-on MACHINE] [--parent ID | --no-parent]
   [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
@@ -893,6 +893,17 @@ edits (`set-vendor`, `rename`,
   `FORK_UNSUPPORTED`, nothing created, for a main or directory task, a
   multi-repo or remote task, or a worktree on a volume that cannot clone files;
   see [Fork a task with its uncommitted work](./WORKTREES.md#fork-a-task-with-its-uncommitted-work).
+
+  `--workspace-on <machine>` runs the agent here and keeps its files and
+  commands on that registered machine: it cuts the worktree (`--repo`,
+  `--clone`, `--allow-fork`, `--branch` and `--base-branch` apply there), and
+  the engine starts on this machine in a link directory
+  (`.task.workspace` is `{"backend":"remote"}`). The reply adds `machine`,
+  `remoteTaskId` and `remotePath`. See
+  [Run the agent here, keep the work there](./MACHINES.md#run-the-agent-here-keep-the-work-there).
+  It conflicts with `--count`, `--agents`, `--fork`, `--workspace`,
+  `--no-worktree`, `--isolate-in`, `--worktree-only`, `--tier` and a second
+  `--repo` (`CONFLICTING_FLAGS`).
 
   `--workspace layerfs` (experimental, Linux only) puts the task's files in a
   LayerFS Workspace inside a Docker sandbox of its own instead of a git

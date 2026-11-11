@@ -261,6 +261,40 @@ Signing a machine's credentials in or out is the `credentials` class above:
 (`INBOUND_DENIED`). Reading a machine's status stays allowed. The same is in
 the CLI: `rove api github-status --machine <alias>`.
 
+## Run the agent here, keep the work there
+
+`rove api add --workspace-on <alias> --repo <repo> --prompt "…"` starts the
+agent on this machine and keeps its files and commands on the other one. That
+machine cuts the worktree, so it needs Rove and git. It needs no engine and no
+engine sign-in: the engine, its login and its conversation history stay here.
+
+```sh
+rove api add --workspace-on deck --repo sma1lboy/rove --prompt "fix the flaky test"
+```
+
+`--repo`, `--clone`, `--allow-fork`, `--branch` and `--base-branch` mean what
+they mean with `--machine`. The task is a row on this machine; its directory is
+a small link under `~/.rove/remote-workspaces/<alias>/`, not a checkout.
+
+Every engine reaches the worktree with `rx '<command>'`, which is on the
+session's PATH and runs the command in the worktree through that machine's
+login shell, over the same ssh connection Rove keeps to it. `AGENTS.md` in the
+link directory tells the agent so, and carries the project's own `AGENTS.md`
+or `CLAUDE.md` from the worktree, read once when the task is created.
+
+Claude Code needs no `rx`: its Bash tool runs there as it is (a hook rewrites
+each command), and it reads and changes files with `read`, `write` and `edit`
+tools that work on that machine. Its local file tools are off in such a task.
+
+Deleting the task deletes the worktree's task on that machine with the same
+`--force`; the branch stays there, as with any task. If that machine cannot be
+reached, the delete is refused unless forced, and a forced delete leaves the
+worktree there.
+
+Not there yet: the Files pane and the diff of such a task (the link directory
+has no files), a shell tab that opens on that machine, a Windows machine, and
+a machine without Rove.
+
 ## Working on a remote task
 
 The web and the TUI open a task on another machine like a local one. Its tabs
