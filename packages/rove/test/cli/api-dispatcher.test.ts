@@ -63,6 +63,12 @@ afterEach(() => {
   restoreEnv("ROVE_TAB_ID", savedTabId)
 })
 
+/** `add --start` from a session: these cases are about the dispatcher it records, not the engine. */
+const openedTab = async () => ({
+  tab: { kind: "engine" as const, id: "tab-1", title: null, ordinal: 1 },
+  session: "t1::tab-1",
+})
+
 describe("verifiedSelfSession (env identity is inheritable, so it must be proven)", () => {
   it("anchors the snapshot on BOTH ends of the walk — the tab's shell and this CLI", async () => {
     // Windows severs the chain at both: the engine shim's cmd.exe under the
@@ -135,7 +141,7 @@ describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
   it("add sends the caller's task + tab to task.create", async () => {
     await asSession("disp-1", "tab-2")
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(created(client)).toEqual({
       repo: "/repo/x",
       dispatcherTaskId: "disp-1",
@@ -146,13 +152,13 @@ describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
   it("add without $ROVE_TAB_ID floors the tab to the canonical tab-1", async () => {
     await verifiedSelfSession({ ROVE_TASK_ID: "disp-1" }, probeFor("disp-1::tab-1"))
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(created(client)).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-1" })
   })
 
   it("add from a plain shell records nothing", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
   })
 
@@ -163,7 +169,7 @@ describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
     // stranger; the honest record is NO record.
     await asSession("boccha", "tab-1", { detached: true })
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
   })
 
@@ -333,14 +339,14 @@ describe("a migrated child's PTY env names its parent", () => {
   it("stamps the child that lives in the PTY as the dispatcher, on its own tab", async () => {
     await asSession("parent", "tab-3")
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(created(client)).toMatchObject({ dispatcherTaskId: "child", dispatcherTabId: "tab-3" })
   })
 
   it("leaves the parent's other tabs the parent's", async () => {
     await asSession("parent", "tab-1")
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--start"], { client, runtime: stubRuntime({ openTab: openedTab }) })
     expect(created(client)).toMatchObject({ dispatcherTaskId: "parent", dispatcherTabId: "tab-1" })
   })
 

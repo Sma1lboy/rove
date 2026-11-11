@@ -10,6 +10,8 @@ import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { type SelfSessionProbe, resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
+const RUNS = ["--prompt", "--prompt-file", "--start", "--worktree-only", "--count", "--agents"]
+
 const root = taskFixture({ id: "root", repo: "/work/web" })
 const kid = taskFixture({ id: "kid", repo: "/work/web", parentTaskId: "root", sharesWorkspaceOf: "root" })
 const elsewhere = taskFixture({ id: "api-task", repo: "/work/api" })
@@ -41,7 +43,17 @@ function createClient(tasks: Record<string, unknown>[] = [root, kid], spawnTask?
 }
 
 const run = (client: FakeClient, argv: string[], deliver = recordingDelivery().deliver) =>
-  invokeVerb("add", argv, { client, runtime: stubRuntime({ deliverPrompt: deliver }) })
+  // From a session `add` must have something to run; these cases are about where the task lands.
+  invokeVerb("add", RUNS.some((flag) => argv.includes(flag)) ? argv : [...argv, "--start"], {
+    client,
+    runtime: stubRuntime({
+      deliverPrompt: deliver,
+      openTab: async () => ({
+        tab: { kind: "engine" as const, id: "tab-1", title: null, ordinal: 1 },
+        session: "t1::tab-1",
+      }),
+    }),
+  })
 
 beforeEach(() => {
   resetVerifiedSelfSession()
