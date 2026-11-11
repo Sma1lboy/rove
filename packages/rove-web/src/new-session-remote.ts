@@ -46,6 +46,45 @@ export function githubRepoHeld(held: readonly string[], nameWithOwner: string, r
   return held.some((path) => splitRepoRow(path).base.toLowerCase() === (name.split("/")[1] ?? ""))
 }
 
+/**
+ * The pick on the machine switched to for the project picked before the switch: `ref` is that pick (a path, id
+ * or clone source) and `from` its machine's list. The same repo's checkout where the new machine has one, else
+ * a clone of it there; nothing for a repo with no origin, which only its own machine has.
+ */
+export function carriedPick(ref: string, from: readonly RemoteRepo[], to: readonly RemoteRepo[]): RemotePick | null {
+  const id = from.find((repo) => repo.id === ref || repo.checkouts.includes(ref))?.id ?? ref
+  const hit = to.find((repo) => repo.id === id)
+  if (hit) return { ref: remoteRef(hit), clone: false }
+  return id.startsWith("root:") || id.startsWith("/") ? null : { ref: id, clone: true }
+}
+
+/** One row of the bridge's `machines.engines`. */
+export interface RemoteEngine {
+  readonly id: string
+  readonly name?: string
+  readonly installed?: boolean
+}
+
+/**
+ * The engine chip's rows on another machine: this machine's offered engines, then the ones only that machine
+ * has; `missing` are the rows it cannot launch. An empty `there` (it has not answered, or cannot say) gates nothing.
+ */
+export function enginesThere<E extends { readonly id: string; readonly name: string }>(
+  here: readonly E[],
+  there: readonly RemoteEngine[],
+): {
+  readonly rows: ReadonlyArray<E | { readonly id: string; readonly name: string }>
+  readonly missing: ReadonlySet<string>
+} {
+  const usable = new Set(there.filter((e) => e.installed !== false).map((e) => e.id))
+  const missing = new Set(there.length > 0 ? here.filter((e) => !usable.has(e.id)).map((e) => e.id) : [])
+  const known = new Set(here.map((e) => e.id))
+  const extra = there
+    .filter((e) => usable.has(e.id) && !known.has(e.id))
+    .map((e) => ({ id: e.id, name: e.name ?? e.id }))
+  return { rows: [...here, ...extra], missing }
+}
+
 export interface RemoteStartInput {
   readonly pick: RemotePick
   readonly machine: string

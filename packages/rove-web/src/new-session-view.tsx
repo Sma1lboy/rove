@@ -18,11 +18,13 @@ import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
+  LOCAL,
   MachineChip,
   remoteEmpty,
   spawnOnMachine,
   startError,
-  useMissingEngines,
+  useCarriedPick,
+  useEnginesOn,
   usePrefetchRemoteRepos,
   useRemoteRepos,
 } from "./new-session-machine.tsx"
@@ -146,10 +148,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const targets = remote ? null : fileTargets((files) => void attach(files))
   const machineName = machines.find((m) => m.alias === machine)?.hostLabel || machine
   const remoteList = useRemoteRepos(model, machine)
-  const missingEngines = useMissingEngines(model, machine)
+  const shown = useEnginesOn(model, machine, choice)
+  const engineId = shown.engine
   usePrefetchRemoteRepos(model, machines)
   const [remotePick, setRemotePick] = useState<RemotePick | null>(null)
   const [remoteBase, setRemoteBase] = useState("")
+  const carry = useCarriedPick(model, remoteList, (pick) => setRemotePick((now) => now ?? pick))
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
@@ -195,8 +199,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   // One attempt per engine needs a worktree each, on this machine, in a project.
   const compareAvailable = !remote && !ungrouped && !inPlace
-  const picks = useEnginePicks(choice, compareAvailable)
-  const engine = choice.engines.find((e) => e.id === choice.engine)
+  const picks = useEnginePicks(shown, compareAvailable)
+  const engine = choice.engines.find((e) => e.id === engineId)
+  const engineName = shown.engines.find((e) => e.id === engineId)?.name ?? engineId
   const models = modelChoices(engine, t("newSession.modelDefault"))
   const efforts = effortChoices(engine, t("newSession.effortDefault"))
   // A pick of the previous engine's model or level means nothing to this one.
@@ -230,7 +235,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const startRemote = async () => {
     if (!remotePick) return setError(t("newSession.needRepo"))
     if (!prompt.trim()) return setError(t("newSession.needPrompt"))
-    const lacks = missingEngines?.has(choice.engine) && (engine?.name ?? choice.engine)
+    const lacks = shown.missing?.has(engineId) && engineName
     if (lacks) return setError(t("newSession.engineMissingOn", { engine: lacks, machine: machineName }))
     setBusy(true)
     setProgress(
@@ -242,7 +247,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       const created = await spawnOnMachine(model, {
         pick: remotePick,
         machine,
-        engine: choice.engine,
+        engine: engineId,
         prompt: prompt.trim(),
         baseRef: remoteBase,
       })
@@ -275,12 +280,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       if (plainNow && fresh.length > 1) throw new Error(t("newSession.plainMulti"))
       let created: string | undefined
       let compared: string | undefined
-      if (ungrouped) created = await startUngrouped(model.client.request.bind(model.client), choice.engine, prompt)
+      if (ungrouped) created = await startUngrouped(model.client.request.bind(model.client), engineId, prompt)
       else if (inPlace || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
           fresh[0]?.repo ?? primary,
-          choice.engine,
+          engineId,
           prompt,
           first,
           at,
@@ -291,8 +296,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           spawnArgs({
             repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
             branch: branchName.trim(),
-            engine: choice.engine,
-            commandFrom: retryCommandFrom(seed, choice.engine),
+            engine: engineId,
+            commandFrom: retryCommandFrom(seed, engineId),
             engines: at ? [] : picks.ids,
             prompt: first,
             ...(at ? { at } : {}),
@@ -328,6 +333,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
 
   const pickMachine = (alias: string): void => {
+    carry(alias && (machine || LOCAL), remote ? remotePick?.ref : primary)
     setMachine(alias)
     setRemotePick(null)
     setRemoteBase("")
@@ -461,7 +467,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             onBranchName={setBranchName}
           />
           <span className={C.GROW} />
-          <EngineChip choice={choice} picks={picks} available={compareAvailable} missing={missingEngines} />
+          <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
           {!inPlace && !remote && !ungrouped && !picks.comparing && (models.length > 0 || efforts.length > 0) && (
             <ModelChip
               models={models}

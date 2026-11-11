@@ -7,7 +7,15 @@ import { t, useLocale } from "./i18n/index.ts"
 import { type MachineRow, machineLabel } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
 import { ChipPopover, ChoiceMenu, SearchList } from "./new-session-menus.tsx"
-import { type RemoteRepo, type RemoteStartInput, remoteSpawnArgs } from "./new-session-remote.ts"
+import {
+  type RemoteEngine,
+  type RemotePick,
+  type RemoteRepo,
+  type RemoteStartInput,
+  carriedPick,
+  enginesThere,
+  remoteSpawnArgs,
+} from "./new-session-remote.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { ICON } from "./ui/composer.ts"
@@ -17,6 +25,9 @@ const REASON_COPY: Readonly<Record<string, string>> = {
   offline: "newSession.remoteOffline",
   outdated: "newSession.remoteOutdated",
 }
+
+/** `machines.repos` for this machine: its repos by id, to find a project picked here on another machine. */
+export const LOCAL = "local"
 
 interface RemoteReply {
   readonly repos: readonly RemoteRepo[]
@@ -34,23 +45,23 @@ export interface RemoteRepos {
 const readRepos = (model: AppModel, machine: string): Promise<RemoteReply> =>
   requestRemembered<RemoteReply>(model, "machines.repos", { machine })
 
-/** Read every online machine's project list before one is picked. */
+/** Read every online machine's project list, and this one's by id (`local`), before one is picked. */
 export function usePrefetchRemoteRepos(model: AppModel, machines: readonly MachineRow[]): void {
   const online = machines
     .filter((m) => m.state === "online")
     .map((m) => m.alias)
     .join("\n")
   useEffect(() => {
-    for (const alias of online ? online.split("\n") : []) void readRepos(model, alias).catch(() => {})
+    for (const alias of online ? [LOCAL, ...online.split("\n")] : []) void readRepos(model, alias).catch(() => {})
   }, [model, online])
 }
 
 interface EnginesReply {
-  readonly engines: ReadonlyArray<{ readonly id: string; readonly installed?: boolean }>
+  readonly engines: readonly RemoteEngine[]
 }
 
-/** The engine ids `machine` says are not installed there: none until it answers or when it cannot say. Undefined for this machine (""). */
-export function useMissingEngines(model: AppModel, machine: string): ReadonlySet<string> | undefined {
+/** The engines `machine` lists, each with whether its CLI is there: none until it answers, when it cannot say, or for this machine (""). */
+export function useRemoteEngines(model: AppModel, machine: string): readonly RemoteEngine[] {
   const [state, setState] = useState<{ readonly machine: string; readonly reply: EnginesReply } | null>(null)
   useEffect(() => {
     if (!machine) return
@@ -62,10 +73,42 @@ export function useMissingEngines(model: AppModel, machine: string): ReadonlySet
       stale = true
     }
   }, [model, machine])
-  if (!machine) return undefined
+  if (!machine) return []
   const reply =
     state?.machine === machine ? state.reply : lastReply<EnginesReply>(model, "machines.engines", { machine })
-  return new Set((reply?.engines ?? []).filter((e) => e.installed === false).map((e) => e.id))
+  return reply?.engines ?? []
+}
+
+/** The engine chip's choice on `machine`: its engines once it lists them, and the first it has when it lacks the picked one. `missing` is undefined for this machine (""). */
+export function useEnginesOn<E extends { readonly id: string; readonly name: string }>(
+  model: AppModel,
+  machine: string,
+  choice: { readonly engines: readonly E[]; readonly engine: string; readonly setEngine: (id: string) => void },
+) {
+  const there = enginesThere(choice.engines, useRemoteEngines(model, machine))
+  const usable = there.rows.filter((e) => !there.missing.has(e.id))
+  const engine = usable.some((e) => e.id === choice.engine) ? choice.engine : (usable[0]?.id ?? choice.engine)
+  return { engines: there.rows, engine, setEngine: choice.setEngine, missing: machine ? there.missing : undefined }
+}
+
+/**
+ * Keeps the project across a machine switch. Call the result at the switch with the machine left (`LOCAL` for this
+ * one; "" carries nothing) and the pick there; once both lists are in, `onPick` gets the pick on the new machine.
+ */
+export function useCarriedPick(
+  model: AppModel,
+  list: RemoteRepos,
+  onPick: (pick: RemotePick | null) => void,
+): (from: string, ref: string | undefined) => void {
+  const [carry, setCarry] = useState<{ readonly from: string; readonly ref: string } | null>(null)
+  const fromList = useRemoteRepos(model, carry?.from ?? "")
+  useEffect(() => {
+    if (!carry || !fromList.loaded || !list.loaded) return
+    // A machine that could not list its repos is not asked to clone one.
+    if (!list.problem) onPick(carriedPick(carry.ref, fromList.repos, list.repos))
+    setCarry(null)
+  }, [carry, fromList, list, onPick])
+  return (from, ref) => setCarry(from && ref ? { from, ref } : null)
 }
 
 /** `machine`'s repos by id, from the prefetched list while it rereads; nothing is asked for this machine (""). */
