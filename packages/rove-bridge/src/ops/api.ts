@@ -2,7 +2,7 @@ import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import type { DaemonRequestName } from "@sma1lboy/rove-daemon/daemon/protocol"
 import type { ApiEnvelope, ApiParams } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { ApiError, invokeVerb } from "@sma1lboy/rove/src/cli/api-cmd.ts"
-import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { DAEMON_UNREACHABLE_MESSAGE, argvToParams, isDaemonUnreachable } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { BridgeError } from "../protocol.ts"
 import type { BridgeApi } from "./types.ts"
 
@@ -15,6 +15,25 @@ function asBridgeError(err: unknown, fallback: string): BridgeError {
     err instanceof Error ? err.message : String(err),
     data,
   )
+}
+
+const DAEMON_WAIT_MS = 10_000
+
+/**
+ * A refused connect means the request never left, so any verb is safe to resend: a daemon restart
+ * is a few seconds with no socket. Past the wait the caller is told the daemon is away.
+ */
+async function acrossDaemonRestart<T>(run: () => Promise<T>, waitMs: number): Promise<T> {
+  const deadline = Date.now() + waitMs
+  for (;;) {
+    try {
+      return await run()
+    } catch (err) {
+      if (!isDaemonUnreachable(err)) throw err
+      if (Date.now() >= deadline) throw new BridgeError("DAEMON_UNREACHABLE", DAEMON_UNREACHABLE_MESSAGE)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    }
+  }
 }
 
 /** Tasks of the other registered machines, and how to run a verb inside one of them (`forwardVerb`). */
@@ -38,7 +57,11 @@ function taskIdOf(argv: readonly string[]): string | undefined {
  * `--task-id` lives on another machine runs inside THAT machine's daemon, so
  * every op built on verbs (tabs, review, send) serves a remote task unchanged.
  */
-export function createBridgeApi(client: RoveDaemonClient, remote?: RemoteVerbs): BridgeApi {
+export function createBridgeApi(
+  client: RoveDaemonClient,
+  remote?: RemoteVerbs,
+  daemonWaitMs = DAEMON_WAIT_MS,
+): BridgeApi {
   return {
     machineOf: (taskId) => remote?.machineOf(taskId),
     async verb<T>(name: string, argv: readonly string[], machine?: string): Promise<T> {
@@ -72,7 +95,7 @@ export function createBridgeApi(client: RoveDaemonClient, remote?: RemoteVerbs):
     },
     async rpc<T>(name: DaemonRequestName, payload?: unknown): Promise<T> {
       try {
-        return await client.request<T>(name, payload)
+        return await acrossDaemonRestart(() => client.request<T>(name, payload), daemonWaitMs)
       } catch (err) {
         throw asBridgeError(err, "RPC_ERROR")
       }
