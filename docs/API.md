@@ -209,6 +209,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. |
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
+| `DAEMON_UNREACHABLE` | The daemon socket refused the connect (restarting or stopped); the request never left, so a retry is safe. |
 | `CLI_ONLY_VERB` | `api.invoke` (socket or bridge) named a verb that streams over stdout/stdin (`watch`, `pane-graphics`). |
 | `UNKNOWN_MACHINE` | `--machine` (or `"machine"` over the socket) names no registered machine. |
 | `MACHINE_UNREACHABLE` | The machine a verb was routed to did not answer over ssh. |

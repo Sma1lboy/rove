@@ -38,6 +38,16 @@ export interface VerbDeps {
   readonly caller?: ApiCaller
 }
 
+export const DAEMON_UNREACHABLE_MESSAGE =
+  "the rove daemon is not answering (restarting or stopped); nothing was changed, try again in a moment"
+
+/** The socket refused the connect, so the request never left: resending it is safe. */
+export function isDaemonUnreachable(err: unknown): boolean {
+  if (!err || typeof err !== "object" || !("code" in err)) return false
+  if (err.code === "DAEMON_UNREACHABLE") return true
+  return "syscall" in err && err.syscall === "connect" && (err.code === "ENOENT" || err.code === "ECONNREFUSED")
+}
+
 /**
  * Normalize any handler/RPC failure into an {@link ApiError}. The daemon's
  * prose `task not found: <id>` becomes typed `TASK_NOT_FOUND` with the
@@ -49,6 +59,7 @@ export interface VerbDeps {
  */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
+  if (isDaemonUnreachable(err)) return new ApiError(DAEMON_UNREACHABLE_MESSAGE, "DAEMON_UNREACHABLE")
   const message = errorMessage(err)
   if (/task not found/i.test(message)) {
     return new ApiError(message, "TASK_NOT_FOUND", {
