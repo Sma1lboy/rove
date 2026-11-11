@@ -25,7 +25,7 @@ import { Legend } from "./ui/legend.tsx"
 import { ICON_BUTTON_DOT, RAIL_BAR, iconButton } from "./ui/panel.ts"
 import { ResizeGrip } from "./ui/resize-grip.tsx"
 import { GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
-import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, PANE_HINT } from "./ui/shell.ts"
+import { NARROW_BACK, NARROW_BAR, NARROW_SWITCH, NARROW_TAB, NARROW_TITLE, PANE_HINT } from "./ui/shell.ts"
 
 /** Two releases closer together than this are one double-click. */
 const DOUBLE_CLICK_MS = 400
@@ -154,15 +154,21 @@ const TERMINAL_ICON = (
 
 /**
  * Narrow layout, content panel: the way back to the list the viewport has no room to show beside it.
- * In a task it also switches between the terminal and the side panel's views, the desktop's right column.
+ * In a task it names the task and switches between the terminal and the side panel's views, the desktop's right column.
  */
-export function NarrowBackBar({ taskId }: { taskId?: string }) {
+export function NarrowBackBar({ taskId, title }: { taskId?: string; title?: string }) {
   useLocale()
   const view = useStore(narrowView)
   return (
     <div className={NARROW_BAR}>
-      <button type="button" className={`mono ${NARROW_BACK}`} onClick={backToTasks}>
-        <span className="text-accent">{`‹ ${workspaceText("narrowBack")}`}</span>
+      <button
+        type="button"
+        className={`mono ${NARROW_BACK}`}
+        aria-label={workspaceText("narrowBack")}
+        onClick={backToTasks}
+      >
+        <span className="flex-none text-accent">{title ? "‹" : `‹ ${workspaceText("narrowBack")}`}</span>
+        {title && <span className={NARROW_TITLE}>{title}</span>}
       </button>
       {taskId && (
         <span className={`mono ${NARROW_SWITCH}`} role="tablist">

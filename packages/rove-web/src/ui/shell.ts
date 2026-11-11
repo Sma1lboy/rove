@@ -58,8 +58,10 @@ export const HEAD_CHIP = `${HIT} touch:after:-inset-x-1.5 touch:after:-inset-y-3
 
 /** Narrow layout, content panel: back to the list, and the terminal/panel switch. */
 export const NARROW_BAR = "flex items-center gap-2"
-export const NARROW_BACK = `px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
-export const NARROW_SWITCH = "ml-auto flex gap-0.5"
+export const NARROW_BACK = `flex min-w-0 items-baseline gap-1.5 px-1.5 py-0.5 text-meta font-bold ${HIT} touch:after:-inset-2.5 touch:after:-bottom-1`
+/** The open task's name in the back button: a single tab has no strip to say which task this is. */
+export const NARROW_TITLE = "truncate font-sans text-body font-normal text-ink"
+export const NARROW_SWITCH = "ml-auto flex flex-none gap-0.5"
 export const NARROW_TAB = `flex items-center rounded-sm px-2.5 py-1.5 text-muted aria-selected:bg-inset aria-selected:text-ink [&_svg]:size-4 ${HIT} touch:after:-inset-x-px touch:after:-top-2 touch:after:-bottom-1.5`
 
 export const HINT_BAR =
@@ -104,7 +106,7 @@ export const TERM_QUOTE = "absolute top-2.5 right-2.5 z-4"
 export const TERM_KEY_ROW =
   "hidden gap-1 overflow-x-auto scrollbar-none [border-top:var(--hairline)_solid_var(--line)] bg-surface px-1.5 py-1 touch:flex"
 export const termKey = (on: boolean): string =>
-  `h-8 min-w-max touch-manipulation [flex:1_1_0] rounded-sm border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
+  `h-10 min-w-max touch-manipulation [flex:1_1_0] rounded-sm border-hairline bg-inset px-0.5 py-0 font-mono text-meta ${FONT_RESET} ${on ? "border-accent text-accent" : "border-line text-ink"}`
 
 /** The which-key map, above the rail's last row so that row's keycap badge stays clickable. */
 /** `prefix-guide` stays: leave.ts copies it into a ghost that sinks out, and prefix.tsx keeps clicks on it from cancelling the prefix. */
@@ -171,7 +173,7 @@ export const TERM_BOX =
 export const TERM_SNAPSHOT =
   "pointer-events-none absolute inset-0 z-1 overflow-hidden [&_pre]:m-0 [&_pre>div>div]:overflow-hidden [&_pre>div>div]:[height:var(--row-h,1.15em)] [&_pre>div>div]:[line-height:var(--row-h,1.15em)]"
 export const termNotice = (error: boolean): string =>
-  `absolute right-2.5 bottom-2.5 z-5 flex items-center gap-3 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.25 font-mono text-meta ${FONT_RESET} ${error ? "text-error" : "text-muted"} [&_.link:disabled]:pointer-events-none [&_.link:disabled]:opacity-60`
+  `absolute right-2.5 bottom-2.5 z-5 flex max-w-[calc(100%-20px)] flex-wrap items-center gap-x-3 gap-y-1 rounded-sm border-hairline border-line bg-inset px-2.5 py-1.25 font-mono text-meta ${FONT_RESET} ${error ? "text-error" : "text-muted"} [&_.link:disabled]:pointer-events-none [&_.link:disabled]:opacity-60 [&_button]:whitespace-nowrap`
 
 /** The link-state footer: shown only while the bridge is down. Its link grows its touch target down only, at most its 4px bottom padding. */
 export const STATUS_BAR = `col-span-full touch:[&_.link]:after:inset-[-2px_-6px_-4px] flex min-w-0 items-center gap-2 [border-top:var(--hairline)_solid_var(--line)] bg-surface px-3 py-1 font-mono text-meta ${FONT_RESET} whitespace-nowrap text-muted`
