@@ -12,9 +12,9 @@
 
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { FakeClient, expectApiError, openedTab, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
-const runtime = stubRuntime()
+const runtime = stubRuntime({ openTab: openedTab })
 
 /** `watch` writes NDJSON straight to stdout; capture it rather than the console. */
 async function captureStdout<T>(fn: () => Promise<T>): Promise<{ result: T; lines: unknown[] }> {
@@ -164,7 +164,7 @@ describe("update --status --report-*", () => {
 describe("add --worktree-name", () => {
   it("passes the chosen directory name through to the create", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    await invokeVerb("add", ["--repo", "/repo/x", "--worktree-name", "probe-1"], { client, runtime })
+    await invokeVerb("add", ["--repo", "/repo/x", "--worktree-name", "probe-1", "--start"], { client, runtime })
     expect(client.requests[0]?.payload).toMatchObject({ worktreeName: "probe-1" })
   })
 

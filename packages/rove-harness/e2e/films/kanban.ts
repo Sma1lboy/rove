@@ -40,7 +40,17 @@ function agentPicksUpStory(): void {
     : undefined
   if (!story) throw new Error("the intake beat filed no story")
   // Same `#id title` shape a story-spawned task carries in the sidebar.
-  const { taskId } = heroApi(["add", "--repo", HERO_REPO, "--title", `#${story.id} ${story.title}`])
+  // A shell, not the repo's engine: the beat is the card moving, not an agent's work.
+  const { taskId } = heroApi([
+    "add",
+    "--repo",
+    HERO_REPO,
+    "--title",
+    `#${story.id} ${story.title}`,
+    "--start",
+    "--command",
+    "bash --norc --noprofile -i",
+  ])
   if (typeof taskId !== "string") throw new Error("no task created for the agent move")
   heroApi(["issue-update", "--repo", HERO_REPO, "--id", String(story.id), "--task", taskId])
 }

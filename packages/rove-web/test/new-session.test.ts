@@ -101,7 +101,6 @@ describe("New session composer", () => {
       branch: "",
       engine: "alpha",
       prompt: "fix it",
-      begin: true,
       model: "",
       effort: "",
     }
@@ -116,23 +115,15 @@ describe("New session composer", () => {
     })
   })
 
-  test("Create without starting runs no engine, and the typed prompt names the task instead of being lost", () => {
-    const draft = {
-      repos: [{ repo: "/w/app", baseRef: "" }],
-      branch: "",
-      engine: "alpha",
-      prompt: "check the composer\nend to end",
-      begin: false,
-      model: "m-big",
-      effort: "",
-    }
-    expect(spawnArgs(draft)).toEqual({
+  test("Later carries the prompt as the scheduled first message, not as one to deliver now", () => {
+    const at = new Date("2026-11-11T09:00:00.000Z")
+    const draft = { repos: [{ repo: "/w/app", baseRef: "" }], branch: "", engine: "", prompt: "nightly sweep" }
+    expect(spawnArgs({ ...draft, at, model: "", effort: "" })).toEqual({
       repo: "/w/app",
-      engine: "alpha",
-      model: "m-big",
-      title: "check the composer end to end",
+      title: "nightly sweep",
+      scheduleAt: "2026-11-11T09:00:00.000Z",
+      schedulePrompt: "nightly sweep",
     })
-    expect(spawnArgs({ ...draft, prompt: "" })).toEqual({ repo: "/w/app", engine: "alpha", model: "m-big" })
   })
 
   test("further picks become extraRepos in pick order, each with its own base; the branch name is shared", () => {
@@ -146,7 +137,6 @@ describe("New session composer", () => {
         branch: "feat/x",
         engine: "",
         prompt: "go",
-        begin: true,
         model: "",
         effort: "",
       }),
@@ -166,7 +156,6 @@ describe("New session composer", () => {
         branch: "feat/x",
         engine: "",
         prompt: "go",
-        begin: true,
         model: "",
         effort: "",
       }),
@@ -191,7 +180,6 @@ describe("New session composer", () => {
       engine: "alpha",
       engines: ["alpha", "beta", "gamma"],
       prompt: "fix it",
-      begin: true,
       model: "m-big",
       effort: "high",
     }
@@ -252,7 +240,6 @@ describe("Start with Worktree off", () => {
       "/w/rove",
       "codex",
       "fix the flaky login test",
-      true,
       "fix the flaky login test @a.png",
     )
 
@@ -263,13 +250,20 @@ describe("Start with Worktree off", () => {
     ])
   })
 
-  test("an unstarted session takes its title from the prompt and starts no engine; no prompt leaves the daemon's title", async () => {
-    const withPrompt = bridge()
-    await startInCheckout(withPrompt.request, "/w/rove", "", "plan the release", false)
-    expect(withPrompt.calls).toEqual([["task.openCheckout", { repo: "/w/rove", title: "plan the release" }]])
-
-    const bare = bridge()
-    await startInCheckout(bare.request, "/w/rove", "", "  ", false)
-    expect(bare.calls).toEqual([["task.openCheckout", { repo: "/w/rove" }]])
+  test("Later writes the schedule with the session and opens no engine before it is due", async () => {
+    const { request, calls } = bridge()
+    const at = new Date("2026-11-11T09:00:00.000Z")
+    await startInCheckout(request, "/w/rove", "", "plan the release", "plan the release @a.png", at)
+    expect(calls).toEqual([
+      [
+        "task.openCheckout",
+        {
+          repo: "/w/rove",
+          title: "plan the release",
+          scheduleAt: "2026-11-11T09:00:00.000Z",
+          schedulePrompt: "plan the release @a.png",
+        },
+      ],
+    ])
   })
 })

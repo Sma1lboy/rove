@@ -22,7 +22,7 @@ States seeded in run 3: a failing `--script` routine run twice under one name fo
 | Row menu, `More` fold | long-press a row | opened | Row menu | #1818 adds land, copy, move, change engine, remove and the fold; retry, compare, continue in another engine, scheduled start still missing |
 | Project menu | long-press a project | opened on web, Android read only | Project menu | has: field notes, move, remove |
 | Archived fold | end of the list | read only | Archived fold | has |
-| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine, `Later`, create without starting |
+| New session | `New task` | opened | Create sheet | partial: no branch, folder, machine, `Later`; a task needs its first prompt |
 | Terminal, key row | tap a task | opened | Task detail | has |
 | Message bar: hold to talk, type instead | engine tab | opened | Composer | typing has; voice missing |
 | Queued messages | | gone from the web (#1781) | none | gone since #1817; the engine queues input itself |

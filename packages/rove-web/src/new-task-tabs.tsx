@@ -78,8 +78,10 @@ export function CloneTab({ model, engine, busy, error, run }: TabProps) {
         throw err
       }
       localStorage.setItem(CLONE_PARENT_KEY, parent.trim())
+      // A fresh clone has nothing to tell an agent yet: its engine starts idle for the person to type into.
       const res = await model.client.request<{ taskIds: string[] }>("task.spawn", {
         repo: cloned.path,
+        start: true,
         ...(engine ? { engine } : {}),
         ...(baseRef.trim() ? { baseBranch: baseRef.trim() } : {}),
       })

@@ -12,7 +12,14 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import {
+  FakeClient,
+  expectApiError,
+  openedTab,
+  recordingDelivery,
+  stubRuntime,
+  taskFixture,
+} from "./api-handler-fixtures.ts"
 
 const savedEnv = { taskId: process.env.ROVE_TASK_ID, tabId: process.env.ROVE_TAB_ID }
 beforeEach(() => {
@@ -42,9 +49,9 @@ describe("add --effort", () => {
   // everywhere else.
   it("rides on task.create as `effort`, so the first session carries it", async () => {
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--effort", "xhigh"], {
+    await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--effort", "xhigh", "--start"], {
       client,
-      runtime: stubRuntime(),
+      runtime: stubRuntime({ openTab: openedTab }),
     })
     expect(client.requests[0]?.name).toBe("task.create")
     expect(client.requests[0]?.payload).toMatchObject({ command: "codex", vendor: "codex", effort: "xhigh" })
@@ -59,9 +66,9 @@ describe("add --effort", () => {
     const client = createClient()
     await expectApiError(
       () =>
-        invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--effort", "bogus"], {
+        invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--effort", "bogus", "--start"], {
           client,
-          runtime: stubRuntime(),
+          runtime: stubRuntime({ openTab: openedTab }),
         }),
       "BAD_EFFORT",
       /none, low, medium, high, xhigh/,

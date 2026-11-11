@@ -270,7 +270,21 @@ async function smoketest(): Promise<never> {
   // the one the plugin host can lose to the reducer's baseline rule if the
   // daemon's bus cache is not replayed into it at host start. `issue.changed`
   // is direct-reported and would pass either way -- it cannot stand in.
-  const added = runRove(["api", "add", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
+  // A shell, not the sandbox's default engine: the check is the event, not an agent.
+  const added = runRove(
+    [
+      "api",
+      "add",
+      "--repo",
+      repo,
+      "--title",
+      `smoke ${Date.now()}`,
+      "--start",
+      "--command",
+      "bash --norc --noprofile -i",
+    ],
+    "pipe",
+  )
   if (added.code !== 0) fail(`api add exited ${added.code}`)
   if (!(await seen("task.created"))) fail(`no task.created in ${eventsFile} after 15s`)
 

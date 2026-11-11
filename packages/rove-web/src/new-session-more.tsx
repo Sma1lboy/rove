@@ -16,8 +16,6 @@ export function ComposerMore(props: {
   /** Absent where a scheduled start does not apply (another machine, no project, a compare round). */
   onLater?: (at: Date) => void
   onInvalid: (message: string) => void
-  /** Absent while it cannot run (a compare round needs its prompt sent). */
-  onCreateOnly?: () => void
 }) {
   const [view, setView] = useState<"root" | "later">("root")
   return (
@@ -45,17 +43,10 @@ export function ComposerMore(props: {
             </div>
           )
         }
-        const act = (fn: () => void) => () => {
-          close()
-          fn()
-        }
         return (
           <div role="menu" className={C.MENU}>
             {props.onLater && (
               <Row label={t("newSession.later")} sub disabled={props.busy} onClick={() => setView("later")} />
-            )}
-            {props.onCreateOnly && (
-              <Row label={t("newSession.createOnly")} disabled={props.busy} onClick={act(props.onCreateOnly)} />
             )}
           </div>
         )

@@ -117,11 +117,14 @@ for (const seed of SEEDS) {
     pending.push({ id: prior.id, seed })
     continue
   }
-  const created = heroApi(["add", "--repo", HERO_REPO, "--title", seed.title, "--command", "claude"]) as {
+  // The folder must be trusted before Claude boots in it, so cut the checkout first; it is listed once `send`
+  // starts the engine's first turn.
+  const created = heroApi(["add", "--repo", HERO_REPO, "--title", seed.title, "--command", "claude", "--worktree-only"]) as {
     taskId?: string
+    worktreePath?: string
   }
   if (!created.taskId) throw new Error(`hero seed created no task for ${seed.title}`)
-  const worktree = heroApi(["ensure-worktree", "--task-id", created.taskId]) as { worktreePath?: string }
+  const worktree = created
   if (!worktree.worktreePath) throw new Error(`hero seed materialized no worktree for ${seed.title}`)
   await trustFolder(worktree.worktreePath)
   console.log(`[hero] starting: ${seed.title} → ${worktree.worktreePath}`)

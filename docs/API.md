@@ -272,7 +272,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `BAD_EFFORT` | The task's engine declares no effort levels, or not that one. |
 | `BAD_MODEL` | The task's engine declares no model flag, so a model cannot be passed to it. |
 | `CONFLICTING_FLAGS` | `add --tier` beside `--command`, `--model`, `--effort` or `--agents` — the tier already fills those. `add --parent` beside `--no-parent`; `--no-worktree` / `--isolate-in` beside `--no-parent`, each other, or a flag that names a repo or fork point of their own. |
-| `EMPTY_SESSION` | `add` from inside a session with nothing to run (no `--prompt`, `--prompt-file`, `--start`, `--count`, `--agents` or `--worktree-only`): it would leave a task with no agent. |
+| `EMPTY_SESSION` | `add` with nothing to run (no `--prompt`, `--prompt-file`, `--start`, `--count`, `--agents` or `--worktree-only`), from any caller: it would leave a task with no agent. |
 | `NOT_A_GIT_REPO` | `add` under a `dir` task that is not inside a git repository (`add --isolate-in` too). |
 | `NOT_A_GIT_REPO` | `update --project PATH` where PATH is not inside a git repository. |
 | `SAME_PROJECT` | `update --project` names the project the task already belongs to. |
@@ -846,14 +846,15 @@ edits (`set-vendor`, `rename`,
   starts the engine, and delivers the prompt. With `--start` and no prompt the
   engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
   `session`); a refusal such as `ENGINE_LIMIT` keeps the task and names it in
-  `taskId`. A bare `add` is only the row (`started: false`, status `backlog`),
-  and `--start` beside `--prompt`, `--count` or `--agents` is
-  `CONFLICTING_FLAGS`. Called from inside a session, a bare `add` is refused
-  (`EMPTY_SESSION`): a session is an agent, so an agent asks for one with
-  `--prompt` or `--start`, or for a checkout alone with `--worktree-only`. With `--worktree-only` the worktree is cut at once and
-  no engine starts (`worktreePath`, `started: false`): a separate checkout for
-  the calling session to work in. Nested under a parent, such a task is not
-  listed in the sidebar or the web rail until an engine starts a turn in it;
+  `taskId`. `--start` beside `--prompt`, `--count` or `--agents` is
+  `CONFLICTING_FLAGS`. A bare `add` is refused for every caller
+  (`EMPTY_SESSION`): `add` sends an agent to do something, so say what —
+  `--prompt` for work, `--start` for an idle engine a person will type into,
+  or `--worktree-only` for a checkout that is not a session. With
+  `--worktree-only` the worktree is cut at once and no engine starts
+  (`worktreePath`, `started: false`): a separate checkout for the calling
+  session to work in. It is not a session, so the sidebar and the web rail do
+  not list it, nested or top level, until an engine starts a turn in it;
   `list` and the Worktrees page still show it, and deleting it removes the
   worktree. It conflicts with `--prompt`, `--start`, `--count`, `--agents` and
   `--no-worktree`. Does not steal focus unless

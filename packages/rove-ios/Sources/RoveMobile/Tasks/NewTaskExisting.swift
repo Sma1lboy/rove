@@ -55,7 +55,7 @@ struct NewTaskExistingForm: View {
             }
         }
         FormSection(label: String(localized: "first prompt")) {
-            PromptEditor(text: $draft.spawn.prompt, placeholder: String(localized: "leave empty to open the worktree without starting the engine"))
+            PromptEditor(text: $draft.spawn.prompt, placeholder: String(localized: "what should this task work on"))
                 .accessibilityIdentifier("promptEditor")
         }
         NewTaskOptions(draft: draft)

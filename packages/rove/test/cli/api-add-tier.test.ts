@@ -53,7 +53,7 @@ vi.mock("../../src/engine/engine-status.ts", async (importOriginal) => {
 })
 
 const { invokeVerb } = await import("../../src/cli/api-cmd.ts")
-const { FakeClient, expectApiError, recordingDelivery, stubRuntime, taskFixture } = await import(
+const { FakeClient, expectApiError, openedTab, recordingDelivery, stubRuntime, taskFixture } = await import(
   "./api-handler-fixtures.ts"
 )
 const { ApiError } = await import("../../src/cli/api/types.ts")
@@ -83,7 +83,10 @@ const createClient = () => new FakeClient({ "task.create": () => ({ taskId: "t1"
 describe("add --tier", () => {
   it("fills engine + model from the shipped table and records the tier", async () => {
     const client = createClient()
-    await invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep"], { client, runtime: stubRuntime() })
+    await invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep", "--start"], {
+      client,
+      runtime: stubRuntime({ openTab: openedTab }),
+    })
     expect(client.requests[0]?.name).toBe("task.create")
     expect(client.requests[0]?.payload).toMatchObject({
       command: "claude",
@@ -102,7 +105,11 @@ describe("add --tier", () => {
     ]) {
       const client = createClient()
       await expectApiError(
-        () => invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep", ...extra], { client, runtime: stubRuntime() }),
+        () =>
+          invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep", ...extra, "--start"], {
+            client,
+            runtime: stubRuntime(),
+          }),
         "CONFLICTING_FLAGS",
         /conflicts with --tier/,
       )
@@ -114,7 +121,11 @@ describe("add --tier", () => {
     probe.kind = "none"
     const client = createClient()
     await expectApiError(
-      () => invokeVerb("add", ["--repo", "/repo/x", "--tier", "swift"], { client, runtime: stubRuntime() }),
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--tier", "swift", "--start"], {
+          client,
+          runtime: stubRuntime({ openTab: openedTab }),
+        }),
       "TIER_UNAVAILABLE",
       /not logged in/,
     )
@@ -248,7 +259,11 @@ describe("add --tier auto", () => {
   it("refuses --tier auto with nothing to classify, before anything is created", async () => {
     const client = createClient()
     await expectApiError(
-      () => invokeVerb("add", ["--repo", "/repo/x", "--tier", "auto"], { client, runtime: stubRuntime() }),
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--tier", "auto", "--start"], {
+          client,
+          runtime: stubRuntime({ openTab: openedTab }),
+        }),
       "BAD_FLAG",
       /--prompt/,
     )

@@ -130,9 +130,10 @@ final class NewTaskTests: XCTestCase {
 
     func testCreateEnabledPerMode() {
         let empty = AdoptSelection(), clone = CloneDraft()
-        // existing: repo required; fan-out needs a prompt
+        // existing: repo and a first prompt required
         XCTAssertFalse(NewTaskRules.canCreate(mode: .existing, spawn: SpawnDraft(), clone: clone, adopt: empty))
-        XCTAssertTrue(NewTaskRules.canCreate(mode: .existing, spawn: draft(), clone: clone, adopt: empty))
+        XCTAssertFalse(NewTaskRules.canCreate(mode: .existing, spawn: draft(), clone: clone, adopt: empty))
+        XCTAssertTrue(NewTaskRules.canCreate(mode: .existing, spawn: draft { $0.prompt = "p" }, clone: clone, adopt: empty))
         XCTAssertFalse(NewTaskRules.canCreate(mode: .existing, spawn: draft { $0.count = 2 }, clone: clone, adopt: empty))
         XCTAssertTrue(NewTaskRules.canCreate(mode: .existing, spawn: draft { $0.count = 2; $0.prompt = "p" }, clone: clone, adopt: empty))
         XCTAssertFalse(NewTaskRules.canCreate(mode: .existing, spawn: draft { $0.agents = ["a": 1] }, clone: clone, adopt: empty))

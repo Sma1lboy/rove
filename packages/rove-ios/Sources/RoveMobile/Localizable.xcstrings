@@ -4400,12 +4400,12 @@
         }
       }
     },
-    "fan-out needs a first prompt" : {
+    "a task needs a first prompt" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "批量创建需要首条提示词"
+            "value" : "任务需要首条提示词"
           }
         }
       }
@@ -5040,12 +5040,12 @@
         }
       }
     },
-    "leave empty to open the worktree without starting the engine" : {
+    "what should this task work on" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "留空则只打开 worktree，不启动引擎"
+            "value" : "这个任务要做什么"
           }
         }
       }

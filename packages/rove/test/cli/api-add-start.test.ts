@@ -1,8 +1,7 @@
-/** `add --start` without a `--prompt`: the task's engine boots idle in its own tab-1, where a bare `add` only creates the row. */
+/** `add --start` without a `--prompt`: the task's engine boots idle in its own tab-1. A bare `add` creates nothing. */
 
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
-import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { FakeClient, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const created = () => ({ taskId: "t1", task: taskFixture() })
@@ -23,20 +22,6 @@ describe("add --start", () => {
 
     expect(opened).toEqual([{ id: "t1", kind: "engine" }])
     expect(result).toMatchObject({ taskId: "t1", started: true, tabId: "tab-1", session: "t1::tab-1" })
-  })
-
-  it("leaves a bare add a backlog row with no engine", async () => {
-    const client = new FakeClient({ "task.create": created })
-    const result = await invokeVerb("add", ["--repo", "/repo/x"], {
-      client,
-      runtime: stubRuntime({
-        openTab: async () => {
-          throw new Error("a bare add must not start an engine")
-        },
-      }),
-    })
-
-    expect(result).toMatchObject({ taskId: "t1", started: false })
   })
 
   it("keeps the task it created and names it when the engine does not start", async () => {
@@ -122,21 +107,8 @@ describe("add --worktree-only", () => {
   })
 })
 
-describe("add from inside a session", () => {
-  afterEach(() => resetVerifiedSelfSession())
-
-  const inSession = () =>
-    verifiedSelfSession(
-      { ROVE_TASK_ID: "worker-1", ROVE_TAB_ID: "tab-1" },
-      {
-        sessions: async () => [{ key: "worker-1::tab-1", pid: 100, alive: true }],
-        ps: async () => "  100     1 /bin/zsh -il\n  500   100 bun rove api add",
-        pid: 500,
-      },
-    )
-
-  it("refuses a task that would have no agent, before anything is created", async () => {
-    await inSession()
+describe("a bare add", () => {
+  it("is refused for every caller before anything is created, naming the three ways to say what to run", async () => {
     const client = new FakeClient({ "task.create": created })
     const err = await invokeVerb("add", ["--repo", "/repo/x", "--title", "scratch"], {
       client,
@@ -144,6 +116,21 @@ describe("add from inside a session", () => {
     }).catch((e: unknown) => e)
 
     expect(err).toMatchObject({ code: "EMPTY_SESSION" })
-    expect(client.requestNames).not.toContain("task.create")
+    expect((err as Error).message).toMatch(/--prompt.*--start.*--worktree-only/)
+    expect(client.requestNames).toEqual([])
+  })
+
+  it("is allowed with nothing to run only when the in-process caller brings a scheduled start, written with the row", async () => {
+    const client = new FakeClient({ "task.create": created })
+    const scheduledStart = { at: "2026-11-11T09:00:00.000Z", prompt: "nightly sweep" }
+    const result = await invokeVerb("add", ["--repo", "/repo/x"], {
+      client,
+      runtime: stubRuntime(),
+      caller: { cli: false, scheduledStart },
+    })
+
+    expect(client.requestNames).toEqual(["task.create"])
+    expect(client.requests[0]?.payload).toMatchObject({ scheduledStart })
+    expect(result).toMatchObject({ taskId: "t1", started: false })
   })
 })

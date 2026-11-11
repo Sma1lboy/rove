@@ -112,7 +112,7 @@ export const VISUAL_PTY_COMMAND = `${[
 ].join(" ")} bun run dev:sandbox`
 
 /** Bump when the fixture shape changes so warm reuse rebuilds. */
-const FIXTURE_VERSION = "5"
+const FIXTURE_VERSION = "6"
 const FIXTURE_MARKER = join(VISUAL_ROOT, "fixture-ok")
 
 function assertSafeVisualRoot(): void {
@@ -278,12 +278,8 @@ export default async function setupVisualFixture(): Promise<void> {
     { email: "visual@rove.local", name: "rove visual" },
   )
 
-  // Bare task, NO chat tab. The journeys assert the sidebar row label
-  // "Visual Fixture", which a seeded engine tab overwrites with its own
-  // first-turn title — and CI has no engine binary at all, so the tab would
-  // boot straight into the code-127 dead-engine state (issue #79). The
-  // pre-fixture-core seeding did exactly this bare `add`; only hero fixtures
-  // (which run where a real engine exists) seed chat tabs.
+  // A plain shell, not Claude: the journeys assert the row label "Visual Fixture", which an engine's first-turn
+  // title would overwrite, and CI has no engine binary (the tab would boot into the code-127 dead-engine state).
   const added = runRove([
     "add",
     "--repo",
@@ -291,7 +287,8 @@ export default async function setupVisualFixture(): Promise<void> {
     "--title",
     "Visual Fixture",
     "--command",
-    "claude",
+    "bash --norc --noprofile -i",
+    "--start",
     "--activate",
   ]) as { taskId?: unknown }
   if (typeof added.taskId !== "string") throw new Error("visual fixture task creation returned no taskId")

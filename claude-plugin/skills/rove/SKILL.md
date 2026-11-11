@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 116 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 117 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -113,11 +113,10 @@ Only need a separate checkout to edit in yourself? `add --repo "$PWD"
 engine. It is not a session, so nothing lists it under you until you `send` it
 work. Delete it when you are done.
 
-A session is an agent, so never leave a task that has none. Do not `add`
-without `--prompt` or `--start` and then `ensure-worktree` it to get a
-directory: that puts a row in the user's sidebar with no session in it, and
-they will ask why you opened it. From inside a session that `add` is refused
-(`EMPTY_SESSION`). Several sessions may share one worktree (`send --tab new`,
+A session is an agent, so a task always has one: an `add` without
+`--prompt`, `--start` or `--worktree-only` is refused (`EMPTY_SESSION`), from
+a session or a plain shell alike. Never `add --start` and `ensure-worktree`
+just to get a directory: that is a session nobody works in. Several sessions may share one worktree (`send --tab new`,
 `add --no-worktree`); a worktree with no session is `--worktree-only`.
 
 The distinction that decides every routing call: **a shared child uses the

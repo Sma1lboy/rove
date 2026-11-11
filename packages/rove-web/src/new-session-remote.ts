@@ -1,6 +1,5 @@
 /** Pure rules of starting a task from the New session composer on another registered machine: which repo value Start sends, and when that machine has to clone it first. */
 
-import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { splitRepoRow } from "./new-task-paths.ts"
 
 /** One row of the bridge's `machines.repos`: a repo on that machine, by id. */
@@ -52,8 +51,6 @@ export interface RemoteStartInput {
   readonly machine: string
   readonly engine: string
   readonly prompt: string
-  /** false: create the task without running its engine. */
-  readonly begin: boolean
   /** The ref its worktree branches from; "" = that repo's current branch. */
   readonly baseRef: string
 }
@@ -63,14 +60,12 @@ export interface RemoteStartInput {
  * so only the engine id (that machine's `add` validates it) rides along, never a model or effort.
  */
 export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown> {
-  const title = input.begin ? "" : deriveTitleFromPrompt(input.prompt)
   return {
     repo: input.pick.ref,
     machine: input.machine,
     ...(input.pick.clone ? { clone: true } : {}),
     ...(input.baseRef ? { baseBranch: input.baseRef } : {}),
-    ...(input.begin && input.prompt ? { prompt: input.prompt } : {}),
-    ...(title ? { title } : {}),
+    ...(input.prompt ? { prompt: input.prompt } : {}),
     ...(input.engine ? { engine: input.engine } : {}),
   }
 }

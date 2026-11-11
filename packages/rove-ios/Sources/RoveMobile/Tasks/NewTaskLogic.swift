@@ -82,7 +82,8 @@ struct SpawnDraft: Equatable {
     var blocker: String? {
         if repo.isEmpty { return String(localized: "pick a repository") }
         if usesAgents && !AgentsPlan.isValid(agents) { return String(localized: "agents: at most \(AgentsPlan.maxTotal) in total") }
-        if isFanOut && promptText.isEmpty { return String(localized: "fan-out needs a first prompt") }
+        // A task is an agent sent to do something: it never opens without its first message.
+        if promptText.isEmpty { return String(localized: "a task needs a first prompt") }
         return nil
     }
 

@@ -314,13 +314,8 @@ export async function seedGitRepo(
 }
 
 /**
- * Create a task and immediately open a chat tab on it.
- *
- * `rove api add` creates a task with no tabs, a shape the product never
- * produces on its own: a task exists because a session started. Seeded bare,
- * rows in the sidebar read as a mock-up, so every fixture task opens a real
- * engine tab. The prompt is deliberately trivial — enough to make the engine
- * boot and register the tab, not to produce work.
+ * Create a task with its engine running, then give it a trivial prompt: enough to register a turn, not to
+ * produce work. A task exists because a session started, so `add --start` boots the engine first.
  */
 export function createTaskWithChatTab(
   cliPath: string,
@@ -332,7 +327,7 @@ export function createTaskWithChatTab(
   const command = task.command ?? "claude"
   const added = runRoveApiWithExecArgs(
     cliPath,
-    ["add", "--repo", task.repo, "--title", task.title, "--command", command],
+    ["add", "--repo", task.repo, "--title", task.title, "--command", command, "--start"],
     cwd,
     env,
     execArgs,
@@ -344,9 +339,8 @@ export function createTaskWithChatTab(
   // engineCommand.* setting stored in state.json, which is where hero-fixture
   // pins --setting-sources project. Use the task's vendor/default instead.
   //
-  // No `--tab new` either. A prompted `send` already ENSURES a target engine
-  // tab, so forcing a new one leaves the row with TWO identical engine
-  // children — which is just as unlike a real sidebar as having none.
+  // No `--tab new` either: `send` targets the engine `--start` opened, and a
+  // second one would leave the row with TWO identical engine children.
   runRoveApiWithExecArgs(
     cliPath,
     ["send", "--task-id", added.taskId, "--plain", "--prompt", task.prompt],

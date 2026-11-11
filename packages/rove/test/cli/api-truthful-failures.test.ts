@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { protocolEntry } from "../../src/engine/engine-presets.ts"
 import { screenErrorLine } from "../../src/engine/screen-state.ts"
-import { FakeClient, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
+import { FakeClient, openedTab, recordingDelivery, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 const screen = vi.hoisted(() => ({ error: undefined as string | undefined }))
 vi.mock("../../src/cli/api/engine-screen.ts", async (importOriginal) => ({
@@ -36,8 +36,8 @@ describe("add reports what it will launch", () => {
     })
     const result = await invokeVerb(
       "add",
-      ["--repo", "/repo/x", "--command", "codex", "--model", "claude-sonnet-5-5"],
-      { client, runtime: stubRuntime() },
+      ["--repo", "/repo/x", "--command", "codex", "--model", "claude-sonnet-5-5", "--start"],
+      { client, runtime: stubRuntime({ openTab: openedTab }) },
     )
     expect(result).toMatchObject({
       engine: { vendor: "codex", command: "codex", model: "claude-sonnet-5-5" },
@@ -49,10 +49,14 @@ describe("add reports what it will launch", () => {
     const client = new FakeClient({
       "task.create": (payload) => ({ taskId: "t1", task: taskFixture(payload as Record<string, unknown>) }),
     })
-    const result = await invokeVerb("add", ["--repo", "/repo/x", "--command", "codex", "--model", "gpt-5.5"], {
-      client,
-      runtime: stubRuntime(),
-    })
+    const result = await invokeVerb(
+      "add",
+      ["--repo", "/repo/x", "--command", "codex", "--model", "gpt-5.5", "--start"],
+      {
+        client,
+        runtime: stubRuntime({ openTab: openedTab }),
+      },
+    )
     expect(result).not.toHaveProperty("warnings")
   })
 })

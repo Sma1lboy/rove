@@ -28,7 +28,7 @@ export const taskBoard = pluginFilm({
     // Beat 3 — the board is LIVE, not a snapshot: a task created from
     // outside the TUI arrives over the `task.snapshot` channel the pane
     // subscribed to, and the pane redraws itself.
-    heroApi(["add", "--repo", HERO_REPO, "--title", BOARD_TASK_TITLE])
+    heroApi(["add", "--repo", HERO_REPO, "--title", BOARD_TASK_TITLE, "--start", "--command", "bash --norc --noprofile -i"])
     await look(page, BOARD_TASK_TITLE, 20_000)
     await page.waitForTimeout(6_000)
   },
