@@ -19,8 +19,8 @@ title = "Claude Code (demo)"
 
 /** Raw GitHub search shapes — what fetchTopicRepos maps, not what it returns. */
 const demoRepo = {
-  full_name: "wisp-agent-ai/rove-plugin-demo-engine",
-  html_url: "https://github.com/wisp-agent-ai/rove-plugin-demo-engine",
+  full_name: "zeta-labs/rove-plugin-demo-engine",
+  html_url: "https://github.com/zeta-labs/rove-plugin-demo-engine",
   description: "Repo description, ignored when the manifest carries one.",
 }
 const collectionRepo = {

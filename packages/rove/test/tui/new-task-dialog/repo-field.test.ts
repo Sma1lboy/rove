@@ -43,7 +43,7 @@ describe("resolveRepoInput", () => {
     expect(nameOrPath("C:\\Projects\\demo", ["c:/Projects/demo"])).toBe("demo")
     expect(nameOrPath("C:\\Projects\\different", ["C:/other/different"])).toBe("C:\\Projects\\different")
   })
-  const repos = ["/Users/me/i/quokka", "/Users/me/i/wisp"]
+  const repos = ["/Users/me/i/quokka", "/Users/me/i/wombat"]
 
   it("resolves a known name to its one path", () => {
     expect(resolveRepoInput("quokka", repos)).toEqual({ kind: "path", path: "/Users/me/i/quokka" })
@@ -73,7 +73,7 @@ describe("resolveRepoInput", () => {
 })
 
 describe("nameOrPath (what the field should hold)", () => {
-  const repos = ["/Users/me/i/quokka", "/Users/me/i/wisp"]
+  const repos = ["/Users/me/i/quokka", "/Users/me/i/wombat"]
 
   it("uses the name when the name round-trips back to that path", () => {
     expect(nameOrPath("/Users/me/i/quokka", repos)).toBe("quokka")
