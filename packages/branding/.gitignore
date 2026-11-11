@@ -9,3 +9,5 @@ public/life/
 films/*/clips/
 films/*/renders/
 films/*/index.html
+# Clips of the handoff film, rendered from its committed cast.
+public/handoff/

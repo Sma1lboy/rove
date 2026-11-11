@@ -17,6 +17,7 @@ import { autoRouting, prepareAutoRouting } from "./films/auto-routing.ts"
 import { contribEngine } from "./films/contrib-engine.ts"
 import { helloEvents } from "./films/hello-events.ts"
 import { kanban } from "./films/kanban.ts"
+import { handoff } from "./films/handoff.ts"
 import { multirepo } from "./films/multirepo.ts"
 import { routines } from "./films/routines.ts"
 import { settingsDemo } from "./films/settings-demo.ts"
@@ -33,6 +34,7 @@ const FILMS: Record<string, Film> = {
   "turn-notify": turnNotify,
   "auto-routing": autoRouting,
   multirepo,
+  handoff,
 }
 
 /** Fixture work a film needs done BEFORE the TUI boots, because the TUI reads

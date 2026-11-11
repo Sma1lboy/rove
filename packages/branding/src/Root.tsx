@@ -20,6 +20,7 @@ import quicklookSpec from "./quicklook/quicklook.replay.json"
 import { replayDurationSeconds } from "./quicklook/replay-spec"
 import { TaskStreams } from "./TaskStreams"
 import { TYPED } from "./typed/timeline"
+import { REAL, RealFilm } from "./real/RealFilm"
 import { TypedFilm } from "./typed/TypedFilm"
 
 export const RemotionRoot: React.FC = () => {
@@ -64,6 +65,8 @@ export const RemotionRoot: React.FC = () => {
       {/* Rove used on screen, one typed prompt per feature. One composition per language in typed/copy.ts. */}
       <Composition id="rove-typed" component={TypedFilm} {...TYPED} defaultProps={{ lang: "en" as const }} />
       <Composition id="rove-typed-zh" component={TypedFilm} {...TYPED} defaultProps={{ lang: "zh" as const }} />
+      <Composition id="rove-real" component={RealFilm} {...REAL} defaultProps={{ lang: "en" as const }} />
+      <Composition id="rove-real-zh" component={RealFilm} {...REAL} defaultProps={{ lang: "zh" as const }} />
       <Composition id="docs-fan-out" component={DocsFanOut} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-task-model" component={DocsTaskModel} durationInFrames={1} fps={30} width={1600} height={900} />
       <Composition id="docs-detach-survives" component={DocsDetachSurvives} durationInFrames={1} fps={30} width={1600} height={900} />

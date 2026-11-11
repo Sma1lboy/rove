@@ -1,0 +1,22 @@
+{
+  "clips": {
+    "new": [
+      { "from": { "cue": "dialog", "offset": -0.8 }, "to": { "cue": "created", "offset": 0.6 }, "rate": 3 },
+      { "from": { "cue": "ready", "offset": -0.4 }, "to": { "cue": "prompted", "offset": 1.6 }, "rate": 1 }
+    ],
+    "work": [{ "from": { "cue": "prompted", "offset": 1.6 }, "to": { "cue": "limit", "offset": -1.2 }, "rate": 3 }],
+    "limit": [{ "from": { "cue": "limit", "offset": -1.2 }, "to": { "cue": "limit", "offset": 3.0 }, "rate": 1 }],
+    "picker": [{ "from": { "cue": "picker", "offset": -1.0 }, "to": { "cue": "handoff", "offset": 1.0 }, "rate": 1 }],
+    "codex": [
+      { "from": "codex-up", "to": { "cue": "codex-done", "offset": -2.4 }, "rate": 7 },
+      { "from": { "cue": "codex-done", "offset": -2.4 }, "to": "codex-done", "rate": 1 }
+    ],
+    "delegate": [
+      { "from": { "cue": "delegate", "offset": -0.6 }, "to": { "cue": "delegate", "offset": 2.0 }, "rate": 1 },
+      { "from": { "cue": "delegate", "offset": 2.0 }, "to": { "cue": "dispatched", "offset": 6.0 }, "rate": 8 }
+    ],
+    "close": [{ "from": { "cue": "close", "offset": -1.5 }, "to": { "cue": "closed", "offset": 0.5 }, "rate": 1.6 }],
+    "reopen": [{ "from": { "cue": "reopened", "offset": -1.0 }, "to": "opened", "rate": 1.4 }],
+    "report": [{ "from": "opened", "to": "end", "rate": 1.1 }]
+  }
+}
