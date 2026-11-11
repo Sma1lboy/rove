@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { type MachineRow, useMachines } from "./machines-view.tsx"
 import type { AppModel } from "./model.ts"
+import { lastReply, requestRemembered } from "./remembered.ts"
 import { toast } from "./ui.ts"
 
 export interface LoginState {
@@ -65,6 +66,8 @@ export function markOf(probe: Probe | undefined, machine: MachineRow["state"] | 
   return status.account === rove ? "same" : "different"
 }
 
+const argsOf = (key: string): Record<string, unknown> => (key === LOCAL ? {} : { machine: key })
+
 const POLL_MS = 2000
 export const loginBusy = (status: GithubStatus | null | undefined): boolean =>
   status?.login?.state === "pending" || status?.login?.state === "syncing"
@@ -72,23 +75,39 @@ export const loginBusy = (status: GithubStatus | null | undefined): boolean =>
 export function useGithubConnector(model: AppModel) {
   const { client } = model
   const machines = useMachines(model)
-  const [probes, setProbes] = useState<Readonly<Record<string, Probe>>>({})
+  const [fresh, setProbes] = useState<Readonly<Record<string, Probe>>>({})
+  const [refreshing, setRefreshing] = useState(false)
+  // What each machine said last time shows at once while it is asked again, so reopening the page moves nothing.
+  const probes = useMemo(() => {
+    const seen: Record<string, Probe> = {}
+    for (const key of [LOCAL, ...machines.map((m) => m.alias)]) {
+      const last = fresh[key] ?? lastReply<Probe>(client, "github.status", argsOf(key))
+      if (last) seen[key] = last
+    }
+    return seen
+  }, [fresh, machines, client])
   const onlineKey = machines.flatMap((m) => (m.state === "online" ? [m.alias] : [])).join("\n")
   const online = useMemo(() => (onlineKey ? onlineKey.split("\n") : []), [onlineKey])
   const busyBefore = useRef(new Set<string>())
 
   const probe = useCallback(
     async (key: string): Promise<void> => {
-      const args = key === LOCAL ? {} : { machine: key }
-      const next = await client
-        .request<Probe>("github.status", args)
-        .catch((e): Probe => ({ status: null, reason: "failed", message: errorText(e) }))
+      const next = await requestRemembered<Probe>(client, "github.status", argsOf(key)).catch(
+        (e): Probe => ({ status: null, reason: "failed", message: errorText(e) }),
+      )
       setProbes((p) => ({ ...p, [key]: next }))
     },
     [client],
   )
 
-  const refresh = useCallback(() => Promise.all([LOCAL, ...online].map(probe)).then(() => {}), [probe, online])
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([LOCAL, ...online].map(probe))
+    } finally {
+      setRefreshing(false)
+    }
+  }, [probe, online])
 
   useEffect(() => {
     void refresh()
@@ -121,5 +140,5 @@ export function useGithubConnector(model: AppModel) {
     [client],
   )
 
-  return { machines, probes, refresh, probe, act }
+  return { machines, probes, refreshing, refresh, probe, act }
 }
