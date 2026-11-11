@@ -14,6 +14,13 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
  */
 
 describe("daemon process surface", () => {
+  it("daemon.status reports the PTY host's own socket, not one derived from the home", async () => {
+    const { ctx } = fakeCtx({})
+    const daemon = { ...ctx.daemon, homeDir: "/home/deck", ptySocketPath: () => "/run/user/1000/rove-pty.sock" }
+    const status = (await dispatch("daemon.status", {}, { ...ctx, daemon })) as Record<string, unknown>
+    expect(status.ptySocketPath).toBe("/run/user/1000/rove-pty.sock")
+  })
+
   it("daemon.status reports the ctx-provided facts in the wire shape", async () => {
     const { ctx } = fakeCtx({ listTasks: () => [TASK] })
     const status = (await dispatch("daemon.status", {}, ctx)) as Record<string, unknown>
