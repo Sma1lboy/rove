@@ -1,6 +1,6 @@
 import { type Event, type Version, fmtTime, who } from "./lib.ts"
 
-const ACTION = { send: "点了发到 X", download: "下载了视频", copy: "复制了文案" }
+const ACTION = { send: "点了发到 X", download: "下载了素材", copy: "复制了文案" }
 
 // The first thing on a detail page: has anyone posted this yet, and have you.
 export function SendStatus({ sends, me }: { sends: Event[]; me: string }) {
@@ -11,9 +11,7 @@ export function SendStatus({ sends, me }: { sends: Event[]; me: string }) {
     <div className="space-y-0.5 text-meta">
       {mine && <p className="text-warning">! 你在 {fmtTime(mine.at)} 发过了，再发就重复了</p>}
       {others.length > 0 && (
-        <p className="text-muted">
-          ✓ {others.map((e) => `${e.by}（${fmtTime(e.at)}）`).join("、")} 发过
-        </p>
+        <p className="text-muted">✓ {others.map((e) => `${e.by}（${fmtTime(e.at)}）`).join("、")} 发过</p>
       )}
     </div>
   )

@@ -1,11 +1,15 @@
 export type Video = { key: string; size: number; duration?: number; codec?: string }
+/** One attachment of an item: what X calls media. A post takes up to four. */
+export type Media = Video & { kind: "video" | "image" }
 export type Action = "send" | "download" | "copy"
 export type Event = { action: Action; post: number; by: string; at: string }
 export type Version = { posts: string[]; by: string; at?: string }
 export type Item = {
   id: string
   title: string
-  video: Video
+  /** Items pushed before images were allowed carry only this. */
+  video?: Video
+  media?: Media[]
   cover?: string
   posts: string[]
   sends: Event[]
@@ -58,6 +62,30 @@ export const logEvent = (id: string, action: Action, post = 0) => postJson(`/api
 
 export const vurl = (key: string) => `/v/${key}`
 
+export const mediaOf = (it: Pick<Item, "video" | "media">): Media[] =>
+  it.media?.length ? it.media : it.video ? [{ ...it.video, kind: "video" }] : []
+
+const MIME: Record<string, string> = {
+  mp4: "video/mp4",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+}
+export const extOf = (key: string) => key.split(".").pop()?.toLowerCase() ?? ""
+export const mimeOf = (key: string) => MIME[extOf(key)] ?? "application/octet-stream"
+
+/** "0:42" for one video, "3 张图" for images, "视频 + 2 张图" for a mix. */
+export function mediaLabel(list: Media[]) {
+  const videos = list.filter((m) => m.kind === "video")
+  const images = list.length - videos.length
+  const v =
+    videos.length === 1 ? fmtDur(videos[0].duration) || "视频" : videos.length > 1 ? `${videos.length} 个视频` : ""
+  const i = images > 0 ? `${images} 张图` : ""
+  return v && i ? `${v.includes(":") ? `视频 ${v}` : v} + ${i}` : v || i
+}
+
 export function fmtDur(s?: number) {
   if (!s) return ""
   const t = Math.round(s)
@@ -89,6 +117,24 @@ export function videoWarnings(v: Video, dims?: { w: number; h: number }) {
   if (v.size > 512 * 1024 * 1024) w.push(`大小 ${fmtSize(v.size)}，超过 X 的 512 MB 上限`)
   const r = dims ? dims.w / dims.h : 0
   if (r && (r > 2.39 || r < 1 / 2.39)) w.push(`画面 ${dims?.w}×${dims?.h}，超出 X 的 1:2.39 – 2.39:1`)
+  return w
+}
+
+/** Everything X might refuse about an item's attachments. `dims` is the first video's frame, once loaded. */
+export function mediaWarnings(list: Media[], dims?: { w: number; h: number }) {
+  const w: string[] = []
+  if (list.length > 4) w.push(`一共 ${list.length} 个附件，X 一条最多带 4 个`)
+  let first = true
+  for (const m of list) {
+    if (m.kind === "video") {
+      w.push(...videoWarnings(m, first ? dims : undefined))
+      first = false
+    } else {
+      const cap = extOf(m.key) === "gif" ? 15 : 5
+      if (m.size > cap * 1024 * 1024)
+        w.push(`图片 ${m.key.split("/").pop()} 有 ${fmtSize(m.size)}，超过 X 的 ${cap} MB 上限`)
+    }
+  }
   return w
 }
 

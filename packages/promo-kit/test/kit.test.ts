@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { probe } from "../kit.ts"
+import { classify, probe } from "../kit.ts"
 import { xLength } from "../src/xcount.ts"
 
 test("xLength follows X weighting: CJK 2, URL 23, emoji 2", () => {
@@ -26,4 +26,12 @@ test("probe reads mvhd duration and codec inside moov only", () => {
   const moov = box("moov", cat(box("mvhd", mvhd), box("stsd", new TextEncoder().encode("....avc1"))))
   expect(probe(cat(box("ftyp", new Uint8Array(8)), mdat, moov))).toEqual({ duration: 42.5, codec: "avc1" })
   expect(probe(mdat)).toBeNull()
+})
+
+test("classify takes mp4 videos and common images, and refuses the rest", () => {
+  expect(classify("a/clip.MP4")).toEqual({ kind: "video", mime: "video/mp4" })
+  expect(classify("card.png")).toEqual({ kind: "image", mime: "image/png" })
+  expect(classify("photo.JPEG")).toEqual({ kind: "image", mime: "image/jpeg" })
+  expect(classify("notes.pdf")).toBeNull()
+  expect(classify("clip.mov")).toBeNull()
 })

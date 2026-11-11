@@ -3,7 +3,12 @@
 // ponytail: only http(s):// and www. URLs are detected; X also linkifies bare
 // domains with a known TLD (rove.dev). Add a TLD list if that ever matters.
 const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi
-const LIGHT: [number, number][] = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]]
+const LIGHT: [number, number][] = [
+  [0, 4351],
+  [8192, 8205],
+  [8208, 8223],
+  [8242, 8247],
+]
 export const X_MAX = 280
 
 export function xLength(text: string): number {

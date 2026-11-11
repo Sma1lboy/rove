@@ -1,4 +1,4 @@
-// promo-kit: team X promo library. Static page + R2 videos + a tiny JSON index.
+// promo-kit: team X promo library. Static page + R2 media (videos, images) + a tiny JSON index.
 // Reads need a verified Cloudflare Access JWT (header, or the CF_Authorization
 // cookie on /api/*, which Access bypasses at the edge) or an upload token.
 // Writes need an upload token: the UPLOAD_TOKEN secret, or a per-user token a
@@ -22,8 +22,7 @@ const json = (obj, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8" },
   })
 
-const b64u = (s) =>
-  Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))
+const b64u = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("")
 const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))
@@ -44,7 +43,9 @@ async function accessUser(req, env) {
     }).then((r) => r.json())
     const jwk = certs.keys.find((k) => k.kid === head.kid)
     if (!jwk) return null
-    const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"])
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, [
+      "verify",
+    ])
     const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64u(s), new TextEncoder().encode(`${h}.${p}`))
     const aud = [].concat(body.aud)
     const ok = valid && aud.includes(env.ACCESS_AUD) && body.exp * 1000 > Date.now()
@@ -188,8 +189,19 @@ async function api(req, env, url, writer, viewer) {
 
   if (m && req.method === "PUT") {
     const item = await req.json()
-    if (!item.title || !validKey(item.video?.key) || !Array.isArray(item.posts))
-      return json({ error: "need title, video.key, posts[]" }, 400)
+    // An item carries media[] (videos and images); one pushed before images were allowed has only video.
+    const hasMedia =
+      Array.isArray(item.media) &&
+      item.media.length > 0 &&
+      item.media.length <= 8 &&
+      item.media.every((x) => validKey(x?.key) && (x.kind === "video" || x.kind === "image"))
+    if (
+      !item.title ||
+      !(hasMedia || validKey(item.video?.key)) ||
+      !Array.isArray(item.posts) ||
+      (item.media && !hasMedia)
+    )
+      return json({ error: "need title, media[] of {key, kind: video|image} (or video.key), posts[]" }, 400)
     item.id = m[1]
     const now = new Date().toISOString()
     item.updated = now
@@ -200,6 +212,9 @@ async function api(req, env, url, writer, viewer) {
       const posts = item.posts
       item.posts = idx.items[i].posts
       idx.items[i] = { ...idx.items[i], ...item }
+      // A re-push replaces the attachments whole: no video left over from the previous set.
+      if (hasMedia && !item.video) delete idx.items[i].video
+      if (!item.cover) delete idx.items[i].cover
       await saveVersion(env, idx.items[i], posts, writer)
     } else idx.items.unshift({ ...item, created: now })
     await writeIndex(env, idx)
