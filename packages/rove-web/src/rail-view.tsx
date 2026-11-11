@@ -37,6 +37,7 @@ import { useRowTip } from "./row-tip.tsx"
 import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { StartsChip } from "./starts-chip.tsx"
+import { useStatusMarkNotice } from "./status-mark-notice.ts"
 import { statusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
@@ -81,6 +82,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const machines = useMachines(model)
   const tabs = useStore(model.tabs)
   const engineIcons = useEngineIcons(model)
+  useStatusMarkNotice(payload !== null)
   const tabsSettled = useStore(model.tabsSettled)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
