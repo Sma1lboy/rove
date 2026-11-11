@@ -134,14 +134,24 @@ say "${BOLD}Installing ${PACKAGE}${VERSION:+@$VERSION}${RESET}"
 "$BUN" install -g "${PACKAGE}@${VERSION:-latest}" >/dev/null 2>&1 ||
   die "install failed — retry with output: ${BUN} install -g ${PACKAGE}@${VERSION:-latest}"
 
-# 3. Report, and say exactly what to add to PATH when the bin dir is missing.
+# 2b. The rove bin starts with `#!/usr/bin/env node` and hands over to Bun. On a
+# machine with no node, Bun answers to that name from beside the bin.
+if ! command -v node >/dev/null 2>&1 && [ ! -e "${BUN_BIN_DIR}/node" ]; then
+  ln -s "$BUN" "${BUN_BIN_DIR}/node" 2>/dev/null ||
+    die "this machine has no node, and ${BUN_BIN_DIR} is not writable to stand Bun in for it.\n  Install Node.js, then re-run this script."
+fi
+
+# 3. Run it, and say exactly what to add to PATH when the bin dir is missing.
 hash -r 2>/dev/null || true
 if command -v rove >/dev/null 2>&1; then
-  say "${GREEN}✓ $(rove -v 2>/dev/null || echo 'rove installed')${RESET}"
+  ROVE_VERSION="$(rove -v 2>&1)" || die "installed, but rove does not start:\n  ${ROVE_VERSION}"
+  say "${GREEN}✓ ${ROVE_VERSION}${RESET}"
   say ""
   say "Next: ${BOLD}cd${RESET} into a git repo and run ${BOLD}rove${RESET}."
 elif [ -x "${BUN_BIN_DIR}/rove" ]; then
-  say "${GREEN}✓ $(PATH="${BUN_BIN_DIR}:$PATH" "${BUN_BIN_DIR}/rove" -v 2>/dev/null || echo 'rove installed')${RESET}"
+  ROVE_VERSION="$(PATH="${BUN_BIN_DIR}:$PATH" "${BUN_BIN_DIR}/rove" -v 2>&1)" ||
+    die "installed, but rove does not start:\n  ${ROVE_VERSION}"
+  say "${GREEN}✓ ${ROVE_VERSION}${RESET}"
   say ""
   say "${BOLD}${BUN_BIN_DIR} is not on your PATH yet.${RESET} Add it, then reopen your shell:"
   say "  echo 'export PATH=\"${BUN_BIN_DIR}:\$PATH\"' >> ~/.$(basename "${SHELL:-sh}")rc"
