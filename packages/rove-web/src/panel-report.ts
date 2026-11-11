@@ -9,13 +9,16 @@ import { isNarrow, onNarrowChange } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { isPanelPush, panelFields } from "./panel-contract.ts"
 import { panelOpen } from "./panel-layout.ts"
-import { applyPanelPush } from "./panel-state.ts"
+import { applyPanelPush, onPanelsChange, panelShown } from "./panel-state.ts"
 import { zen } from "./ui.ts"
 
 export function watchPanel(model: AppModel, client: BridgeClient): void {
-  model.viewingExtras = () => panelFields({ narrow: isNarrow(), panelOpen: panelOpen.get(), zen: zen.get() })
+  // The panel of the task on screen, not the shared flag: an agent asking what the human sees gets this task's.
+  model.viewingExtras = () =>
+    panelFields({ narrow: isNarrow(), panelOpen: panelShown(model.selection.get().taskId), zen: zen.get() })
   const report = () => model.reportViewing()
   panelOpen.subscribe(report)
+  onPanelsChange(report)
   zen.subscribe(report)
   onNarrowChange(report)
   client.on("panel", (data) => {

@@ -33,11 +33,11 @@ panelWidth.subscribe(() => {
 })
 panelWidth.subscribe(slideLayout)
 
-/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close their columns. Closed until a task first opens it, and closed again with its last column. */
+/** The panel beside the terminal (zen still hides it); the Files / Diff / Browser buttons at the workspace's top right open and close their columns. Off until a panel is first opened in this browser; from then each task's panel shows while that task has a column (`usePanelShown`), so one task closing its last column does not shut another's. */
 export const panelOpen = createStore<boolean>(localStorage.getItem(PANEL_OPEN_KEY) === "1")
 panelOpen.subscribe(() => localStorage.setItem(PANEL_OPEN_KEY, panelOpen.get() ? "1" : "0"))
 
-/** The panel covers the terminal's column too. Per page load, and undone whenever the panel closes. */
+/** The panel covers the terminal's column too. Per page load, and undone whenever a task's panel closes. */
 export const panelExpanded = createStore<boolean>(false)
 panelOpen.subscribe(() => {
   if (!panelOpen.get()) panelExpanded.set(false)
