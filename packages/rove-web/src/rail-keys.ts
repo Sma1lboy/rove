@@ -56,9 +56,6 @@ const toggled = (now: ReadonlySet<string>, id: string): ReadonlySet<string> => {
 export function useRailFilters() {
   const sort = useStore(railSort)
   const [search, setSearch] = useState({ active: false, query: "" })
-  // The Archived fold at the end; session-scoped.
-  const [archivedOpen, setArchivedOpen] = useState(false)
-  const toggleArchived = () => setArchivedOpen((open) => !open)
   // Collapsed project headers (row ids); kept per browser, as Claude's sidebar sections.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => loadSet(COLLAPSED_KEY))
   const toggleProject = (id: string) =>
@@ -92,8 +89,6 @@ export function useRailFilters() {
     cycleSort: cycleRailSort,
     search,
     setSearch,
-    archivedOpen,
-    toggleArchived,
     collapsed,
     toggleProject,
     hand,
@@ -182,11 +177,10 @@ export function useRailKeys(
     if (row) setCursor(row.id)
   }
   const open = (row: Stop | undefined) => {
-    if (row?.kind === "archived") filters.toggleArchived()
     if (row?.kind === "task") model.select(row.task.id)
     if (row?.kind === "round") openCompare(row.groupId)
     if (row?.kind === "pane") openPane(model, row)
-    if (row && row.kind !== "archived") enterWorkspace()
+    if (row) enterWorkspace()
   }
   const verb = (row: Stop | undefined, id: RailId) => {
     if (row?.kind !== "task") return

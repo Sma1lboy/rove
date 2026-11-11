@@ -1,14 +1,12 @@
 /**
  * Archived tasks in the sidebar: gone from every project (so a project left
- * with only its main folds like any idle one), back in ONE fold at the end of
- * the tree, and the row menu that hides or restores them.
+ * with only its main folds like any idle one) and listed nowhere else in the
+ * tree, and the row menu that hides or restores them.
  */
 
 import { describe, expect, test } from "vitest"
 import { archiveTaskAction } from "../../src/tui-react/workspace/archive-task-action"
-import { archivedTasks, buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
-import { ARCHIVED_ROW_ID, buildRowsFromGroups } from "../../src/tui/panes/sidebar/tree-core"
-import type { TreeRow } from "../../src/tui/panes/sidebar/tree-core"
+import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
@@ -58,47 +56,6 @@ describe("archived tasks leave the projects", () => {
     expect(buildSidebarGroups({ tasks, tabsByTask: tabs({ m: 0 }) })).toEqual([])
     // Unknown tabs never hide, archived or not.
     expect(buildSidebarGroups({ tasks, tabsByTask: new Map() })).toHaveLength(1)
-  })
-
-  test("archivedTasks keeps input order and drops rows on their way out", () => {
-    const tasks = [
-      task("a", { archived: true }),
-      task("live"),
-      task("deleting", { archived: true, deletion: { phase: "queued" } as Task["deletion"] }),
-      task("b", { archived: true }),
-    ]
-    expect(archivedTasks(tasks).map((t) => t.id)).toEqual(["a", "b"])
-  })
-})
-
-describe("the Archived fold", () => {
-  const live = [main("m", "/repos/rove"), task("live")]
-  const archived = [task("p", { archived: true }), task("c", { archived: true, parentTaskId: toTaskId("p") })]
-  const rows = (expanded: boolean) =>
-    buildRowsFromGroups({
-      groups: buildSidebarGroups({ tasks: [...live, ...archived], tabsByTask: new Map() }),
-      archived,
-      archivedExpanded: expanded,
-    })
-  const shape = (all: readonly TreeRow[]) => all.map((row) => `${row.kind}:${row.id}@${row.depth}`)
-
-  test("closed, it is one row after every project", () => {
-    expect(shape(rows(false))).toEqual([
-      "project:/repos/rove@0",
-      "worktree:m@1",
-      "worktree:live@1",
-      `archived:${ARCHIVED_ROW_ID}@0`,
-    ])
-    expect(rows(false).at(-1)).toMatchObject({ count: 2, expanded: false })
-  })
-
-  test("open, its tasks follow it, children under their archived parent", () => {
-    expect(shape(rows(true)).slice(3)).toEqual([`archived:${ARCHIVED_ROW_ID}@0`, "worktree:p@1", "worktree:c@2"])
-  })
-
-  test("nothing archived means no fold row", () => {
-    const plain = buildRowsFromGroups({ groups: buildSidebarGroups({ tasks: live, tabsByTask: new Map() }) })
-    expect(plain.some((row) => row.kind === "archived")).toBe(false)
   })
 })
 

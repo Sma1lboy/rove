@@ -11,7 +11,6 @@ import { SCRATCH_SECTION_ID, type TreeRow } from "../../../tui/panes/sidebar/tre
 import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { ArchivedTreeRow } from "./archived-row"
 import { SectionHeader } from "./chrome"
 import type { TreeRowShared } from "./tree-row-shell"
 import { RecentJumpRow, WorktreeTreeRow } from "./tree-rows"
@@ -64,18 +63,6 @@ export function SidebarTreeBody(props: {
                 rowId={row.id}
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 task={row.task}
-                shared={props.shared}
-              />
-            )
-          }
-          if (row.kind === "archived") {
-            return (
-              <ArchivedTreeRow
-                key={row.id}
-                rowId={row.id}
-                flatIndex={props.flatIndexOf.get(row.id) ?? -1}
-                count={row.count}
-                expanded={row.expanded}
                 shared={props.shared}
               />
             )

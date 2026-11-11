@@ -21,9 +21,6 @@ export const RECENT_ROW_ID = "~recent"
  */
 export const SCRATCH_SECTION_ID = "~scratch"
 
-/** The Archived fold row at the end of the tree. */
-export const ARCHIVED_ROW_ID = "~archived"
-
 /** Compose a tab row's navigation id. */
 export function tabRowId(taskId: string, tabId: string): string {
   return `${taskId}${TAB_ROW_SEPARATOR}${tabId}`

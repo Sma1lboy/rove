@@ -2072,10 +2072,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
   `running` or `permission_needed`; `--force` archives anyway and still stops
   nothing. A project's `main` task cannot be archived (`MAIN_TASK`), because
-  it is the project row itself. In the sidebar and the rail, archived tasks
-  sit in one "Archived" fold at the end of the list, whose row menus offer
-  Unarchive. A project whose other tasks are all archived is hidden like any
-  idle project.
+  it is the project row itself. The sidebar and the rail do not list
+  archived tasks. To bring one back from the interface, open the command
+  palette (`ctrl+a` `/`), type its title and pick it. A project whose other
+  tasks are all archived is hidden like any idle project.
 
 ## worktree
 
