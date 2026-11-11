@@ -36,7 +36,7 @@ import { readCodexTurns } from "./codex-local/turns.ts"
 import { CopilotHookAdapter } from "./copilot-local/hook-adapter.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import { trustCopilotWorktree } from "./copilot-local/trust.ts"
-import { CLAUDE_ICON, CODEX_ICON, COPILOT_ICON, KIMI_ICON } from "./engine-icons.ts"
+import { CLAUDE_ICON, CODEX_ICON, COPILOT_ICON, KIMI_ICON, OMP_ICON } from "./engine-icons.ts"
 import {
   bobHistoryReader,
   claudeHistoryReader,
@@ -321,6 +321,7 @@ export const BUILTIN_ENGINES: Record<BuiltinVendorId, EngineRegistryEntry> = {
     vendor: "omp",
     builtin: true,
     displayName: ompIdentity.shortName,
+    icon: OMP_ICON,
     defaultCommand: ["omp"],
     // Same flag and level set as pi (omp is the fork that kept both).
     effortLevels: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
