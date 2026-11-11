@@ -118,6 +118,16 @@ function plainExt(name: string | undefined): string {
   return /\.([A-Za-z0-9]{1,10})$/.exec(name ?? "")?.[1]?.toLowerCase() ?? "bin"
 }
 
+/** The file's own name without its extension, cut down to what is safe in a path and needs no quoting in a shell. */
+function plainStem(name: string | undefined): string {
+  return (name ?? "")
+    .replace(/^.*[\\/]/, "")
+    .replace(/\.[^.]*$/, "")
+    .replace(/[^\p{L}\p{N}_-]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+}
+
 /** The image/PDF type a file claims, by its mime or else its extension. */
 function claimedType(mime: string | undefined, ext: string): AttachmentMime | undefined {
   if (mime !== undefined && Object.hasOwn(ATTACHMENT_TYPES, mime)) return mime as AttachmentMime
@@ -316,9 +326,11 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
     "attachment.put": {
       kind: "write",
       destructive: false,
-      wraps: "writes ~/.rove/attachments/<generated name> (tui/lib/attachments.ts layout)",
+      wraps: "writes ~/.rove/attachments/<generated name>-<the file's own name> (tui/lib/attachments.ts layout)",
       async run(a) {
-        const ext = plainExt(optStr(a, "name"))
+        const name = optStr(a, "name")
+        const ext = plainExt(name)
+        const stem = plainStem(name)
         const claimed = claimedType(optStr(a, "mime"), ext)
         const type = claimed ? ATTACHMENT_TYPES[claimed] : { ext, kind: "file" as const }
         const encoded = str(a, "data")
@@ -335,7 +347,7 @@ export function terminalOps(deps: TerminalOpDeps = realDeps): OpTable {
           throw new BridgeError("BAD_ARGS", `data is not a ${type.ext} file`)
         }
         const stamp = deps.now().toISOString().slice(0, 10).replaceAll("-", "")
-        const path = join(deps.attachmentsDir(), `attach-${stamp}-${deps.nonce()}.${type.ext}`)
+        const path = join(deps.attachmentsDir(), `attach-${stamp}-${deps.nonce()}${stem ? `-${stem}` : ""}.${type.ext}`)
         deps.writeFile(path, bytes)
         return { path, kind: type.kind, bytes: bytes.length }
       },

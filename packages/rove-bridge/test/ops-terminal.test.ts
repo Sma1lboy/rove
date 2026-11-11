@@ -312,11 +312,11 @@ describe("attachment.put", () => {
     written.length = 0
     const csv = { data: Buffer.from("a,b\n").toString("base64") }
     expect((await run("attachment.put", { ...csv, mime: "text/csv", name: "Q3 report.CSV" })).result).toMatchObject({
-      path: "/home/.rove/attachments/attach-20261005-deadbeef.csv",
+      path: "/home/.rove/attachments/attach-20261005-deadbeef-Q3-report.csv",
       kind: "file",
     })
     expect((await run("attachment.put", { ...csv, name: "../../.ssh/authorized_keys" })).result).toMatchObject({
-      path: "/home/.rove/attachments/attach-20261005-deadbeef.bin",
+      path: "/home/.rove/attachments/attach-20261005-deadbeef-authorized_keys.bin",
     })
   })
 

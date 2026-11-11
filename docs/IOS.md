@@ -225,7 +225,7 @@ Area ops (`packages/rove-bridge/src/ops/terminal.ts`); each wraps one verb, RPC 
 | `queue.list` | `taskId` | `{items: [{id, taskId, tabId, text, expectReport, at, lastError?}]}` | `queue-list` |
 | `queue.edit` | `id` (`q-N`), `text` | `{edited, item?, reason?}` | `queue-edit` |
 | `queue.cancel` | `id` (`q-N`) | `{cancelled}` | `queue-cancel` |
-| `attachment.put` | `data` (base64, ≤ 5 MB), `mime?`, `name?` | `{path, kind, bytes}` (`kind`: `image`, `pdf` or `file`) | writes `~/.rove/attachments/attach-<date>-<nonce>.<ext>` |
+| `attachment.put` | `data` (base64, ≤ 5 MB), `mime?`, `name?` | `{path, kind, bytes}` (`kind`: `image`, `pdf` or `file`) | writes `~/.rove/attachments/attach-<date>-<nonce>[-<name>].<ext>` |
 
 `attachment.put` takes any file. One that claims to be png/jpeg/gif/webp/pdf, by `mime` or by the extension of `name`, must start with that type's magic bytes; any other keeps the extension of `name` (`bin` without one). A continuing session is always a transcript handoff: a native fork needs an attached desktop, so the phone offers none.
 
