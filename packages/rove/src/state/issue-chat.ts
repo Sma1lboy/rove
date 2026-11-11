@@ -24,13 +24,13 @@ function displayProductName(): string {
   return ROVE_PRODUCT_NAME.charAt(0).toUpperCase() + ROVE_PRODUCT_NAME.slice(1)
 }
 
-/** Next `images[N]:`/`pdf[N]:` placeholder index in a body draft: one past the
- *  highest index already present (the counter is shared across both prefixes).
+/** Next `images[N]:`/`pdf[N]:`/`files[N]:` placeholder index in a body draft: one past the
+ *  highest index already present (the counter is shared across the prefixes).
  *  Reading the max, not the count, keeps a draft edited to leave a gap — a
  *  deleted middle line — from minting a label that collides with a live one. */
 export function nextPlaceholderIndex(body: string): number {
   let max = -1
-  for (const m of body.matchAll(/^(?:images|pdf)\[(\d+)\]:/gm)) {
+  for (const m of body.matchAll(/^(?:images|pdf|files)\[(\d+)\]:/gm)) {
     const n = Number.parseInt(m[1] as string, 10)
     if (n > max) max = n
   }

@@ -11,7 +11,7 @@ import { relativeAge } from "@sma1lboy/rove/src/lib/relative-time.ts"
 import { type ClipboardEvent, type DragEvent, type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { errorText } from "./dialogs.tsx"
 import { t } from "./i18n/index.ts"
-import { MAX_ATTACHMENT_BYTES, attachableFiles, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
+import { MAX_ATTACHMENT_BYTES, putAttachment, withImagePlaceholders } from "./kanban-attach.ts"
 import { PLACEMENTS, type Placement } from "./kanban-start.ts"
 import { deviceHint, isTouch } from "./key-hints.ts"
 import type { AppModel } from "./model.ts"
@@ -205,13 +205,13 @@ export function IssueDrawer(props: {
     }
   }
   const onPaste = (e: ClipboardEvent) => {
-    const files = attachableFiles(e.clipboardData.files)
+    const files = Array.from(e.clipboardData.files)
     if (files.length === 0) return
     e.preventDefault()
     void attach(files)
   }
   const onDrop = (e: DragEvent) => {
-    const files = attachableFiles(e.dataTransfer.files)
+    const files = Array.from(e.dataTransfer.files)
     e.preventDefault()
     if (files.length > 0) void attach(files)
   }

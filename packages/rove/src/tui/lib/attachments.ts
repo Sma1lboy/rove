@@ -66,9 +66,10 @@ export function asAttachmentPaths(pasted: string, exists: (p: string) => boolean
   return paths
 }
 
-/** Chip / prompt-line label: `images[0]` for images, `pdf[1]` for PDFs. */
+/** Chip / prompt-line label: `images[0]` for images, `pdf[1]` for PDFs, `files[2]` for any other file. */
 export function attachmentLabel(path: string, index: number): string {
-  return PDF_EXTENSION_REGEX.test(path) ? `pdf[${index}]` : `images[${index}]`
+  if (PDF_EXTENSION_REGEX.test(path)) return `pdf[${index}]`
+  return ATTACHMENT_EXTENSION_REGEX.test(path) ? `images[${index}]` : `files[${index}]`
 }
 
 /**

@@ -308,9 +308,23 @@ describe("attachment.put", () => {
     expect(Buffer.from(written[0]?.bytes ?? []).equals(PNG)).toBe(true)
   })
 
-  test("types outside png/jpeg/gif/webp/pdf are refused, and the bytes must match the declared type", async () => {
+  test("any other file is stored under its own extension, and a name cannot steer the path", async () => {
     written.length = 0
-    await expect(put("image/svg+xml", PNG)).rejects.toThrow("mime must be one of")
+    const csv = { data: Buffer.from("a,b\n").toString("base64") }
+    expect((await run("attachment.put", { ...csv, mime: "text/csv", name: "Q3 report.CSV" })).result).toMatchObject({
+      path: "/home/.rove/attachments/attach-20261005-deadbeef.csv",
+      kind: "file",
+    })
+    expect((await run("attachment.put", { ...csv, name: "../../.ssh/authorized_keys" })).result).toMatchObject({
+      path: "/home/.rove/attachments/attach-20261005-deadbeef.bin",
+    })
+  })
+
+  test("a file that claims an image or PDF type, by mime or by name, must start like one", async () => {
+    written.length = 0
+    await expect(run("attachment.put", { name: "shot.png", data: Buffer.from("text").toString("base64") })).rejects.toThrow(
+      "not a png",
+    )
     await expect(put("application/pdf", PNG)).rejects.toThrow("not a pdf")
     await expect(put("image/png", Buffer.from("not an image"))).rejects.toThrow("not a png")
     // RIFF alone is not WebP.

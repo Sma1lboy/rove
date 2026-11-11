@@ -1,10 +1,10 @@
-/** Image/PDF attachments for a message: stored on the Mac by `attachment.put`, referenced like the TUI composer does. */
+/** File attachments for a message: stored on the Mac by `attachment.put`, referenced like the TUI composer does. */
 
 import { type ClipboardEvent, type DragEvent, type ReactNode, useRef, useState } from "react"
+import { t } from "./i18n/index.ts"
+import { MAX_ATTACHMENT_BYTES } from "./kanban-attach.ts"
 import type { AppModel } from "./model.ts"
 import { AttachThumbs } from "./ui/attach-thumbs.tsx"
-
-const MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"]
 
 /** Drop a file on the box, or paste one into its field; text pastes pass through. */
 export function fileTargets(attach: (files: File[]) => void) {
@@ -39,7 +39,6 @@ export function AttachPicker(props: {
       {props.children}
       <input
         type="file"
-        accept={MIMES.join(",")}
         multiple
         className="sr-only"
         disabled={props.disabled}
@@ -65,11 +64,13 @@ export interface Attachment {
   readonly kind?: string
 }
 
-/** `images[0]: /path` lines, as the TUI appends them to the first prompt. */
+const LABEL: Record<string, string> = { image: "images", pdf: "pdf" }
+
+/** `images[0]: /path` lines, as the TUI appends them to the first prompt; a file that is neither image nor PDF is `files[N]`. */
 export function withRefs(prompt: string, attachments: readonly Attachment[]): string {
   const stored = attachments.filter((a) => a.path !== undefined)
   if (stored.length === 0) return prompt
-  const refs = stored.map((a, i) => `${a.kind === "pdf" ? "pdf" : "images"}[${i}]: ${a.path}`).join("\n")
+  const refs = stored.map((a, i) => `${LABEL[a.kind ?? "image"] ?? "files"}[${i}]: ${a.path}`).join("\n")
   return `${prompt}\n\n${refs}`
 }
 
@@ -113,7 +114,7 @@ function loadKept(key: string | undefined): readonly Attachment[] {
 let nextId = 0
 
 /**
- * Dropped or pasted files that are images or PDFs; anything else is ignored. A file shows at once and uploads behind
+ * Dropped or pasted files. A file shows at once and uploads behind
  * it; a refusal goes to `onError`. With `keepKey` the stored ones survive a reload of this browser tab.
  */
 export function useAttachments(model: AppModel, onError: (message: string) => void, keepKey?: string) {
@@ -132,12 +133,14 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
     }
   }
   const upload = async (file: File): Promise<void> => {
+    if (file.size > MAX_ATTACHMENT_BYTES) return onError(t("pages.attachTooLarge", { name: file.name }))
     const id = `${Date.now()}-${nextId++}`
     const thumb = await thumbOf(file)
     update((now) => [...now, { id, name: file.name, size: file.size, mime: file.type, ...(thumb ? { thumb } : {}) }])
     try {
       const res = await model.client.request<{ path: string; kind: string }>("attachment.put", {
         mime: file.type,
+        name: file.name,
         data: await toBase64(file),
       })
       update((now) => now.map((a) => (a.id === id ? { ...a, path: res.path, kind: res.kind } : a)))
@@ -148,7 +151,6 @@ export function useAttachments(model: AppModel, onError: (message: string) => vo
   }
   const attach = (files: Iterable<File>): void => {
     for (const file of files) {
-      if (!MIMES.includes(file.type)) continue
       const job = upload(file)
       uploads.current.add(job)
       void job.finally(() => uploads.current.delete(job))
