@@ -79,6 +79,11 @@ export const en = {
         "Engine icon: its colour is the state. Dots: the icon keeps its own colours and a dot mark at the row's end is the state.",
       statusMarkEngine: "Engine icon",
       statusMarkDots: "Dots",
+      previewWorking: "Working",
+      previewDone: "Finished, unread",
+      previewIdle: "Idle",
+      previewWaiting: "Waiting for you",
+      previewBroken: "Broken",
     },
     notifications: {
       toastNote: "A popup in the corner of this page.",
@@ -314,6 +319,11 @@ export const zh: typeof en = {
       statusMarkNote: "引擎图标：图标的颜色表示状态。点阵：图标保持自己的颜色，由行尾的点阵表示状态。",
       statusMarkEngine: "引擎图标",
       statusMarkDots: "点阵",
+      previewWorking: "正在跑",
+      previewDone: "完成未读",
+      previewIdle: "空闲",
+      previewWaiting: "等你回答",
+      previewBroken: "出错",
     },
     notifications: {
       toastNote: "本页角落里的弹出提示。",

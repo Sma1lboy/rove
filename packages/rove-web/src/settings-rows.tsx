@@ -19,11 +19,13 @@ import {
 } from "./ui/settings.ts"
 import { Switch } from "./ui/switch.tsx"
 
-export function Group(props: { title?: string; hint?: string; children: ReactNode }) {
+/** `lead` sits between the title and the rows: a preview of what the group's settings change. */
+export function Group(props: { title?: string; hint?: string; lead?: ReactNode; children: ReactNode }) {
   return (
     <section className={SETTINGS_GROUP}>
       {props.title && <h2 className={SETTINGS_GROUP_LABEL}>{props.title}</h2>}
       {props.hint && <p className={SETTINGS_GROUP_HINT}>{props.hint}</p>}
+      {props.lead}
       <div className={SETTINGS_ROWS}>{props.children}</div>
     </section>
   )
