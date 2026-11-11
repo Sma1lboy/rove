@@ -1,7 +1,6 @@
 /**
- * A new version asks once, with its release notes: Update, Not now, or Skip this version. Not now keeps quiet until the
- * page is loaded again; Skip keeps quiet about that version in this browser, and the next one asks
- * again. Settings' `update.notify` off silences it with the rail chip. The chip and the Update
+ * A new version asks with its release notes: Update, Not now, or Skip this version. However it is answered, this
+ * browser is not asked again for five hours, about any version; Skip also keeps quiet about that version for good. Settings' `update.notify` off silences it with the rail chip. The chip and the Update
  * page still show a skipped version.
  */
 
@@ -18,19 +17,21 @@ import { ACTIONS } from "./ui/text.ts"
 import { NotesRange, updateAutoRun, updateState } from "./update-view.tsx"
 
 const SKIP_KEY = "rove.web.update.skipped"
+const ASKED_AT_KEY = "rove.web.update.askedAt"
+/** Releases land several times a day; one prompt per stretch of work is enough. */
+export const ASK_GAP_MS = 5 * 60 * 60 * 1000
 
-/** The version to ask about, or null. `asked` is the one already asked about since the page loaded. */
+/** The version to ask about, or null. `askedAt` is when this browser was last asked (ms), about any version. */
 export function versionToAsk(o: {
   readonly latest: string | null
   readonly notify: boolean
   readonly skipped: string | null
-  readonly asked: string | null
+  readonly askedAt: number | null
+  readonly now: number
 }): string | null {
-  if (!o.latest || !o.notify) return null
-  return o.latest === o.skipped || o.latest === o.asked ? null : o.latest
+  if (!o.latest || !o.notify || o.latest === o.skipped) return null
+  return o.askedAt !== null && o.now - o.askedAt < ASK_GAP_MS ? null : o.latest
 }
-
-let asked: string | null = null
 
 /** Call after each update check. A dialog already open is left alone; the next check asks. */
 export function maybeAskToUpdate(): void {
@@ -39,10 +40,11 @@ export function maybeAskToUpdate(): void {
     latest: state?.info?.hasUpdate ? state.info.latest : null,
     notify: prefsStore.get().prefs.updateNotify,
     skipped: localStorage.getItem(SKIP_KEY),
-    asked,
+    askedAt: Number(localStorage.getItem(ASKED_AT_KEY)) || null,
+    now: Date.now(),
   })
   if (!latest || dialog.get() !== null) return
-  asked = latest
+  localStorage.setItem(ASKED_AT_KEY, String(Date.now()))
   dialog.set(<UpdatePrompt current={state?.current ?? ""} latest={latest} notes={state?.notes ?? []} />)
 }
 
