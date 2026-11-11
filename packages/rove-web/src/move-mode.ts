@@ -5,7 +5,6 @@
  */
 
 import type { AppModel } from "./model.ts"
-import type { DropMove } from "./rail-blocks.ts"
 import { railGroup, setRailGroup } from "./rail-group.ts"
 import { railSort, setRailSort } from "./rail-sort.ts"
 import type { NavRow } from "./rail.ts"
@@ -50,17 +49,4 @@ export async function moveTaskBy(model: AppModel, taskId: string, steps: number)
   } catch (err) {
     toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
   }
-}
-
-/** A drop that changes the task's pin pins first: the daemon moves a task only among tasks with its pin. */
-export async function dropTask(model: AppModel, taskId: string, move: DropMove): Promise<void> {
-  if (move.pin !== undefined) {
-    try {
-      await model.act("task.pin", { taskId, pinned: move.pin })
-    } catch (err) {
-      toast(tc("tasks", "toast.moveFailed", { error: err instanceof Error ? err.message : String(err) }), "error")
-      return
-    }
-  }
-  await moveTaskBy(model, taskId, move.steps)
 }

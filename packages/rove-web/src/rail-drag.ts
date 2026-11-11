@@ -1,7 +1,7 @@
 /**
  * Drag to reorder: a project header among projects (`project.move`, the whole project, with or without a
- * main checkout), a task among its project's tasks, as the TUI's move mode does with keys. A task let go at the top of its project or among its pinned tasks is
- * pinned; a pinned one let go among the rest is unpinned. While dragging, the rows slide to where
+ * main checkout), a task among its project's tasks with its pin, as the TUI's move mode does with keys. A drag never
+ * pins or unpins. While dragging, the rows slide to where
  * the drop would leave them; there is no insertion line. They slide by transform, not by reordering
  * the DOM: Chrome cancels a drag whose source node moves. Any sort drags; a drop outside manual
  * order lands in manual order and the rail switches to it, the only sort that shows where the row went.
@@ -11,8 +11,8 @@ import type { CSSProperties, DragEvent, HTMLAttributes } from "react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { TaskRow } from "rove-bridge/protocol"
 import type { AppModel } from "./model.ts"
-import { dropTask } from "./move-mode.ts"
-import { type DropSide, blockEnd, dropMove, dropsOn, opensProject, previewDrop } from "./rail-blocks.ts"
+import { moveTaskBy } from "./move-mode.ts"
+import { type DropSide, blockEnd, dropSteps, dropsOn, previewDrop } from "./rail-blocks.ts"
 import { useRowSlide } from "./rail-slide.ts"
 import { setRailSort } from "./rail-sort.ts"
 import { type NavRow, isNoProject } from "./rail.ts"
@@ -214,8 +214,8 @@ export function useRowDrag(
           .finally(settle)
         return
       }
-      const move = dropMove(tasks, now.from, now.to, now.side, opensProject(shown.current, now.fromRow, now.toRow))
-      if (move) void dropTask(model, now.from.id, move).finally(settle)
+      const steps = dropSteps(tasks, now.from, now.to, now.side)
+      if (steps) void moveTaskBy(model, now.from.id, steps).finally(settle)
       else land.current()
     },
   }
