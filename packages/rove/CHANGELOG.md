@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.288
+
+### Patch Changes
+
+- [#1973](https://github.com/Sma1lboy/rove/pull/1973) [`6ea367d`](https://github.com/Sma1lboy/rove/commit/6ea367d5391246d37075d31a5236641f8094fd85) A full disk while creating a task's worktree or cloning a repo now says so ("The disk is full… Free some space, then try again") in place of git's raw error. The web composer keeps your draft and adds a Retry button, and the task that could not start is removed, so retrying does not leave a second row. `rove api add` gives the same advice in its hint. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1969](https://github.com/Sma1lboy/rove/pull/1969) [`2faed93`](https://github.com/Sma1lboy/rove/commit/2faed93dea59a70ce825450268a92edc431a6a03) - A repo can ship `.rove/teardown.sh`, which runs in a task's worktree just before Rove removes it, so the containers, databases or ports that `init.sh` set up for that task are cleaned up with it; a failing or slow script is logged and never blocks the removal. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1970](https://github.com/Sma1lboy/rove/pull/1970) [`24d71c0`](https://github.com/Sma1lboy/rove/commit/24d71c09f50d72fac03deb7903a36d38674ff68c) Web: starting a task on another machine, the on/off `Engine there` chip is gone from the bar. Where the agent runs is now `Agent runs on` in the composer's `⋯` menu, with a line on what each choice needs. The agent still runs on this machine unless you change it there. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1965](https://github.com/Sma1lboy/rove/pull/1965) [`9d2e84d`](https://github.com/Sma1lboy/rove/commit/9d2e84d38389293cfec9ab0051e4a978752e6f10) Web, on a phone: while you hold to talk, the bubble shows only what is being said (your voice as a waveform, then the words) and the control under it shows the time and where to slide. After you let go the words grey out while they are finished, the control counts the wait with three moving dots, and the bubble no longer dims or slips behind the strip over the terminal. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1966](https://github.com/Sma1lboy/rove/pull/1966) [`74083c9`](https://github.com/Sma1lboy/rove/commit/74083c946e2267a24ea804e62ae3784d349979fc) Web, on a phone: the waveform in the hold-to-talk bubble spans the whole bubble on any screen width. On wider phones it stopped short and left a blank stretch at the left. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1971](https://github.com/Sma1lboy/rove/pull/1971) [`e8cfaef`](https://github.com/Sma1lboy/rove/commit/e8cfaef5117b0d4e1745a30a4dea9a54e7e73d98) Web: the terminal keeps a small gap on its left, so status dots and prompts in the first column no longer touch the pane's border. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1975](https://github.com/Sma1lboy/rove/pull/1975) [`f7bd88a`](https://github.com/Sma1lboy/rove/commit/f7bd88a017583fe0ecad7d357e47456001448481) Web: the "new version is available" prompt asks at most once every five hours in a browser. It used to come back on every page load and for every new release, which is several times a day. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1968](https://github.com/Sma1lboy/rove/pull/1968) [`fc07dcb`](https://github.com/Sma1lboy/rove/commit/fc07dcba4bd4638180a99e26138c93bed264abea) - A new task the web composer starts on a Windows machine runs its agent on that machine again, as the docs promise, instead of trying to keep the agent here and failing to reach the Windows worktree; `rove api add --workspace-on <alias>` now refuses a Windows machine up front with `UNSUPPORTED` and points at `--engine-there`, before that machine cuts a worktree it would only take back down. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.287
 
 ### Patch Changes
