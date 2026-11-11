@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react"
 import { AttachPicker, AttachmentThumbs, fileTargets, useAttachments, withRefs } from "./attachments.tsx"
 import { t, useLocale } from "./i18n/index.ts"
+import { isTouch } from "./key-hints.ts"
 import { openCompare } from "./layout.ts"
 import type { AppModel } from "./model.ts"
 import { BranchChips } from "./new-session-branch.tsx"
@@ -51,8 +52,8 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { ClipGlyph, MicFace } from "./ui/term-composer.tsx"
-import { DictationButton } from "./voice/dictation-button.tsx"
+import { ClipGlyph, HoldFace, MicFace, composerHold } from "./ui/term-composer.tsx"
+import { DictationButton, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
 export function startNewTask(repo?: string, machine?: string): void {
@@ -122,7 +123,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const [error, setError] = useState<string | null>(null)
   const { attachments, attach, remove, ready, clear } = useAttachments(model, setError, ATTACHMENTS_KEY)
   const area = useRef<HTMLTextAreaElement>(null)
+  const voiceHosted = useVoiceHosted(model.client)
 
+  // A phone talks first: the mic is the wide hold-to-talk control the terminal's bar has, not an icon.
+  const talks = isTouch() && voiceHosted === true
   // Dictation lands at the caret and never submits: you read it before it goes anywhere.
   const insertDictated = (text: string) => {
     const el = area.current
@@ -371,10 +375,17 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               })}
               onText={insertDictated}
               disabled={busy}
-              look={C.cardIcon}
-              face={(state) => <MicFace state={state} />}
+              look={talks ? composerHold : C.cardIcon}
+              idle={talks ? t("voice.hold") : undefined}
+              face={(state) =>
+                talks ? (
+                  <HoldFace state={state} idle={t("voice.hold")} working={t("voice.working")} />
+                ) : (
+                  <MicFace state={state} />
+                )
+              }
             />
-            <span className={C.GROW} />
+            {!talks && <span className={C.GROW} />}
             <button type="submit" className={buttonClass()} disabled={busy}>
               {t("newSession.start")}
             </button>

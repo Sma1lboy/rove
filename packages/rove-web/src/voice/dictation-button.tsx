@@ -80,10 +80,13 @@ export function useVoiceHosted(client: BridgeClient): boolean | null {
   useEffect(() => {
     if (asked.has(client)) return
     asked.add(client)
-    client.request<VoiceStatusReply>("voice.status").then(
-      (status) => store.set(isAvailable(status)),
-      () => store.set(false),
-    )
+    // On open, not on mount: asked before the socket is up, the request fails and the mic would stay hidden.
+    client.onOpen(() => {
+      client.request<VoiceStatusReply>("voice.status").then(
+        (status) => store.set(isAvailable(status)),
+        () => store.set(false),
+      )
+    })
   }, [client, store])
   return available
 }
