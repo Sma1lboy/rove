@@ -10,6 +10,7 @@ Static rendition hand-written from `packages/rove-web/src/ui/button.tsx`.
 - `danger`: the same button in `error`, for a confirmed destructive step ("Delete").
 - `box`: the Engines page's smaller one (5×12px, 500 weight).
 - `link` (default): `accent` text that underlines on hover. Use for secondary actions ("Create PR", toggle scope) and trailing actions in a row.
+- `action`: a quiet bordered action beside a setting ("Disconnect", "Check again"). `ink` meta text on `inset` with a `line` hairline, 29px tall: the ground and height of a Select and a segmented control, so the controls in a settings page are one family. Hover deepens to `menu`. In a settings page, an action is this, not a `link`.
 - `floating`: an action raised over content (a preview's "ask in chat" beside a selection). Mono, `surface` ground, `line-active` hairline, `shadow-popover`. The caller places it.
 - `row` / `card`: a whole list row or a pickable tile. The caller paints them.
 
