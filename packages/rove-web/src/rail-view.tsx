@@ -38,7 +38,7 @@ import { SettingsDialog } from "./settings-view.tsx"
 import { paneEdits, taskSplitItems } from "./split-actions.tsx"
 import { StartsChip } from "./starts-chip.tsx"
 import { useStatusMarkNotice } from "./status-mark-notice.ts"
-import { statusMarkStyle } from "./status-mark.ts"
+import { useStatusMarkStyle } from "./status-mark.ts"
 import { useStore } from "./store.ts"
 import { todoCount } from "./task-todos.ts"
 import { tc } from "./tui-copy.ts"
@@ -82,7 +82,7 @@ export function RailView({ model, narrow }: { model: AppModel; narrow: boolean }
   const machines = useMachines(model)
   const tabs = useStore(model.tabs)
   const engineIcons = useEngineIcons(model)
-  useStatusMarkNotice(payload !== null)
+  useStatusMarkNotice(model, payload?.tasks.length)
   const tabsSettled = useStore(model.tabsSettled)
   const selection = useStore(model.selection)
   const tasks = payload?.tasks ?? []
@@ -385,7 +385,7 @@ function RailRow(props: {
   const task = row.task
   const running = task.rowStatus?.kind === "running"
   const count = todoCount(task)
-  const markStyle = useStore(statusMarkStyle)
+  const markStyle = useStatusMarkStyle()
   const byEngine = markStyle === "engine"
   const status = row.fold?.collapsed ? props.rollup : task.rowStatus
   return (

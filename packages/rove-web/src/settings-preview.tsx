@@ -8,8 +8,7 @@ import { useEngineIcons } from "./engine-icons.ts"
 import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { statusMark } from "./rail-glyphs.ts"
-import { statusMarkStyle } from "./status-mark.ts"
-import { useStore } from "./store.ts"
+import { useStatusMarkStyle } from "./status-mark.ts"
 import { EngineIcon } from "./ui/engine-icon.tsx"
 import { ROW_TITLE_RAIL, ROW_TITLE_RUNNING } from "./ui/row.ts"
 import { SETTINGS_SAMPLE_PANE, SETTINGS_SAMPLE_ROW, SETTINGS_SAMPLE_ROWS } from "./ui/settings.ts"
@@ -27,7 +26,7 @@ const SAMPLES: readonly { readonly label: string; readonly status: RowStatus }[]
 
 /** Task status: one sample row per state, marked as the rail marks it. */
 export function StatusMarkSample({ model }: { model: AppModel }) {
-  const style = useStore(statusMarkStyle)
+  const style = useStatusMarkStyle()
   // Any engine's mark does: the sample shows how a mark is drawn, not which engine runs.
   const [icon] = [...useEngineIcons(model).values()]
   return (

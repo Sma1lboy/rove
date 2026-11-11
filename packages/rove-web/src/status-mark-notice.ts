@@ -1,36 +1,33 @@
 /**
  * Tells someone who used Rove before the engine marks, once, that task rows look different now and how to get the
- * old look back. A first-time browser has nothing to compare with and is told nothing.
+ * old look back. The daemon remembers it was said, so a second computer on the same daemon stays quiet. A daemon
+ * with no task yet belongs to someone new, who has nothing to compare with and is told nothing.
  */
 
 import { useEffect } from "react"
 import { t } from "./i18n/index.ts"
-import { STATUS_MARK_KEY, setStatusMarkStyle } from "./status-mark.ts"
+import type { AppModel } from "./model.ts"
+import { setPref, usePrefs } from "./prefs.ts"
+import { setStatusMarkStyle, useStatusMarkStyle } from "./status-mark.ts"
 import { toast } from "./ui.ts"
 
-const SEEN_KEY = "rove.statusMarkNoticeSeen"
 /** Long enough to read it and decide; a click on the card closes it sooner. */
 const NOTICE_MS = 20_000
 
-/** Read at load, before this page writes anything: any Rove key from an earlier visit, and no pick of a mark yet. */
-const owed =
-  localStorage.getItem(SEEN_KEY) === null &&
-  localStorage.getItem(STATUS_MARK_KEY) === null &&
-  Object.keys(localStorage).some((key) => key.startsWith("rove."))
-
-let told = false
-
-/** `listed` = the task list is on screen, so the notice has something to point at. */
-export function useStatusMarkNotice(listed: boolean): void {
+/** `taskCount` is undefined until the first task list arrives. */
+export function useStatusMarkNotice(model: AppModel, taskCount: number | undefined): void {
+  // Strictly false: the default and a bridge from before the setting both read as "nothing to say".
+  const owed = usePrefs().prefs.statusMarkNoticeSeen === false
+  const style = useStatusMarkStyle()
   useEffect(() => {
-    if (!listed || !owed || told) return
-    told = true
-    localStorage.setItem(SEEN_KEY, "1")
+    if (!owed || taskCount === undefined) return
+    void setPref(model.client, "statusMarkNoticeSeen", true)
+    if (taskCount === 0 || style !== "engine") return
     toast(
       t("rail.markNotice"),
       "info",
-      { label: t("rail.markNoticeUndo"), run: () => setStatusMarkStyle("dots") },
+      { label: t("rail.markNoticeUndo"), run: () => setStatusMarkStyle(model.client, "dots") },
       NOTICE_MS,
     )
-  }, [listed])
+  }, [model, owed, taskCount, style])
 }
