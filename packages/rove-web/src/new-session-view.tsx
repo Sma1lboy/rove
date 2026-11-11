@@ -18,7 +18,6 @@ import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
-  AgentPlaceChip,
   ComposerNote,
   MachineChip,
   remoteEmpty,
@@ -464,7 +463,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             />
           </div>
           <div className={C.BAR_GROUP_END}>
-            {remote && <AgentPlaceChip machine={machineName} there={engineThere} onPick={at.setEngineThere} />}
             <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
             {!inPlace &&
               !(remote && engineThere) &&
@@ -484,6 +482,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               busy={busy}
               onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
               onInvalid={setError}
+              agentPlace={remote ? { machine: machineName, there: engineThere, onPick: at.setEngineThere } : undefined}
             />
           </div>
         </div>

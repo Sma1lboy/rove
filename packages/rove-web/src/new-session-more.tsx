@@ -1,11 +1,12 @@
 /**
  * New session's `⋯`: the composer's rarer moves, so the bar keeps only what most sessions touch (project,
- * machine, worktree, branch, engine, model). Later opens one step down inside the same popover.
+ * machine, worktree, branch, engine, model). Later and where the agent runs open one step down inside the same popover.
  */
 
 import { type ReactNode, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { LaterField } from "./new-session-later.tsx"
+import { type AgentPlace, AgentPlaceMenu } from "./new-session-machine.tsx"
 import { ChipPopover } from "./new-session-menus.tsx"
 import { Chevron } from "./ui/chevron.tsx"
 import * as C from "./ui/composer.ts"
@@ -16,8 +17,11 @@ export function ComposerMore(props: {
   /** Absent where a scheduled start does not apply (another machine, no project, a compare round). */
   onLater?: (at: Date) => void
   onInvalid: (message: string) => void
+  /** Present while another machine is picked. */
+  agentPlace?: AgentPlace | undefined
 }) {
-  const [view, setView] = useState<"root" | "later">("root")
+  const [view, setView] = useState<"root" | "later" | "agent">("root")
+  const place = props.agentPlace
   return (
     <ChipPopover
       field="more"
@@ -43,8 +47,29 @@ export function ComposerMore(props: {
             </div>
           )
         }
+        if (view === "agent" && place) {
+          return (
+            <AgentPlaceMenu
+              {...place}
+              onBack={() => setView("root")}
+              onPick={(there) => {
+                place.onPick(there)
+                close()
+              }}
+            />
+          )
+        }
         return (
           <div role="menu" className={C.MENU}>
+            {place && (
+              <Row
+                label={t("newSession.agentPlace")}
+                dim={place.there ? place.machine : t("newSession.thisMachine")}
+                sub
+                disabled={props.busy}
+                onClick={() => setView("agent")}
+              />
+            )}
             {props.onLater && (
               <Row label={t("newSession.later")} sub disabled={props.busy} onClick={() => setView("later")} />
             )}
