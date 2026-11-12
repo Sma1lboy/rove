@@ -2180,7 +2180,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   Returns `{ tasks, bytes, ignoredBytes }`, each row `{ taskId, title, branch,
   archived, status, updatedAt, prLifecycle, bytes, ignoredBytes, checkouts:
   [{ path, exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row,
-  or `NO_WORKTREE` for a task that owns none. `--idle-days N` keeps only tasks
+  or `NO_WORKTREE` for a task that owns none. `--idle-days N` accepts a non-negative integer (including zero) and keeps only tasks
   whose record has not changed in N days (one with no readable `updatedAt` is
   never idle); `--merged` keeps only tasks whose PR Rove last saw merged
   (`prLifecycle`, `null` without a PR). Both given, both must hold; the totals

@@ -110,6 +110,28 @@ describe("worktree-usage", () => {
       expect((await run(["--idle-days", "7"])).ids).toEqual(["old-merged", "old-open"])
     })
 
+    it("--idle-days 0 includes present and past timestamps but excludes unreadable and future ones", async () => {
+      const now = Date.parse("2026-01-01T00:00:00Z")
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now)
+      try {
+        const timestamps = [
+          new Date(now).toISOString(),
+          new Date(now - 1).toISOString(),
+          "invalid",
+          new Date(now + 1).toISOString(),
+        ]
+        const out = await invokeVerb("worktree-usage", ["--idle-days", "0"], {
+          client: client(
+            timestamps.map((updatedAt, i) => taskFixture({ id: String(i), worktreePath: `/wt/${i}`, updatedAt })),
+          ),
+          runtime: stubRuntime({ measureCheckout: async () => ({ exists: true, bytes: MB, ignoredBytes: 0 }) }),
+        })
+        expect(out).toMatchObject({ tasks: [{ taskId: "0" }, { taskId: "1" }], bytes: 2 * MB, ignoredBytes: 0 })
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
     it("--merged keeps tasks whose PR merged and reports the lifecycle on every row", async () => {
       const all = await run([])
       expect(Object.fromEntries(all.rows.map((r) => [r.taskId, r.prLifecycle]))).toMatchObject({

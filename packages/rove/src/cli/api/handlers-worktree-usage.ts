@@ -13,7 +13,7 @@ import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 /** du runs per checkout; a few at once keeps a big index from serialising on one tree. */
 const CONCURRENCY = 4
@@ -94,12 +94,9 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /** Cleanup filters; null when neither flag was passed. They AND together. */
 function candidateFilter(ctx: VerbContext): ((task: SerializedTask) => boolean) | null {
-  const idleDays = ctx.args.int("idle-days")
+  const idleDays = ctx.args.nonNegativeInt("idle-days")
   const merged = ctx.args.bool("merged")
   if (idleDays === undefined && !merged) return null
-  if (idleDays !== undefined && idleDays < 0) {
-    throw new ApiError("--idle-days takes a whole number of days, 0 or more", "BAD_FLAG", helpStep("worktree-usage"))
-  }
   const cutoff = idleDays === undefined ? null : Date.now() - idleDays * DAY_MS
   return (task) => {
     if (merged && task.prStatus?.lifecycle !== "merged") return false
@@ -146,7 +143,7 @@ export const WORKTREE_USAGE_VERB: VerbSpec = {
     F.taskId(false),
     {
       name: "idle-days",
-      type: "int",
+      type: "uint",
       placeholder: "N",
       description: "Only tasks whose record has not changed in at least N days.",
     },
