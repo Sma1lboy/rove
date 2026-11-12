@@ -202,28 +202,12 @@ function createWindow(started: Started): void {
   }
 
   rememberBounds(win)
-  void win.loadURL(landingUrl(started.url))
+  void win.loadURL(started.url)
   win.webContents.on("will-navigate", (event, url) => {
     if (new URL(url).origin === started.origin) return
     event.preventDefault()
     void shell.openExternal(url)
   })
-}
-
-/**
- * The desktop lands on the world (`?view=world`); the page's Classic UI button leaves it without a
- * reload. `ROVE_DESKTOP_VIEW=classic` boots into the classic page instead, for a shell that has to
- * work against a bridge too old to know the view. The token lives in the hash and stays there.
- */
-function landingUrl(url: string): string {
-  if (process.env.ROVE_DESKTOP_VIEW === "classic") return url
-  try {
-    const parsed = new URL(url)
-    parsed.searchParams.set("view", "world")
-    return parsed.toString()
-  } catch {
-    return url
-  }
 }
 
 /** Shown instead of a blank window when the app cannot reach Rove at all. */

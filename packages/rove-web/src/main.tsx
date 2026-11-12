@@ -20,7 +20,6 @@ import { watchPanel } from "./panel-report.ts"
 import { isPromptPush, openPrompt } from "./prompt-dialog.tsx"
 import { revealScrollbarsOnScroll } from "./scroll-reveal.ts"
 import { installTooltips } from "./tooltip.ts"
-import { page } from "./ui.ts"
 import { watchBridgeVersion } from "./version-reload.ts"
 import { followVisualViewport } from "./viewport.ts"
 // The one stylesheet: tokens, reset and the Tailwind theme.
@@ -37,8 +36,6 @@ installTooltips()
 function start(token: string): void {
   const client = new BridgeClient(bridgeUrl(), token)
   const model = new AppModel(client)
-  // `?view=world` is the desktop app's landing: the world, with the classic UI one click away.
-  if (new URLSearchParams(window.location.search).get("view") === "world") page.set("world")
   // A plugin's `rove api prompt`; the dialog is page UI, so it is wired here, not in the model.
   client.on("prompt", (data) => {
     if (isPromptPush(data)) openPrompt(client, data)

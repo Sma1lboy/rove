@@ -126,7 +126,6 @@ function PaletteDialog({
   // Pages with no chord of their own: named, so the palette is the way in beside their own entry points.
   const issuesOn = useStore(model.installedMods).has("issues")
   const pages: { id: PageId; name: string; source?: IssuesSource }[] = [
-    { id: "world" as const, name: t("world.title") },
     { id: "usage" as const, name: t("usage.title") },
     ...(issuesOn ? [{ id: "issues" as const, name: t("reviewQueue.palette"), source: "reviews" as const }] : []),
   ].filter((entry) => q === "" || fuzzyMatch(q, entry.name))

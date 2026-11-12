@@ -20,13 +20,6 @@ The app is a shell — the Rove it drives is the one your TUI and phones drive, 
 upgrading Rove upgrades the app's backend, and a task started here is in the TUI
 the moment you switch.
 
-## The world view
-
-The app opens on the page's **World** view (`?view=world`): the same tasks and
-sessions, drawn as a map. The Classic UI button in the page returns to the
-rail without a reload, and that choice is not stored. `ROVE_DESKTOP_VIEW=classic`
-launches into the classic page instead — for a bridge too old to know the view.
-
 ## Download
 
 | Platform | File |

@@ -5,7 +5,7 @@
  * brings the terminal back, as picking a task in the TUI rail leaves the page.
  */
 
-import { Suspense, lazy, useEffect } from "react"
+import { useEffect } from "react"
 import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
@@ -21,9 +21,6 @@ import { type PageId, page } from "./ui.ts"
 import { RAIL_NAV } from "./ui/page.ts"
 import { RailNavRow } from "./ui/rail-nav.tsx"
 import { UsageView } from "./usage-page.tsx"
-
-/** three.js and the scene are their own chunk: the classic page never pays for them. */
-const WorldView = lazy(() => import("./world/world-view.tsx").then((module) => ({ default: module.WorldView })))
 
 interface NavItem {
   readonly id: PageId & ("kanban" | "routines" | "issues" | "mods")
@@ -60,10 +57,6 @@ export function PageNav({ model }: { model: AppModel }) {
           {nav[item.label]}
         </RailNavRow>
       ))}
-      {/* The GPU-drawn map of this machine's tasks; the TUI has no page for it. */}
-      <RailNavRow active={open === "world"} onSelect={() => openPage("world")}>
-        {t("world.title")}
-      </RailNavRow>
     </div>
   )
 }
@@ -84,9 +77,5 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <CompareView model={model} />
   ) : current === "usage" ? (
     <UsageView model={model} />
-  ) : current === "world" ? (
-    <Suspense fallback={null}>
-      <WorldView model={model} />
-    </Suspense>
   ) : null
 }
