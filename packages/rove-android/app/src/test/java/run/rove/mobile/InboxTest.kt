@@ -76,4 +76,28 @@ class InboxTest {
         fun row(id: String) = Attention(state = "routine_failed", label = "Broken check", automationId = id)
         assertEquals(2, listOf(row("a"), row("b")).distinctBy(InboxLogic::key).size)
     }
+
+    @Test fun aPeekKeepsTheLastRowsWithoutTheBlankScreenAroundThem() {
+        val tail = (listOf("", "  ") + (1..14).map { "line $it   " } + listOf("", "")).joinToString("\n")
+        val lines = InboxLogic.peekLines(tail)
+        assertEquals(InboxLogic.PEEK_LINES, lines.size)
+        assertEquals("line 3", lines.first())
+        assertEquals("line 14", lines.last())
+        assertEquals(emptyList<String>(), InboxLogic.peekLines("\n  \n"))
+    }
+
+    @Test fun onlyALocalTabWithoutADecisionIsAnsweredInPlace() {
+        val local = TaskRow(id = "a")
+        val remote = TaskRow(id = "a", machine = TaskMachine(label = "m"))
+        assertEquals(true, InboxLogic.peekable(item("a", "turn_complete", 1.0), local))
+        assertEquals(false, InboxLogic.peekable(item("a", "turn_complete", 1.0), remote))
+        assertEquals(false, InboxLogic.peekable(item("a", "turn_complete", 1.0, tab = null), local))
+        assertEquals(false, InboxLogic.peekable(Attention(taskId = "a", tabId = "tab-1", state = "decision_needed", at = 1.0, gateId = "g"), local))
+    }
+
+    @Test fun theTerminalTailDecodesFromTheRowsTheBridgeSends() {
+        val env = run.rove.mobile.data.wireJson.decodeFromString<OutputEnvelope>(
+            """{"source":"terminal","terminal":{"tail":["$ ls","a.txt"],"truncated":false,"live":true}}""")
+        assertEquals("$ ls\na.txt", env.terminal?.tail)
+    }
 }

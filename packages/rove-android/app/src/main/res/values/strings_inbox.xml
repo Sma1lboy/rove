@@ -23,4 +23,11 @@
     <string name="inbox_state_decision">decision</string>
     <string name="inbox_state_decision_answered">answered · engine away</string>
     <string name="inbox_ack_all">ack all</string>
+    <string name="inbox_reply">reply</string>
+    <string name="inbox_hide">hide</string>
+    <string name="inbox_send">send</string>
+    <string name="inbox_reply_placeholder">reply to the agent</string>
+    <string name="inbox_no_output">no output yet</string>
+    <string name="inbox_open_tab">open the tab</string>
+    <string name="inbox_at_menu">the agent waits at a menu: open the tab to answer it</string>
 </resources>

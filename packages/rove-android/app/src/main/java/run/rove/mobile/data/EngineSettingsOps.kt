@@ -28,6 +28,11 @@ suspend fun RoveRepository.readOutput(taskId: String, limit: Int, cursor: String
     return wireJson.decodeFromJsonElement(bridge.request("output.read", args(*pairs.toTypedArray())))
 }
 
+/** A tab's screen, not the engine's transcript: a menu is on the screen and never in the history. */
+suspend fun RoveRepository.readTerminalTail(taskId: String, tabId: String, limit: Int): String =
+    wireJson.decodeFromJsonElement<OutputEnvelope>(bridge.request("output.read",
+        args("taskId" to taskId, "tab" to tabId, "source" to "terminal", "limit" to limit))).terminal?.tail.orEmpty()
+
 /** Runs a bridge read for a settings screen; failures become the message the screen shows. */
 suspend fun <T> engineSettingsCall(fallback: String, block: suspend () -> T): Result<T> = try {
     Result.success(block())

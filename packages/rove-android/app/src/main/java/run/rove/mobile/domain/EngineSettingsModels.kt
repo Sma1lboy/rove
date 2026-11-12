@@ -113,7 +113,19 @@ object FlatTextSerializer : KSerializer<String?> {
     val limited: Boolean = false,
 )
 
-@Serializable data class OutputTerminal(val tail: String = "", val truncated: Boolean = false, val live: Boolean = false)
+/** `rove api read-output` sends the tail as screen rows; joined here, so a bridge that sent one string still decodes. */
+object TailLinesSerializer : KSerializer<String> {
+    override val descriptor = String.serializer().descriptor
+    override fun deserialize(decoder: Decoder): String = when (val e = (decoder as JsonDecoder).decodeJsonElement()) {
+        is JsonArray -> e.joinToString("\n") { (it as? JsonPrimitive)?.contentOrNull.orEmpty() }
+        is JsonPrimitive -> e.contentOrNull.orEmpty()
+        else -> ""
+    }
+    override fun serialize(encoder: Encoder, value: String) = encoder.encodeString(value)
+}
+
+@Serializable data class OutputTerminal(@Serializable(with = TailLinesSerializer::class) val tail: String = "",
+                                        val truncated: Boolean = false, val live: Boolean = false)
 
 @Serializable data class OutputEnvelope(
     val vendor: String? = null,

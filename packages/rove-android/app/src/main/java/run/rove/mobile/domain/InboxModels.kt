@@ -41,6 +41,27 @@ object InboxLogic {
     /** The decision behind a `decision_needed` row; null for any other row or a gate the list no longer holds. */
     fun gate(item: Attention, gates: List<GateRow>): GateRow? = item.gateId?.let { id -> gates.firstOrNull { it.id == id } }
 
+    const val PEEK_LINES = 12
+
+    /**
+     * Web Inbox `reply`: a local task's tab can be read and answered in place. A decision has its answer sheet and a
+     * routine row has no tab; another machine's rows stay read-only, as in the composer.
+     */
+    fun peekable(item: Attention, task: TaskRow?) =
+        task != null && task.machine == null && item.tabId != null && item.gateId == null &&
+            item.state != "routine_failed" && item.state != "routine_responded"
+
+    /** A tab at a menu wants keys, never a pasted line: the peek offers the tab itself. */
+    fun peekAtMenu(item: Attention, task: TaskRow) = item.state == "permission_needed" || task.atMenu(item.tabId.orEmpty())
+
+    /** The tab's last rows as the engine left them: row padding trimmed, blank rows around the text dropped. */
+    fun peekLines(tail: String): List<String> {
+        val rows = tail.split('\n').map { it.trimEnd() }
+        val end = rows.indexOfLast { it.isNotEmpty() } + 1
+        val start = rows.indexOfFirst { it.isNotEmpty() }.coerceAtLeast(0)
+        return if (end == 0) emptyList() else rows.subList(maxOf(start, end - PEEK_LINES), end)
+    }
+
     fun visitKey(taskId: String, tabId: String?) = "$taskId\u0000${tabId.orEmpty()}"
 
     /** Blocked episodes first, then oldest first; task order and key break ties. */
