@@ -161,24 +161,12 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   }
 
   // An explicit other machine needs nothing from this machine's daemon.
-  // `--machine auto` places the work: the least-busy machine, this one on a tie.
+  // `--machine auto` places the work: the least-loaded machine, this one unless another is clearly idler.
   if (machine === AUTO_MACHINE) {
-    const { RoveDaemonClient } = await import("@sma1lboy/rove-daemon/client")
-    const { defaultDaemonSocketPath } = await import("@sma1lboy/rove-daemon/daemon/paths")
-    const local = new RoveDaemonClient(defaultDaemonSocketPath())
-    const picked = await pickMachine(
-      () =>
-        local
-          .request<{ tasks?: Array<{ status?: string }> }>("task.list")
-          .then((res) => res.tasks ?? [])
-          .finally(() => local.close()),
-      undefined,
-      undefined,
-      repoHosts(forwardParams(verb, parsed.flags)),
-    )
+    const picked = await pickMachine(undefined, undefined, repoHosts(forwardParams(verb, parsed.flags)))
     const skipped = picked.skipped?.length ? `; without the repo: ${picked.skipped.join(", ")}` : ""
     process.stderr.write(
-      `rove api: --machine auto → ${picked.entry?.alias ?? LOCAL_MACHINE} (in progress: ${Object.entries(picked.loads)
+      `rove api: --machine auto → ${picked.entry?.alias ?? LOCAL_MACHINE} (load per core: ${Object.entries(picked.loads)
         .map(([name, n]) => `${name} ${n}`)
         .join(", ")}${skipped})\n`,
     )

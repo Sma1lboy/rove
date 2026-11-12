@@ -10,6 +10,7 @@
     "./repo-id": "./src/repo-id.ts",
     "./auto-fix-ci": "./src/auto-fix-ci.ts",
     "./task-notes": "./src/task-notes.ts",
+    "./machine-load": "./src/machine-load.ts",
     "./task-tree": "./src/task-tree.ts",
     "./workspace": "./src/workspace.ts",
     "./compat-env": "./src/compat-env.ts",
