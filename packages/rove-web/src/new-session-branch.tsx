@@ -9,6 +9,7 @@ import type { RemotePick } from "./new-session-remote.ts"
 import type { ProbeResult } from "./new-task-dialog.tsx"
 import { filterText, splitRepoRow } from "./new-task-paths.ts"
 import { ComposerToggle } from "./ui/composer-toggle.tsx"
+import { CHIP_WORD } from "./ui/composer.ts"
 
 export function BranchChips(props: {
   remotePick: RemotePick | null
@@ -67,7 +68,7 @@ export function BranchChips(props: {
         onClick={props.onToggleWorktree}
       >
         <BranchIcon />
-        {t("newSession.worktree")}
+        <span className={CHIP_WORD}>{t("newSession.worktree")}</span>
       </ComposerToggle>
       {repos.length > 1 ? (
         <ChipPopover field="branch" title={t("newSession.branches")} label={t("newSession.branches")}>

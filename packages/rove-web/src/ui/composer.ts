@@ -15,8 +15,8 @@ export const CARD =
   "flex flex-col gap-2 rounded-md border-hairline border-line bg-surface px-3 py-2.5 focus-within:border-line-active"
 export const CARD_ACTIONS = "flex flex-wrap items-center justify-end gap-1.5"
 export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink [border:0] [outline:0]"
-export const BAR = "flex flex-wrap items-center gap-1.5 px-1"
-/** Where the task runs, then how: the row breaks between the two, never inside one. On a phone both start at the left. */
+export const BAR = "flex items-center gap-1.5 px-1"
+/** Where the task runs, then how: one row, never wrapped. A phone drops each chip's word instead (`CHIP_WORD`). */
 export const BAR_GROUP = "flex min-w-0 items-center gap-1.5"
 export const BAR_GROUP_END = `${BAR_GROUP} ml-auto narrow:ml-0`
 export const GROW = "flex-1"
@@ -25,6 +25,9 @@ export const cardIcon = (on = false): string =>
   `flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-sm px-1 has-[:disabled]:opacity-60 disabled:opacity-60 [&:hover]:bg-hover [&:hover]:text-ink ${on ? "text-accent" : "text-muted"}`
 export const ICON =
   "size-3.25 flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.3]"
+
+/** A chip's word on a phone: visually gone, still the button's name. The glyph and `title` carry it. */
+export const CHIP_WORD = "narrow:sr-only"
 
 /** A pill in the bar; `on` is the Worktree toggle while it is on. Hover applies on touch too, as the sheet's did. */
 export const chipClass = (on = false): string =>
@@ -62,6 +65,8 @@ export const CHECK = "flex-[0_0_1.5ch] text-accent"
 export const DIM = "ml-auto pl-3"
 export const SUBMENU_DIM = `${DIM} inline-flex items-center gap-1`
 export const CLIP = "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+/** A chip's word that can outgrow the one-row bar: it shortens on a phone rather than pushing the row wide. */
+export const CHIP_TEXT = `${CLIP} narrow:max-w-[13ch]`
 /** Clips the head instead of the tail (a path keeps its last folders); the text inside goes in a `<bdi>`. */
 export const CLIP_HEAD = `${CLIP} [direction:rtl]`
 export const NAME = "flex-none whitespace-nowrap"
