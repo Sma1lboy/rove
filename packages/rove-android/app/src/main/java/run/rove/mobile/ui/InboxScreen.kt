@@ -12,6 +12,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,6 +24,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import run.rove.mobile.data.BridgeFailure
+import run.rove.mobile.data.readTerminalTail
+import run.rove.mobile.data.sendMessage
 import run.rove.mobile.R
 import run.rove.mobile.data.InboxVisits
 import run.rove.mobile.data.dismissAttention
@@ -43,6 +52,8 @@ import java.util.Locale
     val tabInfo by produceState(emptyMap<String, RecentTab>(), recent) { value = loadTabInfo(model, recent) }
     val titles = remember(tasks) { tasks.tasks.associate { it.id to it.displayTitle } }
     var answering by rememberSaveable { mutableStateOf<String?>(null) }
+    var peeked by rememberSaveable { mutableStateOf<String?>(null) }
+    val byId = remember(tasks) { tasks.tasks.associateBy { it.id } }
 
     // A task-level episode leaves the task's current tab; a routine one has no task and opens the Routines page.
     // A decision is answered, never dismissed: an open one opens its answer sheet, an answered one just opens the task.
@@ -105,8 +116,14 @@ import java.util.Locale
                 items(pending, key = { "a:" + InboxLogic.key(it) }) { item ->
                     val title = item.taskId?.let { titles[it] } ?: item.label ?: item.taskId ?: unknownRoutine
                     val gate = InboxLogic.gate(item, tasks.gates)
-                    AttentionRow(item, title, now, gate, { openItem(item) }) {
-                        model.action { dismiss(item); model.refresh() }
+                    val task = item.taskId?.let { byId[it] }
+                    val key = InboxLogic.key(item)
+                    val peekable = InboxLogic.peekable(item, task)
+                    AttentionRow(item, title, now, gate, { openItem(item) }, onDismiss = { model.action { dismiss(item); model.refresh() } },
+                        peeking = if (peekable) peeked == key else null, onPeek = { peeked = if (peeked == key) null else key })
+                    if (peekable && peeked == key && task != null) {
+                        InboxPeek(model, task.id, item.tabId.orEmpty(), readOnly = item.state == "dead",
+                            atMenu = InboxLogic.peekAtMenu(item, task), onOpenTab = { openItem(item) })
                     }
                 }
                 item(key = "h:recent") { SectionHeader(stringResource(R.string.inbox_recent), recent.size) }
@@ -151,7 +168,9 @@ import java.util.Locale
     else -> state.replace('_', ' ')
 }
 
-@Composable private fun AttentionRow(item: Attention, title: String, now: Long, gate: GateRow?, onOpen: () -> Unit, onDismiss: () -> Unit) {
+/** [peeking] is null for a row that cannot be answered in place. */
+@Composable private fun AttentionRow(item: Attention, title: String, now: Long, gate: GateRow?, onOpen: () -> Unit, onDismiss: () -> Unit,
+                                     peeking: Boolean?, onPeek: () -> Unit) {
     val tone = when { item.state == "error" -> Rove.c.error; InboxLogic.isBlocking(item) -> Rove.c.accent; else -> Rove.c.muted }
     val resume = if (item.state == "rate_limited") InboxLogic.resumeTime(item.resumeAt) else null
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -168,6 +187,12 @@ import java.util.Locale
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 item.tabId?.let { Text(it, color = Rove.c.muted, style = Rove.mono(12)) }
                 Text(TaskAge.label(now - item.at), color = Rove.c.muted, style = Rove.mono(12))
+            }
+        }
+        if (peeking != null) {
+            Box(Modifier.heightIn(min = 44.dp).pressable(onClick = onPeek).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                Text(stringResource(if (peeking) R.string.inbox_hide else R.string.inbox_reply),
+                    color = if (peeking) Rove.c.muted else Rove.c.accent, style = Rove.mono(12))
             }
         }
         if (InboxLogic.clearable(item)) {
@@ -189,6 +214,67 @@ import java.util.Locale
             if (tab != null) Text(tab.title.lowercase(), color = Rove.c.muted, style = Rove.mono(12), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(TaskAge.label(ageMs), color = Rove.c.muted, style = Rove.mono(12))
+    }
+}
+
+/**
+ * Web `InboxPeek`: the tab's last screen rows, refreshed while open, and a one-line reply through the engine's own
+ * input (`tab.send`). A tab at a menu offers the tab itself, whose key row answers it; an exited one shows the rows alone.
+ */
+@Composable private fun InboxPeek(model: AppModel, taskId: String, tabId: String, readOnly: Boolean, atMenu: Boolean, onOpenTab: () -> Unit) {
+    var lines by remember(taskId, tabId) { mutableStateOf<List<String>?>(null) }
+    var tick by remember { mutableIntStateOf(0) }
+    val draft = rememberSaveable(taskId, tabId, saver = Saver<ComposerDraft, String>(
+        save = { it.field.text }, restore = { ComposerDraft().apply { field = TextFieldValue(it) } }
+    )) { ComposerDraft() }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val notSent = stringResource(R.string.detail_composer_not_sent)
+    val atMenuText = stringResource(R.string.inbox_at_menu)
+    LaunchedEffect(taskId, tabId, tick) {
+        while (true) {
+            lines = try { InboxLogic.peekLines(model.repository.readTerminalTail(taskId, tabId, InboxLogic.PEEK_LINES)) }
+            catch (e: CancellationException) { throw e } catch (_: Exception) { lines ?: emptyList() }
+            delay(2000)
+        }
+    }
+    fun send() {
+        val prompt = draft.field.text.trim()
+        if (prompt.isEmpty() || busy) return
+        scope.launch {
+            busy = true; error = null
+            try {
+                var delivered = false
+                draft.send { submitted ->
+                    val reply = model.repository.sendMessage(taskId, tabId, submitted.trim())
+                    delivered = reply.delivered
+                    if (!delivered) error = notSent.format(reply.reason.orEmpty())
+                    delivered
+                }
+                if (delivered) { delay(600); tick++ }
+            } catch (e: CancellationException) { throw e }
+            catch (e: BridgeFailure) { error = if (e.code == "AWAITING_PERMISSION") atMenuText else e.message }
+            catch (e: Exception) { error = e.message ?: e.toString() }
+            finally { busy = false }
+        }
+    }
+    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val shown = lines
+        Text(when { shown == null -> "…"; shown.isEmpty() -> stringResource(R.string.inbox_no_output); else -> shown.joinToString("\n") },
+            Modifier.fillMaxWidth().tile().padding(10.dp), color = if (shown.isNullOrEmpty()) Rove.c.muted else Rove.c.ink, style = Rove.mono(11))
+        when {
+            readOnly -> {}
+            atMenu -> TileLabel(stringResource(R.string.inbox_open_tab), tint = Rove.c.accent, size = 12, onClick = onOpenTab)
+            else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FieldBox(draft.field, { draft.field = it }, stringResource(R.string.inbox_reply_placeholder), Modifier.weight(1f),
+                    keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
+                if (busy) BrailleSpinner(12)
+                else TileLabel(stringResource(R.string.inbox_send), tint = if (draft.field.text.isBlank()) Rove.c.muted else Rove.c.accent, size = 12,
+                    onClick = ::send)
+            }
+        }
+        error?.let { ErrorLine(it) }
     }
 }
 
