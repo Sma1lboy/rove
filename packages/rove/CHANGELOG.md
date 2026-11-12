@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.291
+
+### Patch Changes
+
+- [#1990](https://github.com/Sma1lboy/rove/pull/1990) [`ec5792c`](https://github.com/Sma1lboy/rove/commit/ec5792ccc09698260aa486114dc5c37cdd401795) The agent that removes leftover sessions now also looks for the worktree hook an older Rove installed, in the global engine settings and in each affected repo, shows what it finds and removes it once you confirm. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1989](https://github.com/Sma1lboy/rove/pull/1989) [`c98ef10`](https://github.com/Sma1lboy/rove/commit/c98ef1023cdf7dd798a9a4be95b7d088147e3c1d) A worktree made outside Rove no longer becomes a session on its own. Starting an engine in one (for example `claude --worktree`) used to add a never-started row named after the directory; now only `rove add .`, `rove adopt` and New task → Adopt Worktree add one. If the sidebar still holds such rows from an older version, the TUI and the web ask once, in a dialog, whether to hand them to an agent: it lists them and removes the ones you confirm. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1988](https://github.com/Sma1lboy/rove/pull/1988) [`322c1d7`](https://github.com/Sma1lboy/rove/commit/322c1d7b58ebcfce5e4f0ae8b69bea151031d0d1) The Rove agent skill no longer tells agents that every project keeps a long-lived main task to send cross-project requests to. That was one workspace's habit, not something Rove sets up, and agents following it started conversations on a project's main row, which then showed every pull request ever attached there. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.290
 
 ### Patch Changes
