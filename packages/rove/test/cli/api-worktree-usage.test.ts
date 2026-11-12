@@ -80,6 +80,77 @@ describe("worktree-usage", () => {
     await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "main"], deps), "NO_WORKTREE")
     await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "shared"], deps), "NO_WORKTREE")
   })
+
+  describe("cleanup filters", () => {
+    const DAY = 24 * 60 * 60 * 1000
+    const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString()
+    const merged = { provider: "github", lifecycle: "merged", checkState: "passing" }
+    const OLD_MERGED = taskFixture({ id: "old-merged", worktreePath: "/wt/a", updatedAt: ago(30), prStatus: merged })
+    const OLD_OPEN = taskFixture({
+      id: "old-open",
+      worktreePath: "/wt/b",
+      updatedAt: ago(30),
+      prStatus: { ...merged, lifecycle: "open" },
+    })
+    const FRESH_MERGED = taskFixture({ id: "fresh-merged", worktreePath: "/wt/c", updatedAt: ago(1), prStatus: merged })
+    const UNDATED = taskFixture({ id: "undated", worktreePath: "/wt/d" })
+    const tasks = [OLD_MERGED, OLD_OPEN, FRESH_MERGED, UNDATED]
+    const sizes: Record<string, CheckoutUsage> = Object.fromEntries(
+      ["/wt/a", "/wt/b", "/wt/c", "/wt/d"].map((p, i) => [p, { exists: true, bytes: (i + 1) * MB, ignoredBytes: 0 }]),
+    )
+    const run = async (args: string[]) => {
+      const out = (await invokeVerb("worktree-usage", args, {
+        client: client(tasks),
+        runtime: stubRuntime({ measureCheckout: measure(sizes) }),
+      })) as { tasks: { taskId: string; prLifecycle: string | null }[]; bytes: number }
+      return { ids: out.tasks.map((t) => t.taskId).sort(), bytes: out.bytes, rows: out.tasks }
+    }
+
+    it("--idle-days keeps tasks untouched that long; an undated task is never idle", async () => {
+      expect((await run(["--idle-days", "7"])).ids).toEqual(["old-merged", "old-open"])
+    })
+
+    it("--idle-days 0 includes present and past timestamps but excludes unreadable and future ones", async () => {
+      const now = Date.parse("2026-01-01T00:00:00Z")
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now)
+      try {
+        const timestamps = [
+          new Date(now).toISOString(),
+          new Date(now - 1).toISOString(),
+          "invalid",
+          new Date(now + 1).toISOString(),
+        ]
+        const out = await invokeVerb("worktree-usage", ["--idle-days", "0"], {
+          client: client(
+            timestamps.map((updatedAt, i) => taskFixture({ id: String(i), worktreePath: `/wt/${i}`, updatedAt })),
+          ),
+          runtime: stubRuntime({ measureCheckout: async () => ({ exists: true, bytes: MB, ignoredBytes: 0 }) }),
+        })
+        expect(out).toMatchObject({ tasks: [{ taskId: "0" }, { taskId: "1" }], bytes: 2 * MB, ignoredBytes: 0 })
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it("--merged keeps tasks whose PR merged and reports the lifecycle on every row", async () => {
+      const all = await run([])
+      expect(Object.fromEntries(all.rows.map((r) => [r.taskId, r.prLifecycle]))).toMatchObject({
+        "old-open": "open",
+        undated: null,
+      })
+      expect((await run(["--merged"])).ids).toEqual(["fresh-merged", "old-merged"])
+    })
+
+    it("both flags must hold, and the total covers only the listed rows", async () => {
+      expect(await run(["--merged", "--idle-days", "7"])).toMatchObject({ ids: ["old-merged"], bytes: MB })
+    })
+
+    it("refuses a negative day count and a filter beside --task-id", async () => {
+      const deps = { client: client(tasks), runtime: stubRuntime({ measureCheckout: measure(sizes) }) }
+      await expectApiError(() => invokeVerb("worktree-usage", ["--idle-days", "-1"], deps), "BAD_FLAG")
+      await expectApiError(() => invokeVerb("worktree-usage", ["--task-id", "old-open", "--merged"], deps), "BAD_FLAG")
+    })
+  })
 })
 
 describe("measureCheckout", () => {
