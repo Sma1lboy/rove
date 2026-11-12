@@ -71,6 +71,11 @@ export function StatusDots({ status }: { status: RowStatus | undefined }) {
 // An idle mark is the muted ink, as ELYTerminal's `fg_muted`: one step stronger than the muted tone elsewhere.
 const DOT_TONE = (tone: Tone): string => (tone === "muted" ? "text-muted" : tone === "ink" ? "text-ink" : TONE[tone])
 
+/** The working mark on its own, for a line that waits on something other than a task. */
+export function BusyDots() {
+  return <Dots look="working" tone="info" since={Date.now()} />
+}
+
 function Dots({ look, tone, since }: { look: DotLook; tone: Tone; since: number }) {
   const ref = useRef<HTMLSpanElement>(null)
   // Read once per mount: a later `since` of the same look must not redraw a shape.
