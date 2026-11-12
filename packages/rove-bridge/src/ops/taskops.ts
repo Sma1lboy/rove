@@ -29,7 +29,7 @@ import { openExternally } from "@sma1lboy/rove/src/tui/panes/filetree/open-exter
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
-import { flag, oneOf, tabId, taskId } from "./args.ts"
+import { flag, isAbsPath, oneOf, tabId, taskId } from "./args.ts"
 import { effortLevel, engineId, model, taskOpDeps } from "./tasks-shared.ts"
 import type { Args, BridgeApi, OpContext, OpTable } from "./types.ts"
 
@@ -116,7 +116,7 @@ function typedPath(args: Args, name: string): string {
     throw new BridgeError("BAD_ARGS", `${name} must be a path`)
   }
   const trimmed = v.trim()
-  if (!(trimmed.startsWith("/") || trimmed.startsWith("~"))) {
+  if (!(isAbsPath(trimmed) || trimmed.startsWith("~"))) {
     throw new BridgeError("BAD_ARGS", `${name} must be absolute or start with ~`)
   }
   return trimmed

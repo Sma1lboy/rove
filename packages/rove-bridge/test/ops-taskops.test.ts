@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { absPath, isAbsPath } from "../src/ops/args.ts"
 import { type TaskOpsDeps, reorderDaemonTab, taskOps } from "../src/ops/taskops.ts"
 import { taskOpDeps } from "../src/ops/tasks-shared.ts"
 import { ENGINES, T, fakeApi, isolateTaskOpDeps } from "./task-ops-harness.ts"
@@ -343,6 +344,17 @@ describe("fs.subdirs and repo.probe", () => {
 
   test("only absolute or ~ paths are listed", async () => {
     await expect(run("fs.subdirs", { path: "relative/x" })).rejects.toMatchObject({ code: "BAD_ARGS" })
+  })
+
+  test("a drive or UNC path is absolute on Windows only", () => {
+    for (const path of ["C:\\Code\\app", "C:/Code/app", "\\\\host\\share"]) {
+      expect(isAbsPath(path, "win32")).toBe(true)
+      expect(isAbsPath(path, "darwin")).toBe(false)
+    }
+    for (const path of ["C:app", "relative\\x", "\\rooted"]) expect(isAbsPath(path, "win32")).toBe(false)
+    expect(isAbsPath("/w/a", "win32")).toBe(true)
+    expect(absPath({ repo: "/w/a" }, "repo")).toBe("/w/a")
+    expect(() => absPath({ repo: "relative/x" }, "repo")).toThrow()
   })
 
   test("probe names the reason a path is not a repo and lists branches for one that is", async () => {
