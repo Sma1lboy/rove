@@ -12,6 +12,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -222,7 +224,9 @@ import java.util.Locale
 @Composable private fun InboxPeek(model: AppModel, taskId: String, tabId: String, readOnly: Boolean, atMenu: Boolean, onOpenTab: () -> Unit) {
     var lines by remember(taskId, tabId) { mutableStateOf<List<String>?>(null) }
     var tick by remember { mutableIntStateOf(0) }
-    var text by rememberSaveable(taskId, tabId) { mutableStateOf("") }
+    val draft = rememberSaveable(taskId, tabId, saver = Saver<ComposerDraft, String>(
+        save = { it.field.text }, restore = { ComposerDraft().apply { field = TextFieldValue(it) } }
+    )) { ComposerDraft() }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -236,13 +240,19 @@ import java.util.Locale
         }
     }
     fun send() {
-        val prompt = text.trim()
+        val prompt = draft.field.text.trim()
         if (prompt.isEmpty() || busy) return
         scope.launch {
             busy = true; error = null
             try {
-                val reply = model.repository.sendMessage(taskId, tabId, prompt)
-                if (reply.delivered) { text = ""; delay(600); tick++ } else error = notSent.format(reply.reason.orEmpty())
+                var delivered = false
+                draft.send { submitted ->
+                    val reply = model.repository.sendMessage(taskId, tabId, submitted.trim())
+                    delivered = reply.delivered
+                    if (!delivered) error = notSent.format(reply.reason.orEmpty())
+                    delivered
+                }
+                if (delivered) { delay(600); tick++ }
             } catch (e: CancellationException) { throw e }
             catch (e: BridgeFailure) { error = if (e.code == "AWAITING_PERMISSION") atMenuText else e.message }
             catch (e: Exception) { error = e.message ?: e.toString() }
@@ -257,10 +267,10 @@ import java.util.Locale
             readOnly -> {}
             atMenu -> TileLabel(stringResource(R.string.inbox_open_tab), tint = Rove.c.accent, size = 12, onClick = onOpenTab)
             else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                FieldBox(text, { text = it }, stringResource(R.string.inbox_reply_placeholder), Modifier.weight(1f),
+                FieldBox(draft.field, { draft.field = it }, stringResource(R.string.inbox_reply_placeholder), Modifier.weight(1f),
                     keyboard = KeyboardOptions(imeAction = ImeAction.Send), actions = KeyboardActions(onSend = { send() }))
                 if (busy) BrailleSpinner(12)
-                else TileLabel(stringResource(R.string.inbox_send), tint = if (text.isBlank()) Rove.c.muted else Rove.c.accent, size = 12,
+                else TileLabel(stringResource(R.string.inbox_send), tint = if (draft.field.text.isBlank()) Rove.c.muted else Rove.c.accent, size = 12,
                     onClick = ::send)
             }
         }
