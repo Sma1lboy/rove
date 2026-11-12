@@ -365,7 +365,9 @@ read as that checkout's repo before it crosses to another machine.
   dispatch finds it there. It needs a repo with an origin, and that machine
   must be able to fetch it; otherwise `CLONE_FAILED` carries git's error.
 - **`--machine auto`** only considers machines that have the repo, and its
-  stderr line names the ones it skipped. When none has it, load alone
+  stderr line names the ones it skipped. A `--repo` path whose branch (or
+  `--base-branch`) has commits no remote has keeps the task here: another
+  machine only has what was pushed. When none has it, load alone
   decides. With `--clone`, every machine is a candidate.
 
 Pick the primary checkout on each machine, in that machine's shell:

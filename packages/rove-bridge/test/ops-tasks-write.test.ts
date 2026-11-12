@@ -31,6 +31,27 @@ describe("task.spawn", () => {
     ])
   })
 
+  test("machine auto: the picked machine takes this checkout's work, and a start only this machine serves stays here", async () => {
+    taskOpDeps.autoMachine = async () => "deck"
+    const placed = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", machine: "auto", prompt: "p" },
+      { add: { taskId: "N1", task: {} } },
+    )
+    expect(placed.calls).toEqual([
+      { verb: "add", argv: ["--repo=/Users/me/app", "--workspace-on=deck", "--prompt=p"], machine: undefined },
+    ])
+    expect(placed.result).toEqual({ taskIds: ["N1"], machine: "deck" })
+    const round = await run(
+      "task.spawn",
+      { repo: "/Users/me/app", machine: "auto", prompt: "p", count: 2 },
+      { add: { tasks: [{ taskId: "N2" }, { taskId: "N3" }] } },
+    )
+    expect(round.calls).toEqual([
+      { verb: "add", argv: ["--repo=/Users/me/app", "--count=2", "--prompt=p"], machine: undefined },
+    ])
+  })
+
   test("with the engine there: add runs on that machine, and the engine is that machine's to check", async () => {
     const { calls } = await run(
       "task.spawn",

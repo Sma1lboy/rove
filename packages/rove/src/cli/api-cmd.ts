@@ -164,7 +164,7 @@ export async function runApiSubcommand(argv: readonly string[]): Promise<void> {
   // `--machine auto` places the work: the least-loaded machine, this one unless another is clearly idler.
   if (machine === AUTO_MACHINE) {
     const picked = await pickMachine(undefined, undefined, repoHosts(forwardParams(verb, parsed.flags)))
-    const skipped = picked.skipped?.length ? `; without the repo: ${picked.skipped.join(", ")}` : ""
+    const skipped = picked.skipped?.length ? `; not candidates: ${picked.skipped.join(", ")}` : ""
     process.stderr.write(
       `rove api: --machine auto → ${picked.entry?.alias ?? LOCAL_MACHINE} (load per core: ${Object.entries(picked.loads)
         .map(([name, n]) => `${name} ${n}`)
