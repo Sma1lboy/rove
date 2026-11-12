@@ -1,9 +1,8 @@
-/** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the model/effort/engine menu. */
+/** The New session composer's popovers: a chip that opens a searchable list (project, branch) and the choice menu the model and engine chips share. */
 
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { t } from "./i18n/index.ts"
 import { type Choice, digitRow } from "./new-session.ts"
-import { Chevron } from "./ui/chevron.tsx"
 import {
   BRANCHES,
   CHECK,
@@ -20,8 +19,6 @@ import {
   POP,
   ROWS,
   RULE,
-  SUBMENU_DIM,
-  SUBMENU_ROW,
   chipClass,
   rowClass,
 } from "./ui/composer.ts"
@@ -299,109 +296,6 @@ export function ChoiceMenu(props: {
         />
       ))}
       {props.footer}
-    </div>
-  )
-}
-
-/**
- * The model chip's menu, as claude.ai/code's: the engine's models (`1`-`9` pick one while it is open),
- * then `Effort  <level> ›` opening the levels one step down. Models and levels come from the registry.
- */
-export function ModelMenu(props: {
-  models: readonly Choice[]
-  model: string
-  onModel: (id: string) => void
-  efforts: readonly Choice[]
-  effort: string
-  onEffort: (id: string) => void
-  close: () => void
-}) {
-  const [view, setView] = useState<"root" | "effort">("root")
-  const rows = props.models.length + (props.efforts.length > 0 ? 1 : 0)
-  const [cursor, setCursor] = useState(() =>
-    Math.max(
-      0,
-      props.models.findIndex((m) => m.id === props.model),
-    ),
-  )
-  const root = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (view === "root") root.current?.focus()
-  }, [view])
-  if (view === "effort") {
-    return (
-      <ChoiceMenu
-        heading={t("newSession.effort")}
-        options={props.efforts}
-        value={props.effort}
-        onBack={() => setView("root")}
-        onPick={(id) => {
-          props.onEffort(id)
-          props.close()
-        }}
-      />
-    )
-  }
-  const pickModel = (id: string) => {
-    props.onModel(id)
-    props.close()
-  }
-  const effortLabel = props.efforts.find((e) => e.id === props.effort)?.label ?? ""
-  return (
-    <div
-      ref={root}
-      role="menu"
-      tabIndex={-1}
-      className={MENU}
-      onKeyDown={(e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
-        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-          e.preventDefault()
-          setCursor(Math.max(0, Math.min(rows - 1, cursor + (e.key === "ArrowDown" ? 1 : -1))))
-        } else if (e.key === "Enter" || (e.key === "ArrowRight" && cursor >= props.models.length)) {
-          e.preventDefault()
-          const model = props.models[cursor]
-          if (model) pickModel(model.id)
-          else if (props.efforts.length > 0) setView("effort")
-        } else {
-          const digit = digitRow(e.key, props.models.length)
-          const model = digit === null ? undefined : props.models[digit]
-          if (!model) return
-          e.preventDefault()
-          pickModel(model.id)
-        }
-      }}
-    >
-      <p className={`${HEADING} ${KICKER} text-muted`}>{t("newSession.modelHeading")}</p>
-      {props.models.map((option, i) => (
-        <OptionRow
-          key={option.id}
-          option={option}
-          checked={option.id === props.model}
-          multi={false}
-          cursor={i === cursor}
-          digit={i < 9 ? i + 1 : undefined}
-          onHover={() => setCursor(i)}
-          onPick={() => pickModel(option.id)}
-        />
-      ))}
-      {props.efforts.length > 0 && (
-        <button
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          className={`${rowClass({ cursor: cursor === props.models.length })} ${SUBMENU_ROW}`}
-          onMouseMove={() => setCursor(props.models.length)}
-          onClick={() => setView("effort")}
-        >
-          <span className={CHECK} />
-          <span>{t("newSession.effort")}</span>
-          <span className={`${SUBMENU_DIM} text-muted`}>
-            {effortLabel}
-            <Chevron right />
-          </span>
-        </button>
-      )}
     </div>
   )
 }

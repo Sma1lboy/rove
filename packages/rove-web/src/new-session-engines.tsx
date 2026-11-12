@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { t } from "./i18n/index.ts"
-import { ChipPopover, ChoiceMenu, ModelMenu } from "./new-session-menus.tsx"
+import { ChipPopover, ChoiceMenu } from "./new-session-menus.tsx"
 import { type Choice, engineChipLabel, modelChipLabel, toggleEngine } from "./new-session.ts"
 import { Button } from "./ui/button.tsx"
 
@@ -103,17 +103,25 @@ export function ModelChip(props: {
   models: readonly Choice[]
   model: string
   onModel: (id: string) => void
-  efforts: readonly Choice[]
-  effort: string
-  onEffort: (id: string) => void
 }) {
   return (
     <ChipPopover
       field="model"
       title={t("newSession.model")}
-      label={modelChipLabel(props.models, props.model, props.effort, t("newSession.modelDefault"))}
+      label={modelChipLabel(props.models, props.model, t("newSession.model"))}
     >
-      {(close) => <ModelMenu {...props} close={close} />}
+      {(close) => (
+        <ChoiceMenu
+          heading={t("newSession.modelHeading")}
+          options={props.models}
+          value={props.model}
+          digits
+          onPick={(id) => {
+            props.onModel(id)
+            close()
+          }}
+        />
+      )}
     </ChipPopover>
   )
 }

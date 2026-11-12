@@ -58,8 +58,6 @@ export const rowClass = (o: { readonly cursor: boolean; readonly dim?: boolean }
   `flex w-full items-baseline gap-2 rounded-[calc(var(--radius)-6px)] px-2 py-1 text-left touch:py-2.5 disabled:cursor-default disabled:opacity-50 ${
     o.dim ? "text-subtle" : "text-ink"
   } ${o.cursor ? "bg-hover" : ""}`
-/** The row that opens a submenu (Effort), ruled off from the rows above. */
-export const SUBMENU_ROW = "mt-1 border-t-hairline border-t-line"
 export const CHECK = "flex-[0_0_1.5ch] text-accent"
 export const DIM = "ml-auto pl-3"
 export const SUBMENU_DIM = `${DIM} inline-flex items-center gap-1`
