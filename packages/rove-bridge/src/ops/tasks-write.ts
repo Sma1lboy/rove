@@ -6,6 +6,7 @@
 
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
+import { AUTO_MACHINE } from "@sma1lboy/rove/src/machines/forward.ts"
 import { deriveTitleFromPrompt } from "@sma1lboy/rove/src/orchestrator/title.ts"
 import { BridgeError, optBool, optInt, optStr } from "../protocol.ts"
 import { absPath, bool, flag, oneOf, optOneOf, optText, taskId, text } from "./args.ts"
@@ -69,8 +70,9 @@ async function done(call: Promise<unknown>): Promise<Record<string, never>> {
 async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   // Another registered machine: its repo, its worktree. The agent is this machine's unless `engineThere`
   // (or a round of attempts, or a Windows machine, which only that machine's `add` serves) puts the engine there too.
-  const machine = optText(args, "machine", 64)
-  const repo = machine ? remoteRepoRef(args, "repo") : absPath(args, "repo")
+  const asked = optText(args, "machine", 64)
+  const auto = asked === AUTO_MACHINE
+  const repo = asked && !auto ? remoteRepoRef(args, "repo") : absPath(args, "repo")
   const title = optText(args, "title", 200)
   const prompt = optText(args, "prompt", PROMPT_MAX)
   const branch = optGitRef(args, "branch")
@@ -86,6 +88,11 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
   const extras = extraRepos(args)
   // `--clone` has the machine fetch a repo id it has no checkout of; a path there is already a checkout.
   const clone = optBool(args, "clone")
+  // `auto`: the least-loaded machine that has this repo, named by this machine's checkout of it. Never a
+  // failure: no pick is this machine, and so is any start only this machine serves.
+  const hereOnly =
+    extras.length > 0 || count !== undefined || agentsGiven || args.commandFrom || args.scheduleAt || args.start
+  const machine = !auto ? asked : hereOnly ? undefined : await taskOpDeps.autoMachine(repo, baseBranch)
   if (clone && !machine) throw new BridgeError("BAD_ARGS", "clone needs a machine")
   if (clone && repo.startsWith("/")) throw new BridgeError("BAD_ARGS", "clone needs a repo id, not a path")
   if (extras.length > 0 && machine)
@@ -159,7 +166,7 @@ async function spawn(args: Args, ctx: OpContext): Promise<unknown> {
     return { taskIds, ...(res.groupId ? { groupId: res.groupId } : {}) }
   }
   if (typeof res.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
-  return { taskIds: [res.taskId] }
+  return { taskIds: [res.taskId], ...(auto && machine ? { machine } : {}) }
 }
 
 /** Minimum gap between streamed clone lines; git redraws its counters many times a second. */

@@ -88,6 +88,11 @@ export async function machineTasks(entry: MachineEntry): Promise<SerializedTask[
   }
 }
 
+/** The machine `--machine auto` places a task in `repo` on, by alias; undefined = this one. */
+export async function autoMachineFor(params: ApiParams): Promise<string | undefined> {
+  return (await pickMachine(machineLoad, undefined, repoHosts(params))).entry?.alias
+}
+
 /** The registered machine called `alias`; a typo is a usage error, not a silent local run. */
 export function requireMachine(alias: string): MachineEntry {
   const entry = listMachines().find((m) => m.alias === alias)
@@ -179,11 +184,16 @@ export function repoHosts(params: ApiParams): ((entry: MachineEntry | null) => P
   if (flagOn(params.clone)) return undefined
   const want = repoWanted(params.repo)
   if (!want || (!want.origin && !want.root)) return undefined
+  const here = typeof params.repo === "string" && parseRepoRef(params.repo).kind === "path" ? params.repo : null
+  // Another machine only has what was pushed: work that starts from commits no remote has stays here.
+  const base = typeof params["base-branch"] === "string" ? params["base-branch"] : "HEAD"
+  const ahead = here !== null && isLocalCheckout(here) && (unpushedCommits(here, base) ?? 0) > 0
   return async (entry) => {
     if (entry === null) {
-      if (typeof params.repo === "string" && parseRepoRef(params.repo).kind === "path") return true
+      if (here !== null) return true
       return getSavedRepos().some((path) => findCheckouts(want, [{ path, identity: repoIdentity(path) ?? {} }]).length)
     }
+    if (ahead) return false
     const socket = await machineDaemonSocket(entry)
     if (!socket) return false
     const client = new RoveDaemonClient(socket)

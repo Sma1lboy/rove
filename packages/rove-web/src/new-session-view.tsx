@@ -18,6 +18,7 @@ import { ATTACHMENTS_KEY, keepDraft, promptDraft } from "./new-session-draft.ts"
 import { EngineChip, ModelChip, useEnginePicks } from "./new-session-engines.tsx"
 import { FolderIcon } from "./new-session-icons.tsx"
 import {
+  AUTO,
   ComposerNote,
   MachineChip,
   remoteEmpty,
@@ -139,9 +140,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     })
   }
   // Another registered machine ("" = this one): its project list, the pick there, and the ref to branch from.
-  const at = useRemoteTarget(model, { machine: seed.machine, repo: initialRepo }, choice)
-  const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at
-  const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at
+  const at_ = useRemoteTarget(model, { machine: seed.machine, repo: initialRepo }, choice)
+  const { machines, machine, remote, machineName, remoteList, engineThere, shown } = at_
+  const { pick: remotePick, setPick: setRemotePick, base: remoteBase, setBase: setRemoteBase } = at_
   // Files live on this Mac: another machine's task could not read them.
   const targets = remote ? null : fileTargets((files) => void attach(files))
   const engineId = shown.engine
@@ -280,19 +281,27 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           at,
         )
       else {
-        const res = await model.client.request<{ taskIds: string[]; groupId?: string }>(
+        const commandFrom = retryCommandFrom(seed, engineId)
+        // Auto places a plain start; files, a later start, several repos or engines only work on this machine.
+        const place =
+          at_.auto && !at && repos.length === 1 && picks.ids.length <= 1 && attachments.length === 0 && !commandFrom
+        const res = await model.client.request<{ taskIds: string[]; groupId?: string; machine?: string }>(
           "task.spawn",
-          spawnArgs({
-            repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
-            branch: branchName.trim(),
-            engine: engineId,
-            commandFrom: retryCommandFrom(seed, engineId),
-            engines: at ? [] : picks.ids,
-            prompt: first,
-            ...(at ? { at } : {}),
-            model: modelValue,
-          }),
+          {
+            ...spawnArgs({
+              repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
+              branch: branchName.trim(),
+              engine: engineId,
+              commandFrom,
+              engines: at ? [] : picks.ids,
+              prompt: first,
+              ...(at ? { at } : {}),
+              model: modelValue,
+            }),
+            ...(place ? { machine: AUTO } : {}),
+          },
         )
+        if (res.machine) toast(t("newSession.startedOn", { machine: res.machine }))
         created = res.taskIds[0]
         compared = res.groupId
       }
@@ -321,7 +330,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const snippets = useSnippetSuggest({ value: prompt, onChange: setPrompt, area, onEnter: () => void start() })
 
   const pickMachine = (alias: string): void => {
-    at.switchTo(alias, primary)
+    at_.switchTo(alias, primary)
     setRepoQuery("")
     setError(null)
     setUngrouped(false)
@@ -389,7 +398,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         </div>
         <div className={C.BAR}>
           <div className={C.BAR_GROUP}>
-            {machines.length > 0 && <MachineChip machines={machines} value={machine} onPick={pickMachine} />}
+            {machines.length > 0 && (
+              <MachineChip machines={machines} value={at_.auto ? AUTO : machine} onPick={pickMachine} />
+            )}
             <ChipPopover
               field="repo"
               title={
@@ -467,7 +478,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               busy={busy}
               onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}
               onInvalid={setError}
-              agentPlace={remote ? { machine: machineName, there: engineThere, onPick: at.setEngineThere } : undefined}
+              agentPlace={remote ? { machine: machineName, there: engineThere, onPick: at_.setEngineThere } : undefined}
             />
           </div>
         </div>

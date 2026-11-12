@@ -7,6 +7,7 @@
 import { execFile } from "node:child_process"
 import { statSync } from "node:fs"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
+import { autoMachineFor } from "@sma1lboy/rove/src/machines/forward.ts"
 import { listMachines } from "@sma1lboy/rove/src/machines/registry.ts"
 import { isWindowsMachine } from "@sma1lboy/rove/src/machines/windows-remote.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
@@ -58,6 +59,9 @@ export const taskOpDeps = {
       return false
     }
   },
+  /** Where `machine: "auto"` places a task in the checkout at `repo`: a registered machine's alias, or undefined for this one. */
+  autoMachine: (repo: string, baseBranch?: string): Promise<string | undefined> =>
+    autoMachineFor({ repo, ...(baseBranch ? { "base-branch": baseBranch } : {}) }).catch(() => undefined),
   cloneRepo,
   validateGitUrl,
   validateCloneTarget,

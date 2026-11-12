@@ -34,6 +34,18 @@ const REASON_COPY: Readonly<Record<string, string>> = {
 /** `machines.repos` for this machine: its repos by id, to find a project picked here on another machine. */
 export const LOCAL = "local"
 
+/** The machine chip's "let Rove place it" row, and `task.spawn`'s `machine` for it. */
+export const AUTO = "auto"
+const AUTO_KEY = "rove.newSession.autoMachine"
+
+function storedAuto(): boolean {
+  try {
+    return localStorage.getItem(AUTO_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
 interface RemoteReply {
   readonly repos: readonly RemoteRepo[]
   readonly reason?: string
@@ -127,6 +139,8 @@ export function useRemoteTarget<E extends { readonly id: string; readonly name: 
 ) {
   const machines = useMachines(model)
   const [machine, setMachine] = useState(seed.machine ?? "")
+  // Auto keeps the composer on this machine's projects and engines; the machine is chosen at Start.
+  const [auto, setAuto] = useState(() => !seed.machine && storedAuto())
   const remoteList = useRemoteRepos(model, machine)
   const [engineThere, setEngineThere] = useState(false)
   const shown = useEnginesOn(model, engineThere ? machine : "", choice)
@@ -143,6 +157,7 @@ export function useRemoteTarget<E extends { readonly id: string; readonly name: 
   return {
     machines,
     machine,
+    auto,
     remote: machine !== "",
     machineName: machines.find((m) => m.alias === machine)?.hostLabel || machine,
     remoteList,
@@ -154,7 +169,12 @@ export function useRemoteTarget<E extends { readonly id: string; readonly name: 
     base,
     setBase,
     /** Switch machines, carrying the project picked on the one left (`localPick` when that is this machine). */
-    switchTo(alias: string, localPick: string): void {
+    switchTo(picked: string, localPick: string): void {
+      const alias = picked === AUTO ? "" : picked
+      setAuto(picked === AUTO)
+      try {
+        localStorage.setItem(AUTO_KEY, picked === AUTO ? "1" : "0")
+      } catch {}
       carry(alias && (machine || LOCAL), machine ? pick?.ref : localPick)
       setMachine(alias)
       setPick(null)
@@ -215,13 +235,18 @@ function MachineIcon() {
 /** This machine, then every registered one; a machine that is not online is listed with its state and cannot be picked. */
 export function MachineChip(props: {
   machines: readonly MachineRow[]
-  /** The picked machine's alias; "" = this machine. */
+  /** The picked machine's alias; "" = this machine, `AUTO` = Rove places it at Start. */
   value: string
   onPick: (alias: string) => void
 }) {
   const words = (useLocale() === "zh" ? tasksZh : tasksEn).machine
   const row = props.machines.find((m) => m.alias === props.value)
-  const name = props.value ? row?.hostLabel || props.value : t("newSession.thisMachine")
+  const name =
+    props.value === AUTO
+      ? t("newSession.machineAuto")
+      : props.value
+        ? row?.hostLabel || props.value
+        : t("newSession.thisMachine")
   return (
     <ChipPopover
       field="machine"
@@ -238,12 +263,18 @@ export function MachineChip(props: {
           heading={t("newSession.machine")}
           options={[
             { id: "", label: t("newSession.thisMachine") },
+            { id: AUTO, label: t("newSession.machineAuto") },
             ...props.machines.map((m) => ({
               id: m.alias,
               label: machineLabel(m, words),
               disabled: m.state !== "online",
             })),
           ]}
+          footer={
+            props.value === AUTO ? (
+              <p className={`${EMPTY_NOTE} text-muted`}>{t("newSession.machineAutoNote")}</p>
+            ) : null
+          }
           value={props.value}
           digits
           onPick={(id) => {

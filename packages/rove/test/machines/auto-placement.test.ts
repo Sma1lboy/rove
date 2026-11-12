@@ -1,5 +1,9 @@
+import { execFileSync } from "node:child_process"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { pickMachine } from "../../src/machines/forward.ts"
+import { pickMachine, repoHosts } from "../../src/machines/forward.ts"
 import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const machine = (alias: string) => ({ alias, host: alias, auth: { kind: "agent" } }) as unknown as MachineEntry
@@ -34,5 +38,15 @@ describe("--machine auto with a repo", () => {
     const picked = await pickMachine(reads({ mac: 1 }), [machine("mac")], async () => false, 2)
     expect(picked.entry?.alias).toBe("mac")
     expect(picked.skipped).toBeUndefined()
+  })
+
+  test("a checkout with commits no remote has keeps its work here", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "rove-auto-"))
+    const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { stdio: "pipe" })
+    git("init", "-q")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local only")
+    const hosts = repoHosts({ repo })
+    expect(await hosts?.(null)).toBe(true)
+    expect(await hosts?.(machine("deck"))).toBe(false)
   })
 })
