@@ -1,16 +1,19 @@
 /**
- * `rove remote-workspace <bash-hook|mcp> --dir <link>`: INTERNAL, run by an engine whose workspace is on
+ * `rove remote-workspace <bash-hook|file-hook|mcp> --dir <link>`: INTERNAL, run by an engine whose workspace is on
  * another machine (`machines/remote-workspace.ts`).
  *
  * - `bash-hook` answers an engine's pre-tool hook: the shell command is rewritten to run there through `rx`.
+ * - `file-hook` answers the same hook for the engine's own file tools: they stay on for this machine's
+ *   files, and a call aimed at the project is turned back with where to send it.
  * - `mcp` is a stdio MCP server whose read / write / edit tools work on that machine's files.
  */
 
 import { spawnSync } from "node:child_process"
-import { dirname } from "node:path"
+import { realpathSync } from "node:fs"
+import { dirname, resolve } from "node:path"
 import { createInterface } from "node:readline"
 import { quoteShellArg } from "../lib/shell-command.ts"
-import { isRemoteWorkspace, rxPath } from "../machines/remote-workspace.ts"
+import { isRemoteWorkspace, readRemoteWorkspace, rxPath } from "../machines/remote-workspace.ts"
 import { CURRENT_VERSION } from "../version.ts"
 import { flagValue } from "./argv.ts"
 
@@ -18,6 +21,7 @@ export async function runRemoteWorkspaceSubcommand(args: readonly string[]): Pro
   const dir = flagValue(args, "--dir") ?? process.cwd()
   if (!isRemoteWorkspace(dir)) return
   if (args[0] === "bash-hook") process.stdout.write(bashHookReply(await readAll(process.stdin), rxPath(dir)))
+  else if (args[0] === "file-hook") process.stdout.write(fileHookReply(await readAll(process.stdin), dir))
   else if (args[0] === "mcp") await serveMcp(rxPath(dir))
 }
 
@@ -47,6 +51,43 @@ export function bashHookReply(payload: string, rx: string): string {
       updatedInput: { ...input, command: `${quoteShellArg(rx)} ${quoteShellArg(command)}` },
     },
   })
+}
+
+/**
+ * The reply to a PreToolUse hook on a local file tool. "" (run as asked) for a path on this machine;
+ * a path in the link directory or under the project's path on that machine is denied, since the tool
+ * would read an empty directory or write a file the project never sees.
+ */
+export function fileHookReply(payload: string, dir: string): string {
+  let call: { tool_input?: Record<string, unknown>; cwd?: string }
+  try {
+    call = JSON.parse(payload) as typeof call
+  } catch {
+    return ""
+  }
+  const input = call.tool_input ?? {}
+  const named = [input.file_path, input.notebook_path, input.path].find((p) => typeof p === "string" && p)
+  // A search with no path runs in the working directory, which is the link.
+  const target = resolve(call.cwd ?? dir, typeof named === "string" ? named : ".")
+  const ws = readRemoteWorkspace(dir)
+  const roots = [dir, realPath(dir), ...(ws ? [ws.path] : [])]
+  if (!roots.some((root) => target === root || target.startsWith(`${root}/`))) return ""
+  const where = ws ? `the machine "${ws.machine}", at ${ws.path}` : "another machine"
+  return JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: `${target} is in the project, which is on ${where}. This tool only sees this machine. Use the workspace read / write / edit tools for the project's files (paths relative to its root), and the shell to search it (rg, find, ls): shell commands run there.`,
+    },
+  })
+}
+
+function realPath(dir: string): string {
+  try {
+    return realpathSync(dir)
+  } catch {
+    return dir
+  }
 }
 
 type Run = (command: string, stdin?: string) => { readonly ok: boolean; readonly out: string }

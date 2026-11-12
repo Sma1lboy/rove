@@ -1,7 +1,8 @@
 /**
  * Claude Code in a workspace on another machine. A PreToolUse hook rewrites each Bash command to run
  * there (`rove remote-workspace bash-hook`), so the Bash tool keeps its streaming, timeouts and
- * background runs; the local file tools are dropped for the workspace server's read / write / edit.
+ * background runs. The project's files go through the workspace server's read / write / edit; the local
+ * file tools stay on for this machine's files, and a second hook turns back the calls aimed at the project.
  * `=` forms throughout: these flags are variadic and would swallow the positional first message.
  */
 
@@ -12,7 +13,7 @@ import type { RemoteWorkspaceNote } from "../../machines/remote-workspace.ts"
 /** The MCP server name (`workspace` is reserved by the engine and silently not loaded): its tools are `mcp__rove-files__read`, `__write` and `__edit`. */
 const SERVER = "rove-files"
 
-const LOCAL_FILE_TOOLS = ["Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit"]
+const LOCAL_FILE_TOOLS = "Read|Edit|Write|Glob|Grep|NotebookEdit"
 
 export function claudeRemoteWorkspaceArgv(
   base: readonly string[],
@@ -22,16 +23,15 @@ export function claudeRemoteWorkspaceArgv(
 ): readonly string[] {
   const shim = (verb: string) => self(["remote-workspace", verb, "--dir", linkDir])
   const [command = "", ...args] = shim("mcp")
-  const settings = {
-    hooks: {
-      PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: quoteShellArgv(shim("bash-hook")) }] }],
-    },
-  }
+  const hook = (matcher: string, verb: string) => ({
+    matcher,
+    hooks: [{ type: "command", command: quoteShellArgv(shim(verb)) }],
+  })
+  const settings = { hooks: { PreToolUse: [hook("Bash", "bash-hook"), hook(LOCAL_FILE_TOOLS, "file-hook")] } }
   return [
     ...base,
     `--settings=${JSON.stringify(settings)}`,
     `--mcp-config=${JSON.stringify({ mcpServers: { [SERVER]: { command, args } } })}`,
-    `--disallowedTools=${LOCAL_FILE_TOOLS.join(",")}`,
   ]
 }
 
@@ -44,7 +44,8 @@ export function claudeRemoteNotes(ws: RemoteWorkspaceNote): string {
     "",
     "- Your Bash tool already runs every command there, in the project root. Use it as usual for git, tests, builds and searching (`rg`, `ls`, `find`).",
     "- Each Bash call starts in the project root; a `cd` does not carry over to the next call.",
-    `- Read and change files with the \`mcp__${SERVER}__read\`, \`mcp__${SERVER}__write\` and \`mcp__${SERVER}__edit\` tools. Paths are relative to the project root. The local file tools are off: they would only see this directory.`,
+    `- Read and change files with the \`mcp__${SERVER}__read\`, \`mcp__${SERVER}__write\` and \`mcp__${SERVER}__edit\` tools. Paths are relative to the project root.`,
+    "- Read, Edit, Write, Glob and Grep work on this machine only. Use them for files outside the project (your own notes, skills, attachments); they cannot see the project.",
     "",
   ].join("\n")
 }

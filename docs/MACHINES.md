@@ -299,7 +299,9 @@ or `CLAUDE.md` from the worktree, read once when the task is created.
 
 Claude Code needs no `rx`: its Bash tool runs there as it is (a hook rewrites
 each command), and it reads and changes files with `read`, `write` and `edit`
-tools that work on that machine. Its local file tools are off in such a task.
+tools that work on that machine. Its own file tools stay on for files on this
+machine (your notes, skills, attachments); pointed at the project, they answer
+with where to go instead.
 
 Deleting the task deletes the worktree's task on that machine with the same
 `--force`; the branch stays there, as with any task. If that machine cannot be
