@@ -18,6 +18,7 @@
 
 import { hostname } from "node:os"
 import type { DaemonRpcClient } from "../client/rpc.ts"
+import { readMachineLoad } from "../machine-load.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AgentTurnsStore } from "./agent-turns-store.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
@@ -307,6 +308,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // either path for sun_path, so neither is derivable locally.
           ptySocketPath: ctx.daemon.ptySocketPath?.() ?? defaultPtyHostSocketPath(ctx.daemon.homeDir),
           hostname: hostname(),
+          // What `--machine auto` on another machine places work by.
+          load: readMachineLoad(),
         }
       },
     },

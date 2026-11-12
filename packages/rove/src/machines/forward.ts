@@ -16,6 +16,7 @@ import {
   ROVE_API_VERSION,
   type SerializedTask,
 } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { type MachineLoad, readMachineLoad } from "@sma1lboy/rove-daemon/machine-load"
 import { recordSend } from "../cli/api/dispatcher.ts"
 import { ApiError } from "../cli/api/types.ts"
 import { errorMessage } from "../lib/error-message.ts"
@@ -100,33 +101,46 @@ export function requireMachine(alias: string): MachineEntry {
 /** `--machine auto`: let Rove place the work. */
 export const AUTO_MACHINE = "auto"
 
-const busy = (tasks: ReadonlyArray<{ readonly status?: string }>): number =>
-  tasks.filter((task) => task.status === "in_progress").length
+/** A remote machine has to be clearly idler than this one: load per core moves this much on its own. */
+const LOCAL_HEAD_START = 0.25
+
+/** A machine's own load reading, or null when it cannot be reached or reports none (an older Rove, Windows). */
+export async function machineLoad(entry: MachineEntry): Promise<number | null> {
+  const socketPath = await machineDaemonSocket(entry)
+  if (!socketPath) return null
+  const client = new RoveDaemonClient(socketPath)
+  try {
+    const res = await client.request<{ load?: MachineLoad }>("daemon.status")
+    return res.load?.load ?? null
+  } catch {
+    return null
+  } finally {
+    client.close()
+  }
+}
 
 /**
- * Where `--machine auto` sends new work: the machine with the fewest tasks in progress, this one
- * winning ties. A machine that does not answer is skipped. With `hosts`, only the machines it
- * accepts (null = this one) are candidates, e.g. those that have the repo; when it accepts none,
- * load alone decides. `loads` and `skipped` are what was measured, so the caller can say why.
+ * Where `--machine auto` sends new work: the machine with the lowest load per core, as each machine
+ * reports it; another machine wins only when it is clearly idler than this one. A machine with no
+ * reading is skipped. With `hosts`, only the machines it accepts (null = this one) are candidates,
+ * e.g. those that have the repo; when it accepts none, load alone decides. `loads` and `skipped`
+ * are what was measured, so the caller can say why.
  */
 export async function pickMachine(
-  localTasks: () => Promise<ReadonlyArray<{ readonly status?: string }>>,
-  readTasks: (entry: MachineEntry) => Promise<ReadonlyArray<{ readonly status?: string }> | null> = machineTasks,
+  readLoad: (entry: MachineEntry) => Promise<number | null> = machineLoad,
   machines: readonly MachineEntry[] = dedupeMachines(listMachines()),
   hosts?: (entry: MachineEntry | null) => Promise<boolean>,
+  localLoad: number = readMachineLoad().load ?? 0,
 ): Promise<{
   readonly entry: MachineEntry | null
   readonly loads: Readonly<Record<string, number>>
   readonly skipped?: readonly string[]
 }> {
-  const [local, ...remote] = await Promise.all([
-    localTasks().catch(() => [] as const),
-    ...machines.map((entry) => readTasks(entry)),
-  ])
-  const loads: Record<string, number> = { [LOCAL_MACHINE]: busy(local) }
+  const remote = await Promise.all(machines.map((entry) => readLoad(entry).catch(() => null)))
+  const loads: Record<string, number> = { [LOCAL_MACHINE]: localLoad }
   machines.forEach((entry, i) => {
-    const tasks = remote[i]
-    if (tasks) loads[entry.alias] = busy(tasks)
+    const load = remote[i]
+    if (load !== null && load !== undefined) loads[entry.alias] = load
   })
   let pool: (MachineEntry | null)[] = [null, ...machines.filter((entry) => loads[entry.alias] !== undefined)]
   let skipped: string[] | undefined
@@ -138,12 +152,12 @@ export async function pickMachine(
     }
   }
   let best: MachineEntry | null = null
-  let bestLoad = Number.POSITIVE_INFINITY
+  let bestScore = Number.POSITIVE_INFINITY
   for (const entry of pool) {
-    const load = loads[entry?.alias ?? LOCAL_MACHINE] ?? 0
-    if (load < bestLoad) {
+    const score = entry ? (loads[entry.alias] ?? 0) : localLoad - LOCAL_HEAD_START
+    if (score < bestScore) {
       best = entry
-      bestLoad = load
+      bestScore = score
     }
   }
   return { entry: best, loads, ...(skipped ? { skipped } : {}) }
@@ -196,14 +210,12 @@ export async function routeTarget(args: {
   readonly machine?: string
   readonly taskId?: string
   readonly isLocalTask: (taskId: string) => Promise<boolean>
-  /** This machine's tasks, for `--machine auto`'s load comparison. */
-  readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
   /** The verb's params: `--machine auto` only places where the `--repo` they name is. */
   readonly params?: ApiParams
 }): Promise<MachineEntry | null> {
   if (args.machine === AUTO_MACHINE) {
     const hosts = args.params ? repoHosts(args.params) : undefined
-    return (await pickMachine(args.localTasks ?? (async () => []), machineTasks, undefined, hosts)).entry
+    return (await pickMachine(machineLoad, undefined, hosts)).entry
   }
   if (args.machine !== undefined && args.machine !== LOCAL_MACHINE) return requireMachine(args.machine)
   if (args.machine === LOCAL_MACHINE || !args.taskId) return null
@@ -424,7 +436,6 @@ export async function invokeRouted(args: {
   readonly machine?: string
   readonly forwarded?: boolean
   readonly isLocalTask: (taskId: string) => Promise<boolean>
-  readonly localTasks?: () => Promise<ReadonlyArray<{ readonly status?: string }>>
   /** Run the verb in this daemon with `params`: the call's own, or as routing rewrote them. */
   readonly runHere: (params: ApiParams) => Promise<ApiEnvelope>
 }): Promise<ApiEnvelope> {
@@ -436,7 +447,6 @@ export async function invokeRouted(args: {
       machine: args.machine,
       taskId: typeof taskId === "string" ? taskId : undefined,
       isLocalTask: args.isLocalTask,
-      ...(args.localTasks ? { localTasks: args.localTasks } : {}),
       params: args.params,
     })
   } catch (err) {

@@ -40,7 +40,7 @@ rove machine: Nahuels-Mac-mini → narwhal (rove 0.9.185 on Nahuels-Mac-mini.loc
 ```
 
 `add` verifies before it saves: it asks the machine where its daemon listens
-(`rove daemon status --json`, starting one there if none is up) and refuses if
+(`rove daemon status`, starting one there if none is up) and refuses if
 the host is unreachable, Rove is not installed, or no daemon can be started.
 
 - **First connection.** If the host key is not in your `known_hosts` yet, `add`
@@ -332,7 +332,10 @@ origin), and so does `--repo sma1lboy/rove`
 ([below](#repos-are-named-by-id-not-path)). A base branch with unpushed
 commits is refused (`UNPUSHED_BASE`). `land` on a remote task pushes its
 branch there and opens a PR (`publish`). `--machine auto` picks the machine
-with the fewest tasks in progress among those that have the repo.
+with the lowest load per core among those that have the repo. Each machine
+reports its own (`rove daemon status` there shows it under `load`, with
+its system, cores and memory), and this machine keeps the work unless another
+is lower by more than 0.25.
 
 ## Repos are named by id, not path
 

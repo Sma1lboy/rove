@@ -154,9 +154,9 @@ attached. Code and engine logins stay on the machines they are already on.
   and prompt delivery as still run by the calling process (the TUI or
   `rove api`); terminal tabs have since moved into the daemon (#1353). Until
   launch moves too, those paths cannot be pointed at another machine.
-- No placement beyond fewest tasks in progress. There is no per-machine
-  capability or load check, so `--machine auto` cannot tell a GPU box from a
-  laptop.
+- Placement reads load only. Each machine reports its system, cores and
+  memory beside its load, but nothing matches a task to them yet, so
+  `--machine auto` cannot tell a GPU box from a laptop.
 - No run with no client attached that decides where work goes (for example CI
   asking for `--machine any`). The control plane is the hub inside each
   client or daemon; the open question is whether it becomes its own resident

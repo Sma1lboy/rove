@@ -62,8 +62,9 @@ logins. This machine only routes.
   `--engine-there` is passed. Over the
   socket or the bridge, pass `"machine": "<alias>"` beside `verb` and
   `params`. `local` names this machine. `auto` places the call: the machine with the
-  fewest tasks in progress (this one wins a tie; a machine that does not
-  answer is skipped), reported on stderr as `--machine auto → <alias>`. With a
+  lowest load per core, as each machine's own daemon reports it (this one
+  unless another is lower by more than 0.25; a machine that does not answer,
+  runs an older Rove or is Windows reports none and is skipped), reported on stderr as `--machine auto → <alias>`. With a
   `--repo` it can compare, `auto` only considers machines that have that repo
   (the stderr line lists the ones skipped); when none has it, load alone
   decides. `--clone` lifts the filter, since any machine can fetch the repo.
