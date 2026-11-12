@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 120 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 121 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -232,48 +232,6 @@ characters) when you need it to be unique, and both when you need both:
 
 `worktreePath` earns a mention only when the sentence is about files on disk —
 `cd`, a path in a command, a file you edited.
-
-## Found a defect in ANOTHER project? File a request, don't work around
-
-The repos on this machine are deliberately interdependent — one project
-using (and stumbling over) another is the normal case, not the edge case.
-Each saved project can keep a **main task**: a long-lived resident agent on
-that repo's own checkout. It is more than "task kind = existing directory" —
-it is that project's standing inbox, addressable from any other repo's
-session, and it dispatches what it receives.
-
-So when work in repo A surfaces a defect in product B, the default is to
-**file a request with B's main task — not to quietly patch around it in A**.
-The test: would this bite someone else? A local workaround fixes only you;
-a fix in B fixes everyone. Work around locally to unblock yourself if you
-must, but file the report either way.
-
-```bash
-rove api list                                   # find B's main task id
-rove api get-task --task-id <their-main>        # .tabs[] → the engine tab's id
-rove api send --task-id <their-main> --tab tab-N --prompt "<report>"
-```
-
-Address the engine tab explicitly (`--tab tab-N` from `get-task`'s `.tabs[]`,
-`kind == "engine"`): a long-lived main task's engine tab is often not
-`tab-1`, and an un-addressed `send` may refuse with `NO_ENGINE_TAB` rather
-than guess.
-
-A report worth sending carries: **symptoms** (what happened, concretely, how
-many times), **root cause** if you found it, **why it is worth fixing**
-(who else it bites), and **suggestions without prescribing the
-implementation** — the receiving project decides how to fix its own product.
-
-**Send the report — never `add` a task into someone else's repo.** You hold
-the problem-side context (symptoms, root cause, impact); only that project's
-main agent holds the solution-side context (code structure, existing issues,
-what's mid-flight, where this slots in the schedule). A task you compose
-would bake YOUR guess at the fix into the brief, and that guess is usually
-wrong — one field report here looked like "add a line to the docs" and
-actually split into a docs fix plus a runtime-detection issue anchored in
-files the reporter didn't know existed. **You raise the problem; their main
-agent decomposes it into tasks.** That translation is the main task's whole
-job, and it is why every project should keep one.
 
 ## Fresh worktrees start empty — install before you judge
 

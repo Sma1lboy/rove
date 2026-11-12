@@ -465,7 +465,7 @@ label: bug, idea → enhancement, question) and appends an environment block.
 It returns `{ filed: true, url, number }`; with no usable `gh` it returns
 `{ filed: false, url, hint }` where `url` is a prefilled new-issue link — hand
 it to the user. Rove's own product feedback channel, not a way to file work
-for another project (that is a `send` to their main task; see SKILL.md).
+for another project.
 
 ## Error codes
 
