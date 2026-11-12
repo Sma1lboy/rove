@@ -104,7 +104,7 @@ export interface Preview {
   readonly file?: true
 }
 
-const PAGE_IDS = ["worktrees", "update", "kanban", "routines", "issues", "mods", "compare", "usage"] as const
+const PAGE_IDS = ["worktrees", "update", "kanban", "routines", "issues", "mods", "compare", "usage", "world"] as const
 export type PageId = (typeof PAGE_IDS)[number]
 
 /** A store a reload of this browser tab comes back to (`sessionStorage`); blocked storage or a corrupt entry starts empty. */

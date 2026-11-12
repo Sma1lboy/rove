@@ -21,6 +21,23 @@ Open the first in a browser on this computer: it needs no token (see
 phone pairing URL. A phone already paired with `rove-bridge` keeps working:
 the two share one token.
 
+## World view
+
+**World** in the rail (or `?view=world`) draws this machine's tasks as an
+isometric map instead of a list: one station per task, one figure per open
+session, and a falling parcel per tool call. It is the same client — the
+stations come from the task rows the rail already has, and clicking one opens
+that task's terminal. **Classic UI** returns to the list.
+
+The scene is a lazy-loaded three.js chunk (WebGL2), so the classic page never
+downloads it. Tool calls are the one thing the bridge does not push, so an
+active task's recent history is read through `output.read` every two seconds
+and new calls are diffed by call id. That is the ceiling of this view: a
+working task shows beats up to two seconds late, and an idle one is not polled
+at all. A daemon-side tool-event push would make it a subscription instead.
+
+The desktop app opens on it (see [DESKTOP.md](DESKTOP.md#the-world-view)).
+
 ## What it does today
 
 - The Tasks rail: projects, tasks and their tabs, with the TUI's status marks

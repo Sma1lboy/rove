@@ -126,8 +126,8 @@ worktree on the shared branch name. `taskRepos(task)` (in `rove-daemon`'s
   because the SPA is a product surface. Every extra GUI consumer is another
   lifetime the daemon has to refcount, which is where the orphan/OOM
   incidents came from. Fix bugs and keep `/harness` working; take new
-  surface work to the TUI. The `rove-desktop` Electron shell was removed the
-  same day for the same reason.
+  surface work to the TUI. (`rove-desktop` is separate from this freeze: it
+  is a window on the same rove-web page, not a third GUI consumer.)
 - `packages/branding/` — Remotion assets and checked-in replay rendering.
 - `packages/rove-docs/` — public docs site (Fumadocs on Next.js, static
   export). Content is synced from `docs/` by `scripts/sync-docs.mjs`
