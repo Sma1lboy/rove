@@ -134,6 +134,8 @@ function todayStamp(): string {
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
+const NOT_A_REPO = "repoRoot is not a git repository"
+
 async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: string }> {
   if (typeof raw !== "string" || raw.length === 0) throw new Error("repoRoot is required")
   try {
@@ -141,7 +143,7 @@ async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: s
     // No worktree line: fall back to the toplevel rather than refuse.
     return { repoRoot: repoRoot ?? (await gitTopLevel(resolve(raw))), repoKey }
   } catch (err) {
-    if (isGitNotRepositoryError(err)) throw new Error("repoRoot is not a git repository")
+    if (isGitNotRepositoryError(err)) throw new Error(NOT_A_REPO)
     throw err
   }
 }
@@ -265,8 +267,14 @@ export class IssuesStore {
    * is no record, no linked issue, or it's already done.
    */
   async mirrorTaskDone(repo: unknown, taskId: string): Promise<RepoIssues | null> {
-    const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!taskId) return null
+    // A directory task outside git has no issue record, so nothing links to it.
+    const resolved = await resolveRepo(repo).catch((err) => {
+      if (err instanceof Error && err.message === NOT_A_REPO) return null
+      throw err
+    })
+    if (!resolved) return null
+    const { repoRoot, repoKey } = resolved
     return serialized(this.path, async () => {
       const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey]
@@ -285,8 +293,14 @@ export class IssuesStore {
    * parks the card in In progress forever. One lock; `null` if nothing linked.
    */
   async unlinkTask(repo: unknown, taskId: string): Promise<RepoIssues | null> {
-    const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!taskId) return null
+    // A directory task outside git has no issue record, so nothing links to it.
+    const resolved = await resolveRepo(repo).catch((err) => {
+      if (err instanceof Error && err.message === NOT_A_REPO) return null
+      throw err
+    })
+    if (!resolved) return null
+    const { repoRoot, repoKey } = resolved
     return serialized(this.path, async () => {
       const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey]

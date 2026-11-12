@@ -237,6 +237,14 @@ describe("IssuesStore", () => {
       // Persisted, not just returned — the board re-reads from disk.
       expect((await store.list(repo)).issues.find((i) => i.id === 1)?.taskId).toBeUndefined()
     })
+
+    // Deleting a directory task outside git reaches here with a plain directory.
+    it("has nothing to unlink for a directory outside git", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "rove-issues-store-plain-"))
+      cleanups.push(dir)
+      const store = new IssuesStore(join(dir, "home", ".rove", "issues.json"))
+      expect(await store.unlinkTask(dir, "task-abc")).toBeNull()
+    })
   })
 
   describe("created stamp", () => {
