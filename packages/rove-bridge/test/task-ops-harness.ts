@@ -46,7 +46,10 @@ export async function refused(op: string, args: Record<string, unknown>, replies
     calls.filter(
       (c) =>
         ("verb" in c && c.verb !== "engine-list") ||
-        ("rpc" in c && c.rpc !== "task.list" && c.rpc !== "worktree.discoverAdoptable"),
+        ("rpc" in c &&
+          c.rpc !== "task.list" &&
+          c.rpc !== "worktree.discoverAdoptable" &&
+          c.rpc !== "worktree.legacyAdopted"),
     ),
   ).toEqual([])
 }

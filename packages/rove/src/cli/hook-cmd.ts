@@ -220,9 +220,8 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  *  3. **WorktreeCreate cleanup** — it's a VCS *provider* hook: its presence
  *     makes Claude Code delegate worktree creation to it, and an observer
  *     (returns no path) BREAKS `claude --worktree` / `EnterWorktree` in every
- *     repo. Never install; remove any on disk. Adoption instead comes from the
- *     daemon's `session-start` auto-adopt (`findAdoptableWorktree`) and
- *     `rove add .`.
+ *     repo. Never install; remove any on disk. A worktree becomes a task only
+ *     when asked: `rove add .` / `rove adopt`.
  */
 export async function ensureGlobalRoveHooks(opts: { quiet?: boolean } = {}): Promise<void> {
   try {
@@ -315,7 +314,7 @@ async function runHookCleanup(): Promise<void> {
 }
 
 /** `rove hook setup` — DEPRECATED; only removes the WorktreeCreate hook (see
- *  {@link ensureGlobalRoveHooks}). Sync is automatic on the daemon side. */
+ *  {@link ensureGlobalRoveHooks}). */
 async function runHookSetup(_argv: readonly string[]): Promise<void> {
   await cleanupWorktreeSyncHook()
   process.stdout.write(
@@ -326,9 +325,8 @@ async function runHookSetup(_argv: readonly string[]): Promise<void> {
       "a VCS provider hook — its presence broke `claude --worktree` / EnterWorktree",
       "in every repo. Any hook Rove previously installed has been removed.",
       "",
-      "Sync is now automatic: a `claude --worktree` (or any session) started in a",
-      "worktree under a repo Rove already tracks is adopted as a task on launch.",
-      "To adopt existing worktrees on demand, use the New Task dialog or `rove adopt`.",
+      "A worktree Rove did not create never becomes a task on its own. To add one,",
+      "use the New Task dialog or `rove adopt`.",
       "",
     ].join("\n"),
   )

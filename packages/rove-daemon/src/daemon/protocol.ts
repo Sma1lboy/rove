@@ -161,6 +161,8 @@ export type DaemonRequestName =
   | "panel.show"
   | "activity.answered"
   | "worktree.discoverAdoptable"
+  // Never-started tasks an older Rove added by itself for worktrees it did not create.
+  | "worktree.legacyAdopted"
   | "worktree.adopt"
   // Cross-project worktree audit: every worktree of every local saved project
   // (managed or not, linked or not) with dirty/age/remote-branch status.

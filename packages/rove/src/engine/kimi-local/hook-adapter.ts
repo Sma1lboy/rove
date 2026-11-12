@@ -16,8 +16,7 @@
  *     exit-0 observer is safe.
  *   - `Notification` is NOT wired: its types are undocumented, and unfiltered
  *     it would mark every idle prompt as needs-input.
- *   - No worktree-watch hook: a worktree Kimi creates is picked up by the
- *     daemon's session-start auto-adopt (`handlers-engine-report.ts`).
+ *   - No worktree-watch hook: a worktree Kimi creates never becomes a task on its own.
  */
 
 import { existsSync } from "node:fs"

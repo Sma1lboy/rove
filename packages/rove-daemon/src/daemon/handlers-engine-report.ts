@@ -6,7 +6,7 @@
 
 import { ingestAgentTurnsBestEffort } from "./agent-turns-ingest.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { findAdoptableWorktree, matchTaskByCwd, resolvePtyOwner } from "./cwd-task.ts"
+import { matchTaskByCwd, resolvePtyOwner } from "./cwd-task.ts"
 import { trackDeliveryTurn } from "./delivery-ops.ts"
 import { optionalActivityDetail, optionalString, requireString } from "./handler-validators.ts"
 import { deliveryDepsOf } from "./handlers-deliveries.ts"
@@ -46,19 +46,6 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     const rawId = optionalString(payload, "taskId")
     const explicitId = rawId ? resolvePtyOwner(ctx.orch.listTasks(), rawId, tabId) : undefined
     const cwd = optionalString(payload, "cwd")
-    // A session starting in an unadopted worktree under a tracked repo's
-    // managed root is auto-adopted so the cwd maps below. `session-start`
-    // only, to bound the work; `adoptWorktree` is idempotent + git-validated.
-    if (!explicitId && cwd && kind === "session-start") {
-      const cand = findAdoptableWorktree(ctx.orch.listTasks(), cwd)
-      if (cand) {
-        try {
-          await ctx.orch.adoptWorktree({ repo: cand.repo, worktreePath: cand.worktreePath, ifExists: "return" })
-        } catch (err) {
-          logDaemonError("worktree-autosync", err)
-        }
-      }
-    }
     const taskId = explicitId ?? (cwd ? matchTaskByCwd(ctx.orch.listTasks(), cwd) : undefined)
     if (!taskId) return {} // unmatched cwd → drop
     const detail = optionalActivityDetail(payload)

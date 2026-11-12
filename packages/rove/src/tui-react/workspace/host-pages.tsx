@@ -20,6 +20,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import { type PageEntry, usePageEntries } from "../pages/registry"
 import type { DialogContext } from "../ui/dialog"
+import { useLegacyAdoptPrompt } from "./legacy-adopt-prompt"
 import { requestTabActivation } from "./terminal-tabs-shared"
 
 interface HostPageState {
@@ -194,6 +195,12 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
   const { orchestrator, pages, focus, dialog, kv, dims, selectedTask, activeTaskId, tasks, engineState, activateTask } =
     opts
   const pageEntries = usePageEntries()
+  useLegacyAdoptPrompt(orchestrator, {
+    dialog,
+    kv,
+    blocked: pages.whatsNewFrom !== null || pages.welcome !== null,
+    enterTask: activateTask,
+  })
 
   const activePane: PaneId | null = dialog.stack.length > 0 ? null : focus.focused
 

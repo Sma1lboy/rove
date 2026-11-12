@@ -164,11 +164,22 @@ async function worktreeAdoptable(args: Args, ctx: OpContext): Promise<unknown> {
   return { worktrees: res.worktrees ?? [], unreadable: res.unreadable ?? [] }
 }
 
+/** Rows an older Rove added by itself for worktrees made outside it. */
+async function worktreeLegacyAdopted(_args: Args, ctx: OpContext): Promise<unknown> {
+  const res = await ctx.api.rpc<{
+    tasks?: ReadonlyArray<{ id: string; title: string; repo: string; worktreePath: string }>
+  }>("worktree.legacyAdopted", {})
+  return {
+    tasks: (res.tasks ?? []).map((t) => ({ id: t.id, title: t.title, repo: t.repo, worktreePath: t.worktreePath })),
+  }
+}
+
 export const TASK_OPS: OpTable = {
   "task.get": read("verb get-task --task-id", taskGet),
   "task.info": read("verb collect --task-ids (first row, trimmed)", taskInfo),
   "repo.branches": read("helpers listLocalBranches + getCurrentBranch", repoBranches),
   "notes.list": read("verb note-list --repo", notesList),
   "worktree.adoptable": read("rpc worktree.discoverAdoptable", worktreeAdoptable),
+  "worktree.legacyAdopted": read("rpc worktree.legacyAdopted", worktreeLegacyAdopted),
   ...TASK_WRITE_OPS,
 }

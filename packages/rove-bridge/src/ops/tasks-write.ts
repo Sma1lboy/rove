@@ -218,6 +218,22 @@ async function adopt(args: Args, ctx: OpContext): Promise<unknown> {
   return { taskId: res.task.id }
 }
 
+/** A session in the first leftover row's project checkout, told the whole list; it deletes only what the user confirms. */
+async function legacyCleanup(args: Args, ctx: OpContext): Promise<unknown> {
+  const title = text(args, "title", 200)
+  const prompt = text(args, "prompt", PROMPT_MAX)
+  const found = await ctx.api.rpc<{ tasks?: ReadonlyArray<{ repo: string }> }>("worktree.legacyAdopted", {})
+  const first = found.tasks?.[0]
+  if (!first) throw new BridgeError("NOTHING_TO_CLEAN", "no leftover sessions to clean up")
+  // A repo the daemon will not make a project row for (a scratch dir) still gets the session, in its own worktree.
+  const main = await ctx.api.rpc<{ task: { id: string } }>("task.ensureMain", { repo: first.repo }).catch(() => null)
+  // `--no-worktree` runs in the parent's directory; `add` refuses a `--repo` beside it.
+  const where = main ? [flag("parent", main.task.id), flag("no-worktree", "true")] : [flag("repo", first.repo)]
+  const res = await ctx.api.verb<{ taskId?: string }>("add", [...where, flag("title", title), flag("prompt", prompt)])
+  if (typeof res.taskId !== "string") throw new BridgeError("BAD_RESULT", "add returned no task id")
+  return { taskId: res.taskId }
+}
+
 /** A busy refusal arrives as `BridgeError` code `TASK_BUSY` (lifted by `createBridgeApi`), so the page can offer "archive anyway". */
 async function archive(args: Args, ctx: OpContext): Promise<unknown> {
   const id = taskId(args)
@@ -373,6 +389,10 @@ export const TASK_WRITE_OPS: OpTable = {
     return { taskId: res.taskId }
   }),
   "worktree.adopt": write("rpc worktree.adopt", adopt),
+  "worktree.legacyCleanup": write(
+    "rpc worktree.legacyAdopted + task.ensureMain, then verb add --parent --no-worktree",
+    legacyCleanup,
+  ),
   "repo.clone": write("helper cloneRepo (git clone, fixed argv)", clone),
   "task.ensureWorktree": write("verb ensure-worktree --task-id", async (a, c) => {
     const res = await c.api.verb<{ worktreePath?: string }>("ensure-worktree", [flag("task-id", taskId(a))])

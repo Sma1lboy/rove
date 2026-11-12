@@ -1,4 +1,4 @@
-import { findAdoptableWorktree, matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
+import { matchTaskByCwd, tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import { expect, it } from "vitest"
 import { isForeignDaemonHome } from "../../../rove-daemon/src/daemon/protocol-compat"
 import { sameHistoryWorktree } from "../../src/engine/history-worktree"
@@ -14,14 +14,6 @@ it("attributes Windows hooks to the most specific saved worktree", () => {
   expect(matchTaskByCwd(tasks, "C:\\repo\\worktrees\\child\\src")).toBe("child")
   expect(tasksAtWorktreePath(tasks, "C:\\repo\\worktrees\\child")).toEqual(["child"])
   expect(matchTaskByCwd(tasks, "C:\\repo-other")).toBeUndefined()
-})
-
-it.runIf(process.platform === "win32")("adopts a native Windows repo-local worktree only once", () => {
-  const main = { id: "main", repo: "C:\\path-identity-fixture\\repo", worktreePath: "C:\\path-identity-fixture\\repo" }
-  const cwd = "C:\\path-identity-fixture\\repo\\.rove\\worktrees\\child\\src"
-  expect(findAdoptableWorktree([main], cwd)?.worktreePath).toBe("C:/path-identity-fixture/repo/.rove/worktrees/child")
-  const child = { id: "child", repo: main.repo, worktreePath: "C:/path-identity-fixture/repo/.rove/worktrees/child/" }
-  expect(findAdoptableWorktree([main, child], cwd)).toBeUndefined()
 })
 
 it("accepts the same daemon home in native and git spelling", () => {

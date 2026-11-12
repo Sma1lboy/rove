@@ -8,6 +8,7 @@ import { DocumentTitle } from "./document-title.tsx"
 import { useEscapeInterrupt } from "./esc-interrupt.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import { enterWorkspace, narrowPane, surfaceFor, useNarrow } from "./layout.ts"
+import { maybeAskLegacyAdopt } from "./legacy-adopt-prompt.tsx"
 import { LoginScreen } from "./login-view.tsx"
 import { passwordLoginOn } from "./login.ts"
 import { type AppModel, selectedRow } from "./model.ts"
@@ -65,6 +66,10 @@ function Shell({ model }: { model: AppModel }) {
     const hourly = window.setInterval(check, 3_600_000)
     return () => window.clearInterval(hourly)
   }, [hello, model.client])
+  // Rows an older Rove added by itself: asked once per page, like the TUI at launch.
+  useEffect(() => {
+    if (hello) void maybeAskLegacyAdopt(model)
+  }, [hello, model])
   usePluginChords(model)
   useWorkspaceKeys(model)
   useEscapeInterrupt()
