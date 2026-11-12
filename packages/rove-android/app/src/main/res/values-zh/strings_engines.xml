@@ -56,6 +56,24 @@
     <string name="engines_prose_reset">清除 %1$s 的名称和启动命令覆盖项，恢复为内置设置；开关状态保持不变。</string>
     <string name="engines_failed">请求失败，重试前请先确认结果。</string>
 
+    <!-- Settings → Engines: engine integrations and the Rove agent skill -->
+    <string name="engines_installed_count">已安装 %1$d/%2$d</string>
+    <string name="engines_up_to_date">全部已是最新</string>
+    <string name="engines_hooks_title">引擎接入</string>
+    <string name="engines_hooks_hint">Rove 写进 Mac 上各引擎自身配置的钩子，让标签页在工作、等待、完成的那一刻就显示出来</string>
+    <string name="engines_hooks_install">安装钩子</string>
+    <string name="engines_hooks_install_count">安装缺失的（%1$d）</string>
+    <string name="engines_hooks_remove">移除钩子</string>
+    <string name="engines_hooks_remove_count">全部移除（%1$d）</string>
+    <string name="engines_hooks_prose_install">把 Rove 的钩子写进 Mac 上每个缺少钩子或钩子已过期的引擎配置。</string>
+    <string name="engines_hooks_prose_remove">从 Mac 上每个引擎的配置里移除 Rove 的钩子。之后标签页只能从屏幕读状态。</string>
+    <string name="engines_skill_title">Rove 智能体技能</string>
+    <string name="engines_skill_hint">教会各引擎里的智能体自己操作 Rove（rove api）：开任务、读其他会话、给它们发消息</string>
+    <string name="engines_skill_none">这台机器上没有能装技能的引擎</string>
+    <string name="engines_skill_install">安装技能</string>
+    <string name="engines_skill_install_count">安装（%1$d）</string>
+    <string name="engines_skill_prose_install">把 Rove 智能体技能复制到 Mac 上每个缺少它或版本过旧的引擎配置里。</string>
+
     <!-- Settings → Plugins -->
     <string name="plugins_title">插件</string>
     <string name="plugins_empty_title">无插件</string>

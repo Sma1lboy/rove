@@ -35,4 +35,24 @@ class EngineSettingsTest {
         assertTrue(engine.enabled)
         assertEquals("unknown", engine.login)
     }
+
+    @Test fun anEngineWithNoCliOnTheMacIsNotCountedAsMissingHooks() {
+        val engines = listOf(
+            EngineSetting(id = "a", hooks = "installed"),
+            EngineSetting(id = "b", hooks = "outdated"),
+            EngineSetting(id = "c", hooks = "not-installed", binaryFound = false),
+            EngineSetting(id = "d", hooks = "unsupported"),
+        )
+        val hooks = EngineLogic.hooks(engines)
+        assertEquals(1, hooks.missing)
+        assertEquals(2, hooks.total)
+        assertEquals(2, hooks.onDisk)
+        assertFalse(EngineLogic.hooks(listOf(EngineSetting(id = "d"))).shown)
+    }
+
+    @Test fun anOutdatedSkillCountsAsMissing() {
+        val skill = EngineLogic.skill(listOf(EngineSetting(id = "a", skill = "installed"), EngineSetting(id = "b", skill = "outdated"), EngineSetting(id = "c")))
+        assertEquals(1, skill.missing)
+        assertEquals(2, skill.total)
+    }
 }
