@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.289
+
+### Patch Changes
+
+- [#1979](https://github.com/Sma1lboy/rove/pull/1979) [`d78c620`](https://github.com/Sma1lboy/rove/commit/d78c620a3305f4a14cf3cd55762f56a608da73b5) Web: while the New session composer clones a repo or starts a task on another machine, the line above it shows the moving status dots and a light sweep across its text, with no trailing "…". A project that will be cloned on another machine is named `owner/repo` on its chip and in that line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1978](https://github.com/Sma1lboy/rove/pull/1978) [`8f64b70`](https://github.com/Sma1lboy/rove/commit/8f64b70053b125de37983d2b1c8566c6de45cacc) Web: the New session composer no longer offers an effort level; the model chip reads `Model` until you pick one and lists only models. A project that another machine will clone shows its name alone, without a `clone` tag after it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1977](https://github.com/Sma1lboy/rove/pull/1977) [`bcad438`](https://github.com/Sma1lboy/rove/commit/bcad438d1fd2cd830f5aea088cd0e852684fffb5) Web: the New session project list no longer scrolls sideways. A folder path that does not fit is cut at its start, so the last folders stay readable and the full path shows on hover, and a line separates **No folder** from the projects. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1976](https://github.com/Sma1lboy/rove/pull/1976) [`fca6f02`](https://github.com/Sma1lboy/rove/commit/fca6f027500e244fa65ccf9fac0e39ece73d5561) Web: after **Update now** installs a new version, the Update page offers **Restart Rove** in its place. One click restarts the daemon and `rove --web` onto the new build, and the page reloads itself when they are back; engine sessions keep running. Before, the page kept showing **Update now** and told you to restart both by hand. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1980](https://github.com/Sma1lboy/rove/pull/1980) [`ddfaf5b`](https://github.com/Sma1lboy/rove/commit/ddfaf5bfca0f3c602a5a3c919e5c87a9f413f4b3) A Claude Code task whose workspace is on another machine keeps its own file tools for files on this machine, such as notes, skills and attachments. Before, they were switched off for the whole task. Pointed at the project, they now answer with the tool to use instead. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.288
 
 ### Patch Changes
