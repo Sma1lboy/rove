@@ -83,6 +83,7 @@ internal data class ListActions(
         TaskListLogic.projects(TaskListLogic.filtered(tasks.tasks, filter), controls.sort, query, if (query.isEmpty()) emptyMap() else tabTitles)
     }
     val shown = sections.sumOf { it.rows.size }
+    val icons = remember(engines) { engines.mapNotNull { e -> e.icon?.let { e.id to it } }.toMap() }
     val loaded = tasks.tasks.isNotEmpty() || connection is Connection.Connected
     val clock = remember { Clock() }
     val receipts = remember(tasks.tasks) {
@@ -115,7 +116,7 @@ internal data class ListActions(
                     val mainTaskId = tasks.tasks.firstOrNull { it.repo == section.repo && it.kind == "main" }?.id
                     item(key = "repo:${section.repo}") { SectionHeader(section, mainTaskId, actions) }
                     items(section.rows, key = { it.id }) { row ->
-                        MenuRow(row, receipts.getValue(row.id), now, actions)
+                        MenuRow(row, receipts.getValue(row.id), now, icons, actions)
                     }
                 }
                 if (query.isEmpty() && filter == null && archived.isNotEmpty()) {
@@ -125,7 +126,7 @@ internal data class ListActions(
                         }
                     }
                     if (archivedOpen) items(archived, key = { "archived:${it.id}" }) { row ->
-                        MenuRow(row, archivedReceipts.getValue(row.id), now, actions)
+                        MenuRow(row, archivedReceipts.getValue(row.id), now, icons, actions)
                     }
                 }
                 when (TaskListLogic.emptiness(loaded, TaskListLogic.visible(tasks.tasks).size, shown)) {
@@ -141,10 +142,10 @@ internal data class ListActions(
 }
 
 /** A row with its long-press menu anchored on it. */
-@Composable private fun MenuRow(row: TaskRow, receipt: Receipt, now: State<Long>, actions: ListActions) {
+@Composable private fun MenuRow(row: TaskRow, receipt: Receipt, now: State<Long>, icons: Map<String, EngineIcon>, actions: ListActions) {
     var menu by remember { mutableStateOf(false) }
     Box(Modifier.padding(horizontal = 8.dp)) {
-        TaskRowView(row, receipt, now, onLongClick = { menu = true }) { actions.onSelect(row.id) }
+        TaskRowView(row, receipt, now, row.engine?.id?.let(icons::get), onLongClick = { menu = true }) { actions.onSelect(row.id) }
         TaskRowMenu(row, menu, { menu = false }) { actions.onRowMenu(row, it) }
     }
 }
