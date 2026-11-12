@@ -65,7 +65,7 @@ Push: `{"event":"tasks","data":{...}}`.
 | `hello` | Require protocol 1 before showing connected |
 | `tasks.subscribe`, `tasks.list` | Initial snapshot, live updates, manual refresh; `gates` rides along |
 | `gate.answer` | Answer sheet for a `decision_needed` Inbox row: option buttons (recommended marked), optional note. The row is never dismissed by tapping; an answered gate whose engine is away opens its task instead |
-| `engines.list`, `repos.list` | Use server names and IDs in creation forms |
+| `engines.list`, `repos.list` | Use server names and IDs in creation forms. **Pending [#1998](https://github.com/Sma1lboy/rove/pull/1998):** an engine's `icon` (SVG path data) is drawn before each task title in brand colours, the row's ink where a path has no `fill`; an engine without one gets a ring |
 | `task.tabs`, `tab.new` | List tabs and create a shell tab, or an engine tab with or without a first prompt; `latest: true` opens on the engine the project used last (the TUI's ctrl+t) |
 | `term.attach` | Receive stream ID and base64 replay; only attach existing sessions. An optional `leafId` attaches a split pane of the tab (clients that never split can ignore `task.tabs`' `split`) |
 | `term.data`, `term.exit` pushes | Decode bytes in xterm; stop input after exit |
@@ -80,6 +80,8 @@ Push: `{"event":"tasks","data":{...}}`.
 | `task.setEngine`, `task.moveToProject`, `task.get` | Long-press a task row: change engine (local rows), move to another of this Mac's projects (local, top-level, single-repo rows; the checkout stays), and copy the id, branch or worktree path. The path comes from `task.get` |
 | `prefs.get`, `prefs.set` | Settings → About: release channel (`latest`, `next`, `nightly`) and update notice on or off, stored on the Mac as `updateChannel` and `updateNotify`. A failed save reverts the choice. A bridge without `prefs.get` hides both controls |
 | `attention.dismissRoutine` | A failed routine in the Inbox clears by its automation id, on open or dismiss. The header offers next-pending; the attention section's ack all dismisses every row except decisions, stopping at the first failure, then refreshes |
+| `engines.settings`, `engines.hooks.install`, `engines.hooks.uninstall`, `skill.install` | **Pending [#1996](https://github.com/Sma1lboy/rove/pull/1996):** Settings → Engines: engine integrations counts hooks over engines whose CLI the Mac found, with install missing and remove all; Rove agent skill counts the engines that take it, with install. Each write confirms first; a `skill.install` reply with an `error` shows it in the sheet |
+| `output.read` with `tab` and `source: terminal` | **Pending [#1997](https://github.com/Sma1lboy/rove/pull/1997):** Inbox reply: a local tab's row opens its last 12 screen rows, refreshed every 2 s, and a one-line reply through `tab.send`. A tab at a menu offers the tab instead; an exited tab shows the rows only. The terminal `tail` arrives as a list of rows |
 | `tab.rename`, `tab.close` | Long-press a tab in the strip. Close asks first |
 | `term.revive` | A tab whose session ended shows reopen in its banner, then attaches again |
 | `update.check` | Settings → About: check for updates through the Mac, sending the selected channel when `prefs.get` loaded one; otherwise the Mac checks its own channel. The app names `rove update` and opens the release; it never installs |
