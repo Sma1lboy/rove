@@ -8,7 +8,7 @@
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable } from "@opentui/core"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
@@ -285,11 +285,21 @@ function TerminalSession(props: TerminalProps) {
     geomTick,
   })
 
-  const [recovery, setRecovery] = useState<SessionRecovery>(null)
+  // Seeded from the live PTY so a switch back lays the banner out before the body is measured;
+  // a late banner shrinks the body one row and the resize pair repaints the child twice.
+  const liveRecovery = useCallback(
+    (): SessionRecovery => (props.taskId ? registry.get(props.taskId)?.currentRecovery?.() : null) ?? null,
+    [registry, props.taskId],
+  )
+  const [recovery, setRecovery] = useState<SessionRecovery>(liveRecovery)
   useEffect(() => {
+    if (!pty) {
+      setRecovery(liveRecovery())
+      return
+    }
     setRecovery(null)
-    return pty?.onRecovery?.(setRecovery)
-  }, [pty])
+    return pty.onRecovery?.(setRecovery)
+  }, [pty, liveRecovery])
 
   /* --------- view ---------- */
 

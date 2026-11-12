@@ -123,6 +123,8 @@ export type CursorPos = { x: number; y: number }
 export interface TaskPtyLike {
   /** Attach facts from the host, independent of transcript or screen contents. */
   onRecovery?: (listener: (state: SessionRecovery) => void) => () => void
+  /** The state `onRecovery` would replay, read synchronously. */
+  currentRecovery?: () => SessionRecovery
 
   readonly taskId: string
   readonly cwd: string

@@ -45,6 +45,10 @@ export class HostedTaskPty extends XtermTaskPty {
     }
   }
 
+  currentRecovery(): SessionRecovery {
+    return this.recovery
+  }
+
   private opened = false
   private pendingInput: string[] = []
   private pendingResize: { cols: number; rows: number } | null = null
