@@ -386,8 +386,8 @@ from the page. Pick a machine and its project list is that machine's
 `repo-list`; a typed `owner/repo` or URL, or a repo under "Your GitHub
 repositories", is offered as `Clone … on <machine>`, and Start sends
 `add --machine <alias> --repo <id> --clone`, so that machine clones with its
-own git and `gh` sign-in. The agent runs on this machine, so the engine,
-model and effort chips are this machine's; `Agent runs on` in the `⋯` menu
+own git and `gh` sign-in. The agent runs on this machine, so the engine
+and model chips are this machine's; `Agent runs on` in the `⋯` menu
 switches it to that machine, which runs the engine there instead. A machine that is offline or
 too old is listed with its state and cannot be picked. Switching machines keeps the project: the
 same repo (by id) is picked on the new machine when it has a checkout, and

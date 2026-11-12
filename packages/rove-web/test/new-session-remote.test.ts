@@ -59,7 +59,7 @@ describe("New session composer on another machine", () => {
     expect(enginesThere(here, [])).toEqual({ rows: here, missing: new Set() })
   })
 
-  test("by default the agent is this machine's, so its model and effort ride along; with the engine there they do not", () => {
+  test("by default the agent is this machine's, so its model rides along; with the engine there it does not", () => {
     const input = {
       pick: { ref: "github.com/me/dotfiles", clone: false },
       machine: "deck",
@@ -67,7 +67,6 @@ describe("New session composer on another machine", () => {
       prompt: "fix it",
       baseRef: "",
       model: "opus",
-      effort: "high",
     }
     expect(remoteSpawnArgs({ ...input, engineThere: false })).toEqual({
       repo: "github.com/me/dotfiles",
@@ -75,7 +74,6 @@ describe("New session composer on another machine", () => {
       prompt: "fix it",
       engine: "claude",
       model: "opus",
-      effort: "high",
     })
     expect(remoteSpawnArgs({ ...input, engineThere: true })).toEqual({
       repo: "github.com/me/dotfiles",
@@ -106,7 +104,6 @@ describe("New session composer on another machine", () => {
       baseRef: "",
       engineThere: false,
       model: "",
-      effort: "",
     }
     expect(remoteSpawnArgs({ ...base, pick: { ref: "github.com/sma1lboy/rove", clone: false } })).toEqual({
       repo: "github.com/sma1lboy/rove",

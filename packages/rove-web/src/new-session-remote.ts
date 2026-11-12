@@ -94,15 +94,14 @@ export interface RemoteStartInput {
   readonly baseRef: string
   /** Run the engine on that machine too. Off: the agent is this machine's and only the work is there. */
   readonly engineThere: boolean
-  /** This machine's model and effort for the agent; "" = the engine's default. Not sent with `engineThere`. */
+  /** This machine's model for the agent; "" = the engine's default. Not sent with `engineThere`. */
   readonly model: string
-  readonly effort: string
 }
 
 /**
- * The `task.spawn` args for Start on another machine. The agent is this machine's, so its engine, model and
- * effort ride along. With `engineThere` the engine, model list and checkout are that machine's own: only
- * the engine id (its `add` validates it) rides along, never a model or effort.
+ * The `task.spawn` args for Start on another machine. The agent is this machine's, so its engine and model
+ * ride along. With `engineThere` the engine, model list and checkout are that machine's own: only
+ * the engine id (its `add` validates it) rides along, never a model.
  */
 export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown> {
   return {
@@ -114,6 +113,5 @@ export function remoteSpawnArgs(input: RemoteStartInput): Record<string, unknown
     ...(input.engine ? { engine: input.engine } : {}),
     ...(input.engineThere ? { engineThere: true } : {}),
     ...(!input.engineThere && input.model ? { model: input.model } : {}),
-    ...(!input.engineThere && input.effort ? { effort: input.effort } : {}),
   }
 }

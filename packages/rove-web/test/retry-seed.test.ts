@@ -80,7 +80,6 @@ describe("the retried task's launch command", () => {
       prompt: "p",
       begin: true,
       model: "",
-      effort: "",
     }
     expect(spawnArgs({ ...base, commandFrom: "T1" })).toMatchObject({ engine: "claude", commandFrom: "T1" })
     expect(spawnArgs({ ...base, commandFrom: "T1", engines: ["claude", "codex"] })).not.toHaveProperty("commandFrom")

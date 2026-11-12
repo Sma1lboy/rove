@@ -1,6 +1,6 @@
 /**
  * New session, claude.ai/code's way: the workspace shows an empty "New session" with the composer at
- * the bottom. Machine, project, worktree, branch and model/effort are chips under the prompt card; Start spawns
+ * the bottom. Machine, project, worktree, branch and model are chips under the prompt card; Start spawns
  * the task with that prompt, so the engine boots in the task's own tab-1 and no empty task exists in
  * between. With Worktree off the session runs in the project's own checkout, as its own row in the project.
  * Another machine's chip swaps the project list for that machine's, clones a repo it lacks there, and
@@ -31,7 +31,6 @@ import { NewSessionPlate } from "./new-session-plate.tsx"
 import { remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
-  effortChoices,
   modelChoices,
   partialRoundId,
   repoChipLabel,
@@ -112,7 +111,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setPromptState(text)
   }
   const [pickedModel, setPickedModel] = useState("")
-  const [pickedEffort, setPickedEffort] = useState("")
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState("")
   const [worktree, setWorktreeState] = useState(() => seed.worktree ?? localStorage.getItem(WORKTREE_KEY) !== "0")
@@ -192,10 +190,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const engine = choice.engines.find((e) => e.id === engineId)
   const engineName = shown.engines.find((e) => e.id === engineId)?.name ?? engineId
   const models = modelChoices(engine, t("newSession.modelDefault"))
-  const efforts = effortChoices(engine, t("newSession.effortDefault"))
-  // A pick of the previous engine's model or level means nothing to this one.
+  // A pick of the previous engine's model means nothing to this one.
   const modelValue = models.some((m) => m.id === pickedModel) ? pickedModel : ""
-  const effortValue = efforts.some((e) => e.id === pickedEffort) ? pickedEffort : ""
 
   const cloneInto = async (source: string) => {
     lastTry.current = () => void cloneInto(source)
@@ -242,7 +238,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         baseRef: remoteBase,
         engineThere,
         model: modelValue,
-        effort: effortValue,
       })
       keepDraft("")
       newSession.set(null)
@@ -296,7 +291,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
             prompt: first,
             ...(at ? { at } : {}),
             model: modelValue,
-            effort: effortValue,
           }),
         )
         created = res.taskIds[0]
@@ -405,7 +399,6 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                   <FolderIcon />
                   {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
                     t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
-                  {remotePick?.clone && <span className="text-muted"> {t("newSession.cloneTag")}</span>}
                 </>
               }
             >
@@ -464,20 +457,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           </div>
           <div className={C.BAR_GROUP_END}>
             <EngineChip choice={shown} picks={picks} available={compareAvailable} missing={shown.missing} />
-            {!inPlace &&
-              !(remote && engineThere) &&
-              !ungrouped &&
-              !picks.comparing &&
-              (models.length > 0 || efforts.length > 0) && (
-                <ModelChip
-                  models={models}
-                  model={modelValue}
-                  onModel={setPickedModel}
-                  efforts={efforts}
-                  effort={effortValue}
-                  onEffort={setPickedEffort}
-                />
-              )}
+            {!inPlace && !(remote && engineThere) && !ungrouped && !picks.comparing && models.length > 0 && (
+              <ModelChip models={models} model={modelValue} onModel={setPickedModel} />
+            )}
             <ComposerMore
               busy={busy}
               onLater={!remote && !ungrouped && !picks.comparing ? (at) => void start(at) : undefined}

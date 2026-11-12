@@ -3,7 +3,6 @@ import {
   REPO_CAP,
   defaultEngineId,
   digitRow,
-  effortChoices,
   engineChipLabel,
   modelChipLabel,
   modelChoices,
@@ -19,7 +18,6 @@ import {
 const engine = {
   id: "alpha",
   models: [{ id: "m-big", label: "Big" }, { id: "m-small" }],
-  effortLevels: ["low", "high"],
 }
 
 describe("engines a picker offers", () => {
@@ -60,12 +58,10 @@ describe("New session composer", () => {
       { id: "m-big", label: "Big" },
       { id: "m-small", label: "m-small" },
     ])
-    expect(effortChoices(engine, "Default").map((c) => c.id)).toEqual(["", "low", "high"])
   })
 
-  test("an engine with no model flag or no effort levels offers nothing to pick", () => {
+  test("an engine with no model flag offers nothing to pick", () => {
     expect(modelChoices({ id: "x", acceptsModel: false, models: [{ id: "m" }] }, "Default")).toEqual([])
-    expect(effortChoices({ id: "x", effortLevels: [] }, "Default")).toEqual([])
     expect(modelChoices(undefined, "Default")).toEqual([])
   })
 
@@ -73,11 +69,10 @@ describe("New session composer", () => {
     expect(modelChoices({ id: "x", models: null }, "Default")).toEqual([{ id: "", label: "Default" }])
   })
 
-  test("the chip reads `<model> <effort>`, and the engine's name when nothing is pinned", () => {
+  test("the chip reads the picked model, and its own name when nothing is pinned", () => {
     const models = modelChoices(engine, "Default")
-    expect(modelChipLabel(models, "m-big", "high", "Alpha")).toBe("Big high")
-    expect(modelChipLabel(models, "m-big", "", "Alpha")).toBe("Big")
-    expect(modelChipLabel(models, "", "", "Alpha")).toBe("Alpha")
+    expect(modelChipLabel(models, "m-big", "Model")).toBe("Big")
+    expect(modelChipLabel(models, "", "Model")).toBe("Model")
   })
 
   test("digits 1-9 pick that row of the open list; 0, letters and rows past the end pick nothing", () => {
@@ -102,23 +97,21 @@ describe("New session composer", () => {
       engine: "alpha",
       prompt: "fix it",
       model: "",
-      effort: "",
     }
     expect(spawnArgs(one)).toEqual({ repo: "/w/app", prompt: "fix it", engine: "alpha" })
-    expect(spawnArgs({ ...one, repos: [{ repo: "/w/app", baseRef: "dev" }], model: "m-big", effort: "high" })).toEqual({
+    expect(spawnArgs({ ...one, repos: [{ repo: "/w/app", baseRef: "dev" }], model: "m-big" })).toEqual({
       repo: "/w/app",
       prompt: "fix it",
       engine: "alpha",
       baseBranch: "dev",
       model: "m-big",
-      effort: "high",
     })
   })
 
   test("Later carries the prompt as the scheduled first message, not as one to deliver now", () => {
     const at = new Date("2026-11-11T09:00:00.000Z")
     const draft = { repos: [{ repo: "/w/app", baseRef: "" }], branch: "", engine: "", prompt: "nightly sweep" }
-    expect(spawnArgs({ ...draft, at, model: "", effort: "" })).toEqual({
+    expect(spawnArgs({ ...draft, at, model: "" })).toEqual({
       repo: "/w/app",
       title: "nightly sweep",
       scheduleAt: "2026-11-11T09:00:00.000Z",
@@ -138,7 +131,6 @@ describe("New session composer", () => {
         engine: "",
         prompt: "go",
         model: "",
-        effort: "",
       }),
     ).toEqual({
       repo: "/w/web",
@@ -157,7 +149,6 @@ describe("New session composer", () => {
         engine: "",
         prompt: "go",
         model: "",
-        effort: "",
       }),
     ).toEqual({ repo: "/w/web", prompt: "go" })
   })
@@ -170,7 +161,7 @@ describe("New session composer", () => {
     expect(toggleRepo(full, "/extra")).toEqual(full)
   })
 
-  test("several engines fan out as one attempt each; no shared branch, model or effort rides along", () => {
+  test("several engines fan out as one attempt each; no shared branch or model rides along", () => {
     const compare = {
       repos: [
         { repo: "/w/app", baseRef: "dev" },
@@ -181,7 +172,6 @@ describe("New session composer", () => {
       engines: ["alpha", "beta", "gamma"],
       prompt: "fix it",
       model: "m-big",
-      effort: "high",
     }
     expect(spawnArgs(compare)).toEqual({
       repo: "/w/app",
@@ -196,7 +186,6 @@ describe("New session composer", () => {
       prompt: "fix it",
       engine: "alpha",
       model: "m-big",
-      effort: "high",
     })
   })
 

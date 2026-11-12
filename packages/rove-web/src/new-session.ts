@@ -7,7 +7,6 @@ import { splitRepoRow } from "./new-task-paths.ts"
 export interface ComposerEngine {
   readonly id: string
   readonly models?: ReadonlyArray<{ readonly id: string; readonly label?: string }> | null
-  readonly effortLevels?: readonly string[]
   readonly acceptsModel?: boolean
   /** Binary present and signed in; absent = unknown, which counts as usable. */
   readonly ready?: boolean
@@ -49,16 +48,9 @@ export function modelChoices(engine: ComposerEngine | undefined, defaultLabel: s
   return [{ id: "", label: defaultLabel }, ...(engine.models ?? []).map((m) => ({ id: m.id, label: m.label ?? m.id }))]
 }
 
-/** Engine default first, then the levels the engine declares; none when it takes no effort. */
-export function effortChoices(engine: ComposerEngine | undefined, defaultLabel: string): readonly Choice[] {
-  const levels = engine?.effortLevels ?? []
-  return levels.length === 0 ? [] : [{ id: "", label: defaultLabel }, ...levels.map((id) => ({ id, label: id }))]
-}
-
-/** `<model> <effort>`, the way claude.ai/code words its chip; no pick shows `defaultLabel` (the engine's name). */
-export function modelChipLabel(models: readonly Choice[], model: string, effort: string, defaultLabel: string): string {
-  const name = model ? (models.find((m) => m.id === model)?.label ?? model) : defaultLabel
-  return effort ? `${name} ${effort}` : name
+/** The picked model's name; no pick shows `defaultLabel`. */
+export function modelChipLabel(models: readonly Choice[], model: string, defaultLabel: string): string {
+  return model ? (models.find((m) => m.id === model)?.label ?? model) : defaultLabel
 }
 
 /** Add or drop `id` in the compare list, keeping pick order; the list never empties. */
@@ -133,13 +125,12 @@ export interface StartInput {
   /** "Later": the prompt waits for this time instead of going now; the schedule is written with the task. */
   readonly at?: Date
   readonly model: string
-  readonly effort: string
 }
 
 /**
  * The `task.spawn` args for Start: the session is born by this prompt, on the primary repo, with the other
  * picks as `extraRepos` in pick order. With `at` the prompt is the scheduled first message and names the task. A compare round (`engines`) fans out as `agents`: each attempt gets its own worktree
- * and branch, so no shared branch, model or effort rides along.
+ * and branch, so no shared branch or model rides along.
  */
 export function spawnArgs(input: StartInput): Record<string, unknown> {
   const [primary, ...extras] = input.repos
@@ -164,7 +155,6 @@ export function spawnArgs(input: StartInput): Record<string, unknown> {
     ...(!compare && input.engine ? { engine: input.engine } : {}),
     ...(!compare && input.engine && input.commandFrom ? { commandFrom: input.commandFrom } : {}),
     ...(!compare && input.model ? { model: input.model } : {}),
-    ...(!compare && input.effort ? { effort: input.effort } : {}),
   }
 }
 
