@@ -62,13 +62,16 @@ export function RepoMenu(props: {
     props.ungrouped && (!typed || noFolder.toLowerCase().includes(typed.toLowerCase()))
       ? [{ key: NO_PROJECT_KEY, text: noFolder, checked: props.ungrouped.on }]
       : []
-  const projects = local.map((path) => {
+  const projects = local.map((path, i) => {
     const { base, dir } = splitRepoRow(path)
     return {
       key: path,
       text: base,
       dim: path === primary && picked.length > 1 ? `${t("newSession.primary")}, ${dir}` : dir,
+      dimPath: true,
+      title: path,
       checked: picked.includes(path),
+      ruled: i === 0 && ungrouped.length > 0,
     }
   })
   // A shorthand that already names a saved project is a search, not a clone; a URL never is.
