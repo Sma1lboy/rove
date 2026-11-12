@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { computeRepoId } from "@sma1lboy/rove-daemon/repo-id"
 import { describe, expect, test } from "vitest"
-import { bashHookReply, callWorkspaceTool, mcpReply } from "../../src/cli/remote-workspace-cmd.ts"
+import { bashHookReply, callWorkspaceTool, fileHookReply, mcpReply } from "../../src/cli/remote-workspace-cmd.ts"
 import { claudeRemoteWorkspaceArgv } from "../../src/engine/claude-code-local/remote-workspace.ts"
 import { buildEngineSessionLaunch } from "../../src/engine/session-launch.ts"
 import { addStaysHere } from "../../src/machines/forward.ts"
@@ -97,6 +97,18 @@ describe("a workspace on another machine", () => {
     expect(bashHookReply("not json", "/l/bin/rx")).toBe("")
   })
 
+  test("a local file tool keeps this machine's files and is turned back from the project's", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-file-hook-"))
+    writeFileSync(join(dir, REMOTE_WORKSPACE_FILE), JSON.stringify({ machine: "deck", taskId: "T3", path: "/srv/app" }))
+    const reply = (input: object) => fileHookReply(JSON.stringify({ cwd: dir, tool_input: input }), dir)
+    expect(reply({ file_path: "/Users/me/notes.md" })).toBe("")
+    for (const input of [{ file_path: "src/a.ts" }, { pattern: "TODO" }, { file_path: "/srv/app/src/a.ts" }]) {
+      const out = JSON.parse(reply(input)).hookSpecificOutput
+      expect(out.permissionDecision).toBe("deny")
+      expect(out.permissionDecisionReason).toContain('the machine "deck"')
+    }
+  })
+
   test("the file tools read a range, write through stdin, and edit only an unambiguous match", () => {
     const files = new Map([["a.ts", "one\ntwo\none\n"]])
     const run = (command: string, stdin?: string) => {
@@ -136,7 +148,8 @@ describe("a workspace on another machine", () => {
       matcher: "Bash",
       hooks: [{ type: "command", command: "'/bin/rove dev' 'remote-workspace' 'bash-hook' '--dir' '/links/my task'" }],
     })
-    expect(argv[3]).toBe("--disallowedTools=Read,Edit,Write,Glob,Grep,NotebookEdit")
+    expect(settings.hooks.PreToolUse[1].matcher).toBe("Read|Edit|Write|Glob|Grep|NotebookEdit")
+    expect(argv.join(" ")).not.toContain("--disallowedTools")
   })
 
   test("a session in a link directory gets rx on its PATH; a wired engine also gets its flags, ahead of the prompt", () => {
@@ -153,8 +166,8 @@ describe("a workspace on another machine", () => {
 
     const claude = launch("claude", true)
     expect(claude).toContain(`PATH='/links/t/bin':"$PATH"`)
-    expect(claude.indexOf("--disallowedTools=")).toBeGreaterThan(0)
-    expect(claude.indexOf("--disallowedTools=")).toBeLessThan(claude.indexOf("ship it"))
+    expect(claude.indexOf("--mcp-config=")).toBeGreaterThan(0)
+    expect(claude.indexOf("--mcp-config=")).toBeLessThan(claude.indexOf("ship it"))
     const codex = launch("codex", true)
     expect(codex).toContain(`PATH='/links/t/bin':"$PATH"`)
     expect(codex).not.toContain("--mcp-config")
