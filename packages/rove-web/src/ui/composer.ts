@@ -67,6 +67,8 @@ export const CLIP_HEAD = `${CLIP} [direction:rtl]`
 export const NAME = "flex-none whitespace-nowrap"
 export const EMPTY_NOTE = "mx-2 my-1"
 export const GROUP = "mx-2 mt-2 mb-0.5"
+/** A list's footnote, under a hairline. */
+export const HINT = "m-0 flex-none border-t-hairline border-t-line px-2 pt-1.5 pb-0.5"
 
 export const FIELD = "flex flex-col gap-0.5 px-1.5 py-0.5"
 export const BRANCHES = "min-w-[36ch]"

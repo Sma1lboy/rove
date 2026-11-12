@@ -14,6 +14,7 @@ import {
   FIELD,
   GROUP,
   HEADING,
+  HINT,
   MENU,
   NAME,
   POP,
@@ -22,6 +23,7 @@ import {
   chipClass,
   rowClass,
 } from "./ui/composer.ts"
+import { PALETTE_INPUT } from "./ui/shell.ts"
 import { INPUT, KICKER } from "./ui/text.ts"
 
 /** A chip that opens a popover above itself; Esc, a click outside, or `close()` shuts it and returns focus to the chip. */
@@ -122,6 +124,8 @@ export function SearchList(props: {
   extra?: PickRow | null
   more?: readonly PickRow[]
   moreLabel?: string
+  /** A muted line under the rows. */
+  hint?: string
   /** `add`: picked with ⌘ / Ctrl held, for a list that can hold several. */
   onPick: (key: string, add: boolean) => void
 }) {
@@ -136,7 +140,7 @@ export function SearchList(props: {
   return (
     <div className={MENU}>
       <input
-        className={INPUT}
+        className={PALETTE_INPUT}
         // biome-ignore lint/a11y/noAutofocus: the popover's only field
         autoFocus
         spellCheck={false}
@@ -185,6 +189,7 @@ export function SearchList(props: {
           </Fragment>
         ))}
       </div>
+      {props.hint && <p className={`${HINT} text-subtle`}>{props.hint}</p>}
     </div>
   )
 }
