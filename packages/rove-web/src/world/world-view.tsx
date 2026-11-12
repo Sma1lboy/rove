@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { t } from "../i18n/index.ts"
+import { Button } from "../ui/button.tsx"
 import type { AppModel } from "../model.ts"
 import { useStore } from "../store.ts"
 import { page } from "../ui.ts"
@@ -104,13 +105,9 @@ export function WorldView({ model }: { model: AppModel }) {
             <span className={frame > 20 ? "text-warning" : "text-subtle"}>{frame.toFixed(1)}ms</span>
           </div>
         </div>
-        <button
-          type="button"
-          className="pointer-events-auto rounded-md border border-line bg-paper/85 px-3 py-2 text-meta text-ink backdrop-blur-md hover:bg-hover"
-          onClick={() => page.set(null)}
-        >
+        <Button variant="action" className="pointer-events-auto backdrop-blur-md" onClick={() => page.set(null)}>
           {t("world.classic")}
-        </button>
+        </Button>
       </div>
 
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-line bg-paper/80 px-3 py-2 text-meta text-muted backdrop-blur-md">
