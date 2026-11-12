@@ -2172,15 +2172,20 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   task first. Land, push or open a PR from the host repo afterwards. Returns
   `{ taskId, workspaceTaskId, branch, commit }`; `EXPORT_UNSUPPORTED` for any
   other task, whose branch is already in the repo.
-- `worktree-usage [--task-id ID]`: the disk each task's own worktrees take,
+- `worktree-usage [--task-id ID] [--idle-days N] [--merged]`: the disk each task's own worktrees take,
   largest first, archived tasks included — which ones `remove-worktree` would
   free most. Read-only. Only checkouts a task owns count (its worktree and each
   extra repo's): a project's own checkout, a directory task and a shared child
   are never listed, and a task whose worktree is not on disk is left out.
   Returns `{ tasks, bytes, ignoredBytes }`, each row `{ taskId, title, branch,
-  archived, status, updatedAt, bytes, ignoredBytes, checkouts: [{ path,
-  exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row, or
-  `NO_WORKTREE` for a task that owns none. `ignoredBytes` is the gitignored
+  archived, status, updatedAt, prLifecycle, bytes, ignoredBytes, checkouts:
+  [{ path, exists, bytes, ignoredBytes }] }`; `--task-id` returns that one row,
+  or `NO_WORKTREE` for a task that owns none. `--idle-days N` keeps only tasks
+  whose record has not changed in N days (one with no readable `updatedAt` is
+  never idle); `--merged` keeps only tasks whose PR Rove last saw merged
+  (`prLifecycle`, `null` without a PR). Both given, both must hold; the totals
+  cover only the listed rows, and either flag beside `--task-id` is `BAD_FLAG`.
+  `ignoredBytes` is the gitignored
   part, including dependencies, build output, user notes and local configuration.
   It is not a measure of disposable content. `exists: null` means the checkout
   could not be reached or its presence could not be confirmed; it stays in totals

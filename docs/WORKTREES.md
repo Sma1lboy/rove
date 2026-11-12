@@ -221,7 +221,8 @@ command is running from (`CALLER_WORKTREE`).
 
 `rove api worktree-usage` says which checkouts are worth reclaiming: every task's own
 worktrees ranked by size, with the gitignored part (dependencies, build
-output) broken out.
+output) broken out. `--merged` and `--idle-days N` narrow it to cleanup
+candidates: tasks whose PR has merged, or that nobody has touched in N days.
 
 ### When git removes the worktree but not its directory
 

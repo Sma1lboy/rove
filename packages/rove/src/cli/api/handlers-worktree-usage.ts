@@ -3,6 +3,7 @@
  * so a user running many tasks sees what `remove-worktree` would reclaim.
  * Only checkouts a task owns count: a project's own checkout, a directory
  * task's folder and a shared child's parent directory are never listed.
+ * `--idle-days` / `--merged` narrow it to cleanup candidates before measuring.
  */
 
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
@@ -12,7 +13,7 @@ import type { CheckoutUsage } from "../../orchestrator/worktree/disk-usage.ts"
 import { canonicalize } from "../../orchestrator/worktree/paths.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 /** du runs per checkout; a few at once keeps a big index from serialising on one tree. */
 const CONCURRENCY = 4
@@ -24,6 +25,8 @@ export interface WorktreeUsageRow {
   readonly archived: boolean
   readonly status: SerializedTask["status"]
   readonly updatedAt: string
+  /** The task's PR as Rove last saw it on the forge; null when it has none. */
+  readonly prLifecycle: string | null
   /** Sum over the checkouts on disk; null when one of them could not be measured. */
   readonly bytes: number | null
   readonly ignoredBytes: number | null
@@ -74,6 +77,7 @@ async function usageRow(ctx: VerbContext, task: SerializedTask): Promise<Worktre
     archived: task.archived === true,
     status: task.status,
     updatedAt: task.updatedAt,
+    prLifecycle: task.prStatus?.lifecycle ?? null,
     bytes: sum(present.map((c) => c.bytes)),
     ignoredBytes: sum(present.map((c) => c.ignoredBytes)),
     checkouts,
@@ -86,10 +90,32 @@ function bySize(a: WorktreeUsageRow, b: WorktreeUsageRow): number {
   return b.bytes - a.bytes
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Cleanup filters; null when neither flag was passed. They AND together. */
+function candidateFilter(ctx: VerbContext): ((task: SerializedTask) => boolean) | null {
+  const idleDays = ctx.args.int("idle-days")
+  const merged = ctx.args.bool("merged")
+  if (idleDays === undefined && !merged) return null
+  if (idleDays !== undefined && idleDays < 0) {
+    throw new ApiError("--idle-days takes a whole number of days, 0 or more", "BAD_FLAG", helpStep("worktree-usage"))
+  }
+  const cutoff = idleDays === undefined ? null : Date.now() - idleDays * DAY_MS
+  return (task) => {
+    if (merged && task.prStatus?.lifecycle !== "merged") return false
+    if (cutoff === null) return true
+    const touched = Date.parse(task.updatedAt)
+    // An unreadable timestamp is never proof of idleness.
+    return Number.isFinite(touched) && touched <= cutoff
+  }
+}
+
 async function handleWorktreeUsage(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
+  const keep = candidateFilter(ctx)
   const taskId = ctx.args.str("task-id")
   if (taskId !== undefined) {
+    if (keep) throw new ApiError("--idle-days and --merged filter the full list, not --task-id", "BAD_FLAG")
     const { task } = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
     if (ownedCheckouts(task).length === 0) {
       throw new ApiError(`task ${taskId} owns no worktree`, "NO_WORKTREE", {
@@ -99,7 +125,7 @@ async function handleWorktreeUsage(ctx: VerbContext): Promise<unknown> {
     return usageRow(ctx, task)
   }
   const tasks = (await daemon.request<{ tasks?: SerializedTask[] }>("task.list")).tasks ?? []
-  const owners = tasks.filter((t) => ownedCheckouts(t).length > 0 && !t.deletion)
+  const owners = tasks.filter((t) => ownedCheckouts(t).length > 0 && !t.deletion && (!keep || keep(t)))
   const rows = (await mapLimited(owners, CONCURRENCY, (t) => usageRow(ctx, t))).filter((r) =>
     r.checkouts.some((c) => c.exists !== false),
   )
@@ -115,7 +141,16 @@ export const WORKTREE_USAGE_VERB: VerbSpec = {
   name: "worktree-usage",
   group: "worktree",
   summary:
-    "Disk used by each task's own worktrees (extra repos included), largest first, archived tasks too — what `remove-worktree` would reclaim. `ignoredBytes` is the gitignored part (dependencies, build output). A project's own checkout, a directory task and a shared child are never listed; a task whose worktree is not on disk is left out. Returns { tasks: [{ taskId, title, branch, archived, status, updatedAt, bytes, ignoredBytes, checkouts: [{ path, exists, bytes, ignoredBytes }] }], bytes, ignoredBytes }; with --task-id, that one row. A null size means it could not be measured, never zero.",
-  flags: [F.taskId(false)],
+    "Disk used by each task's own worktrees (extra repos included), largest first, archived tasks too — what `remove-worktree` would reclaim. `ignoredBytes` is the gitignored part (dependencies, build output). A project's own checkout, a directory task and a shared child are never listed; a task whose worktree is not on disk is left out. --idle-days and --merged narrow the list to cleanup candidates (both given: both must hold); totals cover only what is listed. Returns { tasks: [{ taskId, title, branch, archived, status, updatedAt, prLifecycle, bytes, ignoredBytes, checkouts: [{ path, exists, bytes, ignoredBytes }] }], bytes, ignoredBytes }; with --task-id, that one row. A null size means it could not be measured, never zero.",
+  flags: [
+    F.taskId(false),
+    {
+      name: "idle-days",
+      type: "int",
+      placeholder: "N",
+      description: "Only tasks whose record has not changed in at least N days.",
+    },
+    { name: "merged", type: "bool", description: "Only tasks whose pull request Rove last saw merged." },
+  ],
   handler: handleWorktreeUsage,
 }
