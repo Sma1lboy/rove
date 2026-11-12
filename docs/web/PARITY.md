@@ -5,7 +5,7 @@ Legend: ✅ same as TUI · 🟡 partial or different · ↔ different by design 
 A row is verified with Playwright (headed Chromium) against `rove --web` on a real sandbox daemon. Screenshots stay local in `.scratch/web/shots` (not in git); the comparison text lives in the row.
 Browser-reserved chords (Ctrl+W, Ctrl+T, Ctrl+Q, Ctrl+N) cannot be used on the web: each such row needs a different PROPOSED chord, which needs owner sign-off (docs/KEYBINDINGS.md).
 
-Score: 202 / 226 rows at ✅ (6 🟡, 2 ↔, 5 🚫, 11 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
+Score: 203 / 227 rows at ✅ (6 🟡, 2 ↔, 5 🚫, 11 ❌). Regenerate from the table, never by hand: `awk -F'|' '/^\| *([0-9]+|—) *\|/{gsub(/ /,"",$5); c[$5]++} END{for(k in c) print k, c[k]}' docs/web/PARITY.md`
 
 ## Navigation, help, command layer and global chrome
 
@@ -105,6 +105,7 @@ Score: 202 / 226 rows at ✅ (6 🟡, 2 ↔, 5 🚫, 11 ❌). Regenerate from th
 | 69 | Filter / select adoptable worktrees | Adopt filter, ↑/↓, Enter, Ctrl+A | ✅ | `worktree.adoptable` | taskops: c: Adopt Worktree lists unlinked external worktrees with dirty/external tags, Ctrl+A selects all, glob filter narrows, Create adopts (`rove api list` shows the adopted task). Shot taskops-c-06. |
 | 70 | Adopt selected worktrees | Adopt Create | ✅ | `worktree.adopt` | taskops: c: Create with the checked worktree adopted it as a task (`rove api list` lists a task at that worktree path); the same run as #69. Shot taskops-c-06. |
 | 71 | Cancel creation | Esc, close click | ✅ | local | r2: Esc and `cancel` close the dialog with no task created. |
+| 221 | Clean up sessions an older Rove added by itself | launch modal (ask an agent / not now / don't ask again) | ✅ | `worktree.legacyAdopted`, `worktree.legacyCleanup` | sandbox `rove --web` at 1440×900 with three adopted, never-started worktree rows: once per page after connect, a centred modal with the TUI's copy (en and zh) lists `demo-app/<name>`; ask an agent started a no-worktree child session under the project's main row with the full list and selected it; don't ask again keeps this browser quiet (localStorage `rove.web.legacyAdopt.dismissed`). |
 
 ## Workspace tabs, sessions, splits, terminal
 

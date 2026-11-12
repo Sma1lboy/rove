@@ -31,6 +31,18 @@ export const en = {
   childrenCascadeMain: "remove with children",
   forceDeleteTitle: '"{title}" has uncommitted changes',
   forceDeleteConfirm: "force remove",
+  /** Rows an older Rove added by itself for worktrees made outside it. */
+  legacyAdoptTitle: "Remove {count} sessions Rove added by itself?",
+  legacyAdoptBody:
+    "An older Rove added a session whenever a worktree was created outside it. It no longer does. These look like leftovers:\n{list}\n\nAn agent can list them and remove the ones you confirm.",
+  legacyAdoptMore: "… and {count} more",
+  legacyAdoptClean: "ask an agent",
+  legacyAdoptLater: "not now",
+  legacyAdoptNever: "don't ask again",
+  legacyAdoptSessionTitle: "Remove leftover sessions",
+  legacyAdoptPrompt:
+    "An older Rove version added sessions to the sidebar by itself whenever a git worktree was created outside Rove. These look like leftovers:\n\n{list}\n\nShow me this list and ask which ones to remove, then wait for my answer. For each one I confirm, first run `git -C <path> status --short`. If it has uncommitted changes, tell me and ask again. Otherwise run `rove api delete --task-id <id> --wait`. Remove nothing I did not confirm, and never pass --force.",
+  legacyAdoptFailed: "Couldn't start the cleanup session: {message}",
 }
 
 export const zh: typeof en = {
@@ -58,4 +70,15 @@ export const zh: typeof en = {
   childrenCascadeMain: "连同子任务移除",
   forceDeleteTitle: "「{title}」有未提交的改动",
   forceDeleteConfirm: "强制移除",
+  legacyAdoptTitle: "移除 {count} 个 Rove 自己加进来的会话？",
+  legacyAdoptBody:
+    "旧版 Rove 会在别处创建 worktree 时自动加一个会话，现在已经不会了。下面这些看起来是当时留下的：\n{list}\n\n可以交给 agent：它先列出来，你确认哪些就删哪些。",
+  legacyAdoptMore: "……还有 {count} 个",
+  legacyAdoptClean: "交给 agent",
+  legacyAdoptLater: "以后再说",
+  legacyAdoptNever: "不再提示",
+  legacyAdoptSessionTitle: "移除残留会话",
+  legacyAdoptPrompt:
+    "旧版 Rove 会在 Rove 之外创建 git worktree 时自动往侧栏加会话。下面这些看起来是当时留下的：\n\n{list}\n\n先把这份清单给我看，问我要删哪些，然后等我回答。对我确认的每一个，先运行 `git -C <path> status --short`；有未提交的改动就告诉我并再问一次，没有就运行 `rove api delete --task-id <id> --wait`。我没确认的一个都不要删，也不要加 --force。",
+  legacyAdoptFailed: "清理会话没能启动：{message}",
 }

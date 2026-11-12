@@ -424,6 +424,53 @@ describe("task.openMain and worktree.adopt", () => {
   })
 })
 
+describe("worktree.legacyCleanup", () => {
+  const leftovers = { tasks: [{ id: T, title: "a", repo: REPO, worktreePath: "/w/a" }] }
+
+  test("starts a no-worktree session under the first row's project main", async () => {
+    const { result, calls } = await run(
+      "worktree.legacyCleanup",
+      { title: "Remove leftover sessions", prompt: "- x" },
+      {
+        "worktree.legacyAdopted": leftovers,
+        "task.ensureMain": { task: { id: "M1" } },
+        add: { taskId: "S1" },
+      },
+    )
+    expect(calls.find((c) => "rpc" in c && c.rpc === "task.ensureMain")).toEqual({
+      rpc: "task.ensureMain",
+      payload: { repo: REPO },
+    })
+    expect(calls.at(-1)).toEqual({
+      verb: "add",
+      argv: ["--parent=M1", "--no-worktree=true", "--title=Remove leftover sessions", "--prompt=- x"],
+    })
+    expect(result).toEqual({ taskId: "S1" })
+  })
+
+  test("falls back to a plain add on the repo when the daemon refuses a project row", async () => {
+    const { result, calls } = await run(
+      "worktree.legacyCleanup",
+      { title: "t", prompt: "p" },
+      {
+        "worktree.legacyAdopted": leftovers,
+        "task.ensureMain": () => {
+          throw new Error("refused")
+        },
+        add: { taskId: "S2" },
+      },
+    )
+    expect(calls.at(-1)).toEqual({ verb: "add", argv: [`--repo=${REPO}`, "--title=t", "--prompt=p"] })
+    expect(result).toEqual({ taskId: "S2" })
+  })
+
+  test("refuses when nothing is left, or without a title or prompt", async () => {
+    await refused("worktree.legacyCleanup", { title: "t", prompt: "p" }, { "worktree.legacyAdopted": { tasks: [] } })
+    await refused("worktree.legacyCleanup", { prompt: "p" }, { "worktree.legacyAdopted": leftovers })
+    await refused("worktree.legacyCleanup", { title: "t" }, { "worktree.legacyAdopted": leftovers })
+  })
+})
+
 describe("worktrees", () => {
   test("ensureWorktree returns the path", async () => {
     const { result, calls } = await run(

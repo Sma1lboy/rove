@@ -167,8 +167,8 @@ uninstalls both wherever they were written:
   (which returns no path) and broke `claude --worktree` everywhere. `rove hook
   setup` survives only as a deprecated cleanup no-op.
 
-Adoption is intent-driven instead: an engine `session-start` inside a managed
-worktree root, or an explicit adopt (`rove add .` / New task → Adopt Worktree).
+Adoption is explicit only: `rove add .`, `rove adopt`, or New task → Adopt
+Worktree. A session starting in a worktree Rove did not create adds no task.
 
 ### Invocation contract
 

@@ -1,9 +1,8 @@
 /**
  * `worktree.*` daemon RPC handlers.
  *
- * Deliberately no adopt-on-`git worktree add`: creating a worktree is not
- * intent, so adoption needs an engine session-start in a managed root or an
- * explicit `rove add .`/adopt.
+ * A worktree becomes a task only when asked (`rove add .`, adopt): neither
+ * creating one nor starting a session in one is intent.
  *
  * `list`/`remove` back the worktrees TUI page and compose orchestrator-free
  * runtime primitives, so they don't need `ctx.orch`. Local projects only: a
@@ -15,6 +14,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { tasksAtWorktreePath } from "./cwd-task.ts"
 import { optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
+import { legacyAdoptedTasks } from "./legacy-adopted.ts"
 import { serializeTask } from "./serialize-task.ts"
 
 /**
@@ -28,6 +28,12 @@ export const NOT_A_ROVE_WORKTREE_CODE = "NOT_A_ROVE_WORKTREE"
 export const WORKTREE_SHARED_CODE = "WORKTREE_SHARED"
 
 export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
+  {
+    name: "worktree.legacyAdopted",
+    async handle(_payload, ctx) {
+      return { tasks: legacyAdoptedTasks(ctx.orch.listTasks()).map(serializeTask) }
+    },
+  },
   {
     name: "worktree.discoverAdoptable",
     blocking: true,

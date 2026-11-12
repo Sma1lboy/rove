@@ -17,6 +17,8 @@ describe("op table", () => {
         "pendingStart.cancel",
         "pendingStart.list",
         "worktree.adoptable",
+        "worktree.legacyAdopted",
+        "worktree.legacyCleanup",
         "task.spawn",
         "task.rename",
         "task.setBranch",
@@ -56,9 +58,31 @@ describe("op table", () => {
   })
 
   test("reads are reads", () => {
-    for (const n of ["task.get", "task.info", "repo.branches", "notes.list", "worktree.adoptable"]) {
+    for (const n of [
+      "task.get",
+      "task.info",
+      "repo.branches",
+      "notes.list",
+      "worktree.adoptable",
+      "worktree.legacyAdopted",
+    ]) {
       expect(TASK_OPS[n]?.kind).toBe("read")
     }
+  })
+})
+
+describe("worktree.legacyAdopted", () => {
+  test("lists the leftover rows with only what the prompt needs", async () => {
+    const { result } = await run(
+      "worktree.legacyAdopted",
+      {},
+      {
+        "worktree.legacyAdopted": {
+          tasks: [{ id: T, title: "a", repo: REPO, worktreePath: "/w/a", status: "backlog", prompt: "secret" }],
+        },
+      },
+    )
+    expect(result).toEqual({ tasks: [{ id: T, title: "a", repo: REPO, worktreePath: "/w/a" }] })
   })
 })
 

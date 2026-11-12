@@ -52,7 +52,7 @@ import {
   type WorktreeChangesMap,
   shouldLogReconnectAttempt,
 } from "./remote-orchestrator-payloads.ts"
-import { subscribeTasksOp } from "./remote-orchestrator-reads.ts"
+import { legacyAdoptedTasksOp, subscribeTasksOp } from "./remote-orchestrator-reads.ts"
 import { RowStatusChannel } from "./remote-orchestrator-row-status.ts"
 import { TabsChannel } from "./remote-orchestrator-tabs.ts"
 import * as writes from "./remote-orchestrator-writes.ts"
@@ -441,9 +441,9 @@ export class RemoteOrchestrator {
     return writes.landTaskOp(this.client, id, opts)
   }
 
-  discoverAdoptableWorktrees(repo: string): Promise<readonly AdoptableWorktree[]> {
-    return writes.discoverAdoptableWorktreesOp(this.client, repo)
-  }
+  discoverAdoptableWorktrees = (repo: string): Promise<readonly AdoptableWorktree[]> =>
+    writes.discoverAdoptableWorktreesOp(this.client, repo)
+  legacyAdoptedTasks = (): Promise<readonly Task[]> => legacyAdoptedTasksOp(this.client)
 
   adoptWorktree(input: Parameters<typeof writes.adoptWorktreeOp>[1]): Promise<Task> {
     return writes.adoptWorktreeOp(this.client, input)
