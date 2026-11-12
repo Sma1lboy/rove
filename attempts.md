@@ -441,3 +441,5 @@ One entry per discarded attempt: date, target metric, approach, why it did not c
 **Next:** with the resize pair gone, switch commits are back at the pre-fixture 6. Remaining: per-switch publish 1 (the first data) is the floor.
 
 **Sandbox:** bun 1.3.14 from npm; per-file symlinks of `/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/*` into `/tmp/pwshim/chromium_headless_shell-1228/chrome-headless-shell-linux64/` (the harness asks for 1228; plain node asks for 1243, which `/opt/pw-browsers` already has).
+
+**Update 2026-11-12:** #1995 merged. Next main should read switch.perOp.commit.root/workspace ~6 (was 8), feed ~0–0.5, overlay 3 (✓ against the current baseline); move the baseline only if every past-tolerance change is ✓.
