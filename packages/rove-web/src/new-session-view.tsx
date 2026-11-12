@@ -28,7 +28,7 @@ import {
 import { ChipPopover } from "./new-session-menus.tsx"
 import { ComposerMore } from "./new-session-more.tsx"
 import { NewSessionPlate } from "./new-session-plate.tsx"
-import { remoteRef } from "./new-session-remote.ts"
+import { cloneLabel, remoteRef } from "./new-session-remote.ts"
 import { RepoMenu } from "./new-session-repo-menu.tsx"
 import {
   modelChoices,
@@ -226,7 +226,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     setBusy(true)
     setProgress(
       remotePick.clone
-        ? t("newSession.cloningOn", { source: remotePick.ref, machine: machineName })
+        ? t("newSession.cloningOn", { source: cloneLabel(remotePick.ref), machine: machineName })
         : t("newSession.startingOn", { machine: machineName }),
     )
     try {
@@ -397,7 +397,9 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               label={
                 <>
                   <FolderIcon />
-                  {(remote ? repoChipLabel(remotePick ? [remotePick.ref] : []) : repoChipLabel(repos)) ||
+                  {(remotePick?.clone
+                    ? cloneLabel(remotePick.ref)
+                    : repoChipLabel(remote ? (remotePick ? [remotePick.ref] : []) : repos)) ||
                     t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
                 </>
               }

@@ -22,6 +22,8 @@ import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { Button } from "./ui/button.tsx"
 import { EMPTY_NOTE, ICON, NOTE } from "./ui/composer.ts"
+import { ROW_TITLE_RUNNING } from "./ui/row.ts"
+import { BusyDots } from "./ui/status-dots.tsx"
 
 /** The i18n key for each `machines.repos` reason that has a line of its own; any other reason shows the machine's message. */
 const REASON_COPY: Readonly<Record<string, string>> = {
@@ -328,8 +330,9 @@ export function ComposerNote(props: {
   return (
     <div className={NOTE}>
       {progress && (
-        <p className="m-0 text-muted" data-field="clone-progress">
-          {progress}
+        <p className="m-0 flex items-center gap-2 text-muted" data-field="clone-progress">
+          <BusyDots />
+          <span className={ROW_TITLE_RUNNING}>{progress}</span>
         </p>
       )}
       {error && !isDiskFull(error) && <p className="m-0 text-error">※ {error}</p>}

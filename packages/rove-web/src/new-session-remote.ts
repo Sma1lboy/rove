@@ -16,6 +16,16 @@ export interface RemotePick {
   readonly clone: boolean
 }
 
+/** A clone pick as the chip names it: `owner/repo`, the last two segments of its id, shorthand or git URL. */
+export function cloneLabel(ref: string): string {
+  return ref
+    .replace(/\.git$/, "")
+    .split(/[/:]/)
+    .filter(Boolean)
+    .slice(-2)
+    .join("/")
+}
+
 /**
  * What names a listed repo to that machine's `add`: its id, except a repo with no origin, which has no id `add`
  * can resolve and so goes by that machine's own checkout path.
