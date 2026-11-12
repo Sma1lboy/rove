@@ -4,7 +4,7 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 
 ## Sources of truth
 
-- **Backlog + open issues**: daemon-owned issue state.
+- **Backlog + open issues**: `TODO.md` at the repo root (local, not in git). With the Kanban mod installed, the daemon-owned issue state below.
 - **Current risks and follow-ups**: `HANDOFF.md` at the repo root (local and gitignored; absent on a fresh clone).
 - **User-facing shipped behavior**: [`../packages/rove/CHANGELOG.md`](../packages/rove/CHANGELOG.md).
 - **Durable product and architecture decisions**: `docs/*.md`.

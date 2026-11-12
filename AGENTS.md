@@ -27,7 +27,7 @@ Docs are the source of truth. **If docs and implementation disagree, surface the
 
 ## Work tracking — local only
 
-No Linear. Backlog: daemon issue store (`rove api issue-*`, [`docs/WORK-TRACKING.md`](./docs/WORK-TRACKING.md)). Shipped: CHANGELOG, one Changeset per change ([`docs/RELEASING.md`](./docs/RELEASING.md)). Risks: `HANDOFF.md`. Decisions: `docs/`. Surface before filing anything externally.
+No Linear. Backlog: `TODO.md`; with the Kanban mod, `rove api issue-*` ([`docs/WORK-TRACKING.md`](./docs/WORK-TRACKING.md)). Shipped: CHANGELOG, one Changeset per change ([`docs/RELEASING.md`](./docs/RELEASING.md)). Risks: `HANDOFF.md`. Decisions: `docs/`. Surface before filing anything externally.
 
 ## Hard rules
 
