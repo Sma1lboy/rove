@@ -7,10 +7,10 @@
 
 import { useEffect, useRef, useState } from "react"
 import { t } from "../i18n/index.ts"
-import { Button } from "../ui/button.tsx"
 import type { AppModel } from "../model.ts"
 import { useStore } from "../store.ts"
 import { page } from "../ui.ts"
+import { Button } from "../ui/button.tsx"
 import { type Beat, hotFiles, toolTally } from "./beats.ts"
 import { WorldScene } from "./scene.ts"
 import { shortToolName, toolKind } from "./tool-kinds.ts"
