@@ -51,7 +51,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { CardMicFace, ClipGlyph, composerHold } from "./ui/term-composer.tsx"
+import { CardMicFace, ClipGlyph, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
@@ -358,7 +358,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
           <div className={C.CARD_ACTIONS}>
             {targets && (
               <AttachPicker
-                className={C.cardIcon(attachments.length > 0)}
+                className={(talks ? composerAttach : C.cardIcon)(attachments.length > 0)}
                 title={t("newSession.attachHint")}
                 disabled={busy}
                 onFiles={attach}
@@ -381,7 +381,8 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             />
             {!talks && <span className={C.GROW} />}
-            <button type="submit" className={buttonClass()} disabled={busy}>
+            {/* As tall as the hold control beside it. */}
+            <button type="submit" className={`${buttonClass()} self-stretch`} disabled={busy}>
               {t("newSession.start")}
             </button>
           </div>

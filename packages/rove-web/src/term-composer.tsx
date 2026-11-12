@@ -16,12 +16,12 @@ import { useStore } from "./store.ts"
 import { draftKey, getDraft, setDraft, subscribeDrafts } from "./term-drafts.ts"
 import { toast } from "./ui.ts"
 import {
-  COMPOSER_ATTACH,
   ClipGlyph,
   HoldFace,
   MicFace,
   SendButton,
   TermComposerBar,
+  composerAttach,
   composerHold,
   composerMic,
 } from "./ui/term-composer.tsx"
@@ -131,7 +131,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
       ready={text.trim() !== "" || attachments.length > 0}
       attached={<AttachmentThumbs attachments={attachments} onRemove={remove} />}
       attach={
-        <AttachPicker className={COMPOSER_ATTACH} title={t("layout.composerAttach")} disabled={busy} onFiles={onFiles}>
+        <AttachPicker className={composerAttach()} title={t("layout.composerAttach")} disabled={busy} onFiles={onFiles}>
           <span className="sr-only">{t("layout.composerAttach")}</span>
           <ClipGlyph />
         </AttachPicker>

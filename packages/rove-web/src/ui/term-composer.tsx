@@ -38,8 +38,12 @@ const SEND = `flex size-11 shrink-0 items-center justify-center rounded-[12px] b
 const KEY = `flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-[10px] touch-manipulation active:bg-inset disabled:opacity-60 has-[:disabled]:opacity-60 ${PRESS}`
 const GLYPH = "size-4.5 flex-none fill-none stroke-current stroke-[1.5] [stroke-linecap:round] [stroke-linejoin:round]"
 
-/** A side key: attach, and the mic inside the field. */
-export const COMPOSER_ATTACH = `${KEY} text-muted`
+/**
+ * Attach, at the row's left end. Its 44px hit area hangs past the row's edge, so the glyph itself starts on the
+ * line the row's other end stops at, and sits as close to the control beside it as to that edge.
+ */
+export const composerAttach = (on = false): string => `${KEY} -mr-1.5 -ml-3.25 ${on ? "text-accent" : "text-muted"}`
+/** The mic inside the field. */
 export const composerMic = (recording: boolean): string => `${KEY} ${recording ? "text-accent" : "text-muted"}`
 
 /**
@@ -314,7 +318,7 @@ export function TermComposerBar(props: {
   ready: boolean
   /** Chips for what is attached, floated above the field. */
   attached?: ReactNode
-  /** The file picker, boxed in `COMPOSER_ATTACH`. */
+  /** The file picker, boxed in `composerAttach`. */
   attach: ReactNode
   /** The mic inside the field, boxed in `composerMic`; it fills the field and never sends. */
   dictate?: ReactNode
