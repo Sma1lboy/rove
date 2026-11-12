@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.290
+
+### Patch Changes
+
+- [#1983](https://github.com/Sma1lboy/rove/pull/1983) [`9b41ec2`](https://github.com/Sma1lboy/rove/commit/9b41ec2816e64812fff7a13dde0d58e1331fc8df) Deleting a directory task that is not inside a git repository no longer writes an `issue-delete-unlink` error to the daemon log. Such a task has no Kanban card to unlink, so the daemon now skips the step. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1986](https://github.com/Sma1lboy/rove/pull/1986) [`df5050b`](https://github.com/Sma1lboy/rove/commit/df5050b65194d9a45d6d35e3d7613cdcdef6f993) `--machine auto` now places work by each machine's real load. It used to count tasks in the Kanban "in progress" column, which stays empty unless `experimental.autoStatus` is on, so it almost always chose this machine. Each machine's daemon now reports its 1-minute load per core (with its system, cores and memory, under `load` in `rove daemon status`), and the work goes to the lowest one; this machine keeps it unless another is lower by more than 0.25. A machine on an older Rove, or on Windows, reports no load and is skipped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1987](https://github.com/Sma1lboy/rove/pull/1987) [`d463e8a`](https://github.com/Sma1lboy/rove/commit/d463e8ae7c6a13add3bf9c541e9519c6826cfc09) The web app's New session machine chip has an **Auto** row: Start sends the task to the least busy machine that has the project, and a toast names the machine it chose. The choice is remembered. Auto stays on this machine for a start only it can serve (attached files, a later start, several repos or engines), and so does `--machine auto` when the checkout's branch has commits no remote has, since another machine would start without them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1984](https://github.com/Sma1lboy/rove/pull/1984) [`3e2c053`](https://github.com/Sma1lboy/rove/commit/3e2c053fea5337c794e492299290d32d8f82de5d) Web: scrollbars fade out after a scroll, where they vanished in one frame. The New session pickers' search field is a plain line under the text, where it was a second box inside the popover, and the project picker's ⌘/Ctrl-click hint moved under the list, where it ran off the end of the field. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1981](https://github.com/Sma1lboy/rove/pull/1981) [`87c99c0`](https://github.com/Sma1lboy/rove/commit/87c99c0952cb0fea18d35db21e7b758632b619aa) Web, on a phone: the voice row lines up. The paperclip starts on the same line the row's other end stops at, where it sat 13px further in, and on the New task card the paperclip, the hold-to-talk control and Start are one height, where they were three. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1982](https://github.com/Sma1lboy/rove/pull/1982) [`0ad399a`](https://github.com/Sma1lboy/rove/commit/0ad399a2b209277cbd27c3cc3fd02ba4827911e4) Web on Windows: New session accepts a Windows folder path. A saved project no longer fails with "path must be absolute or start with ~", and a typed `C:\…` or `C:/…` path is offered as a project and can start a task. Before, only paths starting with `~` worked. — [@ZHallen122](https://github.com/ZHallen122)
+
 ## 0.9.289
 
 ### Patch Changes
