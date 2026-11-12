@@ -77,6 +77,10 @@ The owner's machine only. The owner's live web is the test build: rove-web.sma1l
 5. Verify: the `assets/index-*.js` name in `curl -s https://rove-web.sma1lboy.me/` equals the one in the local `dist/assets/`. Then tell the owner to refresh.
 6. Nothing lives only on `web/preview`. A commit picked there has an open PR, opened in the same turn, and that PR is merged or closed before the work is called done. `git diff --stat origin/main web/preview -- packages docs` must list only files of PRs still open: anything else is a change users never got.
 
+## Web screenshot regression
+
+`bun run build`, then `bun --filter rove-harness web:shots` shoots rove-web's pages (desktop 1440 and phone 390) on the isolated visual fixture and compares them with the last run's. It prints `{ dir, from, to, changed, added }`: `changed` lists the shots that differ by more than rounding noise, between commits `from` and `to`. The new shots are in `<dir>/current`, the ones they were compared with in `<dir>/previous`; `ROVE_WEB_SHOTS_DIR` moves `<dir>` (default `.scratch/web-shots`). A failed run leaves both as they were and writes `failed-<scene>.png`. It is not a `pre-pr` gate: a daily routine runs it against `main`. Known noise: the terminal prompt in `workspace-desktop` sometimes draws at another weight (about 300 pixels).
+
 ## Diagrams in `docs/`
 
 Mermaid (` ```mermaid ` fences); ASCII only for ≤3 nodes with no states.
