@@ -11,6 +11,7 @@ import { DialogActions, DialogShell, useSubmit } from "./dialogs.tsx"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import {
+  expandTilde,
   filterText,
   isPathInput,
   joinDrill,
@@ -18,6 +19,7 @@ import {
   nameOrPath,
   resolveRepo,
   splitRepoRow,
+  stripTrailingSlash,
 } from "./new-task-paths.ts"
 import { AdoptTab, CloneTab } from "./new-task-tabs.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
@@ -116,7 +118,7 @@ function useRepoField(model: AppModel, initial: string | undefined): RepoField {
 
   const resolution = resolveRepo(text, saved)
   const trimmed = resolution.kind === "path" ? resolution.path : ""
-  const expanded = trimmed.startsWith("~") && !home ? "" : trimmed.replace(/^~(?=\/|$)/, home).replace(/(.)\/+$/, "$1")
+  const expanded = trimmed.startsWith("~") && !home ? "" : stripTrailingSlash(expandTilde(trimmed, home))
 
   useEffect(() => {
     setProbe(null)

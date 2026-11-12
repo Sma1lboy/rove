@@ -72,10 +72,15 @@ export function tabId(args: Args, name = "tabId"): string {
   return v
 }
 
+/** Absolute as this machine reads it: `/…` anywhere; on Windows also a drive (`C:\…`, `C:/…`) or UNC path. */
+export function isAbsPath(v: string, platform: string = process.platform): boolean {
+  return v.startsWith("/") || (platform === "win32" && /^(?:[A-Za-z]:[\\/]|\\\\[^\\/])/.test(v))
+}
+
 /** An absolute path (repos, worktrees). */
 export function absPath(args: Args, name: string): string {
   const v = args[name]
-  if (typeof v !== "string" || !v.startsWith("/") || v.includes("\0")) {
+  if (typeof v !== "string" || !isAbsPath(v) || v.includes("\0")) {
     throw new BridgeError("BAD_ARGS", `${name} must be an absolute path`)
   }
   return v

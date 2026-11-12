@@ -2,9 +2,20 @@
 
 /** Base/dir halves of a saved repo path: the basename identifies, the muted dir locates. */
 export function splitRepoRow(path: string): { base: string; dir: string } {
-  const at = path.lastIndexOf("/")
+  const at = lastSeparator(path)
   if (at < 0 || at === path.length - 1) return { base: path, dir: "" }
   return { base: path.slice(at + 1), dir: path.slice(0, at + 1) }
+}
+
+/** A Windows drive (`C:\…`, `C:/…`) or UNC path: there `\` separates as `/` does. */
+function isWindowsPath(path: string): boolean {
+  return /^(?:[A-Za-z]:(?:[\\/]|$)|\\\\)/.test(path)
+}
+
+function lastSeparator(path: string): number {
+  return isWindowsPath(path) || /^~\\/.test(path)
+    ? Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
+    : path.lastIndexOf("/")
 }
 
 /** Case-insensitive substring filter; an empty query keeps everything. */
@@ -15,23 +26,30 @@ export function filterText(all: readonly string[], query: string): readonly stri
 
 /** A value that names a place rather than searches the saved list. */
 export function isPathInput(value: string): boolean {
-  return value.startsWith("~") || value.includes("/")
+  return value.startsWith("~") || value.includes("/") || isWindowsPath(value)
 }
 
 export function expandTilde(value: string, home: string): string {
   if (!home) return value
   if (value === "~") return home
-  return value.startsWith("~/") ? home + value.slice(1) : value
+  return value.startsWith("~/") || value.startsWith("~\\") ? home + value.slice(1) : value
 }
 
+/** The root (`/`, `C:\`) keeps its separator. */
 export function stripTrailingSlash(path: string): string {
-  return path.length > 1 ? path.replace(/\/+$/, "") : path
+  const windows = isWindowsPath(path)
+  const root = windows && /^[A-Za-z]:/.test(path) ? 3 : 1
+  let end = path.length
+  while (end > root && (path[end - 1] === "/" || (windows && path[end - 1] === "\\"))) end--
+  return path.slice(0, end)
 }
 
 export function tildify(path: string, home: string): string {
   if (!home) return path
   if (path === home) return "~"
-  return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path
+  const next = path[home.length]
+  const under = path.startsWith(home) && (next === "/" || (isWindowsPath(home) && next === "\\"))
+  return under ? `~${path.slice(home.length)}` : path
 }
 
 /** Input value after SELECTING a subdirectory (no trailing slash: the list collapses). */

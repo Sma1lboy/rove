@@ -2,11 +2,15 @@ import { describe, expect, test } from "bun:test"
 import {
   cloneSource,
   deriveFolderName,
+  expandTilde,
   filterByGlob,
+  isPathInput,
   joinDrill,
   joinPicked,
   nameOrPath,
   resolveRepo,
+  splitRepoRow,
+  stripTrailingSlash,
 } from "../src/new-task-paths.ts"
 
 describe("new-task dialog paths", () => {
@@ -28,6 +32,27 @@ describe("new-task dialog paths", () => {
     expect(joinPicked("~/pro", "/home/me/", "projects", "/home/me")).toBe("~/projects")
     expect(joinDrill("~/pro", "/home/me/", "projects", "/home/me")).toBe("~/projects/")
     expect(joinPicked("/tm", "/", "tmp", "/home/me")).toBe("/tmp")
+  })
+
+  test("a Windows drive path is a path, with either separator", () => {
+    const home = "C:\\Users\\me"
+    for (const path of ["C:\\Code\\app", "C:/Code/app", "c:\\", "~\\app", "\\\\host\\share\\app"]) {
+      expect(isPathInput(path)).toBe(true)
+    }
+    expect(isPathInput("app")).toBe(false)
+    expect(resolveRepo("C:\\Code\\app", saved)).toEqual({ kind: "path", path: "C:\\Code\\app" })
+    expect(splitRepoRow("C:\\Code\\app")).toEqual({ base: "app", dir: "C:\\Code\\" })
+    expect(splitRepoRow("C:/Code/app")).toEqual({ base: "app", dir: "C:/Code/" })
+    expect(nameOrPath("C:/Code/app", ["C:/Code/app"])).toBe("app")
+    expect(expandTilde("~\\app", home)).toBe("C:\\Users\\me\\app")
+    expect(expandTilde("~/app", home)).toBe("C:\\Users\\me/app")
+    expect(stripTrailingSlash("C:\\Code\\app\\")).toBe("C:\\Code\\app")
+    expect(stripTrailingSlash("C:/Code/app//")).toBe("C:/Code/app")
+    expect(stripTrailingSlash("C:\\")).toBe("C:\\")
+    expect(stripTrailingSlash("/w/a/")).toBe("/w/a")
+    expect(stripTrailingSlash("/")).toBe("/")
+    expect(joinPicked("~/pro", "C:\\Users\\me/", "projects", home)).toBe("~/projects")
+    expect(joinDrill("C:\\Co", "C:\\", "Code", home)).toBe("C:\\Code/")
   })
 
   test("clone folder comes from the last URL segment", () => {
