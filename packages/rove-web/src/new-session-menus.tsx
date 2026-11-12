@@ -9,6 +9,7 @@ import {
   CHECK,
   CHIP_WRAP,
   CLIP,
+  CLIP_HEAD,
   DIM,
   EMPTY_NOTE,
   FIELD,
@@ -18,6 +19,7 @@ import {
   NAME,
   POP,
   ROWS,
+  RULE,
   SUBMENU_DIM,
   SUBMENU_ROW,
   chipClass,
@@ -106,6 +108,10 @@ export interface PickRow {
   readonly dim?: string
   /** Full text of a long `dim`; the row stays one line and shows it on hover. */
   readonly title?: string
+  /** `dim` is a path: when it does not fit, its head is cut, not its tail. */
+  readonly dimPath?: boolean
+  /** Starts a new group: a hairline above it. */
+  readonly ruled?: boolean
   readonly checked?: boolean
 }
 
@@ -160,6 +166,7 @@ export function SearchList(props: {
         {all.map((row, i) => (
           <Fragment key={row.key}>
             {props.moreLabel && row === props.more?.[0] && <p className={`${GROUP} text-muted`}>{props.moreLabel}</p>}
+            {row.ruled && i > 0 && <div className={RULE} />}
             <button
               type="button"
               aria-current={row.checked === true}
@@ -172,7 +179,11 @@ export function SearchList(props: {
             >
               <span className={CHECK}>{row.checked ? "✓" : ""}</span>
               <span className={NAME}>{row.text}</span>
-              {row.dim && <span className={`${DIM} text-muted ${row.title ? CLIP : ""}`}>{row.dim}</span>}
+              {row.dim && (
+                <span className={`${DIM} text-muted ${row.dimPath ? CLIP_HEAD : CLIP}`}>
+                  {row.dimPath ? <bdi>{row.dim}</bdi> : row.dim}
+                </span>
+              )}
             </button>
           </Fragment>
         ))}

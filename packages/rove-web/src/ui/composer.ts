@@ -46,8 +46,11 @@ export const CHIP_WRAP = "group/chip relative inline-flex"
 export const POP =
   "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-last-of-type/chip:right-0 group-last-of-type/chip:left-auto"
 
-export const MENU = "flex min-h-0 flex-col gap-1 overflow-y-auto p-1.5 [outline:0]"
-export const ROWS = "flex min-h-0 flex-col overflow-y-auto"
+/** Rows clip sideways (a long tail shortens, see `CLIP`); only the list scrolls, and only up and down. */
+export const MENU = "flex min-h-0 flex-col gap-1 overflow-x-hidden overflow-y-auto p-1.5 [outline:0]"
+export const ROWS = "flex min-h-0 flex-col overflow-x-hidden overflow-y-auto"
+/** A hairline between two groups of rows. */
+export const RULE = "mx-2 my-1 flex-none border-t-hairline border-t-line"
 /** Callers add `KICKER text-muted`. */
 export const HEADING = "sticky top-0 z-1 m-0 bg-surface px-1.5 pt-1.5 pb-0.5 text-left"
 
@@ -61,6 +64,8 @@ export const CHECK = "flex-[0_0_1.5ch] text-accent"
 export const DIM = "ml-auto pl-3"
 export const SUBMENU_DIM = `${DIM} inline-flex items-center gap-1`
 export const CLIP = "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+/** Clips the head instead of the tail (a path keeps its last folders); the text inside goes in a `<bdi>`. */
+export const CLIP_HEAD = `${CLIP} [direction:rtl]`
 export const NAME = "flex-none whitespace-nowrap"
 export const EMPTY_NOTE = "mx-2 my-1"
 export const GROUP = "mx-2 mt-2 mb-0.5"
