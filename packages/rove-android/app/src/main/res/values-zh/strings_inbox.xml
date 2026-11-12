@@ -26,7 +26,7 @@
     <string name="inbox_reply">回复</string>
     <string name="inbox_hide">收起</string>
     <string name="inbox_send">发送</string>
-    <string name="inbox_reply_placeholder">回复智能体</string>
+    <string name="inbox_reply_placeholder">回复这个会话</string>
     <string name="inbox_no_output">还没有输出</string>
     <string name="inbox_open_tab">打开标签页</string>
     <string name="inbox_at_menu">智能体停在菜单上：打开标签页来回答</string>
