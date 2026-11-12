@@ -18,6 +18,7 @@
     "visual:serve": "ROVE_VISUAL=1 bun e2e/visual-serve.ts",
     "visual:dev": "ROVE_VISUAL=1 ROVE_VISUAL_KEEP=1 playwright test e2e/sandbox.spec.ts",
     "visual:shot": "ROVE_VISUAL=1 bun e2e/visual-shot.ts",
+    "web:shots": "ROVE_VISUAL=1 bun e2e/web-shots.ts",
     "perf:measure": "ROVE_VISUAL=1 bun e2e/perf-measure.ts",
     "format": "biome format",
     "lint": "biome lint",
