@@ -341,7 +341,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       <div className={C.HERO}>
         <NewSessionPlate />
         <h1 className="m-0 font-sans text-title font-semibold text-accent">{t("newSession.title")}</h1>
-        <p className="m-0 text-muted">{t("newSession.tagline")}</p>
+        <p className="m-0 text-muted narrow:hidden">{t("newSession.tagline")}</p>
       </div>
       <form
         className={C.COMPOSER}
@@ -409,10 +409,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               label={
                 <>
                   <FolderIcon />
-                  {(remotePick?.clone
-                    ? cloneLabel(remotePick.ref)
-                    : repoChipLabel(remote ? (remotePick ? [remotePick.ref] : []) : repos)) ||
-                    t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
+                  <span className={C.CHIP_TEXT}>
+                    {(remotePick?.clone
+                      ? cloneLabel(remotePick.ref)
+                      : repoChipLabel(remote ? (remotePick ? [remotePick.ref] : []) : repos)) ||
+                      t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
+                  </span>
                 </>
               }
             >

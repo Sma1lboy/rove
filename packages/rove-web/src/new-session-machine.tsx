@@ -21,7 +21,7 @@ import {
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { tc } from "./tui-copy.ts"
 import { Button } from "./ui/button.tsx"
-import { EMPTY_NOTE, ICON, NOTE } from "./ui/composer.ts"
+import { CHIP_WORD, EMPTY_NOTE, ICON, NOTE } from "./ui/composer.ts"
 import { ROW_TITLE_RUNNING } from "./ui/row.ts"
 import { BusyDots } from "./ui/status-dots.tsx"
 
@@ -254,7 +254,7 @@ export function MachineChip(props: {
       label={
         <>
           <MachineIcon />
-          {name}
+          <span className={CHIP_WORD}>{name}</span>
         </>
       }
     >
