@@ -5,7 +5,7 @@
  * brings the terminal back, as picking a task in the TUI rail leaves the page.
  */
 
-import { useEffect } from "react"
+import { Suspense, lazy, useEffect } from "react"
 import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
@@ -18,8 +18,12 @@ import { useCopy } from "./pages-kit.ts"
 import { RoutinesView } from "./routines-view.tsx"
 import { useStore } from "./store.ts"
 import { type PageId, page } from "./ui.ts"
-import { RAIL_NAV, RAIL_NAV_PLUS, railNavRowClass } from "./ui/page.ts"
+import { RAIL_NAV } from "./ui/page.ts"
+import { RailNavRow } from "./ui/rail-nav.tsx"
 import { UsageView } from "./usage-page.tsx"
+
+/** three.js and the scene are their own chunk: the classic page never pays for them. */
+const WorldView = lazy(() => import("./world/world-view.tsx").then((module) => ({ default: module.WorldView })))
 
 interface NavItem {
   readonly id: PageId & ("kanban" | "routines" | "issues" | "mods")
@@ -48,23 +52,18 @@ export function PageNav({ model }: { model: AppModel }) {
   return (
     <div className={RAIL_NAV}>
       {/* Starting a task is the first destination, drawn like the pages under it. */}
-      <button type="button" className={`rail-nav-row ${railNavRowClass(false)}`} onClick={() => startNewTask()}>
+      <RailNavRow plus onSelect={() => startNewTask()}>
         {t("rail.newTask")}
-        <span className={RAIL_NAV_PLUS} aria-hidden="true">
-          +
-        </span>
-      </button>
+      </RailNavRow>
       {items.map((item) => (
-        <button
-          type="button"
-          key={item.id}
-          className={`rail-nav-row ${railNavRowClass(open === item.id)}`}
-          aria-current={open === item.id ? "page" : undefined}
-          onClick={() => openPage(item.id)}
-        >
+        <RailNavRow key={item.id} active={open === item.id} onSelect={() => openPage(item.id)}>
           {nav[item.label]}
-        </button>
+        </RailNavRow>
       ))}
+      {/* The GPU-drawn map of this machine's tasks; the TUI has no page for it. */}
+      <RailNavRow active={open === "world"} onSelect={() => openPage("world")}>
+        {t("world.title")}
+      </RailNavRow>
     </div>
   )
 }
@@ -85,5 +84,9 @@ export function PagesHost({ model, page: current }: { model: AppModel; page: Pag
     <CompareView model={model} />
   ) : current === "usage" ? (
     <UsageView model={model} />
+  ) : current === "world" ? (
+    <Suspense fallback={null}>
+      <WorldView model={model} />
+    </Suspense>
   ) : null
 }
