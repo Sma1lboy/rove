@@ -41,7 +41,7 @@ export const en = {
   legacyAdoptNever: "don't ask again",
   legacyAdoptSessionTitle: "Remove leftover sessions",
   legacyAdoptPrompt:
-    "An older Rove version added sessions to the sidebar by itself whenever a git worktree was created outside Rove. These look like leftovers:\n\n{list}\n\nShow me this list and ask which ones to remove, then wait for my answer. For each one I confirm, first run `git -C <path> status --short`. If it has uncommitted changes, tell me and ask again. Otherwise run `rove api delete --task-id <id> --wait`. Remove nothing I did not confirm, and never pass --force.\n\nThen look for the hook that older version installed. Check my engine settings files, both the global ones and the ones in each repo above (for Claude Code: ~/.claude/settings.json, <repo>/.claude/settings.json and <repo>/.claude/settings.local.json), for any hook whose command runs `rove hook worktree-created`. Show me each entry you find and its file, and remove it only after I confirm. Leave every other hook as it is.",
+    "An older Rove version added sessions to the sidebar by itself whenever a git worktree was created outside Rove. These look like leftovers:\n\n{list}\n\nShow me this list and ask which ones to remove, then wait for my answer. For each one I confirm, first run `git -C <path> status --short`. If it has uncommitted changes, tell me and ask again. Otherwise run `rove api delete --task-id <id> --wait`. Remove nothing I did not confirm, and never pass --force.\n\nThen look for the hook that older version installed. Check my engine settings files, both the global ones and the ones in each repo above, for any hook whose command runs `rove hook worktree-created`. Show me each entry you find and its file, and remove it only after I confirm. Leave every other hook as it is.",
   legacyAdoptFailed: "Couldn't start the cleanup session: {message}",
 }
 
@@ -79,6 +79,6 @@ export const zh: typeof en = {
   legacyAdoptNever: "不再提示",
   legacyAdoptSessionTitle: "移除残留会话",
   legacyAdoptPrompt:
-    "旧版 Rove 会在 Rove 之外创建 git worktree 时自动往侧栏加会话。下面这些看起来是当时留下的：\n\n{list}\n\n先把这份清单给我看，问我要删哪些，然后等我回答。对我确认的每一个，先运行 `git -C <path> status --short`；有未提交的改动就告诉我并再问一次，没有就运行 `rove api delete --task-id <id> --wait`。我没确认的一个都不要删，也不要加 --force。\n\n然后找一下那个旧版本装的 hook。检查我的引擎设置文件，包括全局的和上面每个仓库里的（Claude Code 是 ~/.claude/settings.json、<repo>/.claude/settings.json 和 <repo>/.claude/settings.local.json），找命令里运行 `rove hook worktree-created` 的 hook。把找到的每一条连同所在文件给我看，我确认后再删。其他 hook 一律不动。",
+    "旧版 Rove 会在 Rove 之外创建 git worktree 时自动往侧栏加会话。下面这些看起来是当时留下的：\n\n{list}\n\n先把这份清单给我看，问我要删哪些，然后等我回答。对我确认的每一个，先运行 `git -C <path> status --short`；有未提交的改动就告诉我并再问一次，没有就运行 `rove api delete --task-id <id> --wait`。我没确认的一个都不要删，也不要加 --force。\n\n然后找一下那个旧版本装的 hook。检查我的引擎设置文件，包括全局的和上面每个仓库里的，找命令里运行 `rove hook worktree-created` 的 hook。把找到的每一条连同所在文件给我看，我确认后再删。其他 hook 一律不动。",
   legacyAdoptFailed: "清理会话没能启动：{message}",
 }
