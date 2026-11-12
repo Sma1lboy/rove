@@ -167,7 +167,15 @@ button:focus-visible {
  * scrollers (a scrolling box inside a scrolling pane) never show two bars at once at rest.
  * Chromium and Safari paint `::-webkit-scrollbar` (the standard properties, once set, would
  * switch those off), so the standard pair is only for Firefox.
+ * A scrollbar part cannot transition; it inherits `--scroll-thumb-now` from its scroller, which can,
+ * so the thumb fades out. Every element resets it, or a nested scroller would show its parent's.
  */
+@property --scroll-thumb-now {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
 :root {
   --scroll-thumb: color-mix(in srgb, var(--subtle) 45%, transparent);
   --scroll-thumb-hover: var(--subtle);
@@ -208,8 +216,19 @@ button:focus-visible {
     background: transparent padding-box;
   }
 
-  *[data-scrolling]::-webkit-scrollbar-thumb {
-    background-color: var(--scroll-thumb);
+  * {
+    --scroll-thumb-now: transparent;
+    transition: --scroll-thumb-now 0.5s ease-out;
+  }
+
+  /* `:where`: no more specific than `*`, so an element's own transition utility still wins. */
+  *:where([data-scrolling]) {
+    --scroll-thumb-now: var(--scroll-thumb);
+    transition-duration: 0.1s;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb-now);
   }
 
   ::-webkit-scrollbar-thumb:hover {

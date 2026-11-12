@@ -113,6 +113,7 @@ export function RepoMenu(props: {
       extra={remote?.blocked ? null : extra}
       more={remote?.blocked ? [] : more}
       moreLabel={t("newSession.githubGroup")}
+      hint={remote ? undefined : t("newSession.repoMultiHint")}
       onPick={(key, add) => {
         if (key === NO_PROJECT_KEY) {
           props.ungrouped?.pick()
