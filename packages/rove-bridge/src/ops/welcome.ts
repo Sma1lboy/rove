@@ -30,7 +30,14 @@ interface QuickStart {
 const chip = (id: VendorId): EngineChip => ({ id, name: engineDisplayName(id) })
 
 export const welcomeDeps = {
-  cwd: (): string => process.cwd(),
+  /** Null once the directory `rove --web` started in is deleted. */
+  cwd: (): string | null => {
+    try {
+      return process.cwd()
+    } catch {
+      return null
+    }
+  },
   gitOnPath: (): boolean => Bun.which("git") !== null,
   async engines(): Promise<{ usable: readonly VendorId[]; signedOut: readonly VendorId[] }> {
     return probeableEngineIds()
@@ -58,14 +65,14 @@ export const welcomeOps: OpTable = {
     async run() {
       const [{ usable, signedOut }, git] = await Promise.all([welcomeDeps.engines(), welcomeDeps.gitOnPath()])
       const dir = welcomeDeps.cwd()
-      const repo = welcomeDeps.repoOf(dir)
+      const repo = dir === null ? null : welcomeDeps.repoOf(dir)
       let start: QuickStart | null = null
       if (repo !== null && git && usable.length > 0) {
         const pref = welcomeDeps.preferredEngine(repo)
         start = {
           repo,
           label: basename(repo),
-          baseRef: welcomeDeps.branchOf(dir) ?? welcomeDeps.branchOf(repo) ?? DEFAULT_BASE_REF,
+          baseRef: welcomeDeps.branchOf(dir ?? repo) ?? welcomeDeps.branchOf(repo) ?? DEFAULT_BASE_REF,
           engine: usable.includes(pref) ? pref : (usable[0] ?? pref),
         }
       }

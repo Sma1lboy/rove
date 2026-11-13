@@ -28,10 +28,12 @@ describe("welcome.env", () => {
     })
   })
 
-  test("no quick start outside a repo, without git, or without a usable engine", async () => {
+  test("no quick start outside a repo, from a deleted directory, without git, or without a usable engine", async () => {
     welcomeDeps.repoOf = () => null
     expect((await probe()).start).toBeNull()
     welcomeDeps.repoOf = () => "/work/app"
+    welcomeDeps.cwd = () => null
+    expect(await probe()).toMatchObject({ git: true, start: null })
     welcomeDeps.gitOnPath = () => false
     expect(await probe()).toMatchObject({ git: false, start: null })
     welcomeDeps.gitOnPath = () => true
