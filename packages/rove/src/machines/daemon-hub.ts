@@ -7,6 +7,7 @@
 
 import type { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import type { MachinesPayload } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { startMachineAutoUpdate } from "./auto-update.ts"
 import { MachineHub } from "./hub.ts"
 
 const PUBLISH_DEBOUNCE_MS = 50
@@ -46,7 +47,9 @@ export function startDaemonMachineHub(bus: Pick<DaemonEventBus, "publish" | "onP
   })
   hub.sync()
   publish()
+  const stopAutoUpdate = startMachineAutoUpdate(hub.machinesSignal())
   return () => {
+    stopAutoUpdate()
     offState()
     for (const stop of stops) stop()
     if (timer) clearTimeout(timer)
