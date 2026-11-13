@@ -317,10 +317,9 @@ describe("createTaskFlow — create mode + guards", () => {
 
     await createTaskFlow(ctx)
 
-    expect(notifyError).toHaveBeenCalledWith(
-      "Couldn't create the task — nothing was created: git worktree add failed",
-      { key: "task-create" },
-    )
+    expect(notifyError).toHaveBeenCalledWith("Couldn't create the task: git worktree add failed", {
+      key: "task-create",
+    })
     expect(reload).not.toHaveBeenCalled()
     expect(selectTask).not.toHaveBeenCalled()
   })

@@ -18,6 +18,7 @@ import {
 } from "@sma1lboy/rove/src/tui/lib/notify-state.ts"
 import { useEffect, useRef } from "react"
 import type { TasksPayload } from "rove-bridge/protocol"
+import { t } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { prefsStore } from "./prefs.ts"
 import { toast } from "./ui.ts"
@@ -67,7 +68,11 @@ export function useCrossTaskNotices(model: AppModel): void {
       for (const { key, kind } of edges) {
         if (key === open || !shouldAlert({ kind, turnEnd: true }, prefs.finishedAlerts)) continue
         const title = titles.get(key) ?? key
-        if (shouldShowToast(kind, prefs.toast)) toast(`${GLYPH[kind]} ${title}`, kind === "error" ? "error" : "info")
+        if (shouldShowToast(kind, prefs.toast))
+          toast(`${GLYPH[kind]} ${title}`, kind === "error" ? "error" : "info", {
+            label: t("workspace.openTask"),
+            run: () => model.select(key),
+          })
         if (shouldPlaySound({}, prefs.sound)) {
           chime(prefs.soundVolume)
           desktopNotice(key, kind, title)
