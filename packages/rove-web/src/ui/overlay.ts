@@ -46,8 +46,10 @@ export const MENU_SEP = "-mx-1 my-1 h-px flex-none border-none bg-line"
 /** Phone: top right under the `‹ Tasks` bar, clear of the message bar and the keyboard. */
 export const TOASTS =
   "fixed right-3.5 bottom-8.5 z-40 flex flex-col gap-1.5 narrow:pointer-events-none narrow:top-12 narrow:bottom-auto narrow:left-3.5 narrow:items-end narrow:*:pointer-events-auto"
-/** Added to a toast that carries an action: its text, then the bracket button, on one line when they fit. */
-export const TOAST_WITH_ACTION = "flex cursor-default flex-wrap items-baseline justify-between gap-x-3"
+/** Added to a toast that carries an action: its text wraps on the left, the bracket button stays on its first line at the right edge. */
+export const TOAST_WITH_ACTION = "flex cursor-default items-baseline gap-x-3"
+export const TOAST_TEXT = "min-w-0 flex-1"
+export const TOAST_ACTION = "flex-none whitespace-nowrap font-mono"
 export const toastClass = (error: boolean): string =>
   `toast max-w-105 cursor-pointer rounded-sm border-hairline border-line bg-inset px-3 py-1.5 text-left font-sans text-meta normal-nums wrap-anywhere ${error ? "text-error" : "text-ink"} motion-safe:animate-rise-in [&.is-leaving]:pointer-events-none [&.is-leaving]:animate-sink-out`
 
