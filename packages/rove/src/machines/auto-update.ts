@@ -5,7 +5,7 @@
  */
 
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { logClient } from "@sma1lboy/rove-daemon/client/client-log"
+import { logDaemonInfo } from "@sma1lboy/rove-daemon/daemon/crash-log"
 import type { ReadableState } from "../lib/external-store.ts"
 import { loadStateFile } from "../state/store.ts"
 import { preferredReleaseChannel } from "../state/update-channel.ts"
@@ -52,7 +52,8 @@ const DEFAULTS: AutoUpdateDeps = {
     }
   },
   upgrade: upgradeMachine,
-  log: (line) => logClient("machines", line),
+  // daemon.log, not the debug log: an install nobody asked for has to be findable afterwards.
+  log: (line) => logDaemonInfo("machines", line),
   retryMs: 60_000,
 }
 
