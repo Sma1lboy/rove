@@ -3,7 +3,7 @@
  * state.json as a flag, an enum or a bounded number, each read by its own normalizer and bounded
  * by its own constant list. Every client reads the whole set and lists only what it can draw:
  * `transparent`, `glyphSet` and `editorKind` (the file tree's editor tab) are the
- * terminal app's alone, `statusMark` and its notice flag the
+ * terminal app's alone, `statusMark`, its notice flag and the rail's sort and grouping the
  * web's alone, and neither client shows the other's.
  *
  * Deliberately absent, because the value would be authored by the client and then run or
@@ -100,6 +100,13 @@ export type Scalar = string | number | boolean
 /** Not exported by the TUI's state module (its own picker restates them too). */
 const KEY_HINTS_ENABLED_KEY = "hints.keyboard.enabled"
 const PANE_HINT_USED_KEYS = ["hints.sidebar.used", "hints.files.used"] as const
+/** The web rail's sort and grouping: one answer for every browser on this daemon. The TUI keeps its own sort. */
+const RAIL_SORTS = ["default", "recent", "attention", "name"] as const
+const RAIL_GROUPS = ["project", "state"] as const
+const oneOf =
+  (choices: readonly string[], fallback: string) =>
+  (raw: unknown): string =>
+    choices.includes(raw as string) ? (raw as string) : fallback
 const RAIL_FOLD_STYLES = appearanceChoices("railFold", []).map((c) => c.value as string)
 
 interface Shared {
@@ -186,6 +193,8 @@ export const PREF_DEFS: Readonly<Record<string, PrefDef>> = {
   // Web only: the TUI's sidebar rows carry no engine mark.
   statusMark: choice(STATUS_MARK_KEY, STATUS_MARKS, normalizeStatusMark),
   statusMarkNoticeSeen: bool(STATUS_MARK_NOTICE_KEY, false),
+  railSort: choice("web.rail.sort", RAIL_SORTS, oneOf(RAIL_SORTS, "recent")),
+  railGroup: choice("web.rail.group", RAIL_GROUPS, oneOf(RAIL_GROUPS, "project")),
   toast: bool("notifications.toast.enabled", true),
   sound: bool("notifications.sound.enabled", true),
   soundVolume: choice(SOUND_VOLUME_KEY, SOUND_VOLUME_STEPS, (raw) => normalizeSoundVolume(raw ?? DEFAULT_SOUND_VOLUME)),

@@ -26,6 +26,14 @@ describe("Reorder (move mode) and the sort", () => {
     expect(railSort.get()).toBe("recent")
   })
 
+  test("another browser's sort is taken up here", async () => {
+    const { prefsStore } = await import("../src/prefs.ts")
+    const now = prefsStore.get()
+    prefsStore.set({ ...now, loaded: true, prefs: { ...now.prefs, railSort: "attention" } })
+    expect(railSort.get()).toBe("attention")
+    expect(localStorage.getItem("rove.activeSortMode")).toBe("attention")
+  })
+
   test("turning move mode on under another sort switches to manual first, persists it, and says so", () => {
     setRailSort("name")
     setMoveMode(true)

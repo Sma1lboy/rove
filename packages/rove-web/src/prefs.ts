@@ -26,6 +26,8 @@ export interface Prefs {
   readonly statusMark: "engine" | "both" | "dots"
   /** The "task rows changed" notice was shown, or was not owed (`status-mark-notice.ts`). */
   readonly statusMarkNoticeSeen: boolean
+  readonly railSort: "default" | "recent" | "attention" | "name"
+  readonly railGroup: "project" | "state"
   readonly toast: boolean
   readonly sound: boolean
   readonly soundVolume: number
@@ -112,6 +114,8 @@ const DEFAULTS: Prefs = {
   statusMark: "both",
   // True until the daemon says otherwise: a cache from before the key must not raise the notice.
   statusMarkNoticeSeen: true,
+  railSort: "recent",
+  railGroup: "project",
   toast: true,
   sound: true,
   soundVolume: 0.4,
@@ -174,7 +178,11 @@ function accept(reply: PrefsReply): void {
   localStorage.setItem(CACHE_KEY, JSON.stringify(next))
 }
 
+/** The page's client, for `savePref` callers that hold none (a key handler, a drag). */
+let page: BridgeClient | null = null
+
 export async function loadPrefs(client: BridgeClient): Promise<void> {
+  page = client
   accept(await client.request<PrefsReply>("prefs.get"))
 }
 
@@ -192,6 +200,13 @@ export async function setPref<K extends PrefKey>(client: BridgeClient, key: K, v
     syncLocale(before.prefs)
     toast(err instanceof Error ? err.message : String(err), "error")
   }
+}
+
+/** `setPref` through the page's client; before it has connected, the page alone changes. */
+export function savePref<K extends PrefKey>(key: K, value: Prefs[K]): void {
+  if (page) return void setPref(page, key, value)
+  const now = prefsStore.get()
+  prefsStore.set({ ...now, prefs: { ...now.prefs, [key]: value } })
 }
 
 export function usePrefs(): PrefsState {
