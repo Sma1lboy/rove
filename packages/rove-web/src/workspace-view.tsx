@@ -47,6 +47,7 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   useEffect(() => {
     let last = model.selection.get()
     return model.selection.subscribe(() => {
+      page.set(null)
       newSession.set(null)
       const next = model.selection.get()
       if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
