@@ -107,7 +107,11 @@ the two share one token.
   tab, and it opens the panel on a page that is on
   that task with a panel, without taking focus or switching task. The Browser
   asks the bridge (`browser.probe`) whether a page forbids framing before it
-  loads it.
+  loads it. When a task's own processes serve a page on a port (the dev server an agent
+  or a shell tab started), the Files view shows `[ open :PORT ]` for each, which
+  loads it in the Browser. Nothing is configured: it reads `rove api ports` and
+  keeps the ports whose `/` answers HTML, so an engine's own ports are not listed.
+  A page opened over a tunnel cannot reach the Mac's loopback; the panel says so.
 - Command palette (`ctrl+a /`): the commands, then the tasks whose title,
   branch or project matches, then what you and the agents wrote in any task's
   conversation (`rove api search`, from two characters), newest first, the words

@@ -50,7 +50,7 @@ Web 手机版（`packages/rove-web`，390 宽）是功能和布局的参照，�
 | Usage 页（按天、模型、任务） | `usage-page.tsx` | 这轮没查 op | **缺** |
 | Chat（transcript）面板 | `transcript-view.tsx` | 这轮没查 op | **缺**；iOS 有历史页 `TaskHistoryView` |
 | Attempts、Stack 条、Compare | `attempts-strip.tsx`、`stack-strip.tsx`、`compare-view.tsx` | `task.keep` 等 | **缺** |
-| `.rove/run.sh` | `run-strip.tsx` | `run.start`、`run.status`、`run.stop` | **缺** |
+| 打开 task 监听的端口 | `ports-strip.tsx` | `browser.ports` | **缺** |
 | Diff 基线选择 | `diff-base-picker.tsx` | `diff.refs`、`diff.files` | **缺** |
 | Snippets | `settings-snippets.tsx`、`snippet-suggest.tsx` | `snippets.*` | **缺** |
 | 语音输入（按住说话、Settings › Voice） | `term-dictation.ts`、`voice/` | `voice.*` | **不做**：iOS 用系统听写 |

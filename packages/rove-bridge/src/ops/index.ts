@@ -19,7 +19,6 @@ import { prefsOps } from "./prefs.ts"
 import { promptOps } from "./prompts.ts"
 import { reviewOps } from "./review-queue.ts"
 import { routingOps } from "./routing.ts"
-import { RUN_OPS } from "./run-script.ts"
 import { engineOps } from "./settings-engines.ts"
 import { settingsOps } from "./settings.ts"
 import { snippetOps } from "./snippets.ts"
@@ -74,7 +73,6 @@ export const AREA_OPS: OpTable = mergeOpTables(
   reviewOps,
   githubAuthOps,
   PR_CHECKS_OPS,
-  RUN_OPS,
   contextOps,
   voiceOps,
   voiceSetupOps,
