@@ -4,9 +4,12 @@
  * nothing.
  */
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { dirname, join } from "node:path"
 import { describe, expect, it } from "vitest"
 import type { MachineConfig } from "../../src/machines/registry.ts"
-import { machineSocketDir, machineSshArgs } from "../../src/machines/ssh-args.ts"
+import { hubKeyPath, machineSocketDir, machineSshArgs } from "../../src/machines/ssh-args.ts"
 
 const HOME = "/tmp/rove-home"
 const config: MachineConfig = { host: "narwhal", auth: { kind: "key" } }
@@ -34,6 +37,20 @@ describe.skipIf(!POSIX)("machineSshArgs", () => {
     expect(argv).toContain("-p")
     expect(argv[argv.indexOf("-p") + 1]).toBe("2222")
     expect(argv[argv.indexOf("-i") + 1]).toBe("/k")
+  })
+
+  it("offers this hub's own key to a machine registered without one", () => {
+    // Such an entry logged in through ssh-agent or a live master: both are gone after a reboot.
+    const home = mkdtempSync(join(tmpdir(), "rove-hubkey-"))
+    try {
+      expect(machineSshArgs("m", config, { home })).not.toContain("-i")
+      mkdirSync(dirname(hubKeyPath(home)), { recursive: true })
+      writeFileSync(hubKeyPath(home), "")
+      const argv = machineSshArgs("m", config, { home })
+      expect(argv[argv.indexOf("-i") + 1]).toBe(hubKeyPath(home))
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 })
 

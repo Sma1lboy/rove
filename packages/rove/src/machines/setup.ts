@@ -16,11 +16,10 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { hostname } from "node:os"
 import { join } from "node:path"
-import { homeDir } from "../env.ts"
 import { shQuote } from "../exec/exec-host.ts"
 import { type DiscoverFailure, type DiscoverResult, discoverMachine, remoteRove } from "./discover.ts"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
-import { machineSshArgs } from "./ssh-args.ts"
+import { hubKeyPath, machineSshArgs } from "./ssh-args.ts"
 import { isWindowsMachine, windowsAuthorizeKeySteps } from "./windows-remote.ts"
 
 export type SetupFix =
@@ -37,11 +36,6 @@ export type SetupFix =
       readonly apply?: (config: MachineConfig) => MachineConfig
     }
   | { readonly kind: "manual"; readonly id: string; readonly label: string; readonly action: string }
-
-/** The key a hub logs in with: one per hub, so revoking a hub is one line. */
-export function hubKeyPath(home = homeDir()): string {
-  return join(home, ".rove", "ssh", "hub_ed25519")
-}
 
 export const INSTALL_SCRIPT = "curl -fsSL https://rove.run/install.sh | sh"
 

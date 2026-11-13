@@ -8,6 +8,7 @@
  * same set (`ControlMaster=auto`, `ControlPersist=300`, TOFU host keys).
  */
 
+import { existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { shortHomeTag } from "@sma1lboy/rove-daemon/daemon/paths"
@@ -54,6 +55,22 @@ function controlPath(alias: string, home = homeDir()): string {
   return join(machineSocketDir(alias, home), "cm")
 }
 
+/** The key a hub logs in with: one per hub, so revoking a hub is one line. */
+export function hubKeyPath(home = homeDir()): string {
+  return join(home, ".rove", "ssh", "hub_ed25519")
+}
+
+/**
+ * The key file ssh is handed for a machine. An entry that names none still gets this hub's own key when
+ * it has one: a login that only worked through ssh-agent or a live master is gone after a reboot.
+ */
+export function machineIdentityFile(config: MachineConfig, home = homeDir()): string | undefined {
+  if (config.auth.kind !== "key") return undefined
+  if (config.auth.keyPath) return config.auth.keyPath
+  const hubKey = hubKeyPath(home)
+  return existsSync(hubKey) ? hubKey : undefined
+}
+
 /**
  * ssh argv shared by every machine invocation, ending at the target (no remote
  * command). `batch` (default) fails fast instead of prompting — required for
@@ -83,7 +100,8 @@ export function machineSshArgs(
     "StrictHostKeyChecking=accept-new",
   )
   if (config.port) argv.push("-p", String(config.port))
-  if (config.auth.kind === "key" && config.auth.keyPath) argv.push("-i", config.auth.keyPath)
+  const identity = machineIdentityFile(config, opts.home)
+  if (identity) argv.push("-i", identity)
   argv.push(sshTargetOf(config))
   return argv
 }

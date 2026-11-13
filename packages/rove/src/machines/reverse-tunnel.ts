@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { type MachineConfig, sshTargetOf } from "./registry.ts"
+import { machineIdentityFile } from "./ssh-args.ts"
 
 export interface ReverseTunnelPorts {
   /** Port on the OTHER machine's loopback that leads back here. */
@@ -40,7 +41,8 @@ export function reverseTunnelArgv(config: MachineConfig, ports: ReverseTunnelPor
     "StrictHostKeyChecking=accept-new",
   ]
   if (config.port) argv.push("-p", String(config.port))
-  if (config.auth.kind === "key" && config.auth.keyPath) argv.push("-i", config.auth.keyPath)
+  const identity = machineIdentityFile(config)
+  if (identity) argv.push("-i", identity)
   argv.push("-R", `127.0.0.1:${ports.remotePort}:127.0.0.1:${ports.localPort}`, sshTargetOf(config))
   return argv
 }

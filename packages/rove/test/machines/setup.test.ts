@@ -5,7 +5,8 @@ import { dirname, join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import type { DiscoverFailure, DiscoverResult } from "../../src/machines/discover.ts"
 import type { MachineConfig } from "../../src/machines/registry.ts"
-import { type SetupRuntime, authorizeKeyScript, establishMachine, hubKeyPath } from "../../src/machines/setup.ts"
+import { type SetupRuntime, authorizeKeyScript, establishMachine } from "../../src/machines/setup.ts"
+import { hubKeyPath } from "../../src/machines/ssh-args.ts"
 
 const CONFIG: MachineConfig = { host: "otter", auth: { kind: "key" } }
 const DENIED: DiscoverFailure = {
