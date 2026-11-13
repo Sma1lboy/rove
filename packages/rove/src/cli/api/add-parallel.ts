@@ -114,7 +114,7 @@ export async function addParallel(
   // already-created tasks into PARTIAL_FANOUT so a script doesn't double-spawn.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  const dispatcher = await dispatcherEnvPayload(daemon)
+  const dispatcher = args.bool("no-dispatcher") === true ? {} : await dispatcherEnvPayload(daemon)
   for (const [i, vendor] of plan.entries()) {
     // `--agents` picks engines BY ID (command = id); `--count` reuses `--command` verbatim.
     const engine: EngineChoice = agentsSpec ? { command: vendor, vendor } : { ...choice, vendor }

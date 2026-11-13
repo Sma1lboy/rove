@@ -148,6 +148,10 @@ describe("launches of a task that shares a multi-repo owner's workspace", () => 
   it("add --no-worktree --prompt marks the child it launches", async () => {
     const client = new FakeClient({
       "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
+      "tabs.get": () => ({
+        state: { tabs: [{ kind: "engine", id: "tab-1", spawned: true }], activeId: "tab-1" },
+        rev: 1,
+      }),
       "task.spawn": () => ({ taskId: "kid", task: sharer, parentDirty: false, sharedLinks: [] }),
       "task.setPrompt": () => ({}),
     })

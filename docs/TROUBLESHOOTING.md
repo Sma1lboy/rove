@@ -531,12 +531,13 @@ watching — so `send` fails loud instead.
   ```bash
   rove api pty-list
   rove api send --task-id <id> --tab tab-N --prompt "..."   # deliver to a live tab
-  rove api send --task-id <id> --tab new --prompt "..."     # or spawn a fresh engine tab
+  rove api add --parent <id> --no-worktree --prompt "..."   # or start a new conversation
   ```
 
 - **`ENGINE_NOT_RUNNING`**: the engine tab exists but its engine process has
   exited into a plain shell — pasting there would execute the prompt as shell
-  commands. Spawn a fresh engine tab with `--tab new` as above.
+  commands. Start a new conversation with `add --no-worktree` as above, or
+  replace this tab's engine with `send --tab tab-N --replace`.
 
 A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never

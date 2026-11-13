@@ -19,16 +19,15 @@ interface QueueAddReply {
 }
 
 /** `--queue` with a flag that names another lane is a mistake, not a preference. */
-export function assertQueueFlags(ctx: VerbContext, tab: string | undefined): void {
+export function assertQueueFlags(ctx: VerbContext): void {
   if (!ctx.args.bool("queue")) return
-  const clash =
-    tab === "new"
-      ? "--tab new"
-      : ctx.args.bool("if-runnable")
-        ? "--if-runnable"
-        : ctx.args.bool("respawn")
-          ? "--respawn"
-          : null
+  const clash = ctx.args.bool("replace")
+    ? "--replace"
+    : ctx.args.bool("if-runnable")
+      ? "--if-runnable"
+      : ctx.args.bool("respawn")
+        ? "--respawn"
+        : null
   if (clash)
     throw new ApiError(
       `--queue waits for a running turn; it does not combine with ${clash}`,

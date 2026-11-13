@@ -224,7 +224,7 @@ export interface PromptTarget {
    */
   readonly respawn?: boolean
   /**
-   * `send --tab new` on a task whose engine never started: this prompt IS its first conversation, so
+   * `add --no-worktree` on a task whose engine never started: this prompt IS its first conversation, so
    * live shell tabs beside the unstarted engine tab do not make the canonical spawn ambiguous.
    */
   readonly firstConversation?: boolean

@@ -115,7 +115,7 @@ dropping SSH, restarting the daemon: none of them touch it.
 
 A Task is one engine conversation: its `tab-1`. A second conversation is a
 **child task**, shown under its parent in the sidebar. A child either shares
-the parent's directory (`ctrl+t`, `ctrl+e`, `send --tab new`,
+the parent's directory (`ctrl+t`, `ctrl+e`,
 `add --no-worktree`) or gets its own worktree cut from the parent's branch tip
 (`add` from a task's own session). Deleting a parent promotes its children; `delete --cascade` removes
 the subtree.

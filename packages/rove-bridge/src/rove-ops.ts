@@ -118,18 +118,18 @@ export interface NewTabRequest {
   /** No engine named: the one this project used last (the TUI's ctrl+t), not the task's own. */
   readonly latest?: boolean
   /**
-   * A DEAD engine tab whose slot the new engine takes (`send --handoff-from <tab> --replace`): same task,
+   * A DEAD engine tab whose slot the new engine takes (`send --tab <tab> --replace`): same task,
    * same tab id, the handoff brief built from that tab's conversation. `prompt` is then only the user's
    * own message (may be empty); the brief is not sent from the page.
    */
   readonly replaceTab?: string
 }
 
-/** A prompt starts the engine on it (`send`); without one there is nothing to send, so `tab-new` opens the tab empty. */
+/** A prompt starts the engine on it (`add --parent`, or `send --replace` for `replaceTab`); without one there is nothing to send, so `tab-new` opens the tab empty. */
 export function newTabInvocation(
   taskId: string,
   tab: NewTabRequest,
-): { readonly verb: "send" | "tab-new"; readonly argv: readonly string[] } {
+): { readonly verb: "add" | "send" | "tab-new"; readonly argv: readonly string[] } {
   const command = tab.engine ? [flag("command", tab.engine)] : []
   if (tab.prompt === undefined && !tab.engine && tab.latest) command.push("--latest")
   if (tab.replaceTab !== undefined) {
@@ -137,10 +137,9 @@ export function newTabInvocation(
       verb: "send",
       argv: [
         flag("task-id", taskId),
-        "--tab=new",
-        "--plain",
-        flag("handoff-from", tab.replaceTab),
+        flag("tab", tab.replaceTab),
         "--replace",
+        "--plain",
         ...(tab.prompt ? [flag("prompt", tab.prompt)] : []),
         ...command,
       ],
@@ -148,8 +147,8 @@ export function newTabInvocation(
   }
   if (tab.prompt !== undefined) {
     return {
-      verb: "send",
-      argv: [flag("task-id", taskId), "--tab=new", "--plain", flag("prompt", tab.prompt), ...command],
+      verb: "add",
+      argv: [flag("parent", taskId), "--no-worktree", flag("prompt", tab.prompt), ...command],
     }
   }
   return { verb: "tab-new", argv: [flag("task-id", taskId), flag("kind", tab.kind), ...command] }
@@ -369,15 +368,20 @@ export function createRoveOps(
 
     async newTab(taskId, tab) {
       const call = newTabInvocation(taskId, tab)
-      const res = await api.verb<{ tabId?: string; session?: string; childTaskId?: string }>(call.verb, call.argv)
+      const res = await api.verb<{ tabId?: string; session?: string; taskId?: string; childTaskId?: string }>(
+        call.verb,
+        call.argv,
+      )
       const tabId = res.tabId ?? res.session?.split("::")[1]
       if (!tabId) throw new BridgeError("SESSION_FAILED", "the new tab did not report its session")
+      // `add` names the child as its own `taskId`; the task itself answering means the tab went into it.
+      const child = call.verb === "add" ? (res.taskId !== taskId ? res.taskId : undefined) : res.childTaskId
       // A picked engine becomes the project's next "New conversation" default, as a TUI pick does.
       if (tab.engine && api.machineOf?.(taskId) === undefined) {
         const task = await tryRead(() => getTask(taskId))
         if (task) taskOpDeps.rememberEngine(task.repo, tab.engine)
       }
-      return { tabId, ...(res.childTaskId ? { taskId: res.childTaskId } : {}) }
+      return { tabId, ...(child ? { taskId: child } : {}) }
     },
 
     async closeTab(taskId, tabId) {

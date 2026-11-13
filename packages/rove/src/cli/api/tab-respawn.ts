@@ -72,7 +72,7 @@ export function tabEngineBase(task: RespawnTaskContext, tab: EngineTab): readonl
     vendor: tab.vendor ?? task.vendor,
     effort: task.modelEffort,
     // A tab pinned to its own engine never inherits the task's model (a claude
-    // alias kills a codex launch); same rule as `send --tab new --command`.
+    // alias kills a codex launch); same rule as `add --command`.
     model: tab.engineCommand || tab.vendor ? undefined : task.model,
   })
 }

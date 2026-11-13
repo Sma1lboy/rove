@@ -53,7 +53,7 @@ export interface EngineTab extends TabBase {
   /** Per-tab protocol override (`chat.tab.chooseEngine`, or resolved from {@link command}); undefined = the task's engine. */
   readonly vendor?: VendorId
   /**
-   * Raw launch command (`send --tab new --command …`); wins over {@link vendor}
+   * Raw launch command (`send --tab tab-N --replace --command …`); wins over {@link vendor}
    * at spawn, `vendor` then holds the resolved protocol. Not `command`:
    * {@link CommandTab} owns that name, and sharing it breaks discrimination.
    */

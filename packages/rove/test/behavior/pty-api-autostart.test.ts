@@ -99,17 +99,17 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(sessions).toContainEqual(expect.objectContaining({ key: session, alive: true }))
   }, 30_000)
 
-  it("send --tab new opens a shared child; deleting it ends only its hosted session", async () => {
+  it("add --no-worktree opens a shared child; deleting it ends only its hosted session", async () => {
     const sent = runRove(["api", "send", "--task-id", taskId, "--prompt", "follow-up", "--pretty"], env)
     expect(sent.code, `send failed: stdout=${JSON.stringify(sent.stdout)} stderr=${sent.stderr}`).toBe(0)
     const afterSend = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
     expect(afterSend.sessions.filter((entry) => entry.key === session && entry.alive)).toHaveLength(1)
 
     const opened = runRove(
-      ["api", "send", "--task-id", taskId, "--tab", "new", "--prompt", "second conversation", "--pretty"],
+      ["api", "add", "--parent", taskId, "--no-worktree", "--prompt", "second conversation", "--pretty"],
       env,
     )
-    expect(opened.code, `new tab failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
+    expect(opened.code, `new child failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
     const childSession = (JSON.parse(opened.stdout) as AddResult).session
     const childId = childSession.replace(/::tab-1$/, "")
     // A second conversation is a child task, not a second tab on the parent.
@@ -181,11 +181,8 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
   }, 30_000)
 
   it("deleting a parent promotes its shared child and keeps the directory until the last user is gone", async () => {
-    const opened = runRove(
-      ["api", "send", "--task-id", taskId, "--tab", "new", "--prompt", "survivor", "--pretty"],
-      env,
-    )
-    expect(opened.code, `new tab failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
+    const opened = runRove(["api", "add", "--parent", taskId, "--no-worktree", "--prompt", "survivor", "--pretty"], env)
+    expect(opened.code, `new child failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
     const childSession = (JSON.parse(opened.stdout) as AddResult).session
     const childId = childSession.replace(/::tab-1$/, "")
 

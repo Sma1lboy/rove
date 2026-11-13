@@ -40,7 +40,7 @@ export interface Delivery {
   /** `d-<n>`, monotonic per daemon home. */
   readonly id: string
   readonly taskId: string
-  /** `null` until the tab is known (`send --tab new`, a spawn in flight). */
+  /** `null` until the tab is known (a spawn in flight). */
   readonly tabId: string | null
   readonly source: DeliverySource
   readonly automationRunId?: string

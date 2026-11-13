@@ -1,7 +1,7 @@
 /**
  * Engine PRESETS and the command → protocol resolution behind them.
  *
- * Dispatch (`rove api add` / `send --tab new`) takes a raw `--command`, never
+ * Dispatch (`rove api add`) takes a raw `--command`, never
  * a vendor; the protocol rove speaks to it (history reader, trust store,
  * whether the first message may ride argv) is DERIVED from that command.
  *

@@ -82,7 +82,20 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         name: "no-worktree",
         type: "bool",
         description:
-          "Share the parent's directory instead of cutting a worktree. The parent is --parent or the calling session; the child takes its repo, so --repo, --fork, --base-branch, --base-for, --branch, --worktree-name, --count, --agents and --isolate-in conflict with it.",
+          "A new conversation in the parent's directory instead of a worktree of its own. The parent is --parent or the calling session; the child takes its repo, so --repo, --fork, --base-branch, --base-for, --branch, --worktree-name, --count, --agents and --isolate-in conflict with it. A parent whose engine never started has had no conversation, so this one runs in the parent itself: the reply's `taskId` is the parent's, nothing is created, and --effort/--model/--tier are refused (CONFLICTING_FLAGS).",
+      },
+      {
+        name: "handoff-from",
+        type: "string",
+        placeholder: "TAB",
+        description:
+          "With --no-worktree: continue the conversation in this tab of the parent (usually with --command naming another engine). The first prompt becomes a handoff brief — the task title, the source engine's transcript path, the user's last request and a bounded excerpt of the latest turns — followed by --prompt when given, so --prompt is optional. Same directory and branch; the source tab is only read. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT). To put the new engine in a dead tab's own slot instead, use `send --tab tab-N --replace`.",
+      },
+      {
+        name: "no-dispatcher",
+        type: "bool",
+        description:
+          "Record no reply address. By default a task created from a rove session records that session as its `dispatcher`, and its `send` without --task-id reports back there. With this flag the task still has its parent, but its first prompt carries no [ROVE PEER] reply header and such a `send` is refused (NO_REPLY_ADDRESS).",
       },
       {
         name: "isolate-in",

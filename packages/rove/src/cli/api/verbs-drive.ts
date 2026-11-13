@@ -29,7 +29,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
       F.taskId(false),
       F.prompt(
         false,
-        "Text pasted + submitted into the engine pane. One of --prompt / --prompt-file is required, except with --handoff-from.",
+        "Text pasted + submitted into the engine pane. One of --prompt / --prompt-file is required, except with --replace.",
       ),
       F.promptFile(),
       {
@@ -38,27 +38,19 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         required: false,
         placeholder: "TAB",
         description:
-          'Tab addressing: "new" sends the prompt to a new conversation: `tab-1` of the target itself while it has none yet, else a shared child task of the target (same directory) — the reply then adds `childTaskId`, and `session` is the child\'s; "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab.',
-      },
-      {
-        ...F.command(),
-        description:
-          "Engine launch command for the child `--tab new` creates — the API twin of the TUI's ctrl+e pick. Lets one directory run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; stored on the child, so it survives restarts. Only valid with --tab new.",
-      },
-      {
-        name: "handoff-from",
-        type: "string",
-        required: false,
-        placeholder: "TAB",
-        description:
-          "Continue another tab's conversation in the new one (`--tab new`, usually with --command naming the other engine): the prompt becomes a handoff brief — the task title, the source engine's transcript path, the user's last request and a bounded excerpt of the latest turns — followed by --prompt when given, so --prompt is optional. Same directory and branch; the source tab is only read. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT).",
+          'Tab addressing: "tab-N" delivers to that exact alive tab (error when dead/absent). Omitted = the canonical engine tab. A new conversation is not a send: "new" is refused (BAD_TAB) and names the `add --no-worktree` that starts one.',
       },
       {
         name: "replace",
         type: "bool",
         required: false,
         description:
-          "With --handoff-from tab-N: put the new engine in that tab's own slot instead of a shared child task. Only for a source whose engine is dead or exited (`get-task` .tabs[]: `alive: false`, or `engineAlive: false` = only the fallback shell is left); a running engine is refused (TAB_ALIVE) and keeps the child. Same task, same tab id, same worktree: the tab is repointed at the --command engine with a fresh conversation (the old session is left untouched on disk), launched, and handed the brief. The reply adds `replacedTab`. The shipped UIs pass this exact rule on their own; a script chooses it.",
+          "With --tab tab-N: put a new engine in that tab's own slot, carrying its conversation. Only for a tab whose engine is dead or exited (`get-task` .tabs[]: `alive: false`, or `engineAlive: false` = only the fallback shell is left); a running engine is refused (TAB_ALIVE). Same task, same tab id, same worktree: the tab is repointed at the --command engine with a fresh conversation (the old session is left untouched on disk), launched, and handed a brief of the old conversation followed by --prompt when given, so --prompt is optional. Refuses a tab with no conversation yet (NO_CONVERSATION) or an engine whose transcript Rove cannot name (NO_TRANSCRIPT). The reply adds `replacedTab`.",
+      },
+      {
+        ...F.command(),
+        description:
+          "With --replace: the engine that takes over the tab — an engine id from `engine-list` or a full command line. Another engine in a new conversation is `add --no-worktree --command`.",
       },
       {
         name: "respawn",

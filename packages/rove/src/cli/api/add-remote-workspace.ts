@@ -132,7 +132,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
     const opened = await ctx.runtime.openTab(daemon, target, "engine")
     return { taskId, task, engine: launchedEngine(task), ...where, started: true, tabId: opened.tab.id }
   }
-  const brief = await withPeerProvenance(daemon, taskId, prompt)
+  const brief = args.bool("no-dispatcher") === true ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   const delivered = await deliverArmed(ctx, daemon, taskId, { ...target, newTask: true }, brief)
   if (!delivered.delivered) {
     throw new ApiError(`task ${taskId} created but the prompt was not delivered`, "NOT_DELIVERED", { taskId, ...where })

@@ -191,7 +191,7 @@ export class DeliveriesStore {
    * Awaiting deliveries an event on (taskId, tabId) could be ending, OLDEST
    * first: a tab's prompts run in arming order, so the oldest is the one the
    * engine is (or was last) working on. A delivery whose tab is not pinned yet
-   * (`send --tab new`, paste in flight) answers to any tab's event unless
+   * (a first prompt whose tab is being spawned, paste in flight) answers to any tab's event unless
    * `exact` — a death record names ONE tab and must not end a paste headed
    * elsewhere.
    */

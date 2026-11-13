@@ -33,7 +33,9 @@ import { type Placement, parentFlags, placeAdd, placedRequest, resolveAddParent 
 import { addOnMachine } from "./add-remote-workspace.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { daemonOf } from "./handler-helpers.ts"
+import { handoffBrief } from "./handoff-brief.ts"
 import { type RepoSetFields, resolveRepoFlag, resolveRepoSet } from "./repo-set.ts"
+import { failSharedChild, ownConversation, withFirstConversationLock } from "./shared-child.ts"
 import { ApiError, type PromptTarget, type VerbContext, helpStep } from "./types.ts"
 
 export async function add(ctx: VerbContext): Promise<unknown> {
@@ -42,6 +44,15 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   if (workspaceOn) return addOnMachine(ctx, workspaceOn)
   const daemon = daemonOf(ctx)
   const flags = parentFlags(ctx)
+  // The brief is the parent conversation's own, so it is read where that conversation's files are.
+  const handoffFrom = args.str("handoff-from")
+  if (handoffFrom && !flags.noWorktree) {
+    throw new ApiError(
+      "--handoff-from continues the parent's conversation in the parent's directory; pass --no-worktree with it",
+      "BAD_FLAG",
+      helpStep("add"),
+    )
+  }
   const refs = args.list("repo")
   const fork = await resolveFork(ctx)
   // A shared-directory or linked-repo child lives where its parent does, so the parent comes before the repo.
@@ -61,9 +72,9 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   const parallel = count !== undefined || agentsSpec !== undefined
-  if (args.bool("start") && (parallel || args.promptText())) {
+  if (args.bool("start") && (parallel || args.promptText() || handoffFrom)) {
     throw new ApiError(
-      "--start boots one idle engine without a first message: it conflicts with --prompt/--prompt-file (which already start the engine) and with --count/--agents",
+      "--start boots one idle engine without a first message: it conflicts with --prompt/--prompt-file and --handoff-from (which already start the engine) and with --count/--agents",
       "CONFLICTING_FLAGS",
       helpStep("add"),
     )
@@ -78,7 +89,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
   }
   // `add` sends an agent to do something, so the caller says what. A task with nothing to run would sit in the
   // sidebar as a row nobody works in, and a silent engine launch from an old script is worse than this refusal.
-  if (!parallel && !args.promptText() && !args.bool("start") && !worktreeOnly) {
+  if (!parallel && !args.promptText() && !args.bool("start") && !worktreeOnly && !handoffFrom) {
     throw new ApiError(
       "add would create a task with no agent: pass --prompt/--prompt-file for work, --start for an idle engine to type into, or --worktree-only for a checkout that is not a session",
       "EMPTY_SESSION",
@@ -119,9 +130,13 @@ export async function add(ctx: VerbContext): Promise<unknown> {
     multiRepo: repoSet.extraRepos.length > 0,
     ownWorkspace: workspace !== undefined,
   })
-  const result = parallel
-    ? await addParallel(ctx, repo, repoSet, placement, count, agentsSpec)
-    : await addOne(ctx, repo, repoSet, placement)
+  // Two new conversations on one directory are serialized: on a parent with none yet, both would claim its tab-1.
+  // A shared child is never a parallel round (`--no-worktree` refuses --count/--agents).
+  const result = await (placement.kind === "shared"
+    ? withFirstConversationLock(placement.parentId, () => addOne(ctx, repo, repoSet, placement, parent))
+    : parallel
+      ? addParallel(ctx, repo, repoSet, placement, count, agentsSpec)
+      : addOne(ctx, repo, repoSet, placement, parent))
   return resolvedFrom && result && typeof result === "object" ? { ...result, ...resolvedFrom } : result
 }
 
@@ -168,13 +183,52 @@ function deliveryTarget(task: SerializedTask, newTask = false): PromptTarget {
   }
 }
 
-async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, placement: Placement): Promise<unknown> {
+/** Engine fields `add` cannot apply to a parent that already exists: its first conversation runs with its own. */
+const CREATE_ONLY_ENGINE_FLAGS = ["effort", "model", "tier"] as const
+
+/**
+ * `add --no-worktree` on a parent with no conversation yet: that conversation is the parent's own
+ * (one conversation per task), so nothing is created. Null once the parent has had one.
+ */
+async function parentOwnConversation(
+  ctx: VerbContext,
+  placement: Placement,
+  parent: SerializedTask | null,
+  title: string,
+): Promise<SerializedTask | null> {
+  if (placement.kind !== "shared" || !parent) return null
+  const own = await ownConversation(daemonOf(ctx), ctx.runtime, parent, ctx.args.str("command"), title)
+  if (!own) return null
+  const clash = CREATE_ONLY_ENGINE_FLAGS.find((flag) => ctx.args.str(flag) !== undefined)
+  if (clash) {
+    throw new ApiError(
+      `task ${parent.id} has no conversation yet, so this one runs in the task itself and --${clash} cannot be set here — set it with \`update\` first`,
+      "CONFLICTING_FLAGS",
+      helpStep("add"),
+    )
+  }
+  return own
+}
+
+async function addOne(
+  ctx: VerbContext,
+  repo: string,
+  repoSet: RepoSetFields,
+  placement: Placement,
+  parent: SerializedTask | null,
+): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
   // Read (and validate) the prompt BEFORE `task.create`: its throws would
   // otherwise leave an orphan task behind an error carrying no taskId.
-  const prompt = args.promptText()
-  // The dispatcher is the reply address a sub-task's bare `send` routes to.
+  const handoffFrom = args.str("handoff-from")
+  const typed = args.promptText()
+  const prompt =
+    handoffFrom && parent
+      ? [await handoffBrief(ctx, parent, handoffFrom, "add"), typed].filter(Boolean).join("\n\n")
+      : typed
+  // The dispatcher is the reply address a sub-task's bare `send` routes to; `--no-dispatcher` records none.
+  const replies = args.bool("no-dispatcher") !== true
   // `--tier auto` reads the prompt, so it resolves after it; a declined
   // classifier leaves `fields` empty, which is the typed path.
   const picked = await tierFields(ctx, prompt)
@@ -184,7 +238,7 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const warned = warnings.length > 0 ? { warnings } : {}
   const payload: Record<string, unknown> = {
     repo,
-    ...(await dispatcherEnvPayload(daemon)),
+    ...(replies ? await dispatcherEnvPayload(daemon) : {}),
     ...enginePayload(fields.choice, fields.effort, fields.model, fields.tier),
   }
   // A fork without --title keeps the parent-derived name the daemon gives it rather than being renamed from the prompt.
@@ -204,13 +258,16 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   const worktreeName = args.str("worktree-name")
   if (worktreeName) payload.worktreeName = worktreeName
 
+  const own = await parentOwnConversation(ctx, placement, parent, title)
   const request = placedRequest(placement, payload)
-  const res = await daemon.request<{
-    taskId: string
-    task: SerializedTask
-    parentDirty?: boolean
-    sharedLinks?: string[]
-  }>(request.method, request.payload)
+  const res = own
+    ? { taskId: own.id, task: own }
+    : await daemon.request<{
+        taskId: string
+        task: SerializedTask
+        parentDirty?: boolean
+        sharedLinks?: string[]
+      }>(request.method, request.payload)
   // Only a child cut from its parent reports whether the parent had uncommitted work the new worktree lacks.
   const placed =
     res.parentDirty === undefined ? {} : { parentDirty: res.parentDirty, sharedLinks: res.sharedLinks ?? [] }
@@ -262,20 +319,38 @@ async function addOne(ctx: VerbContext, repo: string, repoSet: RepoSetFields, pl
   // Same provenance prefix `send` carries: the `dispatcher` row field is data
   // a receiver must think to read; this puts the reply address in the brief.
   // No-op for a create from a plain shell.
-  const brief = await withPeerProvenance(daemon, taskId, prompt)
+  const brief = replies ? await withPeerProvenance(daemon, taskId, prompt) : prompt
+  // The parent's own first conversation is not a new task: live shell tabs beside its unstarted engine are no conflict.
+  const target = own ? { ...deliveryTarget(task), firstConversation: true } : deliveryTarget(task, true)
   // Delivery failures (SESSION_FAILED and friends) are raised inside
   // `deliverPrompt`, which knows nothing about tiers — so what `--tier auto`
   // decided would vanish exactly when the caller most needs it. The task IS
   // created and IS carrying whatever tier was picked; an error that omits
   // that leaves an agent unable to tell "it routed to deep and the engine
   // died" from "it never routed at all" without a second round-trip.
-  const delivered = await withTierNote(tierNote, () =>
-    deliverArmed(ctx, daemon, taskId, deliveryTarget(task, true), brief),
-  ).catch(async (err: unknown) => {
-    // A full disk cut no worktree and started nothing: drop the row, so the same `add` after a cleanup is not a second task.
-    if (isDiskFull(err)) await daemon.request("task.delete", { taskId }).catch(() => undefined)
-    throw err
-  })
+  const delivered = await withTierNote(tierNote, () => deliverArmed(ctx, daemon, taskId, target, brief)).catch(
+    async (err: unknown) => {
+      if (own) throw err
+      // A full disk cut no worktree and started nothing: drop the row, so the same `add` after a cleanup is not a second task.
+      if (isDiskFull(err)) await daemon.request("task.delete", { taskId }).catch(() => undefined)
+      // An engine refusal started nothing either: the empty shared child is taken back and the retry is this call.
+      if (placement.kind === "shared") {
+        const command = args.str("command")
+        return failSharedChild(daemon, err, taskId, [
+          "api",
+          "add",
+          "--parent",
+          placement.parentId,
+          "--no-worktree",
+          ...(command ? ["--command", command] : []),
+          ...(replies ? [] : ["--no-dispatcher"]),
+          "--prompt",
+          prompt,
+        ])
+      }
+      throw err
+    },
+  )
   // The task IS created, so carry the taskId in the error.
   if (!delivered.delivered) {
     throw new ApiError(

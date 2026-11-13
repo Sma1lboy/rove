@@ -328,7 +328,7 @@ you verify the handoff landed.
 
 Entry points, all running `planWorktreeHandoff`: "Continue in another engine…"
 on the tab and row menus (web and TUI) and on the dead-engine notice, `ctrl+a c`,
-and `rove api send --tab new --command <engine> --handoff-from tab-N`.
+and `rove api add --no-worktree --command <engine> --handoff-from tab-N`.
 
 A handoff needs the source engine to expose a transcript path
 (`EngineHistoryReader.transcriptPath`).

@@ -338,7 +338,7 @@ Limits:
 - Images reach only GUIs attached while the bytes are fed; a session started elsewhere shows raw placeholder cells in a GUI that does not draw them.
 - Image ids are the program's own; two panes that pick the same id overwrite each other.
 - The cell size is measured once at boot; a font change needs a restart.
-- Engines launched by the daemon or `rove api` (routines, `send --tab new`) and bare shell tabs get no image env.
+- Engines launched by the daemon or `rove api` (routines, `add`) and bare shell tabs get no image env.
 
 <a id="prior-work"></a>
 

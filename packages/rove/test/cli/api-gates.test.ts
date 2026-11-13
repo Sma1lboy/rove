@@ -144,19 +144,14 @@ describe("gate verbs", () => {
       expect(client.requestNames).not.toContain("gate.markDelivered")
     })
 
-    it("a new child never takes them, and a plain send is unchanged when none are owed", async () => {
+    it("a plain send is unchanged when none are owed", async () => {
       const client = sendClient(() => ({ text: null, gateIds: [] }))
       const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "t1", "--tab", "new", "--plain", "--prompt", "hi"], {
-        client,
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
       await invokeVerb("send", ["--task-id", "t1", "--tab", "tab-2", "--plain", "--prompt", "hi"], {
         client,
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls.map((c) => c.prompt)).toEqual(["hi", "hi"])
-      expect(client.requests.filter((r) => r.name === "gate.takeUndelivered")).toHaveLength(1)
+      expect(calls.map((c) => c.prompt)).toEqual(["hi"])
       expect(client.requestNames).not.toContain("gate.markDelivered")
     })
 
