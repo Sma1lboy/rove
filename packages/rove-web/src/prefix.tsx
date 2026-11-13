@@ -1,6 +1,7 @@
 /**
  * The TUI's prefix layer (`keymap-dispatch.ts`): the prefix key (Ctrl+A unless the user's
- * `keybindings.yaml` says otherwise) arms it from anywhere, the terminal included; the next key runs a `prefixKeys` binding; Escape cancels; a miss
+ * `keybindings.yaml` says otherwise) arms it from anywhere, the terminal included, except a text field, which keeps the key
+ * (Ctrl+A selects all there); the next key runs a `prefixKeys` binding; Escape cancels; a miss
  * is swallowed so it can't type into the terminal; an open dialog blocks arming.
  * Holding Ctrl alone for 400 ms reveals the direct shortcuts (`ctrl-hold.ts`).
  * What the HUD shows is `prefix-guide.tsx`; the state it reads is `prefix-state.ts`.
@@ -14,6 +15,7 @@ import { useEffect } from "react"
 import { chordCandidates, strokeText } from "./chord.ts"
 import { type WebCommand, allCommands, appliesOn, currentSurface, registerCommands, specificity } from "./commands.ts"
 import { daemonHealth, refreshRove } from "./daemon-health.tsx"
+import { focusOwner } from "./esc-interrupt.ts"
 import { t } from "./i18n/index.ts"
 import { InboxDialog } from "./inbox-view.tsx"
 import { openPage } from "./layout.ts"
@@ -248,7 +250,9 @@ export function usePrefixLayer(model: AppModel): void {
         return
       }
       disarm()
-      if (!dialog.get() && candidates.some((candidate) => firstStrokes.includes(candidate))) {
+      const focused = document.activeElement
+      const typing = focusOwner(focused instanceof HTMLElement ? focused : null) === "field"
+      if (!dialog.get() && !typing && candidates.some((candidate) => firstStrokes.includes(candidate))) {
         e.preventDefault()
         e.stopImmediatePropagation()
         armPrefix()
