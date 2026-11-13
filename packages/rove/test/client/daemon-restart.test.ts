@@ -1,7 +1,7 @@
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { restartDaemon, tryAcquireSpawnLock } from "@sma1lboy/rove-daemon/client/daemon-process"
+import { restartDaemon, systemdUnitOf, tryAcquireSpawnLock } from "@sma1lboy/rove-daemon/client/daemon-process"
 import { describe, expect, it } from "vitest"
 
 describe("restartDaemon", () => {
@@ -51,5 +51,34 @@ describe("restartDaemon", () => {
       }),
     ).rejects.toThrow("install gone")
     expect(stopped).toBe(false)
+  })
+
+  it("restarts a supervised daemon through its service unit instead of starting a second one", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-restart-"))
+    const seen: string[] = []
+    let up = true
+    await restartDaemon({
+      lockPath: join(dir, "daemon.pid.spawn-lock"),
+      resolveSpawn: () => ["bun", "daemon", "start"],
+      supervisor: async () =>
+        systemdUnitOf("0::/user.slice/user-1000.slice/user@1000.service/app.slice/rove.service\n"),
+      stop: async () => {
+        up = false
+        seen.push("stop")
+      },
+      restartUnit: async (unit) => {
+        seen.push(`systemctl ${unit.join(" ")}`)
+        up = true
+        return true
+      },
+      spawn: () => void seen.push("spawn"),
+      responds: async () => up,
+    })
+    expect(seen).toEqual(["stop", "systemctl --user rove.service"])
+  })
+
+  it("reads no unit for a daemon started from a login session", () => {
+    expect(systemdUnitOf("0::/user.slice/user-1000.slice/session-12.scope\n")).toBeNull()
+    expect(systemdUnitOf("0::/system.slice/rove.service\n")).toEqual(["rove.service"])
   })
 })

@@ -18,6 +18,7 @@ import { GATE_VERBS } from "./verbs-gates.ts"
 import { GITHUB_VERBS } from "./verbs-github.ts"
 import { ISSUE_VERBS } from "./verbs-issues.ts"
 import { LIFECYCLE_VERBS } from "./verbs-lifecycle.ts"
+import { MACHINE_UPDATE_VERB } from "./verbs-machine.ts"
 import { PR_ATTACH_VERB } from "./verbs-pr.ts"
 import { PUBLISH_VERB } from "./verbs-publish.ts"
 import { READ_VERBS } from "./verbs-read.ts"
@@ -170,6 +171,7 @@ export const VERBS: readonly VerbSpec[] = [
   ...LIFECYCLE_VERBS,
   ...WORKTREE_VERBS,
   ...GITHUB_VERBS,
+  MACHINE_UPDATE_VERB,
 ]
 
 /** Verb names in canonical order (schema/help/tests). */

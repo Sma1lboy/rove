@@ -2,12 +2,15 @@
  * Registered machines (`rove machine add`) and their connection state, for the sidebar's machine
  * headers (TUI `machine-layer.ts`). The bridge reads the same daemon `machines` feed the TUI does
  * and `machines.list` reports its `machinesSignal`; adding or removing a machine stays on the CLI.
+ * `machines.update` updates one machine's Rove from here (`machine-update`).
  * `machines.repos` reads one machine's repos by id (`local` = this one), for the composer's project list
  * there; `machines.engines` reads which engines that machine can launch.
  */
 
 import type { MachineReason, MachineStatus } from "@sma1lboy/rove/src/machines/hub.ts"
+import { CURRENT_VERSION, isNewerSemver } from "@sma1lboy/rove/src/version.ts"
 import { BridgeError } from "../protocol.ts"
+import { flag } from "./args.ts"
 import { attempt, machineOf } from "./machine-outcome.ts"
 import type { OpTable } from "./types.ts"
 
@@ -67,10 +70,14 @@ export interface MachineRow {
   readonly version: string | null
   /** Why it is not online, as a class; never the hub's raw `error`, which can name hosts, users and paths. */
   readonly reason: MachineReason | null
+  /** It runs an older Rove than this machine: `machines.update` can bring it up. */
+  readonly behind: boolean
 }
 
 export class MachineStore {
   private rows: readonly MachineRow[] = []
+
+  constructor(private readonly hubVersion: string = CURRENT_VERSION) {}
 
   set(statuses: readonly MachineStatus[]): void {
     // A second alias for a machine already listed is the hub's bookkeeping, not another machine.
@@ -82,6 +89,7 @@ export class MachineStore {
         state: s.state,
         version: s.version ?? null,
         reason: s.state === "online" ? null : (s.reason ?? null),
+        behind: s.version ? isNewerSemver(this.hubVersion, s.version) : false,
       }))
   }
 
@@ -119,6 +127,16 @@ export function createMachineOps(store: MachineStore = machineStore): OpTable {
         }
         const out = await attempt(ctx.api.verb<unknown>("repo-list", [], machine))
         return out.ok ? { repos: repoRows(out.result) } : { repos: [], reason: out.reason, message: out.message }
+      },
+    },
+    "machines.update": {
+      kind: "write",
+      destructive: false,
+      wraps: "machine-update --to `machine` (that machine updates its Rove and restarts its daemon; minutes)",
+      async run(args, ctx) {
+        const machine = machineOf(args)
+        if (!machine) throw new BridgeError("BAD_ARGS", "machine must name a registered machine")
+        return attempt(ctx.api.verb<unknown>("machine-update", [flag("to", machine)]))
       },
     },
     "machines.engines": {

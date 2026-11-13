@@ -305,6 +305,8 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `GITHUB_LOGOUT_FAILED` | `gh auth logout` failed. |
 | `GITHUB_SYNC_FORWARDED` | `github-sync` sent by another machine's hub: an account is only shared from the machine that owns it. |
 | `GITHUB_APPLY_FORWARDED_ONLY` | `github-apply` called directly. Only another machine's `github-sync` may send it. |
+| `MACHINE_UPDATE_FAILED` | `machine-update`: that machine's `rove update` or its daemon restart failed; the message carries its last lines of output. `machine` names it. |
+| `MACHINE_UPDATE_FORWARDED` | `machine-update` sent by another machine's hub: a machine is only updated from the one that registered it. |
 
 `DELIVER_FAILED` and `CREATE_FAILED` are not error codes in that sense: they
 only ever appear inside a `PARTIAL_FANOUT` payload, on `failures[].error.code`,
@@ -2288,3 +2290,10 @@ any `--machine` runs them in that machine's daemon.
   goes to `gh auth login --with-token` on stdin, never argv; the machine's
   `git_protocol` is kept (unset reads as https), then `gh auth setup-git`
   runs. Not for direct use.
+- `machine-update --to ALIAS` *(group `edit`)*: update Rove on a registered
+  machine from here. That machine installs the newest build of this machine's
+  release channel (`rove update --channel …` there) and restarts its own
+  daemon; its sessions keep running. Returns `{ alias, from, to, changed }`.
+  Can take minutes. Named `--to` because `--machine` would run the verb there.
+  Refused (`MACHINE_UPDATE_FORWARDED`) when another machine's hub sends it;
+  `MACHINE_UPDATE_FAILED` carries that machine's own output.

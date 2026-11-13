@@ -43,8 +43,8 @@ rove machine: Nahuels-Mac-mini → narwhal (rove 0.9.185 on Nahuels-Mac-mini.loc
 (`rove daemon status`, starting one there if none is up) and refuses if
 the host is unreachable, Rove is not installed, or no daemon can be started.
 A daemon that is running but does not answer is never restarted from here:
-restarting it would end its sessions, so the machine reads as unreachable and
-the message names the pid. If it stays that way, run `rove daemon restart` on
+restarting it would cut off whatever it is doing, so the machine reads as
+unreachable and the message names the pid. If it stays that way, run `rove daemon restart` on
 that machine.
 
 - **First connection.** If the host key is not in your `known_hosts` yet, `add`
@@ -128,6 +128,14 @@ v0.9.185` on the row the cursor is on).
 - **Offline machines keep their rows.** A laptop whose lid closed has not
   stopped having those tasks, so the row stays and greys out instead of
   vanishing. Rove reconnects in the background and the rows come back to life.
+- **Updating a machine from here.** `rove machine update <alias>` (every
+  machine without an alias) has that machine install the newest build of
+  *this* machine's release channel and restart its own daemon; the web's
+  Machines overview has the same thing as `[ update rove ]` on a machine that
+  runs an older build. Its sessions keep running, because they live in its PTY
+  host; anything its daemon was doing at that moment is cut off. A machine on
+  another channel is moved to this one's. A daemon that a systemd unit runs is
+  restarted through that unit.
 - **Version skew is on the row.** `narwhal · v0.9.180` next to your own build
   explains most of what otherwise looks like a bug. A machine whose Rove is too
   old to talk to yours reads `⚠ v0.9.100 (protocol mismatch)` and is the only

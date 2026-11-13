@@ -235,6 +235,7 @@ describe("API surface (full CRUD)", () => {
       "github-logout",
       "github-sync",
       "github-apply",
+      "machine-update",
     ])
   })
 
