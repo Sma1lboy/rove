@@ -19,7 +19,6 @@ configured using Git-style forward slashes without creating a second entry.
 | `<repo>/.rove/teardown.sh` | Per-repo cleanup before a task worktree is removed | You (committed to the repo) |
 | `<repo>/.rove/pr-instructions.md` | Per-repo PR action prompt | You (committed to the repo) |
 | `<repo>/.rove/clone-dirs` | Per-repo list of ignored directories to clone into new worktrees | You (committed to the repo) |
-| `<repo>/.rove/run.sh` | Per-repo dev server for the web `[ run ]` action (gets `$PORT`) | You (committed to the repo) |
 
 Setting `ROVE_HOME_DIR` changes the home beneath all these paths. Only `ROVE_*`
 environment variables are read. New runtime files use canonical names; a live
@@ -703,23 +702,3 @@ The PR action also reads `.rove/pr-instructions.md` as its prompt template;
 `{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
 The file must be non-empty.
 
-## Per-repo run script
-
-A repo can ship **`.rove/run.sh`**, its dev server or preview. In a task of that repo the web
-Files pane shows `[ run ]`: it opens a shell tab titled `run :PORT` in the task's worktree and
-types `env PORT=<port> ROVE_PORT=<port> sh .rove/run.sh` into it. `[ stop ]` closes the tab, which
-ends the script. Once something listens on the port, `[ open :PORT ]` shows it in the Browser
-panel (a page opened over a tunnel cannot reach the Mac's loopback; the panel says so).
-
-The script must listen on `$PORT`. Each task gets its own port from a range, so parallel
-worktrees never collide: the lowest port no other task holds and nothing listens on, kept for
-that task from then on. The range lives in `state.json`:
-
-| Setting | Default | What it does |
-|---|---|---|
-| `run.portBase` | `4100` | First port of the range (1024–65535) |
-| `run.portCount` | `900` | How many ports the range holds |
-
-`run.sh` comes from the repo and runs without asking, with your account's privileges, like
-`init.sh`: read it before running it in a repository you did not write. The file must be
-non-empty; tasks on another machine and tasks with no worktree yet show no run action.

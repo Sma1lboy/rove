@@ -13,10 +13,10 @@ import { visibleTree } from "./file-tree.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { openDiff, openFile } from "./panel-state.ts"
+import { PortsStrip } from "./ports-strip.tsx"
 import { PrStrip } from "./pr-strip.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { requestErrorText } from "./request-error.ts"
-import { RunStrip } from "./run-strip.tsx"
 import { useStore } from "./store.ts"
 import { activeStream, toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
@@ -145,7 +145,7 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     >
       <PrStrip model={model} task={task} />
       <ChecksSection model={model} task={task} />
-      <RunStrip model={model} task={task} />
+      <PortsStrip model={model} task={task} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {error && <p className="mono text-error">{error}</p>}
         {!error && loaded && rows.length === 0 && <p className={PLACEHOLDER_LINE}>{t("files.emptyAll")}</p>}
