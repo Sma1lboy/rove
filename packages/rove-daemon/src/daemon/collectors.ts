@@ -40,6 +40,7 @@ import {
   startTranscriptActivityCollector,
 } from "./transcript-activity-collector.ts"
 import { DEFAULT_UI_PREFS_DEBOUNCE_MS, defaultUiPrefsStatePath, startUiPrefsWatcher } from "./ui-prefs-watcher.ts"
+import { startVanishedProjectsSweeper } from "./vanished-projects.ts"
 import { DEFAULT_WORKTREE_CHANGES_TICK_MS, startWorktreeChangesCollector } from "./worktree-changes-collector.ts"
 
 /** npm re-check cadence; `latest` rarely moves. */
@@ -342,6 +343,10 @@ export function startDaemonCollectors(
       ? startAutoFixRunner({ orch, runtime, activity, inbox }, options.autoFixTickMs ?? DEFAULT_AUTO_FIX_TICK_MS)
       : () => {}
 
+  // Ungated: the row is wrong whether or not a client watches, and its first
+  // pass is what cleans up after a restart.
+  const stopVanishedProjects = startVanishedProjectsSweeper(orch)
+
   // Ungated: a schedule that requires an audience is not a schedule.
   const stopAutomationRunner = automations
     ? startAutomationRunner(
@@ -401,6 +406,7 @@ export function startDaemonCollectors(
         stopQuotaUsagePoller,
         stopUiPrefsWatcher,
         stopStateWatcher,
+        stopVanishedProjects,
         stopMachineHub,
         stopKeybindingsWatcher,
         stopWorktreeChangesCollector,

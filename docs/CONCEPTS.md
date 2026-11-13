@@ -141,7 +141,11 @@ both stay on disk, and `rove api send` to the main Task still works (its first
 tab brings the row back). To bring it back, open New task
 (`n`), pick the same repository, and choose "the project itself" instead of a
 new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
-(`d` on its row) is the separate, un-saving gesture.
+(`d` on its row) is the separate, un-saving gesture. A project whose checkout
+directory is gone (deleted or moved) is forgotten on the same terms, by the
+daemon, without being asked: the row and the saved entry go, nothing on disk is
+touched. A directory that vanished together with its parent is read as an
+unmounted volume, not a deletion, and its project stays for the remount.
 
 A Task-level reasoning-effort choice is forwarded when the engine supports it.
 A child task runs the engine it was started with, so conversations in one
