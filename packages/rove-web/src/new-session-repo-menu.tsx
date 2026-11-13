@@ -47,11 +47,14 @@ export function RepoMenu(props: {
   const [github, setGithub] = useState<GithubRepos | null>(() => lastReply<GithubRepos>(model, "github.repos") ?? null)
   useEffect(() => {
     let stale = false
-    requestRemembered<GithubRepos>(model, "github.repos")
-      .then((res) => !stale && setGithub(res))
-      .catch(() => !stale && setGithub({ repos: [], reason: "failed" }))
+    const off = model.client.onOpen(() => {
+      requestRemembered<GithubRepos>(model, "github.repos")
+        .then((res) => !stale && setGithub(res))
+        .catch(() => !stale && setGithub((now) => now ?? { repos: [], reason: "failed" }))
+    })
     return () => {
       stale = true
+      off()
     }
   }, [model])
 
