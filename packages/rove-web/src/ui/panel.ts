@@ -79,3 +79,11 @@ export const BROWSER_URL =
   "mx-0.5 min-w-0 flex-1 rounded-sm border-none bg-inset px-2 py-1 text-ink [font-size:var(--fs-meta)] focus:bg-hover focus:outline-none aria-invalid:text-muted"
 /** Theme background where the page paints nothing; a light page without a dark scheme still gets the browser's own white backdrop. */
 export const BROWSER_FRAME = "min-w-0 flex-1 rounded-sm border-none bg-paper"
+/** The frame and, while annotating, the layer of marks above it. */
+export const BROWSER_STAGE = "relative flex min-h-0 min-w-0 flex-1"
+export const ANNOTATE_LAYER =
+  "absolute inset-0 size-full cursor-crosshair touch-none fill-none stroke-accent [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2.5]"
+export const ANNOTATE_INPUT =
+  "absolute min-w-24 rounded-xs border-hairline border-accent bg-paper px-1 font-mono text-body text-accent focus:outline-none"
+export const ANNOTATE_BAR =
+  "absolute bottom-3 left-1/2 flex w-max -translate-x-1/2 items-center whitespace-nowrap gap-0.5 rounded-md border-hairline border-line bg-surface p-1 shadow-popover [&_svg]:flex-none"
