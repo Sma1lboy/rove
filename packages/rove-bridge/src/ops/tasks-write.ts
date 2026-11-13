@@ -4,6 +4,7 @@
  * checked here and verb values are built only with `flag()`.
  */
 
+import { basename, dirname } from "node:path"
 import { MULTI_REPO_CAP } from "@sma1lboy/rove-daemon/task-tree"
 import { argvToParams } from "@sma1lboy/rove/src/cli/api/invoke.ts"
 import { AUTO_MACHINE } from "@sma1lboy/rove/src/machines/forward.ts"
@@ -174,10 +175,13 @@ const PROGRESS_GAP_MS = 150
 
 async function clone(args: Args, ctx: OpContext): Promise<unknown> {
   const url = await cloneSource(args)
-  const parentDir = absPath(args, "parentDir")
   const urlProblem = taskOpDeps.validateGitUrl(url)
   if (urlProblem) throw new BridgeError("BAD_ARGS", urlProblem)
-  const given = optStr(args, "folder")
+  // No parentDir: the caller leaves the place to Rove, and a repo cloned there before is that clone.
+  const managed = args.parentDir === undefined ? taskOpDeps.managedClone(url) : null
+  if (managed?.ready) return { path: managed.dir }
+  const parentDir = managed ? dirname(managed.dir) : absPath(args, "parentDir")
+  const given = managed ? basename(managed.dir) : optStr(args, "folder")
   const folder = cloneFolder(given ?? taskOpDeps.findAvailableFolderName(parentDir, taskOpDeps.deriveFolderName(url)))
   const targetProblem = taskOpDeps.validateCloneTarget(parentDir, folder)
   if (targetProblem) throw new BridgeError("BAD_ARGS", targetProblem)

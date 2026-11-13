@@ -27,6 +27,16 @@ describe("repo.clone", () => {
     })
   })
 
+  test("with no parentDir the clone goes to Rove's own repos dir, and one already there is reused", async () => {
+    const seen = fakeClone()
+    taskOpDeps.managedClone = () => ({ dir: "/home/.rove/repos/github.com/foo/bar", ready: false })
+    const fresh = await run("repo.clone", { url: "git@github.com:foo/bar.git" })
+    expect(fresh.result).toEqual({ path: "/home/.rove/repos/github.com/foo/bar" })
+    taskOpDeps.managedClone = () => ({ dir: "/home/.rove/repos/github.com/foo/bar", ready: true })
+    expect((await run("repo.clone", { url: "git@github.com:foo/bar.git" })).result).toEqual(fresh.result)
+    expect(seen).toEqual([["git@github.com:foo/bar.git", "/home/.rove/repos/github.com/foo/bar"]])
+  })
+
   test("git's output reaches the caller as progress lines, at most one per gap", async () => {
     taskOpDeps.cloneRepo = async (_url, target, onProgress) => {
       for (const line of ["Cloning into 'y'...", "Receiving objects: 10%", "Receiving objects: 20%"]) onProgress?.(line)

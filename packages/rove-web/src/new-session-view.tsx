@@ -41,7 +41,6 @@ import {
   toggleRepo,
 } from "./new-session.ts"
 import type { ProbeResult } from "./new-task-dialog.tsx"
-import { CLONE_PARENT_KEY, expandTilde, stripTrailingSlash } from "./new-task-paths.ts"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { retryCommandFrom, seededBases, seededRepos } from "./retry-seed.ts"
 import { offerArchiveOriginal } from "./retry.tsx"
@@ -203,8 +202,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   /** Start's first step for a clone pick; the clone then is the picked project, so a retry does not clone twice. */
   const cloneInto = async (url: string): Promise<string> => {
     setProgress(t("newSession.cloning", { source: url }))
-    const parentDir = stripTrailingSlash(expandTilde((localStorage.getItem(CLONE_PARENT_KEY) || "~/").trim(), home))
-    const res = await model.client.request<{ path: string }>("repo.clone", { url, parentDir }, setProgress)
+    const res = await model.client.request<{ path: string }>("repo.clone", { url }, setProgress)
     setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
     setRepos([res.path])
     setToClone(null)

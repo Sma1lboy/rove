@@ -63,7 +63,8 @@ the two share one token.
 - New session's project chip picks one project: a click (or Enter) replaces the
   pick and closes the list; Shift-click (or Shift+Enter; ⌘/Ctrl works too) adds another repo
   for a multi-repo task. A GitHub repository, a git URL or `owner/repo` is
-  picked the same way and cloned when you press Start, not when you pick it. Any folder works, git or not: a folder git cannot use
+  picked the same way and cloned when you press Start, not when you pick it. The clone goes to
+  `~/.rove/repos/<host>/<owner>/<name>`, the folder `add --clone` uses, and is reused the next time. Any folder works, git or not: a folder git cannot use
   (no repository, or no commit yet) opens in place as a directory session, with
   Worktree off and no branch to pick, and cannot join a multi-repo task.
 - One prompt, several engines: the New session engine chip's `[ compare engines ]`
