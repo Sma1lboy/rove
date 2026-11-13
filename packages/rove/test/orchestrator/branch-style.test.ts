@@ -36,11 +36,8 @@ describe("deriveConventionBranch", () => {
     expect(deriveConventionBranch("docs update quickstart", typed, ID)).toBe("docs/update-quickstart")
   })
 
-  it("never contains the brand name", () => {
-    for (const style of [typed, bare]) {
-      const branch = deriveConventionBranch("rove rove integration for Rove", style, ID)
-      expect(branch).not.toMatch(/rove/)
-    }
+  it.each([typed, bare])("never contains the brand name (%o)", (style) => {
+    expect(deriveConventionBranch("rove rove integration for Rove", style, ID)).not.toMatch(/rove/)
   })
 
   it("falls back to the TASK ID when the title has no slug-able chars", () => {

@@ -212,26 +212,22 @@ describe("durable background task deletion", { timeout: DURABLE_WRITE_TIMEOUT_MS
     expect(residues).toEqual([])
   })
 
-  it("deleting a dir task never touches its directory, forced or not", async () => {
-    // A scratch-shell teardown passing `force: true` reasons that a scratch
-    // row owns no worktree. That is true only while the row is `kind: "dir"`,
-    // and an unconditional flag stands ready to authorise a real destructive
-    // removal if the row's kind ever changes.
-    // Both gates already special-case `dir`, which is what makes the flag
-    // redundant; this pins that, so dropping it stays safe.
-    for (const force of [false, true]) {
-      const task = await orch.createTask({ repo: "/repo", title: "dir", vendor: "claude" })
-      await store.update(task.id, { worktreePath: "/home/me/project", kind: "dir" })
-      worktrees.dirtyPaths.mockResolvedValueOnce(["notes.md"])
+  // A scratch-shell teardown passing `force: true` reasons that a scratch
+  // row owns no worktree. That is true only while the row is `kind: "dir"`,
+  // and an unconditional flag stands ready to authorise a real destructive
+  // removal if the row's kind ever changes.
+  // Both gates already special-case `dir`, which is what makes the flag
+  // redundant; this pins that, so dropping it stays safe.
+  it.each([false, true])("deleting a dirty dir task never touches its directory (force=%s)", async (force) => {
+    const task = await orch.createTask({ repo: "/repo", title: "dir", vendor: "claude" })
+    await store.update(task.id, { worktreePath: "/home/me/project", kind: "dir" })
+    worktrees.dirtyPaths.mockResolvedValueOnce(["notes.md"])
 
-      await expect(orch.prepareTaskDeletion(task.id, { force })).resolves.toBe(true)
-      await orch.beginTaskDeletion(task.id)
-      await orch.finishTaskDeletion(task.id)
+    await expect(orch.prepareTaskDeletion(task.id, { force })).resolves.toBe(true)
+    await orch.beginTaskDeletion(task.id)
+    await orch.finishTaskDeletion(task.id)
 
-      expect(orch.getTask(task.id)).toBeUndefined()
-    }
-    // A dirty `dir` task neither refuses (the gate is skipped) nor removes
-    // anything — with force, and equally without it.
+    expect(orch.getTask(task.id)).toBeUndefined()
     expect(worktrees.remove).not.toHaveBeenCalled()
   })
 

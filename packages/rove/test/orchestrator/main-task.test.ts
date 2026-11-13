@@ -16,14 +16,18 @@ let orch: Orchestrator
 let store: TaskIndexStore
 let originalHome: string | undefined
 
+function initRepo(dir: string): void {
+  const r = spawnSync("bash", [REPO_INIT, dir], { encoding: "utf8" })
+  if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
+}
+
 beforeEach(async () => {
   // realpath: macOS `os.tmpdir()` is a symlink (`/var` → `/private/var`), and
   // savedRepos stores the repository's RESOLVED primary checkout — so a fixture
   // built under the un-resolved spelling would compare unequal to what was saved.
   tmpRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rove-main-task-")))
   repo = path.join(tmpRoot, "repo")
-  const r = spawnSync("bash", [REPO_INIT, repo], { encoding: "utf8" })
-  if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}\n${r.stdout}`)
+  initRepo(repo)
   // Isolate the shared state.json (savedRepos) that forgetProject mutates so
   // tests never touch the developer's real ~/.config/rove.
   originalHome = process.env.ROVE_HOME_DIR
@@ -181,8 +185,7 @@ describe("project admission (state/project-eligibility.ts)", () => {
     // projects that neither `task.delete` (refuses main rows) nor `rove
     // remove` (refuses unsaved repos) could remove.
     const sandboxed = path.join(tmpRoot, ".dev-sandbox", "smoke-repo")
-    const r = spawnSync("bash", [REPO_INIT, sandboxed], { encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}`)
+    initRepo(sandboxed)
 
     const task = await orch.createTask({ repo: sandboxed, title: "fixture work" })
 
@@ -196,8 +199,7 @@ describe("project admission (state/project-eligibility.ts)", () => {
     // `rove add` / `project.ensureMain` are explicit gestures: a silent no-op
     // would read as the command having done nothing.
     const sandboxed = path.join(tmpRoot, ".dev-sandbox", "explicit-repo")
-    const r = spawnSync("bash", [REPO_INIT, sandboxed], { encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}`)
+    initRepo(sandboxed)
 
     await expect(orch.ensureMainTask(sandboxed)).rejects.toThrow(/sandbox or scratch/)
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
@@ -207,8 +209,7 @@ describe("project admission (state/project-eligibility.ts)", () => {
     // The gate governs what may BECOME a project. Re-gating an existing row
     // would punish the user for rows we created before the rule existed.
     const sandboxed = path.join(tmpRoot, ".dev-sandbox", "legacy-repo")
-    const r = spawnSync("bash", [REPO_INIT, sandboxed], { encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}`)
+    initRepo(sandboxed)
     // Simulate the pre-gate world: a main row that already exists on disk.
     await store.create({
       kind: "main",
@@ -246,8 +247,7 @@ describe("a project row and a saved-repos entry are the same fact", () => {
 
   test("an ineligible repo is saved by neither", async () => {
     const sandboxed = path.join(tmpRoot, ".dev-sandbox", "paired-repo")
-    const r = spawnSync("bash", [REPO_INIT, sandboxed], { encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}`)
+    initRepo(sandboxed)
     await orch.createTask({ repo: sandboxed, title: "fixture" })
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
     expect(getSavedRepos()).not.toContain(sandboxed)

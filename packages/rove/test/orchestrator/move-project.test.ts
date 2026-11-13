@@ -81,15 +81,18 @@ describe("moveTaskToProject", () => {
     expect(result.repo).toBe(repoB)
     expect(result.moved).toEqual([String(child.id), String(task.id)])
 
-    for (const [moved, before] of [
-      [orch.getTask(task.id), task],
-      [orch.getTask(child.id), child],
-    ] as const) {
-      expect(moved?.repo).toBe(repoB)
-      expect(moved?.gitRepo).toBe(repoA)
-      expect(moved?.worktreePath).toBe(before.worktreePath)
-      expect(moved?.branch).toBe(before.branch)
-    }
+    expect(orch.getTask(task.id)).toMatchObject({
+      repo: repoB,
+      gitRepo: repoA,
+      worktreePath: task.worktreePath,
+      branch: task.branch,
+    })
+    expect(orch.getTask(child.id)).toMatchObject({
+      repo: repoB,
+      gitRepo: repoA,
+      worktreePath: child.worktreePath,
+      branch: child.branch,
+    })
 
     await orch.deleteTask(task.id, { deleteBranch: true })
     expect(worktrees.remove).toHaveBeenCalledWith(

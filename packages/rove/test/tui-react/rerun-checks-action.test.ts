@@ -28,19 +28,16 @@ async function run(result: RerunFailedChecksResult | Error) {
 }
 
 describe("rerunChecksAction", () => {
+  const REFUSED = 'error tasks.rerun.refused {"detail":"run 30 cannot be rerun; it is in progress"}'
   test.each([
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 1],
-  ])("reports refusals alongside %i restarts and %i external checks", async (rerunRuns, external) => {
+    [0, 0, [REFUSED]],
+    [0, 1, [REFUSED, "attention tasks.rerun.external"]],
+    [1, 0, ["info tasks.rerun.started", REFUSED]],
+    [1, 1, ["info tasks.rerun.started", REFUSED, "attention tasks.rerun.external"]],
+  ])("reports refusals alongside %i restarts and %i external checks", async (rerunRuns, external, toasts) => {
     expect(
       await run({ rerunRuns, external, refused: "run 30 cannot be rerun; it is in progress\nhint: wait" }),
-    ).toEqual([
-      ...(rerunRuns ? ["info tasks.rerun.started"] : []),
-      'error tasks.rerun.refused {"detail":"run 30 cannot be rerun; it is in progress"}',
-      ...(external ? ["attention tasks.rerun.external"] : []),
-    ])
+    ).toEqual(toasts)
   })
 
   test("reports unsupported checks alongside a successful restart", async () => {

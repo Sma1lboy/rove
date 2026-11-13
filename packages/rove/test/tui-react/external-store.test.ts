@@ -55,7 +55,7 @@ describe("createStateCell", () => {
   it("retains the latest 64 transitions when the diagnostic ring overflows", () => {
     clearRecentStateChangesForTest()
     const store = createStateCell(-1, "overflow-probe")
-    for (let value = 0; value <= 64; value += 1) store.set(value)
+    Array.from({ length: 65 }, (_, value) => store.set(value))
 
     const trace = recentStateChangesForDiagnostics()
     expect(trace).toHaveLength(64)

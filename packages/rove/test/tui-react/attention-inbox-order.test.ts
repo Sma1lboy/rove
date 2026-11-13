@@ -65,17 +65,13 @@ describe("attention inbox ordering", () => {
 
   // Read off the daemon's own list rather than restating it, so a state added
   // to `ATTENTION_INBOX_STATES` is covered here the day it lands.
-  test("every non-completion state bands as blocking", () => {
-    const blocking = ATTENTION_INBOX_STATES.filter((state) => state !== "turn_complete")
-    expect(blocking.length).toBeGreaterThan(0)
-    for (const state of blocking) {
-      // The blocked one is the NEWEST, so only the band can float it.
-      const ordered = sortAttentionInbox(
-        [item("a", "tab-1", "turn_complete", 1), item("b", "tab-1", state, 2)],
-        ["a", "b"],
-      )
-      expect(ordered.map((entry) => entry.state)).toEqual([state, "turn_complete"])
-    }
+  test.each(ATTENTION_INBOX_STATES.filter((state) => state !== "turn_complete"))("%s bands as blocking", (state) => {
+    // The blocked one is the NEWEST, so only the band can float it.
+    const ordered = sortAttentionInbox(
+      [item("a", "tab-1", "turn_complete", 1), item("b", "tab-1", state, 2)],
+      ["a", "b"],
+    )
+    expect(ordered.map((entry) => entry.state)).toEqual([state, "turn_complete"])
   })
 
   test("a queue of one kind keeps its plain oldest-first order", () => {

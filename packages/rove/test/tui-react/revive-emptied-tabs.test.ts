@@ -83,22 +83,14 @@ describe("reviveEmptiedTabs", () => {
     expect(tabs(TASK)?.tabs.map((tab) => tab.kind)).toEqual(["engine"])
   })
 
-  it.each(["emptied", "never-opened"])("pins the chooser engine and command for a %s task", async (path) => {
-    const { tabs } = await withDaemon(
-      path === "emptied" ? { tabs: [], activeId: "tab-3", nextOrdinal: 4, reopenAs: { kind: "command" } } : undefined,
-    )
+  it.each<[string, TabsState | undefined, string, number]>([
+    ["emptied", { tabs: [], activeId: "tab-3", nextOrdinal: 4, reopenAs: { kind: "command" } }, "tab-4", 4],
+    ["never-opened", undefined, "tab-1", 1],
+  ])("pins the chooser engine and command for a %s task", async (_path, seed, id, ordinal) => {
+    const { tabs } = await withDaemon(seed)
     const kv = fakeKv()
     expect(reviveEmptiedTabs(kv, TASK, "/bin/zsh", { vendor: "codex", engineCommand: "codex" })).toBe(true)
-    const expected = [
-      {
-        kind: "engine",
-        id: path === "emptied" ? "tab-4" : "tab-1",
-        ordinal: path === "emptied" ? 4 : 1,
-        title: null,
-        vendor: "codex",
-        engineCommand: "codex",
-      },
-    ]
+    const expected = [{ kind: "engine", id, ordinal, title: null, vendor: "codex", engineCommand: "codex" }]
     expect(tabsByTask.get(TASK)?.tabs).toEqual(expected)
     await flushTabs()
     expect(tabs(TASK)?.tabs).toEqual(expected)

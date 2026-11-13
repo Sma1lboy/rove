@@ -119,10 +119,7 @@ describe("creating a multi-repo task", () => {
 
     expect(task.extraRepos).toEqual([{ name: "api", repo: api, branch: task.branch, worktreePath: extraPath }])
     expect(cwd).not.toBe(extraPath)
-    for (const dir of [cwd, extraPath]) {
-      expect(fs.existsSync(dir)).toBe(true)
-      expect(git(dir, "branch", "--show-current")).toBe(task.branch)
-    }
+    expect([cwd, extraPath].map((dir) => git(dir, "branch", "--show-current"))).toEqual([task.branch, task.branch])
     // Idempotent: a second enter neither moves nor duplicates anything.
     expect(await orch.ensureWorktree(task.id)).toBe(cwd)
     expect(worktreeCount(web)).toBe(2)
@@ -168,7 +165,10 @@ describe("creating a multi-repo task", () => {
     const row = orch.getTask(task.id)
     expect(row?.branch).toBe("feat/renamed")
     expect(row?.extraRepos?.[0]?.branch).toBe("feat/renamed")
-    for (const dir of [cwd, extraPath]) expect(git(dir, "branch", "--show-current")).toBe("feat/renamed")
+    expect([cwd, extraPath].map((dir) => git(dir, "branch", "--show-current"))).toEqual([
+      "feat/renamed",
+      "feat/renamed",
+    ])
   })
 
   test("takes each extra's own base ref", async () => {
@@ -193,10 +193,8 @@ describe("creating a multi-repo task", () => {
 
     await expect(orch.ensureWorktree(created.id)).rejects.toThrow()
 
-    for (const repo of [web, api]) {
-      expect(worktreeCount(repo)).toBe(1)
-      expect(branches(repo)).toEqual(["main"])
-    }
+    expect([web, api].map(worktreeCount)).toEqual([1, 1])
+    expect([web, api].map(branches)).toEqual([["main"], ["main"]])
     const row = orch.getTask(created.id)
     expect(row?.worktreePath).toBe("")
     expect(row?.extraRepos?.map((e) => e.worktreePath)).toEqual(["", ""])
@@ -208,10 +206,8 @@ describe("creating a multi-repo task", () => {
 
     await expect(orch.ensureWorktree(created.id)).rejects.toThrow("simulated store write failure")
 
-    for (const repo of [web, api]) {
-      expect(worktreeCount(repo)).toBe(1)
-      expect(branches(repo)).toEqual(["main"])
-    }
+    expect([web, api].map(worktreeCount)).toEqual([1, 1])
+    expect([web, api].map(branches)).toEqual([["main"], ["main"]])
     // The task is still usable: the next enter cuts everything.
     await orch.ensureWorktree(created.id)
     expect(worktreeCount(api)).toBe(2)
@@ -301,7 +297,10 @@ describe("deleting a multi-repo task", () => {
     await orch.deleteTask(task.id, { force: true })
 
     expect(salvaged.map((s) => s.repo).sort()).toEqual([api, web].sort())
-    for (const { ref, repo } of salvaged) expect(git(repo, "rev-parse", "--verify", ref)).toMatch(/^[0-9a-f]{40}$/)
+    expect(salvaged.map(({ ref, repo }) => git(repo, "rev-parse", "--verify", ref))).toEqual([
+      expect.stringMatching(/^[0-9a-f]{40}$/),
+      expect.stringMatching(/^[0-9a-f]{40}$/),
+    ])
     expect(fs.existsSync(extraPath)).toBe(false)
   })
 

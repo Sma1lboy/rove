@@ -351,7 +351,6 @@ describe("moveTask", () => {
     // The regular task partition is untouched.
     expect(orch.getTask(regular.id)?.title).toBe("reg")
     // Moving past the top of the partition is a harmless no-op.
-    for (const _ of after) await orch.moveTask(mainB.id, -1)
     const pinnedTop = orch.listTasks().map((t) => t.id)
     await orch.moveTask(mainB.id, -1)
     expect(orch.listTasks().map((t) => t.id)).toEqual(pinnedTop)

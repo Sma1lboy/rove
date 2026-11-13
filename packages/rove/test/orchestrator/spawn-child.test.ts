@@ -294,11 +294,9 @@ describe("symlinked repos in the parent workspace", () => {
     expect(sharedLinks).toEqual([])
   })
 
-  test("--isolate-in naming anything else fails NOT_A_LINKED_REPO", async () => {
-    for (const isolateIn of ["plain-link", "missing"]) {
-      await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true, isolateIn })).rejects.toThrow(
-        /NOT_A_LINKED_REPO/,
-      )
-    }
+  test.each(["plain-link", "missing"])("--isolate-in naming %s fails NOT_A_LINKED_REPO", async (isolateIn) => {
+    await expect(orch.spawnChildTask({ parentTaskId: parent.id, worktree: true, isolateIn })).rejects.toThrow(
+      /NOT_A_LINKED_REPO/,
+    )
   })
 })

@@ -24,26 +24,25 @@ describe("pickerVisibleRows", () => {
     expect(pickerVisibleRows(24)).toBeGreaterThanOrEqual(2)
   })
 
-  test("never returns fewer than two rows, however short the terminal", () => {
-    // Two rows plus the `↓ N more` line still reads as a list and still
-    // scrolls under the cursor, so no entry becomes unreachable.
-    for (const h of [0, 1, 10, 18, 20]) expect(pickerVisibleRows(h)).toBeGreaterThanOrEqual(2)
+  // Two rows plus the `↓ N more` line still reads as a list and still
+  // scrolls under the cursor, so no entry becomes unreachable.
+  test.each([0, 1, 10, 18, 20])("never returns fewer than two rows at height %i", (h) => {
+    expect(pickerVisibleRows(h)).toBeGreaterThanOrEqual(2)
   })
 
   test("monotonic in height — a taller terminal never shows fewer rows", () => {
-    for (let h = 10; h < 60; h++) expect(pickerVisibleRows(h + 1)).toBeGreaterThanOrEqual(pickerVisibleRows(h))
+    const rows = Array.from({ length: 51 }, (_, i) => pickerVisibleRows(10 + i))
+    expect(rows).toEqual([...rows].sort((a, b) => a - b))
   })
 
-  test("a shrunk window still reaches every entry by scrolling", () => {
+  // The cursor is always inside its own window, at both ends and in between.
+  test.each([0, 7, 15, 29])("a shrunk window still reaches entry %i by scrolling", (cursor) => {
     const list = Array.from({ length: 30 }, (_, i) => `branch-${i}`)
     const cap = pickerVisibleRows(24)
-    // The cursor is always inside its own window, at both ends and in between.
-    for (const cursor of [0, 7, 15, 29]) {
-      const w = windowAround(list, cursor, cap)
-      expect(w.items.length).toBe(cap)
-      expect(cursor).toBeGreaterThanOrEqual(w.start)
-      expect(cursor).toBeLessThan(w.start + w.items.length)
-      expect(w.total).toBe(30) // the `↓ N more` count stays honest
-    }
+    const w = windowAround(list, cursor, cap)
+    expect(w.items.length).toBe(cap)
+    expect(cursor).toBeGreaterThanOrEqual(w.start)
+    expect(cursor).toBeLessThan(w.start + w.items.length)
+    expect(w.total).toBe(30) // the `↓ N more` count stays honest
   })
 })

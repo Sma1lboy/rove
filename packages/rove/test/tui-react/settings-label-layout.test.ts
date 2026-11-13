@@ -38,15 +38,12 @@ describe("generalLabelLayout", () => {
   })
 
   test("the label column never exceeds what the row owns", () => {
-    for (let width = 30; width <= 200; width++) {
-      for (const padX of [1, 2]) {
-        const { labelColumn, showHint } = generalLabelLayout(width, padX)
-        const cells = rowCells(width, padX)
-        expect(labelColumn).toBeLessThanOrEqual(Math.max(0, cells))
-        // Whenever a hint is shown, at least 18 cells are left for it.
-        if (showHint) expect(cells - labelColumn).toBeGreaterThanOrEqual(18)
-      }
-    }
+    const rows = Array.from({ length: 171 }, (_, i) => 30 + i).flatMap((width) =>
+      [1, 2].map((padX) => ({ width, padX, cells: rowCells(width, padX), ...generalLabelLayout(width, padX) })),
+    )
+    expect(rows.filter((r) => r.labelColumn > Math.max(0, r.cells))).toEqual([])
+    // Whenever a hint is shown, at least 18 cells are left for it.
+    expect(rows.filter((r) => r.showHint && r.cells - r.labelColumn < 18)).toEqual([])
   })
 
   test("in between, the hint keeps its share and the label takes the rest", () => {

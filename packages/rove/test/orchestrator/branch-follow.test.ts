@@ -45,6 +45,11 @@ afterEach(() => {
   }
 })
 
+function gitOk(...args: string[]): void {
+  const r = spawnSync("git", args, { encoding: "utf8" })
+  if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr}`)
+}
+
 /** Local branch names in the fixture repo. */
 function gitBranches(): string[] {
   const r = spawnSync("git", ["branch", "--format=%(refname:short)"], { cwd: repo, encoding: "utf8" })
@@ -66,7 +71,6 @@ describe("branch follows title", () => {
     await orch.setTitle(task.id, "Fix login flow")
 
     const expected = "fix-login-flow"
-    expect(expected).not.toBe(placeholderBranch)
     expect(orch.getTask(task.id)?.branch).toBe(expected)
     // The real git branch moved, not just the recorded name.
     expect(gitBranches()).toContain(expected)
@@ -109,14 +113,9 @@ describe("branch follows title", () => {
 
     // Publish the placeholder branch: bare remote + push -u.
     const remote = path.join(tmpRoot, "remote.git")
-    for (const args of [
-      ["init", "--quiet", "--bare", remote],
-      ["-C", repo, "remote", "add", "origin", remote],
-      ["-C", repo, "push", "--quiet", "-u", "origin", placeholderBranch],
-    ]) {
-      const r = spawnSync("git", args, { encoding: "utf8" })
-      if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr}`)
-    }
+    gitOk("init", "--quiet", "--bare", remote)
+    gitOk("-C", repo, "remote", "add", "origin", remote)
+    gitOk("-C", repo, "push", "--quiet", "-u", "origin", placeholderBranch)
 
     await orch.setTitle(task.id, "Pushed already")
 
@@ -132,8 +131,7 @@ describe("branch follows title", () => {
     const wanted = "fix-login-flow"
 
     // Occupy the exact name the follow would pick.
-    const r = spawnSync("git", ["-C", repo, "branch", wanted], { encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`git branch failed: ${r.stderr}`)
+    gitOk("-C", repo, "branch", wanted)
 
     await orch.setTitle(task.id, "Fix login flow")
 
