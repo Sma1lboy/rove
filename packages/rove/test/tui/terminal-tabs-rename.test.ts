@@ -143,10 +143,9 @@ describe("renameTaskTab (background write)", () => {
     const { store } = await withDaemon({ t1: state(["tab-1", "tab-2"]) })
     const before = store.get("t1")
     const shown = tabsByTask.get("t1")
-    const claims: Array<{ tabId: string; title: string }> = []
+    const claims: unknown[] = []
     const claimant = (): void => {
-      const req = takeTabRename("t1")
-      if (req) claims.push(req)
+      claims.push(takeTabRename("t1"))
     }
     tabActivationListeners.add(claimant)
     try {

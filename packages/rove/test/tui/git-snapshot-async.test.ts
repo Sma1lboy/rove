@@ -15,7 +15,9 @@ describe("the async git snapshot", () => {
     const plain = join(root, "plain")
     const unborn = join(root, "unborn")
     const repo = join(root, "repo")
-    for (const dir of [plain, unborn, repo]) mkdirSync(dir)
+    mkdirSync(plain)
+    mkdirSync(unborn)
+    mkdirSync(repo)
     git(unborn, "init", "-q", "-b", "main")
     git(repo, "init", "-q", "-b", "main")
     writeFileSync(join(repo, "a"), "a")
@@ -25,9 +27,10 @@ describe("the async git snapshot", () => {
     git(repo, "branch", "develop")
     git(repo, "checkout", "-q", "zeta")
 
-    for (const dir of [plain, unborn, repo, join(root, "missing"), ""]) {
-      expect(await async.validateRepoPath(dir)).toBe(sync.validateRepoPath(dir))
-    }
+    const dirs = [plain, unborn, repo, join(root, "missing"), ""]
+    expect(await Promise.all(dirs.map((dir) => async.validateRepoPath(dir)))).toEqual(
+      dirs.map((dir) => sync.validateRepoPath(dir)),
+    )
     expect(await async.validateRepoPath(repo)).toBeNull()
     expect(await async.listLocalBranches(repo)).toEqual(["main", "develop", "zeta"])
     expect(await async.getCurrentBranch(repo)).toBe("zeta")

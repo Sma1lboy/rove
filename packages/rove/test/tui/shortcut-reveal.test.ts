@@ -8,9 +8,9 @@ const reachable = (direct: string[] = [], prefix: string[] = []) => ({
   inputPassthrough: false,
 })
 
-describe("shortcutCaption", () => {
-  afterEach(() => resetKeymapToDefaults())
+afterEach(() => resetKeymapToDefaults())
 
+describe("shortcutCaption", () => {
   it("renders the current direct binding instead of a cosmetic hint", () => {
     expect(
       shortcutCaption({

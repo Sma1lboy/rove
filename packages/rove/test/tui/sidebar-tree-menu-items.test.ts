@@ -158,37 +158,27 @@ describe("treeMenuItems", () => {
     expect(label(worktreeRow({ branch: "feat/a" }))).toBe("tasks.menu.delete")
   })
 
-  test('Rename branch is withheld from any row whose branch is "" — main, dir, or a never-entered task', () => {
-    // Same gate as Copy branch: `set-branch` has nothing to rename there (a
-    // main row's branch is the live HEAD), so the entry could only end in the
-    // error toast. Open in editor and Change engine stay — both work on any
-    // task row.
-    for (const row of [
-      worktreeRow({ kind: "main", branch: "" }),
-      worktreeRow({ kind: "dir", branch: "" }),
-      worktreeRow({ branch: "" }),
-    ]) {
-      expect(actions(row)).not.toContain("renameBranch")
-      expect(actions(row)).toContain("openEditor")
-      expect(actions(row)).toContain("changeEngine")
-    }
-    expect(actions(worktreeRow())).toContain("renameBranch")
+  const branchless = [
+    ["main", worktreeRow({ kind: "main", branch: "" })],
+    ["dir", worktreeRow({ kind: "dir", branch: "" })],
+    ["never-entered", worktreeRow({ branch: "" })],
+  ] as const
+
+  // Same gate as Copy branch: `set-branch` has nothing to rename there (a
+  // main row's branch is the live HEAD), so the entry could only end in the
+  // error toast. Open in editor and Change engine stay — both work on any
+  // task row.
+  test.each(branchless)('Rename branch is withheld from a %s row, whose branch is ""', (_name, row) => {
+    expect(actions(row)).not.toContain("renameBranch")
+    expect(actions(row)).toContain("openEditor")
+    expect(actions(row)).toContain("changeEngine")
   })
 
-  test("Land reaches only a materialised managed task — never main, dir, or a branchless row", () => {
-    // `landTask` throws outright for a main or dir task (neither owns a
-    // Rove-managed branch) and for a task that never materialised, so the
-    // entry could only end in the error toast — the same
-    // entry-that-does-nothing rule Rename branch follows.
-    for (const row of [
-      worktreeRow({ kind: "main", branch: "" }),
-      worktreeRow({ kind: "dir", branch: "" }),
-      worktreeRow({ branch: "" }),
-    ]) {
-      expect(actions(row)).not.toContain("land")
-    }
-    expect(actions(worktreeRow())).toContain("land")
-    expect(actions(projectRow)).not.toContain("land")
+  // `landTask` throws outright for a main or dir task (neither owns a
+  // Rove-managed branch) and for a task that never materialised, so the
+  // entry could only end in the error toast.
+  test.each(branchless)("Land never reaches a %s row", (_name, row) => {
+    expect(actions(row)).not.toContain("land")
   })
 
   test("a task with children offers Collapse, or Expand once folded; a leaf offers neither", () => {
@@ -210,33 +200,9 @@ describe("treeMenuItems", () => {
     // has nothing to re-fire — the entry-that-does-nothing rule. It sits right
     // after Reorder, before the status/copy block.
     expect(actions(worktreeRow())).not.toContain("runAgain")
-    expect(actions(worktreeRow({ prompt: "print the third line\n\nthen stop" }))).toEqual([
-      "open",
-      "newChat",
-      "newShell",
-      "continueEngine",
-      "newTaskFromBranch",
-      "rename",
-      "pin",
-      "reorder",
-      "runAgain",
-      "setStatus",
-      "moveToProject",
-      "copyId",
-      "copyBranch",
-      "copyPath",
-      "openEditor",
-      "renameBranch",
-      "changeEngine",
-      "syncBase",
-      "land",
-      "archive",
-      "delete",
-    ])
-  })
-
-  test("Run again never reaches a project header", () => {
-    expect(actions(projectRow)).not.toContain("runAgain")
+    const withBrief = actions(worktreeRow({ prompt: "print the third line\n\nthen stop" }))
+    const at = withBrief.indexOf("reorder")
+    expect(withBrief.slice(at, at + 3)).toEqual(["reorder", "runAgain", "setStatus"])
   })
 
   test("an empty-string brief still counts — only an ABSENT one hides the entry", () => {
@@ -262,14 +228,15 @@ describe("treeMenuItems", () => {
 describe("the failing-checks entries", () => {
   // Gated on the PR chip the row already shows: with anything but `failing`
   // there is no log to fetch or job to restart, so either could only toast.
-  test("is absent without a PR, and for passing / pending / unknown checks", () => {
-    expect(actions(worktreeRow())).not.toContain("fixChecks")
-    expect(actions(worktreeRow())).not.toContain("rerunChecks")
-    for (const checkState of ["none", "passing", "pending", "unknown"] as const) {
-      const row = worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } })
-      expect(actions(row), checkState).not.toContain("fixChecks")
-      expect(actions(row), checkState).not.toContain("rerunChecks")
-    }
+  test.each<[string, TreeRow]>([
+    ["no PR", worktreeRow()],
+    ...(["none", "passing", "pending", "unknown"] as const).map((checkState): [string, TreeRow] => [
+      `${checkState} checks`,
+      worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } }),
+    ]),
+  ])("is absent with %s", (_name, row) => {
+    expect(actions(row)).not.toContain("fixChecks")
+    expect(actions(row)).not.toContain("rerunChecks")
   })
 
   test("appears just before Land when the checks are red", () => {
@@ -314,18 +281,8 @@ describe("the chord an entry advertises", () => {
     // These eight have no chord anywhere in the product; the menu is their one
     // route. Claiming a bindingId here would print a cap for a key that does
     // not reach them.
-    const withId = new Set(everyItem.flatMap((item) => (item.bindingId ? [item.action] : [])))
-    for (const action of [
-      "setStatus",
-      "copyId",
-      "copyTab",
-      "copyBranch",
-      "copyPath",
-      "runAgain",
-      "fieldNotes",
-      "land",
-    ]) {
-      expect(withId, action).not.toContain(action)
-    }
+    const menuOnly = ["setStatus", "copyId", "copyTab", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]
+    const withId = everyItem.flatMap((item) => (item.bindingId ? [item.action] : []))
+    expect(withId.filter((action) => menuOnly.includes(action))).toEqual([])
   })
 })

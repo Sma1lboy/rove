@@ -104,15 +104,15 @@ describe("KittyGraphicsFilter", () => {
     expect(forwarded).toEqual([apc("a=t,f=100,i=2,q=2;DDDD")])
   })
 
-  it("reassembles an APC split at every possible byte boundary", () => {
-    const cmd = apc("a=t,f=100,i=3,m=0;QUJDRA==")
-    const stream = `pre${cmd}post`
-    for (let cut = 1; cut < stream.length; cut++) {
-      const { forwarded, rest } = run([stream.slice(0, cut), stream.slice(cut)])
-      expect(forwarded, `cut at ${cut}`).toEqual([apc("a=t,f=100,i=3,m=0,q=2;QUJDRA==")])
-      expect(rest, `cut at ${cut}`).toBe("prepost")
-    }
-  })
+  const splitStream = `pre${apc("a=t,f=100,i=3,m=0;QUJDRA==")}post`
+  it.each(Array.from({ length: splitStream.length - 1 }, (_, i) => i + 1))(
+    "reassembles an APC split at byte %i",
+    (cut) => {
+      const { forwarded, rest } = run([splitStream.slice(0, cut), splitStream.slice(cut)])
+      expect(forwarded).toEqual([apc("a=t,f=100,i=3,m=0,q=2;QUJDRA==")])
+      expect(rest).toBe("prepost")
+    },
+  )
 
   it("reassembles one APC across many one-byte chunks", () => {
     const cmd = apc("a=p,U=1,i=3")

@@ -61,9 +61,10 @@ describe("PureTUI prefix dispatch", () => {
     expect(dispatchKeyEvent(stack, event("i"), 105)).toBe(true)
     expect(calls).toEqual(["previous", "next", "inbox"])
 
-    for (const key of ["h", "j", "k", "l"]) {
-      expect(dispatchKeyEvent(stack, event(key, true), 104)).toBe(false)
-    }
+    expect(dispatchKeyEvent(stack, event("h", true), 104)).toBe(false)
+    expect(dispatchKeyEvent(stack, event("j", true), 104)).toBe(false)
+    expect(dispatchKeyEvent(stack, event("k", true), 104)).toBe(false)
+    expect(dispatchKeyEvent(stack, event("l", true), 104)).toBe(false)
   })
 
   test("fires the enabled Binding Stack prefix row after ctrl+a", () => {

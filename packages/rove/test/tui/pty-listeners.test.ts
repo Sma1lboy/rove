@@ -32,8 +32,9 @@ describe("PtyListeners", () => {
 
     off()
     listeners.publishData([], null, null)
-    for (const callback of listeners.drainExits()) callback()
-    for (const callback of listeners.drainExits()) callback()
+    const drained = listeners.drainExits()
+    expect(listeners.drainExits()).toEqual([])
+    drained[0]?.()
 
     expect(data).not.toHaveBeenCalled()
     expect(exit).toHaveBeenCalledOnce()

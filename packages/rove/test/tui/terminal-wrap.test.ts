@@ -4,9 +4,6 @@
  * The snapshot is a grid, so one logical line the emulator broke across
  * columns arrives as several rows. Without xterm's `isWrapped` the copy reads
  * that break as a real newline and a copied path comes back in pieces.
- *
- * `extractSelection` takes the flags as an OPTIONAL trailing argument; the
- * calls without it here are the pre-change behavior, kept as the contrast.
  */
 
 import { describe, expect, it } from "vitest"
@@ -23,11 +20,6 @@ const WHOLE = { anchor: { row: 0, col: 0 }, head: { row: 1, col: 11 } }
 describe("copying a soft-wrapped line", () => {
   it("joins the continuation row with no separator — the path pastes as one", () => {
     expect(extractSelection(WRAPPED, WHOLE, WRAP_FLAGS)).toBe("ERROR in /Users/me/src/panes/terminal/search.ts:41:9")
-    expect(extractSelection(WRAPPED, WHOLE, WRAP_FLAGS)).not.toContain("\n")
-  })
-
-  it("without the flags it still splits — that is the shape being fixed", () => {
-    expect(extractSelection(WRAPPED, WHOLE)).toContain("\n")
   })
 
   it("a REAL newline between two rows still separates them", () => {

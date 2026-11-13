@@ -50,6 +50,32 @@ function fail(stderr = "boom"): { stdout: string; stderr: string; status: number
   return { stdout: "", stderr, status: 1 }
 }
 
+type GitResult = ReturnType<typeof ok>
+type Route = readonly [match: (args: readonly string[]) => boolean, result: GitResult]
+/** Matches when every word is one of git's argv elements. */
+const has =
+  (...words: string[]) =>
+  (args: readonly string[]) =>
+    words.every((w) => args.includes(w))
+const sub = (cmd: string) => (args: readonly string[]) => args[0] === cmd
+const any = () => true
+
+/** Fake git: the first matching route answers; an unmatched call throws. */
+function routeGit(...routes: Route[]): void {
+  runGit.mockImplementation(async (_cwd, args) => {
+    const hit = routes.find(([match]) => match(args))
+    if (!hit) throw new Error(`unexpected args ${args.join(" ")}`)
+    return hit[1]
+  })
+}
+
+/** No remote at all: every origin/* probe fails. */
+const NO_REMOTE: Route[] = [
+  [has("symbolic-ref"), fail("no origin/HEAD")],
+  [has("origin/main"), fail("no such ref")],
+  [has("origin/master"), fail("no such ref")],
+]
+
 beforeEach(() => {
   resetBaseCache()
   runGit.mockReset()
@@ -183,22 +209,17 @@ describe("listFiles", () => {
 
 describe("statusFiles", () => {
   test("merges numstat counts onto porcelain rows by path", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok(" M a.ts\n")
-      if (args[0] === "diff" && args.includes("-z")) return ok("3\t1\ta.ts\0")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    routeGit([sub("status"), ok(" M a.ts\n")], [has("diff", "-z"), ok("3\t1\ta.ts\0")])
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([{ path: "a.ts", status: "M", added: 3, deleted: 1 }])
   })
 
   test("collapses an untracked dir to one row with children + summed counts", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok(" M a.ts\n?? assets/\n")
-      if (args[0] === "diff" && args.includes("-z")) return ok("3\t1\ta.ts\0")
-      if (args[0] === "ls-files") return ok("assets/x.txt\nassets/y.bin\n")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    routeGit(
+      [sub("status"), ok(" M a.ts\n?? assets/\n")],
+      [has("diff", "-z"), ok("3\t1\ta.ts\0")],
+      [sub("ls-files"), ok("assets/x.txt\nassets/y.bin\n")],
+    )
     readFile.mockImplementation(async (_cwd, rel) => (rel === "assets/x.txt" ? "one\ntwo\n" : "\u0000binary"))
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([
@@ -217,42 +238,30 @@ describe("statusFiles", () => {
   })
 
   test("falls back to the cached diff when `diff HEAD` fails (unborn branch)", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok("A  new.ts\n")
-      if (args.includes("HEAD")) return fail("no HEAD")
-      if (args.includes("--cached") && args.includes("-z")) return ok("5\t0\tnew.ts\0")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    routeGit(
+      [sub("status"), ok("A  new.ts\n")],
+      [has("HEAD"), fail("no HEAD")],
+      [has("--cached", "-z"), ok("5\t0\tnew.ts\0")],
+    )
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([{ path: "new.ts", status: "A", added: 5, deleted: 0 }])
   })
 
   test("leaves stats empty when both diff attempts fail", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok("A  new.ts\n")
-      return fail("no HEAD, no index")
-    })
+    routeGit([sub("status"), ok("A  new.ts\n")], [any, fail("no HEAD, no index")])
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([{ path: "new.ts", status: "A" }])
   })
 
   test("counts on-disk lines for untracked files missing from numstat", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok("?? untracked.txt\n")
-      if (args[0] === "diff") return ok("")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    routeGit([sub("status"), ok("?? untracked.txt\n")], [sub("diff"), ok("")])
     readFile.mockResolvedValue("line1\nline2\nline3")
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([{ path: "untracked.txt", status: "?", added: 3, deleted: 0 }])
   })
 
   test("leaves an untracked file's counts blank when the on-disk read fails", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args[0] === "status") return ok("?? gone.txt\n")
-      if (args[0] === "diff") return ok("")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    routeGit([sub("status"), ok("?? gone.txt\n")], [sub("diff"), ok("")])
     readFile.mockResolvedValue(null)
     const rows = await statusFiles("/repo")
     expect(rows).toEqual([{ path: "gone.txt", status: "?" }])
@@ -277,13 +286,11 @@ describe("parseNameStatus", () => {
 
 describe("statusFilesBranch", () => {
   test("merges name-status headlines with numstat counts over base...HEAD", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      // Three-dot merge-base range, never a literal $(merge-base) subshell.
-      expect(args).toContain("origin/main...HEAD")
-      if (args.includes("--name-status")) return ok("M\tsrc/a.ts\nA\tsrc/b.ts\n")
-      if (args.includes("--numstat") && args.includes("-z")) return ok("3\t1\tsrc/a.ts\0" + "10\t0\tsrc/b.ts\0")
-      throw new Error(`unexpected args ${args.join(" ")}`)
-    })
+    // Three-dot merge-base range, never a literal $(merge-base) subshell.
+    routeGit(
+      [has("--name-status", "origin/main...HEAD"), ok("M\tsrc/a.ts\nA\tsrc/b.ts\n")],
+      [has("--numstat", "-z", "origin/main...HEAD"), ok("3\t1\tsrc/a.ts\0" + "10\t0\tsrc/b.ts\0")],
+    )
     const rows = await statusFilesBranch("/repo", "origin/main")
     expect(rows).toEqual([
       { path: "src/a.ts", status: "M", added: 3, deleted: 1 },
@@ -298,11 +305,11 @@ describe("resolveBase", () => {
   })
 
   test("falls back to origin/HEAD, then origin/main", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("rev-parse") && args.includes("origin/main")) return ok("")
-      return fail("nope")
-    })
+    routeGit(
+      [has("symbolic-ref"), fail("no origin/HEAD")],
+      [has("rev-parse", "origin/main"), ok("")],
+      [any, fail("nope")],
+    )
     expect(await resolveBase("/repo")).toBe("origin/main")
   })
 
@@ -315,13 +322,7 @@ describe("resolveBase", () => {
   // scope unreachable: an attempt that had committed everything showed
   // `no changes — clean worktree` beside a sidebar row reading `↑1`.
   test("falls back to a LOCAL default branch when the repo has no remote", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
-      if (args.includes("HEAD")) return ok("aaaaaaa\n")
-      if (args.includes("main")) return ok("bbbbbbb\n")
-      return fail("nope")
-    })
+    routeGit(...NO_REMOTE, [has("HEAD"), ok("aaaaaaa\n")], [has("main"), ok("bbbbbbb\n")], [any, fail("nope")])
     expect(await resolveBase("/repo")).toBe("main")
   })
 
@@ -329,54 +330,33 @@ describe("resolveBase", () => {
   // offering it would move the empty pane behind a toggle rather than say
   // there is nothing to compare against.
   test("skips a local default branch that is this worktree's own HEAD", async () => {
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
-      if (args.includes("HEAD") || args.includes("main")) return ok("samesha\n")
-      return fail("nope")
-    })
+    routeGit(...NO_REMOTE, [has("HEAD"), ok("samesha\n")], [has("main"), ok("samesha\n")], [any, fail("nope")])
     expect(await resolveBase("/repo")).toBeNull()
   })
   // Every task switch remounts the pane; the ladder was six `git` spawns each time.
   test("reuses a base across mounts until HEAD moves", async () => {
-    let head = "samesha\n"
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
-      if (args.includes("HEAD")) return ok(head)
-      if (args.includes("main")) return ok("samesha\n")
-      return fail("nope")
-    })
+    const withHead = (head: string) =>
+      routeGit(...NO_REMOTE, [has("HEAD"), ok(head)], [has("main"), ok("samesha\n")], [any, fail("nope")])
+    withHead("samesha\n")
     expect(await resolveBase("/repo")).toBeNull()
     runGit.mockClear()
     expect(await resolveBase("/repo")).toBeNull()
     expect(runGit).toHaveBeenCalledTimes(1)
 
-    head = "newcommit\n"
+    withHead("newcommit\n")
     expect(await resolveBase("/repo")).toBe("main")
   })
 
   test("a remount with HEAD readable from disk spawns no git", async () => {
     localHead.mockReturnValue("samesha")
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
-      if (args.includes("HEAD") || args.includes("main")) return ok("samesha\n")
-      return fail("nope")
-    })
+    routeGit(...NO_REMOTE, [has("HEAD"), ok("samesha\n")], [has("main"), ok("samesha\n")], [any, fail("nope")])
     expect(await resolveBase("/repo")).toBeNull()
     runGit.mockClear()
     expect(await resolveBase("/repo")).toBeNull()
     expect(runGit).not.toHaveBeenCalled()
 
     localHead.mockReturnValue("newcommit")
-    runGit.mockImplementation(async (_cwd, args) => {
-      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
-      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
-      if (args.includes("HEAD")) return ok("newcommit\n")
-      if (args.includes("main")) return ok("samesha\n")
-      return fail("nope")
-    })
+    routeGit(...NO_REMOTE, [has("HEAD"), ok("newcommit\n")], [has("main"), ok("samesha\n")], [any, fail("nope")])
     expect(await resolveBase("/repo")).toBe("main")
   })
 
@@ -387,7 +367,7 @@ describe("resolveBase", () => {
       return fail("aborted")
     })
     expect(await resolveBase("/repo", undefined, controller.signal)).toBeNull()
-    runGit.mockImplementation(async (_cwd, args) => (args.includes("symbolic-ref") ? ok("origin/main\n") : fail()))
+    routeGit([has("symbolic-ref"), ok("origin/main\n")], [any, fail()])
     expect(await resolveBase("/repo")).toBe("origin/main")
   })
 })

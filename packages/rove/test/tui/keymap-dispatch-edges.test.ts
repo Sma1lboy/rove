@@ -175,16 +175,19 @@ describe("dispatchKeyEvent", () => {
         assertModalContract(stack, counts)
       })
 
-      test("body's own esc beats the barrier's esc under both orders", () => {
-        for (const bodyFirst of [true, false]) {
-          let bodyEsc = 0
-          const stack: RegisteredBinding[] = []
-          const regs = [barrier(1, () => {}), body(2, "escape", () => bodyEsc++)]
-          if (bodyFirst) regs.reverse()
-          for (const r of regs) insertRegistration(stack, r)
-          expect(dispatchKeyEvent(stack, makeEvt("escape"))).toBe(true)
-          expect(bodyEsc).toBe(1)
-        }
+      test.each([
+        ["barrier first", false],
+        ["body first", true],
+      ])("body's own esc beats the barrier's esc (%s)", (_order, bodyFirst) => {
+        let bodyEsc = 0
+        const stack: RegisteredBinding[] = []
+        const bar = barrier(1, () => {})
+        const member = body(2, "escape", () => bodyEsc++)
+        const [first, second] = bodyFirst ? [member, bar] : [bar, member]
+        insertRegistration(stack, first)
+        insertRegistration(stack, second)
+        expect(dispatchKeyEvent(stack, makeEvt("escape"))).toBe(true)
+        expect(bodyEsc).toBe(1)
       })
 
       test("plain registrations (no scope) keep pure LIFO push semantics", () => {

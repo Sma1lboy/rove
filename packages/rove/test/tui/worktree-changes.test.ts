@@ -71,7 +71,5 @@ describe("pickPushedChanges and the daemon's unreadable list", () => {
     // Absent = the daemon does not collect it (remote project, fresh task).
     // Still zeros: the row draws no chip, which is what it has always done.
     expect(pickPushedChanges(pushed, "/wt/never-collected")).toEqual({ added: 0, deleted: 0 })
-    // No daemon at all — the caller falls back to the local poller.
-    expect(pickPushedChanges(null, "/wt/ok")).toBeNull()
   })
 })

@@ -21,7 +21,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 import { getCurrentBranch, listLocalBranches, validateRepoPath } from "@/tui/lib/git-snapshot"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest"
 
 let root: string
 let repo: string
@@ -101,19 +101,17 @@ describe("validateRepoPath", () => {
   // commit`, three commands that would each also be `command not found`. This
   // and the WelcomePane's own probe must say the same thing.
   it("says git is missing, not that the folder isn't a repo, when git is absent", () => {
-    const realPath = process.env.PATH
     // An empty dir as the entire PATH: no `git` binary is reachable.
-    process.env.PATH = path.join(root, "no-bin")
     fs.mkdirSync(path.join(root, "no-bin"), { recursive: true })
-    try {
-      const reason = validateRepoPath(repo)
-      expect(reason).not.toBeNull()
-      expect(reason).toContain("git")
-      expect(reason).not.toContain("isn't a git repository")
-      expect(reason).not.toContain("git init")
-    } finally {
-      process.env.PATH = realPath
-    }
+    vi.stubEnv("PATH", path.join(root, "no-bin"))
+    onTestFinished(() => {
+      vi.unstubAllEnvs()
+    })
+    const reason = validateRepoPath(repo)
+    expect(reason).not.toBeNull()
+    expect(reason).toContain("git")
+    expect(reason).not.toContain("isn't a git repository")
+    expect(reason).not.toContain("git init")
   })
 })
 
@@ -133,11 +131,8 @@ describe("getCurrentBranch", () => {
   // under it, so it has to read as null and fall back to DEFAULT_BASE_REF.
   it('degrades to null on a detached HEAD, which git reports as the name "HEAD"', () => {
     git(repo, "checkout", "--detach")
-    try {
-      expect(getCurrentBranch(repo)).toBeNull()
-    } finally {
-      git(repo, "checkout", "zeta")
-    }
+    onTestFinished(() => git(repo, "checkout", "zeta"))
+    expect(getCurrentBranch(repo)).toBeNull()
   })
 })
 

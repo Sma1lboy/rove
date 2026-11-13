@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { PipeTaskPty } from "../../src/tui/panes/terminal/pty-pipe"
 import type { TaskPtyLike, TerminalRow } from "../../src/tui/panes/terminal/pty-types"
 
@@ -27,13 +27,7 @@ function rowsText(rows: readonly TerminalRow[]): string {
   return rows.map((row) => row.map((chunk) => chunk.text).join("")).join("\n")
 }
 
-async function until(cond: () => boolean, ms = 3000): Promise<void> {
-  const started = Date.now()
-  while (!cond()) {
-    if (Date.now() - started > ms) throw new Error("timeout waiting for pipe child")
-    await new Promise((resolve) => setTimeout(resolve, 20))
-  }
-}
+const settled = { timeout: 3000 }
 
 describe("PipeTaskPty child environment", () => {
   it("does not leak the outer terminal identity through the pipe fallback", async () => {
@@ -62,12 +56,11 @@ describe("PipeTaskPty child environment", () => {
     pty.onTitleChange((title) => titles.push(title))
     pty.onExit(() => exits++)
 
-    await until(() => rowsText(latest).includes("program="))
-    expect(rowsText(latest)).toContain("program=unset version=unset")
-    await until(() => titles.includes("env-probe"))
+    await vi.waitFor(() => expect(rowsText(latest)).toContain("program=unset version=unset"), settled)
+    await vi.waitFor(() => expect(titles).toContain("env-probe"), settled)
 
     pty.write("echo-through-pipe\r")
-    await until(() => rowsText(latest).includes("echo-through-pipe"))
+    await vi.waitFor(() => expect(rowsText(latest)).toContain("echo-through-pipe"), settled)
     pty.resize(72, 9)
     expect(pty.captureCursor()).toBeNull()
     expect(pty.wheel()).toBe(false)

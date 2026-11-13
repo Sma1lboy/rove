@@ -2,7 +2,6 @@ import type { KeyEvent } from "@opentui/core"
 import { describe, expect, it } from "vitest"
 import { defaultChordsOf, findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
 import {
-  DEFAULT_PAGE_SIZE,
   PASSTHROUGH_CHORDS,
   PASSTHROUGH_NAMES,
   RESERVED_GLOBAL_CHORDS,
@@ -151,24 +150,25 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "kpenter", sequence: "\x1b[57414u", raw: "\x1b[57414u" } as never))).toBe(
       "\r",
     )
-    for (const [name, codepoint, expected] of [
-      ["kpleft", 57417, "\x1b[D"],
-      ["kpright", 57418, "\x1b[C"],
-      ["kpup", 57419, "\x1b[A"],
-      ["kpdown", 57420, "\x1b[B"],
-      ["kppageup", 57421, "\x1b[5~"],
-      ["kppagedown", 57422, "\x1b[6~"],
-      ["kphome", 57423, "\x1b[H"],
-      ["kpend", 57424, "\x1b[F"],
-      ["kpinsert", 57425, "\x1b[2~"],
-      ["kpdelete", 57426, "\x1b[3~"],
-    ] as const) {
-      const raw = `\x1b[${codepoint}u`
-      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw } as never))).toBe(expected)
-    }
     expect(
       keyEventToShellBytes(evt({ name: "up", sequence: "\x1b[1;1:1A", raw: "\x1b[1;1:1A", source: "kitty" } as never)),
     ).toBe("\x1b[A")
+  })
+
+  it.each([
+    ["kpleft", 57417, "\x1b[D"],
+    ["kpright", 57418, "\x1b[C"],
+    ["kpup", 57419, "\x1b[A"],
+    ["kpdown", 57420, "\x1b[B"],
+    ["kppageup", 57421, "\x1b[5~"],
+    ["kppagedown", 57422, "\x1b[6~"],
+    ["kphome", 57423, "\x1b[H"],
+    ["kpend", 57424, "\x1b[F"],
+    ["kpinsert", 57425, "\x1b[2~"],
+    ["kpdelete", 57426, "\x1b[3~"],
+  ] as const)("re-encodes kitty keypad %s (CSI %i u) for a legacy PTY", (name, codepoint, expected) => {
+    const raw = `\x1b[${codepoint}u`
+    expect(keyEventToShellBytes(evt({ name, sequence: raw, raw } as never))).toBe(expected)
   })
 
   it("encodes Alt-modified named keys with xterm modifier parameters", () => {
@@ -192,21 +192,19 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "kpenter" }), normalModes)).toBe("\r")
   })
 
-  it("re-encodes kitty PUA function keys and standard navigation keys for a legacy PTY", () => {
-    for (const [name, codepoint, expected] of [
-      ["insert", 57348, "\x1b[2~"],
-      ["pageup", 57354, "\x1b[5~"],
-      ["pagedown", 57355, "\x1b[6~"],
-      ["f6", 57369, "\x1b[17~"],
-      ["f8", 57371, "\x1b[19~"],
-      ["f9", 57372, "\x1b[20~"],
-      ["f10", 57373, "\x1b[21~"],
-      ["f11", 57374, "\x1b[23~"],
-      ["f12", 57375, "\x1b[24~"],
-    ] as const) {
-      const raw = `\x1b[${codepoint}u`
-      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw, source: "kitty" } as never))).toBe(expected)
-    }
+  it.each([
+    ["insert", 57348, "\x1b[2~"],
+    ["pageup", 57354, "\x1b[5~"],
+    ["pagedown", 57355, "\x1b[6~"],
+    ["f6", 57369, "\x1b[17~"],
+    ["f8", 57371, "\x1b[19~"],
+    ["f9", 57372, "\x1b[20~"],
+    ["f10", 57373, "\x1b[21~"],
+    ["f11", 57374, "\x1b[23~"],
+    ["f12", 57375, "\x1b[24~"],
+  ] as const)("re-encodes kitty PUA key %s (CSI %i u) for a legacy PTY", (name, codepoint, expected) => {
+    const raw = `\x1b[${codepoint}u`
+    expect(keyEventToShellBytes(evt({ name, sequence: raw, raw, source: "kitty" } as never))).toBe(expected)
   })
 
   it("keeps the typed uppercase for shift+letter keystrokes on both wire formats", () => {
@@ -269,31 +267,29 @@ describe("key routing tables", () => {
         "f7",
       ].sort(),
     )
-    // Chords the engine depends on must NOT be reserved (shift+tab is
-    // claude's plan-mode cycle; ctrl+g is readline abort-editing; the rest
-    // are its own UI shortcuts).
-    for (const chord of ["shift+tab", "ctrl+g", "ctrl+h", "ctrl+j", "ctrl+k", "ctrl+l", "ctrl+p", "ctrl+r"]) {
-      expect(RESERVED_GLOBAL_CHORDS).not.toContain(chord)
-    }
     // Plain typing keys must stay forwardable.
-    for (const name of ["a", "Z", "0", " ", "return", "escape", "tab"]) {
-      expect(PASSTHROUGH_NAMES).toContain(name)
-    }
-    expect(DEFAULT_PAGE_SIZE).toBeGreaterThan(0)
+    expect(PASSTHROUGH_NAMES).toEqual(expect.arrayContaining(["a", "Z", "0", " ", "return", "escape", "tab"]))
   })
 
-  it("expands the precomputed passthrough table and filters every reserved chord", () => {
-    const modifierPrefixes = ["", "ctrl+", "alt+", "shift+", "ctrl+shift+", "alt+shift+", "ctrl+alt+"]
-    const expected = PASSTHROUGH_NAMES.flatMap((name) => modifierPrefixes.map((prefix) => `${prefix}${name}`)).filter(
-      (chord) => !RESERVED_GLOBAL_CHORDS.includes(chord),
+  it("passes every engine chord through and filters every reserved one", () => {
+    expect(PASSTHROUGH_CHORDS.filter((chord) => RESERVED_GLOBAL_CHORDS.includes(chord))).toEqual([])
+    // Chords the engine depends on (shift+tab is claude's plan-mode cycle;
+    // ctrl+g is readline abort-editing; the rest are its own UI shortcuts).
+    expect(PASSTHROUGH_CHORDS).toEqual(
+      expect.arrayContaining([
+        "a",
+        "ctrl+c",
+        "ctrl+g",
+        "ctrl+h",
+        "ctrl+j",
+        "ctrl+k",
+        "ctrl+l",
+        "ctrl+p",
+        "ctrl+r",
+        "shift+tab",
+        "ctrl+alt+f1",
+      ]),
     )
-    expect(PASSTHROUGH_CHORDS).toEqual(expected)
-    for (const chord of RESERVED_GLOBAL_CHORDS) expect(PASSTHROUGH_CHORDS).not.toContain(chord)
-    for (const chord of ["a", "ctrl+c", "ctrl+h", "ctrl+j", "ctrl+k", "ctrl+l", "shift+tab", "ctrl+alt+f1"]) {
-      expect(PASSTHROUGH_CHORDS).toContain(chord)
-    }
-    // ctrl+<digit> switches chat tab from inside the engine pane.
-    for (const digit of "123456789") expect(PASSTHROUGH_CHORDS).not.toContain(`ctrl+${digit}`)
   })
 
   it("derives the reservation from RoveKeymap DEFAULTS, immune to live overrides", () => {

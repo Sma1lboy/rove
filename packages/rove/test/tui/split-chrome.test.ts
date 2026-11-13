@@ -10,7 +10,7 @@ import { groupChrome, leafOnEdge, paneBoxProps, paneChrome } from "../../src/tui
 
 describe("split chrome", () => {
   it("keeps every known style and falls back to line", () => {
-    for (const style of ["box", "line", "rail", "rule"]) expect(normalizeSplitStyle(style)).toBe(style)
+    expect(["box", "line", "rail", "rule"].map(normalizeSplitStyle)).toEqual(["box", "line", "rail", "rule"])
     expect(normalizeSplitStyle("field")).toBe("line")
     expect(normalizeSplitStyle(undefined)).toBe("line")
   })

@@ -142,9 +142,10 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
   test("re-prompts on DIRTY_WORKTREE and force-deletes after explicit confirm", async () => {
     const tasks = [makeTask({ id: "t1", title: "dirty" }), makeTask({ id: "t2" })]
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: src/a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: src/a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx, confirm, onTaskDeleted, reload } = makeCtx({ tasks, orch, confirms: [true, true] })
 
@@ -228,9 +229,10 @@ describe("deleteTaskFlow — worktree.deleteBranch opt-in", () => {
   test("a forced retry of a dirty worktree keeps the branch", async () => {
     const tasks = [makeTask({ id: "t1" })]
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task t1 worktree has uncommitted changes: a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx } = makeCtx({ tasks, orch, confirms: [true, true], deleteBranchOnDelete: true })
 
@@ -327,9 +329,10 @@ describe("deleteTaskFlow — child tasks", () => {
 
   test("a forced retry of a dirty worktree keeps the cascade", async () => {
     const orch = makeOrch({
-      deleteTask: vi.fn(async (_id: string, o?: { force?: boolean }) => {
-        if (!o?.force) throw new Error(`${DIRTY_WORKTREE_CODE}: task p worktree has uncommitted changes: a.ts`)
-      }),
+      deleteTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error(`${DIRTY_WORKTREE_CODE}: task p worktree has uncommitted changes: a.ts`))
+        .mockResolvedValue(undefined),
     })
     const { ctx } = makeCtx({ tasks: family(), orch, confirms: [true, true], childChoice: "cascade" })
     await deleteTaskFlow(ctx, "p")

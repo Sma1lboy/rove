@@ -90,6 +90,18 @@ describe("xtermLineToChunks — minLast keeps the cursor's blank tail", () => {
     ).toBe("ab  ")
   })
 
+  it("collapses an all-blank line to no chunks", () => {
+    expect(xtermLineToChunks(line(" ".repeat(80), 80))).toEqual([])
+  })
+
+  it("never shrinks a row that already extends past minLast", () => {
+    expect(
+      xtermLineToChunks(line("hello world", 80), 4)
+        .map((c) => c.text)
+        .join(""),
+    ).toBe("hello world")
+  })
+
   it("minLast is clamped to the line length", () => {
     expect(
       xtermLineToChunks(line("ab", 3), 99)
@@ -159,36 +171,25 @@ describe("builder ↔ matcher lockstep (the perpetual-re-render class)", () => {
     "default-styled block (terminal's own colors — a glyph, not a fill)": [cell("█")],
   }
 
-  for (const [name, cells] of Object.entries(cases)) {
-    it(`self-matches: ${name}`, () => {
-      const subject = { length: cells.length, getCell: (index: number) => cells[index] }
-      for (const minLast of [-1, 0, cells.length - 1, 99]) {
-        expect(
-          xtermLineMatchesChunks(subject, xtermLineToChunks(subject, minLast), minLast),
-          `minLast=${minLast}`,
-        ).toBe(true)
-      }
-    })
-  }
+  const selfMatchRows = Object.entries(cases).flatMap(([name, cells]) =>
+    [-1, 0, cells.length - 1, 99].map((minLast) => [name, minLast, cells] as const),
+  )
+
+  it.each(selfMatchRows)("self-matches: %s (minLast=%i)", (_name, minLast, cells) => {
+    const subject = { length: cells.length, getCell: (index: number) => cells[index] }
+    expect(xtermLineMatchesChunks(subject, xtermLineToChunks(subject, minLast), minLast)).toBe(true)
+  })
 
   it("still substitutes the fill (the zebra fix) whichever color mode declared it", () => {
-    const same = [mixedModeBlockCell("█")]
-    const subject = { length: same.length, getCell: (index: number) => same[index] }
-    expect(
-      xtermLineToChunks(subject)
+    const textOf = (cells: ReturnType<typeof cell>[]) =>
+      xtermLineToChunks({ length: cells.length, getCell: (index: number) => cells[index] })
         .map((c) => c.text)
-        .join(""),
-    ).toBe(" ")
+        .join("")
+    expect(textOf([mixedModeBlockCell("█")])).toBe(" ")
     // A block whose fg differs from its bg is a real glyph, untouched —
     // and so is a default-styled one (nothing resolved to compare).
-    for (const glyph of [[styledCell("█")], [cell("█")]]) {
-      const glyphLine = { length: glyph.length, getCell: (index: number) => glyph[index] }
-      expect(
-        xtermLineToChunks(glyphLine)
-          .map((c) => c.text)
-          .join(""),
-      ).toBe("█")
-    }
+    expect(textOf([styledCell("█")])).toBe("█")
+    expect(textOf([cell("█")])).toBe("█")
   })
 })
 
@@ -260,11 +261,7 @@ describe("xtermLineToChunks — run boundaries survive scratch reuse", () => {
       length: 5,
       getCell: (index: number, scratch?: ReturnType<typeof cell>) => {
         const src = cells[index] ?? cell("")
-        if (scratch) {
-          Object.assign(scratch, src)
-          return scratch
-        }
-        return src
+        return scratch ? Object.assign(scratch, src) : src
       },
     }
     const chunks = xtermLineToChunks(line)

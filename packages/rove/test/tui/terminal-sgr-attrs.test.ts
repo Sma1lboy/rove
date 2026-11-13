@@ -21,12 +21,10 @@ describe("remaining attribute toggles", () => {
     ["hidden (8)", 8, ATTR.HIDDEN],
     ["strikethrough (9)", 9, ATTR.STRIKETHROUGH],
   ]
-  for (const [name, code, attr] of cases) {
-    test(name, () => {
-      const { chunks } = parseAnsiLine(`${ESC}${code}mx${ESC}0m`)
-      expect(chunks[0]?.attributes).toBe(attr)
-    })
-  }
+  test.each(cases)("%s", (_name, code, attr) => {
+    const { chunks } = parseAnsiLine(`${ESC}${code}mx${ESC}0m`)
+    expect(chunks[0]?.attributes).toBe(attr)
+  })
 })
 
 describe("per-attribute resets (22-29)", () => {
@@ -44,14 +42,12 @@ describe("per-attribute resets (22-29)", () => {
     ["28 clears HIDDEN", 8, 28, ATTR.HIDDEN],
     ["29 clears STRIKETHROUGH", 9, 29, ATTR.STRIKETHROUGH],
   ]
-  for (const [name, set, reset, attr] of resets) {
-    test(name, () => {
-      // set attr + bold, then reset only the attr — bold must survive.
-      const { chunks } = parseAnsiLine(`${ESC}1;${set}ma${ESC}${reset}mb`)
-      expect(chunks[0]?.attributes).toBe(ATTR.BOLD | attr)
-      expect(chunks[1]?.attributes).toBe(ATTR.BOLD)
-    })
-  }
+  test.each(resets)("%s", (_name, set, reset, attr) => {
+    // set attr + bold, then reset only the attr — bold must survive.
+    const { chunks } = parseAnsiLine(`${ESC}1;${set}ma${ESC}${reset}mb`)
+    expect(chunks[0]?.attributes).toBe(ATTR.BOLD | attr)
+    expect(chunks[1]?.attributes).toBe(ATTR.BOLD)
+  })
 })
 
 describe("background color families", () => {

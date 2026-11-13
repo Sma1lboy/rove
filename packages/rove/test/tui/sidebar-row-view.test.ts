@@ -90,9 +90,8 @@ describe("persisted lifecycle status never reaches the runtime row", () => {
 // silently break the sweep geometry.
 describe("sweepBar", () => {
   it("sweepBar always renders exactly `width` cells and the comet crosses the track", () => {
-    for (let frame = 0; frame < 30; frame++) {
-      expect(sweepBar(frame, 8)).toHaveLength(8)
-    }
+    const lengths = Array.from({ length: 30 }, (_, frame) => sweepBar(frame, 8).length)
+    expect(lengths).toEqual(Array(30).fill(8))
     expect(sweepBar(0, 8)).toBe("█       ")
     expect(sweepBar(2, 8)).toBe("▍▋█     ")
     // Head has run off the end: comet fully exited before the wrap.
@@ -126,10 +125,9 @@ describe("rowIsLoading / anyRowLoading (spinner gate)", () => {
         status: { kind: "busy" as const, reason: "deleting" as const, since: 1 },
       },
     ]
-    for (const c of cases) {
-      const built = buildSidebarRowView({ ...base, ...c })
-      expect(rowIsLoading(c.status)).toBe(built.loading)
-    }
+    expect(cases.map((c) => rowIsLoading(c.status))).toEqual(
+      cases.map((c) => buildSidebarRowView({ ...base, ...c }).loading),
+    )
   })
 
   it("anyRowLoading is true iff at least one row has live runtime activity", () => {
