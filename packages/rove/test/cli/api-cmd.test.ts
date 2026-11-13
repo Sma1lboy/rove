@@ -227,6 +227,7 @@ describe("API surface (full CRUD)", () => {
       "rewind",
       "export-branch",
       "worktree-usage",
+      "worktree-reclaim",
       "discover-adoptable",
       "adopt",
       "github-status",

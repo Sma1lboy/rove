@@ -2134,7 +2134,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   removed, residue? }`.
 
   Runs the same path as the Worktrees page's delete: the engine session is
-  torn down before the directory is unlinked, a dirty tree is refused without
+  torn down before the directory is unlinked. Current engine activity is checked
+  before teardown: `running` or `permission_needed` refuses with `TASK_BUSY`
+  unless `--force` is set. A dirty tree is refused without
   `--force`, and every forced removal first takes a salvage snapshot into
   `refs/rove/salvage/<branch>-<stamp>`. Two refusals are this verb's own,
   because it is scriptable and its caller is often an agent inside the very
@@ -2206,6 +2208,21 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
   cloned into the worktree counts in full even while it still shares blocks
   with the main checkout's copy.
+- `worktree-reclaim (--merged | --idle-days N) [--dry-run]`: remove the
+  worktree of every task `worktree-usage` lists under the same filters, in one
+  go. At least one filter is required (`BAD_FLAG` otherwise), so it never
+  removes everything. Each task and its branch stay, as with
+  `remove-worktree`, and `ensure-worktree` brings a checkout back. Nothing is
+  forced: a checkout holding uncommitted, untracked or gitignored work
+  (`DIRTY_WORKTREE` and its siblings), a task whose engine is `running` or
+  `permission_needed` (`TASK_BUSY`), a multi-repo task (`MULTI_REPO`), a
+  directory a child task shares, and the caller's own worktree are skipped
+  with a code and the rest are still removed. `--dry-run` changes nothing and
+  lists what would go; it cannot predict the dirty check, which only the
+  removal runs. Returns `{ dryRun, removed, skipped, bytes }`: each `removed`
+  row is `{ taskId, title, branch, worktreePath, bytes, residue? }`, each
+  `skipped` row adds `{ code, message }`, and `bytes` is what the removed
+  checkouts took (`null` when one could not be measured).
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
   tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
   repository's own primary checkout is never offered — not even when `PATH`

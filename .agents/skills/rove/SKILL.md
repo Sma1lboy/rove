@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 124 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 125 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -486,6 +486,7 @@ A question only the owner can answer goes through a gate, not a MEMO line or the
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize the worktree of a task that already exists, without starting an engine. Not how you get a checkout to work in: that is `add --worktree-only` |
 | `worktree-usage [--task-id ID]` | Disk each task's own worktrees take, largest first (archived too); `ignoredBytes` is the gitignored part. Pick what to free with `remove-worktree` |
+| `worktree-reclaim --merged\|--idle-days N [--dry-run]` | Remove every such candidate's worktree at once, keeping tasks and branches; never forced — dirty, busy and multi-repo ones come back under `skipped` |
 | `checkpoint-list --task-id ID` / `checkpoint --task-id ID` | File-only undo points of a task's worktree (`refs/rove/checkpoints/<owner>/<n>`): the daemon takes one when an engine turn completes (skipped if unchanged, newest 100 kept); `checkpoint` takes one now. Tracked + untracked files, minus gitignored; branch/HEAD/index untouched. They belong to the directory's owner: a child sharing its directory (`add --no-worktree`) acts on its owner's, named in `.workspaceTaskId` |
 | `rewind --task-id ID --to N [--force]` | Restore the worktree files to checkpoint N (files only: branch and conversation stay). Checkpoints the current state first and returns it as `undo.n`, so `rewind --to <undo.n>` goes back. `TASK_BUSY` while any engine sharing the directory (owner or child) is running/awaiting unless `--force` |
 | `land --task-id ID [--repo NAME] [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field. A task that spans several repos (`add --repo A --repo B`) lands every repo in picked order, merges nothing if any refuses, stops at the first conflict (earlier repos stay landed; error carries `.repos[]`), and resumes when you run `land` again; Worktrees go only after the last repo lands |

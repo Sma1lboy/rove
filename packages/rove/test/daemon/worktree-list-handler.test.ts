@@ -152,6 +152,7 @@ describe("worktree.remove", () => {
 
     const order: string[] = []
     const ctx = {
+      activity: { stateOf: () => "idle" },
       runtime: {
         ...daemonRuntime,
         tearDownTaskSession: async (taskId: string) => {
@@ -187,6 +188,7 @@ describe("worktree.remove", () => {
     execSync(`git worktree add -b feature/teardown-fails ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
 
     const ctx = {
+      activity: { stateOf: () => "idle" },
       runtime: {
         ...daemonRuntime,
         tearDownTaskSession: async () => {
@@ -217,6 +219,7 @@ describe("worktree.remove", () => {
    */
   function ctxWithTask(task: { id: string; worktreePath: string; kind?: string }): DaemonHandlerContext {
     return {
+      activity: { stateOf: () => "idle" },
       runtime: { ...daemonRuntime, tearDownTaskSession: async () => {} },
       orch: { listTasks: () => [task], clearWorktreePath: async () => {} },
     } as unknown as DaemonHandlerContext
