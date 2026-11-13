@@ -334,6 +334,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
     }
     const chord = isCopyChord(e)
     if (!chord) return true
+    // Ctrl+Shift+C is also the browser's "inspect element": in the terminal it only ever copies.
+    if (chord === "copy" && e.ctrlKey) e.preventDefault()
     const text = term.getSelection()
     if (text.trim().length === 0) return chord === "interrupt-or-copy"
     void o.copyText(text)
