@@ -56,7 +56,7 @@ export interface DiscoverFailure {
 }
 
 /** Run one command on the machine. Never throws; a spawn failure is exit -1. */
-async function runOnMachine(
+export async function runOnMachine(
   alias: string,
   config: MachineConfig,
   command: string,
@@ -229,7 +229,7 @@ async function probe(
       return {
         ok: false,
         code: "NO_DAEMON",
-        message: `the Rove daemon on ${alias} (pid ${pid}) is running but did not answer: it is busy or hung. It was left alone, because restarting it ends its sessions. If it stays this way, run \`rove daemon restart\` on ${alias}.`,
+        message: `the Rove daemon on ${alias} (pid ${pid}) is running but did not answer: it is busy or hung. It was left alone, because restarting it stops whatever it is doing. If it stays this way, run \`rove daemon restart\` on ${alias}.`,
       }
     }
   }

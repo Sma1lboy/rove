@@ -97,6 +97,10 @@ function RepoList({ model, alias }: { model: AppModel; alias: string }) {
   ))
 }
 
+type UpdateReply =
+  | { ok: true; result: { from: string | null; to: string | null; changed: boolean } }
+  | { ok: false; message: string }
+
 function Machine(props: {
   model: AppModel
   row: MachineRow
@@ -109,6 +113,27 @@ function Machine(props: {
   const key = reasonKey(row.reason)
   const counts = groupByState(tasks).map((group) => `${group.tasks.length} ${t(`rail.state.${group.state}`)}`)
   const toggle = (view: "tasks" | "repos") => setShown(shown === view ? null : view)
+  const [update, setUpdate] = useState<{ busy: boolean; note?: string }>({ busy: false })
+  const runUpdate = () => {
+    setUpdate({ busy: true })
+    model.client.request<UpdateReply>("machines.update", { machine: row.alias }).then(
+      (out) =>
+        setUpdate({
+          busy: false,
+          note: !out.ok
+            ? t("machines.updateFailed", { message: out.message })
+            : t(out.result.changed ? "machines.updated" : "machines.upToDate", {
+                from: out.result.from ?? "?",
+                to: out.result.to ?? "?",
+              }),
+        }),
+      (err: unknown) =>
+        setUpdate({
+          busy: false,
+          note: t("machines.updateFailed", { message: err instanceof Error ? err.message : String(err) }),
+        }),
+    )
+  }
   return (
     <section className={MC_SECTION}>
       <div className={MC_HEAD}>
@@ -116,7 +141,13 @@ function Machine(props: {
         <span className="text-muted">{counts.length > 0 ? counts.join(" · ") : t("machines.noTasks")}</span>
       </div>
       {key && <p className={MC_NOTE}>{t(key)}</p>}
+      {(update.busy || update.note) && <p className={MC_NOTE}>{update.busy ? t("machines.updating") : update.note}</p>}
       <div className={MC_ACTIONS}>
+        {row.behind && (
+          <Button hit="tight" disabled={update.busy} onClick={runUpdate}>
+            {t("machines.update")}
+          </Button>
+        )}
         {online && (
           <Button
             hit="tight"

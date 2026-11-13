@@ -24,6 +24,8 @@ export interface MachineRow {
   readonly version: string | null
   /** Why it is not online (`refused`, `auth-denied`, `lost`…); absent from an older bridge. */
   readonly reason?: string | null
+  /** It runs an older Rove than this machine; absent from an older bridge. */
+  readonly behind?: boolean
 }
 
 /** Machines change state on SSH timescales; the bridge holds the hub's latest. */

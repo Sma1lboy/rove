@@ -12,6 +12,11 @@ export const en = {
     noRepos: "no repos",
     loading: "…",
     reposFailed: "couldn't read its repos: {message}",
+    update: "[ update rove ]",
+    updating: "updating… this can take a few minutes",
+    updated: "updated: v{from} → v{to}",
+    upToDate: "already on the newest build of this machine's channel (v{to})",
+    updateFailed: "couldn't update it: {message}",
     reason: {
       refused: "ssh was refused (nothing is listening or a firewall is in the way)",
       timeout: "ssh timed out",
@@ -43,6 +48,11 @@ export const zh: typeof en = {
     noRepos: "没有仓库",
     loading: "…",
     reposFailed: "读不到它的仓库：{message}",
+    update: "[ 更新 rove ]",
+    updating: "正在更新…可能要几分钟",
+    updated: "已更新：v{from} → v{to}",
+    upToDate: "已经是这台机器所在通道的最新版（v{to}）",
+    updateFailed: "更新失败：{message}",
     reason: {
       refused: "ssh 被拒绝（没有进程在监听，或被防火墙挡住）",
       timeout: "ssh 超时",

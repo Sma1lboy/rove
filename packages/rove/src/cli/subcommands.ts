@@ -36,7 +36,7 @@ export type VerbedSubcommand = "daemon" | "machine" | "plugin" | "repo" | "skill
 
 export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
   daemon: ["status", "start", "stop", "restart", "relay"],
-  machine: ["add", "doctor", "remove", "list", "tunnel", "inbound", "primary"],
+  machine: ["add", "doctor", "update", "remove", "list", "tunnel", "inbound", "primary"],
   plugin: [
     "install",
     "link",

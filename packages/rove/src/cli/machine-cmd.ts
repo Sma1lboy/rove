@@ -14,6 +14,7 @@ import { INBOUND_CLASSES, deniedClasses, setInbound } from "../machines/inbound.
 import {
   type MachineConfig,
   addMachine,
+  dedupeMachines,
   defaultMachineAlias,
   duplicateAliasOf,
   getMachine,
@@ -55,6 +56,7 @@ const MACHINE_USAGE = [
   "Commands:",
   "  add <ssh-target>        Register a machine (verifies it, offering fixes, before saving)",
   "  doctor [alias]          Re-check registered machines and offer the same fixes",
+  "  update [alias]          Update Rove on a machine (all of them without an alias) and restart its daemon",
   "  remove <alias>          Forget a machine (nothing on it is touched)",
   "  list                    Show registered machines",
   "  tunnel <alias>          Keep a reverse tunnel to <alias> so it can reach THIS machine",
@@ -117,6 +119,7 @@ export async function runMachineSubcommand(argv: readonly string[]): Promise<voi
   if (verb === "list") return list()
   if (verb === "add") return await add(rest)
   if (verb === "doctor") return await doctor(rest)
+  if (verb === "update") return await update(rest)
   if (verb === "remove") return remove(rest)
   if (verb === "tunnel") return tunnel(rest)
   if (verb === "inbound") return inbound(rest)
@@ -265,13 +268,43 @@ async function doctor(argv: readonly string[]): Promise<void> {
   if (failed > 0) process.exitCode = 1
 }
 
+/** Sessions on that machine live in its PTY host, so a daemon restart leaves them running. */
+async function update(argv: readonly string[]): Promise<void> {
+  const alias = positionalOf(argv)
+  const entries = dedupeMachines(listMachines()).filter((m) => !alias || m.alias === alias)
+  if (alias && entries.length === 0) fail(`no machine named "${alias}" (see \`${CLI_NAME} machine list\`)`)
+  if (entries.length === 0) {
+    process.stdout.write(`No machines registered. Add one with \`${CLI_NAME} machine add <ssh-target>\`.\n`)
+    return
+  }
+  const { upgradeMachine } = await import("../machines/upgrade.ts")
+  let failed = 0
+  for (const entry of entries) {
+    process.stderr.write(`${CLI_NAME} machine: updating ${entry.alias} (${sshTargetOf(entry)})…\n`)
+    try {
+      const done = await upgradeMachine(entry)
+      const now = done.to ?? "?"
+      const skew = now !== CURRENT_VERSION ? ` (this machine runs ${CURRENT_VERSION})` : ""
+      process.stdout.write(
+        done.changed
+          ? `${entry.alias}  ✓  rove ${done.from ?? "?"} → ${now}${skew}\n`
+          : `${entry.alias}  ✓  already on rove ${now}${skew}\n`,
+      )
+    } catch (err) {
+      failed++
+      process.stdout.write(`${entry.alias}  ✗  ${err instanceof Error ? err.message : String(err)}\n`)
+    }
+  }
+  if (failed > 0) process.exitCode = 1
+}
+
 /** What a working machine still gets wrong: version skew, a noisy shell, a Windows sshd that runs a Unix shell. */
 async function doctorNotes(name: string, config: MachineConfig, found: DiscoverResult): Promise<string[]> {
   const notes: string[] = []
   const windows = isWindowsMachine(config)
   if (found.status.roveVersion && found.status.roveVersion !== CURRENT_VERSION) {
     notes.push(
-      `versions differ: update the older side (\`rove update\`${windows ? " or `npm install -g @sma1lboy/rove`" : ""}), then \`rove daemon restart\` there.`,
+      `versions differ: \`${CLI_NAME} machine update ${name}\` updates that machine from here; if this one is the older, \`${CLI_NAME} update\`.`,
     )
   }
   if (windows && found.shellNoise) {

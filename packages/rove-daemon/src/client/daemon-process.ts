@@ -1,4 +1,5 @@
-import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from "node:fs"
+import { execFile } from "node:child_process"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ROVE_PRODUCT_NAME } from "../compat-env.ts"
@@ -208,12 +209,43 @@ export async function ensureDaemonReachable(
   }
 }
 
+/**
+ * The systemd unit that runs this pid, with the flags that address it; null off Linux or outside a unit.
+ * A user unit sits under `user@<uid>.service` in the cgroup path.
+ */
+export function systemdUnitOf(cgroup: string): readonly string[] | null {
+  const unit = /\/([^/\n]+\.service)\s*$/m.exec(cgroup)?.[1]
+  if (!unit || /^user@\d+\.service$/.test(unit)) return null
+  return /\/user@\d+\.service\//.test(cgroup) ? ["--user", unit] : [unit]
+}
+
+function readSupervisor(pid: number | null): readonly string[] | null {
+  if (!pid) return null
+  try {
+    return systemdUnitOf(readFileSync(`/proc/${pid}/cgroup`, "utf8"))
+  } catch {
+    return null
+  }
+}
+
+function restartUnit(unit: readonly string[]): Promise<boolean> {
+  return new Promise((done) => {
+    execFile("systemctl", [...unit.slice(0, -1), "restart", unit.at(-1) as string], { timeout: 30_000 }, (err) =>
+      done(!err),
+    )
+  })
+}
+
 /** The seams {@link restartDaemon} is tested through. */
 export interface RestartDeps {
   readonly resolveSpawn: (subcommand: readonly string[]) => string[]
   readonly stop: () => Promise<unknown>
   readonly spawn: (command: string, args: string[]) => void
   readonly responds: () => Promise<boolean>
+  /** The service unit running the daemon ({@link systemdUnitOf}); null when nothing supervises it. */
+  readonly supervisor: () => Promise<readonly string[] | null>
+  /** Ask the service manager to restart that unit; false when it refused. */
+  readonly restartUnit: (unit: readonly string[]) => Promise<boolean>
   readonly lockPath: string
   readonly waitMs: number
 }
@@ -233,6 +265,8 @@ export async function restartDaemon(overrides: Partial<RestartDeps> = {}): Promi
     spawn: (command, args) =>
       spawnDetachedDaemon(command, args, autospawnDaemonEnv(process.env, "explicit-restart"), defaultDaemonLogPath()),
     responds: () => testDaemonResponds(socketPath),
+    supervisor: async () => readSupervisor(await readPidFile(pidPath)),
+    restartUnit,
     lockPath: `${pidPath}.spawn-lock`,
     waitMs: SPAWN_LOCK_WAIT_MS,
     ...overrides,
@@ -246,13 +280,22 @@ export async function restartDaemon(overrides: Partial<RestartDeps> = {}): Promi
   try {
     // Resolved before the stop: a stale install throws here having stopped nothing.
     const [command, ...args] = deps.resolveSpawn(DAEMON_START_ARGS)
+    // Read before the stop: afterwards the pid is gone.
+    const unit = await deps.supervisor().catch(() => null)
     await deps.stop().catch(() => {})
-    deps.spawn(command as string, args)
-    const upBy = Date.now() + 10_000
-    while (Date.now() < upBy) {
-      if (await deps.responds()) return
-      await pause(100)
+    const answersWithin = async (ms: number): Promise<boolean> => {
+      const by = Date.now() + ms
+      while (Date.now() < by) {
+        if (await deps.responds()) return true
+        await pause(100)
+      }
+      return false
     }
+    // A supervised daemon comes back through its supervisor: one spawned here would leave the unit
+    // dead, or fight the unit's own restart for the socket.
+    if (unit && (await deps.restartUnit(unit)) && (await answersWithin(10_000))) return
+    deps.spawn(command as string, args)
+    if (await answersWithin(10_000)) return
     throw new Error(`rove: the daemon did not come back at ${socketPath}; check ${defaultDaemonLogPath()}`)
   } finally {
     try {

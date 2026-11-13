@@ -4,7 +4,7 @@ import { BridgeError } from "../src/protocol.ts"
 import { fakeApi } from "./task-ops-harness.ts"
 
 test("machines.list reports each machine's state and why it is down, never the raw ssh error or a duplicate alias", async () => {
-  const store = new MachineStore()
+  const store = new MachineStore("0.9.250")
   store.set([
     { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246" },
     {
@@ -19,8 +19,8 @@ test("machines.list reports each machine's state and why it is down, never the r
   const reply = await createMachineOps(store)["machines.list"]?.run({}, {} as never)
   expect(reply).toEqual({
     machines: [
-      { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246", reason: null },
-      { alias: "otter", hostLabel: "otter", state: "offline", version: null, reason: "auth-denied" },
+      { alias: "narwhal", hostLabel: "narwhal", state: "online", version: "0.9.246", reason: null, behind: true },
+      { alias: "otter", hostLabel: "otter", state: "offline", version: null, reason: "auth-denied", behind: false },
     ],
   })
   expect(JSON.stringify(reply)).not.toContain("10.0.0.7")
@@ -114,4 +114,16 @@ test("machines.engines says which engines a machine has installed, and nothing w
     },
   })
   expect(old?.result).toEqual({ engines: [] })
+})
+
+test("machines.update runs machine-update here, naming the machine, and reports a failure as a value", async () => {
+  const { api, calls } = fakeApi({ "machine-update": { alias: "deck", from: "0.9.289", to: "0.9.291", changed: true } })
+  const run = (args: Record<string, unknown>) =>
+    createMachineOps(new MachineStore())["machines.update"]?.run(args, { api })
+  expect(await run({ machine: "deck" })).toEqual({
+    ok: true,
+    result: { alias: "deck", from: "0.9.289", to: "0.9.291", changed: true },
+  })
+  expect(calls).toEqual([{ verb: "machine-update", argv: ["--to=deck"] }])
+  expect(run({})).rejects.toThrow(BridgeError)
 })
