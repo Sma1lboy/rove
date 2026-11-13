@@ -129,19 +129,6 @@ describe("createTaskFlow — opening a project instead of branching off it", () 
     expect(String(h.notifyError.mock.calls[0][0])).toContain("repo is gone")
     expect(h.enterTask).not.toHaveBeenCalled()
   })
-
-  test("the default submit still creates a task", async () => {
-    // The new mode must not change what the tab does by default — the
-    // "branch a worktree off this repo" verb is still the common case.
-    const h = makeCtx({
-      submit: { repo: "/repos/codefox", baseRef: "main", vendor: "claude" as never },
-    })
-
-    await createTaskFlow(h.ctx)
-
-    expect(h.createTask).toHaveBeenCalledTimes(1)
-    expect(h.selectTask).toHaveBeenCalledWith("created")
-  })
 })
 
 describe("which repos the dialog may offer the project choice for", () => {

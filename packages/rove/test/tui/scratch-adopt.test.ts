@@ -160,28 +160,26 @@ describe("decideScratchAdopt", () => {
     ).toEqual({ kind: "adopt", repo: "/repos/rove", known: true })
   })
 
-  it("folds a shell in a shared directory into its owner, never one of the children", () => {
-    const owner: ScratchOwnerTask = { id: "T-owner", kind: "task", dir: "/wt/rove/shared" }
-    const child: ScratchOwnerTask = {
-      id: "T-child",
-      kind: "task",
-      dir: "/wt/rove/shared",
-      sharesWorkspaceOf: "T-owner",
-    }
-    for (const ownerTasks of [
-      [child, owner],
-      [owner, child],
-    ]) {
-      expect(
-        decideScratchAdopt({
-          cwd: "/wt/rove/shared",
-          repoRoot: "/repos/rove",
-          harnessLive: true,
-          knownRepos: known,
-          ownerTasks,
-        }),
-      ).toEqual({ kind: "fold", taskId: "T-owner" })
-    }
+  const sharedOwner: ScratchOwnerTask = { id: "T-owner", kind: "task", dir: "/wt/rove/shared" }
+  const sharedChild: ScratchOwnerTask = {
+    id: "T-child",
+    kind: "task",
+    dir: "/wt/rove/shared",
+    sharesWorkspaceOf: "T-owner",
+  }
+  it.each([
+    ["child first", [sharedChild, sharedOwner]],
+    ["owner first", [sharedOwner, sharedChild]],
+  ])("folds a shell in a shared directory into its owner, never one of the children (%s)", (_order, ownerTasks) => {
+    expect(
+      decideScratchAdopt({
+        cwd: "/wt/rove/shared",
+        repoRoot: "/repos/rove",
+        harnessLive: true,
+        knownRepos: known,
+        ownerTasks,
+      }),
+    ).toEqual({ kind: "fold", taskId: "T-owner" })
   })
 })
 

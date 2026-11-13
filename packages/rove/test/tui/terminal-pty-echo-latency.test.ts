@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { SNAPSHOT_COALESCE_MS } from "../../src/tui/panes/terminal/pty-xterm-base"
 import { FakeTransportPty } from "./pty-fake"
 
@@ -19,6 +19,10 @@ import { FakeTransportPty } from "./pty-fake"
  * the bug.
  */
 describe("XtermTaskPty snapshot coalesce", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("publishes output arriving at an idle terminal without waiting a frame", async () => {
     const pty = new FakeTransportPty({ taskId: "t1", cwd: "/wt" })
     let published = 0
@@ -66,11 +70,13 @@ describe("XtermTaskPty snapshot coalesce", () => {
       published++
     })
 
+    // Only the clock is faked: xterm's parse still runs on real timers.
+    vi.useFakeTimers({ toFake: ["Date"] })
     await pty.pump("one")
     expect(published).toBe(1)
 
     // Idle longer than the window, the way a human pauses between keystrokes.
-    await new Promise((resolve) => setTimeout(resolve, SNAPSHOT_COALESCE_MS + 20))
+    vi.setSystemTime(Date.now() + SNAPSHOT_COALESCE_MS + 1)
     await pty.pump("two")
     expect(published).toBe(2)
 

@@ -6,11 +6,11 @@
  * debounces the Stop race, and reports `turn-interrupted`.
  */
 
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { engineTitleTurnHint } from "../../src/engine/registry"
 import { InterruptObserver } from "../../src/tui/workspace/interrupt-observer"
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms)
 
 function observer(opts: { confirm?: (tabId: string) => boolean; confirmMs?: number }) {
   const reported: string[] = []
@@ -24,8 +24,12 @@ function observer(opts: { confirm?: (tabId: string) => boolean; confirmMs?: numb
 }
 
 const observers: InterruptObserver[] = []
+beforeEach(() => {
+  vi.useFakeTimers()
+})
 afterEach(() => {
   for (const o of observers.splice(0)) o.dispose()
+  vi.useRealTimers()
 })
 
 describe("engineTitleTurnHint", () => {
@@ -57,8 +61,9 @@ describe("InterruptObserver", () => {
   it("reports a hook-running tab whose title rested for the confirm window", async () => {
     const { o, reported } = observer({})
     o.observe("tab-1", { rawTitle: "✳ 修复构建失败", vendor: "claude", hookRunning: true })
+    await wait(19)
     expect(reported).toEqual([])
-    await wait(60)
+    await wait(1)
     expect(reported).toEqual(["tab-1"])
   })
 

@@ -6,7 +6,7 @@
  * is released the moment that process is gone.
  */
 
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { TaskPtyLike } from "../../src/tui/panes/terminal/pty-types"
 import { createLiveEngines } from "../../src/tui/workspace/live-engine"
 
@@ -25,6 +25,10 @@ const IDLE = `
 `
 
 describe("createLiveEngines", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("identifies the engine under each tab's own shell, and only that tab's", async () => {
     const store = createLiveEngines({
       entries: () => [
@@ -149,16 +153,14 @@ describe("createLiveEngines", () => {
   })
 
   it("keeps the last identity when ps fails — never guesses", async () => {
-    let fail = false
     const store = createLiveEngines({
       entries: () => [["a", pty(100)]],
-      snapshot: async () => {
-        if (fail) throw new Error("ps: cannot fork")
-        return TREE
-      },
+      snapshot: vi
+        .fn<() => Promise<string>>()
+        .mockResolvedValueOnce(TREE)
+        .mockRejectedValue(new Error("ps: cannot fork")),
     })
     await store.probe()
-    fail = true
     await store.probe()
     expect(store.get("a")).toBe("claude")
     store.dispose()
@@ -166,38 +168,34 @@ describe("createLiveEngines", () => {
 
   it("skips the ps walk on ticks where no tab printed, but still sees an engine that starts", async () => {
     vi.useFakeTimers()
-    try {
-      let tree = IDLE
-      let lastOut: number | null = 1
-      let walks = 0
-      const tab = { shellPid: 100, lastOutputAtMs: () => lastOut } as unknown as TaskPtyLike
-      const store = createLiveEngines({
-        entries: () => [["a", tab]],
-        snapshot: async () => {
-          walks++
-          return tree
-        },
-        intervalMs: 1000,
-        maxQuietSkipMs: 5000,
-      })
-      await vi.advanceTimersByTimeAsync(1000)
-      await vi.advanceTimersByTimeAsync(3000)
-      expect(walks).toBe(1)
+    let tree = IDLE
+    let lastOut: number | null = 1
+    let walks = 0
+    const tab = { shellPid: 100, lastOutputAtMs: () => lastOut } as unknown as TaskPtyLike
+    const store = createLiveEngines({
+      entries: () => [["a", tab]],
+      snapshot: async () => {
+        walks++
+        return tree
+      },
+      intervalMs: 1000,
+      maxQuietSkipMs: 5000,
+    })
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(walks).toBe(1)
 
-      // `claude` typed at the prompt: the echo and the engine's UI are output.
-      tree = TREE
-      lastOut = 2
-      await vi.advanceTimersByTimeAsync(1000)
-      expect(walks).toBe(2)
-      expect(store.get("a")).toBe("claude")
+    // `claude` typed at the prompt: the echo and the engine's UI are output.
+    tree = TREE
+    lastOut = 2
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(walks).toBe(2)
+    expect(store.get("a")).toBe("claude")
 
-      // A silent change is still seen within maxQuietSkipMs.
-      tree = IDLE
-      await vi.advanceTimersByTimeAsync(5000)
-      expect(walks).toBe(3)
-      store.dispose()
-    } finally {
-      vi.useRealTimers()
-    }
+    // A silent change is still seen within maxQuietSkipMs.
+    tree = IDLE
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(walks).toBe(3)
+    store.dispose()
   })
 })

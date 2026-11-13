@@ -51,13 +51,12 @@ describe("normalizeChord", () => {
     expect(chordOf("+")).toBe("+")
   })
 
-  test("a dangling modifier (no key after the +) is an error, not silently Ctrl+Plus", () => {
-    for (const raw of ["ctrl+", "cmd+alt+", "ctrl+shift+", "shift+"]) {
-      const r = normalizeChord(raw)
-      if (!("error" in r)) throw new Error(`expected ${raw} to error, got chord ${r.chord}`)
-      expect(r.error).toMatch(/no key after the modifiers/)
-    }
-  })
+  test.each(["ctrl+", "cmd+alt+", "ctrl+shift+", "shift+"])(
+    "a dangling modifier (%s) is an error, not silently Ctrl+Plus",
+    (raw) => {
+      expect(normalizeChord(raw)).toMatchObject({ error: expect.stringMatching(/no key after the modifiers/) })
+    },
+  )
 
   test("accepts bare shift+<char>; rejects shift with other modifiers on a single char", () => {
     expect(chordOf("shift+p")).toBe("shift+p")
@@ -73,10 +72,10 @@ describe("normalizeChord", () => {
   })
 
   test("unknown multi-char key names apply but warn (may never fire)", () => {
-    const r = normalizeChord("ctrl+banana")
-    if ("error" in r) throw new Error("should not hard-fail")
-    expect(r.chord).toBe("ctrl+banana")
-    expect(r.warning).toMatch(/may never fire/)
+    expect(normalizeChord("ctrl+banana")).toEqual({
+      chord: "ctrl+banana",
+      warning: expect.stringMatching(/may never fire/),
+    })
   })
 })
 

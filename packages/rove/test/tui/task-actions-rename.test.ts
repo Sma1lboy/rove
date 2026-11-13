@@ -247,7 +247,7 @@ describe("cycleVendorFlow", () => {
     const tasks = [makeTask({ id: "t1" })]
     const { ctx } = makeCtx({ tasks, orch: null })
 
-    await cycleVendorFlow(ctx, "t1")
+    await expect(cycleVendorFlow(ctx, "t1")).resolves.toBeUndefined()
   })
 })
 
@@ -409,7 +409,7 @@ describe("copyTaskFieldFlow", () => {
     await copyTaskFieldFlow(ctx, "t1", "path")
 
     expect(copyText).toHaveBeenCalledWith("/wt/not-yet")
-    for (const fn of Object.values(orch)) expect(fn).not.toHaveBeenCalled()
+    expect(Object.values(orch).filter((fn) => fn.mock.calls.length > 0)).toEqual([])
   })
 
   test("id: copies the task id `rove api --task-id` takes, even before the worktree exists", async () => {

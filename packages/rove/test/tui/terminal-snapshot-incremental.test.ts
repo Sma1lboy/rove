@@ -22,9 +22,9 @@ it("allocates chunks only for the changed row and agrees with a fresh snapshot a
       last?.cursor ?? null,
       last?.snapshotWindow ?? null,
     )
-    if (!result) throw new Error("unexpected synchronized output")
-    last = result
-    return result
+    expect(result).not.toBeNull()
+    last = result!
+    return last
   }
   const fresh = () => {
     const otherTracker = new XtermRefreshTracker(term)

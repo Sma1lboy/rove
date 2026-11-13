@@ -3,6 +3,7 @@ import { type Recording, recordStroke } from "../../src/tui/lib/chord-recorder"
 
 const start = (slots = 1): Recording => ({ id: "x", slots, got: [], prefixArmed: false })
 const PREFIX = ["ctrl+a"]
+type More = Extract<ReturnType<typeof recordStroke>, { kind: "more" }>
 
 describe("recordStroke", () => {
   it("records a direct chord", () => {
@@ -10,8 +11,8 @@ describe("recordStroke", () => {
   })
 
   it("records the stroke after the prefix key as a prefix binding", () => {
-    const armed = recordStroke(start(), ["ctrl+a"], PREFIX)
-    if (armed.kind !== "more") throw new Error("expected the recorder to wait for the second stroke")
+    const armed = recordStroke(start(), ["ctrl+a"], PREFIX) as More
+    expect(armed.kind).toBe("more")
     expect(recordStroke(armed.recording, ["shift+p", "p"], PREFIX)).toEqual({
       kind: "done",
       mode: "prefix",
@@ -20,8 +21,8 @@ describe("recordStroke", () => {
   })
 
   it("collects every slot of a paired binding before finishing", () => {
-    const first = recordStroke(start(2), ["w"], PREFIX)
-    if (first.kind !== "more") throw new Error("expected a second slot")
+    const first = recordStroke(start(2), ["w"], PREFIX) as More
+    expect(first.kind).toBe("more")
     expect(recordStroke(first.recording, ["s"], PREFIX)).toEqual({ kind: "done", mode: "direct", keys: ["w", "s"] })
   })
 

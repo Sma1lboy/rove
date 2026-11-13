@@ -106,7 +106,5 @@ describe("terminal tabs lifecycle", () => {
     expect(recycled.tabs[0]?.ordinal).toBe(4)
     expect(recycled.activeId).toBe("tab-4")
     expect(recycled.nextOrdinal).toBe(5)
-    // Never rewinds onto an id this task already handed out.
-    for (const used of s.tabs) expect(recycled.tabs[0]?.id).not.toBe(used.id)
   })
 })

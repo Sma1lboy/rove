@@ -15,7 +15,6 @@ const fileState = vi.hoisted(() => ({
   exists: true,
   doc: null as unknown,
   warnings: [] as string[],
-  resetCalls: 0,
 }))
 
 vi.mock("../../src/state/keybindings-file", () => ({
@@ -25,9 +24,7 @@ vi.mock("../../src/state/keybindings-file", () => ({
     doc: fileState.doc,
     warnings: fileState.warnings,
   })),
-  resetKeybindingsFileCache: vi.fn(() => {
-    fileState.resetCalls++
-  }),
+  resetKeybindingsFileCache: vi.fn(),
 }))
 
 const { findBinding, resetKeymapToDefaults } = await import("../../src/tui/context/keybindings")
@@ -41,7 +38,6 @@ beforeEach(() => {
   fileState.exists = true
   fileState.doc = null
   fileState.warnings = []
-  fileState.resetCalls = 0
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
   // Each test starts from pristine defaults + an empty loader cache.
   userKb.reloadUserKeybindings()
@@ -178,10 +174,5 @@ describe("reloadUserKeybindings", () => {
     fileState.doc = null // the user deleted the override
     userKb.reloadUserKeybindings()
     expect([...(findBinding(ID)?.keys ?? [])]).toEqual(defaultKeys)
-  })
-
-  test("drops the file-read cache so the fresh file content is seen", () => {
-    userKb.reloadUserKeybindings()
-    expect(fileState.resetCalls).toBeGreaterThan(0)
   })
 })

@@ -34,6 +34,20 @@ function collectingOutput() {
   }
 }
 
+/** Cuts `s` into chunks whose widths rotate with `seed`, so chunk boundaries land everywhere. */
+function rotatingChunks(s: string, seed: number): string[] {
+  const out: string[] = []
+  for (let offset = 0; offset < s.length; ) {
+    const width = (seed + offset) % 11 || 1
+    out.push(s.slice(offset, offset + width))
+    offset += width
+  }
+  return out
+}
+
+/** Every split point strictly inside `s`. */
+const splitsOf = (s: string): number[] => Array.from({ length: s.length - 1 }, (_, i) => i + 1)
+
 describe("ImeAnchorController", () => {
   it("lets only the current owner clear the shared anchor", () => {
     const controller = new ImeAnchorController()
@@ -89,17 +103,15 @@ describe("createImeAnchoredOutput", () => {
     expect(sink.text()).toBe(`${SYNC_START}${HIDE_CURSOR}\x1b[2;3HA${SYNC_END}`)
   })
 
-  it("recognizes a synchronized-frame opener split at every byte boundary", () => {
-    for (let split = 1; split < SYNC_START.length; split += 1) {
-      const sink = collectingOutput()
-      const anchored = createImeAnchoredOutput(sink.output, new ImeAnchorController())
+  it.each(splitsOf(SYNC_START))("recognizes a synchronized-frame opener split at byte %i", (split) => {
+    const sink = collectingOutput()
+    const anchored = createImeAnchoredOutput(sink.output, new ImeAnchorController())
 
-      anchored.stdout.write(Buffer.from(`plain${SYNC_START.slice(0, split)}`))
-      anchored.stdout.write(Buffer.from(`${SYNC_START.slice(split)}frame${SYNC_END}`))
-      anchored.flush()
+    anchored.stdout.write(Buffer.from(`plain${SYNC_START.slice(0, split)}`))
+    anchored.stdout.write(Buffer.from(`${SYNC_START.slice(split)}frame${SYNC_END}`))
+    anchored.flush()
 
-      expect(sink.text(), `split=${split}`).toBe(`plain${SYNC_START}frame${SYNC_END}`)
-    }
+    expect(sink.text()).toBe(`plain${SYNC_START}frame${SYNC_END}`)
   })
 
   it("drops a truncated update when a fresh synchronized frame starts", () => {
@@ -116,20 +128,15 @@ describe("createImeAnchoredOutput", () => {
   it("keeps a high-churn sequence complete across rotating chunk boundaries", () => {
     const sink = collectingOutput()
     const anchored = createImeAnchoredOutput(sink.output, new ImeAnchorController())
-    const expected: string[] = []
-
-    for (let frame = 0; frame < 250; frame += 1) {
-      const transaction = `${SYNC_START}\x1b[${(frame % 40) + 1};1Hframe-${frame}${SYNC_END}`
-      expected.push(transaction)
-      for (let offset = 0; offset < transaction.length; ) {
-        const width = (frame + offset) % 11 || 1
-        anchored.stdout.write(transaction.slice(offset, offset + width))
-        offset += width
-      }
-    }
+    const transactions = Array.from(
+      { length: 250 },
+      (_, frame) => `${SYNC_START}\x1b[${(frame % 40) + 1};1Hframe-${frame}${SYNC_END}`,
+    )
+    const chunks = transactions.flatMap((transaction, frame) => rotatingChunks(transaction, frame))
+    chunks.map((chunk) => anchored.stdout.write(chunk))
 
     anchored.flush()
-    expect(sink.text()).toBe(expected.join(""))
+    expect(sink.text()).toBe(transactions.join(""))
   })
 
   it("ends every animated diff frame at the same hidden IME anchor", () => {
@@ -148,21 +155,18 @@ describe("createImeAnchoredOutput", () => {
     expect(sink.text()).toBe(leftFrame.replace(SYNC_END, expectedAnchor) + rightFrame.replace(SYNC_END, expectedAnchor))
   })
 
-  it("recognizes a synchronized-frame terminator split at every byte boundary", () => {
+  it.each(splitsOf(SYNC_END))("recognizes a synchronized-frame terminator split at byte %i", (split) => {
     const framePrefix = `${SYNC_START}${HIDE_CURSOR}\x1b[9;16HR`
+    const sink = collectingOutput()
+    const controller = new ImeAnchorController()
+    const anchored = createImeAnchoredOutput(sink.output, controller)
+    controller.claim(Symbol("terminal"), { x: 6, y: 4 })
 
-    for (let split = 1; split < SYNC_END.length; split += 1) {
-      const sink = collectingOutput()
-      const controller = new ImeAnchorController()
-      const anchored = createImeAnchoredOutput(sink.output, controller)
-      controller.claim(Symbol(`terminal-${split}`), { x: 6, y: 4 })
+    anchored.stdout.write(Buffer.from(framePrefix + SYNC_END.slice(0, split)))
+    anchored.stdout.write(Buffer.from(SYNC_END.slice(split)))
+    anchored.flush()
 
-      anchored.stdout.write(Buffer.from(framePrefix + SYNC_END.slice(0, split)))
-      anchored.stdout.write(Buffer.from(SYNC_END.slice(split)))
-      anchored.flush()
-
-      expect(sink.text(), `split=${split}`).toBe(`${framePrefix}\x1b[5;7H${HIDE_CURSOR}${SYNC_END}`)
-    }
+    expect(sink.text()).toBe(`${framePrefix}\x1b[5;7H${HIDE_CURSOR}${SYNC_END}`)
   })
 
   it("drops an incomplete synchronized update on flush", () => {

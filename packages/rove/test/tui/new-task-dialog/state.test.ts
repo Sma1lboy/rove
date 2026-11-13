@@ -129,12 +129,13 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
     expect(splitRepoRow("/Users/me/i/rove")).toEqual({ base: "rove", dir: "/Users/me/i/" })
   })
 
-  it("round-trips: dir + base is the original path, so the row shows the same string", () => {
-    for (const path of ["/Users/me/i/rove", "/a/b", "/root", "rel/path"]) {
+  it.each(["/Users/me/i/rove", "/a/b", "/root", "rel/path"])(
+    "round-trips: dir + base is the original path, so the row shows the same string (%s)",
+    (path) => {
       const { base, dir } = splitRepoRow(path)
       expect(dir + base).toBe(path)
-    }
-  })
+    },
+  )
 
   it("leaves a bare name whole — nothing to demote, so the row renders as before", () => {
     expect(splitRepoRow("rove")).toEqual({ base: "rove", dir: "" })

@@ -23,11 +23,12 @@ const pressStartsSelection = (
 }
 
 describe("press: the app's mouse tracking decides who gets the click", () => {
-  it("yields the press in a mouse-aware app, so no selection starts", () => {
-    for (const mode of ["x10", "vt200", "drag", "any"] as const) {
+  it.each(["x10", "vt200", "drag", "any"] as const)(
+    "yields the press in a mouse-aware app (%s), so no selection starts",
+    (mode) => {
       expect(pressStartsSelection(mode)).toBe(false)
-    }
-  })
+    },
+  )
 
   it("keeps the press at a plain prompt, so a selection starts", () => {
     expect(pressStartsSelection("none")).toBe(true)

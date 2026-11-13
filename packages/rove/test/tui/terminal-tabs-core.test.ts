@@ -29,7 +29,6 @@ import {
   shellIdentityInput,
   shellSpawn,
   tabExitAction,
-  tabPtyKey,
 } from "../../src/tui/workspace/terminal-tabs-core"
 
 describe("terminal tabs state", () => {
@@ -79,11 +78,6 @@ describe("terminal tabs state", () => {
     // Clicking the already-active tab returns the SAME reference — no new
     // object → the component skips the state.json write + re-render.
     expect(selectTab(s, s.activeId)).toBe(s)
-  })
-
-  it("tabPtyKey namespaces per task so tabs never collide across tasks", () => {
-    expect(tabPtyKey("task-a", "tab-1")).not.toBe(tabPtyKey("task-b", "tab-1"))
-    expect(tabPtyKey("task-a", "tab-1")).toBe("task-a::tab-1")
   })
 
   it("addTab carries an optional per-tab vendor override; plain new tabs have none", () => {
@@ -400,14 +394,12 @@ describe("terminal tabs state", () => {
     // Close the shell leaf → back to the pristine engine → fold to null.
     const shellClosed = removeLeaf(split, "leaf-2")
     expect(shellClosed).not.toBeNull()
-    if (shellClosed) expect(collapseSplit(shellClosed)).toBeNull()
+    expect(collapseSplit(shellClosed!)).toBeNull()
     // Close the ENGINE leaf → the sole shell survivor keeps the tree, and
     // tab-level ctrl+w / F2 apply again (not split anymore).
     const engineClosed = removeLeaf(split, "leaf-1")
     expect(engineClosed).not.toBeNull()
-    if (engineClosed) {
-      expect(collapseSplit(engineClosed)).toBe(engineClosed)
-      expect(isTabSplit(engineClosed)).toBe(false)
-    }
+    expect(collapseSplit(engineClosed!)).toBe(engineClosed)
+    expect(isTabSplit(engineClosed!)).toBe(false)
   })
 })

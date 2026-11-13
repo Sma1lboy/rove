@@ -83,16 +83,12 @@ describe("validateTheme — a typo is named, not silently black", () => {
     expect(validateTheme({ defs: { brand: "rgb(1, 2, 3)" }, theme: {} }).ok).toBe(true)
   })
 
-  test("rejects a malformed literal and names the value", () => {
-    for (const value of [
-      { theme: { accent: "rgb(300, 0, 0)" } },
-      { theme: { accent: { dark: "rgb(300, 0, 0)", light: "#fff" } } },
-      { defs: { brand: "rgb(300, 0, 0)" }, theme: {} },
-    ]) {
-      const result = validateTheme(value)
-      expect(result.ok).toBe(false)
-      expect(result.ok === false && result.reason).toContain("rgb(300, 0, 0)")
-    }
+  test.each([
+    ["a slot", { theme: { accent: "rgb(300, 0, 0)" } }],
+    ["a variant", { theme: { accent: { dark: "rgb(300, 0, 0)", light: "#fff" } } }],
+    ["defs", { defs: { brand: "rgb(300, 0, 0)" }, theme: {} }],
+  ])("rejects a malformed literal in %s and names the value", (_where, value) => {
+    expect(validateTheme(value)).toMatchObject({ ok: false, reason: expect.stringContaining("rgb(300, 0, 0)") })
   })
 
   test("a plain def name is still a ref, not a rejected literal", () => {

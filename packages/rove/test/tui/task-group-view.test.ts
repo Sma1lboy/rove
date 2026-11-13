@@ -47,9 +47,9 @@ describe("taskGroupIn", () => {
 
 describe("taskGroupLabel / taskGroupTone", () => {
   it("gives a label exactly when it gives a tone", () => {
-    for (const group of TASK_GROUPS) {
-      expect(taskGroupLabel(group) === null).toBe(taskGroupTone(group) === null)
-    }
+    expect(TASK_GROUPS.map((group) => taskGroupLabel(group) === null)).toEqual(
+      TASK_GROUPS.map((group) => taskGroupTone(group) === null),
+    )
   })
 })
 

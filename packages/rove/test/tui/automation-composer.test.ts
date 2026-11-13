@@ -20,6 +20,8 @@ const FULL: ComposerDraft = {
 /** Friday 31 July 2026, 10:00 local — the reference "now" for every preview test. */
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 
+type OkPreview = Extract<ReturnType<typeof previewSchedule>, { kind: "ok" }>
+
 describe("field order", () => {
   test("tab walks the card and wraps", () => {
     expect(nextComposerField("name")).toBe("repo")
@@ -36,14 +38,16 @@ describe("field order", () => {
     expect(nextComposerField("bogus" as never)).toBe("name")
   })
 
-  test("every field is reachable by tabbing once around", () => {
-    const seen = new Set<string>()
-    let field = COMPOSER_FIELDS[0] as (typeof COMPOSER_FIELDS)[number]
-    for (let i = 0; i < COMPOSER_FIELDS.length; i++) {
-      seen.add(field)
-      field = nextComposerField(field, 1, true)
-    }
-    expect(seen.size).toBe(COMPOSER_FIELDS.length)
+  test("with a bound target, every field is reachable by tabbing once around", () => {
+    expect(COMPOSER_FIELDS.map((field) => nextComposerField(field, 1, true))).toEqual([
+      "repo",
+      "target",
+      "targetTab",
+      "prompt",
+      "schedule",
+      "confirm",
+      "name",
+    ])
   })
 })
 
@@ -106,9 +110,7 @@ describe("previewSchedule", () => {
 
   test("adds the date once it is more than a week out", () => {
     // Next Feb 1 from July is far enough that "Sun 00:00" would be ambiguous.
-    const preview = previewSchedule("0 0 1 2 *", NOW)
-    if (preview.kind !== "ok") throw new Error("expected a schedule")
-    expect(preview.absolute).toContain("Feb 1")
+    expect(previewSchedule("0 0 1 2 *", NOW)).toMatchObject({ kind: "ok", absolute: expect.stringContaining("Feb 1") })
   })
 
   test("relative time is phrased at the coarsest useful unit", () => {
@@ -118,8 +120,8 @@ describe("previewSchedule", () => {
 
   test("the preview's own timestamp is the time it claims", () => {
     // Guards the two formatters drifting from the timestamp they describe.
-    const preview = previewSchedule("0 9 * * *", NOW)
-    if (preview.kind !== "ok") throw new Error("expected a schedule")
+    const preview = previewSchedule("0 9 * * *", NOW) as OkPreview
+    expect(preview.kind).toBe("ok")
     const at = new Date(preview.nextRunMs)
     expect(at.getHours()).toBe(9)
     expect(preview.nextRunMs).toBeGreaterThan(NOW)
@@ -143,23 +145,16 @@ describe("the schedule preview under a non-English locale", () => {
   })
   afterEach(() => setLocaleLang(restore))
 
-  test("the recurrence phrase carries no English", () => {
-    expect(describeCron("0 9 * * MON-FRI")).toBe("工作日09:00")
-    for (const cron of [
-      "0 9 * * MON-FRI",
-      "0 9 * * SAT,SUN",
-      "30 6 * * *",
-      "*/15 * * * *",
-      "0 */6 * * *",
-      "0 9 * * TUE",
-    ]) {
-      expect(describeCron(cron), cron).not.toMatch(ASCII_LETTER)
-    }
-  })
+  test.each(["0 9 * * MON-FRI", "0 9 * * SAT,SUN", "30 6 * * *", "*/15 * * * *", "0 */6 * * *", "0 9 * * TUE"])(
+    "the recurrence phrase for %s carries no English",
+    (cron) => {
+      expect(describeCron(cron)).not.toMatch(ASCII_LETTER)
+    },
+  )
 
   test("the next-run clock and date carry no English", () => {
-    const preview = previewSchedule("0 9 * * MON-FRI", NOW)
-    if (preview.kind !== "ok") throw new Error("expected a schedule")
+    const preview = previewSchedule("0 9 * * MON-FRI", NOW) as OkPreview
+    expect(preview.kind).toBe("ok")
     expect(preview.relative).not.toMatch(ASCII_LETTER)
     expect(preview.absolute).not.toMatch(ASCII_LETTER)
     // The whole line, as the composer assembles it.
@@ -167,8 +162,8 @@ describe("the schedule preview under a non-English locale", () => {
   })
 
   test("a date beyond the week follows the locale's own order, not an English template", () => {
-    const preview = previewSchedule("0 0 1 2 *", NOW)
-    if (preview.kind !== "ok") throw new Error("expected a schedule")
+    const preview = previewSchedule("0 0 1 2 *", NOW) as OkPreview
+    expect(preview.kind).toBe("ok")
     // zh-CN puts the month first and the weekday last; the old WEEKDAYS /
     // MONTHS tables could only ever emit `Mon Feb 1, 00:00`.
     expect(preview.absolute).toContain("2月1日")

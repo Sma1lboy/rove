@@ -26,11 +26,9 @@ function crestTick(index: number, cells: number): number {
 }
 
 describe("shimmer", () => {
-  it("moves the band the same cells per tick on a short and a long label", () => {
-    for (const cells of [8, 60]) {
-      const ticks = crestTick(6, cells) - crestTick(2, cells)
-      expect(4 / ticks).toBeCloseTo(SHIMMER_CELLS_PER_TICK, 1)
-    }
+  it.each([8, 60])("moves the band the same cells per tick on a %i-cell label", (cells) => {
+    const ticks = crestTick(6, cells) - crestTick(2, cells)
+    expect(4 / ticks).toBeCloseTo(SHIMMER_CELLS_PER_TICK, 1)
   })
 
   it("lights nothing beyond the band's edge", () => {
@@ -41,8 +39,9 @@ describe("shimmer", () => {
     expect(shimmerIntensity(0, 30, 0)).toBe(0)
   })
 
-  it("rests dark between sweeps, so neither the loop nor the tick wrap jumps the band", () => {
-    for (const cells of [5, 23, 41]) {
+  it.each([5, 23, 41])(
+    "rests dark between sweeps, so neither the loop nor the tick wrap jumps the band (%i cells)",
+    (cells) => {
       const lit = (tick: number) => Array.from({ length: cells }, (_, i) => shimmerIntensity(i, cells, tick))
       const loopTicks = shimmerLoop(cells) / SHIMMER_CELLS_PER_TICK
       expect(lit(loopTicks - 0.01).every((v) => v === 0)).toBe(true)
@@ -50,8 +49,8 @@ describe("shimmer", () => {
       const mid = crestTick(Math.floor(cells / 2), cells)
       const round = (vs: number[]) => vs.map((v) => v.toFixed(6))
       expect(round(lit(mid + SPINNER_TICK_CYCLE))).toEqual(round(lit(mid)))
-    }
-  })
+    },
+  )
 
   it("blends rgb inks and switches palette inks whole at the crest", () => {
     const muted = RGBA.fromInts(100, 100, 100)

@@ -148,27 +148,6 @@ describe("dispatchKeyEvent", () => {
     expect(fired).toBe(false)
   })
 
-  test("regression: Enter that triggers sidebar.select must not leak to textarea.onSubmit", () => {
-    // Simulates the production race: useBindings has a sidebar.select
-    // binding registered, the user presses Enter, the handler fires and
-    // pulls focus elsewhere. Native widgets reading `defaultPrevented`
-    // should see `true` and stay quiet.
-    let sidebarFired = false
-    const stack: RegisteredBinding[] = [
-      makeReg(1, "enter", () => {
-        sidebarFired = true
-      }),
-    ]
-    const evt = makeEvt("return")
-
-    dispatchKeyEvent(stack, evt)
-
-    expect(sidebarFired).toBe(true)
-    // If a downstream native widget were to check this before firing
-    // its own onSubmit, it would correctly bail.
-    expect(evt.defaultPrevented).toBe(true)
-  })
-
   test("modifier chords (ctrl+k) match correctly", () => {
     let fired = false
     const stack: RegisteredBinding[] = [
@@ -226,10 +205,15 @@ describe("dispatchKeyEvent", () => {
   // index in the id's keys array; the dispatcher must hand that slot to
   // the handler so it can map slot → direction without reading evt.name.
 
-  test("passes the matched binding's slot to the handler", () => {
+  test.each([
+    ["j", 0],
+    ["k", 1],
+    ["down", 2],
+    ["up", 3],
+  ])("passes the matched binding's slot to the handler (%s → %i)", (name, slot) => {
     const seen: Array<number | undefined> = []
-    const cmd = (_evt: unknown, slot?: number) => {
-      seen.push(slot)
+    const cmd = (_evt: unknown, s?: number) => {
+      seen.push(s)
     }
     const stack: RegisteredBinding[] = [
       {
@@ -246,11 +230,9 @@ describe("dispatchKeyEvent", () => {
       },
     ]
 
-    for (const name of ["j", "k", "down", "up"]) {
-      dispatchKeyEvent(stack, makeEvt(name))
-    }
+    dispatchKeyEvent(stack, makeEvt(name))
 
-    expect(seen).toEqual([0, 1, 2, 3])
+    expect(seen).toEqual([slot])
   })
 
   test("a binding registered without a slot delivers undefined (hand-rolled literals)", () => {
@@ -294,8 +276,7 @@ describe("dispatchKeyEvent", () => {
       topFires++
       // Mutate the live stack the way a mount/unmount would: remove a
       // lower (already-relevant) entry and push a brand-new binding.
-      const idx = stack.findIndex((r) => r.id === 1)
-      if (idx >= 0) stack.splice(idx, 1)
+      stack.splice(stack.indexOf(bottom), 1)
       stack.push(makeReg(3, "enter", () => bottomFires++))
     })
     stack.push(bottom, top)

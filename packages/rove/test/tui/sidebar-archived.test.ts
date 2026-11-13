@@ -4,7 +4,7 @@
  * tree, and the row menu that hides or restores them.
  */
 
-import { describe, expect, test } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 import { archiveTaskAction } from "../../src/tui-react/workspace/archive-task-action"
 import { buildSidebarGroups } from "../../src/tui/panes/sidebar/project-groups"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
@@ -110,14 +110,14 @@ describe("archiveTaskAction", () => {
   })
 
   test("a busy refusal asks once, and Archive anyway retries with force", async () => {
-    const calls: unknown[] = []
-    const h = harness(async (id, archived, force) => {
-      calls.push([id, archived, force])
-      if (!force) busy()
-    })
+    const archive = vi
+      .fn<(id: string, archived: boolean, force?: boolean) => Promise<void>>()
+      .mockImplementationOnce(async () => busy())
+      .mockResolvedValue(undefined)
+    const h = harness(archive)
     expect(await archiveTaskAction(h.deps, { id: toTaskId("a"), title: "Fix" })).toBe(true)
     expect(h.asked).toEqual(["Fix"])
-    expect(calls).toEqual([
+    expect(archive.mock.calls).toEqual([
       ["a", true, false],
       ["a", true, true],
     ])
