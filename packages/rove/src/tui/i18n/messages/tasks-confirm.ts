@@ -5,7 +5,7 @@ export const en = {
   /** A project row is a saved repo, not a worktree — `d` un-saves it. */
   forgetProjectTitle: 'Remove project "{title}"?',
   forgetProjectBody:
-    "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
+    "Forgets it from the projects list and closes the sessions in its main checkout. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
   forgetProjectConfirm: "remove",
   deleteTitle: 'Remove session "{title}"?',
   /** A `dir` task is one conversation in a folder the user owns: name it so, not "task". */
@@ -49,7 +49,7 @@ export const zh: typeof en = {
   cancel: "取消",
   forgetProjectTitle: "从列表中移除项目「{title}」？",
   forgetProjectBody:
-    "只是把它从项目列表里忘掉。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
+    "把它从项目列表里忘掉，并结束它主 checkout 里的会话。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
   forgetProjectConfirm: "移除",
   deleteTitle: "移除会话「{title}」？",
   deleteTitleDir: "移除会话「{title}」？",

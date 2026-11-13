@@ -44,6 +44,7 @@ import { GRAPHICS_HANDLERS } from "./handlers-graphics.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { PANEL_HANDLERS } from "./handlers-panel.ts"
 import { PR_HANDLERS } from "./handlers-pr.ts"
+import { PROJECT_FORGET_HANDLERS } from "./handlers-project-forget.ts"
 import { QUEUE_HANDLERS } from "./handlers-queue.ts"
 import { QUOTA_RESUME_HANDLERS } from "./handlers-quota-resume.ts"
 import { ROW_STATUS_HANDLERS } from "./handlers-row-status.ts"
@@ -333,6 +334,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...API_HANDLERS,
     ...TASK_HANDLERS,
     ...ARCHIVE_HANDLERS,
+    ...PROJECT_FORGET_HANDLERS,
     ...SCHEDULE_HANDLERS,
     ...QUOTA_RESUME_HANDLERS,
     ...FIELD_HANDLERS,

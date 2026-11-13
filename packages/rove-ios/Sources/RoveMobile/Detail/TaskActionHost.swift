@@ -140,7 +140,7 @@ final class TaskActionHost {
         }
     }
 
-    /// Hides the row or brings it back; the worktree, branch and sessions are untouched either way.
+    /// Hides the row or brings it back; archiving closes its sessions, the worktree and branch stay.
     func toggleArchived(_ taskId: String, force: Bool = false) async {
         guard let model else { return }
         let archiving = !model.store.isArchived(taskId)
@@ -150,7 +150,7 @@ final class TaskActionHost {
         do {
             _ = try await model.client.request("task.archive", args, as: EmptyResult.self)
             await didMutate(taskId)
-            show(archiving ? String(localized: "archived \(title) · worktree, branch and sessions untouched")
+            show(archiving ? String(localized: "archived \(title) · sessions closed, worktree and branch kept")
                            : String(localized: "restored \(title)"))
         } catch let busy as BridgeError where archiving && busy.code == "TASK_BUSY" {
             archiveBusy = taskId
@@ -391,7 +391,7 @@ private struct TaskActionSheets: ViewModifier {
             .alert("archive while it's working?", isPresented: archiveBusyShown, presenting: host.archiveBusy) { id in
                 Button("archive anyway", role: .destructive) { Task { await host.toggleArchived(id, force: true) } }
             } message: { id in
-                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving hides the row without stopping it.")
+                Text("an engine in \(model.store.task(id: id)?.displayTitle ?? id) is still working or waiting on you. archiving stops it.")
             }
             .overlay(alignment: .top) { bannerView }
     }

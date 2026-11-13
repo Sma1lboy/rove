@@ -124,12 +124,12 @@ export const en = {
     dirty: "Commit the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
   },
-  /** Row menu "Archive" / "Unarchive". Archive only hides: the copy must not read like teardown. */
+  /** Row menu "Archive" / "Unarchive". Archive ends the sessions and keeps the files. */
   archive: {
-    done: "Archived {title}. Its worktree, branch and sessions are untouched",
+    done: "Archived {title}. Its sessions are closed; the worktree, branch and conversations are kept",
     restored: "Restored {title}",
     busyTitle: "Archive while it's working?",
-    busyBody: "An engine in {title} is still working or waiting on you. Archiving hides the row without stopping it.",
+    busyBody: "An engine in {title} is still working or waiting on you. Archiving stops it.",
     busyConfirm: "Archive anyway",
     failed: "Couldn't archive: {error}",
     restoreFailed: "Couldn't restore: {error}",
@@ -377,10 +377,10 @@ export const zh: typeof en = {
     failed: "同步失败：{error}",
   },
   archive: {
-    done: "已归档 {title}。工作树、分支和会话都保持原样",
+    done: "已归档 {title}。会话已结束，工作树、分支和对话记录都保留",
     restored: "已恢复 {title}",
     busyTitle: "它还在工作，仍要归档？",
-    busyBody: "{title} 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。",
+    busyBody: "{title} 里有引擎仍在工作或在等你。归档会把它停掉。",
     busyConfirm: "仍要归档",
     failed: "归档失败：{error}",
     restoreFailed: "恢复失败：{error}",

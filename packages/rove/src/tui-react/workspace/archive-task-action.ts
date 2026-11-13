@@ -1,6 +1,6 @@
 /**
- * Row menu "Archive" / "Unarchive". Archive only hides the row and its
- * children, so it needs no confirm, except when the daemon refuses with
+ * Row menu "Archive" / "Unarchive". Archive hides the row and its children
+ * and ends their idle sessions, so it needs no confirm, except when the daemon refuses with
  * TASK_BUSY (an engine in the subtree is working or waiting on you): then the
  * user is asked once and "Archive anyway" retries with `force`. React-free for
  * unit tests, like `sync-base-action.ts`.

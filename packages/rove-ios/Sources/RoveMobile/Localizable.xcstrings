@@ -538,12 +538,12 @@
         }
       }
     },
-    "an engine in %@ is still working or waiting on you. archiving hides the row without stopping it." : {
+    "an engine in %@ is still working or waiting on you. archiving stops it." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。"
+            "value" : "%@ 里有引擎仍在工作或在等你。归档会把它停掉。"
           }
         }
       }
@@ -598,12 +598,12 @@
         }
       }
     },
-    "archived %@ · worktree, branch and sessions untouched" : {
+    "archived %@ · sessions closed, worktree and branch kept" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已归档 %@。工作树、分支和会话都保持原样"
+            "value" : "已归档 %@。会话已结束，工作树和分支都保留"
           }
         }
       }
