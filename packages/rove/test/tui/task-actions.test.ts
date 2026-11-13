@@ -196,9 +196,7 @@ describe("deleteTaskFlow — dirty-worktree branch", () => {
 
     // No force re-prompt for a non-DIRTY error.
     expect(confirm).toHaveBeenCalledTimes(1)
-    expect(notifyError).toHaveBeenCalledWith(
-      'Couldn\'t delete "t1" — the task and its worktree are untouched: daemon exploded',
-    )
+    expect(notifyError).toHaveBeenCalledWith('Couldn\'t delete "t1": daemon exploded')
     expect(killHostedSessions).not.toHaveBeenCalled()
     expect(onTaskDeleted).not.toHaveBeenCalled()
   })
@@ -385,9 +383,7 @@ describe("forgetProjectFlow", () => {
 
     await forgetProjectFlow(ctx, "m1")
 
-    expect(notifyError).toHaveBeenCalledWith(
-      "Couldn't remove the project — it stays in the projects list: daemon exploded",
-    )
+    expect(notifyError).toHaveBeenCalledWith("Couldn't remove the project: daemon exploded")
     expect(reload).not.toHaveBeenCalled()
   })
 })

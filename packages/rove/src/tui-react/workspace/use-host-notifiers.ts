@@ -1,10 +1,5 @@
 /**
- * Every toast `WorkspaceRoot` raises. Some are needed by hooks called BEFORE
- * `useWorkspaceSelection` produces `selectedId`, so it's taken as a GETTER read
- * at fire time (always after the render that built the closure).
- *
- * `taskId`/`tabId` are bookkeeping only (`ToastOverlay` draws kind/title/body;
- * nothing reads the unread map), so host toasts carry the selected task and "".
+ * Every toast `WorkspaceRoot` raises. Action toasts carry no `taskId`: a toast with one opens that task when clicked.
  */
 
 import type { ToastOptions } from "../../tui/lib/notify-state"
@@ -31,12 +26,10 @@ export interface HostNotifiers {
 export function useHostNotifiers(args: {
   readonly notif: NotificationsContext
   readonly t: (key: string, params?: Record<string, string | number>) => string
-  /** Read at fire time (see the header). */
-  readonly selectedId: () => string | null
 }): HostNotifiers {
-  const { notif, t, selectedId } = args
+  const { notif, t } = args
   const post = (kind: NotificationKind, title: string, opts?: ToastOptions): void => {
-    notif.notify({ kind, taskId: selectedId() ?? "", tabId: "", title, ...opts })
+    notif.notify({ kind, taskId: "", tabId: "", title, ...opts })
   }
   return {
     notifyError: (message, opts) => post("error", message, opts),

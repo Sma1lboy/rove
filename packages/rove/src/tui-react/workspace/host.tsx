@@ -105,12 +105,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
   // all answer "which task is the user on".
   const t = useT()
 
-  // `selectedId` reaches the notifiers as a getter, so no ordering against selection.
-  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({
-    notif,
-    t,
-    selectedId: () => selectedId,
-  })
+  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({ notif, t })
 
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
@@ -480,7 +475,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator } & Boot
           overlay mounted, nothing renders them and the bottom-right toast
           silently never appears. Absolute-positioned, under the host's
           NotificationsProvider. */}
-      <ToastOverlay />
+      <ToastOverlay onOpenTask={inbox.openTask} />
       {/* Prefix sequence HUD — bottom-left over the Tasks sidebar (the
           terminal column is off-limits: it collided with the engine's own
           status line). Width-capped to the rail so lines never spill into

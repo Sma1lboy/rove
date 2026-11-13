@@ -20,6 +20,8 @@ export const en = {
     resumingQuota: "resuming…",
     usageLimit: "usage limit reached",
     dismiss: "Dismiss",
+    /** Action on a cross-task toast: go to that task. */
+    openTask: "Open",
   },
   tab: {
     shell: "shell",
@@ -120,6 +122,7 @@ export const zh: typeof en = {
     resumingQuota: "正在继续…",
     usageLimit: "已达到用量上限",
     dismiss: "忽略",
+    openTask: "打开",
   },
   tab: {
     shell: "终端",

@@ -209,5 +209,5 @@ export function useInboxHost(args: {
     resolveEpisodes(currentItems, { taskId: selectedId, tabId: activeTab })
   }, [availableSignature, resolveEpisodes])
 
-  return { availableItems: visibleItems, counts, openItem, show, resolveVisited }
+  return { availableItems: visibleItems, counts, openItem, openTask, show, resolveVisited }
 }
