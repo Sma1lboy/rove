@@ -152,7 +152,8 @@ export const PLACEHOLDER = `m-auto font-mono text-meta ${FONT_RESET} text-subtle
 export const PLACEHOLDER_BOX = `${PLACEHOLDER} flex flex-col items-center gap-3 [&_p]:m-0`
 
 /** The content column: the workspace's top bar over its pane (`workspace` stays: pane-focus.ts and commands.ts find it). */
-export const WORKSPACE = "workspace row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
+/** `isolate`: the terminal's own layers (a leaving terminal's cover at z-6) stay under the folded rail floating over it. */
+export const WORKSPACE = "workspace isolate row-1 flex min-h-0 min-w-0 flex-col gap-1.5 px-1 pt-2 pb-1"
 export const PANE =
   "flex min-h-0 flex-1 overflow-hidden rounded-md border-hairline border-line bg-paper focus-within:border-focus"
 /** The selected task is working: under the flow pref its border runs in the task's colour. */
