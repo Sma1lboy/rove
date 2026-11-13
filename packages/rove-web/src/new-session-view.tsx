@@ -384,15 +384,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 <CardMicFace state={state} hold={talks} idle={t("voice.hold")} working={t("voice.working")} />
               )}
             />
-            {talks ? (
-              <SendButton label={t("newSession.start")} disabled={busy} />
-            ) : (
-              <>
-                <span className={C.GROW} />
-                <button type="submit" className={buttonClass()} disabled={busy}>
-                  {t("newSession.start")}
-                </button>
-              </>
+            {!talks && <span className={C.GROW} />}
+            {talks && <SendButton label={t("newSession.start")} disabled={busy} />}
+            {!talks && (
+              <button type="submit" className={buttonClass()} disabled={busy}>
+                {t("newSession.start")}
+              </button>
             )}
           </div>
         </div>
