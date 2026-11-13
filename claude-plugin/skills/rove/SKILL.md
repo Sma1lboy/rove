@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 122 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 123 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -33,7 +33,8 @@ lifecycle tracking, and an explicit outcome contract.
 - Following up on a task you started → `send`; comparing → `collect`;
   finished your own task and were spawned by another → a bare `send`
   (no `--task-id`) replies to the DISPATCHER — the exact task + tab that
-  created you, recorded at creation (`.task.dispatcher` on `get-task`).
+  created you, recorded at creation (`.task.dispatcher` on `get-task`;
+  `add` and `send --tab new` both record it).
   If that tab died it falls back to the dispatcher task's live canonical
   engine tab; nothing alive fails loud (`DISPATCHER_UNREACHABLE`) — it
   never spawns a new engine, so a failed reply is visible, not fake-ok.
@@ -373,8 +374,9 @@ progress: a task whose work is merged and whose worker has signed off still
 reads `true` until somebody deletes it (see "A task is finished when it is
 GONE").
 Omitting BOTH `--task-id` and `--tab` inside a task that has a dispatcher
-targets that dispatcher's tab (see the reply rule above); otherwise the
-target is the active task. Omitting only `--tab` targets a live engine tab
+targets that dispatcher's tab (see the reply rule above). Inside a task with
+no dispatcher it is refused (`NO_REPLY_ADDRESS`): name the target. Only
+outside a Rove session is the target the active task. Omitting only `--tab` targets a live engine tab
 (`tab-1` first, then any surviving engine tab). **Trap: omitting only
 `--task-id` while giving `--tab tab-N` inside a dispatched task delivers to
 `tab-N` of the DISPATCHER's task** — the dispatcher's id fills in for
@@ -634,7 +636,8 @@ spawning agent's engine tab, not as stored state nobody reads.
   and lands on that task's canonical engine tab, which can be a different
   agent's session.
 - Neither (the owner started you)? The board status is your signal: with
-  auto status on, Rove's system prompt tells you to set `in_review`.
+  auto status on, Rove's system prompt tells you to set `in_review`. A bare
+  `send` has no reply address there and is refused (`NO_REPLY_ADDRESS`).
 
 **Name your branch before you report it.** A new task starts on an
 auto-generated placeholder branch (`new-task`, `duck`, …); you are the only

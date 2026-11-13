@@ -226,6 +226,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
+| `NO_REPLY_ADDRESS` | `send` without `--task-id` from a Rove session whose task has no `dispatcher`; name the target. |
 | `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task that is not waiting on a quota reset. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
@@ -1118,7 +1119,9 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   exact tab, falling back to the dispatcher task's live canonical engine
   tab when the tab died, and failing loud (`DISPATCHER_UNREACHABLE`) when
   nothing on that task is alive, never silently spawning a new engine.
-  Otherwise the default is the active task and its canonical engine tab.
+  A Rove session whose task has no `dispatcher` is refused (`NO_REPLY_ADDRESS`):
+  the active task is the person's focus, not a reply address. Outside a Rove
+  session the default is the active task and its canonical engine tab.
   From another Rove task, the message includes `[ROVE PEER]` provenance and
   a tab-precise reply command (`--task-id <sender> --tab <sender's tab>`);
   `--plain` skips that prefix, and a refused send's retry `nextCommandArgs`
@@ -1127,7 +1130,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
   failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
   placeholder title becomes the prompt's), else a shared child task of the target
-  (same directory, as `add --no-worktree`) that receives the prompt, titled from it, and the reply adds `childTaskId`
+  (same directory, as `add --no-worktree`; a calling Rove session is recorded as its `dispatcher`) that receives the prompt, titled from it, and the reply adds `childTaskId`
   (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by

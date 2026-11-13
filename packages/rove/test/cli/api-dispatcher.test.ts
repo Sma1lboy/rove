@@ -286,13 +286,15 @@ describe("bare send replies to the dispatcher", () => {
     expect(calls[0].target).toMatchObject({ id: "disp-1", tab: "tab-7" })
   })
 
-  it("a task without a dispatcher keeps the active-task default", async () => {
+  it("a session without a dispatcher is refused, never routed to the active task", async () => {
     const client = workerClient(undefined)
     client.replay.push({ channel: "active-task", payload: { taskId: "active-1" } })
     const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--prompt", "hi"], { client, runtime: stubRuntime({ deliverPrompt: deliver }) })
-    expect(client.subscribeCount).toBe(1)
-    expect(calls[0].target.id).toBe("active-1")
+    await expectApiError(
+      () => invokeVerb("send", ["--prompt", "hi"], { client, runtime: stubRuntime({ deliverPrompt: deliver }) }),
+      "NO_REPLY_ADDRESS",
+    )
+    expect(calls).toHaveLength(0)
   })
 
   it("an INHERITED env falls back to the active task instead of the stranger's dispatcher", async () => {

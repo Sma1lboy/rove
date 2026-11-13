@@ -10,6 +10,7 @@ import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { PLACEHOLDER_TASK_TITLE, deriveTitleFromPrompt } from "../../orchestrator/title.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
+import { dispatcherEnvPayload } from "./dispatcher.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
 import { readDaemonTabs, taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
@@ -17,7 +18,8 @@ import { ApiError, type ApiRuntime } from "./types.ts"
 /**
  * The shared child that stands in for a later engine conversation on `parentTaskId`
  * (`send --tab new`, `tab-new --kind engine`): same directory, the pinned
- * `command` or else the parent's engine. No dispatcher: these verbs never set one.
+ * `command` or else the parent's engine. A calling rove session is recorded as its
+ * dispatcher, so the child's bare `send` replies to the session that opened it.
  */
 export async function spawnSharedChild(
   daemon: DaemonRpc,
@@ -32,6 +34,7 @@ export async function spawnSharedChild(
     ...(title ? { title } : {}),
     ...(command ? { command } : {}),
     ...(vendor ? { vendor } : {}),
+    ...(await dispatcherEnvPayload(daemon)),
   })
   return res.task
 }

@@ -184,21 +184,38 @@ export async function dispatcherEnvPayload(
   return { dispatcherTaskId: self.taskId, dispatcherTabId: self.tabId }
 }
 
+/** The caller's verified session and the dispatcher recorded on its task. */
+export interface OwnReplyRoute {
+  self: Dispatcher
+  dispatcher: Dispatcher | null
+}
+
 /**
- * The dispatcher recorded on the CALLER's own task, when the caller is a
- * VERIFIED rove session that has one. `null` (keep the active-task default)
- * when the caller isn't a rove session, its env didn't verify, or the task
- * predates the field / was created outside a rove session.
+ * The caller as a VERIFIED rove session, with the dispatcher on its own task
+ * (`null`: created outside a rove session, made top level, or unreadable).
+ * `null` overall when the caller isn't a rove session or its env didn't verify.
  */
-export async function readOwnDispatcher(daemon: DaemonRpc): Promise<Dispatcher | null> {
+export async function readOwnDispatcher(daemon: DaemonRpc): Promise<OwnReplyRoute | null> {
   const self = await ownSession(daemon)
   if (!self) return null
   try {
     const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })
-    return res.task.dispatcher ?? null
+    return { self, dispatcher: res.task.dispatcher ?? null }
   } catch {
-    return null
+    return { self, dispatcher: null }
   }
+}
+
+/** A rove session's bare `send` with no dispatcher: the active task is the person's focus, not an address an agent meant. */
+export function noReplyAddress(self: Dispatcher): ApiError {
+  return new ApiError(
+    `task ${self.taskId} has no dispatcher on record, so a send without --task-id has no reply address`,
+    "NO_REPLY_ADDRESS",
+    {
+      hint: `name the target with --task-id/--tab (see \`${ROVE_PRODUCT_NAME} api list\`), or notify the user with \`${ROVE_PRODUCT_NAME} api notify\``,
+      nextCommandArgs: ["api", "list"],
+    },
+  )
 }
 
 /**

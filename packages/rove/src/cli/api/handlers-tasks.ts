@@ -14,7 +14,14 @@ import { taskCwd } from "../../orchestrator/task-tree.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activityView, readActivityRegistry } from "./activity-view.ts"
-import { ownSession, readOwnDispatcher, recordSend, resolveDispatcherTab, withPeerProvenance } from "./dispatcher.ts"
+import {
+  noReplyAddress,
+  ownSession,
+  readOwnDispatcher,
+  recordSend,
+  resolveDispatcherTab,
+  withPeerProvenance,
+} from "./dispatcher.ts"
 import { assertNotEmptySuccess } from "./empty-success-guard.ts"
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
@@ -69,9 +76,9 @@ export function requirePromptText(ctx: VerbContext, verb: string): string {
 }
 
 /**
- * The task a send goes to: `--task-id`, else — inside a sub-task — its DISPATCHER (task + tab), else the
+ * The task a send goes to: `--task-id`, else — inside a rove session — its DISPATCHER (task + tab), else the
  * global active task. An explicit `--tab` stays exact (on the dispatcher task); the dispatcher's own tab
- * is only the default.
+ * is only the default. A rove session with no dispatcher is refused rather than sent to the active task.
  */
 async function resolveSendTask(
   ctx: VerbContext,
@@ -80,10 +87,12 @@ async function resolveSendTask(
 ): Promise<{ taskId: string; tab: string | undefined }> {
   const explicit = ctx.args.str("task-id")
   if (explicit) return { taskId: explicit, tab }
-  const dispatcher = await readOwnDispatcher(daemon)
-  if (dispatcher) {
+  const own = await readOwnDispatcher(daemon)
+  if (own?.dispatcher) {
+    const { dispatcher } = own
     return { taskId: dispatcher.taskId, tab: tab ?? (await resolveDispatcherTab(ctx.runtime, daemon, dispatcher)) }
   }
+  if (own) throw noReplyAddress(own.self)
   const active = await resolveActiveTaskId(daemon)
   if (!active) {
     throw new ApiError("no --task-id given and no active task — open a task first or pass --task-id", "MISSING_TARGET")
