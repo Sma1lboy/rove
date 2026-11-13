@@ -10,7 +10,8 @@
 //   node scripts/next-version.mjs --notes <version> [--changeset-dir <dir>]
 //
 // Prints the version, or with --notes the Releases-page entry for that build:
-// the pending changesets it carries. Pure: touches nothing, so it dry-runs locally.
+// the changesets in --changeset-dir, which next.yml fills with the ones the build
+// adds. Pure: touches nothing, so it dry-runs locally.
 
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
@@ -43,7 +44,7 @@ export function nextVersion(base, files, n) {
   return `${bumpVersion(base, pendingBump(files) ?? "patch")}-next.${n}`
 }
 
-/** The Releases-page body for a `next` build: what it is, how to get it, and the changes waiting for the stable release. */
+/** The Releases-page body for a `next` build: what it is, how to get it, and the changes in `files`. */
 export function nextNotes(version, files, pkg = PACKAGE) {
   const stable = version.split("-")[0]
   const changes = files
@@ -52,13 +53,11 @@ export function nextNotes(version, files, pkg = PACKAGE) {
     .filter(Boolean)
     .map((body) => `- ${body.replace(/\r?\n/g, "\n  ")}`)
   return [
-    `Preview build of \`main\`, on npm as \`${pkg}@${version}\` (the \`next\` channel). Install it with \`rove update --next\`; \`rove update --stable\` goes back.`,
+    `Preview build of \`main\`, on npm as \`${pkg}@${version}\` (the \`next\` channel). Install it with \`rove update --next\`; \`rove update --stable\` goes back. Its changes ship in the stable release ${stable}.`,
     "",
-    `This entry is rewritten on every merge. Its changes ship in the stable release ${stable}.`,
+    "## Changes in this build",
     "",
-    `## Coming in ${stable}`,
-    "",
-    ...(changes.length > 0 ? changes : ["No user-facing changes yet."]),
+    ...(changes.length > 0 ? changes : ["No user-facing changes in this build."]),
     "",
   ].join("\n")
 }
