@@ -232,7 +232,7 @@ function MachineIcon() {
   )
 }
 
-/** This machine, then every registered one; a machine that is not online is listed with its state and cannot be picked. */
+/** Auto, this machine, then every registered one; a machine that is not online is listed with its state and cannot be picked. */
 export function MachineChip(props: {
   machines: readonly MachineRow[]
   /** The picked machine's alias; "" = this machine, `AUTO` = Rove places it at Start. */
@@ -262,8 +262,8 @@ export function MachineChip(props: {
         <ChoiceMenu
           heading={t("newSession.machine")}
           options={[
-            { id: "", label: t("newSession.thisMachine") },
             { id: AUTO, label: t("newSession.machineAuto") },
+            { id: "", label: t("newSession.thisMachine") },
             ...props.machines.map((m) => ({
               id: m.alias,
               label: machineLabel(m, words),

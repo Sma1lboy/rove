@@ -60,6 +60,9 @@ the host is unreachable, Rove is not installed, or no daemon can be started.
     it to the machine's `~/.ssh/authorized_keys`. You type that machine's
     password once, into ssh. To revoke this Rove's access, delete the line
     ending in `rove-hub@<this host>` there.
+    Once that key exists, Rove also offers it to any machine registered
+    without `--identity`, so a login that only worked through ssh-agent still
+    works after a restart.
   - *Rove is missing:* `add` runs the official install script on the machine
     (`curl -fsSL https://rove.run/install.sh | sh`).
   - *Rove is too old:* `add` runs `rove update` there.
