@@ -21,6 +21,7 @@ import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
 import { ctrlChord } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
+import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
 import { linesFromBottom, viewportAfterWrite } from "./term-scroll.ts"
 import { attachWheelScroll, createSmoothScroll } from "./term-smooth.ts"
@@ -353,6 +354,12 @@ export function mountTerminal(o: MountOpts): TermHandle {
   }
   el.addEventListener("mousedown", onDown)
   document.addEventListener("mouseup", onUp)
+  // An engine with mouse reporting on draws its own selection, so xterm has none to copy: its copy arrives as OSC 52.
+  const osc52 = term.parser.registerOscHandler(52, (data) => {
+    const text = osc52Text(data)
+    if (text) void o.copyText(text)
+    return true
+  })
 
   // Scrolling as the TUI pane does it. A wheel the app does not take moves the scrollback by whole
   // lines here, not through xterm's scrollable, which drops a sub-line touchpad delta whenever new
@@ -458,6 +465,7 @@ export function mountTerminal(o: MountOpts): TermHandle {
       if (resizeTimer !== null) window.clearTimeout(resizeTimer)
       el.removeEventListener("mousedown", onDown)
       document.removeEventListener("mouseup", onUp)
+      osc52.dispose()
       textarea?.removeEventListener("focus", focused)
       textarea?.removeEventListener("blur", blurred)
       scroll.dispose()
