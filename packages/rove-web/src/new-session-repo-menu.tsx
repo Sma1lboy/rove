@@ -36,6 +36,8 @@ export function RepoMenu(props: {
   /** `add`: keep the other picks (a multi-repo task); otherwise this one replaces them. */
   onToggle: (path: string, add: boolean) => void
   onClone: (source: string) => void
+  /** The clone source picked for Start, shown checked. */
+  cloning?: string
   close: () => void
   /** Another machine: its name, what an empty list says (still loading, or why it could not be read), and `blocked` when it could not be read: nothing is offered on it, only that reason. */
   remote?: { readonly name: string; readonly empty: string; readonly blocked: boolean }
@@ -101,6 +103,7 @@ export function RepoMenu(props: {
       text: repo.nameWithOwner,
       dim: repo.description,
       title: repo.description,
+      checked: props.cloning === repo.nameWithOwner,
     }))
   // The listed repo says what it is; the bare "Clone <text>" row beside it would be the same clone. An ssh URL stays: it picks the protocol.
   const listed = named !== null && !/^(?:ssh:|git@)/i.test(typed) && more[0]?.text.toLowerCase() === named

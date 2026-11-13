@@ -94,9 +94,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   const probed = useRef(new Set<string>())
   // The rail's Ungrouped: a session in no project, exclusive with `repos`.
   const [ungrouped, setUngrouped] = useState(seed.ungrouped === true)
+  // A repo picked to clone: nothing is cloned until Start. Exclusive with `repos` and Ungrouped.
+  const [toClone, setToClone] = useState<string | null>(null)
   const pickUngrouped = (): void => {
     setUngrouped(true)
     setRepos([])
+    setToClone(null)
   }
   // The ref each repo's worktree branches from ("" = its current branch), and the one branch name they share.
   const [bases, setBases] = useState<Readonly<Record<string, string>>>(() => seededBases(startOf(lastSaved), seed))
@@ -197,28 +200,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
   // A pick of the previous engine's model means nothing to this one.
   const modelValue = models.some((m) => m.id === pickedModel) ? pickedModel : ""
 
-  const cloneInto = async (source: string) => {
-    lastTry.current = () => void cloneInto(source)
-    setError(null)
-    setBusy(true)
-    setProgress(t("newSession.cloning", { source }))
-    try {
-      const parent = stripTrailingSlash(expandTilde((localStorage.getItem(CLONE_PARENT_KEY) || "~/").trim(), home))
-      const res = await model.client.request<{ path: string }>(
-        "repo.clone",
-        { url: source, parentDir: parent },
-        setProgress,
-      )
-      setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
-      setRepos((now) => (now.includes(res.path) ? now : toggleRepo(now, res.path)))
-      setUngrouped(false)
-      setRepoQuery("")
-    } catch (err) {
-      setError(startError(err))
-    } finally {
-      setBusy(false)
-      setProgress("")
-    }
+  /** Start's first step for a clone pick; the clone then is the picked project, so a retry does not clone twice. */
+  const cloneInto = async (url: string): Promise<string> => {
+    setProgress(t("newSession.cloning", { source: url }))
+    const parentDir = stripTrailingSlash(expandTilde((localStorage.getItem(CLONE_PARENT_KEY) || "~/").trim(), home))
+    const res = await model.client.request<{ path: string }>("repo.clone", { url, parentDir }, setProgress)
+    setSaved((now) => (now.includes(res.path) ? now : [...now, res.path]))
+    setRepos([res.path])
+    setToClone(null)
+    return res.path
   }
 
   // On another machine `add` runs there: it clones a repo it lacks first, with its own credentials.
@@ -260,13 +250,14 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
     lastTry.current = () => void start(at)
     setError(null)
     if (remote) return startRemote()
-    if (!primary && !ungrouped) return setError(t("newSession.needRepo"))
+    if (!primary && !ungrouped && !toClone) return setError(t("newSession.needRepo"))
     if (!prompt.trim()) return setError(t("newSession.needPrompt"))
     setBusy(true)
     const first = withRefs(prompt.trim(), await ready())
     try {
+      const list = toClone ? [await cloneInto(toClone)] : repos
       // Every pick is re-probed: a typed path may not be a repo, and the daemon wants canonical roots.
-      const fresh = await Promise.all(repos.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
+      const fresh = await Promise.all(list.map((path) => model.client.request<ProbeResult>("repo.probe", { path })))
       const bad = fresh.find((res) => !res.ok)
       if (bad) throw new Error(bad.reason ?? bad.repo)
       const plainNow = fresh.some((res) => res.git === false)
@@ -274,10 +265,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
       let created: string | undefined
       let compared: string | undefined
       if (ungrouped) created = await startUngrouped(model.client.request.bind(model.client), engineId, prompt)
-      else if (inPlace || plainNow)
+      else if ((list.length === 1 && !worktree) || plainNow)
         created = await startInCheckout(
           model.client.request.bind(model.client),
-          fresh[0]?.repo ?? primary,
+          fresh[0]?.repo ?? list[0] ?? "",
           engineId,
           prompt,
           first,
@@ -287,12 +278,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         const commandFrom = retryCommandFrom(seed, engineId)
         // Auto places a plain start; files, a later start, several repos or engines only work on this machine.
         const place =
-          at_.auto && !at && repos.length === 1 && picks.ids.length <= 1 && attachments.length === 0 && !commandFrom
+          at_.auto && !at && list.length === 1 && picks.ids.length <= 1 && attachments.length === 0 && !commandFrom
         const res = await model.client.request<{ taskIds: string[]; groupId?: string; machine?: string }>(
           "task.spawn",
           {
             ...spawnArgs({
-              repos: repos.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
+              repos: list.map((path, i) => ({ repo: fresh[i]?.repo ?? path, baseRef: bases[path] ?? "" })),
               branch: branchName.trim(),
               engine: engineId,
               commandFrom,
@@ -324,9 +315,10 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
         newSession.set(null)
         toast(err instanceof Error ? err.message : String(err), "error")
         openCompare(round)
-      } else setError(err instanceof Error ? err.message : String(err))
+      } else setError(startError(err))
     } finally {
       setBusy(false)
+      setProgress("")
     }
   }
 
@@ -413,10 +405,13 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                 <>
                   <FolderIcon />
                   <span className={C.CHIP_TEXT}>
-                    {(remotePick?.clone
-                      ? cloneLabel(remotePick.ref)
-                      : repoChipLabel(remote ? (remotePick ? [remotePick.ref] : []) : repos)) ||
-                      t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
+                    {(remote
+                      ? remotePick?.clone
+                        ? cloneLabel(remotePick.ref)
+                        : repoChipLabel(remotePick ? [remotePick.ref] : [])
+                      : toClone
+                        ? cloneLabel(toClone)
+                        : repoChipLabel(repos)) || t(ungrouped ? "newSession.noFolder" : "newSession.repo")}
                   </span>
                 </>
               }
@@ -435,6 +430,7 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                     setError(null)
                     if (!remote) {
                       setUngrouped(false)
+                      setToClone(null)
                       if (add) return setRepos((now) => toggleRepo(now, path))
                       setRepos([path])
                       return close()
@@ -442,7 +438,15 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
                     setRemotePick({ ref: path, clone: false })
                     close()
                   }}
-                  onClone={(source) => (remote ? setRemotePick({ ref: source, clone: true }) : void cloneInto(source))}
+                  onClone={(source) => {
+                    setError(null)
+                    if (remote) return setRemotePick({ ref: source, clone: true })
+                    setToClone(source)
+                    setRepos([])
+                    setUngrouped(false)
+                    setRepoQuery("")
+                  }}
+                  cloning={remote ? undefined : (toClone ?? undefined)}
                   close={close}
                   remote={
                     remote
