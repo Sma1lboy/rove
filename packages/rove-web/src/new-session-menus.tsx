@@ -126,7 +126,7 @@ export function SearchList(props: {
   moreLabel?: string
   /** A muted line under the rows. */
   hint?: string
-  /** `add`: picked with ⌘ / Ctrl held, for a list that can hold several. */
+  /** `add`: picked with Shift (or ⌘ / Ctrl) held, for a list that can hold several. */
   onPick: (key: string, add: boolean) => void
 }) {
   const [cursor, setCursor] = useState(0)
@@ -158,7 +158,7 @@ export function SearchList(props: {
           } else if (e.key === "Enter") {
             e.preventDefault()
             const row = all[at]
-            if (row) props.onPick(row.key, e.metaKey || e.ctrlKey)
+            if (row) props.onPick(row.key, e.shiftKey || e.metaKey || e.ctrlKey)
           }
         }}
       />
@@ -176,7 +176,7 @@ export function SearchList(props: {
               title={row.title}
               className={rowClass({ cursor: i === at })}
               onMouseMove={() => setCursor(i)}
-              onClick={(e) => props.onPick(row.key, e.metaKey || e.ctrlKey)}
+              onClick={(e) => props.onPick(row.key, e.shiftKey || e.metaKey || e.ctrlKey)}
             >
               <span className={CHECK}>{row.checked ? "✓" : ""}</span>
               <span className={NAME}>{row.text}</span>

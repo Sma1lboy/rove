@@ -115,7 +115,7 @@ export function RepoMenu(props: {
         : null
 
   return (
-    // A pick replaces the project and closes; ⌘ / Ctrl + pick toggles it in a multi-repo task and keeps the list open.
+    // A pick replaces the project and closes; Shift (or ⌘ / Ctrl) + pick toggles it in a multi-repo task and keeps the list open.
     <SearchList
       placeholder={t(remote ? "newSession.repoSearchRemote" : "newSession.repoSearch")}
       empty={remote?.empty ?? t("newSession.repoEmpty")}
