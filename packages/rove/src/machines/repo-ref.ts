@@ -6,7 +6,7 @@
  * history, other origin) only when asked; a fresh clone only when asked.
  */
 
-import { spawnSync } from "node:child_process"
+import { execFile, spawnSync } from "node:child_process"
 import { existsSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
@@ -141,16 +141,24 @@ export function cloneDirFor(id: string, home: string = homedir()): string {
   return join(home, ".rove", "repos", ...id.split("/"))
 }
 
-/** Clone `ref` into its clone dir (or reuse a checkout already there). Throws with git's message. */
-export function cloneRepo(ref: { readonly id: string; readonly cloneUrl: string }, home?: string): string {
+/**
+ * Clone `ref` into its clone dir (or reuse a checkout already there). Throws with git's message.
+ * Async on purpose: this runs inside the daemon, and a blocked daemon reads as dead to the machine that asked.
+ */
+export async function cloneRepo(
+  ref: { readonly id: string; readonly cloneUrl: string },
+  home?: string,
+): Promise<string> {
   const dir = cloneDirFor(ref.id, home)
   if (repoIdentity(dir)) return dir
   mkdirSync(dirname(dir), { recursive: true })
-  const res = spawnSync("git", ["clone", ref.cloneUrl, dir], {
-    encoding: "utf8",
-    timeout: 600_000,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  await new Promise<void>((done, fail) => {
+    execFile(
+      "git",
+      ["clone", ref.cloneUrl, dir],
+      { timeout: 600_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
+      (err, stdout, stderr) => (err ? fail(new Error((stderr || stdout || err.message).trim())) : done()),
+    )
   })
-  if (res.status !== 0) throw new Error((res.stderr || res.stdout || "git clone failed").trim())
   return dir
 }
