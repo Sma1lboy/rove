@@ -4,7 +4,7 @@
  *   - Hydrates synchronously from `state.json` at creation, so the first
  *     render has persisted values, then follows the daemon's `state` push
  *     (`follow`), so another process's writes and hand edits show up live.
- *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
+ *   - Writes are debounced (250ms) and dirty-key merged under the state lock:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
  *   - `update()` changes ONE key against the file as it is now, under the
@@ -19,13 +19,7 @@ import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watche
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
-import {
-  loadStateFile,
-  patchStateFile,
-  readStateFileStrict,
-  replaceStateFile,
-  updateStateFile,
-} from "../../state/store.ts"
+import { loadStateFile, readStateFileStrict, replaceStateFile, updateStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
@@ -66,7 +60,8 @@ export interface KvCore {
   /**
    * Change one key from its value ON DISK now (locked read-modify-write), then adopt the
    * result. For a collection other clients also change: `mutate` gets their rows too.
-   * False = nothing was written and the snapshot is unchanged.
+   * Mutations must be pure: failed writes retain them for replay against fresh disk
+   * state. False = pending persistence; the snapshot includes the local edit.
    */
   update(key: string, mutate: (current: unknown) => unknown): boolean
   /**
@@ -105,6 +100,7 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
+  const pendingUpdates = new Map<string, ((current: unknown) => unknown)[]>()
   /** `setQuiet` values, read over the snapshot until `set` or a changed remote value. */
   const quiet = new Map<string, unknown>()
   /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
@@ -117,7 +113,10 @@ export function createKvCore(): KvCore {
    */
   const reportedKeys = new Set<string>()
 
-  function reportWriteError(err: unknown, unwritten: Iterable<string> = dirtyKeys): void {
+  function reportWriteError(
+    err: unknown,
+    unwritten: Iterable<string> = new Set([...dirtyKeys, ...pendingUpdates.keys()]),
+  ): void {
     const fresh = [...unwritten].filter((key) => !reportedKeys.has(key))
     if (fresh.length === 0) return
     for (const key of fresh) reportedKeys.add(key)
@@ -126,13 +125,39 @@ export function createKvCore(): KvCore {
   }
 
   function writeNow(label: string): boolean {
-    if (dirtyKeys.size === 0) return true // nothing of ours to merge
+    if (dirtyKeys.size === 0 && pendingUpdates.size === 0) return true // nothing of ours to merge
     try {
       // A key set to `undefined` locally becomes a deletion on disk.
       const patch: Record<string, unknown> = {}
       const snap = store.get()
       for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
-      patchStateFile(patch, "strict")
+      const updated: Record<string, unknown> = {}
+      updateStateFile((state) => {
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined) delete state[key]
+          else state[key] = value
+        }
+        for (const [key, mutations] of pendingUpdates) {
+          let value = state[key]
+          for (const mutate of mutations) value = mutate(value)
+          updated[key] = value
+          if (value === undefined) delete state[key]
+          else state[key] = value
+        }
+        return undefined
+      }, "strict")
+      pendingUpdates.clear()
+      for (const key of Object.keys(updated)) quiet.delete(key)
+      if (Object.keys(updated).length > 0) {
+        store.update((snapshot) => {
+          const next = { ...snapshot }
+          for (const [key, value] of Object.entries(updated)) {
+            if (value === undefined) delete next[key]
+            else next[key] = value
+          }
+          return next
+        })
+      }
       dirtyKeys.clear()
       reportedKeys.clear()
       return true
@@ -167,7 +192,7 @@ export function createKvCore(): KvCore {
     const before = store.get()
     const next: Record<string, unknown> = { ...fresh }
     for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
-    for (const key of dirtyKeys) {
+    for (const key of new Set([...dirtyKeys, ...pendingUpdates.keys()])) {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
@@ -182,7 +207,7 @@ export function createKvCore(): KvCore {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
-    if (dirtyKeys.size > 0) scheduleWrite()
+    if (dirtyKeys.size > 0 || pendingUpdates.size > 0) scheduleWrite()
     let changed = 0
     for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
       if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
@@ -205,6 +230,7 @@ export function createKvCore(): KvCore {
         logClientError("kv", new Error(`refused a local write of ${key}: tabs go through the daemon`))
         return
       }
+      pendingUpdates.delete(key)
       quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
@@ -220,35 +246,27 @@ export function createKvCore(): KvCore {
       scheduleWrite()
     },
     setQuiet(key, value) {
+      pendingUpdates.delete(key)
       quiet.set(key, value)
       dirtyKeys.add(key)
       scheduleWrite()
     },
     update(key, mutate) {
-      let next: unknown
-      try {
-        updateStateFile((state) => {
-          next = mutate(state[key])
-          if (next === undefined) delete state[key]
-          else state[key] = next
-          return undefined
-        }, "strict")
-      } catch (err) {
-        console.error(`[rove] kv update of ${key} failed:`, err)
-        reportWriteError(err, [key])
-        return false
-      }
-      // The file already holds the result: an older pending `set` of this key must not land over it.
+      const next = mutate(quiet.has(key) ? quiet.get(key) : store.get()[key])
+      const pending = pendingUpdates.get(key) ?? []
+      pendingUpdates.set(key, [...pending, mutate])
+      // Updates supersede older whole-key writes and always replay against fresh disk state.
       dirtyKeys.delete(key)
       quiet.delete(key)
-      reportedKeys.delete(key)
       store.update((s) => {
         const copy = { ...s }
         if (next === undefined) delete copy[key]
         else copy[key] = next
         return copy
       })
-      return true
+      const written = writeNow("update")
+      if (!written) scheduleWrite()
+      return written
     },
     seed(key, value) {
       if (!seeded.has(key)) seeded.set(key, value)
@@ -268,6 +286,7 @@ export function createKvCore(): KvCore {
       }
       cancelTimer()
       dirtyKeys.clear()
+      pendingUpdates.clear()
       reportedKeys.clear()
       quiet.clear()
       store.set({})

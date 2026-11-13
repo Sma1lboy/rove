@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
+import { kvStatePath } from "../../src/env"
 import { createKvCore } from "../../src/tui-react/context/kv-core"
 import {
   type DiffComment,
@@ -299,6 +300,35 @@ describe("two clients on one task's notes", () => {
     expect(onDisk.map((c) => c.body)).toEqual(["from b", "from a"])
     // The window sees the other's note at once, not after the next push.
     expect((a.get(diffCommentsKey("t1")) as DiffComment[]).map((c) => c.body)).toEqual(["from b", "from a"])
+  })
+
+  it("retries failed note mutations against fresh disk notes after recovery", () => {
+    const a = createKvCore()
+    const key = diffCommentsKey("t1")
+    buildDiffReview(a, "t1", () => true).add({ filePath: "a.ts", line: 1, body: "remove me" })
+    const removed = (a.get(key) as DiffComment[])[0]!
+    writeFileSync(kvStatePath(), "{")
+    const errors: unknown[] = []
+    a.onWriteError((error) => errors.push(error))
+    buildDiffReview(a, "t1", () => true).add({ filePath: "a.ts", line: 2, body: "typed note" })
+    buildDiffReview(a, "t1", () => true).remove(removed.id)
+    expect(buildDiffReview(a, "t1", () => true).send()).toBe(true)
+    expect(a.flush()).toBe(false)
+    expect(errors).toHaveLength(1)
+    expect((a.get(key) as DiffComment[]).map((c) => c.body)).toEqual(["typed note"])
+    a.follow({ [key]: [removed] })
+    expect((a.get(key) as DiffComment[]).map((c) => c.body)).toEqual(["typed note"])
+
+    const remote = comment({ id: "remote", body: "from another window" })
+    writeFileSync(kvStatePath(), JSON.stringify({ [key]: [removed, remote], keep: 1 }))
+    expect(a.flush()).toBe(true)
+    const disk = createKvCore()
+    const notes = disk.get(key) as DiffComment[]
+    expect(notes.map((c) => c.body)).toEqual(["from another window", "typed note"])
+    expect(unsentComments(notes).map((c) => c.body)).toEqual(["from another window"])
+    expect(disk.get("keep")).toBe(1)
+    expect(a.flush()).toBe(true)
+    expect(createKvCore().get(key)).toEqual(notes)
   })
 
   it("sending from one window leaves a note added meanwhile in another unsent", () => {
