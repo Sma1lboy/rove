@@ -1,4 +1,7 @@
-# Next channel: publish EVERY push to `main` to the npm `next` dist-tag.
+# Next channel: publish every push to `main` that changes the package to the
+# npm `next` dist-tag. A push that touches none of what `@sma1lboy/rove` is
+# built from (docs, the landing page, the native apps, other workflows)
+# starts no run and publishes nothing.
 #
 # Same shape as nightly.yml (no commit, never moves `latest`),
 # but per merge instead of per day, and gated only by the fast tier — the
@@ -30,7 +33,28 @@ name: Next
 on:
   push:
     branches: [main]
+    # What the package is built from (packages/rove/scripts/build.ts). Keep in step with SHIPPED below.
+    paths:
+      - "packages/rove/**"
+      - "packages/rove-daemon/**"
+      - "packages/rove-bridge/**"
+      - "packages/rove-web/**"
+      - "packages/rove-harness/**"
+      - "packages/rove-plugin-sdk/**"
+      - "packages/rove-weixin/**"
+      - ".agents/skills/rove/**"
+      - "scripts/voice/**"
+      - "bun.lock"
+      - "scripts/next-version.mjs"
+      - ".github/workflows/next.yml"
   workflow_dispatch:
+
+env:
+  # The same set as `paths` above, as git pathspecs.
+  SHIPPED: >-
+    packages/rove packages/rove-daemon packages/rove-bridge packages/rove-web packages/rove-harness
+    packages/rove-plugin-sdk packages/rove-weixin .agents/skills/rove scripts/voice bun.lock
+    scripts/next-version.mjs .github/workflows/next.yml
 
 permissions:
   contents: read
@@ -100,11 +124,14 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Superseded (a newer merge landed while this ran, or this is a
-          # rerun of an old commit): the newer run owns the tag.
+          # Superseded (a newer merge changed the package while this ran, or
+          # this is a rerun of an old commit): the newer run owns the tag. A
+          # newer merge that left the package alone started no run, so this
+          # one still publishes.
           git fetch --quiet origin main
-          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ] && [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            echo "main moved past $GITHUB_SHA — the newer run publishes; nothing to do"
+          # shellcheck disable=SC2086 # SHIPPED is a list of pathspecs
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && ! git diff --quiet "$GITHUB_SHA" origin/main -- $SHIPPED; then
+            echo "main changed the package after $GITHUB_SHA — the newer run publishes; nothing to do"
             exit 0
           fi
           if npm view "@sma1lboy/rove@$VERSION" version >/dev/null 2>&1; then
