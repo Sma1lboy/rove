@@ -397,6 +397,32 @@ describe("send handler", () => {
       expect(calls[0].prompt).toBe("hi")
     })
 
+    it("--tab new records the calling session as the child's dispatcher", async () => {
+      const client = new FakeClient({
+        "task.get": () => ({ task: taskFixture({ id: "abc" }) }),
+        "tabs.get": () => ({
+          state: { tabs: [{ kind: "engine", id: "tab-1", spawned: true }], activeId: "tab-1" },
+          rev: 1,
+        }),
+        "task.spawn": () => ({
+          taskId: "kid",
+          task: taskFixture({ id: "kid", parentTaskId: "abc", sharesWorkspaceOf: "abc" }),
+          parentDirty: false,
+          sharedLinks: [],
+        }),
+        "task.setPrompt": () => ({}),
+      })
+      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "new"], {
+        client,
+        runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+      })
+      expect(client.requests.find((r) => r.name === "task.spawn")?.payload).toMatchObject({
+        parentTaskId: "abc",
+        dispatcherTaskId: "sender-1",
+        dispatcherTabId: "tab-1",
+      })
+    })
+
     it("replaying a refused send's nextCommandArgs delivers the peer header once", async () => {
       const rpc = {
         request: async <T>(name: string): Promise<T> =>
