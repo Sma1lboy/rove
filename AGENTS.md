@@ -64,7 +64,7 @@ Style with Tailwind token classes on the element; no CSS outside `src/tailwind.c
 The engine adapter owns agent/product identity, capabilities, history, and telemetry. Neutral layers (TUI, web, orchestrator) never hard-code Claude/Codex strings or derive vendor metrics; a pane needing engine data extends the engine contract first (dev-loop).
 
 ### Tests: pin behavior, not implementation
-Test a bug that happened, a boundary users hit, or a contract other code relies on — one test per behavior, at the highest level that can see it. Don't test constants against copies, re-exports, shapes `tsc` checks, mock-was-called with no observable outcome, or the same behavior twice.
+Test a boundary users hit or a contract code needs, once, at the highest level that sees it; a fix earns a test only if nothing else sees it. No change detectors (copied consts, re-exports, `tsc` shapes, mock-called), libraries or trivial code. Isolated; no fixed sleeps or if/for in tests.
 
 ### Comments and PR text: short
 - A comment says what the code can't: an invariant, an ordering constraint, a non-obvious why. One line by default.
