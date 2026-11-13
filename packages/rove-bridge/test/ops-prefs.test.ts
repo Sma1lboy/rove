@@ -55,6 +55,8 @@ describe("prefs.get", () => {
       runningTitle: "shimmer",
       statusMark: "both",
       statusMarkNoticeSeen: false,
+      railSort: "recent",
+      railGroup: "project",
       workingBorder: "flow",
       toast: true,
       keyHints: true,

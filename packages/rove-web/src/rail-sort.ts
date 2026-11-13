@@ -1,5 +1,9 @@
-/** The rail's sort mode, shared by the rail and by Reorder (which needs manual order). Kept per browser, as the TUI's `activeSortMode`. */
+/**
+ * The rail's sort mode, shared by the rail and by Reorder (which needs manual order). One answer for every
+ * browser on the daemon (the `railSort` pref); localStorage only draws the first frame in it.
+ */
 
+import { prefsStore, savePref } from "./prefs.ts"
 import { SORT_MODES, type SortMode } from "./rail.ts"
 import { createStore } from "./store.ts"
 
@@ -13,9 +17,21 @@ function loadSort(): SortMode {
 
 export const railSort = createStore<SortMode>(loadSort())
 
-export function setRailSort(next: SortMode): void {
+function show(next: SortMode): void {
+  if (next === railSort.get()) return
   railSort.set(next)
   localStorage.setItem(SORT_KEY, next)
+}
+
+// Another browser changed it, or this one just did.
+prefsStore.subscribe(() => {
+  const { loaded, prefs } = prefsStore.get()
+  if (loaded && SORT_MODES.includes(prefs.railSort)) show(prefs.railSort)
+})
+
+export function setRailSort(next: SortMode): void {
+  show(next)
+  savePref("railSort", next)
 }
 
 export function cycleRailSort(): void {

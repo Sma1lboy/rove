@@ -153,6 +153,8 @@ files; it does not show your sessions.
 | `appearance.statusMark` | `both` \| `engine` \| `dots` | `both` | Web only. What marks a task row in the rail: `both` draws the engine's icon in its brand colours and the dot mark for the row's state; `engine` draws the icon alone and colours it by the state; `dots` shows the dot mark alone, the look before engine icons. Settings → Appearance → Task status. |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.statusMark.seen` | boolean | `false` | Web only. Set once the web client has shown its one-time notice that task rows now carry engine icons (or found no task, so nothing to compare with). Shared by every browser on this daemon, so the notice shows once. |
+| `web.rail.sort` | `default` \| `recent` \| `attention` \| `name` | `recent` | Web only. The order of the task list in the web client, shared by every browser on this daemon. `t` in the list cycles it. The terminal app keeps its own in `activeSortMode`. |
+| `web.rail.group` | `project` \| `state` | `project` | Web only. Whether the web task list is grouped by project or by state, shared by every browser on this daemon. Settings → Appearance → Task list. |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
 | `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | One tap of the prefix key always opens the full keyboard guide. This picks what comes with it: `local` also shows shortcut badges beside the clickable controls already on screen, `guide` hides those badges |
 
