@@ -654,7 +654,7 @@
       return res.json().then(function (data) { return { data: data, last: last ? +last[1] : 0 }; });
     })
     .then(function (out) {
-      var rels = (out.data || []).filter(function (r) { return !r.draft; });
+      var rels = (out.data || []).filter(function (r) { return !r.draft && !r.prerelease; });
       if (!rels.length) throw new Error('empty');
 
       body.innerHTML = rels.map(release).join('');
