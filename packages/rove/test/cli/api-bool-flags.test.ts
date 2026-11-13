@@ -17,17 +17,8 @@ import { FakeClient, expectApiError, stubRuntime } from "./api-handler-fixtures.
 describe("a bool flag takes the space form", () => {
   const bools = new Set(["force"])
 
-  it("consumes the next argv element when it is a boolean literal", () => {
-    for (const [raw, expected] of [
-      ["false", "false"],
-      ["true", "true"],
-      ["0", "0"],
-      ["no", "no"],
-      ["1", "1"],
-      ["yes", "yes"],
-    ]) {
-      expect([...parseFlags(["--force", raw], bools).flags]).toEqual([["force", expected]])
-    }
+  it.each(["false", "true", "0", "no", "1", "yes"])("consumes a following boolean literal %s", (raw) => {
+    expect([...parseFlags(["--force", raw], bools).flags]).toEqual([["force", raw]])
   })
 
   // The presence form is what `--force` means on its own; a bool flag must not

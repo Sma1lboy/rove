@@ -222,17 +222,16 @@ describe("measurement failures", () => {
     })
   })
 
-  it.each([{ args: [] }, { args: ["--task-id", "small"] }])(
-    "keeps unreachable checkouts in API totals: %j",
-    async ({ args }) => {
-      const out = await invokeVerb("worktree-usage", args, {
-        client: client([SMALL]),
-        runtime: stubRuntime({ measureCheckout: (path) => measureCheckout(failedRemote(), path) }),
-      })
-      expect(out).toMatchObject({ bytes: null, ignoredBytes: null })
-      if (args.length === 0) expect(out).toMatchObject({ tasks: [{ taskId: "small", bytes: null }] })
-    },
-  )
+  it.each([
+    { args: [], expected: { bytes: null, ignoredBytes: null, tasks: [{ taskId: "small", bytes: null }] } },
+    { args: ["--task-id", "small"], expected: { bytes: null, ignoredBytes: null } },
+  ])("keeps unreachable checkouts in API totals: %j", async ({ args, expected }) => {
+    const out = await invokeVerb("worktree-usage", args, {
+      client: client([SMALL]),
+      runtime: stubRuntime({ measureCheckout: (path) => measureCheckout(failedRemote(), path) }),
+    })
+    expect(out).toMatchObject(expected)
+  })
 
   it("preserves salvage's partial results while strict measurement rejects a failed batch", async () => {
     const host = new LocalExecHost()

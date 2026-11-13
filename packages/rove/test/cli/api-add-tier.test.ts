@@ -69,6 +69,7 @@ beforeEach(() => {
   classifier.calls = []
 })
 afterEach(() => {
+  vi.unstubAllEnvs()
   for (const [name, value] of [
     ["ROVE_TASK_ID", savedEnv.taskId],
     ["ROVE_TAB_ID", savedEnv.tabId],
@@ -97,24 +98,22 @@ describe("add --tier", () => {
     expect(client.requests[0]?.payload).not.toHaveProperty("effort")
   })
 
-  it("refuses an explicit engine field beside a tier — both cannot apply", async () => {
-    for (const extra of [
-      ["--model", "opus"],
-      ["--effort", "high"],
-      ["--command", "codex"],
-    ]) {
-      const client = createClient()
-      await expectApiError(
-        () =>
-          invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep", ...extra, "--start"], {
-            client,
-            runtime: stubRuntime(),
-          }),
-        "CONFLICTING_FLAGS",
-        /conflicts with --tier/,
-      )
-      expect(client.requests).toEqual([])
-    }
+  it.each([
+    ["--model", "opus"],
+    ["--effort", "high"],
+    ["--command", "codex"],
+  ])("refuses an explicit %s beside a tier — both cannot apply", async (...extra) => {
+    const client = createClient()
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--tier", "deep", ...extra, "--start"], {
+          client,
+          runtime: stubRuntime(),
+        }),
+      "CONFLICTING_FLAGS",
+      /conflicts with --tier/,
+    )
+    expect(client.requests).toEqual([])
   })
 
   it("refuses a tier whose engine is not logged in, before creating anything", async () => {
@@ -167,26 +166,24 @@ describe("add --tier auto", () => {
     expect(result.tierAuto).toMatch(/auto → deep \(confidence 0\.71\)/)
   })
 
-  it("creates the task anyway when the classifier declines, and says why", async () => {
-    for (const outcome of [
-      { kind: "declined" as const, reason: "off" },
-      { kind: "declined" as const, reason: "no-key", detail: "TYPESAFE_API_KEY is not set" },
-      { kind: "declined" as const, reason: "refused", detail: "http:// is only accepted for a loopback address" },
-      { kind: "declined" as const, reason: "low-confidence", detail: "standard at 0.44" },
-      { kind: "declined" as const, reason: "failed", detail: "timed out after 4000ms" },
-    ]) {
-      classifier.outcome = outcome
-      const client = promptClient()
-      const { deliver } = recordingDelivery()
-      const result = (await invokeVerb("add", withPrompt(), {
-        client,
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })) as { tierAuto?: string }
-      // The create happened, and it carries no tier — not a wrong one.
-      expect(client.requests[0]?.name).toBe("task.create")
-      expect(client.requests[0]?.payload).not.toHaveProperty("tier")
-      expect(result.tierAuto).toContain(outcome.reason)
-    }
+  it.each([
+    { kind: "declined" as const, reason: "off" },
+    { kind: "declined" as const, reason: "no-key", detail: "TYPESAFE_API_KEY is not set" },
+    { kind: "declined" as const, reason: "refused", detail: "http:// is only accepted for a loopback address" },
+    { kind: "declined" as const, reason: "low-confidence", detail: "standard at 0.44" },
+    { kind: "declined" as const, reason: "failed", detail: "timed out after 4000ms" },
+  ])("creates the task anyway when the classifier declines ($reason), and says why", async (outcome) => {
+    classifier.outcome = outcome
+    const client = promptClient()
+    const { deliver } = recordingDelivery()
+    const result = (await invokeVerb("add", withPrompt(), {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { tierAuto?: string }
+    // The create happened, and it carries no tier — not a wrong one.
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+    expect(result.tierAuto).toContain(outcome.reason)
   })
 
   it("carries what it decided into a DELIVERY FAILURE too, not just a success", async () => {
@@ -235,25 +232,18 @@ describe("add --tier auto", () => {
     const home = mkdtempSync(join(tmpdir(), "rove-tier-"))
     mkdirSync(join(home, ".config", "rove"), { recursive: true })
     writeFileSync(join(home, ".config", "rove", "state.json"), JSON.stringify({ "autoRouting.standard.engine": "" }))
-    const savedHome = process.env.ROVE_HOME_DIR
-    process.env.ROVE_HOME_DIR = home
-    try {
-      const client = promptClient()
-      const { deliver } = recordingDelivery()
-      const result = (await invokeVerb("add", withPrompt(), {
-        client,
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })) as { tierAuto?: string }
-      expect(client.requests[0]?.name).toBe("task.create")
-      expect(client.requests[0]?.payload).not.toHaveProperty("tier")
-      expect(result.tierAuto).toContain("not configured")
-      // And it never reached the network to find that out.
-      expect(classifier.calls).toEqual([])
-    } finally {
-      // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-      if (savedHome === undefined) delete process.env.ROVE_HOME_DIR
-      else process.env.ROVE_HOME_DIR = savedHome
-    }
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    const client = promptClient()
+    const { deliver } = recordingDelivery()
+    const result = (await invokeVerb("add", withPrompt(), {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { tierAuto?: string }
+    expect(client.requests[0]?.name).toBe("task.create")
+    expect(client.requests[0]?.payload).not.toHaveProperty("tier")
+    expect(result.tierAuto).toContain("not configured")
+    // And it never reached the network to find that out.
+    expect(classifier.calls).toEqual([])
   })
 
   it("refuses --tier auto with nothing to classify, before anything is created", async () => {

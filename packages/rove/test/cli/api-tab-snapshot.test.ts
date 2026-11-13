@@ -139,8 +139,9 @@ describe("allocateTab", () => {
     expect(snapshot?.tabs[1]).toMatchObject({ kind: "engine", vendor: "codex", engineCommand: "codex --yolo" })
     expect(snapshot?.nextOrdinal).toBe(5)
     // The daemon mints the id: the open carries none.
-    const open = daemon.applied[0]?.ops.find((op) => op.op === "open")
-    expect(open && "row" in open ? open.row.id : "absent").toBeUndefined()
+    const open = daemon.applied[0]?.ops.find((op) => op.op === "open") as { row?: { id?: string } } | undefined
+    expect(open?.row).toBeDefined()
+    expect(open?.row?.id).toBeUndefined()
   })
 
   it("seeds a task with no record and mints tab-2 alongside the canonical tab", async () => {

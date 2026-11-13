@@ -72,13 +72,14 @@ describe("add handler", () => {
     expect(client.requestNames).toEqual([])
   })
 
-  it("refuses a --branch git will not accept, before anything is created", async () => {
-    // `--branch` was only type-checked, so `add --branch "a b"` exited 0 with
-    // the row in the backlog and the failure deferred to `ensure-worktree`,
-    // where it surfaced as a raw `git worktree add` transcript under
-    // `RPC_ERROR` — no code, no hint, and a row that can never materialize.
-    const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
-    for (const bad of ["a b", "-rf", "feat/x..y"]) {
+  // `--branch` was only type-checked, so `add --branch "a b"` exited 0 with
+  // the row in the backlog and the failure deferred to `ensure-worktree`,
+  // where it surfaced as a raw `git worktree add` transcript under
+  // `RPC_ERROR` — no code, no hint, and a row that can never materialize.
+  it.each(["a b", "-rf", "feat/x..y"])(
+    "refuses --branch %j git will not accept, before anything is created",
+    async (bad) => {
+      const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
       await expectApiError(
         () =>
           invokeVerb("add", ["--repo", "/repo/x", "--branch", bad, "--start"], {
@@ -87,9 +88,9 @@ describe("add handler", () => {
           }),
         "INVALID_BRANCH",
       )
-    }
-    expect(client.requestNames).toEqual([])
-  })
+      expect(client.requestNames).toEqual([])
+    },
+  )
 
   it("leaves a parallel round's --branch refusal to the parallel path", async () => {
     // `--count` rejects `--branch` outright (siblings cannot share one

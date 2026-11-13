@@ -59,6 +59,7 @@ let home: string
 let originalHome: string | undefined
 let logSpy: MockInstance<typeof console.log>
 let errSpy: MockInstance<typeof process.stderr.write>
+let outSpy: MockInstance<typeof process.stdout.write>
 let exitSpy: MockInstance<typeof process.exit>
 
 function enableRemoteProjects(): void {
@@ -80,6 +81,7 @@ beforeEach(() => {
 
   logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
   errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+  outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
     throw new Error(`exit ${code}`)
   }) as never)
@@ -91,6 +93,7 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   errSpy.mockRestore()
+  outSpy.mockRestore()
   exitSpy.mockRestore()
 })
 
@@ -143,7 +146,6 @@ describe("runAddRemote gating + validation", () => {
 describe("runAddRemote key-auth registration", () => {
   it("persists the remote repo + savedRepos key and probes the base path", async () => {
     enableRemoteProjects()
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
 
     await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv/work", "--port", "2222", "--key", "/k"])
 
@@ -160,12 +162,10 @@ describe("runAddRemote key-auth registration", () => {
     // The probe ran `test -d <basePath>` on the (mocked) remote host.
     expect(mocks.run).toHaveBeenCalledWith(["test", "-d", "/srv/work"])
     expect(log()).toContain("ok")
-    outSpy.mockRestore()
   })
 
   it("keeps the project saved when the probe cannot connect", async () => {
     enableRemoteProjects()
-    vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     mocks.run.mockRejectedValue(new Error("connection refused"))
 
     await runAddRemote(["--host", "box", "--user", "dev", "--path", "/srv", "--key"])
@@ -180,7 +180,6 @@ describe("runAddRemote password-auth registration", () => {
   beforeEach(() => {
     mocks.isKeychainSupported.mockReturnValue(true)
     mocks.passwordAnswer = "hunter2"
-    vi.spyOn(process.stdout, "write").mockImplementation(() => true)
   })
 
   it("prompts for the password, stores it in the keychain, and persists only the ref", async () => {

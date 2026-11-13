@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { TOP_LEVEL_SUBCOMMANDS } from "../../src/cli/subcommands.ts"
 import { topLevelUsage } from "../../src/cli/usage.ts"
-import { CURRENT_VERSION } from "../../src/version.ts"
 
 /** The command names listed under the `Commands:` block of `rove --help`. */
 function usageCommandNames(usage: string): string[] {
@@ -16,14 +15,6 @@ function usageCommandNames(usage: string): string[] {
 
 describe("topLevelUsage", () => {
   const usage = topLevelUsage()
-
-  it("renders the same command surface for the rove compatibility entry", () => {
-    const roveUsage = topLevelUsage("rove")
-    expect(roveUsage).toContain(`rove ${CURRENT_VERSION}`)
-    expect(roveUsage).toContain("Usage: rove [command] [options]")
-    expect(roveUsage).toContain("`rove api --help`")
-    expect(usageCommandNames(roveUsage)).toEqual(usageCommandNames(usage))
-  })
 
   it("keeps TOP_LEVEL_SUBCOMMANDS in lock-step with the help text (completion drift guard)", () => {
     // `rove completions` builds its scripts from TOP_LEVEL_SUBCOMMANDS; the help

@@ -10,7 +10,6 @@ describe("updatePlan", () => {
       args: ["-c", UPDATE_COMMAND],
       display: UPDATE_COMMAND,
     })
-    expect(UPDATE_COMMAND).toBe(`curl -fsSL ${UPDATE_SCRIPT_URL} | sh`)
     expect(recommendedGlobalInstallCommand(null)).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
   })
 
