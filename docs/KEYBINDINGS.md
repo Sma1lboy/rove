@@ -291,6 +291,10 @@ While scrolled back, click **first** beside the line count to jump to the
 earliest retained line, or **latest** to return to the bottom and follow new
 output. These buttons do not send input to the engine or shell.
 
+Kitty-protocol `shift+enter` is forwarded as xterm modified Enter, including
+keypad Enter. This preserves the engine's newline binding instead of sending
+a plain Enter; ordinary Enter and legacy terminal sequences keep their existing behavior.
+
 ### Copying from it
 
 Drag with the mouse to select, and the selection is copied when you release.

@@ -153,6 +153,10 @@ function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string 
   // shift+tab is the back-tab CSI claude's plan-mode cycle expects;
   // alt+<key> is ESC-prefixed per xterm convention.
   if (evt.shift && name === "tab") return "\x1b[Z"
+  // xterm modifyOtherKeys preserves Shift+Enter without negotiating kitty in the child PTY.
+  if (evt.shift && (name === "return" || name === "enter" || name === "kpenter")) {
+    return `\x1b[27;${legacyModifier(evt)};13~`
+  }
   const functionKey = LEGACY_FUNCTION_KEYS[name]
   const xtermModifiedNamedKey = functionKey !== undefined || XTERM_MODIFIER_NAMED_KEYS.has(name)
   if ((evt.option || evt.meta) && !xtermModifiedNamedKey) {

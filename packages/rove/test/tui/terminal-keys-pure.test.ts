@@ -104,6 +104,22 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "\x03", raw: "\x03" } as never))).toBe("\x03")
   })
 
+  it.each(["return", "enter", "kpenter"])("preserves Shift+%s from kitty as xterm modified Enter", (name) => {
+    const raw = name === "kpenter" ? "\x1b[57414;2u" : "\x1b[13;2u"
+    expect(keyEventToShellBytes(evt({ name, shift: true, sequence: raw, raw } as never))).toBe("\x1b[27;2;13~")
+  })
+
+  it("preserves combined Shift+Alt+Enter without adding a second escape prefix", () => {
+    expect(keyEventToShellBytes(evt({ name: "return", shift: true, option: true, raw: "\x1b[13;4u" } as never))).toBe(
+      "\x1b[27;4;13~",
+    )
+  })
+
+  it("keeps plain Enter and Alt+Enter distinct on kitty terminals", () => {
+    expect(keyEventToShellBytes(evt({ name: "return", raw: "\x1b[13u" } as never))).toBe("\r")
+    expect(keyEventToShellBytes(evt({ name: "return", option: true, raw: "\x1b[13;3u" } as never))).toBe("\x1b\r")
+  })
+
   it("forwards a kitty IME text event (CSI 0 u with reportText) as the committed characters", () => {
     // allKeysAsEscapes makes a terminal encode an input-method commit as
     // codepoint 0 with the text in the third field. Without reportText that
