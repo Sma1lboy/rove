@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
+import { createKvCore } from "../../src/tui-react/context/kv-core"
 import {
   type DiffComment,
   buildDiffReview,
@@ -11,7 +12,6 @@ import {
   diffCommentsKey,
   formatDiffComment,
   formatDiffComments,
-  markAllSent,
   unifiedDiffRows,
   unsentComments,
 } from "../../src/tui/ops/diff-comments"
@@ -148,12 +148,9 @@ describe("computeReviewPaint", () => {
 })
 
 describe("sent bookkeeping", () => {
-  it("unsentComments / markAllSent round-trip", () => {
+  it("unsentComments keeps only the notes without a send time", () => {
     const list = [comment({ id: "a" }), comment({ id: "b", sentAt: 5 })]
     expect(unsentComments(list).map((c) => c.id)).toEqual(["a"])
-    const sent = markAllSent(list, 42)
-    expect(sent.map((c) => c.sentAt)).toEqual([42, 5])
-    expect(unsentComments(sent)).toEqual([])
   })
 })
 
@@ -191,13 +188,16 @@ describe("buildDiffReview", () => {
   function fakeKv(): {
     store: Map<string, unknown>
     get: (k: string, d?: unknown) => unknown
-    set: (k: string, v: unknown) => void
+    update: (k: string, mutate: (current: unknown) => unknown) => boolean
   } {
     const store = new Map<string, unknown>()
     return {
       store,
       get: (k, d) => store.get(k) ?? d,
-      set: (k, v) => store.set(k, v),
+      update: (k, mutate) => {
+        store.set(k, mutate(store.get(k)))
+        return true
+      },
     }
   }
 
@@ -268,6 +268,55 @@ describe("buildDiffReview", () => {
     buildDiffReview(kv, "t1", () => true).remove(stored[0]?.id ?? "")
     const after = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
     expect(after.map((c) => c.body)).toEqual(["keep"])
+  })
+})
+
+describe("two clients on one task's notes", () => {
+  let savedHome: string | undefined
+  let home: string
+
+  beforeEach(() => {
+    savedHome = process.env.ROVE_HOME_DIR
+    home = mkdtempSync(join(tmpdir(), "rove-diff-notes-"))
+    process.env.ROVE_HOME_DIR = home
+  })
+
+  afterEach(() => {
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = savedHome
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  // Two windows, each with the copy of state.json it booted with; neither has had the other's push yet.
+  it("a note added in one window survives a note added in another", () => {
+    const a = createKvCore()
+    const b = createKvCore()
+    buildDiffReview(b, "t1", () => true).add({ filePath: "a.ts", line: 1, body: "from b" })
+    buildDiffReview(a, "t1", () => true).add({ filePath: "a.ts", line: 2, body: "from a" })
+    a.flush()
+    b.flush()
+    const onDisk = createKvCore().get(diffCommentsKey("t1")) as DiffComment[]
+    expect(onDisk.map((c) => c.body)).toEqual(["from b", "from a"])
+    // The window sees the other's note at once, not after the next push.
+    expect((a.get(diffCommentsKey("t1")) as DiffComment[]).map((c) => c.body)).toEqual(["from b", "from a"])
+  })
+
+  it("sending from one window leaves a note added meanwhile in another unsent", () => {
+    const a = createKvCore()
+    const b = createKvCore()
+    buildDiffReview(a, "t1", () => true).add({ filePath: "a.ts", line: 1, body: "sent" })
+    const sent: string[] = []
+    const review = buildDiffReview(a, "t1", (text) => {
+      // The other window adds a note while this batch is on its way to the engine.
+      buildDiffReview(b, "t1", () => true).add({ filePath: "a.ts", line: 2, body: "late" })
+      sent.push(text)
+      return true
+    })
+    expect(review.send()).toBe(true)
+    a.flush()
+    const onDisk = createKvCore().get(diffCommentsKey("t1")) as DiffComment[]
+    expect(sent[0]).not.toContain("late")
+    expect(unsentComments(onDisk).map((c) => c.body)).toEqual(["late"])
   })
 })
 

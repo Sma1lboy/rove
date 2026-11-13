@@ -7,6 +7,9 @@
  *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
+ *   - `update()` changes ONE key against the file as it is now, under the
+ *     file lock: for a list several clients add to, where `set` would write
+ *     this process's copy over a row another client just added.
  *   - `clear()` is the one whole-file write: reset wipes everything,
  *     including other processes' keys.
  */
@@ -16,7 +19,13 @@ import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watche
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
-import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
+import {
+  loadStateFile,
+  patchStateFile,
+  readStateFileStrict,
+  replaceStateFile,
+  updateStateFile,
+} from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
@@ -54,6 +63,12 @@ export interface KvCore {
    * re-render. For write-often keys whose local writes need no render (the inbox visit log).
    */
   setQuiet(key: string, value: unknown): void
+  /**
+   * Change one key from its value ON DISK now (locked read-modify-write), then adopt the
+   * result. For a collection other clients also change: `mutate` gets their rows too.
+   * False = nothing was written and the snapshot is unchanged.
+   */
+  update(key: string, mutate: (current: unknown) => unknown): boolean
   /**
    * In-memory default seeding (the `signal(name, default)` contract): sets
    * the key ONLY when currently undefined, and never marks it dirty — a
@@ -102,8 +117,8 @@ export function createKvCore(): KvCore {
    */
   const reportedKeys = new Set<string>()
 
-  function reportWriteError(err: unknown): void {
-    const fresh = [...dirtyKeys].filter((key) => !reportedKeys.has(key))
+  function reportWriteError(err: unknown, unwritten: Iterable<string> = dirtyKeys): void {
+    const fresh = [...unwritten].filter((key) => !reportedKeys.has(key))
     if (fresh.length === 0) return
     for (const key of fresh) reportedKeys.add(key)
     const failure: KvWriteFailure = { keys: fresh, file: kvStatePath(), error: err }
@@ -208,6 +223,32 @@ export function createKvCore(): KvCore {
       quiet.set(key, value)
       dirtyKeys.add(key)
       scheduleWrite()
+    },
+    update(key, mutate) {
+      let next: unknown
+      try {
+        updateStateFile((state) => {
+          next = mutate(state[key])
+          if (next === undefined) delete state[key]
+          else state[key] = next
+          return undefined
+        }, "strict")
+      } catch (err) {
+        console.error(`[rove] kv update of ${key} failed:`, err)
+        reportWriteError(err, [key])
+        return false
+      }
+      // The file already holds the result: an older pending `set` of this key must not land over it.
+      dirtyKeys.delete(key)
+      quiet.delete(key)
+      reportedKeys.delete(key)
+      store.update((s) => {
+        const copy = { ...s }
+        if (next === undefined) delete copy[key]
+        else copy[key] = next
+        return copy
+      })
+      return true
     },
     seed(key, value) {
       if (!seeded.has(key)) seeded.set(key, value)
