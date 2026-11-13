@@ -19,7 +19,7 @@ import { createCover } from "./term-cover.ts"
 import { attachDictationGuard } from "./term-dictation.ts"
 import { OverlayFitAddon } from "./term-fit.ts"
 import { attachKittyImages } from "./term-images.ts"
-import { ctrlChord } from "./term-keys.ts"
+import { SHIFT_ENTER, ctrlChord, isShiftEnter } from "./term-keys.ts"
 import { FONT_FAMILY, XTERM_THEME } from "./term-look.ts"
 import { osc52Text } from "./term-osc52.ts"
 import { createReplyGate } from "./term-replies.ts"
@@ -324,6 +324,11 @@ export function mountTerminal(o: MountOpts): TermHandle {
 
   // Copy: ctrl+c with a selection copies and drops it, otherwise it stays the interrupt (TUI `copySelectionIfAny`).
   term.attachCustomKeyEventHandler((e) => {
+    // Its keypress is swallowed too, or xterm would still send the CR.
+    if (isShiftEnter(e)) {
+      if (e.type === "keydown") term.input(SHIFT_ENTER, true)
+      return false
+    }
     // On a Mac, Ctrl+V would ask the engine to read the rove machine's clipboard, not this browser's.
     // Elsewhere it is the browser's own paste, which the paste event already covers.
     const ctrlV =

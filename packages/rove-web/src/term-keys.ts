@@ -40,3 +40,14 @@ export function ctrlChord(data: string): string {
   if (code === 0x3f) return "\x7f"
   return code >= 0x40 && code <= 0x5f ? String.fromCharCode(code & 0x1f) : data
 }
+
+/** Shift+Enter as the TUI pane sends it (xterm modifyOtherKeys); xterm.js alone sends a bare CR, which submits. */
+export const SHIFT_ENTER = "\x1b[27;2;13~"
+
+type EnterPress = Pick<KeyboardEvent, "key" | "shiftKey" | "ctrlKey" | "metaKey" | "altKey" | "isComposing" | "keyCode">
+
+/** Shift+Enter alone, not an IME commit (Safari's reports keyCode 229 with `isComposing` false). */
+export function isShiftEnter(e: EnterPress): boolean {
+  if (e.key !== "Enter" || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return false
+  return !e.isComposing && e.keyCode !== 229
+}
