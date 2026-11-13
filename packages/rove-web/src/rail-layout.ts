@@ -5,7 +5,7 @@
 
 import { CELL_PX, MIN_WORKSPACE_WIDTH } from "./layout.ts"
 import { createStore } from "./store.ts"
-import { slideLayout } from "./ui.ts"
+import { menu, slideLayout } from "./ui.ts"
 
 const SIDEBAR_WIDTH = 24
 
@@ -36,13 +36,19 @@ railFolded.subscribe(() => localStorage.setItem(FOLD_KEY, railFolded.get() ? "1"
 /** A folded rail floating over the workspace while the pointer is at the left edge (Claude Desktop's peek). */
 export const railPeek = createStore<boolean>(false)
 let peekTimer: number | null = null
+let peekHovered = false
 /** Open at once; close after a grace, so the pointer can cross the edge or the top-left bar without it flickering shut. */
 export function peekRail(open: boolean): void {
   if (peekTimer !== null) window.clearTimeout(peekTimer)
   peekTimer = null
+  peekHovered = open
   if (open) railPeek.set(true)
-  else peekTimer = window.setTimeout(() => railPeek.set(false), 250)
+  // A menu opened from the peeking rail floats outside it: the rail stays until that menu closes.
+  else peekTimer = window.setTimeout(() => menu.get() === null && railPeek.set(false), 250)
 }
+menu.subscribe(() => {
+  if (menu.get() === null && railPeek.get() && !peekHovered) peekRail(false)
+})
 railFolded.subscribe(() => railPeek.set(false))
 
 railFolded.subscribe(slideLayout)
