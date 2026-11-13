@@ -113,23 +113,24 @@ it("--line reaches the editor command and the launch reports it was taken", asyn
   expect(row?.kind === "command" ? row.command[2] : "").toMatch(/^sed -n '2p' .*a\.txt/)
 })
 
-it("a file outside the worktree, a directory, a missing file or a missing editor is refused before anything runs", async () => {
+it.each([
+  ["/etc/hosts", "BAD_FLAG"],
+  ["../secret.txt", "BAD_FLAG"],
+  ["link.txt", "BAD_FLAG"],
+  ["dir", "BAD_FLAG"],
+  ["nope.txt", "FILE_NOT_FOUND"],
+])("editor file %s is refused with %s before anything runs", async (file, code) => {
   writeFileSync(join(home, "secret.txt"), "s")
   symlinkSync(join(home, "secret.txt"), join(wt, "link.txt"))
   mkdirSync(join(wt, "dir"))
-  for (const [file, code] of [
-    ["/etc/hosts", "BAD_FLAG"],
-    ["../secret.txt", "BAD_FLAG"],
-    ["link.txt", "BAD_FLAG"],
-    ["dir", "BAD_FLAG"],
-    ["nope.txt", "FILE_NOT_FOUND"],
-  ] as const) {
-    await expect(editor(file)).rejects.toMatchObject({ code })
-  }
+  await expect(editor(file)).rejects.toMatchObject({ code })
+  expect(opened()).toEqual([])
+})
+
+it("a missing editor is refused before anything runs", async () => {
   writeFileSync(join(wt, "a.txt"), "hi")
   host.editor = false
   await expect(editor("a.txt")).rejects.toMatchObject({ code: "NO_EDITOR" })
-
   expect(opened()).toEqual([])
 })
 

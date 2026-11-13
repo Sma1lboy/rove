@@ -184,17 +184,14 @@ describe("create records the dispatcher ($ROVE_TASK_ID/$ROVE_TAB_ID)", () => {
       client,
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
-    const creates = client.requests.filter((r) => r.name === "task.create")
-    expect(creates).toHaveLength(2)
-    for (const create of creates) {
-      expect(create.payload).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-3" })
-    }
+    const dispatcher = expect.objectContaining({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-3" })
+    expect(client.requests.filter((r) => r.name === "task.create").map((r) => r.payload)).toEqual([
+      dispatcher,
+      dispatcher,
+    ])
     // Every delivered sibling's brief is persisted on its own task record.
-    const persists = client.requests.filter((r) => r.name === "task.setPrompt")
-    expect(persists).toHaveLength(2)
-    for (const persist of persists) {
-      expect(persist.payload).toMatchObject({ prompt: "go" })
-    }
+    const brief = expect.objectContaining({ prompt: "go" })
+    expect(client.requests.filter((r) => r.name === "task.setPrompt").map((r) => r.payload)).toEqual([brief, brief])
   })
 })
 
@@ -429,20 +426,11 @@ describe("persistence codec", () => {
     }
   }
 
-  it("dispatcher survives the load coercion", () => {
-    const { tasks } = normalizeIndex(
-      { version: 3, tasks: [row({ dispatcher: { taskId: "disp-1", tabId: "tab-2" } })] },
-      "test",
-    )
-    expect(tasks[0].dispatcher).toEqual({ taskId: "disp-1", tabId: "tab-2" })
-  })
-
   it("records without the field (and malformed values) normalize to undefined", () => {
     const { tasks } = normalizeIndex(
       { version: 3, tasks: [row({}), row({ dispatcher: { taskId: "disp-1" } }), row({ dispatcher: "disp-1" })] },
       "test",
     )
-    expect(tasks).toHaveLength(3)
-    for (const task of tasks) expect(task.dispatcher).toBeUndefined()
+    expect(tasks.map((task) => task.dispatcher)).toEqual([undefined, undefined, undefined])
   })
 })

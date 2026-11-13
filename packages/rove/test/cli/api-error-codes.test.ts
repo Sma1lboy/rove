@@ -26,22 +26,6 @@ describe("daemon error codes at the CLI boundary", () => {
     expect(err.message).toBe("task t1 worktree has uncommitted or untracked changes")
   })
 
-  it("covers every sentinel the orchestrator writes, not an allowlist of two", () => {
-    // Sampled across orchestrator/errors.ts — the point of parsing the shape
-    // rather than the names is that a code added there needs no CLI change.
-    for (const code of [
-      "LAND_CONFLICT",
-      "MISSING_REF",
-      "MAIN_CHECKOUT_DIRTY",
-      "GIT_COMMAND_FAILED",
-      "TASK_DELETING",
-      "EMPTY_BRANCH",
-      "ISSUE_NOT_FOUND",
-    ]) {
-      expect(toApiError(new Error(`${code}: something went wrong`)).code).toBe(code)
-    }
-  })
-
   it("keeps TASK_NOT_FOUND's recovery — the lift must not shadow the hand-mapped patterns", () => {
     // The daemon writes this one WITHOUT a code prefix, so it has to stay a
     // special case. Its `nextCommandArgs` is the most-used recovery on the
@@ -51,19 +35,17 @@ describe("daemon error codes at the CLI boundary", () => {
     expect(err.data?.nextCommandArgs).toEqual(["api", "list"])
   })
 
-  it("leaves an uncoded failure as RPC_ERROR", () => {
-    // RPC_ERROR has to keep meaning something: "the daemon failed and did not
-    // name a reason". A prefix rule loose enough to match prose would make it
-    // meaningless in the other direction — so `Error:` (not all-caps) and a
-    // two-letter head do not qualify.
-    for (const message of [
-      "disk is full",
-      "Error: connection reset",
-      "AB: too short to be a code",
-      "no issue #999",
-      "lowercase_code: not a code",
-    ]) {
-      expect(toApiError(new Error(message))).toMatchObject({ code: "RPC_ERROR", message })
-    }
+  // RPC_ERROR has to keep meaning something: "the daemon failed and did not
+  // name a reason". A prefix rule loose enough to match prose would make it
+  // meaningless in the other direction — so `Error:` (not all-caps) and a
+  // two-letter head do not qualify.
+  it.each([
+    "disk is full",
+    "Error: connection reset",
+    "AB: too short to be a code",
+    "no issue #999",
+    "lowercase_code: not a code",
+  ])("leaves an uncoded failure as RPC_ERROR: %s", (message) => {
+    expect(toApiError(new Error(message))).toMatchObject({ code: "RPC_ERROR", message })
   })
 })

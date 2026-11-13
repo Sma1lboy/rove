@@ -5,7 +5,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
 import { deliverHostedPrompt } from "../../src/cli/api/pty-delivery.ts"
@@ -23,6 +23,7 @@ beforeEach(() => {
   delete process.env.ROVE_TAB_ID
 })
 afterEach(() => {
+  vi.useRealTimers()
   for (const [name, value] of [
     ["ROVE_TASK_ID", savedEnv.taskId],
     ["ROVE_TAB_ID", savedEnv.tabId],
@@ -118,14 +119,15 @@ describe("send handler", () => {
       "send.check": () => (++reads === 1 ? { awaiting: [], settleMs: 20 } : { awaiting: ["tab-1"], settleMs: 0 }),
     })
     const delivery = recordingDelivery()
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--plain", "--prompt", "4"], {
-          client,
-          runtime: stubRuntime({ deliverPrompt: delivery.deliver }),
-        }),
-      "AWAITING_PERMISSION",
-    )
+    vi.useFakeTimers({ toFake: ["setTimeout"] })
+    const sent = invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--plain", "--prompt", "4"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: delivery.deliver }),
+    }).catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(19)
+    expect(reads).toBe(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await sent).toMatchObject({ code: "AWAITING_PERMISSION" })
     expect(reads).toBe(2)
     expect(delivery.calls).toHaveLength(0)
   })

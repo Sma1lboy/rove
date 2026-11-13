@@ -26,12 +26,7 @@ describe("plugin marketplace", () => {
     await searchMarketplace("needle")
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("topic%3Arove-plugin"),
-        expect.stringContaining("topic%3Arove-plugin"),
-      ]),
-    )
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("topic%3Arove-plugin"), expect.anything())
     const output = log.mock.calls.map(([line]) => String(line)).join("\n")
     expect(output.match(/you\/shared/g)).toHaveLength(1)
     expect(output).toContain("you/legacy")

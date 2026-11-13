@@ -117,8 +117,8 @@ describe.skipIf(process.platform === "win32")("killOrphanGroups leaves a trace",
     // child its own group leader, which is the shape the sweep signals.
     const child = spawn("sleep", ["30"], { detached: true, stdio: "ignore" })
     child.unref()
-    const pgid = child.pid
-    if (pgid === undefined) throw new Error("could not spawn a detached child")
+    const pgid = child.pid as number
+    expect(pgid).toBeTypeOf("number")
 
     const result = await killOrphanGroups([
       { pid: pgid, ppid: 1, pgid, etime: "01:00:00", rssKb: 1024, command: "sleep 30" },

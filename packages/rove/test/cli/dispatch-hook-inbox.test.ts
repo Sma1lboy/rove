@@ -77,8 +77,9 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     encoding: "utf8",
   })
   expect(init.status, init.stderr).toBe(0)
-  for (const key of ["HOME", "ROVE_HOME_DIR", "ROVE_HOME_DIR", "CODEX_HOME"]) vi.stubEnv(key, home)
-  vi.stubEnv("ROVE_TASK_ID", "")
+  vi.stubEnv("HOME", home)
+  vi.stubEnv("ROVE_HOME_DIR", home)
+  vi.stubEnv("CODEX_HOME", home)
   vi.stubEnv("ROVE_TASK_ID", "")
   vi.stubEnv("ROVE_TAB_ID", "")
   vi.stubGlobal("Bun", { stdin: { text: async () => "" } })
@@ -155,9 +156,9 @@ it("routes repository tasks through real dispatch, hosted paste, hook normalizat
     vi.stubEnv("ROVE_TAB_ID", "tab-1")
     vi.stubEnv("ROVE_TASK_ID", a.taskId)
     const hookPayload = JSON.stringify({ cwd: pathA, session_id: "fixture-session-a", transcript_path: null })
-    for (const kind of ["session-start", "turn-start", "turn-complete"]) {
-      await runHookSubcommand([kind, "--engine", "codex", "--payload", hookPayload])
-    }
+    await runHookSubcommand(["session-start", "--engine", "codex", "--payload", hookPayload])
+    await runHookSubcommand(["turn-start", "--engine", "codex", "--payload", hookPayload])
+    await runHookSubcommand(["turn-complete", "--engine", "codex", "--payload", hookPayload])
     expect(activity.debugSnapshot().tabs[a.taskId]?.["tab-1"]?.state).toBe("turn_complete")
     expect(inbox.snapshot()).toMatchObject([{ taskId: a.taskId, tabId: "tab-1", state: "turn_complete" }])
     expect(activity.debugSnapshot().tabs[b.taskId]).toBeUndefined()

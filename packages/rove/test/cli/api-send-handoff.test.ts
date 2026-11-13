@@ -50,7 +50,8 @@ beforeAll(() => {
 })
 
 afterAll(() => {
-  process.env.CLAUDE_CONFIG_DIR = prevConfigDir ?? ""
+  if (prevConfigDir === undefined) Reflect.deleteProperty(process.env, "CLAUDE_CONFIG_DIR")
+  else process.env.CLAUDE_CONFIG_DIR = prevConfigDir
   rmSync(claudeDir, { recursive: true, force: true })
   rmSync(process.env.ROVE_HOME_DIR ?? "", { recursive: true, force: true })
   if (prevHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")

@@ -185,7 +185,6 @@ describe("runDoctorSubcommand", () => {
     // undoable and as killing every live session — to a user with nothing
     // wrong and nothing to lose yet.
     expect(output()).not.toContain("rove reset")
-    expect(output()).not.toContain("rove reset")
     expect(output()).toContain("starts on demand")
     // …and nothing ran (no TTY → no confirmations → no executions).
     expect(output()).toContain("nothing was executed")

@@ -148,9 +148,12 @@ describe("add from a verified rove session", () => {
 
     await run(client, ["--repo", "/work/web", "--prompt", "go", "--count", "3"])
 
-    const spawns = client.requests.filter((r) => r.name === "task.spawn")
-    expect(spawns).toHaveLength(3)
-    for (const spawn of spawns) expect(spawn.payload).toMatchObject({ parentTaskId: "kid", lazy: true })
+    const sibling = expect.objectContaining({ parentTaskId: "kid", lazy: true })
+    expect(client.requests.filter((r) => r.name === "task.spawn").map((r) => r.payload)).toEqual([
+      sibling,
+      sibling,
+      sibling,
+    ])
   })
 })
 

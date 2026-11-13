@@ -92,17 +92,13 @@ describe("update", () => {
         throw new Error("task gone")
       },
     })
-    try {
-      await invokeVerb("update", ["--task-id", "t1", "--branch", "feat/x", "--title", "New"], {
-        client,
-        runtime: stubRuntime(),
-      })
-      expect.unreachable("should have thrown")
-    } catch (err) {
-      expect(err).toBeInstanceOf(ApiError)
-      expect((err as ApiError).message).toMatch(/--title failed after branch applied/)
-      expect((err as ApiError).data).toMatchObject({ applied: ["branch"], failed: ["title"] })
-    }
+    const err = await invokeVerb("update", ["--task-id", "t1", "--branch", "feat/x", "--title", "New"], {
+      client,
+      runtime: stubRuntime(),
+    }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).message).toMatch(/--title failed after branch applied/)
+    expect((err as ApiError).data).toMatchObject({ applied: ["branch"], failed: ["title"] })
   })
 
   it("records a worker report only together with a status", async () => {

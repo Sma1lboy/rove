@@ -47,13 +47,6 @@ function freshHome(): string {
   return mkdtempSync(join(tmpdir(), "rove-onboarding-"))
 }
 
-function setProduct(name: "rove" | "rove"): void {
-  if (name === "rove") process.env.ROVE_INVOKED_AS = "rove"
-  // Assigning `undefined` stores the literal string "undefined", which reads
-  // as legacy only by accident. Delete it so the legacy case is the real one.
-  else Reflect.deleteProperty(process.env, "ROVE_INVOKED_AS")
-}
-
 function stdoutLines(spy: MockInstance<typeof process.stdout.write>): string[] {
   return spy.mock.calls
     .map((call) => String(call[0]))
@@ -186,7 +179,6 @@ describe("runPendingWelcomeInstalls", () => {
     vi.clearAllMocks()
     mocks.spawnSync.mockReturnValue({ status: 0 })
     mocks.home = freshHome()
-    setProduct("rove")
     stdoutSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true)
   })
   afterEach(() => {

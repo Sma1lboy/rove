@@ -24,9 +24,6 @@ describe("summarizeCliGitError", () => {
     const summary = summarizeCliGitError(GIT_THROW, "/private/tmp")
     expect(summary).toBe("/private/tmp is not a git repository — run this inside one, or pass a repo path.")
   })
-
-  /** A boil-down that swallows what it does not understand is worse than a
-   *  noisy one: the caller passes the original through on null. */
 })
 
 describe("formatCliFailure", () => {

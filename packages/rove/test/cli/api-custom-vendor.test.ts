@@ -187,16 +187,15 @@ describe("--vendor discovery on the surfaces that still use it", () => {
     expect(vendorValues(detail)).toContain("claude")
   })
 
-  it.each(["routine-create", "workitem-start"])("%s accepts a shipped contrib engine id", async (verb) => {
+  it.each([
+    ["routine-create", ["--repo", "/repo/x", "--name", "nightly", "--prompt", "go", "--schedule", "0 9 * * MON"]],
+    ["workitem-start", ["--repo", "/repo/x", "--number", "7"]],
+  ])("%s accepts a shipped contrib engine id", async (verb, argv) => {
     writeState({})
     const client = new FakeClient({
       "automation.create": () => ({ ok: true }),
       "workitem.start": () => ({ ok: true }),
     })
-    const argv =
-      verb === "routine-create"
-        ? ["--repo", "/repo/x", "--name", "nightly", "--prompt", "go", "--schedule", "0 9 * * MON"]
-        : ["--repo", "/repo/x", "--number", "7"]
     await invokeVerb(verb, [...argv, "--vendor", "opencode"], { client, runtime })
     expect(client.requests[0]?.payload).toMatchObject({ vendor: "opencode" })
   })

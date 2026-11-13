@@ -81,6 +81,16 @@ describe("readStdinText with a completeness predicate", () => {
     }
   }
 
+  /** `completeJson` that writes the next piece each time the reader checks, so
+   *  every piece arrives only after the reader has consumed the one before. */
+  function feeding(stream: PassThrough, pieces: string[]): (text: string) => boolean {
+    return (text) => {
+      const next = pieces.shift()
+      if (next !== undefined) stream.write(next)
+      return completeJson(text)
+    }
+  }
+
   it("returns the payload from a writer that never closes the pipe", async () => {
     useStdin(unclosedStdin('{"sessionId":"s1","cwd":"/repo"}'))
     expect(await readStdinText(completeJson)).toBe('{"sessionId":"s1","cwd":"/repo"}')
@@ -89,9 +99,8 @@ describe("readStdinText with a completeness predicate", () => {
   it("keeps reading while the document is still arriving in pieces", async () => {
     const stream = new PassThrough()
     stream.write('{"sessionId":')
-    setTimeout(() => stream.write('"s1"}'), 5)
     useStdin(stream)
-    expect(await readStdinText(completeJson)).toBe('{"sessionId":"s1"}')
+    expect(await readStdinText(feeding(stream, ['"s1"}']))).toBe('{"sessionId":"s1"}')
   })
 
   // Without the predicate the same stream is what it always was: a read that
@@ -114,8 +123,7 @@ describe("readStdinText with a completeness predicate", () => {
     const stream = new PassThrough()
     stream.write("")
     stream.write("   ")
-    setTimeout(() => stream.end('{"sessionId":"s1"}'), 5)
     useStdin(stream)
-    expect(await readStdinText(completeJson)).toBe('   {"sessionId":"s1"}')
+    expect(await readStdinText(feeding(stream, ['{"sessionId":"s1"}']))).toBe('   {"sessionId":"s1"}')
   })
 })
