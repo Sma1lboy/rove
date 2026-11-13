@@ -1,6 +1,6 @@
 # Next channel: publish EVERY push to `main` to the npm `next` dist-tag.
 #
-# Same shape as nightly.yml (no git tag, no commit, never moves `latest`),
+# Same shape as nightly.yml (no version tag, no commit, never moves `latest`),
 # but per merge instead of per day, and gated only by the fast tier — the
 # checks `bun run pre-pr` runs: lint, typecheck, unit tests, build. The full
 # ci.yml suite (behavior, render, visual, cross-OS) runs only on the
@@ -18,6 +18,13 @@
 #     reached through `latest`, not `next`.
 #   - Publishes ONLY @sma1lboy/rove (the compat aliases and the plugin SDK
 #     ride stable releases).
+#   - Releases page: one prerelease entry on the rolling `next` tag, titled
+#     with the build's version and listing the pending changesets. It is
+#     edited in place per merge and recreated only when the stable version it
+#     previews changes, so watchers get one notification per release cycle.
+#     The tag is not a `v*` tag, so release.yml and the app's release-notes
+#     readers (which take `vX.Y.Z` only) never see it. A failure here does not
+#     fail the run: the npm publish already happened.
 
 name: Next
 
@@ -38,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # npm provenance (OIDC)
+      contents: write # the rolling `next` tag and its Releases-page entry
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -88,6 +96,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to the next dist-tag
+        id: publish
         working-directory: packages/rove
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -106,3 +115,24 @@ jobs:
           # --ignore-scripts: prepublishOnly re-runs typecheck+build, which
           # already ran above against this exact tree.
           npm publish --access public --provenance --ignore-scripts --tag next
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Show the build on the Releases page
+        if: steps.publish.outputs.published == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node scripts/next-version.mjs --notes "$VERSION" > "$RUNNER_TEMP/next-notes.md"
+          stable="${VERSION%%-next.*}"
+          current="$(gh release view next --json name --jq .name 2>/dev/null || true)"
+          if [ "${current%%-next.*}" = "$stable" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/next" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+            gh release edit next --title "$VERSION" --notes-file "$RUNNER_TEMP/next-notes.md" --prerelease
+          else
+            # A new stable version to preview: a fresh entry lands above the release that was just cut.
+            gh release delete next --yes --cleanup-tag 2>/dev/null || true
+            gh release create next --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "$VERSION" --notes-file "$RUNNER_TEMP/next-notes.md"
+          fi
