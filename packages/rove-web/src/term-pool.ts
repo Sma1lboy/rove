@@ -98,6 +98,11 @@ function evict(pool: Pool): void {
   for (const entry of parked.slice(0, Math.max(0, parked.length - PARKED_MAX))) drop(pool, entry, true)
 }
 
+/** The terminal of a stream that is mounted or parked, for a view beside it to type into. */
+export function liveHandle(client: BridgeClient, stream: string): TermHandle | null {
+  return poolOf(client).entries.get(stream)?.handle ?? null
+}
+
 export interface Leased {
   readonly handle: TermHandle
   /** The view is going away: park the terminal (or dispose it, for a second view of one stream). */

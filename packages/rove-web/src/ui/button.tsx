@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes } from "react"
 import { cn } from "./cn.ts"
+import { iconButton } from "./panel.ts"
 
 /** The filled action (`.button` before Tailwind). `danger` paints it the error colour. */
 export const buttonClass = ({ danger = false }: { danger?: boolean } = {}): string =>
@@ -29,6 +30,9 @@ const VARIANT = {
   row: "",
   /** A bracketed choice among a few (the attempts strip): quiet until hovered, the accent while it is the current one (`aria-current`). */
   pill: "inline-flex flex-none items-center gap-1.5 whitespace-nowrap font-mono text-meta text-muted hover:text-ink aria-[current=true]:text-accent",
+  /** A small glyph-only button in a bar (the Browser's); `iconOn` while what it toggles is on. The caller passes the `svg` and an `aria-label`. */
+  icon: iconButton({ small: true }),
+  iconOn: iconButton({ small: true, on: true }),
   card: "flex min-w-0 flex-col gap-1.5 rounded-sm border-hairline p-1.5 text-left focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-focus",
 } as const
 

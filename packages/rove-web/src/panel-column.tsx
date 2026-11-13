@@ -119,6 +119,7 @@ function BrowserTabs({ model, task, column }: { model: AppModel; task: TaskRow; 
       <div key={tab.id} className={SIDE_VIEW} hidden={tab.id !== column.active}>
         <BrowserView
           model={model}
+          taskId={task.id}
           tab={tab}
           onNavigate={(url) => editBrowserColumn(task.id, (col) => navigate(col, tab.id, url))}
           onStep={(at) => editBrowserColumn(task.id, (col) => stepTab(col, tab.id, at))}

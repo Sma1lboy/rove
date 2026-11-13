@@ -5,13 +5,16 @@
  * frame are the frame's own (a cross-origin page's history cannot be read).
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { BrowserAnnotate } from "./browser-annotate.tsx"
+import { canCapture } from "./browser-capture.ts"
 import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
 import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { useStore } from "./store.ts"
-import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
+import { Button } from "./ui/button.tsx"
+import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_STAGE, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
 
 function Glyph({ d }: { d: string }) {
@@ -26,11 +29,13 @@ const OPEN_TAB = "M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5l-5 5"
 
 export function BrowserView({
   model,
+  taskId,
   tab,
   onNavigate,
   onStep,
 }: {
   model: AppModel
+  taskId: string
   tab: BrowserTab
   onNavigate: (url: string) => void
   onStep: (at: number) => void
@@ -40,6 +45,8 @@ export function BrowserView({
   const [draft, setDraft] = useState(url)
   const [invalid, setInvalid] = useState(false)
   const [reloads, setReloads] = useState(0)
+  const [annotating, setAnnotating] = useState(false)
+  const stage = useRef<HTMLDivElement>(null)
   const peerLocal = useStore(model.client.conn).hello?.peer?.local
   const verdict = url ? canFrame(url, window.location, peerLocal) : null
 
@@ -124,6 +131,18 @@ export function BrowserView({
           inputMode="url"
           onChange={(e) => setDraft(e.target.value)}
         />
+        {canCapture() && (
+          <Button
+            variant={annotating && framed ? "iconOn" : "icon"}
+            disabled={!framed}
+            title={t("browser.annotate")}
+            aria-label={t("browser.annotate")}
+            aria-pressed={annotating && framed}
+            onClick={() => setAnnotating(!annotating)}
+          >
+            <Glyph d="M3 13l.6-2.6L10.9 3.1l2 2L5.6 12.4zM9.6 4.4l2 2" />
+          </Button>
+        )}
         {/* The way out when a page refuses to be framed, or cannot be: it works for every address. */}
         {url ? (
           <a
@@ -143,14 +162,27 @@ export function BrowserView({
         )}
       </form>
       {framed ? (
-        <iframe
-          key={`${url}#${reloads}`}
-          className={BROWSER_FRAME}
-          src={url}
-          title={url}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          referrerPolicy="no-referrer"
-        />
+        <div ref={stage} className={BROWSER_STAGE}>
+          <iframe
+            key={`${url}#${reloads}`}
+            className={BROWSER_FRAME}
+            src={url}
+            title={url}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            referrerPolicy="no-referrer"
+          />
+          {annotating && (
+            <BrowserAnnotate
+              // Marks belong to the page they were drawn on.
+              key={`${url}#${reloads}`}
+              model={model}
+              taskId={taskId}
+              url={url}
+              target={stage}
+              onClose={() => setAnnotating(false)}
+            />
+          )}
+        </div>
       ) : message ? (
         <p className={SIDE_EMPTY}>{message}</p>
       ) : null}
