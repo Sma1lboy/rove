@@ -121,7 +121,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `term.revive` | `taskId`, `tabId` | `{revived, resumed}`: `tab-revive` for the tab `term.attach` would open (a viewport tab revives the session it shows); a running tab answers `revived: false`. Attach again afterwards. |
 | `diff.files` | `taskId` | `{base, files: [{path, status, added, deleted, scope}]}` |
 | `diff.file` | `taskId`, `path`, `scope` (`working`, `branch` or `task`: commits and uncommitted work since the base) | `{kind, text?, message?}` |
-| `files.list` | `taskId` | `{files, truncated}` (tracked + untracked, not ignored) |
+| `files.list` | `taskId` | `{files, truncated, root?}` (tracked + untracked, not ignored). `root` = the worktree's absolute path, absent for a task on another machine |
 | `file.read` | `taskId`, `path` | `{path, mime, size, base64}` (markdown, HTML, SVG, image or PDF, at most 5 MB, confined to the worktree) |
 | `review.list` | `taskId` | `{notes, unsent}` (notes live in `state.json` `diffComments.<taskId>`, shared with the TUI) |
 | `review.add` | `taskId`, `filePath`, `line`, `startLine?`, `code?`, `body` | `{note}`; `code` is the diff rows the note covers (sign + text per line), quoted in the prompt and compared later to flag a note whose code moved |
@@ -190,6 +190,8 @@ Area ops in `packages/rove-bridge/src/ops/taskops.ts`; the client never names a 
 | `task.setEngine` | `taskId`, `engine`, `effort?`, `model?` (`""` clears) | `{}` | RPC `task.setVendor` |
 | `tab.move` | `taskId`, `tabId`, `direction` (`up`/`down`) | `{moved}` | `moveTab` on the persisted tab order |
 | `file.openExternal` | `taskId`, `path` (relative to the worktree) | `{}`; opens an image, audio, video, PDF or font in the Mac's own opener. Refused (`NOT_OPENABLE`) for anything else, anything executable, and any path or symlink that leaves the worktree | helper `openExternally` |
+| `file.reveal` | `taskId`, `path` (relative to the worktree; a file or a folder) | `{}`; shows it in the Mac's file manager without opening it (`open -R` on macOS, its folder elsewhere). Refused for a path that leaves the worktree | — |
+| `file.openTerminal` | `taskId`, `path` (relative to the worktree) | `tab-new --kind shell --type "cd -- '<dir>'"`: a shell tab in that folder, or in a file's own folder; nothing is typed at the worktree root. The line is built by the bridge; a path with a control character is refused. `{tabId}` | — |
 | `fs.subdirs` | `path` (absolute or `~`) | `{base, home, names}` (read-only) | `listSubdirs` |
 | `repo.probe` | `path`, `adoptable?` | `{ok, repo, reason?}` or `{ok, repo, branches, current, worktrees?}` (read-only) | `validateRepoPath` + branch helpers |
 | `github.repos` | none | `{repos: [{nameWithOwner, description, isPrivate}]}`, or `{repos: [], reason: "missing" \| "unauthenticated" \| "failed"}` when `gh` is absent, signed out or fails (read-only; never an error) | `gh repo list --limit 100` |
@@ -290,7 +292,7 @@ Area ops live in `packages/rove-bridge/src/ops/` (one table per area, merged in 
 | `attention.dismissRoutine` | `automationId` | RPC `attention.dismissRoutine`: clears a routine episode (`routine_failed`), which is keyed on its schedule and has no task for `attention.dismiss` | — |
 | `pr.checks` | `taskId`, `fresh?` | `gh pr view <n> --json statusCheckRollup,mergeable,mergeStateStatus,reviewDecision,isDraft` in the task's worktree, cached 30 s: `{outcome: "ok", total, checks[{name, state: fail\|pending\|pass\|skipped, durationMs, startedAt, completedAt, url, runId}] (times are epoch ms or null) (failures first, at most 60), mergeable, mergeState, review, draft}`, `none` (no PR yet) or `unavailable` + `detail` | — |
 | `pr.checkLog` | `taskId`, `runId` (digits), `job` | `gh run view <runId> --log-failed`, cached 60 s per run: `{outcome: "ok", tail}` (last 40 lines / 4000 chars of that job), `none` or `unavailable` | — |
-| `browser.ports` | `taskId` | `ports --task-id`, kept to the listeners whose `GET /` answers HTML (asked once per process and port, 1.5 s): `{ports: [{port, url}]}`, lowest first. An engine's own listeners, debuggers and databases are left out; a task on another machine answers `[]` | — |
+| `browser.ports` | `taskId` | `ports --task-id`, kept to the listeners whose `GET /` answers HTML (asked once per process and port, 1.5 s): `{ports: [{port, url, command}]}` (`command` = the serving process's name), lowest first. An engine's own listeners, debuggers and databases are left out; a task on another machine answers `[]` | — |
 | `workitem.list` | `repo`, `state?`, `assignee?` (`@me`), `search?`, `limit?`, `refresh?` | RPC `workitem.list` | — |
 | `workitem.links` | `repo` | RPC `task.list`, folded to tasks started from an issue | — |
 | `workitem.start` | `repo`, `number`, `engine?` (built-in) | `workitem-start` | — |

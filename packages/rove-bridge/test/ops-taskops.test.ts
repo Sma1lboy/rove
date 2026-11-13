@@ -15,6 +15,8 @@ const deps = (over: Partial<TaskOpsDeps> = {}): TaskOpsDeps => ({
   prPrompt: async (wt) => `open a PR from ${wt}`,
   reorderTab: async () => true,
   openExternal: () => {},
+  reveal: () => {},
+  isDir: () => false,
   detectOpener: () => ({ id: "env", label: "myeditor", command: "myeditor", args: [] }),
   openWorktree: () => true,
   exists: () => true,
@@ -419,5 +421,32 @@ describe("file.openExternal", () => {
       await expect(run("file.openExternal", { taskId: T, path }, reply, real(opened))).rejects.toThrow()
     }
     expect(opened).toEqual([])
+  })
+})
+
+describe("file.reveal / file.openTerminal", () => {
+  const reply = { "get-task": { task: { worktreePath: "/wt" } }, "tab-new": { tabId: "tab-3" } }
+
+  test("reveal shows a path inside the worktree and refuses one that climbs out", async () => {
+    const shown: string[] = []
+    const d = deps({ reveal: (p) => shown.push(p) })
+    await run("file.reveal", { taskId: T, path: "src/a.ts" }, reply, d)
+    await expect(run("file.reveal", { taskId: T, path: "../a.ts" }, reply, d)).rejects.toThrow()
+    expect(shown).toEqual(["/wt/src/a.ts"])
+  })
+
+  test("a terminal opens in the file's folder, in the folder itself, or at the root with nothing typed", async () => {
+    const typed = async (path: string, isDir: boolean) => {
+      const { calls } = await run("file.openTerminal", { taskId: T, path }, reply, deps({ isDir: () => isDir }))
+      const call = calls.find((c) => "verb" in c && c.verb === "tab-new")
+      return call && "argv" in call ? call.argv.slice(2) : null
+    }
+    expect(await typed("src/it's/a.ts", false)).toEqual(["--type=cd -- 'src/it'\\''s'"])
+    expect(await typed("src/lib/", true)).toEqual(["--type=cd -- 'src/lib'"])
+    expect(await typed("README.md", false)).toEqual([])
+  })
+
+  test("a path that could end the typed line is refused", async () => {
+    await expect(run("file.openTerminal", { taskId: T, path: "a\nrm -rf x/b" }, reply)).rejects.toThrow()
   })
 })

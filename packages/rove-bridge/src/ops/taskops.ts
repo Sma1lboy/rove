@@ -9,7 +9,7 @@
 
 import { existsSync, realpathSync, statSync } from "node:fs"
 import { homedir } from "node:os"
-import { extname, join, sep } from "node:path"
+import { dirname, extname, join, sep } from "node:path"
 import type { SharedTabs, TabOp } from "@sma1lboy/rove-daemon/daemon/tabs-ops"
 import {
   expandHome,
@@ -25,7 +25,7 @@ import {
   buildCIPromptForWorktree,
 } from "@sma1lboy/rove/src/tui/ops/ci-prompt.ts"
 import { buildPRPrompt } from "@sma1lboy/rove/src/tui/ops/pr-prompt.ts"
-import { openExternally } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
+import { openExternally, revealInFileManager } from "@sma1lboy/rove/src/tui/panes/filetree/open-external.ts"
 import type { TabsState } from "@sma1lboy/rove/src/tui/workspace/terminal-tab-shapes.ts"
 import { moveTab } from "@sma1lboy/rove/src/tui/workspace/terminal-tabs-core.ts"
 import { BridgeError, optStr } from "../protocol.ts"
@@ -46,6 +46,8 @@ export interface TaskOpsDeps {
   reorderTab(taskId: string, tabId: string, delta: -1 | 1, api: BridgeApi): Promise<boolean>
   /** The Mac's own opener (`open` / `xdg-open`) on an absolute path; fire and forget. */
   openExternal(absPath: string): void
+  /** Show an absolute path in the Mac's file manager, without opening it. */
+  reveal(absPath: string): void
   /** The Mac's editor for `o`: the `ROVE_OPEN_EDITOR` override, else an installed editor CLI or app; null when none. */
   detectOpener(): WorktreeOpener | null
   /** Spawn the editor on a directory, detached; false when it would not start. */
@@ -56,6 +58,7 @@ export interface TaskOpsDeps {
   canonical(path: string): string | null
   /** Executable bit set, or not a regular file. */
   runnable(path: string): boolean
+  isDir(path: string): boolean
 }
 
 /**
@@ -98,11 +101,13 @@ const OPENABLE = new Set(
 
 const realDeps: TaskOpsDeps = {
   openExternal: openExternally,
+  reveal: revealInFileManager,
   detectOpener: detectWorktreeOpener,
   openWorktree,
   exists: existsSync,
   canonical,
   runnable,
+  isDir: (path) => statSync(path).isDirectory(),
   homeDir: homedir,
   buildCIPrompt: buildCIPromptForWorktree,
   prPrompt: buildPRPrompt,
@@ -153,6 +158,31 @@ const COMMIT_PROMPT =
   "Commit the uncommitted changes in this worktree. Review them with `git status` and `git diff`, split them into logical commits when they are unrelated, write each message in the style of this repo's recent `git log`, and do not push."
 
 export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
+  /** The canonical absolute path of `path` (relative to the task's worktree), refused when it leaves the worktree. */
+  async function confined(a: Args, api: BridgeApi): Promise<string> {
+    const rel = optStr(a, "path") ?? ""
+    if (
+      !rel ||
+      rel.length > PATH_MAX ||
+      rel.startsWith("/") ||
+      rel.includes("\0") ||
+      rel.split(/[\\/]/).includes("..")
+    ) {
+      throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
+    }
+    const got = await api.verb<{ task: { worktreePath?: string | null } }>("get-task", [flag("task-id", taskId(a))])
+    const worktree = got.task.worktreePath
+    if (!worktree) throw new BridgeError("NO_WORKTREE", "this task has no worktree yet")
+    const root = deps.canonical(worktree)
+    const abs = deps.canonical(join(worktree, rel))
+    if (!root || !abs) throw new BridgeError("NOT_FOUND", `${rel} does not exist`)
+    // A symlink may not carry the path out of the worktree.
+    if (abs !== root && !abs.startsWith(root.endsWith(sep) ? root : root + sep)) {
+      throw new BridgeError("BAD_ARGS", "path is outside the worktree")
+    }
+    return abs
+  }
+
   return {
     "task.landPreflight": {
       kind: "read",
@@ -313,31 +343,46 @@ export function taskOps(deps: TaskOpsDeps = realDeps): OpTable {
       destructive: false,
       wraps: "helper openExternally (the Mac's `open`) on a media/document file inside the task's worktree",
       async run(a, { api }) {
-        const rel = optStr(a, "path") ?? ""
-        if (
-          !rel ||
-          rel.length > PATH_MAX ||
-          rel.startsWith("/") ||
-          rel.includes("\0") ||
-          rel.split(/[\\/]/).includes("..")
-        ) {
-          throw new BridgeError("BAD_ARGS", "path must be relative to the worktree")
-        }
-        const got = await api.verb<{ task: { worktreePath?: string | null } }>("get-task", [flag("task-id", taskId(a))])
-        const worktree = got.task.worktreePath
-        if (!worktree) throw new BridgeError("NO_WORKTREE", "this task has no worktree yet")
-        const root = deps.canonical(worktree)
-        const abs = deps.canonical(join(worktree, rel))
-        if (!root || !abs) throw new BridgeError("NOT_FOUND", `${rel} does not exist`)
-        // A symlink may not carry the open out of the worktree.
-        if (abs !== root && !abs.startsWith(root.endsWith(sep) ? root : root + sep)) {
-          throw new BridgeError("BAD_ARGS", "path is outside the worktree")
-        }
+        const abs = await confined(a, api)
         if (!OPENABLE.has(extname(abs).slice(1).toLowerCase()) || deps.runnable(abs)) {
           throw new BridgeError("NOT_OPENABLE", "only images, audio, video, PDFs and fonts open in the system app")
         }
         deps.openExternal(abs)
         return {}
+      },
+    },
+
+    "file.reveal": {
+      kind: "write",
+      destructive: false,
+      wraps: "helper revealInFileManager (the Mac's `open -R`) on a file or folder inside the task's worktree",
+      async run(a, { api }) {
+        deps.reveal(await confined(a, api))
+        return {}
+      },
+    },
+
+    "file.openTerminal": {
+      kind: "write",
+      destructive: false,
+      wraps:
+        "rove api tab-new --kind shell --type `cd -- '<dir>'`: a shell tab in a folder of the task's worktree (a file's own folder); the line is built here, the client names only the path",
+      async run(a, { api }) {
+        const id = taskId(a)
+        const rel = (optStr(a, "path") ?? "").replace(/\/+$/, "")
+        // Typed into a shell: nothing that could end the line or the quote early.
+        if ([...rel].some((ch) => ch < " " || ch === "\x7f"))
+          throw new BridgeError("BAD_ARGS", "path has a control character")
+        const abs = await confined({ ...a, path: rel }, api)
+        const dir = deps.isDir(abs) ? rel : dirname(rel)
+        const extra = dir === "." ? [] : [flag("type", `cd -- '${dir.replaceAll("'", "'\\''")}'`)]
+        const opened = await api.verb<{ tabId?: string }>("tab-new", [
+          flag("task-id", id),
+          flag("kind", "shell"),
+          ...extra,
+        ])
+        if (!opened.tabId) throw new BridgeError("SESSION_FAILED", "the shell tab did not open")
+        return { tabId: opened.tabId }
       },
     },
 

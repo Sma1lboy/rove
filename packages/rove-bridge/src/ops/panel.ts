@@ -17,12 +17,15 @@ interface Listener {
   readonly port: number
   readonly host: string
   readonly pid: number
+  readonly command: string
   readonly url: string
 }
 
 export interface PagePort {
   readonly port: number
   readonly url: string
+  /** The serving process's name. */
+  readonly command: string
 }
 
 /** Does GET / on this listener answer with HTML? Undefined = no answer yet (still starting, or not HTTP). */
@@ -57,7 +60,7 @@ export async function pagePorts(api: BridgeApi, id: string, probe = servesPage, 
       const page = seen.get(key) ?? (await probe(l))
       if (page === undefined) return
       seen.set(key, page)
-      if (page) pages.set(l.port, { port: l.port, url: l.url })
+      if (page) pages.set(l.port, { port: l.port, url: l.url, command: l.command })
     }),
   )
   return [...pages.values()].sort((a, b) => a.port - b.port)
@@ -83,7 +86,8 @@ export const panelOps: OpTable = {
   "browser.ports": {
     kind: "read",
     destructive: false,
-    wraps: "rove api ports --task-id, kept to the listeners whose GET / answers HTML: `{ports: [{port, url}]}`",
+    wraps:
+      "rove api ports --task-id, kept to the listeners whose GET / answers HTML: `{ports: [{port, url, command}]}`",
     async run(a, { api }) {
       return { ports: await pagePorts(api, taskId(a)) }
     },
