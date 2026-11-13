@@ -61,7 +61,7 @@ the two share one token.
   project, for a bookmark or a home-screen shortcut. It only fills the
   composer; nothing starts until you press Start.
 - New session's project chip picks one project: a click (or Enter) replaces the
-  pick and closes the list; ⌘/Ctrl-click (or ⌘/Ctrl+Enter) adds another repo
+  pick and closes the list; Shift-click (or Shift+Enter; ⌘/Ctrl works too) adds another repo
   for a multi-repo task. Any folder works, git or not: a folder git cannot use
   (no repository, or no commit yet) opens in place as a directory session, with
   Worktree off and no branch to pick, and cannot join a multi-repo task.

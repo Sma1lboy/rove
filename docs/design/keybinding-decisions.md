@@ -962,3 +962,10 @@ are live only in a focused, read-only diff tab, where nothing is typed. The
 prefix key itself gets a row in Settings → Keybindings (`prefix.key` in the
 YAML). The separate "Create keybindings.yaml" row is gone: the first saved
 change writes the file.
+
+## Shift-click adds a repo in the web project picker (2026-11-13, owner directive)
+
+The owner asked for the New session project picker to stay single-pick by
+default and take a second repo with Shift held. Shift-click and Shift+Enter
+now add a repo for a multi-repo task; ⌘/Ctrl-click and ⌘/Ctrl+Enter keep
+working, and the hint under the list names Shift only.
