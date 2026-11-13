@@ -149,20 +149,23 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the starting project is read once
   useEffect(() => {
-    void Promise.all([
-      requestRemembered<{ repos: string[] }>(model, "repos.list"),
-      requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
-    ])
-      .then(([list, fs]) => {
-        setSaved(list.repos)
-        setHome(fs.home)
-        // A project the opener named on another machine is a path there, not a project here.
-        const start = startOf(list.repos)
-        setRepos((now) => (now.length > 0 || !start ? now : seededRepos(start, seed)))
-        // The branch the opener chose applies to the project it chose.
-        setBases((now) => ({ ...now, ...seededBases(start, seed) }))
-      })
-      .catch(() => {})
+    // On every (re)connect: a composer opened before the socket is up would otherwise keep an empty project list.
+    return model.client.onOpen(() => {
+      void Promise.all([
+        requestRemembered<{ repos: string[] }>(model, "repos.list"),
+        requestRemembered<{ home: string }>(model, "fs.subdirs", { path: "~/" }),
+      ])
+        .then(([list, fs]) => {
+          setSaved(list.repos)
+          setHome(fs.home)
+          // A project the opener named on another machine is a path there, not a project here.
+          const start = startOf(list.repos)
+          setRepos((now) => (now.length > 0 || !start ? now : seededRepos(start, seed)))
+          // The branch the opener chose applies to the project it chose.
+          setBases((now) => ({ ...now, ...seededBases(start, seed) }))
+        })
+        .catch(() => {})
+    })
   }, [model, initialRepo])
 
   // Several repos always get worktrees: one checkout can't hold a multi-repo task. A folder without git has none.
