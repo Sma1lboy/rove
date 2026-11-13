@@ -2,6 +2,9 @@
 export const en = {
   usage: {
     title: "Usage",
+    receipt: "Usage receipt",
+    total: "Total tokens",
+    thanks: "Thank you, burn again soon",
     open: "Open usage",
     range: "last {days} days · tokens are input + output",
     perDay: "Per day",
@@ -23,6 +26,9 @@ export const en = {
 export const zh: typeof en = {
   usage: {
     title: "用量",
+    receipt: "用量小票",
+    total: "合计 token",
+    thanks: "谢谢惠顾，欢迎再烧",
     open: "打开用量",
     range: "最近 {days} 天 · token 为输入加输出",
     perDay: "按天",

@@ -1,11 +1,12 @@
 /**
- * The Usage page: the last 14 days of agent turns as thin bars. Per day (stacked by engine), per engine and model, the
- * tasks that used the most, and where an engine reports quota, how its window is pacing. Turns come from `turns.list`
- * (engine-owned readers): an engine with no reader is named as such, never drawn as zero work. Tokens and time only.
+ * The Usage page: the last 14 days of agent turns printed as a statement. The total, a bar per day (coloured by
+ * engine), a line item per engine and model and per top task, and where an engine reports quota, how its window is
+ * pacing. Turns come from `turns.list` (engine-owned readers): an engine with no reader is named as such, never drawn
+ * as zero work. Tokens and time only.
  */
 
 import { narrowUsageChip } from "@sma1lboy/rove/src/tui-react/component/settings-dialog/usage-core.ts"
-import { type CSSProperties, useEffect, useState } from "react"
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
 import { errorMessage, fill, usePageFocus, useReload } from "./pages-kit.ts"
@@ -14,29 +15,39 @@ import { formatDuration } from "./routine-run-log.ts"
 import { useStore } from "./store.ts"
 import { page } from "./ui.ts"
 import { Button } from "./ui/button.tsx"
-import { PAGE_SCROLL, PAGE_TITLE } from "./ui/page.ts"
-import { USAGE_TONE, usageBar } from "./ui/shell.ts"
-import { KICKER } from "./ui/text.ts"
+import { PAGE_SCROLL } from "./ui/page.ts"
+import { BRACKET, USAGE_TONE } from "./ui/shell.ts"
 import {
   USG_BAR,
-  USG_BAR_CELL,
-  USG_DAYS,
+  USG_BARCODE,
+  USG_CAPS,
+  USG_COLS,
+  USG_DAY,
+  USG_DIM,
   USG_ENGINE_TONES,
-  USG_FIGURE,
+  USG_FAINT,
+  USG_FOOT,
+  USG_GAUGE,
   USG_HEAD,
-  USG_LABEL,
+  USG_HEAD_SPLIT,
+  USG_ITEM,
+  USG_ITEM_OPEN,
+  USG_LEAD,
+  USG_LEADER,
+  USG_LEAD_CHART,
   USG_LEGEND,
+  USG_LINE,
+  USG_MARK,
   USG_NAME,
-  USG_NOTE,
   USG_PAGE,
-  USG_QUIET,
   USG_QUOTA,
-  USG_ROW,
-  USG_ROWS,
-  USG_ROW_OPEN,
+  USG_RULE,
   USG_SEG,
+  USG_STRIPE,
+  USG_SUB,
   USG_SWATCH,
-  USG_TASK_TONE,
+  USG_TOP,
+  USG_TOTAL,
 } from "./ui/usage.ts"
 import {
   type QuotaWindow,
@@ -103,38 +114,53 @@ function useRead<T>(model: AppModel, op: string, params: Record<string, unknown>
   return state
 }
 
-/** Tokens, turns, time; a row with no turns leaves the three cells empty. */
-const figures = (sum: Sum) =>
-  sum.turns === 0 ? (
-    <span className="col-span-3" />
-  ) : (
+const Rule = () => <div className={USG_RULE} />
+
+/** A line item: the name, a dotted leader, the tokens; turns and time in the small print under it. */
+function Item({
+  name,
+  title,
+  sum,
+  sub,
+  open,
+}: { name: ReactNode; title: string; sum: Sum; sub?: string; open?: (() => void) | null }) {
+  const lines = (
     <>
-      <span className={USG_FIGURE}>{compactTokens(sum.tokens)}</span>
-      <span className={USG_FIGURE}>{`${sum.turns}t`}</span>
-      <span className={USG_FIGURE}>{formatDuration(sum.ms)}</span>
+      <span className={USG_LINE}>
+        <span className={USG_NAME} title={title}>
+          {name}
+        </span>
+        <span className={USG_LEADER} />
+        <span>{compactTokens(sum.tokens)}</span>
+      </span>
+      <span className={`block truncate ${USG_SUB}`}>
+        {[sub, `${sum.turns}t`, formatDuration(sum.ms)].filter(Boolean).join(" · ")}
+      </span>
     </>
   )
-
-interface Part {
-  readonly key: string
-  readonly tone: string
-  readonly value: number
+  return open ? (
+    <Button variant="row" className={USG_ITEM_OPEN} onClick={open}>
+      {lines}
+    </Button>
+  ) : (
+    <div className={USG_ITEM}>{lines}</div>
+  )
 }
 
-/** A bar `total / max` of its cell wide, split by `parts` in their order. */
-function Bar({ parts, max }: { parts: readonly Part[]; max: number }) {
-  const live = parts.filter((part) => part.value > 0)
-  const total = live.reduce((sum, part) => sum + part.value, 0)
+/** The total as a barcode: each digit is a stripe and the gap after it. */
+function Barcode({ sum }: { sum: Sum }) {
+  const digits = `${sum.tokens}${sum.turns}${sum.ms}`.repeat(4).slice(0, 36)
   return (
-    <span className={USG_BAR_CELL}>
-      {total > 0 && max > 0 && (
-        <span className={USG_BAR} style={{ "--fill": `${(total / max) * 100}%` } as CSSProperties}>
-          {live.map((part) => (
-            <span key={part.key} className={`${USG_SEG} ${part.tone}`} style={{ flexGrow: part.value }} />
-          ))}
-        </span>
-      )}
-    </span>
+    <div className={USG_BARCODE} aria-hidden="true">
+      {[...digits].map((digit, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: stripes have no identity but their place
+          key={i}
+          className={USG_STRIPE}
+          style={{ width: 1 + (Number(digit) % 3), marginRight: 1 + (Number(digit) % 2) }}
+        />
+      ))}
+    </div>
   )
 }
 
@@ -158,9 +184,9 @@ function Quota({ usage, nameOf }: { usage: NonNullable<UsageReply["usage"]>; nam
             : ""
       return {
         key: `${row.vendor}:${window.kind}`,
-        engine: row.name || nameOf(row.vendor),
-        window,
-        // The rail's own tones, so a window reads the same in both places.
+        name: `${row.name || nameOf(row.vendor)} ${window.label}`,
+        percent: Math.round(window.percent),
+        // The rail's own thresholds, so a window is "nearly full" in both places at once.
         tone: narrowUsageChip({ capturedAt: row.capturedAt, windows: [window] }, now)?.tone ?? "ok",
         note,
       }
@@ -168,48 +194,22 @@ function Quota({ usage, nameOf }: { usage: NonNullable<UsageReply["usage"]>; nam
   )
   if (lines.length === 0) return null
   return (
-    <>
-      <h2 className={`${KICKER} text-muted ${USG_HEAD}`}>{t("usage.quota")}</h2>
-      <div className={USG_QUOTA}>
-        {lines.map((line) => {
-          const percent = Math.round(line.window.percent)
-          return (
-            <div key={line.key} className={USG_ROW}>
-              <span className={USG_NAME}>{line.engine}</span>
-              <span className="text-muted">{line.window.label}</span>
-              <span
-                className={usageBar(line.tone)}
-                style={{ "--fill": `${Math.min(100, Math.max(0, percent))}%` } as CSSProperties}
-              />
-              <span className={`text-right ${USAGE_TONE[line.tone]}`}>{`${percent}%`}</span>
-              <span className={`${USG_LABEL} font-sans text-subtle`} title={line.note}>
-                {line.note}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </>
-  )
-}
-
-/** A task's sums; a live task opens, a removed one is just listed. */
-function TopTask({ row, title, max, open }: { row: Sum; title: string; max: number; open: (() => void) | null }) {
-  const line = (
-    <>
-      <span className={open ? USG_NAME : `${USG_NAME} ${USG_QUIET}`} title={title}>
-        {title}
-      </span>
-      <Bar parts={[{ key: "task", tone: USG_TASK_TONE, value: row.tokens }]} max={max} />
-      {figures(row)}
-    </>
-  )
-  return open ? (
-    <Button variant="row" className={USG_ROW_OPEN} onClick={open}>
-      {line}
-    </Button>
-  ) : (
-    <div className={USG_ROW}>{line}</div>
+    <section>
+      <h2 className={USG_HEAD}>{t("usage.quota")}</h2>
+      {lines.map((line) => (
+        <div key={line.key} className="py-0.5">
+          <div className={USG_QUOTA}>
+            <span className={USG_NAME}>{line.name}</span>
+            <span
+              className={USG_GAUGE[line.tone] ?? USG_GAUGE.ok}
+              style={{ "--fill": `${Math.min(100, Math.max(0, line.percent))}%` } as CSSProperties}
+            />
+            <span className={`text-right ${USAGE_TONE[line.tone]}`}>{`${line.percent}%`}</span>
+          </div>
+          {line.note && <div className={USG_SUB}>{line.note}</div>}
+        </div>
+      ))}
+    </section>
   )
 }
 
@@ -226,13 +226,16 @@ export function UsageView({ model }: { model: AppModel }) {
   const nameOf = (id: string) => names.find((engine) => engine.id === id)?.name ?? id
   const titleOf = (taskId: string) => payload?.tasks.find((task) => task.id === taskId)?.label ?? t("usage.removedTask")
 
+  const quotaBlock = quota.kind === "ready" && quota.value.usage && <Quota usage={quota.value.usage} nameOf={nameOf} />
+
   const body = () => {
-    if (turns.kind === "loading") return <p className="text-muted">{t("usage.loading")}</p>
-    if (turns.kind === "failed") return <p className="text-error">{fill(t("usage.failed"), { error: turns.error })}</p>
+    if (turns.kind === "loading") return <p className={`m-0 ${USG_DIM}`}>{t("usage.loading")}</p>
+    if (turns.kind === "failed")
+      return <p className="m-0 text-error">{fill(t("usage.failed"), { error: turns.error })}</p>
     const records = turns.value.turns
     const readers = new Set(turns.value.readers ?? [])
     const window = lastDays(records, Date.now(), DAYS, LIMIT)
-    // The engines on screen, the busiest first: each gets a shade in the day bars.
+    // The engines on the page, the busiest first: each gets a colour in the day bars.
     const totals = new Map<string, number>()
     for (const day of window.days)
       for (const [engine, tokens] of Object.entries(day.byEngine))
@@ -248,10 +251,10 @@ export function UsageView({ model }: { model: AppModel }) {
         window.days.findIndex((day) => day.turns > 0),
       ),
     )
-    const rows = byEngineModel(records)
-    const rowPeak = Math.max(0, ...rows.map((row) => row.tokens))
-    const tasks = topTasks(records, TOP_TASKS)
-    const taskPeak = Math.max(0, ...tasks.map((row) => row.tokens))
+    const total = window.days.reduce<Sum>(
+      (sum, day) => ({ turns: sum.turns + day.turns, tokens: sum.tokens + day.tokens, ms: sum.ms + day.ms }),
+      { turns: 0, tokens: 0, ms: 0 },
+    )
     // Engines with tasks but no way to read their turns: not "no work", just not counted.
     const uncounted = [
       ...new Set(
@@ -262,89 +265,138 @@ export function UsageView({ model }: { model: AppModel }) {
     ]
     return (
       <>
-        <p className={USG_NOTE}>{fill(t("usage.range"), { days: DAYS })}</p>
+        <div className={USG_TOP}>
+          <div>
+            <h1 className={USG_MARK}>
+              <span className={BRACKET}>[</span> rove <span className={BRACKET}>]</span>
+            </h1>
+            <div>
+              <span className={USG_CAPS}>{t("usage.receipt")}</span>
+              <span className={USG_DIM}>
+                {`  ${window.days[0]?.day.slice(5)} → ${window.days.at(-1)?.day.slice(5)}`}
+              </span>
+            </div>
+          </div>
+          {records.length > 0 && <Barcode sum={total} />}
+        </div>
+        <Rule />
         {records.length === 0 ? (
-          <p className="text-muted">{t("usage.empty")}</p>
+          <>
+            <p className={`m-0 ${USG_DIM}`}>{t("usage.empty")}</p>
+            {quotaBlock && <Rule />}
+            {quotaBlock}
+          </>
         ) : (
           <>
-            <div className={USG_HEAD}>
-              <h2 className={`${KICKER} text-muted`}>{t("usage.perDay")}</h2>
-              {shown.length > 1 && (
-                <div className={USG_LEGEND}>
-                  {shown.map((engine) => (
-                    <span key={engine}>
-                      <span className={`${USG_SWATCH} ${toneOf(engine)}`} />
-                      {nameOf(engine)}
+            <div className={USG_LEAD}>
+              <section>
+                <h2 className={USG_HEAD}>{t("usage.total")}</h2>
+                <div className={USG_TOTAL}>{compactTokens(total.tokens)}</div>
+                <div className={`mt-1.5 ${USG_DIM}`}>
+                  {`${fill(t("usage.turns"), { count: total.turns })} · ${formatDuration(total.ms)}`}
+                </div>
+              </section>
+              <section className={USG_LEAD_CHART}>
+                <h2 className={USG_HEAD_SPLIT}>
+                  {t("usage.perDay")}
+                  {shown.length > 1 && (
+                    <span className={USG_LEGEND}>
+                      {shown.map((engine) => (
+                        <span key={engine}>
+                          <span className={`${USG_SWATCH} ${toneOf(engine)}`} />
+                          {nameOf(engine)}
+                        </span>
+                      ))}
                     </span>
-                  ))}
-                </div>
-              )}
+                  )}
+                </h2>
+                {days.map((day) => (
+                  <div key={day.day} className={USG_DAY}>
+                    <span className={USG_DIM}>{`${day.day.slice(5)}${day.partial ? "~" : ""}`}</span>
+                    <span className="flex min-w-0">
+                      {day.tokens > 0 && peak > 0 && (
+                        <span
+                          className={USG_BAR}
+                          style={{ "--fill": `${(day.tokens / peak) * 100}%` } as CSSProperties}
+                        >
+                          {shown.map(
+                            (engine) =>
+                              (day.byEngine[engine] ?? 0) > 0 && (
+                                <span
+                                  key={engine}
+                                  className={`${USG_SEG} ${toneOf(engine)}`}
+                                  style={{ flexGrow: day.byEngine[engine] }}
+                                />
+                              ),
+                          )}
+                        </span>
+                      )}
+                    </span>
+                    {day.turns > 0 && (
+                      <>
+                        <span className="text-right">{compactTokens(day.tokens)}</span>
+                        <span className={`text-right ${USG_FAINT}`}>{`${day.turns}t`}</span>
+                        <span className={`text-right ${USG_FAINT}`}>{formatDuration(day.ms)}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </section>
             </div>
-            <div className={USG_DAYS}>
-              {days.map((day) => (
-                <div key={day.day} className={USG_ROW}>
-                  <span className={day.turns === 0 ? USG_QUIET : "text-muted"}>
-                    {`${day.day.slice(5)}${day.partial ? "~" : ""}`}
-                  </span>
-                  <Bar
-                    parts={shown.map((engine) => ({
-                      key: engine,
-                      tone: toneOf(engine),
-                      value: day.byEngine[engine] ?? 0,
-                    }))}
-                    max={peak}
+
+            <Rule />
+            <div className={USG_COLS}>
+              <section>
+                <h2 className={USG_HEAD}>{t("usage.byModel")}</h2>
+                {byEngineModel(records).map((row) => (
+                  <Item
+                    key={`${row.engine}\0${row.model}`}
+                    name={row.model}
+                    title={`${nameOf(row.engine)} · ${row.model}`}
+                    sum={row}
+                    sub={nameOf(row.engine)}
                   />
-                  {figures(day)}
-                </div>
-              ))}
-            </div>
-            {window.cutoff && (
-              <p className={`${USG_NOTE} mt-1.5`}>
-                {fill(t("usage.cutoff"), { count: window.cutoff.count, day: window.cutoff.day.slice(5) })}
-              </p>
-            )}
-
-            <h2 className={`${KICKER} text-muted ${USG_HEAD}`}>{t("usage.byModel")}</h2>
-            <div className={USG_ROWS}>
-              {rows.map((row) => (
-                <div key={`${row.engine}\0${row.model}`} className={USG_ROW}>
-                  <span className={USG_LABEL} title={`${nameOf(row.engine)} · ${row.model}`}>
-                    <span className="font-sans text-muted">{`${nameOf(row.engine)} · `}</span>
-                    {row.model}
-                  </span>
-                  <Bar parts={[{ key: row.engine, tone: toneOf(row.engine), value: row.tokens }]} max={rowPeak} />
-                  {figures(row)}
-                </div>
-              ))}
-            </div>
-
-            <h2 className={`${KICKER} text-muted ${USG_HEAD}`}>{t("usage.topTasks")}</h2>
-            <div className={USG_ROWS}>
-              {tasks.map((row) => (
-                <TopTask
-                  key={row.taskId}
-                  row={row}
-                  title={titleOf(row.taskId)}
-                  max={taskPeak}
-                  open={
-                    payload?.tasks.some((task) => task.id === row.taskId)
-                      ? () => {
-                          page.set(null)
-                          model.select(row.taskId)
-                        }
-                      : null
-                  }
-                />
-              ))}
+                ))}
+              </section>
+              <section>
+                <h2 className={USG_HEAD}>{t("usage.topTasks")}</h2>
+                {topTasks(records, TOP_TASKS).map((row) => {
+                  const live = payload?.tasks.some((task) => task.id === row.taskId)
+                  const title = titleOf(row.taskId)
+                  return (
+                    <Item
+                      key={row.taskId}
+                      name={live ? title : <span className={USG_FAINT}>{title}</span>}
+                      title={title}
+                      sum={row}
+                      open={
+                        live
+                          ? () => {
+                              page.set(null)
+                              model.select(row.taskId)
+                            }
+                          : null
+                      }
+                    />
+                  )
+                })}
+              </section>
+              {quotaBlock}
             </div>
           </>
         )}
-        {uncounted.length > 0 && (
-          <p className={`${USG_NOTE} mt-1.5`}>
-            {fill(t("usage.noReader"), { engines: uncounted.map(nameOf).join(", ") })}
-          </p>
-        )}
-        {quota.kind === "ready" && quota.value.usage && <Quota usage={quota.value.usage} nameOf={nameOf} />}
+
+        <Rule />
+        <div className={USG_FOOT}>
+          <span>{fill(t("usage.range"), { days: DAYS })}</span>
+          {window.cutoff && (
+            <span>{fill(t("usage.cutoff"), { count: window.cutoff.count, day: window.cutoff.day.slice(5) })}</span>
+          )}
+          {uncounted.length > 0 && (
+            <span>{fill(t("usage.noReader"), { engines: uncounted.map(nameOf).join(", ") })}</span>
+          )}
+          <span className={`${USG_CAPS} ml-auto`}>{t("usage.thanks")}</span>
+        </div>
       </>
     )
   }
@@ -361,10 +413,7 @@ export function UsageView({ model }: { model: AppModel }) {
         page.set(null)
       }}
     >
-      <div className={USG_PAGE}>
-        <h1 className={PAGE_TITLE}>{t("usage.title")}</h1>
-        {body()}
-      </div>
+      <div className={USG_PAGE}>{body()}</div>
     </div>
   )
 }

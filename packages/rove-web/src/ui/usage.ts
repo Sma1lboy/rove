@@ -1,38 +1,60 @@
-/** The Usage page: thin bars as the rail's quota lines draw them, with every section's figures in the same columns. */
+/** The Usage page is a statement printed across the page: mono, the theme's own colours, every figure a line item. */
 
-/** The page's column: rows this short do not stretch across a wide window. */
-export const USG_PAGE = "flex max-w-[46rem] flex-col"
+export const USG_PAGE = "mx-auto flex max-w-[76rem] flex-col font-mono text-meta leading-[1.5]"
 
-/** Tokens, turns and time end every grid as the same fixed mono columns (5ch, 5ch, 8ch), so the figures line up from one section to the next. */
-const GRID = "grid items-center gap-x-3 font-mono text-meta whitespace-nowrap"
-/** A day per row: the bar takes the width the date leaves. */
-export const USG_DAYS = `${GRID} grid-cols-[6ch_minmax(0,1fr)_5ch_5ch_8ch]`
-/** A model or a task per row: on a narrow page the bar gives before the name does. */
-export const USG_ROWS = `${GRID} grid-cols-[minmax(8rem,1fr)_minmax(0,10rem)_5ch_5ch_8ch]`
-/** A quota window per row: engine, window, fill, percent, pace. */
-export const USG_QUOTA = `${GRID} grid-cols-[auto_auto_minmax(2rem,22%)_4ch_minmax(0,1fr)]`
+/** The masthead: wordmark and title left, the barcode right. */
+export const USG_TOP = "flex items-end justify-between gap-[4ch]"
+export const USG_MARK = "m-0 text-title font-bold tracking-[0.02em]"
+export const USG_CAPS = "font-bold tracking-code uppercase"
+export const USG_DIM = "text-muted"
+export const USG_FAINT = "text-subtle"
+/** A dashed tear line between bands. */
+export const USG_RULE = "my-4 border-t-hairline border-dashed! border-line-active"
+export const USG_HEAD = `m-0 mb-1.5 text-meta text-muted ${USG_CAPS}`
+/** A heading with its legend at the far end. */
+export const USG_HEAD_SPLIT = `${USG_HEAD} flex flex-wrap items-baseline justify-between gap-x-[4ch]`
 
-/** A row spans its grid and keeps its columns; the side padding is the hover wash's, pulled back so text stays on the page's edge. */
-export const USG_ROW = "col-span-full -mx-2 grid grid-cols-subgrid items-center rounded-sm px-2 py-0.75"
-/** A row that opens its task. */
-export const USG_ROW_OPEN = `${USG_ROW} cursor-pointer text-left hover:bg-hover focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-focus`
+/** The total beside the days: the figure keeps its width, the chart takes the rest; they stack when the page is narrow. */
+export const USG_LEAD = "flex flex-wrap items-start gap-x-[8ch] gap-y-4"
+export const USG_LEAD_CHART = "min-w-[min(100%,36ch)] flex-1"
+/** The one big figure. */
+export const USG_TOTAL = "text-[3.5rem] leading-none font-bold tracking-[-0.03em]"
 
-/** A section heading: space before it groups what follows. */
-export const USG_HEAD = "mt-5 mb-1.5 flex items-baseline gap-4"
-export const USG_LEGEND = "flex flex-wrap gap-x-3 font-sans text-meta text-subtle"
-export const USG_SWATCH = "mr-1.5 inline-block size-1.5 rounded-full align-middle"
-export const USG_NOTE = "m-0 text-meta text-subtle"
+/** The lists side by side, as many columns as fit. */
+export const USG_COLS = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,34ch),1fr))] items-start gap-x-[6ch] gap-y-5"
 
-export const USG_LABEL = "min-w-0 truncate"
-export const USG_NAME = "min-w-0 truncate font-sans text-ink"
-/** A day with no turns, a task that is gone: listed, not read. */
-export const USG_QUIET = "text-subtle"
-export const USG_FIGURE = "text-right text-muted"
+/** A line item: name, dotted leader, amount. */
+export const USG_LINE = "flex min-w-0 items-baseline gap-[1ch] whitespace-nowrap"
+export const USG_NAME = "min-w-0 truncate"
+export const USG_LEADER = "min-w-[2ch] flex-1 -translate-y-0.75 border-b-hairline border-dotted! border-line-active"
+/** The small print under a line item. */
+export const USG_SUB = "pl-[2ch] text-subtle"
+export const USG_ITEM = "-mx-[1ch] block rounded-sm px-[1ch] py-0.5 text-left"
+/** An item that opens its task. */
+export const USG_ITEM_OPEN = `${USG_ITEM} w-[calc(100%+2ch)] cursor-pointer hover:bg-hover focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-focus`
 
-/** The bar's cell, and the bar: `--fill` of the cell wide, never thinner than a dot. */
-export const USG_BAR_CELL = "flex min-w-0"
-export const USG_BAR = "flex h-1.5 w-(--fill) min-w-1.5 gap-px overflow-hidden rounded-full"
+/** A day: date, bar, tokens, turns, time. */
+export const USG_DAY =
+  "grid grid-cols-[6ch_minmax(0,1fr)_5ch_5ch_8ch] items-center gap-x-[2ch] py-0.5 whitespace-nowrap"
+export const USG_BAR = "flex h-2.5 w-(--fill) min-w-0.5 gap-px"
 export const USG_SEG = "min-w-0.5 basis-0"
-/** One colour per engine, the busiest first; the same engine keeps its colour in every section. */
+/** One colour per engine, the busiest first. */
 export const USG_ENGINE_TONES = ["bg-accent", "bg-info", "bg-merged", "bg-subtle"] as const
-export const USG_TASK_TONE = "bg-muted"
+export const USG_LEGEND = "flex flex-wrap gap-x-[2ch] font-normal tracking-normal normal-case"
+export const USG_SWATCH = "mr-[1ch] inline-block size-2 align-baseline"
+
+/** A quota window: name, a framed gauge, percent. */
+export const USG_QUOTA =
+  "grid grid-cols-[minmax(0,1fr)_minmax(8ch,14ch)_5ch] items-center gap-x-[1ch] whitespace-nowrap"
+const GAUGE =
+  "relative h-2.5 border-hairline border-current after:absolute after:inset-y-0 after:left-0 after:w-(--fill) after:bg-current after:content-['']"
+/** The rail's tones: green while healthy, amber near full, red at the limit. */
+export const USG_GAUGE: Readonly<Record<string, string>> = {
+  ok: `${GAUGE} text-success`,
+  warn: `${GAUGE} text-warning`,
+  crit: `${GAUGE} text-error`,
+}
+
+export const USG_BARCODE = "flex h-9 flex-none items-stretch text-ink"
+export const USG_STRIPE = "flex-none bg-current"
+export const USG_FOOT = "flex flex-wrap items-baseline justify-between gap-x-[4ch] gap-y-1 text-subtle"
