@@ -24,19 +24,20 @@ describe("what the page reports about its panel", () => {
 })
 
 describe("a panel push", () => {
-  test("only a well-formed request is taken", () => {
+  test("a well-formed request is taken", () => {
     expect(isPanelPush(push({ view: "files", path: "src/a.ts" }))).toBe(true)
-    for (const bad of [
-      null,
-      "x",
-      {},
-      { ...push(), view: "pdf" },
-      { ...push(), at: "1" },
-      { ...push(), url: 5 },
-      { ...push(), taskId: "" },
-    ]) {
-      expect(isPanelPush(bad)).toBe(false)
-    }
+  })
+
+  test.each([
+    null,
+    "x",
+    {},
+    { ...push(), view: "pdf" },
+    { ...push(), at: "1" },
+    { ...push(), url: 5 },
+    { ...push(), taskId: "" },
+  ])("a malformed request is refused: %p", (bad) => {
+    expect(isPanelPush(bad)).toBe(false)
   })
 
   test("the page on that task, with a panel, opens it; any other page only remembers", () => {

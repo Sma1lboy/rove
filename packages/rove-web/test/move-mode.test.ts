@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 
 // move-mode pulls in i18n and the sort store, which read browser globals at load.
 const g = globalThis as Record<string, unknown>
@@ -22,6 +22,8 @@ const { railSort, setRailSort } = await import("../src/rail-sort.ts")
 const { toasts } = await import("../src/ui.ts")
 
 describe("Reorder (move mode) and the sort", () => {
+  beforeEach(() => setMoveMode(false))
+
   test("a fresh browser starts on recency", () => {
     expect(railSort.get()).toBe("recent")
   })
@@ -44,7 +46,6 @@ describe("Reorder (move mode) and the sort", () => {
   })
 
   test("under manual order it changes nothing but the mode, and turning it off keeps the sort", () => {
-    setMoveMode(false)
     const shown = toasts.get().length
     setRailSort("default")
     setMoveMode(true)

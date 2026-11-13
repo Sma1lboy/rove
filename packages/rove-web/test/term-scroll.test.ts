@@ -26,18 +26,26 @@ test("the wheel scrolls the normal screen's scrollback even when the app tracks 
   expect(owner(true, true)).toBe("app")
 })
 
+/** Feeds `deltas` through a carry-keeping step, totalling the lines and the largest offset left on the way. */
+const addUp = (step: typeof scrollStep, deltas: readonly number[]) =>
+  deltas.reduce(
+    (sum, delta) => {
+      const taken = step(sum.carry, delta)
+      return {
+        lines: sum.lines + taken.lines,
+        carry: taken.carry,
+        widest: Math.max(sum.widest, Math.abs(taken.carry)),
+      }
+    },
+    { lines: 0, carry: 0, widest: 0 },
+  )
+
 test("sub-line touchpad deltas add up and leave at most half a line as the screen offset", () => {
-  let carry = 0
-  let lines = 0
-  for (let i = 0; i < 100; i++) {
-    const step = scrollStep(carry, wheelDelta({ deltaY: -3, deltaMode: 0 }, 15, 40))
-    carry = step.carry
-    lines += step.lines
-    expect(Math.abs(carry)).toBeLessThanOrEqual(0.5)
-  }
+  const sum = addUp(scrollStep, new Array(100).fill(wheelDelta({ deltaY: -3, deltaMode: 0 }, 15, 40)))
+  expect(sum.widest).toBeLessThanOrEqual(0.5)
   // 100 × 3px over 15px rows = twenty rows up, nothing dropped.
-  expect(lines).toBe(-20)
-  expect(carry).toBeCloseTo(0)
+  expect(sum.lines).toBe(-20)
+  expect(sum.carry).toBeCloseTo(0)
 })
 
 test("a change of direction carries the offset instead of snapping the view", () => {
@@ -78,23 +86,31 @@ test("a mouse notch glides while a touchpad stream is followed as it comes", () 
   expect(isWheelNotch({ deltaY: 6, deltaMode: 0 })).toBe(false)
 })
 
-test("a glide moves all of what it was given, never past it, and ends exactly", () => {
-  for (const total of [3, -3, 0.5, -40]) {
-    let pending = total
-    let moved = 0
-    let frames = 0
-    while (pending !== 0 && frames++ < 600) {
-      const part = glideStep(pending, 16)
-      expect(Math.sign(part)).toBe(Math.sign(pending))
-      expect(Math.abs(part)).toBeLessThanOrEqual(Math.abs(pending))
-      pending -= part
-      moved += part
-    }
-    expect(moved).toBeCloseTo(total, 9)
-    // A notch is home well inside half a second at 60 fps.
-    expect(frames).toBeLessThan(40)
+/** Runs a glide of `total` frame by frame (capped at 600), counting frames that went backwards or overshot. */
+const glide = (total: number) => {
+  let pending = total
+  let moved = 0
+  let frames = 0
+  let bad = 0
+  while (pending !== 0 && frames++ < 600) {
+    const part = glideStep(pending, 16)
+    if (Math.sign(part) !== Math.sign(pending) || Math.abs(part) > Math.abs(pending)) bad++
+    pending -= part
+    moved += part
   }
-})
+  return { moved, frames, bad }
+}
+
+test.each([3, -3, 0.5, -40])(
+  "a glide of %p moves all of what it was given, never past it, and ends exactly",
+  (total) => {
+    const run = glide(total)
+    expect(run.bad).toBe(0)
+    expect(run.moved).toBeCloseTo(total, 9)
+    // A notch is home well inside half a second at 60 fps.
+    expect(run.frames).toBeLessThan(40)
+  },
+)
 
 test("lines from the bottom never go negative", () => {
   expect(linesFromBottom({ baseY: 100, viewportY: 100 })).toBe(0)
@@ -163,14 +179,7 @@ test("an app-owned wheel sends one event per row of travel, in the protocol the 
 })
 
 test("a trackpad's small deltas add up to whole rows, and a turn the other way starts over", () => {
-  let carry = 0
-  let rows = 0
   // Sixty 8px events over 19px rows: about 25 rows, where one report per event after damping gave 7.
-  for (let i = 0; i < 60; i++) {
-    const taken = takeWholeLines(carry, 8 / 19)
-    carry = taken.carry
-    rows += taken.lines
-  }
-  expect(rows).toBe(25)
+  expect(addUp(takeWholeLines, new Array(60).fill(8 / 19)).lines).toBe(25)
   expect(takeWholeLines(0.9, -0.3)).toEqual({ lines: 0, carry: -0.3 })
 })

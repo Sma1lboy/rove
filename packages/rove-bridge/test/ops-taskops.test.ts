@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -348,45 +348,44 @@ describe("fs.subdirs and repo.probe", () => {
     await expect(run("fs.subdirs", { path: "relative/x" })).rejects.toMatchObject({ code: "BAD_ARGS" })
   })
 
-  test("a drive or UNC path is absolute on Windows only", () => {
-    for (const path of ["C:\\Code\\app", "C:/Code/app", "\\\\host\\share"]) {
-      expect(isAbsPath(path, "win32")).toBe(true)
-      expect(isAbsPath(path, "darwin")).toBe(false)
-    }
-    for (const path of ["C:app", "relative\\x", "\\rooted"]) expect(isAbsPath(path, "win32")).toBe(false)
+  test.each(["C:\\Code\\app", "C:/Code/app", "\\\\host\\share"])("%s is absolute on Windows only", (path) => {
+    expect(isAbsPath(path, "win32")).toBe(true)
+    expect(isAbsPath(path, "darwin")).toBe(false)
+  })
+
+  test.each(["C:app", "relative\\x", "\\rooted"])("%s is not absolute on Windows", (path) => {
+    expect(isAbsPath(path, "win32")).toBe(false)
+  })
+
+  test("a POSIX absolute path counts on Windows too, and absPath refuses a relative one", () => {
     expect(isAbsPath("/w/a", "win32")).toBe(true)
     expect(absPath({ repo: "/w/a" }, "repo")).toBe("/w/a")
     expect(() => absPath({ repo: "relative/x" }, "repo")).toThrow()
   })
 
   test("probe names the reason a path is not a repo and lists branches for one that is", async () => {
-    const saved = { ...taskOpDeps }
-    try {
-      taskOpDeps.validateRepoPath = (p) => (p === "/r" ? null : `path does not exist: ${p}`)
-      taskOpDeps.listLocalBranches = () => ["main", "dev"]
-      taskOpDeps.getCurrentBranch = () => "dev"
-      const bad = await run("repo.probe", { path: "/nope/" })
-      expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
-      // A real folder git cannot use is fine: it opens in place, without worktrees.
-      const plain = await run("repo.probe", { path: `${root}/alpha` })
-      expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
-      const ok = await run("repo.probe", { path: "/r/" })
-      expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
-      const withWt = await run(
-        "repo.probe",
-        { path: "/r", adoptable: true },
-        { "worktree.discoverAdoptable": { worktrees: [{ path: "/w" }] } },
-      )
-      expect(withWt.result).toMatchObject({ worktrees: [{ path: "/w" }] })
-    } finally {
-      Object.assign(taskOpDeps, saved)
-    }
+    taskOpDeps.validateRepoPath = (p) => (p === "/r" ? null : `path does not exist: ${p}`)
+    taskOpDeps.listLocalBranches = () => ["main", "dev"]
+    taskOpDeps.getCurrentBranch = () => "dev"
+    const bad = await run("repo.probe", { path: "/nope/" })
+    expect(bad.result).toEqual({ ok: false, repo: "/nope", reason: "path does not exist: /nope" })
+    // A real folder git cannot use is fine: it opens in place, without worktrees.
+    const plain = await run("repo.probe", { path: `${root}/alpha` })
+    expect(plain.result).toEqual({ ok: true, repo: `${root}/alpha`, git: false, branches: [], current: null })
+    const ok = await run("repo.probe", { path: "/r/" })
+    expect(ok.result).toEqual({ ok: true, repo: "/r", branches: ["main", "dev"], current: "dev" })
+    const withWt = await run(
+      "repo.probe",
+      { path: "/r", adoptable: true },
+      { "worktree.discoverAdoptable": { worktrees: [{ path: "/w" }] } },
+    )
+    expect(withWt.result).toMatchObject({ worktrees: [{ path: "/w" }] })
   })
 })
 
 describe("file.openExternal", () => {
-  const wt = mkdtempSync(join(tmpdir(), "rove-open-"))
-  const outside = mkdtempSync(join(tmpdir(), "rove-outside-"))
+  let wt = ""
+  let outside = ""
   const real = (opened: string[]) =>
     deps({
       openExternal: (p) => opened.push(p),
@@ -399,29 +398,36 @@ describe("file.openExternal", () => {
       },
       runnable: (p) => (require("node:fs").statSync(p).mode & 0o111) !== 0,
     })
-  const reply = { "get-task": { task: { worktreePath: wt } } }
-  writeFileSync(join(wt, "pic.png"), "x")
-  writeFileSync(join(wt, "run.png"), "x")
-  chmodSync(join(wt, "run.png"), 0o755)
-  writeFileSync(join(wt, "notes.txt"), "x")
-  writeFileSync(join(outside, "secret.png"), "x")
-  symlinkSync(join(outside, "secret.png"), join(wt, "link.png"))
-
-  afterEach(() => {})
+  const reply = () => ({ "get-task": { task: { worktreePath: wt } } })
+  beforeAll(() => {
+    wt = mkdtempSync(join(tmpdir(), "rove-open-"))
+    outside = mkdtempSync(join(tmpdir(), "rove-outside-"))
+    writeFileSync(join(wt, "pic.png"), "x")
+    writeFileSync(join(wt, "run.png"), "x")
+    chmodSync(join(wt, "run.png"), 0o755)
+    writeFileSync(join(wt, "notes.txt"), "x")
+    writeFileSync(join(outside, "secret.png"), "x")
+    symlinkSync(join(outside, "secret.png"), join(wt, "link.png"))
+  })
+  afterAll(() => {
+    rmSync(wt, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  })
 
   test("opens a media file inside the worktree in the Mac's opener", async () => {
     const opened: string[] = []
-    await run("file.openExternal", { taskId: T, path: "pic.png" }, reply, real(opened))
+    await run("file.openExternal", { taskId: T, path: "pic.png" }, reply(), real(opened))
     expect(opened).toEqual([require("node:fs").realpathSync(join(wt, "pic.png"))])
   })
 
-  test("refuses anything the OS would run, plain text, climbs and symlinks out of the worktree", async () => {
-    const opened: string[] = []
-    for (const path of ["run.png", "notes.txt", "../x.png", "/etc/hosts.png", "link.png", "missing.png"]) {
-      await expect(run("file.openExternal", { taskId: T, path }, reply, real(opened))).rejects.toThrow()
-    }
-    expect(opened).toEqual([])
-  })
+  test.each(["run.png", "notes.txt", "../x.png", "/etc/hosts.png", "link.png", "missing.png"])(
+    "refuses %s: anything the OS would run, plain text, climbs and symlinks out of the worktree",
+    async (path) => {
+      const opened: string[] = []
+      await expect(run("file.openExternal", { taskId: T, path }, reply(), real(opened))).rejects.toThrow()
+      expect(opened).toEqual([])
+    },
+  )
 })
 
 describe("file.reveal / file.openTerminal", () => {

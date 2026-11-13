@@ -13,20 +13,20 @@ describe("mods", () => {
 
   test("a client gets the open mod panes on connect and again when a mod redraws", async () => {
     let panes: unknown[] = [PANE]
-    const listeners = new Set<(p: never) => void>()
+    let redraw: (p: never) => void = () => {}
     const h = start({
       mods: {
         current: () => panes as never,
         subscribe: (l) => {
-          listeners.add(l)
-          return () => listeners.delete(l)
+          redraw = l
+          return () => {}
         },
       },
     })
     const c = await connect(h.url, AUTH)
     await c.call("hello")
     panes = []
-    for (const l of listeners) l(panes as never)
+    redraw(panes as never)
     await c.call("hello")
     expect(c.pushes.filter((p) => p.event === "mods").map((p) => p.data)).toEqual([{ panes: [PANE] }, { panes: [] }])
   })

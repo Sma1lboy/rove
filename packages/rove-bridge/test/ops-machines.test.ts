@@ -125,5 +125,5 @@ test("machines.update runs machine-update here, naming the machine, and reports 
     result: { alias: "deck", from: "0.9.289", to: "0.9.291", changed: true },
   })
   expect(calls).toEqual([{ verb: "machine-update", argv: ["--to=deck"] }])
-  expect(run({})).rejects.toThrow(BridgeError)
+  await expect(run({})).rejects.toThrow(BridgeError)
 })

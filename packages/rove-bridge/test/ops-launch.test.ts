@@ -23,15 +23,16 @@ describe("file.openInEditor", () => {
     expect(calls).toEqual([{ verb: "tab-new", argv: [`--task-id=${T}`, "--kind=editor", "--file=src/a.ts"] }])
   })
 
-  test("refuses an absolute path, a parent segment and an empty path before any verb runs", async () => {
-    for (const path of ["/etc/passwd", "../x", "a/../../x", "", "a\0b"]) {
+  test.each(["/etc/passwd", "../x", "a/../../x", "", "a\0b"])(
+    "refuses the path %j before any verb runs",
+    async (path) => {
       const { api, calls } = fakeApi()
       await expect(launchOps["file.openInEditor"]?.run({ taskId: T, path }, { api })).rejects.toMatchObject({
         code: "BAD_ARGS",
       })
       expect(calls).toEqual([])
-    }
-  })
+    },
+  )
 })
 
 describe("plugin panes", () => {
@@ -41,7 +42,7 @@ describe("plugin panes", () => {
     expect(result).toEqual({ panes: [{ id: "p.git", title: "lazygit", placement: "split" }] })
   })
 
-  test("opening names the pane (and optionally the host tab); anything else is refused", async () => {
+  test("opening names the pane and optionally the host tab", async () => {
     const { result, calls } = await run(
       "plugin.paneOpen",
       { taskId: T, pane: "p.git", tabId: "tab-2" },
@@ -49,13 +50,14 @@ describe("plugin panes", () => {
     )
     expect(result).toEqual({ tabId: "tab-2", leaf: "leaf-2" })
     expect(calls).toEqual([{ verb: "tab-new", argv: [`--task-id=${T}`, "--kind=pane", "--pane=p.git", "--tab=tab-2"] }])
-    for (const args of [
-      { taskId: T, pane: "--x" },
-      { taskId: T, pane: "p git" },
-      { taskId: T, pane: "p.git", tabId: "../1" },
-    ]) {
-      await expect(run("plugin.paneOpen", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
+  })
+
+  test.each([
+    { taskId: T, pane: "--x" },
+    { taskId: T, pane: "p git" },
+    { taskId: T, pane: "p.git", tabId: "../1" },
+  ])("opening refuses %j", async (args) => {
+    await expect(run("plugin.paneOpen", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
   })
 })
 

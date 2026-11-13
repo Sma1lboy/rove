@@ -111,12 +111,10 @@ describe("plugin.chordAction", () => {
     expect(fired.seen).toEqual(["acme.notify.ping"])
   })
 
-  test("a chord the file does not bind, or binds to a pane, fires nothing", async () => {
+  test.each(["ctrl+j", "f6"])("%s, which the file does not bind or binds to a pane, fires nothing", async (chord) => {
     const fired = recorder()
     const table = ops(doc, { fireAction: fired.fn })
-    for (const chord of ["ctrl+j", "f6"]) {
-      await expect(run(table, "plugin.chordAction", { chord })).rejects.toMatchObject({ code: "NOT_BOUND" })
-    }
+    await expect(run(table, "plugin.chordAction", { chord })).rejects.toMatchObject({ code: "NOT_BOUND" })
     expect(fired.seen).toEqual([])
   })
 })

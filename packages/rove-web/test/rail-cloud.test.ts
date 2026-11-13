@@ -61,8 +61,7 @@ describe("the rail names no machine; a remote task carries a cloud", () => {
   })
 
   test("a machine that is not online adds its state to the cloud's text", () => {
-    const [there] = rail([mac("offline")]).filter((row) => row.id === "there")
-    if (!there) throw new Error("no remote row")
+    const there = rail([mac("offline")]).find((row) => row.id === "there") as ReturnType<typeof rail>[number]
     expect(rowCloud(there, [mac("offline")], words)).toBe("on mac (studio.local) · offline")
     expect(rowCloud(there, [mac("mismatch", "0.9.100")], words)).toBe(
       "on mac (studio.local) · ⚠ v0.9.100 (protocol mismatch)",

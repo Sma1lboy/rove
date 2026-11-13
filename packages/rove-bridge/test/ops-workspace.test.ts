@@ -85,11 +85,12 @@ describe("tab.split", () => {
     ).rejects.toThrow(/one line/)
   })
 
-  test("a pane id is leaf-N and nothing else, so it cannot smuggle a flag", async () => {
-    for (const leafId of ["--leaf=leaf-1", "leaf-1 --x", "leaf-", "../leaf-1", 5]) {
+  test.each(["--leaf=leaf-1", "leaf-1 --x", "leaf-", "../leaf-1", 5])(
+    "a pane id is leaf-N and nothing else, so %p cannot smuggle a flag",
+    async (leafId) => {
       await expect(run({ taskId: TASK, tabId: "tab-1", action: "close", leafId })).rejects.toThrow(/not a pane id/)
-    }
-  })
+    },
+  )
 
   test("cols and rows go together", async () => {
     await expect(run({ taskId: TASK, tabId: "tab-1", action: "open", cols: 80 })).rejects.toThrow(/go together/)

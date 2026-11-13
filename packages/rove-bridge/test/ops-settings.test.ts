@@ -349,7 +349,9 @@ describe("engine switches keep the section's invariants", () => {
     expect(state["engineCommand.codex"]).toBeUndefined()
     expect(state.customEngineIds).toEqual(["mine"])
     expect((await run(ops, "engine.reset", { id: "mine" })).result).toEqual({ id: "mine", removed: true })
-    for (const key of ["engineCommand.mine", "engineName.mine", "engineProtocol.mine"]) expect(key in state).toBe(false)
+    expect(state).not.toHaveProperty(["engineCommand.mine"])
+    expect(state).not.toHaveProperty(["engineName.mine"])
+    expect(state).not.toHaveProperty(["engineProtocol.mine"])
     expect(state.customEngineIds).toEqual([])
     expect(state.disabledEngineIds).toEqual(["kimi"])
   })
@@ -369,8 +371,11 @@ describe("engine switches keep the section's invariants", () => {
 
   test("every engine write is destructive and there is no way to author a launch command", () => {
     const { ops } = engineHarness()
-    const harmless = ["engines.settings", "skill.missing"]
-    for (const [name, spec] of Object.entries(ops)) expect(spec.destructive).toBe(!harmless.includes(name))
+    const harmless = Object.entries(ops)
+      .filter(([, spec]) => !spec.destructive)
+      .map(([name]) => name)
+      .sort()
+    expect(harmless).toEqual(["engines.settings", "skill.missing"])
     expect(Object.keys(ops).some((name) => /command/i.test(name))).toBe(false)
   })
 })

@@ -39,7 +39,9 @@ describe("repo.clone", () => {
 
   test("git's output reaches the caller as progress lines, at most one per gap", async () => {
     taskOpDeps.cloneRepo = async (_url, target, onProgress) => {
-      for (const line of ["Cloning into 'y'...", "Receiving objects: 10%", "Receiving objects: 20%"]) onProgress?.(line)
+      onProgress?.("Cloning into 'y'...")
+      onProgress?.("Receiving objects: 10%")
+      onProgress?.("Receiving objects: 20%")
       return { ok: true, path: target }
     }
     taskOpDeps.validateCloneTarget = () => null
@@ -65,40 +67,40 @@ describe("repo.clone", () => {
     })
   })
 
-  test("refuses option-shaped, helper-transport, local and malformed urls and folders without cloning", async () => {
+  test.each([
+    { url: "-oProxyCommand=touch /tmp/x", parentDir: "/work" },
+    { url: "--upload-pack=touch /tmp/x", parentDir: "/work" },
+    { url: "ext::sh -c touch% /tmp/x", parentDir: "/work" },
+    { url: "fd::17/foo", parentDir: "/work" },
+    { url: "file:///etc", parentDir: "/work" },
+    { url: "/etc/passwd", parentDir: "/work" },
+    { url: "ssh://-oProxyCommand=x/y", parentDir: "/work" },
+    { url: "ssh://user@-host/y", parentDir: "/work" },
+    { url: "-x@host:path", parentDir: "/work" },
+    { url: "https://h/x y", parentDir: "/work" },
+    { url: "ftp://h/x", parentDir: "/work" },
+    { url: "", parentDir: "/work" },
+    { url: 5, parentDir: "/work" },
+    { url: "https://h/x/y", parentDir: "rel" },
+    { url: "https://h/x/y", parentDir: "~/code" },
+    { url: "https://h/x/y", parentDir: "/work", folder: "../evil" },
+    { url: "https://h/x/y", parentDir: "/work", folder: "a/b" },
+    { url: "https://h/x/y", parentDir: "/work", folder: ".." },
+    { url: "https://h/x/y", parentDir: "/work", folder: "-rf" },
+  ] as Record<string, unknown>[])("refuses %j without cloning", async (args) => {
     const seen = fakeClone()
-    const bad: Array<Record<string, unknown>> = [
-      { url: "-oProxyCommand=touch /tmp/x", parentDir: "/work" },
-      { url: "--upload-pack=touch /tmp/x", parentDir: "/work" },
-      { url: "ext::sh -c touch% /tmp/x", parentDir: "/work" },
-      { url: "fd::17/foo", parentDir: "/work" },
-      { url: "file:///etc", parentDir: "/work" },
-      { url: "/etc/passwd", parentDir: "/work" },
-      { url: "ssh://-oProxyCommand=x/y", parentDir: "/work" },
-      { url: "ssh://user@-host/y", parentDir: "/work" },
-      { url: "-x@host:path", parentDir: "/work" },
-      { url: "https://h/x y", parentDir: "/work" },
-      { url: "ftp://h/x", parentDir: "/work" },
-      { url: "", parentDir: "/work" },
-      { url: 5, parentDir: "/work" },
-      { url: "https://h/x/y", parentDir: "rel" },
-      { url: "https://h/x/y", parentDir: "~/code" },
-      { url: "https://h/x/y", parentDir: "/work", folder: "../evil" },
-      { url: "https://h/x/y", parentDir: "/work", folder: "a/b" },
-      { url: "https://h/x/y", parentDir: "/work", folder: ".." },
-      { url: "https://h/x/y", parentDir: "/work", folder: "-rf" },
-    ]
-    for (const args of bad) await refused("repo.clone", args)
+    await refused("repo.clone", args)
     expect(seen).toEqual([])
   })
 
-  test("accepts each allowed transport", async () => {
-    const seen = fakeClone()
-    for (const url of ["https://h/a/b.git", "http://h/a/b", "ssh://git@h:22/a/b", "git://h/a/b", "git@h:a/b.git"]) {
+  test.each(["https://h/a/b.git", "http://h/a/b", "ssh://git@h:22/a/b", "git://h/a/b", "git@h:a/b.git"])(
+    "accepts the transport of %s",
+    async (url) => {
+      const seen = fakeClone()
       await run("repo.clone", { url, parentDir: "/work" })
-    }
-    expect(seen.map(([u]) => u)).toHaveLength(5)
-  })
+      expect(seen.map(([u]) => u)).toEqual([url])
+    },
+  )
 
   describe("owner/repo shorthand", () => {
     function ghConfig(protocol: string | null) {
@@ -106,17 +108,15 @@ describe("repo.clone", () => {
         protocol === null ? { ok: false, reason: "missing" } : { ok: true, stdout: `${protocol}\n` }
     }
 
-    test("clones over https unless gh is set to ssh, and https when gh is absent", async () => {
+    test.each([
+      ["https", "https://github.com/octocat/Hello-World.git"],
+      [null, "https://github.com/octocat/Hello-World.git"],
+      ["ssh", "git@github.com:octocat/Hello-World.git"],
+    ] as [string | null, string][])("gh protocol %p clones from %s", async (protocol, url) => {
       const seen = fakeClone()
-      for (const protocol of ["https", null, "ssh"]) {
-        ghConfig(protocol)
-        await run("repo.clone", { url: "octocat/Hello-World", parentDir: "/work" })
-      }
-      expect(seen).toEqual([
-        ["https://github.com/octocat/Hello-World.git", "/work/Hello-World"],
-        ["https://github.com/octocat/Hello-World.git", "/work/Hello-World"],
-        ["git@github.com:octocat/Hello-World.git", "/work/Hello-World"],
-      ])
+      ghConfig(protocol)
+      await run("repo.clone", { url: "octocat/Hello-World", parentDir: "/work" })
+      expect(seen).toEqual([[url, "/work/Hello-World"]])
     })
 
     test("a .git suffix is not doubled, and dot-only names are refused", async () => {

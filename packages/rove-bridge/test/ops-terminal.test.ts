@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 import { mkdtempSync, readFileSync, readdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -35,6 +35,9 @@ function fakeApi(replies: Record<string, unknown> = {}): { api: BridgeApi; calls
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)])
 const written: Array<{ path: string; bytes: Uint8Array }> = []
+beforeEach(() => {
+  written.length = 0
+})
 
 function deps(over: Partial<TerminalOpDeps> = {}): TerminalOpDeps {
   return {
@@ -98,18 +101,14 @@ describe("tab.rename", () => {
     expect(flags.has("force")).toBe(false)
   })
 
-  test("refuses a bad id, an empty or multi-line title, and an over-long one", async () => {
-    for (const args of [
-      { taskId: "--x", tabId: "tab-1", title: "a" },
-      { taskId: TASK, tabId: "tab-x", title: "a" },
-      { taskId: TASK, tabId: "tab-1", title: "  " },
-      { taskId: TASK, tabId: "tab-1", title: "a\nb" },
-      { taskId: TASK, tabId: "tab-1", title: "x".repeat(81) },
-    ]) {
-      const { calls } = fakeApi()
-      await expect(run("tab.rename", args)).rejects.toThrow()
-      expect(calls).toHaveLength(0)
-    }
+  test.each([
+    { taskId: "--x", tabId: "tab-1", title: "a" },
+    { taskId: TASK, tabId: "tab-x", title: "a" },
+    { taskId: TASK, tabId: "tab-1", title: "  " },
+    { taskId: TASK, tabId: "tab-1", title: "a\nb" },
+    { taskId: TASK, tabId: "tab-1", title: "x".repeat(81) },
+  ])("refuses a bad id, an empty, multi-line or over-long title: %p", async (args) => {
+    await expect(run("tab.rename", args)).rejects.toThrow()
   })
 })
 
@@ -149,21 +148,19 @@ describe("tab.forkTask", () => {
     expect(fan.calls[0]?.argv).toContain("--count=3")
   })
 
-  test("refuses option-like or malformed branches, repos and engines; caps attempts at 5", async () => {
-    for (const bad of [
-      { baseBranch: "--force" },
-      { baseBranch: "a..b" },
-      { baseBranch: "a b" },
-      { baseBranch: "x.lock" },
-      { baseBranch: "" },
-      { repo: "relative/path" },
-      { engine: "claude --dangerously-skip-permissions" },
-      { count: 6 },
-      { count: 0 },
-      { prompt: "   " },
-    ]) {
-      await expect(run("tab.forkTask", { ...base, ...bad }, {}, { add: { taskId: "T" } })).rejects.toThrow()
-    }
+  test.each<Record<string, unknown>>([
+    { baseBranch: "--force" },
+    { baseBranch: "a..b" },
+    { baseBranch: "a b" },
+    { baseBranch: "x.lock" },
+    { baseBranch: "" },
+    { repo: "relative/path" },
+    { engine: "claude --dangerously-skip-permissions" },
+    { count: 6 },
+    { count: 0 },
+    { prompt: "   " },
+  ])("refuses option-like or malformed branches, repos and engines; caps attempts at 5: %p", async (bad) => {
+    await expect(run("tab.forkTask", { ...base, ...bad }, {}, { add: { taskId: "T" } })).rejects.toThrow()
   })
 
   test("a reply naming no task is an error, never a silent success", async () => {
@@ -300,7 +297,6 @@ describe("attachment.put", () => {
     run("attachment.put", { mime, data: Buffer.from(bytes).toString("base64") })
 
   test("writes a generated name under the attachments dir and returns the absolute path", async () => {
-    written.length = 0
     const { result } = await put("image/png", PNG)
     expect(result).toEqual({
       path: "/home/.rove/attachments/attach-20261005-deadbeef.png",
@@ -312,7 +308,6 @@ describe("attachment.put", () => {
   })
 
   test("any other file is stored under its own extension, and a name cannot steer the path", async () => {
-    written.length = 0
     const csv = { data: Buffer.from("a,b\n").toString("base64") }
     expect((await run("attachment.put", { ...csv, mime: "text/csv", name: "Q3 report.CSV" })).result).toMatchObject({
       path: "/home/.rove/attachments/attach-20261005-deadbeef-Q3-report.csv",
@@ -324,7 +319,6 @@ describe("attachment.put", () => {
   })
 
   test("a file that claims an image or PDF type, by mime or by name, must start like one", async () => {
-    written.length = 0
     await expect(
       run("attachment.put", { name: "shot.png", data: Buffer.from("text").toString("base64") }),
     ).rejects.toThrow("not a png")
@@ -344,7 +338,6 @@ describe("attachment.put", () => {
   })
 
   test("over the size cap is refused with TOO_LARGE before anything is written", async () => {
-    written.length = 0
     const big = Buffer.concat([PNG, Buffer.alloc(MAX_ATTACHMENT_BYTES)])
     await expect(put("image/png", big)).rejects.toMatchObject({ code: "TOO_LARGE" })
     expect(written).toHaveLength(0)

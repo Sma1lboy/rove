@@ -8,6 +8,9 @@ test("an OSC 52 write yields its text, non-ASCII included", () => {
   expect(osc52Text(`;${b64("no target")}`)).toBe("no target")
 })
 
-test("a clipboard read request, an empty write and a broken payload copy nothing", () => {
-  for (const data of ["c;?", "c;", "c", "c;not base64!", `c;${btoa("\xff\xfe")}`]) expect(osc52Text(data)).toBeNull()
-})
+test.each(["c;?", "c;", "c", "c;not base64!", `c;${btoa("\xff\xfe")}`])(
+  "a clipboard read request, an empty write and a broken payload copy nothing: %p",
+  (data) => {
+    expect(osc52Text(data)).toBeNull()
+  },
+)

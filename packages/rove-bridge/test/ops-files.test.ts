@@ -60,18 +60,25 @@ function setup(listed: string[] = ["a.ts"]) {
 const task = { "get-task": () => ({ task: { worktreePath: "/wt/t1" } }) }
 
 describe("file.read", () => {
-  test("asks the verb for the file; a path that climbs out or a flag-like id never reaches it", async () => {
+  test("asks the verb for the file; a flag-like id never reaches it", async () => {
     const { run } = setup()
     const reply = { path: "docs/a.md", mime: "text/markdown", size: 1, base64: "IQ==" }
     const { api, calls } = fakeApi({ "worktree-file": () => reply })
     expect(await run("file.read", { taskId: "t1", path: "docs/a.md" }, api)).toEqual(reply)
     expect(calls).toEqual([{ kind: "verb", name: "worktree-file", payload: ["--task-id=t1", "--path=docs/a.md"] }])
-    for (const path of ["../a.md", "/etc/a.md", "a/../../b.md"]) {
-      await expect(run("file.read", { taskId: "t1", path }, api)).rejects.toThrow("relative")
-    }
     await expect(run("file.read", { taskId: "--force", path: "a.md" }, api)).rejects.toThrow("not a task id")
     expect(calls).toHaveLength(1)
   })
+
+  test.each(["../a.md", "/etc/a.md", "a/../../b.md"])(
+    "a path that is not relative (%s) never reaches the verb",
+    async (path) => {
+      const { run } = setup()
+      const { api, calls } = fakeApi({})
+      await expect(run("file.read", { taskId: "t1", path }, api)).rejects.toThrow("relative")
+      expect(calls).toEqual([])
+    },
+  )
 })
 
 describe("files.list", () => {
@@ -107,7 +114,7 @@ describe("files.list", () => {
 })
 
 describe("review notes", () => {
-  test("add stores a note; startLine equal to line is a single-line note; bad input is refused", async () => {
+  test("add stores a note; startLine equal to line is a single-line note", async () => {
     const { run, notes } = setup()
     const { api } = fakeApi({})
     await run("review.add", { taskId: "t1", filePath: "src/a.ts", line: 4, startLine: 4, body: "why?" }, api)
@@ -116,16 +123,18 @@ describe("review notes", () => {
       { id: "n1", filePath: "src/a.ts", line: 4, body: "why?", createdAt: 1000 },
       { id: "n2", filePath: "src/a.ts", startLine: 7, line: 9, body: "range", createdAt: 1000 },
     ])
-    for (const bad of [
-      { filePath: "/etc/passwd", line: 1, body: "x" },
-      { filePath: "../x", line: 1, body: "x" },
-      { filePath: "a", line: 0, body: "x" },
-      { filePath: "a", line: 3, startLine: 5, body: "x" },
-      { filePath: "a", line: 3, body: "  " },
-    ]) {
-      await expect(run("review.add", { taskId: "t1", ...bad }, api)).rejects.toThrow()
-    }
-    expect(notes.data.get("t1")).toHaveLength(2)
+  })
+
+  test.each([
+    { filePath: "/etc/passwd", line: 1, body: "x" },
+    { filePath: "../x", line: 1, body: "x" },
+    { filePath: "a", line: 0, body: "x" },
+    { filePath: "a", line: 3, startLine: 5, body: "x" },
+    { filePath: "a", line: 3, body: "  " },
+  ])("add refuses %j and stores nothing", async (bad) => {
+    const { run, notes } = setup()
+    await expect(run("review.add", { taskId: "t1", ...bad }, fakeApi({}).api)).rejects.toThrow()
+    expect(notes.data.get("t1")).toBeUndefined()
   })
 
   test("edit rewrites one note's text in place and keeps its code, id and place in line", async () => {

@@ -48,13 +48,16 @@ for (const destination of ["update", "worktrees", "mods"] as const) {
     expect(page.get()).toBe(destination)
     expect(sessionStorage.getItem("rove.web.page")).toBe(JSON.stringify(destination))
 
-    for (const taskId of ["second", "second"]) {
+    const pickLeavesPage = async () => {
       await act(async () => page.set(destination))
-      await act(async () => openTaskRow(model, taskId))
-      expect(model.selection.get().taskId).toBe(taskId)
+      await act(async () => openTaskRow(model, "second"))
+      expect(model.selection.get().taskId).toBe("second")
       expect(page.get()).toBeNull()
       expect(sessionStorage.getItem("rove.web.page")).toBeNull()
     }
+    await pickLeavesPage()
+    // Picking the task that is already selected still leaves the page.
+    await pickLeavesPage()
   })
 }
 

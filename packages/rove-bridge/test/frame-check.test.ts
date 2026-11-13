@@ -4,9 +4,10 @@
  * refusal happens before any socket is opened.
  */
 
-import { describe, expect, test } from "bun:test"
+import { describe, expect, jest, test } from "bun:test"
 import {
   type HeadResponse,
+  PROBE_TIMEOUT_MS,
   type ProbeDeps,
   checkFrame,
   isLoopbackHost,
@@ -58,12 +59,15 @@ describe("addresses the probe will not connect to", () => {
     expect(refusedAddress(ip)).toBeNull()
   })
 
-  test("loopback names are the viewer's own machine", () => {
-    for (const host of ["localhost", "app.localhost", "127.0.0.1", "127.9.9.9", "::1", "[::1]", "0.0.0.0"]) {
+  test.each(["localhost", "app.localhost", "127.0.0.1", "127.9.9.9", "::1", "[::1]", "0.0.0.0"])(
+    "%s is the viewer's own machine",
+    (host) => {
       expect(isLoopbackHost(host)).toBe(true)
-    }
-    for (const host of ["example.com", "10.0.0.1", "localhost.example.com", "128.0.0.1"])
-      expect(isLoopbackHost(host)).toBe(false)
+    },
+  )
+
+  test.each(["example.com", "10.0.0.1", "localhost.example.com", "128.0.0.1"])("%s is not loopback", (host) => {
+    expect(isLoopbackHost(host)).toBe(false)
   })
 })
 
@@ -123,21 +127,19 @@ function fake(addresses: string[], response?: Partial<HeadResponse>) {
 }
 
 describe("probeFrame", () => {
-  test("refuses a private address, a loopback one, and a name that resolves to one, without connecting", async () => {
-    for (const [url, addresses] of [
-      ["https://10.0.0.1/", []],
-      ["https://[::1]/", []],
-      ["https://intranet.example/", ["192.168.0.5"]],
-      // A rebinding name answers with a public and a private record: one private answer refuses all.
-      ["https://rebind.example/", ["93.184.216.34", "127.0.0.1"]],
-      ["https://mapped.example/", ["::ffff:10.0.0.1"]],
-    ] as const) {
-      const { deps, heads } = fake([...addresses])
-      const result = await probeFrame(url, { deps })
-      expect(result).toMatchObject({ reachable: false, frameable: false })
-      expect(result.reason).toContain("refused")
-      expect(heads).toEqual([])
-    }
+  test.each([
+    ["https://10.0.0.1/", []],
+    ["https://[::1]/", []],
+    ["https://intranet.example/", ["192.168.0.5"]],
+    // A rebinding name answers with a public and a private record: one private answer refuses all.
+    ["https://rebind.example/", ["93.184.216.34", "127.0.0.1"]],
+    ["https://mapped.example/", ["::ffff:10.0.0.1"]],
+  ] as [string, string[]][])("refuses %s (resolving to %j) without connecting", async (url, addresses) => {
+    const { deps, heads } = fake(addresses)
+    const result = await probeFrame(url, { deps })
+    expect(result).toMatchObject({ reachable: false, frameable: false })
+    expect(result.reason).toContain("refused")
+    expect(heads).toEqual([])
   })
 
   test("connects to the address it vetted, naming the site only in SNI and Host, and reads the first response", async () => {
@@ -169,12 +171,16 @@ describe("probeFrame", () => {
   })
 
   test("a host that never answers is cut off at the deadline", async () => {
-    const deps: ProbeDeps = { resolve: async () => ["93.184.216.34"], head: () => new Promise(() => {}) }
-    const started = Date.now()
-    const result = await probeFrame("https://slow.example/", { deps })
-    expect(result).toMatchObject({ reachable: false, frameable: false, reason: "timed out" })
-    expect(Date.now() - started).toBeLessThan(4000)
-  }, 6000)
+    jest.useFakeTimers()
+    try {
+      const deps: ProbeDeps = { resolve: async () => ["93.184.216.34"], head: () => new Promise(() => {}) }
+      const pending = probeFrame("https://slow.example/", { deps })
+      jest.advanceTimersByTime(PROBE_TIMEOUT_MS)
+      expect(await pending).toMatchObject({ reachable: false, frameable: false, reason: "timed out" })
+    } finally {
+      jest.useRealTimers()
+    }
+  })
 
   test("an unresolvable name is unreachable", async () => {
     const { deps } = fake([])
