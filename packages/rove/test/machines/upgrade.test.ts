@@ -12,6 +12,7 @@ describe("upgradeMachine", () => {
     const done = await upgradeMachine(deck, {
       channel: () => "next",
       version: async () => versions.shift() ?? null,
+      installed: async () => "0.9.291",
       run: async (_entry, args) => {
         ran.push(args.join(" "))
         return ok
@@ -26,6 +27,7 @@ describe("upgradeMachine", () => {
     const failing = upgradeMachine(deck, {
       channel: () => "next",
       version: async () => "0.9.289",
+      installed: async () => "0.9.289",
       run: async (_entry, args) => {
         ran.push(args[0] ?? "")
         return { exitCode: 1, stdout: "", stderr: "npm ERR! network" }
@@ -33,5 +35,20 @@ describe("upgradeMachine", () => {
     })
     await expect(failing).rejects.toThrow(/rove update on deck failed:\nnpm ERR! network/)
     expect(ran).toEqual(["update"])
+  })
+
+  it("does not restart a daemon that already runs what is installed", async () => {
+    const ran: string[] = []
+    const done = await upgradeMachine(deck, {
+      channel: () => "latest",
+      version: async () => "0.9.293",
+      installed: async () => "0.9.293",
+      run: async (_entry, args) => {
+        ran.push(args[0] ?? "")
+        return ok
+      },
+    })
+    expect(ran).toEqual(["update"])
+    expect(done.changed).toBe(false)
   })
 })

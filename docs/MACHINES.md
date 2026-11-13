@@ -136,6 +136,11 @@ v0.9.185` on the row the cursor is on).
   host; anything its daemon was doing at that moment is cut off. A machine on
   another channel is moved to this one's. A daemon that a systemd unit runs is
   restarted through that unit.
+- **Machines follow this one.** A machine that connects on an older Rove than
+  this machine is updated the same way without being asked, once no command is
+  running in its daemon. It is never downgraded, a Windows machine is left for
+  `machine update`, and each machine is tried once per version it reports.
+  Turn it off with `"machines.autoUpdate": false` in `state.json`.
 - **Version skew is on the row.** `narwhal · v0.9.180` next to your own build
   explains most of what otherwise looks like a bug. A machine whose Rove is too
   old to talk to yours reads `⚠ v0.9.100 (protocol mismatch)` and is the only

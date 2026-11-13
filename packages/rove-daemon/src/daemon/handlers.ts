@@ -32,7 +32,7 @@ import type { DaemonEventBus } from "./event-bus.ts"
 import type { GatesStore } from "./gates-store.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
-import { API_HANDLERS } from "./handlers-api.ts"
+import { API_HANDLERS, invokingVerbs } from "./handlers-api.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { CHECKPOINT_HANDLERS } from "./handlers-checkpoint.ts"
@@ -310,6 +310,8 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           hostname: hostname(),
           // What `--machine auto` on another machine places work by.
           load: readMachineLoad(),
+          // Verbs in flight: another machine waits for 0 before it updates and restarts this one.
+          invoking: invokingVerbs(),
         }
       },
     },

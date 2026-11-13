@@ -19,6 +19,8 @@ export interface UpgradeResult {
 /** The seams {@link upgradeMachine} is tested through. */
 export interface UpgradeDeps {
   readonly version: (entry: MachineEntry) => Promise<string | null>
+  /** The version of the `rove` installed there, which its running daemon may predate. */
+  readonly installed: (entry: MachineEntry) => Promise<string | null>
   readonly run: (entry: MachineEntry, args: readonly string[], timeoutMs: number) => Promise<RemoteRun>
   readonly channel: () => string
 }
@@ -33,6 +35,10 @@ const DEFAULTS: UpgradeDeps = {
   version: async (entry) => {
     const found = await discoverMachine(entry.alias, entry)
     return found.ok ? found.status.roveVersion || null : null
+  },
+  installed: async (entry) => {
+    const out = await runOnMachine(entry.alias, entry, remoteRove(entry.roveBin, ["--version"]), { timeoutMs: 30_000 })
+    return /\b(\d+\.\d+\.\d+\S*)/.exec(out.stdout)?.[1] ?? null
   },
   run: (entry, args, timeoutMs) => runOnMachine(entry.alias, entry, remoteRove(entry.roveBin, args), { timeoutMs }),
   channel: preferredReleaseChannel,
@@ -51,6 +57,8 @@ export async function upgradeMachine(
   const from = await deps.version(entry)
   const install = await deps.run(entry, ["update", "--channel", deps.channel()], 600_000)
   if (install.exitCode !== 0) throw new Error(`rove update on ${alias} failed:\n${lastLines(install)}`)
+  // Nothing new was installed: restarting would only cut off what its daemon is doing.
+  if (from !== null && (await deps.installed(entry)) === from) return { alias, from, to: from, changed: false }
   // The install replaced the files only: its daemon runs the old build until it restarts.
   const restart = await deps.run(entry, ["daemon", "restart"], 60_000)
   if (restart.exitCode !== 0) {

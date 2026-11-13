@@ -20,6 +20,13 @@ function isParamValue(value: unknown): boolean {
   return Array.isArray(value) && value.every((v) => typeof v === "string")
 }
 
+let invoking = 0
+
+/** Verbs running in this daemon right now: what a restart would cut off. */
+export function invokingVerbs(): number {
+  return invoking
+}
+
 export const API_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "api.invoke",
@@ -34,11 +41,16 @@ export const API_HANDLERS: readonly DaemonRequestHandler[] = [
       const bad = Object.entries(params).find(([, value]) => !isParamValue(value))
       if (bad) return refusal("BAD_FLAG", `param ${bad[0]} must be a string, number, boolean or string list`)
       if (!ctx.runtime.invokeApi) return refusal("RPC_ERROR", "this daemon cannot run verbs")
-      return ctx.runtime.invokeApi(verb, params as ApiParams, ctx.daemon.socketPath, {
-        machine: optionalString(payload, "machine"),
-        forwarded: optionalBoolean(payload, "forwarded"),
-        from: optionalString(payload, "from"),
-      })
+      invoking++
+      try {
+        return await ctx.runtime.invokeApi(verb, params as ApiParams, ctx.daemon.socketPath, {
+          machine: optionalString(payload, "machine"),
+          forwarded: optionalBoolean(payload, "forwarded"),
+          from: optionalString(payload, "from"),
+        })
+      } finally {
+        invoking--
+      }
     },
   },
 ]
