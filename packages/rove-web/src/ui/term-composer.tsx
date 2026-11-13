@@ -11,8 +11,8 @@ import {
 import type { DictationFace } from "../voice/dictation-button.tsx"
 
 /**
- * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach and one wide
- * control that is held to talk and tapped to type; a draft, or the tap, turns it into attach, a message field with
+ * The bar under an engine terminal on a touch screen. Talking comes first: with no draft it is attach, one wide
+ * control that is held to talk and tapped to type, and Send (greyed until a file is attached); a draft, or the tap, turns it into attach, a message field with
  * the mic inside it, and Send. One filled control per row: the side keys are bare glyphs on 44px hit areas. Its height never
  * changes (a long message scrolls inside the field; attachment chips float above it, over the terminal's last
  * rows), so the terminal is fitted once and never reflows while you compose. 16px text: iOS zooms the page into

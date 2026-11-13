@@ -156,7 +156,7 @@ export function TermComposer({ model, taskId, tabId }: { model: AppModel; taskId
                 />
               )}
             />
-            {attachments.length > 0 && <SendButton label={t("layout.composerSend")} disabled={busy} />}
+            <SendButton label={t("layout.composerSend")} disabled={busy || attachments.length === 0} />
           </>
         ) : undefined
       }
