@@ -5,13 +5,17 @@ import { describe, expect, it } from "vitest"
 const red = { lifecycle: "open", checkState: "failing", headSha: "sha-b" }
 
 describe("autoFixDecision", () => {
-  it("fires on a red new sha when the engine is at rest, and only then", () => {
-    const state = { attempts: 0 }
-    expect(autoFixDecision({ state, pr: red, engine: "turn_complete" })).toEqual({ do: "fire" })
-    expect(autoFixDecision({ state, pr: red, engine: "idle" })).toEqual({ do: "fire" })
-    for (const engine of ["running", "permission_needed", "rate_limited", "error", "dead", undefined]) {
-      expect(autoFixDecision({ state, pr: red, engine })).toEqual({ do: "wait" })
-    }
+  it.each([
+    ["turn_complete", "fire"],
+    ["idle", "fire"],
+    ["running", "wait"],
+    ["permission_needed", "wait"],
+    ["rate_limited", "wait"],
+    ["error", "wait"],
+    ["dead", "wait"],
+    [undefined, "wait"],
+  ])("on a red new sha, engine %s → %s (fires only at rest)", (engine, decision) => {
+    expect(autoFixDecision({ state: { attempts: 0 }, pr: red, engine })).toEqual({ do: decision })
   })
 
   it("tries a sha once, and a new push is a new failure", () => {

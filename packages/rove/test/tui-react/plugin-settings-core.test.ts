@@ -123,10 +123,8 @@ describe("displaySettingValue", () => {
   it("never returns any part of a stored secret", () => {
     const token = "sk-live-51H8xQ2eZvKYlo"
     const shown = displaySettingValue({ type: "secret", value: token })
-    expect(shown).not.toContain(token)
     // Not a prefix, suffix, or any run of it either — a masked-but-hinted
     // value is still a leak on a recording someone can pause.
-    for (let i = 6; i <= token.length; i++) expect(shown).not.toContain(token.slice(0, i))
     expect(shown).toBe("••••••••")
   })
 

@@ -18,7 +18,7 @@ describe("ratioBar", () => {
     expect(ratioBar(0, 10)).toBe("░".repeat(10))
     expect(ratioBar(1, 10)).toBe("█".repeat(10))
     expect(ratioBar(0.5, 10)).toBe("█████░░░░░")
-    for (const r of [0, 0.13, 0.5, 0.87, 1]) expect(ratioBar(r, 10)).toHaveLength(10)
+    expect([0, 0.13, 0.5, 0.87, 1].map((r) => ratioBar(r, 10).length)).toEqual([10, 10, 10, 10, 10])
   })
 
   it("clamps out-of-range ratios", () => {

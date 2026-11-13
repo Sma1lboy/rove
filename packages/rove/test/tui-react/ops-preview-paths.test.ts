@@ -3,7 +3,15 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { loadPreviewData, unifiedDiffFiles } from "../../src/tui/ops/preview-core"
+import { type PreviewData, loadPreviewData, unifiedDiffFiles } from "../../src/tui/ops/preview-core"
+
+/** Asserts the preview's kind and narrows to it. */
+function expectKind<K extends PreviewData["kind"]>(data: PreviewData, kind: K): Extract<PreviewData, { kind: K }> {
+  expect(data.kind).toBe(kind)
+  return data as Extract<PreviewData, { kind: K }>
+}
+
+type Fixture = ReturnType<typeof fixture>
 
 function fixture(files: Record<string, string>) {
   const repo = mkdtempSync(join(tmpdir(), "rove-preview-paths-"))
@@ -27,9 +35,7 @@ describe("preview uses the selected literal git path", () => {
     const { repo, write } = fixture({ [selected]: "selected old\n", [other]: "other old\n" })
     write(selected, "selected new\n")
     write(other, "other new\n")
-    const data = await loadPreviewData(repo, selected)
-    expect(data.kind).toBe("diff")
-    if (data.kind !== "diff") throw new Error("expected diff")
+    const data = expectKind(await loadPreviewData(repo, selected), "diff")
     expect(unifiedDiffFiles(data.text).map((file) => file.path)).toEqual([selected])
     expect(data.text).toContain("+selected new")
     expect(data.text).not.toContain("other new")
@@ -44,9 +50,7 @@ describe("preview uses the selected literal git path", () => {
     write(target, `${content}new line\n`)
     write("old1.txt", "wrong old\n")
     write("new1.txt", "wrong new\n")
-    const data = await loadPreviewData(repo, target)
-    expect(data.kind).toBe("diff")
-    if (data.kind !== "diff") throw new Error("expected diff")
+    const data = expectKind(await loadPreviewData(repo, target), "diff")
     expect(data.origPath).toBe(source)
     expect(unifiedDiffFiles(data.text).map((file) => file.path)).toEqual([target])
     expect(data.text).not.toContain("wrong")
@@ -60,9 +64,8 @@ describe("preview uses the selected literal git path", () => {
     write("dir[1]/b.txt", "b\n")
     write("dir1/other.txt", "other\n")
     git("add", ".")
-    const directory = await loadPreviewData(repo, "dir[1]/")
-    const all = await loadPreviewData(repo, ".")
-    if (directory.kind !== "diff" || all.kind !== "diff") throw new Error("expected combined diffs")
+    const directory = expectKind(await loadPreviewData(repo, "dir[1]/"), "diff")
+    const all = expectKind(await loadPreviewData(repo, "."), "diff")
     expect(unifiedDiffFiles(directory.text).map((file) => file.path)).toEqual(["dir[1]/a.txt", "dir[1]/b.txt"])
     expect(unifiedDiffFiles(all.text)).toHaveLength(3)
   })
@@ -74,23 +77,29 @@ describe("hunkless patches", () => {
     git("mv", "old file.txt", "新 文件.txt")
     const note = { kind: "rename", from: "old file.txt", to: "新 文件.txt" }
     expect(await loadPreviewData(repo, "新 文件.txt")).toMatchObject({ kind: "patch-note", note })
-    const all = await loadPreviewData(repo, ".")
-    if (all.kind !== "diff") throw new Error("expected diff")
+    const all = expectKind(await loadPreviewData(repo, "."), "diff")
     expect(unifiedDiffFiles(all.text)).toMatchObject([{ path: "新 文件.txt", lines: 0, note }])
   })
 
-  test.each(["added", "deleted"] as const)("empty file %s differs from no changes", async (change) => {
-    const { repo, git, write } = fixture({ "kept.txt": "kept\n", ...(change === "deleted" ? { "empty.txt": "" } : {}) })
-    if (change === "added") {
-      write("empty.txt", "")
-      git("add", "empty.txt")
-    } else git("rm", "empty.txt")
+  test.each([
+    {
+      change: "added" as const,
+      seed: {} as Record<string, string>,
+      act: (f: Fixture) => {
+        f.write("empty.txt", "")
+        f.git("add", "empty.txt")
+      },
+    },
+    { change: "deleted" as const, seed: { "empty.txt": "" }, act: (f: Fixture) => f.git("rm", "empty.txt") },
+  ])("empty file $change differs from no changes", async ({ change, seed, act }) => {
+    const f = fixture({ "kept.txt": "kept\n", ...seed })
+    act(f)
+    const { repo } = f
     expect(await loadPreviewData(repo, "empty.txt")).toMatchObject({
       kind: "patch-note",
       note: { kind: "empty-file", change },
     })
-    const all = await loadPreviewData(repo, ".")
-    if (all.kind !== "diff") throw new Error("expected diff")
+    const all = expectKind(await loadPreviewData(repo, "."), "diff")
     expect(unifiedDiffFiles(all.text)).toMatchObject([
       { path: "empty.txt", lines: 0, note: { kind: "empty-file", change } },
     ])

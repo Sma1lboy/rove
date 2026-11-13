@@ -70,14 +70,15 @@ describe("createTitleSubscriptions", () => {
   // the title, so with no live engine every title passes through RAW —
   // including one that merely mentions an engine name — the collision
   // ("✳ …codex…" in a claude session) that title-matching identity produces.
-  it("passes titles through raw when no live engine claims the pty", () => {
-    for (const raw of ["✳ Claude Code", "claude", "fixing the codex tab bug", "vim", "zsh"]) {
+  it.each(["✳ Claude Code", "claude", "fixing the codex tab bug", "vim", "zsh"])(
+    "passes %s through raw when no live engine claims the pty",
+    (raw) => {
       const pty = fakePty(raw)
       const store = createTitleSubscriptions((key) => (key === "k" ? pty : null))
       store.reconcile(["k"])
       expect(store.get("k")).toBe(raw)
-    }
-  })
+    },
+  )
 
   it("isolates titles by ptyKey — no bleed between keys", () => {
     const a = fakePty("claude")

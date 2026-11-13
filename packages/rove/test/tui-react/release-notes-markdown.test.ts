@@ -26,15 +26,13 @@ describe("releaseNotesMarkdown", () => {
   test("leaves no link syntax anywhere in the shipped changelog", () => {
     const bodies = changelogBodies()
     expect(bodies.length).toBeGreaterThan(20)
-    for (const { version, body } of bodies) {
-      const rendered = releaseNotesMarkdown(body)
-      // `](` is the only place a markdown link can hide. If one survives, the
-      // page prints a raw URL — the wall of addresses this transform exists
-      // to remove.
-      expect(rendered, `v${version}`).not.toContain("](")
-      // A link's address, not prose that quotes a PR path (`github.com/acme/app/pull/7`).
-      expect(rendered, `v${version}`).not.toMatch(/https?:\/\/\S+\/(pull|commit)\//)
-    }
+    const rendered = bodies.map(({ version, body }) => ({ version, text: releaseNotesMarkdown(body) }))
+    // `](` is the only place a markdown link can hide. If one survives, the
+    // page prints a raw URL — the wall of addresses this transform exists
+    // to remove.
+    expect(rendered.filter((r) => r.text.includes("](")).map((r) => r.version)).toEqual([])
+    // A link's address, not prose that quotes a PR path (`github.com/acme/app/pull/7`).
+    expect(rendered.filter((r) => /https?:\/\/\S+\/(pull|commit)\//.test(r.text)).map((r) => r.version)).toEqual([])
   })
 
   test("keeps every link label, and the markdown around it", () => {

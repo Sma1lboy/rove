@@ -14,13 +14,11 @@ describe("workspace capabilities", () => {
     expect(caps).toMatchObject({ fork: "with-uncommitted", cheapClone: true, ownsBranch: true, ownsDirectory: true })
   })
 
-  it("never lets Rove land or remove a borrowed directory", () => {
-    for (const kind of ["main", "dir"] as const) {
-      expect(workspaceCapabilities({ kind })).toMatchObject({
-        ownsBranch: false,
-        ownsDirectory: false,
-        checkpoint: false,
-      })
-    }
+  it.each(["main", "dir"] as const)("never lets Rove land or remove a borrowed %s directory", (kind) => {
+    expect(workspaceCapabilities({ kind })).toMatchObject({
+      ownsBranch: false,
+      ownsDirectory: false,
+      checkpoint: false,
+    })
   })
 })

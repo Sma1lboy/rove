@@ -37,42 +37,29 @@ const KEY = {} as KeyEvent
 const keysOn = (field: Parameters<typeof quickTaskBindings>[0]) =>
   quickTaskBindings(field, handlers().h).map((b) => b.key)
 
+/** Fire the binding registered for `key` on `field`, recording into `calls`. */
+const press = (field: Parameters<typeof quickTaskBindings>[0], ...keys: string[]) => {
+  const { calls, h } = handlers()
+  const bindings = quickTaskBindings(field, h)
+  keys.map((key) => bindings.find((b) => b.key === key)?.cmd(KEY))
+  return calls
+}
+
 describe("quickTaskBindings registration gating", () => {
-  test("text fields register neither arrows nor enter", () => {
-    for (const field of ["prompt", "branch"] as const) {
-      expect(keysOn(field)).not.toContain("return")
-      expect(keysOn(field)).not.toContain("left")
-      expect(keysOn(field)).not.toContain("right")
-      expect(keysOn(field)).not.toContain("h")
-      expect(keysOn(field)).not.toContain("l")
-    }
+  test.each(["prompt", "branch"] as const)("text field %s registers neither arrows nor enter", (field) => {
+    expect(keysOn(field).filter((key) => ["return", "left", "right", "h", "l"].includes(key))).toEqual([])
   })
 
-  test("each chip row registers them, and steps its own value", () => {
-    for (const field of ["attempts", "engine"] as const) {
-      expect(keysOn(field)).toEqual(expect.arrayContaining(["left", "right", "h", "l", "return"]))
-    }
-
-    const attempts = handlers()
-    for (const b of quickTaskBindings("attempts", attempts.h)) if (b.key === "left" || b.key === "right") b.cmd(KEY)
-    expect(attempts.calls).toEqual(["attempts-1", "attempts1"])
-
-    const engine = handlers()
-    for (const b of quickTaskBindings("engine", engine.h)) if (b.key === "left" || b.key === "right") b.cmd(KEY)
-    expect(engine.calls).toEqual(["engine-1", "engine1"])
+  test.each(["attempts", "engine"] as const)("chip row %s registers them, and steps its own value", (field) => {
+    expect(keysOn(field)).toEqual(expect.arrayContaining(["left", "right", "h", "l", "return"]))
+    expect(press(field, "left", "right")).toEqual([`${field}-1`, `${field}1`])
   })
 
   test("h / l are the arrow twins on a chip row", () => {
-    const attempts = handlers()
-    for (const b of quickTaskBindings("attempts", attempts.h)) {
-      if (b.key === "h" || b.key === "l") b.cmd(KEY)
-    }
-    expect(attempts.calls).toEqual(["attempts-1", "attempts1"])
+    expect(press("attempts", "h", "l")).toEqual(["attempts-1", "attempts1"])
   })
 
-  test("field-independent chords stay on every field", () => {
-    for (const field of ["prompt", "attempts", "engine", "branch"] as const) {
-      expect(keysOn(field)).toEqual(expect.arrayContaining(["tab", "shift+tab", "ctrl+e", "ctrl+v", "ctrl+x"]))
-    }
+  test.each(["prompt", "attempts", "engine", "branch"] as const)("field-independent chords stay on %s", (field) => {
+    expect(keysOn(field)).toEqual(expect.arrayContaining(["tab", "shift+tab", "ctrl+e", "ctrl+v", "ctrl+x"]))
   })
 })

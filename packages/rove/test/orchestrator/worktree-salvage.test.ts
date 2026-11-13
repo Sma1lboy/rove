@@ -248,19 +248,14 @@ test("two salvages in the same second both stay recoverable", async () => {
     },
   }
   const now = new Date("2026-01-02T03:04:05Z")
-
-  const refs: string[] = []
-  for (const [branch, content] of [
-    ["feat/login", "WORK-A"],
-    ["feat-login", "WORK-B"],
-  ] as const) {
+  const salvageOf = async (branch: string, content: string): Promise<string> => {
     const wt = path.join(tmpRoot, branch.replace("/", "_"))
     git(repo, "worktree", "add", "-q", wt, "-b", branch)
     fs.writeFileSync(path.join(wt, "only.txt"), `${content}\n`)
-    const record = await salvageWorktree(deps, exec, wt, now)
-    expect(record).not.toBeNull()
-    refs.push((record as SalvageRecord).ref)
+    return ((await salvageWorktree(deps, exec, wt, now)) as SalvageRecord).ref
   }
+
+  const refs = [await salvageOf("feat/login", "WORK-A"), await salvageOf("feat-login", "WORK-B")]
 
   // Distinct names, and BOTH still resolve — the second write must not have
   // been allowed to take the first one's name.

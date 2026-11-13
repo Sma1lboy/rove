@@ -36,50 +36,19 @@ describe("workspace open-worktree bindings", () => {
     const renameBranch = vi.fn()
     const cycleVendor = vi.fn()
     const toggleSortMode = vi.fn()
-    const pages: HostPagesState = {
-      nav: "terminal",
-      setNav: vi.fn(),
-      goToNav: vi.fn(),
-      settingsOpen: false,
-      openSettings: vi.fn(),
-      closeSettings: vi.fn(),
-      worktreesOpen: false,
-      openWorktrees: vi.fn(),
-      closeWorktrees: vi.fn(),
-      updateOpen: false,
-      openUpdate: vi.fn(),
-      closeUpdate: vi.fn(),
-      openPage: vi.fn(),
-      closePage: vi.fn(),
-      whatsNewFrom: null,
-      closeWhatsNew: vi.fn(),
-      welcome: null,
-      closeWelcome: vi.fn(),
-    }
-    useWorkspaceKeybindings({
-      focus: { focused: "sidebar", setFocused: vi.fn() } as never,
-      dialog: { stack: [] } as never,
-      pages,
-      searchActive: false,
-      selectedId: "task-1",
-      // The cursor sits on a DIFFERENT row than the active task — the
-      // sidebar-scope chords must follow the cursor; the global prefix `o`
-      // follows the cursor too while the sidebar has focus.
-      cursorTaskId: () => "task-2",
-      openTaskWorktree,
-      createTask: vi.fn(),
-      renameBranch,
-      cycleVendor,
-      toggleZen: vi.fn(),
-      jumpToNextAttention: vi.fn(),
-      openInbox: vi.fn(),
-      enterMoveMode: vi.fn(),
-      createPR: vi.fn(),
-      createPRFor: vi.fn(),
-      fixChecksFor: vi.fn(),
-      syncBaseFor: vi.fn(),
-      toggleSortMode,
-    })
+    useWorkspaceKeybindings(
+      makeDeps({
+        selectedId: "task-1",
+        // The cursor sits on a DIFFERENT row than the active task — the
+        // sidebar-scope chords must follow the cursor; the global prefix `o`
+        // follows the cursor too while the sidebar has focus.
+        cursorTaskId: () => "task-2",
+        openTaskWorktree,
+        renameBranch,
+        cycleVendor,
+        toggleSortMode,
+      }),
+    )
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
     const globalOpen = registrations
@@ -117,47 +86,13 @@ describe("workspace open-worktree bindings", () => {
   // Pinning the gate here keeps that contract visible to anyone driving the
   // TUI from a test: press ctrl+q first, or use the global prefix chord.
   test("the sidebar open-worktree row is gated off while another pane holds focus", () => {
-    const pages: HostPagesState = {
-      nav: "terminal",
-      setNav: vi.fn(),
-      goToNav: vi.fn(),
-      settingsOpen: false,
-      openSettings: vi.fn(),
-      closeSettings: vi.fn(),
-      worktreesOpen: false,
-      openWorktrees: vi.fn(),
-      closeWorktrees: vi.fn(),
-      updateOpen: false,
-      openUpdate: vi.fn(),
-      closeUpdate: vi.fn(),
-      openPage: vi.fn(),
-      closePage: vi.fn(),
-      whatsNewFrom: null,
-      closeWhatsNew: vi.fn(),
-      welcome: null,
-      closeWelcome: vi.fn(),
-    }
-    useWorkspaceKeybindings({
-      focus: { focused: "workspace", setFocused: vi.fn() } as never,
-      dialog: { stack: [] } as never,
-      pages,
-      searchActive: false,
-      selectedId: "task-1",
-      cursorTaskId: () => "task-2",
-      openTaskWorktree: vi.fn(),
-      createTask: vi.fn(),
-      renameBranch: vi.fn(),
-      cycleVendor: vi.fn(),
-      toggleZen: vi.fn(),
-      jumpToNextAttention: vi.fn(),
-      openInbox: vi.fn(),
-      enterMoveMode: vi.fn(),
-      createPR: vi.fn(),
-      createPRFor: vi.fn(),
-      fixChecksFor: vi.fn(),
-      syncBaseFor: vi.fn(),
-      toggleSortMode: vi.fn(),
-    })
+    useWorkspaceKeybindings(
+      makeDeps({
+        focus: { focused: "workspace", setFocused: vi.fn() } as never,
+        selectedId: "task-1",
+        cursorTaskId: () => "task-2",
+      }),
+    )
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
     const sidebarRow = registrations.find((registration) =>
@@ -232,9 +167,7 @@ describe("workspace open-worktree bindings", () => {
     // `s` (settings), `x` (worktrees), `u` (update) and the bare `q` quit
     // chord must all stand down — the raw search listener only sees keys
     // the keymap left unclaimed, so a dispatched `s` never reaches the box.
-    for (const key of ["s", "x", "u", "q"]) {
-      expect(group?.bindings.find((binding) => binding.key === key && !binding.prefix)).toBeDefined()
-    }
+    // (`findSidebarPageGroup` only matches a group that registers all four.)
   })
 
   test("the same group is live when the search box is inactive", () => {

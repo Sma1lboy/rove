@@ -4,6 +4,8 @@ import { contrastRatio } from "../../src/tui/context/contrast-guard"
 import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme, resolveThemeMode } from "../../src/tui/context/theme-core"
 import { terminalDefaultColorsForTheme } from "../../src/tui/lib/terminal-colors"
 
+type ThemeJson = (typeof BUNDLED_THEMES)[keyof typeof BUNDLED_THEMES]
+
 const base = resolveTheme(BUNDLED_THEMES.claude as never, "dark")
 
 describe("applyDisplayOverlay", () => {
@@ -83,44 +85,47 @@ describe("applyDisplayOverlay", () => {
       expect(out.warningOnHost).toBe(base.warning)
     })
 
-    it("guards every bundled theme's body text against a light host", () => {
-      for (const mode of ["dark", "light"] as const) {
-        for (const [name, json] of Object.entries(BUNDLED_THEMES)) {
-          const resolved = resolveTheme(json, mode)
-          const out = applyDisplayOverlay(resolved, "primary", true, lightHost)
-          expect(contrastRatio(out.text, lightHost), `${name} ${mode} text`).toBeGreaterThanOrEqual(4.5)
-          expect(contrastRatio(out.textMuted, lightHost), `${name} ${mode} textMuted`).toBeGreaterThanOrEqual(4.5)
-        }
-      }
+    it.each<[string, ThemeJson, "dark" | "light"]>(
+      Object.entries(BUNDLED_THEMES).flatMap(([name, json]) =>
+        (["dark", "light"] as const).map((mode): [string, ThemeJson, "dark" | "light"] => [name, json, mode]),
+      ),
+    )("guards %s %s body text against a light host", (_name, json, mode) => {
+      const resolved = resolveTheme(json, mode)
+      const out = applyDisplayOverlay(resolved, "primary", true, lightHost)
+      expect(contrastRatio(out.text, lightHost)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(out.textMuted, lightHost)).toBeGreaterThanOrEqual(4.5)
     })
 
-    it("keeps every dark theme warning readable on host, dialog, and element backgrounds", () => {
-      for (const [name, json] of Object.entries(BUNDLED_THEMES)) {
+    it.each(Object.entries(BUNDLED_THEMES))(
+      "keeps %s dark warning readable on host, dialog, and element backgrounds",
+      (_name, json) => {
         const resolved = resolveTheme(json, "dark")
         const out = applyDisplayOverlay(resolved, "primary", true, lightHost)
-        expect(contrastRatio(out.warningOnHost, lightHost), `${name} host`).toBeGreaterThanOrEqual(4.5)
-        expect(contrastRatio(out.warning, out.backgroundDialog), `${name} dialog`).toBeGreaterThanOrEqual(4.5)
-        expect(contrastRatio(out.warning, out.backgroundElement), `${name} element`).toBeGreaterThanOrEqual(4.5)
-      }
-    })
+        expect(contrastRatio(out.warningOnHost, lightHost)).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(out.warning, out.backgroundDialog)).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(out.warning, out.backgroundElement)).toBeGreaterThanOrEqual(4.5)
+      },
+    )
   })
 })
 
 describe("skylight", () => {
-  it("keeps body, muted and state text at 4.5:1 on its canvas, panels and selected row in both modes", () => {
-    for (const mode of ["dark", "light"] as const) {
+  it.each(["dark", "light"] as const)(
+    "keeps body, muted and state text at 4.5:1 on its canvas, panels and selected row in %s mode",
+    (mode) => {
       const theme = resolveTheme(BUNDLED_THEMES.skylight as never, mode)
-      for (const ink of ["text", "textMuted", "primary", "info", "success", "warning", "error"] as const) {
-        for (const surface of ["background", "backgroundPanel", "backgroundElement", "backgroundDialog"] as const) {
-          expect(contrastRatio(theme[ink], theme[surface]), `${mode} ${ink} on ${surface}`).toBeGreaterThanOrEqual(4.5)
-        }
-      }
+      const inks = ["text", "textMuted", "primary", "info", "success", "warning", "error"] as const
+      const surfaces = ["background", "backgroundPanel", "backgroundElement", "backgroundDialog"] as const
+      const pairs = inks.flatMap((ink) => surfaces.map((surface) => ({ ink, surface })))
+      expect(
+        pairs
+          .filter(({ ink, surface }) => contrastRatio(theme[ink], theme[surface]) < 4.5)
+          .map(({ ink, surface }) => `${ink} on ${surface}`),
+      ).toEqual([])
       // A selected list row paints selectedListItemText on the primary fill.
-      expect(contrastRatio(theme.selectedListItemText, theme.primary), `${mode} selected row`).toBeGreaterThanOrEqual(
-        4.5,
-      )
-    }
-  })
+      expect(contrastRatio(theme.selectedListItemText, theme.primary)).toBeGreaterThanOrEqual(4.5)
+    },
+  )
 })
 
 describe("resolveThemeMode", () => {

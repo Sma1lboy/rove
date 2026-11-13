@@ -107,32 +107,34 @@ describe("per-session turn polling", () => {
     }
   })
 
-  it.each(["missing", "unreadable", "unknown"] as const)(
-    "does not borrow another session when its own is %s",
-    async (mode) => {
-      const f = fixture()
-      const a = f.tab("a")
-      try {
-        await vi.advanceTimersByTimeAsync(0)
-        a.setPane("working")
-        await vi.advanceTimersByTimeAsync(1500)
-        if (mode === "unknown") a.setSession(null)
-        else if (mode === "missing") f.files.set("/shared/a.jsonl", null)
-        else
-          f.read.mockImplementation(async () => {
-            throw new Error("unreadable")
-          })
-        f.files.set("/shared/b.jsonl", scan("b1", 900))
-        await vi.advanceTimersByTimeAsync(15000)
-        expect(a.published).not.toContain("done")
-        expect(f.read.mock.calls.every(([path]) => path === "/shared/a.jsonl")).toBe(true)
-      } finally {
-        a.stop()
-      }
-    },
-  )
+  type Fixture = ReturnType<typeof fixture>
+  type Tab = ReturnType<Fixture["tab"]>
 
-  it.each(["clear", "close"] as const)("ignores an in-flight completion after %s", async (event) => {
+  it.each<[string, (f: Fixture, a: Tab) => void]>([
+    ["missing", (f) => f.files.set("/shared/a.jsonl", null)],
+    ["unreadable", (f) => f.read.mockRejectedValue(new Error("unreadable"))],
+    ["unknown", (_f, a) => a.setSession(null)],
+  ])("does not borrow another session when its own is %s", async (_mode, loseOwnSession) => {
+    const f = fixture()
+    const a = f.tab("a")
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      a.setPane("working")
+      await vi.advanceTimersByTimeAsync(1500)
+      loseOwnSession(f, a)
+      f.files.set("/shared/b.jsonl", scan("b1", 900))
+      await vi.advanceTimersByTimeAsync(15000)
+      expect(a.published).not.toContain("done")
+      expect(f.read.mock.calls.every(([path]) => path === "/shared/a.jsonl")).toBe(true)
+    } finally {
+      a.stop()
+    }
+  })
+
+  it.each<[string, (a: Tab) => void]>([
+    ["clear", (a) => a.setSession({ id: "new", transcriptPath: "/shared/new.jsonl" })],
+    ["close", (a) => a.stop()],
+  ])("ignores an in-flight completion after %s", async (_event, interrupt) => {
     const f = fixture()
     const a = f.tab("a")
     try {
@@ -147,8 +149,7 @@ describe("per-session turn polling", () => {
           }),
       )
       await vi.advanceTimersByTimeAsync(1500)
-      if (event === "clear") a.setSession({ id: "new", transcriptPath: "/shared/new.jsonl" })
-      else a.stop()
+      interrupt(a)
       finish?.(scan("late", 100))
       await vi.advanceTimersByTimeAsync(0)
       expect(a.published).not.toContain("done")

@@ -57,14 +57,10 @@ describe("sweepIndexLeftovers", () => {
     expect(existsSync(live)).toBe(true)
   })
 
-  it("never touches the manifest itself, its backups, or unrelated files", () => {
-    for (const name of ["tasks.json", "tasks.json.old", "state.json", "daemon.log"]) {
-      writeFileSync(at(name), "keep")
-      age(at(name), 30)
-    }
+  it.each(["tasks.json", "tasks.json.old", "state.json", "daemon.log"])("never touches %s", (name) => {
+    writeFileSync(at(name), "keep")
+    age(at(name), 30)
     sweepIndexLeftovers(dir)
-    for (const name of ["tasks.json", "tasks.json.old", "state.json", "daemon.log"]) {
-      expect(existsSync(at(name))).toBe(true)
-    }
+    expect(existsSync(at(name))).toBe(true)
   })
 })

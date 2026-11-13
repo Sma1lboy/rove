@@ -41,10 +41,12 @@ describe("quick-fork with a clone", () => {
   })
 
   it("falls back to a plain new task and names why the uncommitted work stayed behind", async () => {
-    const h = harness(async (input) => {
-      if (input.forkFrom) throw new Error("FORK_UNSUPPORTED: the volume cannot clone files")
-      return { id: "PLAIN" } as Task
-    })
+    const h = harness(
+      vi
+        .fn()
+        .mockRejectedValueOnce(new Error("FORK_UNSUPPORTED: the volume cannot clone files"))
+        .mockResolvedValueOnce({ id: "PLAIN" } as Task),
+    )
     expect(await runQuickFork(h.orch, "/repo", result, h.hooks)).toBe("PLAIN")
     expect(h.created.map((c) => c.forkFrom)).toEqual(["PARENT", undefined])
     expect(h.notices).toHaveLength(1)
