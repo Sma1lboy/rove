@@ -18,14 +18,15 @@ g.localStorage = {
   removeItem: (k: string) => void memory.delete(k),
 }
 const { moveMode, setMoveMode } = await import("../src/move-mode.ts")
-const { railSort, setRailSort } = await import("../src/rail-sort.ts")
+const { loadSort, railSort, setRailSort } = await import("../src/rail-sort.ts")
 const { toasts } = await import("../src/ui.ts")
 
 describe("Reorder (move mode) and the sort", () => {
   beforeEach(() => setMoveMode(false))
 
   test("a fresh browser starts on recency", () => {
-    expect(railSort.get()).toBe("recent")
+    memory.clear()
+    expect(loadSort()).toBe("recent")
   })
 
   test("another browser's sort is taken up here", async () => {
