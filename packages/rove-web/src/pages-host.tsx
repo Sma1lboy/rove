@@ -5,7 +5,6 @@
  * brings the terminal back, as picking a task in the TUI rail leaves the page.
  */
 
-import { useEffect } from "react"
 import { CompareView } from "./compare-view.tsx"
 import { t } from "./i18n/index.ts"
 import { IssuesView } from "./issues-view.tsx"
@@ -62,8 +61,6 @@ export function PageNav({ model }: { model: AppModel }) {
 }
 
 export function PagesHost({ model, page: current }: { model: AppModel; page: PageId }) {
-  // Choosing a task (or opening one from a page) leaves the page.
-  useEffect(() => model.selection.subscribe(() => page.set(null)), [model])
   const installed = useStore(model.installedMods)
   return current === "kanban" && installed.has("kanban") ? (
     <KanbanView model={model} />
