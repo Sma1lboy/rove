@@ -30,6 +30,7 @@ class Renderer {
   parser = {
     registerCsiHandler: () => ({ dispose() {} }),
     registerEscHandler: () => ({ dispose() {} }),
+    registerOscHandler: () => ({ dispose() {} }),
   }
   options = {}
   onData() {
