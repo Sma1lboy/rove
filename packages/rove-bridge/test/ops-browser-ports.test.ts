@@ -2,7 +2,13 @@ import { expect, test } from "bun:test"
 import { pagePorts } from "../src/ops/panel.ts"
 import { T, fakeApi } from "./task-ops-harness.ts"
 
-const row = (port: number, pid: number) => ({ port, pid, host: "127.0.0.1", url: `http://localhost:${port}` })
+const row = (port: number, pid: number) => ({
+  port,
+  pid,
+  command: "node",
+  host: "127.0.0.1",
+  url: `http://localhost:${port}`,
+})
 
 test("only the listeners that serve a page are offered, each port once, and each is asked once", async () => {
   const { api } = fakeApi({ ports: { ports: [row(5173, 1), row(5173, 2), row(51157, 3), row(3000, 4), row(9000, 5)] } })
@@ -14,8 +20,8 @@ test("only the listeners that serve a page are offered, each port once, and each
   }
   const seen = new Map<string, boolean>()
   const pages = [
-    { port: 3000, url: "http://localhost:3000" },
-    { port: 5173, url: "http://localhost:5173" },
+    { port: 3000, url: "http://localhost:3000", command: "node" },
+    { port: 5173, url: "http://localhost:5173", command: "node" },
   ]
   expect(await pagePorts(api, T, probe, seen)).toEqual(pages)
   asked.length = 0

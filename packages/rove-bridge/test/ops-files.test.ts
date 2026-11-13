@@ -78,7 +78,11 @@ describe("files.list", () => {
   test("lists the task's worktree and flags truncation", async () => {
     const { run } = setup(["a", "b"])
     const { api, calls } = fakeApi(task)
-    expect(await run("files.list", { taskId: "t1" }, api)).toEqual({ files: ["a", "b"], truncated: false })
+    expect(await run("files.list", { taskId: "t1" }, api)).toEqual({
+      files: ["a", "b"],
+      truncated: false,
+      root: "/wt/t1",
+    })
     expect(calls[0]).toEqual({ kind: "verb", name: "get-task", payload: ["--task-id=t1"] })
   })
 

@@ -12,9 +12,20 @@ import { type BrowserTab, browserUrl } from "./browser-tabs.ts"
 import { canFrame, frameNote, isLoopbackHost, normalizeUrl } from "./browser-url.ts"
 import { t, useLocale } from "./i18n/index.ts"
 import type { AppModel } from "./model.ts"
+import { usePagePorts } from "./ports-strip.tsx"
 import { useStore } from "./store.ts"
 import { Button } from "./ui/button.tsx"
-import { BROWSER, BROWSER_BAR, BROWSER_FRAME, BROWSER_STAGE, BROWSER_URL, SIDE_EMPTY, iconButton } from "./ui/panel.ts"
+import {
+  BROWSER,
+  BROWSER_BAR,
+  BROWSER_FRAME,
+  BROWSER_STAGE,
+  BROWSER_URL,
+  SIDE_EMPTY,
+  SIDE_EMPTY_LIST,
+  iconButton,
+} from "./ui/panel.ts"
+import { ROW_TITLE, rowClass } from "./ui/row.ts"
 import { useFrameProbe } from "./use-frame-probe.ts"
 
 function Glyph({ d }: { d: string }) {
@@ -22,6 +33,32 @@ function Glyph({ d }: { d: string }) {
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d={d} />
     </svg>
+  )
+}
+
+/** A tab with no address: the pages this task serves, one click each, over the hint. */
+function BlankTab(props: { model: AppModel; taskId: string; onOpen: (url: string) => void }) {
+  const ports = usePagePorts(props.model, props.taskId)
+  return (
+    <div className={SIDE_EMPTY}>
+      {ports.length > 0 && (
+        <div className={SIDE_EMPTY_LIST}>
+          {ports.map((p) => (
+            <button // ui-ok: a list row in the row recipe (`rowClass`), as in the Files tree
+              type="button"
+              key={p.port}
+              className={rowClass({ size: "file" })}
+              title={p.url}
+              onClick={() => props.onOpen(p.url)}
+            >
+              <span className={ROW_TITLE}>{p.command}</span>
+              <span className="flex-none text-subtle">{`:${p.port}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <p>{t(ports.length > 0 ? "browser.empty" : "browser.emptyPorts")}</p>
+    </div>
   )
 }
 
@@ -183,6 +220,8 @@ export function BrowserView({
             />
           )}
         </div>
+      ) : verdict === null && !invalid ? (
+        <BlankTab model={model} taskId={taskId} onOpen={onNavigate} />
       ) : message ? (
         <p className={SIDE_EMPTY}>{message}</p>
       ) : null}

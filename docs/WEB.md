@@ -111,6 +111,9 @@ the two share one token.
   or a shell tab started), the Files view shows `[ open :PORT ]` for each, which
   loads it in the Browser. Nothing is configured: it reads `rove api ports` and
   keeps the ports whose `/` answers HTML, so an engine's own ports are not listed.
+  A blank Browser tab lists the same pages. Right click a Files row (or Shift+F10)
+  for its menu: attach it as context, copy its path, open its diff, show it in
+  Finder, or open a terminal in its folder.
   A page opened over a tunnel cannot reach the Mac's loopback; the panel says so.
 - Command palette (`ctrl+a /`): the commands, then the tasks whose title,
   branch or project matches, then what you and the agents wrote in any task's

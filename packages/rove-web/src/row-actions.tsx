@@ -49,7 +49,7 @@ const bound = (binding: string): Pick<MenuItem, "binding" | "key"> => ({
   key: legendCap(binding) ?? undefined,
 })
 
-async function copy(text: string | null | undefined, what: string): Promise<void> {
+export async function copy(text: string | null | undefined, what: string): Promise<void> {
   if (!text) {
     toast(t("menu.nothingToCopy", { what }), "error")
     return

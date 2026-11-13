@@ -15,10 +15,12 @@ import type { AppModel } from "./model.ts"
 import { openDiff, openFile } from "./panel-state.ts"
 import { PortsStrip } from "./ports-strip.tsx"
 import { PrStrip } from "./pr-strip.tsx"
+import { openMenu } from "./rail-view.tsx"
 import { lastReply, requestRemembered } from "./remembered.ts"
 import { requestErrorText } from "./request-error.ts"
+import { copy } from "./row-actions.tsx"
 import { useStore } from "./store.ts"
-import { activeStream, toast } from "./ui.ts"
+import { type MenuItem, activeStream, toast } from "./ui.ts"
 import { Chevron } from "./ui/chevron.tsx"
 import { CHEVRON_CELL, GLYPH, ROW_TITLE, rowClass } from "./ui/row.ts"
 import { PLACEHOLDER_LINE } from "./ui/text.ts"
@@ -42,6 +44,8 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   const [states, setStates] = useState<ReadonlyMap<string, FileState>>(() =>
     treeStates(lastReply<{ files: DiffFileRow[] }>(model, "diff.files", { taskId: task.id })?.files ?? []),
   )
+  // The worktree's absolute path; absent for a task on another machine.
+  const [root, setRoot] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [cursor, setCursor] = useState(0)
@@ -56,9 +60,10 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
   useEffect(() => {
     let live = true
     const failed = (err: unknown) => live && setError(requestErrorText(err))
-    requestRemembered<{ files: string[] }>(model, "files.list", { taskId: task.id }).then((r) => {
+    requestRemembered<{ files: string[]; root?: string }>(model, "files.list", { taskId: task.id }).then((r) => {
       if (!live) return
       setFiles(r.files)
+      setRoot(r.root ?? null)
       setError(null)
     }, failed)
     return () => {
@@ -109,13 +114,41 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
     }
     void model.client.request("term.input", { stream, data: `@${path} ` }).catch((e) => toast(String(e), "error"))
   }
-  const openExternal = (path: string) =>
+  // Acts on the Mac's own screen, so not for a file on another machine.
+  const onMac = (op: string, path: string, done?: string) =>
     task.machine
       ? toast(t("files.remoteNoExternal", { host: task.machine.label }), "error")
       : void model.client
-          .request("file.openExternal", { taskId: task.id, path })
-          .then(() => toast(t("taskops.openedExternal")))
+          .request(op, { taskId: task.id, path })
+          .then(() => done && toast(done))
           .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+  const openExternal = (path: string) => onMac("file.openExternal", path, t("taskops.openedExternal"))
+  const openTerminal = (path: string) =>
+    void model.client
+      .request("file.openTerminal", { taskId: task.id, path })
+      .catch((e) => toast(e instanceof Error ? e.message : String(e), "error"))
+
+  /** A row's right-click menu: every key the pane has for it, plus what has no key. */
+  const menuFor = (r: Row): MenuItem[] => {
+    const rel = r.dir ? r.path.slice(0, -1) : r.path
+    return [
+      { label: t("files.menu.attach"), key: "a", run: () => mention(r.path) },
+      {
+        label: t("files.menu.copy"),
+        children: [
+          { label: t("files.menu.copyRelative"), run: () => void copy(rel, rel) },
+          ...(root ? [{ label: t("files.menu.copyAbsolute"), run: () => void copy(`${root}/${rel}`, rel) }] : []),
+          { label: t("files.menu.copyName"), run: () => void copy(r.label, rel) },
+        ],
+      },
+      { label: t("files.menu.diff"), key: "d", section: "open", run: () => openChanges(r.path) },
+      ...(r.dir
+        ? []
+        : [{ label: t("files.menu.openExternal"), key: "o", section: "open", run: () => openExternal(r.path) }]),
+      { label: t("files.menu.reveal"), section: "open", run: () => onMac("file.reveal", rel) },
+      { label: t("files.menu.terminal"), section: "terminal", run: () => openTerminal(rel) },
+    ]
+  }
 
   const onKey = (e: KeyboardEvent) => {
     const key = e.key
@@ -156,6 +189,10 @@ export function FilesView({ model, task, narrow = false }: { model: AppModel; ta
             className={rowClass({ selected: i === at, size: narrow ? "file-narrow" : "file" })}
             style={{ paddingLeft: 8 + r.depth * 14 }}
             title={r.path}
+            onContextMenu={(e) => {
+              setCursor(i)
+              openMenu(e, menuFor(r))
+            }}
             onClick={() => {
               setCursor(i)
               pane.current?.focus()

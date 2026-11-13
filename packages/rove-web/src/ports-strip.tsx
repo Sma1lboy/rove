@@ -10,24 +10,20 @@ import type { AppModel } from "./model.ts"
 import { openBrowser } from "./panel-state.ts"
 import { Button } from "./ui/button.tsx"
 
-interface PagePort {
+export interface PagePort {
   readonly port: number
   readonly url: string
+  readonly command: string
 }
 
 // ponytail: a fixed poll (each read is one listener scan on the Mac); push from the daemon if this shows up in bridge load
 const POLL_MS = 5000
 
-export function PortsStrip({ model, task }: { model: AppModel; task: TaskRow }) {
-  useLocale()
-  const taskId = task.id
-  // The scan reads this machine's listeners; another machine's task has none here.
-  const local = !task.machine
+/** The pages a task's own processes serve, read while mounted. Another machine's task has none here. */
+export function usePagePorts(model: AppModel, taskId: string): PagePort[] {
   const [ports, setPorts] = useState<PagePort[]>([])
-
   useEffect(() => {
     setPorts([])
-    if (!local) return
     let live = true
     const read = () =>
       model.client.request<{ ports: PagePort[] }>("browser.ports", { taskId }).then(
@@ -40,8 +36,14 @@ export function PortsStrip({ model, task }: { model: AppModel; task: TaskRow }) 
       live = false
       window.clearInterval(timer)
     }
-  }, [model, taskId, local])
+  }, [model, taskId])
+  return ports
+}
 
+export function PortsStrip({ model, task }: { model: AppModel; task: TaskRow }) {
+  useLocale()
+  const taskId = task.id
+  const ports = usePagePorts(model, taskId)
   if (ports.length === 0) return null
 
   return (
