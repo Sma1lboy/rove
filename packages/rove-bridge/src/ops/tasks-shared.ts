@@ -5,10 +5,13 @@
  */
 
 import { execFile } from "node:child_process"
-import { statSync } from "node:fs"
+import { mkdirSync, statSync } from "node:fs"
+import { dirname } from "node:path"
 import { repoIdOf } from "@sma1lboy/rove-daemon/repo-id"
 import { autoMachineFor } from "@sma1lboy/rove/src/machines/forward.ts"
 import { listMachines } from "@sma1lboy/rove/src/machines/registry.ts"
+import { repoIdentity } from "@sma1lboy/rove/src/machines/repo-identity.ts"
+import { cloneDirFor, parseRepoRef } from "@sma1lboy/rove/src/machines/repo-ref.ts"
 import { isWindowsMachine } from "@sma1lboy/rove/src/machines/windows-remote.ts"
 import { getSavedRepos, resolveMainRepoRoot } from "@sma1lboy/rove/src/state/repos.ts"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@sma1lboy/rove/src/state/vendor-prefs.ts"
@@ -63,6 +66,15 @@ export const taskOpDeps = {
   autoMachine: (repo: string, baseBranch?: string): Promise<string | undefined> =>
     autoMachineFor({ repo, ...(baseBranch ? { "base-branch": baseBranch } : {}) }).catch(() => undefined),
   cloneRepo,
+  /** Rove's own home for a clone of `url`, the one `add --clone` uses; `ready` when a checkout is already there. */
+  managedClone: (url: string): { dir: string; ready: boolean } | null => {
+    const ref = parseRepoRef(url)
+    if (ref.kind !== "id") return null
+    const dir = cloneDirFor(ref.id)
+    if (repoIdentity(dir)) return { dir, ready: true }
+    mkdirSync(dirname(dir), { recursive: true })
+    return { dir, ready: false }
+  },
   validateGitUrl,
   validateCloneTarget,
   resolveCloneTarget,
