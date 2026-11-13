@@ -43,12 +43,12 @@ describe("a workspace on another machine", () => {
     expect(run("exit 7").status).toBe(7)
   })
 
-  test("the link directory names the worktree, carries both instruction files with the project's own, and is all a removal takes", () => {
+  test("the link directory names the worktree, carries both instruction files with the project's own, and is all a removal takes", async () => {
     const home = scratch()
     const worktree = scratch()
     writeFileSync(join(worktree, "AGENTS.md"), "Use tabs.\n")
     const ws = { machine: "deck", taskId: "T1", path: worktree, branch: "rove/x" }
-    const dir = createRemoteLink(
+    const dir = await createRemoteLink(
       {
         ws,
         repo: "/srv/code/app",
@@ -75,10 +75,10 @@ describe("a workspace on another machine", () => {
     expect(existsSync(join(home, ".rove", "remote-workspaces", "deck", "T1"))).toBe(false)
   })
 
-  test("a machine that does not answer leaves no link behind", () => {
+  test("a machine that does not answer leaves no link behind", async () => {
     const home = scratch()
     const ws = { machine: "gone", taskId: "T2", path: "/nowhere" }
-    expect(() => createRemoteLink({ ws, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home)).toThrow(
+    await expect(createRemoteLink({ ws, repo: "/x", sshArgv: ["false"], engineNotes: [] }, home)).rejects.toThrow(
       /gone did not answer/,
     )
     expect(existsSync(join(remoteWorkspaceDir("gone", "T2", "/x", home), REMOTE_WORKSPACE_FILE))).toBe(false)

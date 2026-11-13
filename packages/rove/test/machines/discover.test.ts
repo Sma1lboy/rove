@@ -4,7 +4,13 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { looksLikeOldStatus, parseLocatedRove, parseStatusJson, roveCommand } from "../../src/machines/discover.ts"
+import {
+  looksLikeOldStatus,
+  parseLocatedRove,
+  parseStatusJson,
+  roveCommand,
+  unansweringDaemonPid,
+} from "../../src/machines/discover.ts"
 
 const FULL = JSON.stringify({
   daemonPid: 900,
@@ -87,5 +93,14 @@ describe("a rove off the non-interactive PATH", () => {
   it("runs it with its own directory first on PATH, so its `env bun` shebang resolves", () => {
     expect(roveCommand(undefined)).toBe("rove")
     expect(roveCommand("/home/n/My Tools/rove")).toBe(`PATH='/home/n/My Tools':"$PATH" '/home/n/My Tools/rove'`)
+  })
+})
+
+describe("a daemon that did not answer", () => {
+  it("names its pid when a pidfile is there, so a busy daemon is checked before it is restarted", () => {
+    expect(
+      unansweringDaemonPid("rove daemon: no daemon socket at /h/.rove/daemon.sock (stale pidfile pid=93930)"),
+    ).toBe(93930)
+    expect(unansweringDaemonPid("rove daemon: no daemon running at /h/.rove/daemon.sock")).toBeNull()
   })
 })

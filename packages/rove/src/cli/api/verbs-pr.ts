@@ -4,8 +4,8 @@
  * from any other directory (a `main` coordinator's hand-made worktrees).
  */
 
-import { spawnSync } from "node:child_process"
 import { canonicalPrUrl } from "@sma1lboy/rove-daemon/daemon/session-prs"
+import { runAsync } from "../../lib/run-async.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 import { resolveTarget } from "./verbs-edit.ts"
@@ -13,9 +13,9 @@ import { resolveTarget } from "./verbs-edit.ts"
 const ACCEPTED = "a PR URL (https://github.com/OWNER/REPO/pull/N) or a PR number of the repo in the current directory"
 
 /** A bare number is looked up with `gh` in the caller's cwd, so it names that directory's repo. */
-function urlForNumber(n: string): string | undefined {
-  const res = spawnSync("gh", ["pr", "view", n, "--json", "url", "-q", ".url"], { encoding: "utf8", timeout: 30_000 })
-  return res.status === 0 ? canonicalPrUrl(String(res.stdout ?? "").trim()) : undefined
+async function urlForNumber(n: string): Promise<string | undefined> {
+  const res = await runAsync("gh", ["pr", "view", n, "--json", "url", "-q", ".url"], { timeoutMs: 30_000 })
+  return res.ok ? canonicalPrUrl(res.stdout.trim()) : undefined
 }
 
 /** Attach `url` to `taskId` through the daemon; the reply carries the canonical URL. */
@@ -49,7 +49,7 @@ export const PR_ATTACH_VERB: VerbSpec = {
   ],
   handler: async (ctx) => {
     const raw = ctx.args.require("url").trim()
-    const url = /^\d+$/.test(raw) ? urlForNumber(raw) : canonicalPrUrl(raw)
+    const url = /^\d+$/.test(raw) ? await urlForNumber(raw) : canonicalPrUrl(raw)
     if (!url) {
       throw new ApiError(`--url ${raw} is not ${ACCEPTED}`, "BAD_FLAG", {
         hint: "pass the URL `gh pr create` printed",

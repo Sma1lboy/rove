@@ -42,6 +42,10 @@ rove machine: Nahuels-Mac-mini → narwhal (rove 0.9.185 on Nahuels-Mac-mini.loc
 `add` verifies before it saves: it asks the machine where its daemon listens
 (`rove daemon status`, starting one there if none is up) and refuses if
 the host is unreachable, Rove is not installed, or no daemon can be started.
+A daemon that is running but does not answer is never restarted from here:
+restarting it would end its sessions, so the machine reads as unreachable and
+the message names the pid. If it stays that way, run `rove daemon restart` on
+that machine.
 
 - **First connection.** If the host key is not in your `known_hosts` yet, `add`
   prints its fingerprints and asks before trusting it. Run from a script (no

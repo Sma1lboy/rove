@@ -76,7 +76,7 @@ export async function addOnMachine(ctx: VerbContext, alias: string): Promise<unk
 
   let dir: string
   try {
-    dir = createRemoteLink({
+    dir = await createRemoteLink({
       ws: {
         machine: alias,
         taskId: there.taskId,

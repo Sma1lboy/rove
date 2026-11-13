@@ -6,9 +6,9 @@
  * (`machines/forward.ts` turns a forwarded `land` into this).
  */
 
-import { spawnSync } from "node:child_process"
 import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
+import { runAsync } from "../../lib/run-async.ts"
 import { F } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
@@ -23,10 +23,9 @@ async function published(ctx: VerbContext, taskId: string, branch: string, url: 
   return { branch, pushed: true, pr: { url }, ...attached }
 }
 
-function run(cwd: string, cmd: string, args: readonly string[]): { ok: boolean; out: string } {
-  const res = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 120_000 })
-  const out = `${res.stdout ?? ""}${res.stderr ?? ""}`.trim()
-  return { ok: res.status === 0, out: res.error ? String(res.error.message) : out }
+async function run(cwd: string, cmd: string, args: readonly string[]): Promise<{ ok: boolean; out: string }> {
+  const res = await runAsync(cmd, args, { cwd, timeoutMs: 120_000 })
+  return { ok: res.ok, out: res.error ?? `${res.stdout}${res.stderr}`.trim() }
 }
 
 export const PUBLISH_VERB: VerbSpec = {
@@ -48,13 +47,13 @@ export const PUBLISH_VERB: VerbSpec = {
     }
     const cwd = task.worktreePath
     const remote = ctx.args.str("remote") ?? "origin"
-    const push = run(cwd, "git", ["push", "-u", remote, task.branch])
+    const push = await run(cwd, "git", ["push", "-u", remote, task.branch])
     if (!push.ok) throw new ApiError(`git push to ${remote} failed: ${push.out}`, "PUSH_FAILED")
 
-    const existing = run(cwd, "gh", ["pr", "view", task.branch, "--json", "url", "-q", ".url"])
+    const existing = await run(cwd, "gh", ["pr", "view", task.branch, "--json", "url", "-q", ".url"])
     if (existing.ok && existing.out.startsWith("http")) return published(ctx, taskId, task.branch, existing.out)
     const base = task.baseRef ? ["--base", String(task.baseRef)] : []
-    const created = run(cwd, "gh", ["pr", "create", "--fill", "--head", task.branch, ...base])
+    const created = await run(cwd, "gh", ["pr", "create", "--fill", "--head", task.branch, ...base])
     const url = created.out.split("\n").find((line) => line.startsWith("http"))
     if (created.ok && url) return published(ctx, taskId, task.branch, url)
     return { branch: task.branch, pushed: true, pr: null, prError: created.out || "gh pr create failed" }

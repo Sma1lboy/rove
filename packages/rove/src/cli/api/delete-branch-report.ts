@@ -13,6 +13,7 @@
 
 import { spawnSync } from "node:child_process"
 import { readOnlyGitProcessEnv } from "../../lib/git-env.ts"
+import { runAsync } from "../../lib/run-async.ts"
 
 /** A remote delete is a network round-trip; bound it so a stalled auth
  *  prompt or an unreachable host cannot hang a cleanup script forever. */
@@ -78,13 +79,23 @@ function remoteFor(repo: string, branch: string): string {
   return configured.ok && configured.stdout.length > 0 ? configured.stdout : "origin"
 }
 
-function deleteRemoteBranch(repo: string, branch: string): NonNullable<BranchDeletionReport["remote"]> {
+/** Async: these two talk to the remote, and this runs inside the daemon. */
+async function remoteGit(repo: string, args: readonly string[]): Promise<GitResult> {
+  const out = await runAsync("git", args, { cwd: repo, env: readOnlyGitProcessEnv(), timeoutMs: REMOTE_TIMEOUT_MS })
+  return {
+    ok: out.ok,
+    stdout: out.stdout.trim(),
+    stderr: out.stderr.trim() || (out.error ? `git ${args[0]} did not finish` : ""),
+  }
+}
+
+async function deleteRemoteBranch(repo: string, branch: string): Promise<NonNullable<BranchDeletionReport["remote"]>> {
   const name = remoteFor(repo, branch)
-  const push = git(repo, ["push", name, "--delete", branch], REMOTE_TIMEOUT_MS)
+  const push = await remoteGit(repo, ["push", name, "--delete", branch])
   if (push.ok) return { name, deleted: true }
   // ALREADY gone counts as deleted; check with ls-remote since git's
   // "remote ref does not exist" is localized.
-  const remaining = git(repo, ["ls-remote", "--heads", name, branch], REMOTE_TIMEOUT_MS)
+  const remaining = await remoteGit(repo, ["ls-remote", "--heads", name, branch])
   if (remaining.ok && remaining.stdout.length === 0) return { name, deleted: true }
   return { name, deleted: false, error: push.stderr || "git push exited non-zero" }
 }
@@ -95,7 +106,7 @@ function deleteRemoteBranch(repo: string, branch: string): NonNullable<BranchDel
  * Call AFTER the worktree removal resolves: git refuses to delete a branch a
  * live worktree has checked out.
  */
-export function reportBranchDeletion(
+export async function reportBranchDeletion(
   repo: string,
   branch: string,
   opts: {
@@ -105,7 +116,7 @@ export function reportBranchDeletion(
     /** Title of a surviving task that still holds the branch or its directory: nothing is deleted, local or remote. */
     readonly heldBy?: string
   },
-): BranchDeletionReport | undefined {
+): Promise<BranchDeletionReport | undefined> {
   if (!branch || (!opts.deleteBranch && !opts.deleteRemote)) return undefined
 
   if (opts.heldBy !== undefined) {
@@ -139,6 +150,6 @@ export function reportBranchDeletion(
     branch,
     deleted,
     ...(keptReason ? { keptReason } : {}),
-    ...(opts.deleteRemote ? { remote: deleteRemoteBranch(repo, branch) } : {}),
+    ...(opts.deleteRemote ? { remote: await deleteRemoteBranch(repo, branch) } : {}),
   }
 }
