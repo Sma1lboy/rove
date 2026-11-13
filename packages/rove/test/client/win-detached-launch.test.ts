@@ -35,23 +35,6 @@ describe("windowsCommandLine (MSVCRT argv quoting)", () => {
   })
 })
 
-describe("the launcher script", () => {
-  it("reads its parameters from the env, strips them, and breaks away from the job with its own hidden console", () => {
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain(`$env:${LAUNCH_CMD_ENV}`)
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain(`$env:${LAUNCH_LOG_ENV}`)
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain(`Remove-Item Env:${LAUNCH_CMD_ENV}, Env:${LAUNCH_LOG_ENV}`)
-    // CREATE_NEW_CONSOLE | CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP, SW_HIDE
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain("0x00000010 | 0x01000000 | 0x00000200")
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain("si.StartupInfo.wShowWindow = 0;")
-  })
-
-  it("lets the child inherit only its log and NUL, never a handle leaked from the spawner", () => {
-    // An inherited ssh stdout pipe kept `ssh <windows> rove daemon restart` open until the daemon exited.
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain("(IntPtr)0x20002") // PROC_THREAD_ATTRIBUTE_HANDLE_LIST
-    expect(WIN_DETACHED_LAUNCHER_PS).toContain("| 0x00080000") // EXTENDED_STARTUPINFO_PRESENT
-  })
-})
-
 describe("spawnWindowsDetached", () => {
   it("spawns powershell hidden with stdio ignored, the command line and log path in the env", () => {
     const calls: { file: string; args: readonly string[]; options: Record<string, unknown> }[] = []

@@ -44,18 +44,16 @@ describe("lifecycleEventFor", () => {
   })
 
   it("covers every engine verb (no lifecycle event silently dropped)", () => {
-    for (const kind of ENGINE_ACTIVITY_KINDS) {
-      expect(lifecycleEventFor(kind), kind).toBeDefined()
-    }
+    expect(ENGINE_ACTIVITY_KINDS.filter((kind) => lifecycleEventFor(kind) === undefined)).toEqual([])
   })
 })
 
 describe("activity-state gating", () => {
   it("state kinds affect the badge; lifecycle-only kinds do not", () => {
-    for (const kind of ACTIVITY_STATE_KINDS) expect(affectsActivityState(kind), kind).toBe(true)
-    for (const kind of ["tool-pre", "tool-post", "tool-failed", "pre-compact", "subagent-start"]) {
-      expect(affectsActivityState(kind), kind).toBe(false)
-    }
+    expect(ACTIVITY_STATE_KINDS.filter((kind) => !affectsActivityState(kind))).toEqual([])
+    expect(
+      ["tool-pre", "tool-post", "tool-failed", "pre-compact", "subagent-start"].filter(affectsActivityState),
+    ).toEqual([])
   })
 
   it("turn-interrupted lands the state back on idle", () => {

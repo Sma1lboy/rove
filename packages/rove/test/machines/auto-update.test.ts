@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createStateCell } from "../../src/lib/external-store.ts"
 import { type AutoUpdateDeps, startMachineAutoUpdate } from "../../src/machines/auto-update.ts"
 import type { MachineStatus } from "../../src/machines/hub.ts"
@@ -6,7 +6,6 @@ import type { MachineEntry } from "../../src/machines/registry.ts"
 
 const deck = { alias: "deck", host: "steamdeck.local" } as unknown as MachineEntry
 const row = (version: string): MachineStatus => ({ alias: "deck", hostLabel: "deck", state: "online", version })
-const settle = () => new Promise((done) => setTimeout(done, 20))
 
 function start(overrides: Partial<AutoUpdateDeps>, version = "0.9.289") {
   const machines = createStateCell<readonly MachineStatus[]>([row(version)], "test.machines")
@@ -29,11 +28,18 @@ function start(overrides: Partial<AutoUpdateDeps>, version = "0.9.289") {
 }
 
 describe("machine auto-update", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("updates a machine that connects on an older build, once", async () => {
     const { machines, upgraded, stop } = start({})
-    await settle()
+    await vi.waitFor(() => expect(upgraded).toEqual(["deck"]))
     machines.set([row("0.9.289")])
-    await settle()
+    await vi.advanceTimersByTimeAsync(60)
     expect(upgraded).toEqual(["deck"])
     stop()
   })
@@ -41,10 +47,10 @@ describe("machine auto-update", () => {
   it("waits while a verb runs in that machine's daemon, then updates", async () => {
     let busy = true
     const { upgraded, stop } = start({ busy: async () => busy })
-    await settle()
+    await vi.advanceTimersByTimeAsync(0)
     expect(upgraded).toEqual([])
     busy = false
-    await new Promise((done) => setTimeout(done, 80))
+    await vi.advanceTimersByTimeAsync(30)
     expect(upgraded).toEqual(["deck"])
     stop()
   })
@@ -53,8 +59,10 @@ describe("machine auto-update", () => {
     const newer = start({}, "0.9.300")
     const unpublished = start({ head: async () => "0.9.289" })
     const off = start({ enabled: () => false })
-    await settle()
+    await vi.advanceTimersByTimeAsync(60)
     expect([newer.upgraded, unpublished.upgraded, off.upgraded]).toEqual([[], [], []])
-    for (const run of [newer, unpublished, off]) run.stop()
+    newer.stop()
+    unpublished.stop()
+    off.stop()
   })
 })

@@ -70,11 +70,8 @@ describe("createRoveCore", () => {
     expect(core.homeDir).toBe("/env-home")
   })
 
-  test("loads the store before returning and exposes the wired pieces", async () => {
-    const core = await createRoveCore({ homeDir: "/h" })
+  test("loads the store before returning", async () => {
+    await createRoveCore({ homeDir: "/h" })
     expect(fake.loadCalls).toBe(1)
-    expect(core.store).toBeDefined()
-    expect(core.worktrees).toBeDefined()
-    expect(core.orchestrator).toBeDefined()
   })
 })

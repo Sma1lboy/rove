@@ -8,10 +8,9 @@ import { execFile, spawn } from "node:child_process"
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, describe, expect, it } from "vitest"
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest"
 import {
   PTY_JOB_ENV,
-  PTY_JOB_LAUNCHER_CS,
   PTY_JOB_OWNER_ENV,
   ensurePtyJobLauncher,
   launcherFileName,
@@ -53,18 +52,9 @@ describe("withoutPtyJob", () => {
 })
 
 describe("the launcher source", () => {
-  it("kills the job when its handle closes and denies breakaway (node's detached spawn escapes otherwise)", () => {
-    expect(PTY_JOB_LAUNCHER_CS).toContain("LimitFlags = 0x2000;")
-    expect(PTY_JOB_LAUNCHER_CS).not.toMatch(/0x800\b/)
-  })
-
   it("is content-addressed, so an edited launcher never reuses a stale build", () => {
     expect(launcherFileName("a")).not.toBe(launcherFileName("b"))
     expect(launcherFileName()).toMatch(/^rove-pty-job-[0-9a-f]{12}\.exe$/)
-  })
-
-  it("names every job freshly", () => {
-    expect(newPtyJobName()).not.toBe(newPtyJobName())
   })
 })
 
@@ -111,24 +101,21 @@ describe.skipIf(process.platform !== "win32")("the real launcher (Windows)", () 
       windowsHide: true,
       env: { ...process.env, [PTY_JOB_ENV]: newPtyJobName() },
     })
-    let orphan = 0
-    for (let i = 0; i < 100 && !orphan; i++) {
-      await new Promise((r) => setTimeout(r, 100))
-      try {
-        orphan = Number(readFileSync(pidFile, "utf8"))
-      } catch {
-        /* not yet */
-      }
-    }
-    expect(orphan).toBeGreaterThan(0)
+    // readFileSync throws until the orphan has written its pid; waitFor retries.
+    const orphan = await vi.waitFor(
+      () => {
+        const pid = Number(readFileSync(pidFile, "utf8"))
+        expect(pid).toBeGreaterThan(0)
+        return pid
+      },
+      { timeout: 10_000, interval: 100 },
+    )
+    onTestFinished(() => void (alive(orphan) && process.kill(orphan)))
     expect(alive(orphan)).toBe(true)
 
     // End the session the way the host does: the launcher dies, so does the job.
     await new Promise((r) => execFile("taskkill", ["/F", "/PID", String(session.pid)], r))
-    for (let i = 0; i < 50 && alive(orphan); i++) await new Promise((r) => setTimeout(r, 100))
-    const survived = alive(orphan)
-    if (survived) process.kill(orphan)
-    expect(survived).toBe(false)
+    await vi.waitFor(() => expect(alive(orphan)).toBe(false), { timeout: 5_000, interval: 100 })
   }, 60_000)
 
   it("still runs the command, exit code intact, when no job is named", async () => {

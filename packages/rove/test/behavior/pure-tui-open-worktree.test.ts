@@ -7,7 +7,7 @@
 
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import {
   type BehaviorEnv,
   DIST_ROVE_CLI,
@@ -91,8 +91,7 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
   })
 
   it("opens the selected worktree with sidebar o and global ctrl+a then o", async () => {
-    if (!nodePty) throw new Error("unreachable: suite is skipped without node-pty")
-    const child = nodePty.spawn("bun", [DIST_ROVE_CLI], {
+    const child = nodePty!.spawn("bun", [DIST_ROVE_CLI], {
       cols: 140,
       rows: 40,
       cwd: repo,
@@ -107,18 +106,14 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
       // the `o` handler needs a selection. The tree sidebar (default since
       // the worktree tree) has no PROJECTS header; the repo row is the
       // hydration signal.
-      const deadline = Date.now() + 30_000
-      while (!raw.includes("scratch-repo") && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
-      expect(raw).toContain("scratch-repo")
+      await vi.waitFor(() => expect(raw).toContain("scratch-repo"), { timeout: 30_000, interval: 100 })
 
       // Boot lands focus in the CONTENT pane when there is a session to
       // resume into, and sidebar `o` is gated on sidebar
       // focus. ctrl+q is the documented way back, so press it before the
-      // sidebar-scoped chord — otherwise `o` is legitimately dead here.
+      // sidebar-scoped chord — otherwise `o` is legitimately dead here. An `o`
+      // that lands before the focus move renders is retried by pressUntilInvoked.
       child.write("\x11")
-      await new Promise((resolve) => setTimeout(resolve, 500))
 
       const direct = await pressUntilInvoked(child, "o", marker, 0)
       expect(direct.length).toBeGreaterThan(0)

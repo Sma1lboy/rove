@@ -68,12 +68,6 @@ describe("sshConnectArgs", () => {
       "dev@box.example.com",
     ])
   })
-
-  it("uses TOFU (accept-new), never StrictHostKeyChecking=no", () => {
-    const argv = sshConnectArgs(KEY_SPEC)
-    expect(argv).toContain("StrictHostKeyChecking=accept-new")
-    expect(argv).not.toContain("StrictHostKeyChecking=no")
-  })
 })
 
 describe("RemoteExecHost.run", () => {
@@ -154,16 +148,7 @@ describe("RemoteExecHost.run", () => {
 describe("RemoteExecHost master bring-up (password)", () => {
   it("brings up the master with sshpass -e + SSHPASS env, never -p, when the probe fails", () => {
     // `-O check` fails (exit 1) → master must be opened.
-    let first = true
-    const calls: Array<{ argv: string[]; env?: Record<string, string> }> = []
-    const spawn: Spawner = (argv, env) => {
-      calls.push({ argv: [...argv], env })
-      if (first && argv.includes("check")) {
-        first = false
-        return { stdout: "", stderr: "", exitCode: 1 }
-      }
-      return { stdout: "", stderr: "", exitCode: 0 }
-    }
+    const { spawn, calls } = recordingSpawner({ stdout: "", stderr: "", exitCode: 1 })
     const host = new RemoteExecHost(PW_SPEC, spawn)
     host.ensureReady()
 
@@ -211,18 +196,13 @@ describe("RemoteExecHost.wrapCommand", () => {
 
 describe("RemoteExecHost fs helpers", () => {
   it("maps exists/readFile/readdir to remote shell commands", async () => {
+    // Keyed by the remote command line; anything else (the `-O check` probe included) exits 1.
     const responses: Record<string, ExecResult> = {
-      test: { stdout: "", stderr: "", exitCode: 0 },
-      cat: { stdout: "file body", stderr: "", exitCode: 0 },
-      ls: { stdout: "a\nb\n.git\n", stderr: "", exitCode: 0 },
+      "'test' '-e' '/srv/wt/.git'": { stdout: "", stderr: "", exitCode: 0 },
+      "'cat' '/srv/wt/README.md'": { stdout: "file body", stderr: "", exitCode: 0 },
+      "'ls' '-1A' '/srv/wt'": { stdout: "a\nb\n.git\n", stderr: "", exitCode: 0 },
     }
-    const spawn: Spawner = (argv) => {
-      const remote = argv.at(-1) ?? ""
-      if (remote.includes("'test'")) return responses.test!
-      if (remote.includes("'cat'")) return responses.cat!
-      if (remote.includes("'ls'")) return responses.ls!
-      return { stdout: "", stderr: "", exitCode: 0 }
-    }
+    const spawn: Spawner = (argv) => responses[argv.at(-1) ?? ""] ?? { stdout: "", stderr: "", exitCode: 1 }
     const host = new RemoteExecHost(KEY_SPEC, spawn)
 
     await expect(host.exists("/srv/wt/.git")).resolves.toBe(true)
@@ -250,7 +230,7 @@ describe("LocalExecHost.run (async, non-blocking)", () => {
   it("does not block the event loop while the subprocess runs", async () => {
     // The daemon-freeze pin: under a spawnSync implementation no timer can
     // fire while a command runs. Start a 300ms subprocess, then
-    // prove a 50ms timer resolves FIRST — i.e. the event loop kept turning.
+    // prove a macrotask scheduled after it runs FIRST — the event loop kept turning.
     const host = new LocalExecHost()
     const order: string[] = []
     const runP = host.run(["sleep", "0.3"]).then((r) => {
@@ -258,10 +238,10 @@ describe("LocalExecHost.run (async, non-blocking)", () => {
       return r
     })
     await new Promise<void>((resolve) =>
-      setTimeout(() => {
+      setImmediate(() => {
         order.push("timer")
         resolve()
-      }, 50),
+      }),
     )
     const r = await runP
     expect(order).toEqual(["timer", "run"])

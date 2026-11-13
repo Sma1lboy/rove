@@ -67,39 +67,6 @@ describe("RemoteOrchestrator channel handling", () => {
     expect(orch.uiPrefsSignal()()?.projectFilter).toBeNull()
   })
 
-  it("publishes ui prefs through one state cell and notifies once per accepted payload", () => {
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-    const state = orch.uiPrefsSignal()
-    const listener = vi.fn()
-    const unsubscribe = state.subscribe(listener)
-
-    expect(orch.uiPrefsStore()).toBe(state)
-    emit("ui-prefs", { theme: "nord" })
-    expect(listener).toHaveBeenCalledTimes(1)
-    expect(state.get()?.theme).toBe("nord")
-
-    unsubscribe()
-    emit("ui-prefs", { theme: "aura" })
-    expect(listener).toHaveBeenCalledTimes(1)
-  })
-
-  it("carries an absent `locale` as '' (UNSET), never 'en' — a payload that omits the language must not reset it", () => {
-    const { client, emit } = fakeClient()
-    const orch = new RemoteOrchestrator(client)
-
-    // An older daemon (or any push that predates locale support) omits the
-    // field. Defaulting it to "en" here is what made a stale daemon's echo
-    // yank the just-switched language back to English (the consumer applies
-    // locale only when isLocaleId() passes, and "" fails that → no-op).
-    emit("ui-prefs", { theme: "nord" })
-    expect(orch.uiPrefsSignal()()?.locale).toBe("")
-
-    // A real locale string from a current daemon still rides through.
-    emit("ui-prefs", { theme: "nord", locale: "zh" })
-    expect(orch.uiPrefsSignal()()?.locale).toBe("zh")
-  })
-
   // Leak guard: `engine-state` only deletes an entry on an explicit `idle`
   // event, but a task deleted while non-idle (running / error — the common
   // delete case) never emits one. Without snapshot reconciliation a

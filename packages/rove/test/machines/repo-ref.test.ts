@@ -40,9 +40,8 @@ describe("parseRepoRef", () => {
   })
 
   test("anything path-like stays a path", () => {
-    for (const raw of ["/home/me/rove", "~/rove", "./rove", "../rove", "C:\\code\\rove", "C:/code/rove", "rove"]) {
-      expect(parseRepoRef(raw, "/x", none)).toEqual({ kind: "path", path: raw })
-    }
+    const raws = ["/home/me/rove", "~/rove", "./rove", "../rove", "C:\\code\\rove", "C:/code/rove", "rove"]
+    expect(raws.map((raw) => parseRepoRef(raw, "/x", none))).toEqual(raws.map((path) => ({ kind: "path", path })))
     expect(parseRepoRef("ssh://me@box/srv/rove", "/x", none).kind).toBe("path")
     expect(parseRepoRef("a/b/c", "/x", none).kind).toBe("path")
   })

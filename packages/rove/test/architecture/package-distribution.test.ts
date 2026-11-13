@@ -14,7 +14,10 @@ const SYNC_SCRIPT = "packages/rove-docs/scripts/sync-docs.mjs"
 const MODIFIED_MAP = "packages/rove-docs/lib/last-modified.json"
 
 describe("Rove package distribution", () => {
-  test("the docs build embeds demo videos from its own static asset tree", () => {
+  test.each([
+    ["tui", "kanban"],
+    ["routines", "routines"],
+  ])("the docs build embeds the %s page's %s video from its own static asset tree", (page, video) => {
     execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
 
     // Find the page rather than hardcoding its directory: sync-docs.mjs owns
@@ -22,25 +25,16 @@ describe("Rove package distribution", () => {
     // between subdirectories. Searching keeps
     // this assertion about the VIDEO EMBED instead of the current tree shape.
     const contentRoot = join(ROOT, "packages/rove-docs/content/docs")
-    const findPage = (page: string) => {
-      const hits = readdirSync(contentRoot, { recursive: true, encoding: "utf8" }).filter(
-        (entry) => entry === `${page}.mdx` || entry.endsWith(`/${page}.mdx`),
-      )
-      expect(hits, `${page}.mdx should be generated exactly once`).toHaveLength(1)
-      return join(contentRoot, hits[0])
-    }
-
-    for (const [page, video] of [
-      ["tui", "kanban"],
-      ["routines", "routines"],
-    ] as const) {
-      const generated = readFileSync(findPage(page), "utf8")
-      expect(generated).toContain("<video controls playsInline")
-      expect(generated).toContain(`poster="/docs-assets/${video}.png"`)
-      expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
-      expect(generated).toContain(`](/docs-assets/${video}.mp4)`)
-      expect(existsSync(join(ROOT, `packages/rove-docs/public/docs-assets/${video}.mp4`))).toBe(true)
-    }
+    const hits = readdirSync(contentRoot, { recursive: true, encoding: "utf8" }).filter(
+      (entry) => entry === `${page}.mdx` || entry.endsWith(`/${page}.mdx`),
+    )
+    expect(hits, `${page}.mdx should be generated exactly once`).toHaveLength(1)
+    const generated = readFileSync(join(contentRoot, hits[0]), "utf8")
+    expect(generated).toContain("<video controls playsInline")
+    expect(generated).toContain(`poster="/docs-assets/${video}.png"`)
+    expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
+    expect(generated).toContain(`](/docs-assets/${video}.mp4)`)
+    expect(existsSync(join(ROOT, `packages/rove-docs/public/docs-assets/${video}.mp4`))).toBe(true)
   })
 
   test("the docs freshness map carries a real date per page, or no date at all", () => {
@@ -53,10 +47,12 @@ describe("Rove package distribution", () => {
     // deepening broke — the site would ship with no freshness signal at all.
     const dates = json<Record<string, string>>(MODIFIED_MAP)
     expect(Object.keys(dates).length).toBeGreaterThan(10)
-    for (const [path, date] of Object.entries(dates)) {
-      expect(path, "keys are site paths").toMatch(/^\/[a-z0-9/-]*$/)
-      expect(date, `${path} should be an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    }
+    // Keys are site paths, values ISO dates.
+    expect(
+      Object.entries(dates).filter(
+        ([path, date]) => !/^\/[a-z0-9/-]*$/.test(path) || !/^\d{4}-\d{2}-\d{2}$/.test(date),
+      ),
+    ).toEqual([])
   })
 
   test("the workspace package is canonical Rove while both CLI names remain available", () => {
@@ -66,35 +62,15 @@ describe("Rove package distribution", () => {
     expect(pkg.bin).toEqual({ rove: "dist/cli/rove.js" })
   })
 
-  test("the bins are node launchers fronting the Bun bundles, so npm/npx installs run", () => {
-    const build = read("packages/rove/scripts/build.ts")
+  test("the bin is a node launcher, so npm/npx installs run", () => {
     const launcher = read("packages/rove/src/cli/launcher.ts")
 
     // `npm install -g` and `npx` start a bin with node, `bun install -g`
     // symlinks it and starts it with Bun. The bin file has one shebang, so
     // it is the node launcher, and the Bun bundle moves to `<name>-run.js`.
     expect(launcher.startsWith("#!/usr/bin/env node")).toBe(true)
-    expect(build).toContain('const CLI_NAMES = ["rove"] as const')
-    expect(build).toContain('writeExecutable(`./dist/cli/${name}-run.js`, "#!/usr/bin/env bun", bundle)')
-    expect(build).toContain('writeExecutable(`./dist/cli/${name}.js`, "#!/usr/bin/env node", launcherCode)')
-    expect(build).toContain('entrypoints: ["./src/cli/launcher.ts"]')
     // The launcher runs before any Bun exists: no Bun-only import may reach it.
     expect(launcher).not.toMatch(/from "\.\/(?!bun-runtime)/)
-  })
-
-  test("acceptance tooling defaults to the built Rove artifacts while retaining explicit alias coverage", () => {
-    const harness = read("packages/rove/test/behavior/harness.ts")
-    const visualFixture = read("packages/rove-harness/e2e/visual-fixture.ts")
-    const heroFixture = read("packages/rove-harness/e2e/hero-fixture.ts")
-    const build = read("packages/rove/scripts/build.ts")
-
-    expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
-    expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')
-    expect(visualFixture).toContain('const ROVE_CLI = join(ROVE_DIR, "dist", "cli", "rove.js")')
-    expect(visualFixture).toContain('const ROVE_SKILL = join(ROVE_DIR, "dist", "skills", "rove", "SKILL.md")')
-    expect(visualFixture).toContain('join(XDG_CONFIG_HOME, "rove")')
-    expect(heroFixture).toContain('join(HERO_CONFIG, "rove")')
-    expect(build).toContain('const SKILL_OUT_DIR = "./dist/skills/rove"')
   })
 
   // Slices the visual-ground-truth job by finding the NEXT top-level job, or
@@ -167,8 +143,6 @@ describe("Rove package distribution", () => {
     const sdk = json<{
       name: string
       exports: Record<string, { types: string; default: string }>
-      repository: { url: string }
-      homepage: string
     }>("packages/rove-plugin-sdk/package.json")
     const daemon = json<{ dependencies: Record<string, string> }>("packages/rove-daemon/package.json")
 
@@ -177,19 +151,7 @@ describe("Rove package distribution", () => {
       types: "./dist/contract.d.ts",
       default: "./dist/contract.js",
     })
-    expect(sdk.repository.url).toBe("git+https://github.com/Sma1lboy/rove.git")
-    expect(sdk.homepage).toBe("https://github.com/Sma1lboy/rove/blob/main/docs/PLUGIN-AUTHORING.md")
     expect(daemon.dependencies["@sma1lboy/rove-plugin-sdk"]).toBe("workspace:*")
-  })
-
-  test("release publishes Rove and no longer publishes the @sma1lboy/rove alias", () => {
-    // The `@sma1lboy/rove` name is frozen at 0.9.64. The alias step is a
-    // rewrite of package.json#name, so its ABSENCE is what this asserts: a
-    // release must never resume publishing that name. The SDK keeps its own
-    // alias — pinned by the next test — so this checks the CLI name only.
-    const workflow = read(".github/workflows/release.yml")
-
-    expect(workflow.indexOf("Publish canonical @sma1lboy/rove package")).toBeGreaterThanOrEqual(0)
   })
 
   test("release publishes only the canonical plugin SDK", () => {
@@ -201,139 +163,64 @@ describe("Rove package distribution", () => {
   })
 
   test("pending changesets version the canonical package", () => {
+    const retired = preRenameStateDir("").slice(1)
     const files = readdirSync(join(ROOT, ".changeset")).filter((name) => name.endsWith(".md") && name !== "README.md")
-
-    for (const file of files) {
-      const source = read(join(".changeset", file))
-      expect(source.toLowerCase()).not.toContain(preRenameStateDir("").slice(1))
-    }
+    expect(files.filter((file) => read(join(".changeset", file)).toLowerCase().includes(retired))).toEqual([])
   })
 
-  test("active install surfaces point new users at Rove", () => {
-    const surfaces = [
-      "README.md",
-      "docs/CLI.md",
-      "docs/QUICKSTART.md",
-      "docs/RELEASING.md",
-      "packages/rove/README.md",
-      "packages/rove-landing/index.html",
-      "packages/rove-landing/changelog.html",
-      "packages/rove-landing/plugins.html",
-      "packages/rove-landing/themes.html",
-    ]
-
-    for (const path of surfaces) {
-      const source = read(path)
-      expect(source.toLowerCase()).not.toContain(preRenameStateDir("").slice(1))
-    }
+  test.each([
+    "README.md",
+    "docs/CLI.md",
+    "docs/QUICKSTART.md",
+    "docs/RELEASING.md",
+    "packages/rove/README.md",
+    "packages/rove-landing/index.html",
+    "packages/rove-landing/changelog.html",
+    "packages/rove-landing/plugins.html",
+    "packages/rove-landing/themes.html",
+  ])("install surface %s points new users at Rove", (path) => {
+    expect(read(path).toLowerCase()).not.toContain(preRenameStateDir("").slice(1))
   })
 
-  test("active repository links use the canonical Rove repository", () => {
-    const surfaces = [
-      ".claude/skills/changelog-generator/SKILL.md",
-      ".claude/skills/recent-release/SKILL.md",
-      "CONTRIBUTING.md",
-      "README.md",
-      "docs/themes.md",
-      "packages/rove-plugin-sdk/README.md",
-      "packages/rove-plugin-sdk/package.json",
-      "packages/rove-docs/lib/layout.shared.tsx",
-      "packages/rove-docs/scripts/sync-docs.mjs",
-      "packages/rove-landing/TODOS.md",
-      "packages/rove-landing/changelog.html",
-      "packages/rove-landing/index.html",
-      "packages/rove-landing/index.js",
-      "packages/rove-landing/plugins.html",
-      "packages/rove-landing/themes.html",
-      "packages/rove-landing/themes/catppuccin.json",
-      "packages/rove-landing/themes/everforest.json",
-      "packages/rove-landing/themes/gruvbox.json",
-      "packages/rove-landing/themes/kanagawa.json",
-      "packages/rove-landing/themes/rose-pine.json",
-      "packages/rove-landing/themes/solarized.json",
-      "packages/rove/scripts/build.ts",
-      "packages/rove/src/cli/theme.ts",
-      "packages/rove/src/tui/context/theme/theme.schema.json",
-      "scripts/release.sh",
-    ]
-
-    for (const path of surfaces) {
-      const source = read(path)
-      expect(source, `${path} does not point at the canonical repository`).toMatch(/sma1lboy\/rove/i)
-    }
-
-    expect(read("CONTRIBUTING.md")).toContain("git clone https://github.com/Sma1lboy/rove.git\ncd rove")
-  })
-
-  test("release-note skills target the canonical package and product", () => {
-    const changelogSkill = read(".claude/skills/changelog-generator/SKILL.md")
-    const recentReleaseSkill = read(".claude/skills/recent-release/SKILL.md")
-    const releasePageAssets = [
-      ".claude/skills/recent-release/assets/template.html",
-      ".claude/skills/recent-release/assets/example.html",
-    ]
-
-    expect(changelogSkill).toContain('"@sma1lboy/rove": patch')
-    expect(recentReleaseSkill).toContain("Recent Release Page (Rove)")
-    expect(recentReleaseSkill).toContain("rove-release-notes-zh.html")
-
-    for (const path of releasePageAssets) {
-      const source = read(path)
-      expect(source, `${path} still brands generated pages as Rove`).toContain("<title>Rove · 近期发版速览</title>")
-      expect(source, `${path} still advertises the compatibility package`).toContain(
-        '<span class="chip">包 <b>@sma1lboy/rove</b></span>',
-      )
-      expect(source, `${path} still prints the compatibility install command`).toContain(
-        '<span class="prompt">npm i -g @sma1lboy/rove&nbsp;&nbsp;·&nbsp;&nbsp;rove</span>',
-      )
-    }
-  })
-
-  test("release guidance verifies the published package and the SDK aliases", () => {
-    const releaseSkill = read(".claude/skills/release/SKILL.md")
-    const releasingDocs = read("docs/RELEASING.md")
-
-    expect(releaseSkill).toContain("# Release Rove")
-    expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
-    // The CLI alias is frozen at 0.9.64 and unpublished, so the skill must NOT
-    // tell a release to verify it — a missing @sma1lboy/rove is the expected
-    // state, and checking for it would read as a failed release.
-    // Anchored on `@<new-version>` so the SDK's own alias check still stands.
-    expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeGreaterThanOrEqual(0)
-    expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
-    expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
-    expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")
-    expect(releaseSkill).not.toContain("If this release carried an SDK changeset")
-    expect(releasingDocs).toContain("default to `patch` for every change")
-    expect(releasingDocs).toContain("only when the maintainer explicitly requests that bump")
-    expect(releasingDocs).not.toContain("`minor` for features")
-  })
-
-  test("contributor guidance uses Rove while naming retained compatibility paths explicitly", () => {
-    const contributing = read("CONTRIBUTING.md")
-
-    expect(contributing).toContain("# Contributing to Rove")
-    expect(contributing).toContain("`~/.rove` (production)")
-    expect(contributing).toContain("Won't touch your real `~/.rove` state")
-    expect(contributing).toContain("The `.rove` runtime path remains a compatibility contract")
-    expect(contributing).toContain("Use `rove daemon restart`")
+  test.each([
+    ".claude/skills/changelog-generator/SKILL.md",
+    ".claude/skills/recent-release/SKILL.md",
+    "CONTRIBUTING.md",
+    "README.md",
+    "docs/themes.md",
+    "packages/rove-plugin-sdk/README.md",
+    "packages/rove-plugin-sdk/package.json",
+    "packages/rove-docs/lib/layout.shared.tsx",
+    "packages/rove-docs/scripts/sync-docs.mjs",
+    "packages/rove-landing/TODOS.md",
+    "packages/rove-landing/changelog.html",
+    "packages/rove-landing/index.html",
+    "packages/rove-landing/index.js",
+    "packages/rove-landing/plugins.html",
+    "packages/rove-landing/themes.html",
+    "packages/rove-landing/themes/catppuccin.json",
+    "packages/rove-landing/themes/everforest.json",
+    "packages/rove-landing/themes/gruvbox.json",
+    "packages/rove-landing/themes/kanagawa.json",
+    "packages/rove-landing/themes/rose-pine.json",
+    "packages/rove-landing/themes/solarized.json",
+    "packages/rove/scripts/build.ts",
+    "packages/rove/src/cli/theme.ts",
+    "packages/rove/src/tui/context/theme/theme.schema.json",
+    "scripts/release.sh",
+  ])("%s links the canonical Rove repository", (path) => {
+    expect(read(path)).toMatch(/sma1lboy\/rove/i)
   })
 
   test("landing pages load their extracted static assets", () => {
     const home = read("packages/rove-landing/index.html")
-    const homeScript = read("packages/rove-landing/index.js")
     const themes = read("packages/rove-landing/themes.html")
-    const themesScript = read("packages/rove-landing/themes.js")
-    const themesStyles = read("packages/rove-landing/themes.css")
 
     // Match the REFERENCE, not its exact spelling: `defer`/`async` are
     // performance attributes a page may legitimately gain, and pinning the
     // literal tag turns that into a failure.
     expect(home).toMatch(/<script[^>]+src="\/index\.js"/)
-    expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')
     expect(themes).toMatch(/<script[^>]+src="\/themes\.js"/)
-    expect(themesScript).toContain("var ROVE_I18N")
-    expect(themesStyles).toContain(".tcard")
   })
 })

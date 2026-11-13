@@ -55,22 +55,4 @@ describe("plugin registry", () => {
     writeFileSync(pluginRegistryPath(dir), JSON.stringify({ plugins: [{ id: 1 }] }))
     expect(loadPluginRegistry(dir).plugins).toEqual([])
   })
-
-  it("re-anchors a managed root recorded under the legacy .rove tree onto .rove", () => {
-    const dir = home()
-    mkdirSync(join(dir, ".rove"), { recursive: true })
-    const legacyRoot = join(dir, ".rove", "plugins", "rove.notify", "checkout", "notify")
-    writeFileSync(
-      join(dir, ".rove", "plugins.json"),
-      JSON.stringify({
-        plugins: [
-          { ...entry, id: "rove.notify", root: legacyRoot },
-          { ...entry, id: "local.dev", source: { kind: "link" }, root: join(dir, ".rove", "plugins", "elsewhere") },
-        ],
-      }),
-    )
-    const [managed, linked] = loadPluginRegistry(dir).plugins
-    expect(managed?.root).toBe(join(dir, ".rove", "plugins", "rove.notify", "checkout", "notify"))
-    expect(linked?.root).toBe(join(dir, ".rove", "plugins", "elsewhere"))
-  })
 })

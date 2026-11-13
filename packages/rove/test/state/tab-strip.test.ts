@@ -21,8 +21,8 @@ describe("the default mode", () => {
 })
 
 describe("resolveTabStripMode", () => {
-  it("honours a stored mode over the default", () => {
-    for (const mode of TAB_STRIP_MODES) expect(resolveTabStripMode(mode, undefined)).toBe(mode)
+  it.each(TAB_STRIP_MODES)("honours stored mode %s over the default", (mode) => {
+    expect(resolveTabStripMode(mode, undefined)).toBe(mode)
   })
 
   it("falls back for a stored value that is not a mode", () => {

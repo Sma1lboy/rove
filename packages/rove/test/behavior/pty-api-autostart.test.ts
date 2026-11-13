@@ -4,7 +4,7 @@
  */
 
 import { existsSync } from "node:fs"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { type BehaviorEnv, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
 
 interface AddResult {
@@ -29,39 +29,37 @@ interface GetTaskResult {
   tabs: Array<{ id: string; alive: boolean }>
 }
 
-/**
- * Poll `check` until it reports convergence (returns null) or the deadline
- * passes, then fail with the last observed state. Deletion is deliberately
- * asynchronous (the daemon owns a durable queued → running → finished
- * pipeline), so the post-delete state must be awaited, not asserted at one
- * racily-timed instant.
- */
-async function waitForConverged(check: () => string | null, timeoutMs = 15_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  let last: string | null = null
-  while (Date.now() < deadline) {
-    last = check()
-    if (last === null) return
-    await new Promise((resolve) => setTimeout(resolve, 250))
-  }
-  throw new Error(`delete did not converge within ${timeoutMs}ms: ${last ?? "unknown"}`)
-}
-
 describe("rove api hosted PTY lifecycle (behavior)", () => {
   let env: BehaviorEnv
   let repo: string
-  let taskId = ""
-  let session = ""
-  let worktreePath = ""
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     env = await makeBehaviorEnv()
     repo = await makeScratchRepo(env)
   }, 30_000)
 
-  afterAll(async () => {
+  afterEach(async () => {
     await env.dispose()
   })
+
+  const ptySessions = (): PtyListResult["sessions"] =>
+    (JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult).sessions
+
+  const addTask = (): AddResult => {
+    const result = runRove(["api", "add", "--repo", repo, "--prompt", "hello from behavior", "--pretty"], env)
+    expect(result.code, result.stderr).toBe(0)
+    return JSON.parse(result.stdout) as AddResult
+  }
+
+  const expectTaskGone = (id: string): void => {
+    const task = runRove(["api", "get-task", "--task-id", id, "--pretty"], env)
+    expect(task.code, `task still addressable: ${task.stdout}`).toBe(1)
+    expect(task.stderr).toContain("TASK_NOT_FOUND")
+  }
+
+  // Deletion is asynchronous (the daemon owns a durable queued → running →
+  // finished pipeline), so the post-delete state is awaited, not raced.
+  const converged = { timeout: 15_000, interval: 250 }
 
   /**
    * `sessions: []` used to be the answer for BOTH "a live host with nothing
@@ -70,8 +68,8 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
    * running, or call a live task dead. `null` means "could not look", the same
    * shape `inspect`'s sessions section has always returned for this failure.
    *
-   * Runs FIRST, before anything spawns a host. The live-host half (an actual
-   * array) is every other `pty-list` assertion in this file.
+   * Each test gets a fresh home, so nothing has spawned a host yet. The
+   * live-host half (an actual array) is every other `pty-list` assertion here.
    */
   it("pty-list answers null when there is no pty host to ask", () => {
     const cold = runRove(["api", "pty-list", "--pretty"], env)
@@ -80,30 +78,21 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
   }, 15_000)
 
   it("add --prompt materializes a worktree and auto-starts the canonical engine session", () => {
-    const result = runRove(["api", "add", "--repo", repo, "--prompt", "hello from behavior", "--pretty"], env)
-    expect(result.code).toBe(0)
-    const added = JSON.parse(result.stdout) as AddResult
-    taskId = added.taskId
-    session = added.session
-    worktreePath = added.task.worktreePath
+    const added = addTask()
 
     expect(added.started).toBe(true)
     expect(added.engineReady).toBe(true)
     expect(added.delivered).toBe(true)
-    expect(session).toBe(`${taskId}::tab-1`)
-    expect(existsSync(worktreePath)).toBe(true)
-
-    const listed = runRove(["api", "pty-list", "--pretty"], env)
-    expect(listed.code).toBe(0)
-    const sessions = (JSON.parse(listed.stdout) as PtyListResult).sessions
-    expect(sessions).toContainEqual(expect.objectContaining({ key: session, alive: true }))
+    expect(added.session).toBe(`${added.taskId}::tab-1`)
+    expect(existsSync(added.task.worktreePath)).toBe(true)
+    expect(ptySessions()).toContainEqual(expect.objectContaining({ key: added.session, alive: true }))
   }, 30_000)
 
   it("add --no-worktree opens a shared child; deleting it ends only its hosted session", async () => {
+    const { taskId, session, task } = addTask()
     const sent = runRove(["api", "send", "--task-id", taskId, "--prompt", "follow-up", "--pretty"], env)
     expect(sent.code, `send failed: stdout=${JSON.stringify(sent.stdout)} stderr=${sent.stderr}`).toBe(0)
-    const afterSend = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
-    expect(afterSend.sessions.filter((entry) => entry.key === session && entry.alive)).toHaveLength(1)
+    expect(ptySessions().filter((entry) => entry.key === session && entry.alive)).toHaveLength(1)
 
     const opened = runRove(
       ["api", "add", "--parent", taskId, "--no-worktree", "--prompt", "second conversation", "--pretty"],
@@ -119,26 +108,22 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
       runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout,
     ) as GetTaskResult
     expect(parent.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
-    expect(existsSync(worktreePath)).toBe(true)
 
     const deleted = runRove(["api", "delete", "--task-id", childId, "--force"], env)
     expect(deleted.code, `delete child failed: stdout=${JSON.stringify(deleted.stdout)} stderr=${deleted.stderr}`).toBe(
       0,
     )
-    await waitForConverged(() => {
-      const gone = runRove(["api", "get-task", "--task-id", childId, "--pretty"], env)
-      if (gone.code !== 1 || !gone.stderr.includes("TASK_NOT_FOUND")) return `child still addressable: ${gone.stdout}`
-      const sessions = (JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult).sessions
-      if (sessions.some((entry) => entry.key === childSession && entry.alive)) return `${childSession} still alive`
-      return null
-    })
-    const afterDelete = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
-    expect(afterDelete.sessions.some((entry) => entry.key === session && entry.alive)).toBe(true)
+    await vi.waitFor(() => {
+      expectTaskGone(childId)
+      expect(ptySessions()).not.toContainEqual(expect.objectContaining({ key: childSession, alive: true }))
+    }, converged)
+    expect(ptySessions()).toContainEqual(expect.objectContaining({ key: session, alive: true }))
     // The shared child never owned the directory; the parent keeps it.
-    expect(existsSync(worktreePath)).toBe(true)
-  }, 45_000)
+    expect(existsSync(task.worktreePath)).toBe(true)
+  }, 60_000)
 
-  it("a new shell is its own child row; closing it ends only its hosted session", async () => {
+  it("a new shell is its own child row; closing it ends only its hosted session", () => {
+    const { taskId, session } = addTask()
     const opened = runRove(["api", "tab-new", "--task-id", taskId, "--kind", "shell", "--pretty"], env)
     expect(opened.code, `tab-new failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
     const { tabId, childTaskId } = JSON.parse(opened.stdout) as OpenedTabResult
@@ -154,9 +139,9 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
       runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout,
     ) as GetTaskResult
     expect(parent.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
-    const afterClose = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
-    expect(afterClose.sessions.some((entry) => entry.key === `${shellTask}::${tabId}`)).toBe(false)
-    expect(afterClose.sessions.some((entry) => entry.key === session && entry.alive)).toBe(true)
+    const afterClose = ptySessions()
+    expect(afterClose.some((entry) => entry.key === `${shellTask}::${tabId}`)).toBe(false)
+    expect(afterClose).toContainEqual(expect.objectContaining({ key: session, alive: true }))
 
     const alreadyClosed = runRove(["api", "tab-close", "--task-id", shellTask, "--tab", tabId, "--pretty"], env)
     expect(alreadyClosed.code).toBe(1)
@@ -168,19 +153,10 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
       nextCommandArgs: ["api", "get-task", "--task-id", shellTask],
     })
     expect(error.error.hint).toContain("get-task")
-
-    // The emptied shell row stays until removed; it shares the directory, so the next test needs it gone.
-    const removed = runRove(["api", "delete", "--task-id", shellTask, "--force"], env)
-    expect(removed.code, `delete shell row failed: stderr=${removed.stderr}`).toBe(0)
-    await waitForConverged(() => {
-      const task = runRove(["api", "get-task", "--task-id", shellTask, "--pretty"], env)
-      return task.code === 1 && task.stderr.includes("TASK_NOT_FOUND")
-        ? null
-        : `shell row still addressable: ${task.stdout}`
-    })
-  }, 30_000)
+  }, 45_000)
 
   it("deleting a parent promotes its shared child and keeps the directory until the last user is gone", async () => {
+    const { taskId, session, task } = addTask()
     const opened = runRove(["api", "add", "--parent", taskId, "--no-worktree", "--prompt", "survivor", "--pretty"], env)
     expect(opened.code, `new child failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
     const childSession = (JSON.parse(opened.stdout) as AddResult).session
@@ -188,30 +164,23 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
 
     const deleted = runRove(["api", "delete", "--task-id", taskId, "--force"], env)
     expect(deleted.code, `delete failed: stdout=${JSON.stringify(deleted.stdout)} stderr=${deleted.stderr}`).toBe(0)
-    await waitForConverged(() => {
-      const task = runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env)
-      if (task.code !== 1 || !task.stderr.includes("TASK_NOT_FOUND")) return `parent still addressable: ${task.stdout}`
-      const sessions = (JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult).sessions
-      if (sessions.some((entry) => entry.key === session && entry.alive)) return `session ${session} still alive`
-      return null
-    })
+    await vi.waitFor(() => {
+      expectTaskGone(taskId)
+      expect(ptySessions()).not.toContainEqual(expect.objectContaining({ key: session, alive: true }))
+    }, converged)
     // The child outlives the parent and still has its directory.
     const child = runRove(["api", "get-task", "--task-id", childId, "--pretty"], env)
     expect(child.code, `child lost: ${child.stderr}`).toBe(0)
-    const sessions = (JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult).sessions
-    expect(sessions.some((entry) => entry.key === childSession && entry.alive)).toBe(true)
-    expect(existsSync(worktreePath)).toBe(true)
+    expect(ptySessions()).toContainEqual(expect.objectContaining({ key: childSession, alive: true }))
+    expect(existsSync(task.worktreePath)).toBe(true)
 
     // Removing the last task that uses the directory removes the worktree.
     const last = runRove(["api", "delete", "--task-id", childId, "--force"], env)
     expect(last.code, `delete child failed: stdout=${JSON.stringify(last.stdout)} stderr=${last.stderr}`).toBe(0)
-    await waitForConverged(() => {
-      const task = runRove(["api", "get-task", "--task-id", childId, "--pretty"], env)
-      if (task.code !== 1 || !task.stderr.includes("TASK_NOT_FOUND")) return `child still addressable: ${task.stdout}`
-      const listed = (JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult).sessions
-      if (listed.some((entry) => entry.key === childSession && entry.alive)) return `${childSession} still alive`
-      if (existsSync(worktreePath)) return `worktree still exists: ${worktreePath}`
-      return null
-    })
-  }, 60_000)
+    await vi.waitFor(() => {
+      expectTaskGone(childId)
+      expect(ptySessions()).not.toContainEqual(expect.objectContaining({ key: childSession, alive: true }))
+      expect(existsSync(task.worktreePath)).toBe(false)
+    }, converged)
+  }, 90_000)
 })

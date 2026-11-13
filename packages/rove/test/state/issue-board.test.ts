@@ -102,11 +102,12 @@ describe("buildIssueBoard", () => {
     const held = Array.from({ length: n }, (_, i) => issue({ id: 200 + i, status: "hold" as const }))
     const backlog = Array.from({ length: n }, (_, i) => issue({ id: 400 + i }))
     const board = buildIssueBoard([...done, ...held, ...backlog])
-    for (const key of ["done", "parked"] as const) {
-      const col = board.find((c) => c.key === key)
-      expect(col?.issues.length).toBe(COLUMN_CAP)
-      expect(col?.hiddenCount).toBe(5)
-    }
+    const doneCol = board.find((c) => c.key === "done")
+    expect(doneCol?.issues.length).toBe(COLUMN_CAP)
+    expect(doneCol?.hiddenCount).toBe(5)
+    const parked = board.find((c) => c.key === "parked")
+    expect(parked?.issues.length).toBe(COLUMN_CAP)
+    expect(parked?.hiddenCount).toBe(5)
     const bl = board.find((col) => col.key === "backlog")
     expect(bl?.issues.length).toBe(n)
     expect(bl?.hiddenCount).toBe(0)

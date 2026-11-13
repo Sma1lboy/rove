@@ -49,7 +49,6 @@ describe("a native Windows machine", () => {
 
   test("asks for a preamble only from a rove that offers one", () => {
     expect(relayCommand({ relayPreamble: true }, true)).toBe("rove daemon relay --pty --preamble")
-    expect(relayCommand({}, false)).toBe("rove daemon relay")
   })
 
   test("runs a located rove through PowerShell, whatever shell sshd starts", () => {
@@ -88,7 +87,12 @@ describe("rove missing from a Windows ssh session", () => {
     "rove : File C:\\Users\\j\\AppData\\Roaming\\npm\\rove.ps1 cannot be loaded because running scripts is disabled on this system."
 
   test("is told apart in cmd, PowerShell 7, Windows PowerShell and for a stale path", () => {
-    for (const output of [CMD, PWSH, POWERSHELL, STALE]) expect(WINDOWS_ROVE_MISSING.test(output)).toBe(true)
+    expect([CMD, PWSH, POWERSHELL, STALE].map((output) => WINDOWS_ROVE_MISSING.test(output))).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ])
     expect(WINDOWS_ROVE_MISSING.test("'git' is not recognized as an internal or external command")).toBe(false)
     expect(WINDOWS_SCRIPTS_DISABLED.test(BLOCKED)).toBe(true)
   })

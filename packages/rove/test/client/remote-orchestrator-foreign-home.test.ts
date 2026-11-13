@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
+import { flushClientLog } from "@sma1lboy/rove-daemon/client/client-log"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
@@ -57,6 +58,7 @@ describe("RemoteOrchestrator home-ownership guard", () => {
   })
 
   afterEach(async () => {
+    await flushClientLog()
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
     if (prev === undefined) delete process.env.ROVE_HOME_DIR
     else process.env.ROVE_HOME_DIR = prev

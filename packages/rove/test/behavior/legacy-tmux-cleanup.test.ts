@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process"
 import { Readable } from "node:stream"
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { legacyPaneProcesses, parseLegacyPsRows, stopLegacyTmux } from "../../src/cli/legacy-tmux.ts"
 
 const TMUX_AVAILABLE = spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0
@@ -47,7 +47,7 @@ beforeAll(() => {
   })
 })
 
-afterAll(() => {
+afterEach(() => {
   if (panePgid && panePgid > 1) {
     try {
       process.kill(-panePgid, "SIGKILL")
@@ -55,7 +55,11 @@ afterAll(() => {
       // The regression path already cleaned it.
     }
   }
+  panePgid = null
   tmux("kill-server")
+})
+
+afterAll(() => {
   vi.unstubAllGlobals()
 })
 
@@ -106,6 +110,5 @@ describe.skipIf(!TMUX_AVAILABLE)("legacy tmux process-group cleanup", () => {
     process.kill(-(panePgid ?? 0), "SIGKILL")
     await waitUntil(() => groupProcesses(panePgid ?? 0).length === 0, 5_000)
     expect(groupProcesses(panePgid ?? 0)).toEqual([])
-    panePgid = null
   }, 20_000)
 })

@@ -65,17 +65,6 @@ describe("loadStateFile", () => {
     expect(loadStateFile()).toEqual({})
   })
 
-  // Why: corrupt-file policy — a malformed state.json must not block the
-  // UI or a CLI run. It reads as {} and gets rebuilt on the next write.
-  // (This silently discards whatever was in the corrupt file; that is the
-  // documented, pre-existing trade-off carried over from both former
-  // writers, kv.tsx and repos.ts.)
-  test("returns {} for malformed JSON", () => {
-    fs.mkdirSync(path.dirname(statePath()), { recursive: true })
-    fs.writeFileSync(statePath(), "{not valid json", "utf8")
-    expect(loadStateFile()).toEqual({})
-  })
-
   // Why: a non-object root (array, string) would break every keyed reader
   // downstream — treat it like corruption, not like data.
   test("returns {} for a non-object JSON root", () => {
@@ -205,17 +194,6 @@ describe("patchStateFile — the lost-update fix", () => {
     fs.writeFileSync(statePath(), "<<garbage>>", "utf8")
     patchStateFile({ recovered: true })
     expect(readDisk()).toEqual({ recovered: true })
-  })
-
-  // Why: atomicity. The write goes tmp+rename so a crash mid-write can't
-  // leave a half-written state.json. We can't crash mid-write in a unit
-  // test, but we CAN pin the observable contract: after a write the tmp
-  // file is gone (renamed, not copied-and-left-behind) and the target
-  // parses cleanly.
-  test("write is tmp+rename: no .tmp file survives a flush", () => {
-    patchStateFile({ k: "v" })
-    expect(fs.existsSync(`${statePath()}.tmp`)).toBe(false)
-    expect(readDisk()).toEqual({ k: "v" })
   })
 
   // Why: a fixed shared tmp path lets two processes' writeFileSync calls

@@ -10,10 +10,8 @@ import { statusDisposition } from "@sma1lboy/rove-daemon/daemon/status-dispositi
 import { describe, expect, test } from "vitest"
 
 describe("statusDisposition", () => {
-  test("unknown statuses fall back to parked, never active or terminal", () => {
-    for (const weird of ["blocked", "DONE", "", "in-review", "42"]) {
-      expect(statusDisposition(weird)).toBe("parked")
-    }
+  test.each(["blocked", "DONE", "", "in-review", "42"])("unknown status %j falls back to parked", (weird) => {
+    expect(statusDisposition(weird)).toBe("parked")
   })
 
   test("shared vocabulary: hold parks like in_review; done is terminal in both stores", () => {

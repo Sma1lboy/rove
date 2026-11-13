@@ -1,19 +1,17 @@
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import { relayCommand, useStdioTransport } from "../../src/machines/stdio-forward.ts"
 
 describe("stdio transport", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   test("native Windows always relays; elsewhere only when asked", () => {
     expect(useStdioTransport("win32")).toBe(true)
-    const prev = process.env.ROVE_MACHINE_TRANSPORT
-    try {
-      Reflect.deleteProperty(process.env, "ROVE_MACHINE_TRANSPORT")
-      expect(useStdioTransport("linux")).toBe(false)
-      process.env.ROVE_MACHINE_TRANSPORT = "stdio"
-      expect(useStdioTransport("darwin")).toBe(true)
-    } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_MACHINE_TRANSPORT")
-      else process.env.ROVE_MACHINE_TRANSPORT = prev
-    }
+    vi.stubEnv("ROVE_MACHINE_TRANSPORT", undefined)
+    expect(useStdioTransport("linux")).toBe(false)
+    vi.stubEnv("ROVE_MACHINE_TRANSPORT", "stdio")
+    expect(useStdioTransport("darwin")).toBe(true)
   })
 
   test("the relay runs the machine's own rove, with its directory on PATH for an nvm shebang", () => {

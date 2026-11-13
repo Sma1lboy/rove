@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { kvStatePath } from "../../src/env.ts"
+import type { RemoteSpec } from "../../src/exec/exec-host.ts"
 import {
   execHostForRepo,
   execHostForWorktreePath,
@@ -220,9 +221,7 @@ describe("remoteSpecFromConfig", () => {
       auth: { kind: "password", keychainRef: { service: "rove-remote-ssh", account: "dev@box" } },
     })
     expect(spec.auth.kind).toBe("password")
-    if (spec.auth.kind === "password") {
-      // No keychain item exists in this temp env → getter yields null, never throws.
-      expect(spec.auth.getPassword()).toBeNull()
-    }
+    // No keychain item exists in this temp env → getter yields null, never throws.
+    expect((spec.auth as Extract<RemoteSpec["auth"], { kind: "password" }>).getPassword()).toBeNull()
   })
 })

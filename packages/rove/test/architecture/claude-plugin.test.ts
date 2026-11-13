@@ -42,17 +42,15 @@ function pluginHooks(): Record<string, HookGroup[]> {
 }
 
 describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
-  test("every non-gated activity spec has exactly one matching plugin hook group", () => {
-    const hooks = pluginHooks()
-    for (const spec of CLAUDE_HOOK_EVENT_MAP) {
-      if (GATED_VERBS.has(spec.verb)) continue
-      const groups = (hooks[spec.event] ?? []).filter((g) => (g.matcher ?? undefined) === spec.matcher)
-      expect(groups, `${spec.event}${spec.matcher ? `(${spec.matcher})` : ""}`).toHaveLength(1)
-      const commands = groups[0].hooks.map((h) => h.command)
-      expect(commands).toHaveLength(1)
-      expect(commands[0]).toBe(`"\${CLAUDE_PLUGIN_ROOT}/bin/rove" hook ${spec.verb} --engine claude`)
-    }
-  })
+  test.each(CLAUDE_HOOK_EVENT_MAP.filter((spec) => !GATED_VERBS.has(spec.verb)))(
+    "$event $matcher has exactly one matching plugin hook group",
+    (spec) => {
+      const groups = (pluginHooks()[spec.event] ?? []).filter((g) => (g.matcher ?? undefined) === spec.matcher)
+      expect(groups.map((g) => g.hooks.map((h) => h.command))).toEqual([
+        [`"\${CLAUDE_PLUGIN_ROOT}/bin/rove" hook ${spec.verb} --engine claude`],
+      ])
+    },
+  )
 
   // A PostToolUse(Bash) observer firing `hook worktree-created` after EVERY
   // Bash call costs a ~170ms process spawn per Bash call, and there is no
@@ -64,14 +62,11 @@ describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
 
   test("no extra events beyond the adapter's map", () => {
     const known = new Set(CLAUDE_HOOK_EVENT_MAP.map((s) => s.event))
-    for (const event of Object.keys(pluginHooks())) {
-      expect(known.has(event), `unexpected event ${event}`).toBe(true)
-    }
+    expect(Object.keys(pluginHooks()).filter((event) => !known.has(event))).toEqual([])
   })
 
-  test("gated tool-family verbs stay OUT of the static hooks.json", () => {
-    const all = JSON.stringify(pluginHooks())
-    for (const verb of GATED_VERBS) expect(all).not.toContain(`hook ${verb}`)
+  test.each([...GATED_VERBS])("gated verb %s stays OUT of the static hooks.json", (verb) => {
+    expect(JSON.stringify(pluginHooks())).not.toContain(`hook ${verb}`)
   })
 })
 

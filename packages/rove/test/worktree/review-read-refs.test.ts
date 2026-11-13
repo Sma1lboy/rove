@@ -50,12 +50,10 @@ describe("worktreeDiffFile with an explicit base", () => {
   test("the whole task diffs against the chosen ref, uncommitted work included", async () => {
     const dir = repo()
     const vsTag = await worktreeDiffFile(dir, "a.ts", "task", undefined, { base: "v1" })
-    if (vsTag.kind !== "diff") throw new Error(vsTag.kind)
-    expect(vsTag.text).toContain("-export const a = 1")
-    expect(vsTag.text).toContain("+export const a = 3")
+    expect(vsTag).toMatchObject({ kind: "diff", text: expect.stringContaining("-export const a = 1") })
+    expect(vsTag).toMatchObject({ text: expect.stringContaining("+export const a = 3") })
     const vsFeature = await worktreeDiffFile(dir, "a.ts", "task", undefined, { base: "HEAD" })
-    if (vsFeature.kind !== "diff") throw new Error(vsFeature.kind)
-    expect(vsFeature.text).toContain("-export const a = 2")
+    expect(vsFeature).toMatchObject({ kind: "diff", text: expect.stringContaining("-export const a = 2") })
   })
 
   test("an unknown ref is refused as BAD_REF, and a base outside the task scope as BAD_ARGS", async () => {

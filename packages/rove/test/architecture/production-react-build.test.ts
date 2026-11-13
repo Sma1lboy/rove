@@ -18,13 +18,9 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
 
-const SCRIPTS = ["build.ts", "compile.ts"]
-
 describe("production React build", () => {
-  for (const script of SCRIPTS) {
-    test(`scripts/${script} pins NODE_ENV=production`, () => {
-      const source = readFileSync(fileURLToPath(new URL(`../../scripts/${script}`, import.meta.url)), "utf8")
-      expect(source).toContain('"process.env.NODE_ENV": JSON.stringify("production")')
-    })
-  }
+  test.each(["build.ts", "compile.ts"])("scripts/%s pins NODE_ENV=production", (script) => {
+    const source = readFileSync(fileURLToPath(new URL(`../../scripts/${script}`, import.meta.url)), "utf8")
+    expect(source).toContain('"process.env.NODE_ENV": JSON.stringify("production")')
+  })
 })

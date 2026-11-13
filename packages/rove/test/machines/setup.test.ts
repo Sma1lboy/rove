@@ -124,7 +124,8 @@ describe("authorizeKeyScript", () => {
   it("appends the key once, owner-only, however often setup re-runs", () => {
     home = mkdtempSync(join(tmpdir(), "rove-authkeys-"))
     const script = authorizeKeyScript("ssh-ed25519 AAAA rove-hub@test")
-    for (let i = 0; i < 2; i++) execFileSync("sh", ["-c", script], { env: { ...process.env, HOME: home } })
+    execFileSync("sh", ["-c", script], { env: { ...process.env, HOME: home } })
+    execFileSync("sh", ["-c", script], { env: { ...process.env, HOME: home } })
     const file = join(home, ".ssh", "authorized_keys")
     expect(readFileSync(file, "utf8")).toBe("ssh-ed25519 AAAA rove-hub@test\n")
     expect(statSync(file).mode & 0o777).toBe(0o600)

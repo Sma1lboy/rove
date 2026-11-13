@@ -29,12 +29,7 @@ describe("buildPaneArgv", () => {
     expect(argv.slice(0, 2)).toEqual([resolveSessionShell(), "-ilc"])
     const script = argv[2] as string
     expect(script.startsWith("exec env ")).toBe(true)
-    for (const frag of [
-      "'ROVE_PLUGIN_ID=p.id'",
-      "'ROVE_PLUGIN_ROOT=/plug/root'",
-      "'ROVE_SOCKET_PATH=/tmp/x.sock'",
-      "'ROVE_BIN_PATH=rove'",
-      "'ROVE_PLUGIN_ENTRYPOINT_ID=b'",
+    const fragments = [
       "'ROVE_PLUGIN_ID=p.id'",
       "'ROVE_PLUGIN_ROOT=/plug/root'",
       "'ROVE_SOCKET_PATH=/tmp/x.sock'",
@@ -43,17 +38,14 @@ describe("buildPaneArgv", () => {
       "'/plug/root/run.sh'",
       // POSIX-quoted single quote survives.
       "'it'\\''s'",
-    ]) {
-      expect(script).toContain(frag)
-    }
+    ]
+    expect(fragments.filter((frag) => !script.includes(frag))).toEqual([])
   })
 
   it("injects the task id so a pane can name its own task", () => {
     const pane = { id: "b", title: "B", placement: "split" as const, command: ["run"] }
     const script = buildPaneArgv("p.id", "/plug/root", pane, { ...OPTS, taskId: "01TASK" })[2] as string
-    for (const frag of ["'ROVE_PLUGIN_TASK_ID=01TASK'", "'ROVE_PLUGIN_TASK_ID=01TASK'"]) {
-      expect(script).toContain(frag)
-    }
+    expect(script).toContain("'ROVE_PLUGIN_TASK_ID=01TASK'")
     // No task resolved (an opener that never had one) → no empty var to
     // read as "task id is the empty string".
     expect(buildPaneArgv("p.id", "/plug/root", pane, OPTS)[2] as string).not.toContain("PLUGIN_TASK_ID")

@@ -15,22 +15,18 @@ import {
   recommendedGlobalInstallCommand,
 } from "../src/version.ts"
 
-// The npm version check is suppressed in dev. `isDev()` reads ROVE_DEV first
-// and falls back to ROVE_DEV, and `bun run dev` exports the canonical
-// ROVE_DEV=1 — so a run started from inside a Rove session must clear BOTH,
-// or every assertion below silently exercises the suppressed path.
-const DEV_ENV_KEYS = ["ROVE_DEV", "ROVE_DEV"] as const
-const ORIGINAL_DEV_ENV = DEV_ENV_KEYS.map((key) => [key, process.env[key]] as const)
+// The npm version check is suppressed in dev, and `bun run dev` exports
+// ROVE_DEV=1 — so a run started from inside a Rove session must clear it, or
+// every assertion below silently exercises the suppressed path.
+const ORIGINAL_DEV = process.env.ROVE_DEV
 
 function clearDevEnv(): void {
-  for (const key of DEV_ENV_KEYS) Reflect.deleteProperty(process.env, key)
+  Reflect.deleteProperty(process.env, "ROVE_DEV")
 }
 
 function restoreDevEnv(): void {
-  for (const [key, value] of ORIGINAL_DEV_ENV) {
-    if (value === undefined) Reflect.deleteProperty(process.env, key)
-    else process.env[key] = value
-  }
+  if (ORIGINAL_DEV === undefined) Reflect.deleteProperty(process.env, "ROVE_DEV")
+  else process.env.ROVE_DEV = ORIGINAL_DEV
 }
 
 describe("checkLatestVersion", () => {
@@ -147,11 +143,8 @@ describe("checkLatestVersion — dev suppression and the ROVE_FAKE_UPDATE debug 
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  // Canonical name AND the legacy alias, one case each: `bun run dev` now
-  // exports ROVE_DEV, while an older shell (or an installed 0.8.x wrapper)
-  // still carries ROVE_DEV, and both must suppress the update chip.
-  it.each(["ROVE_DEV", "ROVE_DEV"])("%s=1 suppresses the check unless force is passed", async (key) => {
-    process.env[key] = "1"
+  it("ROVE_DEV=1 suppresses the check unless force is passed", async () => {
+    process.env.ROVE_DEV = "1"
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ version: "999.0.0" }), { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
 
@@ -223,6 +216,13 @@ describe("semver helpers", () => {
 })
 
 describe("release channels", () => {
+  beforeEach(clearDevEnv)
+
+  afterEach(() => {
+    restoreDevEnv()
+    vi.unstubAllGlobals()
+  })
+
   it("derives the channel from the running build, with no stored setting to drift", () => {
     expect(channelOf("0.9.13")).toBe("latest")
     expect(channelOf("0.9.13-nightly.20260831")).toBe("nightly")
@@ -388,18 +388,23 @@ describe("fetchReleaseNotesRange", () => {
 
   it("reads the Chinese asset in zh, and the English body where a release has none or it fails", async () => {
     const asset = (url: string) => [{ name: ZH_NOTES_ASSET, browser_download_url: url }]
+    const downloads: Record<string, () => Response> = {
+      "https://dl/ok.md": () => new Response("中文说明", { status: 200 }),
+      "https://dl/gone.md": () => new Response("nope", { status: 404 }),
+    }
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
-        if (url === "https://dl/ok.md") return new Response("中文说明", { status: 200 })
-        if (url === "https://dl/gone.md") return new Response("nope", { status: 404 })
-        return new Response(
-          JSON.stringify([
-            { tag_name: "v0.7.13", html_url: "u13", body: "thirteen", assets: asset("https://dl/gone.md") },
-            { tag_name: "v0.7.12", html_url: "u12", body: "twelve", assets: asset("https://dl/ok.md") },
-            { tag_name: "v0.7.11", html_url: "u11", body: "eleven", assets: [] },
-          ]),
-          { status: 200 },
+        return (
+          downloads[url]?.() ??
+          new Response(
+            JSON.stringify([
+              { tag_name: "v0.7.13", html_url: "u13", body: "thirteen", assets: asset("https://dl/gone.md") },
+              { tag_name: "v0.7.12", html_url: "u12", body: "twelve", assets: asset("https://dl/ok.md") },
+              { tag_name: "v0.7.11", html_url: "u11", body: "eleven", assets: [] },
+            ]),
+            { status: 200 },
+          )
         )
       }),
     )

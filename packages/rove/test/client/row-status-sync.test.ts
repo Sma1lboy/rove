@@ -6,7 +6,7 @@
  */
 
 import type { RowStatusPayload } from "@sma1lboy/rove-daemon/daemon/row-status-store"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events.ts"
 import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 import type { RowStatusTransport } from "../../src/client/remote-orchestrator-row-status.ts"
@@ -62,8 +62,6 @@ function fakeTransport(listed: RowStatusPayload = payload(1)) {
   return { transport, calls, push: (p: RowStatusPayload) => listener?.(p) }
 }
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
-
 afterEach(() => resetRowStatusForTests())
 
 describe("row status snapshots", () => {
@@ -88,14 +86,14 @@ describe("row status snapshots", () => {
     acceptRowStatus(payload(40, "running"))
     const { transport } = fakeTransport(payload(1, "idle"))
     attachRowStatusTransport(transport)
-    await flush()
-    expect(taskRowStatus(rowStatusCell.get(), "alpha")?.kind).toBe("idle")
+    await vi.waitFor(() => expect(taskRowStatus(rowStatusCell.get(), "alpha")?.kind).toBe("idle"))
   })
 
   it("follows `row.status` pushes once attached", async () => {
     const { transport, push } = fakeTransport()
     attachRowStatusTransport(transport)
-    await flush()
+    // Let the initial list land first, so it cannot overwrite the push.
+    await vi.waitFor(() => expect(taskRowStatus(rowStatusCell.get(), "alpha")?.kind).toBe("running"))
     push(payload(9, "needs-input"))
     expect(taskRowStatus(rowStatusCell.get(), "alpha")?.kind).toBe("needs-input")
   })
@@ -148,12 +146,13 @@ describe("what the TUI reports", () => {
     reportViewing("alpha", "tab-1")
     reportViewing("alpha", "tab-2")
     reportViewing(null, null)
-    await flush()
-    expect(calls.viewing).toEqual([
-      ["alpha", "tab-1"],
-      ["alpha", "tab-2"],
-      [null, null],
-    ])
+    await vi.waitFor(() =>
+      expect(calls.viewing).toEqual([
+        ["alpha", "tab-1"],
+        ["alpha", "tab-2"],
+        [null, null],
+      ]),
+    )
   })
 
   it("re-sends what it views after a reconnect (the daemon dropped it with the connection)", async () => {

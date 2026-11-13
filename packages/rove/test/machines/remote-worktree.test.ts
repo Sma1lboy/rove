@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest"
+import { beforeEach, describe, expect, test, vi } from "vitest"
 
 const calls: Array<[string, string, Record<string, unknown>]> = []
 vi.mock("../../src/machines/forward.ts", () => ({
@@ -24,6 +24,10 @@ vi.mock("../../src/machines/forward.ts", () => ({
 const { remoteChanges, remoteFiles, remotePreview } = await import("../../src/machines/remote-worktree.ts")
 
 describe("reading a worktree on another machine", () => {
+  beforeEach(() => {
+    calls.length = 0
+  })
+
   test("files and one scope of changes come from that machine's verbs", async () => {
     expect(await remoteFiles("mac", "T1")).toEqual(["a.ts", "b.ts"])
     const branch = await remoteChanges("mac", "T1", "branch")

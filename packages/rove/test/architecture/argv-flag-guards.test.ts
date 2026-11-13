@@ -93,13 +93,11 @@ describe("argv flag guards recognize the attached --flag=value form", () => {
     expect(isOffender('const dash = version.indexOf("-")')).toBe(false)
   })
 
-  test("the allowlisted files still exist and still contain the pattern they excuse", () => {
-    for (const file of BARE_TOKEN_ALLOWED) {
-      const source = readFileSync(file, "utf8")
-      expect(
-        source.split("\n").some((line) => isOffender(line)),
-        `${relative(SRC_ROOT, file)} no longer needs its allowlist entry`,
-      ).toBe(true)
-    }
+  test.each([...BARE_TOKEN_ALLOWED])("allowlisted %s still contains the pattern it excuses", (file) => {
+    const source = readFileSync(file, "utf8")
+    expect(
+      source.split("\n").some((line) => isOffender(line)),
+      `${relative(SRC_ROOT, file)} no longer needs its allowlist entry`,
+    ).toBe(true)
   })
 })
