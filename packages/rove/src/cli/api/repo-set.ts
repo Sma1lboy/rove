@@ -41,7 +41,7 @@ export async function resolveRepoFlag(ctx: VerbContext, raw: string): Promise<st
     })
   }
   try {
-    const dir = cloneRepo(ref)
+    const dir = await cloneRepo(ref)
     addSavedRepo(dir)
     return dir
   } catch (err) {

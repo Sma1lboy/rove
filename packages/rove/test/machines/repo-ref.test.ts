@@ -1,5 +1,16 @@
+import { execFileSync } from "node:child_process"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { cloneDirFor, findCheckouts, parseRepoRef, pickCheckout, repoIdOf } from "../../src/machines/repo-ref.ts"
+import {
+  cloneDirFor,
+  cloneRepo,
+  findCheckouts,
+  parseRepoRef,
+  pickCheckout,
+  repoIdOf,
+} from "../../src/machines/repo-ref.ts"
 
 const none = () => false
 
@@ -87,5 +98,23 @@ describe("choosing a checkout", () => {
     expect(findCheckouts(want, [{ path: "/local", identity: { root: "r1" } }])).toEqual([
       { path: "/local", via: "root", fork: false },
     ])
+  })
+})
+
+describe("cloneRepo", () => {
+  test("the event loop keeps turning while git clones", async () => {
+    const root = mkdtempSync(join(tmpdir(), "rove-clone-"))
+    const origin = join(root, "origin")
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" })
+    git("init", "-q", origin)
+    git("-C", origin, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init")
+    git("-C", origin, "remote", "add", "origin", "https://github.com/acme/widget.git")
+
+    let ticked = false
+    setImmediate(() => {
+      ticked = true
+    })
+    const cloning = cloneRepo({ id: "github.com/acme/widget", cloneUrl: origin }, root).then((dir) => ({ dir, ticked }))
+    expect(await cloning).toEqual({ dir: cloneDirFor("github.com/acme/widget", root), ticked: true })
   })
 })
