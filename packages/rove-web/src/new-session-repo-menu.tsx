@@ -8,7 +8,7 @@ import { githubRepoHeld } from "./new-session-remote.ts"
 import {
   cloneSource,
   expandTilde,
-  filterText,
+  githubRepoName,
   isPathInput,
   splitRepoRow,
   stripTrailingSlash,
@@ -56,7 +56,14 @@ export function RepoMenu(props: {
   }, [model])
 
   const typed = query.trim()
-  const local = filterText(saved, query)
+  const needle = typed.toLowerCase()
+  // A GitHub URL or `owner/repo` searches by the repo it names, not by its own text.
+  const named = githubRepoName(typed)
+  const local = saved.filter(
+    (path) =>
+      path.toLowerCase().includes(needle) ||
+      (named !== null && `/${splitRepoRow(path).base.toLowerCase()}` === named.slice(named.indexOf("/"))),
+  )
   const noFolder = t("newSession.noFolder")
   const ungrouped =
     props.ungrouped && (!typed || noFolder.toLowerCase().includes(typed.toLowerCase()))
@@ -81,26 +88,31 @@ export function RepoMenu(props: {
     !clone && isPathInput(typed) && !saved.includes(typed) && (!remote || typed.startsWith("/"))
       ? stripTrailingSlash(expandTilde(typed, home))
       : ""
-  const extra = clone
-    ? {
-        key: CLONE_PREFIX + clone,
-        text: remote
-          ? t("newSession.cloneRowOn", { source: clone, machine: remote.name })
-          : t("newSession.cloneRow", { source: clone }),
-      }
-    : typedPath
-      ? { key: typedPath, text: typedPath, checked: picked.includes(typedPath) }
-      : null
-  const needle = typed.toLowerCase()
   const more = (github?.repos ?? [])
-    .filter((repo) => repo.nameWithOwner.toLowerCase().includes(needle))
+    .filter((repo) => repo.nameWithOwner.toLowerCase().includes(named ?? needle))
     .filter((repo) => !githubRepoHeld(saved, repo.nameWithOwner, remote !== undefined))
+    // The repo the text names leads the ones that merely contain it.
+    .sort((a, b) => Number(b.nameWithOwner.toLowerCase() === named) - Number(a.nameWithOwner.toLowerCase() === named))
     .map((repo) => ({
       key: CLONE_PREFIX + repo.nameWithOwner,
       text: repo.nameWithOwner,
       dim: repo.description,
       title: repo.description,
     }))
+  // The listed repo says what it is; the bare "Clone <text>" row beside it would be the same clone. An ssh URL stays: it picks the protocol.
+  const listed = named !== null && !/^(?:ssh:|git@)/i.test(typed) && more[0]?.text.toLowerCase() === named
+  const extra = listed
+    ? null
+    : clone
+      ? {
+          key: CLONE_PREFIX + clone,
+          text: remote
+            ? t("newSession.cloneRowOn", { source: clone, machine: remote.name })
+            : t("newSession.cloneRow", { source: clone }),
+        }
+      : typedPath
+        ? { key: typedPath, text: typedPath, checked: picked.includes(typedPath) }
+        : null
 
   return (
     // A pick replaces the project and closes; ⌘ / Ctrl + pick toggles it in a multi-repo task and keeps the list open.

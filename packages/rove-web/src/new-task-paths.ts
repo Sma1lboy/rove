@@ -104,6 +104,18 @@ export function cloneSource(query: string): string | null {
   return GIT_URL.test(value) || GITHUB_SHORTHAND.test(value) ? value : null
 }
 
+const GITHUB_HOST = /^(?:https?:\/\/(?:www\.)?github\.com\/|(?:ssh:\/\/)?git@github\.com[:/])/i
+
+/** The lowercase `owner/repo` a GitHub URL (a repo page, any page under it, a clone URL) or shorthand names; null for anything else. */
+export function githubRepoName(query: string): string | null {
+  const value = query.trim()
+  const path = value.replace(GITHUB_HOST, "")
+  if (path === value) return GITHUB_SHORTHAND.test(value) ? value.replace(/\.git$/i, "").toLowerCase() : null
+  const [owner, repo] = path.split(/[/?#]/)
+  const name = repo?.replace(/\.git$/i, "")
+  return owner && name ? `${owner}/${name}`.toLowerCase() : null
+}
+
 /** `*` any run but `/`, `**` any run, `?` one char; matched against the whole path or the basename. */
 export function matchPathGlob(glob: string, path: string): boolean {
   let re = ""

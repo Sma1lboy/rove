@@ -4,6 +4,7 @@ import {
   deriveFolderName,
   expandTilde,
   filterByGlob,
+  githubRepoName,
   isPathInput,
   joinDrill,
   joinPicked,
@@ -66,6 +67,27 @@ describe("new-task dialog paths", () => {
     expect(filterByGlob(list, "feature-*")).toEqual([{ path: "/x/feature-1" }])
     expect(filterByGlob(list, "/x/*")).toHaveLength(2)
     expect(filterByGlob(list, "")).toHaveLength(2)
+  })
+})
+
+describe("githubRepoName", () => {
+  test("a GitHub URL of any shape and the shorthand name the same repo", () => {
+    for (const text of [
+      "https://github.com/starsrc/Bowl",
+      "https://github.com/starsrc/Bowl/",
+      "https://github.com/starsrc/Bowl.git",
+      "https://github.com/starsrc/Bowl/pull/12",
+      "git@github.com:starsrc/Bowl.git",
+      " starsrc/Bowl ",
+    ]) {
+      expect(githubRepoName(text)).toBe("starsrc/bowl")
+    }
+  })
+
+  test("a name, a path, another host and a bare owner name no repo", () => {
+    for (const text of ["", "Bowl", "~/code/Bowl", "/w/a/b", "https://gitlab.com/o/r", "https://github.com/starsrc"]) {
+      expect(githubRepoName(text)).toBeNull()
+    }
   })
 })
 

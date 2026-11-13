@@ -8,21 +8,36 @@ isolateTaskOpDeps()
 const repos = () => githubOps["github.repos"]?.run({}, { api: fakeApi().api })
 
 describe("github.repos", () => {
-  test("lists what gh returns, keeping only the fields the picker shows", async () => {
-    taskOpDeps.gh = async () => ({
-      ok: true,
-      stdout: JSON.stringify([
-        { nameWithOwner: "me/app", description: "An app", isPrivate: true, url: "x" },
-        { nameWithOwner: "me/lib", description: null, isPrivate: false },
-        { description: "no name" },
-      ]),
+  const page = (nodes: unknown[], endCursor: string | null) =>
+    JSON.stringify({
+      data: { viewer: { repositories: { nodes, pageInfo: { hasNextPage: endCursor !== null, endCursor } } } },
     })
+
+  test("lists every page gh returns, keeping only the fields the picker shows", async () => {
+    const cursors: (string | undefined)[] = []
+    taskOpDeps.gh = async (args) => {
+      const after = args.find((arg) => arg.startsWith("after="))?.slice(6)
+      cursors.push(after)
+      return after
+        ? { ok: true, stdout: page([{ nameWithOwner: "org/lib", description: null, isPrivate: false }], null) }
+        : {
+            ok: true,
+            stdout: page(
+              [
+                { nameWithOwner: "me/app", description: "An app", isPrivate: true, url: "x" },
+                { description: "no name" },
+              ],
+              "c1",
+            ),
+          }
+    }
     expect(await repos()).toEqual({
       repos: [
         { nameWithOwner: "me/app", description: "An app", isPrivate: true },
-        { nameWithOwner: "me/lib", description: "", isPrivate: false },
+        { nameWithOwner: "org/lib", description: "", isPrivate: false },
       ],
     })
+    expect(cursors).toEqual([undefined, "c1"])
   })
 
   test("a missing, signed-out or garbled gh is an empty list with a reason, never a throw", async () => {
