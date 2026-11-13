@@ -2198,6 +2198,21 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   never idle); `--merged` keeps only tasks whose PR Rove last saw merged
   (`prLifecycle`, `null` without a PR). Both given, both must hold; the totals
   cover only the listed rows, and either flag beside `--task-id` is `BAD_FLAG`.
+- `worktree-reclaim (--merged | --idle-days N) [--dry-run]`: remove the
+  worktree of every task `worktree-usage` lists under the same filters, in one
+  go. At least one filter is required (`BAD_FLAG` otherwise), so it never
+  removes everything. Each task and its branch stay, as with
+  `remove-worktree`, and `ensure-worktree` brings a checkout back. Nothing is
+  forced: a checkout holding uncommitted, untracked or gitignored work
+  (`DIRTY_WORKTREE` and its siblings), a task whose engine is `running` or
+  `permission_needed` (`TASK_BUSY`), a multi-repo task (`MULTI_REPO`), a
+  directory a child task shares, and the caller's own worktree are skipped
+  with a code and the rest are still removed. `--dry-run` changes nothing and
+  lists what would go; it cannot predict the dirty check, which only the
+  removal runs. Returns `{ dryRun, removed, skipped, bytes }`: each `removed`
+  row is `{ taskId, title, branch, worktreePath, bytes, residue? }`, each
+  `skipped` row adds `{ code, message }`, and `bytes` is what the removed
+  checkouts took (`null` when one could not be measured).
   `ignoredBytes` is the gitignored
   part, including dependencies, build output, user notes and local configuration.
   It is not a measure of disposable content. `exists: null` means the checkout

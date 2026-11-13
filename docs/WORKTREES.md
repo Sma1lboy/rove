@@ -223,6 +223,11 @@ command is running from (`CALLER_WORKTREE`).
 worktrees ranked by size, with the gitignored part (dependencies, build
 output) broken out. `--merged` and `--idle-days N` narrow it to cleanup
 candidates: tasks whose PR has merged, or that nobody has touched in N days.
+`rove api worktree-reclaim --merged` (or `--idle-days N`) then removes those
+candidates' worktrees in one go, keeping every task and branch. It never
+forces: a checkout with work in it, a busy engine or your own worktree is
+reported as skipped rather than removed. Add `--dry-run` first to see the
+list.
 
 ### When git removes the worktree but not its directory
 

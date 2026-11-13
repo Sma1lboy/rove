@@ -311,6 +311,7 @@ checkpoint          --task-id(REQ)
 rewind              --task-id(REQ) --to(REQ) --force
 export-branch       --task-id(REQ)
 worktree-usage      --task-id --idle-days --merged
+worktree-reclaim    --idle-days --merged --dry-run
 discover-adoptable  --repo(REQ)
 adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```

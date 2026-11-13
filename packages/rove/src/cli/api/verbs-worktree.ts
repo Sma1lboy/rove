@@ -11,6 +11,7 @@ import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { checkpoint, checkpointList, rewind } from "./handlers-checkpoint.ts"
 import { adopt, removeTaskWorktree } from "./handlers-lifecycle.ts"
+import { WORKTREE_RECLAIM_VERB } from "./handlers-worktree-reclaim.ts"
 import { WORKTREE_USAGE_VERB } from "./handlers-worktree-usage.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -88,6 +89,7 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
     },
   },
   WORKTREE_USAGE_VERB,
+  WORKTREE_RECLAIM_VERB,
   {
     name: "discover-adoptable",
     group: "worktree",
