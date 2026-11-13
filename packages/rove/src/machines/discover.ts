@@ -99,6 +99,12 @@ async function runOnMachine(
   })
 }
 
+/** The pid `daemon status` prints when a pidfile exists but its socket did not answer. */
+export function unansweringDaemonPid(stdout: string): number | null {
+  const match = /\(stale pidfile pid=(\d+)\)/.exec(stdout)
+  return match ? Number(match[1]) : null
+}
+
 /**
  * `rove daemon status --json`, starting the remote daemon once if none is up.
  *
@@ -212,6 +218,19 @@ async function probe(
       ssh,
       ...(windows ? { windows } : {}),
       message: ssh === "unknown" && combined ? `${remedy}\n${combined}` : remedy,
+    }
+  }
+  // A live pid that does not answer is busy, not gone: `restart` would kill it mid-work, sessions and all.
+  // ponytail: a stale pidfile whose pid was reused reads as busy too; the message says how to clear it.
+  const pid = unansweringDaemonPid(first.stdout)
+  if (pid && !isWindowsMachine(config)) {
+    const alive = await runOnMachine(alias, config, `kill -0 ${pid}`, opts)
+    if (alive.exitCode === 0) {
+      return {
+        ok: false,
+        code: "NO_DAEMON",
+        message: `the Rove daemon on ${alias} (pid ${pid}) is running but did not answer: it is busy or hung. It was left alone, because restarting it ends its sessions. If it stays this way, run \`rove daemon restart\` on ${alias}.`,
+      }
     }
   }
   // No daemon over there yet — start one and ask again. `restart` spawns it

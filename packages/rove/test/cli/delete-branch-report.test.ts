@@ -56,20 +56,26 @@ const remoteExists = (repo: string, remote: string, name: string): boolean =>
   execFileSync("git", ["ls-remote", "--heads", remote, name], { cwd: repo, encoding: "utf8" }).trim().length > 0
 
 describe("reportBranchDeletion", () => {
-  it("reports nothing at all when no branch flag was passed", () => {
+  it("reports nothing at all when no branch flag was passed", async () => {
     // The plain delete must stay exactly as fast and as quiet as it was: no
     // git reads, no `branch` key in the reply.
     const { repo } = fixture()
     branch(repo, "fix/untouched")
-    expect(reportBranchDeletion(repo, "fix/untouched", { deleteBranch: false, force: false, deleteRemote: false })) //
+    expect(
+      await reportBranchDeletion(repo, "fix/untouched", { deleteBranch: false, force: false, deleteRemote: false }),
+    ) //
       .toBeUndefined()
     expect(localExists(repo, "fix/untouched")).toBe(true)
   })
 
-  it("deletes a merged branch and says so, leaving the remote alone", () => {
+  it("deletes a merged branch and says so, leaving the remote alone", async () => {
     const { repo, remote } = fixture()
     branch(repo, "fix/merged", { push: true, merge: true })
-    const report = reportBranchDeletion(repo, "fix/merged", { deleteBranch: true, force: false, deleteRemote: false })
+    const report = await reportBranchDeletion(repo, "fix/merged", {
+      deleteBranch: true,
+      force: false,
+      deleteRemote: false,
+    })
     expect(report).toEqual({ branch: "fix/merged", deleted: true })
     expect(localExists(repo, "fix/merged")).toBe(false)
     // The separate opt-in was not given, so the remote branch survives — the
@@ -77,27 +83,39 @@ describe("reportBranchDeletion", () => {
     expect(remoteExists(repo, remote, "fix/merged")).toBe(true)
   })
 
-  it("keeps an unmerged branch and hands back git's own reason", () => {
+  it("keeps an unmerged branch and hands back git's own reason", async () => {
     const { repo } = fixture()
     branch(repo, "fix/unmerged")
-    const report = reportBranchDeletion(repo, "fix/unmerged", { deleteBranch: true, force: false, deleteRemote: false })
+    const report = await reportBranchDeletion(repo, "fix/unmerged", {
+      deleteBranch: true,
+      force: false,
+      deleteRemote: false,
+    })
     expect(report?.deleted).toBe(false)
     expect(report?.keptReason).toMatch(/not fully merged/)
     expect(localExists(repo, "fix/unmerged")).toBe(true)
   })
 
-  it("takes the unmerged branch under --force, the same escalation git offers", () => {
+  it("takes the unmerged branch under --force, the same escalation git offers", async () => {
     const { repo } = fixture()
     branch(repo, "fix/forced")
-    const report = reportBranchDeletion(repo, "fix/forced", { deleteBranch: true, force: true, deleteRemote: false })
+    const report = await reportBranchDeletion(repo, "fix/forced", {
+      deleteBranch: true,
+      force: true,
+      deleteRemote: false,
+    })
     expect(report).toEqual({ branch: "fix/forced", deleted: true })
     expect(localExists(repo, "fix/forced")).toBe(false)
   })
 
-  it("deletes the remote branch when asked, and names which remote", () => {
+  it("deletes the remote branch when asked, and names which remote", async () => {
     const { repo, remote } = fixture()
     branch(repo, "fix/remote", { push: true, merge: true })
-    const report = reportBranchDeletion(repo, "fix/remote", { deleteBranch: true, force: false, deleteRemote: true })
+    const report = await reportBranchDeletion(repo, "fix/remote", {
+      deleteBranch: true,
+      force: false,
+      deleteRemote: true,
+    })
     expect(report).toEqual({
       branch: "fix/remote",
       deleted: true,
@@ -106,13 +124,13 @@ describe("reportBranchDeletion", () => {
     expect(remoteExists(repo, remote, "fix/remote")).toBe(false)
   })
 
-  it("treats an already-absent remote branch as the end state that was asked for", () => {
+  it("treats an already-absent remote branch as the end state that was asked for", async () => {
     // git refuses the push with "remote ref does not exist" — which IS gone,
     // so re-probing rather than trusting the exit code keeps a second delete
     // from reporting a failure the caller cannot act on.
     const { repo } = fixture()
     branch(repo, "fix/never-pushed")
-    const report = reportBranchDeletion(repo, "fix/never-pushed", {
+    const report = await reportBranchDeletion(repo, "fix/never-pushed", {
       deleteBranch: false,
       force: false,
       deleteRemote: true,
@@ -126,11 +144,11 @@ describe("reportBranchDeletion", () => {
 })
 
 describe("a branch another task still holds", () => {
-  it("is neither deleted locally nor pushed away on the remote", () => {
+  it("is neither deleted locally nor pushed away on the remote", async () => {
     const { repo, remote } = fixture()
     branch(repo, "feature/shared", { push: true, merge: true })
 
-    const report = reportBranchDeletion(repo, "feature/shared", {
+    const report = await reportBranchDeletion(repo, "feature/shared", {
       deleteBranch: true,
       force: false,
       deleteRemote: true,

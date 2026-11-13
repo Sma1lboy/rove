@@ -127,7 +127,7 @@ async function deleteOne(ctx: VerbContext, taskId: string, self: Dispatcher | nu
   // Only after `removed`: otherwise git's refusal describes the live worktree.
   const branch =
     subject && outcome.status === "removed"
-      ? reportBranchDeletion(gitRepoOf(subject), subject.branch ?? "", {
+      ? await reportBranchDeletion(gitRepoOf(subject), subject.branch ?? "", {
           deleteBranch,
           force,
           deleteRemote,

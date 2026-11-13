@@ -6,12 +6,12 @@
  * its cwd. That machine needs Rove and git, never an engine or its login.
  */
 
-import { spawnSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, rmdirSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import { pathWithin } from "@sma1lboy/rove-daemon/path-identity"
 import { REMOTE_WORKSPACE_FILE } from "@sma1lboy/rove-daemon/repo-id"
 import { homeDir } from "../env.ts"
+import { runAsync } from "../lib/run-async.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 
 export { REMOTE_WORKSPACE_FILE }
@@ -155,7 +155,7 @@ export interface LinkInput {
 const MARK = "@@rove-workspace@@"
 
 /** Make the link directory and probe the worktree through it. Throws when that machine does not answer. */
-export function createRemoteLink(input: LinkInput, home = homeDir()): string {
+export async function createRemoteLink(input: LinkInput, home = homeDir()): Promise<string> {
   const { ws } = input
   const dir = remoteWorkspaceDir(ws.machine, ws.taskId, input.repo, home)
   mkdirSync(remoteBinDir(dir), { recursive: true })
@@ -164,15 +164,12 @@ export function createRemoteLink(input: LinkInput, home = homeDir()): string {
   chmodSync(rxPath(dir), 0o755)
   writeFileSync(rshPath(dir), rshScript(input.sshArgv, ws.path))
   chmodSync(rshPath(dir), 0o755)
-  const probe = spawnSync(
+  const probe = await runAsync(
     rxPath(dir),
     [`uname -sm; echo ${MARK}; cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null`],
-    {
-      encoding: "utf8",
-      timeout: 30_000,
-    },
+    { timeoutMs: 30_000 },
   )
-  if (probe.status !== 0 && !probe.stdout.includes(MARK)) {
+  if (!probe.ok && !probe.stdout.includes(MARK)) {
     removeRemoteLink(dir, home)
     throw new Error(`${ws.machine} did not answer at ${ws.path}: ${(probe.stderr || "ssh failed").trim()}`)
   }
