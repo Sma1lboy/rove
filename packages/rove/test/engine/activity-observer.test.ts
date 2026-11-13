@@ -9,7 +9,7 @@
 import { startActivityObserver } from "@sma1lboy/rove-daemon/daemon/activity-observer"
 import { DaemonActivityRegistry } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events"
 import type {
   EngineTabStateMap,
@@ -100,23 +100,27 @@ function world(
       tabActivities: tabs,
     })
   }
-  return { registry, state, row, taskRollup: () => engineState().get(TASK) }
+  return { bus, registry, state, row, taskRollup: () => engineState().get(TASK) }
 }
 
 const cleanups: Array<() => void> = []
+beforeEach(() => {
+  vi.useFakeTimers()
+})
 afterEach(() => {
   for (const fn of cleanups.splice(0)) fn()
+  vi.useRealTimers()
 })
 
+/** Steps fake time in 5ms slices (finer than the 15ms poll) until `cond` holds. */
 const waitFor = async (cond: () => boolean, timeoutMs = 1500): Promise<void> => {
-  const deadline = Date.now() + timeoutMs
-  while (!cond()) {
-    if (Date.now() > deadline) throw new Error("condition not met in time")
-    await new Promise((r) => setTimeout(r, 10))
+  for (let elapsed = 0; !cond(); elapsed += 5) {
+    if (elapsed > timeoutMs) throw new Error("condition not met in time")
+    await vi.advanceTimersByTimeAsync(5)
   }
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms)
 
 describe("activity observer", () => {
   it("re-seeds a busy session's dot on the first pass after a daemon restart", async () => {
@@ -230,13 +234,15 @@ describe("activity observer", () => {
     await wait(60)
     w.state.sessions = [frozen] // …and answers again with the very same frame
 
-    // Sampled far finer than the poll: a re-light lasts a full silence
-    // window, so any single flip is caught.
-    const deadline = Date.now() + 180
-    while (Date.now() < deadline) {
-      expect(w.row("tab-1")?.state).toBe("idle")
-      await wait(5)
-    }
+    // Every publish is recorded, so any single re-light is caught.
+    const published: Array<{ channel: string; payload: unknown }> = []
+    w.bus.onPublish((event) => published.push(event))
+    await wait(180)
+    const states = published
+      .filter((e) => e.channel === "engine-state")
+      .map((e) => (e.payload as { state: string }).state)
+    expect(states).not.toContain("running")
+    expect(w.row("tab-1")?.state).toBe("idle")
   })
 
   it("a host blip still lets REAL output re-light the tab", async () => {

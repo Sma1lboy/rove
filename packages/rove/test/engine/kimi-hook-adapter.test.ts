@@ -25,9 +25,16 @@ describe("KimiHookAdapter", () => {
   it("wires the load-bearing Kimi events and keeps Notification out", () => {
     // Interrupt is the load-bearing one: Kimi fires it INSTEAD of Stop on a
     // user interrupt (plugin-events.md §B).
-    for (const wired of ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "Interrupt", "PermissionRequest"]) {
-      expect(ROVE_KIMI_HOOK_EVENTS).toContain(wired)
-    }
+    expect(ROVE_KIMI_HOOK_EVENTS).toEqual(
+      expect.arrayContaining([
+        "SessionStart",
+        "UserPromptSubmit",
+        "Stop",
+        "StopFailure",
+        "Interrupt",
+        "PermissionRequest",
+      ]),
+    )
     // Notification stays out: no documented type filter → every idle prompt
     // would read as needs-input.
     expect(ROVE_KIMI_HOOK_EVENTS).not.toContain("Notification")

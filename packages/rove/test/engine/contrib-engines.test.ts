@@ -6,7 +6,7 @@ import { isBuiltinVendor } from "../../src/types/vendor.ts"
 
 describe("contrib engine catalog", () => {
   it("no contrib id shadows a built-in", () => {
-    for (const id of CONTRIB_ENGINE_IDS) expect(isBuiltinVendor(id)).toBe(false)
+    expect(CONTRIB_ENGINE_IDS.filter((id) => isBuiltinVendor(id))).toEqual([])
   })
 
   it("resolves through engineEntry with catalog identity + manifest", () => {
@@ -27,22 +27,14 @@ describe("contrib engine catalog", () => {
   // inherits the positional, so it inherits the fix.
   const PASTE_DELIVERY = ["opencode", "kilo"]
   it("the opencode family declares paste delivery; the rest keep the argv default", () => {
-    for (const id of CONTRIB_ENGINE_IDS) {
-      const delivery = engineEntry(id).firstMessageDelivery
-      if (PASTE_DELIVERY.includes(id)) expect(delivery, id).toBe("paste")
-      else expect(delivery, id).toBeUndefined()
-    }
+    const declared = CONTRIB_ENGINE_IDS.filter((id) => engineEntry(id).firstMessageDelivery !== undefined)
+    expect(declared.sort()).toEqual([...PASTE_DELIVERY].sort())
+    expect(PASTE_DELIVERY.map((id) => engineEntry(id).firstMessageDelivery)).toEqual(["paste", "paste"])
   })
 
-  it("every catalog manifest declares blocked rules before working rules", () => {
-    for (const [id, spec] of Object.entries(CONTRIB_ENGINES)) {
-      const states = spec.screenManifest.rules.map((r) => r.state)
-      const lastBlocked = states.lastIndexOf("blocked")
-      const firstWorking = states.indexOf("working")
-      if (lastBlocked >= 0 && firstWorking >= 0) {
-        expect(lastBlocked, `${id}: blocked rules must precede working (first match wins)`).toBeLessThan(firstWorking)
-      }
-    }
+  // First match wins, so a blocked rule after a working one could never fire.
+  it.each(Object.entries(CONTRIB_ENGINES))("%s's manifest declares blocked rules before working rules", (_id, spec) => {
+    expect(spec.screenManifest.rules.map((r) => r.state).join(" ")).not.toMatch(/working.*blocked/)
   })
 
   // Footers captured from opencode 0.6.3 (2026-09-04). It prints
@@ -50,9 +42,7 @@ describe("contrib engine catalog", () => {
   // so nothing matched and the badge stayed "unknown" for the tab's whole
   // life; and with no idle rule the badge could never come back down either.
   it("classifies opencode 0.6.3's real working and resting footers", () => {
-    const oc = CONTRIB_ENGINES.opencode?.screenManifest
-    expect(oc).toBeDefined()
-    if (!oc) return
+    const oc = CONTRIB_ENGINES.opencode!.screenManifest
     expect(classifyScreen(oc, "Build claude-sonnet-4-20250514 (02:01 AM)working...  esc interrupt")).toBe("working")
     expect(classifyScreen(oc, "┃ >   ┃\n enter send \n opencode v0.6.3  /w tab ┃ BUILD AGENT")).toBe("idle")
     // A running turn draws BOTH footers; the working rule must win.
@@ -64,9 +54,7 @@ describe("contrib engine catalog", () => {
   // healthy resting cursor screen produced the SAME classifier answer (null),
   // so "cannot run at all" was indistinguishable from "at rest".
   it("reads the cursor login wall as blocked, not as a resting engine", () => {
-    const cursor = CONTRIB_ENGINES.cursor?.screenManifest
-    expect(cursor).toBeDefined()
-    if (!cursor) return
+    const cursor = CONTRIB_ENGINES.cursor!.screenManifest
     const wall = "                    Cursor Agent\n  v2026.04.17-787b533\n  Press any key to log in..."
     expect(classifyScreen(cursor, wall)).toBe("blocked")
     // A running turn is still working — the new rule sits above it but only
@@ -74,23 +62,18 @@ describe("contrib engine catalog", () => {
     expect(classifyScreen(cursor, "Generating...   esc to cancel")).toBe("working")
   })
 
-  it("classifies representative screens (spot checks per engine)", () => {
-    const cases: ReadonlyArray<[string, string, "working" | "blocked"]> = [
-      ["gemini", "output…\nesc to cancel", "working"],
-      ["gemini", "│ Apply this change\n❯ Yes", "blocked"],
-      ["opencode", "△ Permission required", "blocked"],
-      ["opencode", "thinking…\nesc to interrupt", "working"],
-      ["cursor", "Run this command?\nProceed (y)", "blocked"],
-      ["droid", "streaming…\nEsc to stop", "working"],
-      ["amp", "Waiting for approval\nRun this command?", "blocked"],
-      ["amp", "╰ agent thinking ─ 3s", "working"],
-      ["grok", "⠧ Waiting on subagent… 2.8s [stop]", "working"],
-      ["grok", "┃  2 (○) Yes, proceed", "blocked"],
-    ]
-    for (const [id, capture, expected] of cases) {
-      const manifest = CONTRIB_ENGINES[id]?.screenManifest
-      expect(manifest, id).toBeDefined()
-      if (manifest) expect(classifyScreen(manifest, capture), `${id}: ${capture}`).toBe(expected)
-    }
+  it.each<[string, string, "working" | "blocked"]>([
+    ["gemini", "output…\nesc to cancel", "working"],
+    ["gemini", "│ Apply this change\n❯ Yes", "blocked"],
+    ["opencode", "△ Permission required", "blocked"],
+    ["opencode", "thinking…\nesc to interrupt", "working"],
+    ["cursor", "Run this command?\nProceed (y)", "blocked"],
+    ["droid", "streaming…\nEsc to stop", "working"],
+    ["amp", "Waiting for approval\nRun this command?", "blocked"],
+    ["amp", "╰ agent thinking ─ 3s", "working"],
+    ["grok", "⠧ Waiting on subagent… 2.8s [stop]", "working"],
+    ["grok", "┃  2 (○) Yes, proceed", "blocked"],
+  ])("classifies a representative %s screen %j", (id, capture, expected) => {
+    expect(classifyScreen(CONTRIB_ENGINES[id]!.screenManifest, capture)).toBe(expected)
   })
 })

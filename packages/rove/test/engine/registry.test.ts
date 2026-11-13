@@ -71,28 +71,26 @@ describe("engineEntry — built-in vendors", () => {
     // gates its `.claude/{commands,skills}/` loader on this, not a vendor string.
   })
 
-  it("resolves codex/copilot with their identity, history, and hook wiring", () => {
-    for (const [vendor, label] of [
-      ["codex", "Codex"],
-      ["copilot", "Copilot"],
-    ] as const) {
-      const entry = engineEntry(vendor)
-      expect(entry.vendor).toBe(vendor)
-      expect(entry.builtin).toBe(true)
-      expect(entry.displayName).toBe(label)
-      expect(entry.defaultCommand).toEqual([vendor])
-      const hooks = entry.createHookAdapter()
-      expect(hooks.vendor).toBe(vendor)
-      // Both have a wired hook mechanism: codex's ~/.codex/hooks.json and
-      // copilot's ~/.copilot/settings.json.
-      expect(hooks.supportsHooks()).toBe(true)
-      // Real history readers — not the custom-engine empty one.
-      expect(entry.history).not.toBe(EMPTY_HISTORY)
-      // Codex reads `turn.completed` rollout markers; copilot has none yet.
-      const detector = entry.createTurnDetector()
-      expect(detector.vendor).toBe(vendor)
-      expect(detector.supportsCompletionMarkers()).toBe(vendor === "codex")
-    }
+  it.each([
+    ["codex", "Codex", true],
+    ["copilot", "Copilot", false],
+  ] as const)("resolves %s with its identity, history, and hook wiring", (vendor, label, completionMarkers) => {
+    const entry = engineEntry(vendor)
+    expect(entry.vendor).toBe(vendor)
+    expect(entry.builtin).toBe(true)
+    expect(entry.displayName).toBe(label)
+    expect(entry.defaultCommand).toEqual([vendor])
+    const hooks = entry.createHookAdapter()
+    expect(hooks.vendor).toBe(vendor)
+    // Both have a wired hook mechanism: codex's ~/.codex/hooks.json and
+    // copilot's ~/.copilot/settings.json.
+    expect(hooks.supportsHooks()).toBe(true)
+    // Real history readers — not the custom-engine empty one.
+    expect(entry.history).not.toBe(EMPTY_HISTORY)
+    // Codex reads `turn.completed` rollout markers; copilot has none yet.
+    const detector = entry.createTurnDetector()
+    expect(detector.vendor).toBe(vendor)
+    expect(detector.supportsCompletionMarkers()).toBe(completionMarkers)
   })
 
   it("wires readUsageSnapshot for usage-reporting engines only", () => {
@@ -139,7 +137,7 @@ describe("vendorsWithQuotaProbe", () => {
     // happened to be Claude.
     const vendors = vendorsWithQuotaProbe()
     expect([...vendors].sort()).toEqual(["claude", "codex"])
-    for (const vendor of vendors) expect(engineEntry(vendor).quotaUsage).toBeDefined()
+    expect(vendors.filter((vendor) => engineEntry(vendor).quotaUsage === undefined)).toEqual([])
   })
 })
 
@@ -150,7 +148,7 @@ describe("vendorsWithTurnReader", () => {
     // strings in neutral code and go stale on the third adapter.
     const vendors = vendorsWithTurnReader()
     expect([...vendors].sort()).toEqual(["claude", "codex"])
-    for (const vendor of vendors) expect(engineEntry(vendor).readTurns).toBeDefined()
+    expect(vendors.filter((vendor) => engineEntry(vendor).readTurns === undefined)).toEqual([])
   })
 })
 
@@ -158,7 +156,7 @@ describe("vendorsWithEffortLevels", () => {
   it("lists every engine that declares reasoning levels, so the effort error can name them", () => {
     const vendors = vendorsWithEffortLevels()
     expect([...vendors].sort()).toEqual(["claude", "codex", "omp", "pi"])
-    for (const vendor of vendors) expect((engineEntry(vendor).effortLevels?.length ?? 0) > 0).toBe(true)
+    expect(vendors.filter((vendor) => !engineEntry(vendor).effortLevels?.length)).toEqual([])
   })
 
   it("omits engines that declare none rather than implying they take a level", () => {

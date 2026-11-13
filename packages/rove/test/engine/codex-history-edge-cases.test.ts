@@ -200,8 +200,9 @@ describe("parseJsonl — tool call / result records", () => {
     ])
   })
 
-  it("normalizes web_search_call / image_generation_call / local_shell_call as a paired tool_call+tool_result", () => {
-    for (const type of ["web_search_call", "image_generation_call", "local_shell_call"]) {
+  it.each(["web_search_call", "image_generation_call", "local_shell_call"])(
+    "normalizes %s as a paired tool_call+tool_result",
+    (type) => {
       const raw = meta({ type, call_id: `c-${type}`, query: "x" })
       const out = parseJsonl(raw, SID)
       expect(out).toHaveLength(1)
@@ -209,26 +210,23 @@ describe("parseJsonl — tool call / result records", () => {
         { type: "tool_call", callId: `c-${type}`, name: type, input: { query: "x" } },
         { type: "tool_result", callId: `c-${type}`, output: { query: "x" }, isError: false },
       ])
-    }
-  })
+    },
+  )
 
-  it("reads a single-record tool's own status instead of hard-coding isError:false", () => {
-    // `status` shapes taken from real `~/.codex/sessions` rollouts: call
-    // records carry `"completed"`, and Codex's own failure verdict spells
-    // itself `"failed"` (221 of them across one month of local sessions).
-    // `in_progress` is the Responses-API "still running", not a failure.
-    const cases: ReadonlyArray<[string | undefined, boolean]> = [
-      ["completed", false],
-      ["in_progress", false],
-      ["failed", true],
-      ["incomplete", true],
-      [undefined, false], // no verdict recorded ⇒ no failure claimed
-    ]
-    for (const [status, isError] of cases) {
-      const raw = meta({ type: "local_shell_call", call_id: "c9", ...(status ? { status } : {}), query: "x" })
-      const result = parseJsonl(raw, SID)[0]?.blocks[1]
-      expect({ status, isError: (result as { isError: boolean }).isError }).toEqual({ status, isError })
-    }
+  // `status` shapes taken from real `~/.codex/sessions` rollouts: call
+  // records carry `"completed"`, and Codex's own failure verdict spells
+  // itself `"failed"` (221 of them across one month of local sessions).
+  // `in_progress` is the Responses-API "still running", not a failure.
+  it.each<[Record<string, string>, boolean]>([
+    [{ status: "completed" }, false],
+    [{ status: "in_progress" }, false],
+    [{ status: "failed" }, true],
+    [{ status: "incomplete" }, true],
+    [{}, false], // no verdict recorded ⇒ no failure claimed
+  ])("reads a single-record tool's own status %j instead of hard-coding isError:false", (status, isError) => {
+    const raw = meta({ type: "local_shell_call", call_id: "c9", ...status, query: "x" })
+    const result = parseJsonl(raw, SID)[0]?.blocks[1]
+    expect((result as { isError: boolean }).isError).toBe(isError)
   })
 
   it("keeps `status` out of the tool_call INPUT — it is metadata, not an argument", () => {
@@ -347,6 +345,12 @@ describe("readHistoryWithMetrics / readHistory", () => {
       ...over,
     }
   }
+  const rolloutTree = (rollout: string): Record<string, string[]> => ({
+    "/sessions": ["2026"],
+    "/sessions/2026": ["01"],
+    "/sessions/2026/01": ["01"],
+    "/sessions/2026/01/01": [rollout],
+  })
 
   it("returns empty messages when no rollout matches the session id", async () => {
     expect(await readHistoryWithMetrics("missing", deps())).toEqual({ messages: [] })
@@ -356,13 +360,7 @@ describe("readHistoryWithMetrics / readHistory", () => {
   it("returns empty messages when the matched file can't be read", async () => {
     const rollout = "rollout-2026-01-01T00-00-00-aaaaaaaa-1111-2222-3333-444444444444.jsonl"
     const d = deps({
-      readdir: async (p) => {
-        if (p === "/sessions") return ["2026"]
-        if (p === "/sessions/2026") return ["01"]
-        if (p === "/sessions/2026/01") return ["01"]
-        if (p === "/sessions/2026/01/01") return [rollout]
-        return []
-      },
+      readdir: async (p) => rolloutTree(rollout)[p] ?? [],
       readFile: async () => {
         throw new Error("EACCES")
       },
@@ -386,13 +384,7 @@ describe("readHistoryWithMetrics / readHistory", () => {
       JSON.stringify({ type: "turn.completed", usage: { output_tokens: 7 } }),
     ]
     const d = deps({
-      readdir: async (p) => {
-        if (p === "/sessions") return ["2026"]
-        if (p === "/sessions/2026") return ["01"]
-        if (p === "/sessions/2026/01") return ["01"]
-        if (p === "/sessions/2026/01/01") return [rollout]
-        return []
-      },
+      readdir: async (p) => rolloutTree(rollout)[p] ?? [],
       readFile: async () => lines.join("\n"),
     })
     const result = await readHistoryWithMetrics(SID, d)

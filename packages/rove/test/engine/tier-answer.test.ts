@@ -45,33 +45,27 @@ describe("readChoiceAnswer", () => {
     ).toMatchObject({ ok: false })
   })
 
-  it("refuses a number that is not a probability", () => {
-    for (const bad of [Number.NaN, -0.1, 1.2, "0.5", null]) {
-      expect(readChoiceAnswer({ ...ok, probabilities: { ...ok.probabilities, deep: bad } })).toMatchObject({
-        ok: false,
-      })
-    }
+  it.each([Number.NaN, -0.1, 1.2, "0.5", null])("refuses %j, which is not a probability", (bad) => {
+    expect(readChoiceAnswer({ ...ok, probabilities: { ...ok.probabilities, deep: bad } })).toMatchObject({ ok: false })
   })
 
   it("refuses a choice that is not the argmax of its own distribution", () => {
     expect(readChoiceAnswer({ ...ok, choice: "swift" })).toMatchObject({ ok: false })
   })
 
-  it("tolerates a sum of 0.99 and of 1.01, and passes the numbers through UNSCALED", () => {
-    // `jev-1.13.0` reports probabilities rounded to the cent, so a real
-    // distribution sums to 0.99 or 1.01 — both of these are answers the live
-    // endpoint actually returns, not contrived ones.
-    for (const probabilities of [
-      { swift: 0.2, standard: 0.5, deep: 0.29 }, // 0.99
-      { swift: 0.2, standard: 0.5, deep: 0.31 }, // 1.01
-    ]) {
-      const read = readChoiceAnswer({ choice: "standard", confidence: 0.5, probabilities })
-      expect(read, JSON.stringify(probabilities)).toMatchObject({ ok: true })
-      // Renormalizing would rewrite these to sum to exactly 1; every
-      // threshold comparison after it would then be judging our arithmetic
-      // rather than the model's answer.
-      expect(read.ok && read.value.probabilities).toEqual(probabilities)
-    }
+  // `jev-1.13.0` reports probabilities rounded to the cent, so a real
+  // distribution sums to 0.99 or 1.01 — both of these are answers the live
+  // endpoint actually returns, not contrived ones.
+  it.each([
+    { swift: 0.2, standard: 0.5, deep: 0.29 }, // 0.99
+    { swift: 0.2, standard: 0.5, deep: 0.31 }, // 1.01
+  ])("tolerates an off-by-a-cent sum (%j) and passes the numbers through UNSCALED", (probabilities) => {
+    const read = readChoiceAnswer({ choice: "standard", confidence: 0.5, probabilities })
+    expect(read).toMatchObject({ ok: true })
+    // Renormalizing would rewrite these to sum to exactly 1; every
+    // threshold comparison after it would then be judging our arithmetic
+    // rather than the model's answer.
+    expect(read.ok && read.value.probabilities).toEqual(probabilities)
   })
 
   it("refuses a distribution that does not sum to 1 within tolerance", () => {

@@ -10,7 +10,7 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { trustClaudeWorktree } from "../../src/engine/claude-code-local/trust.ts"
 import { trustCodexWorktree } from "../../src/engine/codex-local/trust.ts"
 import { trustCopilotWorktree } from "../../src/engine/copilot-local/trust.ts"
@@ -137,7 +137,7 @@ describe("trustCodexWorktree", () => {
     expect(new Set(headers).size).toBe(headers.length)
   })
 
-  it("waits for a rival writer holding the lock instead of overwriting it", () => {
+  it("waits for a rival writer holding the lock instead of overwriting it", async () => {
     const home = tempHome()
     const dir = path.join(home, ".codex")
     fs.mkdirSync(dir, { recursive: true })
@@ -163,10 +163,7 @@ describe("trustCodexWorktree", () => {
     )
     try {
       // Wait until the rival actually holds the lock before entering.
-      for (let i = 0; i < 200 && !fs.existsSync(lockFile); i++) {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
-      }
-      expect(fs.existsSync(lockFile)).toBe(true)
+      await vi.waitFor(() => expect(fs.existsSync(lockFile)).toBe(true), { timeout: 2000, interval: 10 })
       trustCodexWorktree(WORKTREE, home)
       const text = fs.readFileSync(path.join(dir, "config.toml"), "utf8")
       // Both stanzas survive — without the lock this call reads the file

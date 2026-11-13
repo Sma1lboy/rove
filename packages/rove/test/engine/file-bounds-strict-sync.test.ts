@@ -28,18 +28,20 @@ describe("strict synchronous file reads", () => {
     expect(readTextFileIfRegularSync(dir, 4)).toBeNull()
   })
 
-  it("propagates permission failures while keeping credential fallback unchanged", () => {
-    const file = path.join(fixture(), "unreadable")
-    fs.writeFileSync(file, "secret fixture", { mode: 0 })
-    try {
-      if (process.getuid?.() !== 0) {
+  // root reads through mode 0, so the permission error never happens there.
+  it.skipIf(process.getuid?.() === 0)(
+    "propagates permission failures while keeping credential fallback unchanged",
+    () => {
+      const file = path.join(fixture(), "unreadable")
+      fs.writeFileSync(file, "secret fixture", { mode: 0 })
+      try {
         expect(() => readTextFileIfRegularSync(file)).toThrow()
         expect(() => readTextFileSyncBounded(file)).toThrow()
+      } finally {
+        fs.chmodSync(file, 0o600)
       }
-    } finally {
-      fs.chmodSync(file, 0o600)
-    }
-  })
+    },
+  )
 
   it("rejects FIFOs without blocking, using the same open-handle checks as async", () => {
     const dir = fixture()

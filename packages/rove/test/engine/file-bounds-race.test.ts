@@ -80,13 +80,14 @@ describe("real catalog byte budget", () => {
     const root = await mkdtemp(path.join(tmpdir(), "rove-catalog-bytes-"))
     const day = path.join(root, "2026", "01", "01")
     await mkdir(day, { recursive: true })
-    for (let n = 0; n < 201; n++) {
-      const id = `00000000-0000-0000-0000-${n.toString().padStart(12, "0")}`
-      await writeFile(
-        path.join(day, `rollout-2026-01-01T00-00-00-${id}.jsonl`),
-        `${JSON.stringify({ type: "session_meta", payload: { cwd: `/wt/${n % 50}` } })}\n${"x".repeat(32 * 1024)}`,
-      )
-    }
+    await Promise.all(
+      Array.from({ length: 201 }, (_, n) =>
+        writeFile(
+          path.join(day, `rollout-2026-01-01T00-00-00-00000000-0000-0000-0000-${n.toString().padStart(12, "0")}.jsonl`),
+          `${JSON.stringify({ type: "session_meta", payload: { cwd: `/wt/${n % 50}` } })}\n${"x".repeat(32 * 1024)}`,
+        ),
+      ),
+    )
     const deps = { ...defaultHistoryDeps, sessionsDir: () => root }
     await Promise.all(Array.from({ length: 50 }, (_, n) => findLatestRolloutForWorktree(`/wt/${n}`, deps)))
     expect(io.bytes).toBe(201 * 16 * 1024)

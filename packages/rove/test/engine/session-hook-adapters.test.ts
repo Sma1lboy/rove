@@ -35,8 +35,8 @@ interface EngineCase {
   /** Config path relative to a fake home, as path segments. */
   readonly relPath: readonly string[]
   readonly pathFor: (home: string) => string
-  /** The engine's own config-dir override, if it has one. */
-  readonly envOverride?: { readonly name: string; readonly dirFor: (dir: string) => string }
+  /** The engine's own config-dir override. */
+  readonly envOverride: { readonly name: string; readonly dirFor: (dir: string) => string }
   /** A third party's entry in the same file, which must survive. */
   readonly foreignCommand: string
 }
@@ -100,13 +100,12 @@ describe.each(CASES)("$vendor hooks", (c) => {
     // `join`, not a literal: the separator is the platform's, and a
     // "/home/x/.qoder/settings.json" spelling passes everywhere but Windows CI.
     it("defaults under the home directory", () => {
-      if (c.envOverride) vi.stubEnv(c.envOverride.name, "")
+      vi.stubEnv(c.envOverride.name, "")
       expect(c.pathFor("/home/x")).toBe(join("/home/x", ...c.relPath))
     })
 
     it("honours the engine's own config-dir override", () => {
       const override = c.envOverride
-      if (!override) return
       vi.stubEnv(override.name, join("/elsewhere", "cfg"))
       expect(c.pathFor("/home/x")).toBe(join(override.dirFor(join("/elsewhere", "cfg")), c.relPath.at(-1) as string))
     })

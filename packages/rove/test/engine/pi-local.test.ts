@@ -10,7 +10,7 @@
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
-import { afterAll, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest"
 
 // `os.homedir()` reads the SYSTEM account on macOS, not $HOME, so the
 // default-deps test below needs the module mocked the way
@@ -246,33 +246,31 @@ describe("pi-family session parsing", () => {
  * an actual file on disk.
  */
 describe("pi-family session store, default deps", () => {
-  it("finds an omp session from the home-relative directory omp writes", async () => {
-    const previousAgentDir = process.env.PI_CODING_AGENT_DIR
-    try {
-      const agentDir = join(tmpHome, ".omp", "agent")
-      const sessionDir = join(agentDir, "sessions", "-i-rove")
-      mkdirSync(sessionDir, { recursive: true })
-      const file = join(sessionDir, "2026-01-01T00-00-00-000Z_aaaa-bbbb.jsonl")
-      writeFileSync(
-        file,
-        `${JSON.stringify({ type: "message", id: "m1", timestamp: "2026-01-01T00:00:00.000Z", message: { role: "user", content: "hi" } })}\n`,
-      )
-      process.env.PI_CODING_AGENT_DIR = agentDir
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
 
-      // The worktree must EXIST: both CLIs encode the RESOLVED path, and on
-      // macOS an unresolved `/var/…` never matches the `/private/var/…` the
-      // store was written under.
-      const worktree = join(tmpHome, "i", "rove")
-      mkdirSync(worktree, { recursive: true })
-      expect(await listSessionIdsForWorktree("omp", worktree)).toEqual(["aaaa-bbbb"])
-      expect(await transcriptPath("omp", "aaaa-bbbb", worktree)).toBe(file)
-      expect(await latestTranscriptMtimeForWorktree("omp", worktree)).toBeGreaterThan(0)
-      // Resolving the file is half the point; the other half is that the
-      // shipped parser turns its one record into a neutral message.
-      expect((await readHistory("omp", "aaaa-bbbb"))[0]?.blocks).toEqual([{ type: "text", text: "hi" }])
-    } finally {
-      if (previousAgentDir === undefined) Reflect.deleteProperty(process.env, "PI_CODING_AGENT_DIR")
-      else process.env.PI_CODING_AGENT_DIR = previousAgentDir
-    }
+  it("finds an omp session from the home-relative directory omp writes", async () => {
+    const agentDir = join(tmpHome, ".omp", "agent")
+    const sessionDir = join(agentDir, "sessions", "-i-rove")
+    mkdirSync(sessionDir, { recursive: true })
+    const file = join(sessionDir, "2026-01-01T00-00-00-000Z_aaaa-bbbb.jsonl")
+    writeFileSync(
+      file,
+      `${JSON.stringify({ type: "message", id: "m1", timestamp: "2026-01-01T00:00:00.000Z", message: { role: "user", content: "hi" } })}\n`,
+    )
+    vi.stubEnv("PI_CODING_AGENT_DIR", agentDir)
+
+    // The worktree must EXIST: both CLIs encode the RESOLVED path, and on
+    // macOS an unresolved `/var/…` never matches the `/private/var/…` the
+    // store was written under.
+    const worktree = join(tmpHome, "i", "rove")
+    mkdirSync(worktree, { recursive: true })
+    expect(await listSessionIdsForWorktree("omp", worktree)).toEqual(["aaaa-bbbb"])
+    expect(await transcriptPath("omp", "aaaa-bbbb", worktree)).toBe(file)
+    expect(await latestTranscriptMtimeForWorktree("omp", worktree)).toBeGreaterThan(0)
+    // Resolving the file is half the point; the other half is that the
+    // shipped parser turns its one record into a neutral message.
+    expect((await readHistory("omp", "aaaa-bbbb"))[0]?.blocks).toEqual([{ type: "text", text: "hi" }])
   })
 })

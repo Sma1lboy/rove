@@ -210,9 +210,11 @@ describe("generated opencode plugin behaviour", () => {
 
   it("ignores the high-frequency and unknown events entirely", async () => {
     const { hooks, spawns } = await loadPlugin("opencode", INPUT)
-    for (const type of ["tool.execute.before", "tool.execute.after", "session.deleted", "something.new"]) {
-      await hooks.event({ event: { type, properties: { sessionID: "s1" } } })
-    }
+    await Promise.all(
+      ["tool.execute.before", "tool.execute.after", "session.deleted", "something.new"].map((type) =>
+        hooks.event({ event: { type, properties: { sessionID: "s1" } } }),
+      ),
+    )
     expect(spawns).toHaveLength(0)
   })
 

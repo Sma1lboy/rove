@@ -54,22 +54,21 @@ describe("the generated rubric", () => {
     expect(new Set(DEFAULT_TIER_RUBRIC.examples.map((e) => e.tier))).toEqual(new Set(AUTO_ROUTING_TIERS))
   })
 
-  it("puts each boundary rule INSIDE its own option, not in the instructions", () => {
-    // Worth +3.2 points on its own. The shape is the point: a tier is judged
-    // against its neighbours while that tier is being considered.
-    for (const tier of AUTO_ROUTING_TIERS) {
-      expect(DEFAULT_TIER_RUBRIC.criteria[tier].边界.length).toBeGreaterThan(20)
-    }
+  // Worth +3.2 points on its own. The shape is the point: a tier is judged
+  // against its neighbours while that tier is being considered.
+  it.each(AUTO_ROUTING_TIERS)("puts %s's boundary rule INSIDE its own option", (tier) => {
+    expect(DEFAULT_TIER_RUBRIC.criteria[tier].边界.length).toBeGreaterThan(20)
+  })
+
+  it("keeps boundary rules out of the instructions", () => {
     expect(DEFAULT_TIER_RUBRIC.criterion).not.toContain("分界")
   })
 
-  it("spells the boundary key the way the measured request spelled it", () => {
-    // `criteria` entries are serialized into the request, so a key is a word
-    // the model reads. Renaming it to `boundary` would edit the prompt in the
-    // one place a diff reads as a refactor.
-    for (const tier of AUTO_ROUTING_TIERS) {
-      expect(Object.keys(DEFAULT_TIER_RUBRIC.criteria[tier]).sort()).toEqual(["what", "边界"])
-    }
+  // `criteria` entries are serialized into the request, so a key is a word
+  // the model reads. Renaming it to `boundary` would edit the prompt in the
+  // one place a diff reads as a refactor.
+  it.each(AUTO_ROUTING_TIERS)("spells %s's boundary key the way the measured request spelled it", (tier) => {
+    expect(Object.keys(DEFAULT_TIER_RUBRIC.criteria[tier]).sort()).toEqual(["what", "边界"])
   })
 })
 
