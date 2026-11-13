@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { bar, byEngineModel, dayKey, lastDays, runway, stackedBar, topTasks } from "../src/usage-data.ts"
+import { byEngineModel, dayKey, lastDays, runway, topTasks } from "../src/usage-data.ts"
 
 const HOUR = 3_600_000
 const NOW = new Date(2026, 10, 6, 15, 0, 0).getTime()
@@ -48,20 +48,6 @@ describe("the usage window", () => {
       ["b", 100],
       ["a", 5],
     ])
-  })
-})
-
-describe("text bars", () => {
-  test("a bar is eighth-block steps, never empty for a non-zero value", () => {
-    expect(bar(10, 10, 4)).toBe("████")
-    expect(bar(5, 10, 4)).toBe("██")
-    expect(bar(1, 1000, 4)).toBe("▏")
-    expect(bar(0, 10, 4)).toBe("")
-  })
-
-  test("a stacked bar gives each engine its own shade and at least one cell", () => {
-    expect(stackedBar({ claude: 80, codex: 1 }, ["claude", "codex"], 100, 10)).toBe("████████▓")
-    expect(stackedBar({}, ["claude"], 100, 10)).toBe("")
   })
 })
 
