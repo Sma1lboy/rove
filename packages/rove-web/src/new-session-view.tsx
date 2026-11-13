@@ -52,7 +52,7 @@ import { useEngineChoice } from "./task-dialogs.tsx"
 import { type NewSessionStart, newSession, openNewSession, toast } from "./ui.ts"
 import { buttonClass } from "./ui/button.tsx"
 import * as C from "./ui/composer.ts"
-import { CardMicFace, ClipGlyph, composerAttach, composerHold } from "./ui/term-composer.tsx"
+import { CardMicFace, ClipGlyph, SendButton, composerAttach, composerHold } from "./ui/term-composer.tsx"
 import { DictationButton, talksFirst, useVoiceHosted } from "./voice/dictation-button.tsx"
 
 /** New task: the composer, on this machine or the registered one the caller names. */
@@ -385,10 +385,12 @@ export function NewSessionView({ model, seed }: { model: AppModel; seed: NewSess
               )}
             />
             {!talks && <span className={C.GROW} />}
-            {/* As tall as the hold control beside it. */}
-            <button type="submit" className={`${buttonClass()} self-stretch`} disabled={busy}>
-              {t("newSession.start")}
-            </button>
+            {talks && <SendButton label={t("newSession.start")} disabled={busy} />}
+            {!talks && (
+              <button type="submit" className={buttonClass()} disabled={busy}>
+                {t("newSession.start")}
+              </button>
+            )}
           </div>
         </div>
         <div className={C.BAR}>
