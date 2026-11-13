@@ -27,6 +27,10 @@ list key from its stale copy could erase it.
 - The TUI's kv core follows it (`kv-core.ts` `follow`, wired in `host-boot.tsx`
   `UiPrefsSync`): pushed keys replace the snapshot, this process's unflushed
   keys win until they land.
+- Diff review note mutations use locked read-modify-write operations. Failed
+  writes keep the local note and pending mutations in memory; debounce, reload
+  and exit flushes retry them against fresh disk state, preserving other clients'
+  addition/removal changes. Pending mutations last only for this TUI process.
 - Headless readers (CLI, bridge ops, the daemon) already read the file per
   call and need nothing.
 

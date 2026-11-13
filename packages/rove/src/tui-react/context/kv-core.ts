@@ -4,9 +4,12 @@
  *   - Hydrates synchronously from `state.json` at creation, so the first
  *     render has persisted values, then follows the daemon's `state` push
  *     (`follow`), so another process's writes and hand edits show up live.
- *   - Writes are debounced (250ms) and dirty-key merged via `patchStateFile`:
+ *   - Writes are debounced (250ms) and dirty-key merged under the state lock:
  *     only keys this process changed reach disk, so a concurrent process's
  *     writes are never clobbered. Dirty keys survive a failed flush.
+ *   - `update()` changes ONE key against the file as it is now, under the
+ *     file lock: for a list several clients add to, where `set` would write
+ *     this process's copy over a row another client just added.
  *   - `clear()` is the one whole-file write: reset wipes everything,
  *     including other processes' keys.
  */
@@ -16,7 +19,7 @@ import { isUnpublishedStateKey } from "@sma1lboy/rove-daemon/daemon/state-watche
 import { kvStatePath } from "../../env.ts"
 import { createStateCell } from "../../lib/external-store"
 import { SIDEBAR_COLLAPSED_KEY, SIDEBAR_WIDTH_KEY } from "../../state/sidebar-collapsed.ts"
-import { loadStateFile, patchStateFile, readStateFileStrict, replaceStateFile } from "../../state/store.ts"
+import { loadStateFile, readStateFileStrict, replaceStateFile, updateStateFile } from "../../state/store.ts"
 import { TERMINAL_TABS_PREFIX } from "../../state/tabs-persistence.ts"
 import { ZEN_ACTIVE_KEY } from "../../state/zen.ts"
 
@@ -55,6 +58,13 @@ export interface KvCore {
    */
   setQuiet(key: string, value: unknown): void
   /**
+   * Change one key from its value ON DISK now (locked read-modify-write), then adopt the
+   * result. For a collection other clients also change: `mutate` gets their rows too.
+   * Mutations must be pure: failed writes retain them for replay against fresh disk
+   * state. False = pending persistence; the snapshot includes the local edit.
+   */
+  update(key: string, mutate: (current: unknown) => unknown): boolean
+  /**
    * In-memory default seeding (the `signal(name, default)` contract): sets
    * the key ONLY when currently undefined, and never marks it dirty — a
    * default must not be persisted just because it was read.
@@ -90,6 +100,7 @@ export function createKvCore(): KvCore {
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
+  const pendingUpdates = new Map<string, ((current: unknown) => unknown)[]>()
   /** `setQuiet` values, read over the snapshot until `set` or a changed remote value. */
   const quiet = new Map<string, unknown>()
   /** `seed()` defaults, restored by `reload()` for keys the file doesn't carry. */
@@ -102,8 +113,11 @@ export function createKvCore(): KvCore {
    */
   const reportedKeys = new Set<string>()
 
-  function reportWriteError(err: unknown): void {
-    const fresh = [...dirtyKeys].filter((key) => !reportedKeys.has(key))
+  function reportWriteError(
+    err: unknown,
+    unwritten: Iterable<string> = new Set([...dirtyKeys, ...pendingUpdates.keys()]),
+  ): void {
+    const fresh = [...unwritten].filter((key) => !reportedKeys.has(key))
     if (fresh.length === 0) return
     for (const key of fresh) reportedKeys.add(key)
     const failure: KvWriteFailure = { keys: fresh, file: kvStatePath(), error: err }
@@ -111,13 +125,39 @@ export function createKvCore(): KvCore {
   }
 
   function writeNow(label: string): boolean {
-    if (dirtyKeys.size === 0) return true // nothing of ours to merge
+    if (dirtyKeys.size === 0 && pendingUpdates.size === 0) return true // nothing of ours to merge
     try {
       // A key set to `undefined` locally becomes a deletion on disk.
       const patch: Record<string, unknown> = {}
       const snap = store.get()
       for (const key of dirtyKeys) patch[key] = quiet.has(key) ? quiet.get(key) : snap[key]
-      patchStateFile(patch, "strict")
+      const updated: Record<string, unknown> = {}
+      updateStateFile((state) => {
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined) delete state[key]
+          else state[key] = value
+        }
+        for (const [key, mutations] of pendingUpdates) {
+          let value = state[key]
+          for (const mutate of mutations) value = mutate(value)
+          updated[key] = value
+          if (value === undefined) delete state[key]
+          else state[key] = value
+        }
+        return undefined
+      }, "strict")
+      pendingUpdates.clear()
+      for (const key of Object.keys(updated)) quiet.delete(key)
+      if (Object.keys(updated).length > 0) {
+        store.update((snapshot) => {
+          const next = { ...snapshot }
+          for (const [key, value] of Object.entries(updated)) {
+            if (value === undefined) delete next[key]
+            else next[key] = value
+          }
+          return next
+        })
+      }
       dirtyKeys.clear()
       reportedKeys.clear()
       return true
@@ -152,7 +192,7 @@ export function createKvCore(): KvCore {
     const before = store.get()
     const next: Record<string, unknown> = { ...fresh }
     for (const [key, value] of seeded) if (next[key] === undefined) next[key] = value
-    for (const key of dirtyKeys) {
+    for (const key of new Set([...dirtyKeys, ...pendingUpdates.keys()])) {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
@@ -167,7 +207,7 @@ export function createKvCore(): KvCore {
       if (before[key] === undefined) delete next[key]
       else next[key] = before[key]
     }
-    if (dirtyKeys.size > 0) scheduleWrite()
+    if (dirtyKeys.size > 0 || pendingUpdates.size > 0) scheduleWrite()
     let changed = 0
     for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
       if (JSON.stringify(before[key]) !== JSON.stringify(next[key])) changed++
@@ -190,6 +230,7 @@ export function createKvCore(): KvCore {
         logClientError("kv", new Error(`refused a local write of ${key}: tabs go through the daemon`))
         return
       }
+      pendingUpdates.delete(key)
       quiet.delete(key)
       // `undefined` DELETES the key, matching disk. An enumerable `undefined`
       // makes `sweepOrphanTabsSnapshots` (walks `Object.keys`, re-runs on
@@ -205,9 +246,27 @@ export function createKvCore(): KvCore {
       scheduleWrite()
     },
     setQuiet(key, value) {
+      pendingUpdates.delete(key)
       quiet.set(key, value)
       dirtyKeys.add(key)
       scheduleWrite()
+    },
+    update(key, mutate) {
+      const next = mutate(quiet.has(key) ? quiet.get(key) : store.get()[key])
+      const pending = pendingUpdates.get(key) ?? []
+      pendingUpdates.set(key, [...pending, mutate])
+      // Updates supersede older whole-key writes and always replay against fresh disk state.
+      dirtyKeys.delete(key)
+      quiet.delete(key)
+      store.update((s) => {
+        const copy = { ...s }
+        if (next === undefined) delete copy[key]
+        else copy[key] = next
+        return copy
+      })
+      const written = writeNow("update")
+      if (!written) scheduleWrite()
+      return written
     },
     seed(key, value) {
       if (!seeded.has(key)) seeded.set(key, value)
@@ -227,6 +286,7 @@ export function createKvCore(): KvCore {
       }
       cancelTimer()
       dirtyKeys.clear()
+      pendingUpdates.clear()
       reportedKeys.clear()
       quiet.clear()
       store.set({})

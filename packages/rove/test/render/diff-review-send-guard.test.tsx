@@ -40,7 +40,10 @@ function memoryKv(): DiffCommentsKv & { read: () => readonly DiffComment[] } {
   const store = new Map<string, unknown>()
   return {
     get: (k, d) => store.get(k) ?? d,
-    set: (k, v) => store.set(k, v),
+    update: (k, mutate) => {
+      store.set(k, mutate(store.get(k)))
+      return true
+    },
     read: () => (store.get(diffCommentsKey("t1")) as DiffComment[] | undefined) ?? [],
   }
 }

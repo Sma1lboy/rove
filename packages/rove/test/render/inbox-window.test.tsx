@@ -55,6 +55,7 @@ function stubKv(): KVContext {
     set: (key: string, value: unknown) => {
       store[key] = value
     },
+    update: () => true,
     setQuiet: (key: string, value: unknown) => {
       store[key] = value
     },
