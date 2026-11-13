@@ -95,7 +95,7 @@ Three npm dist-tags of `@sma1lboy/rove`:
 | Channel | dist-tag | Published | Version | Gate before publish |
 |---|---|---|---|---|
 | **stable** | `latest` | by hand only: `changesets.yml` / `scripts/release.sh` | `X.Y.Z` (tagged, `chore: release` commit) | the FULL `ci.yml` suite (behavior, render, visual, cross-OS), then `release.yml` re-runs its gates from the tag |
-| **next** | `next` | automatically on every push to `main` ([`next.yml`](../.github/workflows/next.yml)) | `X.Y.(Z+1)-next.<run number>` | the fast tier only: lint, typecheck, unit tests, build (what `bun run pre-pr` runs) |
+| **next** | `next` | automatically on every push to `main` that changes the package ([`next.yml`](../.github/workflows/next.yml)) | `X.Y.(Z+1)-next.<run number>` | the fast tier only: lint, typecheck, unit tests, build (what `bun run pre-pr` runs) |
 | **nightly** | `nightly` | 09:00 UTC daily, if `main` moved ([`nightly.yml`](../.github/workflows/nightly.yml)) | `X.Y.(Z+1)-nightly.<date>` | behavior + render + visual, then lint/typecheck/unit/build |
 
 ```mermaid
@@ -110,7 +110,7 @@ flowchart LR
 
 ### The `next` channel
 
-[`next.yml`](../.github/workflows/next.yml) runs on every push to `main`, runs the fast tier, stamps the version into the checkout (`scripts/next-version.mjs`: the highest pending changeset bump of `@sma1lboy/rove`, else the current version +patch, plus `-next.<run number>`) and publishes to `next`. Concurrency is cancel-in-progress per ref, and a run whose commit is no longer `main`'s HEAD publishes nothing, so a burst of merges yields the newest build and `next` never moves backwards. The `chore: release` commit pushed with `GITHUB_TOKEN` fires no `next` run. It leaves no commit, never moves `latest`, and publishes only `@sma1lboy/rove`.
+[`next.yml`](../.github/workflows/next.yml) runs on every push to `main` that touches what the package is built from (`packages/rove`, `rove-daemon`, `rove-bridge`, `rove-web`, `rove-harness`, `rove-plugin-sdk`, `rove-weixin`, the bundled skill, the voice sidecar, `bun.lock`); a push that changes only docs, the landing page, the native apps or other workflows starts no run. It runs the fast tier, stamps the version into the checkout (`scripts/next-version.mjs`: the highest pending changeset bump of `@sma1lboy/rove`, else the current version +patch, plus `-next.<run number>`) and publishes to `next`. Concurrency is cancel-in-progress per ref, and a run publishes nothing once a newer push has changed the package, so a burst of merges yields the newest build and `next` never moves backwards. The `chore: release` commit pushed with `GITHUB_TOKEN` fires no `next` run. It leaves no commit, never moves `latest`, and publishes only `@sma1lboy/rove`.
 
 Each published build also gets its own entry on the GitHub Releases page: a prerelease tagged `v<version>` (`v0.9.292-next.273`), listing the changesets it adds over the previous build. It is never marked Latest, so the stable releases stay the numbered line and the `next` builds sit between them. The tag is created with `GITHUB_TOKEN`, which fires no workflow, so `release.yml` never runs for it; the landing changelog skips prereleases and the app's release lists take `vX.Y.Z` only. If that step fails the run still passes: the npm publish is what the channel is.
 
