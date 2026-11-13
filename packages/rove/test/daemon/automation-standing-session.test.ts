@@ -190,15 +190,16 @@ describe("standing session — later firings", () => {
     expect(outcome.resumed).toBeUndefined()
   })
 
-  it("rebuilds when the standing task is mid-deletion or lost its worktree", async () => {
-    for (const broken of [task({ deletion: { at: NOW } as never }), task({ worktreePath: "" })]) {
-      const { created, deps } = harness({ tasks: { "task-1": broken } })
+  it.each([
+    ["is mid-deletion", { deletion: { at: NOW } as never }],
+    ["lost its worktree", { worktreePath: "" }],
+  ])("rebuilds when the standing task %s", async (_why, broken) => {
+    const { created, deps } = harness({ tasks: { "task-1": task(broken) } })
 
-      const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "task-1" }))
+    const outcome = await dispatchAutomation(deps, automation({ sessionTaskId: "task-1" }))
 
-      expect(created).toHaveLength(1)
-      expect(outcome.sessionTaskIdToSet).toBe("task-1")
-    }
+    expect(created).toHaveLength(1)
+    expect(outcome.sessionTaskIdToSet).toBe("task-1")
   })
 })
 

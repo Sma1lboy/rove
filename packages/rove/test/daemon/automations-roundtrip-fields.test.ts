@@ -128,9 +128,10 @@ describe("Automation field round-trip", () => {
     expect(updated).toMatchObject(PATCH)
     // Sanity: the fixture really did change every key, or a no-op update
     // would pass toMatchObject against values it never touched.
-    for (const key of Object.keys(PATCH) as (keyof typeof PATCH)[]) {
-      expect(created[key], key).not.toEqual(PATCH[key])
-    }
+    const unchanged = (Object.keys(PATCH) as (keyof typeof PATCH)[]).filter(
+      (key) => JSON.stringify(created[key]) === JSON.stringify(PATCH[key]),
+    )
+    expect(unchanged).toEqual([])
   })
 
   it("nullable patch keys clear the field on disk, not just in memory", async () => {

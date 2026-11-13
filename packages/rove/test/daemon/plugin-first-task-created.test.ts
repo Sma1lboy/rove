@@ -104,11 +104,14 @@ describe("plugin events across a daemon start", () => {
   it("does not replay pre-existing tasks as creates", async () => {
     const { harness, push } = await bootWith([TASK])
     try {
-      push([TASK, { ...TASK, id: "t2", title: "second" }])
+      const t2 = { ...TASK, id: "t2", title: "second" }
+      push([TASK, t2])
       expect(await waitFor(() => hits(harness).length > 0, 3000)).toBe(true)
-      // Only the new one: the seeded baseline must stay a baseline.
-      await new Promise((r) => setTimeout(r, 200))
-      expect(hits(harness)).toEqual(["t2"])
+      // A later create is the barrier: a replayed t1 would have spawned before it.
+      push([TASK, t2, { ...TASK, id: "t3", title: "third" }])
+      expect(await waitFor(() => hits(harness).includes("t3"), 3000)).toBe(true)
+      // Only the new ones: the seeded baseline must stay a baseline.
+      expect(hits(harness).sort()).toEqual(["t2", "t3"])
     } finally {
       await harness.close()
     }

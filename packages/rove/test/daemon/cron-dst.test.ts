@@ -7,10 +7,17 @@
  * construction already sees it.
  */
 
+const savedTz = process.env.TZ
 process.env.TZ = "America/New_York"
 
-import { describe, expect, it } from "vitest"
+import { afterAll, describe, expect, it } from "vitest"
 import { latestCronAtOrBefore, nextCronAfter } from "../../../rove-daemon/src/daemon/cron.ts"
+
+// Forked workers are reused across files: hand the next one its timezone back.
+afterAll(() => {
+  if (savedTz === undefined) Reflect.deleteProperty(process.env, "TZ")
+  else process.env.TZ = savedTz
+})
 
 function day(ms: number): string {
   const d = new Date(ms)

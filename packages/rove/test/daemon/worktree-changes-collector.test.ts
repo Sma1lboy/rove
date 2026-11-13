@@ -194,9 +194,7 @@ describe("WorktreeChangesCollector", () => {
     const tasks = { current: [task({ id: "a" })] }
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const collector = new WorktreeChangesCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
       publishDelayMs: 0,
@@ -217,9 +215,7 @@ describe("WorktreeChangesCollector", () => {
     let subscribed = false
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const runs: string[] = []
     const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,
@@ -254,9 +250,7 @@ describe("the behind-base count", () => {
     // drift chip never appears until the user edits a file.
     const bus = new DaemonEventBus()
     const published: WorktreeChangesPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as WorktreeChangesPayload))
     const seenBaseRefs: (string | undefined)[] = []
     let behind = 0
     const collector = new WorktreeChangesCollector(

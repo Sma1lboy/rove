@@ -20,16 +20,14 @@ it("delivers every transition from a real PTY without polling and replays comple
   const activity = new DaemonActivityRegistry(bus)
   const inbox = new AttentionInboxStore(join(home, "inbox.json"), bus)
   await inbox.init()
-  const transitions: string[] = []
-  bus.onPublish((event) => {
-    if (
-      event.channel === "engine-state" &&
-      "tabId" in event.payload &&
-      event.payload.tabId === "tab-1" &&
-      "state" in event.payload
-    )
-      transitions.push(event.payload.state)
-  })
+  const published: { channel: string; payload: unknown }[] = []
+  bus.onPublish((event) => published.push(event))
+  const transitions = () =>
+    published
+      .filter((e) => e.channel === "engine-state")
+      .map((e) => e.payload as { tabId?: string; state?: string })
+      .filter((p) => p.tabId === "tab-1" && p.state !== undefined)
+      .map((p) => p.state)
   const accept = programStatusActivity(activity, (id) => id === "task", inbox)
   let ready = false
   let stop = watchProgramStatus(
@@ -47,10 +45,6 @@ it("delivers every transition from a real PTY without polling and replays comple
     idleExitMs: 60_000,
   })
   const client = new RoveDaemonClient(socketPath)
-  const waitFor = async (check: () => boolean) => {
-    for (let i = 0; i < 250 && !check(); i++) await new Promise((resolve) => setTimeout(resolve, 10))
-    expect(check()).toBe(true)
-  }
   try {
     await client.connect()
     const bytes = ["working", "blocked:kind=permission", "working", "done"]
@@ -58,20 +52,20 @@ it("delivers every transition from a real PTY without polling and replays comple
       .join("")
     const script = `process.stdin.once('data',()=>{process.stdout.write(${JSON.stringify(bytes)});setTimeout(()=>process.exit(0),50)})`
     await client.request("pty.open", { key: "task::tab-1", cwd: home, command: [process.execPath, "-e", script] })
-    await waitFor(() => ready)
+    await vi.waitFor(() => expect(ready).toBe(true), { timeout: 2500 })
     await client.request("pty.write", { key: "task::tab-1", data: "go\n" })
-    await waitFor(() => inbox.snapshot()[0]?.state === "turn_complete")
-    expect(transitions).toEqual(["running", "permission_needed", "running", "turn_complete"])
+    await vi.waitFor(() => expect(inbox.snapshot()[0]?.state).toBe("turn_complete"), { timeout: 2500 })
+    expect(transitions()).toEqual(["running", "permission_needed", "running", "turn_complete"])
     await stop()
-    const replayed: string[] = []
+    const replayed: (string | undefined)[] = []
     stop = watchProgramStatus(
       async (event) => {
-        if (event.status) replayed.push(event.status.state)
+        replayed.push(event.status?.state)
       },
       { socketPath, retryMs: 10 },
     )
-    await waitFor(() => replayed.includes("done"))
-    expect(replayed).toEqual(["done"])
+    await vi.waitFor(() => expect(replayed).toContain("done"), { timeout: 2500 })
+    expect(replayed.filter(Boolean)).toEqual(["done"])
   } finally {
     await stop()
     client.close()

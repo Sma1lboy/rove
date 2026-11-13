@@ -14,6 +14,8 @@ import { type DaemonHarness, bootDaemonHarness, waitFor } from "./harness.ts"
  */
 
 const GRACE_MS = 80
+// The "stays up" waits below stay real: the grace arms after an async pty-hold
+// probe on the real socket path, and nothing signals that it did NOT arm.
 
 describe("daemon refcounted lazy shutdown", () => {
   let h: DaemonHarness

@@ -172,9 +172,10 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin" | "repoId">> = {
 describe("serializeTask", () => {
   it("puts every wire field on the wire", () => {
     const serialized = serializeTask(FULL as unknown as Task)
-    for (const [key, value] of Object.entries(FULL)) {
-      expect(serialized[key as keyof SerializedTask], `serializeTask dropped "${key}"`).toEqual(value)
-    }
+    const wireFields = Object.fromEntries(
+      Object.keys(FULL).map((key) => [key, serialized[key as keyof SerializedTask]]),
+    )
+    expect(wireFields).toEqual(FULL)
   })
 
   it("carries the observed language, which a daemon restart would otherwise erase", () => {

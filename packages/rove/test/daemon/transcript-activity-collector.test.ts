@@ -205,9 +205,7 @@ describe("TranscriptActivityCollector", () => {
     const tasks = { current: [task({ id: "a" })] }
     const bus = new DaemonEventBus()
     const published: TranscriptActivityPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "transcript.activity") published.push(event.payload as TranscriptActivityPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as TranscriptActivityPayload))
     const collector = new TranscriptActivityCollector({ listTasks: () => tasks.current }, bus, {
       cadence: FAST,
       defaultVendor: "claude",
@@ -228,9 +226,7 @@ describe("TranscriptActivityCollector", () => {
     let subscribed = false
     const bus = new DaemonEventBus()
     const published: TranscriptActivityPayload[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "transcript.activity") published.push(event.payload as TranscriptActivityPayload)
-    })
+    bus.onPublish((event) => published.push(event.payload as TranscriptActivityPayload))
     const runs: string[] = []
     const collector = new TranscriptActivityCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
       cadence: FAST,

@@ -135,8 +135,7 @@ describe("orphan containment", () => {
         CWD,
       )
       expect(result.timedOut).toBe(true)
-      await new Promise((r) => setTimeout(r, 500))
-      expect(sleepersFor(marker)).toBe(0)
+      await vi.waitFor(() => expect(sleepersFor(marker)).toBe(0))
       execSync(`pkill -fx 'sleep ${marker}' || true`)
     },
     20_000,
