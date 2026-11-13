@@ -1,4 +1,4 @@
-/** What the Usage page reads of `turns.list`: per-day, per-engine/model and per-task sums, a text bar, and the quota runway. */
+/** What the Usage page reads of `turns.list`: per-day, per-engine/model and per-task sums, and the quota runway. */
 
 /** One turn as `turns.list` returns it (the daemon's `AgentTurnRecord`). A token count an engine did not report is absent. */
 export interface TurnRecord {
@@ -121,38 +121,6 @@ export function compactTokens(n: number): string {
   if (n < 1000) return String(n)
   if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, "")}k`
   return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0).replace(/\.0$/, "")}M`
-}
-
-const EIGHTHS = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
-
-/** A bar `width` cells wide at most, `value / max` of it filled, in eighth-block steps. */
-export function bar(value: number, max: number, width: number): string {
-  if (value <= 0 || max <= 0) return ""
-  const eighths = Math.max(1, Math.round((value / max) * width * 8))
-  return `${"█".repeat(Math.floor(eighths / 8))}${EIGHTHS[eighths % 8]}`
-}
-
-/** One glyph per engine in a stacked bar, in the order the engines are listed. */
-export const ENGINE_GLYPHS = ["█", "▓", "▒", "░"] as const
-
-/**
- * A day's bar split by engine, `width` cells for `max` tokens: each engine's run is a different shade. A day with
- * tokens always shows at least one cell per engine that has some.
- */
-export function stackedBar(
-  byEngine: Readonly<Record<string, number>>,
-  engines: readonly string[],
-  max: number,
-  width: number,
-): string {
-  if (max <= 0) return ""
-  return engines
-    .map((engine, i) => {
-      const tokens = byEngine[engine] ?? 0
-      const cells = tokens <= 0 ? 0 : Math.max(1, Math.round((tokens / max) * width))
-      return (ENGINE_GLYPHS[i % ENGINE_GLYPHS.length] ?? "█").repeat(cells)
-    })
-    .join("")
 }
 
 export interface QuotaWindow {

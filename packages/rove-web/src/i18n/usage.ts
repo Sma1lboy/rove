@@ -15,9 +15,8 @@ export const en = {
     cutoff: "The daemon returns at most {count} turns: {day} and earlier are partial.",
     noReader: "{engines}: no turn reader, so their work is not counted here.",
     removedTask: "(removed task)",
-    full: "{engine} {label} {percent}% · at this pace full around {time}, before it resets",
-    lasts: "{engine} {label} {percent}% · at this pace it lasts until the reset",
-    window: "{engine} {label} {percent}%",
+    full: "at this pace full around {time}, before it resets",
+    lasts: "at this pace it lasts until the reset",
   },
 }
 
@@ -37,8 +36,7 @@ export const zh: typeof en = {
     cutoff: "守护进程最多返回 {count} 轮：{day} 及更早的数据不完整。",
     noReader: "{engines}：没有轮次读取器，这里不统计它们的工作。",
     removedTask: "（已删除的任务）",
-    full: "{engine} {label} {percent}% · 按当前速度约 {time} 用完，早于重置时间",
-    lasts: "{engine} {label} {percent}% · 按当前速度可撑到重置",
-    window: "{engine} {label} {percent}%",
+    full: "按当前速度约 {time} 用完，早于重置时间",
+    lasts: "按当前速度可撑到重置",
   },
 }

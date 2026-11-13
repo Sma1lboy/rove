@@ -1,5 +1,6 @@
 /** Wall tiles: the diff, the agent menu, checks, the board, search, the inbox, usage and toasts. */
 
+import type { CSSProperties } from "react"
 import { NERD } from "../rail-glyphs.ts"
 import { Button } from "../ui/button.tsx"
 import { CK, CK_AGE, CK_GLYPH, CK_NAME, CK_ROW } from "../ui/checks.ts"
@@ -44,7 +45,7 @@ import {
   searchRowClass,
 } from "../ui/search.ts"
 import { INPUT, KICKER } from "../ui/text.ts"
-import { USG_BAR, USG_DAY, USG_ROW, USG_TOKENS } from "../ui/usage.ts"
+import { USG_BAR, USG_BAR_CELL, USG_DAYS, USG_FIGURE, USG_ROW, USG_SEG } from "../ui/usage.ts"
 import { at, typed, useT } from "./clock.ts"
 import { CLAUDE_ICON, CODEX_ICON, COPILOT_ICON, KIMI_ICON } from "./icons.ts"
 
@@ -328,15 +329,24 @@ export function UsageTile() {
   const t = useT(4400)
   const grow = Math.min(1, t / 2400)
   return (
-    <div className="flex h-full flex-col justify-center gap-0.5">
+    <div className="flex h-full flex-col justify-center">
       <p className={`${KICKER} mb-1 text-muted`}>Tokens this week</p>
-      {DAYS.map(([day, len, tokens], i) => (
-        <div key={day} className={USG_ROW}>
-          <span className={USG_DAY}>{day}</span>
-          <span className={USG_BAR}>{"█".repeat(Math.round(len * Math.min(1, grow * (1 + i * 0.15))))}</span>
-          <span className={USG_TOKENS}>{tokens}</span>
-        </div>
-      ))}
+      <div className={USG_DAYS}>
+        {DAYS.map(([day, len, tokens], i) => (
+          <div key={day} className={USG_ROW}>
+            <span className="text-muted">{day}</span>
+            <span className={USG_BAR_CELL}>
+              <span
+                className={USG_BAR}
+                style={{ "--fill": `${(len / 14) * Math.min(1, grow * (1 + i * 0.15)) * 100}%` } as CSSProperties}
+              >
+                <span className={`${USG_SEG} grow bg-accent`} />
+              </span>
+            </span>
+            <span className={`${USG_FIGURE} col-span-3`}>{tokens}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
