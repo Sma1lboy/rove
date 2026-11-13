@@ -18,7 +18,8 @@ export const PROMPT = "max-h-[40vh] min-h-[4.5em] w-full bg-transparent text-ink
 export const BAR = "flex items-center gap-1.5 px-1"
 /** Where the task runs, then how: one row, never wrapped. A phone drops each chip's word instead (`CHIP_WORD`). */
 export const BAR_GROUP = "flex min-w-0 items-center gap-1.5"
-export const BAR_GROUP_END = `${BAR_GROUP} ml-auto narrow:ml-0`
+/** `group/end`: the right-hand chips, whose last popover opens leftward. */
+export const BAR_GROUP_END = `${BAR_GROUP} group/end ml-auto narrow:ml-0`
 export const GROW = "flex-1"
 /** The card's own small controls (attach, dictate) left of Start; `on` while attached or recording. */
 export const cardIcon = (on = false): string =>
@@ -44,10 +45,10 @@ export const dictateChip = (recording: boolean): string =>
 /** Holding to talk: no scroll, text selection or iOS callout steals the press. */
 export const DICTATE_PRESS = "touch-none select-none [-webkit-touch-callout:none]"
 
-/** `group/chip`: the bar's last popover opens leftward from its chip's right edge. */
+/** `group/chip`: the last popover of the right-hand group opens leftward from its chip's right edge; any other would run under the rail. */
 export const CHIP_WRAP = "group/chip relative inline-flex"
 export const POP =
-  "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-last-of-type/chip:right-0 group-last-of-type/chip:left-auto"
+  "absolute bottom-[calc(100%+6px)] left-0 z-20 flex max-h-[min(50vh,420px)] max-w-[min(52ch,calc(100vw-16px))] min-w-[min(34ch,calc(100vw-16px))] flex-col overflow-hidden rounded-md border-hairline border-line-active bg-surface shadow-popover group-[&]/end:group-last-of-type/chip:right-0 group-[&]/end:group-last-of-type/chip:left-auto"
 
 /** Rows clip sideways (a long tail shortens, see `CLIP`); only the list scrolls, and only up and down. */
 export const MENU = "flex min-h-0 flex-col gap-1 overflow-x-hidden overflow-y-auto p-1.5 [outline:0]"
