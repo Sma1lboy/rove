@@ -112,9 +112,13 @@ export function daemonCaller(forwarded: boolean): ApiCaller {
   return { cli: false, daemon: true, ...(forwarded ? { forwarded: true as const } : {}) }
 }
 
-/** The CLI process itself, read at call time (tests chdir). */
+/** The CLI process itself, read at call time (tests chdir). No cwd once the directory it started in is deleted. */
 export function cliCaller(): ApiCaller {
-  return { cli: true, cwd: process.cwd() }
+  try {
+    return { cli: true, cwd: process.cwd() }
+  } catch {
+    return { cli: true }
+  }
 }
 
 /** A daemon-socket or bridge caller. */

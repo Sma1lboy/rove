@@ -86,6 +86,15 @@ describe("runApiSubcommand", () => {
     expect(err.nextCommandArgs).toEqual(["api", "schema"])
   })
 
+  test("a verb still runs when the process's working directory was deleted", async () => {
+    vi.spyOn(process, "cwd").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT: uv_cwd"), { code: "ENOENT" })
+    })
+    await runApiSubcommand(["list"])
+    expect(JSON.parse(stdoutText())).toMatchObject({ tasks: [] })
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
   test("verb --help prints the verb's flag help without running it", async () => {
     await runApiSubcommand(["schema", "--help"])
     expect(stdoutText()).toContain("schema")
