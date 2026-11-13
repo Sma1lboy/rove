@@ -88,7 +88,7 @@ test("description text cannot break the MDX page it lands in", () => {
   const row = page.split("\n").find((line) => line.startsWith("| Evil"))
   assert.ok(row, "the row renders")
   assert.equal(row.split(" | ").length, 4, "the description stays in one cell")
-  for (const raw of ["<Tag>", "{expr}", "`code`"]) assert.ok(!row.includes(raw), `${raw} must be escaped`)
+  assert.doesNotMatch(row, /<Tag>|\{expr\}|`code`/)
   assert.match(row, /&lt;Tag&gt;/)
   assert.match(row, /&#123;expr&#125;/)
   assert.match(row, /&#96;code&#96;/)
@@ -132,27 +132,25 @@ test("--check reports work when a new plugin appears, and writes nothing", async
   assert.equal(readFileSync(outPath, "utf8"), withOne, "the precheck never touches the page")
 })
 
-for (const [label, response, error] of [
+for (const [label, response, error, check] of [
   ["incomplete results", { items: [demoRepo], incomplete_results: true, total_count: 2 }, /incomplete/],
   [
     "more than 100 repositories",
-    {
-      items: Array.from({ length: 100 }, (_, i) => ({ full_name: `owner/plugin${i}` })),
-      total_count: 101,
-    },
+    { items: Array.from({ length: 100 }, (_, i) => ({ full_name: `owner/plugin${i}` })), total_count: 101 },
     /100.*limit/,
   ],
   ["a truncated listing", { items: [demoRepo], total_count: 2 }, /count/],
-]) {
-  test(`${label} fails without changing the existing directory`, async () => {
+].flatMap((row) => [
+  [...row, false],
+  [...row, true],
+])) {
+  test(`${label} fails without changing the existing directory${check ? " (--check)" : ""}`, async () => {
     const outPath = join(mkdtempSync(join(tmpdir(), "rove-plugins-")), "PLUGIN-DIRECTORY.md")
     const log = () => {}
     await run({ fetchImpl: stubFetch({ items: [demoRepo, collectionRepo] }), outPath, log })
     const before = readFileSync(outPath, "utf8")
-    for (const check of [false, true]) {
-      await assert.rejects(run({ fetchImpl: stubFetch(response), outPath, log, check }), error)
-      assert.equal(readFileSync(outPath, "utf8"), before)
-    }
+    await assert.rejects(run({ fetchImpl: stubFetch(response), outPath, log, check }), error)
+    assert.equal(readFileSync(outPath, "utf8"), before)
   })
 }
 
@@ -182,12 +180,12 @@ name = "not the plugin name"
   assert.match(page, /First line \[still description\] "quoted"/)
 })
 
-test("complete listings at the supported boundaries are accepted", async () => {
-  for (const count of [0, 100]) {
+for (const count of [0, 100]) {
+  test(`a complete listing of ${count} repositories is accepted`, async () => {
     const items = Array.from({ length: count }, (_, i) => ({ full_name: `owner/plugin${i}` }))
     assert.equal((await fetchTopicRepos(stubFetch({ items }))).length, count)
-  }
-})
+  })
+}
 
 test("invalid TOML aborts the scan without changing the existing directory", async () => {
   const outPath = join(mkdtempSync(join(tmpdir(), "rove-plugins-")), "PLUGIN-DIRECTORY.md")

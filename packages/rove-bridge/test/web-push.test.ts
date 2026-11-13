@@ -78,26 +78,24 @@ describe("vapidAuthorization", () => {
 })
 
 describe("isPushEndpoint", () => {
-  test("accepts the browsers' push services over https", () => {
-    for (const ok of [
-      "https://fcm.googleapis.com/fcm/send/x",
-      "https://web.push.apple.com/QO",
-      "https://updates.push.services.mozilla.com/wpush/v2/x",
-      "https://wns2-par02p.notify.windows.com/w/?token=x",
-    ])
-      expect(isPushEndpoint(ok)).toBe(true)
+  test.each([
+    "https://fcm.googleapis.com/fcm/send/x",
+    "https://web.push.apple.com/QO",
+    "https://updates.push.services.mozilla.com/wpush/v2/x",
+    "https://wns2-par02p.notify.windows.com/w/?token=x",
+  ])("accepts the browsers' push service %p over https", (ok) => {
+    expect(isPushEndpoint(ok)).toBe(true)
   })
 
-  test("refuses anything the bridge should not POST to", () => {
-    for (const bad of [
-      "http://fcm.googleapis.com/fcm/send/x",
-      "https://fcm.googleapis.com:8443/x",
-      "https://evilfcm.googleapis.com.example/x",
-      "https://push.apple.com.evil.example/x",
-      "https://user@fcm.googleapis.com/x",
-      "https://127.0.0.1/x",
-      "not a url",
-    ])
-      expect(isPushEndpoint(bad)).toBe(false)
+  test.each([
+    "http://fcm.googleapis.com/fcm/send/x",
+    "https://fcm.googleapis.com:8443/x",
+    "https://evilfcm.googleapis.com.example/x",
+    "https://push.apple.com.evil.example/x",
+    "https://user@fcm.googleapis.com/x",
+    "https://127.0.0.1/x",
+    "not a url",
+  ])("refuses %p, which the bridge should not POST to", (bad) => {
+    expect(isPushEndpoint(bad)).toBe(false)
   })
 })

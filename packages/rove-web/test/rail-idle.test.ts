@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import type { TaskRow } from "rove-bridge/protocol"
 import { dropIdleMains, rememberShownMains, shownMainsBefore } from "../src/rail-idle.ts"
 import { railRows } from "../src/rail.ts"
@@ -20,6 +20,9 @@ const shown = (
 }
 
 describe("idle main rows in the rail", () => {
+  const realStorage = globalThis.localStorage
+  afterEach(() => Object.assign(globalThis, { localStorage: realStorage }))
+
   test("routine runs stay off the rail, so a project with only those and an idle main row is not listed", () => {
     expect(shown([main, run], { shop: [] })).toEqual([])
   })

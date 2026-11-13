@@ -23,6 +23,11 @@ import { isolateTaskOpDeps } from "./task-ops-harness.ts"
 
 isolateTaskOpDeps()
 
+function restoreEnv(key: string, prev: string | undefined): void {
+  if (prev === undefined) Reflect.deleteProperty(process.env, key)
+  else process.env[key] = prev
+}
+
 const ENGINES: EngineRow[] = [
   { id: "alpha", name: "Alpha", command: "alpha", protocol: "alpha", builtin: true, enabled: true },
   { id: "alpha-fast", name: "Alpha Fast", command: "alpha --fast", protocol: "alpha", builtin: false, enabled: true },
@@ -179,8 +184,7 @@ describe("engines.list enabled flag", () => {
       expect((await ops.engines()).map((e) => e.enabled)).toEqual([true])
       expect(scans).toBe(1)
     } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = prev
+      restoreEnv("ROVE_HOME_DIR", prev)
     }
   })
 })
@@ -350,14 +354,14 @@ describe("task row extras", () => {
 })
 
 describe("diff file path", () => {
-  test("paths that could escape the worktree are refused before git or the filesystem is touched", async () => {
-    // Fixture: the guard must fire before any daemon request.
-    const client = { request: () => Promise.reject(new Error("daemon touched")) } as unknown as RoveDaemonClient
-    const ops = createRoveOps(client)
-    for (const path of ["/etc/passwd", "../outside", "a/../../b"]) {
-      await expect(ops.diffFile("T1", path, "working")).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
-  })
+  test.each(["/etc/passwd", "../outside", "a/../../b"])(
+    "%p could escape the worktree, so it is refused before git or the filesystem is touched",
+    async (path) => {
+      // Fixture: the guard must fire before any daemon request.
+      const client = { request: () => Promise.reject(new Error("daemon touched")) } as unknown as RoveDaemonClient
+      await expect(createRoveOps(client).diffFile("T1", path, "working")).rejects.toMatchObject({ code: "BAD_ARGS" })
+    },
+  )
 })
 
 describe("tab.new verb choice", () => {
@@ -373,21 +377,24 @@ describe("tab.new verb choice", () => {
     expect(newTabInvocation("T1", { kind: "engine", engine: "codex", latest: true }).argv).not.toContain("--latest")
   })
 
-  test("an engine tab is a child task: the reply names it so a client can open it", async () => {
-    const verbs: Array<{ name: string; reply: unknown }> = [
-      { name: "add", reply: { taskId: "KID", session: "KID::tab-1" } },
-      { name: "tab-new", reply: { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" } },
-    ]
-    for (const { name, reply } of verbs) {
+  test.each([
+    ["add", { kind: "engine" as const, prompt: "go" }, { taskId: "KID", session: "KID::tab-1" }],
+    [
+      "tab-new",
+      { kind: "engine" as const },
+      { taskId: "T1", childTaskId: "KID", tabId: "tab-1", session: "KID::tab-1" },
+    ],
+  ] as const)(
+    "an engine tab is a child task: the %s reply names it so a client can open it",
+    async (_verb, request, reply) => {
       const api: BridgeApi = {
         verb: async <T>() => reply as T,
         rpc: () => Promise.reject(new Error("unused")),
       }
       const ops = createRoveOps({} as RoveDaemonClient, undefined, api)
-      const request = name === "add" ? { kind: "engine" as const, prompt: "go" } : { kind: "engine" as const }
       expect(await ops.newTab("T1", request)).toEqual({ tabId: "tab-1", taskId: "KID" })
-    }
-  })
+    },
+  )
 
   test("`add` answering with the task itself means the tab went into it: no child id", async () => {
     const api: BridgeApi = {
@@ -447,8 +454,7 @@ describe("repos.list", () => {
       const client = { request: async () => ({ tasks }) } as unknown as RoveDaemonClient
       expect(await createRoveOps(client).repos()).toEqual(["/work/app"])
     } finally {
-      if (prev === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = prev
+      restoreEnv("ROVE_HOME_DIR", prev)
     }
   })
 })

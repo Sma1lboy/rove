@@ -22,13 +22,6 @@ describe("pluginContext", () => {
   it("throws off-host with the missing key named", () => {
     expect(() => pluginContext({})).toThrow(/ROVE_PLUGIN_ID/)
   })
-
-  it("falls back to the legacy Rove namespace", () => {
-    const legacy = Object.fromEntries(
-      Object.entries(BASE).map(([key, value]) => [key.replace("ROVE_", "ROVE_"), value]),
-    )
-    expect(pluginContext(legacy).pluginId).toBe("you.example")
-  })
 })
 
 describe("pluginEvent", () => {

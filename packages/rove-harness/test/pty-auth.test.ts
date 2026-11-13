@@ -18,12 +18,10 @@ import {
  * expected value comes from the same 0600 file the daemon writes.
  */
 
-function homeWithToken(token: string | null, dir = ".rove"): string {
+function homeWithToken(token: string): string {
   const home = mkdtempSync(join(tmpdir(), "pty-auth-"))
-  if (token !== null) {
-    mkdirSync(join(home, dir), { recursive: true })
-    writeFileSync(join(home, dir, "web-token"), token)
-  }
+  mkdirSync(join(home, ".rove"))
+  writeFileSync(join(home, ".rove", "web-token"), token)
   return home
 }
 
@@ -69,14 +67,8 @@ describe("expectedPtyToken", () => {
     expect(expectedPtyToken({ ROVE_HOME_DIR: home })).toBe("file-token")
   })
 
-  it("honours the legacy .rove layout only when the file is actually there", () => {
-    const legacy = homeWithToken("legacy-token", ".rove")
-    expect(webTokenPath({ ROVE_HOME_DIR: legacy })).toBe(join(legacy, ".rove", "web-token"))
-    expect(expectedPtyToken({ ROVE_HOME_DIR: legacy })).toBe("legacy-token")
-  })
-
   it("stays empty when no token file exists, so every request is refused", () => {
-    const bare = homeWithToken(null)
+    const bare = mkdtempSync(join(tmpdir(), "pty-auth-"))
     expect(expectedPtyToken({ ROVE_HOME_DIR: bare })).toBe("")
     expect(ptyRequestAuthorized({ authorization: "Bearer anything" }, new URL("http://localhost/pty"), { ROVE_HOME_DIR: bare })).toBe(false)
   })

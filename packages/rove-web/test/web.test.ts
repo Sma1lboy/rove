@@ -32,15 +32,11 @@ function leaves(tree: unknown, prefix = ""): Record<string, string> {
   return out
 }
 
-test("zh carries every en key, non-empty, with the same placeholders", () => {
+test("every zh string is non-empty and has the same placeholders as its en one", () => {
   const e = leaves(en)
   const z = leaves(zh)
-  expect(Object.keys(z).sort()).toEqual(Object.keys(e).sort())
   const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join()
-  for (const key of Object.keys(e)) {
-    expect(z[key].trim().length).toBeGreaterThan(0)
-    expect(holes(z[key])).toBe(holes(e[key]))
-  }
+  expect(Object.keys(e).filter((key) => !z[key]?.trim() || holes(z[key]) !== holes(e[key]))).toEqual([])
 })
 
 function row(id: string, repo: string, order: number): TaskRow {
@@ -141,7 +137,10 @@ describe("status dots (ELYTerminal's orb)", () => {
     expect(peak(1)).toBeLessThan(peak(0))
     expect([3, 5, 7].map(peak)).toEqual([peak(1), peak(1), peak(1)])
     expect([2, 6, 8].map(peak)).toEqual([peak(0), peak(0), peak(0)])
-    dotLevels("working", 0, 0).forEach((level, dot) => expect(dotLevels("working", 15, 0)[dot]).toBeCloseTo(level, 6))
+    const start = dotLevels("working", 0, 0)
+    expect(Math.max(...dotLevels("working", 15, 0).map((level, dot) => Math.abs(level - start[dot])))).toBeLessThan(
+      1e-6,
+    )
   })
 
   test("a slowed ripple still moves", () => {

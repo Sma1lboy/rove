@@ -41,23 +41,22 @@ describe("snippets", () => {
     expect(list(await call(ops, "snippets.remove", { name: "A" }))).toEqual([{ name: "b", text: "y" }])
   })
 
-  test("a name that could not be typed after @, or empty or oversized text, is refused", async () => {
+  test.each([
+    { name: "has space", text: "x" },
+    { name: "-lead", text: "x" },
+    { name: "a".repeat(33), text: "x" },
+    { name: "ok", text: "   " },
+    { name: "ok", text: "x".repeat(8001) },
+  ])("a name that could not be typed after @, or empty or oversized text, is refused: %j", async (args) => {
     const { ops, state } = snippets()
-    for (const args of [
-      { name: "has space", text: "x" },
-      { name: "-lead", text: "x" },
-      { name: "a".repeat(33), text: "x" },
-      { name: "ok", text: "   " },
-      { name: "ok", text: "x".repeat(8001) },
-    ]) {
-      await expect(call(ops, "snippets.save", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
-    }
+    await expect(call(ops, "snippets.save", args)).rejects.toMatchObject({ code: "BAD_ARGS" })
     expect(state["prompt.snippets"]).toBeUndefined()
   })
 
   test("the list is capped, but an existing name can still be edited at the cap", async () => {
-    const { ops } = snippets()
-    for (let i = 0; i < 100; i++) await call(ops, "snippets.save", { name: `s${i}`, text: "x" })
+    const { ops } = snippets({
+      "prompt.snippets": Array.from({ length: 100 }, (_, i) => ({ name: `s${i}`, text: "x" })),
+    })
     await expect(call(ops, "snippets.save", { name: "extra", text: "x" })).rejects.toMatchObject({ code: "BAD_ARGS" })
     expect(list(await call(ops, "snippets.save", { name: "s5", text: "y" }))).toHaveLength(100)
   })

@@ -15,7 +15,10 @@ function withLocation(loc: Partial<Location>): void {
   })
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
 
 describe("ptyUrl", () => {
   it("dials the page's own origin over ws on http", () => {
@@ -48,6 +51,5 @@ describe("ptyUrl", () => {
     withLocation({ port: "5173" })
     const { ptyUrl: fresh } = await import("../src/lib/terminal.ts")
     expect(new URL(fresh("t", "k", "shell", 80, 24)).searchParams.get("token")).toBe("tok pty")
-    vi.unstubAllEnvs()
   })
 })

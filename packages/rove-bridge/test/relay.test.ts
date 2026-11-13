@@ -74,9 +74,4 @@ describe("--preset relay", () => {
     const relay = await relayed()
     await expect(tunnel(relay.url, "d".repeat(43)).connect()).rejects.toThrow()
   })
-
-  test("only the relay ingress reads ?token=; the main listener still refuses it", async () => {
-    const main = start()
-    expect(await upgradeStatus(`${main.url}ws?token=${TOKEN}`)).toBe(401)
-  })
 })

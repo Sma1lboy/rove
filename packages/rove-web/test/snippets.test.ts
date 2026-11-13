@@ -34,8 +34,7 @@ describe("matchSnippets", () => {
 describe("expandSnippet", () => {
   test("replaces the whole @word and puts the caret after the text", () => {
     const text = "fix this @rev now"
-    const token = snippetToken(text, 13)
-    if (!token) throw new Error("no token")
+    const token = snippetToken(text, 13)!
     expect(expandSnippet(text, token, { name: "review", text: "Review carefully." })).toEqual({
       text: "fix this Review carefully. now",
       caret: 26,

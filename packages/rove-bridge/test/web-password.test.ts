@@ -54,7 +54,7 @@ describe("password hash", () => {
     expect(readFileSync(path, "utf8")).not.toContain("throwaway-123")
     const record = readPassword(path)
     expect(record && (await verifyPassword(record, "throwaway-123"))).toBe(true)
-    if (process.platform !== "win32") expect(statSync(path).mode & 0o777).toBe(0o600)
+    expect(statSync(path).mode & 0o777).toBe(0o600)
 
     const mismatch = ["throwaway-456", "throwaway-457"]
     expect(await runPasswordAction("set-password", dir, async () => mismatch.shift() ?? "")).toBe(1)
@@ -92,8 +92,10 @@ describe("lockout", () => {
   })
 
   test("20 failures within 24h lock everyone until unlocked; older ones fall out", () => {
-    let state = EMPTY_LOCKOUT
-    for (let i = 0; i < 19; i++) state = recordFailure(state, `10.0.0.${i}`, i).state
+    const state = Array.from({ length: 19 }, (_, i) => i).reduce(
+      (s, i) => recordFailure(s, `10.0.0.${i}`, i).state,
+      EMPTY_LOCKOUT,
+    )
     expect(lockOf(state, "9.9.9.9", 100)).toBeNull()
     // The 20th a day later: the first 19 have aged out.
     expect(recordFailure(state, "9.9.9.9", GLOBAL_WINDOW_MS + 100).lock).toBeNull()

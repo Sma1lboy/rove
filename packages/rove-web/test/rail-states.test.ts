@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { RowStatus, TaskRow } from "rove-bridge/protocol"
 import { dropIdleMains } from "../src/rail-idle.ts"
-import { RAIL_STATES, railStateRows, stateOf, withStateCounts } from "../src/rail-states.ts"
+import { railStateRows, stateOf, withStateCounts } from "../src/rail-states.ts"
 import { foldProjects } from "../src/rail.ts"
 
 const status = (kind: RowStatus["kind"]): RowStatus => ({ kind, since: 0 })
@@ -36,9 +36,9 @@ describe("the by-state rail", () => {
         task("i", { repo: "/r/one" }),
         task("w", { repo: "/r/two", rowStatus: status("running") }),
         task("n", { repo: "/r/three", rowStatus: status("needs-input") }),
+        task("r", { repo: "/r/four", rowStatus: status("idle"), group: "ready-for-review" }),
       ]),
-    ).toEqual(["needs", "n", "working", "w", "idle", "i"])
-    expect(RAIL_STATES).toEqual(["needs", "working", "ready", "idle"])
+    ).toEqual(["needs", "n", "working", "w", "ready", "r", "idle", "i"])
   })
 
   test("a parent takes its subtree's most urgent state and keeps its children under it", () => {

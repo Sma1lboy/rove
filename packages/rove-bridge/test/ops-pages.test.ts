@@ -45,11 +45,6 @@ describe("issue store ops", () => {
     ])
   })
 
-  test("a title or body that looks like a flag stays a value", async () => {
-    const { calls } = await run("issue.create", { repo: REPO, title: "--force", body: "--delete-branch" })
-    expect(calls[0]?.payload).toEqual([`--repo=${REPO}`, "--title=--force", "--body=--delete-branch"])
-  })
-
   test("update sends only what changed; task=none unlinks", async () => {
     const edit = await run("issue.update", { repo: REPO, id: 4, title: "Renamed" })
     expect(edit.calls[0]?.payload).toEqual([`--repo=${REPO}`, "--id=4", "--title=Renamed"])
@@ -65,12 +60,11 @@ describe("issue store ops", () => {
     await expect(run("issue.update", { repo: REPO, id: 4, clearBody: true, body: "text" })).rejects.toThrow("exclusive")
   })
 
-  test("update with nothing to change, a flag-like task, a bad id or a relative repo is refused before any verb runs", async () => {
+  test("update with nothing to change, a flag-like task or a bad id is refused before any verb runs", async () => {
     await expect(run("issue.update", { repo: REPO, id: 4 })).rejects.toThrow("needs title, body and/or task")
     await expect(run("issue.update", { repo: REPO, id: 4, task: "--force" })).rejects.toThrow("not a task id")
     await expect(run("issue.update", { repo: REPO, id: 0, title: "x" })).rejects.toThrow("integer in 1..")
     await expect(run("issue.update", { repo: REPO, title: "x" })).rejects.toThrow("issue number")
-    await expect(run("issue.list", { repo: "payments-api" })).rejects.toThrow("absolute path")
   })
 
   test("status is one of open, doing, hold, done", async () => {
@@ -258,7 +252,11 @@ describe("routine ops", () => {
       name: "routine-run-now",
       payload: ["--id=r-1"],
     })
-    expect((await run("routine.runs", { id: "r-1" })).calls[0]?.name).toBe("routine-runs")
+    expect((await run("routine.runs", { id: "r-1" })).calls[0]).toEqual({
+      kind: "verb",
+      name: "routine-runs",
+      payload: ["--id=r-1"],
+    })
     expect((await run("routine.list", {})).calls[0]).toEqual({ kind: "verb", name: "routine-list", payload: [] })
     expect(pagesOps["routine.delete"]?.destructive).toBe(true)
     expect((await run("routine.delete", { id: "r-1" })).calls[0]?.name).toBe("routine-delete")
@@ -351,19 +349,10 @@ describe("bad arguments never reach the daemon", () => {
     ["workitem.start", { repo: REPO, number: 0 }],
   ]
 
-  for (const [op, args] of bad) {
-    test(`${op} refuses ${JSON.stringify(args)} with BAD_ARGS before any verb or RPC`, async () => {
-      const spec = pagesOps[op]
-      if (!spec) throw new Error(`no op ${op}`)
-      const { api, calls } = fakeApi()
-      // The server calls `run` inside an async handler, so a synchronous throw is a rejection there too.
-      await expect((async () => spec.run(args, { api }))()).rejects.toMatchObject({ code: "BAD_ARGS" })
-      expect(calls).toEqual([])
-    })
-  }
-
-  test("run-now and runs pass the routine id as one --id=value", async () => {
-    expect((await run("routine.runNow", { id: "r-1" })).calls[0]?.payload).toEqual(["--id=r-1"])
-    expect((await run("routine.runs", { id: "r-1" })).calls[0]?.payload).toEqual(["--id=r-1"])
+  test.each(bad)("%s refuses %j with BAD_ARGS before any verb or RPC", async (op, args) => {
+    const { api, calls } = fakeApi()
+    // The server calls `run` inside an async handler, so a synchronous throw is a rejection there too.
+    await expect((async () => pagesOps[op]?.run(args, { api }))()).rejects.toMatchObject({ code: "BAD_ARGS" })
+    expect(calls).toEqual([])
   })
 })

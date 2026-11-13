@@ -349,21 +349,20 @@ test("switching tabs releases an attachment that succeeds after unmount", async 
   expect(t.detached()).toEqual(["task::A", "task::B"])
 })
 
-for (const order of [
+test.each([
   [0, 1],
   [1, 0],
-]) {
-  test(`late attachment leaves a newer owner of the same stream attached: ${order}`, async () => {
-    const t = terminals()
-    const first = t.mount("A")
-    first()
-    const second = t.mount("A")
-    for (const index of order) await t.resolve(index)
-    expect(t.detached()).toEqual([])
-    second()
-    expect(t.detached()).toEqual(["task::A"])
-  })
-}
+])("late attachment leaves a newer owner of the same stream attached: %i then %i", async (one, two) => {
+  const t = terminals()
+  const first = t.mount("A")
+  first()
+  const second = t.mount("A")
+  await t.resolve(one)
+  await t.resolve(two)
+  expect(t.detached()).toEqual([])
+  second()
+  expect(t.detached()).toEqual(["task::A"])
+})
 
 test("all views can close before either same-stream attachment replies", async () => {
   const t = terminals()

@@ -33,7 +33,12 @@ class FakeSocket {
   }
 }
 
-const saved = { ws: globalThis.WebSocket, window: globalThis.window, localStorage: globalThis.localStorage }
+const saved = {
+  ws: globalThis.WebSocket,
+  window: globalThis.window,
+  document: globalThis.document,
+  localStorage: globalThis.localStorage,
+}
 const store = new Map<string, string>()
 let timers = 0
 
@@ -62,7 +67,12 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  Object.assign(globalThis, { WebSocket: saved.ws, window: saved.window, localStorage: saved.localStorage })
+  Object.assign(globalThis, {
+    WebSocket: saved.ws,
+    window: saved.window,
+    document: saved.document,
+    localStorage: saved.localStorage,
+  })
 })
 
 test("a 4401 close forgets the token and stops retrying", async () => {

@@ -4,18 +4,17 @@ import { FLOW_MAX_COLS, FLOW_MIN_COLS, FLOW_REST_TICK, FLOW_ROWS, frameAt } from
 const lines = (text: string) => text.split("\n")
 
 describe("first-run picture", () => {
-  test("every frame is the same rectangle, whatever the tick or width", () => {
-    for (const cols of [FLOW_MIN_COLS, 43, 61, FLOW_MAX_COLS]) {
-      for (let tick = 0; tick < 320; tick += 7) {
+  test.each([FLOW_MIN_COLS, 43, 61, FLOW_MAX_COLS])(
+    "every frame is the same %i-column rectangle, whatever the tick",
+    (cols) => {
+      const ticks = Array.from({ length: 46 }, (_, i) => i * 7)
+      const shapes = ticks.flatMap((tick) => {
         const { base, accent } = frameAt(tick, cols)
-        for (const layer of [base, accent]) {
-          const rows = lines(layer)
-          expect(rows).toHaveLength(FLOW_ROWS)
-          for (const row of rows) expect(row).toHaveLength(cols)
-        }
-      }
-    }
-  })
+        return [base, accent].map((layer) => lines(layer).map((row) => row.length))
+      })
+      expect(shapes).toEqual(shapes.map(() => Array(FLOW_ROWS).fill(cols)))
+    },
+  )
 
   test("the grid is clamped to its range and is ASCII only", () => {
     expect(lines(frameAt(10, 3).base)[0]).toHaveLength(FLOW_MIN_COLS)
@@ -37,8 +36,9 @@ describe("first-run picture", () => {
   test("a glyph is drawn in one layer only, so the accent never hides a trail", () => {
     const { base, accent } = frameAt(FLOW_REST_TICK, 50)
     const a = lines(accent)
-    lines(base).forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) expect(row[x] === " " || a[y]?.[x] === " ").toBe(true)
-    })
+    const overlaps = lines(base).flatMap((row, y) =>
+      [...row].flatMap((ch, x) => (ch !== " " && a[y]?.[x] !== " " ? [[x, y]] : [])),
+    )
+    expect(overlaps).toEqual([])
   })
 })
