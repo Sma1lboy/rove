@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.293
+
+### Patch Changes
+
+- [#2027](https://github.com/Sma1lboy/rove/pull/2027) [`6bda084`](https://github.com/Sma1lboy/rove/commit/6bda084b77d41920ca6940ea366c8691146546e9) Starting a task on another machine in a repo it has to clone first no longer loses the task. The clone used to freeze that machine's Rove until it finished, so a clone longer than a few seconds made the machine look offline; Rove then restarted it, which killed the clone and dropped the task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2028](https://github.com/Sma1lboy/rove/pull/2028) [`10482df`](https://github.com/Sma1lboy/rove/commit/10482dfe950439c2ad27f52a7d6531997361f0db) On a phone, the web composer under a terminal always shows its send button at the right end of the hold-to-talk row, greyed until a file is attached. It used to appear only after attaching, which shifted the row and left the paperclip without a counterpart. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2029](https://github.com/Sma1lboy/rove/pull/2029) [`4c344c3`](https://github.com/Sma1lboy/rove/commit/4c344c39d58dd169095509b4d71dce23c2abd88a) Rove keeps answering while it pushes a branch, opens a pull request, deletes a remote branch or sets up a workspace on another machine. Each of these used to freeze it until the network replied, which could make another machine think it had died.
+
+  A machine whose Rove is busy is no longer restarted from the other side. Before, a few seconds without an answer was enough to restart it, which ended its sessions and whatever it was doing. Now the machine shows as unreachable and the message says to restart it there if it stays that way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2026](https://github.com/Sma1lboy/rove/pull/2026) [`8aec531`](https://github.com/Sma1lboy/rove/commit/8aec531a18c68ea4cb4a444fbdd94b5ac82aef6c) On a phone, the web New session page starts the session with the same small up-arrow send button the terminal composer uses, instead of a wide "Start session" button with a different corner radius than the hold-to-talk control beside it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2034](https://github.com/Sma1lboy/rove/pull/2034) [`0fe8d40`](https://github.com/Sma1lboy/rove/commit/0fe8d40cc4af9f74ce976c39ab837a5eabb116f3) A diff review note added on the web or in another Rove window is no longer lost when you add, remove or send notes in the terminal. The terminal used to save its own copy of the task's notes over the newer list, and sending marked a note written elsewhere in the meantime as sent although the agent never received it.
+
+  Failed note writes retain pending edits for retry against fresh disk state, including removals and sent markers, instead of losing a typed note. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2033](https://github.com/Sma1lboy/rove/pull/2033) [`1c1aaa0`](https://github.com/Sma1lboy/rove/commit/1c1aaa04ca1edcb8c1602091a7da3f9eb60c3456) `rove api worktree-reclaim --merged` (or `--idle-days N`) frees the disk of every finished task's worktree in one go, keeping each task and branch; anything with work in it, a busy engine or your own checkout is skipped and reported, and `--dry-run` previews the list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.292
 
 ### Patch Changes
