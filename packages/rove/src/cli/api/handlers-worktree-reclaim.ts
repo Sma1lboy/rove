@@ -6,6 +6,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { tasksAtWorktreePath } from "@sma1lboy/rove-daemon/daemon/cwd-task"
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { readActivityRegistry } from "./activity-view.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -78,6 +79,10 @@ async function handleWorktreeReclaim(ctx: VerbContext): Promise<unknown> {
     }
     if (ENGINE_BUSY.has(activity.tasks[task.id]?.state ?? "idle")) {
       skip("TASK_BUSY", "an engine is still working or waiting on you in it")
+      continue
+    }
+    if (tasksAtWorktreePath(tasks, worktreePath).length > 1 || tasks.some((t) => t.sharesWorkspaceOf === task.id)) {
+      skip("WORKTREE_SHARED", "another task shares this checkout")
       continue
     }
     try {

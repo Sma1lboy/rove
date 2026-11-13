@@ -2134,7 +2134,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   removed, residue? }`.
 
   Runs the same path as the Worktrees page's delete: the engine session is
-  torn down before the directory is unlinked, a dirty tree is refused without
+  torn down before the directory is unlinked. Current engine activity is checked
+  before teardown: `running` or `permission_needed` refuses with `TASK_BUSY`
+  unless `--force` is set. A dirty tree is refused without
   `--force`, and every forced removal first takes a salvage snapshot into
   `refs/rove/salvage/<branch>-<stamp>`. Two refusals are this verb's own,
   because it is scriptable and its caller is often an agent inside the very
@@ -2198,6 +2200,14 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   never idle); `--merged` keeps only tasks whose PR Rove last saw merged
   (`prLifecycle`, `null` without a PR). Both given, both must hold; the totals
   cover only the listed rows, and either flag beside `--task-id` is `BAD_FLAG`.
+  `ignoredBytes` is the gitignored
+  part, including dependencies, build output, user notes and local configuration.
+  It is not a measure of disposable content. `exists: null` means the checkout
+  could not be reached or its presence could not be confirmed; it stays in totals
+  as unknown. A `null` size means it could not be measured, never zero; such a
+  row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
+  cloned into the worktree counts in full even while it still shares blocks
+  with the main checkout's copy.
 - `worktree-reclaim (--merged | --idle-days N) [--dry-run]`: remove the
   worktree of every task `worktree-usage` lists under the same filters, in one
   go. At least one filter is required (`BAD_FLAG` otherwise), so it never
@@ -2213,14 +2223,6 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   row is `{ taskId, title, branch, worktreePath, bytes, residue? }`, each
   `skipped` row adds `{ code, message }`, and `bytes` is what the removed
   checkouts took (`null` when one could not be measured).
-  `ignoredBytes` is the gitignored
-  part, including dependencies, build output, user notes and local configuration.
-  It is not a measure of disposable content. `exists: null` means the checkout
-  could not be reached or its presence could not be confirmed; it stays in totals
-  as unknown. A `null` size means it could not be measured, never zero; such a
-  row sorts last. Sizes come from `du`, so on macOS a dependency folder Rove
-  cloned into the worktree counts in full even while it still shares blocks
-  with the main checkout's copy.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
   tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
   repository's own primary checkout is never offered — not even when `PATH`

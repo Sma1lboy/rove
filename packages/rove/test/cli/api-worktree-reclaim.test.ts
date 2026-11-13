@@ -3,6 +3,8 @@
  * reports each one it left alone with a code instead of stopping the batch.
  */
 
+import { createDaemonHandlerRegistry, dispatchDaemonRequest } from "@sma1lboy/rove-daemon/daemon/server"
+import type { DaemonHandlerContext } from "@sma1lboy/rove-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
 import { invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
@@ -71,6 +73,52 @@ describe("worktree-reclaim", () => {
     const { client, deps } = setup()
     const out = await invokeVerb("worktree-reclaim", ["--merged", "--dry-run"], deps)
     expect(out).toMatchObject({ dryRun: true, removed: [{ taskId: "clean" }, { taskId: "dirty" }] })
+    expect(removedPaths(client)).toEqual([])
+  })
+
+  it.each(["running", "permission_needed"])("preserves a task becoming %s during measurement", async (busyState) => {
+    let state = "idle"
+    let sessionAlive = true
+    let checkoutExists = true
+    const ctx = {
+      orch: { listTasks: () => [CLEAN], clearWorktreePath: async () => {} },
+      activity: { stateOf: () => state },
+      runtime: {
+        tearDownTaskSession: async () => {
+          sessionAlive = false
+        },
+        removeWorktree: async () => {
+          checkoutExists = false
+        },
+      },
+    } as unknown as DaemonHandlerContext
+    const registry = createDaemonHandlerRegistry()
+    const client = new FakeClient({
+      "task.list": () => ({ tasks: [CLEAN] }),
+      "debug.inspect": () => ({ activity: { tasks: { clean: { state, at: 0 } }, tabs: {} } }),
+      "worktree.remove": (payload) => dispatchDaemonRequest(registry, "worktree.remove", payload, ctx),
+    })
+    const runtime = stubRuntime({
+      measureCheckout: async () => {
+        state = busyState
+        return { exists: true, bytes: MB, ignoredBytes: 0 }
+      },
+    })
+    const out = await invokeVerb("worktree-reclaim", ["--merged"], { client, runtime })
+    expect(out).toMatchObject({ removed: [], skipped: [{ taskId: "clean", code: "TASK_BUSY" }], bytes: 0 })
+    expect({ sessionAlive, checkoutExists }).toEqual({ sessionAlive: true, checkoutExists: true })
+  })
+
+  it("skips a shared owner in dry-run even when its child is not a candidate", async () => {
+    const client = new FakeClient({
+      "task.list": () => ({
+        tasks: [CLEAN, taskFixture({ id: "child", sharesWorkspaceOf: "clean", worktreePath: "/wt/clean" })],
+      }),
+      "debug.inspect": () => ({ activity: { tasks: {}, tabs: {} } }),
+    })
+    const runtime = stubRuntime({ measureCheckout: async () => ({ exists: true, bytes: MB, ignoredBytes: 0 }) })
+    const out = await invokeVerb("worktree-reclaim", ["--merged", "--dry-run"], { client, runtime })
+    expect(out).toMatchObject({ removed: [], skipped: [{ taskId: "clean", code: "WORKTREE_SHARED" }], bytes: 0 })
     expect(removedPaths(client)).toEqual([])
   })
 
