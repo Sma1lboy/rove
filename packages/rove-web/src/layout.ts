@@ -6,8 +6,8 @@
 
 import { NARROW_BREAKPOINT, narrowSurface } from "@sma1lboy/rove/src/tui-react/lib/narrow-mode.ts"
 import { useSyncExternalStore } from "react"
-import { createStore } from "./store.ts"
-import { type PageId, compareGroup, page } from "./ui.ts"
+import { type Store, createStore } from "./store.ts"
+import { type PageId, compareGroup, newSession, page } from "./ui.ts"
 
 /** The page's 12px monospace cell, roughly; the TUI's cell budgets are scaled by it. */
 export const CELL_PX = 8
@@ -24,6 +24,13 @@ export const backToTasks = (): void => narrowPane.set("sidebar")
 export function openPage(id: PageId): void {
   page.set(id)
   enterWorkspace()
+}
+/** Picking a task shows its terminal: whichever page is open, and the composer, give way. Returns the unsubscribe. */
+export function leaveOnSelect(selection: Pick<Store<unknown>, "subscribe">): () => void {
+  return selection.subscribe(() => {
+    page.set(null)
+    newSession.set(null)
+  })
 }
 /** The Compare page over one parallel round's attempts (`groupId`); no rail row of its own: it opens from a task's menu or a compare Start. */
 export function openCompare(groupId: string): void {

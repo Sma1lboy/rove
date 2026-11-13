@@ -2,6 +2,7 @@ import type { CSSProperties } from "react"
 import { useEffect } from "react"
 import { AttemptsStrip } from "./attempts-strip.tsx"
 import { t } from "./i18n/index.ts"
+import { leaveOnSelect } from "./layout.ts"
 import { openMachines } from "./machines-dialog.tsx"
 import { RemoteNotice } from "./machines-view.tsx"
 import { type AppModel, selectedRow } from "./model.ts"
@@ -46,12 +47,16 @@ export function Workspace({ model, narrow }: { model: AppModel; narrow: boolean 
   // that rewrites the same selection does not.
   useEffect(() => {
     let last = model.selection.get()
-    return model.selection.subscribe(() => {
-      newSession.set(null)
+    const offLeave = leaveOnSelect(model.selection)
+    const offNarrow = model.selection.subscribe(() => {
       const next = model.selection.get()
       if (next.taskId !== last.taskId || next.tabId !== last.tabId) narrowView.set("terminal")
       last = next
     })
+    return () => {
+      offLeave()
+      offNarrow()
+    }
   }, [model])
   useEffect(() => trackNav(model), [model])
   if (pageOn === "update") {
