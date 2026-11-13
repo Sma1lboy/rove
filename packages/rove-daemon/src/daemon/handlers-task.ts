@@ -435,14 +435,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "project.forget",
-    async handle(payload, ctx) {
-      const repo = requireString(payload, "repo")
-      await ctx.orch.forgetProject(repo)
-      return {}
-    },
-  },
-  {
     name: "task.ensureWorktree",
     blocking: true,
     async handle(payload, ctx) {
