@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.9.292
+
+### Patch Changes
+
+- [#2024](https://github.com/Sma1lboy/rove/pull/2024) [`beaa1e8`](https://github.com/Sma1lboy/rove/commit/beaa1e883bd54d10267b16bcff0c5f80abf088c8) `rove api add` is now the one command that starts a conversation. `add --no-worktree` opens a new conversation in a task's own directory (`--parent` names the task; inside a session it defaults to the caller). Two separate switches say what passes between the two: `--handoff-from tab-N` hands that tab's conversation to the new one, and `--no-dispatcher` turns off the reply address, so the new session knows its parent but does not report back.
+
+  `rove api send --tab new` is gone: it is refused and names the `add` command to run instead. Putting a new engine in a dead tab's own place is now `send --tab tab-N --replace`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2001](https://github.com/Sma1lboy/rove/pull/2001) [`9b850b1`](https://github.com/Sma1lboy/rove/commit/9b850b1e7aaa1db8a5295299f1bb276e93c8e0c5) The web Browser panel can be marked up. The pencil in its address bar puts a layer over the page where you draw with a pen, drag a box or type a note; Add to chat takes a picture of the page with the marks on it and puts it into the task's prompt, like a dropped image. It needs a desktop browser on https or localhost, and the browser asks before each picture. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2007](https://github.com/Sma1lboy/rove/pull/2007) [`d86209f`](https://github.com/Sma1lboy/rove/commit/d86209fb6efded94ce0c399f3906803988bf35af) Web: a Browser screenshot added to the chat is cut down to the page even when you share the whole window or screen instead of the tab. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2016](https://github.com/Sma1lboy/rove/pull/2016) [`fb84035`](https://github.com/Sma1lboy/rove/commit/fb84035a08ccd5422ab001482ddc56df2ef059c6) In the web New session project picker, picking a GitHub repository (or a git URL, or `owner/repo`) no longer clones it on the spot. The pick shows on the project chip, and the clone runs when you press Start. Picking something else first leaves nothing on disk. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2018](https://github.com/Sma1lboy/rove/pull/2018) [`6c5df49`](https://github.com/Sma1lboy/rove/commit/6c5df49184150ae868b6981a49f7ab588f5316c3) Ctrl+Shift+C in a web session no longer opens the browser's "inspect element" panel. In the terminal it only copies: the selection when the terminal holds one, nothing otherwise. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2008](https://github.com/Sma1lboy/rove/pull/2008) [`87c1e26`](https://github.com/Sma1lboy/rove/commit/87c1e26ef16d6b1f8cd2584afda97e908dd0e11c) `rove --web` started from a directory that has since been deleted shows your sessions again. The page used to list the tasks and leave the session area blank, because every read behind it failed on the missing directory. `rove api` verbs run from a deleted directory work too; only a relative path flag still needs a real directory. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2011](https://github.com/Sma1lboy/rove/pull/2011) [`857243f`](https://github.com/Sma1lboy/rove/commit/857243fbb68c8d5cd8dfb8ba1ce8c6490e6aadbb) A machine registered without a key file comes back after this computer restarts. Rove now offers its own key (`~/.rove/ssh/hub_ed25519`) to such a machine when it has one; before, the machine stayed offline with "Permission denied" once ssh-agent was empty. In the web composer's machine menu, Auto is now the first row. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1994](https://github.com/Sma1lboy/rove/pull/1994) [`110c71f`](https://github.com/Sma1lboy/rove/commit/110c71f643674e3109d96ef36fc2fdecb2a69332) The New session composer keeps its picks on one row on a phone. The machine and Worktree chips drop their words for their glyph there, a long project name shortens instead of pushing the row wide, and the tagline steps aside so nothing wraps to a second line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2017](https://github.com/Sma1lboy/rove/pull/2017) [`dba81b1`](https://github.com/Sma1lboy/rove/commit/dba81b162c92e0e33bf055c6530d8a8c121717f3) Selecting text in an engine's session on the web now reaches your clipboard. An engine that takes the mouse draws its own selection and copies through the terminal, which the web terminal ignored: the engine said "copied" and nothing arrived, and the browser's own Copy was greyed out. The web terminal now takes that copy and puts it on the browser's clipboard. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2015](https://github.com/Sma1lboy/rove/pull/2015) [`be83f96`](https://github.com/Sma1lboy/rove/commit/be83f966caa0c164fe214103b3b198373af0ffef) The web New session project picker no longer comes up with only "No folder". When New session was the first thing on screen after a page load or a reconnect, the project list was asked for before the connection was up, failed, and was never asked for again. It now loads on every connect, and so does the GitHub repository list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2021](https://github.com/Sma1lboy/rove/pull/2021) [`9c8c8cd`](https://github.com/Sma1lboy/rove/commit/9c8c8cdafa014ebfdb36b9eef05896b4efd4aaab) On the web, Ctrl+A in a text field selects all again. The prefix key used to take it there too and open the command guide over the sidebar; now a focused text field keeps the key, and the prefix still arms from the terminal and everywhere else. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2005](https://github.com/Sma1lboy/rove/pull/2005) [`7f53dd7`](https://github.com/Sma1lboy/rove/commit/7f53dd7600ecccd003b4aa3ae2d1d025941c96bf) Preserve Shift+Enter when forwarding Kitty keyboard input to the embedded terminal, so engine composers insert a newline instead of submitting the draft. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2010](https://github.com/Sma1lboy/rove/pull/2010) [`5f0159b`](https://github.com/Sma1lboy/rove/commit/5f0159b08ac3548e4423ef723ae60b5969694787) Web: the task list's sort and its grouping (by project or by state) are now the same in every browser on a daemon. They were kept per browser, so two computers showed the list in different orders. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2013](https://github.com/Sma1lboy/rove/pull/2013) [`5e5ffbe`](https://github.com/Sma1lboy/rove/commit/5e5ffbe790c37ed27037c19b9ea1164a8a460db7) The New session project picker on the web finds the repositories of your GitHub organizations, not only your own: it now lists every repository you can reach, newest first. Pasting a GitHub link or typing `owner/repo` shows that repository with its description instead of a bare "Clone" row. The picker also no longer slides under the task list when no project is picked yet. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2019](https://github.com/Sma1lboy/rove/pull/2019) [`5fe60ef`](https://github.com/Sma1lboy/rove/commit/5fe60ef4c6248e713ac3356ae5398d541be95d88) A session opened with `rove api send --tab new` now remembers who opened it, so its plain `rove api send` report goes back to that session instead of whichever task happens to be selected. A session nobody dispatched is now told `NO_REPLY_ADDRESS` when it sends without `--task-id`, rather than starting an agent in an unrelated task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2014](https://github.com/Sma1lboy/rove/pull/2014) [`8b7d0bb`](https://github.com/Sma1lboy/rove/commit/8b7d0bb5dae8b5a8f76de37d50c30792366fa500) In the web New session project picker, Shift-click (or Shift+Enter) adds another repo for a multi-repo task. A plain click still picks one project and closes the list; ⌘/Ctrl-click keeps working. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2009](https://github.com/Sma1lboy/rove/pull/2009) [`3938a4b`](https://github.com/Sma1lboy/rove/commit/3938a4b614cc525b18cafdaa3f7122fef979be75) The installed Rove agent skill now picks up the `worktree-usage --merged` and `--idle-days` flags. The flag reference had changed without a new skill version, so `rove skill status` kept reporting an older copy as current. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#1995](https://github.com/Sma1lboy/rove/pull/1995) [`79b458b`](https://github.com/Sma1lboy/rove/commit/79b458b67ed588bcde8493793ba206708fcf9e53) Switching back to a task whose terminal is still running no longer resizes it by one row and back. The "Live process reattached" line now takes its row before the terminal is measured, so the shell is not asked to redraw twice on every switch. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2025](https://github.com/Sma1lboy/rove/pull/2025) [`b32cf27`](https://github.com/Sma1lboy/rove/commit/b32cf27535d4a4b92dcee56303b296f4dcf04f62) The web Usage page is laid out as a printed statement across the whole page: the 14-day token total as one big figure beside the per-day chart, then models, top tasks and quota side by side, each as a line item with a dotted leader. It ends with a barcode drawn from the totals, and stacks into one column on a narrow window or a phone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2012](https://github.com/Sma1lboy/rove/pull/2012) [`7df7f3d`](https://github.com/Sma1lboy/rove/commit/7df7f3d6047bbc5bdfd9f9decc607e65a2706794) The web Usage page draws thin bars like the rail's quota lines, in one narrow column: each engine keeps one colour across the day chart and the model list, the figures line up from section to section, top tasks get a bar, and each quota window is a line with its fill, percent and pace. Days before the first recorded turn are no longer listed as rows of zeros. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2004](https://github.com/Sma1lboy/rove/pull/2004) [`def2138`](https://github.com/Sma1lboy/rove/commit/def2138156669efbe0c83530d9a1d38a3bd88a89) Checking whether a project's folder still exists no longer risks slowing the daemon when a network drive hangs. Each project is checked at most once every 30 seconds, a folder that answers slowly is left alone for 10 minutes, and no more than two checks wait at once, so a stuck mount cannot tie up the daemon's file access. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2002](https://github.com/Sma1lboy/rove/pull/2002) [`f3aa71d`](https://github.com/Sma1lboy/rove/commit/f3aa71d9cafc6072b1675f4f1ca63bb6dfd5d602) A project whose checkout directory is gone no longer stays in the sidebar. The daemon drops the row and the saved entry on its next sweep, touching nothing on disk; a directory that disappeared together with its parent is read as an unmounted volume and its project stays for the remount. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#2000](https://github.com/Sma1lboy/rove/pull/2000) [`88e20ba`](https://github.com/Sma1lboy/rove/commit/88e20ba8d35b3f96d68e4c7833bc972c1ee5677e) `rove api worktree-usage` takes `--merged` and `--idle-days N` to list only the task worktrees worth cleaning up: tasks whose pull request has merged, or that have sat untouched for N days. Each row now also says where its pull request stands. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.291
 
 ### Patch Changes

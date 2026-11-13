@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@sma1lboy/rove",
-  "version": "0.9.291",
+  "version": "0.9.292",
   "description": "Rove: all your coding agents, in one place. An agentic development environment (ADE) for your terminal: Claude Code, Codex, Copilot and more, side by side in isolated worktrees, handing tasks to each other.",
   "keywords": [
     "terminal",
@@ -106,8 +106,8 @@
     "@vitest/coverage-v8": "2.1.9",
     "knip": "^6.14.2",
     "react-devtools-core": "^7.0.1",
-    "rove-bridge": "0.0.52",
-    "rove-weixin": "0.0.52",
+    "rove-bridge": "0.0.53",
+    "rove-weixin": "0.0.53",
     "typescript": "5.8.2",
     "vitest": "2.1.9"
   },
