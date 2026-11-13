@@ -2107,10 +2107,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   and every removed worktree still passes the dirty gate.
 - `archive --task-id ID [--force]` / `unarchive --task-id ID`: hide a task
   from the sidebar, the web rail and the default `list`, or bring it back.
-  Nothing else changes: the worktree, branch, transcript and any running
-  session stay as they are, and every verb that takes `--task-id` (`send`,
-  `read-output`, `get-task`, `context`, `collect`, `digest`, `delete`) keeps
-  working on the task by id. `list --archived` lists only archived tasks.
+  Archiving also ends the task's sessions: every engine and shell process
+  of the task is stopped. The worktree, branch, transcript and each tab's
+  conversation stay, so after `unarchive` a tab reopens the conversation it
+  had. Every verb that takes `--task-id` (`get-task`, `context`, `collect`,
+  `digest`, `delete`) keeps working on the task by id, and a `send` starts
+  the engine again. `list --archived` lists only archived tasks.
   The Inbox leaves out an archived task's rows, an open decision gate
   included; they are kept and show again after `unarchive`.
   Both verbs act on the task and every descendant (child tasks,
@@ -2118,8 +2120,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   is every task they changed. A child unarchived on its own while its parent
   stays archived shows as a top-level row until the parent comes back.
   `archive` is refused with `TASK_BUSY` while an engine in the subtree is
-  `running` or `permission_needed`; `--force` archives anyway and still stops
-  nothing. A project's `main` task cannot be archived (`MAIN_TASK`), because
+  `running` or `permission_needed`; `--force` stops it and archives anyway. A project's `main` task cannot be archived (`MAIN_TASK`), because
   it is the project row itself. The sidebar and the rail do not list
   archived tasks. To bring one back from the interface, open the command
   palette (`ctrl+a` `/`), type its title and pick it. A project whose other

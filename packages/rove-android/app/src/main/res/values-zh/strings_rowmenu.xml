@@ -28,7 +28,7 @@
     <string name="rowmenu_status_canceled">已取消</string>
     <string name="rowmenu_status_error">出错</string>
     <string name="rowmenu_archive_busy_title">它还在工作，仍要归档？</string>
-    <string name="rowmenu_archive_busy_body">%1$s 里有引擎仍在工作或在等你。归档只隐藏这一行，不会停止它。</string>
+    <string name="rowmenu_archive_busy_body">%1$s 里有引擎仍在工作或在等你。归档会把它停掉。</string>
     <string name="rowmenu_archive_busy_confirm">仍要归档</string>
     <string name="rowmenu_archived_fold">已归档 · %1$d</string>
     <string name="rowmenu_more">更多</string>

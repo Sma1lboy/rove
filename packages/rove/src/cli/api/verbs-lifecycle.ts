@@ -123,13 +123,13 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     name: "archive",
     group: "lifecycle",
     summary:
-      "Hide a task from the sidebar and the default `list`, without touching anything else: the worktree, branch, transcript and any running session stay exactly as they are, and `send`, `read-output`, `get-task` and `delete` keep working on it by id. Applies to the task and every descendant (its child tasks, recursively) together. Refused with TASK_BUSY while an engine in the subtree is running or waiting on you — pass --force to hide it anyway; archive never stops a session. A project's `main` checkout cannot be archived. Undo with `unarchive`; `list --archived` finds archived tasks. Returns { taskId, archived, ids } — `ids` is every task hidden.",
+      "Hide a task from the sidebar and the default `list`, and end its sessions: every engine and shell process of the task is stopped, while the worktree, branch, transcript and each tab's conversation stay, so after `unarchive` a tab reopens the conversation it had. `get-task` and `delete` keep working on it by id, and a `send` starts the engine again. Applies to the task and every descendant (its child tasks, recursively) together. Refused with TASK_BUSY while an engine in the subtree is running or waiting on you — pass --force to stop it and archive anyway. A project's `main` checkout cannot be archived. Undo with `unarchive`; `list --archived` finds archived tasks. Returns { taskId, archived, ids } — `ids` is every task hidden.",
     flags: [
       F.taskId(),
       {
         name: "force",
         type: "bool",
-        description: "Archive even though an engine in the subtree is running or waiting on you. Nothing is stopped.",
+        description: "Archive even though an engine in the subtree is running or waiting on you; it is stopped.",
       },
     ],
     handler: archiveTask,
