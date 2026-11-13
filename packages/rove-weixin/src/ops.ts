@@ -95,11 +95,9 @@ export function createRoveOps(client: DaemonRpc): RoveOps {
     },
 
     newConversation: async (taskId, prompt) => {
-      const result = await invokeVerb("send", ["--task-id", taskId, "--tab", "new", "--plain", "--prompt", prompt], {
-        client,
-      })
+      const result = await invokeVerb("add", ["--parent", taskId, "--no-worktree", "--prompt", prompt], { client })
       const tab = stringField(result, "session")?.split("::")[1]
-      if (!tab) throw new Error("send --tab new returned no tab")
+      if (!tab) throw new Error("add returned no tab")
       return { tab }
     },
 

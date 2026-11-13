@@ -126,7 +126,7 @@ export async function deliverToExactTab(
       `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
       "ENGINE_NOT_RUNNING",
       {
-        hint: "spawn a fresh engine tab for this prompt with --tab new, or pick an engine tab from pty-list",
+        hint: "start a new conversation for this prompt with `add --no-worktree`, or pick an engine tab from pty-list",
         nextCommandArgs: ["api", "pty-list"],
       },
     )

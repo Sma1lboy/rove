@@ -13,7 +13,7 @@ The code keeps the name *Task*. Renaming it to *Session* is a separate change.
 | Before | Now |
 |---|---|
 | A Task holds N engine tabs in one directory | A Task holds one engine conversation. Other conversations are child Tasks |
-| `ctrl+t`, `ctrl+e`, `send --tab new`, `tab-new --kind engine`, and the web `+` add an engine tab | The same entry points create a **shared child Task** (in the TUI once the task's own engine tab has a live PTY or a transcript; before that the pick is the task's own first conversation) |
+| `ctrl+t`, `ctrl+e`, `tab-new --kind engine`, and the web `+` add an engine tab | The same entry points create a **shared child Task** (in the TUI once the task's own engine tab has a live PTY or a transcript; before that the pick is the task's own first conversation) |
 | Sidebar: project → task → tab rows | Sidebar: project → task → child tasks |
 | `rove api add` from inside a task makes a flat sibling | `rove api add` from inside a task nests under it; `--no-parent` makes a top-level task |
 

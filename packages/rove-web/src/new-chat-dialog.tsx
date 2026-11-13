@@ -97,7 +97,7 @@ export function NewChatDialog(props: {
   const create = () =>
     submit(async () => {
       const replaceTab = context === "continue" && destination === "tab" && !shell && !pane && sourceDead()
-      // A replacement's brief is built by the same `send --handoff-from` the CLI runs; only the message goes up here.
+      // A replacement's brief is built by the same `send --tab <tab> --replace` the CLI runs; only the message goes up here.
       const lead = context === "continue" && !replaceTab ? await handoff() : ""
       const message = withRefs(prompt.trim(), await ready())
       const first = [lead, message].filter(Boolean).join("\n\n")

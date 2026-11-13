@@ -305,7 +305,7 @@ into its fallback shell) is replaced in place: the same task and the same tab
 slot, the same worktree, a fresh conversation of the new engine that opens on
 the handoff brief, so the task keeps one conversation per tab and no child
 appears. The old transcript stays on disk untouched. Headlessly this is `rove
-api send --tab new --handoff-from tab-N --replace` (refused with `TAB_ALIVE`
+api send --tab tab-N --replace [--command <engine>]` (refused with `TAB_ALIVE`
 while that engine runs, and rolled back if the new engine cannot start); the
 web and TUI pick it by themselves from the tab's dead state. When an engine
 hits a usage limit (its activity state is `rate_limited`), the pane shows a

@@ -1,6 +1,6 @@
 /**
  * Shared children: the second conversation on a task that already ran its own
- * (`send --tab new`, `tab-new --kind engine`) is a child sharing the task's
+ * (`add --no-worktree`, `tab-new --kind engine`) is a child sharing the task's
  * directory. The rules live in the orchestrator (`orchestrator/spawn-child.ts`);
  * this is the CLI's placement, serialization and failure handling.
  */
@@ -8,7 +8,7 @@
 import type { SerializedTask } from "@sma1lboy/rove-daemon/daemon/protocol"
 import { withDeliveryLock } from "../../engine/delivery-lock.ts"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
-import { PLACEHOLDER_TASK_TITLE, deriveTitleFromPrompt } from "../../orchestrator/title.ts"
+import { PLACEHOLDER_TASK_TITLE } from "../../orchestrator/title.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload } from "./dispatcher.ts"
 import { ptyScopeOf } from "./pty-scope.ts"
@@ -16,9 +16,8 @@ import { readDaemonTabs, taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
 
 /**
- * The shared child that stands in for a later engine conversation on `parentTaskId`
- * (`send --tab new`, `tab-new --kind engine`): same directory, the pinned
- * `command` or else the parent's engine. A calling rove session is recorded as its
+ * The shared child `tab-new` opens on `parentTaskId` (an empty engine, a shell): same directory,
+ * the pinned `command` or else the parent's engine. A calling rove session is recorded as its
  * dispatcher, so the child's bare `send` replies to the session that opened it.
  */
 export async function spawnSharedChild(
@@ -73,20 +72,17 @@ async function engineStarted(daemon: DaemonRpc, runtime: ApiRuntime, task: Seria
 
 /**
  * A task whose engine never started has had no conversation, and its first one lives in the
- * task itself (`tab-1`); only a later one is a shared child. A differing `command` re-points the
- * unstarted task's engine first; a first `prompt` replaces a placeholder title.
+ * task itself (`tab-1`): the task, re-read, or null once it has had one. A differing `command`
+ * re-points the unstarted task's engine first; `title` replaces a placeholder title.
  */
-export async function conversationHome(
+export async function ownConversation(
   daemon: DaemonRpc,
   runtime: ApiRuntime,
   task: SerializedTask,
   command: string | undefined,
-  prompt?: string,
-): Promise<ConversationHome> {
-  const title = prompt ? deriveTitleFromPrompt(prompt) : ""
-  if (await engineStarted(daemon, runtime, task)) {
-    return { task: await spawnSharedChild(daemon, task.id, command, title), child: true }
-  }
+  title: string,
+): Promise<SerializedTask | null> {
+  if (await engineStarted(daemon, runtime, task)) return null
   if (command && command !== task.command) {
     const vendor = resolveCommandProtocol(command)
     await daemon.request("task.setCommand", { taskId: task.id, command, ...(vendor ? { vendor } : {}) })
@@ -95,8 +91,18 @@ export async function conversationHome(
   if (title && task.title === PLACEHOLDER_TASK_TITLE) {
     await daemon.request("task.rename", { taskId: task.id, title }).catch(() => undefined)
   }
-  const fresh = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: task.id })
-  return { task: fresh.task, child: false }
+  return (await daemon.request<{ task: SerializedTask }>("task.get", { taskId: task.id })).task
+}
+
+/** The task's own conversation while it has none yet, else a shared child. */
+export async function conversationHome(
+  daemon: DaemonRpc,
+  runtime: ApiRuntime,
+  task: SerializedTask,
+  command: string | undefined,
+): Promise<ConversationHome> {
+  const own = await ownConversation(daemon, runtime, task, command, "")
+  return own ? { task: own, child: false } : { task: await spawnSharedChild(daemon, task.id, command), child: true }
 }
 
 /** Refusals before any session started: nothing ran, so the caller may retry from scratch. */

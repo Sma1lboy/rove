@@ -210,7 +210,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `UNKNOWN_VERB` | A verb that was REMOVED; `nextCommandArgs` is its replacement. |
 | `MISSING_FLAG` | A required flag was omitted. |
 | `BAD_FLAG` | Unknown flag, bad enum value, or a value the verb could not parse. |
-| `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. |
+| `BAD_TAB` | A `--tab` value that is not `new` or `tab-N`. `send --tab new` is refused: the hint and `nextCommandArgs` name the `add --no-worktree` equivalent. |
 | `BAD_DAEMON` | The daemon could not be reached or started. |
 | `DAEMON_VERSION_SKEW` | The daemon is a different build and does not serve this verb. |
 | `DAEMON_UNREACHABLE` | The daemon socket refused the connect (restarting or stopped); the request never left, so a retry is safe. |
@@ -226,7 +226,7 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `PUSH_FAILED` | `publish` (or `land` of a remote task) could not push the task's branch. |
 | `MACHINE_VERSION_SKEW` | That machine's Rove predates forwarded verbs; upgrade it. |
 | `MISSING_TARGET` | No `--task-id`, no `$ROVE_TASK_ID`, no active task — nothing was named. |
-| `NO_REPLY_ADDRESS` | `send` without `--task-id` from a Rove session whose task has no `dispatcher`; name the target. |
+| `NO_REPLY_ADDRESS` | `send` without `--task-id` from a Rove session whose task has no `dispatcher` (a task added with `--no-dispatcher` has none); name the target. |
 | `NOT_RATE_LIMITED` | `resume-quota --task-id` on a task that is not waiting on a quota reset. |
 | `MISSING_TEXT` | `row-token` was given neither `--text` to write nor `--clear` to remove. |
 | `TASK_NOT_FOUND` | An id WAS named and does not resolve. |
@@ -262,9 +262,9 @@ Separate from the daemon's refusals above — these never cross the socket:
 | `CURSOR_TASK_MISMATCH` | The cursor belongs to a different task. |
 | `SOURCE_CHANGED` | The cursor's source/session/tab moved under it. |
 | `TAB_RESTORED` | The `--tab` exists with its scrollback but nothing runs in it; pass `--respawn`. |
-| `NO_CONVERSATION` | `send --handoff-from tab-N` where that tab holds no conversation to hand over yet. |
-| `TAB_ALIVE` | `send --handoff-from tab-N --replace` where that tab's engine is still running; only a dead or exited one is replaced. |
-| `NO_TRANSCRIPT` | `send --handoff-from tab-N` where the tab's engine keeps no transcript Rove can name (a custom engine). |
+| `NO_CONVERSATION` | `add --handoff-from tab-N` or `send --tab tab-N --replace` where that tab holds no conversation to hand over yet. |
+| `TAB_ALIVE` | `send --tab tab-N --replace` where that tab's engine is still running; only a dead or exited one is replaced. |
+| `NO_TRANSCRIPT` | `add --handoff-from tab-N` or `send --tab tab-N --replace` where the tab's engine keeps no transcript Rove can name (a custom engine). |
 | `ENGINE_NOT_RUNNING` | The tab's engine exited into a plain shell, so a paste would run as shell commands. |
 | `AWAITING_PERMISSION` | `send` to a tab whose engine shows an approval or question menu (the tab's row reads `?`); a paste would land in the menu and Enter would confirm its highlighted option. Answer it with keys, then send. `tabIds` names the tabs. |
 | `ENGINE_PROBE_FAILED` | The `ps` probe behind that check failed or blew its deadline, so the tab's engine was never read. |
@@ -846,11 +846,11 @@ edits (`set-vendor`, `rename`,
 ## create
 
 - `add --repo PATH|REPO [--repo PATH|REPO …] [--clone] [--allow-fork] [--fork TASK_ID] [--workspace layerfs] [--workspace-on MACHINE] [--engine-there] [--parent ID | --no-parent]
-  [--no-worktree | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
+  [--no-worktree [--handoff-from TAB] | --isolate-in LINK] [--title T] [--branch B] [--base-branch B]
   [--base-for REPO=REF …]
   [--worktree-name NAME]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--require-report] [--prompt TEXT | --prompt-file PATH | --start | --worktree-only]`: create a task (appears in the
+  [--pin] [--activate] [--no-dispatcher] [--require-report] [--prompt TEXT | --prompt-file PATH | --start | --worktree-only]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
   starts the engine, and delivers the prompt. With `--start` and no prompt the
   engine starts idle in the task's own `tab-1` (`started: true`, `tabId`,
@@ -1044,7 +1044,9 @@ A create issued from inside a Rove engine tab records
 the caller as the new task's `dispatcher` (`{taskId, tabId}` from
 `$ROVE_TASK_ID`/`$ROVE_TAB_ID`, with Rove aliases). That is the reply address
 the worker's bare `send` routes back to. Creates from a plain shell or the
-TUI record none.
+TUI record none. `--no-dispatcher` records none from a session too: the new
+task keeps its parent but has no reply address, its bare `send` is refused
+(`NO_REPLY_ADDRESS`) and its first prompt carries no `[ROVE PEER]` header.
 
 Those env vars are **verified, not trusted**: an environment variable is
 inherited by every descendant process, so an agent's detached background
@@ -1060,7 +1062,7 @@ saying so.
 A new task's FIRST prompt (`add --prompt`, a parallel round, quick-fork) carries
 only facts about its own worktree; the standing worker instructions, naming its
 branch included, live in the Rove agent skill. Prompts into existing sessions
-(`send`, `send --tab new`, `dispatch`) are never modified.
+(`send`, `dispatch`) are never modified.
 
   **Nesting (`add` makes children).** A Task is one engine conversation; a
   task nested under another shows under it in the sidebar. Called from a
@@ -1091,6 +1093,26 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `--repo`, `--fork`, `--base-for`, and (for `--no-worktree`) `--base-branch`,
   `--branch`, `--worktree-name`, `--count` and `--agents` conflict with them.
 
+  **`add --no-worktree` starts a conversation in an existing task's
+  directory.** If the parent has had no conversation yet (its engine never
+  started), the conversation lives in the parent itself and the reply's
+  `taskId` is the parent's. Otherwise a shared child is created and `taskId`
+  is the child's; there is no `childTaskId`, a child is the reply whose
+  `taskId` differs from the parent. `session`, `started` and `delivered`
+  describe the conversation. `--command CMD` runs it on that engine without
+  changing the parent's. `--handoff-from tab-N` (a tab of the parent;
+  `--prompt` optional) continues that tab's conversation in the new one, e.g.
+  hand stuck work from Claude to Codex: `add --no-worktree --command codex
+  --handoff-from tab-1`. The first prompt becomes a handoff brief — the task
+  title, the source engine's transcript path, the user's last request and a
+  bounded excerpt (about 8 KB, oldest turns dropped first) of the latest
+  turns, all marked as untrusted history — and `--prompt`, when given,
+  follows it. The new engine starts in the same directory and branch; the
+  source tab is only read. `NO_CONVERSATION` = that tab has no conversation
+  yet, `NO_TRANSCRIPT` = its engine keeps no transcript Rove can name,
+  `TAB_NOT_FOUND` = the parent has no such tab, `BAD_TAB` = not a `tab-N`,
+  `BAD_FLAG` = not an engine tab, or no `--no-worktree`.
+
   **Uncommitted changes are never copied** into a new worktree: `parentDirty:
   true` in the reply says the parent had some. Top-level entries of the parent
   directory that are symlinks to a git checkout outside it are not isolated by
@@ -1100,7 +1122,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   appear only for a child cut from its parent's tip or sharing its directory.
 
   The TUI's and the web's "new conversation" gestures make shared children the
-  same way: `ctrl+t`, `ctrl+e` with the tab destination, `send --tab new` and
+  same way: `ctrl+t`, `ctrl+e` with the tab destination and
   `tab-new --kind engine` start a task's first conversation in its own `tab-1`
   and, once it holds one, each create a shared child, never a second engine
   tab. Deleting the parent promotes its children; see `delete --cascade`.
@@ -1108,7 +1130,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
 ## drive
 
 - `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
-  [--command CMD] [--handoff-from TAB [--replace]] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
+  [--replace [--command CMD]] [--plain] [--allow-empty] [--expect-report] [--if-runnable]`: paste a
   follow-up into a task's running engine (one full turn). `--prompt-file`
   reads the text from a file (`-` = stdin) so the shell never sees it:
   backticks inside a double-quoted `--prompt` are command substitution, and
@@ -1128,10 +1150,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   carry `--plain` so replaying them does not stack a second prefix. `delivered: true` says the bytes landed and
   nothing more: when the target was already in `error` or `dead`, the
   result carries `targetState` (and `targetDetail`), so a prompt sent into a
-  failed session is visible as such. `--tab new` starts a new conversation: the target's own canonical engine while it has no tabs yet (a
-  placeholder title becomes the prompt's), else a shared child task of the target
-  (same directory, as `add --no-worktree`; a calling Rove session is recorded as its `dispatcher`) that receives the prompt, titled from it, and the reply adds `childTaskId`
-  (`session`, `delivered` and the other delivery facts describe the child; `taskId` stays the target), while
+  failed session is visible as such. `--tab new` is refused with `BAD_TAB`;
+  its hint and `nextCommandArgs` name the `add --no-worktree` equivalent.
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
   absent). A tab a **pty-host restart froze** is neither: it is listed by
   `pty-list` with its scrollback and launch command intact, and it refuses
@@ -1147,30 +1167,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   freeze-restored engine tabs it did not use, the reply carries `frozenTabs`
   — `{tab, sessionId}` for each — because otherwise "opened a blank agent
   while your two real conversations are frozen" reports exactly like a
-  healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it runs
-  that new child on that engine without changing the target's own. Using it with an
-  existing tab is a `BAD_FLAG` error rather than a silent switch.
-  `--handoff-from tab-N` (valid only with `--tab new`) continues that tab's
-  conversation in the new one, e.g. hand stuck work from Claude to Codex:
-  `send --tab new --command codex --handoff-from tab-1`. The first prompt
-  becomes a handoff brief — the task title, the source engine's transcript path,
-  the user's last request and a bounded excerpt (about 8 KB, oldest turns
-  dropped first) of the latest turns, all marked as untrusted history — and
-  `--prompt`, when given, follows it; without one the brief alone is sent, so
-  `--prompt` is optional here. The new engine starts in the same directory and
-  branch; the source tab is only read. `NO_CONVERSATION` = that tab has no
-  conversation yet, `NO_TRANSCRIPT` = its engine keeps no transcript Rove can
-  name, `BAD_FLAG` = not an engine tab, or no `--tab new`.
-  `--replace` (needs `--handoff-from`) puts the new engine in that tab's own slot
-  instead of a shared child task, for a source whose engine is dead or exited
-  (`get-task` `.tabs[]`: `alive: false`, or `engineAlive: false` = only the
-  fallback shell is left): same task, same tab id, same worktree, a fresh
-  conversation on the brief; the reply adds `replacedTab`. A running engine is
-  refused with `TAB_ALIVE` and keeps the child-task path. A replacement that
-  fails to start or to receive the brief puts the tab back as it was, so the
-  same call can be retried.
+  healthy first start, and `get-task` then says `running: true`.
+  `--replace` (needs `--tab tab-N`) puts a new engine in that tab's own slot,
+  for a tab whose engine is dead or exited (`get-task` `.tabs[]`:
+  `alive: false`, or `engineAlive: false` = only the fallback shell is left):
+  same task, same tab id, same worktree, a fresh conversation on the handoff
+  brief described under `add --handoff-from`; `--prompt`, when given,
+  follows it, and without one the brief alone is sent. `--command CMD` (valid
+  only with `--replace`; otherwise `BAD_FLAG`) runs the new engine on that
+  engine instead of the tab's own. The reply adds `replacedTab`. A running
+  engine is refused with `TAB_ALIVE`. A replacement that fails to start or to
+  receive the brief puts the tab back as it was, so the same call can be
+  retried. `NO_CONVERSATION`, `NO_TRANSCRIPT` and `BAD_FLAG` (not an engine
+  tab) are as for `add --handoff-from`.
   Delivery needs a live engine in that tab: one that exited into the
-  keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a `--tab new` hint
+  keep-alive shell refuses with `ENGINE_NOT_RUNNING` and a recovery hint
   instead of pasting into a shell. When the `ps` probe behind that check fails
   or blows its deadline the refusal is `ENGINE_PROBE_FAILED` instead — the tab
   was never looked at, so nothing is claimed about its engine. Any registered
@@ -1214,8 +1225,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   the same refusal fold into one row (`repeats`). A skip is dropped, never
   held for later. `dispatch` and `add --count` do not take the flag:
   `dispatch` is an agent-to-agent reply into a live session, and a fan-out
-  creates fresh tasks, which have no prior state to judge. `send --tab new`
-  is judged on task-level state only (gates, unreported deliveries).
+  creates fresh tasks, which have no prior state to judge.
 
   **`--queue` waits for a running turn instead of landing in it.** A prompt
   pasted mid-turn is not held by every engine: Codex drops the work in flight
@@ -1240,13 +1250,13 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   (or fix its text with `queue-edit`). A tab whose
   engine reports no turn events never hands over. Held prompts live in the
   daemon's memory: `rove daemon
-  restart` drops them. `--queue` does not combine with `--tab new`,
+  restart` drops them. `--queue` does not combine with `--replace`,
   `--if-runnable` or `--respawn`, and gate answers owed to the tab stay owed
   until a prompt is actually pasted.
 
   **`engine.maxLiveSessions` caps new sessions.** When that setting is a
   positive number, a call that would START an engine session (`add` with a
-  prompt, `send --tab new`, a `send` to a task with no live session) first
+  prompt, a `send` to a task with no live session) first
   counts the live engine tabs across every task. At or past the cap it
   refuses with `ENGINE_LIMIT`, carrying `taskId`, `live`, `limit`, and the
   `send` that retries the same prompt. Nothing is spawned and no tab is
@@ -1497,7 +1507,7 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   conversation yet (no tabs) starts it in its own `tab-1`, on `--command`'s engine
   when given (the task is re-pointed to it first). A task that already holds one gets a shared
   child task of `--task-id` (same directory, as `add --no-worktree`) whose
-  engine, the task's own or `--command`'s as `send --tab new --command` pins it,
+  engine, the task's own or `--command`'s as `add --no-worktree --command` pins it,
   starts idle in the child's own `tab-1`, ready for a first message. A task
   holds one engine conversation, so this never adds a second engine tab to it.
   `--latest` instead starts the engine this project used last, else the

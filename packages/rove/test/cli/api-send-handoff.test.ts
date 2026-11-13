@@ -1,7 +1,7 @@
 /**
- * `send --tab new --handoff-from tab-N`: the agent twin of "Continue in another
- * engine…". The first prompt of the new conversation carries the old one's
- * context, and the new engine starts in the SAME directory.
+ * Handing a conversation to another engine, in the same directory. `add --parent X --no-worktree
+ * --handoff-from tab-N` opens the new conversation with the old one's brief; `send --tab tab-N --replace`
+ * puts the new engine in a dead tab's own slot, the brief read from that same tab.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
@@ -78,15 +78,16 @@ function fixture(
   })
 }
 
-describe("send --handoff-from", () => {
+describe("add --handoff-from", () => {
+  const addArgs = ["--parent", "abc", "--no-worktree"]
+
   it("starts the other engine in the same directory, its first prompt carrying the old conversation", async () => {
     const { calls, deliver } = recordingDelivery()
-    const result = await invokeVerb(
-      "send",
-      ["--task-id", "abc", "--tab", "new", "--command", "codex", "--handoff-from", "tab-1", "--plain"],
-      { client: fixture(), runtime: stubRuntime({ deliverPrompt: deliver }) },
-    )
-    expect(result).toMatchObject({ ok: true, taskId: "abc", childTaskId: "kid", delivered: true })
+    const result = await invokeVerb("add", [...addArgs, "--command", "codex", "--handoff-from", "tab-1"], {
+      client: fixture(),
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(result).toMatchObject({ taskId: "kid", delivered: true })
     const { prompt, target } = calls[0]
     expect(target).toMatchObject({ worktreePath: WORKTREE, command: "codex" })
     expect(prompt).toContain(`Continue "Document the json flag" from a previous Claude`)
@@ -97,98 +98,109 @@ describe("send --handoff-from", () => {
 
   it("adds --prompt after the brief", async () => {
     const { calls, deliver } = recordingDelivery()
-    await invokeVerb(
-      "send",
-      ["--task-id", "abc", "--tab", "new", "--handoff-from", "tab-1", "--plain", "--prompt", "finish the docs only"],
-      { client: fixture(), runtime: stubRuntime({ deliverPrompt: deliver }) },
-    )
-    const { prompt } = calls[0]
-    expect(prompt.endsWith("\n\nfinish the docs only")).toBe(true)
+    await invokeVerb("add", [...addArgs, "--handoff-from", "tab-1", "--prompt", "finish the docs only"], {
+      client: fixture(),
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(calls[0].prompt.endsWith("\n\nfinish the docs only")).toBe(true)
   })
 
-  describe("--replace", () => {
-    const withTabs = (rows: Array<Record<string, unknown>>) =>
-      stubRuntime({ taskTabs: async () => ({ tabs: rows as never, running: false }) })
-    const deadTab = { id: "tab-1", kind: "engine", alive: true, engineAlive: false }
-
-    it("puts the new engine in the dead tab's own slot: same task, same tab, no child", async () => {
-      const client = fixture()
-      const revived: string[] = []
-      const { calls, deliver } = recordingDelivery({ session: "abc::tab-1" })
-      const result = await invokeVerb(
-        "send",
-        ["--task-id", "abc", "--tab", "new", "--command", "codex", "--handoff-from", "tab-1", "--replace", "--plain"],
-        {
-          client,
-          runtime: {
-            ...withTabs([deadTab]),
-            deliverPrompt: deliver,
-            reviveTab: async (_c, _t, tabId, _w, opts) => {
-              revived.push(`${tabId}:${opts?.replaceExited}:${opts?.awaitEngine}`)
-              return { revived: true, resumed: false }
-            },
-          },
-        },
-      )
-      expect(result).toMatchObject({ ok: true, taskId: "abc", replacedTab: "tab-1", delivered: true })
-      expect(result).not.toHaveProperty("childTaskId")
-      expect(client.requestNames).not.toContain("task.spawn")
-      // The row is repointed at the new engine and loses the old conversation's identity.
-      const patch = client.requests.find((r) => r.name === "tabs.apply")?.payload as {
-        ops: Array<{ op: string; id: string; set?: Record<string, unknown>; unset?: string[] }>
-      }
-      expect(patch.ops[0]).toMatchObject({ op: "patch", id: "tab-1", set: { vendor: "codex" } })
-      expect(patch.ops[0]?.unset).toEqual(expect.arrayContaining(["sessionId", "spawned", "engineCommand"]))
-      // The leftover shell is replaced, then the brief is pasted into THAT tab.
-      expect(revived).toEqual(["tab-1:true:true"])
-      expect(calls[0]?.target).toMatchObject({ id: "abc", tab: "tab-1" })
-      expect(calls[0]?.prompt).toContain(transcript)
-    })
-
-    it("keeps a live source on the child-task path: refuses --replace", async () => {
-      const client = fixture()
-      await expectApiError(
-        () =>
-          invokeVerb("send", ["--task-id", "abc", "--tab", "new", "--handoff-from", "tab-1", "--replace", "--plain"], {
-            client,
-            runtime: {
-              ...withTabs([{ id: "tab-1", kind: "engine", alive: true, engineAlive: true }]),
-              deliverPrompt: recordingDelivery().deliver,
-            },
-          }),
-        "TAB_ALIVE",
-      )
-      expect(client.requestNames).not.toContain("tabs.apply")
-      expect(client.requestNames).not.toContain("task.spawn")
-    })
-
-    it("needs --handoff-from", async () => {
-      await expectApiError(
-        () =>
-          invokeVerb("send", ["--task-id", "abc", "--tab", "new", "--replace", "--plain", "--prompt", "x"], {
-            client: fixture(),
-            runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
-          }),
-        "BAD_FLAG",
-      )
-    })
-  })
-
-  it("refuses to run without --tab new, on a shell tab and on a tab with no conversation", async () => {
+  it("is refused without --no-worktree, on a shell tab and on a tab with no conversation", async () => {
     const run = (flags: string[], client = fixture()) =>
-      invokeVerb("send", ["--task-id", "abc", "--handoff-from", "tab-1", "--plain", ...flags], {
+      invokeVerb("add", ["--parent", "abc", "--handoff-from", "tab-1", ...flags], {
         client,
         runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
       })
     await expectApiError(() => run(["--prompt", "x"]), "BAD_FLAG")
     await expectApiError(
-      () => run(["--tab", "new"], fixture({ kind: "command", id: "tab-1", command: ["zsh"] })),
+      () => run(["--no-worktree"], fixture({ kind: "command", id: "tab-1", command: ["zsh"] })),
       "BAD_FLAG",
     )
     // An unpinned tab falls back to the newest session of ITS directory; this one has none.
     await expectApiError(
-      () => run(["--tab", "new"], fixture({ kind: "engine", id: "tab-1", vendor: "claude" }, "/repo/no-sessions")),
+      () => run(["--no-worktree"], fixture({ kind: "engine", id: "tab-1", vendor: "claude" }, "/repo/no-sessions")),
       "NO_CONVERSATION",
+    )
+  })
+})
+
+describe("send --replace", () => {
+  const withTabs = (rows: Array<Record<string, unknown>>) =>
+    stubRuntime({ taskTabs: async () => ({ tabs: rows as never, running: false }) })
+  const deadTab = { id: "tab-1", kind: "engine", alive: true, engineAlive: false }
+
+  it("puts the new engine in the dead tab's own slot: same task, same tab, no child", async () => {
+    const client = fixture()
+    const revived: string[] = []
+    const { calls, deliver } = recordingDelivery({ session: "abc::tab-1" })
+    const result = await invokeVerb(
+      "send",
+      ["--task-id", "abc", "--tab", "tab-1", "--replace", "--command", "codex", "--plain"],
+      {
+        client,
+        runtime: {
+          ...withTabs([deadTab]),
+          deliverPrompt: deliver,
+          reviveTab: async (_c, _t, tabId, _w, opts) => {
+            revived.push(`${tabId}:${opts?.replaceExited}:${opts?.awaitEngine}`)
+            return { revived: true, resumed: false }
+          },
+        },
+      },
+    )
+    expect(result).toMatchObject({ ok: true, taskId: "abc", replacedTab: "tab-1", delivered: true })
+    expect(result).not.toHaveProperty("childTaskId")
+    expect(client.requestNames).not.toContain("task.spawn")
+    // The row is repointed at the new engine and loses the old conversation's identity.
+    const patch = client.requests.find((r) => r.name === "tabs.apply")?.payload as {
+      ops: Array<{ op: string; id: string; set?: Record<string, unknown>; unset?: string[] }>
+    }
+    expect(patch.ops[0]).toMatchObject({ op: "patch", id: "tab-1", set: { vendor: "codex" } })
+    expect(patch.ops[0]?.unset).toEqual(expect.arrayContaining(["sessionId", "spawned", "engineCommand"]))
+    // The leftover shell is replaced, then the brief (read from that same tab) is pasted into THAT tab.
+    expect(revived).toEqual(["tab-1:true:true"])
+    expect(calls[0]?.target).toMatchObject({ id: "abc", tab: "tab-1" })
+    expect(calls[0]?.prompt).toContain(transcript)
+  })
+
+  it("appends --prompt after the brief, and needs none", async () => {
+    const { calls, deliver } = recordingDelivery({ session: "abc::tab-1" })
+    await invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--replace", "--plain", "--prompt", "only docs"], {
+      client: fixture(),
+      runtime: {
+        ...withTabs([deadTab]),
+        deliverPrompt: deliver,
+        reviveTab: async () => ({ revived: true, resumed: false }),
+      },
+    })
+    expect(calls[0]?.prompt.endsWith("\n\nonly docs")).toBe(true)
+  })
+
+  it("refuses a live engine tab: TAB_ALIVE, nothing rewritten", async () => {
+    const client = fixture()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--tab", "tab-1", "--replace", "--plain"], {
+          client,
+          runtime: {
+            ...withTabs([{ id: "tab-1", kind: "engine", alive: true, engineAlive: true }]),
+            deliverPrompt: recordingDelivery().deliver,
+          },
+        }),
+      "TAB_ALIVE",
+    )
+    expect(client.requestNames).not.toContain("tabs.apply")
+    expect(client.requestNames).not.toContain("task.spawn")
+  })
+
+  it("needs --tab tab-N", async () => {
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--replace", "--plain", "--prompt", "x"], {
+          client: fixture(),
+          runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+        }),
+      "BAD_FLAG",
     )
   })
 })

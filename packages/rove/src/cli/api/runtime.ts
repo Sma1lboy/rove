@@ -260,7 +260,7 @@ export async function deliverPrompt(
     throw sessionFailed(
       target.id,
       `failed to start hosted engine session for ${target.id}`,
-      "delivery returned nothing — the task exists but has no session; retry with `api send --tab new`",
+      "delivery returned nothing — the task exists but has no session; start a conversation in it with `api add --parent <id> --no-worktree`",
     )
   return hosted
 }

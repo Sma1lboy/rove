@@ -34,7 +34,6 @@ import { filterTaskList, listFields, listFilters, projectTasks } from "./list-fi
 import { ptyScopeOf } from "./pty-scope.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { awaitingChoiceError, tabsAwaitingChoice } from "./send-menu-guard.ts"
-import { conversationHome, failSharedChild, withFirstConversationLock } from "./shared-child.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep, promptMayHaveLanded } from "./types.ts"
 
@@ -108,10 +107,7 @@ interface ReplaceRollback {
 export async function send(ctx: VerbContext): Promise<unknown> {
   const rollback: ReplaceRollback = {}
   try {
-    if (ctx.args.str("tab") !== "new") return await sendNow(ctx, rollback)
-    // Whichever way the task is found, two new conversations on it are serialized.
-    const { taskId } = await resolveSendTask(ctx, daemonOf(ctx), "new")
-    return await withFirstConversationLock(taskId, () => sendNow(ctx, rollback))
+    return await sendNow(ctx, rollback)
   } catch (err) {
     await rollback.undo?.().catch(() => {})
     throw err
@@ -120,77 +116,69 @@ export async function send(ctx: VerbContext): Promise<unknown> {
 
 async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const handoffFrom = ctx.args.str("handoff-from")
   let tab = ctx.args.str("tab")
-  if (handoffFrom && tab !== "new") {
+  if (tab === "new") {
+    const parent = ctx.args.str("task-id")
+    const command = ctx.args.str("command")
+    const text = ctx.args.promptText()
     throw new ApiError(
-      `--handoff-from starts a new conversation; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
-      "BAD_FLAG",
-      helpStep("send"),
+      "send delivers into a conversation that exists; start a new one in the same directory with `add --no-worktree`",
+      "BAD_TAB",
+      {
+        hint: "`add --no-worktree` nests under the calling session, or under --parent ID",
+        nextCommandArgs: [
+          "api",
+          "add",
+          ...(parent ? ["--parent", parent] : []),
+          "--no-worktree",
+          ...(command ? ["--command", command] : []),
+          ...(text ? ["--prompt", text] : []),
+        ],
+      },
     )
+  }
+  if (tab && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
+    throw new ApiError(`--tab must be a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
   }
   const replace = ctx.args.bool("replace") === true
-  if (replace && !handoffFrom) {
-    throw new ApiError(
-      "--replace takes over a tab for a handoff; pass --handoff-from tab-N",
-      "BAD_FLAG",
-      helpStep("send"),
-    )
+  if (replace && !tab) {
+    throw new ApiError("--replace takes over one dead tab; pass --tab tab-N", "BAD_FLAG", helpStep("send"))
   }
-  // With a handoff the prompt is optional: the brief already asks the engine to say where the work stood.
-  let prompt = handoffFrom ? (ctx.args.promptText() ?? "") : requirePromptText(ctx, "send")
-  if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
-    throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
-  }
-  // A pinned engine only applies to the child `--tab new` creates; refuse rather than
+  // A pinned engine only applies to the tab `--replace` takes over; refuse rather than
   // hand a caller who asked for codex a claude conversation and a success exit.
   const tabCommand = ctx.args.str("command")
-  if (tabCommand && tab !== "new") {
+  if (tabCommand && !replace) {
     throw new ApiError(
-      `--command only applies to a new tab; pass --tab new (got --tab ${tab ?? "<canonical>"})`,
+      "--command names the engine that takes over a dead tab; pass --tab tab-N --replace (another engine in a new conversation is `add --no-worktree --command`)",
       "BAD_FLAG",
       helpStep("send"),
     )
   }
+  // With --replace the prompt is optional: the brief already asks the engine to say where the work stood.
+  let prompt = replace ? (ctx.args.promptText() ?? "") : requirePromptText(ctx, "send")
   const respawn = ctx.args.bool("respawn")
-  assertQueueFlags(ctx, tab)
-  // Exact-tab only: the canonical path already respawns a restored tab-1 and
-  // `--tab new` spawns by definition, so the flag would be a silent no-op.
-  if (respawn && (tab === undefined || tab === "new")) {
+  assertQueueFlags(ctx)
+  // Exact-tab only: the canonical path already respawns a restored tab-1, so the flag would be a silent no-op.
+  if (respawn && tab === undefined) {
     throw new ApiError(
-      `--respawn addresses one frozen tab; pass --tab tab-N (got --tab ${tab ?? "<canonical>"})`,
+      "--respawn addresses one frozen tab; pass --tab tab-N (got --tab <canonical>)",
       "BAD_FLAG",
       helpStep("send"),
     )
   }
   const sendTo = await resolveSendTask(ctx, daemon, tab)
-  let taskId = sendTo.taskId
+  const taskId = sendTo.taskId
   tab = sendTo.tab
-  let res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-  if (handoffFrom) prompt = [await handoffBrief(ctx, res.task, handoffFrom), prompt].filter(Boolean).join("\n\n")
+  const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  if (replace && tab) prompt = [await handoffBrief(ctx, res.task, tab, "send"), prompt].filter(Boolean).join("\n\n")
   // Before ANY delivery path (--plain included: a verbatim false claim is the
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
-  const requestedTaskId = taskId
-  // `--tab new` is a new conversation: the task's own engine while it has none yet,
-  // else a shared child whose own engine gets the prompt.
-  let childTaskId: string | undefined
-  let freshConversation = false
   let replacedTab: string | undefined
-  if (tab === "new" && replace && handoffFrom) {
-    // A dead source's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
-    rollback.undo = await replaceDeadTab({ runtime: ctx.runtime, daemon }, res.task, handoffFrom, tabCommand)
-    replacedTab = handoffFrom
-    tab = handoffFrom
-  } else if (tab === "new") {
-    const home = await conversationHome(daemon, ctx.runtime, res.task, tabCommand, prompt)
-    res = { task: home.task }
-    freshConversation = true
-    if (home.child) {
-      childTaskId = home.task.id
-      taskId = childTaskId
-    }
-    tab = undefined
+  if (replace && tab) {
+    // A dead tab's slot is the new engine's: same task and tab, no child (docs/SESSIONS.md).
+    rollback.undo = await replaceDeadTab({ runtime: ctx.runtime, daemon }, res.task, tab, tabCommand)
+    replacedTab = tab
   }
   // A migrated child's conversation is a hosted PTY keyed under its parent: its default tab IS that one,
   // delivered to exactly (a dead one is TAB_NOT_FOUND, never a second engine beside the live one).
@@ -211,14 +199,11 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   if (held) return held
   // Read BEFORE delivery: a paste into a failed session still "lands", and the
   // caller has to be told what it landed in.
-  const target = childTaskId ? null : await activityView(await readActivityRegistry(daemon), res.task, tab)
-  if (!childTaskId && tab !== "new") {
-    const waiting = await tabsAwaitingChoice(daemon, taskId, tab, target)
-    if (waiting) throw awaitingChoiceError(taskId, waiting)
-  }
+  const target = await activityView(await readActivityRegistry(daemon), res.task, tab)
+  const waiting = await tabsAwaitingChoice(daemon, taskId, tab, target)
+  if (waiting) throw awaitingChoiceError(taskId, waiting)
   // Decision-gate answers the owner gave while this tab's engine was away (design § 3).
-  // A fresh child is a different conversation: the answer stays owed to its own.
-  const owed = childTaskId ? null : await takeOwedGateAnswers(daemon, taskId, tab)
+  const owed = await takeOwedGateAnswers(daemon, taskId, tab)
   const withAnswers = owed ? `${owed.text}\n\n${plain}` : plain
   // Armed BEFORE the paste: a failed turn can fire its hook within
   // milliseconds of it, and an unarmed delivery can't be flagged missing.
@@ -254,7 +239,7 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
   const settle = async (delivered: boolean, session?: string): Promise<void> => {
     if (claimId) await daemon.request("send.release", { claimId, delivered }).catch(() => {})
     // The hosted session key is `<taskId>::<tabId>`.
-    const landedTab = session?.split("::")[1] ?? (tab && tab !== "new" ? tab : undefined)
+    const landedTab = session?.split("::")[1] ?? tab
     await recordSend(daemon, { taskId, tabId: landedTab, prompt, delivered, deliveryId })
     if (!deliveryId) return
     await daemon
@@ -277,25 +262,12 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
         ...(res.task.extraRepos?.length || res.task.sharesWorkspaceOf ? { multiRepo: true } : {}),
         tab,
         respawn,
-        ...(freshConversation && !childTaskId ? { firstConversation: true } : {}),
       },
       text,
     )
   } catch (err) {
     await settle(false)
-    if (!childTaskId) throw err
-    return failSharedChild(daemon, err, childTaskId, [
-      "api",
-      "send",
-      "--task-id",
-      requestedTaskId,
-      "--tab",
-      "new",
-      ...(tabCommand ? ["--command", tabCommand] : []),
-      "--plain",
-      "--prompt",
-      prompt,
-    ])
+    throw err
   }
   // A prompt that never landed is a delivery FAILURE the script must see —
   // non-zero exit, not a phantom `ok:true`.
@@ -305,25 +277,14 @@ async function sendNow(ctx: VerbContext, rollback: ReplaceRollback): Promise<unk
     // A paste that may have landed is the new engine's now; only a clean miss gives the tab back.
     if (mayLand) rollback.undo = undefined
     await settle(mayLand, mayLand ? delivered.session : undefined)
-    throw new ApiError(
-      `prompt was not confirmed in ${taskId}'s engine (paste did not land)`,
-      "NOT_DELIVERED",
-      childTaskId ? { childTaskId } : undefined,
-    )
+    throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
   await settle(true, delivered.session)
   // The answers rode this paste; only now are they the engine's.
   if (owed) await markGateAnswersDelivered(daemon, owed.gateIds)
-  if (freshConversation) {
-    // `.task.prompt` means "the engine was given exactly this text": recorded only once delivery confirmed.
-    await daemon.request("task.setPrompt", { taskId, prompt }).catch((err: unknown) => {
-      console.error(`[rove api send] task.setPrompt failed for ${taskId}:`, err)
-    })
-  }
   return {
     ok: true,
-    taskId: requestedTaskId,
-    ...(childTaskId ? { childTaskId } : {}),
+    taskId,
     ...(replacedTab ? { replacedTab } : {}),
     session: delivered.session,
     ...(deliveryId ? { deliveryId } : {}),

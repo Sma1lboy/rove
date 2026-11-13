@@ -76,7 +76,7 @@ creates one.
 interface Delivery {
   id: string                    // "d-<n>", monotonic per daemon home
   taskId: string
-  tabId: string | null          // null until the tab is known (send --tab new, standing targets)
+  tabId: string | null          // null until the tab is known (standing targets)
   source: "routine" | "send" | "gate-answer"
   automationRunId?: string      // source === "routine"
   gateId?: string               // source === "gate-answer"
@@ -445,21 +445,13 @@ All five are implemented in this stack, in this order.
   host and the per-tab delivery lockfile), so no daemon-side critical section
   can span it. Instead `send.admit` evaluates the verdict, claims the tab and
   arms the delivery with no `await` between the verdict and the claim; the
-  claim reads as `busy` to every other should-run on that tab (a `--tab new`
-  claim excepted, below) until `send.release` or a
+  claim reads as `busy` to every other should-run on that tab until
+  `send.release` or a
   90-second expiry (a CLI that died between the two). An unarmed paste keeps
   the claim 15 more seconds so the engine's own `turn-start` can land; an
   armed one needs no grace, its awaiting delivery already says `busy`. The
   guarantee is "no two `--if-runnable` ticks both pass", not "no plain
   `send` can interleave".
-- **A `--tab new` claim is its own slot.** It covers only the task rollup
-  (`should-run` without `--tab`), never an exact `--tab tab-N` send on the
-  same task: the new tab is not any existing tab, and `--tab new` itself skips
-  the busy check, so the block would only ever run one way. An armed
-  `--tab new` send is not fully covered: its delivery has no tab until the
-  paste lands and the CLI binds it (`setTab`), and a tab-less delivery matches
-  every tab, so exact-tab ticks read `busy` for that window (seconds, not the
-  claim's expiry).
 - **An unreported tick blocks until a late report or an explicit dismiss.**
   Opening or visiting the `report_missing` row (TUI, phone) never clears it;
   only a late `report` or an explicit dismissal does (TUI `d` on the row,

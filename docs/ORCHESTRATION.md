@@ -20,7 +20,7 @@ worktree. Isolation drops at each step down:
 ```text
 new Task            → own worktree + own branch   (parallel work can't collide)
 child, own worktree → own worktree, branch cut from the parent's tip (`add` from a session)
-child, shared dir   → own conversation, SAME files (`add --no-worktree`, `send --tab new`)
+child, shared dir   → own conversation, SAME files (`add --no-worktree`)
 new Split           → same screen, one tab divided (a monitor beside the work)
 ```
 
@@ -28,7 +28,7 @@ new Split           → same screen, one tab divided (a monitor beside the work)
 |---|---|---|
 | Independent attempts, comparable results | New top-level tasks (`add --no-parent`, `--count N`) | Each gets its own worktree and branch from the repo's default base; nothing can overwrite anything |
 | Sub-work that builds on this branch's current state | `add` from the session | It nests under the session, in its own worktree branched from the parent's tip; uncommitted changes do not come along (`parentDirty` says so) |
-| A second opinion on the *same* working tree | Shared child (`send --tab new`, `add --no-worktree`) | Separate conversation, shared files — deliberate, and deliberate collisions too |
+| A second opinion on the *same* working tree | Shared child (`add --no-worktree`) | Separate conversation, shared files — deliberate, and deliberate collisions too |
 | A different engine on the same files | Shared child with `--command` | The child pins its own engine; the parent's is untouched |
 | Logs, tests, `btop` next to the work | Split (`pane-open`) | A split is layout, not delegation — it isolates nothing |
 
@@ -283,7 +283,7 @@ everything, passed everything, committed nothing. `land` fails with
 
 **`send` refuses instead of guessing.** A task whose live tabs include no
 engine gets `NO_ENGINE_TAB` (address one with `--tab tab-N` from `get-task`'s
-`.tabs[]`, or start another conversation with `--tab new`); an engine that exited back to its
+`.tabs[]`, or start another conversation with `add --no-worktree`); an engine that exited back to its
 shell gets `ENGINE_NOT_RUNNING`. Errors carry a `hint` and often
 `nextCommandArgs` — argv you can run verbatim to recover.
 

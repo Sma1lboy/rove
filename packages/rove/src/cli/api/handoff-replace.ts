@@ -1,5 +1,5 @@
 /**
- * `send --handoff-from tab-N --replace`: the handoff lands in the DEAD tab's own
+ * `send --tab tab-N --replace`: the handoff lands in the DEAD tab's own
  * slot instead of a shared child. The task keeps one conversation per tab, so a
  * conversation whose engine is gone is replaced, not accompanied: same task, same
  * tab id, same worktree, a fresh session of the new engine. The row is repointed

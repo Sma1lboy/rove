@@ -52,7 +52,7 @@ The token lives in `<ROVE_HOME>/.rove/bridge/token` (mode 0600) and survives bri
 - **Tasks.** Every task across repos with its title, branch, engine and group — `waiting-on-you`, `landing`, `ready-for-review`, `working`, `idle`, `unknown` — sorted so what needs you is on top. The groups are computed by the same code as `rove api context`. A badge counts unread attention-inbox items. Pull to refresh; changes also arrive live.
 - **Terminal.** Each Terminal Tab of a task attaches to the hosted session in the PTY Host — the same session the TUI shows, so both see the output and both can type. A key row under the terminal (always visible, no keyboard needed) sends Esc, Tab, Shift-Tab, a sticky Ctrl, arrows, Enter and Ctrl-C, and leads with 1–4 and Enter while the tab waits at a menu; typing into the terminal goes through keystroke by keystroke; the composer sends an engine tab the whole message through `tab.send`, held until the turn ends when the engine is busy (held messages show above the field, each with a × that takes it back), and sends a shell tab a line, then Enter. **Fit** (default) resizes the shared session to the phone's screen, so the TUI pane re-wraps to the phone's width until it next resizes; **Watch** leaves the size alone and scales the font instead.
 - **Archive.** A row's menu archives a task: the row moves to the Archived fold at the end of the list, and the worktree, branch and sessions stay as they are. A busy task asks first. Unarchive is in the same menu.
-- **New tab.** An engine tab with a first message is `rove api send --tab new`; without one (an idle engine, or a plain login shell) it is `rove api tab-new`.
+- **New tab.** An engine tab with a first message is `rove api add --no-worktree`; without one (an idle engine, or a plain login shell) it is `rove api tab-new`.
 - **Sync with base.** A task row's menu merges the task's base branch into its worktree. A conflict or uncommitted changes show the files to deal with.
 - **Diff.** Files changed on the branch versus its base (same base rule as the TUI's changes pane) and uncommitted files, each with its unified diff.
 - **New task, land, delete.** New task takes a repo, an engine and an optional first prompt. Land and delete ask twice; delete keeps the branch, as `rove api delete` does.
@@ -79,7 +79,7 @@ flowchart LR
 ```
 
 - The bridge subscribes to the daemon as a `gui` client, the way an open TUI does, so the daemon does not idle-stop while a phone is the only UI.
-- Task rows come from `task.list`, the activity registry, the attention inbox and PTY Host liveness, folded by `buildContext` from `rove api context`. Mutations go through the `rove api` verbs themselves (`add`, `delete`, `land`, `send --tab new`, `tab-new`, `tab-close`), so they keep every guard those verbs have.
+- Task rows come from `task.list`, the activity registry, the attention inbox and PTY Host liveness, folded by `buildContext` from `rove api context`. Mutations go through the `rove api` verbs themselves (`add`, `delete`, `land`, `tab-new`, `tab-close`), so they keep every guard those verbs have.
 - Each phone connection opens its own PTY Host socket. Closing the WebSocket detaches every session that phone watched; it never ends a session.
 - The daemon is unchanged. No HTTP or SSE was added to it.
 
@@ -111,7 +111,7 @@ JSON text frames over one WebSocket. Request `{"id": 1, "op": "tasks.list", "arg
 | `task.delete` | `taskId`, `force?`, `cascade?` (also delete every descendant; absent, the task's children are promoted) | `{status}` |
 | `task.land` | `taskId`, `strategy?` (`merge`/`squash`) | `{landedOn, commit}` |
 | `task.tabs` | `taskId` | `{tabs: [{id, kind, title, engineName, liveEngine?, alive, engineAlive, split?}]}; `liveEngine` = the engine running in the tab right now (null when the probe has no answer; `engineName` falls back to the configured one)`; `split` = `{activeLeafId, root}` while the tab is split (`root` is a tree of `{kind: "leaf", id, title, own}` and `{kind: "group", orientation: "row" \| "column", children}`), absent otherwise |
-| `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`send --tab new`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
+| `tab.new` | `taskId`, `kind?` (`engine` default / `shell`), `prompt?`, `engine?` | `{tabId}`; with a `prompt` it starts the engine on it (`add --no-worktree`), without one it opens the tab empty (`tab-new`); a `shell` tab takes no `prompt` or `engine` (`BAD_ARGS`) |
 | `tab.close` | `taskId`, `tabId` | `{}` |
 | `term.attach` | `taskId`, `tabId`, `leafId?` (a split pane `leaf-N` beyond `leaf-1`; its stream is `taskId::tabId::leaf-N`), `cols?`+`rows?`, `acks?` (see `term.ack`) | `{stream, alive, replay}` (base64 bytes) |
 | `term.input` | `stream`, `data` | `{}` |

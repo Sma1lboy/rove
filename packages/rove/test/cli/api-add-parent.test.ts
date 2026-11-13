@@ -31,6 +31,11 @@ function createClient(tasks: Record<string, unknown>[] = [root, kid], spawnTask?
       const taskId = payload && typeof payload === "object" && "taskId" in payload ? payload.taskId : undefined
       return { task: tasks.find((t) => t.id === taskId) }
     },
+    // Every parent here has had its own conversation, so a shared-directory add is a child.
+    "tabs.get": () => ({
+      state: { tabs: [{ kind: "engine", id: "tab-1", spawned: true }], activeId: "tab-1" },
+      rev: 1,
+    }),
     "task.create": (_p, i) => ({ taskId: `c${i + 1}`, task: taskFixture({ id: `c${i + 1}` }) }),
     "task.spawn": (_p, i) => ({
       taskId: spawnTask ? String(spawnTask.id) : `s${i + 1}`,

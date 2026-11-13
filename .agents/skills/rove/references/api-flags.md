@@ -40,7 +40,7 @@ Four flag names that have actually been guessed wrong here, and what they are:
 | `issue-list --state` | `issue-list --status` (comma list: `open,doing`) |
 
 `--count`/`--agents` require `--prompt`. `--branch` is single-task only.
-`--tab new` is the only placement that accepts `send --command`.
+`send --command` only goes with `--replace`; a new conversation is `add --no-worktree`.
 
 ## Retired — these no longer exist
 
@@ -135,9 +135,8 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send               --task-id --prompt|--prompt-file --tab --command --handoff-from
-                   --replace --respawn --plain --allow-empty --expect-report --if-runnable
-                   --queue
+send               --task-id --prompt|--prompt-file --tab --replace --command --respawn
+                   --plain --allow-empty --expect-report --if-runnable --queue
 dispatch           --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 interrupt          --task-id --group --all --tab
 resume-quota       --task-id --all
@@ -253,9 +252,10 @@ clear the shared active task.
 publish        --task-id(REQ) --remote
 pr-attach      --url(REQ) --task-id
 add            --repo(REQ) --clone --fork --workspace{layerfs} --workspace-on
-               --engine-there --allow-fork --parent --no-parent --no-worktree --isolate-in
-               --title --branch --base-branch --base-for --worktree-name --command
-               --effort --tier{swift|standard|deep|auto} --model --count
+               --engine-there --allow-fork --parent --no-parent --no-worktree
+               --handoff-from --no-dispatcher --isolate-in --title --branch --base-branch
+               --base-for --worktree-name --command --effort
+               --tier{swift|standard|deep|auto} --model --count
                --agents <claude:2,codex:1>
                --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
                --require-report --expect-report --activate(false) --worktree-only --start
@@ -481,7 +481,7 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `DELIVERY_NOT_FOUND` | `report --delivery` names no delivery | copy the id from the prompt's `[ROVE]` line; `deliveries --task-id <id>` |
 | `DIRTY_WORKTREE` | `delete` on a worktree with uncommitted files | send the worker back to commit, or `delete --force` to discard |
 | `ISSUE_NOT_FOUND` | no issue with that number in this repo | `rove api issue-list --repo <path>` |
-| `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
+| `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `add --no-worktree` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
 | `EMPTY_SUCCESS_REPORT` | `succeeded:` or `report --outcome done` from a branch with 0 commits | commit first, or say so with `--allow-empty` |

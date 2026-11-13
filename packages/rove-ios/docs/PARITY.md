@@ -59,14 +59,14 @@
 |---|---|---|---|
 | S1 | 新开引擎 tab（`ctrl+t`） | 已有 | `+ tab`，选引擎 + 首条消息 |
 | S2 | 新会话对话框：引擎 / 插件面板 | 已有 | `+ tab` / `…` → New session…：选引擎。插件面板不适用（`pane-open` 只广播给已挂载的 TUI，没有 TUI 就是空操作） |
-| S2b | 新会话对话框里的 shell / 右键 New shell | 缺失 | 没有无头的公开接口：`send --tab new` 必须带 prompt 且只开引擎 tab，`pane-open` 要已连接的 TUI。已提需（rove issue #120） |
+| S2b | 新会话对话框里的 shell / 右键 New shell | 缺失 | 没有无头的公开接口：`add --parent --no-worktree` 必须带 prompt 且只开引擎 tab，`pane-open` 要已连接的 TUI。已提需（rove issue #120） |
 | S3 | 目标切换：本 worktree 新 tab ⇄ fork 子任务（新 worktree，从当前分支切） | 已有 | 新会话 sheet 的 `where`；子任务用 `add --base-branch <本任务分支>`；单个 attempt 会跳进子任务 |
 | S4 | 上下文切换：全新会话 ⇄ 接着这段对话（continue / handoff） | 已有 | 新会话 sheet 的 `conversation`。无头环境没有原生 fork，同引擎也走 transcript handoff，界面里写明 |
 | S5 | Attempts：同一 prompt 扇出 N 个兄弟任务 | 已有 | fork 模式下 `attempts` 1–5（`add --count`），多个时留在原任务并弹 toast |
 | S6 | 切换 tab（`ctrl+[ ]`、`ctrl+1..9`） | 已有 | 点 tab |
 | S7 | 重命名 tab（`F2`） | 已有 | `…` → Rename tab（`rename --tab`，无 TUI 时也写入快照） |
 | S8 | 关闭 tab（`ctrl+w`，关掉最后一个后任务保留） | 已有 | … 菜单 |
-| S9 | 关掉所有 tab 后重新打开同类会话 | 已有 | 无 tab 时出现 `reopen session`，可选接着上一段对话（只能开引擎 tab，没有 prompt 的空 tab 开不了：`send --tab new` 要求 prompt） |
+| S9 | 关掉所有 tab 后重新打开同类会话 | 已有 | 无 tab 时出现 `reopen session`，可选接着上一段对话（只能开引擎 tab，没有 prompt 的空 tab 开不了：`add --parent --no-worktree` 要求 prompt） |
 | S10 | tab 状态图标：spinner / `!` / `●` / `○`，以及 `◷ † ?` | 已有 | tab 条每个 tab 前的符号，来自 `tab.states`；`●` 在手机上打开该 tab 后变 `○`（已读记在手机本地） |
 | S11 | 终端分屏（`ctrl+\`、`ctrl+=`、`F3`） | 不适用 | 手机一屏放不下两个可用的终端；一个 tab 一个会话，tab 已覆盖并行 |
 | S12 | 滚动回看（`ctrl+pageup/down`、滚轮、first/latest） | 已有 | 拖动滚动；终端右上 `⋯`：Top / Page up / Page down；滚上去后出现 `latest ↓` |

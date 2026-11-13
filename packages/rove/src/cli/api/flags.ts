@@ -183,9 +183,10 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
       flags.get(f.name) ||
       (f.name === "prompt" && flags.get("prompt-file")) ||
       // A fork takes its repo from the parent; a shared-directory or linked-repo child from its own.
+      // `--handoff-from` is refused without --no-worktree, and that refusal is the useful answer.
       (verb.name === "add" &&
         f.name === "repo" &&
-        (flags.get("fork") || flags.get("no-worktree") || flags.get("isolate-in")))
+        (flags.get("fork") || flags.get("no-worktree") || flags.get("isolate-in") || flags.get("handoff-from")))
     if (f.required && !satisfied)
       throw new ApiError(`--${f.name} is required for "${verb.name}"`, "MISSING_FLAG", helpStep(verb.name))
     if (f.type === "enum" && f.values) {

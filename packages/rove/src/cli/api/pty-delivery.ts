@@ -139,8 +139,8 @@ export async function deliverHostedPrompt(
         `task ${target.id}'s engine tab (${existingKey}) has no live engine process — its engine exited into a plain shell`,
         "ENGINE_NOT_RUNNING",
         {
-          hint: "spawn a fresh engine tab for this prompt with --tab new",
-          nextCommandArgs: ["api", "send", "--task-id", target.id, "--tab", "new", "--plain", "--prompt", prompt],
+          hint: "start a new conversation for this prompt with `add --no-worktree`",
+          nextCommandArgs: ["api", "add", "--parent", target.id, "--no-worktree", "--prompt", prompt],
         },
       )
     }
@@ -158,7 +158,7 @@ export async function deliverHostedPrompt(
       `task ${target.id} has live tabs (${aliveTabs.join(", ")}) but none resolves as its engine tab — refusing to spawn a new engine`,
       "NO_ENGINE_TAB",
       {
-        hint: "address a live engine tab explicitly with --tab <tab-N> (see pty-list), or start another conversation with --tab new",
+        hint: "address a live engine tab explicitly with --tab <tab-N> (see pty-list), or start another conversation with `add --no-worktree`",
         nextCommandArgs: ["api", "pty-list"],
       },
     )

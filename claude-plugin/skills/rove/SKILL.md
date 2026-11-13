@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 123 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 124 — bump in lockstep with ROVE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -34,7 +34,7 @@ lifecycle tracking, and an explicit outcome contract.
   finished your own task and were spawned by another → a bare `send`
   (no `--task-id`) replies to the DISPATCHER — the exact task + tab that
   created you, recorded at creation (`.task.dispatcher` on `get-task`;
-  `add` and `send --tab new` both record it).
+  `add` records it; `--no-dispatcher` skips it).
   If that tab died it falls back to the dispatcher task's live canonical
   engine tab; nothing alive fails loud (`DISPATCHER_UNREACHABLE`) — it
   never spawns a new engine, so a failed reply is visible, not fake-ok.
@@ -96,7 +96,7 @@ shown under it. Isolation drops at every level down:
 
 ```text
 new Task            → `add`: own worktree + own branch   (parallel work can't collide)
-child, shared dir   → `send --tab new` / `add --no-worktree`: own engine session, SAME files (a helper in the same checkout)
+child, shared dir   → `add --no-worktree`: own engine session, SAME files (a helper in the same checkout)
 new Split           → same session's screen, one tab divided (a monitor beside the work)
 ```
 
@@ -106,8 +106,10 @@ builds on what you committed (uncommitted edits do not come along —
 `parentDirty: true` in the reply says you had some; commit first if the child
 needs them). It nests only in your own repo; another `--repo` stays a
 top-level task. `--no-parent` is the unrelated top-level task cut from the repo
-default, `--parent ID` nests under another task, and a bare `send` from the
-child reports back to you.
+default, `--parent ID` nests under another task. Whether it has a parent and
+what passes between you are separate choices: `--handoff-from tab-N` (with
+`--no-worktree`) hands that tab's conversation to the child; the reply address
+(on by default, `--no-dispatcher` off) lets its bare `send` report back to you.
 
 Only need a separate checkout to edit in yourself? `add --repo "$PWD"
 --worktree-only` cuts the worktree (`worktreePath` in the reply) and starts no
@@ -117,8 +119,8 @@ work. Delete it when you are done.
 A session is an agent, so a task always has one: an `add` without
 `--prompt`, `--start` or `--worktree-only` is refused (`EMPTY_SESSION`), from
 a session or a plain shell alike. Never `add --start` and `ensure-worktree`
-just to get a directory: that is a session nobody works in. Several sessions may share one worktree (`send --tab new`,
-`add --no-worktree`); a worktree with no session is `--worktree-only`.
+just to get a directory: that is a session nobody works in. Several sessions may share one worktree
+(`add --no-worktree`); a worktree with no session is `--worktree-only`.
 
 The distinction that decides every routing call: **a shared child uses the
 parent's worktree and branch; only a new task (`add`) gets its own.**
@@ -147,8 +149,8 @@ the first row that fits:
 | "branch off this and keep my uncommitted changes", "fork this task" | a sibling task cloned from THIS worktree, edits and untracked files included | `rove api add --fork "$ROVE_TASK_ID" --prompt "…"` (refused with `FORK_UNSUPPORTED` where the volume cannot clone; then plain `add --repo` starts from the last commit) |
 | "split", "side by side", "keep an eye on X while…" | a new region in the CURRENT tab | `rove api pane-open --command "…"` |
 | names a tab: "tell the agent in tab 3" | that exact tab | `rove api send --task-id <id> --tab tab-3 --prompt "…"` |
-| a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api send --task-id "$ROVE_TASK_ID" --tab new --prompt "…"` |
-| names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | a shared child of THIS task on that engine | `rove api send --task-id "$ROVE_TASK_ID" --tab new --command codex --prompt "…"` |
+| a LOCATION word: "in this workspace/worktree/checkout", "on this branch", "here", "same task" | a shared CHILD of THIS task (same directory) | `rove api add --no-worktree --prompt "…"` |
+| names an ENGINE for the same files: "let codex take over here", "try this one with claude instead" | a shared child of THIS task on that engine | `rove api add --no-worktree --command codex --prompt "…"` |
 | **anything else — no row above matched** | a NEW task — new worktree + branch | `rove api add --repo "$PWD" --prompt "…"` |
 
 Order is the tiebreak: a count ("3 ways in this workspace") beats a location
@@ -257,8 +259,8 @@ Do not guess flags — but do not pay a round-trip for the ones you use every
 turn either. These five carry almost all traffic:
 
 ```text
-add      --repo(REQ) --prompt --title --command --count --agents --activate
-send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain --expect-report --if-runnable
+add      --repo(REQ) --prompt --title --command --count --agents --activate --no-worktree --handoff-from --no-dispatcher
+send     --prompt|--prompt-file(REQ) --task-id --tab --plain --expect-report --if-runnable
 get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
@@ -349,11 +351,9 @@ rove api ports --task-id <id>
 # through review feedback. `unavailable` = gh could not be asked, not "none".
 rove api review-comments --task-id <id>
 rove api send --task-id <id> --tab tab-3 --prompt "<turn>"  # exact alive tab
-rove api send --task-id <id> --tab new --prompt "<turn>"    # shared child: reply adds childTaskId
-# Same directory, DIFFERENT agent — the API twin of the TUI's ctrl+e pick. The
-# engine is stored on the new child task (survives restarts) and the target's own
-# engine is left alone. --tab new only.
-rove api send --task-id <id> --tab new --command codex --prompt "<turn>"
+rove api add --parent <id> --no-worktree --prompt "<turn>"  # shared child; reply taskId != <id> if a child was made
+# Same directory, DIFFERENT agent (the TUI's ctrl+e pick); the parent's engine stays.
+rove api add --parent <id> --no-worktree --command codex --prompt "<turn>"
 
 rove api get-task --task-id <id>
 # One read for the whole round — the groupId `add --count` returned. Never
@@ -387,7 +387,7 @@ has NO live session at all does `send`
 auto-start the canonical engine in the task's worktree (`started: true` in
 the result marks that fresh session). If live tabs exist but none resolves
 as an engine, it refuses with `NO_ENGINE_TAB` — address one with `--tab
-tab-N` or start another conversation with `--tab new`; it never silently spawns a duplicate
+tab-N` or start one with `add --no-worktree`; it never silently spawns a duplicate
 engine. Its `hint` names `pty-list` — the live-PTY read (key, alive, pid,
 command); use it when `.tabs[]` and reality disagree.
 
@@ -545,7 +545,7 @@ columns derive from the issue's own lifecycle — do NOT move cards with
 ## Choosing the engine (`--command`)
 
 Rove picks an engine by COMMAND, not by a vendor name. `--command` on `add`
-and `send --tab new` takes either an engine id from `rove api engine-list`
+(and `send --replace`) takes either an engine id from `rove api engine-list`
 (`claude`, `codex`, …, plus any preset the user registered) or a full command
 line Rove runs verbatim:
 
