@@ -58,6 +58,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   process.env.ROVE_CONNECT_TIMEOUT_MS = ""
   for (const client of clients.splice(0)) client.close()
 })
@@ -100,15 +101,13 @@ describe("connect deadline", () => {
     // by a connect that is still pending past the point a deadline would have
     // fired — never by waiting out a hang.
     process.env.ROVE_CONNECT_TIMEOUT_MS = "0"
-    const settled = await Promise.race([
-      open()
-        .connect()
-        .then(
-          () => "connected",
-          () => "rejected",
-        ),
-      new Promise<string>((resolve) => setTimeout(() => resolve("pending"), 300)),
-    ])
-    expect(settled).toBe("pending")
+    vi.useFakeTimers()
+    let settled = false
+    const markSettled = () => {
+      settled = true
+    }
+    open().connect().then(markSettled, markSettled)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(settled).toBe(false)
   })
 })

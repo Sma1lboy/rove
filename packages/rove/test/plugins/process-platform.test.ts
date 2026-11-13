@@ -58,21 +58,26 @@ for (const platform of ["win32", "darwin"] as const) {
       }
     }
 
-    it.each(["stop", "disable", "replace"] as const)("keeps mod pipes attached and reaps the tree on %s", (action) => {
+    const spec = { pluginId: "test.mod", root: "/unused", mod: { command: ["bun", "mod.ts"] } }
+    it.each([
+      ["stop", (host: ModHost) => host.stop()],
+      ["disable", (host: ModHost) => host.sync([])],
+      ["replace", (host: ModHost) => host.sync([{ ...spec, mod: { command: ["bun", "replacement.ts"] } }])],
+    ] as const)("keeps mod pipes attached and reaps the tree on %s", (_action, act) => {
       childProcess()
       const kill = vi.spyOn(process, "kill").mockReturnValue(true)
       const host = new ModHost({ platform, homeDir: "/unused", socketPath: "unused", binPath: "rove", publish() {} })
-      const spec = { pluginId: "test.mod", root: "/unused", mod: { command: ["bun", "mod.ts"] } }
       host.sync([spec])
       expectSpawn(["pipe", "pipe", "pipe"])
-      if (action === "stop") host.stop()
-      else if (action === "disable") host.sync([])
-      else host.sync([{ ...spec, mod: { command: ["bun", "replacement.ts"] } }])
+      act(host)
       expectKill(kill, "SIGTERM")
       host.stop()
     })
 
-    it.each(["deadline", "shutdown"] as const)("keeps hook pipes attached and reaps the tree on %s", async (action) => {
+    it.each([
+      ["deadline", () => vi.advanceTimersByTime(100)],
+      ["shutdown", (inFlight: Set<() => void>) => [...inFlight].map((stop) => stop())],
+    ] as const)("keeps hook pipes attached and reaps the tree on %s", async (_action, act) => {
       vi.useFakeTimers()
       const child = childProcess()
       const kill = vi.spyOn(process, "kill").mockReturnValue(true)
@@ -91,8 +96,7 @@ for (const platform of ["win32", "darwin"] as const) {
         inFlight,
       })
       expectSpawn(["ignore", "pipe", "pipe"])
-      if (action === "deadline") vi.advanceTimersByTime(100)
-      else for (const stop of inFlight) stop()
+      act(inFlight)
       expectKill(kill, "SIGKILL")
       child.emit("close", 0)
       await run

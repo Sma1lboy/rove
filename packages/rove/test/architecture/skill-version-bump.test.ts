@@ -83,9 +83,10 @@ describe("agent skill content is versioned", () => {
     )
   })
 
-  test("both SKILL.md copies carry the marker this build expects", () => {
-    for (const path of [join(SKILL_DIR, "SKILL.md"), join(ROOT, "claude-plugin", "skills", "rove", "SKILL.md")]) {
-      expect(readFileSync(path, "utf8"), path).toContain(`rove-skill-version: ${ROVE_SKILL_VERSION} `)
-    }
-  })
+  test.each([join(SKILL_DIR, "SKILL.md"), join(ROOT, "claude-plugin", "skills", "rove", "SKILL.md")])(
+    "%s carries the marker this build expects",
+    (path) => {
+      expect(readFileSync(path, "utf8")).toContain(`rove-skill-version: ${ROVE_SKILL_VERSION} `)
+    },
+  )
 })

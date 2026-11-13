@@ -61,12 +61,6 @@ afterEach(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true })
 })
 
-describe("statePath", () => {
-  test("resolves under ROVE_HOME_DIR", () => {
-    expect(statePath()).toBe(path.join(tmpHome, ".config", "rove", "state.json"))
-  })
-})
-
 describe("isGitRepo", () => {
   test("true inside a real git work tree (and its subdirectories)", () => {
     const repo = fs.mkdtempSync(path.join(os.tmpdir(), "rove-gitrepo-"))

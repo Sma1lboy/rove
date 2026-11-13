@@ -48,14 +48,12 @@ describe("engine.lifecycle marks vs engine-state edges", () => {
     expect(lifecycle().has("t1")).toBe(false)
   })
 
-  it("turn_complete and error both end every transient mark", () => {
-    for (const terminal of ["turn_complete", "error"]) {
-      const { signals, lifecycle } = fakeSignals()
-      handleOrchestratorEvent("engine-state", { taskId: "t1", state: "running", at: 1 }, signals)
-      handleOrchestratorEvent("engine.lifecycle", { taskId: "t1", kind: "subagent-start", at: 2 }, signals)
-      expect(lifecycle().get("t1")).toMatchObject({ subagents: 1 })
-      handleOrchestratorEvent("engine-state", { taskId: "t1", state: terminal, at: 3 }, signals)
-      expect(lifecycle().has("t1")).toBe(false)
-    }
+  it.each(["turn_complete", "error"])("%s ends every transient mark", (terminal) => {
+    const { signals, lifecycle } = fakeSignals()
+    handleOrchestratorEvent("engine-state", { taskId: "t1", state: "running", at: 1 }, signals)
+    handleOrchestratorEvent("engine.lifecycle", { taskId: "t1", kind: "subagent-start", at: 2 }, signals)
+    expect(lifecycle().get("t1")).toMatchObject({ subagents: 1 })
+    handleOrchestratorEvent("engine-state", { taskId: "t1", state: terminal, at: 3 }, signals)
+    expect(lifecycle().has("t1")).toBe(false)
   })
 })

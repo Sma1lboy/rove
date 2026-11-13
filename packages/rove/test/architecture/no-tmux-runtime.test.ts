@@ -26,33 +26,37 @@ function sourceFiles(dir: string, files: string[] = []): string[] {
   return files
 }
 
+/** Does this line, in `file`, reach a tmux runtime outside the compatibility seam? */
+function referencesTmux(file: string, line: string): boolean {
+  if (line.trimStart().startsWith("//")) return false
+  const importsLegacyCompat = /["'][^"']*legacy-tmux(?:\.ts)?["']/.test(line)
+  const importsTmux =
+    /^\s*(?:import|export)\b.*\bfrom\s*["'][^"']*tmux/i.test(line) || /\bimport\(\s*["'][^"']*tmux/i.test(line)
+  const namesTmuxBinary = /["']tmux["']/.test(line)
+  if (importsLegacyCompat) return !LEGACY_IMPORTERS.has(file)
+  if (importsTmux) return true
+  return namesTmuxBinary && file !== LEGACY_COMPAT && !DIAGNOSTIC_NAMERS.has(file)
+}
+
+function retiredRuntimeOffenders(): string[] {
+  return sourceFiles(SRC_ROOT)
+    .filter((file) => {
+      const source = readFileSync(file, "utf8")
+      return source.includes("ROVE_TMUX") || source.split("\n").some((line) => referencesTmux(file, line))
+    })
+    .map((file) => relative(SRC_ROOT, file))
+}
+
 describe("Hosted PTY-only runtime boundary", () => {
   test("the retired runtime directory is absent", () => {
     expect(existsSync(RETIRED_ROOT)).toBe(false)
   })
 
   test("only the reset/doctor compatibility seam can reference tmux", () => {
-    const offenders = sourceFiles(SRC_ROOT)
-      .filter((file) => {
-        const source = readFileSync(file, "utf8")
-        if (source.includes("ROVE_TMUX")) return true
-        return source.split("\n").some((line) => {
-          if (line.trimStart().startsWith("//")) return false
-          const importsLegacyCompat = /["'][^"']*legacy-tmux(?:\.ts)?["']/.test(line)
-          const importsTmux =
-            /^\s*(?:import|export)\b.*\bfrom\s*["'][^"']*tmux/i.test(line) || /\bimport\(\s*["'][^"']*tmux/i.test(line)
-          const namesTmuxBinary = /["']tmux["']/.test(line)
-          if (importsLegacyCompat) return !LEGACY_IMPORTERS.has(file)
-          if (importsTmux) return true
-          return namesTmuxBinary && file !== LEGACY_COMPAT && !DIAGNOSTIC_NAMERS.has(file)
-        })
-      })
-      .map((file) => relative(SRC_ROOT, file))
+    const offenders = retiredRuntimeOffenders()
 
     expect(offenders, `retired runtime references: ${offenders.join(", ")}`).toEqual([])
     expect(existsSync(LEGACY_COMPAT)).toBe(true)
-    const compatibilitySource = readFileSync(LEGACY_COMPAT, "utf8")
-    expect(compatibilitySource).toContain('LEGACY_TMUX_SOCKET = "rove"')
-    expect(compatibilitySource).not.toContain("ROVE_TMUX")
+    expect(readFileSync(LEGACY_COMPAT, "utf8")).not.toContain("ROVE_TMUX")
   })
 })

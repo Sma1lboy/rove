@@ -22,7 +22,7 @@ import {
 } from "@sma1lboy/rove-daemon/plugins/plugin-paths"
 import { savePluginRegistry } from "@sma1lboy/rove-daemon/plugins/registry"
 import { PluginHost } from "@sma1lboy/rove-daemon/plugins/runtime"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { linkPlugin } from "../../src/cli/plugin-install.ts"
 
 const dirs: string[] = []
@@ -32,6 +32,7 @@ function tmp(prefix: string): string {
   return dir
 }
 afterEach(() => {
+  vi.unstubAllEnvs()
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -85,16 +86,10 @@ describe("plugin subsystem files are owner-only", () => {
     const home = tmp("rove-pmode-link-")
     const root = tmp("rove-pmode-link-root-")
     writeFileSync(join(root, "rove-plugin.toml"), LEAKY)
-    const saved = process.env.ROVE_HOME_DIR
-    process.env.ROVE_HOME_DIR = home
-    try {
-      linkPlugin(root)
-      expect(mode(pluginConfigDir("example.leaky", home))).toBe(0o700)
-      expect(mode(pluginStateDir("example.leaky", home))).toBe(0o700)
-    } finally {
-      if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
-      else process.env.ROVE_HOME_DIR = saved
-    }
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    linkPlugin(root)
+    expect(mode(pluginConfigDir("example.leaky", home))).toBe(0o700)
+    expect(mode(pluginStateDir("example.leaky", home))).toBe(0o700)
   })
 
   it("writes the captured-output log as 0600 in 0700 config/state dirs", async () => {

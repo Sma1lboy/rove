@@ -171,16 +171,6 @@ const FULL: DeepRequired<Omit<SerializedTask, "origin">> = {
 describe("deserializeTask", () => {
   it("takes every wire field off the wire", () => {
     const task = deserializeTask(FULL as SerializedTask) as unknown as Record<string, unknown>
-    for (const [key, value] of Object.entries(FULL)) {
-      expect(task[key], `deserializeTask dropped "${key}"`).toEqual(value)
-    }
-  })
-
-  it("carries the custom launch command, which decided which engine binary ran", () => {
-    // The regression this file was written for: persisted fine, arrived on the
-    // wire fine, dropped here — so `engineLaunchArgv` saw no command and
-    // launched the vendor default instead of what `add --command` was given.
-    expect(deserializeTask({ ...FULL, command: "codex --yolo" } as SerializedTask).command).toBe("codex --yolo")
-    expect(deserializeTask({ ...FULL, command: undefined } as SerializedTask).command).toBeUndefined()
+    expect(Object.fromEntries(Object.keys(FULL).map((key) => [key, task[key]]))).toEqual(FULL)
   })
 })

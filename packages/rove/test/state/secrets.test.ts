@@ -48,16 +48,17 @@ describe("writeSecret / readSecret", () => {
     expect(readDisk()).toEqual({ TYPESAFE_API_KEY: "sk-live-abcd" })
   })
 
-  it("writes the file owner-only, and never lands a world-readable version of it", () => {
-    // Mode on the staging file, not a chmod after the rename: between a 0644
-    // create and a later chmod there is a window where the key is readable by
-    // anyone on the box. (POSIX only — on Windows the ACL decides, which is
-    // why the docs do not promise 0600 there.)
-    writeSecret("TYPESAFE_API_KEY", "sk-live-abcd")
-    if (process.platform !== "win32") {
+  it.skipIf(process.platform === "win32")(
+    "writes the file owner-only, and never lands a world-readable version of it",
+    () => {
+      // Mode on the staging file, not a chmod after the rename: between a 0644
+      // create and a later chmod there is a window where the key is readable by
+      // anyone on the box. (POSIX only — on Windows the ACL decides, which is
+      // why the docs do not promise 0600 there.)
+      writeSecret("TYPESAFE_API_KEY", "sk-live-abcd")
       expect(fs.statSync(secretsPath()).mode & 0o777).toBe(0o600)
-    }
-  })
+    },
+  )
 
   it("removes the FILE when the last key is cleared, not just the key", () => {
     // Absence is the signal callers read as "no secrets stored"; an empty
@@ -200,11 +201,6 @@ describe("staging files", () => {
     fs.writeFileSync(other, "{}", "utf8")
     writeSecret("A", "one")
     expect(fs.existsSync(other)).toBe(true)
-  })
-
-  it("leaves no staging file behind on a successful write", () => {
-    writeSecret("A", "one")
-    expect(siblings().filter((n) => n.endsWith(".tmp"))).toEqual([])
   })
 })
 

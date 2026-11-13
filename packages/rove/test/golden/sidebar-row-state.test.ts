@@ -90,12 +90,12 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
   const settled = new Set(["●", NO_STATE_GLYPH, ATTENTION_GLYPH])
   const spinnerLines = spinnerBlock().filter((line) => line.includes("frames(0..25)="))
   expect(spinnerLines.length).toBeGreaterThan(0)
-  for (const line of spinnerLines) {
-    const frames = line.split("frames(0..25)=")[1] ?? ""
-    for (const glyph of frames) {
-      expect({ line, glyph, collides: settled.has(glyph) }).toEqual({ line, glyph, collides: false })
-    }
-  }
+  const collisions = spinnerLines.flatMap((line) =>
+    [...(line.split("frames(0..25)=")[1] ?? "")]
+      .filter((glyph) => settled.has(glyph))
+      .map((glyph) => `${glyph} in ${line}`),
+  )
+  expect(collisions).toEqual([])
 })
 
 /**
@@ -141,28 +141,22 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
   // scanned too: it renders into the same row at the same one cell, so a chip
   // glyph that falls back oversized overruns the label exactly like a state
   // glyph would.
-  const rendered = new Set<string>([NO_STATE_GLYPH, ATTENTION_GLYPH])
-  for (const line of statusCrossProduct()) {
-    const glyph = / glyph=(\S+)/.exec(line)?.[1]
-    if (glyph) for (const ch of glyph) rendered.add(ch)
-  }
-  for (const line of prChipBlock()) {
-    const glyph = /chip=(\S+) \(/.exec(line)?.[1]
-    if (glyph) for (const ch of glyph) rendered.add(ch)
-  }
-  for (const glyph of rendered) {
-    expect({ glyph, verified: VERIFIED.has(glyph) }).toEqual({ glyph, verified: true })
-  }
+  const rendered = new Set<string>([
+    NO_STATE_GLYPH,
+    ATTENTION_GLYPH,
+    ...statusCrossProduct().flatMap((line) => [...(/ glyph=(\S+)/.exec(line)?.[1] ?? "")]),
+    ...prChipBlock().flatMap((line) => [...(/chip=(\S+) \(/.exec(line)?.[1] ?? "")]),
+  ])
+  expect([...rendered].filter((glyph) => !VERIFIED.has(glyph))).toEqual([])
 })
 
 test("every row the matrix produces has a non-empty glyph and subtitle", () => {
   // A blank cell renders as a hole in the rail rather than a state, and the
   // golden would happily record the hole. Cheap structural floor under it.
-  for (const line of statusCrossProduct()) {
-    expect(line).toMatch(/ glyph=\S/)
-    expect(line).toMatch(/ title=\S/)
-    expect(line).toMatch(/ sub=\S/)
-  }
+  const holes = statusCrossProduct().filter(
+    (line) => ![/ glyph=\S/, / title=\S/, / sub=\S/].every((re) => re.test(line)),
+  )
+  expect(holes).toEqual([])
 })
 
 /**

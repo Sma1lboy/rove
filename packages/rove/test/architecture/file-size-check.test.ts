@@ -11,21 +11,25 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { afterAll, describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
 const SCRIPT = fileURLToPath(new URL("../../../../scripts/file-size-check.sh", import.meta.url))
 
-const repo = mkdtempSync(join(tmpdir(), "file-size-check-"))
+let repo: string
 const git = (...args: string[]) =>
   execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: repo, stdio: "pipe" })
 
 // A repo whose origin/main baseline is empty, so every file added on the
 // branch counts as touched.
-git("init", "-q")
-writeFileSync(join(repo, "README.md"), "base\n")
-git("add", ".")
-git("commit", "-qm", "base")
-git("update-ref", "refs/remotes/origin/main", "HEAD")
+beforeEach(() => {
+  repo = mkdtempSync(join(tmpdir(), "file-size-check-"))
+  git("init", "-q")
+  writeFileSync(join(repo, "README.md"), "base\n")
+  git("add", ".")
+  git("commit", "-qm", "base")
+  git("update-ref", "refs/remotes/origin/main", "HEAD")
+})
+afterEach(() => rmSync(repo, { recursive: true, force: true }))
 
 const tsFile = (name: string, lines: number) => {
   writeFileSync(join(repo, name), `${Array.from({ length: lines }, (_, i) => `// ${i}`).join("\n")}\n`)
@@ -46,8 +50,6 @@ const run = (prBody = "") => {
     return { code: e.status, stdout: e.stdout }
   }
 }
-
-afterAll(() => rmSync(repo, { recursive: true, force: true }))
 
 describe("file-size-check.sh", () => {
   test("a file with headroom passes silently", () => {
@@ -74,6 +76,7 @@ describe("file-size-check.sh", () => {
   })
 
   test("a PR-body exemption downgrades the over-cap error to a notice", () => {
+    tsFile("big.ts", 501)
     const { code, stdout } = run("file-size-exemption: big.ts — generated table")
     expect(code).toBe(0)
     expect(stdout).toContain("::notice file=big.ts::")
@@ -83,15 +86,17 @@ describe("file-size-check.sh", () => {
     tsFile("legacy.ts", 520)
     git("update-ref", "refs/remotes/origin/main", "HEAD") // legacy.ts is on the base now
     tsFile("legacy.ts", 519) // this PR only deletes a line
-    const { code, stdout } = run("file-size-exemption: big.ts — generated table")
+    const { code, stdout } = run()
     expect(code).toBe(0)
     expect(stdout).toContain("::notice file=legacy.ts::")
     expect(stdout).toContain("did not grow it (was 520)")
   })
 
   test("growing an already-over-cap file still fails", () => {
+    tsFile("legacy.ts", 520)
+    git("update-ref", "refs/remotes/origin/main", "HEAD")
     tsFile("legacy.ts", 521)
-    const { code, stdout } = run("file-size-exemption: big.ts — generated table")
+    const { code, stdout } = run()
     expect(code).toBe(1)
     expect(stdout).toContain("::error file=legacy.ts::")
   })

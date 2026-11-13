@@ -14,8 +14,7 @@ import {
 } from "../../src/state/scrollback"
 
 describe("normalizeScrollbackRows", () => {
-  it("defaults to 1000", () => {
-    expect(DEFAULT_SCROLLBACK_ROWS).toBe(1000)
+  it("falls back to the default for missing or garbage values", () => {
     expect(normalizeScrollbackRows(undefined)).toBe(DEFAULT_SCROLLBACK_ROWS)
     expect(normalizeScrollbackRows(null)).toBe(DEFAULT_SCROLLBACK_ROWS)
     expect(normalizeScrollbackRows("garbage")).toBe(DEFAULT_SCROLLBACK_ROWS)

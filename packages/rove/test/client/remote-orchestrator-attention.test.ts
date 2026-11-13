@@ -1,5 +1,5 @@
 import type { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 const { logClientError } = vi.hoisted(() => ({ logClientError: vi.fn() }))
@@ -7,6 +7,8 @@ vi.mock("@sma1lboy/rove-daemon/client/client-log", async (importActual) => ({
   ...(await importActual<typeof import("@sma1lboy/rove-daemon/client/client-log")>()),
   logClientError,
 }))
+
+beforeEach(() => logClientError.mockClear())
 
 function fakeClient(): { client: RoveDaemonClient; emit: (name: string, payload: unknown) => void } {
   let star: ((frame: { name: string; payload: unknown }) => void) | undefined

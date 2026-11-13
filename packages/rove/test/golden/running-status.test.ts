@@ -20,7 +20,7 @@ import {
 } from "@sma1lboy/rove-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/rove-daemon/daemon/event-bus"
 import { tabStatus } from "@sma1lboy/rove-daemon/daemon/row-status"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-events"
 import type {
   EngineTabStateMap,
@@ -96,7 +96,11 @@ function harness(opts: { staleMs?: number; probe?: ActivityLivenessProbe } = {})
       })
       return { activity, loading: view.loading, glyph: view.stateGlyph, tone: view.tone }
     }
-    return { signals, row }
+    /** A subscribe-time replay landing on this client. */
+    const receive = (payloads: readonly EngineStatePayload[]) => {
+      for (const payload of payloads) handleOrchestratorEvent("engine-state", payload, signals)
+    }
+    return { signals, row, receive }
   }
 
   const client = makeClient()
@@ -109,8 +113,6 @@ function harness(opts: { staleMs?: number; probe?: ActivityLivenessProbe } = {})
   return { registry, published, row: client.row, makeClient }
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
 const registries: DaemonActivityRegistry[] = []
 const track = <T extends { registry: DaemonActivityRegistry }>(h: T): T => {
   registries.push(h.registry)
@@ -118,6 +120,7 @@ const track = <T extends { registry: DaemonActivityRegistry }>(h: T): T => {
 }
 afterEach(() => {
   for (const r of registries.splice(0)) r.close()
+  vi.useRealTimers()
 })
 
 describe("golden: session events → sidebar running state", () => {
@@ -239,10 +242,11 @@ describe("golden: session events → sidebar running state", () => {
       probed.push(transcriptPath)
       return Promise.resolve(undefined) // silent engine → lapse
     }
+    vi.useFakeTimers()
     const h = track(harness({ staleMs: 25, probe }))
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1", transcriptPath: "/t/s1.jsonl" }, "claude")
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-2", { id: "s2", transcriptPath: "/t/s2.jsonl" }, "claude")
-    await wait(120)
+    await vi.advanceTimersByTimeAsync(120)
     // Each tab's watchdog asked about ITS OWN session transcript — inheriting
     // the task rollup leaked another tab's session onto the probe.
     expect(probed).toContain("/t/s1.jsonl")
@@ -255,18 +259,20 @@ describe("golden: session events → sidebar running state", () => {
   })
 
   it("a fresh transcript write re-arms the watchdog instead of idling a long turn", async () => {
+    vi.useFakeTimers()
     const h = track(harness({ staleMs: 40, probe: () => Promise.resolve({ mtimeMs: Date.now() }) }))
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")
-    await wait(120)
+    await vi.advanceTimersByTimeAsync(120)
     expect(h.row("tab-1").loading).toBe(true)
   })
 
   it("a completion marker at/after turn start ends the lapse regardless of fresh writes", async () => {
+    vi.useFakeTimers()
     const h = track(
       harness({ staleMs: 25, probe: () => Promise.resolve({ mtimeMs: Date.now(), completedAt: Date.now() }) }),
     )
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")
-    await wait(120)
+    await vi.advanceTimersByTimeAsync(120)
     expect(h.row("tab-1").loading).toBe(false)
   })
 
@@ -294,9 +300,7 @@ describe("golden: session events → sidebar running state", () => {
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1", { id: "s1" }, "claude")
     // A fresh client attaches: no live events, only the subscribe-time replay.
     const late = h.makeClient()
-    for (const payload of h.registry.replaySnapshot()) {
-      handleOrchestratorEvent("engine-state", payload, late.signals)
-    }
+    late.receive(h.registry.replaySnapshot())
     expect(late.row("tab-1").loading).toBe(true)
   })
 })

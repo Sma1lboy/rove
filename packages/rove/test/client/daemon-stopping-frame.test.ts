@@ -37,15 +37,13 @@ describe("daemon.stopping", () => {
     expect(state.version).toBe("0.9.160")
   })
 
-  it("every other reason arms nothing", () => {
-    // Idle shutdown, a socket takeover, a plain stop: all ordinary, all
-    // recovered silently by the reconnect loop. A refresh prompt on any of
-    // them would be the disconnect banner by another name.
-    for (const reason of ["idle", "socket-lost", "stop"]) {
-      const { signals, state } = fakeSignals()
-      handleOrchestratorEvent("daemon.stopping", { reason }, signals)
-      expect(state.restarting).toBe(false)
-    }
+  // Idle shutdown, a socket takeover, a plain stop: all ordinary, all
+  // recovered silently by the reconnect loop. A refresh prompt on any of
+  // them would be the disconnect banner by another name.
+  it.each(["idle", "socket-lost", "stop"])("reason %s arms nothing", (reason) => {
+    const { signals, state } = fakeSignals()
+    handleOrchestratorEvent("daemon.stopping", { reason }, signals)
+    expect(state.restarting).toBe(false)
   })
 
   it("a v4 daemon's empty payload arms nothing", () => {

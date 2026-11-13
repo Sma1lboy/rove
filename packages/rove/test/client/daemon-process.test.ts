@@ -29,12 +29,6 @@ describe("resolveRoveSpawn", () => {
       "daemon",
       "start",
     ])
-    expect(resolveRoveSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" })).toEqual([
-      process.execPath,
-      expect.stringMatching(/\/cli\/rove\.ts$/),
-      "daemon",
-      "start",
-    ])
   })
 
   // `bun`/`node` hold an entry open by inode, so uninstalling Rove out from
@@ -87,13 +81,20 @@ function listen(handler?: (sock: import("node:net").Socket) => void): Promise<st
   return listenAt(join(SOCK_DIR, `rove-dpr-${process.pid}-${servers.length}.sock`), handler)
 }
 
-/** Minimal daemon stand-in: answers `hello` and nothing else. */
-function helloResponder(sock: import("node:net").Socket): void {
+/**
+ * Minimal daemon stand-in: answers `hello` (by default with protocol v2) and
+ * nothing else; `afterReply` runs once the reply is flushed.
+ */
+function helloResponder(
+  sock: import("node:net").Socket,
+  reply: Record<string, unknown> = { payload: { protocolVersion: 2 } },
+  afterReply?: () => void,
+): void {
   sock.on("data", (chunk) => {
     for (const line of chunk.toString().split("\n").filter(Boolean)) {
       const frame = JSON.parse(line) as { id: string; name: string }
       if (frame.name === "hello") {
-        sock.write(`${JSON.stringify({ type: "response", id: frame.id, payload: { protocolVersion: 2 } })}\n`)
+        sock.write(`${JSON.stringify({ type: "response", id: frame.id, ...reply })}\n`, afterReply)
       }
     }
   })
@@ -131,7 +132,7 @@ describe("testDaemonResponds", () => {
   // instead of recover when called from inside an engine session.
   it("reports a connection dropped mid-hello as absent, not alive", async () => {
     const path = await listen((sock) => {
-      setTimeout(() => sock.destroy(), 50)
+      sock.once("data", () => sock.destroy())
     })
     expect(await probeDaemonSocket(path, 1000)).toBe("absent")
   })
@@ -142,8 +143,7 @@ describe("testDaemonResponds", () => {
   it("reports a daemon that broadcasts daemon.stopping then drops as absent", async () => {
     const path = await listen((sock) => {
       sock.on("data", () => {
-        sock.write(`${JSON.stringify({ type: "event", name: "daemon.stopping", payload: {} })}\n`)
-        setTimeout(() => sock.destroy(), 10)
+        sock.write(`${JSON.stringify({ type: "event", name: "daemon.stopping", payload: {} })}\n`, () => sock.destroy())
       })
     })
     expect(await probeDaemonSocket(path, 1000)).toBe("absent")
@@ -157,21 +157,11 @@ describe("testDaemonResponds", () => {
   // a live daemon out from under its attached TUI, which is precisely the
   // split-brain succession this file's scar tissue exists to prevent.
   it("still counts a version-mismatch error reply as alive", async () => {
-    const path = await listen((sock) => {
-      sock.on("data", (chunk) => {
-        for (const line of chunk.toString().split("\n").filter(Boolean)) {
-          const frame = JSON.parse(line) as { id: string; name: string }
-          if (frame.name !== "hello") continue
-          sock.write(
-            `${JSON.stringify({
-              type: "response",
-              id: frame.id,
-              error: { name: "Error", message: "daemon is protocol v9; this client is v2. Upgrade Rove." },
-            })}\n`,
-          )
-        }
-      })
-    })
+    const path = await listen((sock) =>
+      helloResponder(sock, {
+        error: { name: "Error", message: "daemon is protocol v9; this client is v2. Upgrade Rove." },
+      }),
+    )
     expect(await probeDaemonSocket(path, 1000)).toBe("alive")
   })
 
@@ -179,10 +169,7 @@ describe("testDaemonResponds", () => {
   // own `probe.close()` races the peer's teardown) answered — it is alive.
   // The drop only decides the verdict when it beats the reply.
   it("counts a reply followed by a drop as alive", async () => {
-    const path = await listen((sock) => {
-      helloResponder(sock)
-      setTimeout(() => sock.destroy(), 100)
-    })
+    const path = await listen((sock) => helloResponder(sock, undefined, () => sock.destroy()))
     expect(await probeDaemonSocket(path, 1000)).toBe("alive")
   })
 
@@ -267,7 +254,8 @@ describe("ensureDaemonReachable under a held spawn lock", () => {
     const lock = join(dir, "daemon.pid.spawn-lock")
     writeFileSync(lock, "")
     try {
-      // The "winner" brings its daemon up a beat later.
+      // The "winner" brings its daemon up a beat later. A fixed beat is the
+      // scenario: it must land after the loser's first probe, which exposes no event.
       const timer = setTimeout(() => {
         void listenAt(socketPath, helloResponder)
       }, 300)

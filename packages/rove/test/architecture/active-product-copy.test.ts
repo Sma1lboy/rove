@@ -48,10 +48,10 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
 describe("active product copy", () => {
   test.each(STALE_CLAIMS)("%s makes no retired claim", (path, phrases) => {
     const source = read(path)
-    for (const stale of phrases) expect(source, `${path} still claims "${stale}"`).not.toContain(stale)
+    expect(phrases.filter((stale) => source.includes(stale))).toEqual([])
   })
 
-  test("current product pages do not publish pre-Rove terminal recordings", () => {
+  test.each(["README.md", "docs/TUI.md"])("%s does not publish pre-Rove terminal recordings", (page) => {
     // Captures re-shot as Rove through the browser `/harness` path
     // (`packages/rove-harness/e2e/hero-*.ts`, docs/HARNESS.md) are current product
     // renderings and may be published: `demo.*`, `workspace.png`,
@@ -60,14 +60,11 @@ describe("active product copy", () => {
     // `hero-issues.ts` + `films/kanban.ts`). What stays barred is every still
     // nobody has re-shot: those still photograph the rove-era TUI, wordmark
     // and all.
-    const stale = ["inbox.png", "new-session-dialog.png"]
-    for (const page of ["README.md", "docs/TUI.md"]) {
-      const source = read(page)
-      for (const asset of stale) {
-        expect(source, `${page} still publishes historical ${asset}`).not.toContain(`assets/${asset}`)
-      }
-    }
+    const source = read(page)
+    expect(["inbox.png", "new-session-dialog.png"].filter((asset) => source.includes(`assets/${asset}`))).toEqual([])
+  })
 
+  test("the landing page does not publish the pre-Rove quicklook recording", () => {
     const landing = read("packages/rove-landing/index.html")
     expect(landing).not.toContain("assets/quicklook.mp4")
     expect(landing).not.toContain("assets/quicklook-poster.jpg")

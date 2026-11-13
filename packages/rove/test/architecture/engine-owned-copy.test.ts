@@ -31,20 +31,6 @@ const NEUTRAL_ROOTS = [
 
 const VENDOR_WORD = /\b(Claude|Codex|Copilot|Kimi)\b/
 
-/**
- * Documented compatibility fallbacks, allowed line-by-line so the exemption
- * cannot silently widen: a hit in one of these files passes only when the
- * line contains one of its allowed fragments.
- */
-const EXEMPT_LINES: Record<string, readonly string[]> = {
-  // The SPA's fallback only fires before `/api/engines` answers or against an
-  // older bridge (see the file's header comment). It covers every
-  // BUILTIN_VENDOR because it is the only other path to a vendor — a short
-  // list silently made the rest unselectable. The daemon route has NO
-  // fallback of its own: an empty registry yields `{ engines: [] }`, which is
-  // what lets the SPA keep this list.
-}
-
 function sourceFiles(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
@@ -63,30 +49,19 @@ function stripComments(source: string): string {
     .join("\n")
 }
 
+function vendorCopyOffenders(): string[] {
+  return NEUTRAL_ROOTS.flatMap((root) => sourceFiles(join(REPO_ROOT, root))).flatMap((file) =>
+    stripComments(readFileSync(file, "utf8"))
+      .split("\n")
+      .map((line, i) => ({ line, i }))
+      .filter(({ line }) => VENDOR_WORD.test(line))
+      .map(({ line, i }) => `${relative(REPO_ROOT, file)}:${i + 1}: ${line.trim()}`),
+  )
+}
+
 describe("engine-owned copy boundary", () => {
   test("neutral layers carry no vendor display names", () => {
-    const offenders: string[] = []
-    for (const root of NEUTRAL_ROOTS) {
-      for (const file of sourceFiles(join(REPO_ROOT, root))) {
-        const rel = relative(REPO_ROOT, file)
-        const allowed = EXEMPT_LINES[rel] ?? []
-        const lines = stripComments(readFileSync(file, "utf8")).split("\n")
-        lines.forEach((line, i) => {
-          if (!VENDOR_WORD.test(line)) return
-          if (allowed.some((fragment) => line.includes(fragment))) return
-          offenders.push(`${rel}:${i + 1}: ${line.trim()}`)
-        })
-      }
-    }
+    const offenders = vendorCopyOffenders()
     expect(offenders, `vendor copy belongs to the engine registry:\n${offenders.join("\n")}`).toEqual([])
-  })
-
-  test("exempt fallbacks still exist where the exemption points", () => {
-    for (const [rel, fragments] of Object.entries(EXEMPT_LINES)) {
-      const source = readFileSync(join(REPO_ROOT, rel), "utf8")
-      for (const fragment of fragments) {
-        expect(source, `${rel} no longer contains "${fragment}" — drop its exemption`).toContain(fragment)
-      }
-    }
   })
 })
