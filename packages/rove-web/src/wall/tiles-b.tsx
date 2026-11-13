@@ -45,7 +45,7 @@ import {
   searchRowClass,
 } from "../ui/search.ts"
 import { INPUT, KICKER } from "../ui/text.ts"
-import { USG_BAR, USG_BAR_CELL, USG_DAYS, USG_FIGURE, USG_ROW, USG_SEG } from "../ui/usage.ts"
+import { USG_BAR, USG_DAY, USG_SEG } from "../ui/usage.ts"
 import { at, typed, useT } from "./clock.ts"
 import { CLAUDE_ICON, CODEX_ICON, COPILOT_ICON, KIMI_ICON } from "./icons.ts"
 
@@ -329,24 +329,22 @@ export function UsageTile() {
   const t = useT(4400)
   const grow = Math.min(1, t / 2400)
   return (
-    <div className="flex h-full flex-col justify-center">
+    <div className="flex h-full flex-col justify-center font-mono text-meta">
       <p className={`${KICKER} mb-1 text-muted`}>Tokens this week</p>
-      <div className={USG_DAYS}>
-        {DAYS.map(([day, len, tokens], i) => (
-          <div key={day} className={USG_ROW}>
-            <span className="text-muted">{day}</span>
-            <span className={USG_BAR_CELL}>
-              <span
-                className={USG_BAR}
-                style={{ "--fill": `${(len / 14) * Math.min(1, grow * (1 + i * 0.15)) * 100}%` } as CSSProperties}
-              >
-                <span className={`${USG_SEG} grow bg-accent`} />
-              </span>
+      {DAYS.map(([day, len, tokens], i) => (
+        <div key={day} className={USG_DAY}>
+          <span className="text-muted">{day}</span>
+          <span className="flex min-w-0">
+            <span
+              className={USG_BAR}
+              style={{ "--fill": `${(len / 14) * Math.min(1, grow * (1 + i * 0.15)) * 100}%` } as CSSProperties}
+            >
+              <span className={`${USG_SEG} grow bg-accent`} />
             </span>
-            <span className={`${USG_FIGURE} col-span-3`}>{tokens}</span>
-          </div>
-        ))}
-      </div>
+          </span>
+          <span className="col-span-3 text-right text-muted">{tokens}</span>
+        </div>
+      ))}
     </div>
   )
 }
