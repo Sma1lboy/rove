@@ -133,7 +133,9 @@ describe.skipIf(process.platform === "win32")("isProcessAlive", () => {
     // The shell's child exits at once; the shell never waits for it.
     const shell = spawn("sh", ["-c", "true & echo $!; exec sleep 30"], { stdio: ["ignore", "pipe", "ignore"] })
     try {
-      const zombie = Number(await new Promise<string>((resolve) => shell.stdout.once("data", (d) => resolve(String(d)))))
+      const zombie = Number(
+        await new Promise<string>((resolve) => shell.stdout.once("data", (d) => resolve(String(d)))),
+      )
       await new Promise((resolve) => setTimeout(resolve, 200))
       expect(() => process.kill(zombie, 0)).not.toThrow()
       expect(isProcessAlive(zombie)).toBe(false)
