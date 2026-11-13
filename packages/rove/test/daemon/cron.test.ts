@@ -128,11 +128,12 @@ describe("latestCronAtOrBefore", () => {
 })
 
 describe("nextCronAfter / latestCronAtOrBefore agree", () => {
-  it("round-trips: the next occurrence's own latest-at-or-before is itself", () => {
-    const start = at(2026, 7, 31, 3, 17)
-    for (const expr of ["*/15 * * * *", "0 9 * * MON-FRI", "0 0 1 * *", "30 6 * * SUN"]) {
+  it.each(["*/15 * * * *", "0 9 * * MON-FRI", "0 0 1 * *", "30 6 * * SUN"])(
+    "round-trips %s: the next occurrence's own latest-at-or-before is itself",
+    (expr) => {
+      const start = at(2026, 7, 31, 3, 17)
       const next = nextCronAfter(expr, start)
       expect(latestCronAtOrBefore(expr, next, start)).toBe(next)
-    }
-  })
+    },
+  )
 })

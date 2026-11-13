@@ -27,16 +27,17 @@ describe("recomputeTabActivity", () => {
     expect(eff).toMatchObject({ state, source: "observed" })
   })
 
-  it("a hook entry in ANY non-running state beats observation outright", () => {
-    for (const state of ["turn_complete", "permission_needed", "error", "rate_limited"] as const) {
+  it.each(["turn_complete", "permission_needed", "error", "rate_limited"] as const)(
+    "a hook entry in non-running state %s beats observation outright",
+    (state) => {
       const eff = recomputeTabActivity(
         { hook: { state, at: T - 60_000 }, observed: { state: "idle", at: T } },
         T,
         0, // age gate fully open — sticky still wins
       )
       expect(eff).toMatchObject({ state, source: "hook" })
-    }
-  })
+    },
+  )
 
   it("a YOUNG hook running stands against an observed rest (turn-boundary grace)", () => {
     const eff = recomputeTabActivity(

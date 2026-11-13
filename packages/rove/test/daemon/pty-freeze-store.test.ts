@@ -148,7 +148,7 @@ describe("existing-permission remediation", () => {
     // touched-again case that a forward-only fix leaves world-readable.
     fileFreezeSink(legacy).save(freezeSession(fakeSession({ key: "a::tab-1" })))
 
-    for (const name of names) expect(modeOf(join(legacy, name))).toBe("600")
+    expect(names.map((name) => modeOf(join(legacy, name)))).toEqual(["600", "600", "600"])
   })
 })
 

@@ -39,10 +39,14 @@ describe("routine target through real daemon RPC", () => {
         name: "changed",
       })
       expect(renamed.target).toEqual(TARGET)
-      for (const conflict of [{ vendor: "codex" }, { baseRef: "HEAD" }, { persistentSession: true }]) {
-        await expect(c.request("automation.update", { id: a.id, ...conflict })).rejects.toThrow(/existing-tab target/)
-        await expect(c.request("automation.create", { ...input, ...conflict })).rejects.toThrow(/existing-tab target/)
-      }
+      const conflicts = [{ vendor: "codex" }, { baseRef: "HEAD" }, { persistentSession: true }]
+      const refusals = await Promise.all(
+        conflicts.flatMap((conflict) => [
+          c.request("automation.update", { id: a.id, ...conflict }).catch((err: Error) => err.message),
+          c.request("automation.create", { ...input, ...conflict }).catch((err: Error) => err.message),
+        ]),
+      )
+      expect(refusals).toEqual(Array(6).fill(expect.stringMatching(/existing-tab target/)))
       expect(await c.request("automation.runNow", { id: a.id })).toEqual({ status: "dispatched" })
       expect(deliveries).toEqual([
         {

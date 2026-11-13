@@ -66,16 +66,17 @@ describe("task.archive", () => {
     expect(stopped).toEqual([])
   })
 
-  it("refuses with TASK_BUSY while an engine in the subtree is working or waiting, and writes nothing", async () => {
-    for (const state of ["running", "permission_needed"]) {
+  it.each(["running", "permission_needed"])(
+    "refuses with TASK_BUSY while an engine in the subtree is %s, and writes nothing",
+    async (state) => {
       const { ctx, calls, stopped } = archiveCtx({ g: state })
       await expect(dispatch("task.archive", { taskId: "p", archived: true }, ctx)).rejects.toThrow(
         /^TASK_BUSY: .*\bg\b/,
       )
       expect(calls).toEqual([])
       expect(stopped).toEqual([])
-    }
-  })
+    },
+  )
 
   it("ignores busy engines outside the subtree and idle or finished ones inside it", async () => {
     const { ctx, calls } = archiveCtx({ o: "running", c: "idle", g: "error" })

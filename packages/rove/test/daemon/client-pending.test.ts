@@ -3,7 +3,7 @@ import { type Server, type Socket, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RoveDaemonClient, RpcTimeoutError } from "@sma1lboy/rove-daemon/client"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
  * `request()` awaits `connect()` before parking the entry in `pending`, so
@@ -114,6 +114,7 @@ describe("RoveDaemonClient wedged-daemon deadline", () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
     if (prev === undefined) delete process.env.ROVE_RPC_TIMEOUT_MS
     else process.env.ROVE_RPC_TIMEOUT_MS = prev
@@ -143,13 +144,17 @@ describe("RoveDaemonClient wedged-daemon deadline", () => {
   it("exempts minute-scale RPCs (worktree.list) from the deadline", async () => {
     const client = new RoveDaemonClient(socketPath)
     await client.connect()
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    let settled = false
     const exempt = client.request("worktree.list")
+    const markSettled = (): void => {
+      settled = true
+    }
+    exempt.then(markSettled, markSettled)
     // Past the (short) deadline it must still be pending, not rejected.
-    const raced = await Promise.race([
-      exempt.then(() => "settled").catch(() => "rejected"),
-      new Promise<string>((r) => setTimeout(() => r("pending"), 120)),
-    ])
-    expect(raced).toBe("pending")
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(settled).toBe(false)
+    vi.useRealTimers()
     client.close() // sweeps it now
     await expect(exempt).rejects.toThrow("daemon connection closed")
   })
@@ -200,10 +205,9 @@ describe("RoveDaemonClient emit isolates a throwing handler", () => {
 
     const frame = JSON.stringify({ type: "event", name: "active-task", payload: { taskId: "t1" } })
     sock.write(`${frame}\n${frame}\n`) // two frames back to back
-    await new Promise((r) => setTimeout(r, 30))
 
+    await vi.waitFor(() => expect(star).toBe(2)) // '*' not skipped by the earlier throw
     expect(good).toBe(2) // both frames reached the good handler despite the throw
-    expect(star).toBe(2) // '*' not skipped by the earlier throw
     client.close()
   })
 })

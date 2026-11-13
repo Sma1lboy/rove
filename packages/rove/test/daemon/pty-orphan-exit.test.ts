@@ -180,8 +180,10 @@ describe("stopDaemonProcess never erases a live host's address", () => {
     // Hold every inbound socket so it can be destroyed at the end: `close()`
     // only stops new connections and would otherwise wait on this one forever.
     const accepted: Socket[] = []
+    const { promise: firstAccept, resolve: onAccept } = Promise.withResolvers<void>()
     const stalled = createServer((socket) => {
       accepted.push(socket)
+      onAccept()
     })
     await new Promise<void>((resolve) => stalled.listen(stallSocket, () => resolve()))
     writeFileSync(pidPath, "999999\n", "utf8") // stale: names a dead process
@@ -189,8 +191,8 @@ describe("stopDaemonProcess never erases a live host's address", () => {
     const claimant = spawn("sleep", ["30"], { stdio: "ignore" })
     try {
       const stopping = stopDaemonProcess(stallSocket, pidPath)
-      // Mid-flight: the live host claims the address.
-      await new Promise((resolve) => setTimeout(resolve, 200))
+      // Mid-flight (the pid is read before the RPC connects): the live host claims the address.
+      await firstAccept
       writeFileSync(pidPath, `${claimant.pid}\n`, "utf8")
       const result = await stopping
 

@@ -56,9 +56,7 @@ describe("daemon attention inbox", () => {
   it("persists attention episodes and replays the full snapshot", async () => {
     const { store, path, bus } = await create(123)
     const snapshots: unknown[] = []
-    bus.onPublish((event) => {
-      if (event.channel === "attention.inbox") snapshots.push(event.payload)
-    })
+    bus.onPublish((event) => snapshots.push(event.payload))
 
     await store.record("task-1", "turn-complete", undefined, "tab-2")
 

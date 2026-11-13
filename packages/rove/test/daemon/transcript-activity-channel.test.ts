@@ -18,7 +18,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { RoveDaemonClient } from "@sma1lboy/rove-daemon/client"
 import { type DaemonServer, startDaemonServer } from "@sma1lboy/rove-daemon/daemon/server"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
@@ -75,6 +75,7 @@ describe("transcript.activity channel (daemon → client)", () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
     else process.env.ROVE_HOME_DIR = savedHome
     await server?.close().catch(() => {})
@@ -144,6 +145,8 @@ describe("transcript.activity channel (daemon → client)", () => {
   })
 
   it("publishes nothing until a subscriber exists (hasSubscribers gate)", async () => {
+    // The collector ticks on an interval; fake only intervals so the socket stays real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
     server = await startDaemonServer(() => fakeOrchestrator(dir), {
       runtime: daemonRuntime,
       socketPath,
@@ -160,7 +163,7 @@ describe("transcript.activity channel (daemon → client)", () => {
 
     // Let several collector ticks elapse with ZERO subscribers — the gate
     // must keep it idle (no fs probes, no published last-value).
-    await new Promise((r) => setTimeout(r, 150))
+    await vi.advanceTimersByTimeAsync(150)
 
     const client = new RoveDaemonClient(socketPath)
     let payload: { activity?: Record<string, unknown> } | undefined
@@ -170,6 +173,7 @@ describe("transcript.activity channel (daemon → client)", () => {
     // The replay on subscribe carries no last-value yet (gate kept it idle);
     // the value only appears once OUR subscribe resumes the collector.
     await client.subscribe({ role: "gui" })
+    await vi.advanceTimersByTimeAsync(25)
     await waitFor(() => payload?.activity?.[dir] !== undefined)
     expect(payload?.activity?.[dir]).toEqual({ mtimeMs: 0, completionId: null, completionAt: 0 })
     client.close()

@@ -100,8 +100,8 @@ describe("stopDaemonProcess", () => {
    * Without this, a guard that rejected everything would pass every
    * assertion in this file — each daemon would silently read as "absent",
    * and `daemon restart` would leave the old one running and race the new
-   * one onto its socket. The child is killed ~100ms in, well inside the 2s
-   * before `stopDaemonProcess` escalates, so the graceful path is what gets
+   * one onto its socket. The child is killed once the stop probes it, well
+   * inside the 2s before `stopDaemonProcess` escalates, so the graceful path is what gets
    * recorded.
    */
   it("still stops a daemon whose pidfile holds a live pid", async () => {
@@ -112,7 +112,9 @@ describe("stopDaemonProcess", () => {
     const kill = vi.spyOn(process, "kill")
     try {
       const stopping = stopDaemonProcess(socketPath, pidPath)
-      setTimeout(() => child.kill("SIGKILL"), 100)
+      // Die once the stop has seen the pid alive, well before its 2s escalation.
+      await vi.waitFor(() => expect(kill).toHaveBeenCalledWith(livePid, 0))
+      child.kill("SIGKILL")
       const result = await stopping
 
       expect(result.pid).toBe(livePid)

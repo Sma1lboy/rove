@@ -191,17 +191,19 @@ describe("activity registry liveness watchdog", () => {
   it("lapses a silent per-tab entry and publishes a tabId-scoped idle", async () => {
     const probe: ActivityLivenessProbe = vi.fn(() => Promise.resolve({ mtimeMs: 0 }))
     registry = new DaemonActivityRegistry(bus, TTL, () => Date.now(), probe)
-    const tabEvents: { tabId?: string; state: TaskActivityState }[] = []
-    bus.onPublish((event) => {
-      if (event.channel !== "engine-state") return
-      const payload = event.payload as EngineStatePayload & { tabId?: string }
-      if (payload.tabId) tabEvents.push({ tabId: payload.tabId, state: payload.state })
-    })
+    const events: { channel: string; payload: unknown }[] = []
+    bus.onPublish((event) => events.push(event))
+    const tabEvents = () =>
+      events
+        .filter((e) => e.channel === "engine-state")
+        .map((e) => e.payload as EngineStatePayload & { tabId?: string })
+        .filter((p) => p.tabId)
+        .map((p) => ({ tabId: p.tabId, state: p.state }))
 
     registry.report("t", "turn-start", undefined, "tab-1")
     await vi.advanceTimersByTimeAsync(TTL)
 
-    expect(tabEvents).toEqual([
+    expect(tabEvents()).toEqual([
       { tabId: "tab-1", state: "running" },
       { tabId: "tab-1", state: "idle" },
     ])
@@ -245,12 +247,14 @@ describe("activity registry liveness watchdog", () => {
       async () => (readable ? { mtimeMs: Date.now() } : { unknown: true }),
     )
     registry.report("t", "turn-start")
-    for (let i = 0; i < 4; i++) {
-      await vi.advanceTimersByTimeAsync(TTL * MAX_UNKNOWN_REARMS)
-      readable = true
-      await vi.advanceTimersByTimeAsync(TTL)
-      readable = false
-    }
+    // Two full unknown streaks, each broken by one readable probe.
+    await vi.advanceTimersByTimeAsync(TTL * MAX_UNKNOWN_REARMS)
+    readable = true
+    await vi.advanceTimersByTimeAsync(TTL)
+    readable = false
+    await vi.advanceTimersByTimeAsync(TTL * MAX_UNKNOWN_REARMS)
+    readable = true
+    await vi.advanceTimersByTimeAsync(TTL)
     expect(states.t).toEqual(["running"])
   })
 
@@ -276,24 +280,23 @@ describe("activity registry liveness watchdog", () => {
     expect(registry.replaySnapshot().some((entry) => entry.state === "idle")).toBe(false)
   })
 
-  it.each(["death", "rest"] as const)(
-    "settles an unknown session's tab and task rollup after its own %s",
-    async (evidence) => {
-      registry = new DaemonActivityRegistry(
-        bus,
-        TTL,
-        () => Date.now(),
-        async () => ({ unknown: true }),
-      )
-      registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
-      await vi.advanceTimersByTimeAsync(TTL)
-      if (evidence === "death") registry.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())
-      else registry.observeTab("t", "tab-1", "rest", { correctHookRunningAfterMs: 0 })
-      expect(vi.getTimerCount()).toBe(0)
-      await vi.advanceTimersByTimeAsync(TTL * 2)
-      expect(registry.replaySnapshot().some((entry) => entry.state === "running")).toBe(false)
-    },
-  )
+  it.each([
+    ["death", (r: DaemonActivityRegistry) => r.recordEngineDeath("t", "tab-1", { code: 1 }, Date.now())],
+    ["rest", (r: DaemonActivityRegistry) => r.observeTab("t", "tab-1", "rest", { correctHookRunningAfterMs: 0 })],
+  ] as const)("settles an unknown session's tab and task rollup after its own %s", async (_evidence, settle) => {
+    registry = new DaemonActivityRegistry(
+      bus,
+      TTL,
+      () => Date.now(),
+      async () => ({ unknown: true }),
+    )
+    registry.report("t", "turn-start", undefined, "tab-1", { id: "own", transcriptPath: "/own" })
+    await vi.advanceTimersByTimeAsync(TTL)
+    settle(registry)
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(TTL * 2)
+    expect(registry.replaySnapshot().some((entry) => entry.state === "running")).toBe(false)
+  })
 
   it("never clears a sibling's task rollup when the other tab ends", async () => {
     registry = new DaemonActivityRegistry(

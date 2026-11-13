@@ -21,7 +21,7 @@ import {
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
 } from "@sma1lboy/rove-daemon/daemon/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { fakeCtx } from "./handler-test-context.ts"
 
 function dispatch(name: DaemonRequestName, payload: unknown, ctx: DaemonHandlerContext): Promise<unknown> {
@@ -78,19 +78,24 @@ describe("RowTokenStore", () => {
     expect(store.snapshot()).toEqual({})
   })
 
-  it("republishes at the expiry so a fading label needs no writer", async () => {
-    // Real timers here on purpose: the republish IS a timer, and a fake clock
-    // would prove only that the arithmetic is right, not that anything fires.
-    const published: RowTokenMap[] = []
-    const store = new RowTokenStore({
-      publish: (_channel: string, payload: unknown) => published.push((payload as { tokens: RowTokenMap }).tokens),
-    })
-    store.set({ taskId: "t1", source: "p", key: "k", text: "@ana", ttlMs: ROW_TOKEN_MIN_TTL_MS })
-    expect(published).toHaveLength(1)
-    await new Promise((r) => setTimeout(r, ROW_TOKEN_MIN_TTL_MS + 150))
-    expect(published.length).toBeGreaterThanOrEqual(2)
-    expect(published.at(-1)).toEqual({})
-    store.close()
+  it("republishes at the expiry so a fading label needs no writer", () => {
+    // The store's default clock and expiry timer, both faked: the republish
+    // must come from the timer firing, not from another write.
+    vi.useFakeTimers()
+    try {
+      const published: RowTokenMap[] = []
+      const store = new RowTokenStore({
+        publish: (_channel: string, payload: unknown) => published.push((payload as { tokens: RowTokenMap }).tokens),
+      })
+      store.set({ taskId: "t1", source: "p", key: "k", text: "@ana", ttlMs: ROW_TOKEN_MIN_TTL_MS })
+      expect(published).toHaveLength(1)
+      vi.advanceTimersByTime(ROW_TOKEN_MIN_TTL_MS + 150)
+      expect(published.length).toBeGreaterThanOrEqual(2)
+      expect(published.at(-1)).toEqual({})
+      store.close()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("replaces the same key rather than stacking copies — that is how a refresh works", () => {
