@@ -112,6 +112,16 @@ repo-local:
 GitHub Issues are reserved for inbound user reports; do not create them for
 normal project planning.
 
+## Fixing an issue yourself
+
+PRs for open issues are welcome, including issues you filed yourself. A bot picks up new issues and starts its own fix, so tell it you're on it:
+
+- Put `Fixes #<number>` in the PR description. When an open PR says that, the bot stops writing its own fix and reviews yours instead.
+- Open the PR early, as a draft if it isn't done. The bot only sees a PR once it exists, so a comment saying "I'll take this" doesn't stop it. It leaves drafts alone until you mark them ready for review.
+- The bot then reviews your PR, may push small fixes to it (keep "Allow edits by maintainers" on), and merges it once CI passes and the review agrees.
+
+If someone else's PR fixes an issue you filed, the merge commit lists you as co-author.
+
 ## Agents without write access
 
 This applies only to agents acting for someone **without** collaborator (write) access to this repository. Collaborators and their agents are exempt.
