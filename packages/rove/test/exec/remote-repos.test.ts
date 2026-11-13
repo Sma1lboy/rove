@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { kvStatePath } from "../../src/env.ts"
 import type { RemoteSpec } from "../../src/exec/exec-host.ts"
 import {
@@ -21,6 +21,9 @@ import {
   remoteRepoKey,
   resolveRepoRoot,
 } from "../../src/state/repos.ts"
+
+const getKeychainPassword = vi.hoisted(() => vi.fn((_ref: { service: string; account: string }) => "s3cret"))
+vi.mock("../../src/exec/keychain.ts", () => ({ getKeychainPassword }))
 
 let home: string
 const ORIGINAL = process.env.ROVE_HOME_DIR
@@ -221,7 +224,8 @@ describe("remoteSpecFromConfig", () => {
       auth: { kind: "password", keychainRef: { service: "rove-remote-ssh", account: "dev@box" } },
     })
     expect(spec.auth.kind).toBe("password")
-    // No keychain item exists in this temp env → getter yields null, never throws.
-    expect((spec.auth as Extract<RemoteSpec["auth"], { kind: "password" }>).getPassword()).toBeNull()
+    expect(getKeychainPassword).not.toHaveBeenCalled()
+    expect((spec.auth as Extract<RemoteSpec["auth"], { kind: "password" }>).getPassword()).toBe("s3cret")
+    expect(getKeychainPassword).toHaveBeenCalledWith({ service: "rove-remote-ssh", account: "dev@box" })
   })
 })

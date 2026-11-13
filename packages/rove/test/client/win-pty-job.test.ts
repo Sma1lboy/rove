@@ -8,7 +8,7 @@ import { execFile, spawn } from "node:child_process"
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest"
+import { afterAll, describe, expect, it } from "vitest"
 import {
   PTY_JOB_ENV,
   PTY_JOB_OWNER_ENV,
@@ -101,21 +101,24 @@ describe.skipIf(process.platform !== "win32")("the real launcher (Windows)", () 
       windowsHide: true,
       env: { ...process.env, [PTY_JOB_ENV]: newPtyJobName() },
     })
-    // readFileSync throws until the orphan has written its pid; waitFor retries.
-    const orphan = await vi.waitFor(
-      () => {
-        const pid = Number(readFileSync(pidFile, "utf8"))
-        expect(pid).toBeGreaterThan(0)
-        return pid
-      },
-      { timeout: 10_000, interval: 100 },
-    )
-    onTestFinished(() => void (alive(orphan) && process.kill(orphan)))
+    let orphan = 0
+    for (let i = 0; i < 100 && !orphan; i++) {
+      await new Promise((r) => setTimeout(r, 100))
+      try {
+        orphan = Number(readFileSync(pidFile, "utf8"))
+      } catch {
+        /* not yet */
+      }
+    }
+    expect(orphan).toBeGreaterThan(0)
     expect(alive(orphan)).toBe(true)
 
     // End the session the way the host does: the launcher dies, so does the job.
     await new Promise((r) => execFile("taskkill", ["/F", "/PID", String(session.pid)], r))
-    await vi.waitFor(() => expect(alive(orphan)).toBe(false), { timeout: 5_000, interval: 100 })
+    for (let i = 0; i < 50 && alive(orphan); i++) await new Promise((r) => setTimeout(r, 100))
+    const survived = alive(orphan)
+    if (survived) process.kill(orphan)
+    expect(survived).toBe(false)
   }, 60_000)
 
   it("still runs the command, exit code intact, when no job is named", async () => {

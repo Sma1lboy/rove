@@ -2,8 +2,7 @@
  * createRoveCore — the public bootstrap wiring (store + worktree manager +
  * orchestrator) with home-dir precedence. Store/manager/orchestrator are
  * mocked at their module seams; what's pinned is exactly what this file
- * owns: option > env > homedir precedence, load-before-return, and
- * close() disposing the orchestrator.
+ * owns: option > env > homedir precedence and load-before-return.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
