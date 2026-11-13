@@ -24,8 +24,7 @@ export const en = {
     unkeptToast: "no longer kept: {title}",
     keepFailed: "could not mark it kept: {error}",
     archiveTitle: "Archive the other attempts?",
-    archiveBody:
-      "Hides the other {count} from the rail and closes their sessions. Their worktrees and branches stay.",
+    archiveBody: "Hides the other {count} from the rail and closes their sessions. Their worktrees and branches stay.",
     archiveConfirm: "Archive",
     archiveBusyTitle: "Some attempts are still working",
     archiveBusyBody: "Archive them anyway? They are stopped; their worktrees and branches stay.",
