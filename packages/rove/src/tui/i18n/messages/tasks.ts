@@ -126,7 +126,7 @@ export const en = {
   },
   /** Row menu "Archive" / "Unarchive". Archive ends the sessions and keeps the files. */
   archive: {
-    done: "Archived {title}. Its sessions are closed; the worktree, branch and conversations are kept",
+    done: "Archived {title}",
     restored: "Restored {title}",
     busyTitle: "Archive while it's working?",
     busyBody: "An engine in {title} is still working or waiting on you. Archiving stops it.",
@@ -377,7 +377,7 @@ export const zh: typeof en = {
     failed: "同步失败：{error}",
   },
   archive: {
-    done: "已归档 {title}。会话已结束，工作树、分支和对话记录都保留",
+    done: "已归档 {title}",
     restored: "已恢复 {title}",
     busyTitle: "它还在工作，仍要归档？",
     busyBody: "{title} 里有引擎仍在工作或在等你。归档会把它停掉。",
