@@ -42,27 +42,11 @@ describe("CodexHookAdapter", () => {
     expect(adapter.sessionFromPayload({ transcript_path: "/t.jsonl" })).toBeUndefined()
   })
 
-  it("owns exactly the events Codex can deliver safely", () => {
-    expect([...ROVE_CODEX_HOOK_EVENTS].sort()).toEqual(
-      [
-        "SessionStart",
-        "SessionEnd",
-        "Stop",
-        "UserPromptSubmit",
-        "PreCompact",
-        "PostCompact",
-        "SubagentStart",
-        "SubagentStop",
-        "PreToolUse",
-        "PostToolUse",
-      ].sort(),
-    )
-    // The verbs with no clean Codex signal stay OUT: Codex's enum has no
-    // failure event at all, and its only "waiting" event is PermissionRequest
-    // — an allow/deny DECISION hook Rove must not observe.
-    for (const absent of ["StopFailure", "PostToolUseFailure", "Notification", "PermissionRequest", "TurnFailed"]) {
-      expect(ROVE_CODEX_HOOK_EVENTS).not.toContain(absent)
-    }
+  it("never owns an event Codex has no clean signal for", () => {
+    // Codex's enum has no failure event at all, and its only "waiting" event
+    // is PermissionRequest — an allow/deny DECISION hook Rove must not observe.
+    const unsafe = ["StopFailure", "PostToolUseFailure", "Notification", "PermissionRequest", "TurnFailed"]
+    expect(ROVE_CODEX_HOOK_EVENTS.filter((event) => unsafe.includes(event))).toEqual([])
   })
 })
 

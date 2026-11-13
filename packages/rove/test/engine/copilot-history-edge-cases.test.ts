@@ -38,11 +38,7 @@ describe("latestTranscriptMtimeForWorktree", () => {
   it("returns the newest matching session's events.jsonl mtime", async () => {
     const d = deps({
       readdir: async (p) => (p.endsWith("session-state") ? ["s1", "s2"] : []),
-      readFile: async (p) => {
-        if (p.endsWith("s1/workspace.yaml")) return "cwd: /wt\n"
-        if (p.endsWith("s2/workspace.yaml")) return "cwd: /wt\n"
-        throw new Error("missing")
-      },
+      readFile: async (p) => (p.endsWith("/workspace.yaml") ? "cwd: /wt\n" : Promise.reject(new Error("missing"))),
       stat: async (p) => ({ mtimeMs: p.includes("/s1/") ? 100 : 500 }),
     })
     expect(await latestTranscriptMtimeForWorktree("/wt", d)).toBe(500)

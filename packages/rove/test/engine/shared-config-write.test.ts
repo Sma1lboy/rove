@@ -147,10 +147,8 @@ describe("staging path", () => {
   it("differs between two calls in the same process", () => {
     const home = tempHome()
     const file = path.join(home, "settings.json")
-    const seen = new Set<string>()
-    hook.onStagingWrite = (p) => {
-      if (p.startsWith(`${file}.rove-`)) seen.add(p)
-    }
+    const staged: string[] = []
+    hook.onStagingWrite = (p) => staged.push(p)
     const write = (key: string) =>
       updateSharedJsonSync(
         file,
@@ -159,7 +157,8 @@ describe("staging path", () => {
       )
     write("a")
     write("b")
-    expect(seen.size).toBe(2)
+    const ours = staged.filter((p) => p.startsWith(`${file}.rove-`))
+    expect(new Set(ours).size).toBe(2)
   })
 
   it("leaves no staging file behind once two writers are done", async () => {

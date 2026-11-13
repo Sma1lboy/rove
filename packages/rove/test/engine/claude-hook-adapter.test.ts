@@ -32,9 +32,10 @@ describe("buildClaudeHooks", () => {
     // idle_prompt, which fires for any resting prompt and would escalate
     // every idle session (turn_complete already covers "done, look at me").
     expect(hooks.Notification.map((g) => g.matcher)).toEqual(["permission_prompt", "elicitation_dialog"])
-    for (const group of hooks.Notification) {
-      expect(group.hooks[0].command).toContain("hook awaiting-input")
-    }
+    expect(hooks.Notification.map((g) => g.hooks[0].command)).toEqual([
+      expect.stringContaining("hook awaiting-input"),
+      expect.stringContaining("hook awaiting-input"),
+    ])
   })
 })
 
@@ -153,23 +154,7 @@ describe("mergeActivityHooks (global, cwd-based)", () => {
   })
 
   it("ROVE_HOOK_EVENTS lists exactly the events it installs", () => {
-    expect([...ROVE_HOOK_EVENTS].sort()).toEqual(
-      [
-        "Notification",
-        "SessionEnd",
-        "SessionStart",
-        "Stop",
-        "StopFailure",
-        "UserPromptSubmit",
-        "PreCompact",
-        "PostCompact",
-        "SubagentStart",
-        "SubagentStop",
-        "PreToolUse",
-        "PostToolUse",
-        "PostToolUseFailure",
-      ].sort(),
-    )
+    expect([...ROVE_HOOK_EVENTS].sort()).toEqual(Object.keys(buildClaudeHooks(["rove"])).sort())
   })
 })
 

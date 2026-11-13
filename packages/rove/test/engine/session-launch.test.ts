@@ -237,16 +237,13 @@ describe("hosted engine session launch", () => {
     // B1: while the marker only appeared on a zero exit, a repo whose init
     // script fails left the paste-delivery spawner polling a file that would
     // never exist — two minutes of empty composer per fresh task.
-    test("records the init outcome in the marker on BOTH the success and failure branches", () => {
-      for (const [initScript, expected] of [
-        ["echo ok", "0"],
-        ["echo nope; exit 3", "3"],
-      ] as const) {
-        const { dir, marker } = scratch()
-        runLaunch(dir, launchScript(initScript, marker))
-        expect(fs.existsSync(marker)).toBe(true)
-        expect(fs.readFileSync(marker, "utf8")).toBe(expected)
-      }
+    test.each([
+      ["echo ok", "0"],
+      ["echo nope; exit 3", "3"],
+    ])("records the init outcome in the marker (init %j → %j)", (initScript, expected) => {
+      const { dir, marker } = scratch()
+      runLaunch(dir, launchScript(initScript, marker))
+      expect(fs.readFileSync(marker, "utf8")).toBe(expected)
     })
 
     // A recorded failure must still retry on the next launch, which is what
