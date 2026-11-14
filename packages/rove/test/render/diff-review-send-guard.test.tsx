@@ -31,7 +31,7 @@ import {
   diffCommentsKey,
   unsentComments,
 } from "../../src/tui/ops/diff-comments"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const DIFF = ["--- a/a.ts", "+++ b/a.ts", "@@ -1,1 +1,3 @@", " const a = 1", "+const b = 2", "+const c = 3"].join("\n")
 const REL = "a.ts"
@@ -120,7 +120,7 @@ async function writeNote(
   await act(async () => {
     handle.mockInput.pressEnter()
   })
-  await settle(60)
+  await waitForFrameText(handle.frame, "notes: 1")
 }
 
 test("s keeps the notes unsent and says why when there is no engine session", async () => {
@@ -130,7 +130,7 @@ test("s keeps the notes unsent and says why when there is no engine session", as
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle(120)
+  await waitForFrameText(handle.frame, "notes: 0")
   await writeNote(handle, "please rename this", "Review note")
   expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
 
@@ -153,7 +153,7 @@ test("s still marks them sent once delivery answers", async () => {
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle(120)
+  await waitForFrameText(handle.frame, "notes: 0")
   await writeNote(handle, "please rename this", "Review note")
   await act(async () => {
     await handle.mockInput.typeText("s")
@@ -169,7 +169,7 @@ test("x drops the note under the cursor", async () => {
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle(120)
+  await waitForFrameText(handle.frame, "notes: 0")
   await writeNote(handle, "typo", "Review note")
   expect(await handle.frame()).toContain("notes: 1")
 
@@ -214,9 +214,7 @@ test("the footer offers the focus chord instead of chords that cannot fire", asy
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle(150)
-  const idle = await unfocused.frame()
-  expect(idle).toContain("ctrl+q to focus")
+  const idle = await waitForFrameText(unfocused.frame, "ctrl+q to focus")
   expect(idle).not.toContain("s send · r reload")
 
   const focused = await renderComponent(<ReviewHarness kv={kv} deliver={false} focused={true} />, {
@@ -224,6 +222,5 @@ test("the footer offers the focus chord instead of chords that cannot fire", asy
     height: 20,
     providers: { dialog: true, notifications: true },
   })
-  await settle(150)
-  expect(await focused.frame()).toContain("s send · r reload")
+  await waitForFrameText(focused.frame, "s send · r reload")
 })

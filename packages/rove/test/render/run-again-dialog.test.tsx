@@ -15,7 +15,7 @@
 
 import { describe, expect, test } from "bun:test"
 import { RunAgainDialogView } from "../../src/tui-react/component/run-again-dialog"
-import { type RenderHandle, act, renderComponent, settle } from "./harness"
+import { type RenderHandle, act, renderComponent } from "./harness"
 
 const BRIEF = "Print the third line of README.md.\n\nStop after that — do not edit anything."
 
@@ -65,7 +65,6 @@ describe("RunAgainDialogView", () => {
     const { frame, mockInput } = await p
     await frame()
     act(() => mockInput.pressArrow("down"))
-    await settle()
     act(() => mockInput.pressEnter())
     await frame()
     expect(p.picked).toEqual([true])

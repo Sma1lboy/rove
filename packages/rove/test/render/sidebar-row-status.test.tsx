@@ -27,7 +27,7 @@ import {
 } from "../../src/tui-react/workspace/row-status-sync"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import { type Task, toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const TASK: Task = {
   id: toTaskId("alpha"),
@@ -65,7 +65,6 @@ async function taskCell(task: Task = TASK): Promise<{ text: string; fg: number[]
     <WorktreeTreeRow rowId={task.id} flatIndex={0} task={task} shared={shared()} />,
     { width: 30, height: 3 },
   )
-  await settle(30)
   const label = task.title
   // Joined per line: a running label may shimmer, one span per character.
   const line = (await spans()).lines.find((l) =>
@@ -158,7 +157,6 @@ test("a task-level job spins the task row", async () => {
       height: 3,
     },
   )
-  await settle(30)
   const row = (await frame()).split("\n").find((line) => line.includes("alpha")) ?? ""
   expect(DEFAULT_GLYPHS.spinner.some((frame) => row.includes(frame))).toBe(true)
 })
@@ -189,18 +187,13 @@ test("switching tabs reports ui.viewing for the new tab, and leaving reports non
   const { frame, destroy } = await renderComponent(<Viewer />, { width: 20, height: 2 })
   await frame()
   await act(async () => shownTab.set("tab-2"))
-  // The report is an effect: give the commit its turn under a loaded runner.
-  for (let i = 0; i < 50 && viewing.length < 2; i++) await settle(20)
+  // The report is an async effect: poll for it rather than sleep.
+  await waitForFrameText(async () => JSON.stringify(viewing), '["alpha","tab-2"]')
   expect(viewing).toEqual([
     ["alpha", "tab-1"],
     ["alpha", "tab-2"],
   ])
   destroy()
-  // The unmount report rides a cleanup effect: wait for it in real time, bounded (a loaded runner is slow).
-  for (let deadline = Date.now() + 2_000; Date.now() < deadline; ) {
-    const last = viewing.at(-1)
-    if (last?.[0] === null && last?.[1] === null) break
-    await settle(20)
-  }
-  expect(viewing.at(-1)).toEqual([null, null])
+  // The unmount report rides a cleanup effect: poll for it.
+  expect(await waitForFrameText(async () => JSON.stringify(viewing.at(-1)), "[null,null]")).toBe("[null,null]")
 })

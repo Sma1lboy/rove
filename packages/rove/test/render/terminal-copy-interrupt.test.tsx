@@ -3,14 +3,13 @@ import { expect, spyOn, test } from "bun:test"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import * as clipboard from "../../src/tui/lib/clipboard-copy"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
-import { type RenderHandle, act, renderComponent, settle } from "./harness"
+import { type RenderHandle, act, renderComponent } from "./harness"
 
 test.each(["win32", "darwin", "linux"] as const)("%s routes selected and unselected Ctrl+C", async (targetPlatform) => {
   const fixture = createScriptedPtyRegistry()
   const activity: string[] = []
   const copy = spyOn(clipboard, "copyTextToSystemClipboard").mockResolvedValue(true)
-  const platform = Object.getOwnPropertyDescriptor(process, "platform")
-  if (!platform) throw new Error("process.platform descriptor missing")
+  const platform = Object.getOwnPropertyDescriptor(process, "platform") as PropertyDescriptor
   let mounted: RenderHandle | undefined
   await act(async () => {
     mounted = await renderComponent(
@@ -33,8 +32,8 @@ test.each(["win32", "darwin", "linux"] as const)("%s routes selected and unselec
   await act(async () => {
     await mounted?.frame()
   })
-  if (!mounted) throw new Error("terminal did not mount")
-  const handle = mounted
+  expect(mounted).toBeDefined()
+  const handle = mounted as RenderHandle
   try {
     await act(async () => {
       fixture.last().feed("  COPY_THIS_TEXT\r\nsecond line\r\nthird line")
@@ -53,7 +52,6 @@ test.each(["win32", "darwin", "linux"] as const)("%s routes selected and unselec
     Object.defineProperty(process, "platform", { ...platform, value: targetPlatform })
     await act(async () => {
       handle.mockInput.pressKey("c", { ctrl: true })
-      await settle()
     })
     // With a selection live, ctrl+c COPIES on every platform. Rove draws the
     // selection itself, so no emulator anywhere knows to claim the chord
@@ -67,7 +65,6 @@ test.each(["win32", "darwin", "linux"] as const)("%s routes selected and unselec
     // again — the half of the contract that keeps SIGINT reachable.
     await act(async () => {
       handle.mockInput.pressKey("c", { ctrl: true })
-      await settle()
     })
     expect(copy).toHaveBeenCalledTimes(1)
     expect(fixture.last().writeLog).toEqual(["\x03"])
@@ -115,8 +112,8 @@ test.each([
   await act(async () => {
     await mounted?.frame()
   })
-  if (!mounted) throw new Error("terminal did not mount")
-  const handle = mounted
+  expect(mounted).toBeDefined()
+  const handle = mounted as RenderHandle
   try {
     await act(async () => {
       fixture.last().feed("  COPY_THIS_TEXT\r\nsecond line\r\nthird line")
@@ -134,7 +131,6 @@ test.each([
     })
     await act(async () => {
       handle.renderer.stdin.emit("data", Buffer.from(wireBytes))
-      await settle()
     })
     expect(copy).toHaveBeenCalledTimes(1)
     expect(copy.mock.calls[0]?.[0]).toContain("COPY_THIS_TEXT")
@@ -147,14 +143,12 @@ test.each([
     // an empty selection is a no-op, the way a native terminal treats it.
     await act(async () => {
       handle.renderer.stdin.emit("data", Buffer.from(wireBytes))
-      await settle()
     })
     expect(fixture.last().writeLog).toEqual([])
 
     // Ordinary typing is untouched by the new modifier handling.
     await act(async () => {
       handle.renderer.stdin.emit("data", Buffer.from(PLAIN_C))
-      await settle()
     })
     expect(fixture.last().writeLog).toEqual(["c"])
   } finally {

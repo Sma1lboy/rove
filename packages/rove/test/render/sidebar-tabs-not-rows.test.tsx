@@ -40,7 +40,8 @@ test("a task with several tabs is one row named by its first conversation — th
   )
   const rendered = await frame()
   expect(rendered).toContain("first")
-  for (const title of ["second", "build shell", "Unattributed", "feat/unattributed"]) {
-    expect(rendered).not.toContain(title)
-  }
+  expect(rendered).not.toContain("second")
+  expect(rendered).not.toContain("build shell")
+  expect(rendered).not.toContain("Unattributed")
+  expect(rendered).not.toContain("feat/unattributed")
 })

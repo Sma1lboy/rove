@@ -16,7 +16,10 @@
  * recovered terminal contents. Asserting "the callback ran" is what let the
  * original bugs ship green.
  */
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { useEffect } from "react"
 import { KanbanPage } from "../../src/bundled-plugins/kanban/kanban-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
@@ -24,9 +27,20 @@ import { useNotifications } from "../../src/tui-react/context/notifications"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { useWorkspaceSelection } from "../../src/tui-react/workspace/use-workspace-selection"
 import { MockTaskPty } from "../../src/tui/panes/terminal/pty-mock"
-import { PtyRegistry } from "../../src/tui/panes/terminal/registry"
+import { type PtyFactory, PtyRegistry } from "../../src/tui/panes/terminal/registry"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, settle, waitForFrameText } from "./harness"
+
+// Every mount here has a KV provider, which reads and writes `$ROVE_HOME_DIR` — the real ~/.rove without this.
+let previousHome: string | undefined
+beforeAll(() => {
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-silent-failure-"))
+})
+afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 const REPO = "/repos/rove"
 const BROKEN = "/repos/broken"
@@ -73,19 +87,19 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
     </>,
     { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle()
+  await frameShowing(frame, ["story-1"])
   // Open the only card's detail drawer, edit the title, save-and-close (esc).
   mockInput.pressArrow("down")
-  await settle()
+  await frame()
   mockInput.pressEnter()
   expect(await frameShowing(frame, ["TITLE"])).toContain("TITLE")
   // A startable story opens focused on WORKSPACE (see issue-detail-dialog's
   // initial `field`); the field ring is title→description→engine→workspace→
   // jump, so two tabs wrap around onto the title input.
   mockInput.pressTab()
-  await settle()
+  await frame()
   mockInput.pressTab()
-  await settle()
+  await frame()
   mockInput.typeText("-edited")
   expect(await frameShowing(frame, ["story-1-edited"])).toContain("story-1-edited")
   mockInput.pressEscape()
@@ -107,13 +121,16 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
  * merely quiet, it was indistinguishable from "you only have one project".
  */
 test("kanban: a project whose issue read rejects keeps its slot, says why, and toasts", async () => {
+  const reads: Record<string, () => Promise<unknown>> = {
+    [REPO]: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)], skipped: 0 }),
+    [BROKEN]: async () => {
+      throw new Error("JSON Parse error: Unterminated string")
+    },
+  }
   const orch = {
     listTasks: () => [{ repo: REPO }, { repo: BROKEN }],
     listIssueRepos: async () => [REPO, BROKEN],
-    listIssues: async (repo: string) => {
-      if (repo === BROKEN) throw new Error("JSON Parse error: Unterminated string")
-      return { repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)], skipped: 0 }
-    },
+    listIssues: async (repo: string) => reads[repo](),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {},
   } as never
@@ -163,64 +180,61 @@ test("kanban: a project whose issue read rejects keeps its slot, says why, and t
  * first spawn throws, and asserts BOTH halves: the hint naming F5 is on
  * screen, and pressing F5 actually brings the terminal up.
  */
-test("terminal: F5 recovers a failed acquire, and the pane says so", async () => {
+/** A registry whose first spawn throws and whose second prints a prompt. */
+function failFirstSpawn() {
+  const spawns: PtyFactory[] = [
+    () => {
+      throw new Error("spawn /bin/nope ENOENT")
+    },
+    (opts) => {
+      const pty = new MockTaskPty(opts)
+      pty.feed("recovered-shell-prompt$ ")
+      return pty
+    },
+  ]
   let attempt = 0
+  const registry = new PtyRegistry((opts) => (spawns[attempt++] as PtyFactory)(opts))
+  return { registry, attempts: () => attempt }
+}
+
+test("terminal: F5 recovers a failed acquire, and the pane says so", async () => {
   // First spawn throws (the shell is missing); the retry succeeds and the
   // shell prints. A real PtyRegistry wraps it, so acquire/reset run for real.
-  const registry = new PtyRegistry((opts) => {
-    attempt += 1
-    if (attempt === 1) throw new Error("spawn /bin/nope ENOENT")
-    const pty = new MockTaskPty(opts)
-    pty.feed("recovered-shell-prompt$ ")
-    return pty
-  })
+  const { registry, attempts } = failFirstSpawn()
 
   const { frame, mockInput } = await renderComponent(
     <Terminal taskId="t1" cwd="/repos/rove" focused={true} registry={registry} />,
     { width: 80, height: 16, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle(200)
-
   // BEFORE the key: the failure is stated AND the way out is named. Without
   // the hint the user has no reason to believe any key would help.
-  const failed = await frame()
+  const failed = await waitForFrameText(frame, "terminal unavailable")
   expect(failed).toContain("terminal unavailable")
   expect(failed).toContain("F5")
   expect(failed).not.toContain("recovered-shell-prompt")
 
   // mockInput speaks raw bytes; F5 is CSI 15~.
   mockInput.pressKey("\x1b[15~")
-  await settle(400)
 
   // AFTER: a real shell is up. Asserting the hint alone would have passed
   // against the broken guard — the recovered contents are the actual proof.
-  const recovered = await frame()
-  expect(recovered).toContain("recovered-shell-prompt")
+  const recovered = await waitForFrameText(frame, "recovered-shell-prompt")
   expect(recovered).not.toContain("terminal unavailable")
-  expect(attempt).toBe(2)
+  expect(attempts()).toBe(2)
 })
 
 test("terminal: clicking the retry hint recovers a failed acquire", async () => {
-  let attempt = 0
-  const registry = new PtyRegistry((opts) => {
-    attempt += 1
-    if (attempt === 1) throw new Error("spawn /bin/nope ENOENT")
-    const pty = new MockTaskPty(opts)
-    pty.feed("recovered-shell-prompt$ ")
-    return pty
-  })
+  const { registry, attempts } = failFirstSpawn()
   const { frame, mockMouse } = await renderComponent(
     <Terminal taskId="t1" cwd="/repos/rove" focused={true} registry={registry} />,
     { width: 80, height: 16, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle(200)
-  const rows = (await frame()).split("\n")
+  const rows = (await waitForFrameText(frame, "F5 tries again")).split("\n")
   const y = rows.findIndex((row) => row.includes("F5 tries again"))
   expect(y).toBeGreaterThanOrEqual(0)
   await mockMouse.click((rows[y] ?? "").indexOf("F5 tries again") + 1, y)
-  await settle(400)
-  expect(await frame()).toContain("recovered-shell-prompt")
-  expect(attempt).toBe(2)
+  await waitForFrameText(frame, "recovered-shell-prompt")
+  expect(attempts()).toBe(2)
 })
 
 /**
@@ -295,9 +309,7 @@ test("workspace: Enter on an unmaterializable task raises a toast, not just a lo
     </>,
     { width: 100, height: 20, providers: { dialog: true, kv: true, notifications: true } },
   )
-  await settle(300)
-
-  const text = await frame()
+  const text = await waitForFrameText(frame, "isn't a git repo yet")
   expect(text).toContain("✕")
   // The actionable non-git copy, not the generic worktree failure.
   expect(text).toContain("isn't a git repo yet")

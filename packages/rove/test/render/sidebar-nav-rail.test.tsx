@@ -15,8 +15,6 @@ import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 import { renderComponent } from "./harness"
 
-const SETTLE = 80
-
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
     id: toTaskId(id),
@@ -60,7 +58,6 @@ async function labelLines(frame: () => Promise<string>): Promise<Record<string, 
 
 test("every destination gets its own line, in declared order", async () => {
   const { frame } = await renderComponent(tree(), { width: 24, height: 40 })
-  await new Promise((r) => setTimeout(r, SETTLE))
   const lines = await labelLines(frame)
 
   const rendered = Object.entries(lines)
@@ -71,12 +68,12 @@ test("every destination gets its own line, in declared order", async () => {
   expect(new Set(Object.values(lines)).size).toBe(3)
 })
 
-test("the task list stays visible whatever the rail selects", async () => {
-  // The rail swaps the CONTENT pane on the right; the sidebar is unchanged, so
-  // clicking a task while the Kanban is up can switch back to its terminal.
-  for (const nav of ["terminal", "kanban.board", "automations", "issues.github"] as const) {
+// The rail swaps the CONTENT pane on the right; the sidebar is unchanged, so
+// clicking a task while the Kanban is up can switch back to its terminal.
+test.each(["terminal", "kanban.board", "automations", "issues.github"] as const)(
+  "the task list stays visible while the rail selects %s",
+  async (nav) => {
     const { frame } = await renderComponent(tree({ nav }), { width: 24, height: 40 })
-    await new Promise((r) => setTimeout(r, SETTLE))
-    expect(await frame(), nav).toContain("row-a")
-  }
-})
+    expect(await frame()).toContain("row-a")
+  },
+)

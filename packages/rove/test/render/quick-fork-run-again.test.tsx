@@ -19,6 +19,9 @@
 import { describe, expect, test } from "bun:test"
 import { runAgainTask } from "../../src/tui-react/workspace/quick-fork"
 import { type Task, toTaskId } from "../../src/types/task"
+import { isolateHome } from "./harness"
+
+isolateHome()
 
 const BRIEF = "Print the third line of README.md and stop.\n\nDo not edit any file.\n"
 

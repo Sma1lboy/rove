@@ -16,9 +16,7 @@ import { expect, test } from "bun:test"
 import { useState } from "react"
 import { useDonePulse } from "../../src/tui-react/panes/sidebar/row-cards"
 import { DONE_PULSE_MS } from "../../src/tui/panes/sidebar/row-view"
-import { act, renderComponent } from "./harness"
-
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 /** Renders the hook's answer as text, with the stamp driven from outside. */
 function Probe(props: { readonly initial: number | undefined; readonly bind: (set: Setter) => void }) {
@@ -39,7 +37,6 @@ async function probe(initial: number | undefined) {
     width: 20,
     height: 3,
   })
-  await wait(20)
   return { ...handle, set: (next: number | undefined) => act(() => set(next)) }
 }
 
@@ -56,11 +53,10 @@ test("a NEW completion flashes, then settles on its own", async () => {
   expect(await frame()).toContain("rest")
 
   set(2000)
-  await wait(20)
   expect(await frame()).toContain("PULSE")
 
-  await wait(DONE_PULSE_MS + 80)
-  expect(await frame()).toContain("rest")
+  // The pulse's own timer is real; poll for its end rather than sleep past it.
+  await waitForFrameText(frame, "rest", { timeoutMs: DONE_PULSE_MS + 2000 })
 })
 
 test("the SAME completion re-rendered does not re-arm the flash", async () => {
@@ -69,23 +65,20 @@ test("the SAME completion re-rendered does not re-arm the flash", async () => {
   // is what would leave the rail permanently bold.
   const { frame, set } = await probe(undefined)
   set(3000)
-  await wait(DONE_PULSE_MS + 80)
-  expect(await frame()).toContain("rest")
+  expect(await frame()).toContain("PULSE")
+  await waitForFrameText(frame, "rest", { timeoutMs: DONE_PULSE_MS + 2000 })
 
   set(3000)
-  await wait(20)
   expect(await frame()).toContain("rest")
 })
 
 test("losing the completion (a new turn started) clears the flash immediately", async () => {
   const { frame, set } = await probe(undefined)
   set(6000)
-  await wait(20)
   expect(await frame()).toContain("PULSE")
 
   // The row went back to `running`, so there is no completion to celebrate —
   // the flash must not outlive its own subject waiting for the timer.
   set(undefined)
-  await wait(20)
   expect(await frame()).toContain("rest")
 })

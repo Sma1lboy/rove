@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
-import { describe, expect, it } from "bun:test"
+import { afterAll, describe, expect, it } from "bun:test"
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
-import { useKV } from "../../src/tui-react/context/kv"
+import { type KVContext, useKV } from "../../src/tui-react/context/kv"
 import {
   focusAccent,
   selectedTheme,
@@ -17,8 +17,16 @@ import {
 } from "../../src/tui-react/context/theme"
 import { act, renderComponent, settle } from "./harness"
 
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
+
+let kv: KVContext | undefined
 function Driver() {
-  return <SettingsDialog kv={useKV()} onClose={() => {}} />
+  kv = useKV()
+  return <SettingsDialog kv={kv} onClose={() => {}} />
 }
 const initial = {
   activeTheme: "claude",
@@ -41,17 +49,19 @@ async function setup(width = 120, height = 48) {
   setTransparentBackground(false)
   const h = await renderComponent(<Driver />, { width, height, providers: { kv: true, dialog: true } })
   async function press(key: string) {
-    act(() =>
-      key === "return"
-        ? h.mockInput.pressEnter()
-        : key === "escape"
-          ? h.mockInput.pressEscape()
-          : h.mockInput.pressKey(key),
-    )
-    await settle(40)
+    act(() => (key === "return" ? h.mockInput.pressEnter() : h.mockInput.pressKey(key)))
     return h.frame()
   }
-  return { ...h, press, persisted: () => JSON.parse(readFileSync(path, "utf8")) }
+  async function pressEscape() {
+    act(() => h.mockInput.pressEscape())
+    // The lone ESC byte waits out opentui's escape-sequence window (see `settle`).
+    await settle()
+    return h.frame()
+  }
+  async function pressTimes(key: string, n: number) {
+    for (let i = 0; i < n; i++) await press(key)
+  }
+  return { ...h, press, pressEscape, pressTimes, persisted: () => JSON.parse(readFileSync(path, "utf8")) }
 }
 
 describe("appearance choices", () => {
@@ -61,39 +71,37 @@ describe("appearance choices", () => {
     { row: 7, key: "sidebar.foldStyle", next: "initials", label: "Folded task rail" },
     { row: 9, key: "appearance.taskColors", next: "off", label: "Task colors" },
   ]
-  for (const example of cases) {
-    it(`${example.label}: preview and cancel do not persist; Enter applies exactly one field`, async () => {
-      const h = await setup()
-      await h.press("l")
-      for (let i = 0; i < example.row; i++) await h.press("j")
-      expect(await h.press("return")).toContain(`Appearance / ${example.label}`)
-      const original = h.persisted()
-      const previewSpans = async () => {
-        const lines = (await h.spans()).lines
-        const start = lines.findLastIndex((line) => line.spans.some((span) => span.text.includes("Workspace preview")))
-        const end = lines.findIndex(
-          (line, index) =>
-            index > start && line.spans.some((span) => /Opaque background|Transparent background/.test(span.text)),
-        )
-        expect(start).toBeGreaterThan(-1)
-        expect(end).toBeGreaterThan(start)
-        return lines.slice(start, end + 1)
-      }
-      const before = await previewSpans()
-      await h.press("j")
-      expect(await previewSpans()).not.toEqual(before)
-      expect(h.persisted()).toEqual(original)
-      expect(selectedTheme()).toBe("claude")
-      expect(themeMode()).toBe("dark")
-      expect(focusAccent()).toBe("primary")
-      expect(transparentBackground()).toBe(false)
-      expect(await h.press("escape")).not.toContain(`Appearance / ${example.label}`)
-      expect(h.persisted()).toEqual(original)
-      await h.press("return")
-      await h.press("j")
-      await h.press("return")
-      await settle(320)
-      expect(h.persisted()).toEqual({ ...original, [example.key]: example.next })
-    })
-  }
+  it.each(cases)("$label: preview and cancel do not persist; Enter applies exactly one field", async (example) => {
+    const h = await setup()
+    await h.press("l")
+    await h.pressTimes("j", example.row)
+    expect(await h.press("return")).toContain(`Appearance / ${example.label}`)
+    const original = h.persisted()
+    const previewSpans = async () => {
+      const lines = (await h.spans()).lines
+      const start = lines.findLastIndex((line) => line.spans.some((span) => span.text.includes("Workspace preview")))
+      const end = lines.findIndex(
+        (line, index) =>
+          index > start && line.spans.some((span) => /Opaque background|Transparent background/.test(span.text)),
+      )
+      expect(start).toBeGreaterThan(-1)
+      expect(end).toBeGreaterThan(start)
+      return lines.slice(start, end + 1)
+    }
+    const before = await previewSpans()
+    await h.press("j")
+    expect(await previewSpans()).not.toEqual(before)
+    expect(h.persisted()).toEqual(original)
+    expect(selectedTheme()).toBe("claude")
+    expect(themeMode()).toBe("dark")
+    expect(focusAccent()).toBe("primary")
+    expect(transparentBackground()).toBe(false)
+    expect(await h.pressEscape()).not.toContain(`Appearance / ${example.label}`)
+    expect(h.persisted()).toEqual(original)
+    await h.press("return")
+    await h.press("j")
+    await h.press("return")
+    act(() => kv?.flush())
+    expect(h.persisted()).toEqual({ ...original, [example.key]: example.next })
+  })
 })

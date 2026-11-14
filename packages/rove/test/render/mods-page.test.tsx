@@ -4,14 +4,25 @@
  * OpenTUI boxes, and Enter on the focused button sends that button's key back.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { ModPaneView } from "@sma1lboy/rove-daemon/plugins/mod-tree"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
 import { ModsPage } from "../../src/tui-react/component/mods-page"
-import { renderComponent } from "./harness"
+import { act, renderComponent } from "./harness"
 
-process.env.ROVE_HOME_DIR ??= (await import("node:fs")).mkdtempSync("/tmp/rove-mods-page-")
+let previousHome: string | undefined
+beforeAll(() => {
+  previousHome = process.env.ROVE_HOME_DIR
+  process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-mods-page-"))
+})
+afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 const PANE: ModPaneView = {
   plugin: "examples.counter-mod",
@@ -76,21 +87,19 @@ test("draws a mod's tree and presses the focused button on Enter", async () => {
   expect(text).toContain("Count: 3")
   expect(text).toMatch(/\[ \+1 \] {2}\[ -1 \]/)
 
-  mockInput.pressArrow("down")
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, 50))
+  act(() => mockInput.pressArrow("down"))
+  act(() => mockInput.pressEnter())
   expect(sent).toEqual(["press examples.counter-mod/main/dec"])
 })
 
 test("typing in a mod field stays in the field, and Enter submits it to the mod", async () => {
   const { frame, mockInput, sent, closed } = await renderPage()
   expect(await frame()).toContain("Add a note")
-  mockInput.pressArrow("down")
-  mockInput.pressArrow("down")
+  act(() => mockInput.pressArrow("down"))
+  act(() => mockInput.pressArrow("down"))
   // `q` closes the page everywhere else on it; in a field it is a letter.
-  await mockInput.typeText("quit early")
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, 50))
+  await act(() => mockInput.typeText("quit early"))
+  act(() => mockInput.pressEnter())
   expect(closed()).toBe(false)
   expect(sent).toEqual(["submit examples.counter-mod/main/note=quit early"])
   // Submitted: the field empties, as the web's does.

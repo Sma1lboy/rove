@@ -10,7 +10,7 @@ import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import { type Task, toTaskId } from "../../src/types/task"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -54,9 +54,7 @@ test("a collapsed parent shows its child count and the most urgent child's state
     <SidebarTree tasks={TASKS} selectedId="parent" onSelect={() => {}} focused={true} width={40} />,
     { width: 40, height: 16 },
   )
-  await settle(80)
-
-  const open = await frame()
+  const open = await waitForFrameText(frame, "check types")
   expect(lineWith(open, "check types")).toContain("⑂")
   expect(lineWith(open, "check types")).toContain(DEFAULT_GLYPHS.needsInput)
   expect(lineWith(open, "port tree builder")).toContain("⎇")
@@ -65,9 +63,8 @@ test("a collapsed parent shows its child count and the most urgent child's state
   // Folding is a click on the parent's fold glyph.
   const parentLine = lineWith(open, "parent")
   await mockMouse.click(parentLine.indexOf("▾"), open.split("\n").indexOf(parentLine), 0)
-  await settle(80)
 
-  const folded = await frame()
+  const folded = await waitForFrameText(frame, "▸ 2")
   expect(folded).not.toContain("check types")
   expect(folded).not.toContain("port tree builder")
   const summary = lineWith(folded, "parent")
@@ -88,8 +85,7 @@ test("a child that has children of its own keeps its marker and fold glyph in se
     <SidebarTree tasks={tasks} selectedId="parent" onSelect={() => {}} focused={true} width={30} />,
     { width: 30, height: 16 },
   )
-  await settle(80)
-  const line = lineWith(await frame(), "A very long")
+  const line = lineWith(await waitForFrameText(frame, "A very long"), "A very long")
   // The marker is not glued to the fold glyph: a wide-drawn ⎇ would smear into it.
   expect(line).toMatch(/…\s+⎇ ▾/)
 })
@@ -102,9 +98,7 @@ test("each generation's state glyph sits in its parent's title column", async ()
     <SidebarTree tasks={tasks} selectedId="parent" onSelect={() => {}} focused={true} width={40} />,
     { width: 40, height: 16 },
   )
-  await settle(80)
-
-  const open = await frame()
+  const open = await waitForFrameText(frame, "grandchild")
   // The state glyph cell is two wide (`○ `), right before the title.
   const glyphColumn = (title: string) => lineWith(open, title).indexOf(title) - 2
   const titleColumn = (title: string) => lineWith(open, title).indexOf(title)

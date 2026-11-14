@@ -26,8 +26,11 @@
  *   })
  */
 
-import { afterEach } from "bun:test"
+import { afterAll, afterEach, beforeAll } from "bun:test"
 import { EventEmitter } from "node:events"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { CapturedFrame } from "@opentui/core"
 import type { MockInput, MockMouse, TestRenderer } from "@opentui/core/testing"
 import { testRender } from "@opentui/react/test-utils"
@@ -277,4 +280,19 @@ export async function renderComponent(ui: ReactNode, options: RenderOptions = {}
       liveRenderers.delete(renderer)
     },
   }
+}
+
+// Process-wide fallback home: a file that restores `ROVE_HOME_DIR` restores to this, so a late kv flush never reaches the real `~/.rove`.
+process.env.ROVE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "rove-render-process-home-"))
+
+/** Point `ROVE_HOME_DIR` at a fresh temp dir for this file, restoring it after, so `kv: true` never touches the real `~/.rove`. */
+export function isolateHome(): void {
+  const saved = process.env.ROVE_HOME_DIR
+  beforeAll(() => {
+    process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-render-home-"))
+  })
+  afterAll(() => {
+    if (saved === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+    else process.env.ROVE_HOME_DIR = saved
+  })
 }

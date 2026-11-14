@@ -138,12 +138,10 @@ const FIXTURES: ReadonlyArray<{
   },
 ]
 
-for (const fixture of FIXTURES) {
-  test(`the fold heads the same sections, in the same order — ${fixture.name}`, async () => {
-    const tabs = seed(fixture.tabs)
-    expect(await railDividers(fixture.tasks)).toEqual(treeHeads(fixture.tasks, tabs))
-  })
-}
+test.each([...FIXTURES])("the fold heads the same sections, in the same order — $name", async (fixture) => {
+  const tabs = seed(fixture.tabs)
+  expect(await railDividers(fixture.tasks)).toEqual(treeHeads(fixture.tasks, tabs))
+})
 
 test("the closed-down project is in neither surface, not merely ordered the same", async () => {
   // The parity property above would also be satisfied by both surfaces showing

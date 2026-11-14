@@ -11,14 +11,20 @@
  * and cannot be reached is the failure this file is for.
  */
 
-import { expect, test } from "bun:test"
+import { afterEach, expect, test } from "bun:test"
 import { execSync } from "node:child_process"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
 import type { AdoptableWorktree } from "../../src/types/worktree"
-import { type RenderHandle, act, renderComponent, settle } from "./harness"
+import { type RenderHandle, act, renderComponent, settle, waitForFrameText } from "./harness"
+
+const previousHome = process.env.ROVE_HOME_DIR
+afterEach(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = previousHome
+})
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), "rove-adopt-"))
@@ -51,13 +57,15 @@ async function onAdoptTab(dir: string): Promise<RenderHandle> {
     />,
     { width: 100, height: 44, providers: { kv: true, dialog: true } },
   )
-  for (let i = 0; i < 2; i++) {
-    await act(async () => {
-      handle.mockInput.pressKey("]", { ctrl: true })
-    })
-    await settle()
-  }
-  await settle(400)
+  await act(async () => {
+    handle.mockInput.pressKey("]", { ctrl: true })
+  })
+  await settle()
+  await act(async () => {
+    handle.mockInput.pressKey("]", { ctrl: true })
+  })
+  // Discovery is async: wait for the last worktree row to land.
+  await waitForFrameText(handle.frame, "feature/beta")
   return handle
 }
 

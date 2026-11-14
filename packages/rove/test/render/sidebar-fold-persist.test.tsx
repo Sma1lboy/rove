@@ -6,10 +6,11 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
+import { COLLAPSED_TASKS_KEY } from "../../src/tui-react/panes/sidebar/use-tree-state"
 import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status-sync"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { type Task, toTaskId } from "../../src/types/task"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -55,16 +56,15 @@ const mount = () =>
 
 test("a folded parent is still folded after a restart", async () => {
   const first = await mount()
-  await settle(80)
-  const open = await first.frame()
-  expect(open).toContain("check types")
+  const open = await waitForFrameText(first.frame, "check types")
   const line = open.split("\n").find((l) => l.includes("parent")) ?? ""
   await first.mockMouse.click(line.indexOf("▾"), open.split("\n").indexOf(line), 0)
-  await settle(400)
   expect(await first.frame()).not.toContain("check types")
+  // The KV write is debounced: wait for it to reach state.json, as a quit's flush would.
+  const state = path.join(home, ".config", "rove", "state.json")
+  await waitForFrameText(async () => (fs.existsSync(state) ? fs.readFileSync(state, "utf8") : ""), COLLAPSED_TASKS_KEY)
   first.destroy()
 
   const second = await mount()
-  await settle(80)
-  expect(await second.frame()).not.toContain("check types")
+  expect(await waitForFrameText(second.frame, "parent")).not.toContain("check types")
 })

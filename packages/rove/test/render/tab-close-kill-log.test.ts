@@ -23,6 +23,7 @@ import { mkdtempSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { waitForFrameText } from "./harness"
 
 let home: string
 let releaseClosedTabPtys: typeof import("../../src/tui-react/workspace/terminal-tabs-close.ts").releaseClosedTabPtys
@@ -56,12 +57,9 @@ it("a tab close that cannot reach the host records the missed kill", async () =>
   const logPath = join(home, ".rove", "client.log")
   // The write is deliberately fire-and-forget (`appendFile`, never Sync), so
   // poll rather than assume it has landed by the time the call returns.
-  let text = ""
-  for (let i = 0; i < 50 && !text.includes("pty.kill"); i += 1) {
-    await new Promise((r) => setTimeout(r, 20))
-    text = await readFile(logPath, "utf8").catch(() => "")
-  }
-  expect(text).toContain("pty.kill skipped")
+  const text = await waitForFrameText(() => readFile(logPath, "utf8").catch(() => ""), "pty.kill skipped", {
+    timeoutMs: 1_000,
+  })
   // The key has to be in the line — a trace that cannot name the session it
   // failed to kill does not let anyone find the leaked freeze record.
   expect(text).toContain("task-kill-log")

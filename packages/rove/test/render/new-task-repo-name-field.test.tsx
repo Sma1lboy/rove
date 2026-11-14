@@ -25,7 +25,9 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
 import { type Field, type NewTaskInput, nextField } from "../../src/tui/component/new-task-dialog/state"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle } from "./harness"
+
+isolateHome()
 
 /** A repo whose PARENT path is long enough to crowd the row. */
 function repoUnderLongParent(name: string): string {

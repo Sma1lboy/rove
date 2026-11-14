@@ -16,9 +16,7 @@ import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keyb
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent } from "./harness"
-
-const SETTLE = 80
+import { act, renderComponent } from "./harness"
 
 function task(id: string): Task {
   return {
@@ -103,31 +101,31 @@ function ChordHost({ spies }: { spies: Spies }) {
 
 test("b / v / o act on the row under the cursor after a j without enter", async () => {
   const spies: Spies = { renameBranch: [], cycleVendor: [], openTaskWorktree: [] }
-  const { mockInput } = await renderComponent(<ChordHost spies={spies} />, {
+  const { frame, mockInput } = await renderComponent(<ChordHost spies={spies} />, {
     width: 28,
     height: 20,
     providers: { focus: true, dialog: true },
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
+  const type = async (key: string): Promise<void> => {
+    act(() => {
+      mockInput.typeText(key)
+    })
+    await frame()
+  }
 
   // Cursor starts on the active row, so with no movement both agree.
-  mockInput.typeText("b")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await type("b")
   expect(spies.renameBranch).toEqual([A.id])
 
   // `j` moves the cursor to `b` WITHOUT selecting it — the active task is
   // still `a`. Every sidebar-scope row verb must now name `b`.
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("b")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await type("j")
+  await type("b")
   expect(spies.renameBranch).toEqual([A.id, B.id])
 
-  mockInput.typeText("v")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await type("v")
   expect(spies.cycleVendor).toEqual([B.id])
 
-  mockInput.typeText("o")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await type("o")
   expect(spies.openTaskWorktree).toEqual([B.id])
 })

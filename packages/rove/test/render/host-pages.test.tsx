@@ -12,7 +12,7 @@
  * that live next to each page component.
  */
 
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
 import { useEffect, useRef } from "react"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { createStateCell } from "../../src/lib/external-store"
@@ -29,10 +29,19 @@ import {
   useHostPagesState,
 } from "../../src/tui-react/workspace/host-pages"
 import type { Task } from "../../src/types/task"
-import { act, renderComponent } from "./harness"
+import { act, isolateHome, renderComponent, waitForFrameText } from "./harness"
+
+isolateHome()
 
 // UpdatePage reaches the npm registry on mount unless this hook is set.
-process.env.ROVE_FAKE_UPDATE = "99.0.0"
+const ORIGINAL_FAKE_UPDATE = process.env.ROVE_FAKE_UPDATE
+beforeAll(() => {
+  process.env.ROVE_FAKE_UPDATE = "99.0.0"
+})
+afterAll(() => {
+  if (ORIGINAL_FAKE_UPDATE === undefined) Reflect.deleteProperty(process.env, "ROVE_FAKE_UPDATE")
+  else process.env.ROVE_FAKE_UPDATE = ORIGINAL_FAKE_UPDATE
+})
 
 const WT_ROW = {
   repo: "/x/rove",
@@ -87,8 +96,6 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
   }
 }
 
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 120))
-
 test.each([
   ["Worktrees", { worktreesOpen: true }],
   ["ROVE UPDATE", { updateOpen: true }],
@@ -98,8 +105,7 @@ test.each([
     height: 24,
     providers: { dialog: true, notifications: true },
   })
-  await settle()
-  expect(await frame()).toContain(title)
+  await waitForFrameText(frame, title)
 })
 
 test("useHostPagesState clears What's New once, and it cannot be reopened", async () => {
@@ -111,8 +117,7 @@ test("useHostPagesState clears What's New once, and it cannot be reopened", asyn
   const { frame } = await renderComponent(<Harness />)
   expect(await frame()).toContain("0.9.100")
   act(() => pagesRef?.closeWhatsNew())
-  await settle()
-  expect(await frame()).toContain("dismissed")
+  await waitForFrameText(frame, "dismissed")
 })
 
 test.each([
@@ -125,8 +130,7 @@ test.each([
     height: 30,
     providers: { dialog: true, kv: true, notifications: true },
   })
-  await settle()
-  expect(await frame()).toContain(title)
+  await waitForFrameText(frame, title)
 })
 
 function mockFocus(): FocusContextValue {
@@ -178,22 +182,16 @@ test("useHostPagesState opens and closes rail pages", async () => {
   const { frame } = await renderComponent(<StateHarness />)
   expect(await frame()).toContain("terminal")
   act(() => pagesRef?.openPage("kanban.board"))
-  await settle()
-  expect(await frame()).toContain("kanban.board")
+  await waitForFrameText(frame, "kanban.board")
   act(() => pagesRef?.closePage())
-  await settle()
-  expect(await frame()).toContain("terminal")
+  await waitForFrameText(frame, "terminal")
   act(() => pagesRef?.openPage("automations"))
-  await settle()
-  expect(await frame()).toContain("automations")
+  await waitForFrameText(frame, "automations")
   act(() => pagesRef?.openWorktrees())
-  await settle()
   expect(pagesRef!.worktreesOpen).toBe(true)
   act(() => pagesRef?.closeWorktrees())
-  await settle()
   expect(pagesRef!.worktreesOpen).toBe(false)
   act(() => pagesRef?.openUpdate())
-  await settle()
   expect(pagesRef!.updateOpen).toBe(true)
 })
 
@@ -239,8 +237,7 @@ test("useHostPagesRender surfaces the settings page", async () => {
     height: 24,
     providers: { dialog: true, notifications: true },
   })
-  await settle()
-  expect(await frame()).toContain("Settings")
+  await waitForFrameText(frame, "Settings")
 })
 
 test("useHostPagesRender computes narrow layout and recent task", async () => {
@@ -252,8 +249,7 @@ test("useHostPagesRender computes narrow layout and recent task", async () => {
       providers: { dialog: true, kv: true, notifications: true },
     },
   )
-  await settle()
-  const text = await frame()
+  const text = await waitForFrameText(frame, "recent:t1")
   // Narrow mode with a content page open shows the sidebar rail only.
   expect(text).toContain("showSidebar")
   expect(text).toContain("hideContent")

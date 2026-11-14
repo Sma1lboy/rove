@@ -16,7 +16,7 @@ import { join } from "node:path"
 import type { CapturedFrame } from "@opentui/core"
 import { FocusProvider } from "../../src/tui-react/context/focus"
 import { HostFilesPane } from "../../src/tui-react/workspace/host-files-pane"
-import { renderComponent, settle } from "./harness"
+import { renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -59,19 +59,13 @@ function borderColors(frame: CapturedFrame): Set<string> {
 }
 
 async function borderColorsWhenFocused(initial: "workspace" | "files"): Promise<Set<string>> {
-  const { spans } = await renderComponent(mounted(repoWithFile(), initial), {
+  const { frame, spans } = await renderComponent(mounted(repoWithFile(), initial), {
     width: 90,
     height: 20,
   })
-  // The tree loads through an async git read — poll until the border frame
-  // is fully drawn (content spans present).
-  for (let i = 0; i < 40; i++) {
-    const frame = await spans()
-    const text = frame.lines.map((l) => l.spans.map((s) => s.text).join("")).join("\n")
-    if (text.includes("alpha.ts")) return borderColors(frame)
-    await settle(100)
-  }
-  throw new Error("files pane never listed the repo")
+  // The tree loads through an async git read — wait until the border frames real content.
+  await waitForFrameText(frame, "alpha.ts")
+  return borderColors(await spans())
 }
 
 test("the pane draws a rounded border around the live tree, colored by pane focus", async () => {

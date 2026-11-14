@@ -14,7 +14,7 @@ import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import { BUNDLED_THEMES, DEFAULT_THEME, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent } from "./harness"
+import { act, renderComponent, settle } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -32,9 +32,15 @@ function task(id: string, over: Partial<Task> = {}): Task {
 }
 
 const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
-const SETTLE = 80
-const settle = () => new Promise((r) => setTimeout(r, SETTLE))
 const RIGHT = 2
+
+/** One input inside act, then a render pass. */
+async function step(frame: () => Promise<string>, fire: () => unknown): Promise<void> {
+  await act(async () => {
+    await fire()
+  })
+  await frame()
+}
 
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   return (
@@ -63,29 +69,24 @@ test("escape closes the menu and hands j/k back to the tree", async () => {
     width: 40,
     height: 24,
   })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("Rename")
 
-  mockInput.pressEscape()
+  act(() => mockInput.pressEscape())
+  // A lone ESC resolves only after opentui's escape-sequence window (see `settle`).
   await settle()
   expect(await frame()).not.toContain("Rename")
 
   // j/k are the TREE's again — while the menu was up they moved its highlight.
-  mockInput.typeText("j")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
   expect(chosen).toEqual(["b"])
 })
 
 test("right-click on a project header offers the project's own actions", async () => {
   tabsByTask.clear()
   const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT))
 
   const after = await frame()
   expect(after).toContain("New task")
@@ -111,30 +112,22 @@ test("a lower project's header moves it to the top; the topmost one isn't offere
     }),
     { width: 40, height: 24 },
   )
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
   expect(await frame()).toContain("Move to top")
   expect(await frame()).toContain("Reorder project")
 
   // New task → Move to top. Both verbs act on the project's MAIN.
-  mockInput.typeText("j")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
   expect(moved).toEqual(["f"])
 
-  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
-  await settle()
-  mockInput.typeText("jj")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
+  await step(frame, () => mockInput.typeText("jj"))
+  await step(frame, () => mockInput.pressEnter())
   expect(reordered).toEqual(["f"])
 
   // Already first: only Reorder.
-  await mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "rove"), RIGHT))
   expect(await frame()).not.toContain("Move to top")
   expect(await frame()).toContain("Reorder project")
 })
@@ -153,18 +146,13 @@ test("Reorder project while already in move mode keeps it on, now dragging that 
     }),
     { width: 40, height: 24 },
   )
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT)
-  await settle()
-  mockInput.typeText("jj")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "foxy"), RIGHT))
+  await step(frame, () => mockInput.typeText("jj"))
+  await step(frame, () => mockInput.pressEnter())
   // A toggle here would have LEFT move mode.
   expect(toggles).toEqual([])
 
-  mockInput.typeText("k")
-  await settle()
+  await step(frame, () => mockInput.typeText("k"))
   expect(moves).toEqual([["f", -1]])
 })
 
@@ -176,9 +164,7 @@ test("another machine's project offers no move verbs — its main isn't in this 
     width: 40,
     height: 24,
   })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "remote"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "remote"), RIGHT))
   expect(await frame()).toContain("New task")
   expect(await frame()).not.toContain("Move to top")
   expect(await frame()).not.toContain("Reorder project")
@@ -193,9 +179,7 @@ test("left-click still activates the row it lands on", async () => {
     width: 40,
     height: 24,
   })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-b"), 0)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-b"), 0))
 
   expect(chosen).toEqual(["b"])
 })
@@ -204,17 +188,13 @@ test("a parent's menu folds its children away", async () => {
   tabsByTask.clear()
   const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") })]
   const { frame, mockMouse, mockInput } = await renderComponent(tree({ tasks }), { width: 40, height: 24 })
-  await settle()
   expect(await frame()).toContain("kid")
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("Collapse children")
 
   // Highlight starts on "Open"; j steps to the fold entry.
-  mockInput.typeText("j")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
 
   expect(await frame()).not.toContain("kid")
 })
@@ -228,16 +208,12 @@ test("a worktree row's menu opens a new conversation in that task", async () => 
     tree({ onNewTab: (taskId, kind) => asked.push([taskId, kind]) }),
     { width: 40, height: 24 },
   )
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("New conversation")
 
   // Open → New conversation.
-  mockInput.typeText("j")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual([["a", "chat"]])
 })
@@ -254,15 +230,12 @@ test("a press anywhere else dismisses the menu", async () => {
   // down by re-clicking the row it came from.
   tabsByTask.clear()
   const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 34 })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   expect(await frame()).toContain("Rename")
 
   // Empty space below the menu's last entry — no row handler runs, so only the
   // root-level dismiss can close it.
-  await mockMouse.click(2, 32, 0)
-  await settle()
+  await step(frame, () => mockMouse.click(2, 32, 0))
   expect(await frame()).not.toContain("Rename")
 })
 
@@ -275,13 +248,10 @@ test("a press ON the menu still picks its entry", async () => {
     width: 40,
     height: 24,
   })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
 
   const entry = posOf(await frame(), "Rename")
-  await mockMouse.click(entry.x, entry.y, 0)
-  await settle()
+  await step(frame, () => mockMouse.click(entry.x, entry.y, 0))
 
   expect(renamed).toEqual(["a"])
   expect(await frame()).not.toContain("Delete")
@@ -301,17 +271,13 @@ test("Set status fires the row's callback with that row's task", async () => {
     width: 40,
     height: 24,
   })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-b"), RIGHT))
   expect(await frame()).toContain("Set status")
 
   // open, newChat, newShell, continueElsewhere, newTaskFromBranch, rename, pin, reorder,
   // setStatus — eight steps from the highlight's start on "Open".
-  mockInput.typeText("jjjjjjjj")
-  await settle()
-  mockInput.pressEnter()
-  await settle()
+  await step(frame, () => mockInput.typeText("jjjjjjjj"))
+  await step(frame, () => mockInput.pressEnter())
 
   expect(asked).toEqual(["b"])
 })
@@ -326,9 +292,7 @@ test("the menu panel sits on `backgroundMenu`, a step above the inset it covers"
   expect(theme.backgroundMenu.toInts()).not.toEqual(theme.backgroundElement.toInts())
   tabsByTask.clear()
   const { frame, spans, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
-  await settle()
-  await mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT)
-  await settle()
+  await step(frame, async () => mockMouse.click(2, lineOf(await frame(), "row-a"), RIGHT))
   const rename = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("Rename"))
   expect(rename).toBeDefined()
   expect(rename?.bg?.toInts()).toEqual(theme.backgroundMenu.toInts())

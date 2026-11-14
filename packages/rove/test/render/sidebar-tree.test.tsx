@@ -17,7 +17,7 @@ import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -44,7 +44,14 @@ function seedTabs(taskId: string, tabIds: readonly string[]): void {
 }
 
 const MAIN = task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" })
-const SETTLE = 80
+
+/** One input inside act, then a render pass. */
+async function step(frame: () => Promise<string>, fire: () => unknown): Promise<void> {
+  act(() => {
+    fire()
+  })
+  await frame()
+}
 
 function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
   return (
@@ -63,17 +70,13 @@ test("a child task is its own row: j reaches it and enter selects it", async () 
   tabsByTask.clear()
   const chosen: string[] = []
   const tasks = [MAIN, task("a"), task("kid", { parentTaskId: toTaskId("a") }), task("b")]
-  const { mockInput } = await renderComponent(tree({ tasks, onSelect: (id) => chosen.push(id) }), {
+  const { frame, mockInput } = await renderComponent(tree({ tasks, onSelect: (id) => chosen.push(id) }), {
     width: 28,
     height: 20,
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
-
   // Cursor lands on the selected `a`; j steps onto its child.
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
 
   expect(chosen).toEqual(["kid"])
 })
@@ -81,24 +84,19 @@ test("a child task is its own row: j reaches it and enter selects it", async () 
 test("j/k move the cursor over worktree rows", async () => {
   tabsByTask.clear()
   const chosen: string[] = []
-  const { mockInput } = await renderComponent(tree({ onSelect: (id) => chosen.push(id) }), {
+  const { frame, mockInput } = await renderComponent(tree({ onSelect: (id) => chosen.push(id) }), {
     width: 28,
     height: 20,
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
 
   // No tabs seeded, so every row is a worktree: m, a, b — cursor starts on
   // the selected `a`. `selectedId` is a fixed prop here (a real host would
   // re-render with the new one and the follow effect would re-anchor), so
   // the cursor moves freely: j lands on `b`, k returns to `a`.
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("k")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
+  await step(frame, () => mockInput.typeText("k"))
+  await step(frame, () => mockInput.pressEnter())
 
   // Two DIFFERENT ids — a cursor that never moved would report `a` twice.
   expect(chosen).toEqual(["b", "a"])
@@ -109,14 +107,12 @@ test("keys stay dead while another pane holds focus", async () => {
   // the terminal pane needs them as text.
   seedTabs("a", ["tab-1"])
   const picked: string[] = []
-  const { mockInput } = await renderComponent(tree({ focused: false, onSelect: (id) => picked.push(id) }), {
+  const { frame, mockInput } = await renderComponent(tree({ focused: false, onSelect: (id) => picked.push(id) }), {
     width: 28,
     height: 20,
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("j")
-  mockInput.pressEnter()
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.pressEnter())
 
   expect(picked).toEqual([])
 })
@@ -125,18 +121,14 @@ test("escape leaves search and restores the full tree", async () => {
   tabsByTask.clear()
   const tasks = [MAIN, task("a", { title: "alpha" }), task("b", { title: "bravo" })]
   const { frame, mockInput } = await renderComponent(tree({ tasks }), { width: 28, height: 20 })
-  await new Promise((r) => setTimeout(r, SETTLE))
 
-  mockInput.typeText("/")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("bravo")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("/"))
+  await step(frame, () => mockInput.typeText("bravo"))
   expect(await frame()).not.toContain("alpha")
 
-  mockInput.pressEscape()
-  await new Promise((r) => setTimeout(r, SETTLE))
-  const text = await frame()
-  expect(text).toContain("alpha")
+  act(() => mockInput.pressEscape())
+  // A lone ESC resolves only after opentui's escape-sequence window.
+  const text = await waitForFrameText(frame, "alpha")
   expect(text).toContain("bravo")
 })
 
@@ -150,14 +142,11 @@ test("move mode on a TASK row moves the task itself within its repo group", asyn
     tree({ tasks, moveMode: true, onMoveRequest: (id, delta) => moves.push([id, delta]) }),
     { width: 28, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
 
   // The cursor sits on `a` — a regular task, so j/k move IT (the repo-group
   // partition lives in moveTask), not its project's main.
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.typeText("k")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("j"))
+  await step(frame, () => mockInput.typeText("k"))
 
   expect(moves).toEqual([
     ["a", 1],
@@ -174,15 +163,13 @@ test("move mode on a MAIN row drags the whole project", async () => {
   tabsByTask.clear()
   const moves: Array<[string, number]> = []
   const tasks = [MAIN, task("a")]
-  const { mockInput } = await renderComponent(
+  const { frame, mockInput } = await renderComponent(
     tree({ tasks, selectedId: "m", moveMode: true, onMoveRequest: (id, delta) => moves.push([id, delta]) }),
     { width: 28, height: 20 },
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
 
   // Cursor anchors on the selected `m` (the repo's own checkout row).
-  mockInput.typeText("j")
-  await new Promise((r) => setTimeout(r, SETTLE))
+  await step(frame, () => mockInput.typeText("j"))
   expect(moves).toEqual([["m", 1]])
 })
 
@@ -193,10 +180,9 @@ test("escape leaves move mode", async () => {
     width: 28,
     height: 20,
   })
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.pressEscape()
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(exited).toBe(1)
+  act(() => mockInput.pressEscape())
+  // A lone ESC resolves only after opentui's escape-sequence window.
+  expect(await waitForFrameText(async () => `exited=${exited}`, "exited=1")).toBe("exited=1")
 })
 
 // Regression: when no transient mode is active, the sidebar must not register
@@ -225,8 +211,7 @@ test("escape bubbles out when no sidebar mode is active", async () => {
       {tree()}
     </>,
   )
-  await new Promise((r) => setTimeout(r, SETTLE))
-  mockInput.pressEscape()
-  await new Promise((r) => setTimeout(r, SETTLE))
-  expect(escaped).toBe(true)
+  act(() => mockInput.pressEscape())
+  // A lone ESC resolves only after opentui's escape-sequence window.
+  expect(await waitForFrameText(async () => `escaped=${escaped}`, "escaped=true")).toBe("escaped=true")
 })

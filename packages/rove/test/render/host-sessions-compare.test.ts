@@ -21,13 +21,6 @@ const session = (over: Partial<LiveSession> = {}): LiveSession =>
   ({ key: "task-1:tab-1", alive: true, title: "claude", ...over }) as LiveSession
 
 describe("sameSessions", () => {
-  test("treats a fresh array with identical rows as unchanged — the quiet-host case", () => {
-    // The poll allocates a new array every tick, so identity comparison would
-    // rebuild the tree every 2 seconds forever.
-    expect(sameSessions([session()], [session()])).toBe(true)
-    expect(sameSessions([], [])).toBe(true)
-  })
-
   test("reports a change on each field the tree reads", () => {
     expect(sameSessions([session()], [session({ key: "task-2:tab-1" })])).toBe(false)
     expect(sameSessions([session()], [session({ alive: false })])).toBe(false)
@@ -46,5 +39,6 @@ describe("sameSessions", () => {
     expect(sameSessions([session()], [session({ pid: 202 })])).toBe(false)
     expect(sameSessions([session({ pid: 101 })], [session({ pid: null })])).toBe(false)
     expect(sameSessions([session({ pid: 101 })], [session({ pid: 101 })])).toBe(true)
+    expect(sameSessions([], [])).toBe(true)
   })
 })

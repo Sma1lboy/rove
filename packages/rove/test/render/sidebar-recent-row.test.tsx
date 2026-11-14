@@ -5,16 +5,22 @@
  * task — real keys, real tree cursor, no new chord.
  */
 
-import { describe, expect, it } from "bun:test"
+import { afterAll, describe, expect, it } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent } from "./harness"
 
 const NOOP = (): void => {}
+
+const savedHome = process.env.ROVE_HOME_DIR
+afterAll(() => {
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
+  else process.env.ROVE_HOME_DIR = savedHome
+})
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -85,7 +91,6 @@ describe("recent jump row", () => {
       </box>,
       { width: 46, height: 24, providers: { kv: true, notifications: true } },
     )
-    await settle()
     const text = await frame()
     expect(text).toContain("↩ Recent: bravo")
     // The row is above the first task row.
@@ -95,27 +100,25 @@ describe("recent jump row", () => {
     // gg jumps the cursor to the top row (the recent row), ⏎ activates it.
     act(() => mockInput.pressKey("g"))
     act(() => mockInput.pressKey("g"))
-    await settle()
+    await frame()
     act(() => mockInput.pressEnter())
-    await settle()
     expect(activated).toEqual([recent.id])
   })
 
   it("per-task verbs are inert on the shortcut row", async () => {
     process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-recent-row-"))
     const deleted: string[] = []
-    const { mockInput } = await renderComponent(
+    const { frame, mockInput } = await renderComponent(
       <box flexDirection="row" height={24}>
         <HostSidebar {...sidebarProps({ recentTask: task("bravo"), onDeleteRequest: (id) => deleted.push(id) })} />
       </box>,
       { width: 46, height: 24, providers: { kv: true, notifications: true } },
     )
-    await settle()
     act(() => mockInput.pressKey("g"))
     act(() => mockInput.pressKey("g"))
-    await settle()
+    await frame()
     act(() => mockInput.pressKey("d"))
-    await settle()
+    await frame()
     expect(deleted).toEqual([])
   })
 })

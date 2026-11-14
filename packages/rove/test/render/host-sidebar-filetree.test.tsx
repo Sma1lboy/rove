@@ -16,7 +16,7 @@ import { HostFilesPane } from "../../src/tui-react/workspace/host-files-pane"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { act, renderComponent, settle } from "./harness"
+import { act, isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -78,6 +78,8 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
   }
 }
 
+isolateHome()
+
 function withTempKvHome(): void {
   process.env.ROVE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-panes-"))
 }
@@ -133,12 +135,7 @@ describe("FileTree", () => {
       { width: 44, height: 24 },
     )
     // The listing loads through an async git read — poll the real frame.
-    let text = ""
-    for (let i = 0; i < 40 && !text.includes("alpha.ts"); i++) {
-      await settle(100)
-      text = await frame()
-    }
-    expect(text).toContain("alpha.ts")
+    const text = await waitForFrameText(frame, "alpha.ts")
     expect(text).toContain("beta.md")
     // First-use footer hint, resolved from the live keymap.
     expect(text).toContain("⏎ open")
@@ -188,12 +185,7 @@ describe("HostFilesPane", () => {
       { width: 90, height: 24, providers: { focus: true } },
     )
     // The listing loads through an async git read — poll the real frame.
-    let text = ""
-    for (let i = 0; i < 40 && !text.includes("alpha.ts"); i++) {
-      await settle(100)
-      text = await frame()
-    }
-    expect(text).toContain("alpha.ts")
+    await waitForFrameText(frame, "alpha.ts")
 
     // The `a` chord fires the pane's onMention with the row's path — the
     // host pastes `@<path>` into the engine composer (mentionText).

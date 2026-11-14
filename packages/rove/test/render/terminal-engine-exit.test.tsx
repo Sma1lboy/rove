@@ -4,12 +4,14 @@
  * own. The strip appears only when the host passes positive evidence
  * (`engineExit`), and every way out it names must be reachable by a click.
  */
-import { expect, test } from "bun:test"
+import { beforeEach, expect, test } from "bun:test"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import type { EngineExit, UsageLimit } from "../../src/tui-react/panes/terminal/engine-exit-banner"
 import { MockTaskPty } from "../../src/tui/panes/terminal/pty-mock"
 import { PtyRegistry } from "../../src/tui/panes/terminal/registry"
-import { act, renderComponent, settle } from "./harness"
+import { type RenderHandle, act, isolateHome, renderComponent, settle, waitForFrameText } from "./harness"
+
+isolateHome()
 
 function mount(engineExit?: EngineExit, usageLimit?: UsageLimit) {
   const registry = new PtyRegistry((opts) => new MockTaskPty(opts))
@@ -27,6 +29,25 @@ function mount(engineExit?: EngineExit, usageLimit?: UsageLimit) {
 }
 
 const calls: string[] = []
+beforeEach(() => {
+  calls.length = 0
+})
+
+/** Poll `check` with a cap: F5 travels the key parser before Retry fires. */
+async function until(check: () => boolean, timeoutMs = 3_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!check() && Date.now() < deadline) await settle(25)
+}
+
+/** Click the strip action labelled `label`. */
+async function clickLabel({ frame, mockMouse }: RenderHandle, label: string): Promise<void> {
+  const rows = (await frame()).split("\n")
+  const y = rows.findIndex((row) => row.includes(label))
+  expect(y).toBeGreaterThanOrEqual(0)
+  await act(async () => {
+    await mockMouse.click((rows[y] ?? "").indexOf(label) + 1, y)
+  })
+}
 const exitProps = (code: number | null): EngineExit => ({
   code,
   onRetry: () => calls.push("retry"),
@@ -37,78 +58,52 @@ const exitProps = (code: number | null): EngineExit => ({
 
 test("a healthy engine draws no exit strip", async () => {
   const { frame } = await mount()
-  await settle(200)
+  await act(async () => {})
   const output = await frame()
   expect(output).not.toContain("Engine exited")
   expect(output).not.toContain("[Retry]")
 })
 
 test("the exit strip names the code and each action fires on click", async () => {
-  calls.length = 0
-  const { frame, mockMouse } = await mount(exitProps(127))
-  await settle(200)
-  expect(await frame()).toContain("Engine exited (code 127)")
+  const strip = await mount(exitProps(127))
+  await waitForFrameText(strip.frame, "Engine exited (code 127)")
 
-  for (const [label, expected] of [
-    ["[Retry]", "retry"],
-    ["[Settings → Engines]", "settings"],
-    ["[Another engine]", "another"],
-    ["[Continue in another engine]", "continue"],
-  ] as const) {
-    const rows = (await frame()).split("\n")
-    const y = rows.findIndex((row) => row.includes(label))
-    expect(y).toBeGreaterThanOrEqual(0)
-    await act(async () => {
-      await mockMouse.click((rows[y] ?? "").indexOf(label) + 1, y)
-    })
-    expect(calls.at(-1)).toBe(expected)
-  }
+  await clickLabel(strip, "[Retry]")
+  await clickLabel(strip, "[Settings → Engines]")
+  await clickLabel(strip, "[Another engine]")
+  await clickLabel(strip, "[Continue in another engine]")
   expect(calls).toEqual(["retry", "settings", "another", "continue"])
 })
 
 test("an unrecorded code still states that the engine exited", async () => {
   const { frame } = await mount(exitProps(null))
-  await settle(200)
-  const output = await frame()
+  const output = await waitForFrameText(frame, "Engine exited")
   expect(output).toContain("Engine exited")
   expect(output).not.toContain("code")
 })
 
 test("F5 is Retry while the strip is up, with no kill-the-shell confirm", async () => {
-  calls.length = 0
   const { frame, mockInput } = await mount(exitProps(1))
-  await settle(200)
+  await waitForFrameText(frame, "Engine exited")
   mockInput.pressKey("\x1b[15~")
-  await settle(300)
+  await until(() => calls.length > 0)
   expect(calls).toEqual(["retry"])
   expect(await frame()).not.toContain("kill")
 })
 
 test("a usage limit offers continue and dismiss by click, and the dead-engine strip outranks it", async () => {
-  calls.length = 0
   const limit: UsageLimit = {
     onContinueInEngine: () => calls.push("limit-continue"),
     onDismiss: () => calls.push("limit-dismiss"),
   }
-  const { frame, mockMouse } = await mount(undefined, limit)
-  await settle(200)
-  expect(await frame()).toContain("Usage limit reached")
-  for (const [label, expected] of [
-    ["[Continue in another engine]", "limit-continue"],
-    ["[Dismiss]", "limit-dismiss"],
-  ] as const) {
-    const rows = (await frame()).split("\n")
-    const y = rows.findIndex((row) => row.includes(label))
-    expect(y).toBeGreaterThanOrEqual(0)
-    await act(async () => {
-      await mockMouse.click((rows[y] ?? "").indexOf(label) + 1, y)
-    })
-    expect(calls.at(-1)).toBe(expected)
-  }
+  const banner = await mount(undefined, limit)
+  await waitForFrameText(banner.frame, "Usage limit reached")
+  await clickLabel(banner, "[Continue in another engine]")
+  await clickLabel(banner, "[Dismiss]")
+  expect(calls).toEqual(["limit-continue", "limit-dismiss"])
 
   const both = await mount(exitProps(1), limit)
-  await settle(200)
-  const output = await both.frame()
+  const output = await waitForFrameText(both.frame, "Engine exited")
   expect(output).toContain("Engine exited")
   expect(output).not.toContain("Usage limit reached")
 })

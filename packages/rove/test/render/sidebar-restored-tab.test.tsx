@@ -18,7 +18,7 @@ import { resetRowStatusForTests } from "../../src/tui-react/workspace/row-status
 import { DEFAULT_GLYPHS } from "../../src/tui/lib/glyphs"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
-import { renderComponent, settle } from "./harness"
+import { renderComponent } from "./harness"
 
 const { idle: NO_STATE_GLYPH, attention: ATTENTION_GLYPH } = DEFAULT_GLYPHS
 
@@ -52,7 +52,6 @@ async function glyphOf(status: TabStatus): Promise<string> {
     <WorktreeTreeRow rowId="alpha" flatIndex={0} task={TASK} shared={shared()} />,
     { width: 30, height: 4 },
   )
-  await settle(90)
   return await frame()
 }
 

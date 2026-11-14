@@ -12,7 +12,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -43,7 +43,6 @@ test("space switches the focused engine off and back on", async () => {
   })
   const press = async (key: string): Promise<string> => {
     act(() => mockInput.pressKey(key))
-    await settle()
     return await frame()
   }
 
@@ -65,7 +64,6 @@ test("clicking the available mark toggles it instead of opening the command edit
     providers: { kv: true, dialog: true },
   })
   act(() => mockInput.pressKey("j")) // → Engines
-  await settle()
 
   // Locate the real mark on screen rather than hard-coding a cell.
   const lines = (await frame()).split("\n")
@@ -76,7 +74,6 @@ test("clicking the available mark toggles it instead of opening the command edit
   await act(async () => {
     await mockMouse.click(x, y)
   })
-  await settle()
 
   const after = await frame()
   // Clicking the ROW opens the launch-command editor; the mark must not.
@@ -106,17 +103,13 @@ test("one line per engine; a renamed engine keeps its registry name as a subtitl
   })
   const press = async (key: string): Promise<string> => {
     act(() => mockInput.pressKey(key))
-    await settle()
     return await frame()
   }
   await press("j") // → Engines
   await press("l") // into the list (Claude)
-  let text = await press("j") // Work Codex
-  for (let i = 0; i < 50 && text.includes("Checking"); i++) {
-    await settle()
-    text = await frame()
-  }
-  if (process.env.ROVE_PRINT_FRAME) console.log(text)
+  await press("j") // Work Codex
+  // Engine health probes resolve asynchronously; wait for Aider's verdict.
+  const text = await waitForFrameText(frame, "Not on PATH")
 
   const lines = text.split("\n")
   const codexRow = lines.find((l) => l.includes("Work Codex") && l.includes("●")) ?? ""

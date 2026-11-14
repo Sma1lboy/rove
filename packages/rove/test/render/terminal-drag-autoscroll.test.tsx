@@ -37,8 +37,8 @@ const mountPane = async (
   await act(async () => {
     await handle?.frame()
   })
-  if (!handle) throw new Error("terminal mount failed")
-  const mounted = handle
+  expect(handle).toBeDefined()
+  const mounted = handle as RenderHandle
   await act(async () => {
     harness.last().feed(content)
     await mounted.frame()
@@ -46,12 +46,25 @@ const mountPane = async (
   return [mounted, harness]
 }
 
-const settle = async (handle: RenderHandle, ms: number): Promise<void> => {
+/** Let the held drag's auto-scroll interval tick for `ms`, rendering what it moved. */
+const hold = async (handle: RenderHandle, ms: number): Promise<void> => {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, ms))
     await handle.frame()
   })
 }
+
+/** Poll (rendering between checks) until `check` passes; throws after `timeoutMs`. */
+const until = async (handle: RenderHandle, check: () => boolean | Promise<boolean>, timeoutMs = 3_000) => {
+  const deadline = Date.now() + timeoutMs
+  while (!(await check())) {
+    if (Date.now() >= deadline) throw new Error(`condition not met within ${timeoutMs}ms:\n${await handle.frame()}`)
+    await hold(handle, 25)
+  }
+}
+
+const SCROLLED = /scrolled|已回滚/
+const scrolledBack = async (handle: RenderHandle): Promise<boolean> => SCROLLED.test(await handle.frame())
 
 /**
  * A selection drag held at the pane's FIRST VISIBLE ROW must pull the viewport
@@ -75,11 +88,9 @@ test("a selection drag held at the pane's top row scrolls into scrollback", asyn
       await handle.mockMouse.emitMouseEvent("drag", 20, 2)
       await handle.frame()
     })
-    await settle(handle, 250)
-
     // The scrollback affordance only draws once the viewport has left the live
     // bottom — i.e. the held drag reached history the pointer alone couldn't.
-    expect(await handle.frame()).toMatch(/scrolled|已回滚/)
+    await until(handle, () => scrolledBack(handle))
 
     // Away from the edge, the viewport must stop moving on its own.
     await act(async () => {
@@ -87,7 +98,8 @@ test("a selection drag held at the pane's top row scrolls into scrollback", asyn
       await handle.frame()
     })
     const stopped = await handle.frame()
-    await settle(handle, 250)
+    // A negative: no event marks "the interval did not fire", so give it several ticks' worth of time.
+    await hold(handle, 250)
     expect(await handle.frame()).toBe(stopped)
   } finally {
     handle.destroy()
@@ -108,8 +120,7 @@ test("a drag that leaves the pane on its first move still scrolls", async () => 
       await handle.mockMouse.emitMouseEvent("drag", 20, 0)
       await handle.frame()
     })
-    await settle(handle, 250)
-    expect(await handle.frame()).toMatch(/scrolled|已回滚/)
+    await until(handle, () => scrolledBack(handle))
   } finally {
     handle.destroy()
   }
@@ -161,7 +172,8 @@ test("a drag held at the edge scrolls an app that owns its own scrollback", asyn
       await handle.mockMouse.emitMouseEvent("drag", 20, 2)
       await handle.frame()
     })
-    await settle(handle, 250)
+    // Held at the edge, the app keeps scrolling until the selection outgrows the 11 dragged rows.
+    await until(handle, async () => (await highlightedLines()).length > 11)
     expect(wheels.length).toBeGreaterThan(0)
     expect(wheels.every((d) => d === "up")).toBe(true)
     // The app scrolls itself; the pane's own viewport must stay put.

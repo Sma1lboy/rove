@@ -49,5 +49,3 @@ describe("openDiff", () => {
     expect(h.diffTabs).toEqual([{ relPath: ".", label: "all", base: "origin/main" }])
   })
 })
-
-describe("openFileInEditor", () => {})

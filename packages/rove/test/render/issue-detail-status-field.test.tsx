@@ -57,7 +57,10 @@ test("tab reaches STATUS and ←/→ steps it, and esc carries the choice out", 
   // Focus opens on WORKSPACE for a startable story; tab wraps through
   // jump → title → description → status. Pressing the keys rather than
   // reading the frame is the point: an unregistered binding renders the same.
-  for (let i = 0; i < 4; i++) act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
   act(() => mockInput.pressArrow("right"))
   act(() => mockInput.pressArrow("right"))
 
@@ -108,7 +111,10 @@ test("h / l step STATUS exactly like ←/→", async () => {
   )
   expect(await frame()).toContain("STATUS")
 
-  for (let i = 0; i < 4; i++) act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
+  act(() => mockInput.pressTab())
   act(() => mockInput.pressKey("l"))
   act(() => mockInput.pressKey("l"))
   expect(await frame()).toContain("hold")
