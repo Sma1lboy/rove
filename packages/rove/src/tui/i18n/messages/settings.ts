@@ -17,6 +17,7 @@ import { en as autoRoutingEn, zh as autoRoutingZh } from "./settings-auto-routin
 import { en as devEn, zh as devZh } from "./settings-dev"
 import { en as engineCard, zh as engineCardZh } from "./settings-engines"
 import { en as pluginsEn, zh as pluginsZh } from "./settings-plugins"
+import { en as searchEn, zh as searchZh } from "./settings-search"
 
 export const en = {
   appearance: {
@@ -45,8 +46,8 @@ export const en = {
   title: "Settings",
   esc: "esc",
   nav: {
-    default: "j/k pick · h/l switch level · enter activate · esc close",
-    keys: "j/k pick · enter record a key · backspace default · x unbind · esc close",
+    default: "j/k pick · h/l switch level · enter activate · / search · esc close",
+    keys: "j/k pick · enter record a key · backspace default · x unbind · / search · esc close",
     feedback: "tab next field · enter sends on Send · esc close",
   },
   sections: {
@@ -262,6 +263,7 @@ export const en = {
     error: "error: {message}\n{hint}",
   },
   ...devEn,
+  ...searchEn,
 }
 
 export const zh: typeof en = {
@@ -291,8 +293,8 @@ export const zh: typeof en = {
   title: "设置",
   esc: "esc",
   nav: {
-    default: "j/k 选择 · h/l 切换层级 · enter 确认 · esc 关闭",
-    keys: "j/k 选择 · enter 录入按键 · backspace 恢复默认 · x 解绑 · esc 关闭",
+    default: "j/k 选择 · h/l 切换层级 · enter 确认 · / 搜索 · esc 关闭",
+    keys: "j/k 选择 · enter 录入按键 · backspace 恢复默认 · x 解绑 · / 搜索 · esc 关闭",
     feedback: "tab 下一项 · enter 在发送项发送 · esc 关闭",
   },
   sections: {
@@ -474,4 +476,5 @@ export const zh: typeof en = {
     error: "错误：{message}\n{hint}",
   },
   ...devZh,
+  ...searchZh,
 }

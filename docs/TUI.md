@@ -496,6 +496,11 @@ history. Dirty deletion requires a second, explicit force confirmation. Read
 Open Settings with `ctrl+a` `,`, or press `s` while the sidebar is focused.
 Use `j`/`k` to choose a section, `l` or right arrow to enter its rows, `h` or
 left arrow to return to the section list, and `enter` to activate a row.
+Press `/` to search instead: type part of a setting's name, heading or hint
+and every matching row from General, Engines, Auto routing, Keybindings and
+Dev shows in one list with the section it lives in. `↑`/`↓` pick a result and
+`enter` moves the cursor onto that row in its section, where `enter` works as
+usual. `esc` leaves the search without closing Settings.
 
 - **General** controls theme, light/dark mode, language, transparency, focus
   and split styles, notifications, keyboard hints, zen startup, editor

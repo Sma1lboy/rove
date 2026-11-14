@@ -8,6 +8,18 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## PROPOSED: `/` searches Settings
+
+**2026-11-14 — PROPOSED, owner sign-off pending.** On the Settings page, `/`
+opens a search field and lists every matching row from General, Engines, Auto
+routing, Keybindings and Dev in one list. `↑`/`↓` pick, `enter` moves the
+cursor onto that row in its own section, `esc` leaves the search and keeps
+Settings open.
+
+**Why `/`.** It already means "filter this list" in `F1` help and the sidebar.
+Settings scope only: nothing global is added or moved, and no Settings key
+used `/`. While the field is focused, `q` and every letter are typed.
+
 ## PROPOSED: `D` acks every ATTENTION item in the Inbox
 
 **2026-11-07 — PROPOSED, owner sign-off pending.** In the Inbox (TUI dialog and
