@@ -13,6 +13,8 @@
  *     stale kill triggers another autospawn.
  */
 
+import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { readFile, stat, unlink } from "node:fs/promises"
 import type { Server } from "node:net"
 import { tightenFilePermissions } from "./owner-only.ts"
@@ -45,19 +47,37 @@ export async function listenOnUnixSocket(server: Server, socketPath: string): Pr
 }
 
 /**
- * `kill(pid, 0)`: returns → alive; `ESRCH` → gone; `EPERM` (or any other
- * code) → alive — callers kill or steal locks on this, never on a guess.
- * The pid guard is load-bearing: `kill(0, 0)` hits the caller's OWN process
- * group and succeeds, so pid 0 would report a dead daemon alive.
+ * An exited process its parent never reaped. `kill(pid, 0)` still succeeds on
+ * one, and no signal removes it, so it must read as dead or its pid blocks
+ * every successor until the parent exits.
+ */
+function isZombie(pid: number): boolean {
+  try {
+    if (process.platform === "linux") {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
+      return stat.slice(stat.lastIndexOf(")") + 2).startsWith("Z")
+    }
+    if (process.platform === "win32") return false
+    return spawnSync("ps", ["-o", "stat=", "-p", String(pid)], { encoding: "utf8" }).stdout.startsWith("Z")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * `kill(pid, 0)`: returns → alive unless a zombie; `ESRCH` → gone; `EPERM`
+ * (or any other code) → alive — callers kill or steal locks on this, never on
+ * a guess. The pid guard is load-bearing: `kill(0, 0)` hits the caller's OWN
+ * process group and succeeds, so pid 0 would report a dead daemon alive.
  */
 export function isProcessAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try {
     process.kill(pid, 0)
-    return true
   } catch (err) {
     return (err as NodeJS.ErrnoException).code !== "ESRCH"
   }
+  return !isZombie(pid)
 }
 
 /**
