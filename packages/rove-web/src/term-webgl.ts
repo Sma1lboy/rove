@@ -54,10 +54,9 @@ function turnAtlas(): void {
 export function loadWebgl(term: Terminal): { dispose(): void } {
   let webgl: WebglAddon | null = null
   let glCanvas: HTMLCanvasElement | null = null
-  // A full atlas merges its pages, and rows drawn from a dropped page are blank or garbled until they change; the
-  // atlas also keeps each glyph as first drawn, before a late font (the symbols face, bold) arrived. Kitty image
-  // placeholders (a distinct glyph per cell) fill it in one paste. The merge's event fires inside a draw, so the
-  // terminal moves to the new atlas on the next frame.
+  // A full atlas merges its pages, and rows drawn from a dropped page are blank or garbled until they change.
+  // Kitty image placeholders (a distinct glyph per cell) fill it in one paste. The merge's event fires inside a draw,
+  // so the terminal moves to the new atlas on the next frame.
   let moving = 0
   const freshAtlas = () => {
     turnAtlas()
@@ -102,10 +101,18 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
       // Without the device-pixel box the addon never re-sizes its canvas after a render.
     }
   }
-  document.fonts.addEventListener("loadingdone", freshAtlas)
+  // The atlas keeps each glyph as first drawn: redraw once a late font (the symbols face, bold) arrives. Moving to a
+  // new atlas here blanks a terminal for two frames on a task switch, whose views load fonts; a font arrives a few
+  // times a page, so the clear's growth stays small.
+  const onFontLoaded = () => {
+    if (!webgl) return
+    webgl.clearTextureAtlas()
+    term.refresh(0, term.rows - 1)
+  }
+  document.fonts.addEventListener("loadingdone", onFontLoaded)
   return {
     dispose() {
-      document.fonts.removeEventListener("loadingdone", freshAtlas)
+      document.fonts.removeEventListener("loadingdone", onFontLoaded)
       if (moving) cancelAnimationFrame(moving)
       repaint.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
