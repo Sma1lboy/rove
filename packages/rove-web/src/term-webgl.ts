@@ -106,7 +106,7 @@ export function loadWebgl(term: Terminal): { dispose(): void } {
   return {
     dispose() {
       document.fonts.removeEventListener("loadingdone", freshAtlas)
-      cancelAnimationFrame(moving)
+      if (moving) cancelAnimationFrame(moving)
       repaint.disconnect()
       // A disposed renderer keeps its context until GC; past ~16 the browser kills the oldest, maybe a parked one's.
       glCanvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
