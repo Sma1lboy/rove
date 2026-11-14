@@ -93,9 +93,6 @@ jobs:
         working-directory: packages/rove
         run: bun run test
 
-      - name: Build
-        run: bun run build
-
       - name: Compute the next version
         id: version
         run: echo "version=$(node scripts/next-version.mjs "$GITHUB_RUN_NUMBER")" >> "$GITHUB_OUTPUT"
@@ -112,6 +109,16 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
           "
           echo "stamped $VERSION"
+
+      - name: Build
+        run: bun run build
+
+      - name: Check the build reports the stamped version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          got=$(node packages/rove/dist/cli/rove.js --version)
+          [ "$got" = "rove $VERSION" ] || { echo "build reports '$got', expected 'rove $VERSION'" >&2; exit 1; }
 
       - name: Configure npm auth
         run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
