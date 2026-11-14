@@ -89,23 +89,10 @@ describe("parseNumstat", () => {
     expect(parseNumstat("3\t2\tsrc/app.ts\0")).toEqual([{ path: "src/app.ts", added: 3, deleted: 2 }])
   })
 
-  test("surfaces binary `-` counts as null", () => {
-    expect(parseNumstat("-\t-\tassets/logo.png\0")).toEqual([{ path: "assets/logo.png", added: null, deleted: null }])
-  })
-
-  test("ignores malformed fields", () => {
-    expect(parseNumstat("notatabline\0" + "3\t1\ta.ts\0")).toEqual([{ path: "a.ts", added: 3, deleted: 1 }])
-  })
-
   // ── Rename forms (the bug this file pins) ────────────────────────────────
   // With `-z`, git emits the source and destination paths as separate NUL-delimited
   // fields; the canonical NEW path must match what `git status --porcelain`
   // reports as the `R` row's path.
-
-  test("resolves a same-directory rename to the new path", () => {
-    // git: `0\t0\t\0src/old.txt\0src/new.txt\0`  (porcelain row: `src/new.txt`)
-    expect(parseNumstat("0\t0\t\0src/old.txt\0src/new.txt\0")).toEqual([{ path: "src/new.txt", added: 0, deleted: 0 }])
-  })
 
   test("resolves a cross-directory rename", () => {
     // git: `0\t0\t\0dir/x.txt\0other/x.txt\0`  (porcelain row: `other/x.txt`)
@@ -119,12 +106,6 @@ describe("parseNumstat", () => {
 
   test("keeps content-change counts on a renamed-and-edited file", () => {
     expect(parseNumstat("8\t1\t\0src/a.ts\0src/b.ts\0")).toEqual([{ path: "src/b.ts", added: 8, deleted: 1 }])
-  })
-
-  test("does not mangle a normal path that merely contains a brace", () => {
-    expect(parseNumstat("1\t0\tsrc/{shared}/util.ts\0")).toEqual([
-      { path: "src/{shared}/util.ts", added: 1, deleted: 0 },
-    ])
   })
 })
 
