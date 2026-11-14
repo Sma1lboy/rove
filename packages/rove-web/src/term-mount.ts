@@ -139,11 +139,26 @@ export function mountTerminal(o: MountOpts): TermHandle {
     if (held) held.push({ bytes, chars: p.data.length })
     else if (stream) writeAcked(bytes, p.data.length)
   })
+  // A ring replay starts mid-repaint (even mid-sequence), so at an unchanged size it draws a mostly blank screen.
+  // A one-row size nudge makes the engine repaint in full (the host only SIGWINCHes on a size change).
+  const nudgeRepaint = (owner: string): Promise<unknown> => {
+    if (term.rows <= 2) return Promise.resolve()
+    return client
+      .request("term.resize", { stream: owner, cols: term.cols, rows: term.rows - 1 })
+      .then(() => new Promise((ok) => window.setTimeout(ok, 60)))
+      .then(() =>
+        stream === owner
+          ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
+          : undefined,
+      )
+  }
   // RIS and the replay are one chunk: a frame never paints between the wipe and the redraw.
   const offReset = client.on("term.reset", (raw) => {
     const p = resetPayload(raw)
     if (!p || p.stream !== expected || !stream || held) return
+    const owner = stream
     replies.replay((parsed) => writeAcked(withReset(decode(p.replay)), p.replay.length, parsed))
+    if (alive) void nudgeRepaint(owner).catch(() => {})
   })
   const offExit = client.on("term.exit", (raw) => {
     const p = streamPayload(raw)
@@ -219,20 +234,8 @@ export function mountTerminal(o: MountOpts): TermHandle {
       for (const h of held) writeAcked(h.bytes, h.chars)
       stream = res.stream
       alive = res.alive
-      // The ring replay of a long session starts mid-repaint, so a reattach at an unchanged size
-      // draws a mostly blank screen. A one-row size nudge makes the engine repaint in full (the
-      // host only SIGWINCHes on a size change).
       if (res.alive && term.rows > 2) {
-        const { cols, rows } = term
-        const owner = res.stream
-        void client
-          .request("term.resize", { stream: owner, cols, rows: rows - 1 })
-          .then(() => new Promise((ok) => window.setTimeout(ok, 60)))
-          .then(() =>
-            stream === owner
-              ? client.request("term.resize", { stream: owner, cols: term.cols, rows: term.rows })
-              : undefined,
-          )
+        void nudgeRepaint(res.stream)
           .then(() => window.setTimeout(cover.lower, 250))
           .catch(cover.lower)
       } else cover.lower()
