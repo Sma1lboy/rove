@@ -39,6 +39,8 @@ import kotlinx.serialization.json.contentOrNull
     val markers: Boolean = false,
     val screen: Boolean = false,
     val configIssue: String? = null,
+    /** The Rove agent skill: `installed`, `outdated`, `not-installed` or `unsupported`. */
+    val skill: String = "unsupported",
 ) {
     val displayName get() = name.ifEmpty { id }
 }
@@ -48,6 +50,24 @@ import kotlinx.serialization.json.contentOrNull
 object EngineLogic {
     /** What the bridge would refuse, said before the tap: the last enabled engine stays on. */
     fun canDisable(engine: EngineSetting, all: List<EngineSetting>) = all.any { it.id != engine.id && it.enabled }
+
+    /** Web Settings › Engines › Engine integrations: an engine whose CLI is not on the Mac has nothing to install into. */
+    fun hooks(all: List<EngineSetting>): InstallCount {
+        val hooked = all.filter { it.hooks != "unsupported" }
+        val hookable = hooked.filter { it.binaryFound != false }
+        return InstallCount(hookable.count { it.hooks == "installed" }, hookable.size, hooked.count { it.hooks != "not-installed" }, hooked.isNotEmpty())
+    }
+
+    /** Web Settings › Engines › Rove agent skill. */
+    fun skill(all: List<EngineSetting>): InstallCount {
+        val able = all.filter { it.skill != "unsupported" }
+        return InstallCount(able.count { it.skill == "installed" }, able.size, 0, true)
+    }
+}
+
+/** [onDisk]: engines with any Rove hook to remove. [shown]: the section applies on this Mac at all. */
+data class InstallCount(val installed: Int, val total: Int, val onDisk: Int, val shown: Boolean) {
+    val missing get() = total - installed
 }
 
 // MARK: Plugins

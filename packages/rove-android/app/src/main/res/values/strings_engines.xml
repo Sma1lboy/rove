@@ -56,6 +56,24 @@
     <string name="engines_prose_reset">Clears the name and launch-command overrides for %1$s. It goes back to its built-in settings; on or off stays as it is.</string>
     <string name="engines_failed">Request failed. Check the result before retrying.</string>
 
+    <!-- Settings → Engines: engine integrations and the Rove agent skill -->
+    <string name="engines_installed_count">%1$d of %2$d installed</string>
+    <string name="engines_up_to_date">all up to date</string>
+    <string name="engines_hooks_title">engine integrations</string>
+    <string name="engines_hooks_hint">hooks rove writes into each engine\'s own config on the mac, so a tab shows working, waiting or done the moment it happens</string>
+    <string name="engines_hooks_install">install hooks</string>
+    <string name="engines_hooks_install_count">install missing (%1$d)</string>
+    <string name="engines_hooks_remove">remove hooks</string>
+    <string name="engines_hooks_remove_count">remove all (%1$d)</string>
+    <string name="engines_hooks_prose_install">Writes Rove\'s hooks into the config of every engine on the Mac that lacks them or has an older copy.</string>
+    <string name="engines_hooks_prose_remove">Removes Rove\'s hooks from every engine\'s config on the Mac. Tabs then read their state from the screen alone.</string>
+    <string name="engines_skill_title">rove agent skill</string>
+    <string name="engines_skill_hint">teaches the agent in each engine to drive rove itself (rove api): start tasks, read other sessions, message them</string>
+    <string name="engines_skill_none">no engine here takes the skill</string>
+    <string name="engines_skill_install">install skill</string>
+    <string name="engines_skill_install_count">install (%1$d)</string>
+    <string name="engines_skill_prose_install">Copies the Rove agent skill into the config of every engine on the Mac that lacks it or has an older copy.</string>
+
     <!-- Settings → Plugins -->
     <string name="plugins_title">plugins</string>
     <string name="plugins_empty_title">no plugins</string>
